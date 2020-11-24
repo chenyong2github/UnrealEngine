@@ -724,6 +724,7 @@ ARFrameSemantics FAppleARKitConversion::ToARFrameSemantics(EARSessionTrackingFea
 		{ EARSessionTrackingFeature::PersonSegmentationWithDepth, ARFrameSemanticPersonSegmentationWithDepth },
 #if SUPPORTS_ARKIT_4_0
 		{ EARSessionTrackingFeature::SceneDepth, ARFrameSemanticSceneDepth },
+		{ EARSessionTrackingFeature::SmoothedSceneDepth, ARFrameSemanticSmoothedSceneDepth },
 #endif
 	};
 	

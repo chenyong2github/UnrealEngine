@@ -96,7 +96,6 @@ public:
 	int32 ViewDistanceScale;
 
 	/** Should we disable the GPU Timeout? Currently only applicable when using D3D12 renderer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bDisableGPUTimeout;
 
 private:

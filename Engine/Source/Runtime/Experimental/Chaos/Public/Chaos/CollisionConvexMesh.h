@@ -512,8 +512,8 @@ namespace Chaos
 						}
 
 						// Erase the second plane
-						InOutPlanes.RemoveAtSwap(PlaneIndex1);
-						InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1);
+						InOutPlanes.RemoveAtSwap(PlaneIndex1, 1, false);
+						InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1, 1, false);
 						--PlaneIndex1;
 					}
 				}
@@ -554,6 +554,25 @@ namespace Chaos
 			};
 
 			InOutFaceVertexIndices.Sort(VertexSortPredicate);
+		}
+
+		// Generate the vertex indices for all planes in CCW order (used to serialize old data that did not have structure data)
+		static void BuildPlaneVertexIndices(const TArray<TPlaneConcrete<FReal, 3>>& InPlanes, const TParticles<FReal, 3>& SurfaceParticles, TArray<TArray<int32>>& OutFaceVertexIndices, const FReal DistanceTolerance = 1.e-3f)
+		{
+			OutFaceVertexIndices.Reset(InPlanes.Num());
+			for (int32 PlaneIndex = 0; PlaneIndex < InPlanes.Num(); ++PlaneIndex)
+			{
+				for (int32 VertexIndex = 0; VertexIndex < (int32)SurfaceParticles.Size(); ++VertexIndex)
+				{
+					const FReal PlaneVertexDistance = FVec3::DotProduct(InPlanes[PlaneIndex].Normal(), SurfaceParticles.X(VertexIndex) - InPlanes[PlaneIndex].X());
+					if (FMath::Abs(PlaneVertexDistance) < DistanceTolerance)
+					{
+						OutFaceVertexIndices[PlaneIndex].Add(VertexIndex);
+					}
+				}
+
+				SortFaceVerticesCCW(InPlanes[PlaneIndex], OutFaceVertexIndices[PlaneIndex], SurfaceParticles);
+			}
 		}
 
 		// CVars variables for controlling geometry complexity checking and simplification

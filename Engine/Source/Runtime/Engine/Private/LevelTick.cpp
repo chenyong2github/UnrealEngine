@@ -1452,6 +1452,22 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 	}
 
+	// If only the DynamicLevel collection has entries, we can skip the validation and tick all levels.
+	bool bValidateLevelList = false;
+
+	for (const FLevelCollection& LevelCollection : LevelCollections)
+	{
+		if (LevelCollection.GetType() != ELevelCollectionType::DynamicSourceLevels)
+		{
+			const int32 NumLevels = LevelCollection.GetLevels().Num();
+			if (NumLevels != 0)
+			{
+				bValidateLevelList = true;
+				break;
+			}
+		}
+	}
+
 	for (int32 i = 0; i < LevelCollections.Num(); ++i)
 	{
 		// Build a list of levels from the collection that are also in the world's Levels array.
@@ -1459,7 +1475,8 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		TArray<ULevel*> LevelsToTick;
 		for (ULevel* CollectionLevel : LevelCollections[i].GetLevels())
 		{
-			if (Levels.Contains(CollectionLevel))
+			const bool bAddToTickList = (bValidateLevelList == false) || Levels.Contains(CollectionLevel);
+			if (bAddToTickList)
 			{
 				LevelsToTick.Add(CollectionLevel);
 			}

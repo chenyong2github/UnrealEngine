@@ -75,8 +75,11 @@ public:
 	void SetOpacity(float InOpacity);
 
 	/**  */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	UFUNCTION(BlueprintCallable, Category = "Appearance", meta = (DeprecatedFunction, DeprecationMessage = "Use SetDesiredSizeOverride() instead"))
 	void SetBrushSize(FVector2D DesiredSize);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetDesiredSizeOverride(FVector2D DesiredSize);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
@@ -94,15 +97,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromAsset(USlateBrushAsset* Asset);
 
-	/**  */
+	/**
+	* Sets the Brush to the specified Texture.
+	*
+	*   @param Texture Texture to use to set on Brush.
+	*	@param bMatchSize If true, image will change its size to texture size. If false, texture will be stretched to image size.
+	*/
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromTexture(UTexture2D* Texture, bool bMatchSize = false);
 
-	/**  */
+	/**
+	* Sets the Brush to the specified Atlas Region.
+	*
+	*   @param AtlasRegion Region of the Atlas to use to set on Brush.
+	*	@param bMatchSize If true, image will change its size to atlas region size. If false, atlas region will be stretched to image size.
+	*/
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromAtlasInterface(TScriptInterface<ISlateTextureAtlasInterface> AtlasRegion, bool bMatchSize = false);
 
-	/**  */
+	/**
+	* Sets the Brush to the specified Dynamic Texture.
+	*
+	*   @param Texture Dynamic Texture to use to set on Brush.
+	*	@param bMatchSize If true, image will change its size to texture size. If false, texture will be stretched to image size.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	virtual void SetBrushFromTextureDynamic(UTexture2DDynamic* Texture, bool bMatchSize = false);
 
@@ -110,7 +128,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromMaterial(UMaterialInterface* Material);
 
-	/**  */
+	/**
+	* Sets the Brush to the specified Soft Texture.
+	*
+	*   @param SoftTexture Soft Texture to use to set on Brush.
+	*	@param bMatchSize If true, image will change its size to texture size. If false, texture will be stretched to image size.
+	*/
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromSoftTexture(TSoftObjectPtr<UTexture2D> SoftTexture, bool bMatchSize = false);
 

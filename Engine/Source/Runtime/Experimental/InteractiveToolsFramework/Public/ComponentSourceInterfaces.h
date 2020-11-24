@@ -44,7 +44,7 @@ public:
 	FPrimitiveComponentTarget( UPrimitiveComponent* Component ): Component( Component ){}
 
 	/** @return true if component target is still valid. May become invalid for various reasons (eg Component was deleted out from under us) */
-	bool IsValid() const;
+	virtual bool IsValid() const;
 
 	/** @return the Actor that owns this Component */
 	AActor* GetOwnerActor() const;

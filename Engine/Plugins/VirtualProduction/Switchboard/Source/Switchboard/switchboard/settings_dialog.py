@@ -46,7 +46,8 @@ class SettingsDialog(QtCore.QObject):
         self.ui.osc_server_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_server_port_line_edit: CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
         self.ui.osc_client_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_client_port_line_edit: CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
 
-        self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PATH.update_value(widget.text()))
+        self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PROJECT_PATH.update_value(widget.text()))
+        self.ui.p4_engine_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_engine_path_line_edit: CONFIG.P4_ENGINE_PATH.update_value(widget.text()))
         self.ui.source_control_workspace_line_edit.editingFinished.connect(lambda widget=self.ui.source_control_workspace_line_edit: CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
 
         self._device_groupbox = {}
@@ -135,6 +136,12 @@ class SettingsDialog(QtCore.QObject):
 
     def set_p4_project_path(self, value):
         self.ui.p4_project_path_line_edit.setText(value)
+
+    def p4_engine_path(self):
+        return self.ui.p4_engine_path_line_edit.text()
+
+    def set_p4_engine_path(self, value):
+        self.ui.p4_engine_path_line_edit.setText(value)
 
     def source_control_workspace(self):
         return self.ui.source_control_workspace_line_edit.text()
@@ -287,8 +294,11 @@ class SettingsDialog(QtCore.QObject):
         label.setText(setting.nice_name)
 
         combo = sb_widgets.NonScrollableComboBox()
-        combo.addItems(setting.possible_values)
-        combo.setCurrentIndex(combo.findText(setting.get_value()))
+
+        for value in setting.possible_values:
+            combo.addItem(str(value), value)
+
+        combo.setCurrentIndex(combo.findData(setting.get_value()))
 
         # update the widget if the setting changes, but only when the value is actually different (to avoid endless recursion)
         # this is useful for settings that will change their value based on the input of the widget of another setting
@@ -306,13 +316,14 @@ class SettingsDialog(QtCore.QObject):
         combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
 
     def create_device_setting_line_edit(self, setting, layout):
+        
         label = QtWidgets.QLabel()
         label.setText(setting.nice_name)
         line_edit = QtWidgets.QLineEdit()
 
         value = setting.get_value()
-
         value_type = type(value)
+
         if value_type == int:
             value = str(value)
 
@@ -326,13 +337,23 @@ class SettingsDialog(QtCore.QObject):
 
         if value_type == str:
             line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(field.text()))
+
         elif value_type == int:
-            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(int(field.text())))
+
+            def le_int_editingFinished(field, setting):
+                try:
+                    text = field.text()
+                    setting.update_value(int(text))
+                except ValueError:
+                    field.setText(str(setting.get_value()))
+
+            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting : le_int_editingFinished(field=line_edit, setting=setting))
 
         def on_setting_changed(new_value, line_edit):
             if line_edit.text() != new_value:
                 line_edit.setText(str(new_value))
                 line_edit.setCursorPosition(0)
+
         setting.signal_setting_changed.connect(lambda old, new, widget=line_edit: on_setting_changed(new, widget))
 
     def create_device_setting_checkbox(self, setting, layout):
@@ -354,7 +375,7 @@ class SettingsDialog(QtCore.QObject):
             sb_widgets.set_qt_property(line_edit, "override", True)
 
         value = setting.get_value(device_name)
-        line_edit.setText(value)
+        line_edit.setText(str(value))
         line_edit.setCursorPosition(0)
         layout.addRow(label, line_edit)
 
@@ -377,12 +398,19 @@ class SettingsDialog(QtCore.QObject):
         setting.signal_setting_changed.connect(lambda old, new, setting=setting, device_name=device_name, widget=line_edit: on_base_value_changed(setting, device_name, widget))
 
     def _on_line_edit_override_editingFinished(self, widget, setting, device_name):
+
         old_value = setting.get_value(device_name)
         new_value = widget.text()
+
         if type(old_value) == int:
-            new_value = int(new_value)
+            try:
+                new_value = int(new_value)
+            except ValueError:
+                new_value = setting._original_value
+
         if new_value != old_value:
             setting.override_value(device_name, new_value)
+
         if setting.is_overriden(device_name):
             sb_widgets.set_qt_property(widget, "override", True)
         else:

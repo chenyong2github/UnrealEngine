@@ -49,6 +49,8 @@ struct FFoliageCustomVersion
 		FoliageActorSupportNoWeakPtr = 13,
 		// Foliage Instances are now always saved local to Level
 		FoliageRepairInstancesWithLevelTransform = 14,
+		// Supports discarding foliage types on load independently from density scaling
+		FoliageDiscardOnLoad = 15,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

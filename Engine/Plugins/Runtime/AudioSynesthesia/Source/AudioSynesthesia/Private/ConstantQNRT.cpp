@@ -154,6 +154,7 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRTSettings::GetSettings(const
 	return Settings;
 }
 
+#if WITH_EDITOR
 FText UConstantQNRTSettings::GetAssetActionName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaConstantQNRTSettings", "Synesthesia NRT Settings (ConstantQ)");
@@ -163,6 +164,7 @@ UClass* UConstantQNRTSettings::GetSupportedClass() const
 {
 	return UConstantQNRTSettings::StaticClass();
 }
+#endif
 
 /***************************************************************************/
 /*********************        UConstantQNRT         ************************/
@@ -260,6 +262,7 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings(const float I
 	return AnalyzerSettings;
 }
 
+#if WITH_EDITOR
 FText UConstantQNRT::GetAssetActionName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaConstantQNRT", "Synesthesia NRT (ConstantQ)");
@@ -269,6 +272,7 @@ UClass* UConstantQNRT::GetSupportedClass() const
 {
 	return UConstantQNRT::StaticClass();
 }
+#endif
 
 FName UConstantQNRT::GetAnalyzerNRTFactoryName() const 
 {

@@ -34,7 +34,7 @@ namespace Audio
 		else
 		{
 			// cancel ourselves (no source manager is bad news)
-			checkSlow(SourceManager);
+			check(SourceManager);
 			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
 		}
 		
@@ -45,7 +45,7 @@ namespace Audio
 	void FQuantizedPlayCommand::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
 		// Access source manager through owning clock (via clock manager)
-		checkSlow(OwningClockPtr && OwningClockPtr->GetMixerDevice() && OwningClockPtr->GetMixerDevice()->GetSourceManager());
+		check(OwningClockPtr && OwningClockPtr->GetMixerDevice() && OwningClockPtr->GetMixerDevice()->GetSourceManager());
 
 		// access source manager through owning clock (via clock manager)
 		// Owning Clock Ptr may be nullptr if this command was canceled.

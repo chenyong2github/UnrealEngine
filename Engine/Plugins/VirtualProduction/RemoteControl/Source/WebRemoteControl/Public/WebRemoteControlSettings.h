@@ -4,15 +4,15 @@
 
 #include "WebRemoteControlSettings.generated.h"
 
-UCLASS(config = Engine)
+UCLASS(config = WebRemoteControl)
 class WEBREMOTECONTROL_API UWebRemoteControlSettings : public UObject
 {
 public:
 	GENERATED_BODY()
 
 	UWebRemoteControlSettings()
-		: RemoteControlHttpServerPort(8080)
-		, RemoteControlWebSocketServerPort(9080)
+		: RemoteControlHttpServerPort(30010)
+		, RemoteControlWebSocketServerPort(30020)
 	{}
 
 public:

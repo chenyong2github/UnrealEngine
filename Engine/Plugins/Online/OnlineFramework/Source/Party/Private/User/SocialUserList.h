@@ -4,6 +4,7 @@
 
 #include "User/ISocialUserList.h"
 #include "UObject/GCObject.h"
+#include "PartyPackage.h"
 
 enum class EMemberExitedReason : uint8;
 
@@ -27,7 +28,7 @@ public:
 
 	bool HasPresenceFilters() const;
 
-PARTY_SCOPE:
+PACKAGE_SCOPE:
 	const FSocialUserListConfig& GetListConfig() const { return ListConfig; }
 
 private:
@@ -68,6 +69,9 @@ private:
 	void HandlePartyJoined(USocialParty& Party);
 	void HandlePartyMemberCreated(UPartyMember& Member);
 	void HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member);
+
+	USocialUser* FindOwnersRelationshipTo(UPartyMember& TargetPartyMember) const;
+	void MarkPartyMemberAsDirty(UPartyMember& PartyMember);
 
 private:
 	FSocialUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);

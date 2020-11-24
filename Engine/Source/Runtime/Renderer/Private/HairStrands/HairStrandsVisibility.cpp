@@ -79,6 +79,9 @@ static FAutoConsoleVariableRef CVarHairStrandsHairCountToTransmittance(TEXT("r.H
 static int32 GHairStrandsVisibility_UseFastPath = 0;
 static FAutoConsoleVariableRef CVarHairStrandsVisibility_UseFastPath(TEXT("r.HairStrands.Visibility.UseFastPath"), GHairStrandsVisibility_UseFastPath, TEXT("Use fast path writing hair data into Gbuffer."));
 
+static int32 GHairStrandsVisibility_OutputEmissiveData = 0;
+static FAutoConsoleVariableRef CVarHairStrandsVisibility_OutputEmissiveData(TEXT("r.HairStrands.Visibility.Emissive"), GHairStrandsVisibility_OutputEmissiveData, TEXT("Enable emissive data during the material pass."));
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -760,7 +763,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMaterialPassParameters, )
 	SHADER_PARAMETER(uint32, MaxSampleCount)
 	SHADER_PARAMETER(uint32, NodeGroupSize)
 	SHADER_PARAMETER(uint32, bUpdateSampleCoverage)
+	SHADER_PARAMETER(uint32, bOutputEmissive)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, NodeIndex)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, NodeCoord)
 	SHADER_PARAMETER_SRV(StructuredBuffer<FNodeVis>, NodeVis)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgs)
@@ -798,6 +803,12 @@ protected:
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairMaterialVS, TEXT("/Engine/Private/HairStrands/HairStrandsMaterialVS.usf"), TEXT("Main"), SF_Vertex);
 
 /////////////////////////////////////////////////////////////////////////////////////////
+
+
+static bool IsHairStrandsEmissiveEnable()
+{
+	return GHairStrandsVisibility_OutputEmissiveData > 0;
+}
 
 class FHairMaterialShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -844,7 +855,7 @@ public:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		const bool bPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Parameters.Platform);
-		OutEnvironment.SetDefine(TEXT("HAIR_MATERIAL_DEBUG_OUTPUT"), bPlatformRequireRenderTarget ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT"), (IsHairStrandsEmissiveEnable() || bPlatformRequireRenderTarget) ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("HAIRSTRANDS_HAS_NORMAL_CONNECTED"), Parameters.MaterialParameters.bHasNormalConnected ? 1 : 0);
 	}
 
@@ -1004,6 +1015,7 @@ FHairMaterialProcessor::FHairMaterialProcessor(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndex)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, NodeCoord)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNodeVis>, NodeVis)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IndirectArgs)
@@ -1069,6 +1081,7 @@ struct FMaterialPassOutput
 	static const EPixelFormat VelocityFormat = PF_G16R16;
 	FRDGBufferRef NodeData = nullptr;
 	FRDGBufferRef NodeVelocity = nullptr;
+	FRDGTextureRef EmissiveTexture = nullptr;
 };
 
 static FMaterialPassOutput AddHairMaterialPass(
@@ -1081,6 +1094,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	FRDGTextureRef CompactNodeIndex,
 	FRDGBufferRef CompactNodeVis,
 	FRDGBufferRef CompactNodeCoord,
+	FRDGTextureRef CompactNodeCounter,
 	FRDGBufferRef IndirectArgBuffer)
 {
 	if (!CompactNodeVis || !CompactNodeIndex)
@@ -1098,6 +1112,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 
 	// Add resources reference to the pass parameters, in order to get the resource lifetime extended to this pass
 	FVisibilityMaterialPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassParameters>();
+	PassParameters->TotalNodeCounter= CompactNodeCounter;
 	PassParameters->NodeIndex		= CompactNodeIndex;
 	PassParameters->NodeVis			= GraphBuilder.CreateSRV(CompactNodeVis);
 	PassParameters->NodeCoord		= GraphBuilder.CreateSRV(CompactNodeCoord);
@@ -1106,34 +1121,46 @@ static FMaterialPassOutput AddHairMaterialPass(
 	PassParameters->OutNodeVelocity	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeVelocity, FMaterialPassOutput::VelocityFormat));
 
 	// For debug purpose only
+	const bool bOutputEmissive = IsHairStrandsEmissiveEnable();
 	const bool bIsPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Scene->GetShaderPlatform()) || GRHIRequiresRenderTargetForPixelShaderUAVs;
-	if (bIsPlatformRequireRenderTarget)
+	if (bOutputEmissive)
+	{
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable);
+		Output.EmissiveTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("HairMaterialEmissiveOutput"));
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(Output.EmissiveTexture, ERenderTargetLoadAction::EClear, 0);
+		
+	}
+	else if (bIsPlatformRequireRenderTarget)
 	{
 		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable);
 		FRDGTextureRef OutDummyTexture0 = GraphBuilder.CreateTexture(OutputDesc, TEXT("HairMaterialDummyOutput"));
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutDummyTexture0, ERenderTargetLoadAction::EClear, 0);
 	}
+	
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HairStrandsMaterialPass"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage, bOutputEmissive](FRHICommandListImmediate& RHICmdList)
 	{
 		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
 
 		FMaterialPassParameters MaterialPassParameters;
 		MaterialPassParameters.bUpdateSampleCoverage = bUpdateSampleCoverage ? 1 : 0;
+		MaterialPassParameters.bOutputEmissive	= bOutputEmissive ? 1 : 0;
 		MaterialPassParameters.MaxResolution	= Resolution;
 		MaterialPassParameters.NodeGroupSize	= NodeGroupSize;
 		MaterialPassParameters.MaxSampleCount	= MaxNodeCount;
+		MaterialPassParameters.TotalNodeCounter	= PassParameters->TotalNodeCounter->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 		MaterialPassParameters.NodeIndex		= PassParameters->NodeIndex->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 		MaterialPassParameters.NodeCoord		= PassParameters->NodeCoord->GetRHI();
 		MaterialPassParameters.NodeVis			= PassParameters->NodeVis->GetRHI();
 		MaterialPassParameters.IndirectArgs		= PassParameters->IndirectArgs->GetRHI();
 		MaterialPassParameters.OutNodeData 		= PassParameters->OutNodeData->GetRHI();
 		MaterialPassParameters.OutNodeVelocity 	= PassParameters->OutNodeVelocity->GetRHI();
+
 		TUniformBufferRef<FMaterialPassParameters> MaterialPassParametersBuffer = TUniformBufferRef<FMaterialPassParameters>::CreateUniformBufferImmediate(MaterialPassParameters, UniformBuffer_SingleFrame);
 
 		FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, MaterialPassParametersBuffer);
@@ -3263,6 +3290,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							CompactNodeIndex,
 							CompactNodeData,
 							CompactNodeCoord,
+							NodeCounter,
 							IndirectArgsBuffer);
 
 						// Merge per-sample velocity into the scene velocity buffer
@@ -3289,7 +3317,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						VisibilityData.NodeCoord = CompactNodeCoord;
 						VisibilityData.NodeIndirectArg = IndirectArgsBuffer;
 						VisibilityData.NodeCount = NodeCounter;
-						VisibilityData.ResolveMaskTexture = ResolveMaskTexture;				
+						VisibilityData.ResolveMaskTexture = ResolveMaskTexture;	
+						VisibilityData.EmissiveTexture = PassOutput.EmissiveTexture;
 					}
 
 					VisibilityData.ViewHairVisibilityTexture0 = RasterOutput.VisibilityTexture0;
@@ -3425,6 +3454,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					FRDGBufferRef CompactNodeCoord;
 					FRDGBufferRef IndirectArgsBuffer;
 					FRDGTextureRef ResolveMaskTexture = nullptr;
+					FRDGTextureRef EmissiveTexture = nullptr;
 					AddHairVisibilityPrimitiveIdCompactionPass(
 						false, // bUsePPLL
 						bIsVisiblityEnable,
@@ -3458,6 +3488,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							CompactNodeIndex,
 							CompactNodeData,
 							CompactNodeCoord,
+							NodeCounter,
 							IndirectArgsBuffer);
 
 						// Merge per-sample velocity into the scene velocity buffer
@@ -3481,6 +3512,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						}
 
 						CompactNodeData = PassOutput.NodeData;
+						EmissiveTexture = PassOutput.EmissiveTexture;
 					}
 
 					// Allocate buffer for storing all the light samples
@@ -3495,6 +3527,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					 VisibilityData.NodeIndirectArg			= IndirectArgsBuffer;
 					 VisibilityData.NodeCount				= NodeCounter;
 					 VisibilityData.ResolveMaskTexture		= ResolveMaskTexture;
+					 VisibilityData.EmissiveTexture			= EmissiveTexture;
 
 					// View transmittance depth test needs to happen before the scene depth is patched with the hair depth (for fully-covered-by-hair pixels)
 					if (ViewTransmittance.HairCountTexture)

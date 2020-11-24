@@ -683,6 +683,8 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/** Notification when anything changed */
 	DECLARE_MULTICAST_DELEGATE(FOnMeshChanged);
 #endif
+public:
+	ENGINE_API ~UStaticMesh();
 
 private:
 
@@ -1509,7 +1511,7 @@ public:
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	ENGINE_API virtual void PostInitProperties() override;
 	ENGINE_API virtual void PostLoad() override;
-	virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -1519,13 +1521,13 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface
-	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
-	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
-	virtual bool HasPendingRenderResourceInitialization() const final override;
-	virtual bool StreamOut(int32 NewMipCount) final override;
-	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::StaticMesh; }
+	ENGINE_API virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
+	ENGINE_API virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool HasPendingRenderResourceInitialization() const final override;
+	ENGINE_API virtual bool StreamOut(int32 NewMipCount) final override;
+	ENGINE_API virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	ENGINE_API virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::StaticMesh; }
 	//~ End UStreamableRenderAsset Interface
 
 #if USE_BULKDATA_STREAMING_TOKEN
@@ -1682,10 +1684,10 @@ public:
 	int32 GetNumSectionsWithCollision() const;
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 

@@ -31,7 +31,7 @@ class FCopyConvergedLightmapTilesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return true;// ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -62,7 +62,7 @@ class FUploadConvergedLightmapTilesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return true;// ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -91,7 +91,7 @@ class FSelectiveLightmapOutputCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return true;// ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -121,7 +121,7 @@ class FMultiTileClearCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return true;// ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -168,13 +168,15 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 {
 	FPathTracingLightData LightParameters;
 
+	FMemory::Memzero(LightParameters);
+
 	LightParameters.Count = 0;
 
 	// Prepend SkyLight to light buffer
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
 	LightParameters.Type[SkyLightIndex] = 0;
-	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector();
+	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector(0);
 	LightParameters.Mobility[SkyLightIndex] = (LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary) ? 1 : 0;
 	uint32 Transmission = 1;
 	uint8 LightingChannelMask = 0b111;
@@ -812,13 +814,20 @@ void FSceneRenderState::SetupRayTracingScene()
 			PSOInitializer.bAllowHitGroupIndexing = true;
 
 			TArray<FRHIRayTracingShader*> RayGenShaderTable;
-			FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
-
-			PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(LightmapRenderer->bUseFirstBounceRayGuiding);
-			PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVolumetricLightmapPathTracingRGS>().GetRayTracingShader());
+			{
+				FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(LightmapRenderer->bUseFirstBounceRayGuiding);
+				PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
+				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
+			}
+			{
+				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
+			}
+			{
+				FVolumetricLightmapPathTracingRGS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FVolumetricLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
+				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVolumetricLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
+			}
 			PSOInitializer.SetRayGenShaderTable(RayGenShaderTable);
 
 			auto DefaultClosestHitShader = GetGlobalShaderMap(ERHIFeatureLevel::SM5)->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
@@ -1218,9 +1227,18 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 	if (!bInsideBackgroundTick && bOnlyBakeWhatYouSee)
 	{
-		if (PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile(); }).Num() > 0)
+		TArray<FLightmapTileRequest> ScreenOutputTiles = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile(); });
+		if (ScreenOutputTiles.Num() > 0)
 		{
-			TilesVisibleLastFewFrames[(FrameNumber - 1 + TilesVisibleLastFewFrames.Num()) % TilesVisibleLastFewFrames.Num()] = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile();	});
+			TilesVisibleLastFewFrames[(FrameNumber - 1 + TilesVisibleLastFewFrames.Num()) % TilesVisibleLastFewFrames.Num()] = ScreenOutputTiles;
+			
+			if (bIsRecordingTileRequests)
+			{
+				for (FLightmapTileRequest& Tile : ScreenOutputTiles)
+				{
+					RecordedTileRequests.AddUnique(Tile);
+				}
+			}
 		}
 	}
 
@@ -2851,9 +2869,9 @@ void FLightmapRenderer::BackgroundTick()
 
 			const int32 WorkToGenerate = 512;
 
-			for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
+			if (RecordedTileRequests.Num() > 0)
 			{
-				for (FLightmapTileRequest& Tile : FrameRequests)
+				for (FLightmapTileRequest& Tile : RecordedTileRequests)
 				{
 					if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 					{
@@ -2864,6 +2882,26 @@ void FLightmapRenderer::BackgroundTick()
 						if (WorkGenerated >= WorkToGenerate)
 						{
 							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
+				{
+					for (FLightmapTileRequest& Tile : FrameRequests)
+					{
+						if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+						{
+							PendingTileRequests.AddUnique(Tile);
+
+							WorkGenerated++;
+
+							if (WorkGenerated >= WorkToGenerate)
+							{
+								break;
+							}
 						}
 					}
 				}
@@ -2908,6 +2946,30 @@ void FLightmapRenderer::BumpRevision()
 	{
 		FrameRequests.Empty();
 	}	
+
+	RecordedTileRequests.Empty();
+}
+
+void FLightmapRenderer::DeduplicateRecordedTileRequests()
+{
+	RecordedTileRequests.Sort([](const FLightmapTileRequest& A, const FLightmapTileRequest& B) { return A.VirtualCoordinates.MipLevel > B.VirtualCoordinates.MipLevel; });
+
+	for (int32 Index = 0; Index < RecordedTileRequests.Num(); Index++)
+	{
+		FLightmapTileRequest& Tile = RecordedTileRequests[Index];
+		if (RecordedTileRequests.FindByPredicate([&Tile](const FLightmapTileRequest& Entry) { 
+			return Entry.VirtualCoordinates.MipLevel == Tile.VirtualCoordinates.MipLevel - 1
+				&& Entry.VirtualCoordinates.Position.X >= Tile.VirtualCoordinates.Position.X * 2
+				&& Entry.VirtualCoordinates.Position.Y >= Tile.VirtualCoordinates.Position.Y * 2
+				&& Entry.VirtualCoordinates.Position.X < (Tile.VirtualCoordinates.Position.X + 1) * 2
+				&& Entry.VirtualCoordinates.Position.Y < (Tile.VirtualCoordinates.Position.Y + 1) * 2
+				;
+		}))
+		{
+			RecordedTileRequests.RemoveAt(Index);
+			Index--;
+		}
+	}
 }
 
 void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)

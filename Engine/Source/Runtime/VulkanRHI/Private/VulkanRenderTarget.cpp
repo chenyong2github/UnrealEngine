@@ -944,10 +944,11 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-			if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+			// Removed this temporarily as we need a way to determine if the target is actually memoryless
+			/*if (Texture->Surface.UEFlags & TexCreate_Memoryless)
 			{
 				ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
-			}
+			}*/
 
 			// If the initial != final we need to change the FullHashInfo and use FinalLayout
 			CurrDesc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1005,11 +1006,12 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			CurrDesc.storeOp = RenderTargetStoreActionToVulkan(RTInfo.DepthStencilRenderTarget.DepthStoreAction);
 			CurrDesc.stencilStoreOp = RenderTargetStoreActionToVulkan(RTInfo.DepthStencilRenderTarget.GetStencilStoreAction());
 
-			if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+			// Removed this temporarily as we need a way to determine if the target is actually memoryless
+			/*if (Texture->Surface.UEFlags & TexCreate_Memoryless)
 			{
 				ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
 				ensure(CurrDesc.stencilStoreOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
-			}
+			}*/
 		}
 		else
 		{
@@ -1246,31 +1248,46 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 		}
 
-		ensure(CurrentDSLayout != VK_IMAGE_LAYOUT_UNDEFINED);
-		DepthStencilLayout = VulkanRHI::GetDepthStencilLayout(ExclusiveDepthStencil, InDevice);
-		if (DepthStencilLayout != CurrentDSLayout)
+		// Make sure that the requested depth-stencil access is compatible with the current layout of the DS target.
+		const bool bWritableDepth = ExclusiveDepthStencil.IsDepthWrite();
+		const bool bWritableStencil = ExclusiveDepthStencil.IsStencilWrite();
+		switch (CurrentDSLayout)
 		{
-			// The high level code doesn't transition writable depth/stencil to readable. In that case, we cannot simply use the layout which corresponds to RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil,
-			// because it will be different from the actual layout of the surface. Check that the requested layout is compatible with the current layout (i.e. it doesn't try to write to an aspect that's read-only),
-			// and if it is, use the current layout instead in the attachment description.
-			switch (CurrentDSLayout)
-			{
 			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-				// Both aspects were writable, any destination state with at least one read-only aspect is valid.
-				ensure(DepthStencilLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL || DepthStencilLayout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR || DepthStencilLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR);
+				// Writable depth-stencil is compatible with all the requested modes.
 				break;
-			case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR:
-			case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR:
-				// Only one aspect is writable, the only valid destination is read-only for both aspects.
-				ensure(DepthStencilLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-				break;
-			default:
-				ensureMsgf(false, TEXT("Depth target is in layout %u, expected %u. Please add a transition before starting the render pass."), CurrentDSLayout, DepthStencilLayout);
-				break;
-			}
 
-			DepthStencilLayout = CurrentDSLayout;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+				// Read-only on both aspects requires the requested access to be read-only.
+				ensureMsgf(!bWritableDepth && !bWritableStencil, TEXT("Both aspects of the DS target are read-only, but the requested mode requires write access: D=%s S=%s."),
+					ExclusiveDepthStencil.IsUsingDepth() ? (ExclusiveDepthStencil.IsDepthWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop"),
+					ExclusiveDepthStencil.IsUsingStencil() ? (ExclusiveDepthStencil.IsStencilWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop")
+				);
+				break;
+
+			case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR:
+				// If only stencil is writable, the requested depth access must be read-only.
+				ensureMsgf(!bWritableDepth, TEXT("The depth aspect is read-only, but the requested mode requires depth writes: D=%s S=%s."),
+					ExclusiveDepthStencil.IsUsingDepth() ? (ExclusiveDepthStencil.IsDepthWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop"),
+					ExclusiveDepthStencil.IsUsingStencil() ? (ExclusiveDepthStencil.IsStencilWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop")
+				);
+				break;
+
+			case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR:
+				// If only depth is writable, the requested stencil access must be read-only.
+				ensureMsgf(!bWritableStencil, TEXT("The stencil aspect is read-only, but the requested mode requires stencil writes: D=%s S=%s."),
+					ExclusiveDepthStencil.IsUsingDepth() ? (ExclusiveDepthStencil.IsDepthWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop"),
+					ExclusiveDepthStencil.IsUsingStencil() ? (ExclusiveDepthStencil.IsStencilWrite() ? TEXT("Write") : TEXT("Read")) : TEXT("Nop")
+				);
+				break;
+
+			default:
+				// Any other layout is invalid when starting a render pass.
+				ensureMsgf(false, TEXT("Depth target is in layout %u, which is invalid for a render pass."), CurrentDSLayout);
+				break;
 		}
+
+		DepthStencilLayout = CurrentDSLayout;
 
 		// If the initial != final we need to change the FullHashInfo and use FinalLayout
 		CurrDesc.initialLayout = DepthStencilLayout;
@@ -1290,9 +1307,6 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		++NumAttachmentDescriptions;
 
 		bHasDepthStencil = true;
-
-		ensure(!bMultiviewRenderTargets || Texture->Surface.NumArrayLevels > 1);
-		bMultiviewRenderTargets = Texture->Surface.NumArrayLevels > 1;
 
 		if (bSetExtent)
 		{

@@ -190,6 +190,7 @@ FEvaluateOutput Evaluate(
 		OutSample.Roughness = GetMaterialRoughness(PixelMaterialInputs);
 		OutSample.Specular = GetMaterialSpecular(PixelMaterialInputs);
 		OutSample.Backlit = saturate(GetMaterialCustomData0(MaterialParameters));
+		OutSample.Emissive = GetMaterialEmissive(PixelMaterialInputs);
 
 	#if HAIRSTRANDS_HAS_NORMAL_CONNECTED
 	  #if MATERIAL_TANGENTSPACENORMAL 

@@ -356,25 +356,11 @@ namespace Chaos
 
 	void FPBDJointConstraints::GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const
 	{
-		// The solver assumes its two particles are ordered Kinematic-Dynamic or Dynamic-Dynamic, and that the "Parent" is first.
-		// In ConstraintInstance the parent is second, so by default we need to flip the indices before we pass them to the solver. 
-		// However, it is possible to set up ConstraintInstance so the first (child) particle is kinematic, so in this case we would 
-		// not flip the indices. We don't care about the order if both particles are kinematic.
-		// @todo(chaos): We implicitly assume that if only one particle is Kinematic then it is the parent. As mentioned above, this is 
-		// potentially not true so we may need to support Dynamic-Kinematic in the solver after all. The only side effect of the parent-child
-		// swapping that occurs if we don't support this is when have asymmetric cone limits, because the cone axes should be in parent space.
-		const TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
-		const bool bIsKinematic0 = (Particle0 == nullptr) || (Particle0->ObjectState() == EObjectStateType::Kinematic) || (Particle0->ObjectState() == EObjectStateType::Static);
-		if (bIsKinematic0)
-		{
-			Index0 = 0;
-			Index1 = 1;
-		}
-		else
-		{
-			Index0 = 1;
-			Index1 = 0;
-		}
+		// In solvers we need Particle0 to be the parent particle but ConstraintInstance has Particle1 as the parent, so by default
+		// we need to flip the indices before we pass them to the solver. 
+
+		Index0 = 1;
+		Index1 = 0;
 	}
 
 	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FRigidTransform3& WorldConstraintFrame)
@@ -1094,8 +1080,8 @@ namespace Chaos
 
 		FJointSolverJointState& JointState = SolverConstraintStates[JointIndex];
 		bool bUpdateVelocity = false;	// Position-based collision solver does not need V() and W()
-		UpdateParticleState(Particle0, Dt, JointState.PrevPs[0], JointState.PrevQs[0], JointState.Ps[0], JointState.Qs[0], bUpdateVelocity);
-		UpdateParticleState(Particle1, Dt, JointState.PrevPs[1], JointState.PrevQs[1], JointState.Ps[1], JointState.Qs[1], bUpdateVelocity);
+		UpdateParticleState(Particle0, Dt, JointState.PrevPs[Index0], JointState.PrevQs[Index0], JointState.Ps[Index0], JointState.Qs[Index0], bUpdateVelocity);
+		UpdateParticleState(Particle1, Dt, JointState.PrevPs[Index1], JointState.PrevQs[Index1], JointState.Ps[Index1], JointState.Qs[Index1], bUpdateVelocity);
 	}
 
 	bool FPBDJointConstraints::ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)

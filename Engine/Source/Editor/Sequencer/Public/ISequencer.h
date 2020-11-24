@@ -177,6 +177,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorAddedToSequencer, AActor*, const FGuid);
 
+	DECLARE_MULTICAST_DELEGATE(FOnTreeViewChanged);
+
 public:
 
 	/** Close the sequencer. */
@@ -559,6 +561,9 @@ public:
 	/** Gets a multicast delegate which is executed whenever the user stops scrubbing. */
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() = 0;
 
+	/** Gets a multicast delegate which is executed whenever the sequencer tree view changes, like when an object is added, or filtered from the view*/
+	virtual FOnTreeViewChanged& OnTreeViewChanged() = 0;
+
 	/** Gets a multicast delegate which is executed whenever the movie scene data is changed. */
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() = 0;
 
@@ -599,7 +604,7 @@ public:
 	virtual void Pause() = 0;
 
 	/** Getter for sequencer settings */
-	virtual USequencerSettings* GetSequencerSettings() = 0;
+	virtual USequencerSettings* GetSequencerSettings() const = 0;
 
 	/** Setter for sequencer settings */
 	virtual void SetSequencerSettings(USequencerSettings*) = 0;

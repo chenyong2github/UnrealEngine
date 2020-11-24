@@ -212,26 +212,27 @@ FReply SSCSEditor::TryHandleAssetDragDropOperation(const FDragDropEvent& DragDro
 					}
 				}
 
-				// Only set focus to the last item created
-				const bool bSetFocusToNewItem = (DroppedAssetIdx == NumAssets - 1);
+				FAddNewComponentParams NewComponentParams;
+				NewComponentParams.bSkipMarkBlueprintModified = true;
+				NewComponentParams.bSetFocusToNewItem = (DroppedAssetIdx == NumAssets - 1); // Only set focus to the last item created
 
 				TSubclassOf<UActorComponent> MatchingComponentClassForAsset = FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass);
 				if (MatchingComponentClassForAsset != nullptr)
 				{
-					AddNewComponent(MatchingComponentClassForAsset, Asset, true, bSetFocusToNewItem );
+					AddNewComponent(MatchingComponentClassForAsset, Asset, NewComponentParams);
 					bMarkBlueprintAsModified = true;
 				}
 				else if ((PotentialComponentClass != nullptr) && !PotentialComponentClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists))
 				{
 					if (PotentialComponentClass->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent))
 					{
-						AddNewComponent(PotentialComponentClass, nullptr, true, bSetFocusToNewItem );
+						AddNewComponent(PotentialComponentClass, nullptr, NewComponentParams);
 						bMarkBlueprintAsModified = true;
 					}
 				}
 				else if ((PotentialActorClass != nullptr) && !PotentialActorClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists | CLASS_NotPlaceable))
 				{
-					AddNewComponent(UChildActorComponent::StaticClass(), PotentialActorClass, true, bSetFocusToNewItem );
+					AddNewComponent(UChildActorComponent::StaticClass(), PotentialActorClass, NewComponentParams);
 					bMarkBlueprintAsModified = true;
 				}
 			}
@@ -4569,6 +4570,9 @@ void SSCSEditor::OnDuplicateComponent()
 
 		const FScopedTransaction Transaction(SelectedNodes.Num() > 1 ? LOCTEXT("DuplicateComponents", "Duplicate Components") : LOCTEXT("DuplicateComponent", "Duplicate Component"));
 
+		FAddNewComponentParams NewComponentParams;
+		NewComponentParams.bConformTransformToParent = false;
+
 		TMap<USceneComponent*, USceneComponent*> DuplicateSceneComponentMap;
 		for (int32 i = 0; i < SelectedNodes.Num(); ++i)
 		{
@@ -4576,7 +4580,7 @@ void SSCSEditor::OnDuplicateComponent()
 			{
 				USCS_Node* SCSNode = SelectedNodes[i]->GetSCSNode();
 				check(SCSNode == nullptr || SCSNode->ComponentTemplate == ComponentTemplate);
-				UActorComponent* CloneComponent = AddNewComponent(ComponentTemplate->GetClass(), (SCSNode ? (UObject*)SCSNode : ComponentTemplate));
+				UActorComponent* CloneComponent = AddNewComponent(ComponentTemplate->GetClass(), (SCSNode ? (UObject*)SCSNode : ComponentTemplate), NewComponentParams);
 				if (USceneComponent* SceneClone = Cast<USceneComponent>(CloneComponent))
 				{
 					DuplicateSceneComponentMap.Add(CastChecked<USceneComponent>(ComponentTemplate), SceneClone);
@@ -5518,7 +5522,7 @@ bool SSCSEditor::IsEditingAllowed() const
 	return AllowEditing.Get() && nullptr == GEditor->PlayWorld;
 }
 
-UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified, const bool bSetFocusToNewItem )
+UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject* Asset, const FAddNewComponentParams Params)
 {
 	if (NewComponentClass->ClassWithin && NewComponentClass->ClassWithin != UObject::StaticClass())
 	{
@@ -5534,7 +5538,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 
 	// If an 'add' transaction is ongoing, it is most likely because AddNewComponent() is being called in a tight loop inside a larger transaction (e.g. 'duplicate')
 	// and bSetFocusToNewItem was true for each element.
-	if (DeferredOngoingCreateTransaction.IsValid() && bSetFocusToNewItem)
+	if (DeferredOngoingCreateTransaction.IsValid() && Params.bSetFocusToNewItem)
 	{
 		// Close the ongoing 'add' sub-transaction before staring another one. The user will not be able to edit the name of that component because the
 		// new component is going to still focus.
@@ -5596,7 +5600,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		NewComponent = NewSCSNode->ComponentTemplate;
 
 		FAddedNodeDetails NewNodeDetails;
-		AddNewNode(NewNodeDetails, MoveTemp(AddTransaction), NewSCSNode, Asset, bMarkBlueprintModified, bSetFocusToNewItem);
+		AddNewNode(NewNodeDetails, MoveTemp(AddTransaction), NewSCSNode, Asset, bMarkBlueprintModified, Params.bSetFocusToNewItem);
 
 		if (ComponentTemplate)
 		{
@@ -5607,16 +5611,19 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			NewComponent->UpdateComponentToWorld();
 		}
 
-		if (USceneComponent* AsSceneComp = Cast<USceneComponent>(NewComponent))
+		if (Params.bConformTransformToParent)
 		{
-			if (USceneComponent* ParentSceneComp = CastChecked<USceneComponent>(NewNodeDetails.ParentNodePtr->GetComponentTemplate(), ECastCheckedType::NullAllowed))
-			{ 
-				ConformTransformRelativeToParent(AsSceneComp, ParentSceneComp);
+			if (USceneComponent* AsSceneComp = Cast<USceneComponent>(NewComponent))
+			{
+				if (USceneComponent* ParentSceneComp = CastChecked<USceneComponent>(NewNodeDetails.ParentNodePtr->GetComponentTemplate(), ECastCheckedType::NullAllowed))
+				{ 
+					ConformTransformRelativeToParent(AsSceneComp, ParentSceneComp);
+				}
 			}
 		}
 
 		// Wait until here to mark as structurally modified because we don't want any RerunConstructionScript() calls to happen until AFTER we've serialized properties from the source object.
-		if (!bSkipMarkBlueprintModified)
+		if (!Params.bSkipMarkBlueprintModified)
 		{
 			bAllowTreeUpdates = true;
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
@@ -5629,7 +5636,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			// Create a duplicate of the provided template
 			NewComponent = FComponentEditorUtils::DuplicateComponent(ComponentTemplate);
 			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewComponent);
-			AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewComponent, ParentNodePtr, nullptr, bSetFocusToNewItem);
+			AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewComponent, ParentNodePtr, nullptr, Params.bSetFocusToNewItem);
 		}
 		else if (AActor* ActorInstance = GetActorContext())
 		{
@@ -5713,7 +5720,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			// If the running the construction script destroyed the new node, don't create an entry for it
 			if (!NewInstanceComponent->IsPendingKill())
 			{
-				AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, bSetFocusToNewItem);
+				AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, Params.bSetFocusToNewItem);
 				NewComponent = NewInstanceComponent;
 			}
 		}

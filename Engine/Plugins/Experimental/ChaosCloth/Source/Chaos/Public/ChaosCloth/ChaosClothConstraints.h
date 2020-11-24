@@ -21,6 +21,7 @@ namespace Chaos
 	template<typename T, int d> class TPBDSphericalBackstopConstraint;
 	template<typename T, int d> class TPBDAnimDriveConstraint;
 	template<typename T, int d> class TPBDShapeConstraints;
+	template<typename T, int d> class TPBDCollisionSpringConstraints;
 
 	class FClothConstraints final
 	{
@@ -40,7 +41,6 @@ namespace Chaos
 		// ---- End of Solver interface ----
 
 		// ---- Cloth interface ----
-		void SetEdgeConstraints(TArray<TVector<int32, 2>>&& Edges, float EdgeStiffness, bool bUseXPBDConstraints);
 		void SetEdgeConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints);
 		void SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints);
 		void SetBendingConstraints(TArray<TVector<int32, 4>>&& BendingElements, float BendingStiffness);
@@ -52,6 +52,7 @@ namespace Chaos
 		void SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers);
 		void SetShapeTargetConstraints(float ShapeTargetStiffness);
+		void SetSelfCollisionConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, TSet<TVector<int32, 2>>&& DisabledCollisionElements, float SelfCollisionThickness);
 
 		void CreateRules();
 		void Enable(bool bEnable);
@@ -61,12 +62,8 @@ namespace Chaos
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----
-		const TSharedPtr<FPBDSpringConstraints>& GetTwoEdgeConstraints() const { return TwoEdgeConstraints; }  
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXTwoEdgeConstraints() const { return XTwoEdgeConstraints; }
-		const TSharedPtr<FPBDSpringConstraints> GetThreeEdgeConstraints() const { return ThreeEdgeConstraints; }
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXThreeEdgeConstraints() const { return XThreeEdgeConstraints; } 
-		const TSharedPtr<FPBDSpringConstraints>& GetEdgeConstraints() const { return EdgeConstraints; }
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXEdgeConstraints() const { return XEdgeConstraints; }
+		const TSharedPtr<FPBDSpringConstraints> GetEdgeConstraints() const { return EdgeConstraints; }
+		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXEdgeConstraints() const { return XEdgeConstraints; } 
 		const TSharedPtr<FPBDSpringConstraints>& GetBendingConstraints() const { return BendingConstraints; }  
 		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXBendingConstraints() const { return XBendingConstraints; }
 		const TSharedPtr<TPBDBendingConstraints<float>>& GetBendingElementConstraints() const { return BendingElementConstraints; }
@@ -80,13 +77,10 @@ namespace Chaos
 		const TSharedPtr<TPBDSphericalBackstopConstraint<float, 3>>& GetBackstopConstraints() const { return BackstopConstraints; }
 		const TSharedPtr<TPBDAnimDriveConstraint<float, 3>>& GetAnimDriveConstraints() const { return AnimDriveConstraints; }
 		const TSharedPtr<TPBDShapeConstraints<float, 3>>& GetShapeConstraints() const { return ShapeConstraints; }
+		const TSharedPtr<TPBDCollisionSpringConstraints<float, 3>>& GetSelfCollisionConstraints() const { return SelfCollisionConstraints; }
 		// ---- End of debug functions ----
 
 	private:
-		TSharedPtr<FPBDSpringConstraints> TwoEdgeConstraints;
-		TSharedPtr<TXPBDSpringConstraints<float, 3>> XTwoEdgeConstraints;
-		TSharedPtr<FPBDSpringConstraints> ThreeEdgeConstraints;
-		TSharedPtr<TXPBDSpringConstraints<float, 3>> XThreeEdgeConstraints;
 		TSharedPtr<FPBDSpringConstraints> EdgeConstraints;
 		TSharedPtr<TXPBDSpringConstraints<float, 3>> XEdgeConstraints;
 		TSharedPtr<FPBDSpringConstraints> BendingConstraints;
@@ -102,6 +96,7 @@ namespace Chaos
 		TSharedPtr<TPBDSphericalBackstopConstraint<float, 3>> BackstopConstraints;
 		TSharedPtr<TPBDAnimDriveConstraint<float, 3>> AnimDriveConstraints;
 		TSharedPtr<TPBDShapeConstraints<float, 3>> ShapeConstraints;
+		TSharedPtr<TPBDCollisionSpringConstraints<float, 3>> SelfCollisionConstraints;
 		
 		TPBDEvolution<float, 3>* Evolution;
 		const TArray<TVector<float, 3>>* AnimationPositions;

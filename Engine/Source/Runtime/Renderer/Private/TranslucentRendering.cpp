@@ -590,9 +590,21 @@ bool FSceneRenderer::ShouldRenderTranslucency(ETranslucencyPass::Type Translucen
 	return false;
 }
 
+FScreenPassTextureViewport FSeparateTranslucencyDimensions::GetInstancedStereoViewport(const FViewInfo& View, float InstancedStereoWidth) const
+{
+	FIntRect ViewRect = View.ViewRect;
+	if (View.IsInstancedStereoPass() && !View.bIsMultiViewEnabled)
+	{
+		ViewRect.Max.X = ViewRect.Min.X + InstancedStereoWidth;
+	}
+	ViewRect = GetScaledRect(ViewRect, Scale);
+	return FScreenPassTextureViewport(Extent, ViewRect);
+}
+
 void SetupDownsampledTranslucencyViewParameters(
 	const FViewInfo& View,
-	FScreenPassTextureViewport DownsampledTranslucencyViewport,
+	FIntPoint TextureExtent,
+	FIntRect ViewRect,
 	FViewUniformShaderParameters& DownsampledTranslucencyViewParameters)
 {
 	DownsampledTranslucencyViewParameters = *View.CachedViewUniformShaderParameters;
@@ -600,8 +612,8 @@ void SetupDownsampledTranslucencyViewParameters(
 	// Update the parts of DownsampledTranslucencyParameters which are dependent on the buffer size and view rect
 	View.SetupViewRectUniformBufferParameters(
 		DownsampledTranslucencyViewParameters,
-		DownsampledTranslucencyViewport.Extent,
-		DownsampledTranslucencyViewport.Rect,
+		TextureExtent,
+		ViewRect,
 		View.ViewMatrices,
 		View.PrevViewInfo.ViewMatrices);
 }
@@ -748,12 +760,12 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }
 
-static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& View, const FScreenPassTextureViewport& SeparateTranslucencyViewport, FMeshPassProcessorRenderState& DrawRenderState)
+static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& View, FIntPoint TextureExtent, float ViewportScale, FMeshPassProcessorRenderState& DrawRenderState)
 {
 	Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
 	FViewUniformShaderParameters DownsampledTranslucencyViewParameters;
-	SetupDownsampledTranslucencyViewParameters(View, SeparateTranslucencyViewport, DownsampledTranslucencyViewParameters);
+	SetupDownsampledTranslucencyViewParameters(View, TextureExtent, GetScaledRect(View.ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
 	Scene->UniformBuffers.UpdateViewUniformBufferImmediate(DownsampledTranslucencyViewParameters);
 	DrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 
@@ -763,7 +775,7 @@ static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& 
 		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
-		SetupDownsampledTranslucencyViewParameters(InstancedView, SeparateTranslucencyViewport, DownsampledTranslucencyViewParameters);
+		SetupDownsampledTranslucencyViewParameters(InstancedView, TextureExtent, GetScaledRect(InstancedView.ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
 		Scene->UniformBuffers.InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters));
 		DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 	}
@@ -780,7 +792,7 @@ static void RenderViewTranslucencyInner(
 {
 	FMeshPassProcessorRenderState DrawRenderState(View);
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	UpdateSeparateTranslucencyViewState(SceneRenderer.Scene, View, Viewport, DrawRenderState);
+	UpdateSeparateTranslucencyViewState(SceneRenderer.Scene, View, Viewport.Extent, ViewportScale, DrawRenderState);
 	SceneRenderer.SetStereoViewport(RHICmdList, View, ViewportScale);
 
 	if (!View.Family->UseDebugViewPS())
@@ -970,7 +982,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-			const FScreenPassTextureViewport SeparateTranslucencyViewport = SeparateTranslucencyDimensions.GetViewport(View.ViewRect);
+			const FScreenPassTextureViewport SeparateTranslucencyViewport = SeparateTranslucencyDimensions.GetInstancedStereoViewport(View, InstancedStereoWidth);
 			const bool bCompositeBackToSceneColor = IsMainTranslucencyPass(TranslucencyPass) || EnumHasAnyFlags(TranslucencyView, ETranslucencyView::UnderWater);
 			checkf(bCompositeBackToSceneColor || OutSeparateTranslucencyTextures, TEXT("OutSeparateTranslucencyTextures is null, but we aren't compositing immediately back to scene color."));
 

@@ -751,6 +751,18 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&UpdateExecContext.Parameters);
 	}
 
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+		}
+		for (UNiagaraParameterCollection* Collection : UpdateExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+		}
+	}
+
 	for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
 	{
 		for (UNiagaraParameterCollection* Collection : EventContext.Script->GetCachedParameterCollectionReferences())
@@ -809,6 +821,21 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		//SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 		//ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 	}
+}
+
+int32 FNiagaraEmitterInstance::GetNumParticlesGPUInternal() const
+{
+	check(GPUExecContext);
+
+	// If our fence has not been passed return the TotalSpawnedParticles as a 'guess' to the amount
+	FNiagaraComputeSharedContext* GPUSharedContext = GetParentSystemInstance()->GetComputeSharedContext();
+	if (GPUSharedContext->ParticleCountReadFence > GPUSharedContext->ParticleCountWriteFence)
+	{
+		return TotalSpawnedParticles;
+	}
+
+	// If the fence has passed we read directly from the GPU Exec Context which will have the most up-to-date information
+	return GPUExecContext->ScratchNumInstances;
 }
 
 const FNiagaraEmitterHandle& FNiagaraEmitterInstance::GetEmitterHandle() const

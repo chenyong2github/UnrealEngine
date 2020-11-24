@@ -30,6 +30,7 @@ class SFilterList;
 class SPathView;
 class SSplitter;
 class UFactory;
+class UToolMenu;
 class SExpandableSearchArea;
 class UContentBrowserToolbarMenuContext;
 
@@ -498,6 +499,15 @@ private:
 	/** Called when Asset View Options "Search" options change */
 	void HandleAssetViewSearchOptionsChanged();
 
+	/** Register menu for filtering path view */
+	static void RegisterPathViewFiltersMenu();
+
+	/** Fill menu for filtering path view with items */
+	void PopulatePathViewFiltersMenu(UToolMenu* Menu);
+
+	/** Add data so that menus can access content browser */
+	void ExtendAssetViewButtonMenuContext(FToolMenuContext& InMenuContext);
+
 	/** Creates various widgets for the content browser main view */
 	TSharedRef<SWidget> CreateToolBar(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateLockButton(const FContentBrowserConfig* Config);
@@ -615,6 +625,9 @@ private:
 
 	/** The splitter between the path & favorite view */
 	TSharedPtr<SSplitter> PathFavoriteSplitterPtr;
+
+	/** The list of plugin filters currently applied to the path view */
+	TSharedPtr<FPluginFilterCollectionType> PluginPathFilters;
 
 	/** When viewing a dynamic collection, the active search query will be stashed in this variable so that it can be restored again later */
 	TOptional<FText> StashedSearchBoxText;

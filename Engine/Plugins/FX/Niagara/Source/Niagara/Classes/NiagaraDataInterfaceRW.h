@@ -6,32 +6,6 @@
 
 class FNiagaraSystemInstance;
 
-// Global HLSL variable base names, used by HLSL.
-extern NIAGARA_API const FString NumAttributesName;
-extern NIAGARA_API const FString NumCellsName;
-extern NIAGARA_API const FString CellSizeName;
-extern NIAGARA_API const FString WorldBBoxSizeName;
-
-// Global VM function names, also used by the shaders code generation methods.
-extern NIAGARA_API const FName NumCellsFunctionName;
-extern NIAGARA_API const FName CellSizeFunctionName;
-
-extern NIAGARA_API const FName WorldBBoxSizeFunctionName;
-
-extern NIAGARA_API const FName SimulationToUnitFunctionName;
-extern NIAGARA_API const FName UnitToSimulationFunctionName;
-extern NIAGARA_API const FName UnitToIndexFunctionName;
-extern NIAGARA_API const FName UnitToFloatIndexFunctionName;
-extern NIAGARA_API const FName IndexToUnitFunctionName;
-
-extern NIAGARA_API const FName IndexToUnitStaggeredXFunctionName;
-extern NIAGARA_API const FName IndexToUnitStaggeredYFunctionName;
-
-extern NIAGARA_API const FName IndexToLinearFunctionName;
-extern NIAGARA_API const FName LinearToIndexFunctionName;
-
-extern NIAGARA_API const FName ExecutionIndexToGridIndexFunctionName;
-extern NIAGARA_API const FName ExecutionIndexToUnitFunctionName;
 UENUM()
 enum class ESetResolutionMethod
 {
@@ -39,7 +13,6 @@ enum class ESetResolutionMethod
 	MaxAxis,
 	CellSize
 };
-
 
 // #todo(dmp): some of the stuff we'd expect to see here is on FNiagaraDataInterfaceProxy - refactor?
 struct FNiagaraDataInterfaceProxyRW : public FNiagaraDataInterfaceProxy
@@ -64,6 +37,34 @@ UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
+public:
+	// Global HLSL variable base names, used by HLSL.
+	static const FString NumAttributesName;
+	static const FString NumCellsName;
+	static const FString UnitToUVName;
+	static const FString CellSizeName;
+	static const FString WorldBBoxSizeName;
+
+	// Global VM function names, also used by the shaders code generation methods.
+	static const FName NumCellsFunctionName;
+	static const FName CellSizeFunctionName;
+
+	static const FName WorldBBoxSizeFunctionName;
+
+	static const FName SimulationToUnitFunctionName;
+	static const FName UnitToSimulationFunctionName;
+	static const FName UnitToIndexFunctionName;
+	static const FName UnitToFloatIndexFunctionName;
+	static const FName IndexToUnitFunctionName;
+
+	static const FName IndexToUnitStaggeredXFunctionName;
+	static const FName IndexToUnitStaggeredYFunctionName;
+
+	static const FName IndexToLinearFunctionName;
+	static const FName LinearToIndexFunctionName;
+
+	static const FName ExecutionIndexToGridIndexFunctionName;
+	static const FName ExecutionIndexToUnitFunctionName;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
@@ -133,19 +134,19 @@ public:
 	FIntVector NumCells;
 
 	// World space size of a cell
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	float CellSize;
 
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	int32 NumCellsMaxAxis;
 
 	// Method for setting the grid resolution
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	ESetResolutionMethod SetResolutionMethod;
 	
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	FVector WorldBBoxSize;
 
 public:
@@ -163,27 +164,6 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	//~ UNiagaraDataInterface interface END
 
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override
-	{
-		const bool ParentVal = Super::CanEditChange(InProperty);
-
-		if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCells))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::Independent;
-		}
-		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, CellSize))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::CellSize;
-		}
-		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCellsMaxAxis))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::MaxAxis;
-		}
-
-		return ParentVal;
-	}
-#endif
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

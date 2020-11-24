@@ -622,7 +622,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 				TTuple<FPrimaryAssetType, FPrimaryAssetType> ConflictPair(PrimaryAssetType, PrimaryAssetId.PrimaryAssetType);
 				if (!IssuedWarnings.Contains(ConflictPair))
 				{
-					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
+					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s - Asset: %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString(), *Data.AssetName.ToString());
 
 					UE_LOG(LogAssetManager, Warning, TEXT("%s"), *ConflictMsg);
 					IssuedWarnings.Add(ConflictPair);
@@ -3427,6 +3427,7 @@ EPrimaryAssetCookRule UAssetManager::GetPackageCookRule(FName PackageName) const
 
 bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) const
 {
+	bool bRetVal = true;
 	EPrimaryAssetCookRule CookRule = UAssetManager::Get().GetPackageCookRule(PackageName);
 	if (CookRule == EPrimaryAssetCookRule::NeverCook)
 	{
@@ -3435,7 +3436,7 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 			UE_LOG(LogAssetManager, Error, TEXT("Package %s is set to NeverCook, but something is trying to cook it!"), *PackageName.ToString());
 		}
 		
-		return false;
+		bRetVal = false;
 	}
 	else if ((CookRule == EPrimaryAssetCookRule::DevelopmentCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook) && bOnlyCookProductionAssets)
 	{
@@ -3444,10 +3445,29 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true!"), *PackageName.ToString());
 		}
 
-		return false;
+		bRetVal = false;
 	}
 
-	return true;
+	if (!bRetVal && bLogError)
+	{
+		TSet<FPrimaryAssetId> Managers;
+		GetPackageManagers(PackageName, true, Managers);
+		UE_LOG(LogAssetManager, Display, TEXT("Listing Managers... (Count:%d)"), Managers.Num());
+		for (const FPrimaryAssetId& PrimaryAssetId : Managers)
+		{
+			UE_LOG(LogAssetManager, Display, TEXT("  %s"), *PrimaryAssetId.ToString());
+		}
+
+		TArray<FName> PackageReferencers;
+		GetAssetRegistry().GetReferencers(PackageName, PackageReferencers, UE::AssetRegistry::EDependencyCategory::Package);
+		UE_LOG(LogAssetManager, Display, TEXT("Listing known direct referencers... (Count:%d)"), PackageReferencers.Num());
+		for (FName PackageReferencer : PackageReferencers)
+		{
+			UE_LOG(LogAssetManager, Display, TEXT("  %s"), *PackageReferencer.ToString());
+		}
+	}
+
+	return bRetVal;
 }
 
 bool UAssetManager::GetPackageChunkIds(FName PackageName, const ITargetPlatform* TargetPlatform, const TArray<int32>& ExistingChunkList, TArray<int32>& OutChunkList, TArray<int32>* OutOverrideChunkList) const

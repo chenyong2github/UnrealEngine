@@ -579,7 +579,7 @@ namespace UnrealBuildTool
 			// UBSan
 			if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
-				Result += " -fsanitize=undefined";
+				Result += " -fsanitize=undefined -fno-sanitize=vptr";
 			}
 
 			// MSan

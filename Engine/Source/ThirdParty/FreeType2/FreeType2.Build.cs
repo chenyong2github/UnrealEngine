@@ -10,11 +10,14 @@ public class FreeType2 : ModuleRules
 	{
 		get
 		{
-			if (Target.Platform == UnrealTargetPlatform.IOS ||
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+			{
+				return "FreeType2-2.10.4";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
 			)
 			{
@@ -61,7 +64,7 @@ public class FreeType2 : ModuleRules
 
 		string LibPath;
 
-		if (FreeType2Version == "FreeType2-2.10.0")
+		if (FreeType2Version.StartsWith("FreeType2-2.10."))
 		{
 			// FreeType needs these to deal with bitmap fonts
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");

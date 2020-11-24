@@ -32,9 +32,9 @@ namespace Audio
 		// affects bars/beats values we send back to the game thread
 		void SetTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
 
-		int32 GetFramesUntilBoundary(const FQuartzQuantizationBoundary& InQuantizationBoundary) const;
+		int32 GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const;
 
-		FQuartzTimeSignature GetTimeSignature() { return CurrentTimeSignature; }
+		FQuartzTimeSignature GetTimeSignature() const { return CurrentTimeSignature; }
 
 		void SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
 

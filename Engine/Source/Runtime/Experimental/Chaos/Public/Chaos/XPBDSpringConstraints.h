@@ -29,21 +29,29 @@ public:
 	    : TPBDSpringConstraintsBase<T, d>(Stiffness)
 	{}
 
-	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1.)
-	    : TPBDSpringConstraintsBase<T, d>(InParticles, MoveTemp(Constraints), Stiffness)
-	{ MLambdas.Init(0.f, MConstraints.Num()); }
+	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1., bool bStripKinematicConstraints = false)
+		: TPBDSpringConstraintsBase<T, d>(InParticles, MoveTemp(Constraints), Stiffness, bStripKinematicConstraints)
+	{
+		MLambdas.Init(0.f, MConstraints.Num());
+	}
 
-	TXPBDSpringConstraints(const TRigidParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1.)
-	    : TPBDSpringConstraintsBase<T, d>(InParticles, MoveTemp(Constraints), Stiffness)
-	{ MLambdas.Init(0.f, MConstraints.Num()); }
+	TXPBDSpringConstraints(const TRigidParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1., bool bStripKinematicConstraints = false)
+		: TPBDSpringConstraintsBase<T, d>(InParticles, MoveTemp(Constraints), Stiffness, bStripKinematicConstraints)
+	{
+		MLambdas.Init(0.f, MConstraints.Num());
+	}
 
-	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const T Stiffness = (T)1.)
-	    : TPBDSpringConstraintsBase<T, d>(InParticles, Constraints, Stiffness)
-	{ MLambdas.Init(0.f, MConstraints.Num()); }
+	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const T Stiffness = (T)1., bool bStripKinematicConstraints = false)
+		: TPBDSpringConstraintsBase<T, d>(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
+	{
+		MLambdas.Init(0.f, MConstraints.Num());
+	}
 
-	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const T Stiffness = (T)1.)
-	    : TPBDSpringConstraintsBase<T, d>(InParticles, Constraints, Stiffness)
-	{ MLambdas.Init(0.f, MConstraints.Num()); }
+	TXPBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const T Stiffness = (T)1., bool bStripKinematicConstraints = false)
+		: TPBDSpringConstraintsBase<T, d>(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
+	{
+		MLambdas.Init(0.f, MConstraints.Num());
+	}
 
 	virtual ~TXPBDSpringConstraints() {}
 

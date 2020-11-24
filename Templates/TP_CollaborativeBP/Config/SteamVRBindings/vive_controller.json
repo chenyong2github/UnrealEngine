@@ -9,34 +9,12 @@
 			"sources": [
 				{
 					"mode": "button",
-					"path": "/user/hand/left/input/trigger",
+					"path": "/user/hand/left/input/application_menu",
 					"inputs":
 					{
 						"click":
 						{
-							"output": "/actions/main/in/VR_Trigger_L"
-						}
-					}
-				},
-				{
-					"mode": "button",
-					"path": "/user/hand/right/input/trigger",
-					"inputs":
-					{
-						"click":
-						{
-							"output": "/actions/main/in/VR_Trigger_R"
-						}
-					}
-				},
-				{
-					"mode": "button",
-					"path": "/user/hand/left/input/grip",
-					"inputs":
-					{
-						"click":
-						{
-							"output": "/actions/main/in/ResetLocationL"
+							"output": "/actions/main/in/ShowContextualMenu_VR_L"
 						}
 					}
 				},
@@ -47,18 +25,7 @@
 					{
 						"click":
 						{
-							"output": "/actions/main/in/ShowContextualMenu_R"
-						}
-					}
-				},
-				{
-					"mode": "button",
-					"path": "/user/hand/left/input/application_menu",
-					"inputs":
-					{
-						"click":
-						{
-							"output": "/actions/main/in/ShowContextualMenu_L"
+							"output": "/actions/main/in/ShowContextualMenu_VR_R"
 						}
 					}
 				},
@@ -85,122 +52,24 @@
 					}
 				},
 				{
-					"mode": "dpad",
-					"path": "/user/hand/right/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
+					"mode": "trigger",
+					"path": "/user/hand/left/input/trigger",
 					"inputs":
 					{
-						"north":
+						"click":
 						{
-							"output": "/actions/main/in/UP_R"
+							"output": "/actions/main/in/VR_Trigger_L"
 						}
 					}
 				},
 				{
-					"mode": "dpad",
-					"path": "/user/hand/left/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
+					"mode": "trigger",
+					"path": "/user/hand/right/input/trigger",
 					"inputs":
 					{
-						"north":
+						"click":
 						{
-							"output": "/actions/main/in/UP_L"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/right/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"south":
-						{
-							"output": "/actions/main/in/Down_R"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/left/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"south":
-						{
-							"output": "/actions/main/in/Down_L"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/right/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"east":
-						{
-							"output": "/actions/main/in/Right_R"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/left/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"east":
-						{
-							"output": "/actions/main/in/Right_L"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/right/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"west":
-						{
-							"output": "/actions/main/in/Left_R"
-						}
-					}
-				},
-				{
-					"mode": "dpad",
-					"path": "/user/hand/left/input/trackpad",
-					"parameters":
-					{
-						"sub_mode": "click"
-					},
-					"inputs":
-					{
-						"west":
-						{
-							"output": "/actions/main/in/Left_L"
+							"output": "/actions/main/in/VR_Trigger_R"
 						}
 					}
 				}
@@ -238,5 +107,5 @@
 			]
 		}
 	},
-	"description": "TP_CollaborativeBP-10452296"
+	"description": ""
 }

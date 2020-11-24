@@ -180,14 +180,18 @@ class DeviceWidget(QtWidgets.QWidget):
         # Status Icon
         if status >= DeviceStatus.READY:
             self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_green.png"))
+            self.status_icon.setToolTip("Ready to start recording")
         elif status == DeviceStatus.DISCONNECTED:
             pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
             self.status_icon.setPixmap(pixmap)
+            self.status_icon.setToolTip("Disconnected")
         elif status == DeviceStatus.OPEN:
             pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
             self.status_icon.setPixmap(pixmap)
+            self.status_icon.setToolTip("Device has been started")
         else:
-            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_blank.png"))
+            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_cyan.png"))
+            self.status_icon.setToolTip("Connected")
 
         # Device icon
         if status == DeviceStatus.DISCONNECTED:
@@ -230,61 +234,9 @@ class DeviceWidget(QtWidgets.QWidget):
             self.ip_address_line_edit.show()
 
     def add_control_button(self, *args, **kwargs):
-        button = self._add_control_button(*args, **kwargs)
+        button = sb_widgets.ControlQPushButton.create(*args, **kwargs)
         self.control_buttons.append(button)
         self.layout.addWidget(button)
-
-        return button
-
-    def _add_control_button(self, icon_off, icon_on=None, 
-                                 icon_hover_on=None, icon_hover=None,
-                                 icon_disabled_on=None, icon_disabled=None,
-                                 icon_size=None,
-                                 checkable=True, checked=False,
-                                 tool_tip=None, parent=True):
-        button = sb_widgets.ControlQPushButton()
-
-        button.setProperty("no_background", True)
-        button.setStyle(button.style())
-
-        icon = QtGui.QIcon()
-
-        if icon_on:
-            pixmap = QtGui.QPixmap(icon_on)
-            icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.On)
-
-        if icon_hover:
-            pixmap = QtGui.QPixmap(icon_hover)
-            icon.addPixmap(pixmap, QtGui.QIcon.Active, QtGui.QIcon.Off)
-
-        if icon_hover_on:
-            pixmap = QtGui.QPixmap(icon_hover_on)
-            icon.addPixmap(pixmap, QtGui.QIcon.Active, QtGui.QIcon.On)
-
-        if icon_disabled:
-            pixmap = QtGui.QPixmap(icon_disabled)
-            icon.addPixmap(pixmap, QtGui.QIcon.Disabled, QtGui.QIcon.Off)
-
-        if icon_disabled_on:
-            pixmap = QtGui.QPixmap(icon_disabled)
-            icon.addPixmap(pixmap, QtGui.QIcon.Disabled, QtGui.QIcon.On)
-
-        pixmap = QtGui.QPixmap(icon_off)
-        icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.Off)
-
-        button.setIcon(icon)
-
-        if not icon_size:
-            icon_size = pixmap.rect().size()
-        button.setIconSize(icon_size)
-        button.setMinimumSize(QtCore.QSize(25, 35))
-
-        if tool_tip:
-            button.setToolTip(tool_tip)
-
-        if checkable:
-            button.setCheckable(checkable)
-            button.setChecked(checked)
 
         return button
 

@@ -338,8 +338,8 @@ public:
 	UPROPERTY(EditAnywhere, Category="Playback|Streaming", meta=(ClampMin=0))
 	int32 StreamingPriority;
 
-	/** Quality of sample rate conversion for platforms that opt into resampling during cook. */
-	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta=(DisplayName="Sample Rate"))
+	/** Quality of sample rate conversion for platforms that opt into resampling during cook. The sample rate for each enumeration is definable per platform in platform target settings. */
+	UPROPERTY(EditAnywhere, Category = "Format|Quality")
 	ESoundwaveSampleRateSettings SampleRateQuality;
 
 	/** Type of buffer this wave uses. Set once on load */
@@ -683,8 +683,8 @@ public:
 	uint8* RawPCMData;
 
 	/** Memory containing the data copied from the compressed bulk data */
-	FOwnedBulkDataPtr* OwnedBulkDataPtr;
-	const uint8* ResourceData;
+	FOwnedBulkDataPtr* OwnedBulkDataPtr{ nullptr };
+	const uint8* ResourceData{ nullptr };
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;

@@ -89,13 +89,13 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 					const IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
 					if (Protocol.IsValid())
 					{
-						bool bLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();						
-						if (bLoopback)
+						bool bNeedsInternalLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();						
+						if (bNeedsInternalLoopback)
 						{
 							Results.Add(Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
 						}
 						
-						Results.Add(Protocol->SendDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
+						Results.Add(Protocol->SendDMXFragmentCreate(Universe + Controller->RemoteOffset, DMXFragmentMap));
 						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once							
 					}
 				}
@@ -224,6 +224,12 @@ void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUn
 		IDMXProtocolPtr Protocol = SelectedProtocol.GetProtocol();
 		if (Protocol.IsValid())
 		{
+			bool bNeedsInternalLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();
+			if (bNeedsInternalLoopback)
+			{
+				Protocol->InputDMXFragment(RemoteUniverse, DMXFragmentMap);
+			}
+
 			OutResult = Protocol->SendDMXFragmentCreate(RemoteUniverse, DMXFragmentMap);
 		}
 	}
@@ -299,7 +305,7 @@ void UDMXSubsystem::GetAllUniversesInController(const UDMXLibrary* DMXLibrary, F
 	}
 }
 
-void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TArray<uint8>& DMXBuffer)
+void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer)
 {
 	DMXBuffer.Reset();
 	if (SelectedProtocol)
@@ -309,7 +315,7 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Univer
 		{
 			const IDMXUniverseSignalMap InboundSignalMap = Protocol->GameThreadGetInboundSignals();
 
-			const TSharedPtr<FDMXSignal>* SignalPtr = InboundSignalMap.Find(UniverseIndex);
+			const TSharedPtr<FDMXSignal>* SignalPtr = InboundSignalMap.Find(RemoteUniverse);
 			if (SignalPtr)
 			{
 				DMXBuffer = (*SignalPtr)->ChannelData;
@@ -739,6 +745,18 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AssetRegistry.OnFilesLoaded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles);
 	AssetRegistry.OnAssetAdded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryAddedAsset);
 	AssetRegistry.OnAssetRemoved().AddUObject(this, &UDMXSubsystem::OnAssetRegistryRemovedAsset);
+
+	// Register delegates
+	TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
+	for (const FName& ProtocolName : ProtocolNames)
+	{
+		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+		check(Protocol.IsValid());
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // ~Begin Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26, raised via OnGameThreadOnlyBufferUpdated
+		Protocol->GetOnGameThreadOnlyBufferUpdated().AddUObject(this, &UDMXSubsystem::OnGameThreadOnlyBufferUpdated);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS  // ~End Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26, raised via OnGameThreadOnlyBufferUpdated
+	}
 }
 
 void UDMXSubsystem::Deinitialize()
@@ -780,3 +798,24 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 		LoadedDMXLibraries.Remove(Library);
 	}
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // ~Begin Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26
+void UDMXSubsystem::OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID)
+{
+	if (OnProtocolReceived_DEPRECATED.IsBound())
+	{
+		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(InProtocolName))
+		{
+			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+
+			const TSharedPtr<FDMXSignal>* DMXSignalPtr = InboundSignalMap.Find(InUniverseID);
+			if (DMXSignalPtr != nullptr)
+			{
+				const TSharedPtr<FDMXSignal>& DMXSignal = *DMXSignalPtr;
+				const TArray<uint8>& DMXBuffer = DMXSignal.Get()->ChannelData;
+				OnProtocolReceived_DEPRECATED.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
+			}
+		}
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS // ~End Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26

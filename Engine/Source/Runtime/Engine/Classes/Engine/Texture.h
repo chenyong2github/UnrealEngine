@@ -1172,6 +1172,11 @@ public:
 		LightingGuid = Guid;
 	}
 
+	/** Generates a deterministic GUID for the texture based on the full name of the object.
+	  * Used to ensure that assets created during cook can be deterministic
+	  */
+	ENGINE_API void SetDeterministicLightingGuid();
+
 	/**
 	 * Retrieves the pixel format enum for enum <-> string conversions.
 	 */

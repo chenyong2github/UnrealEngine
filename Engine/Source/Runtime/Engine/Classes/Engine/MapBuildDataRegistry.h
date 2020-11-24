@@ -370,6 +370,11 @@ public:
 	/** Initializes rendering resources for all lightmap resource clusters. */
 	ENGINE_API void InitializeClusterRenderingResources(ERHIFeatureLevel::Type InFeatureLevel);
 	
+	/**
+		Called by HandleLegacyMapBuildData with legacy BuildData without ReflectionCapture Data
+		or called by PostLoad for legacy BuildData with old EncodedData
+	*/
+	ENGINE_API void HandleLegacyEncodedCubemapData();
 private:
 
 	ENGINE_API void ReleaseResources(const TSet<FGuid>* ResourcesToKeep = nullptr);

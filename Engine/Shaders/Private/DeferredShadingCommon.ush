@@ -359,21 +359,14 @@ bool UseSubsurfaceProfile(int ShadingModel)
 
 bool HasCustomGBufferData(int ShadingModelID)
 {
-	switch(ShadingModelID)
-	{
-	case SHADINGMODELID_SUBSURFACE:
-	case SHADINGMODELID_PREINTEGRATED_SKIN:
-	case SHADINGMODELID_CLEAR_COAT:
-	case SHADINGMODELID_SUBSURFACE_PROFILE:
-	case SHADINGMODELID_TWOSIDED_FOLIAGE:
-	case SHADINGMODELID_HAIR:
-	case SHADINGMODELID_CLOTH:
-	case SHADINGMODELID_EYE:
-		return true;
-
-	default:
-		return false;
-	}
+	return ShadingModelID == SHADINGMODELID_SUBSURFACE
+		|| ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN
+		|| ShadingModelID == SHADINGMODELID_CLEAR_COAT
+		|| ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE
+		|| ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE
+		|| ShadingModelID == SHADINGMODELID_HAIR
+		|| ShadingModelID == SHADINGMODELID_CLOTH
+		|| ShadingModelID == SHADINGMODELID_EYE;
 }
 
 bool HasAnisotropy(int SelectiveOutputMask)
@@ -442,7 +435,10 @@ struct FGBufferData
 bool CastContactShadow(FGBufferData GBufferData)
 {
 	uint PackedAlpha = (uint)(GBufferData.PerObjectGBufferData * 3.999f);
-	return PackedAlpha & 1;
+	bool bCastContactShadowBit = PackedAlpha & 1;
+	// Exclude eye materials from ever casting contact shadows
+	bool bShadingModelCastContactShadows = (GBufferData.ShadingModelID != SHADINGMODELID_EYE);
+	return bCastContactShadowBit && bShadingModelCastContactShadows;
 }
 
 bool HasDynamicIndirectShadowCasterRepresentation(FGBufferData GBufferData)

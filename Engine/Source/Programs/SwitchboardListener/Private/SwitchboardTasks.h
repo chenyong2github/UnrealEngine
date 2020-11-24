@@ -9,7 +9,6 @@ enum class ESwitchboardTaskType : uint8
 {
 	Start,
 	Kill,
-	KillAll,
 	Restart,
 	ReceiveFileFromClient,
 	SendFileToClient,
@@ -17,6 +16,8 @@ enum class ESwitchboardTaskType : uint8
 	KeepAlive,
 	GetSyncStatus,
 	GetFlipMode,
+	ForceFocus,
+	FixExeFlags
 };
 
 struct FSwitchboardTask
@@ -63,12 +64,25 @@ struct FSwitchboardGetSyncStatusTask : public FSwitchboardTask
 
 struct FSwitchboardStartTask : public FSwitchboardTask
 {
-	FSwitchboardStartTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InCommand, const FString& InArgs, const FString& InName, const FString& InCaller)
+	FSwitchboardStartTask(
+		const FGuid& InTaskId, 
+		const FIPv4Endpoint& InEndpoint, 
+		const FString& InCommand, 
+		const FString& InArgs, 
+		const FString& InName, 
+		const FString& InCaller, 
+		const FString& InWorkingDir,
+		bool bInUpdateClientsWithStdout,
+		bool bInForceWindowFocus
+	)
 		: FSwitchboardTask{ ESwitchboardTaskType::Start, TEXT("start"), InTaskId, InEndpoint }
 		, Command(InCommand)
 		, Arguments(InArgs)
 		, Name(InName)
 		, Caller(InCaller)
+		, WorkingDir(InWorkingDir)
+		, bUpdateClientsWithStdout(bInUpdateClientsWithStdout)
+		, bForceWindowFocus(bInForceWindowFocus)
 	{
 	}
 
@@ -76,6 +90,9 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Arguments;
 	FString Name;
 	FString Caller;
+	FString WorkingDir;
+	bool bUpdateClientsWithStdout;
+	bool bForceWindowFocus;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override
@@ -102,13 +119,6 @@ struct FSwitchboardKillTask : public FSwitchboardTask
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
 	}
 	//~ End FSwitchboardTask interface
-};
-
-struct FSwitchboardKillAllTask : public FSwitchboardTask
-{
-	FSwitchboardKillAllTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint)
-		: FSwitchboardTask{ ESwitchboardTaskType::KillAll, TEXT("killall"), InTaskID, InEndpoint }
-	{}
 };
 
 struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
@@ -144,6 +154,40 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	virtual uint32 GetEquivalenceHash() const override
 	{
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Source));
+	}
+	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardForceFocusTask : public FSwitchboardTask
+{
+	FSwitchboardForceFocusTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, uint32 InPID)
+		: FSwitchboardTask{ ESwitchboardTaskType::ForceFocus, TEXT("forcefocus"), InTaskID, InEndpoint }
+		, PID(InPID)
+	{}
+
+	uint32 PID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(PID));
+	}
+	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardFixExeFlagsTask : public FSwitchboardTask
+{
+	FSwitchboardFixExeFlagsTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FGuid& InProgramID)
+		: FSwitchboardTask{ ESwitchboardTaskType::FixExeFlags, TEXT("fixExeFlags"), InTaskId, InEndpoint }
+		, ProgramID(InProgramID)
+	{}
+
+	FGuid ProgramID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
 	}
 	//~ End FSwitchboardTask interface
 };

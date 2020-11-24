@@ -141,12 +141,12 @@ void TPBDRigidsEvolutionGBF<Traits>::Advance(const FReal Dt,const FReal MaxStepD
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
+			// E.g., for 4 steps this will be: 1/4, 1/2, 3/4, 1
+			const float StepFraction = (FReal)(Step + 1) / (NumSteps);
 		
 			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
-			AdvanceOneTimeStepImpl(StepDt, StepFraction);
+			AdvanceOneTimeStepImpl(StepDt, FSubStepInfo{ StepFraction, Step, MaxSteps });
 		}
 
 		UnprepareTick();
@@ -263,11 +263,11 @@ void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& Partic
 //
 
 template <typename Traits>
-void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStep(const FReal Dt,const FReal StepFraction)
+void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStep(const FReal Dt,const FSubStepInfo& SubStepInfo)
 {
 	PrepareTick();
 
-	AdvanceOneTimeStepImpl(Dt, StepFraction);
+	AdvanceOneTimeStepImpl(Dt, SubStepInfo);
 
 	UnprepareTick();
 }
@@ -276,16 +276,21 @@ int32 DrawAwake = 0;
 FAutoConsoleVariableRef CVarDrawAwake(TEXT("p.chaos.DebugDrawAwake"),DrawAwake,TEXT("Draw particles that are awake"));
 
 template <typename Traits>
-void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const FReal StepFraction)
+void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const FSubStepInfo& SubStepInfo)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
 	Particles.ClearTransientDirty();
 
 	//for now we never allow solver to schedule more than two tasks back to back
-	//this means we only need to keep indices alive for one aditional frame
-	//TODO: make this more robust/general
-	Base::ReleasePendingIndices();
+	//this means we only need to keep indices alive for one additional frame
+	//the code that pushes indices to pending happens after this check which ensures we won't delete until next frame
+	//if sub-stepping is used, the index free will only happen on the first sub-step. However, since we are sub-stepping we would end up releasing half way through interval
+	//by checking the step and only releasing on step 0, we ensure the entire interval will see the indices
+	if(SubStepInfo.Step == 0)
+	{
+		Base::ReleasePendingIndices();
+	}
 
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
@@ -306,7 +311,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
-		ApplyKinematicTargets(Dt, StepFraction);
+		ApplyKinematicTargets(Dt, SubStepInfo.PseudoFraction);
 	}
 
 	if (PostIntegrateCallback != nullptr)
@@ -371,6 +376,8 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_PreApplyCallback);
 		PreApplyCallback();
 	}
+
+	CollisionConstraints.SetGravity(GetGravityForces().GetAcceleration());
 
 	TArray<bool> SleepedIslands;
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());

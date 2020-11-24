@@ -666,9 +666,9 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTrig
 		// Waves data can affect the navigation: 
 		if (bTriggerWaterBodyChanged)
 		{
-			OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
-		}
+		OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
 	}
+}
 }
 
 // Our transient MIDs are per-object and shall not survive duplicating nor be exported to text when copy-pasting : 
@@ -679,6 +679,8 @@ EObjectFlags AWaterBody::GetTransientMIDFlags() const
 
 void AWaterBody::OnConstruction(const FTransform& Transform)
 {
+	Super::OnConstruction(Transform);
+
 	InitializeBody();
 
 	UpdateAll(true);
@@ -967,6 +969,10 @@ void AWaterBody::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, TargetWaveMaskDepth))
 	{
 		RequestGPUWaveDataUpdate();
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, MaxWaveHeightOffset))
+	{
+		bShapeOrPositionChanged = true;
 	}
 }
 
@@ -1287,9 +1293,11 @@ void AWaterBody::PostLoad()
 				if (OldWaveStructProperty != nullptr)
 				{
 					void* OldPropertyOnWaveSpectrumSettings = OldWaveStructProperty->ContainerPtrToValuePtr<void>(this);
-					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")));
+					// We need to propagate object flags to the sub objects (if we deprecate an archetype's data, it is public and its sub-object need to be as well) :
+					EObjectFlags NewFlags = GetMaskedFlags(RF_PropagateToSubObjects);
+					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")), NewFlags);
 					UClass* NewGerstnerClass = UGerstnerWaterWaveGeneratorSimple::StaticClass();
-					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")));
+					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")), NewFlags);
 					GerstnerWaves->GerstnerWaveGenerator = GerstnerWavesGenerator;
 					SetWaterWavesInternal(GerstnerWaves, /*bTriggerWaterBodyChanged = */false); // we're in PostLoad, we don't want to send the water body changed event as it might re-enter into BP script
 
@@ -1325,12 +1333,16 @@ void AWaterBody::PostLoad()
 				bHasWaveSpectrumSettings_DEPRECATED = false;
 			}
 		}
+	}
 
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::FixupUnserializedGerstnerWaves)
+	{
 		// At one point, some attributes from UGerstnerWaterWaves were transient, recompute those here at load-time (nowadays, they are serialized properly so they should be properly recompute on property change)
 		if (HasWaves())
 		{
 			if (UGerstnerWaterWaves* GerstnerWaterWaves = Cast<UGerstnerWaterWaves>(WaterWaves->GetWaterWaves()))
 			{
+				GerstnerWaterWaves->ConditionalPostLoad();
 				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */false); // We're in PostLoad, don't let BP script run, this is forbidden
 			}
 		}
@@ -1514,7 +1526,7 @@ bool AWaterBody::GetWaveInfoAtPosition(const FVector& InPosition, float InWaterD
 
 float AWaterBody::GetMaxWaveHeight() const
 {
-	return HasWaves() ? WaterWaves->GetMaxWaveHeight() : 0.0f;
+	return (HasWaves() ? WaterWaves->GetMaxWaveHeight() : 0.0f) + MaxWaveHeightOffset;
 }
 
 float AWaterBody::GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const

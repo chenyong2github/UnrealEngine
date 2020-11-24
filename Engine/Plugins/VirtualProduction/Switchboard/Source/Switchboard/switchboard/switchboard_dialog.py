@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from .config import CONFIG, SETTINGS, DEFAULT_MAP_TEXT
 from . import config
 from . import config_osc as osc
@@ -100,11 +101,12 @@ class SwitchboardDialog(QtCore.QObject):
         self.device_list_widget = self.window.device_list_widget
         # When new widgets are added, register the signal/slots
         self.device_list_widget.signal_register_device_widget.connect(self.register_device_widget)
+        self.device_list_widget.signal_connect_all_plugin_devices_toggled.connect(self.on_all_plugin_devices_connect_toggled)
+        self.device_list_widget.signal_open_all_plugin_devices_toggled.connect(self.on_all_plugin_devices_open_toggled)
 
         # forward device(widget) removal between ListWidget and DeviceManager
         self.device_list_widget.signal_remove_device.connect(self.device_manager.remove_device_by_hash)
-        self.device_manager.signal_device_removed.connect(self.device_list_widget.on_device_removed)
-        self.device_manager.signal_device_removed.connect(CONFIG.on_device_removed)
+        self.device_manager.signal_device_removed.connect(self.on_device_removed)
 
         # DeviceManager initialize with from the config
         #
@@ -171,6 +173,9 @@ class SwitchboardDialog(QtCore.QObject):
         #self.transport_queue_menu.aboutToShow.connect(self.transport_queue_menu_about_to_show)
         #self.window.transport_queue_push_button.setMenu(self.transport_queue_menu)
 
+        # entries will be removed from the log window after the number of maximumBlockCount entries has been reached
+        self.window.base_console.document().setMaximumBlockCount(1000)
+
         # Menu items
         self.window.menu_new_config.triggered.connect(self.menu_new_config)
         self.window.menu_delete_config.triggered.connect(self.menu_delete_config)
@@ -195,7 +200,8 @@ class SwitchboardDialog(QtCore.QObject):
         #self.transport_queue_resume()
 
     def set_config_hooks(self):
-        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
+        CONFIG.P4_PROJECT_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
+        CONFIG.P4_ENGINE_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
         CONFIG.BUILD_ENGINE.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
         CONFIG.P4_ENABLED.signal_setting_changed.connect(lambda _, enabled: self.toggle_p4_controls(enabled))
         CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
@@ -223,6 +229,10 @@ class SwitchboardDialog(QtCore.QObject):
 
             self.device_manager.add_devices({device_type : dialog.devices_to_add()})
             CONFIG.save()
+
+    def on_device_removed(self, device_hash, device_type, device_name, update_config):
+        self.device_list_widget.on_device_removed(device_hash, device_type, device_name, update_config)
+        CONFIG.on_device_removed(device_hash, device_type, device_name, update_config)
 
     def eventFilter(self, obj, event):
         if obj == self.window and event.type() == QtCore.QEvent.Close:
@@ -295,7 +305,7 @@ class SwitchboardDialog(QtCore.QObject):
 
     def menu_new_config(self):
 
-        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value().replace('"',''))
 
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
@@ -376,7 +386,8 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_build_engine(CONFIG.BUILD_ENGINE.get_value())
         settings_dialog.set_p4_enabled(bool(CONFIG.P4_ENABLED.get_value()))
         settings_dialog.set_source_control_workspace(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
-        settings_dialog.set_p4_project_path(CONFIG.P4_PATH.get_value())
+        settings_dialog.set_p4_project_path(CONFIG.P4_PROJECT_PATH.get_value())
+        settings_dialog.set_p4_engine_path(CONFIG.P4_ENGINE_PATH.get_value())
         settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
         settings_dialog.set_map_filter(CONFIG.MAPS_FILTER.get_value())
         settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
@@ -458,7 +469,7 @@ class SwitchboardDialog(QtCore.QObject):
         CONFIG.save()
 
     def sync_all_button_clicked(self):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device_widgets = self.device_list_widget.device_widgets()
 
@@ -474,7 +485,7 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget.build_button_clicked()
 
     def sync_and_build_all_button_clicked(self):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device_widgets = self.device_list_widget.device_widgets()
 
@@ -489,23 +500,31 @@ class SwitchboardDialog(QtCore.QObject):
     def refresh_engine_cl_button_clicked(self):
         self.p4_refresh_engine_cl()
 
-    def connect_all_button_clicked(self):
-        device_widgets = self.device_list_widget.device_widgets()
+    def connect_all_button_clicked(self, button_state):
+        devices = self.device_manager.devices()
+        self.set_device_connection_state(devices, button_state)
 
-        for device_widget in device_widgets:
+    def launch_all_button_clicked(self, button_state):
+        devices = self.device_manager.devices()
+        self.set_device_launch_state(devices, button_state)
+
+    def set_device_launch_state(self, devices, launch_state):
+        for device in devices:
             try:
-                if not device_widget.connect_button.isChecked():
-                    device_widget._connect()
+                if launch_state and device.widget.open_button.isEnabled():
+                    device.widget._open()
+                elif not launch_state and device.widget.open_button.isChecked():
+                    device.widget._close()
             except:
                 pass
 
-    def launch_all_button_clicked(self):
-        device_widgets = self.device_list_widget.device_widgets()
-
-        for device_widget in device_widgets:
+    def set_device_connection_state(self, devices, connection_state):
+        for device in devices:
             try:
-                if device_widget.open_button.isEnabled() and not device_widget.open_button.isChecked():
-                    device_widget._open()
+                if connection_state:
+                    device.widget._connect()
+                else:
+                    device.widget._disconnect()
             except:
                 pass
 
@@ -569,15 +588,17 @@ class SwitchboardDialog(QtCore.QObject):
     @QtCore.Slot(object)
     def device_added(self, device):
         """
-        When a new device is added to the DeviceManger Connect its signals
+        When a new device is added to the DeviceManger, connect its signals
         """
-        device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed)
-        device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected)
-        device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed)
-        device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed)
-        device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed)
-        device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed)
-        device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed)
+        device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_build_update.connect(self.device_build_update, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_sync_update.connect(self.device_sync_update, QtCore.Qt.QueuedConnection)
 
         # Add the view
         self.device_list_widget.add_device_widget(device)
@@ -602,6 +623,14 @@ class SwitchboardDialog(QtCore.QObject):
             device_widget.signal_device_widget_stop.connect(self.device_widget_stop)
         except:
             pass
+
+    def on_all_plugin_devices_connect_toggled(self, plugin_name, button_state):
+        devices = self.device_manager.devices_of_type(plugin_name)
+        self.set_device_connection_state(devices, button_state)
+
+    def on_all_plugin_devices_open_toggled(self, plugin_name, button_state):
+        devices = self.device_manager.devices_of_type(plugin_name)
+        self.set_device_launch_state(devices, button_state)
 
     def multiuser_session_name(self):
         return self._multiuser_session_name
@@ -881,7 +910,7 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_widget_sync(self, device_widget):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device = self.device_manager.device_with_hash(device_widget.device_hash)
         project_cl = None if self.project_changelist == EMPTY_SYNC_ENTRY else self.project_changelist
@@ -908,6 +937,16 @@ class SwitchboardDialog(QtCore.QObject):
         #LOGGER.debug(f'{device.name} device_sync_failed')
         # CHANGE THE SYNC ICON HERE
         pass
+
+    @QtCore.Slot(object)
+    def device_build_update(self, device, step, percent):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_build_status(device, step, percent)
+
+    @QtCore.Slot(object)
+    def device_sync_update(self, device, progress):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_sync_status(device, progress)
 
     @QtCore.Slot(object)
     def device_project_changelist_changed(self, device):
@@ -939,7 +978,11 @@ class SwitchboardDialog(QtCore.QObject):
     def device_status_changed(self, device, previous_status):
 
         # Update the device widget
-        self.device_list_widget.update_status(device, previous_status)
+        device.widget.update_status(device.status, previous_status)
+
+        devices = self.device_manager.devices_of_type(device.device_type)
+        self.device_list_widget.update_category_status(device.category_name, devices)
+        self.update_connect_and_open_button_states()
 
         if previous_status != device.status:
             LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
@@ -953,6 +996,32 @@ class SwitchboardDialog(QtCore.QObject):
         if previous_status <= DeviceStatus.OPEN and device.status >= DeviceStatus.READY:
             device.set_take(self.take)
             device.set_slate(self.slate)
+
+    def update_connect_and_open_button_states(self):
+        """ Refresh states of connect-all and start-all buttons. """
+        devices = self.device_manager.devices()
+        any_connected = any(device.status != DeviceStatus.DISCONNECTED for device in devices)
+        any_started = any(device.status > DeviceStatus.CLOSED for device in devices)
+
+        self.update_connect_all_button_state(any_connected)
+        self.update_start_all_button_state(any_connected, any_started)
+
+    def update_connect_all_button_state(self, any_devices_connected):
+        """ Refresh state of connect-all button. """
+        self.window.connect_all_button.setChecked(any_devices_connected)
+        if any_devices_connected:
+            self.window.connect_all_button.setToolTip("Disconnect all connected devices")
+        else:
+            self.window.connect_all_button.setToolTip("Connect all devices")
+
+    def update_start_all_button_state(self, any_devices_connected, any_devices_started):
+        """ Refresh state of start-all button. """
+        self.window.launch_all_button.setEnabled(any_devices_connected)
+        self.window.launch_all_button.setChecked(any_devices_started)
+        if any_devices_started:
+            self.window.launch_all_button.setToolTip("Stop all running devices")
+        else:
+            self.window.launch_all_button.setToolTip("Start all connected devices")
 
     @QtCore.Slot(object)
     def device_is_recording_device_changed(self, device, is_recording_device):
@@ -1017,8 +1086,12 @@ class SwitchboardDialog(QtCore.QObject):
         Scrolls on each emit signal.
         :param msg: This is a built in event, QT Related, not given.
         """
-        self.window.base_console.insertHtml(msg)
-        self.window.base_console.moveCursor(QtGui.QTextCursor.End)
+        self.window.base_console.appendHtml(msg)
+
+        # Only moving to StartOfLine/Down or End often causes the cursor to be stuck in the middle or the end of a line
+        # when the lines are longer than the widget. This combination keeps the cursor at the bottom left corner in all cases.
+        self.window.base_console.moveCursor(QtGui.QTextCursor.Down)
+        self.window.base_console.moveCursor(QtGui.QTextCursor.StartOfLine)
 
     # Allow user to change logging level
     def logger_level_comboBox_currentTextChanged(self):
@@ -1038,7 +1111,8 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.P4_ENABLED.get_value():
             return
         LOGGER.info("Refreshing p4 project changelists")
-        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PATH.get_value())
+        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value(), working_dir)
         self.window.project_cl_combo_box.clear()
 
         if changelists:
@@ -1059,11 +1133,16 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.refresh_engine_cl_button.setEnabled(True)
             self.window.refresh_engine_cl_button.setToolTip("Click to refresh changelists")
 
-            engine_p4_path = p4_utils.p4_where(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(), CONFIG.ENGINE_DIR.get_value())
-            changelists = p4_utils.p4_latest_changelist(engine_p4_path)
-            if changelists:
-                self.window.engine_cl_combo_box.addItems(changelists)
-                self.window.engine_cl_combo_box.setCurrentIndex(0)
+            engine_p4_path = CONFIG.P4_ENGINE_PATH.get_value()
+            if engine_p4_path:
+                working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+                changelists = p4_utils.p4_latest_changelist(engine_p4_path, working_dir)
+                if changelists:
+                    self.window.engine_cl_combo_box.addItems(changelists)
+                    self.window.engine_cl_combo_box.setCurrentIndex(0)
+            else:
+                LOGGER.warning('"Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
+                LOGGER.warning("Please check your perforce settings.")
         else:
             # disable engine cl controls if engine is not built from source
             self.window.engine_cl_label.setEnabled(False)

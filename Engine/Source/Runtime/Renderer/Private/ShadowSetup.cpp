@@ -4290,6 +4290,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	// Cubemaps, can't be atlased
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> WholeScenePointShadows;
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MobileWholeSceneDirectionalShadows;
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MobileDynamicSpotlightShadows;
 
 	const bool bMobile = FeatureLevel < ERHIFeatureLevel::SM5;
 	bool bCopyToCompleteShadowMaps = CVarCopyToCompleteShadowMaps.GetValueOnRenderThread() != 0;
@@ -4420,6 +4421,10 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 						check(ProjectedShadowInfo->bWholeSceneShadow);
 						CachedSpotlightShadows.Add(ProjectedShadowInfo);
 					}
+					else if (bMobile && ProjectedShadowInfo->bWholeSceneShadow)
+					{
+						MobileDynamicSpotlightShadows.Add(ProjectedShadowInfo);
+					}
 					else
 					{
 						if (ProjectedShadowInfo->bCompleteShadowMap)
@@ -4459,18 +4464,18 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	{
 		// AllocateMobileCSMAndSpotLightShadowDepthTargets would only allocate a single large render target for all shadows, so if the requirement exceeds the MaxTextureSize, the rest of the shadows will not get space for rendering
 		// So we sort spotlight shadows and append them at the last to make sure csm will get space in any case.
-		Shadows.Sort(FCompareFProjectedShadowInfoByResolution());
+		MobileDynamicSpotlightShadows.Sort(FCompareFProjectedShadowInfoByResolution());
 
 		//Limit the number of spotlights shadow for performance reason
 		static const auto MobileMaxVisibleMovableSpotLightsShadowCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.MaxVisibleMovableSpotLightsShadow"));
 		if (MobileMaxVisibleMovableSpotLightsShadowCVar)
 		{
 			int32 MobileMaxVisibleMovableSpotLightsShadow = MobileMaxVisibleMovableSpotLightsShadowCVar->GetValueOnRenderThread();
-			Shadows.RemoveAt(MobileMaxVisibleMovableSpotLightsShadow, FMath::Max(Shadows.Num() - MobileMaxVisibleMovableSpotLightsShadow, 0), false);
+			MobileDynamicSpotlightShadows.RemoveAt(MobileMaxVisibleMovableSpotLightsShadow, FMath::Max(MobileDynamicSpotlightShadows.Num() - MobileMaxVisibleMovableSpotLightsShadow, 0), false);
 		}
 
-		MobileWholeSceneDirectionalShadows.Append(Shadows);
-		Shadows.Empty();
+		MobileWholeSceneDirectionalShadows.Append(MobileDynamicSpotlightShadows);
+		MobileDynamicSpotlightShadows.Empty();
 	}
 
 	if (CachedPreShadows.Num() > 0)

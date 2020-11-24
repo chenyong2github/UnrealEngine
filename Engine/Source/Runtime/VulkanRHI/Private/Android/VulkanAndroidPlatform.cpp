@@ -30,6 +30,15 @@ static FAutoConsoleVariableRef CVarVulkanExtensionFramePacer(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarVulkanSupportsTimestampQueries(
+	TEXT("r.Vulkan.SupportsTimestampQueries"),
+	0,
+	TEXT("State of Vulkan timestamp queries support on an Android device\n")
+	TEXT("  0 = unsupported\n")
+	TEXT("  1 = supported."),
+	ECVF_SetByDeviceProfile
+);
+
 // Vulkan function pointers
 #define DEFINE_VK_ENTRYPOINTS(Type,Func) Type VulkanDynamicAPI::Func = NULL;
 ENUM_VK_ENTRYPOINTS_ALL(DEFINE_VK_ENTRYPOINTS)
@@ -360,6 +369,7 @@ void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	OutExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
+	OutExtensions.Add(VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
 
 	if (GVulkanQcomRenderPassTransform)
 	{
@@ -411,7 +421,7 @@ EPixelFormat FVulkanAndroidPlatform::GetPixelFormatForNonDefaultSwapchain()
 bool FVulkanAndroidPlatform::SupportsTimestampRenderQueries()
 {
 	// standalone devices have newer drivers where timestamp render queries work.
-	return FPlatformMisc::IsStandaloneStereoOnlyDevice();
+	return (CVarVulkanSupportsTimestampQueries.GetValueOnAnyThread() == 1) || FPlatformMisc::IsStandaloneStereoOnlyDevice();
 }
 
 void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)

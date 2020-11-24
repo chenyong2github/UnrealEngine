@@ -21,10 +21,12 @@ class UDestructibleMesh;
 class SDestructibleMeshEditorViewport : public SEditorViewport, public FGCObject, public FNotifyHook
 {
 public:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SLATE_BEGIN_ARGS( SDestructibleMeshEditorViewport ){}
 		SLATE_ARGUMENT(TWeakPtr<IDestructibleMeshEditor>, DestructibleMeshEditor)
 		SLATE_ARGUMENT(UDestructibleMesh*, ObjectToEdit)
 	SLATE_END_ARGS()
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void Construct(const FArguments& InArgs);
 	~SDestructibleMeshEditorViewport();
@@ -38,9 +40,28 @@ public:
 	// End of FNotifyHook interface
 
 	void RefreshViewport();
-	
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Retrieves the Destructible mesh component. */
+	UDestructibleComponent* GetDestructibleComponent() const;
+
+	/**
+	 *	Sets up the Destructible mesh that the Destructible Mesh editor is viewing.
+	 *
+	 *	@param	InDestructibleMesh		The Destructible mesh being viewed in the editor.
+	 */
+	void SetPreviewMesh(UDestructibleMesh* InDestructibleMesh);
+
+	/**
+	 *	Updates the preview mesh and other viewport specific settings that go with it.
+	 *
+	 *	@param	InDestructibleMesh		The Destructible mesh being viewed in the editor.
+	 */
+	void UpdatePreviewMesh(UDestructibleMesh* InDestructibleMesh);
+
 	/** Component for the preview Destructible mesh. */
-	class UDestructibleComponent* PreviewComponent;
+	UDestructibleComponent* PreviewComponent;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** 
 	 *	Causes chunks at the given PreviewDepth to be displayed in the viewport.  Clamped to the range [0, depth count), where (depth count) = the number of chunk hierarchy depths in the destructible.
@@ -55,23 +76,6 @@ public:
 	 *	@param	InExplodeAmount			The desired explode amount.
 	 */
 	void SetExplodeAmount(float InExplodeAmount);
-
-	/** Retrieves the Destructible mesh component. */
-	UDestructibleComponent* GetDestructibleComponent() const;
-
-	/** 
-	 *	Sets up the Destructible mesh that the Destructible Mesh editor is viewing.
-	 *
-	 *	@param	InDestructibleMesh		The Destructible mesh being viewed in the editor.
-	 */
-	void SetPreviewMesh(UDestructibleMesh* InDestructibleMesh);
-
-	/**
-	 *	Updates the preview mesh and other viewport specific settings that go with it.
-	 *
-	 *	@param	InDestructibleMesh		The Destructible mesh being viewed in the editor.
-	 */
-	void UpdatePreviewMesh(UDestructibleMesh* InDestructibleMesh);
 
 protected:
 	/** SEditorViewport interface */
@@ -104,7 +108,9 @@ private:
 	EViewModeIndex CurrentViewMode;
 
 	/** The mesh currently under consideration */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleMesh* DestructibleMesh;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The currently selected preview depth. */
 	uint32 PreviewDepth;

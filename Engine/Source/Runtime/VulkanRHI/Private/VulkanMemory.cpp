@@ -65,6 +65,15 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool (remaining) Reserved"), STAT_VulkanM
 DECLARE_MEMORY_STAT_EXTERN(TEXT("_Total Allocated"), STAT_VulkanMemoryTotal, STATGROUP_VulkanMemoryRaw, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("_Reserved"), STAT_VulkanMemoryReserved, STATGROUP_VulkanMemoryRaw, );
 
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 0 Budget"), STAT_VulkanMemoryBudget0, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 1 Budget"), STAT_VulkanMemoryBudget1, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 2 Budget"), STAT_VulkanMemoryBudget2, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 3 Budget"), STAT_VulkanMemoryBudget3, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 4 Budget"), STAT_VulkanMemoryBudget4, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 5 Budget"), STAT_VulkanMemoryBudget5, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool (remaining) Budget"), STAT_VulkanMemoryBudgetX, STATGROUP_VulkanMemoryRaw, );
+
+
 DEFINE_STAT(STAT_VulkanDedicatedMemory);
 DEFINE_STAT(STAT_VulkanMemory0);
 DEFINE_STAT(STAT_VulkanMemory1);
@@ -83,6 +92,13 @@ DEFINE_STAT(STAT_VulkanMemory5Reserved);
 DEFINE_STAT(STAT_VulkanMemoryXReserved);
 DEFINE_STAT(STAT_VulkanMemoryReserved);
 
+DEFINE_STAT(STAT_VulkanMemoryBudget0);
+DEFINE_STAT(STAT_VulkanMemoryBudget1);
+DEFINE_STAT(STAT_VulkanMemoryBudget2);
+DEFINE_STAT(STAT_VulkanMemoryBudget3);
+DEFINE_STAT(STAT_VulkanMemoryBudget4);
+DEFINE_STAT(STAT_VulkanMemoryBudget5);
+DEFINE_STAT(STAT_VulkanMemoryBudgetX);
 
 
 DEFINE_STAT(STAT_VulkanMemoryTotal);
@@ -161,8 +177,6 @@ static FAutoConsoleVariableRef CVarVulkanDefragAutoPause(
 	ECVF_RenderThreadSafe
 );
 
-
-
 int32 GVulkanUseBufferBinning = 0;
 static FAutoConsoleVariableRef CVarVulkanUseBufferBinning(
 	TEXT("r.Vulkan.UseBufferBinning"),
@@ -194,6 +208,15 @@ static FAutoConsoleVariableRef GVarVulkanLogEvictStatus(
 	TEXT("Log Eviction status every frame"),
 	ECVF_RenderThreadSafe
 );
+
+int32 GVulkanBudgetPercentageScale = 100;
+static FAutoConsoleVariableRef CVarVulkanBudgetPercentageScale(
+	TEXT("r.Vulkan.BudgetScale"),
+	GVulkanBudgetPercentageScale,
+	TEXT("Percentage Scaling of MemoryBudget. Valid range is [0-100]. Only has an effect if VK_EXT_memory_budget is available"),
+	ECVF_RenderThreadSafe
+);
+
 
 
 
@@ -543,6 +566,43 @@ namespace VulkanRHI
 		Deinit();
 	}
 
+	void FDeviceMemoryManager::UpdateMemoryProperties()
+	{
+		if (Device->GetOptionalExtensions().HasMemoryBudget)
+		{
+			FMemory::Memzero(MemoryBudget);
+			VkPhysicalDeviceMemoryProperties2 MemoryProperties2;
+			ZeroVulkanStruct(MemoryBudget, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT);
+			ZeroVulkanStruct(MemoryProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2);
+			MemoryProperties2.pNext = &MemoryBudget;
+			VulkanRHI::vkGetPhysicalDeviceMemoryProperties2(Device->GetPhysicalHandle(), &MemoryProperties2);
+			FMemory::Memcpy(MemoryProperties, MemoryProperties2.memoryProperties);
+
+
+			for (uint32 Heap = 0; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				MemoryBudget.heapBudget[Heap] = GVulkanBudgetPercentageScale * MemoryBudget.heapBudget[Heap] / 100;
+			}
+
+			VkDeviceSize BudgetX = 0;
+			for (uint32 Heap = 6; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				BudgetX += MemoryBudget.heapBudget[Heap];
+			}
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget0, MemoryBudget.heapBudget[0]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget1, MemoryBudget.heapBudget[1]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget2, MemoryBudget.heapBudget[2]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget3, MemoryBudget.heapBudget[3]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget4, MemoryBudget.heapBudget[4]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget5, MemoryBudget.heapBudget[5]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudgetX, BudgetX);
+		}
+		else
+		{
+			VulkanRHI::vkGetPhysicalDeviceMemoryProperties(Device->GetPhysicalHandle(), &MemoryProperties);
+		}
+	}
+
 	void FDeviceMemoryManager::Init(FVulkanDevice* InDevice)
 	{
 		check(Device == nullptr);
@@ -551,10 +611,11 @@ namespace VulkanRHI
 		PeakNumAllocations = 0;
 
 		DeviceHandle = Device->GetInstanceHandle();
-		VulkanRHI::vkGetPhysicalDeviceMemoryProperties(InDevice->GetPhysicalHandle(), &MemoryProperties);
+		UpdateMemoryProperties();
 
 		uint64 HostHeapSize = 0;
 		PrimaryHostHeap = -1; // Primary
+		uint32 NonLocalHeaps = 0;
 
 		for(uint32 i = 0; i < MemoryProperties.memoryHeapCount; ++i)
 		{
@@ -566,6 +627,14 @@ namespace VulkanRHI
 					HostHeapSize = MemoryProperties.memoryHeaps[i].size;
 				}
 			}
+			else
+			{
+				NonLocalHeaps++;
+			}
+		}
+		if(0 == NonLocalHeaps)
+		{
+			PrimaryHostHeap = -1; // if there are no non-local heaps, disable eviction and defragmentation
 		}
 
 
@@ -682,7 +751,33 @@ namespace VulkanRHI
 		GetHostMemoryStatus(&HostAllocated, &HostLimit);
 		double AllocatedPercentage = 100.0 * HostAllocated / HostLimit;
 		VULKAN_LOGMEMORY(TEXT("Host Allocation Percentage %6.2f%% -      %8.2fMB / %8.3fMB"), AllocatedPercentage, HostAllocated / (1024.f * 1024.f), HostLimit / (1024.f * 1024.f));
-
+		if(Device->GetOptionalExtensions().HasMemoryBudget)
+		{
+			UpdateMemoryProperties();
+			VULKAN_LOGMEMORY(TEXT("Memory Budget"));
+			VULKAN_LOGMEMORY(TEXT("\t         | Usage                     | Budget          | Size            |"));
+			VULKAN_LOGMEMORY(TEXT("\t---------|---------------------------------------------------------------|"));
+			for(uint32 Heap = 0; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				VkDeviceSize Budget = MemoryBudget.heapBudget[Heap];
+				VkDeviceSize Usage = MemoryBudget.heapUsage[Heap];
+				if(0 != Budget || 0 != Usage)
+				{
+					VkDeviceSize Size = MemoryProperties.memoryHeaps[Heap].size;
+					double UsagePercentage = 100.0 * Usage  / Size;
+					VULKAN_LOGMEMORY(TEXT("\t HEAP %02d | %6.2f%% / %13.3fmb | %13.3fmb | %13.3fmb |"), Heap,
+						UsagePercentage,
+						Usage / (1024.0 * 1024.0),
+						Budget / (1024.0 * 1024.0),
+						Size / (1024.0 * 1024.0));
+				}
+			}
+			VULKAN_LOGMEMORY(TEXT("\t---------|---------------------------------------------------------------|"));
+		}
+		else
+		{
+			VULKAN_LOGMEMORY(TEXT("Memory Budget unavailable"));
+		}
 
 
 	}
@@ -729,7 +824,7 @@ namespace VulkanRHI
 		}
 		return false;
 	}
-	void FDeviceMemoryManager::GetHostMemoryStatus(uint64* Allocated, uint64* Total) const
+	void FDeviceMemoryManager::GetHostMemoryStatus(uint64* Allocated, uint64* Total)
 	{
 		if(PrimaryHostHeap < 0)
 		{
@@ -741,6 +836,12 @@ namespace VulkanRHI
 			*Allocated = HeapInfos[PrimaryHostHeap].UsedSize;
 			check(HeapInfos[PrimaryHostHeap].TotalSize == MemoryProperties.memoryHeaps[PrimaryHostHeap].size);
 			*Total = GetBaseHeapSize(PrimaryHostHeap);
+			if (Device->GetOptionalExtensions().HasMemoryBudget && FPlatformTime::Seconds() - MemoryUpdateTime >= 1.0)
+			{
+				MemoryUpdateTime = FPlatformTime::Seconds();
+				UpdateMemoryProperties();
+				*Total = MemoryBudget.heapBudget[PrimaryHostHeap];
+			}
 		}
 	}
 

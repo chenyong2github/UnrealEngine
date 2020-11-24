@@ -112,22 +112,14 @@ private:
 		FFileIoStoreCompressedBlock* CompressedBlock;
 	};
 
-	struct FBlockMaps
-	{
-		TMap<FFileIoStoreBlockKey, FFileIoStoreCompressedBlock*> CompressedBlocksMap;
-		TMap<FFileIoStoreBlockKey, FFileIoStoreReadRequest*> RawBlocksMap;
-	};
-
-	void InitCache();
 	void OnNewPendingRequestsAdded();
 	void ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoStoreResolvedRequest& ResolvedRequest);
 	void FreeBuffer(FFileIoStoreBuffer& Buffer);
 	FFileIoStoreCompressionContext* AllocCompressionContext();
 	void FreeCompressionContext(FFileIoStoreCompressionContext* CompressionContext);
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
-	void AllocMemoryForRequest(FIoRequestImpl* Request);
+	void CompleteDispatcherRequest(FIoRequestImpl* Request);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
-	void ProcessIncomingRequests();
 	void UpdateAsyncIOMinimumPriority();
 
 	uint64 ReadBufferSize = 0;
@@ -144,9 +136,8 @@ private:
 	TArray<FFileIoStoreReader*> UnorderedIoStoreReaders;
 	TArray<FFileIoStoreReader*> OrderedIoStoreReaders;
 	FFileIoStoreCompressionContext* FirstFreeCompressionContext = nullptr;
-	FCriticalSection PendingRequestsCritical;
-	FFileIoStoreReadRequestList PendingRequests;
-	FBlockMaps BlockMapsByPrority[IoDispatcherPriority_Count];
+	TMap<FFileIoStoreBlockKey, FFileIoStoreCompressedBlock*> CompressedBlocksMap;
+	TMap<FFileIoStoreBlockKey, FFileIoStoreReadRequest*> RawBlocksMap;
 	FFileIoStoreCompressedBlock* ReadyForDecompressionHead = nullptr;
 	FFileIoStoreCompressedBlock* ReadyForDecompressionTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
@@ -154,7 +145,4 @@ private:
 	FIoRequestImpl* CompletedRequestsHead = nullptr;
 	FIoRequestImpl* CompletedRequestsTail = nullptr;
 	EAsyncIOPriorityAndFlags CurrentAsyncIOMinimumPriority = AIOP_MIN;
-
-	uint32 SubmittedRequestsCount = 0;
-	uint32 CompletedRequestsCount = 0;
 };

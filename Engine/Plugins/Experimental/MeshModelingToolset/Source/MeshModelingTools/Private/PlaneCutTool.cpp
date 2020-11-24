@@ -470,12 +470,6 @@ void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVect
 	}
 }
 
-
-bool UPlaneCutTool::HasAccept() const
-{
-	return true;
-}
-
 bool UPlaneCutTool::CanAccept() const
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -485,7 +479,7 @@ bool UPlaneCutTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 

@@ -897,6 +897,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture3D, HairScatteringLUTTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HairScatteringLUTSampler)
 
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterIndirection)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterData)
 
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
@@ -1133,9 +1134,6 @@ public:
 	/** True if mobile multi-view is enabled. */
 	bool bIsMobileMultiViewEnabled;
 
-	/** True if mobile multi-view direct is enabled. */
-	bool bIsMobileMultiViewDirectEnabled;
-
 	/** True if we need to bind the instanced view uniform buffer parameters. */
 	bool bShouldBindInstancedViewUB;
 
@@ -1213,6 +1211,7 @@ public:
 	FForwardLightingViewResources* ForwardLightingResources;
 
 	/** Water rendering related data */
+	FShaderResourceViewRHIRef WaterIndirectionBuffer;
 	FShaderResourceViewRHIRef WaterDataBuffer;
 
 	/** Feature level for this scene */
@@ -1690,6 +1689,9 @@ public:
 
 	/** When enabled, the post processing will output in HDR space */
 	bool bIsHDR;
+
+	/** True if scenecolor and depth should be multiview-allocated */
+	bool bRequireMultiView;
 
 	/** Gamma correction used when rendering this family. Default is 1.0 */
 	float GammaCorrection;

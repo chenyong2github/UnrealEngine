@@ -102,7 +102,6 @@ public:
 	void HandleTabManagerPersistLayout(const TSharedRef<FTabManager::FLayout>& LayoutToSave);
 
 	void OnNewWorld(UWorld* NewWorld);
-	void OnWorldDestroyed(UWorld* InWorld);
 	void ResetData();
 
 protected:

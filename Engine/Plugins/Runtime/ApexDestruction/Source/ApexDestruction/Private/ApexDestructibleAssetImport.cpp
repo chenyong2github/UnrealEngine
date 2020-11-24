@@ -12,7 +12,6 @@
 
 #include "ApexDestructibleAssetImport.h"
 
-
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
@@ -34,6 +33,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogApexDestructibleAssetImport, Log, All);
 #include "Rendering/SkeletalMeshModel.h"
 #include "DestructibleMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 #if WITH_APEX
 
@@ -871,7 +872,6 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 	ProcessImportMeshInfluences(*SkelMeshImportDataPtr, FString("ApexMesh"));
 
 	FSkeletalMeshModel& DestructibleMeshResource = *DestructibleMesh.GetImportedModel();
-	check(DestructibleMeshResource.LODModels.Num() == 0);
 	DestructibleMeshResource.LODModels.Empty();
 	DestructibleMeshResource.EmptyOriginalReductionSourceMeshData();
 	DestructibleMeshResource.LODModels.Add(new FSkeletalMeshLODModel());
@@ -1100,4 +1100,7 @@ UDestructibleMesh* ImportDestructibleMeshFromApexDestructibleAsset(UObject* InPa
 }
 
 #endif // WITH_APEX
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #endif // WITH_EDITOR

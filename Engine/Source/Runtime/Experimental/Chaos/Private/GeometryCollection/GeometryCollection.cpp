@@ -486,7 +486,7 @@ void FGeometryCollection::RemoveElements(const FName & Group, const TArray<int32
 		}
 
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 		if (Params.bDoValidation)
 		{
 			ensure(HasContiguousFaces());

@@ -30,6 +30,7 @@ struct FHairComponent
 	bool TRT = true;
 	bool GlobalScattering = true;
 	bool LocalScattering = true;
+	bool TTModel = false;
 };
 FHairComponent GetHairComponents();
 uint32 ToBitfield(const FHairComponent& Component);

@@ -22,11 +22,9 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "SequencerUtilities.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "FCameraShakeTrackEditor"
-
-static const FString CameraShakeClassPath(TEXT("Class'/Script/Engine.CameraShake'"));
-
 
 class FCameraShakeSection : public FSequencerSection
 {
@@ -104,21 +102,6 @@ void FCameraShakeTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuil
 	UCameraComponent const* const CamComponent = AcquireCameraComponentFromObjectGuid(ObjectBindings[0]);
 	if (CamComponent)
 	{
-		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
-
-		// Load the asset registry module
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-		// Collect a full list of assets with the specified class
-		TArray<FAssetData> AssetDataList;
-		{
-			FARFilter Filter;
-			Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-			Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, CameraShakeClassPath);
-
-			AssetRegistryModule.Get().GetAssets(Filter, AssetDataList);
-		}
-
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("AddCameraShake", "Camera Shake"), NSLOCTEXT("Sequencer", "AddCameraShakeTooltip", "Adds an additive camera shake track."),
 			FNewMenuDelegate::CreateRaw(this, &FCameraShakeTrackEditor::AddCameraShakeSubMenu, ObjectBindings)
@@ -138,7 +121,6 @@ TSharedRef<SWidget> FCameraShakeTrackEditor::BuildCameraShakeSubMenu(FGuid Objec
 	return MenuBuilder.MakeWidget();
 }
 
-
 void FCameraShakeTrackEditor::AddCameraShakeSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
 {
 	FAssetPickerConfig AssetPickerConfig;
@@ -148,7 +130,28 @@ void FCameraShakeTrackEditor::AddCameraShakeSubMenu(FMenuBuilder& MenuBuilder, T
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-		AssetPickerConfig.Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, CameraShakeClassPath);
+
+		IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+		TArray<FName> ClassNames;
+		TSet<FName> DerivedClassNames;
+		ClassNames.Add(UCameraShakeBase::StaticClass()->GetFName());
+		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+						
+		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([DerivedClassNames](const FAssetData& AssetData)
+		{
+			const FString ParentClassFromData = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
+			if (!ParentClassFromData.IsEmpty())
+			{
+				const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ParentClassFromData);
+				const FName ClassName = FName(*FPackageName::ObjectPathToObjectName(ClassObjectPath));
+
+				if (DerivedClassNames.Contains(ClassName))
+				{
+					return false;
+				}
+			}
+			return true;
+		});
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));

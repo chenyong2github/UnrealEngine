@@ -714,7 +714,12 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 	const uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar, OwnerMesh, Idx);
 	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
 
-	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
+#if WITH_EDITOR
+	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData)
+		|| (Ar.IsCooking() && OwnerMesh && Idx < GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerMesh));
+#else
+	const bool bIsBelowMinLOD = false;
+#endif
 	bool bIsLODCookedOut = false;
 	bool bInlined = false;
 

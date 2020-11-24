@@ -39,6 +39,41 @@
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
+bool IsPackageNamePassingFilter(FName InPackageName, const TArray<FString>& InSearchWords)
+{
+	// package name must match all words
+	for (const FString& Word : InSearchWords)
+	{
+		if (!InPackageName.ToString().Contains(Word))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool IsReferenceNodePassingFilter(const UEdGraphNode_Reference& InNode, const TArray<FString>& InSearchWords)
+{
+	if (InSearchWords.Num() == 0)
+	{
+		return true;
+	}
+
+	TArray<FName> NodePackageNames;
+	InNode.GetAllPackageNames(NodePackageNames);
+
+	for (const FName& PackageName : NodePackageNames)
+	{
+		if (!IsPackageNamePassingFilter(PackageName, InSearchWords))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 SReferenceViewer::~SReferenceViewer()
 {
 	if (!GExitPurge)
@@ -90,6 +125,8 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	bShowShowReferencesOptions = true;
 	bShowShowSearchableNames = true;
 	bShowShowNativePackages = true;
+	bShowShowFilteredPackagesOnly = true;
+	bShowCompactMode = true;
 	bDirtyResults = false;
 
 	ChildSlot
@@ -206,6 +243,31 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 						.ToolTipText(LOCTEXT("SearchTooltip", "Type here to search (pressing Enter zooms to the results)"))
 						.OnTextChanged(this, &SReferenceViewer::HandleOnSearchTextChanged)
 						.OnTextCommitted(this, &SReferenceViewer::HandleOnSearchTextCommitted)
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowFilteredPackagesOnly ? EVisibility::Visible : EVisibility::Collapsed); })
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ShowHideFilteredPackagesOnly", "Show Filtered Packages Only"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged(this, &SReferenceViewer::OnShowFilteredPackagesOnlyChanged)
+							.IsChecked(this, &SReferenceViewer::IsShowFilteredPackagesOnlyChecked)
+						]
 					]
 
 					+SVerticalBox::Slot()
@@ -488,6 +550,31 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 							.IsChecked(this, &SReferenceViewer::IsShowNativePackagesChecked)
 						]
 					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowCompactMode ? EVisibility::Visible : EVisibility::Collapsed); })
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("CompactMode", "Compact Mode"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged(this, &SReferenceViewer::OnCompactModeChanged)
+							.IsChecked(this, &SReferenceViewer::IsCompactModeChecked)
+						]
+					]
 				]
 			]
 
@@ -536,6 +623,19 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	bShowShowReferencesOptions = ReferenceViewerParams.bShowShowReferencesOptions;
 	bShowShowSearchableNames = ReferenceViewerParams.bShowShowSearchableNames;
 	bShowShowNativePackages = ReferenceViewerParams.bShowShowNativePackages;
+
+	bShowShowFilteredPackagesOnly = ReferenceViewerParams.bShowShowFilteredPackagesOnly;
+	if (ReferenceViewerParams.bShowFilteredPackagesOnly.IsSet())
+	{
+		GraphObj->SetShowFilteredPackagesOnlyEnabled(ReferenceViewerParams.bShowFilteredPackagesOnly.GetValue());
+	}
+	UpdateIsPassingFilterPackageCallback();
+
+	bShowCompactMode = ReferenceViewerParams.bShowCompactMode;
+	if (ReferenceViewerParams.bCompactMode.IsSet())
+	{
+		GraphObj->SetCompactModeEnabled(ReferenceViewerParams.bCompactMode.GetValue());
+	}
 
 	RebuildGraph();
 
@@ -988,6 +1088,76 @@ ECheckBoxState SReferenceViewer::IsShowHardReferencesChecked() const
 	if (GraphObj)
 	{
 		return GraphObj->IsShowHardReferences() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
+}
+
+void SReferenceViewer::OnShowFilteredPackagesOnlyChanged(ECheckBoxState NewState)
+{
+	if (GraphObj)
+	{
+		GraphObj->SetShowFilteredPackagesOnlyEnabled(NewState == ECheckBoxState::Checked);
+	}
+	UpdateIsPassingFilterPackageCallback();
+}
+
+
+ECheckBoxState SReferenceViewer::IsShowFilteredPackagesOnlyChecked() const
+{
+	if (GraphObj)
+	{
+		return GraphObj->IsShowFilteredPackagesOnly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
+}
+
+
+void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
+{
+	if (GraphObj)
+	{
+		TOptional<UEdGraph_ReferenceViewer::FIsPackageNamePassingFilterCallback> IsAssetPassingFilterCallback;
+		FString SearchString = SearchBox->GetText().ToString();
+		TArray<FString> SearchWords;
+		SearchString.ParseIntoArrayWS(SearchWords);
+		{
+			if (GraphObj->IsShowFilteredPackagesOnly())
+			{
+				if (SearchWords.Num() > 0)
+				{
+					IsAssetPassingFilterCallback = [=](FName InName) { return IsPackageNamePassingFilter(InName, SearchWords); };
+				}
+			}
+
+			GraphObj->SetIsPackageNamePassingFilterCallback(IsAssetPassingFilterCallback);
+		}
+		RebuildGraph();
+	}
+}
+
+
+void SReferenceViewer::OnCompactModeChanged(ECheckBoxState NewState)
+{
+	if (GraphObj)
+	{
+		GraphObj->SetCompactModeEnabled(NewState == ECheckBoxState::Checked);
+	}
+	
+	RebuildGraph();
+}
+
+
+ECheckBoxState SReferenceViewer::IsCompactModeChecked() const
+{
+	if (GraphObj)
+	{
+		return GraphObj->IsCompactMode() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	else
 	{
@@ -1694,6 +1864,8 @@ void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)
 
 	GraphEditorPtr->ClearSelectionSet();
 
+	UpdateIsPassingFilterPackageCallback();
+
 	if (SearchText.IsEmpty())
 	{
 		return;
@@ -1706,30 +1878,11 @@ void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)
 	TArray<UEdGraphNode_Reference*> AllNodes;
 	GraphObj->GetNodesOfClass<UEdGraphNode_Reference>( AllNodes );
 
-	TArray<FName> NodePackageNames;
 	for (UEdGraphNode_Reference* Node : AllNodes)
 	{
-		NodePackageNames.Empty();
-		Node->GetAllPackageNames(NodePackageNames);
-
-		for (const FName& PackageName : NodePackageNames)
+		if (IsReferenceNodePassingFilter(*Node, SearchWords))
 		{
-			// package name must match all words
-			bool bMatch = true;
-			for (const FString& Word : SearchWords)
-			{
-				if (!PackageName.ToString().Contains(Word))
-				{
-					bMatch = false;
-					break;
-				}
-			}
-
-			if (bMatch)
-			{
-				GraphEditorPtr->SetNodeSelection(Node, true);
-				break;
-			}
+			GraphEditorPtr->SetNodeSelection(Node, true);
 		}
 	}
 }

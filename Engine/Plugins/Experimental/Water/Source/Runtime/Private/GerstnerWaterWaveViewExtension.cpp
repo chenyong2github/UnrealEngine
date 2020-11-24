@@ -33,16 +33,18 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 {
 	if (bRebuildGPUData && WaterBodies)
 	{
+		TResourceArray<FVector4> WaterIndirectionBuffer;
 		TResourceArray<FVector4> WaterDataBuffer;
 
-		const int32 TempMaxNumWaves = 32; // Has to match MAX_NUM_WAVES in GersnerWaveFunctions.ush
-		// Two FVector4 per wave plus one FVector4 for other info
-		const int32 NumVec4 = 2 * TempMaxNumWaves + 1; 
+		// Some max value
+		const int32 MaxWavesPerWaterBody = 4096;
+
+		const int32 NumFloat4PerWave = 2;
 
 		for (const AWaterBody* WaterBody : *WaterBodies)
 		{
-			WaterDataBuffer.AddZeroed(NumVec4);
-			
+			WaterIndirectionBuffer.AddZeroed();
+
 			if (WaterBody)
 			{
 				if (const UWaterWavesBase* WaterWavesBase = WaterBody->GetWaterWaves())
@@ -51,20 +53,29 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 					{
 						const TArray<FGerstnerWave>& Waves = GerstnerWaves->GetGerstnerWaves();
 
-						const int32 BaseIndex = WaterBody->WaterBodyIndex * NumVec4;
-						const int32 WaveDataBaseIndex = BaseIndex + 1;
+						// Where the data for this water body starts (including header)
+						const int32 DataBaseIndex = WaterDataBuffer.Num();
 
-						const int32 NumWaves = FMath::Min(Waves.Num(), TempMaxNumWaves);
+						// Allocate for the waves in this water body
+						const int32 NumWaves = FMath::Min(Waves.Num(), MaxWavesPerWaterBody);
+						WaterDataBuffer.AddZeroed(NumWaves * NumFloat4PerWave);
 
-						// The first vector4 of the buffer contains generic per-water body information :
-						WaterDataBuffer[BaseIndex].X = NumWaves;
-						WaterDataBuffer[BaseIndex].Y = WaterBody->TargetWaveMaskDepth;
+						// The header is a vector4 and contains generic per-water body information
+						// X: Index to the wave data
+						// Y: Num waves
+						// Z: TargetWaveMaskDepth
+						// W: Unused
+						FVector4& Header = WaterIndirectionBuffer.Last();
+						Header.X = DataBaseIndex;
+						Header.Y = NumWaves;
+						Header.Z = WaterBody->TargetWaveMaskDepth;
+						Header.W = 0.0f;
 
 						for (int32 i = 0; i < NumWaves; i++)
 						{
 							const FGerstnerWave& Wave = Waves[i];
 
-							const int32 WaveIndex = WaveDataBaseIndex + (i * 2);
+							const int32 WaveIndex = DataBaseIndex + (i * NumFloat4PerWave);
 
 							WaterDataBuffer[WaveIndex] = FVector4(Wave.Direction.X, Wave.Direction.Y, Wave.WaveLength, Wave.Amplitude);
 							WaterDataBuffer[WaveIndex + 1] = FVector4(Wave.Steepness, 0.0f, 0.0f, 0.0f);
@@ -74,6 +85,11 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 			}
 		}
 
+		if (WaterIndirectionBuffer.Num() == 0)
+		{
+			WaterIndirectionBuffer.AddZeroed();
+		}
+		
 		if (WaterDataBuffer.Num() == 0)
 		{
 			WaterDataBuffer.AddZeroed();
@@ -81,13 +97,19 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 
 		ENQUEUE_RENDER_COMMAND(AllocateWaterInstanceDataBuffer)
 		(
-			[this, WaterDataBuffer](FRHICommandListImmediate& RHICmdList) mutable
+			[this, WaterDataBuffer, WaterIndirectionBuffer](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				FRHIResourceCreateInfo CreateInfo;
-				CreateInfo.ResourceArray = &WaterDataBuffer;
-				CreateInfo.DebugName = TEXT("WaterBuffer");
-				Buffer = RHICreateStructuredBuffer(sizeof(FVector4), WaterDataBuffer.GetResourceDataSize(), BUF_StructuredBuffer | BUF_ShaderResource | BUF_Dynamic, ERHIAccess::SRVMask, CreateInfo);
-				SRV = RHICreateShaderResourceView(Buffer);
+				FRHIResourceCreateInfo CreateInfoData;
+				CreateInfoData.ResourceArray = &WaterDataBuffer;
+				CreateInfoData.DebugName = TEXT("WaterDataBuffer");
+				DataBuffer = RHICreateStructuredBuffer(sizeof(FVector4), WaterDataBuffer.GetResourceDataSize(), BUF_StructuredBuffer | BUF_ShaderResource | BUF_Static, ERHIAccess::SRVMask, CreateInfoData);
+				DataSRV = RHICreateShaderResourceView(DataBuffer);
+
+				FRHIResourceCreateInfo CreateInfoIndirection;
+				CreateInfoIndirection.ResourceArray = &WaterIndirectionBuffer;
+				CreateInfoIndirection.DebugName = TEXT("WaterIndirectionBuffer");
+				IndirectionBuffer = RHICreateStructuredBuffer(sizeof(FVector4), WaterIndirectionBuffer.GetResourceDataSize(), BUF_StructuredBuffer | BUF_ShaderResource | BUF_Static, ERHIAccess::SRVMask, CreateInfoIndirection);
+				IndirectionSRV = RHICreateShaderResourceView(IndirectionBuffer);
 			}
 		);
 
@@ -97,8 +119,9 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 
 void FGerstnerWaterWaveViewExtension::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
-	if (SRV)
+	if (DataSRV && IndirectionSRV)
 	{
-		InView.WaterDataBuffer = SRV;
+		InView.WaterDataBuffer = DataSRV;
+		InView.WaterIndirectionBuffer = IndirectionSRV;
 	}
 }

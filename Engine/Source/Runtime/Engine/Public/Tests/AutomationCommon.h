@@ -28,6 +28,7 @@ namespace AutomationCommon
 
 #if WITH_AUTOMATION_TESTS
 
+
 	/** Gets a name to be used for this screenshot.  This will return something like 
 		TestName/PlatformName/DeviceName.png. It's important to understand that a screenshot
 		generated on a device will likely have a different absolute path than the editor so this

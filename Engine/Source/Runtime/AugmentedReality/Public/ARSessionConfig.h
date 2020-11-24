@@ -138,6 +138,9 @@ enum class EARSessionTrackingFeature : uint8
 	
 	/** Accessing scene depth info is enabled */
 	SceneDepth,
+	
+	/** Accessing smoothed scene depth info is enabled */
+	SmoothedSceneDepth,
 };
 
 /**

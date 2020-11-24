@@ -650,7 +650,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 		return EProcessResult::FileNotFound;
 	}
 
-		uint32 FileHash = GetFileHash();
+	uint32 FileHash = GetFileHash();
 
 	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 
@@ -663,7 +663,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 
 	bool bNeedToProceed = true;
 #ifndef IGNORE_CACHE
-	if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*SceneGraphArchiveFilePath))
+	if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*CTFilePath))
 	{
 		if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
 		{

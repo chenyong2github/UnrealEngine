@@ -776,7 +776,16 @@ void AndroidEGL::Init(APIVariant API, uint32 MajorVersion, uint32 MinorVersion, 
 		ContextAttributes[2] = EGL_NONE;
 	}
 
-	InitContexts();
+	bool bSuccess = InitContexts();
+
+	// Try to create the context again for ES3.1 if it is failed to create for ES3.2
+	if (!bSuccess && ContextAttributes[3] > 1)
+	{
+		ContextAttributes[3] -= 1;
+
+		InitContexts();
+	}
+
 	// Getting the hardware window is valid during preinit as we have GAndroidWindowLock held.
 	PImplData->Window = (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread();
 	PImplData->Initalized   = true;
@@ -867,14 +876,13 @@ ANativeWindow* AndroidEGL::GetNativeWindow() const
 
 bool AndroidEGL::InitContexts()
 {
-	bool Result = true; 
-
 	PImplData->SharedContext.eglContext = CreateContext();
 	
 	PImplData->RenderingContext.eglContext = CreateContext(PImplData->SharedContext.eglContext);
 	
 	PImplData->SingleThreadedContext.eglContext = CreateContext();
-	return Result;
+
+	return PImplData->SharedContext.eglContext != EGL_NO_CONTEXT;
 }
 
 void AndroidEGL::SetCurrentSharedContext()

@@ -32,6 +32,7 @@ public:
 	//~ Begin FWinHttpConnectionHttp Public Interface
 	virtual bool IsValid() const override;
 	virtual void PumpMessages() override;
+	virtual void PumpStates() override;
 	//~ End FWinHttpConnectionHttp Public Interface
 
 	/// WebSocket Events

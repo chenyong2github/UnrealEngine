@@ -243,6 +243,7 @@ public:
 
 	FORCEINLINE float GetAge() const { return Age; }
 	FORCEINLINE int32 GetTickCount() const { return TickCount; }
+	FORCEINLINE bool RequiresGpuBufferReset() const { return bHasSimulationReset && (TickCount == 1); }
 
 	FORCEINLINE float GetLastRenderTime() const { return LastRenderTime; }
 	FORCEINLINE void SetLastRenderTime(float TimeSeconds) { LastRenderTime = TimeSeconds; }
@@ -376,6 +377,9 @@ private:
 	
 	void ProcessComponentRendererTasks();
 
+	/** Callback for whenever any blueprint components are reinstanced */
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
 
@@ -484,6 +488,9 @@ private:
 
 	/** True if the system instance is pooled. Prevents unbinding of parameters on completing the system */
 	uint32 bPooled : 1;
+
+	/** Will be set to true when the the simulation needs a full reset from ResetInternal() */
+	uint32 bHasSimulationReset : 1;
 
 #if WITH_EDITOR
 	uint32 bNeedsUIResync : 1;

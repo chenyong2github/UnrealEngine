@@ -135,6 +135,11 @@ public:
 		return Keys.Contains(InGuid);
 	}
 
+	const TMap<FGuid, FAES::FAESKey>& GetKeys() const
+	{
+		return Keys;
+	}
+
 private:
 
 	TMap<FGuid, FAES::FAESKey> Keys;
@@ -259,6 +264,32 @@ void FPakPlatformFile::GetPrunedFilenamesInChunk(const FString& InPakFilename, c
 	}
 }
 
+void FPakPlatformFile::GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList)
+{
+	if (FIoDispatcher::IsInitialized())
+	{
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+
+		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		{
+			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			{
+				FIoStoreEnvironment IoEnvironment;
+				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
+				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+
+				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				if (Status.IsOk())
+				{
+					IoStoreReader->GetFilenamesByBlockIndex(InBlockIndex, OutFileList);
+				}
+	
+				break;
+			}
+		}
+	}
+}
+
 void FPakPlatformFile::GetPrunedFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList)
 {
 	TArray<FPakListEntry> Paks;
@@ -270,6 +301,31 @@ void FPakPlatformFile::GetPrunedFilenamesInPakFile(const FString& InPakFilename,
 		{
 			Pak.PakFile->GetPrunedFilenames(OutFileList);
 			break;
+		}
+	}
+}
+
+void FPakPlatformFile::GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList)
+{
+	if (FIoDispatcher::IsInitialized())
+	{
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+
+		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		{
+			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			{
+				FIoStoreEnvironment IoEnvironment;
+				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
+				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+
+				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				if (Status.IsOk())
+				{
+					IoStoreReader->GetFilenames(OutFileList);
+				}
+				break;
+			}
 		}
 	}
 }
@@ -6574,7 +6630,7 @@ const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath
 
 FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntry) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
+	//QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
 
 	const FPakEntryLocation* PakEntryLocation;
 #if ENABLE_PAKFILE_RUNTIME_PRUNING_VALIDATE
@@ -7070,7 +7126,8 @@ void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
 
 bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath /*= NULL*/, bool bLoadIndex /*= true*/)
 {
-	bool bSuccess = false;
+	bool bPakSuccess = false;
+	bool bIoStoreSuccess = true;
 	TSharedPtr<IFileHandle> PakHandle = MakeShareable(LowerLevel->OpenRead(InPakFilename));
 	if (PakHandle.IsValid())
 	{
@@ -7120,7 +7177,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 					PakFiles.Add(Entry);
 					PakFiles.StableSort();
 				}
-				bSuccess = true;
+				bPakSuccess = true;
 			}
 			else
 			{
@@ -7144,35 +7201,36 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
 		}
 
-		if (bSuccess)
+		if (FIoDispatcher::IsInitialized())
 		{
-			if (FIoDispatcher::IsInitialized())
+			FIoStoreEnvironment IoStoreEnvironment;
+			IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
+
+			FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
+			FAES::FAESKey EncryptionKey;
+
+			if (!GetRegisteredEncryptionKeys().GetKey(EncryptionKeyGuid, EncryptionKey))
 			{
-				FIoStoreEnvironment IoStoreEnvironment;
-				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
-
-				FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
-				FAES::FAESKey EncryptionKey;
-
-				if (!GetRegisteredEncryptionKeys().GetKey(EncryptionKeyGuid, EncryptionKey))
+				if (!EncryptionKeyGuid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
 				{
-					if (!EncryptionKeyGuid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
-					{
-						FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(EncryptionKey.Key);
-					}
-				}
-
-				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
-				if (IoStatus.IsOk())
-				{
-					UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
-				}
-				else
-				{
-					UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
+					FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(EncryptionKey.Key);
 				}
 			}
 
+			FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
+			if (IoStatus.IsOk())
+			{
+				UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+			}
+			else
+			{
+				bIoStoreSuccess = false;
+				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
+			}
+		}
+
+		if (bPakSuccess)
+		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
@@ -7193,7 +7251,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 	{
 		UE_LOG(LogPakFile, Warning, TEXT("Failed to open pak \"%s\""), InPakFilename);
 	}
-	return bSuccess;
+	return bPakSuccess && bIoStoreSuccess;
 }
 
 bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
@@ -7727,6 +7785,5 @@ void FPakPlatformFile::MakeUniquePakFilesForTheseFiles(const TArray<TArray<FStri
 
 	}
 }
-
 
 IMPLEMENT_MODULE(FPakFileModule, PakFile);

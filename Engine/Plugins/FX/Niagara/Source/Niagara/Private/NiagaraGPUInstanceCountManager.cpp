@@ -55,6 +55,8 @@ DECLARE_CYCLE_STAT(TEXT("GPU Readback Lock"), STAT_NiagaraGPUReadbackLock, STATG
 
 //*****************************************************************************
 
+const ERHIAccess FNiagaraGPUInstanceCountManager::kCountBufferDefaultState = ERHIAccess::SRVMask | ERHIAccess::CopySrc;
+
 FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager() 
 {
 	NumRegisteredGPURenderers = new FNiagaraGPURendererCount();
@@ -155,6 +157,7 @@ FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHIComman
 		if (!bAcquiredCulledCounts)
 		{
 			const int32 RecommendedCulledCounts = FMath::Max(GNiagaraMinCulledGPUInstanceCount, (int32)(RequiredCulledCounts * GNiagaraGPUCountBufferSlack));
+			ERHIAccess BeforeState = ERHIAccess::SRVCompute;
 			if (RecommendedCulledCounts > AllocatedCulledCounts)
 			{
 				// We need a bigger buffer
@@ -162,22 +165,22 @@ FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHIComman
 
 				AllocatedCulledCounts = RecommendedCulledCounts;
 				CulledCountBuffer.Initialize(sizeof(uint32), AllocatedCulledCounts, EPixelFormat::PF_R32_UINT, BUF_Transient, TEXT("NiagaraCulledGPUInstanceCounts"));
-				// The clear pass expect to find this as readable.
-				RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+				BeforeState = ERHIAccess::Unknown;
 			}
 
 			CulledCountBuffer.AcquireTransientResource();
 
 			// Initialize the buffer by clearing it to zero then transition it to be ready to write to
-			RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+			RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, BeforeState, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVUint(CulledCountBuffer.UAV, FUintVector4(EForceInit::ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+
+			bAcquiredCulledCounts = true;
 		}
 
 		return &CulledCountBuffer;
 	}	
 
-	bAcquiredCulledCounts = true;
 	return nullptr;
 }
 
@@ -236,7 +239,9 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 		{
 			DrawIndirectBuffer.Release();
 			AllocatedDrawIndirectArgs = RecommendedDrawIndirectArgsCount;
-			DrawIndirectBuffer.Initialize(sizeof(uint32), RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGPUDrawIndirectArgs"));
+			TResourceArray<uint32> InitData;
+			InitData.AddZeroed(RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
+			DrawIndirectBuffer.Initialize(sizeof(uint32), RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGPUDrawIndirectArgs"), &InitData);
 			// The rest of the code expects this to be in the IndirectArgs state.
 			RHICmdList.Transition(FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs));
 		}
@@ -301,16 +306,15 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 
 			FRHIShaderResourceView* CulledCountsSRV;
 
-			FRHITransitionInfo TransitionsBefore[3];
-			int32 NumTransitionsBefore = 0;
-			TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute);
-			++NumTransitionsBefore;
-			TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
-			++NumTransitionsBefore;
+			TArray<FRHITransitionInfo, TInlineAllocator<3>> TransitionsBefore;
+			TransitionsBefore.Emplace(DrawIndirectBuffer.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute);
+			TransitionsBefore.Emplace(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
 			if (CulledCountBuffer.SRV.IsValid())
 			{
-				TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);
-				++NumTransitionsBefore;
+				if (bAcquiredCulledCounts)
+				{
+					TransitionsBefore.Emplace(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);
+				}
 				CulledCountsSRV = CulledCountBuffer.SRV.GetReference();
 			}
 			else
@@ -318,7 +322,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 				CulledCountsSRV = FNiagaraRenderer::GetDummyUIntBuffer();
 			}
 
-			RHICmdList.Transition(MakeArrayView(TransitionsBefore, NumTransitionsBefore));
+			RHICmdList.Transition(TransitionsBefore);
 
 			FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FNiagaraDrawIndirectArgsGenCS::FSupportsTextureRW>(GRHISupportsRWTextureBuffers ? 1 : 0);

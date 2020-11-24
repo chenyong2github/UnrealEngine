@@ -99,7 +99,12 @@ static TAutoConsoleVariable<int32> CVarVTPageUpdateFlushCount(
 	TEXT("Number of page updates to buffer before attempting to flush by taking a lock."),
 	ECVF_RenderThreadSafe
 );
-
+static TAutoConsoleVariable<int32> CVarVTForceContinuousUpdate(
+	TEXT("r.VT.ForceContinuousUpdate"),
+	0,
+	TEXT("Force continuous update on all virtual textures."),
+	ECVF_RenderThreadSafe
+);
 static TAutoConsoleVariable<int32> CVarVTProduceLockedTilesOnFlush(
 	TEXT("r.VT.ProduceLockedTilesOnFlush"),
 	1,
@@ -1341,6 +1346,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	uint32 NumNonResidentPages = 0u;
 	uint32 NumPrefetchPages = 0u;
 
+	const bool bForceContinuousUpdate = CVarVTForceContinuousUpdate.GetValueOnRenderThread() != 0;
+
 	for (uint32 i = Parameters.PageStartIndex; i < PageEndIndex; ++i)
 	{
 		const uint32 PageEncoded = UniquePageList->GetPage(i);
@@ -1397,7 +1404,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 					// If continuous update flag is set then add this to pages which can be potentially updated if we have spare upload bandwidth
 					//todo[vt]: Would be better to test continuous update flag *per producer*, but this would require extra indirection so need to profile first
-					if (GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetDescription().bContinuousUpdate)
+					if (bForceContinuousUpdate || GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetDescription().bContinuousUpdate)
 					{
 						FTexturePagePool& RESTRICT PagePool = GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetPagePool();
 						const FVirtualTextureLocalTile LocalTile = PagePool.GetLocalTileFromPhysicalAddress(PhysicalSpaceIDAndAddress.pAddress);

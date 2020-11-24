@@ -150,12 +150,16 @@ void ALevelSequenceActor::PostInitializeComponents()
 		SetReplicates(bReplicatePlayback);
 	}
 	
+	// Initialize this player for tick as soon as possible to ensure that a persistent
+	// reference to the tick manager is maintained
+	SequencePlayer->InitializeForTick(this);
+
 	InitializePlayer();
 }
 
 void ALevelSequenceActor::BeginPlay()
 {
-	UMovieSceneSequenceTickManager* TickManager = UMovieSceneSequenceTickManager::Get(this);
+	UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager();
 	if (ensure(TickManager))
 	{
 		TickManager->SequenceActors.Add(this);
@@ -179,12 +183,11 @@ void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		// during EndPlay (when Actors + World are still valid) instead
 		// of waiting for the UObject to be destroyed by GC.
 		SequencePlayer->Stop();
-	}
 
-	UMovieSceneSequenceTickManager* TickManager = UMovieSceneSequenceTickManager::Get(this);
-	if (ensure(TickManager))
-	{
-		TickManager->SequenceActors.Remove(this);
+		if (UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager())
+		{
+			TickManager->SequenceActors.Remove(this);
+		}
 	}
 
 	Super::EndPlay(EndPlayReason);

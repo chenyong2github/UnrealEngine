@@ -24,6 +24,7 @@ class UDestructibleMesh;
 class UDestructibleMesh;
 class FSkelMeshOptionalImportData;
 class FSkeletalMeshImportData;
+
 namespace nvidia
 {
 	namespace apex
@@ -42,6 +43,7 @@ namespace nvidia
  *
  * @return The newly created NxDestructibleAsset if successful, NULL otherwise
  */
+UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.")
 APEXDESTRUCTION_API nvidia::apex::DestructibleAsset* CreateApexDestructibleAssetFromBuffer(const uint8* Buffer, int32 BufferSize);
 
 
@@ -52,6 +54,7 @@ APEXDESTRUCTION_API nvidia::apex::DestructibleAsset* CreateApexDestructibleAsset
  *
  * @return The newly created NxDestructibleAsset if successful, NULL otherwise
  */
+UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.")
 APEXDESTRUCTION_API nvidia::apex::DestructibleAsset* CreateApexDestructibleAssetFromFile(const FString& Filename);
 
 /**
@@ -69,7 +72,10 @@ APEXDESTRUCTION_API nvidia::apex::DestructibleAsset* CreateApexDestructibleAsset
  *
  * @return true if successful
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.")
 APEXDESTRUCTION_API bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, nvidia::apex::DestructibleAsset& ApexDestructibleAsset, FSkeletalMeshImportData* OutData, EDestructibleImportOptions::Type Options = EDestructibleImportOptions::None);
+
 
 /**
  * Creates a DestructibleMesh from an APEX Destructible Asset with the given name and flags.
@@ -83,7 +89,10 @@ APEXDESTRUCTION_API bool SetApexDestructibleAsset(UDestructibleMesh& Destructibl
  *
  * @return The newly created UDestructibleMesh if successful, NULL otherwise
  */
+
+UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.")
 APEXDESTRUCTION_API UDestructibleMesh* ImportDestructibleMeshFromApexDestructibleAsset(UObject* InParent, nvidia::apex::DestructibleAsset& ApexDestructibleAsset, FName Name, EObjectFlags Flags, FSkeletalMeshImportData* OutData, EDestructibleImportOptions::Type Options = EDestructibleImportOptions::None);
+
 
 /**
  * Builds a UDestructibleMesh from its internal fracture settings
@@ -93,7 +102,10 @@ APEXDESTRUCTION_API UDestructibleMesh* ImportDestructibleMeshFromApexDestructibl
  *
  * @return The true iff successful
  */
+
+UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.")
 APEXDESTRUCTION_API bool BuildDestructibleMeshFromFractureSettings(UDestructibleMesh& DestructibleMesh, FSkeletalMeshImportData* OutData);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // WITH_APEX
 

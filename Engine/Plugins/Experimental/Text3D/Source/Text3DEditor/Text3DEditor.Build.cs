@@ -10,6 +10,8 @@ public class Text3DEditor : ModuleRules
 			"Core",
 			"CoreUObject",
 			"EditorFramework",
+			"Projects",
+			"SlateCore",
 			"Text3D",
 			"UnrealEd",
 		});

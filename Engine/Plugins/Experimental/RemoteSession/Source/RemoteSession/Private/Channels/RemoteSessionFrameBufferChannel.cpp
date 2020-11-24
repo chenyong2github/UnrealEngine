@@ -24,8 +24,8 @@ public:
 			{
 				const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
-				ImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
-				Channel->SetCompressQuality(Settings->FrameRate);
+				ImageProvider->SetCaptureFrameRate(Settings->FrameRate);
+				Channel->SetCompressQuality(Settings->ImageQuality);
 			}
 
 			{
@@ -46,5 +46,5 @@ public:
 };
 
 REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
-//REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel_DEPRECATED, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
+REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel_DEPRECATED, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
 

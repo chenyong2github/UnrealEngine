@@ -27,28 +27,49 @@ enum EIoStoreResolveResult
 class FIoBatchImpl
 {
 public:
-	FIoRequestImpl* HeadRequest = nullptr;
-	FIoRequestImpl* TailRequest = nullptr;
-
-	// Used for contiguous reads
-	FIoBuffer IoBuffer;
-	FIoReadCallback Callback;
+	TFunction<void()> Callback;
+	FEvent* Event = nullptr;
+	FGraphEventRef GraphEvent;
 	TAtomic<uint32> UnfinishedRequestsCount{ 0 };
 };
 
 class FIoRequestImpl
 {
 public:
+	FIoRequestImpl(FIoDispatcherImpl& InDispatcher)
+		: Dispatcher(InDispatcher)
+	{
+
+	}
+
+	void AddRef()
+	{
+		RefCount.IncrementExchange();
+	}
+
+	void ReleaseRef()
+	{
+		if (RefCount.DecrementExchange() == 1)
+		{
+			FreeRequest();
+		}
+	}
+
+	FIoDispatcherImpl& Dispatcher;
 	FIoBatchImpl* Batch = nullptr;
 	FIoRequestImpl* NextRequest = nullptr;
-	FIoRequestImpl* BatchNextRequest = nullptr;
-	FIoStatus Status;
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	FIoBuffer IoBuffer;
 	FIoReadCallback Callback;
 	uint32 UnfinishedReadsCount = 0;
-	EIoDispatcherPriority Priority;
+	int32 Priority = 0;
+	TAtomic<EIoErrorCode> ErrorCode{ EIoErrorCode::Unknown };
 	bool bFailed = false;
+
+private:
+	void FreeRequest();
+
+	TAtomic<uint32> RefCount{ 0 };
 };
 

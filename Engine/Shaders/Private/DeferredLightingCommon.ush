@@ -194,10 +194,15 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 	}
 
 #if SUPPORT_CONTACT_SHADOWS
-	if ((LightData.ShadowedBits < 2 && (GBuffer.ShadingModelID == SHADINGMODELID_HAIR))
-		|| GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	if (LightData.ShadowedBits < 2 && (GBuffer.ShadingModelID == SHADINGMODELID_HAIR))
 	{
 		ContactShadowLength = 0.2 * ContactShadowLengthScreenScale;
+	}
+	// World space distance to cover eyelids and eyelashes but not beyond
+	if (GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		ContactShadowLength = 0.5;
+		
 	}
 
 	#if MATERIAL_CONTACT_SHADOWS
@@ -215,8 +220,14 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 		{
 			float ContactShadowOcclusion = bHitCastContactShadow ? 1.0 : LightData.ContactShadowNonShadowCastingIntensity;
 
+			// Exponential attenuation is not applied on hair/eye/SSS-profile here, as the hit distance (shading-point to blocker) is different from the estimated 
+			// thickness (closest-point-from-light to shading-point), and this creates light leaks. Instead we consider first hit as a blocker (old behavior)
 			BRANCH
-			if ( ContactShadowOcclusion > 0.0 && IsSubsurfaceModel( GBuffer.ShadingModelID ) )
+			if (ContactShadowOcclusion > 0.0 && 
+				IsSubsurfaceModel(GBuffer.ShadingModelID) && 
+				GBuffer.ShadingModelID != SHADINGMODELID_HAIR && 
+				GBuffer.ShadingModelID != SHADINGMODELID_EYE && 
+				GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE)
 			{
 				// Reduce the intensity of the shadow similar to the subsurface approximation used by the shadow maps path
 				// Note that this is imperfect as we don't really have the "nearest occluder to the light", but this should at least
@@ -229,22 +240,7 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 			float ContactShadow = 1.0 - ContactShadowOcclusion;
 
 			Shadow.SurfaceShadow *= ContactShadow;
-
-			FLATTEN
-			if( GBuffer.ShadingModelID == SHADINGMODELID_HAIR ||  GBuffer.ShadingModelID == SHADINGMODELID_EYE  )
-			{
-				// If hair transmittance is enabled, sharp shadowing should already be handled by 
-				// the dedicated deep shadow maps. Thus no need for contact shadow
-				const bool bUseComplexTransmittance = (LightData.HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER) > 0;
-				if (!bUseComplexTransmittance)
-				{
-					Shadow.TransmissionShadow *= ContactShadow;
-				}
-			}
-			else
-			{
-				Shadow.TransmissionShadow *= ContactShadow;
-			}
+			Shadow.TransmissionShadow *= ContactShadow;
 		}
 		
 	}

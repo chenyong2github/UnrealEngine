@@ -34,7 +34,7 @@ struct FCanDeleteAssetResult;
 #endif
 
 
-UCLASS(Blueprintable, BlueprintType, Category="VirtualCamera", DisplayName="VirtualCameraActor")
+UCLASS(Abstract, BluePrintable, BlueprintType, Category="VirtualCamera", DisplayName="VirtualCameraActor")
 class VIRTUALCAMERA_API AVirtualCameraActor : public ACineCameraActor, public IVirtualCameraController, public IVirtualCameraPresetContainer, public IVirtualCameraOptions
 {
 	GENERATED_BODY()

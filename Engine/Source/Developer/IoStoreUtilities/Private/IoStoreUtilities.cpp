@@ -46,6 +46,7 @@
 #include "Misc/OutputDeviceFile.h"
 #include "Misc/FeedbackContext.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/StringBuilder.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -577,34 +578,29 @@ using FPackageIdMap = TMap<FPackageId, FPackage*>;
 using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*, FPackage*>;
 using FLocalizedToSourceImportIndexMap = TMap<FPackageObjectIndex, FPackageObjectIndex>;
 
-static constexpr TCHAR L10NPrefix[] = TEXT("/Game/L10N/");
+static constexpr TCHAR L10NString[] = TEXT("/L10N/");
 static constexpr TCHAR ScriptPrefix[] = TEXT("/Script/");
 
 // modified copy from PakFileUtilities
 static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRegion)
 {
-	static constexpr int32 L10NPrefixLength = sizeof(L10NPrefix)/sizeof(TCHAR) - 1;
+	static constexpr int32 L10NPrefixLength = sizeof(L10NString) / sizeof(TCHAR) - 1;
 
-	int32 FoundIndex = Path.Find(L10NPrefix, ESearchCase::IgnoreCase);
-	if (FoundIndex >= 0)
+	int32 BeginL10NOffset = Path.Find(L10NString, ESearchCase::IgnoreCase);
+	if (BeginL10NOffset >= 0)
 	{
-		// Validate the content index is the first one
-		int32 ContentIndex = Path.Find(TEXT("/Game/"), ESearchCase::IgnoreCase);
-		if (ContentIndex == FoundIndex)
+		int32 EndL10NOffset = BeginL10NOffset + L10NPrefixLength;
+		int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
+		int32 RegionLength = NextSlashIndex - EndL10NOffset;
+		if (RegionLength >= 2)
 		{
-			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
-			int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
-			int32 RegionLength = NextSlashIndex - EndL10NOffset;
-			if (RegionLength >= 2)
+			FString NonLocalizedPath = Path.Mid(0, BeginL10NOffset) + Path.Mid(NextSlashIndex);
+			if (OutRegion)
 			{
-				FString NonLocalizedPath = Path.Mid(0, ContentIndex) + TEXT("/Game") + Path.Mid(NextSlashIndex);
-				if (OutRegion)
-				{
-					*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
-					OutRegion->ToLowerInline();
-				}
-				return NonLocalizedPath;
+				*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
+				OutRegion->ToLowerInline();
 			}
+			return NonLocalizedPath;
 		}
 	}
 	return Path;
@@ -1549,6 +1545,7 @@ struct FGlobalPackageData
 };
 
 static void FindImportFullName(
+	const TMap<FName, FName>& Redirects,
 	TArray<FString>& ImportFullNames,
 	FObjectImport* ImportMap,
 	const int32 LocalImportIndex)
@@ -1562,13 +1559,18 @@ static void FindImportFullName(
 		FObjectImport* Import = &ImportMap[LocalImportIndex];
 		if (Import->OuterIndex.IsNull())
 		{
-			Import->ObjectName.AppendString(FullName);
+			FName PackageName = Import->ObjectName;
+			if (const FName* RedirectedName = Redirects.Find(PackageName))
+			{
+				PackageName = *RedirectedName;
+			}
+			PackageName.AppendString(FullName);
 			FullName.ToLowerInline();
 		}
 		else
 		{
 			const int32 OuterIndex = Import->OuterIndex.ToImport();
-			FindImportFullName(ImportFullNames, ImportMap, OuterIndex);
+			FindImportFullName(Redirects, ImportFullNames, ImportMap, OuterIndex);
 			const FString& OuterName = ImportFullNames[OuterIndex];
 			check(OuterName.Len() > 0);
 
@@ -1736,7 +1738,7 @@ FPackage* FindOrAddPackage(
 	FString ErrorMessage;
 	if (!FPackageName::TryConvertFilenameToLongPackageName(RelativeFileName, PackageName, &ErrorMessage))
 	{
-		UE_LOG(LogIoStore, Warning, TEXT("Failed to convert file name from file name '%s'"), *ErrorMessage);
+		UE_LOG(LogIoStore, Warning, TEXT("Failed to obtain package name from file name '%s'"), *ErrorMessage);
 		return nullptr;
 	}
 
@@ -2847,6 +2849,7 @@ static void CreateGlobalImportsAndExports(
 	UE_LOG(LogIoStore, Display, TEXT("Creating global imports and exports..."));
 
 	TArray<FString> TempFullNames;
+	TMap<FName, FName> Redirects;
 	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf(TEXT("/%s/"), *FPaths::GetBaseFilename(Arguments.DLCPluginPath)) : FString();
 
 	TSet<FPackage*> TempImportedPackages;
@@ -2855,6 +2858,11 @@ static void CreateGlobalImportsAndExports(
 		if (Package->ExportCount == 0)
 		{
 			continue;
+		}
+
+		if (Package->RedirectedPackageId.IsValid())
+		{
+			Redirects.Add(Package->Name, Package->SourcePackageName);
 		}
 
 		TempFullNames.Reset();
@@ -2917,7 +2925,7 @@ static void CreateGlobalImportsAndExports(
 
 		for (int32 ImportIndex = 0; ImportIndex < Package->ImportCount; ++ImportIndex)
 		{
-			FindImportFullName(TempFullNames, ImportMap, ImportIndex);
+			FindImportFullName(Redirects, TempFullNames, ImportMap, ImportIndex);
 			FString& FullName = TempFullNames[ImportIndex];
 			FObjectImport& Import = ImportMap[ImportIndex];
 			const bool bIsPackage = Import.OuterIndex.IsNull();
@@ -3602,6 +3610,23 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FSourceToLocalizedPackageMultimap SourceToLocalizedPackageMap;
 
 	ProcessLocalizedPackages(Packages, PackageNameMap, GlobalPackageData, SourceToLocalizedPackageMap);
+
+	for (FPackage* Package : Packages)
+	{
+		if (Package->RedirectedPackageId.IsValid())
+		{
+			for (int32 ExportIndex : Package->Exports)
+			{
+				const FExportObjectData& ExportData = GlobalPackageData.ExportObjects[ExportIndex];
+				if (!ExportData.SuperIndex.IsNull() && ExportData.OuterIndex.IsNull())
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Skipping redirect to package '%s' due to presence of UStruct '%s'"), *Package->Name.ToString(), *ExportData.ObjectName.ToString());
+					Package->RedirectedPackageId = FPackageId();
+					break;
+				}
+			}
+		}
+	}
 
 	AddPreloadDependencies(
 		PackageAssetData,
@@ -4448,15 +4473,34 @@ int32 ListContainer(
 int32 Describe(
 	const FString& GlobalContainerPath,
 	const FKeyChain& KeyChain,
-	const FString& PackageFilterWildcard,
-	const FString& OutPath)
+	const FString& PackageFilter,
+	const FString& OutPath,
+	bool bIncludeExportHashes)
 {
-
 	struct FPackageDesc;
+
+	struct FPackageRedirect
+	{
+		FName Culture;
+		FPackageDesc* Source = nullptr;
+		FPackageDesc* Target = nullptr;
+	};
+
+	struct FContainerDesc
+	{
+		FName Name;
+		FIoContainerId Id;
+		FGuid EncryptionKeyGuid;
+		TArray<FPackageRedirect> PackageRedirects;
+		bool bCompressed;
+		bool bSigned;
+		bool bEncrypted;
+		bool bIndexed;
+	};
 
 	struct FPackageLocation
 	{
-		FName ContainerName;
+		FContainerDesc* Container = nullptr;
 		uint64 Offset = -1;
 	};
 
@@ -4470,6 +4514,16 @@ int32 Describe(
 		FPackageObjectIndex SuperIndex;
 		FPackageObjectIndex TemplateIndex;
 		FPackageObjectIndex GlobalImportIndex;
+		uint64 SerialOffset = 0;
+		uint64 SerialSize = 0;
+		FSHAHash Hash;
+	};
+
+	struct FExportBundleEntryDesc
+	{
+		FExportBundleEntry::EExportCommandType CommandType = FExportBundleEntry::ExportCommandType_Count;
+		int32 LocalExportIndex = -1;
+		FExportDesc* Export = nullptr;
 	};
 
 	struct FImportDesc
@@ -4496,9 +4550,10 @@ int32 Describe(
 		uint32 PackageFlags = 0;
 		int32 NameCount = -1;
 		int32 ExportBundleCount = -1;
-		TArray<FPackageLocation> Locations;
+		TArray<FPackageLocation, TInlineAllocator<1>> Locations;
 		TArray<FImportDesc> Imports;
 		TArray<FExportDesc> Exports;
+		TArray<TArray<FExportBundleEntryDesc>, TInlineAllocator<1>> ExportBundles;
 	};
 
 	if (!IFileManager::Get().FileExists(*GlobalContainerPath))
@@ -4598,9 +4653,21 @@ int32 Describe(
 		ContainerFilePaths.Emplace(Directory / Filename);
 	}
 
-	TArray<FPackageDesc*> Packages;
-	TMap<FPackageId, FPackageDesc*> PackageByPackageIdMap;
-	TMap<FPackageObjectIndex, FExportDesc*> ExportByGlobalIdMap;
+	UE_LOG(LogIoStore, Display, TEXT("Loading containers..."));
+
+	TArray<TUniquePtr<FIoStoreReader>> Readers;
+
+	struct FLoadContainerHeaderJob
+	{
+		FName ContainerName;
+		FContainerDesc* ContainerDesc = nullptr;
+		TArray<FPackageDesc*> Packages;
+		FIoStoreReader* Reader = nullptr;
+		FCulturePackageMap RawCulturePackageMap;
+		TArray<TPair<FPackageId, FPackageId>> RawPackageRedirects;
+	};
+
+	TArray<FLoadContainerHeaderJob> LoadContainerHeaderJobs;
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
@@ -4611,200 +4678,388 @@ int32 Describe(
 			continue;
 		}
 
-		FName ContainerName = FName(FPaths::GetBaseFilename(ContainerFilePath));
+		FLoadContainerHeaderJob& LoadContainerHeaderJob = LoadContainerHeaderJobs.AddDefaulted_GetRef();
+		LoadContainerHeaderJob.Reader = Reader.Get();
+		LoadContainerHeaderJob.ContainerName = FName(FPaths::GetBaseFilename(ContainerFilePath));
+		
+		Readers.Emplace(MoveTemp(Reader));
+	}
+	
+	TAtomic<int32> TotalPackageCount{ 0 };
+	ParallelFor(LoadContainerHeaderJobs.Num(), [&LoadContainerHeaderJobs, &TotalPackageCount](int32 Index)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadContainerHeader);
 
-		TIoStatusOr<FIoBuffer> IoBuffer = Reader->Read(CreateIoChunkId(Reader->GetContainerId().Value(), 0, EIoChunkType::ContainerHeader), FIoReadOptions());
+		FLoadContainerHeaderJob& Job = LoadContainerHeaderJobs[Index];
+
+		FContainerDesc* ContainerDesc = new FContainerDesc();
+		ContainerDesc->Name = Job.ContainerName;
+		ContainerDesc->Id = Job.Reader->GetContainerId();
+		ContainerDesc->EncryptionKeyGuid = Job.Reader->GetEncryptionKeyGuid();
+		EIoContainerFlags Flags = Job.Reader->GetContainerFlags();
+		ContainerDesc->bCompressed = bool(Flags & EIoContainerFlags::Compressed);
+		ContainerDesc->bEncrypted = bool(Flags & EIoContainerFlags::Encrypted);
+		ContainerDesc->bSigned = bool(Flags & EIoContainerFlags::Signed);
+		ContainerDesc->bIndexed = bool(Flags & EIoContainerFlags::Indexed);
+		Job.ContainerDesc = ContainerDesc;
+
+		TIoStatusOr<FIoBuffer> IoBuffer = Job.Reader->Read(CreateIoChunkId(Job.Reader->GetContainerId().Value(), 0, EIoChunkType::ContainerHeader), FIoReadOptions());
 		if (IoBuffer.IsOk())
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Loading container '%s'"), *ContainerFilePath);
-
 			FMemoryReaderView Ar(MakeArrayView(IoBuffer.ValueOrDie().Data(), IoBuffer.ValueOrDie().DataSize()));
 			FContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 
+			Job.RawCulturePackageMap = ContainerHeader.CulturePackageMap;
+			Job.RawPackageRedirects = ContainerHeader.PackageRedirects;
+
 			TArrayView<FPackageStoreEntry> StoreEntries(reinterpret_cast<FPackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageCount);
 
-			TArray<FPackageDesc*> ContainerPackages;
-
-			int32 Index = 0;
+			int32 PackageIndex = 0;
+			Job.Packages.Reserve(StoreEntries.Num());
 			for (FPackageStoreEntry& ContainerEntry : StoreEntries)
 			{
-				const FPackageId& PackageId = ContainerHeader.PackageIds[Index++];
-				FPackageDesc*& PackageDesc = PackageByPackageIdMap.FindOrAdd(PackageId);
-				if (!PackageDesc)
-				{
-					PackageDesc = new FPackageDesc();
-					PackageDesc->PackageId = PackageId;
-					PackageDesc->Size = ContainerEntry.ExportBundlesSize;
-					PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
-					PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
-					PackageDesc->LoadOrder = ContainerEntry.LoadOrder;
-					Packages.Add(PackageDesc);
-				}
-				ContainerPackages.Add(PackageDesc);
+				const FPackageId& PackageId = ContainerHeader.PackageIds[PackageIndex++];
+				FPackageDesc* PackageDesc = new FPackageDesc();
+				PackageDesc->PackageId = PackageId;
+				PackageDesc->Size = ContainerEntry.ExportBundlesSize;
+				PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
+				PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
+				PackageDesc->LoadOrder = ContainerEntry.LoadOrder;
+				Job.Packages.Add(PackageDesc);
+				++TotalPackageCount;
 			}
-			FIoReadOptions ReadOptions(0, 64 << 10);
-			for (FPackageDesc* PackageDesc : ContainerPackages)
+		}
+	}, EParallelForFlags::Unbalanced);
+
+	struct FLoadPackageSummaryJob
+	{
+		FPackageDesc* PackageDesc = nullptr;
+		FIoChunkId ChunkId;
+		TArray<FLoadContainerHeaderJob*, TInlineAllocator<1>> Containers;
+	};
+
+	TArray<FLoadPackageSummaryJob> LoadPackageSummaryJobs;
+
+	TArray<FContainerDesc*> Containers;
+	TArray<FPackageDesc*> Packages;
+	TMap<FPackageId, FPackageDesc*> PackageByIdMap;
+	TMap<FPackageId, FLoadPackageSummaryJob*> PackageJobByIdMap;
+	Containers.Reserve(LoadContainerHeaderJobs.Num());
+	Packages.Reserve(TotalPackageCount);
+	PackageByIdMap.Reserve(TotalPackageCount);
+	PackageJobByIdMap.Reserve(TotalPackageCount);
+	LoadPackageSummaryJobs.Reserve(TotalPackageCount);
+	for (FLoadContainerHeaderJob& LoadContainerHeaderJob : LoadContainerHeaderJobs)
+	{
+		Containers.Add(LoadContainerHeaderJob.ContainerDesc);
+		for (FPackageDesc* PackageDesc : LoadContainerHeaderJob.Packages)
+		{
+			FLoadPackageSummaryJob*& UniquePackageJob = PackageJobByIdMap.FindOrAdd(PackageDesc->PackageId);
+			if (!UniquePackageJob)
 			{
-				FIoChunkId PackageChunkId = CreateIoChunkId(PackageDesc->PackageId.Value(), 0, EIoChunkType::ExportBundleData);
-				TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(PackageChunkId);
-				check(ChunkInfo.IsOk());
-				FPackageLocation& Location = PackageDesc->Locations.AddDefaulted_GetRef();
-				Location.ContainerName = ContainerName;
-				Location.Offset = ChunkInfo.ValueOrDie().Offset;
-				IoBuffer = Reader->Read(PackageChunkId, ReadOptions);
-				check(IoBuffer.IsOk());
-				const uint8* PackageSummaryData = IoBuffer.ValueOrDie().Data();
-				const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
-				const uint64 PackageSummarySize = PackageSummary->GraphDataOffset + PackageSummary->GraphDataSize;
-				if (PackageSummarySize > 64 << 10)
-				{
-					IoBuffer = Reader->Read(PackageChunkId, FIoReadOptions());
-					PackageSummaryData = IoBuffer.ValueOrDie().Data();
-					PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
-				}
-
-				TArray<FNameEntryId> PackageNameMap;
-				if (PackageSummary->NameMapNamesSize)
-				{
-					const uint8* NameMapNamesData = PackageSummaryData + PackageSummary->NameMapNamesOffset;
-					const uint8* NameMapHashesData = PackageSummaryData + PackageSummary->NameMapHashesOffset;
-					LoadNameBatch(
-						PackageNameMap,
-						TArrayView<const uint8>(NameMapNamesData, PackageSummary->NameMapNamesSize),
-						TArrayView<const uint8>(NameMapHashesData, PackageSummary->NameMapHashesSize));
-				}
-
-				PackageDesc->PackageName = FName::CreateFromDisplayId(PackageNameMap[PackageSummary->Name.GetIndex()], PackageSummary->Name.GetNumber());
-				PackageDesc->PackageFlags = PackageSummary->PackageFlags;
-				PackageDesc->NameCount = PackageNameMap.Num();
-
-				const FPackageObjectIndex* ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
-				PackageDesc->Imports.SetNum((PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
-				for (int32 ImportIndex = 0; ImportIndex < PackageDesc->Imports.Num(); ++ImportIndex)
-				{
-					FImportDesc& ImportDesc = PackageDesc->Imports[ImportIndex];
-					ImportDesc.GlobalImportIndex = ImportMap[ImportIndex];
-				}
-
-				const FExportMapEntry* ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
-				for (int32 ExportIndex = 0; ExportIndex < PackageDesc->Exports.Num(); ++ExportIndex)
-				{
-					const FExportMapEntry& ExportMapEntry = ExportMap[ExportIndex];
-					FExportDesc& ExportDesc = PackageDesc->Exports[ExportIndex];
-					ExportDesc.Package = PackageDesc;
-					ExportDesc.Name = FName::CreateFromDisplayId(PackageNameMap[ExportMapEntry.ObjectName.GetIndex()], ExportMapEntry.ObjectName.GetNumber());
-					ExportDesc.OuterIndex = ExportMapEntry.OuterIndex;
-					ExportDesc.ClassIndex = ExportMapEntry.ClassIndex;
-					ExportDesc.SuperIndex = ExportMapEntry.SuperIndex;
-					ExportDesc.TemplateIndex = ExportMapEntry.TemplateIndex;
-					ExportDesc.GlobalImportIndex = ExportMapEntry.GlobalImportIndex;
-					if (!ExportMapEntry.GlobalImportIndex.IsNull())
-					{
-						ExportByGlobalIdMap.Add(ExportMapEntry.GlobalImportIndex, &ExportDesc);
-					}
-				}
+				Packages.Add(PackageDesc);
+				PackageByIdMap.Add(PackageDesc->PackageId, PackageDesc);
+				FLoadPackageSummaryJob& LoadPackageSummaryJob = LoadPackageSummaryJobs.AddDefaulted_GetRef();
+				LoadPackageSummaryJob.PackageDesc = PackageDesc;
+				LoadPackageSummaryJob.ChunkId = CreateIoChunkId(PackageDesc->PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+				UniquePackageJob = &LoadPackageSummaryJob;
+			}
+			UniquePackageJob->Containers.Add(&LoadContainerHeaderJob);
+		}
+	}
+	for (FLoadContainerHeaderJob& LoadContainerHeaderJob : LoadContainerHeaderJobs)
+	{
+		for (const auto& RedirectPair : LoadContainerHeaderJob.RawPackageRedirects)
+		{
+			FPackageRedirect& PackageRedirect = LoadContainerHeaderJob.ContainerDesc->PackageRedirects.AddDefaulted_GetRef();
+			PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.Get<0>());
+			PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.Get<1>());
+		}
+		for (const auto& CultureRedirectsPair : LoadContainerHeaderJob.RawCulturePackageMap)
+		{
+			FName Culture(CultureRedirectsPair.Get<0>());
+			for (const auto& RedirectPair : CultureRedirectsPair.Get<1>())
+			{
+				FPackageRedirect& PackageRedirect = LoadContainerHeaderJob.ContainerDesc->PackageRedirects.AddDefaulted_GetRef();
+				PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.Get<0>());
+				PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.Get<1>());
+				PackageRedirect.Culture = Culture;
 			}
 		}
 	}
+	
+	ParallelFor(LoadPackageSummaryJobs.Num(), [&LoadPackageSummaryJobs, bIncludeExportHashes](int32 Index)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageSummary);
+
+		FLoadPackageSummaryJob& Job = LoadPackageSummaryJobs[Index];
+		for (FLoadContainerHeaderJob* LoadContainerHeaderJob : Job.Containers)
+		{
+			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = LoadContainerHeaderJob->Reader->GetChunkInfo(Job.ChunkId);
+			check(ChunkInfo.IsOk());
+			FPackageLocation& Location = Job.PackageDesc->Locations.AddDefaulted_GetRef();
+			Location.Container = LoadContainerHeaderJob->ContainerDesc;
+			Location.Offset = ChunkInfo.ValueOrDie().Offset;
+		}
+
+		FIoStoreReader* Reader = Job.Containers[0]->Reader;
+		FIoReadOptions ReadOptions;
+		if (!bIncludeExportHashes)
+		{
+			ReadOptions.SetRange(0, 16 << 10);
+		}
+		TIoStatusOr<FIoBuffer> IoBuffer = Reader->Read(Job.ChunkId, ReadOptions);
+		check(IoBuffer.IsOk());
+		const uint8* PackageSummaryData = IoBuffer.ValueOrDie().Data();
+		const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+		const uint64 PackageSummarySize = PackageSummary->GraphDataOffset + PackageSummary->GraphDataSize;
+		if (PackageSummarySize > IoBuffer.ValueOrDie().DataSize())
+		{
+			ReadOptions.SetRange(0, PackageSummarySize);
+			IoBuffer = Reader->Read(Job.ChunkId, ReadOptions);
+			PackageSummaryData = IoBuffer.ValueOrDie().Data();
+			PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+		}
+
+		TArray<FNameEntryId> PackageNameMap;
+		if (PackageSummary->NameMapNamesSize)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadNameBatch);
+			const uint8* NameMapNamesData = PackageSummaryData + PackageSummary->NameMapNamesOffset;
+			const uint8* NameMapHashesData = PackageSummaryData + PackageSummary->NameMapHashesOffset;
+			LoadNameBatch(
+				PackageNameMap,
+				TArrayView<const uint8>(NameMapNamesData, PackageSummary->NameMapNamesSize),
+				TArrayView<const uint8>(NameMapHashesData, PackageSummary->NameMapHashesSize));
+		}
+
+		Job.PackageDesc->PackageName = FName::CreateFromDisplayId(PackageNameMap[PackageSummary->Name.GetIndex()], PackageSummary->Name.GetNumber());
+		Job.PackageDesc->PackageFlags = PackageSummary->PackageFlags;
+		Job.PackageDesc->NameCount = PackageNameMap.Num();
+
+		const FPackageObjectIndex* ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
+		Job.PackageDesc->Imports.SetNum((PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
+		for (int32 ImportIndex = 0; ImportIndex < Job.PackageDesc->Imports.Num(); ++ImportIndex)
+		{
+			FImportDesc& ImportDesc = Job.PackageDesc->Imports[ImportIndex];
+			ImportDesc.GlobalImportIndex = ImportMap[ImportIndex];
+		}
+
+		const FExportMapEntry* ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
+		for (int32 ExportIndex = 0; ExportIndex < Job.PackageDesc->Exports.Num(); ++ExportIndex)
+		{
+			const FExportMapEntry& ExportMapEntry = ExportMap[ExportIndex];
+			FExportDesc& ExportDesc = Job.PackageDesc->Exports[ExportIndex];
+			ExportDesc.Package = Job.PackageDesc;
+			ExportDesc.Name = FName::CreateFromDisplayId(PackageNameMap[ExportMapEntry.ObjectName.GetIndex()], ExportMapEntry.ObjectName.GetNumber());
+			ExportDesc.OuterIndex = ExportMapEntry.OuterIndex;
+			ExportDesc.ClassIndex = ExportMapEntry.ClassIndex;
+			ExportDesc.SuperIndex = ExportMapEntry.SuperIndex;
+			ExportDesc.TemplateIndex = ExportMapEntry.TemplateIndex;
+			ExportDesc.GlobalImportIndex = ExportMapEntry.GlobalImportIndex;
+			ExportDesc.SerialSize = ExportMapEntry.CookedSerialSize;
+		}
+
+		const FExportBundleHeader* ExportBundleHeaders = reinterpret_cast<const FExportBundleHeader*>(PackageSummaryData + PackageSummary->ExportBundlesOffset);
+		const FExportBundleEntry* ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(ExportBundleHeaders + Job.PackageDesc->ExportBundleCount);
+		uint64 CurrentExportOffset = PackageSummarySize;
+		for (int32 ExportBundleIndex = 0; ExportBundleIndex < Job.PackageDesc->ExportBundleCount; ++ExportBundleIndex)
+		{
+			TArray<FExportBundleEntryDesc>& ExportBundleDesc = Job.PackageDesc->ExportBundles.AddDefaulted_GetRef();
+			const FExportBundleHeader* ExportBundle = ExportBundleHeaders + ExportBundleIndex;
+			const FExportBundleEntry* BundleEntry = ExportBundleEntries + ExportBundle->FirstEntryIndex;
+			const FExportBundleEntry* BundleEntryEnd = BundleEntry + ExportBundle->EntryCount;
+			check(BundleEntry <= BundleEntryEnd);
+			while (BundleEntry < BundleEntryEnd)
+			{
+				FExportBundleEntryDesc& EntryDesc = ExportBundleDesc.AddDefaulted_GetRef();
+				EntryDesc.CommandType = FExportBundleEntry::EExportCommandType(BundleEntry->CommandType);
+				EntryDesc.LocalExportIndex = BundleEntry->LocalExportIndex;
+				EntryDesc.Export = &Job.PackageDesc->Exports[BundleEntry->LocalExportIndex];
+				if (BundleEntry->CommandType == FExportBundleEntry::ExportCommandType_Serialize)
+				{
+					EntryDesc.Export->SerialOffset = CurrentExportOffset;
+					CurrentExportOffset += EntryDesc.Export->SerialSize;
+
+					if (bIncludeExportHashes)
+					{
+						check(EntryDesc.Export->SerialOffset + EntryDesc.Export->SerialSize <= IoBuffer.ValueOrDie().DataSize());
+						FSHA1::HashBuffer(IoBuffer.ValueOrDie().Data() + EntryDesc.Export->SerialOffset, EntryDesc.Export->SerialSize, EntryDesc.Export->Hash.Hash);
+					}
+				}
+				++BundleEntry;
+			}
+		}
+	}, EParallelForFlags::Unbalanced);
 
 	UE_LOG(LogIoStore, Display, TEXT("Connecting imports and exports..."));
-
-	for (FPackageDesc* PackageDesc : Packages)
+	TMap<FPackageObjectIndex, FExportDesc*> ExportByGlobalIdMap;
 	{
-		for (FExportDesc& ExportDesc : PackageDesc->Exports)
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConnectImportsAndExports);
+
+		for (FPackageDesc* PackageDesc : Packages)
 		{
-			if (ExportDesc.FullName.IsNone())
+			for (FExportDesc& ExportDesc : PackageDesc->Exports)
 			{
-				TArray<FExportDesc*> ExportStack;
-				FExportDesc* Current = &ExportDesc;
-				FString FullName;
-				for (;;)
+				if (!ExportDesc.GlobalImportIndex.IsNull())
 				{
-					if (!Current->FullName.IsNone())
-					{
-						FullName = Current->FullName.ToString();
-						break;
-					}
-					ExportStack.Push(Current);
-					if (Current->OuterIndex.IsNull())
-					{
-						FullName = PackageDesc->PackageName.ToString();
-						break;
-					}
-					Current = &PackageDesc->Exports[Current->OuterIndex.Value()];
-				}
-				while (ExportStack.Num() > 0)
-				{
-					Current = ExportStack.Pop();
-					FullName /= Current->Name.ToString();
-					Current->FullName = FName(FullName);
+					ExportByGlobalIdMap.Add(ExportDesc.GlobalImportIndex, &ExportDesc);
 				}
 			}
 		}
-	}
 
-	for (FPackageDesc* PackageDesc : Packages)
-	{
-		for (FImportDesc& Import : PackageDesc->Imports)
+		ParallelFor(Packages.Num(), [&Packages](int32 Index)
 		{
-			if (!Import.GlobalImportIndex.IsNull())
+			FPackageDesc* PackageDesc = Packages[Index];
+			for (FExportDesc& ExportDesc : PackageDesc->Exports)
 			{
-				if (Import.GlobalImportIndex.IsPackageImport())
+				if (ExportDesc.FullName.IsNone())
 				{
-					Import.Export = ExportByGlobalIdMap.FindRef(Import.GlobalImportIndex);
-					check(Import.Export);
-					Import.Name = Import.Export->FullName;
+					TRACE_CPUPROFILER_EVENT_SCOPE(GenerateExportFullName);
+
+					TArray<FExportDesc*> ExportStack;
+					
+					FExportDesc* Current = &ExportDesc;
+					TStringBuilder<2048> FullNameBuilder;
+					TCHAR NameBuffer[FName::StringBufferSize];
+					for (;;)
+					{
+						if (!Current->FullName.IsNone())
+						{
+							Current->FullName.ToString(NameBuffer);
+							FullNameBuilder.Append(NameBuffer);
+							break;
+						}
+						ExportStack.Push(Current);
+						if (Current->OuterIndex.IsNull())
+						{
+							PackageDesc->PackageName.ToString(NameBuffer);
+							FullNameBuilder.Append(NameBuffer);
+							break;
+						}
+						Current = &PackageDesc->Exports[Current->OuterIndex.Value()];
+					}
+					while (ExportStack.Num() > 0)
+					{
+						Current = ExportStack.Pop(false);
+						FullNameBuilder.Append(TEXT("/"));
+						Current->Name.ToString(NameBuffer);
+						FullNameBuilder.Append(NameBuffer);
+						Current->FullName = FName(FullNameBuilder);
+					}
 				}
-				else
+			}
+		}, EParallelForFlags::Unbalanced);
+
+		for (FPackageDesc* PackageDesc : Packages)
+		{
+			for (FImportDesc& Import : PackageDesc->Imports)
+			{
+				if (!Import.GlobalImportIndex.IsNull())
 				{
-					FScriptObjectDesc* ScriptObjectDesc = ScriptObjectByGlobalIdMap.Find(Import.GlobalImportIndex);
-					check(ScriptObjectDesc);
-					Import.Name = ScriptObjectDesc->FullName;
+					if (Import.GlobalImportIndex.IsPackageImport())
+					{
+						Import.Export = ExportByGlobalIdMap.FindRef(Import.GlobalImportIndex);
+						if (!Import.Export)
+						{
+							UE_LOG(LogIoStore, Warning, TEXT("Missing import: 0x%llX in package 0x%llX '%s'"), Import.GlobalImportIndex.Value(), PackageDesc->PackageId.ValueForDebugging(), *PackageDesc->PackageName.ToString());
+						}
+						else
+						{
+							Import.Name = Import.Export->FullName;
+						}
+					}
+					else
+					{
+						FScriptObjectDesc* ScriptObjectDesc = ScriptObjectByGlobalIdMap.Find(Import.GlobalImportIndex);
+						check(ScriptObjectDesc);
+						Import.Name = ScriptObjectDesc->FullName;
+					}
 				}
 			}
 		}
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Collecting output packages..."));
-
 	TArray<const FPackageDesc*> OutputPackages;
-	if (PackageFilterWildcard.IsEmpty())
 	{
-		OutputPackages.Append(Packages);
-	}
-	else
-	{
-		TArray<const FPackageDesc*> PackageStack;
-		for (const FPackageDesc* PackageDesc : Packages)
+		TRACE_CPUPROFILER_EVENT_SCOPE(CollectOutputPackages);
+
+		if (PackageFilter.IsEmpty())
 		{
-			if (PackageFilterWildcard.IsEmpty() || PackageDesc->PackageName.ToString().MatchesWildcard(PackageFilterWildcard))
-			{
-				PackageStack.Push(PackageDesc);
-			}
+			OutputPackages.Append(Packages);
 		}
-		TSet<const FPackageDesc*> Visited;
-		while (PackageStack.Num() > 0)
+		else
 		{
-			const FPackageDesc* PackageDesc = PackageStack.Pop();
-			if (!Visited.Contains(PackageDesc))
+			TArray<FString> SplitPackageFilters;
+			const TCHAR* Delimiters[] = { TEXT(","), TEXT(" ") };
+			PackageFilter.ParseIntoArray(SplitPackageFilters, Delimiters, UE_ARRAY_COUNT(Delimiters), true);
+
+			TArray<FString> PackageNameFilter;
+			TSet<FPackageId> PackageIdFilter;
+			for (const FString& PackageNameOrId : SplitPackageFilters)
 			{
-				Visited.Add(PackageDesc);
-				OutputPackages.Add(PackageDesc);
-				for (const FImportDesc& Import : PackageDesc->Imports)
+				if (PackageNameOrId.Len() > 0 && FChar::IsDigit(PackageNameOrId[0]))
 				{
-					if (Import.Export && Import.Export->Package)
+					uint64 Value;
+					LexFromString(Value, *PackageNameOrId);
+					PackageIdFilter.Add(*(FPackageId*)(&Value));
+				}
+				else
+				{
+					PackageNameFilter.Add(PackageNameOrId);
+				}
+			}
+
+			TArray<const FPackageDesc*> PackageStack;
+			for (const FPackageDesc* PackageDesc : Packages)
+			{
+				bool bInclude = false;
+				if (PackageIdFilter.Contains(PackageDesc->PackageId))
+				{
+					bInclude = true;
+				}
+				else
+				{
+					FString PackageName = PackageDesc->PackageName.ToString();
+					for (const FString& Wildcard : PackageNameFilter)
 					{
-						PackageStack.Push(Import.Export->Package);
+						if (PackageName.MatchesWildcard(Wildcard))
+						{
+							bInclude = true;
+							break;
+						}
+					}
+				}
+				if (bInclude)
+				{
+					PackageStack.Push(PackageDesc);
+				}
+			}
+			TSet<const FPackageDesc*> Visited;
+			while (PackageStack.Num() > 0)
+			{
+				const FPackageDesc* PackageDesc = PackageStack.Pop();
+				if (!Visited.Contains(PackageDesc))
+				{
+					Visited.Add(PackageDesc);
+					OutputPackages.Add(PackageDesc);
+					for (const FImportDesc& Import : PackageDesc->Imports)
+					{
+						if (Import.Export && Import.Export->Package)
+						{
+							PackageStack.Push(Import.Export->Package);
+						}
 					}
 				}
 			}
 		}
+		Algo::Sort(OutputPackages, [](const FPackageDesc* A, const FPackageDesc* B)
+			{
+				return A->LoadOrder < B->LoadOrder;
+			});
 	}
-	Algo::Sort(OutputPackages, [](const FPackageDesc* A, const FPackageDesc* B)
-		{
-			return A->LoadOrder < B->LoadOrder;
-		});
 
 	UE_LOG(LogIoStore, Display, TEXT("Generating report..."));
 
@@ -4818,6 +5073,7 @@ int32 Describe(
 		OutputOverride = OutputBuffer.Get();
 	}
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GenerateReport);
 		TGuardValue<ELogTimes::Type> GuardPrintLogTimes(GPrintLogTimes, ELogTimes::None);
 		TGuardValue<bool> GuardPrintLogCategory(GPrintLogCategory, false);
 		TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
@@ -4862,6 +5118,39 @@ int32 Describe(
 			}
 		};
 
+		for (const FContainerDesc* ContainerDesc : Containers)
+		{
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("********************************************"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Container '%s' Summary"), *ContainerDesc->Name.ToString());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t      ContainerId: 0x%llX"), ContainerDesc->Id.Value());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       Compressed: %s"), ContainerDesc->bCompressed ? TEXT("Yes") : TEXT("No"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Signed: %s"), ContainerDesc->bSigned ? TEXT("Yes") : TEXT("No"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t          Indexed: %s"), ContainerDesc->bIndexed ? TEXT("Yes") : TEXT("No"));
+			if (ContainerDesc->bEncrypted)
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tEncryptionKeyGuid: %s"), *ContainerDesc->EncryptionKeyGuid.ToString());
+			}
+
+			if (ContainerDesc->PackageRedirects.Num())
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("Package Redirects"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+				for (const FPackageRedirect& Redirect : ContainerDesc->PackageRedirects)
+				{
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+					if (!Redirect.Culture.IsNone())
+					{
+						OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t          Culture: %s"), *Redirect.Culture.ToString());
+					}
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Source: 0x%llX '%s'"), Redirect.Source->PackageId.ValueForDebugging(), *Redirect.Source->PackageName.ToString());
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Target: 0x%llX '%s'"), Redirect.Target->PackageId.ValueForDebugging(), *Redirect.Target->PackageName.ToString());
+				}
+			}
+		}
+
 		for (const FPackageDesc* PackageDesc : OutputPackages)
 		{
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("********************************************"));
@@ -4884,7 +5173,7 @@ int32 Describe(
 			for (const FPackageLocation& Location : PackageDesc->Locations)
 			{
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tLocation %d: '%s'"), Index++, *Location.ContainerName.ToString());
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tLocation %d: '%s'"), Index++, *Location.Container->Name.ToString());
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Offset: %lld"), Location.Offset);
 			}
 
@@ -4912,12 +5201,44 @@ int32 Describe(
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       SuperIndex: %s"), *PackageObjectIndexToString(Export.SuperIndex, true));
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t    TemplateIndex: %s"), *PackageObjectIndexToString(Export.TemplateIndex, true));
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(Export.GlobalImportIndex, false));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Offset: %lld"), Export.SerialOffset);
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t             Size: %lld"), Export.SerialSize);
+				if (bIncludeExportHashes)
+				{
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t             Hash: %s"), *Export.Hash.ToString());
+				}
+			}
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Export Bundles"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+			Index = 0;
+			for (const TArray<FExportBundleEntryDesc>& ExportBundle : PackageDesc->ExportBundles)
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tExport Bundle %d"), Index++);
+				for (const FExportBundleEntryDesc& ExportBundleEntry : ExportBundle)
+				{
+					if (ExportBundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Create)
+					{
+						OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Create: %d '%s'"), ExportBundleEntry.LocalExportIndex, *ExportBundleEntry.Export->Name.ToString());
+					}
+					else
+					{
+						OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        Serialize: %d '%s'"), ExportBundleEntry.LocalExportIndex, *ExportBundleEntry.Export->Name.ToString());
+					}
+				}
 			}
 		}
 	}
+
 	for (FPackageDesc* PackageDesc : Packages)
 	{
 		delete PackageDesc;
+	}
+	for (FContainerDesc* ContainerDesc : Containers)
+	{
+		delete ContainerDesc;
 	}
 
 	return 0;
@@ -5470,11 +5791,12 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 		else if (FParse::Value(FCommandLine::Get(), TEXT("Describe="), ContainerPathOrWildcard))
 		{
-			FString PackageFilterWildcard;
-			FParse::Value(FCommandLine::Get(), TEXT("PackageFilter="), PackageFilterWildcard);
+			FString PackageFilter;
+			FParse::Value(FCommandLine::Get(), TEXT("PackageFilter="), PackageFilter);
 			FString OutPath;
 			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
-			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilterWildcard, OutPath);
+			bool bIncludeExportHashes = FParse::Param(FCommandLine::Get(), TEXT("IncludeExportHashes"));
+			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilter, OutPath, bIncludeExportHashes);
 		}
 		else
 		{

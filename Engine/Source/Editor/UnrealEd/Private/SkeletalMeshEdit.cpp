@@ -1109,8 +1109,8 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bAutoSetTangents);
 
 			FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-			NewKey.ArriveTangent = ArriveTangent;
-			NewKey.LeaveTangent = LeaveTangent;
+			NewKey.ArriveTangent = ArriveTangent * ValueScale;
+			NewKey.LeaveTangent = LeaveTangent * ValueScale;
 			NewKey.ArriveTangentWeight = ArriveTangentWeight;
 			NewKey.LeaveTangentWeight = LeaveTangentWeight;
 		}
@@ -1305,6 +1305,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 		{
 			case EFbxType::eFbxHalfFloat:
 			case EFbxType::eFbxFloat:
+			case EFbxType::eFbxDouble:
 			{
 				TArray<float> FloatValues;
 				FillCurveAttributeToBone<float>(TimeArray, FloatValues, FbxCurve, AnimTimeSpan, 
@@ -1325,6 +1326,10 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 			case EFbxType::eFbxShort:
 			case EFbxType::eFbxUShort:
 			case EFbxType::eFbxInt:
+			case EFbxType::eFbxUInt:
+			case EFbxType::eFbxLongLong:
+			case EFbxType::eFbxULongLong:
+			case EFbxType::eFbxChar:
 			{
 				TArray<int32> IntValues;
 				FillCurveAttributeToBone<int32>(TimeArray, IntValues, FbxCurve, AnimTimeSpan,
@@ -1361,14 +1366,9 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 				TargetSequence->AddBoneStringCustomAttribute(BoneName, FName(CurveName), TimeArray, StringValues);
 				break;
 			}
-			case EFbxType::eFbxDouble:
-			case EFbxType::eFbxUInt:
-			case EFbxType::eFbxLongLong:
-			case EFbxType::eFbxULongLong:
-			case EFbxType::eFbxChar:
 			default:
 			{
-				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_CustomCurveTypeNotSupported", "Curve ({0}) could not be imported on bone."), FText::FromString(CurveName))), FFbxErrors::Animation_InvalidData);
+				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_CustomAttributeTypeNotSupported", "Custom Attribute ({0}) could not be imported on bone, as its type {1} is not supported."), FText::FromString(CurveName), FText::AsNumber((int32)InProperty.GetPropertyDataType().GetType()))), FFbxErrors::Animation_InvalidData);
 				return false;
 			}
 		}
@@ -1450,6 +1450,11 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		DestSeq->RawCurveData.FloatCurves.Shrink();
 	}
 
+	if (ImportOptions->bDeleteExistingNonCurveCustomAttributes)
+	{
+		DestSeq->RemoveAllCustomAttributes();
+	}
+	
 	const bool bReimportWarnings = GetDefault<UEditorPerProjectUserSettings>()->bAnimationReimportWarnings;
 	
 	if (bReimportWarnings && !FMath::IsNearlyZero(PreviousSequenceLength) && !FMath::IsNearlyEqual(DestSeq->GetPlayLength(), PreviousSequenceLength))

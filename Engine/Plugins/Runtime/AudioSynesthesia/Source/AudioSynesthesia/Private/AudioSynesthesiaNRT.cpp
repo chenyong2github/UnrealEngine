@@ -13,10 +13,12 @@ const TArray<FText>& UAudioSynesthesiaNRTSettings::GetAssetActionSubmenus() cons
 	return SubMenus;
 }
 
+#if WITH_EDITOR
 FColor UAudioSynesthesiaNRTSettings::GetTypeColor() const
 {
 	return FColor(200.0f, 150.0f, 200.0f);
 }
+#endif
 
 const TArray<FText>& UAudioSynesthesiaNRT::GetAssetActionSubmenus() const
 {
@@ -28,8 +30,9 @@ const TArray<FText>& UAudioSynesthesiaNRT::GetAssetActionSubmenus() const
 	return SubMenus;
 }
 
+#if WITH_EDITOR
 FColor UAudioSynesthesiaNRT::GetTypeColor() const
 {
 	return FColor(200.0f, 150.0f, 200.0f);
 }
-
+#endif

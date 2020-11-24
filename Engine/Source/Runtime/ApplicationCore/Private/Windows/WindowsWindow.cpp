@@ -785,6 +785,13 @@ void FWindowsWindow::SetWindowMode( EWindowMode::Type NewWindowMode )
 			{
 				::SetWindowPlacement(HWnd, &PreFullscreenWindowPlacement);
 			}
+
+			// Set the icon back again as it seems to get ignored if the application has ever started in full screen mode
+			HICON HIcon = (HICON)::GetClassLongPtr( HWnd, GCLP_HICON );
+			if (HIcon != nullptr)
+			{
+				::SendMessageW( HWnd, WM_SETICON, ICON_SMALL, (LPARAM)HIcon );
+			}
 		}
 	}
 }

@@ -39,7 +39,7 @@ void UNiagaraDataInterfaceCurve::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (bUseLUT && Ar.IsCooking() && Ar.CookingTarget()->RequiresCookedData())
 	{
-		UpdateLUT();
+		UpdateLUT(true);
 
 		FRichCurve TempCurve;
 		Exchange(Curve, TempCurve);

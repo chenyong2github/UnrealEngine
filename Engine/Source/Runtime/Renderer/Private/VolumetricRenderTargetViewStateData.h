@@ -93,7 +93,7 @@ public:
 	FTemporalRenderTargetState();
 	~FTemporalRenderTargetState();
 
-	void Initialise(FIntPoint& ResolutionIn, EPixelFormat FormatIn);
+	void Initialise(const FIntPoint& ResolutionIn, EPixelFormat FormatIn);
 
 	FRDGTextureRef GetOrCreateCurrentRT(FRDGBuilder& GraphBuilder);
 	void ExtractCurrentRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGRT);

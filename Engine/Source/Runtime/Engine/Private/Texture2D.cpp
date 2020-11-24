@@ -976,7 +976,7 @@ void UTexture2D::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 	if (IsCurrentlyVirtualTextured())
 	{
-		CumulativeResourceSize.AddUnknownMemoryBytes(GetPlatformData()->VTData->GetDiskMemoryFootprint());
+		CumulativeResourceSize.AddUnknownMemoryBytes(GetPlatformData()->VTData->GetMemoryFootprint());
 	}
 	else
 	{

@@ -16,11 +16,18 @@ static FAutoConsoleVariableRef CVarAnisotropicMaterials(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarSupportAnisotropicMaterials(
+	TEXT("r.SupportAnisotropicMaterials"),
+	1,
+	TEXT("If true, allow use of anisotropic materials."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+	);
+
 bool SupportsAnisotropicMaterials(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
 {
 	return GAnisotropicMaterials
 		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(ShaderPlatform);
+		&& (CVarSupportAnisotropicMaterials->GetBool() != 0);
 }
 
 static bool IsAnisotropyPassCompatible(FMaterialShaderParameters MaterialParameters)
@@ -195,7 +202,7 @@ void FAnisotropyMeshProcessor::AddMeshBatch(
 	const EBlendMode BlendMode = Material->GetBlendMode();
 	const bool bIsNotTranslucent = BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked;
 
-	if (MeshBatch.bUseForMaterial && Material->HasAnisotropyConnected() && bIsNotTranslucent && Material->GetShadingModels().HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }))
+	if (MeshBatch.bUseForMaterial && Material->MaterialUsesAnisotropy_RenderThread() && bIsNotTranslucent && Material->GetShadingModels().HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }))
 	{
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
@@ -315,11 +322,14 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 			}
 
 			auto* PassParameters = GraphBuilder.AllocParameters<FAnisotropyPassParameters>();
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(GBufferFTexture, ERenderTargetLoadAction::EClear);
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 			if (bDoParallelPass)
 			{
+				AddClearRenderTargetPass(GraphBuilder, GBufferFTexture);
+
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(GBufferFTexture, ERenderTargetLoadAction::ELoad);
+
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("AnisotropyPassParallel"),
 					PassParameters,
@@ -334,6 +344,8 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 			}
 			else
 			{
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(GBufferFTexture, ERenderTargetLoadAction::EClear);
+
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("AnisotropyPass"),
 					PassParameters,

@@ -316,6 +316,13 @@ namespace CADLibrary
 		return PatchGroups;
 	}
 
+	 /**
+	  * Polygon group is an attribute of polygons.As long as the mesh description is empty(no polygon), polygon group cannot be defined.
+	  * The work around used is to create PolygonGroups and to set them a PolygonGroupAttributes.
+	  * To get the existing polygon groups, for each created polygonGroups the PolygonGroupId is got(see GetExistingPatches)
+	  * Warning: CopyPatchGroups is call in FCoreTechRetessellate_Impl::ApplyOnOneAsset(CoreTechRetessellateAction.cpp) only if the option 
+	  * RetessellateOptions.RetessellationRule equal EDatasmithCADRetessellationRule::SkipDeletedSurfaces
+	  */
 	void CopyPatchGroups(FMeshDescription& MeshSource, FMeshDescription& MeshDestination)
 	{
 		TPolygonGroupAttributesRef<int32> PatchGroups = MeshDestination.PolygonGroupAttributes().GetAttributesRef<int32>(PolyTriGroups);
@@ -342,6 +349,9 @@ namespace CADLibrary
 		}
 	}
 
+	/**
+	 * See CopyPatchGroups
+	 */
 	void GetExistingPatches(FMeshDescription& MeshDestination, TSet<int32>& OutPatchIdSet)
 	{
 		TPolygonGroupAttributesRef<int32> PatchGroups = MeshDestination.PolygonGroupAttributes().GetAttributesRef<int32>(PolyTriGroups);
@@ -350,9 +360,9 @@ namespace CADLibrary
 			return;
 		}
 
-		for (const FPolygonGroupID PolygonID : MeshDestination.PolygonGroups().GetElementIDs())
+		for (const FPolygonGroupID PolygonGroupID : MeshDestination.PolygonGroups().GetElementIDs())
 		{
-			int32 PatchId = PatchGroups[PolygonID];
+			int32 PatchId = PatchGroups[PolygonGroupID];
 			if (PatchId > 0)
 			{
 				OutPatchIdSet.Add(PatchId);

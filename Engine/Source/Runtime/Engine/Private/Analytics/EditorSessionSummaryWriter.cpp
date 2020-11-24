@@ -12,6 +12,7 @@
 
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/ExceptionHandling.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/FileManager.h"
@@ -20,6 +21,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/EngineVersion.h"
@@ -37,13 +39,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
 namespace EditorSessionWriterDefs
 {
-	// Number of seconds to wait between each update of the mutable metrics.
-	static const float HeartbeatPeriodSeconds = 60;
-
-	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
-	static const float EarlyHeartbeatPeriodSeconds = 1;
-
-	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
+	// Number of seconds to wait before checking again if the debugger is connected.
 	static const float DebuggerCheckPeriodSeconds = 1;
 
 	// The upper CPU usage % considered as Idle. If the CPU usage goes above this threshold, the Editor is considered 'active'.
@@ -51,11 +47,20 @@ namespace EditorSessionWriterDefs
 
 	// The number of seconds required between Editor activities to consider the Editor as 'inactive' (user input, cpu burst).
 	constexpr double EditorInactivitySecondsForIdleState = 5 * 60.0; // To be comparable to the 5-min user inactivity.
+
+	// Returns the default period at which the session is saved.
+	constexpr double GetDefaultSavePeriodSecs()
+	{
+	#if PLATFORM_WINDOWS
+		return 30; // Saving to a couple of values to the registry takes about 5ms, so we can save more or less frequently.
+	#else
+		return 60; // On other platforms, were we must load/parse/update/save a .ini, this is rather slow, so throttle it more.
+	#endif
+	}
 }
 
 FEditorSessionSummaryWriter::FEditorSessionSummaryWriter(uint32 InProcessMonitorProcessId)
-	: HeartbeatTimeElapsed(0.0f)
-	, NextDebuggerCheckSecs(FPlatformTime::Seconds())
+	: NextDebuggerCheckSecs(FPlatformTime::Seconds())
 	, LastUserActivityTimeSecs(FPlatformTime::Seconds())
 	, AccountedUserIdleSecs(0)
 	, LastEditorActivityTimeSecs(FPlatformTime::Seconds())
@@ -92,6 +97,7 @@ void FEditorSessionSummaryWriter::Initialize()
 		UpdateSessionDuration(CurrTimeSecs);
 
 		CurrentSession->Save();
+		LastSaveTimeSecs = CurrTimeSecs;
 
 		UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummaryWriter initialized"));
 
@@ -233,7 +239,7 @@ bool FEditorSessionSummaryWriter::UpdateOutOfProcessMonitorState(bool bQuickChec
 	}
 	else if (CurrentSession->MonitorExitCode.IsSet() && *CurrentSession->MonitorExitCode != ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
 	{
-		return false; // Already have to the real exit code set.
+		return false; // Already have the real exit code set.
 	}
 	else if (TOptional<int32> ExitCode = FGenericCrashContext::GetOutOfProcessCrashReporterExitCode())
 	{
@@ -268,27 +274,58 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		return;
 	}
 
-	CurrentSession->SessionTickCount++;
-
 	const double CurrentTimeSecs = FPlatformTime::Seconds();
+	const FDateTime CurrentTimeUtc = FDateTime::UtcNow();
 
-	// If the Editor process CPU usage is high enough, this count as an activity.
+	// In the n first seconds, save more frequently because lot of bad things happen early and we'd like to have the data as accurate as possible.
+	constexpr double EarlySessionAgeSecs = 30;
+	constexpr double EarlySavePeriodSecs = 1;
+	constexpr double DefaultSavePeriodSecs = EditorSessionWriterDefs::GetDefaultSavePeriodSecs();
+	const double SessionAgeSecs = CurrentTimeSecs - SessionStartTimeSecs;
+	bool bSaveSession = (CurrentTimeSecs - LastSaveTimeSecs >= (SessionAgeSecs <= EarlySessionAgeSecs ? EarlySavePeriodSecs : DefaultSavePeriodSecs));
+
+	// Update all variables that are cheap to update.
+	extern ENGINE_API float GAverageFPS;
+	CurrentSession->AverageFPS = GAverageFPS;
+	CurrentSession->LastTickTimestamp = CurrentTimeUtc;
+	CurrentSession->SessionTickCount++;
+	CurrentSession->EngineTickCount = GFrameCounter;
+
+	// Detect if the Editor process CPU usage is high, this count as an activity and this resets Editor idle counter.
 	if (FPlatformTime::GetCPUTime().CPUTimePct > EditorSessionWriterDefs::IdleCpuUsagePercent)
 	{
 		UpdateEditorIdleTime(CurrentTimeSecs, /*bReset*/true);
 	}
 
-	if (UpdateOutOfProcessMonitorState(/*bQuickCheck*/true))
+	// Detect if CRC state changed since the last update.
+	bSaveSession |= UpdateOutOfProcessMonitorState(/*bQuickCheck*/true);
+
+	// Detect if the VR mode changed since the last update.
+	bool bVREditorModeActive = IVREditorModule::Get().IsVREditorModeActive();
+	if (bVREditorModeActive != CurrentSession->bIsInVRMode)
 	{
-		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
+		CurrentSession->bIsInVRMode = bVREditorModeActive;
+		bSaveSession = true;
 	}
 
-	// Update other session stats approximatively every minute.
-	HeartbeatTimeElapsed += DeltaTime;
+	// Detect if the PIE state changed since the last update.
+	bool bInPie = FPlayWorldCommandCallbacks::IsInPIE();
+	if (bInPie != CurrentSession->bIsInPIE)
+	{
+		CurrentSession->bIsInPIE = bInPie;
+		bSaveSession = true;
+	}
 
-	// Frequently check if the debugger is attached. (More than once per minute)
+	// Periodially check if the debugger is attached. The call might be slightly expensive on some platforms, so throttle it down.
 	if (CurrentTimeSecs >= NextDebuggerCheckSecs)
 	{
+		// Ignoring the debugger changes how IsDebuggerPresent() behave and masks the usage of the debugger if true.
+		if (GIgnoreDebugger)
+		{
+			bSaveSession |= CurrentSession->bIsDebuggerIgnored == false; // Only saved it when it goes from false to true.
+			CurrentSession->bIsDebuggerIgnored = true;
+		}
+
 		// Check if the debugger is present.
 		bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
 		if (CurrentSession->bIsDebugger != bIsDebuggerPresent)
@@ -298,23 +335,15 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 			{
 				CurrentSession->bWasEverDebugger = true;
 			}
-			TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
+			bSaveSession = true;
 		}
 		NextDebuggerCheckSecs = CurrentTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
 	}
 
-	// In the first seconds of the session, be more granular about updating the session (many crashes occurs there), update/save every second or so, then every minutes later on.
-	if (HeartbeatTimeElapsed >= EditorSessionWriterDefs::HeartbeatPeriodSeconds || (CurrentTimeSecs - SessionStartTimeSecs <= 30.0 && HeartbeatTimeElapsed >= EditorSessionWriterDefs::EarlyHeartbeatPeriodSeconds))
+	if (bSaveSession)
 	{
-		HeartbeatTimeElapsed = 0.0f;
-
-		extern ENGINE_API float GAverageFPS;
-		CurrentSession->AverageFPS = GAverageFPS;
-		CurrentSession->bIsInVRMode = IVREditorModule::Get().IsVREditorModeActive();
-		CurrentSession->bIsInPIE = FPlayWorldCommandCallbacks::IsInPIE();
-
-		UpdateOutOfProcessMonitorState(/*bQuickCheck*/false);
-		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs); // Saving also updates session duration/timestamp/userIdle/editorIdle
+		// TODO: Consider cloning the session and saving in another thread. It cost about 1 to 6ms on Windows to save in the main thread.
+		TrySaveCurrentSession(CurrentTimeUtc, CurrentTimeSecs); // Saving also updates session duration/timestamp/userIdle/editorIdle
 	}
 }
 
@@ -407,11 +436,14 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
 	Session->EngineVersion = FEngineVersion::Current().ToString(EVersionComponent::Changelist);
 	Session->StartupTimestamp = StartupTimeUtc;
+	Session->LastTickTimestamp = FDateTime::UtcNow();
 	Session->Timestamp = FDateTime::UtcNow();
 	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->CurrentUserActivity = GetUserActivityString();
 	Session->bIsVanilla = GEngine && GEngine->IsVanillaProduct();
+	Session->CommandLine = FCommandLine::GetForLogging();
+	Session->EngineTickCount = GFrameCounter;
 
 	// TODO: Add a function later on to PlatfomCrashContext to check existance of CRC. This is only used on windows at the moment to categorize cases where CRC fails to report the exit code (only supported on Windows).
 #if PLATFORM_WINDOWS
@@ -599,6 +631,7 @@ bool FEditorSessionSummaryWriter::TrySaveCurrentSession(const FDateTime& CurrTim
 			UpdateSessionDuration(CurrTimeSecs);
 			UpdateSessionTimestamp(CurrTimeUtc);
 			CurrentSession->Save();
+			LastSaveTimeSecs = CurrTimeSecs;
 			SaveSessionLock.Unlock();
 		}
 		FEditorAnalyticsSession::Unlock();

@@ -56,7 +56,7 @@ FInputActionValue UInputModifierDeadZone::ModifyRaw_Implementation(const UEnhanc
 	auto DeadZoneLambda = [this](const float AxisVal)
 	{
 		// We need to translate and scale the input to the +/- 1 range after removing the dead zone.
-		return (FMath::Max(0.f, FMath::Abs(AxisVal) - LowerThreshold) / (UpperThreshold - LowerThreshold)) * FMath::Sign(AxisVal);
+		return FMath::Min(1.f, (FMath::Max(0.f, FMath::Abs(AxisVal) - LowerThreshold) / (UpperThreshold - LowerThreshold))) * FMath::Sign(AxisVal);
 	};
 
 	FVector NewValue = CurrentValue.Get<FVector>();
@@ -203,14 +203,14 @@ FInputActionValue UInputModifierResponseCurveUser::ModifyRaw_Implementation(cons
 	switch (CurrentValue.GetValueType())
 	{
 	case EInputActionValueType::Axis3D:
-		ResponseValue.Z = ResponseZ->GetFloatValue(ResponseValue.Z);
+		ResponseValue.Z = ResponseZ ? ResponseZ->GetFloatValue(ResponseValue.Z) : 0.0f;
 		//[[fallthrough]];
 	case EInputActionValueType::Axis2D:
-		ResponseValue.Y = ResponseY->GetFloatValue(ResponseValue.Y);
+		ResponseValue.Y = ResponseY ? ResponseY->GetFloatValue(ResponseValue.Y) : 0.0f;
 		//[[fallthrough]];
 	case EInputActionValueType::Axis1D:
 	case EInputActionValueType::Boolean:
-		ResponseValue.X = ResponseX->GetFloatValue(ResponseValue.X);
+		ResponseValue.X = ResponseX ? ResponseX->GetFloatValue(ResponseValue.X) : 0.0f;
 		break;
 	}
 	return ResponseValue;

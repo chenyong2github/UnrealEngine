@@ -144,6 +144,7 @@
 #include "ActorTreeItem.h"
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 
 
 #define LOCTEXT_NAMESPACE "Sequencer"
@@ -713,6 +714,12 @@ void FSequencer::Tick(float InDeltaTime)
 		SetLocalTimeLooped(CurrentTime.Time + Offset);
 	}
 
+	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
+	if (!GetFocusedMovieSceneSequence() || !GetFocusedMovieSceneSequence()->GetMovieScene())
+	{
+		PopToSequenceInstance(MovieSceneSequenceID::Root);
+	}
+
 	if (GetSelectionRange().IsEmpty() && GetLoopMode() == SLM_LoopSelectionRange)
 	{
 		Settings->SetLoopMode(SLM_Loop);
@@ -779,12 +786,6 @@ void FSequencer::Tick(float InDeltaTime)
 		{
 			EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 		}
-	}
-
-	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
-	if (!GetFocusedMovieSceneSequence())
-	{
-		PopToSequenceInstance(MovieSceneSequenceID::Root);
 	}
 
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
@@ -2460,6 +2461,10 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 			SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
 			bNeedTreeRefresh = true;
 		}
+		else if ( NodeTree->UpdateFiltersOnTrackValueChanged() )
+		{
+			bNeedTreeRefresh = true;
+		}
 	}
 
 	if (DataChangeType == EMovieSceneDataChangeType::TrackValueChanged || 
@@ -2486,6 +2491,7 @@ void FSequencer::RefreshTree()
 {
 	SequencerWidget->UpdateLayoutTree();
 	bNeedTreeRefresh = false;
+	OnTreeViewChangedDelegate.Broadcast();
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
@@ -4665,7 +4671,7 @@ FReply FSequencer::OnStepBackward()
 FReply FSequencer::OnJumpToStart()
 {
 	SetPlaybackStatus(EMovieScenePlayerStatus::Stepping);
-	SetLocalTime(UE::MovieScene::DiscreteInclusiveLower(GetPlaybackRange()), ESnapTimeMode::STM_None);
+	SetLocalTime(UE::MovieScene::DiscreteInclusiveLower(GetTimeBounds()), ESnapTimeMode::STM_None);
 	return FReply::Handled();
 }
 
@@ -4681,7 +4687,7 @@ FReply FSequencer::OnJumpToEnd()
 	// Calculate an offset from the end to go to. If they have snapping on (and the scrub style is a block) the last valid frame is represented as one
 	// whole display rate frame before the end, otherwise we just subtract a single frame which matches the behavior of hitting play and letting it run to the end.
 	FFrameTime OneFrame = bInsetDisplayFrame ? FFrameRate::TransformTime(FFrameTime(1), DisplayRate, LocalResolution) : FFrameTime(1);
-	FFrameTime NewTime = UE::MovieScene::DiscreteExclusiveUpper(GetPlaybackRange()) - OneFrame;
+	FFrameTime NewTime = UE::MovieScene::DiscreteExclusiveUpper(GetTimeBounds()) - OneFrame;
 
 	SetLocalTime(NewTime, ESnapTimeMode::STM_None);
 	return FReply::Handled();
@@ -5533,16 +5539,33 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		
 		if (bKeepState)
 		{
+			using namespace UE::MovieScene;
+
+			UMovieSceneEntitySystemLinker* EntitySystemLinker = RootTemplateInstance.GetEntitySystemLinker();
+			check(EntitySystemLinker);
+
+			UMovieSceneRestorePreAnimatedStateSystem* RestorePreAnimatedStateSystem = EntitySystemLinker->FindSystem<UMovieSceneRestorePreAnimatedStateSystem>();
+
 			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(BindingToRemove, ActiveTemplateIDs.Top()))
 			{
 				TArray<UObject*> SubObjects;
 				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
+
 				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
+				if (RestorePreAnimatedStateSystem)
+				{
+					RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*WeakObject.Get());
+				}
+
 				for (UObject* SubObject : SubObjects)
 				{
 					if (SubObject)
 					{
 						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
+						if (RestorePreAnimatedStateSystem)
+						{
+							RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*SubObject);
+						}
 					}
 				}
 			}
@@ -6304,7 +6327,7 @@ void FSequencer::RemoveNodeGroupsCollectionChangedDelegate()
 {
 	UMovieSceneSequence* MovieSceneSequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
-	if (ensure(MovieScene))
+	if (MovieScene)
 	{
 		MovieScene->GetNodeGroups().OnNodeGroupCollectionChanged().RemoveAll(this);
 	}
@@ -7083,12 +7106,18 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 		{
 			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				NodesToSelect.Add(Node);
+				if (Node->IsVisible())
+				{
+					NodesToSelect.Add(Node);
+				}
 				if (bSelect == false) //make sure all children not selected
 				{
 					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
 					{
-						NodesToSelect.Add(ChildNode);
+						if (ChildNode->IsVisible())
+						{
+							NodesToSelect.Add(ChildNode);
+						}
 					}
 				}
 			}

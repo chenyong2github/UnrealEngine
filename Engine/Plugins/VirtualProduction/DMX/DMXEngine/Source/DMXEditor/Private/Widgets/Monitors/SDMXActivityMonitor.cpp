@@ -42,8 +42,6 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceInputName));
 	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceOutputName));
 
-	LoadMonitorSettings();
-
 	SetCanTick(true);
 
 	ChildSlot
@@ -113,7 +111,7 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(MinUniverseIDSpinBox, SSpinBox<uint32>)
 						.SliderExponent(1000)
-						.Value(MinUniverseID)
+						.Value(1)
 						.OnValueCommitted(this, &SDMXActivityMonitor::OnMinUniverseIDCommitted)
 						.MinValue(0u)
 						.MaxValue(UINT16_MAX)
@@ -139,7 +137,7 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(MaxUniverseIDSpinBox, SSpinBox<uint32>)
 						.SliderExponent(100.0f)
-						.Value(MaxUniverseID)
+						.Value(100)
 						.OnValueCommitted(this, &SDMXActivityMonitor::OnMaxUniverseIDCommitted)
 						.MinValue(0)
 						.MaxValue(DMX_MAX_UNIVERSE)
@@ -255,6 +253,9 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 				]
 			]
 		];
+
+	LoadMonitorSettings();
+
 }
 
 void SDMXActivityMonitor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -350,6 +351,8 @@ void SDMXActivityMonitor::SaveMonitorSettings() const
 
 void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)
 {
+	check(MinUniverseIDSpinBox.IsValid());
+
 	FDMXProtocolName NewDMXProtocolName(NewProtocolName);
 	check(NewProtocolName.IsValid());
 
@@ -360,13 +363,20 @@ void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)
 
 	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
 	{
-		if (!IsUniverseIDInRange(MinUniverseID))
+		// Update the universe slider to work within protocol range
+		MinUniverseID = Protocol->GetMinUniverseID();
+
+		// By default, show 100 universes, MinUniverseID + 100
+		MaxUniverseID = FMath::Clamp(static_cast<uint16>(MinUniverseID + 100), Protocol->GetMinUniverseID(), Protocol->GetMaxUniverses());
+
+		MinUniverseIDSpinBox->SetMinValue(MinUniverseID);
+		MinUniverseIDSpinBox->SetMaxValue(Protocol->GetMaxUniverses());
+		MaxUniverseIDSpinBox->SetMinValue(MinUniverseID);
+		MaxUniverseIDSpinBox->SetMaxValue(Protocol->GetMaxUniverses());
+
+		if (MinUniverseIDSpinBox->GetValue() < MinUniverseID)
 		{
-			MinUniverseID = Protocol->GetMinUniverseID();
-		}
-		if (!IsUniverseIDInRange(MaxUniverseID))
-		{
-			MaxUniverseID = FMath::Clamp(static_cast<uint16>(MinUniverseID + 100), Protocol->GetMinUniverseID(), Protocol->GetMaxUniverses());
+			MinUniverseIDSpinBox->SetValue(MinUniverseID);
 		}
 
 		AddMonitoredUniversesToProtocol();
@@ -424,6 +434,7 @@ void SDMXActivityMonitor::OnProtocolSelected(FName NewProtocolName)
 	FDMXEditorUtils::ZeroAllDMXBuffers();
 
 	ClearDisplay();
+
 	SetProtocol(NewProtocolName);
 
 	SaveMonitorSettings();
@@ -432,7 +443,10 @@ void SDMXActivityMonitor::OnProtocolSelected(FName NewProtocolName)
 void SDMXActivityMonitor::OnMinUniverseIDCommitted(uint32 NewValue, ETextCommit::Type CommitType)
 {
 	check(MinUniverseIDSpinBox.IsValid());
+	check(MaxUniverseIDSpinBox.IsValid());
 	check(IsUniverseIDInRange(NewValue));
+
+	MaxUniverseID = MaxUniverseIDSpinBox->GetValue();
 
 	if (MaxUniverseID >= NewValue)
 	{
@@ -452,8 +466,11 @@ void SDMXActivityMonitor::OnMinUniverseIDCommitted(uint32 NewValue, ETextCommit:
 
 void SDMXActivityMonitor::OnMaxUniverseIDCommitted(uint32 NewValue, ETextCommit::Type CommitType)
 {
+	check(MinUniverseIDSpinBox.IsValid());
 	check(MaxUniverseIDSpinBox.IsValid());
 	check(IsUniverseIDInRange(NewValue));
+
+	MinUniverseID = MinUniverseIDSpinBox->GetValue();
 
 	if (MinUniverseID <= NewValue)
 	{

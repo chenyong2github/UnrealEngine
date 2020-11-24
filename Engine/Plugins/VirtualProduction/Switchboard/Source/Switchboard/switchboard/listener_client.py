@@ -27,12 +27,6 @@ class ListenerClient(object):
         self.command_accepted_delegate = None
         self.command_declined_delegate = None
 
-        self.program_started_delegate = None
-        self.program_start_failed_delegate = None
-        self.program_ended_delegate = None
-        self.program_killed_delegate = None
-        self.program_kill_failed_delegate = None
-
         self.vcs_init_completed_delegate = None
         self.vcs_init_failed_delegate = None
         self.vcs_report_revision_completed_delegate = None
@@ -132,7 +126,6 @@ class ListenerClient(object):
                 for rs in read_sockets:
                     received_data = rs.recv(self.buffer_size).decode()
                     self.process_received_data(buffer, received_data)
-                    self.last_activity = datetime.datetime.now()
 
                 delta = datetime.datetime.now() - self.last_activity
 
@@ -189,30 +182,6 @@ class ListenerClient(object):
                 if self.command_declined_delegate:
                     self.command_declined_delegate(message_id, message["error"])
 
-        elif "program started" in message:
-            message_id = uuid.UUID(message['message id'])
-            if message['program started'] == True:
-                program_id = uuid.UUID(message['program id'])
-                if self.program_started_delegate:
-                    self.program_started_delegate(program_id, message_id)
-            else:
-                if self.program_start_failed_delegate:
-                    self.program_start_failed_delegate(message['error'], message_id)
-
-        elif "program ended" in message:
-            program_id = uuid.UUID(message['program id'])
-            if self.program_ended_delegate:
-                self.program_ended_delegate(program_id, message['returncode'], message['output'])
-
-        elif "program killed" in message:
-            program_id = uuid.UUID(message['program id'])
-            if message['program killed'] == True:
-                if self.program_killed_delegate:
-                    self.program_killed_delegate(program_id)
-            else:
-                if self.program_kill_failed_delegate:
-                    self.program_kill_failed_delegate(program_id, message['error'])
-
         elif "vcs init complete" in message:
             if message['vcs init complete'] == True:
                 if self.vcs_init_completed_delegate:
@@ -253,6 +222,7 @@ class ListenerClient(object):
                 if self.receive_file_failed_delegate:
                     self.receive_file_failed_delegate(message['source'], message['error'])
         else:
+            LOGGER.error(f'Unhandled message: {message}')
             raise ValueError
 
     def process_received_data(self, buffer, received_data):

@@ -380,6 +380,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attachment, meta = (EditCondition = "bAutoManageAttachment"))
 	EAttachmentRule AutoAttachScaleRule;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
+	FSoundModulationDefaultRoutingSettings ModulationRouting;
+
 	/** Called when PlayState changes */
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioPlayStateChanged OnAudioPlayStateChanged;

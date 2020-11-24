@@ -9,6 +9,9 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
+#include "BoneContainer.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
@@ -470,7 +473,7 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 }
 
 
-bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate,FTransform& OutTransform, float& OutWeight) const
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FAnimationPoseData& AnimationPoseData, bool& bIsAdditive,FTransform& OutTransform, float& OutWeight) const
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
 	FTransform OffsetTransform = GetOffsetTransform();
@@ -479,20 +482,25 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		float ManualWeight = 1.f;
 		Params.Weight.Evaluate(CurrentTime, ManualWeight);
 		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
-
+		bIsAdditive = false;
 		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
-		if (AnimSequence->bForceRootLock) //if root lock is on just get the first frame since ExtractRootTrackTransform will still extract(it ignores the flag)
-		{
-			CurrentTimeSeconds = 0.0f;
-		}
-	
-		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
+		bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
+
 		if (TempRootBoneIndex.IsSet())
 		{
-			AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+			FAnimExtractContext ExtractionContext(CurrentTimeSeconds, false);
+			AnimSequence->GetAnimationPose(AnimationPoseData, ExtractionContext);
+			OutTransform = AnimationPoseData.GetPose()[FCompactPoseBoneIndex(TempRootBoneIndex.GetValue())];
 		}
-		OutTransform = OutTransform * OffsetTransform;
-
+		else //not set then just use root.
+		{
+			OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
+		}
+		//note though we don't support mesh space addtive just local additive it will still work the same here for the root so 
+		if (!bIsAdditive)
+		{
+			OutTransform = OutTransform * OffsetTransform;
+		}
 		return true;
 	}
 	//for safety always return true for now
@@ -541,7 +549,6 @@ void UMovieSceneSkeletalAnimationSection::MultiplyOutInverseOnNextClips(FVector 
 		}
 	}
 }
-
 void UMovieSceneSkeletalAnimationSection::ClearMatchedOffsetTransforms()
 {
 	//need to store the previous since we may need to apply the change we made to the next clips so they don't move

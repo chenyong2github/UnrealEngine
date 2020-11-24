@@ -80,6 +80,10 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVolumetricLightmapPathTracingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FVolumetricLightmapPathTracingRGS, FGlobalShader)
 
+	class FUseIrradianceCaching : SHADER_PERMUTATION_BOOL("USE_IRRADIANCE_CACHING");
+
+	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
@@ -159,7 +163,7 @@ class FFirstBounceRayGuidingCDFBuildCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return true;
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

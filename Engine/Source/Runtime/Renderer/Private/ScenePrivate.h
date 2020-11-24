@@ -27,6 +27,7 @@
 #include "ScenePrivateBase.h"
 #include "RenderTargetPool.h"
 #include "SceneCore.h"
+#include "Containers/AllocatorFixedSizeFreeList.h"
 #include "PrimitiveSceneInfo.h"
 #include "LightSceneInfo.h"
 #include "DepthRendering.h"
@@ -1115,20 +1116,10 @@ public:
 
 	FVolumetricRenderTargetViewStateData VolumetricCloudRenderTarget;
 	FTemporalRenderTargetState VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS];
-	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowFilteredRenderTarget[NUM_ATMOSPHERE_LIGHTS];
 	FMatrix VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[NUM_ATMOSPHERE_LIGHTS];
 	FVector VolumetricCloudShadowmapPreviousAtmosphericLightPos[NUM_ATMOSPHERE_LIGHTS];
 	FVector VolumetricCloudShadowmapPreviousAnchorPoint[NUM_ATMOSPHERE_LIGHTS];
 	FVector VolumetricCloudShadowmapPreviousAtmosphericLightDir[NUM_ATMOSPHERE_LIGHTS];
-
-	TRefCountPtr<IPooledRenderTarget> GetVolumetricCloudShadowRenderTarget(uint32 LightIndex)
-	{
-		if (VolumetricCloudShadowFilteredRenderTarget[LightIndex].IsValid())
-		{
-			return VolumetricCloudShadowFilteredRenderTarget[LightIndex];
-		}
-		return VolumetricCloudShadowRenderTarget[LightIndex].CurrentRenderTarget();
-	}
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
@@ -2718,6 +2709,8 @@ public:
 	float DynamicIndirectShadowsSelfShadowingIntensity;
 
 	const FReadOnlyCVARCache& ReadOnlyCVARCache;
+
+	TAllocatorFixedSizeFreeList<sizeof(FLightPrimitiveInteraction), 16384 / sizeof(FLightPrimitiveInteraction)> LightPrimitiveInteractionAllocator;
 
 #if WITH_EDITOR
 	/** Editor Pixel inspector */

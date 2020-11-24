@@ -682,7 +682,10 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress)
 		{
 			const int32 NeededSpan = ToAssign->GetChannelSpan();
-			check(NeededSpan > 0);
+			if (NeededSpan < 1)
+			{
+				return false;
+			}
 
 			UDMXEntityFixturePatch* FirstPatchWithMinAddress = SortedPatchesWithSetAddress[IndexOfFirstPatchWithMinAddress];
 			const bool bDoesPatchFitBeforeFirstPatchWithMinAddress = FirstPatchWithMinAddress->GetStartingChannel() >= MinimumAddress
@@ -941,9 +944,12 @@ void FDMXEditorUtils::ClearFixturePatchCachedData()
 		TArray<UDMXLibrary*> DMXLibraries = Subsystem->GetAllDMXLibraries();
 		for (UDMXLibrary* Library : DMXLibraries)
 		{
-			Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
-				Patch->ClearCachedData();
+			if (Library != nullptr && Library->IsValidLowLevel())
+			{
+				Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
+					Patch->ClearCachedData();
 				});
+			}
 		}
 	}
 }

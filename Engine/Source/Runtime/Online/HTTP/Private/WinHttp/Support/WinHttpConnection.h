@@ -73,9 +73,16 @@ public:
 	/**
 	 * [Call on Main Thread only]
 	 *
-	 * Process and send messages that are queued for the main thread
+	 * Process and call delegates events that are queued for the main thread
 	 */
 	virtual void PumpMessages() = 0;
+
+	/**
+	 * [Call on Any Thread]
+	 *
+	 * Pump the state machine and advance the request's state
+	 */
+	virtual void PumpStates() = 0;
 };
 
 #endif // WITH_WINHTTP

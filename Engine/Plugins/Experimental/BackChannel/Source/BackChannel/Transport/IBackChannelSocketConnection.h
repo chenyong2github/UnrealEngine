@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformTime.h"
 
 class FSocket;
 
@@ -15,6 +16,23 @@ class FSocket;
 class IBackChannelSocketConnection
 {
 public:
+
+	struct FConnectionStats
+	{
+		// lifetime stats
+		int		PacketsSent = 0;
+		int		PacketsReceived = 0;
+		int		BytesSent = 0;
+		int		BytesReceived = 0;
+		int		Errors = 0;
+
+		// time these events occurred
+		double		LastSendTime = 0;
+		double		LastReceiveTime = 0;
+		double		LastErrorTime = FPlatformTime::Seconds();
+		double		LastSuccessTime = FPlatformTime::Seconds();
+	};
+
 	
 	// todo (agrant 2017/12/29): Should remove 'Connect' and instead return a connected (or null..) socket
 	// from the factory
@@ -54,6 +72,9 @@ public:
 
 	/* Set the specified send and receive buffer sizes, if supported */
 	virtual void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) = 0;
+
+	/* Return stats about this connection */
+	virtual const FConnectionStats& GetConnectionStats() const = 0;
 
 protected:
 

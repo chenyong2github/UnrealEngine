@@ -407,21 +407,7 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 	{
 		GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture.SafeRelease();
 
-		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
-	}
-}
-
-void FMobileSceneRenderer::CacheSceneDepthZ(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& InOutSceneDepthZ)
-{
-	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
-	{
-		FPooledRenderTargetDesc SceneDepthZDesc = InOutSceneDepthZ->GetDesc();
-
-		View.ViewState->PrevFrameViewInfo.MobileSceneDepthZ = InOutSceneDepthZ;
-
-		InOutSceneDepthZ.SafeRelease();
-
-		GRenderTargetPool.FindFreeElement(RHICmdList, SceneDepthZDesc, InOutSceneDepthZ, TEXT("SceneDepthZ"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false, 1, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
 	}
 }
 

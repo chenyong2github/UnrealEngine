@@ -1035,12 +1035,40 @@ public:
 
 	void SetSceneRootNode(FSCSEditorTreeNodePtrType NewSceneRootNode);
 
+	/** Adds a component to the SCS tree */
+	struct FAddNewComponentParams
+	{
+		FAddNewComponentParams()
+			: bSkipMarkBlueprintModified(false)
+			, bSetFocusToNewItem(true)
+			, bConformTransformToParent(true)
+		{
+		}
+		
+		/** Optionally skip marking this blueprint as modified (e.g. if we're handling that externally */
+		bool bSkipMarkBlueprintModified;
+		/** Whether the newly created component should be focused */
+		bool bSetFocusToNewItem;
+		/** Whether the newly created component should keep its transform, or conform it to its parent */
+		bool bConformTransformToParent;
+	};
+
 	/** Adds a component to the SCS Table
 	   @param NewComponentClass				(In) The class to add
 	   @param Asset       					(In) Optional asset to assign to the component
-	   @param bSkipMarkBlueprintModified 	(In) Optionally skip marking this blueprint as modified (e.g. if we're handling that externally)
-	   @return The reference of the newly created ActorComponent */
-	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified = false, bool bSetFocusToNewItem = true);
+	   @param Params       					(In) Parameter block of optional behavior flags
+	 */
+	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const FAddNewComponentParams Params = FAddNewComponentParams());
+
+	/** Adds a component to the SCS tree */
+	UE_DEPRECATED(4.26, "Use version that takes parameter block")
+	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified, bool bSetFocusToNewItem = true)
+	{
+		FAddNewComponentParams Params;
+		Params.bSkipMarkBlueprintModified = bSkipMarkBlueprintModified;
+		Params.bSetFocusToNewItem = bSetFocusToNewItem;
+		return AddNewComponent(NewComponentClass, Asset, Params);
+	}
 
 	struct FAddedNodeDetails
 	{

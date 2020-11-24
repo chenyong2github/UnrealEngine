@@ -642,10 +642,14 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
 	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
 
-	int32 TickCount = InSystemInstance->GetTickCount();
-	check(TickCount > 0);
-	bNeedsReset = ( TickCount == 1);
+	bNeedsReset = InSystemInstance->RequiresGpuBufferReset();
 	NumInstancesWithSimStages = 0;
+
+	if ( bNeedsReset )
+	{
+		++SharedContext->ParticleCountReadFence;
+	}
+	ParticleCountFence = SharedContext->ParticleCountReadFence;
 
 	TotalDispatches = 0;
 
@@ -777,6 +781,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 void FNiagaraGPUSystemTick::Destroy()
 {
+	SharedContext->ParticleCountWriteFence = ParticleCountFence;
+
 	FNiagaraComputeInstanceData* Instances = GetInstanceData();
 	for (uint32 i = 0; i < Count; i++)
 	{

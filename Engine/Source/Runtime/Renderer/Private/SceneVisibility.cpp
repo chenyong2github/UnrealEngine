@@ -3721,7 +3721,24 @@ void UpdateReflectionSceneData(FScene* Scene)
 }
 
 #if !UE_BUILD_SHIPPING
- void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
+static uint32 GetDrawCountFromPrimitiveSceneInfo(FScene* Scene, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
+{
+	uint32 DrawCount = 0;
+	for (const FCachedMeshDrawCommandInfo& CachedCommand : PrimitiveSceneInfo->StaticMeshCommandInfos)
+	{
+		if (CachedCommand.MeshPass != EMeshPass::BasePass)
+			continue;
+
+		if (CachedCommand.StateBucketId != INDEX_NONE || CachedCommand.CommandIndex >= 0)
+		{
+			DrawCount++;
+		}
+	}
+
+	return DrawCount;
+}
+
+void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 {
 	if (!bDumpPrimitivesNextFrame)
 	{
@@ -3730,9 +3747,22 @@ void UpdateReflectionSceneData(FScene* Scene)
 
 	bDumpPrimitivesNextFrame = false;
 
-	TArray<FString> Names;
-	Names.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
-	
+	struct FPrimitiveInfo
+	{
+		FString		Name;
+		uint32		DrawCount;
+
+		bool operator<(const FPrimitiveInfo& other) const
+		{
+			return Name < other.Name;
+		}
+	};
+
+	TArray<FPrimitiveInfo> Primitives;
+	Primitives.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
+
+	FScopeLock Lock(&Scene->CachedMeshDrawCommandLock[EMeshPass::BasePass]);
+
 	for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
 	{
 		int32 PrimitiveId = Mesh.DrawPrimitiveId;
@@ -3741,7 +3771,9 @@ void UpdateReflectionSceneData(FScene* Scene)
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
 			FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
 
-			Names.Add(MoveTemp(FullName));
+			uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
+
+			Primitives.Add({ MoveTemp(FullName), DrawCount });
 		}
 	}
 
@@ -3750,18 +3782,22 @@ void UpdateReflectionSceneData(FScene* Scene)
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
 		FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
 
-		Names.Add(MoveTemp(FullName));
+		uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
+
+		Primitives.Add({ MoveTemp(FullName), DrawCount });
 	}
 
-	Names.Sort();
+	Primitives.Sort();
 
 	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
 	DrawViewer.AddColumn(TEXT("Name"));
+	DrawViewer.AddColumn(TEXT("NumDraws"));
 	DrawViewer.CycleRow();
 
-	for (const FString& FullName : Names)
+	for (const FPrimitiveInfo& Primitive : Primitives)
 	{
-		DrawViewer.AddColumn(*FullName);
+		DrawViewer.AddColumn(*Primitive.Name);
+		DrawViewer.AddColumn(*FString::Printf(TEXT("%d"), Primitive.DrawCount));
 		DrawViewer.CycleRow();
 	}
 }
@@ -4637,7 +4673,22 @@ void FLODSceneTree::AddChildNode(const FPrimitiveComponentId ParentId, FPrimitiv
 {
 	if (ParentId.IsValid() && ChildSceneInfo)
 	{
-		FLODSceneNode* Parent = &SceneNodes.FindOrAdd(ParentId);
+		FLODSceneNode* Parent = SceneNodes.Find(ParentId);
+
+		// If parent SceneNode hasn't been created yet (possible, depending on the order actors are added to the scene)
+		if (!Parent)
+		{
+			// Create parent SceneNode, assign correct SceneInfo
+			Parent = &SceneNodes.Add(ParentId, FLODSceneNode());
+
+			int32 ParentIndex = Scene->PrimitiveComponentIds.Find(ParentId);
+			if (ParentIndex != INDEX_NONE)
+			{
+				Parent->SceneInfo = Scene->Primitives[ParentIndex];
+				check(Parent->SceneInfo->PrimitiveComponentId == ParentId);
+			}
+		}
+
 		Parent->AddChild(ChildSceneInfo);
 	}
 }

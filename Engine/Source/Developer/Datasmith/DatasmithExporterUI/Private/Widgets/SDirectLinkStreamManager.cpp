@@ -101,13 +101,13 @@ struct FStreamData
 		, Source( InSource )
 		, Destination( InDestination )
 	{
-		uint32 StringLenght = Destination->EndpointData->ExecutableName.Len();
+		uint32 StringLenght = Destination->EndpointData->EndpointName.Len();
 		// " : "
 		StringLenght +=	3;
-		StringLenght += Destination->EndpointData->UserName.Len();
+		StringLenght += Destination->Name.Len();
 		DestinationColumnLabel.Reserve( StringLenght );
 
-		DestinationColumnLabel.Append( Destination->EndpointData->ExecutableName );
+		DestinationColumnLabel.Append( Destination->EndpointData->EndpointName );
 		DestinationColumnLabel.Append( " : " );
 		DestinationColumnLabel.Append( Destination->Name );
 	}
@@ -405,7 +405,10 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 		TSharedPtr<FDestinationData> DestinationData;
 		if ( StreamInfo.bIsActive )
 		{
-			DestinationData = DestinationsMap.FindAndRemoveChecked( StreamInfo.Destination );
+			if ( DestinationsMap.Contains( StreamInfo.Destination ) )
+			{
+				DestinationData = DestinationsMap.FindAndRemoveChecked( StreamInfo.Destination );
+			}
 		}
 
 		FStreamID StreamId( StreamInfo.Source, StreamInfo.Destination );
@@ -423,11 +426,13 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 		}
 		else if ( StreamInfo.bIsActive )
 		{
-			TSharedRef<FSourceData> SourceData = SourcesMap.FindChecked( StreamInfo.Source );
-
-			TSharedRef<FStreamData> StreamData = MakeShared<FStreamData>( StreamInfo.bIsActive, MoveTemp( SourceData ), DestinationData.ToSharedRef() );
-			StreamMap.AddByHash( StreamIdHash, StreamId, MoveTemp( StreamData ) );
-			bDirtyStreamList = true;
+			TSharedRef<FSourceData>* SourceData = SourcesMap.Find( StreamInfo.Source );
+			if ( DestinationData.IsValid() && SourceData != nullptr )
+			{
+				TSharedRef<FStreamData> StreamData = MakeShared<FStreamData>( StreamInfo.bIsActive, *SourceData, DestinationData.ToSharedRef() );
+				StreamMap.AddByHash( StreamIdHash, StreamId, StreamData );
+				bDirtyStreamList = true;
+			}
 		}
 	}
 

@@ -25,6 +25,7 @@ public class DetailCustomizations : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"EditorWidgets",
+				"Kismet",
 				"KismetWidgets",
 				"MovieSceneCapture",
 				"MovieSceneTools",

@@ -124,6 +124,9 @@ struct CORE_API FReleaseObjectVersion
 		// Add margin support to Chaos Convex
 		MarginAddedToConvexAndBox,
 
+		// Add structure data to Chaos Convex
+		StructureDataAddedToConvex,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -180,11 +180,11 @@ namespace Chaos
 			{
 				InCallable(Obj);
 			}
-			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
+			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies_External)
 			{
 				InCallable(Obj);
 			}
-			for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies)
+			for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies_External)
 			{
 				InCallable(Obj);
 			}
@@ -218,14 +218,14 @@ namespace Chaos
 				FStaticMeshPhysicsProxy* Obj = StaticMeshPhysicsProxies[Index];
 				InCallable(Obj);
 			});
-			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies_External.Num(), [this, &InCallable](const int32 Index)
 			{
-				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies[Index];
+				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies_External[Index];
 				InCallable(Obj);
 			});
-			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies_External.Num(), [this, &InCallable](const int32 Index)
 			{
-				FJointConstraintPhysicsProxy* Obj = JointConstraintPhysicsProxies[Index];
+				FJointConstraintPhysicsProxy* Obj = JointConstraintPhysicsProxies_External[Index];
 				InCallable(Obj);
 			});
 		}
@@ -233,8 +233,8 @@ namespace Chaos
 		int32 GetNumPhysicsProxies() const {
 			return GeometryParticlePhysicsProxies.Num() + KinematicGeometryParticlePhysicsProxies.Num() + RigidParticlePhysicsProxies.Num()
 				+ SkeletalMeshPhysicsProxies.Num() + StaticMeshPhysicsProxies.Num()
-				+ GeometryCollectionPhysicsProxies.Num()
-				+ JointConstraintPhysicsProxies.Num();
+				+ GeometryCollectionPhysicsProxies_External.Num()
+				+ JointConstraintPhysicsProxies_External.Num();
 		}
 
 		//
@@ -347,19 +347,19 @@ namespace Chaos
 		void SyncEvents_GameThread();
 
 		/**/
-		void PostTickDebugDraw() const;
+		void PostTickDebugDraw(FReal Dt) const;
 
 		// Visual debugger (VDB) push methods
 		void PostEvolutionVDBPush() const;
 
-		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies()
+		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies_Internal()
 		{
-			return GeometryCollectionPhysicsProxies;
+			return GeometryCollectionPhysicsProxies_Internal;
 		}
 
-		TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxy()
+		TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxy_External()
 		{
-			return JointConstraintPhysicsProxies;
+			return JointConstraintPhysicsProxies_External;
 		}
 
 		/** Events hooked up to the Chaos material manager */
@@ -403,8 +403,8 @@ namespace Chaos
 		void BufferPhysicsResults();
 	
 		/**/
-		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
-		virtual void PushPhysicsState(const FReal DeltaTime) override;
+		virtual void AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo = FSubStepInfo()) override;
+		virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 
 		//
@@ -437,8 +437,10 @@ namespace Chaos
 		TArray< FRigidParticlePhysicsProxy* > RigidParticlePhysicsProxies;
 		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
-		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies;
-		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies;
+		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_External; // GT
+		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
+		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_External; // GT
+		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
 		TArray< FSuspensionConstraintPhysicsProxy* > SuspensionConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
 
@@ -467,7 +469,7 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
-		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) override;
+		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
 	};
 
 	template<>

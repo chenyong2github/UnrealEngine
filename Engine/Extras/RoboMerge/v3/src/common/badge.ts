@@ -13,16 +13,22 @@ interface BuildData {
 	Result: string // starting, failure, warning, success, or skipped
 }
 
+type HordeBadgeData = {
+	Stream: string
+	Change: number
+	Badges: { Name: string, Url: string, State: string }[]
+}
+
 const MAX_RETRIES = 3
 
-export const UGS_URL_ROOT = '<ugs api endpoint>'
+export const UGS_API_CIS_ROUTE = '<ugs api endpoint>'
 
 export class Badge {
-	static markStarting(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.STARTING, badge, project, cl, bot, externalUrl) }
-	static markSuccess(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SUCCESS, badge, project, cl, bot, externalUrl) }
-	static markFailure(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.FAILURE, badge, project, cl, bot, externalUrl) }
-	static markWarning(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.WARNING, badge, project, cl, bot, externalUrl) }
-	static markSkipped(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SKIPPED, badge, project, cl, bot, externalUrl) }
+	// static markStarting(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.STARTING, badge, project, cl, bot, externalUrl) }
+	// static markSuccess(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SUCCESS, badge, project, cl, bot, externalUrl) }
+	// static markFailure(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.FAILURE, badge, project, cl, bot, externalUrl) }
+	// static markWarning(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.WARNING, badge, project, cl, bot, externalUrl) }
+	// static markSkipped(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SKIPPED, badge, project, cl, bot, externalUrl) }
 
 	static STARTING = 'Starting'
 	static SUCCESS = 'Success'
@@ -72,21 +78,49 @@ export class Badge {
 		return null
 	}
 
-	static mark(result: string, badge: string, project: string, cl: number, bot: string, externalUrl: string) {
-		const data: BuildData = {
-			BuildType: badge,
-			Url: `${externalUrl}#${bot}`,
-			Project: project,
-			ArchivePath: '',
-			ChangeNumber: cl,
-			Result: result
+	// {
+	// "Stream": "//Fortnite/Release-15.10",
+	// "Change": 14680690,
+	// "Badges": [
+	// 	{
+	// 		"Name": "Merge",
+	// 		"Url": "https://robomerge.epicgames.net/",
+	// 		"State": "Starting"
+	// 	}
+	// ]
+
+	static mark(result: string, badge: string, project: string, cl: number, bot: string, externalUrl: string, badgeUrlOverride?: string) {
+		const roboUrl = `${externalUrl}#${bot}`
+		let data : HordeBadgeData | BuildData
+		if (badgeUrlOverride) {
+			data = {
+				Stream: project,
+				Change: cl,
+				Badges: [{
+					Name: badge,
+					Url: roboUrl,
+					State: result
+				}]
+			}
+		}
+		else {
+			data = {
+				BuildType: badge,
+				Url: roboUrl,
+				Project: project,
+				ArchivePath: '',
+				ChangeNumber: cl,
+				Result: result
+			}
 		}
 
+		const url = badgeUrlOverride || UGS_API_CIS_ROUTE
+		const body = JSON.stringify(data)
 		return Badge.postWithRetry({
-			url: UGS_URL_ROOT + '/CIS',
-			body: JSON.stringify(data),
+			url,
+			body,
 			contentType: 'application/json'
-		}, `Added '${badge}' (${result}) UGS badge to ${project}@${cl}`)
+		}, `Added '${badge}' (${result}) UGS badge to ${project}@${cl} (${url})\n${body}`)
 	}
 
 	static setDevMode() {

@@ -22,6 +22,7 @@ FSingleParticlePhysicsProxy<PARTICLE_TYPE>::FSingleParticlePhysicsProxy(PARTICLE
 	, InitialState(InInitialState)
 	, Particle(InParticle)
 	, Handle(InHandle)
+	, PullDataInterpIdx_External(INDEX_NONE)
 {
 	BufferedData = Chaos::FMultiBufferFactory< typename PARTICLE_TYPE::FData >::CreateBuffer(Chaos::EMultiBufferMode::Double);
 }
@@ -39,7 +40,7 @@ FSingleParticlePhysicsProxy<PARTICLE_TYPE>::GetInitialState() const
 }
 
 template <Chaos::EParticleType ParticleType, typename TParticleHandle, typename TEvolution>
-void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParticleHandle* Handle, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, TEvolution& Evolution, const bool bInitialized)
+void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParticleHandle* Handle, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, TEvolution& Evolution, const bool bInitialized, const Chaos::FReal DynamicsWeight)
 {
 	using namespace Chaos;
 	constexpr bool bHasKinematicData = ParticleType != EParticleType::Static;
@@ -68,7 +69,13 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 			KinematicHandle->SetVelocities(*NewVelocities);
 		}
 
-		if(NewXR || NewNonFrequentData || NewVelocities)
+		auto NewKinematicTarget = bHasKinematicData ? ParticleData.FindKinematicTarget(Manager, DataIdx) : nullptr;
+		if (NewKinematicTarget)
+		{
+			KinematicHandle->SetKinematicTarget(*NewKinematicTarget);
+		}
+
+		if(NewXR || NewNonFrequentData || NewVelocities || NewKinematicTarget)
 		{
 			const auto& Geometry = Handle->Geometry();
 			if(Geometry && Geometry->HasBoundingBox())
@@ -95,7 +102,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 
 			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
 			{
-				RigidHandle->SetDynamics(*NewData);
+				RigidHandle->SetDynamics(*NewData, DynamicsWeight);
 			}
 
 			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))
@@ -129,9 +136,9 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 
 template< >
 template <typename Traits>
-void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution)
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution, const Chaos::FReal DynamicsWeight)
 {
-	PushToPhysicsStateImp<Chaos::EParticleType::Static>(Manager,Handle,DataIdx,Dirty,ShapesData,Evolution,bInitialized);
+	PushToPhysicsStateImp<Chaos::EParticleType::Static>(Manager,Handle,DataIdx,Dirty,ShapesData,Evolution,bInitialized, DynamicsWeight);
 }
 
 
@@ -149,9 +156,15 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::B
 	// Move simulation results into the double buffer.
 }
 
+template< >
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData)
+{
+	// Move simulation results into the double buffer.
+}
+
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha)
 {
 	// Move buffered data into the TGeometryParticle
 	return true;
@@ -186,9 +199,9 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvent
 
 template <>
 template<typename Traits>
-void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution)
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution, const Chaos::FReal DynamicsWeight)
 {
-	PushToPhysicsStateImp<Chaos::EParticleType::Kinematic>(Manager,Handle->CastToKinematicParticle(),DataIdx,Dirty,ShapesData,Evolution,bInitialized);
+	PushToPhysicsStateImp<Chaos::EParticleType::Kinematic>(Manager,Handle->CastToKinematicParticle(),DataIdx,Dirty,ShapesData,Evolution,bInitialized, DynamicsWeight);
 }
 
 template< >
@@ -204,7 +217,13 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<flo
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData)
+{
+	// Move simulation results into the double buffer.
+}
+
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha)
 {
 	// Move buffered data into the TKinematicGeometryParticle
 	return true;
@@ -240,19 +259,29 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::C
 
 template<>
 template<typename Traits>
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution)
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution, const Chaos::FReal DynamicsWeight)
 {
-	PushToPhysicsStateImp<Chaos::EParticleType::Rigid>(Manager,Handle->CastToRigidParticle(),DataIdx,Dirty,ShapesData,Evolution,bInitialized);
+	PushToPhysicsStateImp<Chaos::EParticleType::Rigid>(Manager,Handle->CastToRigidParticle(),DataIdx,Dirty,ShapesData,Evolution,bInitialized, DynamicsWeight);
 }
 
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
-	Particle->SetF(Chaos::TVector<float, 3>(0), false);
-	Particle->SetTorque(Chaos::TVector<float, 3>(0), false);
+	Particle->ClearForces(false);
+	Particle->ClearTorques(false);
 	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0), false);
 	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0), false);
 	Particle->ClearDirtyFlags();
+}
+
+template <typename T>
+void BufferPhysicsResultsImp(Chaos::FDirtyRigidParticleData& PullData, T* Particle)
+{
+	PullData.X = Particle->X();
+	PullData.R = Particle->R();
+	PullData.V = Particle->V();
+	PullData.W = Particle->W();
+	PullData.ObjectState = Particle->ObjectState();
 }
 
 template< >
@@ -263,24 +292,38 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::BufferPhysi
 	if(TPBDRigidParticleHandle<float,3>* RigidHandle = static_cast<TPBDRigidParticleHandle<float,3>*>(Handle))
 	{
 		PullData.SetProxy(*this);
-		PullData.X = RigidHandle->X();
-		PullData.R = RigidHandle->R();
-		PullData.V = RigidHandle->V();
-		PullData.W = RigidHandle->W();
-		PullData.ObjectState = RigidHandle->ObjectState();
+		BufferPhysicsResultsImp(PullData, RigidHandle);
 	}
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData)
+{
+	PullData.SetProxy(*this);
+	BufferPhysicsResultsImp(PullData, Particle);
+}
+
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha)
 {
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
 	if(Particle)
 	{
-		Particle->SetX(PullData.X,false);
-		Particle->SetR(PullData.R,false);
-		Particle->SetV(PullData.V,false);
-		Particle->SetW(PullData.W,false);
+		if(NextPullData)
+		{
+			Particle->SetX(FMath::Lerp(PullData.X, NextPullData->X, *Alpha), false);
+			Particle->SetR(FMath::Lerp(PullData.R, NextPullData->R, *Alpha), false);
+			Particle->SetV(FMath::Lerp(PullData.V, NextPullData->V, *Alpha), false);
+			Particle->SetW(FMath::Lerp(PullData.W, NextPullData->W, *Alpha), false);
+		}
+		else
+		{
+			Particle->SetX(PullData.X, false);
+			Particle->SetR(PullData.R, false);
+			Particle->SetV(PullData.V, false);
+			Particle->SetW(PullData.W, false);
+		}
+		
 		Particle->UpdateShapeBounds();
 		//if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
 		//question: is it ok to call this when it was one of the other properties that changed?
@@ -323,12 +366,12 @@ template class CHAOS_API FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<f
 
 #define EVOLUTION_TRAIT(Traits)\
 template void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
-	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);\
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution, const Chaos::FReal DynamicsWeight);\
 \
 template void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
-	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData,Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);\
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData,Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution, const Chaos::FReal DynamicsWeight);\
 \
 template void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
-	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution, const Chaos::FReal DynamicsWeight);
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

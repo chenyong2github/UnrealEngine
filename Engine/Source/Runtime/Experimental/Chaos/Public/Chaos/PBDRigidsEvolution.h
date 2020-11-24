@@ -416,8 +416,16 @@ public:
 
 	CHAOS_API void SetParticleObjectState(TPBDRigidParticleHandle<FReal, 3>* Particle, EObjectStateType ObjectState)
 	{
+		EObjectStateType InitialState = Particle->ObjectState();
+
 		Particle->SetObjectStateLowLevel(ObjectState);
 		Particles.SetDynamicParticleSOA(Particle);
+
+		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState)
+		{
+			// GT has forced a wake so have to wake everything in the island
+			IslandsToWake.Enqueue(Particle->Island());
+		}
 	}
 
 	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<FReal, 3>*>& InParticles)
@@ -432,9 +440,27 @@ public:
 		DisableConstraints(InParticles);
 	}
 
+	CHAOS_API void WakeIslands()
+	{
+		TArray<int32> UniqueIslands;
+
+		// there could easily be duplicates, best to remove these since WakeIsland is potentially expensive call
+		int32 IslandIdx = 0;
+		while (!IslandsToWake.IsEmpty())
+		{
+			IslandsToWake.Dequeue(IslandIdx);
+			UniqueIslands.AddUnique(IslandIdx);
+		}
+
+		for (int32 Island : UniqueIslands)
+		{
+			WakeIsland(Island);
+		}
+	}
+
 	CHAOS_API void WakeIsland(const int32 Island)
 	{
-		ConstraintGraph.WakeIsland(Island);
+		ConstraintGraph.WakeIsland(Particles, Island);
 		//Update Particles SOAs
 		/*for (auto Particle : ContactGraph.GetIslandParticles(Island))
 		{
@@ -581,6 +607,10 @@ public:
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
+			const TRigidTransform<FReal, 3>& Previous = KinematicTarget.GetPrevious();
+			const FVec3 PrevX = Previous.GetTranslation();
+			const FRotation3 PrevR = Previous.GetRotation();
+
 			switch (KinematicTarget.GetMode())
 			{
 			case EKinematicTargetMode::None:
@@ -610,15 +640,15 @@ public:
 				}
 				else
 				{
-					TargetPos = FVec3::Lerp(Particle.X(), KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					TargetRot = FRotation3::Slerp(Particle.R(), KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					TargetPos = FVec3::Lerp(PrevX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
 				}
 				if (Dt > MinDt)
 				{
-					FVec3 V = FVec3::CalculateVelocity(Particle.X(), TargetPos, Dt);
+					FVec3 V = FVec3::CalculateVelocity(PrevX, TargetPos, Dt);
 					Particle.V() = V;
 
-					FVec3 W = FRotation3::CalculateAngularVelocity(Particle.R(), TargetRot, Dt);
+					FVec3 W = FRotation3::CalculateAngularVelocity(PrevR, TargetRot, Dt);
 					Particle.W() = W;
 				}
 				Particle.X() = TargetPos;
@@ -633,6 +663,15 @@ public:
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
 				break;
 			}
+			}
+			
+			// Set previous velocities if we can
+			// Note: At present kininematics are in fact rigid bodies
+			auto* Rigid = Particle.CastToRigidParticle();
+			if (Rigid)
+			{
+				Rigid->PreV() = Rigid->V();
+				Rigid->PreW() = Rigid->W();
 			}
 		}
 	}
@@ -798,6 +837,7 @@ protected:
 
 	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
 	bool bCanStartAsyncTasks;
+	TQueue<int32, EQueueMode::Mpsc> IslandsToWake;
 
 	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 public:

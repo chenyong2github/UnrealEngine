@@ -1781,12 +1781,14 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
 	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	if (WaterDataBuffer.IsValid())
+	if (WaterDataBuffer.IsValid() && WaterIndirectionBuffer.IsValid())
 	{
+		ViewUniformShaderParameters.WaterIndirection = WaterIndirectionBuffer.GetReference();
 		ViewUniformShaderParameters.WaterData = WaterDataBuffer.GetReference();
 	}
 	else
 	{
+		ViewUniformShaderParameters.WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	}
 
@@ -4659,20 +4661,6 @@ void FSceneRenderer::ResolveSceneDepth(FRHICommandListImmediate& RHICmdList)
 	GraphBuilder.Execute();
 }
 
-FRHITexture* FSceneRenderer::GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const
-{
-	const FViewInfo& View = Views[0];
-
-	if (View.bIsMobileMultiViewEnabled && !View.bIsMobileMultiViewDirectEnabled)
-	{
-		return SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture;
-	}
-	else
-	{
-		return static_cast<FTextureRHIRef>(ViewFamily.RenderTarget->GetRenderTargetTexture());
-	}
-}
-
 void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList)
 {
 	if (Scene == nullptr)
@@ -4701,13 +4689,20 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 		Scene->SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
 
 		// Set the captured environment map data
-		void* DataPtr = FRHICommandListExecutor::GetImmediateCommandList().LockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
+		void* DataPtr = RHICmdList.LockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
+		checkSlow(Scene->SkyIrradianceEnvironmentMap.NumBytes == sizeof(OutSkyIrradianceEnvironmentMap));
 		FPlatformMemory::Memcpy(DataPtr, &OutSkyIrradianceEnvironmentMap, sizeof(OutSkyIrradianceEnvironmentMap));
-		FRHICommandListExecutor::GetImmediateCommandList().UnlockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer);
+		RHICmdList.UnlockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer);
 	}
 	else if (Scene->SkyIrradianceEnvironmentMap.NumBytes == 0)
 	{
 		Scene->SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
+
+		// Ensure that sky irradiance SH buffer contains sensible initial values (zero init).
+		// If there is no sky in the level, then nothing else may fill this buffer.
+		void* DataPtr = RHICmdList.LockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
+		FPlatformMemory::Memset(DataPtr, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes);
+		RHICmdList.UnlockStructuredBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer);
 	}
 
 	// This buffer is now going to be read for rendering.

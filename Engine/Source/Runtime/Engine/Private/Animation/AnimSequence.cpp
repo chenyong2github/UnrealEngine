@@ -1325,8 +1325,11 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, floa
 	{
 		FAnimSequenceDecompressionContext DecompContext(GetPlayLength(), Interpolation, GetFName(), *CompressedData.CompressedDataStructure);
 		DecompContext.Seek(Time);
-		CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
-		return;
+		if (CompressedData.BoneCompressionCodec)
+		{
+			CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
+			return;
+		}
 	}
 
 	ExtractBoneTransform(RawAnimationData, OutAtom, TrackIndex, Time);
@@ -1337,8 +1340,11 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, FAni
 	// If the caller didn't request that raw animation data be used . . .
 	if (!bUseRawData && IsCompressedDataValid())
 	{
-		CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
-		return;
+		if (CompressedData.BoneCompressionCodec)
+		{
+			CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
+			return;
+		}
 	}
 
 	ExtractBoneTransform(RawAnimationData, OutAtom, TrackIndex, DecompContext.Time);
@@ -4933,9 +4939,6 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 	const bool bPlayingForwards = MoveDelta > 0.f;
 	float CurrentMoveDelta = MoveDelta;
 
-	bool bOffsetInitialized = false;
-	float MarkerTimeOffset = 0.f;
-
 	// Hard to reproduce issue triggering this, ensure & clamp for now
 	ensureMsgf(CurrentTime >= 0.f && CurrentTime <= GetPlayLength(), TEXT("Current time inside of AdvanceMarkerPhaseAsLeader is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), CurrentTime, GetPlayLength(), *GetFullName());
 
@@ -4955,21 +4958,11 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			const FAnimSyncMarker& NextSyncMarker = AuthoredSyncMarkers[NextMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(NextSyncMarker.MarkerName));
-			if (!bOffsetInitialized)
-			{
-				bOffsetInitialized = true;
-				if (NextSyncMarker.Time < CurrentTime)
-				{
-					MarkerTimeOffset = GetPlayLength();
-				}
-			}
 
-			const float TimeToMarker = NextMarker.TimeToMarker;
-
-			if (CurrentMoveDelta > TimeToMarker)
+			if (CurrentMoveDelta > NextMarker.TimeToMarker)
 			{
 				CurrentTime = NextSyncMarker.Time;
-				CurrentMoveDelta -= TimeToMarker;
+				CurrentMoveDelta -= NextMarker.TimeToMarker;
 
 				PrevMarker.MarkerIndex = NextMarker.MarkerIndex;
 				PrevMarker.TimeToMarker = -CurrentMoveDelta;
@@ -4978,6 +4971,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				MarkersPassed[PassedMarker].PassedMarkerName = NextSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
 
+				float MarkerTimeOffset = 0.f;
 				do
 				{
 					++NextMarker.MarkerIndex;
@@ -4989,7 +4983,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 							break;
 						}
 						NextMarker.MarkerIndex = 0;
-						MarkerTimeOffset += GetPlayLength();
+						MarkerTimeOffset = GetPlayLength();
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
 				if (NextMarker.MarkerIndex != -1)
@@ -5004,7 +4998,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += GetPlayLength();
 				}
-				NextMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
+				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
 			}
@@ -5024,21 +5018,11 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			const FAnimSyncMarker& PrevSyncMarker = AuthoredSyncMarkers[PrevMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(PrevSyncMarker.MarkerName));
-			if (!bOffsetInitialized)
-			{
-				bOffsetInitialized = true;
-				if (PrevSyncMarker.Time > CurrentTime)
-				{
-					MarkerTimeOffset = -GetPlayLength();
-				}
-			}
-
-			const float TimeToMarker = PrevMarker.TimeToMarker;
-
-			if (CurrentMoveDelta < TimeToMarker)
+			
+			if (CurrentMoveDelta < PrevMarker.TimeToMarker)
 			{
 				CurrentTime = PrevSyncMarker.Time;
-				CurrentMoveDelta -= TimeToMarker;
+				CurrentMoveDelta -= PrevMarker.TimeToMarker;
 
 				NextMarker.MarkerIndex = PrevMarker.MarkerIndex;
 				NextMarker.TimeToMarker = -CurrentMoveDelta;
@@ -5047,6 +5031,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				MarkersPassed[PassedMarker].PassedMarkerName = PrevSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
 
+				float MarkerTimeOffset = 0.f;
 				do
 				{
 					--PrevMarker.MarkerIndex;
@@ -5073,7 +5058,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += GetPlayLength();
 				}
-				PrevMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
+				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
 			}
@@ -5269,6 +5254,41 @@ void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& At
 			CustomAttributesGuid = FGuid::NewGuid();
 		}
 	}
+}
+
+void UAnimSequence::RemoveAllCustomAttributesForBone(const FName& BoneName)
+{
+	const USkeleton* CurrentSkeleton = GetSkeleton();
+
+	if (CurrentSkeleton)
+	{
+		const int32 BoneIndex = CurrentSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+
+		if (BoneIndex != INDEX_NONE)
+		{
+			const int32 NumRemoved = PerBoneCustomAttributeData.RemoveAll([BoneIndex](const FCustomAttributePerBoneData PerBoneData)
+			{
+				return PerBoneData.BoneTreeIndex == BoneIndex;
+			});
+
+			if (NumRemoved)
+			{
+				// Update the Guid used to keep track of raw / baked versions
+				CustomAttributesGuid = FGuid::NewGuid();
+			}
+		}
+	}
+}
+
+void UAnimSequence::RemoveAllCustomAttributes()
+{
+	if (PerBoneCustomAttributeData.Num())
+	{
+		// Update the Guid used to keep track of raw / baked versions
+		CustomAttributesGuid = FGuid::NewGuid();
+	}
+
+	PerBoneCustomAttributeData.Empty();
 }
 
 void UAnimSequence::GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const
@@ -5713,14 +5733,16 @@ float UAnimSequence::GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerP
 		PrevTime -= GetPlayLength(); //Account for looping
 	}
 	float CurrentTime = PrevTime + PositionBetweenMarkers * (NextTime - PrevTime);
+
+	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
+	NextMarker.TimeToMarker = NextTime - CurrentTime;
+
 	if (CurrentTime < 0.f)
 	{
 		CurrentTime += GetPlayLength();
 	}
 	CurrentTime = FMath::Clamp<float>(CurrentTime, 0, GetPlayLength());
 
-	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
-	NextMarker.TimeToMarker = NextTime - CurrentTime;
 	return CurrentTime;
 }
 

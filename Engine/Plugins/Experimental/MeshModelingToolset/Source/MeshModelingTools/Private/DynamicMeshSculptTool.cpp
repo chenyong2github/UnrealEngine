@@ -240,6 +240,12 @@ void UDynamicMeshSculptTool::Setup()
 
 void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (ShutdownType == EToolShutdownType::Accept && AreAllTargetsValid() == false)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Tool Target has become Invalid (possibly it has been Force Deleted). Aborting Tool."));
+		ShutdownType = EToolShutdownType::Cancel;
+	}
+
 	BrushIndicatorMesh->Disconnect();
 	BrushIndicatorMesh = nullptr;
 

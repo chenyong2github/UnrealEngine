@@ -1897,6 +1897,9 @@ void USkeletalMesh::UpgradeOldClothingAssets()
 	// And only if APEX clothing is available to upgrade from
 	if (ClothingAssets_DEPRECATED.Num() > 0)
 	{
+		const bool bCallPostEditChange = false;
+		const bool bReregisterComponents = false;
+		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(this, bCallPostEditChange, bReregisterComponents);
 		// Upgrade the old deprecated clothing assets in to new clothing assets
 		TMap<int32, TArray<int32>> OldLodMappings; // Map asset index to multiple lod indices
 		TMap<int32, TArray<int32>> OldSectionMappings; // Map asset index to a section per LOD
@@ -4320,6 +4323,22 @@ void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 	{
 		LODSettings->SetLODSettingsToMesh(this);
 	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void USkeletalMesh::SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig)
+{
+#if WITH_EDITORONLY_DATA
+	DefaultAnimatingRig = InAnimatingRig;
+#endif // WITH_EDITORONLY_DATA
+}
+
+TSoftObjectPtr<UObject> USkeletalMesh::GetDefaultAnimatingRig()
+{
+#if WITH_EDITORONLY_DATA
+	return DefaultAnimatingRig;
+#else // WITH_EDITORONLY_DATA
+	return nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
 

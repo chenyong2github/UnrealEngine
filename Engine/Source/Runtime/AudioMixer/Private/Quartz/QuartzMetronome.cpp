@@ -7,11 +7,13 @@ namespace Audio
 {
 	FQuartzMetronome::FQuartzMetronome()
 	{
+		SetTickRate(CurrentTickRate);
 	}
 
 	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature)
 		: CurrentTimeSignature(InTimeSignature)
 	{
+		SetTickRate(CurrentTickRate);
 	}
 
 	FQuartzMetronome::~FQuartzMetronome()
@@ -87,11 +89,13 @@ namespace Audio
 	void FQuartzMetronome::SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)
 	{
 		// early exit?
-		if (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick())
+		const bool bSameAsOldTickRate = (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick());
+		const bool bIsInitialized = (MusicalDurationsInFrames[0] > 0);
+
+		if (bSameAsOldTickRate && bIsInitialized)
 		{
 			return;
 		}
-
 
 		// ratio between new and old rates
 		const float Ratio = static_cast<float>(InNewTickRate.GetFramesPerTick()) / static_cast<float>(CurrentTickRate.GetFramesPerTick());
@@ -120,13 +124,24 @@ namespace Audio
 		RecalculateDurations();
 	}
 
-	int32 FQuartzMetronome::GetFramesUntilBoundary(const FQuartzQuantizationBoundary& InQuantizationBoundary) const
+	int32 FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
 	{
+		if (InQuantizationBoundary.Multiplier < 1.0f)
+		{
+			UE_LOG(LogAudioQuartz, Warning, TEXT("Quantizatoin Boundary being clamped to 1.0 (from %f)"), InQuantizationBoundary.Multiplier);
+			InQuantizationBoundary.Multiplier = 1.f;
+		}
+
 		// number of frames until the next occurrence of this boundary
 		int32 FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
 
-		// in the vanilla case that's all we need to know
-		if (FMath::IsNearlyEqual(InQuantizationBoundary.Multiplier, 1.f) || CurrentTimeStamp.IsZero())
+		// in the simple case that's all we need to know
+		bool bIsSimpleCase = FMath::IsNearlyEqual(InQuantizationBoundary.Multiplier, 1.f);
+
+		// it is NOT the simple case if we are in Bar-Relative. // i.e. 1.f Beat here means "Beat 1 of the bar"
+		bIsSimpleCase &= (InQuantizationBoundary.CountingReferencePoint != EQuarztQuantizationReference::BarRelative);
+
+		if (bIsSimpleCase || CurrentTimeStamp.IsZero())
 		{
 			return FramesUntilBoundary;
 		}
@@ -146,7 +161,7 @@ namespace Audio
 			int32 CurrentCount = CountNumSubdivisionsSinceStart(InQuantizationBoundary.Quantization);
 			 
 			// find the remainder
-			if (CurrentCount > InQuantizationBoundary.Multiplier)
+			if (CurrentCount >= InQuantizationBoundary.Multiplier)
 			{
 				CurrentCount %= static_cast<int32>(InQuantizationBoundary.Multiplier);
 			}
@@ -156,13 +171,15 @@ namespace Audio
 		// counting from the current bar
 		else if (InQuantizationBoundary.CountingReferencePoint == EQuarztQuantizationReference::BarRelative)
 		{
-			const int32 NumInBar = CountNumSubdivisionsPerBar(InQuantizationBoundary.Quantization);
-			const int32 NumSinceBarStart = CountNumSubdivisionsSinceBarStart(InQuantizationBoundary.Quantization);
-			NumDurationsLeft = (NumDurationsLeft % NumInBar) - NumSinceBarStart;
+			const int32 NumSubdivisionsPerBar = CountNumSubdivisionsPerBar(InQuantizationBoundary.Quantization);
+			const int32 NumSubdivisionsAlreadyOccuredInCurrentBar = CountNumSubdivisionsSinceBarStart(InQuantizationBoundary.Quantization);
+			NumDurationsLeft = (NumDurationsLeft % NumSubdivisionsPerBar) - NumSubdivisionsAlreadyOccuredInCurrentBar;
 
+			// if NumDurationsLeft is negative, it means the target has already passed this bar.
+			// instead we will schedule the sound for the same target in the next bar
 			if (NumDurationsLeft < 0)
 			{
-				NumDurationsLeft += NumInBar;
+				NumDurationsLeft += NumSubdivisionsPerBar;
 			}
 		}
 
@@ -218,15 +235,25 @@ namespace Audio
 
 	float FQuartzMetronome::CountNumSubdivisionsSinceBarStart(EQuartzCommandQuantization InSubdivision) const
 	{
+		// for our own counting, we don't say that "one bar has occurred since the start of the bar"
+		if (InSubdivision == EQuartzCommandQuantization::Bar)
+		{
+			return 0.0f;
+		}
+
+		// Count starts at 1.0f since all musical subdivisions occur once at beat 0 in a bar
+		float Count = 1.f;
 		if ((InSubdivision == EQuartzCommandQuantization::Beat) && PulseDurations.Num())
 		{
-			return static_cast<float>(PulseDurationIndex);
+			Count += static_cast<float>(PulseDurationIndex);
 		}
 		else
 		{
 			float BarProgress = 1.0f - (FramesLeftInMusicalDuration[EQuartzCommandQuantization::Bar] / static_cast<float>(MusicalDurationsInFrames[EQuartzCommandQuantization::Bar]));
-			return (BarProgress * CountNumSubdivisionsPerBar(InSubdivision));
+			Count += (BarProgress * CountNumSubdivisionsPerBar(InSubdivision));
 		}
+
+		return Count;
 	}
 
 	float FQuartzMetronome::CountNumSubdivisionsSinceStart(EQuartzCommandQuantization InSubdivision) const

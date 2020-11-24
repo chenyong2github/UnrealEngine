@@ -115,6 +115,8 @@ public:
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDestinationLayoutCustomization::MakeInstance));
 		AddCustomProperty("SoundModulationDefaultSettings",
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDefaultSettingsLayoutCustomization::MakeInstance));
+		AddCustomProperty("SoundModulationDefaultRoutingSettings",
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDefaultRoutingSettingsLayoutCustomization::MakeInstance));
 
 		// Custom Class Layouts
 		auto AddCustomClass = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetDetailCustomizationInstance InstanceGetter)

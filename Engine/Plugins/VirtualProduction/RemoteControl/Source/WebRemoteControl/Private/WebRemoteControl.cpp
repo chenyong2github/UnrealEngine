@@ -16,10 +16,9 @@
 // Settings
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #endif
-
-#include "UObject/UnrealType.h"
-#include "UObject/UObjectHash.h"
 
 // Serialization
 #include "Backends/JsonStructDeserializerBackend.h"
@@ -50,6 +49,11 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+// Miscelleanous
+#include "Misc/App.h"
+#include "UObject/UnrealType.h"
+#include "UObject/UObjectHash.h"
+
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
 
 
@@ -75,12 +79,14 @@ void FWebRemoteControlModule::StartupModule()
 	RegisterConsoleCommands();
 	RegisterRoutes();
 
-	if (GetDefault<UWebRemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	const bool bIsHeadless = !FApp::CanEverRender();
+
+	if ((!bIsHeadless && GetDefault<UWebRemoteControlSettings>()->bAutoStartWebServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
 	{
 		StartHttpServer();
 	}
 
-	if (GetDefault<UWebRemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if ((!bIsHeadless && GetDefault<UWebRemoteControlSettings>()->bAutoStartWebSocketServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
 	{
 		StartWebSocketServer();
 	}
@@ -186,9 +192,17 @@ void FWebRemoteControlModule::StartWebSocketServer()
 		if (!WebSocketServer.Start(WebSocketServerPort, WebSocketRouter))
 		{
 			UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Call WebSocket server couldn't be started on port %d"), WebSocketServerPort);
+#if WITH_EDITOR
+			FNotificationInfo Info{FText::Format(LOCTEXT("FailedStartRemoteControlServer", "Web Remote Call WebSocket server couldn't be started on port {0}"), WebSocketServerPort)};
+			Info.bFireAndForget = true;
+			Info.ExpireDuration =  3.0f;
+			FSlateNotificationManager::Get().AddNotification(MoveTemp(Info));
+#endif /*WITH_EDITOR*/
+
 			return;
 		}
 
+		UE_LOG(LogRemoteControl, Log, TEXT("Web Remote Control WebSocket server started on port %d"), WebSocketServerPort);
 		OnWebSocketServerStartedDelegate.Broadcast(WebSocketServerPort);
 	}
 }
@@ -993,11 +1007,13 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 				return true;
 			}
 			
+			Preset->Modify();
 			FString& MetadataValue = Preset->Metadata.FindOrAdd(MoveTemp(MetadataField));
 			MetadataValue = MoveTemp(SetMetadataRequest.Value);
 		}
 		else if (Request.Verb == EHttpServerRequestVerbs::VERB_DELETE)
 		{
+			Preset->Modify();
 			Preset->Metadata.Remove(MoveTemp(MetadataField));
 		}
 

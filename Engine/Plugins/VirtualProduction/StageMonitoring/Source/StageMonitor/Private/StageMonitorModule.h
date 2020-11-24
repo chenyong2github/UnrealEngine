@@ -28,18 +28,13 @@ public:
 	//~Begin IStageMonitorModule interface
 	virtual IStageMonitor& GetStageMonitor() override;
 	virtual IStageMonitorSessionManager& GetStageMonitorSessionManager() override;
+	virtual void EnableMonitor(bool bEnable) override;
 	//~End IStageMonitorModule interface
 
 private:
 
 	/** Create StageMonitor when engine is fully initialized */
 	void OnEngineLoopInitComplete();
-
-	/** Starts monitor */
-	void StartMonitor();
-
-	/** Stops monitor */
-	void StopMonitor();
 
 protected:
 	

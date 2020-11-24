@@ -7,11 +7,11 @@
 #include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Rendering/Texture2DResource.h"
 #include "EngineModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "ImageUtils.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "Rendering/Texture2DResource.h"
 #include "RenderUtils.h"
 
 #if WITH_EDITOR
@@ -69,21 +69,59 @@ namespace ThumbnailGeneratorImpl
 		RenderTargetTexture = nullptr;
 	}
 
-	// This function works like UTexture2D::CreateTexture, except that it's available at runtime
-    UTexture2D* CreateTextureFromBulkData(uint32 Width, uint32 Height, void* Bytes, uint64 NumBytes, EPixelFormat PixelFormat)
+	bool IsPixelFormatResizeable( EPixelFormat PixelFormat )
+	{
+		return
+			PixelFormat == PF_A8R8G8B8 ||
+			PixelFormat == PF_R8G8B8A8 ||
+			PixelFormat == PF_B8G8R8A8 ||
+			PixelFormat == PF_R8G8B8A8_SNORM ||
+			PixelFormat == PF_R8G8B8A8_UINT;
+	}
+
+	// This function works like ImageUtils::CreateTexture, except that it should also work at runtime
+	// Note that it's entirely possible that Bytes is a compressed (e.g. DXT1) byte buffer, although we won't be able to copy source data in that case
+    UTexture2D* CreateTextureFromBulkData(uint32 Width, uint32 Height, void* Bytes, uint64 NumBytes, EPixelFormat PixelFormat, bool bSetSourceData = false)
     {
         UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
         if (Texture)
         {
-            void* Data = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-            {
-                FMemory::Memcpy(Data, Bytes, NumBytes);
-            }
-            Texture->PlatformData->Mips[0].BulkData.Unlock();
+#if WITH_EDITOR
+			if ( bSetSourceData && IsPixelFormatResizeable(PixelFormat) )
+			{
+				// Set via Source or else it won't be saved to disk. This is adapted from FImageUtils::CreateTexture2D,
+				// so we don't have to match it's signature with a TArray<FColor>
+				Texture->Source.Init( Width, Height, /*NumSlices=*/ 1, /*NumMips=*/ 1, TSF_BGRA8 );
 
-            Texture->PlatformData->SetNumSlices(1); // TODO: Needed?
-            Texture->UpdateResource();
-        }
+				uint8* MipData = Texture->Source.LockMip( 0 );
+				for ( uint32 Y = 0; Y < Height; Y++ )
+				{
+					uint64 Index = ( Height - 1 - Y ) * Width * sizeof( FColor );
+					uint8* DestPtr = &MipData[ Index ];
+
+					FMemory::Memcpy( DestPtr, reinterpret_cast< uint8* >( Bytes ) + Index, Width * sizeof( FColor ) );
+				}
+				Texture->Source.UnlockMip( 0 );
+
+				Texture->SRGB = true;
+				Texture->CompressionSettings = TC_EditorIcon;
+				Texture->MipGenSettings = TMGS_FromTextureGroup;
+				Texture->DeferCompression = true;
+				Texture->PostEditChange();
+			}
+			else
+#endif // WITH_EDITOR
+			{
+				void* Data = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+				{
+					FMemory::Memcpy(Data, Bytes, NumBytes);
+				}
+				Texture->PlatformData->Mips[0].BulkData.Unlock();
+
+				Texture->PlatformData->SetNumSlices(1);
+				Texture->UpdateResource();
+			}
+		}
 
         return Texture;
     }
@@ -127,19 +165,16 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromTexture(UTexture2D* Texture
 	ENQUEUE_RENDER_COMMAND(RetrieveTextureDataForThumbnail)(
 		[CommandData, TargetWidth, TargetHeight](FRHICommandListImmediate& RHICmdList)
 		{
-			FTexture2DRHIRef Texture2DRHI = CommandData->Texture->Resource->TextureRHI->GetTexture2D();
 			if (!CommandData->Texture->Resource)
 			{
 				CommandData->Promise.SetValue();
 				return;
 			}
 
+			FTexture2DRHIRef Texture2DRHI = CommandData->Texture->Resource->TextureRHI->GetTexture2D();
+
 			CommandData->PackedPixelFormat = Texture2DRHI->GetFormat();
-			CommandData->bCanResize = CommandData->PackedPixelFormat == PF_A8R8G8B8 ||
-									  CommandData->PackedPixelFormat == PF_R8G8B8A8 ||
-									  CommandData->PackedPixelFormat == PF_B8G8R8A8 ||
-									  CommandData->PackedPixelFormat == PF_R8G8B8A8_SNORM ||
-									  CommandData->PackedPixelFormat == PF_R8G8B8A8_UINT;
+			CommandData->bCanResize = ThumbnailGeneratorImpl::IsPixelFormatResizeable( CommandData->PackedPixelFormat );
 
 			// We can only resize FColor-like formats, otherwise we'll just copy the full data.
 			// Let's at least choose the smallest MIP we can reasonably take
@@ -208,42 +243,61 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromTexture(UTexture2D* Texture
 		return nullptr;
 	}
 
-	if (!CommandData->bCanResize)
-	{
-		TargetWidth = CommandData->SourceWidth;
-		TargetHeight = CommandData->SourceHeight;
-	}
-
+	UTexture2D* Thumbnail = nullptr;
 	TArray<uint8> DestBytes;
+	EPixelFormat SourceDataPixelFormat = CommandData->Texture->GetPixelFormat();
 
 	// Resize image if we need to (and can)
 	if ((TargetWidth != CommandData->SourceWidth || TargetHeight != CommandData->SourceHeight) && CommandData->bCanResize)
 	{
 		DestBytes.SetNumUninitialized(TargetWidth * TargetHeight * sizeof(FColor));
 
-		TArrayView<const FColor> SourceColors = TArrayView<const FColor>(reinterpret_cast<const FColor*>(CommandData->PackedSourceBytes.GetData()), CommandData->SourceWidth * CommandData->SourceHeight);
+		TArrayView<const FColor> SourceColors = TArrayView<const FColor>(reinterpret_cast<const FColor*>(CommandData->PackedSourceBytes.GetData()), CommandData->SourceWidth* CommandData->SourceHeight);
 		TArrayView<FColor> DestColors = TArrayView<FColor>(reinterpret_cast<FColor*>(DestBytes.GetData()), TargetWidth * TargetHeight);
 
 		FImageUtils::ImageResize(CommandData->SourceWidth, CommandData->SourceHeight, SourceColors, TargetWidth, TargetHeight, DestColors, CommandData->Texture->SRGB);
+
+		const bool bSetSourceData = true;
+		Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
+			TargetWidth,
+			TargetHeight,
+			DestBytes.GetData(),
+			DestBytes.Num(),
+			SourceDataPixelFormat,
+			bSetSourceData
+		);
 	}
 	else
 	{
-		DestBytes = MoveTemp(CommandData->PackedSourceBytes);
+		int32 NumBytes = CommandData->PackedSourceBytes.Num();
 
 		// Let the user know if the thumbnail ends up significantly larger than expected
-		if (DestBytes.Num() > 5 * VARIANT_MANAGER_THUMBNAIL_SIZE * VARIANT_MANAGER_THUMBNAIL_SIZE * sizeof(FColor))
+		if (NumBytes > 5 * VARIANT_MANAGER_THUMBNAIL_SIZE * VARIANT_MANAGER_THUMBNAIL_SIZE * sizeof(FColor))
 		{
-			UE_LOG(LogVariantContent, Warning, TEXT("Thumbnail created from texture '%s' will store a thumbnail that is %d by %d in size (%d KB), because it failed to resize the received thumbnail effectively. Better results could be achieved with a texture that has more Mips, or an uncompressed pixel format."), *Texture->GetName(), TargetWidth, TargetHeight, DestBytes.Num() / 1000);
+			UE_LOG(LogVariantContent, Warning, TEXT("Thumbnail created from texture '%s' will store a thumbnail that is %d by %d in size (%d KB), because it failed to resize the received thumbnail effectively. Better results could be achieved with a texture that has more Mips, or an uncompressed pixel format."), *Texture->GetName(), TargetWidth, TargetHeight, NumBytes / 1000);
 		}
-	}
 
-	UTexture2D* Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-            TargetWidth, TargetHeight, DestBytes.GetData(), DestBytes.Num(), CommandData->Texture->GetPixelFormat()
-        );
+#if WITH_EDITOR
+		// DuplicateObject will copy the texture Source data when in the editor, which is important to have it persist when saved
+		Thumbnail = DuplicateObject<UTexture2D>( Texture, GetTransientPackage() );
+#else
+		// At runtime the mip data won't be copied with DuplicateObject, so we copy it manually.
+		// There is no 'Source' at runtime though, so we just copy the mip data directly
+		const bool bSetSourceData = false;
+		Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
+			TargetWidth,
+			TargetHeight,
+			CommandData->PackedSourceBytes.GetData(),
+			NumBytes,
+			SourceDataPixelFormat,
+			bSetSourceData
+		);
+#endif // WITH_EDITOR
+	}
 
     if (Thumbnail == nullptr)
 	{
-		UE_LOG(LogVariantContent, Warning, TEXT("Failed to resize texture '%s'"), *Texture->GetName());
+		UE_LOG(LogVariantContent, Warning, TEXT("Failed to generate thumbnail from texture '%s'"), *Texture->GetName());
 	}
 
     return Thumbnail;
@@ -291,9 +345,15 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromCamera(UObject* WorldContex
 		Gamma,
 		CapturedImage);
 
+	const bool bSetSourceData = true;
 	UTexture2D* Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-            VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, (void*)CapturedImage.GetData(), CapturedImage.Num() * sizeof(FColor), PF_B8G8R8A8
-        );
+		VARIANT_MANAGER_THUMBNAIL_SIZE,
+		VARIANT_MANAGER_THUMBNAIL_SIZE,
+		( void* ) CapturedImage.GetData(),
+		CapturedImage.Num() * sizeof( FColor ),
+		PF_B8G8R8A8,
+		bSetSourceData
+	);
 
     if (Thumbnail == nullptr)
 	{
@@ -334,9 +394,15 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromEditorViewport()
 	GCurrentLevelEditingViewportClient = OldViewportClient;
 	Viewport->Draw();
 
+	const bool bSetSourceData = true;
 	UTexture2D* Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-            VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, (void*)ScaledBitmap.GetData(), ScaledBitmap.Num() * sizeof(FColor), PF_B8G8R8A8
-        );
+		VARIANT_MANAGER_THUMBNAIL_SIZE,
+		VARIANT_MANAGER_THUMBNAIL_SIZE,
+		(void*)ScaledBitmap.GetData(),
+		ScaledBitmap.Num() * sizeof(FColor),
+		PF_B8G8R8A8,
+		bSetSourceData
+	);
 
     if (Thumbnail == nullptr)
 	{
@@ -386,8 +452,14 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromObjectThumbnail(UObject* Ob
         FCreateTexture2DParameters Params;
         Params.bDeferCompression = true;
 
+		const bool bSetSourceData = true;
 		UTexture2D* Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-			VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, (void*)OldColors.GetData(), OldColors.Num() * sizeof(FColor), PF_B8G8R8A8
+			VARIANT_MANAGER_THUMBNAIL_SIZE,
+			VARIANT_MANAGER_THUMBNAIL_SIZE,
+			(void*)OldColors.GetData(),
+			OldColors.Num() * sizeof(FColor),
+			PF_B8G8R8A8,
+			bSetSourceData
 		);
 
 		if (Thumbnail == nullptr)

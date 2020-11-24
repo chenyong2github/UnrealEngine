@@ -58,6 +58,5 @@ class REMOTESESSION_API IRemoteSessionUnmanagedRole : public IRemoteSessionRole
 {
 public:
 	virtual void Tick(float DeltaTime) = 0;
-	virtual void Close() = 0;
-	virtual void CloseWithError(const FString& Message) = 0;
+	virtual void Close(const FString& InReason) = 0;
 };

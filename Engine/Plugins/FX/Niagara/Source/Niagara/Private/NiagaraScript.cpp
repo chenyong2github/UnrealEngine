@@ -536,10 +536,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	switch (SimTargetToBuild)
 	{
 	case ENiagaraSimTarget::CPUSim:
-		Id.AdditionalDefines.Add(TEXT("CPUSim"));
+		Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::CpuScriptDefine);
 		break;
 	case ENiagaraSimTarget::GPUComputeSim:
-		Id.AdditionalDefines.Add(TEXT("GPUComputeSim"));
+		Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::GpuScriptDefine);
 		break;
 	default:
 		checkf(false, TEXT("Unknown sim target type!"));
@@ -1984,7 +1984,7 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 		{
 			const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
-			if (FNiagaraUtilities::SupportsGPUParticles(LegacyShaderPlatform))
+			if (FNiagaraUtilities::SupportsComputeShaders(LegacyShaderPlatform))
 			{
 				CacheResourceShadersForCooking(LegacyShaderPlatform, CachedScriptResourcesForPlatform, TargetPlatform);
 			}
@@ -2131,7 +2131,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
 				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
-			if (FNiagaraUtilities::SupportsGPUParticles(ShaderPlatform))
+			if (FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 			{
 				CacheShadersForResources(ScriptResource.Get(), true);
 				ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
@@ -2528,13 +2528,14 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContexts() const
 	return GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
 }
 
-TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask)
+TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask, bool bIncludeHiddenUsages)
 {
 	TArray<ENiagaraScriptUsage> Supported;
+	UEnum* UsageEnum = StaticEnum<ENiagaraScriptUsage>();
 	for (int32 i = 0; i <= (int32)ENiagaraScriptUsage::SystemUpdateScript; i++)
 	{
 		int32 TargetBit = (InModuleUsageBitmask >> (int32)i) & 1;
-		if (TargetBit == 1)
+		if (TargetBit == 1 && (bIncludeHiddenUsages || UsageEnum->HasMetaData(TEXT("Hidden"), i) == false))
 		{
 			Supported.Add((ENiagaraScriptUsage)i);
 		}
@@ -2542,12 +2543,27 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(
 	return Supported;
 }
 
-bool UNiagaraScript::IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext)
+bool UNiagaraScript::IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext, bool bIncludeHiddenUsages)
 {
-	int32 TargetBit = (InModuleUsageBitmask >> (int32)InUsageContext) & 1;
-	if (TargetBit == 1)
+	TArray<ENiagaraScriptUsage> SupportedUsages = GetSupportedUsageContextsForBitmask(InModuleUsageBitmask, bIncludeHiddenUsages);
+	for (ENiagaraScriptUsage SupportedUsage : SupportedUsages)
 	{
-		return true;
+		if (UNiagaraScript::IsEquivalentUsage(InUsageContext, SupportedUsage))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UNiagaraScript::ContainsEquivilentUsage(const TArray<ENiagaraScriptUsage>& Usages, ENiagaraScriptUsage InUsage)
+{
+	for (ENiagaraScriptUsage Usage : Usages)
+	{
+		if (IsEquivalentUsage(Usage, InUsage))
+		{
+			return true;
+		}
 	}
 	return false;
 }

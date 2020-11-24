@@ -34,6 +34,7 @@ class AIMODULE_API UEnvQueryGenerator : public UEnvQueryNode
 	uint32 bAutoSortTests : 1;
 
 	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const { checkNoEntry(); }
+	virtual bool IsValidGenerator() const { return ItemType != nullptr; }
 
 	virtual void PostLoad() override;
 	void UpdateNodeVersion() override;

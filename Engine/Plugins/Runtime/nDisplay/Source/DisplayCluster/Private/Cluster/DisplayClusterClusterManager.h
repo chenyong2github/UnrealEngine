@@ -6,7 +6,6 @@
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Misc/App.h"
 
-class ADisplayClusterGameMode;
 class ADisplayClusterSettings;
 class FJsonObject;
 class FEvent;

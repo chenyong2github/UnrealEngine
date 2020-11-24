@@ -448,32 +448,67 @@ int32 FBodyInstance::GetAllShapes_AssumesLocked(TArray<FPhysicsShapeHandle>& Out
 
 void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-	CHAOS_ENSURE(false);
-#else
-#if PHYSICS_INTERFACE_PHYSX
 	if (BodySetup.IsValid())
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
+#if PHYSICS_INTERFACE_PHYSX // Chaos doesn't modify vertices on body setup.
 			GetBodySetup()->UpdateTriMeshVertices(NewPositions);
+#endif
 
 			//after updating the vertices we must call setGeometry again to update any shapes referencing the mesh
 			TArray<FPhysicsShapeHandle> Shapes;
 			const int32 SyncShapeCount = GetAllShapes_AssumesLocked(Shapes);
 
-			for(FPhysicsShapeHandle& Shape : Shapes)
+			for (FPhysicsShapeHandle& Shape : Shapes)
 			{
-				if(FPhysicsInterface::GetShapeType(Shape) == ECollisionShapeType::Trimesh)
+				if (FPhysicsInterface::GetShapeType(Shape) == ECollisionShapeType::Trimesh)
 				{
+#if WITH_CHAOS
+					using namespace Chaos;
+					const Chaos::FImplicitObject* ShapeImplicit = Shape.Shape->GetGeometry().Get();
+					EImplicitObjectType Type = ShapeImplicit->GetType();
+
+					// Cast to derived implicit, copy trianglemesh.
+					FVec3 Scale(1, 1, 1);
+					TUniquePtr<FTriangleMeshImplicitObject> TriMeshCopy = nullptr;
+					if (IsInstanced(Type))
+					{
+						const TImplicitObjectInstanced<FTriangleMeshImplicitObject>& InstancedImplicit = ShapeImplicit->GetObjectChecked<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>();
+						const FTriangleMeshImplicitObject* TriangleMesh = InstancedImplicit.GetInstancedObject();
+						TriMeshCopy = TriangleMesh->CopySlow();
+					}
+					else if (IsScaled(Type))
+					{
+						const TImplicitObjectScaled<FTriangleMeshImplicitObject>& ScaledImplicit = ShapeImplicit->GetObjectChecked<TImplicitObjectScaled<FTriangleMeshImplicitObject>>();
+						const FTriangleMeshImplicitObject* TriangleMesh = ScaledImplicit.GetUnscaledObject();
+						Scale = ScaledImplicit.GetScale();
+						TriMeshCopy = TriangleMesh->CopySlow();
+					}
+					else
+					{
+						const FTriangleMeshImplicitObject& TriangleMesh = ShapeImplicit->GetObjectChecked<FTriangleMeshImplicitObject>();
+						TriMeshCopy = TriangleMesh.CopySlow();
+					}
+
+					TriMeshCopy->GetObjectChecked<FTriangleMeshImplicitObject>().UpdateVertices(NewPositions);
+					if (Scale != FVec3(1, 1, 1))
+					{
+						TUniquePtr<FImplicitObject> Scaled = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject, /*bInstanced=*/false>>(MoveTemp(TriMeshCopy), Scale);
+						FPhysicsInterface::SetGeometry(Shape, MoveTemp(Scaled));
+					}
+					else
+					{
+						FPhysicsInterface::SetGeometry(Shape, MoveTemp(TriMeshCopy));
+					}
+#else
 					FPhysicsGeometryCollection GeoCollection = FPhysicsInterface::GetGeometryCollection(Shape);
 					FPhysicsInterface::SetGeometry(Shape, GeoCollection.GetTriMeshGeometry());
+#endif
 				}
 			}
 		});
 	}
-#endif
-#endif
 }
 
 void FBodyInstance::UpdatePhysicalMaterials()
@@ -1533,11 +1568,6 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 {
 	SCOPE_CYCLE_COUNTER(STAT_TermBody);
 
-	if (IsValidBodyInstance())
-	{
-		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
-	}
-
 #if WITH_CHAOS
 	if (UPrimitiveComponent* PrimComp = OwnerComponent.Get())
 	{
@@ -1554,6 +1584,12 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		}
 	}
 #endif // WITH_CHAOS
+
+	if (IsValidBodyInstance())
+	{
+		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
+	}
+
 
 	// @TODO UE4: Release spring body here
 
@@ -1675,8 +1711,10 @@ void FBodyInstance::UnWeld(FBodyInstance* TheirBI)
 		const int32 NumSyncShapes = GetAllShapes_AssumesLocked(Shapes);
 		const int32 NumTotalShapes = Shapes.Num();
 
-		for(FPhysicsShapeHandle& Shape : Shapes)
+		// reversed since FPhysicsInterface::DetachShape is removing shapes
+		for (int Idx = Shapes.Num()-1; Idx >=0; Idx--)
 		{
+			FPhysicsShapeHandle& Shape = Shapes[Idx];
 			const FBodyInstance* BI = GetOriginalBodyInstance(Shape);
 			if (TheirBI == BI)
 			{
@@ -2585,27 +2623,27 @@ void FBodyInstance::SetBodyTransform(const FTransform& NewTransform, ETeleportTy
 				const bool bIsSimKinematic = bKinematic && bSimulated;
 
 				if(bIsSimKinematic && Teleport == ETeleportType::None)
-					{
+				{
 					Scene->SetKinematicTarget_AssumesLocked(this, NewTransform, true);
-					}
-					else
-					{
+				}
+				else
+				{
 					if(bIsSimKinematic)
-						{
+					{
 						FPhysicsInterface::SetKinematicTarget_AssumesLocked(Actor, NewTransform);
-						}
+					}
 
 					FPhysicsInterface::SetGlobalPose_AssumesLocked(Actor, NewTransform);
-					}
-			});
 				}
+			});
+		}
 		else if(Scene)
 		{
 			FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 			{
 				FPhysicsInterface::SetGlobalPose_AssumesLocked(Actor, NewTransform);
 			});
-			}
+		}
 	}
 	else if(WeldParent)
 	{

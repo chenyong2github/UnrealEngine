@@ -184,6 +184,25 @@ bool FInputModifierDeadzoneTest::RunTest(const FString& Parameters)
 	AND(InputIsTicked(Data));
 	THEN(ReleasingKeyDoesNotTrigger(Data, TestAction));
 
+
+	// Upper threshold testing
+	DeadZone->UpperThreshold = 0.9f;
+	WHEN(AKeyIsActuated(Data, TestAxis, 0.5f));
+	AND(InputIsTicked(Data));
+	THEN(PressingKeyTriggersAction(Data, TestAction));
+
+	// At threshold response is 1
+	WHEN(AKeyIsActuated(Data, TestAxis, 0.9f));
+	AND(InputIsTicked(Data));
+	THEN(HoldingKeyTriggersAction(Data, TestAction));
+	AND(TestEqual(TEXT("Upper threshold value at threshold"), GetActionValue(Data, TestAction), 1.f));
+
+	// Past threshold response is clamped to 1
+	WHEN(AKeyIsActuated(Data, TestAxis, 0.99f));
+	AND(InputIsTicked(Data));
+	THEN(HoldingKeyTriggersAction(Data, TestAction));
+	AND(TestEqual(TEXT("Upper threshold value beyond threshold"), GetActionValue(Data, TestAction), 1.f));
+
 	return true;
 }
 

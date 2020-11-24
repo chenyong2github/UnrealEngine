@@ -1791,6 +1791,9 @@ public:
 				}
 				else
 				{
+					// parent directory creation is necessary because the deploy process from
+					// AndroidPlatform.Automation.cs destroys the parent directories and recreates them
+					IFileManager::Get().MakeDirectory(*FPaths::GetPath(TempPath), true);
 					FileWriter = IFileManager::Get().CreateFileWriter(*TempPath, FILEWRITE_Append);
 				}
 				if (FileWriter)
@@ -3080,7 +3083,7 @@ void FPipelineFileCache::CacheRayTracingPSO(const FRayTracingPipelineStateInitia
 
 					if (!FileCache->IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
-						CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
+						//CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
 						UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
 						if (GPSOFileCachePrintNewPSODescriptors > 0)
 						{

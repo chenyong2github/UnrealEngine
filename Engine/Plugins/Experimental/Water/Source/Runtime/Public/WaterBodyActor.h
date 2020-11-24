@@ -203,41 +203,6 @@ struct FUnderwaterPostProcessSettings
 
 // ----------------------------------------------------------------------------------
 
-// TODO [jonathan.bard] : deprecate : 
-USTRUCT(BlueprintType)
-struct WATER_API FWaterWaveParams
-{
-	GENERATED_BODY()
-
-	FWaterWaveParams()
-	: Wavelength(2000.f)
-	, Amplitude(50.f)
-	, Steepness(0.f)
-	, Direction(FVector::ForwardVector)
-	, WaveVector(0.f, 0.f)
-	, WaveSpeed(0.f)
-	, wKA(0.f)
-	, q(0.f)
-	{}
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave)
-	float Wavelength;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave)
-	float Amplitude;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave)
-	float Steepness;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave)
-	FVector Direction;
-
-	FVector2D WaveVector;
-	float WaveSpeed;
-	float wKA;
-	float q;
-};
-
 //@todo_water: Remove Blueprintable
 UCLASS(Blueprintable, Abstract, HideCategories = (Tags, Activation, Cooking, Replication, Input, Actor, AssetUserData))
 class WATER_API AWaterBody : public AActor, public INavRelevantInterface, public IWaterBrushActorInterface
@@ -413,13 +378,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = Collision, meta = (EditCondition = "bGenerateCollisions"))
 	UPhysicalMaterial* PhysicalMaterial;
 
-	// TODO [jonathan.bard] : deprecate : 
-	UPROPERTY(BlueprintReadWrite, Category = Wave)
-	TArray<FWaterWaveParams> WaveParams;
-
 	/** Water depth at which waves start being attenuated. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave, DisplayName = "Wave Attenuation Water Depth", meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0))
 	float TargetWaveMaskDepth;
+
+	/** Offset added to the automatically calculated max wave height bounds. Use this in case the automatically calculated max height bounds don't match your waves. This can happen if the water surface is manually altered through World Position Offset or other means.*/
+	UPROPERTY(EditAnywhere, Category = Wave)
+	float MaxWaveHeightOffset = 0.0f;
 
 	/** Unique Id for accessing (wave, ... ) data in GPU buffers */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, VisibleAnywhere, BlueprintReadOnly, Category = Water)

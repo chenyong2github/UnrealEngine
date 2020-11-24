@@ -118,6 +118,14 @@ public:
 		FILE_LOG(LogPlatformFile, Verbose, TEXT("Truncate return %d [%fms]"), int32(bResult), ThisTime);
 		return bResult;
 	}
+	virtual void ShrinkBuffers() override
+	{
+		FILE_LOG(LogPlatformFile, Verbose, TEXT("ShrinkBuffers %s"), *Filename);
+		double StartTime = FPlatformTime::Seconds();
+		FileHandle->ShrinkBuffers();
+		double ThisTime = (FPlatformTime::Seconds() - StartTime) / 1000.0;
+		FILE_LOG(LogPlatformFile, Verbose, TEXT("ShrinkBuffers return [%fms]"), ThisTime);
+	}
 };
 
 class CORE_API FLoggedPlatformFile : public IPlatformFile

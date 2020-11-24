@@ -28,10 +28,13 @@ void FRemoteControlPanelStyle::Initialize()
 	const FVector2D Icon8x8(8.0f, 8.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon64x64(64.0f, 64.0f);
 
 	StyleSet = MakeShared<FSlateStyleSet>(GetStyleSetName());
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+
+	StyleSet->Set("ClassThumbnail.RemoteControlPreset", new IMAGE_PLUGIN_BRUSH("Icons/RemoteControlAPI_64x", Icon64x64));
 
 	FButtonStyle ExposeFunctionButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("PropertyEditor.AssetComboStyle");
 	ExposeFunctionButtonStyle.Normal = BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f));

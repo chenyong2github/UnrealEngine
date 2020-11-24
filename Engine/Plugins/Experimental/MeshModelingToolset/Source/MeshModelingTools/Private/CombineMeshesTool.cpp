@@ -161,15 +161,6 @@ void UCombineMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-bool UCombineMeshesTool::HasAccept() const
-{
-	return true;
-}
-
-bool UCombineMeshesTool::CanAccept() const
-{
-	return true;
-}
 
 
 void UCombineMeshesTool::CreateNewAsset()
@@ -178,7 +169,6 @@ void UCombineMeshesTool::CreateNewAsset()
 		bDuplicateMode ? 
 		LOCTEXT("DuplicateMeshToolTransactionName", "Duplicate Mesh") :
 		LOCTEXT("CombineMeshesToolTransactionName", "Combine Meshes"));
-
 
 	// note there is a MergeMeshUtilities.h w/ a very feature-filled mesh merging class, but for simplicity (and to fit modeling tool needs)
 	// this tool currently converts things through dynamic mesh instead

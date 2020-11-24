@@ -1896,28 +1896,25 @@ void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRender
 	
 	for (const FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{
-		if (!StreamingRenderAsset.RenderAsset || StreamingRenderAsset.bUseUnkownRefHeuristic
+		const UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
+		if (RenderAsset == nullptr || StreamingRenderAsset.bUseUnkownRefHeuristic
 			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
 		{
 			continue;
 		}
 
-		UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
-		const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
-		const FString TextureGroupName = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));
-		const int32 CurrentMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.ResidentMips);
-		const int32 MaxAllowedMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips);
-		const int32 MipIndexDifference = FMath::Max(0, MaxAllowedMipIndex - CurrentMipIndex);
-		const int32 MipArrayIndex = FMath::Max(0, -MipIndexDifference);
-
+		const int32 MipArrayIndex = FMath::Max(0, StreamingRenderAsset.MaxAllowedMips - StreamingRenderAsset.ResidentMips);
 		FRenderedTextureStats* Stats = OutRenderedTextureStats.Find(RenderAsset->GetName());
-		if(Stats != nullptr) {
-			// Keep max mip level ever shown
+		if(Stats != nullptr) 
+		{
+			// Keeps max mip level ever shown
 			Stats->MaxMipLevelShown = MipArrayIndex < Stats->MaxMipLevelShown ? MipArrayIndex : Stats->MaxMipLevelShown;
-		} else {
+		} 
+		else 
+		{
 			FRenderedTextureStats NewStats;
 			NewStats.MaxMipLevelShown = MipArrayIndex;
-			NewStats.TextureGroup = TextureGroupName;
+			NewStats.TextureGroup = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));;
 			OutRenderedTextureStats.Add(RenderAsset->GetName(), NewStats);
 		}
 	}

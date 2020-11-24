@@ -225,9 +225,6 @@ public:
 	/** Copy name to a dynamically allocated FString. */
 	CORE_API FString GetPlainNameString() const;
 
-	/** Copy name to a FStringBuilderBase. */
-	CORE_API void GetPlainNameString(FStringBuilderBase& OutString) const;
-
 	/** Appends name to string. May allocate. */
 	CORE_API void AppendNameToString(FString& OutString) const;
 

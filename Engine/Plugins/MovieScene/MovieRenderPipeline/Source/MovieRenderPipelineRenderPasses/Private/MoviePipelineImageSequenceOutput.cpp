@@ -42,7 +42,7 @@ bool UMoviePipelineImageSequenceOutputBase::HasFinishedProcessingImpl()
 }
 
 
-void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
+void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImgSeqRecieveImageData);
 

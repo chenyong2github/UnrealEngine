@@ -341,8 +341,8 @@ void SSequencerCombinedKeysTrack::GenerateCachedKeyPositions(const FGeometry& Al
 		}
 
 		// Generate a new cache
-		FSequencerCachedKeys TempCache;
-		TempCache.Update(KeyArea, CachedTickResolution);
+		FSequencerCachedKeys TempCache(KeyArea);
+		TempCache.Update(CachedTickResolution);
 
 		if (CacheKey.IsValid())
 		{

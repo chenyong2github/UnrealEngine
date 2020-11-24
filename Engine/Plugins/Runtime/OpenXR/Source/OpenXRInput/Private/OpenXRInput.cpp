@@ -552,11 +552,9 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 		SyncInfo.activeActionSets = ActionSets.GetData();
 		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
 	
-		XrSpace TrackingSpace = OpenXRHMD->GetTrackingSpace();
-		XrTime DisplayTime = OpenXRHMD->GetDisplayTime();
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
 		{
-			Plugin->PostSyncActions(Session, DisplayTime, TrackingSpace);
+			Plugin->PostSyncActions(Session);
 		}
 	}
 }

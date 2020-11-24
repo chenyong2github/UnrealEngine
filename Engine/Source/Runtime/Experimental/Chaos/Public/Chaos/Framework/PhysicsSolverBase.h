@@ -23,9 +23,33 @@ namespace Chaos
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
 	class FPhysicsSceneGuard;
+	class FChaosResultsManager;
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
+
+	struct CHAOS_API FSubStepInfo
+	{
+		FSubStepInfo()
+			: PseudoFraction(1.0)
+			, Step(1)
+			, NumSteps(1)
+		{
+		}
+
+		FSubStepInfo(const FReal InPseudoFraction, const int32 InStep, const int32 InNumSteps)
+			: PseudoFraction(InPseudoFraction)
+			, Step(InStep)
+			, NumSteps(InNumSteps)
+		{
+
+		}
+
+		//This is NOT Step / NumSteps, this is to allow for kinematic target interpolation which uses its own logic
+		FReal PseudoFraction;
+		int32 Step;
+		int32 NumSteps;
+	};
 
 	/**
 	 * Task responsible for processing the command buffer of a single solver and advancing it by
@@ -35,7 +59,7 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt, int32 InputDataExternalTimestamp);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData& PushData);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
@@ -46,10 +70,7 @@ namespace Chaos
 	private:
 
 		FPhysicsSolverBase& Solver;
-		TArray<TFunction<void()>> Queue;
-		TArray<FPushPhysicsData*> PushData;
-		FReal Dt;
-		int32 InputDataExternalTimestamp;
+		FPushPhysicsData* PushData;
 	};
 
 
@@ -89,7 +110,6 @@ namespace Chaos
 
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
-		bool HasPendingCommands() const { return CommandQueue.Num() > 0; }
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
 			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.Add(ProxyBaseIn);
@@ -210,10 +230,16 @@ namespace Chaos
 				ThreadingMode = InThreadingMode;
 			}
 		}
+		
+		void MarkShuttingDown()
+		{
+			bIsShuttingDown = true;
+		}
 
 		void EnableAsyncMode(FReal FixedDt)
 		{
 			AsyncDt = FixedDt;
+			AccumulatedTime = 0;
 		}
 
 		void DisableAsyncMode()
@@ -231,22 +257,37 @@ namespace Chaos
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
 			const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
-			const FReal InternalDt = UseAsyncInterpolation && IsUsingAsyncResults() ? AsyncDt : DtWithPause;
+			FReal InternalDt = DtWithPause;
+			int32 NumSteps = 1;
 
-			//make sure any GT state is pushed into necessary buffer
-			PushPhysicsState(DtWithPause);
-
-			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InternalDt, IsUsingAsyncResults());
+			if(IsUsingFixedDt())
+			{
+				AccumulatedTime += DtWithPause;
+				InternalDt = AsyncDt;
+				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
+				AccumulatedTime -= InternalDt * NumSteps;
+			}
 
 			FGraphEventRef BlockingTasks = PendingTasks;
 
-			if(PushData.Num())	//only kick off sim if enough dt passed
+			if(InDt > 0)
 			{
-				//todo: handle dt etc..
-				if(ThreadingMode == EThreadingModeTemp::SingleThread)
+				ExternalSteps++;	//we use this to average forces. It assumes external dt is about the same. 0 dt should be ignored as it typically has nothing to do with force
+			}
+
+			if(NumSteps > 0)
+			{
+				//make sure any GT state is pushed into necessary buffer
+				PushPhysicsState(InternalDt, NumSteps, FMath::Max(ExternalSteps,1));
+				ExternalSteps = 0;
+			}
+
+			while(FPushPhysicsData* PushData = MarshallingManager.StepInternalTime_External())
+			{
+				if (ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
+					FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
 #if !UE_BUILD_SHIPPING
 					if (bStealAdvanceTasksForTesting)
 					{
@@ -268,11 +309,16 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
-					if(IsUsingAsyncResults() == false)
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, *PushData);
+					if (IsUsingAsyncResults() == false)
 					{
 						BlockingTasks = PendingTasks;	//block right away
 					}
+				}
+
+				if(IsUsingAsyncResults() == false)
+				{
+					break;	//non async can only process one step at a time
 				}
 			}
 
@@ -297,7 +343,11 @@ namespace Chaos
 			{
 				if (!Callback->bPendingDelete)
 				{
-					Callback->PreSimulate_Internal(SimTime, Dt);
+					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
+					if(!bIsShuttingDown || Callback->bRunOnceMore)
+					{
+						Callback->PreSimulate_Internal(SimTime, Dt);
+					}
 				}
 			}
 		}
@@ -309,7 +359,11 @@ namespace Chaos
 			{
 				if (!Callback->bPendingDelete)
 				{
-					Callback->PostSimulate_Internal(SimTime, DeltaTime);
+					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
+					if (!bIsShuttingDown || Callback->bRunOnceMore)
+					{
+						Callback->PostSimulate_Internal(SimTime, DeltaTime);
+					}
 				}
 			}
 
@@ -320,11 +374,7 @@ namespace Chaos
 					Callback->bPendingDelete = true;
 				}
 
-				for (FSimCallbackInput* Input : Callback->IntervalData)
-				{
-					Callback->FreeInputData_Internal(Input);
-				}
-				Callback->IntervalData.Reset();
+				Callback->SetCurrentInput_Internal(nullptr);
 			}
 
 			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
@@ -375,6 +425,11 @@ namespace Chaos
 			return !ForceDisableAsyncPhysics && AsyncDt >= 0;
 		}
 
+		bool IsUsingFixedDt() const
+		{
+			return IsUsingAsyncResults() && UseAsyncInterpolation;
+		}
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -395,9 +450,9 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
-		virtual void AdvanceSolverBy(const FReal Dt) = 0;
-		virtual void PushPhysicsState(const FReal Dt) = 0;
-		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
+		virtual void AdvanceSolverBy(const FReal Dt, const FSubStepInfo& SubStepInfo = FSubStepInfo()) = 0;
+		virtual void PushPhysicsState(const FReal Dt, const int32 NumSteps, const int32 NumExternalSteps) = 0;
+		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushDataArray) = 0;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
 
 #if CHAOS_CHECKED
@@ -405,14 +460,10 @@ namespace Chaos
 #endif
 
 	FChaosMarshallingManager MarshallingManager;
+	TUniquePtr<FChaosResultsManager> PullResultsManager;
 
 	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
 	TUniquePtr<FPendingSpatialDataQueue> PendingSpatialOperations_External;
-
-	//
-	// Commands
-	//
-	TArray<TFunction<void()>> CommandQueue;
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
 	TArray<ISimCallbackObject*> ContactModifiers;
@@ -459,7 +510,10 @@ namespace Chaos
 
 		ETraits TraitIdx;
 
+		bool bIsShuttingDown;
 		FReal AsyncDt;
+		FReal AccumulatedTime;
+		int32 ExternalSteps;
 		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
 
 	public:

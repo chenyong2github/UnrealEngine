@@ -85,8 +85,9 @@ public:
 			const FMaterial& Material = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 			bool bUseSkyMaterial = Material.IsSky();
 			bool bUseSingleLayerWaterMaterial = Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
-			bool bUseAnisotropy = Material.GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material.HasAnisotropyConnected();
+			bool bUseAnisotropy = Material.GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material.MaterialUsesAnisotropy_RenderThread();
 			bool bSupportsNaniteRendering = SupportsNaniteRendering(StaticMesh->VertexFactory, PrimitiveSceneProxy, Mesh.MaterialRenderProxy, FeatureLevel);
+
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
 				ScreenSize, 
@@ -1254,8 +1255,6 @@ void FPrimitiveSceneInfo::UnlinkLODParentComponent()
 	if(LODParentComponentId.IsValid())
 	{
 		Scene->SceneLODHierarchy.RemoveChildNode(LODParentComponentId, this);
-		// I don't think this will be reused but just in case
-		LODParentComponentId = FPrimitiveComponentId();
 	}
 }
 

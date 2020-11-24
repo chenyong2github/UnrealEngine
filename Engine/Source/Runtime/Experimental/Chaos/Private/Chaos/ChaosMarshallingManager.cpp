@@ -13,7 +13,6 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 : ExternalTime_External(0)
 , ExternalTimestamp_External(0)
 , SimTime_External(0)
-, InternalTimestamp_External(-1)
 , ProducerData(nullptr)
 , CurPullData(nullptr)
 , Delay(SimDelay)
@@ -24,9 +23,11 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 
 FChaosMarshallingManager::~FChaosMarshallingManager() = default;
 
-void FChaosMarshallingManager::FinalizePullData_Internal(int32 LastExternalTimestampConsumed)
+void FChaosMarshallingManager::FinalizePullData_Internal(int32 LastExternalTimestampConsumed, float SimStartTime, float DeltaTime)
 {
 	CurPullData->SolverTimestamp = LastExternalTimestampConsumed;
+	CurPullData->ExternalStartTime = SimStartTime;
+	CurPullData->ExternalEndTime = SimStartTime + DeltaTime;
 	PullDataQueue.Enqueue(CurPullData);
 	PreparePullData();
 }
@@ -51,66 +52,60 @@ void FChaosMarshallingManager::PrepareExternalQueue_External()
 	ProducerData->StartTime = ExternalTime_External;
 }
 
-void FChaosMarshallingManager::Step_External(FReal ExternalDT)
+void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSteps)
 {
-	for (FSimCallbackInputAndObject& Pair : ProducerData->SimCallbackInputs)
+	ensure(NumSteps > 0);
+
+	FPushPhysicsData* FirstStepData = nullptr;
+	for(int32 Step = 0; Step < NumSteps; ++Step)
 	{
-		Pair.CallbackObject->CurrentExternalInput_External = nullptr;	//mark data as marshalled, any new data must be in a new data packet
+		for (FSimCallbackInputAndObject& Pair : ProducerData->SimCallbackInputs)
+		{
+			Pair.CallbackObject->CurrentExternalInput_External = nullptr;	//mark data as marshalled, any new data must be in a new data packet
+			Pair.Input->SetNumSteps_External(NumSteps);
+		}
+
+		//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
+		//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
+		ProducerData->ExternalDt = ExternalDT;
+		ProducerData->ExternalTimestamp = ExternalTimestamp_External;
+		ProducerData->IntervalStep = Step;
+		ProducerData->IntervalNumSteps = NumSteps;
+
+		ExternalQueue.Insert(ProducerData, 0);
+
+		if(Step == 0)
+		{
+			FirstStepData = ProducerData;
+		}
+		else
+		{
+			//copy sub-step only data
+			ProducerData->CopySubstepData(*FirstStepData);
+		}
+
+		ExternalTime_External += ExternalDT;
+		PrepareExternalQueue_External();
 	}
 
-	//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
-	//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
-	ProducerData->ExternalDt = ExternalDT;
-	ExternalQueue.Insert(ProducerData,0);
-
-	ExternalTime_External += ExternalDT;
 	++ExternalTimestamp_External;
-	PrepareExternalQueue_External();
 }
 
-TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FReal InternalDt, bool bUseAsync)
+FPushPhysicsData* FChaosMarshallingManager::StepInternalTime_External()
 {
-	TArray<FPushPhysicsData*> PushDataUpToEnd;
-
-	if(Delay == 0)
+	if (Delay == 0)
 	{
-		const FReal EndTime = SimTime_External + InternalDt;
-
-		//stored in reverse order so push from back to front
-
-		//see if we have enough inputs to proceed
-		int32 LatestIdx = INDEX_NONE;
-		for (int32 Idx = ExternalQueue.Num() - 1; Idx >= 0; --Idx)
+		if(ExternalQueue.Num())
 		{
-			if (ExternalQueue[Idx]->StartTime + ExternalQueue[Idx]->ExternalDt >= EndTime || !bUseAsync)	//in sync mode we always consume first input
-			{
-				LatestIdx = Idx;
-				break;
-			}
+			return ExternalQueue.Pop(/*bAllowShrinking=*/false);
 		}
-
-		//if we do, consume them all and reorder
-		if(LatestIdx != INDEX_NONE)
-		{
-			for (int32 Idx = ExternalQueue.Num() - 1; Idx >= LatestIdx; --Idx)
-			{
-				FPushPhysicsData* PushData = ExternalQueue.Pop(/*bAllowShrinking=*/false);
-				PushDataUpToEnd.Add(PushData);
-				++InternalTimestamp_External;
-			}
-
-			//consumed inputs for interval of InternalDt, so advance the sim time by that amount
-			SimTime_External += InternalDt;
-		}
-
-		
 	}
 	else
 	{
 		--Delay;
 	}
 
-	return PushDataUpToEnd;
+	return nullptr;
 }
 
 void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
@@ -132,6 +127,40 @@ void FPushPhysicsData::Reset()
 	SimCallbackObjectsToAdd.Reset();
 	SimCallbackObjectsToRemove.Reset();
 	SimCallbackInputs.Reset();
+}
+
+void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
+{
+	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
+	DynamicsWeight = FirstStepData.DynamicsWeight;
+	DirtyPropertiesManager.SetNumParticles(FirstStepData.DirtyProxiesDataBuffer.NumDirtyProxies());
+	FirstStepData.DirtyProxiesDataBuffer.ForEachProxy([this, &FirstManager](int32 FirstDataIdx, const FDirtyProxy& Dirty)
+		{
+			switch (Dirty.Proxy->GetType())
+			{
+			case EPhysicsProxyType::SingleRigidParticleType:
+			{
+				if (const FParticleDynamics* DynamicsData = Dirty.ParticleData.FindDynamics(FirstManager, FirstDataIdx))
+				{
+					DirtyProxiesDataBuffer.Add(Dirty.Proxy);
+					FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
+					SubsteppedDynamics = *DynamicsData;
+					//we don't want to sub-step impulses so those are cleared in the sub-step
+					SubsteppedDynamics.SetAngularImpulse(FVec3(0));
+					SubsteppedDynamics.SetLinearImpulse(FVec3(0));
+					FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
+					NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
+				}
+
+				Dirty.Proxy->ResetDirtyIdx();	//dirty idx is only used temporarily
+				break;
+			}
+			default: { break; }
+		}
+	});
+
+	//make sure inputs are available to every sub-step
+	SimCallbackInputs = FirstStepData.SimCallbackInputs;
 }
 
 FSimCallbackInput* ISimCallbackObject::GetProducerInputData_External()

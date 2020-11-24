@@ -18,8 +18,10 @@ namespace Chaos
 	class CHAOS_API FContactPoint
 	{
 	public:
-		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies
-		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to second body
+		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
+		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to the NormalOwner, but with direction that always goes from body 1 to body 0
+		FReal ShapeMargins[2];			// Margins used in collision detection
+		int32 ContactNormalOwnerIndex;	// The shape which owns the contact normal (usually the second body, but not always for manifolds)
 
 		// @todo(chaos): these do not need to be stored here (they can be derived from above)
 		FVec3 Location;					// World-space contact location
@@ -27,7 +29,8 @@ namespace Chaos
 		FReal Phi;						// Contact separation (negative for overlap)
 
 		FContactPoint()
-			: Normal(1, 0, 0)
+			: ContactNormalOwnerIndex(1)
+			, Normal(1, 0, 0)
 			, Phi(TNumericLimits<FReal>::Max()) {}
 
 		bool IsSet() const { return (Phi != TNumericLimits<FReal>::Max()); }
@@ -38,11 +41,12 @@ namespace Chaos
 	public:
 		FManifoldPoint() 
 			: CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
-			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulse(0)
+			, NetPushOutImpulseNormal(0)
+			, NetPushOutImpulseTangent(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -54,11 +58,12 @@ namespace Chaos
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
 			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
-			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulse(0)
+			, NetPushOutImpulseNormal(0)
+			, NetPushOutImpulseTangent(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -67,13 +72,15 @@ namespace Chaos
 			, bActive(false)
 		{}
 
+		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
 		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
-		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
-		FVec3 CoMContactNormal;				// CoM-space contact normal relative to second body
-		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
+		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies core shapes (not including margin)
+		FVec3 PrevCoMContactPoints[2];		// CoM-space contact points on the two bodies core shapes at previous transforms (used for static friction)
+		FVec3 CoMContactNormal;				// CoM-space contact normal relative to ContactNormalOwner body	
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
-		FReal NetPushOutImpulse;			// Total pushout impulse along normal (for final velocity correction) applied at this contact point
+		FReal NetPushOutImpulseNormal;		// Total pushout impulse along normal (for final velocity correction) applied at this contact point
+		FReal NetPushOutImpulseTangent;		// Total pushout impulse along tangent (for final velocity correction) applied at this contact point
 		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
 		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
 		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static fricton)
@@ -302,10 +309,16 @@ namespace Chaos
 			const FRotation3& Q0,
 			const FVec3& P1,
 			const FRotation3& Q1);
+		void UpdatePrevCoMContactPoints(
+			FManifoldPoint& ManifoldPoint,
+			const FVec3& XCoM0,
+			const FRotation3& RCoM0,
+			const FVec3& XCoM1,
+			const FRotation3& RCoM1);
 
-		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, bool bInInitialize = true);
-		void UpdateOneShotManifoldContacts();
-		void UpdateManifold(const FContactPoint& ContactPoint);
+		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt ,bool bInInitialize = true);
+		void UpdateOneShotManifoldContacts(FReal Dt);
+		void UpdateManifold(const FContactPoint& ContactPoint, const FReal Dt);
 		void ClearManifold();
 
 	protected:
@@ -330,9 +343,9 @@ namespace Chaos
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
-		int32 AddManifoldPoint(const FContactPoint& ContactPoint, bool bInInitialize = true);
-		void InitManifoldPoint(FManifoldPoint& ManifoldPoint);
-		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
+		int32 AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt, bool bInInitialize = true);
+		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
+		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		// @todo(chaos): inline array

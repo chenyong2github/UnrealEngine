@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -340,6 +342,7 @@ namespace UnrealBuildTool
 		FileReference AnalyzerFile;
 		FileReference LicenseFile;
 		UnrealTargetPlatform Platform;
+		Version AnalyzerVersion;
 
 		public PVSToolChain(ReadOnlyTargetRules Target)
 		{
@@ -361,6 +364,7 @@ namespace UnrealBuildTool
 				}
 			}
 
+			AnalyzerVersion = GetAnalyzerVersion(AnalyzerFile);
 			Settings = Target.WindowsPlatform.PVS;
 			ApplicationSettings = Settings.ApplicationSettings;
 
@@ -395,6 +399,49 @@ namespace UnrealBuildTool
 			Lines.Add(String.Format("Using PVS-Studio installation at {0} with analysis mode {1} ({2})", AnalyzerFile, (uint)Settings.ModeFlags, Settings.ModeFlags.ToString()));
 		}
 
+		static Version GetAnalyzerVersion(FileReference AnalyzerPath)
+		{
+			String Output = String.Empty;
+			Version AnalyzerVersion = new Version(0, 0);
+
+			try
+			{
+				using (Process PvsProc = new Process())
+				{
+					PvsProc.StartInfo.FileName = AnalyzerPath.FullName;
+					PvsProc.StartInfo.Arguments = "--version";
+					PvsProc.StartInfo.UseShellExecute = false;
+					PvsProc.StartInfo.CreateNoWindow = true;
+					PvsProc.StartInfo.RedirectStandardOutput = true;
+
+					PvsProc.Start();
+					Output = PvsProc.StandardOutput.ReadToEnd();
+					PvsProc.WaitForExit();
+				}
+
+				const String VersionPattern = @"\d+(?:\.\d+)+";
+				Match Match = Regex.Match(Output, VersionPattern);
+
+				if (Match.Success)
+				{
+					string VersionStr = Match.Value;
+					if (!Version.TryParse(VersionStr, out AnalyzerVersion))
+					{
+						throw new BuildException(String.Format("Failed to parse PVS-Studio version: {0}", VersionStr));
+					}
+				}
+			}
+			catch (Exception Ex)
+			{
+				if (Ex is BuildException)
+					throw;
+
+				throw new BuildException(Ex, "Failed to obtain PVS-Studio version.");
+			}
+
+			return AnalyzerVersion;
+		}
+
 		class ActionGraphCapture : ForwardingActionGraphBuilder
 		{
 			List<IAction> Actions;
@@ -409,6 +456,28 @@ namespace UnrealBuildTool
 			{
 				Actions.Add(Action);
 			}
+		}
+
+		public static readonly VersionNumber CLVerWithCPP20Support = new VersionNumber(14, 23);
+
+		public static string GetLangStandForCfgFile(CppStandardVersion cppStandard, VersionNumber compilerVersion)
+		{
+			string cppCfgStandard;
+
+			switch (cppStandard)
+			{
+				case CppStandardVersion.Cpp17:
+					cppCfgStandard = "c++17";
+					break;
+				case CppStandardVersion.Latest:
+					cppCfgStandard = VersionNumber.Compare(compilerVersion, CLVerWithCPP20Support) >= 0 ? "c++20" : "c++17";
+					break;
+				default:
+					cppCfgStandard = "c++14";
+					break;
+			}
+
+			return cppCfgStandard;
 		}
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
@@ -493,6 +562,14 @@ namespace UnrealBuildTool
 				ConfigFileContents.Append("language=C++\n");
 				ConfigFileContents.Append("skip-cl-exe=yes\n");
 				ConfigFileContents.AppendFormat("i-file={0}\n", PreprocessedFileItem.Location.FullName);
+
+				if(AnalyzerVersion.CompareTo(new Version("7.07")) >= 0)
+				{
+					VersionNumber compilerVersion = Target.WindowsPlatform.Environment.CompilerVersion;
+					string languageStandardForCfg = GetLangStandForCfgFile(PreprocessCompileEnvironment.CppStandard, compilerVersion);
+
+					ConfigFileContents.AppendFormat("std={0}\n", languageStandardForCfg);
+				}
 
 				string BaseFileName = PreprocessedFileItem.Location.GetFileNameWithoutExtension();
 

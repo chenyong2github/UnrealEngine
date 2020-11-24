@@ -21,6 +21,7 @@ IMPLEMENT_GLOBAL_SHADER(FCountNumBricksCS, "/Plugin/GPULightmass/Private/BrickAl
 IMPLEMENT_GLOBAL_SHADER(FGatherBrickRequestsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "GatherBrickRequestsCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSplatVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "SplatVolumeCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FStitchBorderCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "StitchBorderCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FFinalizeBrickResultsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "FinalizeBrickResultsCS", SF_Compute);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVLMVoxelizationParams, "VLMVoxelizationParams");
 
@@ -445,6 +446,20 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	Scene->DestroyRayTracingScene();
 }
 
+int32 FVolumetricLightmapRenderer::GetGISamplesMultiplier()
+{
+	if (Scene->Settings->GISamples < 1024)
+	{
+		return 4;
+	}
+
+	if (Scene->Settings->GISamples < 4096)
+	{
+		return 2;
+	}
+
+	return 1;
+}
 void FVolumetricLightmapRenderer::BackgroundTick()
 {
 	if (NumTotalBricks == 0)
@@ -453,7 +468,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	}
 
 	int32 NumCellsPerBrick = 5 * 5 * 5;
-	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
+	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples * GetGISamplesMultiplier())
 	{
 		return;
 	}
@@ -473,7 +488,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 	int32 NumSamplesThisFrame = !bLastFewFramesIdle ? 1 : 32;
 
-	FRHITransitionInfo VolumetricLightmapDataRWBarrierTransitions[] = {
+	RHICmdList.Transition({
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[0].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[1].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
@@ -481,8 +496,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[3].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[4].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-	};
-	RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
+	});
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamplesThisFrame; SampleIndex++)
 	{
@@ -504,7 +518,9 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 			{
-				TShaderMapRef<FVolumetricLightmapPathTracingRGS> RayGenShader(GlobalShaderMap);
+				FVolumetricLightmapPathTracingRGS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FVolumetricLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
+				TShaderRef<FVolumetricLightmapPathTracingRGS> RayGenShader = GlobalShaderMap->GetShader<FVolumetricLightmapPathTracingRGS>(PermutationVector);
 
 				FVolumetricLightmapPathTracingRGS::FParameters Parameters;
 				Parameters.FrameNumber = FrameNumber / NumFramesOneRound;
@@ -550,6 +566,52 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			}
 		}
 #endif
+		{
+			RHICmdList.Transition({
+				FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[1].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+			});
+
+			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+			TShaderMapRef<FFinalizeBrickResultsCS> ComputeShader(GlobalShaderMap);
+
+			FFinalizeBrickResultsCS::FParameters Parameters;
+			Parameters.NumTotalBricks = NumTotalBricks;
+			Parameters.BrickBatchOffset = BrickBatchOffset;
+			Parameters.BrickRequests = BrickRequests.UAV;
+			Parameters.AmbientVector = AccumulationBrickData.AmbientVector.Texture;
+			Parameters.SHCoefficients0R = AccumulationBrickData.SHCoefficients[0].Texture;
+			Parameters.SHCoefficients1R = AccumulationBrickData.SHCoefficients[1].Texture;
+			Parameters.SHCoefficients0G = AccumulationBrickData.SHCoefficients[2].Texture;
+			Parameters.SHCoefficients1G = AccumulationBrickData.SHCoefficients[3].Texture;
+			Parameters.SHCoefficients0B = AccumulationBrickData.SHCoefficients[4].Texture;
+			Parameters.SHCoefficients1B = AccumulationBrickData.SHCoefficients[5].Texture;
+			Parameters.OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;
+			Parameters.OutSHCoefficients0R = VolumetricLightmapData.BrickData.SHCoefficients[0].UAV;
+			Parameters.OutSHCoefficients1R = VolumetricLightmapData.BrickData.SHCoefficients[1].UAV;
+			Parameters.OutSHCoefficients0G = VolumetricLightmapData.BrickData.SHCoefficients[2].UAV;
+			Parameters.OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
+			Parameters.OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
+			Parameters.OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(BricksToCalcThisFrame, 1, 1));
+
+			RHICmdList.Transition({
+				FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[1].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+			});
+		}
 
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, VolumetricLightmapStitching, TEXT("VolumetricLightmapStitching %d bricks"), BricksToCalcThisFrame);
@@ -557,16 +619,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			// Doing 2 passes no longer makes sense in an amortized setup
 			// for (int32 StitchPass = 0; StitchPass < 2; StitchPass++)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[1].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-
-				RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
-
 				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 				TShaderMapRef<FStitchBorderCS> ComputeShader(GlobalShaderMap);
@@ -579,7 +631,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				Parameters.BrickBatchOffset = BrickBatchOffset;
 				Parameters.IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
 				Parameters.BrickRequests = BrickRequests.UAV;
-				Parameters.AmbientVector = AccumulationBrickData.AmbientVector.UAV;
+				Parameters.AmbientVector = AccumulationBrickData.AmbientVector.Texture;
 				Parameters.OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;
 				Parameters.OutSHCoefficients0R = VolumetricLightmapData.BrickData.SHCoefficients[0].UAV;
 				Parameters.OutSHCoefficients1R = VolumetricLightmapData.BrickData.SHCoefficients[1].UAV;
@@ -590,7 +642,15 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(BricksToCalcThisFrame, 1, 1));
 
-				RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
+				RHICmdList.Transition({
+					FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[1].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
+				});
 			}
 		}
 
@@ -598,13 +658,11 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 		SamplesTaken += BricksToCalcThisFrame * NumCellsPerBrick;
 
-		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
+		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples * GetGISamplesMultiplier())
 		{
 			break;
 		}
 	}
-
-	RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
 
 	if (IsRayTracingEnabled())
 	{

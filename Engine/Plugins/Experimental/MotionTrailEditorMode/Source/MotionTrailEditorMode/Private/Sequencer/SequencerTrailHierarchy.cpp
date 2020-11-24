@@ -314,7 +314,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 					continue;
 				}
 
-				if (AllTrails[ObjectsTracked[BoundComponent]].IsValid())
+				if (AllTrails.Contains(ObjectsTracked[BoundComponent]) && AllTrails[ObjectsTracked[BoundComponent]].IsValid())
 				{
 					OnUpdated(BoundComponent, AllTrails[ObjectsTracked[BoundComponent]].Get(), ObjectsTracked[BoundComponent]);
 				}
@@ -365,7 +365,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& BoneNameGuidPair : BonesTracked[BoundComponent])
 				{
-					if (AllTrails[BoneNameGuidPair.Value].IsValid())
+					if (AllTrails.Contains(BoneNameGuidPair.Value) && AllTrails[BoneNameGuidPair.Value].IsValid())
 					{
 						OnUpdated(BoundComponent, AllTrails[BoneNameGuidPair.Value].Get(), BoneNameGuidPair.Value);
 					}
@@ -417,7 +417,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& ControlNameGuidPair : ControlsTracked[BoundComponent])
 				{
-					if (AllTrails[ControlNameGuidPair.Value].IsValid())
+					if (AllTrails.Contains(ControlNameGuidPair.Value) && AllTrails[ControlNameGuidPair.Value].IsValid())
 					{
 						OnUpdated(BoundComponent, AllTrails[ControlNameGuidPair.Value].Get(), ControlNameGuidPair.Value);
 					}
@@ -509,15 +509,28 @@ void FSequencerTrailHierarchy::ResolveComponentToRoot(USceneComponent* Component
 				AllTrails.Add(ParentGuid, MakeUnique<FConstantComponentTrail>(ChildItr->GetAttachParent()));
 			}
 
-			if (!ParentNode.Children.Contains(ChildGuid)) ParentNode.Children.Add(ChildGuid);
-			if (!ChildNode->Parents.Contains(ParentGuid)) ChildNode->Parents.Add(ParentGuid);
+			if (!ParentNode.Children.Contains(ChildGuid)) 
+			{
+				ParentNode.Children.Add(ChildGuid);
+			}
+			if (!ChildNode->Parents.Contains(ParentGuid))
+			{
+				ChildNode->Parents.Add(ParentGuid);
+			}
 
 			ChildItr = ChildItr->GetAttachParent();
 			ChildNode = &ParentNode;
 		}
 
-		if (!Hierarchy[RootTrailGuid].Children.Contains(ObjectsTracked[ChildItr])) Hierarchy[RootTrailGuid].Children.Add(ObjectsTracked[ChildItr]);
-		if (!ChildNode->Parents.Contains(RootTrailGuid)) ChildNode->Parents.Add(RootTrailGuid);
+		if (!Hierarchy[RootTrailGuid].Children.Contains(ObjectsTracked[ChildItr])) 
+		{
+			Hierarchy[RootTrailGuid].Children.Add(ObjectsTracked[ChildItr]);
+		}
+
+		if (!ChildNode->Parents.Contains(RootTrailGuid)) 
+		{
+			ChildNode->Parents.Add(RootTrailGuid);
+		}
 	}
 }
 
@@ -530,7 +543,10 @@ void FSequencerTrailHierarchy::AddComponentToHierarchy(USceneComponent* CompToAd
 
 	UMovieScene3DTransformSection* TransformSection = FMovieSceneComponentTransformTrail::GetAbsoluteTransformSection(TransformTrack);
 	TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneComponentTransformTrail>(FLinearColor::White, false, TransformSection, Sequencer);
-	if (AllTrails.Contains(ObjectsTracked[CompToAdd])) AllTrails.Remove(ObjectsTracked[CompToAdd]);
+	if (AllTrails.Contains(ObjectsTracked[CompToAdd])) 
+	{
+		AllTrails.Remove(ObjectsTracked[CompToAdd]);
+	}
 	CurTrail->ForceEvaluateNextTick();
 
 	AddTrail(ObjectsTracked[CompToAdd], Hierarchy[ObjectsTracked[CompToAdd]], MoveTemp(CurTrail));
@@ -607,8 +623,14 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 		FGuid ParentGuid = ControlMap.FindOrAdd(ParentKey.Name, FGuid::NewGuid());
 		FTrailHierarchyNode& ParentNode = Hierarchy.FindOrAdd(ParentGuid);
 
-		if (!ParentNode.Children.Contains(ChildGuid)) ParentNode.Children.Add(ChildGuid);
-		if (!ChildNode.Parents.Contains(ParentGuid)) ChildNode.Parents.Add(ParentGuid);
+		if (!ParentNode.Children.Contains(ChildGuid))
+		{
+			ParentNode.Children.Add(ChildGuid);
+		}
+		if (!ChildNode.Parents.Contains(ParentGuid)) 
+		{
+			ChildNode.Parents.Add(ParentGuid);
+		}
 
 		ChildItr = ParentKey;
 		ElementIndex = RigHierarchy->ControlHierarchy.GetIndex(ChildItr.Name);
@@ -620,8 +642,14 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 		FGuid ChildGuid = ControlMap[ChildItr.Name];
 		FTrailHierarchyNode& ChildNode = Hierarchy[ChildGuid];
 		const FGuid CompRootGuid = ObjectsTracked[Component];
-		if (!Hierarchy[CompRootGuid].Children.Contains(ControlMap[ChildItr.Name])) Hierarchy[CompRootGuid].Children.Add(ControlMap[ChildItr.Name]);
-		if (!ChildNode.Parents.Contains(CompRootGuid)) ChildNode.Parents.Add(CompRootGuid);
+		if (!Hierarchy[CompRootGuid].Children.Contains(ControlMap[ChildItr.Name])) 
+		{
+			Hierarchy[CompRootGuid].Children.Add(ControlMap[ChildItr.Name]);
+		}
+		if (!ChildNode.Parents.Contains(CompRootGuid)) 
+		{
+			ChildNode.Parents.Add(CompRootGuid);
+		}
 	}
 	else // if (ParentKey.Type == ERigElementType::Bone)
 	{
@@ -632,8 +660,14 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 		FGuid ChildGuid = ControlMap[ChildItr.Name];
 		FTrailHierarchyNode& ChildNode = Hierarchy[ChildGuid];
 		const FGuid SkelParentGuid = BonesTracked[Component][ParentKey.Name];
-		if (!Hierarchy[SkelParentGuid].Children.Contains(ControlMap[ChildItr.Name])) Hierarchy[SkelParentGuid].Children.Add(ControlMap[ChildItr.Name]);
-		if (!ChildNode.Parents.Contains(SkelParentGuid)) ChildNode.Parents.Add(SkelParentGuid);
+		if (!Hierarchy[SkelParentGuid].Children.Contains(ControlMap[ChildItr.Name]))
+		{
+			Hierarchy[SkelParentGuid].Children.Add(ControlMap[ChildItr.Name]);
+		}
+		if (!ChildNode.Parents.Contains(SkelParentGuid))
+		{
+			ChildNode.Parents.Add(SkelParentGuid);
+		}
 	}
 }
 
@@ -679,7 +713,10 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 		ResolveRigElementToRootComponent(RigHierarchy, RigKey, CompToAdd);
 
 		TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlTransformTrail>(FLinearColor::White, false, CRParamSection, Sequencer, NameInfoPair.Value.ChannelIndex, RigKey.Name);
-		if (AllTrails.Contains(ControlMap[RigKey.Name])) AllTrails.Remove(ControlMap[RigKey.Name]);
+		if (AllTrails.Contains(ControlMap[RigKey.Name]))
+		{
+			AllTrails.Remove(ControlMap[RigKey.Name]);
+		}
 
 		AddTrail(ControlMap[RigKey.Name], Hierarchy[ControlMap[RigKey.Name]], MoveTemp(CurTrail));
 	}
@@ -710,7 +747,10 @@ void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponen
 
 				const int32 ChannelIndex = CRParamSection->ControlChannelMap[NewElemKey.Name].ChannelIndex;
 				TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlTransformTrail>(FLinearColor::White, false, CRParamSection, Sequencer, ChannelIndex, NewElemKey.Name);
-				if (AllTrails.Contains(ControlMap[NewElemKey.Name])) AllTrails.Remove(ControlMap[NewElemKey.Name]);
+				if (AllTrails.Contains(ControlMap[NewElemKey.Name])) 
+				{
+					AllTrails.Remove(ControlMap[NewElemKey.Name]);
+				}
 
 				AddTrail(ControlMap[NewElemKey.Name], Hierarchy[ControlMap[NewElemKey.Name]], MoveTemp(CurTrail));
 			}

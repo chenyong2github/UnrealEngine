@@ -341,13 +341,13 @@ public:
 	uint32 ThumbnailImageOutOfDate : 1;
 
 	/* If this system is exposed to the library. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
 	bool bExposeToLibrary;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
 	bool bIsTemplateAsset;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
 	FText TemplateAssetDescription;
 
 	UPROPERTY()
@@ -385,7 +385,7 @@ public:
 	uint32 bBakeOutRapidIteration : 1;
 
 	/** If true bBakeOutRapidIteration will be made to be true during cooks  */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bBakeOutRapidIterationOnCook : 1;
 
 	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
@@ -398,7 +398,7 @@ public:
 	uint32 bTrimAttributes : 1;
 
 	/** If true bTrimAttributes will be made to be true during cooks */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bTrimAttributesOnCook : 1;
 
 #endif
@@ -474,7 +474,7 @@ public:
 	void OnScalabilityCVarChanged();
 
 	/** Whether or not fixed bounds are enabled. */
-	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "System", meta = (SkipSystemResetOnChange = "true", InlineEditConditionToggle))
 	uint32 bFixedBounds : 1;
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
@@ -510,7 +510,7 @@ private:
 
 	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
 
-	bool CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const;
+	bool CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const;
 
 	void InitEmitterCompiledData();
 
@@ -596,7 +596,7 @@ protected:
 #endif
 
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */
-	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition = "bFixedBounds"))
+	UPROPERTY(EditAnywhere, Category = "System", meta = (SkipSystemResetOnChange = "true", EditCondition = "bFixedBounds"))
 	FBox FixedBounds;
 
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Auto-deactivate system if all emitters are determined to not spawn particles again, regardless of lifetime."))

@@ -11,7 +11,6 @@
 #include "HAL/CriticalSection.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/App.h"
-#include "Misc/Timecode.h"
 #include "Templates/Atomic.h"
 
 #include "DMXProtocolTypes.generated.h"
@@ -29,19 +28,19 @@ public:
 		ChannelData.Reserve(DMX_UNIVERSE_SIZE);
 	}
 
-	FDMXSignal(const FTimecode& InTimestamp, int32 InUniverseID, const TArray<uint8>& InChannelData)
+	FDMXSignal(double InTimestamp, int32 InUniverseID, const TArray<uint8>& InChannelData)
 		: Timestamp(InTimestamp)
 		, UniverseID(InUniverseID)
 		, ChannelData(InChannelData)
 	{}
 
-	FDMXSignal(const FTimecode& InTimestamp, int32 InUniverseID, TArray<uint8>&& InChannelData)
+	FDMXSignal(double InTimestamp, int32 InUniverseID, TArray<uint8>&& InChannelData)
 		: Timestamp(InTimestamp)
 		, UniverseID(InUniverseID)
 		, ChannelData(InChannelData)
 	{}
 
-	FTimecode Timestamp;
+	double Timestamp;
 
 	int32 UniverseID;
 

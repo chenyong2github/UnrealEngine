@@ -118,7 +118,15 @@ FAppleARKitFrame::FAppleARKitFrame(ARFrame* InARFrame, const FVector2D MinCamera
 #if SUPPORTS_ARKIT_4_0
 	if (FAppleARKitAvailability::SupportsARKit40())
 	{
-		SceneDepth = InARFrame.sceneDepth;
+		if (InARFrame.smoothedSceneDepth)
+		{
+			SceneDepth = InARFrame.smoothedSceneDepth;
+		}
+		else
+		{
+			SceneDepth = InARFrame.sceneDepth;
+		}
+		
 		[SceneDepth retain];
 	}
 #endif

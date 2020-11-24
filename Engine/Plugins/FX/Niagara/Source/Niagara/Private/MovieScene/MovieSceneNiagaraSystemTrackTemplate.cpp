@@ -132,10 +132,15 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 			{
 				if (SpawnSectionStartBehavior == ENiagaraSystemSpawnSectionStartBehavior::Activate)
 				{
-					if (NiagaraComponent->IsActive() == false)
+					if (NiagaraComponent->IsActive())
 					{
-						NiagaraComponent->Activate();
+						NiagaraComponent->DeactivateImmediate();
+						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						{
+							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+						}
 					}
+					NiagaraComponent->Activate();
 				}
 			}
 			else if (Context.GetTime() < SpawnSectionEndFrame)

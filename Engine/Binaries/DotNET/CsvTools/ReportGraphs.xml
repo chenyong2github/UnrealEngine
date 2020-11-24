@@ -104,7 +104,7 @@
 		</graph>
 		
 		<graph title="Android Memory" showAverages="1" hideStatPrefix="AndroidMemory/" stacked="1" mainStat="MemoryFreeMB" maxy="0">
-			<statString>AndroidMemory/MemoryWarningState</statString>
+			<statString>AndroidMemory/MemoryWarningState AndroidMemory/TrimMemoryForegroundLevel AndroidMemory/TrimMemoryBackgroundLevel</statString>
 		</graph>		
 
 		<graph title="Android Thermals" showAverages="1" hideStatPrefix="AndroidCPU/" maxy="100">

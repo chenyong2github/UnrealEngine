@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -714,9 +715,12 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					// Generate unique name for instances
+					// GetActorName is being called when generating a name for instance. 
+					// After the call, the intance is added as a child to its parent. 
+					// Next time the method gets called for the next instance, ChildElements.Count will be different/incremented.
 					FBaseElementData Instance = InstanceDataStack.Peek();
-					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}:{InstanceDataStack.Count}";
+					FBaseElementData Parent = InstanceDataStack.Count > 1 ? InstanceDataStack.Skip(1).First() : this;
+					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}:{Parent.ChildElements.Count}";
 				}
 			}
 
@@ -924,6 +928,7 @@ namespace DatasmithRevitExporter
 							}
 						}
 
+						ExistingActor?.ResetTags();
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
 					}

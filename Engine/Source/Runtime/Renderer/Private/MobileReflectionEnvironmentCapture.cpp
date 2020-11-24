@@ -161,7 +161,11 @@ namespace MobileReflectionEnvironmentCapture
 							VertexShader);
 					}
 					RHICmdList.EndRenderPass();
-					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex));
+
+					FResolveParams ResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex);
+					ResolveParams.SourceAccessFinal = ERHIAccess::SRVMask;
+					ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
+					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, ResolveParams);
 				}
 			}
 		}
@@ -199,7 +203,7 @@ namespace MobileReflectionEnvironmentCapture
 				CopyInfo.Size.Y = FMath::Max(1, CopyInfo.Size.Y / 2);
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::SRVGraphics));
+			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::SRVMask));
 		}
 	}
 
@@ -257,7 +261,11 @@ namespace MobileReflectionEnvironmentCapture
 						VertexShader);
 				}
 				RHICmdList.EndRenderPass();
-				RHICmdList.CopyToResolveTarget(EffectiveColorRT.TargetableTexture, EffectiveColorRT.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace));
+
+				FResolveParams ResolveParams(FResolveRect(), (ECubeFace)CubeFace);
+				ResolveParams.SourceAccessFinal = ERHIAccess::SRVMask;
+				ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
+				RHICmdList.CopyToResolveTarget(EffectiveColorRT.TargetableTexture, EffectiveColorRT.ShaderResourceTexture, ResolveParams);
 			} // end for
 		}
 
@@ -321,7 +329,11 @@ namespace MobileReflectionEnvironmentCapture
 							VertexShader);
 					}
 					RHICmdList.EndRenderPass();
-					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex));
+
+					FResolveParams ResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex);
+					ResolveParams.SourceAccessFinal = ERHIAccess::SRVMask;
+					ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
+					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, ResolveParams);
 				}
 
 				if (DiffuseConvolutionSource == NULL && MipSize <= GDiffuseIrradianceCubemapSize)
@@ -352,8 +364,8 @@ namespace MobileReflectionEnvironmentCapture
 
 				// Transition the textures once, so CopyToResolveTarget doesn't ping-pong uselessly between the copy and SRV states.
 				FRHITransitionInfo TransitionsBefore[] = {
-					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::SRVGraphics, ERHIAccess::CopySrc),
-					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::SRVGraphics, ERHIAccess::CopyDest)
+					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
+					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
 				};
 				RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
 
@@ -370,8 +382,8 @@ namespace MobileReflectionEnvironmentCapture
 
 				// We're done copying, transition the textures back to SRV.
 				FRHITransitionInfo TransitionsAfter[] = {
-					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::CopySrc, ERHIAccess::SRVGraphics),
-					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::CopyDest, ERHIAccess::SRVGraphics)
+					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
 				};
 				RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
 			}
@@ -450,7 +462,11 @@ namespace MobileReflectionEnvironmentCapture
 							VertexShader);
 					}
 					RHICmdList.EndRenderPass();
-					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex));
+
+					FResolveParams ResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex);
+					ResolveParams.SourceAccessFinal = ERHIAccess::SRVMask;
+					ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
+					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, ResolveParams);
 				}
 			}
 		}

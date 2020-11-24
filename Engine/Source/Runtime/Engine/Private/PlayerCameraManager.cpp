@@ -954,6 +954,21 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 
 				if ((CompressedRotation != PrevCompressedRotation) || !ClientCameraPosition.Equals(PrevClientCameraPosition) || (TimeSinceLastServerUpdateCamera > ServerUpdateCameraTimeout))
 				{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+					if (ClientCameraPosition.X > 1048576.0f || ClientCameraPosition.X < -1048576.0f ||
+						ClientCameraPosition.Y > 1048576.0f || ClientCameraPosition.Y < -1048576.0f ||
+						ClientCameraPosition.Z > 1048576.0f || ClientCameraPosition.Z < -1048576.0f)
+					{
+						UE_LOG(LogPlayerCameraManager, Warning, TEXT("ClientCameraPosition %f %f %f doesn't fit in FVector_NetQuantize for ServerUpdateCamera, capping"), ClientCameraPosition.X, ClientCameraPosition.Y, ClientCameraPosition.Z);
+					}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+					
+					const float MaxQuantize = 1048575.f;
+					const float MinQuantize = -1048575.f;
+					ClientCameraPosition.X = FMath::Clamp(ClientCameraPosition.X, MinQuantize, MaxQuantize);
+					ClientCameraPosition.Y = FMath::Clamp(ClientCameraPosition.Y, MinQuantize, MaxQuantize);
+					ClientCameraPosition.Z = FMath::Clamp(ClientCameraPosition.Z, MinQuantize, MaxQuantize);
+
 					PCOwner->ServerUpdateCamera(ClientCameraPosition, CompressedRotation);
 
 					TimeSinceLastServerUpdateCamera = 0.0f;

@@ -525,6 +525,12 @@ void FWidgetBlueprintCompilerContext::SanitizeBindings(UBlueprintGeneratedClass*
 {
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
 
+	// Fast recompilation leaves bindings pointing to the skeleton and not the generated class. Rebase.
+	for (FDelegateEditorBinding& Binding : WidgetBP->Bindings)
+	{
+		Binding.SourcePath.Rebase(WidgetBP);
+	}
+
 	// 
 	TArray<FDelegateEditorBinding> StaleBindings;
 	for (const FDelegateEditorBinding& Binding : WidgetBP->Bindings)

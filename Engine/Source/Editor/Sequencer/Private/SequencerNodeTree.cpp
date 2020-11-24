@@ -306,6 +306,31 @@ bool FSequencerNodeTree::HasActiveFilter() const
 		|| Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups().HasAnyActiveFilter());
 }
 
+bool FSequencerNodeTree::UpdateFiltersOnTrackValueChanged()
+{
+	// If filters are already scheduled for update, we can defer until the next update
+	if (bFilterUpdateRequested)
+	{
+		return false;
+	}
+
+	for (TSharedPtr< FSequencerTrackFilter > TrackFilter : *TrackFilters)
+	{
+		if (TrackFilter->ShouldUpdateOnTrackValueChanged())
+		{
+			// UpdateFilters will only run if bFilterUpdateRequested is true
+			bFilterUpdateRequested = true;
+			bool bFiltersUpdated = UpdateFilters();
+
+			// If the filter list was modified, set bFilterUpdateRequested to suppress excessive re-filters between tree update
+			bFilterUpdateRequested = bFiltersUpdated;
+			return bFiltersUpdated;
+		}
+	}
+
+	return false;
+}
+
 TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap)
 {
 	if (!ensureAlwaysMsgf(AllBindings.Contains(BindingID), TEXT("Attempting to add a binding that does not exist.")))
@@ -1306,12 +1331,14 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 	return bAnyChildPassed;
 }
 
-void FSequencerNodeTree::UpdateFilters()
+bool FSequencerNodeTree::UpdateFilters()
 {
 	if (!bFilterUpdateRequested)
 	{
-		return;
+		return false;
 	}
+
+	TSet< TSharedRef<FSequencerDisplayNode> > PreviousFilteredNodes(FilteredNodes);
 
 	FilteredNodes.Empty();
 
@@ -1347,6 +1374,9 @@ void FSequencerNodeTree::UpdateFilters()
 	}
 
 	DisplayNodeCount = Nodes.Num();
+
+	// Return whether the new list of FilteredNodes is different than the previous list
+	return (PreviousFilteredNodes.Num() != FilteredNodes.Num() || !PreviousFilteredNodes.Includes(FilteredNodes));
 }
 
 void FSequencerNodeTree::FilterNodes(const FString& InFilter)

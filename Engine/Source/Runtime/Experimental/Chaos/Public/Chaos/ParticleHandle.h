@@ -98,8 +98,8 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
 	//Concrete.SetDisabled(Params.bDisabled);
-	Concrete.SetF(TVector<T, d>(0));
-	Concrete.SetTorque(TVector<T, d>(0));
+	Concrete.ClearForces();
+	Concrete.ClearTorques();
 	Concrete.SetLinearImpulse(TVector<T, d>(0));
 	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
@@ -656,6 +656,11 @@ public:
 		SetW(Velocities.W());
 	}
 
+	void SetKinematicTarget(const TKinematicTarget<T, d>& InKinematicTarget)
+	{
+		KinematicGeometryParticles->KinematicTarget(ParticleIdx) = InKinematicTarget;
+	}
+
 	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 
@@ -781,10 +786,10 @@ public:
 	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
 	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
 
-	void SetDynamics(const FParticleDynamics& Dynamics)
+	void SetDynamics(const FParticleDynamics& Dynamics, const FReal DynamicsWeight = FReal(1))
 	{
-		SetF(Dynamics.F());
-		SetTorque(Dynamics.Torque());
+		SetF(Dynamics.F() * DynamicsWeight);
+		SetTorque(Dynamics.Torque() * DynamicsWeight);
 		SetLinearImpulse(Dynamics.LinearImpulse());
 		SetAngularImpulse(Dynamics.AngularImpulse());
 	}
@@ -1132,6 +1137,9 @@ public:
 	// Kinematic Particles
 	const TVector<T, d>& V() const { return (MHandle->CastToKinematicParticle()) ? MHandle->CastToKinematicParticle()->V() : ZeroVector; }
 	const TVector<T, d>& W() const { return (MHandle->CastToKinematicParticle()) ? MHandle->CastToKinematicParticle()->W() : ZeroVector; }
+
+	void SetV(const FVec3& InV) { if (MHandle->CastToKinematicParticle()) { MHandle->CastToKinematicParticle()->V() = InV; } }
+	void SetW(const FVec3& InW) { if (MHandle->CastToKinematicParticle()) { MHandle->CastToKinematicParticle()->W() = InW; } }
 
 	// Dynamic Particles
 
@@ -1664,6 +1672,10 @@ public:
 		check(false);
 	}
 
+	void MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects);
+
+	void RemoveShape(FPerShapeData* InShape, bool bWakeTouching);
+
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry(); }
 
 	void* UserData() const { return MUserData; }
@@ -1738,6 +1750,17 @@ public:
 	{
 		ensure(InShapesArray.Num() == MShapesArray.Num());
 		MShapesArray = MoveTemp(InShapesArray);
+		MapImplicitShapes();
+	}
+
+	void MergeShapesArray(FShapesArray&& OtherShapesArray)
+	{
+		int Idx = MShapesArray.Num() - OtherShapesArray.Num();
+		for (TUniquePtr<FPerShapeData>& Shape : OtherShapesArray)
+		{
+			ensure(Idx < MShapesArray.Num());
+			MShapesArray[Idx++] = MoveTemp(Shape);
+		}
 		MapImplicitShapes();
 	}
 
@@ -2075,6 +2098,7 @@ public:
 	{
 		TGeometryParticle<T, d>::Serialize(Ar);
 		Ar << MVelocities;
+		//Ar << MKinematicTarget; // TODO
 	}
 
 	const TVector<T, d>& V() const { return MVelocities.Read().V(); }
@@ -2082,6 +2106,15 @@ public:
 
 	const TVector<T, d>& W() const { return MVelocities.Read().W(); }
 	void SetW(const TVector<T, d>& InW, bool bInvalidate = true);
+
+	const FKinematicTarget KinematicTarget() const {
+		return MKinematicTarget.Read();
+	}
+
+	void SetKinematicTarget(const FKinematicTarget& KinematicTarget, bool bInvalidate = true)
+	{
+		MKinematicTarget.Write(KinematicTarget, bInvalidate, MDirtyFlags, Proxy);
+	}
 
 	void SetVelocities(const FParticleVelocities& InVelocities,bool bInvalidate = true)
 	{
@@ -2092,12 +2125,14 @@ public:
 
 private:
 	TParticleProperty<FParticleVelocities, EParticleProperty::Velocities> MVelocities;
+	TParticleProperty<FKinematicTarget, EParticleProperty::KinematicTarget> MKinematicTarget;
 
 protected:
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
 		MVelocities.SyncRemote(Manager, DataIdx, RemoteData);
+		MKinematicTarget.SyncRemote(Manager, DataIdx, RemoteData);
 	}
 };
 
@@ -2117,7 +2152,8 @@ public:
 	TKinematicGeometryParticleData(const TKinematicGeometryParticle<T, d>& InParticle)
 		: Base(InParticle)
 		, MV(InParticle.V())
-		, MW(InParticle.W()) 
+		, MW(InParticle.W())
+		, MKinematicTarget(InParticle.KinematicTarget())
 	{
 		Type = EParticleType::Kinematic;
 	}
@@ -2128,6 +2164,7 @@ public:
 		Type = EParticleType::Kinematic;
 		MV = TVector<T, d>(0);
 		MW = TVector<T, d>(0);
+		MKinematicTarget.Clear();
 	}
 
 	void Init(const TKinematicGeometryParticle<T, d>& InParticle) {
@@ -2135,9 +2172,11 @@ public:
 			MV = InParticle.V();
 			MW = InParticle.W();
 			Type = EParticleType::Kinematic;
+			MKinematicTarget = InParticle.KinematicTarget();
 	}
 	TVector<T, d> MV;
 	TVector<T, d> MW;
+	TKinematicTarget<T, d> MKinematicTarget;
 };
 
 
@@ -2225,23 +2264,41 @@ public:
 	}
 
 	const TVector<T, d>& F() const { return MDynamics.Read().F(); }
-	void SetF(const TVector<T, d>& InF, bool bInvalidate = true)
+	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
 		if (bInvalidate)
 		{
 			SetObjectState(EObjectStateType::Dynamic, true);
 		}
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF + Data.F());});
+	}
+
+	void ClearForces(bool bInvalidate = true)
+	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetF(FVec3(0)); });
 	}
 
 	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque(); }
-	void SetTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
+	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
 	{
 		if (bInvalidate)
 		{
 			SetObjectState(EObjectStateType::Dynamic, true);
 		}
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque + Data.Torque());});
+	}
+
+	void ClearTorques(bool bInvalidate = true)
+	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetTorque(FVec3(0)); });
 	}
 
 	const TVector<T, d>& LinearImpulse() const { return MDynamics.Read().LinearImpulse(); }

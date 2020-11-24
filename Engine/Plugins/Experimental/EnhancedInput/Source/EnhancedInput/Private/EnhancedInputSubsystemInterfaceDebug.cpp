@@ -64,7 +64,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 	if (!PlayerInput)
 	{
 		DisplayDebugManager.SetDrawColor(FColor::Orange);
-		DisplayDebugManager.DrawString(TEXT("This player does not support enhanced input. To enable it their player controller should derive from AEnhancedInputPlayerController."));
+		DisplayDebugManager.DrawString(TEXT("This player does not support Enhanced Input. To enable it update Project Settings -> Input -> Default Classes to the Enhanced versions."));
 		return;
 	}
 
@@ -135,9 +135,12 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 			TMap<const UInputAction*, TArray<FEnhancedActionKeyMapping>> ActionMappings;
 			for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
 			{
-				TArray<FEnhancedActionKeyMapping>& Mappings = ActionMappings.FindOrAdd(Mapping.Action);
-				Mappings.Add(Mapping);
-				OrderedActions.AddUnique(Mapping.Action);
+				if (Mapping.Action)
+				{
+					TArray<FEnhancedActionKeyMapping>& Mappings = ActionMappings.FindOrAdd(Mapping.Action);
+					Mappings.Add(Mapping);
+					OrderedActions.AddUnique(Mapping.Action);
+				}
 			}
 
 			Sort(OrderedActions.GetData(), OrderedActions.Num(), [](const UInputAction& A, const UInputAction& B) { return A.GetFName().LexicalLess(B.GetFName()); });
@@ -186,7 +189,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					{
 						// Another mapping is chording this key
 						Output += "  : Chorded BY " + *KeyOwner;
-						DrawColor = FColor(64, 64, 64);	// TODO: Change colour if chord is active
+						DrawColor = FColor(64, 64, 64);	// TODO: Change color if chord is active
 					}
 					else if (!Mapping.Action->bConsumeInput)
 					{
@@ -213,7 +216,10 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 						FString TriggerOutput;
 						for (UInputTrigger* Trigger : InstancedMapping.Triggers)
 						{
-							TriggerOutput += (TriggerOutput.IsEmpty() ? FString("") : FString(", ")) + Trigger->GetDebugState();
+							if (Trigger)
+							{
+								TriggerOutput += (TriggerOutput.IsEmpty() ? FString("") : FString(", ")) + Trigger->GetDebugState();
+							}
 						}
 						if (!TriggerOutput.IsEmpty())
 						{

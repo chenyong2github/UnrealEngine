@@ -417,7 +417,13 @@ namespace UnrealBuildTool
 					if( (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64) &&
 						(BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32))
 					{
-						BuildTarget = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build/BatchFiles/Linux/Build.sh") + " " + BuildTarget;
+						string PlatformName = "Linux";
+						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+						{
+							PlatformName = "Mac";
+						}
+
+						BuildTarget = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build/BatchFiles", PlatformName, "Build.sh") + " " + BuildTarget;
 					}
 					else
 					{

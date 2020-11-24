@@ -110,6 +110,8 @@ namespace Chaos
 		const TTriangleMesh<float>& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Weightmaps
 		const TArray<TConstArrayView<float>>& GetWeightMaps(const FClothingSimulationSolver* Solver) const;
+		// Return the reference bone index for this cloth
+		int32 GetReferenceBoneIndex() const;
 		// Return the local reference space transform for this cloth
 		const TRigidTransform<float, 3>& GetReferenceSpaceTransform() const { return ReferenceSpaceTransform;  }
 		// ---- End of the debugging/visualization functions

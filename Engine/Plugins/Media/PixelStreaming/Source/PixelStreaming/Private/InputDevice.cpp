@@ -137,8 +137,8 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		bool bHideCursor = FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
 		if (bHideCursor)
 		{
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerInvisibleCursorClassName);
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerInvisibleCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerHiddenCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerHiddenCursorClassName);
 		}
 		else
 		{
@@ -586,6 +586,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
 		ProcessCommand(Descriptor);
+		break;
 	}
 	case EToStreamerMsg::KeyDown:
 	{

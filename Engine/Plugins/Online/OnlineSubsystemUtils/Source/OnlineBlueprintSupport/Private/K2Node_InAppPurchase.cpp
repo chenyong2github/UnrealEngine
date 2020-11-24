@@ -8,10 +8,12 @@
 UK2Node_InAppPurchase::UK2Node_InAppPurchase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ProxyFactoryFunctionName = GET_FUNCTION_NAME_CHECKED(UInAppPurchaseCallbackProxy, CreateProxyObjectForInAppPurchase);
 	ProxyFactoryClass = UInAppPurchaseCallbackProxy::StaticClass();
 
 	ProxyClass = UInAppPurchaseCallbackProxy::StaticClass();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #undef LOCTEXT_NAMESPACE

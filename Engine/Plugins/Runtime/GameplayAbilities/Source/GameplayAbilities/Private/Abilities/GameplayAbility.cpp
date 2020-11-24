@@ -72,6 +72,8 @@ UGameplayAbility::UGameplayAbility(const FObjectInitializer& ObjectInitializer)
 
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
+	NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::ClientOrServer;
+
 	ScopeLockCount = 0;
 
 	bMarkPendingKillOnAbilityEnd = false;
@@ -274,7 +276,8 @@ bool UGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySystemCom
 
 bool UGameplayAbility::ShouldActivateAbility(ENetRole Role) const
 {
-	return Role != ROLE_SimulatedProxy;
+	return Role != ROLE_SimulatedProxy && 		
+		(Role == ROLE_Authority || (NetSecurityPolicy != EGameplayAbilityNetSecurityPolicy::ServerOnly && NetSecurityPolicy != EGameplayAbilityNetSecurityPolicy::ServerOnlyExecution));	// Don't violate security policy if we're not the server
 }
 
 void UGameplayAbility::K2_CancelAbility()
@@ -561,7 +564,7 @@ bool UGameplayAbility::IsEndAbilityValid(const FGameplayAbilitySpecHandle Handle
 {
 	// Protect against EndAbility being called multiple times
 	// Ending an AbilityState may cause this to be invoked again
-	if (bIsActive == false && GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
+	if ((bIsActive == false || bIsAbilityEnding == true) && GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
 	{
 		UE_LOG(LogAbilitySystem, Verbose, TEXT("IsEndAbilityValid returning false on Ability %s due to EndAbility being called multiple times"), *GetName());
 		return false;
@@ -592,6 +595,11 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 {
 	if (IsEndAbilityValid(Handle, ActorInfo))
 	{
+		if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
+		{
+			bIsAbilityEnding = true;
+		}
+
 		if (ScopeLockCount > 0)
 		{
 			UE_LOG(LogAbilitySystem, Verbose, TEXT("Attempting to end Ability %s but ScopeLockCount was greater than 0, adding end to the WaitingToExecute Array"), *GetName());
@@ -629,6 +637,7 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 		if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
 		{
 			bIsActive = false;
+			bIsAbilityEnding = false;
 		}
 
 		// Tell all our tasks that we are finished and they should cleanup

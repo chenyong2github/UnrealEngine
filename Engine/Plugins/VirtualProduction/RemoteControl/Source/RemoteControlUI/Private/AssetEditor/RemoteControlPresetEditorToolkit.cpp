@@ -66,6 +66,7 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 
 	if (TSharedPtr<SDockTab> Tab = EditorTabManager->TryInvokeTab(RemoteControlPanelTabId))
 	{
+		Tab->SetLabel(FText::FromName(InPreset->GetFName()));
 		Tab->SetContent(PanelWidget.ToSharedRef());
 		Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateStatic(&Local::OnRemoteControlPresetClosed, TWeakPtr<IAssetEditorInstance>(SharedThis(this))));
 	}

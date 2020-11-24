@@ -305,6 +305,11 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		Ar << UsageInt;
 		Usage = (EMaterialShaderMapUsage::Type)UsageInt;
 
+		if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+		{
+			Ar << UsageCustomOutput;
+		}
+
 		Ar << BaseMaterialId;
 	}
 #endif
@@ -417,6 +422,10 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 	FSHA1 HashState;
 
 	HashState.Update((const uint8*)&Usage, sizeof(Usage));
+	if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+	{
+		HashState.UpdateWithString(*UsageCustomOutput, UsageCustomOutput.Len());
+	}
 
 	HashState.Update((const uint8*)&BaseMaterialId, sizeof(BaseMaterialId));
 
@@ -489,6 +498,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	if (!IsCookedId())
 	{
 		if (Usage != ReferenceSet.Usage
+			|| UsageCustomOutput != ReferenceSet.UsageCustomOutput
 			|| BaseMaterialId != ReferenceSet.BaseMaterialId)
 		{
 			return false;
@@ -716,6 +726,12 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += FString::FromInt(Usage);
 	KeyString += TEXT("_");
 
+	if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+	{
+		KeyString += UsageCustomOutput;
+		KeyString += TEXT("_");
+	}
+
 	// Add any referenced functions to the key so that we will recompile when they are changed
 	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedFunctions.Num(); FunctionIndex++)
 	{
@@ -743,6 +759,9 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
 		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderType != nullptr, TEXT("Failed to find FShaderType for dependency %s (total in the NameToTypeMap: %d)"), ShaderTypeDependency.ShaderTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
 
 		KeyString += TEXT("_");
 		KeyString += ShaderType->GetName();
@@ -764,6 +783,9 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		const FShaderPipelineTypeDependency& Dependency = ShaderPipelineTypeDependencies[TypeIndex];
 		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderPipelineType != nullptr, TEXT("Failed to find FShaderPipelineType for dependency %s (total in the NameToTypeMap: %d)"), Dependency.ShaderPipelineTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
 
 		KeyString += TEXT("_");
 		KeyString += ShaderPipelineType->GetName();
@@ -2087,7 +2109,7 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 			{
 				if (!bSilent)
 				{
-					UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing FMaterialShader (%s, %d)."), *Material->GetFriendlyName(), Shader.ShaderType->GetName(), Shader.PermutationId);
+					UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing FMaterialShader (%s, %d)."), *Material->GetFriendlyName(), Shader.ShaderType->GetName(), Shader.PermutationId);
 				}
 				return false;
 			}
@@ -2102,7 +2124,7 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 			{
 				if (!bSilent)
 				{
-					UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing pipeline %s."), *Material->GetFriendlyName(), Pipeline->GetName());
+					UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing pipeline %s."), *Material->GetFriendlyName(), Pipeline->GetName());
 				}
 				return false;
 			}
@@ -2123,11 +2145,11 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 					{
 						if (!MeshShaderMap)
 						{
-							UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing Vertex Factory %s."), *Material->GetFriendlyName(), MeshLayout.VertexFactoryType->GetName());
+							UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing Vertex Factory %s."), *Material->GetFriendlyName(), MeshLayout.VertexFactoryType->GetName());
 						}
 						else
 						{
-							UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing (%s, %d) from %s."), *Material->GetFriendlyName(), Shader.ShaderType->GetName(), Shader.PermutationId, MeshLayout.VertexFactoryType->GetName());
+							UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing (%s, %d) from %s."), *Material->GetFriendlyName(), Shader.ShaderType->GetName(), Shader.PermutationId, MeshLayout.VertexFactoryType->GetName());
 						}
 					}
 					return false;
@@ -2145,11 +2167,11 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 					{
 						if (!MeshShaderMap)
 						{
-							UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing Vertex Factory %s."), *Material->GetFriendlyName(), MeshLayout.VertexFactoryType->GetName());
+							UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing Vertex Factory %s."), *Material->GetFriendlyName(), MeshLayout.VertexFactoryType->GetName());
 						}
 						else
 						{
-							UE_LOG(LogShaders, Warning, TEXT("Incomplete material %s, missing pipeline %s from %s."), *Material->GetFriendlyName(), Pipeline->GetName(), MeshLayout.VertexFactoryType->GetName());
+							UE_LOG(LogMaterial, Warning, TEXT("Incomplete material %s, missing pipeline %s from %s."), *Material->GetFriendlyName(), Pipeline->GetName(), MeshLayout.VertexFactoryType->GetName());
 						}
 					}
 					return false;

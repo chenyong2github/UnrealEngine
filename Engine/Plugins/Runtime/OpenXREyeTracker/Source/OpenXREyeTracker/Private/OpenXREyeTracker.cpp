@@ -96,17 +96,15 @@ const void* FOpenXREyeTracker::OnBeginSession(XrSession InSession, const void* I
 }
 
 
-void FOpenXREyeTracker::PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+void FOpenXREyeTracker::PostSyncActions(XrSession InSession)
 {
-	if (DisplayTime == 0)
-	{
-		return;
-	}
-
 	XrActionStateGetInfo GetActionStateInfo{ XR_TYPE_ACTION_STATE_GET_INFO };
 	GetActionStateInfo.action = EyeTrackerAction;
 	XR_ENSURE(xrGetActionStatePose(InSession, &GetActionStateInfo, &ActionStatePose));
+}
 
+void FOpenXREyeTracker::UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+{
 	if (ActionStatePose.isActive) {
 		XR_ENSURE(xrLocateSpace(GazeActionSpace, TrackingSpace, DisplayTime, &EyeTrackerSpaceLocation));
 	}

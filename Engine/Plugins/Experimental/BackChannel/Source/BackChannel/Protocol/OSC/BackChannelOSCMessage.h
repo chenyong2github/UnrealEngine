@@ -142,16 +142,45 @@ public:
 	virtual int Write(const TCHAR* InName, const void* InBlob, int32 BlobSize) override
 	{
 		check(IsWriting());
-		// OSC blobs contain and int with the size before the data
-		WriteTag(TEXT('b'));
-		WriteData(&BlobSize, sizeof(int32));
-		return WriteData(InBlob, BlobSize);
+		if (IsLegacyConnection())
+		{
+			// with the legacy format it's just a fixed size
+			return WriteTagAndData(TEXT('b'), InBlob, BlobSize);
+		}
+		else
+		{
+			// OSC blobs contain and int with the size before the data
+			WriteTag(TEXT('b'));
+			WriteData(&BlobSize, sizeof(int32));
+			return WriteData(InBlob, BlobSize);
+		}
 	}
 
-	/* Write a TArray into the message */
-	virtual int Write(const TCHAR* InName, const TArrayView<const uint8> Value) override
+	/*
+		Read data from the message into a TArray. It must have been serialized by the Read form for TArray(!).
+		Note - data will be appended to the array.
+	*/
+	virtual int Write(const TCHAR* InName, const TArrayView<const uint8> InValues) override
 	{
-		return Write(InName, Value.GetData(), Value.Num());
+		return Write<uint8>(InName, InValues);
+	}
+
+	/* Write a TArrayView into the message */
+	template<typename T>
+	int Write(const TCHAR* InName, const TArrayView<const T> InValues)
+	{
+		if (IsLegacyConnection())
+		{
+			// contrary to the OSC spec, with the legacy format the size of a blob has an explicit tag for rather than simply being the first
+			// four bytes of the blob data. See also Reading of arrays
+			Write(TEXT("Size"), InValues.Num());
+			int32 BlobSize = InValues.Num() * sizeof(T);
+			return WriteTagAndData(TEXT('b'), InValues.GetData(), BlobSize);
+		}
+		else
+		{
+			return Write(InName, InValues.GetData(), InValues.Num());
+		}
 	}
 
 	/* Read an int32 from our arguments */
@@ -230,18 +259,34 @@ public:
 	int Read(const TCHAR* InName, TArray<T>& DataArray)
 	{
 		int32 BlobSize = 0;
+		int32 NumNewElements = 0;
 
-		// Read the size of the blob
-		int32 Err = Read(InName, nullptr, 0, BlobSize);
+		if (IsLegacyConnection())
+		{
+			// contrary to the OSC spec, with the legacy format the size of a blob has an explicit tag for rather than simply being the first
+			// four bytes of the blob data. See also reading of arrays
+			Read(TEXT("Size"), NumNewElements);
+			BlobSize = NumNewElements * sizeof(T);
 
-		// how many elements this is
-		int NumNewElements = BlobSize / sizeof(uint8);
+			// Add enough space
+			int NumCurrentElements = DataArray.Num();
+			DataArray.AddUninitialized(NumNewElements);
 
-		// Add enough space
-		int NumCurrentElements = DataArray.Num();
-		DataArray.AddUninitialized(NumNewElements);
+			// read the tag and data directly, don't use the blob read
+			return ReadTagAndData(TEXT('b'), DataArray.GetData() + NumCurrentElements, BlobSize);
+		}
+		else
+		{
+			// Read the size of the blob and covert to element count
+			Read(InName, nullptr, 0, BlobSize);
+			NumNewElements = BlobSize / sizeof(T);
 
-		return Read(InName, DataArray.GetData() + NumCurrentElements, BlobSize, BlobSize);
+			// Add enough space
+			int NumCurrentElements = DataArray.Num();
+			DataArray.AddUninitialized(NumNewElements);
+
+			return Read(InName, DataArray.GetData() + NumCurrentElements, BlobSize, BlobSize);
+		}
 	}
 	
 
@@ -284,6 +329,9 @@ public:
 	static bool IsLegacyConnection() { return bIsLegacyConnection; }
 
 protected:
+
+	/* Return our sizes for each item (plus any necessary padding) */
+	void GetComponentSizes(int32& OutAddressSize, int32& OutTagSize, int32& OutBufferSize) const;
 
 	int Serialize(const TCHAR Code, void* InData, int32 InSize);
 

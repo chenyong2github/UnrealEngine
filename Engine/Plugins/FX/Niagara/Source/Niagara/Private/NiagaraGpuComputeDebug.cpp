@@ -20,7 +20,62 @@ static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
 	ECVF_Default
 );
 
+int32 GNiagaraGpuComputeDebug_MaxLineInstances = 4096;
+static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxLineInstances(
+	TEXT("fx.Niagara.GpuComputeDebug.MaxLineInstances"),
+	GNiagaraGpuComputeDebug_MaxLineInstances,
+	TEXT("Maximum number of line draw we support in a single frame."),
+	ECVF_Default
+);
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+
 //////////////////////////////////////////////////////////////////////////
+
+FNiagaraGpuComputeDebug::FNiagaraGpuComputeDebug(ERHIFeatureLevel::Type InFeatureLevel)
+	: FeatureLevel(InFeatureLevel)
+{
+}
+
+void FNiagaraGpuComputeDebug::Tick(FRHICommandListImmediate& RHICmdList)
+{
+	for (auto it=DebugDrawBuffers.CreateConstIterator(); it; ++it)
+	{
+		FNiagaraSimulationDebugDrawData* DebugDrawData = it.Value().Get();
+		if ( !DebugDrawData->bRequiresUpdate )
+		{
+			continue;
+		}
+
+		DebugDrawData->bRequiresUpdate = false;
+		if (DebugDrawData->GpuLineMaxInstances > 0)
+		{
+			//-OPT: Batch UAV clears
+			NiagaraDebugShaders::ClearUAV(RHICmdList, DebugDrawData->GpuLineBufferArgs.UAV, FUintVector4(2, 0, 0, 0), 4);
+		}
+
+		DebugDrawData->StaticLineCount = DebugDrawData->StaticLines.Num();
+		if (DebugDrawData->StaticLineCount > 0 )
+		{
+			const uint32 NumElements = FMath::DivideAndRoundUp(DebugDrawData->StaticLineCount, 64u) * 64u * 7u;
+			const uint32 RequiredBytes = NumElements * sizeof(float);
+			if ( DebugDrawData->StaticLineBuffer.NumBytes < RequiredBytes )
+			{
+				DebugDrawData->StaticLineBuffer.Release();
+				DebugDrawData->StaticLineBuffer.Initialize(sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT, 0, TEXT("NiagaraGpuComputeDebug::StaticLineBuffer"));
+			}
+			void* VertexData = RHILockVertexBuffer(DebugDrawData->StaticLineBuffer.Buffer, 0, RequiredBytes, RLM_WriteOnly);
+			FMemory::Memcpy(VertexData, DebugDrawData->StaticLines.GetData(), DebugDrawData->StaticLineCount * DebugDrawData->StaticLines.GetTypeSize());
+			RHIUnlockVertexBuffer(DebugDrawData->StaticLineBuffer.Buffer);
+
+			DebugDrawData->StaticLines.Reset();
+		}
+		else
+		{
+			//-OPT: Release buffer?
+		}
+	}
+}
 
 void FNiagaraGpuComputeDebug::AddSystemInstance(FNiagaraSystemInstanceID SystemInstanceID, FString SystemName)
 {
@@ -36,6 +91,7 @@ void FNiagaraGpuComputeDebug::RemoveSystemInstance(FNiagaraSystemInstanceID Syst
 void FNiagaraGpuComputeDebug::OnSystemDeallocated(FNiagaraSystemInstanceID SystemInstanceID)
 {
 	VisualizeTextures.RemoveAll([&SystemInstanceID](const FNiagaraVisualizeTexture& Texture) -> bool { return Texture.SystemInstanceID == SystemInstanceID; });
+	DebugDrawBuffers.Remove(SystemInstanceID);
 }
 
 void FNiagaraGpuComputeDebug::AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture)
@@ -135,6 +191,36 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	}
 }
 
+FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers)
+{
+	TUniquePtr<FNiagaraSimulationDebugDrawData>& DebugDrawDataPtr = DebugDrawBuffers.FindOrAdd(SystemInstanceID);
+	if (!DebugDrawDataPtr.IsValid())
+	{
+		DebugDrawDataPtr.Reset(new FNiagaraSimulationDebugDrawData());
+	}
+
+	if (bRequiresGpuBuffers && DebugDrawDataPtr->GpuLineMaxInstances == 0)
+	{
+		check(IsInRenderingThread());
+		DebugDrawDataPtr->GpuLineMaxInstances = GNiagaraGpuComputeDebug_MaxLineInstances;
+		if (DebugDrawDataPtr->GpuLineMaxInstances > 0)
+		{
+			DebugDrawDataPtr->GpuLineBufferArgs.Initialize(sizeof(uint32), 4, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGpuComputeDebug::DrawLineBufferArgs"));
+			DebugDrawDataPtr->GpuLineVertexBuffer.Initialize(sizeof(float), 7 * DebugDrawDataPtr->GpuLineMaxInstances, EPixelFormat::PF_R32_FLOAT, BUF_Static, TEXT("NiagaraGpuComputeDebug::DrawLineVertexBuffer"));
+
+			auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			NiagaraDebugShaders::ClearUAV(RHICmdList, DebugDrawDataPtr->GpuLineBufferArgs.UAV, FUintVector4(2, 0, 0, 0), 4);
+		}
+	}
+
+	return DebugDrawDataPtr.Get();
+}
+
+void FNiagaraGpuComputeDebug::RemoveSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID)
+{
+	DebugDrawBuffers.Remove(SystemInstanceID);
+}
+
 bool FNiagaraGpuComputeDebug::ShouldDrawDebug() const
 {
 	return VisualizeTextures.Num() > 0;
@@ -185,3 +271,29 @@ void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const F
 		Location.Y -= 1.0f;
 	}
 }
+
+void FNiagaraGpuComputeDebug::DrawSceneDebug(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth)
+{
+	for ( auto it=DebugDrawBuffers.CreateConstIterator(); it; ++it )
+	{
+		FNiagaraSimulationDebugDrawData* DebugDrawData = it.Value().Get();
+		if ( DebugDrawData->StaticLineCount > 0 )
+		{
+			NiagaraDebugShaders::DrawDebugLines(
+				GraphBuilder, View, SceneColor, SceneDepth,
+				DebugDrawData->StaticLineCount,
+				DebugDrawData->StaticLineBuffer.SRV
+			);
+		}
+		if ( DebugDrawData->GpuLineMaxInstances > 0 )
+		{
+			NiagaraDebugShaders::DrawDebugLines(
+				GraphBuilder, View, SceneColor, SceneDepth,
+				DebugDrawData->GpuLineBufferArgs.Buffer,
+				DebugDrawData->GpuLineVertexBuffer.SRV
+			);
+		}
+	}
+}
+
+#endif //NIAGARA_COMPUTEDEBUG_ENABLED

@@ -88,10 +88,10 @@ bool FGenericImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFra
 }
 
 
-bool FGenericImgMediaReader::ReadFrame(const FString& ImagePath, FImgMediaFrame& OutFrame)
+bool FGenericImgMediaReader::ReadFrame(const FString& ImagePath, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame, int32 FrameId)
 {
 	TArray64<uint8> InputBuffer;
-	TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, OutFrame.Info);
+	TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, OutFrame->Info);
 
 	if (!ImageWrapper.IsValid())
 	{
@@ -110,9 +110,9 @@ bool FGenericImgMediaReader::ReadFrame(const FString& ImagePath, FImgMediaFrame&
 	void* Buffer = FMemory::Malloc(RawNum);
 	FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
 
-	OutFrame.Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
-	OutFrame.Format = EMediaTextureSampleFormat::CharBGRA;
-	OutFrame.Stride = OutFrame.Info.Dim.X * 4;
+	OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
+	OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
+	OutFrame->Stride = OutFrame->Info.Dim.X * 4;
 
 	return true;
 }

@@ -138,6 +138,7 @@ struct FHairSample
 	float	Backlit;
 	uint	LightChannelMask;
 	bool	bScatterSceneLighting;
+	float3  Emissive;
 };
 
 // * Max 67,108,864 total nodes (This is 32 nodes per pixel at 1080p if all pixel were covered)
@@ -192,6 +193,7 @@ FPackedHairSample PackHairSample(const FHairSample In)
 		((In.bScatterSceneLighting ? 1 : 0) << 12) |
 		(clamp(uint(In.Backlit * 0xFF), 0, 0xFF) << 16);
 
+	// Emissive is not packed/unpacked
 	return Out;
 }
 
@@ -217,6 +219,7 @@ FHairSample UnpackHairSample(const FPackedHairSample In)
 	Out.Backlit				= float(0xFF & (In.Specular_LightChannels_Backlit>>16)) / 0xFF;
 	Out.bScatterSceneLighting = (In.Specular_LightChannels_Backlit & (1<<12)) > 0;
 
+	// Emissive is not packed/unpacked
 	return Out;
 }
 

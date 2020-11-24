@@ -28,7 +28,7 @@ enum class ENiagaraSortMode : uint8
 
 struct FNiagaraGPUSortInfo
 {
-	static constexpr uint32 MaxCullPlanes = 6;
+	static constexpr uint32 MaxCullPlanes = 10;
 
 	// The number of particles in the system.
 	int32 ParticleCount = 0;

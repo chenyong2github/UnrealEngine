@@ -308,7 +308,10 @@ void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
 	To.Empty(From.Num());
 	for (T* ToDuplicate : From)
 	{
-		To.Add(DuplicateObject<T>(ToDuplicate, nullptr));
+		if (ToDuplicate)
+		{
+			To.Add(DuplicateObject<T>(ToDuplicate, nullptr));
+		}
 	}
 }
 

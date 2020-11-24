@@ -191,10 +191,11 @@ namespace Chaos
 			const PMatrix<T, d, d> ChildRI = Child.RotationOfMass * FMatrix::Identity;
 			const PMatrix<T, d, d> ChildWorldSpaceI = ChildRI.GetTransposed() * Child.InertiaTensor * ChildRI;
 			NewMP.InertiaTensor += ChildWorldSpaceI;
-			NewMP.CenterOfMass += Child.CenterOfMass * Child.Volume;
+			NewMP.CenterOfMass += Child.CenterOfMass * Child.Mass;
+			NewMP.Mass += Child.Mass;
 		}
-		check(NewMP.Volume > SMALL_NUMBER);
-		NewMP.CenterOfMass /= NewMP.Volume;
+		check(NewMP.Mass > SMALL_NUMBER);
+		NewMP.CenterOfMass /= NewMP.Mass;
 		for (const TMassProperties<T, d>& Child : MPArray)
 		{
 			const T M = Child.Volume * InDensityKGPerCM;

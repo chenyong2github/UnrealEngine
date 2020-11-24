@@ -87,7 +87,6 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			TraceDistance,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
@@ -290,6 +289,9 @@ RayDesc Invert(in RayDesc Ray)
 	RayDesc InvertedRay;
 	InvertedRay.TMin = Ray.TMin;
 	InvertedRay.TMax = Ray.TMax;
+#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+	InvertedRay.TMax = min(InvertedRay.TMax, TraceDistance);
+#endif
 	InvertedRay.Origin = Ray.Origin + Ray.Direction * InvertedRay.TMax;
 	InvertedRay.Direction = -Ray.Direction;
 
@@ -451,7 +453,7 @@ FOcclusionResult ComputeOcclusion(
 
 			if ((ShadingModelID == SHADINGMODELID_SUBSURFACE))
 			{
-				// Potentially reverse the ray to support sub-surface casts
+				// Reverse the ray to support sub-surface casts
 				RayDesc InvertedRay = Invert(Ray);
 				FMinimalPayload SubsurfacePayload = TraceVisibilityRay(
 					TLAS,

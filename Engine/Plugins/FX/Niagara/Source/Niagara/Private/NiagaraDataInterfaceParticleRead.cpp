@@ -10,8 +10,20 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleRead"
 
+struct FNiagaraParticleReadDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		RenamedSpawnIndex = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
+
 static const FName GetNumSpawnedParticlesFunctionName("Get Num Spawned Particles");
-static const FName GetSpawnedIDAtIndexFunctionName("Get Spawned ID At Index");
+static const FName GetIDAtSpawnIndexFunctionName("Get ID At Spawn Index");
 static const FName GetNumParticlesFunctionName("Get Num Particles");
 static const FName GetParticleIndexFunctionName("Get Particle Index");
 
@@ -265,7 +277,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			}
 			else
 			{
-				// This is not an error. GetNumSpawnedParticles and GetSpawnedIDAtIndexFunctionName don't use specifiers,
+				// This is not an error. GetNumSpawnedParticles and GetIDAtSpawnIndexFunctionName don't use specifiers,
 				// but they take up slots in the attribute indices array for simplicity. Just stick NAME_None in here to ignore them.
 				AttributeNames[FuncIdx] = NAME_None;
 				AttributeTypes[FuncIdx] = ENiagaraParticleDataValueType::Invalid;
@@ -697,7 +709,7 @@ void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSign
 
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = GetSpawnedIDAtIndexFunctionName;
+		Sig.Name = GetIDAtSpawnIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Spawn Index")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")));
@@ -727,6 +739,12 @@ void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSign
 	GetPersistentIDFunctions(OutFunctions);
 	GetIndexFunctions(OutFunctions);
 
+#if WITH_EDITORONLY_DATA
+	for (FNiagaraFunctionSignature& Function : OutFunctions)
+	{
+		Function.FunctionVersion = FNiagaraParticleReadDIFunctionVersion::LatestVersion;
+	}
+#endif
 }
 
 void UNiagaraDataInterfaceParticleRead::GetPersistentIDFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
@@ -1107,7 +1125,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 		return;
 	}
 
-	if (BindingInfo.Name == GetSpawnedIDAtIndexFunctionName)
+	if (BindingInfo.Name == GetIDAtSpawnIndexFunctionName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetSpawnedIDAtIndex)::Bind(this, OutFunc);
 		return;
@@ -1877,7 +1895,7 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 		return true;
 	}
 	
-	if (FunctionInfo.DefinitionName == GetSpawnedIDAtIndexFunctionName)
+	if (FunctionInfo.DefinitionName == GetIDAtSpawnIndexFunctionName)
 	{
 		static const TCHAR* FuncTemplate = TEXT(
 			"void {FunctionName}(int In_SpawnIndex, out bool Out_Valid, out NiagaraID Out_ID)\n"
@@ -2065,6 +2083,45 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 		RTData->SourceEmitterName = PIData->EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName();
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+
+bool UNiagaraDataInterfaceParticleRead::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	// Early out for version matching
+	if (FunctionSignature.FunctionVersion == FNiagaraParticleReadDIFunctionVersion::LatestVersion)
+	{
+		return bWasChanged;
+	}
+
+	// Renamed some functions
+	if (FunctionSignature.FunctionVersion < FNiagaraParticleReadDIFunctionVersion::RenamedSpawnIndex)
+	{
+		static const TPair<FName, FName> FunctionRenames[] =
+		{
+			MakeTuple(FName("Get Spawned ID At Index"), GetIDAtSpawnIndexFunctionName),
+		};
+
+		for (const auto& RenamePair : FunctionRenames)
+		{
+			if (FunctionSignature.Name == RenamePair.Key)
+			{
+				FunctionSignature.Name = RenamePair.Value;
+				bWasChanged = true;
+				break;
+			}
+		}
+	}
+
+	// Set latest version
+	FunctionSignature.FunctionVersion = FNiagaraParticleReadDIFunctionVersion::LatestVersion;
+
+	return bWasChanged;
+}
+
+#endif
 
 #if WITH_EDITOR	
 

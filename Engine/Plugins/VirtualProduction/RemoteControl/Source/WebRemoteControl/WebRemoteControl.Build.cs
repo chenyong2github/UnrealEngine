@@ -19,6 +19,7 @@ public class WebRemoteControl : ModuleRules
 				"HTTPServer",
 				"RemoteControl",
 				"Serialization",
+				"Sockets",
 				"WebSocketNetworking"
 			}
         );
@@ -27,8 +28,11 @@ public class WebRemoteControl : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"ImageWrapper",
 					"Settings",
-					"UnrealEd"
+					"Slate",
+					"SlateCore",
+					"UnrealEd",
 				}
 			);
 		}

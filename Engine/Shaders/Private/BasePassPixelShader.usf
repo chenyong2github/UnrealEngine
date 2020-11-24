@@ -1368,7 +1368,8 @@ void FPixelShaderInOut_MainPS(
 
 	half3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 
-#if USE_DEVELOPMENT_SHADERS
+	// The following block is disabled on Vulkan because it triggers an nvidia driver bug (UE-101609).
+#if USE_DEVELOPMENT_SHADERS && !VULKAN_PROFILE_SM5
 	// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 	#if METAL_SM5_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_SM5_NOTESS_PROFILE || VULKAN_PROFILE_SM5
 		BRANCH

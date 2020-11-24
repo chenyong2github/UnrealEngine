@@ -959,6 +959,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
 	void RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName);
 
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	void RemoveAllCustomAttributesForBone(const FName& BoneName);
+
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	void RemoveAllCustomAttributes();
+
 	void GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const;
 #endif // WITH_EDITOR
 
@@ -981,7 +987,7 @@ protected:
 			return Attribute.Name == AttributeName;
 		});
 
-		if (ensure(!bAlreadyExists))
+		if (!bAlreadyExists)
 		{
 			FCustomAttribute& NewAttribute = PerBoneData.Attributes.AddDefaulted_GetRef();
 			NewAttribute.Name = AttributeName;
@@ -993,10 +999,14 @@ protected:
 			{
 				NewAttribute.Values.Add(FVariant(Value));
 			}
+			
+			// Update the Guid used to keep track of raw / baked versions
+			CustomAttributesGuid = FGuid::NewGuid();
 		}
-
-		// Update the Guid used to keep track of raw / baked versions
-		CustomAttributesGuid = FGuid::NewGuid();
+		else
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("Unable to add Custom Attribute %s to bone %s as it already exist."), *AttributeName.ToString(), *BoneName.ToString());
+		}
 	}
 	
 	void SynchronousCustomAttributesCompression();

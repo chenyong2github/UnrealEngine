@@ -39,7 +39,8 @@
 	EnumMacro(PFN_vkGetRefreshCycleDurationGOOGLE, vkGetRefreshCycleDurationGOOGLE) \
 	EnumMacro(PFN_vkGetPastPresentationTimingGOOGLE, vkGetPastPresentationTimingGOOGLE) \
 	EnumMacro(PFN_vkGetPhysicalDeviceProperties2KHR, vkGetPhysicalDeviceProperties2KHR) \
-	EnumMacro(PFN_vkGetPhysicalDeviceFeatures2KHR, vkGetPhysicalDeviceFeatures2KHR)
+	EnumMacro(PFN_vkGetPhysicalDeviceFeatures2KHR, vkGetPhysicalDeviceFeatures2KHR) \
+	EnumMacro(PFN_vkGetPhysicalDeviceMemoryProperties2, vkGetPhysicalDeviceMemoryProperties2)
 
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
@@ -86,6 +87,8 @@ public:
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
 	static bool SupportsTimestampRenderQueries();
+
+	static bool SupportsDynamicResolution() { return SupportsTimestampRenderQueries(); }
 
 	static bool RequiresMobileRenderer()
 	{

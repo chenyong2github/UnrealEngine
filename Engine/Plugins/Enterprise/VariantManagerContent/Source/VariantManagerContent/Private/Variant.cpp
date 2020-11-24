@@ -359,7 +359,9 @@ void UVariant::SetThumbnailInternal(UTexture2D* NewThumbnail)
 
 	if (NewThumbnail)
 	{
+		// This variant will now fully own this texture. It cannot be standalone or else we won't be able to delete it
 		NewThumbnail->Rename(nullptr, this);
+		NewThumbnail->ClearFlags( RF_Transient | RF_Standalone );
 	}
 
 	UVariant::OnThumbnailUpdated.Broadcast(this);

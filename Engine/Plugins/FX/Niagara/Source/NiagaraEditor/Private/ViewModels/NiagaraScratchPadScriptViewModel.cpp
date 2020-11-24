@@ -109,7 +109,7 @@ void FNiagaraScratchPadScriptViewModel::SetIsPendingRename(bool bInIsPendingRena
 
 void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 {
-	FString NewName = ObjectTools::SanitizeObjectName(InScriptName.ToString());
+	FString NewName = FNiagaraUtilities::SanitizeNameForObjectsAndPackages(InScriptName.ToString());
 	if (OriginalScript->GetName() != NewName)
 	{
 		FScopedTransaction RenameTransaction(LOCTEXT("RenameScriptTransaction", "Rename scratch pad script."));
@@ -194,7 +194,10 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	for (UNiagaraStackFunctionInputCollection* InputCollectionToRefresh : InputCollectionsToRefresh)
 	{
 		InputCollectionToRefresh->RefreshChildren();
+		InputCollectionToRefresh->ApplyModuleChanges();
 	}
+
+	OnChangesAppliedDelegate.Broadcast();
 }
 
 void FNiagaraScratchPadScriptViewModel::DiscardChanges()
@@ -210,6 +213,11 @@ FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel
 FNiagaraScratchPadScriptViewModel::FOnPinnedChanged& FNiagaraScratchPadScriptViewModel::OnPinnedChanged()
 {
 	return OnPinnedChangedDelegate;
+}
+
+FNiagaraScratchPadScriptViewModel::FOnChangesApplied& FNiagaraScratchPadScriptViewModel::OnChangesApplied()
+{
+	return OnChangesAppliedDelegate;
 }
 
 FSimpleDelegate& FNiagaraScratchPadScriptViewModel::OnRequestDiscardChanges()

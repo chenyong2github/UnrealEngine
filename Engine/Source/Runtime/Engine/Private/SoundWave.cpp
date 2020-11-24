@@ -245,6 +245,9 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 	RunningPlatformData = nullptr;
+
+	OwnedBulkDataPtr = nullptr;
+	ResourceData = nullptr;
 #endif
 }
 
@@ -1273,8 +1276,16 @@ void USoundWave::InitAudioResource(FByteBulkData& CompressedData)
 			check(!ResourceData);
 			CompressedData.GetCopy((void**)&ResourceData, true);
 #else
-			check(!OwnedBulkDataPtr);
-			OwnedBulkDataPtr = CompressedData.StealFileMapping();
+			if (!OwnedBulkDataPtr)
+			{
+				OwnedBulkDataPtr = CompressedData.StealFileMapping();
+			}
+			else
+			{
+				UE_LOG(LogAudio, Display, TEXT("Soundwave '%s' Has already had InitAudioResource() called, and taken ownership of it's compressed data.")
+					, *GetFullName());
+			}
+
 			ResourceData = (const uint8*)OwnedBulkDataPtr->GetPointer();
 			if (!ResourceData)
 			{
@@ -1758,9 +1769,10 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	static const FName CompressionQualityFName = FName(TEXT("CompressionQuality"));
-	static FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
-	static FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
+	static const FName CompressionQualityFName = GET_MEMBER_NAME_CHECKED(USoundWave, CompressionQuality);
+	static const FName SampleRateFName = GET_MEMBER_NAME_CHECKED(USoundWave,SampleRateQuality);
+	static const FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
+	static const FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
 
 	// Prevent constant re-compression of SoundWave while properties are being changed interactively
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
@@ -1769,7 +1781,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
-			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
+			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SeekableStreamingFName)
 			{
 				InvalidateCompressedData();
 				FreeResources();
@@ -2673,35 +2685,33 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 				return true;
 			}
 		}
-		else
+
+		// Need to check initial wrap-around case (i.e. we're reading earlier than first data point so need to lerp from last data point to first
+		if (InTime >= 0.0f && InTime < CookedEnvelopeTimeData[0].TimeSec)
 		{
-			// Need to check initial wrap-around case (i.e. we're reading earlier than first data point so need to lerp from last data point to first
-			if (InTime >= 0.0f && InTime < CookedEnvelopeTimeData[0].TimeSec)
-			{
-				const FSoundWaveEnvelopeTimeData& CurrentData = CookedEnvelopeTimeData.Last();
-				const FSoundWaveEnvelopeTimeData& NextData = CookedEnvelopeTimeData[0];
+			const FSoundWaveEnvelopeTimeData& CurrentData = CookedEnvelopeTimeData.Last();
+			const FSoundWaveEnvelopeTimeData& NextData = CookedEnvelopeTimeData[0];
 
-				float TimeLeftFromLastDataToEnd = Duration - CurrentData.TimeSec;
-				float Alpha = (TimeLeftFromLastDataToEnd + InTime) / (TimeLeftFromLastDataToEnd + NextData.TimeSec);
+			float TimeLeftFromLastDataToEnd = Duration - CurrentData.TimeSec;
+			float Alpha = (TimeLeftFromLastDataToEnd + InTime) / (TimeLeftFromLastDataToEnd + NextData.TimeSec);
 
-				OutAmplitude = FMath::Lerp(CurrentData.Amplitude, NextData.Amplitude, Alpha);
-				InOutLastIndex = 0;
-				return true;
-			}
-			// Or we've been offset a bit in the negative.
-			else if (InTime < 0.0f)
-			{
-				// Wrap the time to the end of the sound wave file
-				InTime = FMath::Clamp(Duration + InTime, 0.0f, Duration);
-			}
+			OutAmplitude = FMath::Lerp(CurrentData.Amplitude, NextData.Amplitude, Alpha);
+			InOutLastIndex = 0;
+			return true;
+		}
+		// Or we've been offset a bit in the negative.
+		else if (InTime < 0.0f)
+		{
+			// Wrap the time to the end of the sound wave file
+			InTime = FMath::Clamp(Duration + InTime, 0.0f, Duration);
+		}
 
-			uint32 StartingIndex = InOutLastIndex == INDEX_NONE ? 0 : InOutLastIndex;
+		uint32 StartingIndex = InOutLastIndex == INDEX_NONE ? 0 : InOutLastIndex;
 
-			InOutLastIndex = GetInterpolatedCookedEnvelopeDataForTimeInternal(InTime, StartingIndex, OutAmplitude, bLoop);
-			if (InOutLastIndex == INDEX_NONE && StartingIndex != 0)
-			{
-				InOutLastIndex = GetInterpolatedCookedEnvelopeDataForTimeInternal(InTime, 0, OutAmplitude, bLoop);
-			}
+		InOutLastIndex = GetInterpolatedCookedEnvelopeDataForTimeInternal(InTime, StartingIndex, OutAmplitude, bLoop);
+		if (InOutLastIndex == INDEX_NONE && StartingIndex != 0)
+		{
+			InOutLastIndex = GetInterpolatedCookedEnvelopeDataForTimeInternal(InTime, 0, OutAmplitude, bLoop);
 		}
 	}
 	return InOutLastIndex != INDEX_NONE;

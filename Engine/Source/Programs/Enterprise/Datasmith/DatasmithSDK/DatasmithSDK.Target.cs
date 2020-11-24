@@ -58,6 +58,11 @@ public class DatasmithSDKTarget : TargetRules
 		);
 
 		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\Datasmith\DirectLink\Public\*.h",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\"
+		);
+
+		PostBuildCopy(
 			@"$(EngineDir)\Source\Developer\Datasmith\DatasmithExporter\Public\*.h",
 			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\"
 		);

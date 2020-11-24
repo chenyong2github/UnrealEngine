@@ -143,6 +143,10 @@ void UVCamOutputProviderBase::CreateUMG()
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
+#if WITH_EDITOR
+	UMGWidget->SetAllTargetViewports(GetTargetLevelViewport());
+#endif
+
 	UMGWidget->WidgetClass = UMGClass;
 	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
 }
@@ -191,11 +195,16 @@ void UVCamOutputProviderBase::DestroyUMG()
 		if (UMGWidget->IsDisplayed())
 		{
 			UMGWidget->Hide();
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget hidden"));
+			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s hidden"), *UMGWidget->GetName());
 		}
+		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s destroyed"), *UMGWidget->GetName());
+
+#if WITH_EDITOR
+		UMGWidget->ResetAllTargetViewports();
+#endif
+
 		UMGWidget->ConditionalBeginDestroy();
 		UMGWidget = nullptr;
-		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget destroyed"));
 	}
 }
 
@@ -219,15 +228,18 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 
 UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
 {
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	if (Index > INDEX_NONE)
 	{
-		if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
 		{
-			return Provider;
-		}
-		else
-		{
-			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+			{
+				return Provider;
+			}
+			else
+			{
+				UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+			}
 		}
 	}
 
@@ -270,6 +282,18 @@ FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClien
 	}
 
 	return ViewportClient;
+}
+
+TSharedPtr<SLevelViewport> UVCamOutputProviderBase::GetTargetLevelViewport() const
+{
+	TSharedPtr<SLevelViewport> LevelViewport;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		LevelViewport = OuterComponent->GetTargetLevelViewport();
+	}
+
+	return LevelViewport;
 }
 
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

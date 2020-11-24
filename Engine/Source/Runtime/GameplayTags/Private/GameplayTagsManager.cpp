@@ -777,12 +777,19 @@ void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Conta
 	// Remove all tags from the NamesToRemove set
 	for (FName RemoveName : NamesToRemove)
 	{
-		FGameplayTag OldTag = RequestGameplayTag(RemoveName, false);
-		if (OldTag.IsValid())
+		bool bRemoveByExplicitName = true;
+		// Do not call RequestGameplayTag outside the game thread
+		if (IsInGameThread())
 		{
-			Container.RemoveTag(OldTag);
+			FGameplayTag OldTag = RequestGameplayTag(RemoveName, false);
+			if (OldTag.IsValid())
+			{
+				Container.RemoveTag(OldTag);
+				bRemoveByExplicitName = false;
+			}
 		}
-		else
+		
+		if (bRemoveByExplicitName)
 		{
 			Container.RemoveTagByExplicitName(RemoveName);
 		}

@@ -580,6 +580,13 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 #endif
 
 	GraphBuilder.Execute();
+
+	if (bDeferredShading)
+	{
+		// Release the original reference on the scene render targets
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+		SceneContext.AdjustGBufferRefCount(RHICmdList, -1);
+	}
 }
 
 void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)

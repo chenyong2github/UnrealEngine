@@ -67,6 +67,7 @@ public:
 	virtual void DrawDebug(FCanvas* Canvas) override {}
 	virtual bool ShouldDebugDraw_RenderThread() const override;
 	virtual void DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output) override;
+	virtual void DrawSceneDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth) override;
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
@@ -78,9 +79,7 @@ public:
 	virtual void PreRender(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate) override;
 	virtual void OnDestroy() override; // Called on the gamethread to delete the batcher on the renderthread.
 
-	virtual void Tick(float DeltaTime) override
-	{
-	}
+	virtual void Tick(float DeltaTime) override;
 
 	virtual void PostRenderOpaque(
 		FRHICommandListImmediate& RHICmdList,
@@ -88,6 +87,16 @@ public:
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		bool bAllowGPUParticleUpdate) override;
+
+	/**
+	 * Process and respond to a build up of excessive ticks inside the batcher.
+	 * In the case of the application not having focus the game thread may continue
+	 * to process and send ticks to the render thread but the rendering thread may
+	 * never process them.  The World Manager will ensure this is called once per
+	 * game frame so we have an opportunity to flush the ticks avoiding a stall
+	 * when we gain focus again.
+	 */
+	void ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList);
 
 	/** Processes all pending readbacks */
 	void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion);
@@ -152,7 +161,7 @@ public:
 	void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context);
 #endif
 
-#if WITH_EDITOR
+#if NIAGARA_COMPUTEDEBUG_ENABLED
 	/** Get the Gpu Compute Debug class, useful for visualizing textures, etc. */
 	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
 #endif
@@ -175,6 +184,8 @@ private:
 		FDispatchInstanceList DispatchInstances;
 		FNiagaraTransitionList TransitionsBefore;
 		FNiagaraTransitionList TransitionsAfter;
+		TArray<uint32, TMemStackAllocator<>> InstancesWithPersistentIDUpdates;
+		TArray<FNiagaraComputeInstanceData*, TMemStackAllocator<>> InstancesWithFreeIDUpdates;
 	};
 	using FDispatchGroupList = TArray<FDispatchGroup, TMemStackAllocator<>>;
 
@@ -221,9 +232,9 @@ private:
 	bool UseOverlapCompute();
 	void FinishDispatches();
 	void ReleaseTicks();
-	void ResizeFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
-	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
+	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
+	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, TArrayView<FNiagaraComputeInstanceData*> Instances);
 
 	void SetConstantBuffers(FRHICommandList &RHICmdList, const FNiagaraShaderRef& Shader, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance);
 	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick) const;
@@ -251,8 +262,7 @@ private:
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> OwnerCBufferLayout;
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
-	// @todo REMOVE THIS HACK
-	uint32 LastFrameThatDrainedData;
+	uint32 FramesBeforeTickFlush = 0;
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
@@ -292,12 +302,14 @@ private:
 	uint32 NumTicksThatRequireDepthBuffer = 0;
 	uint32 NumTicksThatRequireEarlyViewData = 0;
 
+	int32 TotalDispatchesThisFrame = 0;
+
 	TArray<FNiagaraComputeSharedContext*> ContextsPerStage[(int)ETickStage::Max];
 	TArray<FNiagaraGPUSystemTick*> TicksPerStage[(int)ETickStage::Max];
 
 	TArray<uint32> CountsToRelease[(int)ETickStage::Max];
 
-#if WITH_EDITOR
+#if NIAGARA_COMPUTEDEBUG_ENABLED
 	TUniquePtr<FNiagaraGpuComputeDebug> GpuComputeDebugPtr;
 #endif
 #if WITH_EDITORONLY_DATA

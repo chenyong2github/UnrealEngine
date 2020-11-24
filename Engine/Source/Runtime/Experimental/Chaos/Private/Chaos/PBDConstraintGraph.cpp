@@ -755,20 +755,24 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 }
 
 
-void FPBDConstraintGraph::WakeIsland(const int32 Island)
+void FPBDConstraintGraph::WakeIsland(TPBDRigidsSOAs<FReal, 3>& Particles, const int32 Island)
 {
-	for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
+	if (Island < IslandToParticles.Num())
 	{
-		TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-		if(PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
+		for (TGeometryParticleHandle<FReal, 3> * Particle : IslandToParticles[Island])
 		{
-			if (PBDRigid->Sleeping())
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
+			if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 			{
-				PBDRigid->SetSleeping(false);
+				if (PBDRigid->Sleeping())
+				{
+					PBDRigid->SetSleeping(false);
+					Particles.EnableParticle(Particle);
+				}
 			}
 		}
+		IslandToSleepCount[Island] = 0;
 	}
-	IslandToSleepCount[Island] = 0;
 }
 
 

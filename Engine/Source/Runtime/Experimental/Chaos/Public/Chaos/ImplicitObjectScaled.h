@@ -262,6 +262,7 @@ public:
 		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
 		this->bDoCollide = Other.MObject->GetDoCollide();
+		SetMargin(Other.GetMargin());
 	}
 	~TImplicitObjectScaled() {}
 
@@ -436,6 +437,55 @@ public:
 		TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 		return MObject->OverlapGeom(ScaledB, BToATMNoScale, OuterMargin + Thickness, OutMTD, MScale);
 	}
+
+	// Get the index of the plane that most opposes the normal
+	int32 GetMostOpposingPlane(const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(GetInverseScaledNormal(Normal));
+	}
+
+	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
+	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(VertexIndex, GetInverseScaledNormal(Normal));
+	}
+
+	// Get the set of planes that pass through the specified vertex
+	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+	{
+		return MObject->GetVertexPlanes(VertexIndex);
+	}
+
+	// Get the list of vertices that form the boundary of the specified face
+	TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+	{
+		return MObject->GetPlaneVertices(FaceIndex);
+	}
+
+	int32 NumPlanes() const
+	{
+		return MObject->NumPlanes();
+	}
+
+	int32 NumVertices() const
+	{
+		return MObject->NumVertices();
+	}
+
+	// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+	{
+		const TPlaneConcrete<FReal, 3> InnerPlane = MObject->GetPlane(FaceIndex);
+		return TPlaneConcrete<FReal, 3>(MScale * InnerPlane.X(), GetScaledNormal(InnerPlane.Normal()));
+	}
+
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+	const FVec3 GetVertex(int32 VertexIndex) const
+	{
+		const FVec3 InnerVertex = MObject->GetVertex(VertexIndex);
+		return MScale * InnerVertex;
+	}
+
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
 	{
@@ -637,6 +687,30 @@ private:
 	static TImplicitObjectScaled<TConcrete, false>* CopyHelper(const TImplicitObjectScaled<TConcrete, false>* Obj)
 	{
 		return new TImplicitObjectScaled<TConcrete, false>(Obj->MObject->Copy(), Obj->MScale, Obj->OuterMargin);
+	}
+
+	// Convert a normal in the scaled object space into a normal in the inner object space.
+	FVec3 GetInverseScaledNormal(const TVector<T, d>& OuterNormal) const
+	{
+		const TVector<T, d> UnscaledDirDenorm = MInvScale * OuterNormal;
+		const float LengthScale = UnscaledDirDenorm.Size();
+		const TVector<T, d> UnscaledDir
+			= ensure(LengthScale > TNumericLimits<T>::Min())
+			? UnscaledDirDenorm / LengthScale
+			: TVector<T, d>(0.f, 0.f, 1.f);
+		return UnscaledDir;
+	}
+
+	// Convert a normal in the inner object space (unscaled) into a normal in the outer scaled object space
+	FVec3 GetScaledNormal(const TVector<T, d>& InnerNormal) const
+	{
+		const TVector<T, d> ScaledDirDenorm = MScale * InnerNormal;
+		const float LengthScale = ScaledDirDenorm.Size();
+		const TVector<T, d> ScaledDir
+			= ensure(LengthScale > TNumericLimits<T>::Min())
+			? ScaledDirDenorm / LengthScale
+			: TVector<T, d>(0.f, 0.f, 1.f);
+		return ScaledDir;
 	}
 
 	void UpdateBounds()

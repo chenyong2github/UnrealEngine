@@ -5,6 +5,45 @@
 #include "HairShadingCommon.ush"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Transmittance functions
+
+struct FHairTransmittanceData
+{
+	bool bUseLegacyAbsorption;
+	bool bUseSeparableR;
+	bool bUseBacklit;
+
+	float  OpaqueVisibility;
+	float3 LocalScattering;
+	float3 GlobalScattering;
+
+	uint ScatteringComponent;
+};
+
+FHairTransmittanceData InitHairTransmittanceData(bool bMultipleScatterEnable = true)
+{
+	FHairTransmittanceData o;
+	o.bUseLegacyAbsorption = true;
+	o.bUseSeparableR = true;
+	o.bUseBacklit = false;
+
+	o.OpaqueVisibility = 1;
+	o.LocalScattering = 0;
+	o.GlobalScattering = 1;
+	o.ScatteringComponent = HAIR_COMPONENT_R | HAIR_COMPONENT_TT | HAIR_COMPONENT_TRT | (bMultipleScatterEnable ? HAIR_COMPONENT_MULTISCATTER : 0);
+
+	return o;
+}
+
+FHairTransmittanceData InitHairStrandsTransmittanceData(bool bMultipleScatterEnable = false)
+{
+	FHairTransmittanceData o = InitHairTransmittanceData(bMultipleScatterEnable);
+	o.bUseLegacyAbsorption = false;
+	o.bUseBacklit = true;
+	return o;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Utility functions
 
 float Hair_g(float B, float Theta)
@@ -276,7 +315,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	float ClampedRoughness = clamp(GBuffer.Roughness, 1/255.0f, 1.0f);
 
 	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
-	const float Backlit	= min(InBacklit, HairTransmittance.bUseLegacyAbsorption ? 1 : GBuffer.CustomData.z);
+	const float Backlit	= min(InBacklit, HairTransmittance.bUseBacklit ? GBuffer.CustomData.z : 1);
 
 #if HAIR_REFERENCE
 	// todo: ClampedRoughness is missing for this code path
@@ -396,16 +435,5 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 
 	S = -min(-S, 0.0);
 	return S;
-}
-
-FDirectLighting HairBxDF(FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow)
-{
-	const float3 BsdfValue = HairShading(GBuffer, L, V, N, Shadow.TransmissionShadow, Shadow.HairTransmittance, 1, 0, uint2(0, 0));
-
-	FDirectLighting Lighting;
-	Lighting.Diffuse = 0;
-	Lighting.Specular = 0;
-	Lighting.Transmission = AreaLight.FalloffColor * Falloff * BsdfValue;
-	return Lighting;
 }
 

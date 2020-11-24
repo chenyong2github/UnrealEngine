@@ -23,6 +23,7 @@
 #include "BoundShaderStateCache.h"
 #include "RenderResource.h"
 #include "OpenGLShaderResources.h"
+#include "PsoLruCache.h"
 
 class FOpenGLDynamicRHI;
 class FOpenGLLinkedProgram;
@@ -97,6 +98,8 @@ if (!(x)) \
 #define GLAF_CHECK(x) 
 
 #endif
+
+#define GLDEBUG_LABELS_ENABLED (!UE_BUILD_SHIPPING)
 
 class FOpenGLRHIThreadResourceFence
 {
@@ -1237,18 +1240,153 @@ inline GLenum GetOpenGLTargetFromRHITexture(FRHITexture* Texture)
 	}
 }
 
+class OPENGLDRV_API FTextureEvictionInterface
+{
+public:
+	virtual bool CanCreateAsEvicted() = 0;
+	virtual void RestoreEvictedGLResource(bool bAttemptToRetainMips) = 0;
+	virtual bool CanBeEvicted() = 0;
+	virtual void TryEvictGLResource() = 0;
+};
 
-class OPENGLDRV_API FOpenGLTextureBase
+class FTextureEvictionLRU
+{
+private:
+	typedef TPsoLruCache<class FOpenGLTextureBase*, class FOpenGLTextureBase*> FOpenGLTextureLRUContainer;
+	FCriticalSection TextureLRULock;
+
+	static FORCEINLINE_DEBUGGABLE FOpenGLTextureLRUContainer& GetLRUContainer()
+	{
+		const int32 MaxNumLRUs = 10000;
+		static FOpenGLTextureLRUContainer TextureLRU(MaxNumLRUs);
+		return TextureLRU;
+	}
+
+public:
+
+	static FORCEINLINE_DEBUGGABLE FTextureEvictionLRU& Get()
+	{
+		static FTextureEvictionLRU Lru;
+		return Lru;
+	}
+	uint32 Num() const { return GetLRUContainer().Num(); }
+
+	void Remove(class FOpenGLTextureBase* TextureBase);
+	bool Add(class FOpenGLTextureBase* TextureBase);
+	void Touch(class FOpenGLTextureBase* TextureBase);
+	void TickEviction();
+	class FOpenGLTextureBase* GetLeastRecent();
+};
+class FTextureEvictionParams
+{
+public:
+	FTextureEvictionParams(uint32 NumMips);
+	~FTextureEvictionParams();
+	TArray<TArray<uint8>> MipImageData;
+
+ 	uint32 bHasRestored : 1;	
+	FSetElementId LRUNode;
+	uint32 FrameLastRendered;
+
+#if GLDEBUG_LABELS_ENABLED
+	FAnsiCharArray TextureDebugName;
+	void SetDebugLabelName(const FAnsiCharArray& TextureDebugNameIn) { TextureDebugName = TextureDebugNameIn; }
+	void SetDebugLabelName(const ANSICHAR * TextureDebugNameIn) { TextureDebugName.Append(TextureDebugNameIn, FCStringAnsi::Strlen(TextureDebugNameIn) + 1); }
+	FAnsiCharArray& GetDebugLabelName() { return TextureDebugName; }
+#else
+	void SetDebugLabelName(FAnsiCharArray TextureDebugNameIn) { checkNoEntry(); }
+	FAnsiCharArray& GetDebugLabelName() { checkNoEntry(); static FAnsiCharArray Dummy;  return Dummy; }
+#endif
+
+	void SetMipData(uint32 MipIndex, const void* Data, uint32 Bytes);
+	void ReleaseMipData(uint32 RetainMips);
+
+	void CloneMipData(const FTextureEvictionParams& Src, uint32 NumMips, int32 SrcOffset, int DstOffset);
+
+	uint32 GetTotalAllocated() const {
+		uint32 TotalAllocated = 0;
+		for (const auto& MipData : MipImageData)
+		{
+			TotalAllocated += MipData.Num();
+		}
+		return TotalAllocated;
+	}
+
+	bool AreAllMipsPresent() const {
+		bool bRet = MipImageData.Num() > 0;
+		for (const auto& MipData : MipImageData)
+		{
+			bRet = bRet && MipData.Num() > 0;
+		}
+		return bRet;
+	}
+};
+
+extern uint32 GTotalMipRestores;
+class OPENGLDRV_API FOpenGLTextureBase : public FTextureEvictionInterface
 {
 protected:
-	class FOpenGLDynamicRHI* OpenGLRHI;
+	// storing this as static as we can be in the >10,000s instances range.
+	static class FOpenGLDynamicRHI* OpenGLRHI;
 
 public:
 	// Pointer to current sampler state in this unit
 	class FOpenGLSamplerState* SamplerState;
 
+private:
 	/** The OpenGL texture resource. */
 	GLuint Resource;
+
+	void TryRestoreGLResource()
+	{
+		if (EvictionParamsPtr.IsValid() && !EvictionParamsPtr->bHasRestored)
+		{
+			VERIFY_GL_SCOPE();
+			if (!EvictionParamsPtr->bHasRestored)
+			{
+				RestoreEvictedGLResource(true);
+			}
+			else 
+			{
+				check(CanBeEvicted());
+				FTextureEvictionLRU::Get().Touch(this);
+			}
+		}
+	}
+public:
+
+	GLuint GetResource()
+	{
+		TryRestoreGLResource();
+		return Resource;
+	}
+
+	GLuint& GetResourceRef() 
+	{ 
+		VERIFY_GL_SCOPE();
+		TryRestoreGLResource();
+		return Resource;
+	}
+
+	// GetRawResourceName - A const accessor to the resource name, this could potentially be an evicted resource.
+	// It will not trigger the GL resource's creation.
+	GLuint GetRawResourceName() const
+	{
+		return Resource;
+	}
+
+	// GetRawResourceNameRef - A const accessor to the resource name, this could potentially be an evicted resource.
+	// It will not trigger the GL resource's creation.
+	const GLuint& GetRawResourceNameRef() const
+	{
+		return Resource;
+	}
+
+	void SetResource(GLuint InResource)
+	{
+		VERIFY_GL_SCOPE();
+		Resource = InResource;
+	}
 
 	/** The OpenGL texture target. */
 	GLenum Target;
@@ -1270,8 +1408,7 @@ public:
 		uint32 InNumMips,
 		GLenum InAttachment
 		)
-	: OpenGLRHI(InOpenGLRHI)
-	, SamplerState(nullptr)
+	: SamplerState(nullptr)
 	, Resource(InResource)
 	, Target(InTarget)
 	, NumMips(InNumMips)
@@ -1281,7 +1418,22 @@ public:
 	, bIsPowerOfTwo(false)
 	, bIsAliased(false)
 	, bMemorySizeReady(false)
-	{}
+	{
+		check(OpenGLRHI == nullptr || OpenGLRHI == InOpenGLRHI);
+		OpenGLRHI = InOpenGLRHI;
+	}
+
+	virtual ~FOpenGLTextureBase()
+	{
+		FTextureEvictionLRU::Get().Remove(this);
+
+		if (EvictionParamsPtr.IsValid())
+		{
+			RunOnGLRenderContextThread([EvictionParamsPtr = MoveTemp(EvictionParamsPtr)]() {
+				// EvictionParamsPtr is deleted on RHIT after this.
+			});
+		}
+	}
 
 	int32 GetMemorySize() const
 	{
@@ -1321,15 +1473,20 @@ public:
 		return bIsAliased != 0;
 	}
 
-	void AliasResources(FOpenGLTextureBase* Texture)
+	void AliasResources(class FOpenGLTextureBase* Texture)
 	{
+		VERIFY_GL_SCOPE();
+		// restore the source texture, do not allow the texture to become evicted, the aliasing texture cannot re-create the resource.
+		Texture->RestoreEvictedGLResource(false);
 		Resource = Texture->Resource;
 		SRVResource = Texture->SRVResource;
 		bIsAliased = 1;
 	}
 
+	TUniquePtr<FTextureEvictionParams> EvictionParamsPtr;
 	FOpenGLAssertRHIThreadFence CreationFence;
-
+	
+	bool IsEvicted() const { VERIFY_GL_SCOPE(); return EvictionParamsPtr.IsValid() && !EvictionParamsPtr->bHasRestored; }
 private:
 	uint32 MemorySize		: 30;
 	uint32 bIsPowerOfTwo	: 1;
@@ -1377,69 +1534,80 @@ public:
 		SetAllocatedStorage(bInAllocatedStorage);
 	}
 
+private:
+	void DeleteGLResource()
+	{
+		auto DeleteGLResources = [OpenGLRHI = this->OpenGLRHI, Resource = this->GetRawResourceName(), SRVResource = this->SRVResource, Target = this->Target, Flags = this->GetFlags(), Aliased = this->IsAliased()]()
+		{
+			VERIFY_GL_SCOPE();
+			if (Resource != 0)
+			{
+				switch (Target)
+				{
+					case GL_TEXTURE_2D:
+					case GL_TEXTURE_2D_MULTISAMPLE:
+					case GL_TEXTURE_3D:
+					case GL_TEXTURE_CUBE_MAP:
+					case GL_TEXTURE_2D_ARRAY:
+					case GL_TEXTURE_CUBE_MAP_ARRAY:
+	#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+					case GL_TEXTURE_EXTERNAL_OES:
+	#endif
+					{
+						OpenGLRHI->InvalidateTextureResourceInCache(Resource);
+						if (SRVResource)
+						{
+							OpenGLRHI->InvalidateTextureResourceInCache(SRVResource);
+						}
+
+						if (!Aliased)
+						{
+							FOpenGL::DeleteTextures(1, &Resource);
+							if (SRVResource)
+							{
+								FOpenGL::DeleteTextures(1, &SRVResource);
+							}
+						}
+						break;
+					}
+					case GL_RENDERBUFFER:
+					{
+						if (!(Flags & TexCreate_Presentable))
+						{
+							glDeleteRenderbuffers(1, &Resource);
+						}
+						break;
+					}
+					default:
+					{
+						checkNoEntry();
+					}
+				}
+			}
+		};
+
+		RunOnGLRenderContextThread(MoveTemp(DeleteGLResources));
+	}
+
+public:
+
 	virtual ~TOpenGLTexture()
 	{
 		if (GIsRHIInitialized)
 		{
-			if( IsInActualRenderingThread() )
+			if (IsInActualRenderingThread())
 			{
-				CreationFence.WaitFence();
+				this->CreationFence.WaitFence();
 			}
 
-			OpenGLTextureDeleted(this);
-
-			auto DeleteGLResources = [OpenGLRHI= OpenGLRHI, Resource=Resource, SRVResource= SRVResource, Target= Target, Flags= this->GetFlags(), Aliased = this->IsAliased()]()
+			if(!CanCreateAsEvicted())
 			{
-				VERIFY_GL_SCOPE();
-				if (Resource != 0)
-				{
-					switch (Target)
-					{
-						case GL_TEXTURE_2D:
-						case GL_TEXTURE_2D_MULTISAMPLE:
-						case GL_TEXTURE_3D:
-						case GL_TEXTURE_CUBE_MAP:
-						case GL_TEXTURE_2D_ARRAY:
-						case GL_TEXTURE_CUBE_MAP_ARRAY:
-		#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-						case GL_TEXTURE_EXTERNAL_OES:
-		#endif
-						{
-							OpenGLRHI->InvalidateTextureResourceInCache(Resource);
-							if (SRVResource)
-							{
-								OpenGLRHI->InvalidateTextureResourceInCache(SRVResource);
-							}
+				// TODO: this should run on the RHIT now.
+				ReleaseOpenGLFramebuffers(this->OpenGLRHI, this);
+			}
 
-							if (!Aliased)
-							{
-								FOpenGL::DeleteTextures(1, &Resource);
-								if (SRVResource)
-								{
-									FOpenGL::DeleteTextures(1, &SRVResource);
-								}
-							}
-							break;
-						}
-						case GL_RENDERBUFFER:
-						{
-							if (!(Flags & TexCreate_Presentable))
-							{
-								glDeleteRenderbuffers(1, &Resource);
-							}
-							break;
-						}
-						default:
-						{
-							checkNoEntry();
-						}
-					}
-				}
-			};
-
-			RunOnGLRenderContextThread(MoveTemp(DeleteGLResources));
-
-			ReleaseOpenGLFramebuffers(OpenGLRHI, this);
+			DeleteGLResource();
+			OpenGLTextureDeleted(this);
 		}
 	}
 
@@ -1462,12 +1630,6 @@ public:
 	/** Unlocks a previously locked mip-map. */
 	void Unlock(uint32 MipIndex,uint32 ArrayIndex);
 
-	/** Updates the host accessible version of the texture */
-	void UpdateHost(uint32 MipIndex,uint32 ArrayIndex);
-
-	/** Get PBO Resource for readback */
-	GLuint GetBufferResource(uint32 MipIndex,uint32 ArrayIndex);
-
 	// Accessors.
 	bool IsDynamic() const { return (this->GetFlags() & TexCreate_Dynamic) != 0; }
 	bool IsCubemap() const { return bCubemap != 0; }
@@ -1477,7 +1639,8 @@ public:
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */
 	virtual void* GetNativeResource() const override
 	{
-		return const_cast<void *>(reinterpret_cast<const void*>(&Resource));
+		// this must become a full GL resource here, calling the non-const GetResourceRef ensures this.
+		return const_cast<void*>(reinterpret_cast<const void*>(&const_cast<TOpenGLTexture*>(this)->GetResourceRef()));
 	}
 
 	/**
@@ -1513,6 +1676,14 @@ public:
 	 * Resolved the specified face for a read Lock, for non-renderable, CPU readable surfaces this eliminates the readback inside Lock itself.
 	 */
 	void Resolve(uint32 MipIndex,uint32 ArrayIndex);
+
+	/*
+	 * FTextureEvictionInterface
+	 */
+	virtual void RestoreEvictedGLResource(bool bAttemptToRetainMips) override;
+	virtual bool CanCreateAsEvicted() override;
+	virtual bool CanBeEvicted() override;
+	virtual void TryEvictGLResource() override;
 private:
 	TArray< TRefCountPtr<FOpenGLPixelBuffer> > PixelBuffers;
 
@@ -1607,7 +1778,19 @@ public:
 	}
 };
 
-typedef TOpenGLTexture<FRHITexture>						FOpenGLTexture;
+class OPENGLDRV_API FOpenGLBaseTexture : public FRHITexture
+{
+public:
+	FOpenGLBaseTexture(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
+		: FRHITexture(InNumMips, InNumSamples, InFormat, InFlags, NULL, InClearValue)
+	{}
+
+	uint32 GetSizeX() const { return 0; }
+	uint32 GetSizeY() const { return 0; }
+	uint32 GetSizeZ() const { return 0; }
+};
+
+typedef TOpenGLTexture<FOpenGLBaseTexture>				FOpenGLTexture;
 typedef TOpenGLTexture<FOpenGLBaseTexture2D>			FOpenGLTexture2D;
 typedef TOpenGLTexture<FOpenGLBaseTexture2DArray>		FOpenGLTexture2DArray;
 typedef TOpenGLTexture<FOpenGLBaseTexture3D>			FOpenGLTexture3D;

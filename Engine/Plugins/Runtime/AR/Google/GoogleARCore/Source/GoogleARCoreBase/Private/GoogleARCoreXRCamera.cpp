@@ -78,10 +78,21 @@ bool FGoogleARCoreXRCamera::GetPassthroughCameraUVs_RenderThread(TArray<FVector2
 		
 		OutUVs.SetNumUninitialized(4);
 
-		OutUVs[0] = FVector2D(TransformedUVs[0], TransformedUVs[1]);
-		OutUVs[1] = FVector2D(TransformedUVs[2], TransformedUVs[3]);
-		OutUVs[2] = FVector2D(TransformedUVs[4], TransformedUVs[5]);
-		OutUVs[3] = FVector2D(TransformedUVs[6], TransformedUVs[7]);
+		bool bFlipCameraImageVertically = !IsMobileHDR();
+		if (bFlipCameraImageVertically)
+		{
+			OutUVs[1] = FVector2D(TransformedUVs[0], TransformedUVs[1]);
+			OutUVs[0] = FVector2D(TransformedUVs[2], TransformedUVs[3]);
+			OutUVs[3] = FVector2D(TransformedUVs[4], TransformedUVs[5]);
+			OutUVs[2] = FVector2D(TransformedUVs[6], TransformedUVs[7]);
+		}
+		else
+		{
+			OutUVs[0] = FVector2D(TransformedUVs[0], TransformedUVs[1]);
+			OutUVs[1] = FVector2D(TransformedUVs[2], TransformedUVs[3]);
+			OutUVs[2] = FVector2D(TransformedUVs[4], TransformedUVs[5]);
+			OutUVs[3] = FVector2D(TransformedUVs[6], TransformedUVs[7]);
+		}
 		return true;
 	}
 	else

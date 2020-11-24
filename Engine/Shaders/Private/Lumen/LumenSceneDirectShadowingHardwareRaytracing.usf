@@ -163,7 +163,6 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			MaxTraceDistance,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,

@@ -17,6 +17,10 @@
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Editor.h"
+#endif
+
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
@@ -121,6 +125,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bAlreadyBound(false)
 	, bLODDistanceIsValid(false)
 	, bPooled(bInPooled)
+	, bHasSimulationReset(false)
 	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
@@ -151,6 +156,14 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	{
 		TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
+		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraSystemInstance::OnObjectsReplacedCallback);
+	}
+#endif
 }
 
 
@@ -505,7 +518,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 
 void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 {
-#if WITH_EDITOR
+#if NIAGARA_COMPUTEDEBUG_ENABLED
 	UNiagaraSystem* System  = GetSystem();
 	if (Batcher == nullptr || System == nullptr)
 	{
@@ -885,6 +898,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 
 	Age = 0;
 	TickCount = 0;
+	bHasSimulationReset = bResetSimulations;
 	CachedDeltaSeconds = 0.0f;
 	bLODDistanceIsValid = false;
 	TotalGPUParamSize = 0;
@@ -1026,6 +1040,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	Age = 0;
 	TickCount = 0;
+	bHasSimulationReset = true;
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 	bAlreadyBound = false;
@@ -1125,6 +1140,12 @@ FNiagaraSystemInstance::~FNiagaraSystemInstance()
 // #if WITH_EDITOR
 // 	OnDestroyedDelegate.Broadcast();
 // #endif
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
+#endif
 }
 
 void FNiagaraSystemInstance::Cleanup()
@@ -2414,6 +2435,30 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	}
 
 	ComponentRenderPool.PoolsByTemplate = NewRenderPool;
+}
+
+void FNiagaraSystemInstance::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
+{
+	TArray<UObject*> Keys;
+	ReplacementsMap.GetKeys(Keys);
+	
+	FRWScopeLock WriteLock(ComponentPoolLock, SLT_Write);
+	for (UObject* OldObject : Keys)
+	{
+		TObjectKey<USceneComponent> OldObjectKey(Cast<USceneComponent>(OldObject));
+		if (!ComponentRenderPool.PoolsByTemplate.Contains(OldObjectKey))
+		{
+			continue;
+		}
+		for (FNiagaraComponentRenderPoolEntry& PoolEntry : ComponentRenderPool.PoolsByTemplate[OldObjectKey])
+		{
+			if (PoolEntry.Component.IsValid())
+			{
+				PoolEntry.Component->DestroyComponent();
+			}
+		}
+		ComponentRenderPool.PoolsByTemplate.Remove(OldObjectKey);
+	}
 }
 
 void FNiagaraSystemInstance::ResetComponentRenderPool()

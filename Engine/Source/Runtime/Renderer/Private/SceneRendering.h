@@ -969,9 +969,6 @@ struct FPreviousViewInfo
 	// Mobile temporal AA surface.
 	TRefCountPtr<IPooledRenderTarget> MobileAaBloomSunVignette;
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor;
-
-	// Mobile Scene Depth.
-	TRefCountPtr<IPooledRenderTarget> MobileSceneDepthZ;
 };
 
 class FViewCommands
@@ -1296,6 +1293,8 @@ public:
 
 	TRefCountPtr<IPooledRenderTarget> VolumetricCloudSkyAO;
 	TUniformBufferRef<FViewUniformShaderParameters> VolumetricRenderTargetViewUniformBuffer;
+	// The effective cloud shadow target this frame independently of the fact that a view can have a state (primary view) or not (sky light reflection capture)
+	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS];
 
 	/** Used when there is no view state, buffers reallocate every frame. */
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;
@@ -1511,11 +1510,7 @@ public:
 		{
 			return true;
 		}
-		else if (bIsInstancedStereoEnabled && !IStereoRendering::IsASecondaryPass(StereoPass))
-		{
-			return true;
-		}
-		else if (bIsMobileMultiViewEnabled && !IStereoRendering::IsASecondaryPass(StereoPass) && Family && Family->Views.Num() > 1)
+		else if ((bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled) && !IStereoRendering::IsASecondaryPass(StereoPass))
 		{
 			return true;
 		}
@@ -1978,9 +1973,6 @@ protected:
 
 	void OnStartRender(FRHICommandListImmediate& RHICmdList);
 
-	/** Returns the scene color texture multi-view is targeting. */	
-	FRHITexture* GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
-
 	void UpdatePrimitiveIndirectLightingCacheBuffers();
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
@@ -2110,9 +2102,6 @@ protected:
 	/** Creates uniform buffers with the mobile directional light parameters, for each lighting channel. Called by InitViews */
 	void CreateDirectionalLightUniformBuffers(FViewInfo& View);
 
-	/** Copy scene color from the mobile multi-view render target array to side by side stereo scene color */
-	void CopyMobileMultiViewSceneColor(FRHICommandListImmediate& RHICmdList);
-
 	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
 	void PreTonemapMSAA(FRHICommandListImmediate& RHICmdList);
 
@@ -2130,7 +2119,6 @@ protected:
 	void InitAmbientOcclusionOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
 	void RenderAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
 	void RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture);
-	void CacheSceneDepthZ(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& InOutSceneDepthZ);
 	void ReleaseAmbientOcclusionOutputs();
 
 	void InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize);
@@ -2141,6 +2129,9 @@ protected:
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();
 private:
+	const bool bGammaSpace;
+	const bool bDeferredShading;
+	const bool bUseVirtualTexturing;
 	int32 NumMSAASamples;
 	bool bRenderToSceneColor;
 	bool bRequiresMultiPass;

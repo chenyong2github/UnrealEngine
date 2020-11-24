@@ -115,7 +115,7 @@ FReflectionCaptureMapBuildData* UReflectionCaptureComponent::GetMapBuildData() c
 			{
 				FReflectionCaptureMapBuildData* ReflectionBuildData = MapBuildData->GetReflectionCaptureBuildData(MapBuildDataId);
 
-				if (ReflectionBuildData && ReflectionBuildData->CubemapSize == UReflectionCaptureComponent::GetReflectionCaptureSize())
+				if (ReflectionBuildData && (ReflectionBuildData->CubemapSize == UReflectionCaptureComponent::GetReflectionCaptureSize() || ReflectionBuildData->HasBeenUploadedFinal()))
 				{
 					return ReflectionBuildData;
 				}
@@ -730,7 +730,8 @@ UReflectionCaptureComponent::UReflectionCaptureComponent(const FObjectInitialize
 	MaxValueRGBM = 0.0f;
 	// Shouldn't be able to change reflection captures at runtime
 	Mobility = EComponentMobility::Static;
-
+	CachedEncodedHDRCubemap = nullptr;
+	CachedAverageBrightness = 1.0f;
 	bNeedsRecaptureOrUpload = false;
 }
 
@@ -772,15 +773,18 @@ void UReflectionCaptureComponent::OnRegister()
 	{
 		const FReflectionCaptureMapBuildData* MapBuildData = GetMapBuildData();
 
-		if (!EncodedHDRCubemap && MapBuildData)
+		// If the MapBuildData is valid, update it. If it is not we will use the cached values, if there are any
+		if (MapBuildData)
 		{
-			UTextureCube* CubeTest = MapBuildData->EncodedCaptureData;
-			EncodedHDRCubemap = CubeTest == nullptr ? nullptr : CubeTest->CreateResource();
-			if (EncodedHDRCubemap != nullptr)
-			{
-				BeginInitResource(EncodedHDRCubemap);
-			}
+			CachedEncodedHDRCubemap = MapBuildData->EncodedCaptureData;
+			CachedAverageBrightness = MapBuildData->AverageBrightness;
 		}
+	}
+	else
+	{
+		// SM5 doesn't require cached values
+		CachedEncodedHDRCubemap = nullptr;
+		CachedAverageBrightness = 0;
 	}
 
 	Super::OnRegister();
@@ -1004,11 +1008,6 @@ void UReflectionCaptureComponent::BeginDestroy()
 		Scene->ReleaseReflectionCubemap(this);
 	}
 
-	if (EncodedHDRCubemap)
-	{
-		BeginReleaseResource(EncodedHDRCubemap);
-	}
-
 	// Begin a fence to track the progress of the above BeginReleaseResource being completed on the RT
 	ReleaseResourcesFence.BeginFence();
 
@@ -1023,11 +1022,7 @@ bool UReflectionCaptureComponent::IsReadyForFinishDestroy()
 
 void UReflectionCaptureComponent::FinishDestroy()
 {
-	if (EncodedHDRCubemap)
-	{
-		delete EncodedHDRCubemap;
-		EncodedHDRCubemap = NULL;
-	}
+	CachedEncodedHDRCubemap = nullptr;
 
 	Super::FinishDestroy();
 }
@@ -1118,14 +1113,7 @@ void UReflectionCaptureComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type P
 {
 	if (SupportsTextureCubeArray(PendingFeatureLevel))
 	{
-		if (EncodedHDRCubemap)
-		{
-			BeginReleaseResource(EncodedHDRCubemap);
-			FlushRenderingCommands();
-			TemporaryEncodedHDRCapturedData.Empty();
-			delete EncodedHDRCubemap;
-			EncodedHDRCubemap = nullptr;
-		}
+		CachedEncodedHDRCubemap = nullptr;
 
 		MarkDirtyForRecaptureOrUpload();
 	}
@@ -1253,11 +1241,11 @@ FReflectionCaptureProxy::FReflectionCaptureProxy(const UReflectionCaptureCompone
 	Component = InComponent;
 	const FReflectionCaptureMapBuildData* MapBuildData = InComponent->GetMapBuildData();
 
-	EncodedHDRCubemap = Component->EncodedHDRCubemap;
+	EncodedHDRCubemap = Component->CachedEncodedHDRCubemap != nullptr ? Component->CachedEncodedHDRCubemap->Resource: nullptr;
 
 
 	
-	EncodedHDRAverageBrightness = MapBuildData ? MapBuildData->AverageBrightness : 1.0f;
+	EncodedHDRAverageBrightness = Component->CachedAverageBrightness;
 	MaxValueRGBM = Component->MaxValueRGBM;
 	SetTransform(InComponent->GetComponentTransform().ToMatrixWithScale());
 	InfluenceRadius = InComponent->GetInfluenceBoundingRadius();

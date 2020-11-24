@@ -328,15 +328,25 @@ auto Async(EAsyncExecution Execution, CallableType&& Callable, TUniqueFunction<v
 		break;
 
 	case EAsyncExecution::ThreadPool:
+		if (FPlatformProcess::SupportsMultithreading())
 		{
 			GThreadPool->AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)));
+		}
+		else
+		{
+			SetPromise(Promise, Function);
 		}
 		break;
 
 #if WITH_EDITOR
 	case EAsyncExecution::LargeThreadPool:
+		if (FPlatformProcess::SupportsMultithreading())
 		{
 			GLargeThreadPool->AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)));
+		}
+		else
+		{
+			SetPromise(Promise, Function);
 		}
 		break;
 #endif

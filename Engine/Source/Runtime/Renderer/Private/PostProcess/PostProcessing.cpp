@@ -49,6 +49,7 @@
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
+#include "FXSystem.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -1022,6 +1023,13 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
 	}
+	if ( View.Family && View.Family->Scene )
+	{
+		if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())
+		{
+			FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+		}
+	}
 
 	if (PassSequence.IsEnabled(EPass::HighResolutionScreenshotMask))
 	{
@@ -1527,7 +1535,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		}
 
 		AddPostProcessMaterialPass(BL_BeforeTranslucency, false);
-		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
 
 		// Optional fixed pass processes
 		if (PassSequence.IsEnabled(EPass::SunMask))
@@ -1843,6 +1850,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 			AddMobileSeparateTranslucencyPass(GraphBuilder, View, SeparateTranslucencyInputs);
 		}
+
+		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
 	}
 	else
 	{

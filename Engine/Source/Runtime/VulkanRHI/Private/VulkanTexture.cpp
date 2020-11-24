@@ -598,17 +598,16 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 		BufferCreateInfo.usage = BufferMemFlags;
 
 		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &CpuReadbackBuffer->Buffer));
-		VkMemoryRequirements MemReqs;
-		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemReqs);
+		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemoryRequirements);
 		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
-		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
-		if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, Owner, MemReqs, BufferMemFlags, EVulkanAllocationMetaBufferStaging, __FILE__, __LINE__))
+		MemoryRequirements.alignment = FMath::Max<VkDeviceSize>(16, MemoryRequirements.alignment);
+		if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, Owner, MemoryRequirements, BufferMemFlags, EVulkanAllocationMetaBufferStaging, __FILE__, __LINE__))
 		{
 			InDevice.GetMemoryManager().HandleOOM();
 		}
 		Allocation.BindBuffer(Device, CpuReadbackBuffer->Buffer);
 		void* Memory = Allocation.GetMappedPointer(Device);
-		FMemory::Memzero(Memory, MemReqs.size);
+		FMemory::Memzero(Memory, MemoryRequirements.size);
 		return;
 	}
 
@@ -1983,6 +1982,9 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 			SourceRowData += SourceRowPitch;
 		}
 	}
+	uint32 TextureSizeX = FMath::Max(1u, TextureRHI->GetSizeX() >> MipIndex);
+	uint32 TextureSizeY = FMath::Max(1u, TextureRHI->GetSizeY() >> MipIndex);
+	uint32 TextureSizeZ = FMath::Max(1u, TextureRHI->GetSizeZ() >> MipIndex);
 
 	//Region.bufferOffset = 0;
 	// Set these to zero to assume tightly packed buffer
@@ -1995,9 +1997,9 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 	Region.imageOffset.x = UpdateRegion.DestX;
 	Region.imageOffset.y = UpdateRegion.DestY;
 	Region.imageOffset.z = UpdateRegion.DestZ;
-	Region.imageExtent.width = UpdateRegion.Width;
-	Region.imageExtent.height = UpdateRegion.Height;
-	Region.imageExtent.depth = UpdateRegion.Depth;
+	Region.imageExtent.width = (uint32)FMath::Min((int32)(TextureSizeX-UpdateRegion.DestX), (int32)UpdateRegion.Width);
+	Region.imageExtent.height = (uint32)FMath::Min((int32)(TextureSizeY-UpdateRegion.DestY), (int32)UpdateRegion.Height);
+	Region.imageExtent.depth = (uint32)FMath::Min((int32)(TextureSizeZ-UpdateRegion.DestZ), (int32)UpdateRegion.Depth);
 
 	FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (!bFromRenderingThread || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
@@ -2024,12 +2026,13 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ViewInfo.format = Format;
 
 #if VULKAN_SUPPORTS_ASTC_DECODE_MODE
-	VkImageViewASTCDecodeModeEXT decodeMode;
-	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && Format == VK_FORMAT_R8G8B8A8_UNORM)
+	VkImageViewASTCDecodeModeEXT DecodeMode;
+	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && IsAstcLdrFormat(Format) && !IsAstcSrgbFormat(Format))
 	{
-		ZeroVulkanStruct(decodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
-		decodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
-		ViewInfo.pNext = &decodeMode;
+		ZeroVulkanStruct(DecodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+		DecodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
+		DecodeMode.pNext = ViewInfo.pNext;
+		ViewInfo.pNext = &DecodeMode;
 	}
 #endif
 
@@ -2068,6 +2071,7 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 		FMemory::Memzero(&ConversionInfo, sizeof(VkSamplerYcbcrConversionInfo));
 		ConversionInfo.conversion = Device.CreateSamplerColorConversion(ConversionCreateInfo);
 		ConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO;
+		ConversionInfo.pNext = ViewInfo.pNext;
 		ViewInfo.pNext = &ConversionInfo;
 	}
 #endif

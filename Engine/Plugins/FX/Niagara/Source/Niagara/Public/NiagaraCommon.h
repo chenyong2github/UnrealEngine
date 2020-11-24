@@ -24,6 +24,10 @@ struct FNiagaraParameterStore;
 //#define NIAGARA_NAN_CHECKING 1
 #define NIAGARA_NAN_CHECKING 0
 
+#ifndef NIAGARA_COMPUTEDEBUG_ENABLED
+	#define NIAGARA_COMPUTEDEBUG_ENABLED WITH_EDITOR
+#endif
+
 #define INTERPOLATED_PARAMETER_PREFIX TEXT("PREV_")
 
 /** Defines The maximum ThreadGroup size we allow in Niagara.  This is important for how memory is allocated as we always need to round this and the final instance is used to avoid overflowing the buffer. */
@@ -825,9 +829,14 @@ template<typename ElementType> class TSimpleRingBuffer;
 
 struct FStatExecutionTimer
 {
-	TSimpleRingBuffer<float>* CapturedTimings;
-
 	FStatExecutionTimer();
+
+	void AddTiming(float NewTiming);
+	
+	TArray<float> CapturedTimings;
+	
+private:
+	int CurrentIndex = 0;
 };
 
 /** Combines all stat reporting and evaluation of niagara instances (emitter or system).
@@ -1049,9 +1058,15 @@ namespace FNiagaraUtilities
 	}
 
 	// Whether the platform supports GPU particles. A static function that doesn't not rely on any runtime switches.
-	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
+	inline bool SupportsComputeShaders(EShaderPlatform ShaderPlatform)
 	{
 		return RHISupportsComputeShaders(ShaderPlatform);
+	}
+
+	// DEPRECATED, use SupportsComputeShaders instead!
+	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
+	{
+		return SupportsComputeShaders(ShaderPlatform);
 	}
 
 	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.
@@ -1085,6 +1100,8 @@ namespace FNiagaraUtilities
 
 	/** Converts a Niagara format into a ETextureRenderTargetFormat */
 	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+
+	NIAGARA_API FString SanitizeNameForObjectsAndPackages(const FString& InName);
 };
 
 USTRUCT()

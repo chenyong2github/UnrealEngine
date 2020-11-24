@@ -331,7 +331,6 @@ void DeferredLightPixelMain(
 	const float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
 
 	FDeferredLightData LightData = SetupLightDataForStandardDeferred();
-	LightData.HairTransmittance.bUseLegacyAbsorption = false;
 
 	// todo add light culling/early out
 

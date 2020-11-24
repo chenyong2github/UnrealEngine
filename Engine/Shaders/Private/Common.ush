@@ -111,7 +111,8 @@ const static float Max10BitsFloat = 64512.0f;
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
 #endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 
-static float GlobalRayCone_TexArea;
+static float GlobalTextureMipBias = 0;
+static float GlobalRayCone_TexArea = 0;
 float ComputeRayConeLod(Texture2D Tex)
 {
 #if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
@@ -142,7 +143,7 @@ MaterialFloat4 Texture1DSample(Texture1D Tex, SamplerState Sampler, float UV)
 MaterialFloat4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
 {
 #if USE_FORCE_TEXTURE_MIP
-	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex));
+	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + GlobalTextureMipBias);
 #else
 	return Tex.Sample(Sampler, UV);
 #endif
@@ -150,7 +151,7 @@ MaterialFloat4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
 MaterialFloat Texture2DSample_A8(Texture2D Tex, SamplerState Sampler, float2 UV)
 {
 #if USE_FORCE_TEXTURE_MIP
-	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex)) A8_SAMPLE_MASK;
+	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + GlobalTextureMipBias) A8_SAMPLE_MASK;
 #else
 	return Tex.Sample(Sampler, UV) A8_SAMPLE_MASK;
 #endif
@@ -190,7 +191,7 @@ MaterialFloat4 Texture2DSampleLevel(Texture2D Tex, SamplerState Sampler, float2 
 MaterialFloat4 Texture2DSampleBias(Texture2D Tex, SamplerState Sampler, float2 UV, MaterialFloat MipBias)
 {
 #if USE_FORCE_TEXTURE_MIP
-	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + MipBias);
+	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + MipBias + GlobalTextureMipBias);
 #else
 	return Tex.SampleBias(Sampler, UV, MipBias);
 #endif
@@ -241,7 +242,7 @@ MaterialFloat4 TextureExternalSample(TextureExternal Tex, SamplerState Sampler, 
 	#if SUPPORTS_TEXTURE_EXTERNAL
 		return Tex.SampleLevel(Sampler, UV, 0);
 	#else
-		return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex));
+		return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + GlobalTextureMipBias);
 	#endif
 #else
 	return Tex.Sample(Sampler, UV);

@@ -15,6 +15,8 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Chaos/SimCallbackInput.h"
+#include "Chaos/SimCallbackObject.h"
 
 // Currently compilation issue with Incredibuild when including headers required by event template functions
 #define XGE_FIXED 0
@@ -55,6 +57,18 @@ namespace Chaos
 
 	class FPBDRigidDirtyParticlesBufferAccessor;
 }
+
+struct FChaosSceneCallbackInput : public Chaos::FSimCallbackInput
+{
+	Chaos::FVec3 Gravity;
+
+	void Reset() {}
+};
+
+struct FChaosSceneSimCallback : public Chaos::TSimCallbackObject<FChaosSceneCallbackInput>
+{
+	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* Input) override;
+};
 
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
@@ -160,14 +174,13 @@ protected:
 
 private:
 
-	void SetGravity(const Chaos::TVector<float,3>& Acceleration)
-	{
-		// #todo : Implement
-	}
+	void SetGravity(const Chaos::TVector<float, 3>& Acceleration);
 
 	template <typename TSolver>
 	void SyncBodies(TSolver* Solver);
 
 	// Taskgraph control
 	FGraphEventArray CompletionEvents;
+
+	FChaosSceneSimCallback* SimCallback;
 };

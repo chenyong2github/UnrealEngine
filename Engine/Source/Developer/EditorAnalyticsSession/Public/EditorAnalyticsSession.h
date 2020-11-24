@@ -10,7 +10,7 @@
 
 struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 {
-	enum class EEventType
+	enum class EEventType : int32
 	{
 		Crashed = 0,
 		GpuCrashed,
@@ -38,6 +38,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FDateTime StartupTimestamp; // Wall time (UTC) when the session started.
 	FDateTime Timestamp; // Wall time (UTC) when the session was ended.
+	FDateTime LastTickTimestamp; // Wall time (UTC) of the last engine tick recorded for the session.
+	TOptional<FDateTime> DeathTimestamp; // Wall time (UTC) of the Editor death from CRC p.o.v. (when CRC observed the Editor death)
 	volatile int32 SessionDuration = 0; // The session duration in seconds, computed using FPlatformTime::Seconds() rather than Timestamp - StartupTimestamp which can be affected by daylight saving.
 	volatile int32 IdleSeconds = 0; // Can be updated from concurrent threads.
 	volatile int32 Idle1Min = 0;
@@ -48,7 +50,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	TArray<FString> Plugins;
 	float AverageFPS;
 
-	uint64 SessionTickCount = 0; // Number of time the analytic session was ticked. Zero is the interesting value. If the Editor is hang during boot, some users may be prompt to kill it.
+	uint64 SessionTickCount = 0; // Number of times the analytic session was ticked. Zero is the interesting value. If the Editor is hang during boot, some users may be prompt to kill it.
+	uint64 EngineTickCount = 0;  // Number or times the engine was ticked.
 	uint32 UserInteractionCount = 0; // Number of slate user interactions. Zero is the interesting value. If the Editor UI hang at start up, some users may be prompt to kill it.
 
 	FString DesktopGPUAdapter;
@@ -66,6 +69,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	FString CPUVendor;
 	FString CPUBrand;
 
+	FString CommandLine;
 	FString OSMajor;
 	FString OSMinor;
 	FString OSVersion;
@@ -84,6 +88,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsInVRMode : 1;
 	bool bIsLowDriveSpace : 1;
 	bool bIsCrcExeMissing: 1; // CrashReportClient executable is missing? To explain with MonitorProcessID would be zero.
+	bool bIsDebuggerIgnored: 1; // True if GIgnoreDebugger is true.
 
 	FEditorAnalyticsSession();
 
@@ -183,7 +188,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @return true if the exit code is persisted with the session data.
 	 * @node This function should only be called by the out of process monitor when the process exit value is known.
 	 */
-	bool SaveExitCode(int32 ExitCode);
+	bool SaveExitCode(int32 ExitCode, const FDateTime& ApproximativeDeathTimeUtc);
 
 	/**
 	 * Set the exception code that caused the monitor application to crash. When the monitoring application raises

@@ -47,6 +47,7 @@ namespace Chaos
 		ConvexConvex,
 		ConvexTriMesh,
 		ConvexHeightField,
+		GenericConvexConvex,
 		LevelSetLevelSet,
 
 		NumShapesTypes

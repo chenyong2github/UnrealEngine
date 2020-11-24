@@ -339,7 +339,7 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 
 		if (bDoEval)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsBoneEval);
+			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsBoneEval, FAnimPhys::bEnableDetailedStats);
 
 			const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
@@ -774,7 +774,7 @@ void FAnimNode_AnimDynamics::TermPhysics()
 
 void FAnimNode_AnimDynamics::UpdateLimits(FComponentSpacePoseContext& Output)
 {
-	SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsLimitUpdate);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsLimitUpdate, FAnimPhys::bEnableDetailedStats);
 
 	// We're always going to use the same number so don't realloc
 	LinearLimits.Empty(LinearLimits.Num());
@@ -966,7 +966,7 @@ void FAnimNode_AnimDynamics::PreUpdate(const UAnimInstance* InAnimInstance)
 
 	if(CVarEnableWind.GetValueOnAnyThread() == 1 && bEnableWind)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsWindData);
+		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsWindData, FAnimPhys::bEnableDetailedStats);
 
 		for(FAnimPhysRigidBody* Body : BaseBodyPtrs)
 		{
@@ -992,7 +992,7 @@ void FAnimNode_AnimDynamics::PreUpdate(const UAnimInstance* InAnimInstance)
 	}
 	else if (bWindWasEnabled)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsWindData);
+		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsWindData, FAnimPhys::bEnableDetailedStats);
 	
 		bWindWasEnabled = false;
 		for(FAnimPhysRigidBody* Body : BaseBodyPtrs)

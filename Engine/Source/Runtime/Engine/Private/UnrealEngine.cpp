@@ -11760,22 +11760,8 @@ void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
 			NetDriver->Shutdown();
 			NetDriver->LowLevelDestroy();
 			Context.ActiveNetDrivers.RemoveAtSwap(Index);
-
-			// Remove this driver from the main level collection
-			const ELevelCollectionType DriverType = NetDriver->GetDuplicateLevelID() == INDEX_NONE ? ELevelCollectionType::DynamicSourceLevels : ELevelCollectionType::DynamicDuplicatedLevels;
-			FLevelCollection* const LevelCollection = Context.World()->FindCollectionByType(DriverType);
-			if (LevelCollection)
-			{
-				if (LevelCollection->GetNetDriver() == NetDriver)
-				{
-					LevelCollection->SetNetDriver(nullptr);
-				}
-
-				if (LevelCollection->GetDemoNetDriver() == NetDriver)
-				{
-					LevelCollection->SetDemoNetDriver(nullptr);
-				}
-			}
+			
+			Context.World()->ClearNetDriver(NetDriver);
 
 			break;
 		}

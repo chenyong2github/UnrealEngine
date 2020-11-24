@@ -8,9 +8,8 @@
 #include "DataprepCoreUtils.h"
 
 #include "AssetRegistryModule.h"
-#ifdef WITH_EDITOR
+
 #include "Editor.h"
-#endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "DataprepAssetProducers"
 

@@ -11,13 +11,11 @@
 #define SHOW_WIREFRAME_MESH 0
 
 FMeshMaterialRenderItem::FMeshMaterialRenderItem(
-	const FMaterialData* InMaterialSettings,
+	const FIntPoint& InTextureSize,
 	const FMeshData* InMeshSettings,
-	EMaterialProperty InMaterialProperty,
 	FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator)
 	: MeshSettings(InMeshSettings)
-	, MaterialSettings(InMaterialSettings)
-	, MaterialProperty(InMaterialProperty)
+	, TextureSize(InTextureSize)
 	, MaterialRenderProxy(nullptr)
 	, ViewFamily(nullptr)
 	, bMeshElementDirty(true)
@@ -29,7 +27,7 @@ FMeshMaterialRenderItem::FMeshMaterialRenderItem(
 
 bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
-	checkSlow(ViewFamily && MaterialSettings && MeshSettings && MaterialRenderProxy);
+	checkSlow(ViewFamily && MeshSettings && MaterialRenderProxy);
 	// current render target set for the canvas
 	const FRenderTarget* CanvasRenderTarget = Canvas->GetRenderTarget();
 	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
@@ -157,9 +155,8 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 	const float V = MeshSettings->TextureCoordinateBox.Min.Y;
 	const float SizeU = MeshSettings->TextureCoordinateBox.Max.X - MeshSettings->TextureCoordinateBox.Min.X;
 	const float SizeV = MeshSettings->TextureCoordinateBox.Max.Y - MeshSettings->TextureCoordinateBox.Min.Y;
-	const FIntPoint& PropertySize = MaterialSettings->PropertySizes[MaterialProperty];
-	const float ScaleX = PropertySize.X;
-	const float ScaleY = PropertySize.Y;
+	const float ScaleX = TextureSize.X;
+	const float ScaleY = TextureSize.Y;
 
 	// add vertices
 	for (int32 VertIndex = 0; VertIndex < 4; VertIndex++)
@@ -200,9 +197,8 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	Vertices.Empty(NumVerts);
 	Indices.Empty(NumVerts >> 1);
 
-	const FIntPoint& PropertySize = MaterialSettings->PropertySizes[MaterialProperty];
-	const float ScaleX = PropertySize.X;
-	const float ScaleY = PropertySize.Y;
+	const float ScaleX = TextureSize.X;
+	const float ScaleY = TextureSize.Y;
 
 	const static int32 VertexPositionStoredUVChannel = 6;
 	// count number of texture coordinates for this mesh

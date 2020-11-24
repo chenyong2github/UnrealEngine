@@ -411,7 +411,11 @@ namespace Audio
 			}
 		}
 
-		return TUniquePtr<FConvolutionReverb>(new FConvolutionReverb(MoveTemp(ConvolutionAlgorithm), MoveTemp(InputConverter), MoveTemp(OutputConverter), InSettings));
+		// Override IR normalization in settings with InitData normalization
+		FConvolutionReverbSettings UpdatedSettings = InSettings;
+		UpdatedSettings.NormalizationVolume = InInitData.NormalizationVolume;
+
+		return TUniquePtr<FConvolutionReverb>(new FConvolutionReverb(MoveTemp(ConvolutionAlgorithm), MoveTemp(InputConverter), MoveTemp(OutputConverter), UpdatedSettings));
 	}
 
 

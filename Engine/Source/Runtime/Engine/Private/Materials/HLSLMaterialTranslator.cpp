@@ -667,7 +667,9 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			MaterialShadingModels = ShadingModelsFromCompilation;
 		}
-
+		
+		ValidateShadingModelsForFeatureLevel(MaterialShadingModels);
+		
 		if (Domain == MD_Volume || (Domain == MD_Surface && IsSubsurfaceShadingModel(MaterialShadingModels)))
 		{
 			// Note we don't test for the blend mode as you can have a translucent material using the subsurface shading model
@@ -821,6 +823,7 @@ bool FHLSLMaterialTranslator::Translate()
 		bIsFullyRough = Chunk[MP_Roughness] != INDEX_NONE && IsMaterialPropertyUsed(MP_Roughness, Chunk[MP_Roughness], FLinearColor(1, 0, 0, 0), 1) == false;
 
 		bUsesAnisotropy = IsMaterialPropertyUsed(MP_Anisotropy, Chunk[MP_Anisotropy], FLinearColor(0, 0, 0, 0), 1);
+		MaterialCompilationOutput.bUsesAnisotropy = bUsesAnisotropy;
 
 		if (BlendMode == BLEND_Modulate && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
 		{
@@ -1199,6 +1202,31 @@ bool FHLSLMaterialTranslator::Translate()
 	return bSuccess;
 }
 
+void FHLSLMaterialTranslator::ValidateShadingModelsForFeatureLevel(const FMaterialShadingModelField& ShadingModels)
+{
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		const TArray<EMaterialShadingModel>& InvalidShadingModels = { MSM_Hair, MSM_Eye };
+		for (EMaterialShadingModel InvalidShadingModel : InvalidShadingModels)
+		{
+			if (ShadingModels.HasShadingModel(InvalidShadingModel))
+			{
+				FString FeatureLevelName;
+				GetFeatureLevelName(FeatureLevel, FeatureLevelName);
+
+				FString ShadingModelName;
+				const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMaterialShadingModel"), true);
+				if (EnumPtr)
+				{
+					ShadingModelName = EnumPtr->GetNameStringByValue(InvalidShadingModel);
+				}
+
+				Errorf(TEXT("ShadingModel %s not supported in feature level %s"), *ShadingModelName, *FeatureLevelName);
+			}
+		}
+	}
+}
+
 void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment)
 {
 	bool bMaterialRequestsDualSourceBlending = false;
@@ -1307,7 +1335,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_SKY"), Material->IsSky());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_COMPUTE_FOG_PER_PIXEL"), Material->ComputeFogPerPixel());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_FULLY_ROUGH"), bIsFullyRough || Material->IsFullyRough());
-	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy && FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform));
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy);
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
 	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), VTStacks.Num());

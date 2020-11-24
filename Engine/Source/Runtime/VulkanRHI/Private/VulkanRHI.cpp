@@ -730,6 +730,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GMaxShadowDepthBufferSizeY =  FPlatformMath::Min<int32>(Props.limits.maxImageDimension2D, GMaxShadowDepthBufferSizeY);
 		GMaxTextureDimensions = Props.limits.maxImageDimension2D;
 		GMaxBufferDimensions = Props.limits.maxTexelBufferElements;
+		GMaxComputeSharedMemory = Props.limits.maxComputeSharedMemorySize;
 		GMaxTextureMipCount = FPlatformMath::CeilLogTwo( GMaxTextureDimensions ) + 1;
 		GMaxTextureMipCount = FPlatformMath::Min<int32>( MAX_TEXTURE_MIP_COUNT, GMaxTextureMipCount );
 		GMaxCubeTextureDimensions = Props.limits.maxImageDimensionCube;

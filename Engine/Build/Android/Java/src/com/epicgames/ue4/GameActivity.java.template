@@ -1928,8 +1928,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							ArrayList<String> values = ParseSegments(line, ",", "\"", "\"");
 							if (values.size() == 7)
 							{
-								String key = RemoveSurrounds(values.get(0), "\"", "\"");
-								if (hardwareCheck.contains(key.toLowerCase()))
+								String key = RemoveSurrounds(values.get(0), "\"", "\"").toLowerCase();
+								if (key.contains(hardwareCheck) || hardwareCheck.contains(key))
 								{
 									variables.put("useAffinity", RemoveSurrounds(values.get(1), "\"", "\""));
 									variables.put("chipset", RemoveSurrounds(values.get(2), "\"", "\""));

@@ -13,7 +13,7 @@
 #include "Styling/SlateBrush.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
-#include "ComponentTypeRegistry.h"
+#include "Editor.h"
 #endif
 #include "NiagaraSettings.h"
 
@@ -113,15 +113,20 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 	, TemplateComponent(nullptr)
 {
 #if WITH_EDITORONLY_DATA
-	TArray<FComponentClassComboEntryPtr>* ComponentClassList = nullptr;
-	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassList).AddUObject(this, &UNiagaraComponentRendererProperties::UpdateComponentClassList);
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
+	}
 #endif
 }
 
 UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()
 {
 #if WITH_EDITORONLY_DATA
-	FComponentTypeRegistry::Get().GetOnComponentTypeListChanged().RemoveAll(this);
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
 #endif
 }
 
@@ -180,6 +185,73 @@ void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDa
 	UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode::Particles);
 }
 
+void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
+{
+	SetterFunctionMapping.Empty();
+	for (FNiagaraComponentPropertyBinding& PropertyBinding : PropertyBindings)
+	{
+		PropertyBinding.SetterFunction = nullptr;
+		if (!TemplateComponent || SetterFunctionMapping.Contains(PropertyBinding.PropertyName))
+		{
+			continue;
+		}
+		UFunction* SetterFunction = nullptr;
+
+		// we first check if the property has some metadata that explicitly mentions the setter to use
+		if (!PropertyBinding.MetadataSetterName.IsNone())
+		{
+			SetterFunction = TemplateComponent->FindFunction(PropertyBinding.MetadataSetterName);
+		}
+
+		if (!SetterFunction)
+		{
+			// the setter was not specified, so we try to find one that fits the name
+			FString PropertyName = PropertyBinding.PropertyName.ToString();
+			if (PropertyBinding.PropertyType == FNiagaraTypeDefinition::GetBoolDef())
+			{
+				PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
+			}
+			for (const FString& Prefix : FNiagaraRendererComponents::SetterPrefixes)
+			{
+				FName SetterFunctionName = FName(Prefix + PropertyName);
+				SetterFunction = TemplateComponent->FindFunction(SetterFunctionName);
+				if (SetterFunction)
+				{
+					break;
+				}
+			}
+		}
+
+		FNiagaraPropertySetter Setter;
+		Setter.Function = SetterFunction;
+
+		// Okay, so there is a special case where the *property* of an object has one type, but the *setter* has another type
+		// that either doesn't need to be converted (e.g. the color property on a light component) or doesn't fit the converted value.
+		// If we detect such a case we adapt the binding to either ignore the conversion or we discard the setter completely.
+		if (SetterFunction)
+		{
+			for (FProperty* Property = SetterFunction->PropertyLink; Property; Property = Property->PropertyLinkNext)
+			{
+				if (Property->IsInContainer(SetterFunction->ParmsSize) && Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm))
+				{
+					FNiagaraTypeDefinition FieldType = UNiagaraComponentRendererProperties::ToNiagaraType(Property);
+					if (FieldType != PropertyBinding.PropertyType && FieldType == PropertyBinding.AttributeBinding.GetType())
+					{
+						// we can use the original Niagara value with the setter instead of converting it
+						Setter.bIgnoreConversion = true;
+					} else if (FieldType != PropertyBinding.PropertyType)
+					{
+						// setter is completely unusable
+						Setter.Function = nullptr;
+					}
+					break;
+				}
+			}
+		}
+		SetterFunctionMapping.Add(PropertyBinding.PropertyName, Setter);
+	}
+}
+
 void UNiagaraComponentRendererProperties::PostDuplicate(bool bDuplicateForPIE)
 {
 	// sharing the same template component would mean changes in one emitter would be reflected in the other emitter,
@@ -206,6 +278,7 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
+	UpdateSetterFunctions();
 	EmitterPtr = Emitter->GetCachedEmitter();
 
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererComponents(FeatureLevel, this, Emitter);
@@ -225,13 +298,17 @@ void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
 }
 
-void UNiagaraComponentRendererProperties::UpdateComponentClassList()
+void UNiagaraComponentRendererProperties::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
 {
-	// When a custom component class is recompiled in the editor, we need to recreate the template component because it will be nulled from the class purge.
-	// We still lose all the property changes on the template object, but this way we keep the bindings.
-	if (!TemplateComponent && ComponentType && UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
+	// When a custom component class is recompiled in the editor, we need to switch to the new template component object
+	if (TemplateComponent)
 	{
-		CreateTemplateComponent();
+		UObject* const* Replacement = ReplacementsMap.Find(TemplateComponent);
+		if (Replacement)
+		{
+			TemplateComponent = Cast<USceneComponent>(*Replacement);
+			UpdateSetterFunctions();
+		}		
 	}
 }
 

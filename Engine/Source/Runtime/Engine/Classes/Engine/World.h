@@ -3097,6 +3097,9 @@ public:
 	// Remove internal references to pending demo net driver when starting a replay, but do not destroy it
 	void ClearDemoNetDriver();
 
+	// Remove all internal references to this net driver, but do not destroy it. Called by the engine when destroying the driver.
+	void ClearNetDriver(UNetDriver* Driver);
+
 	/** Returns true if we are currently playing a replay */
 	bool IsPlayingReplay() const;
 

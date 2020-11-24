@@ -81,6 +81,11 @@ bool FComponentVisualizerManager::HandleProxyForComponentVis(FEditorViewportClie
 		}
 	}
 
+	// DO NOT call ClearActiveComponentVis() here. If a new actor is being selected, ClearActiveComponentVis() 
+	// will eventually be called by UUnrealEdEngine::NoteSelectionChange().  If it were called here, 
+	// it would be prior to the selection transaction and thus the previous state of the component visualizer 
+	// would not be captured for undo/redo.
+
 	return false;
 }
 

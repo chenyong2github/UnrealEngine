@@ -157,7 +157,16 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 			FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
 			check(CustomPresentHandler);
 
-			MainViewport->GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
+			const FViewportRHIRef& MainViewportRHI = MainViewport->GetViewportRHI();
+
+			if (MainViewportRHI)
+			{
+				MainViewportRHI->SetCustomPresent(CustomPresentHandler);
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterRender, Error, TEXT("PreTick: MainViewport->GetViewportRHI() returned null reference"));
+			}
 		}
 
 		bIsCustomPresentSet = true;

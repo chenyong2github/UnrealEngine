@@ -2,6 +2,7 @@
 
 #include "SOpenColorIODisplay.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "OpenColorIOConfiguration.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SOpenColorIOColorSpacePicker.h"

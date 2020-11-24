@@ -271,14 +271,14 @@ void FOutputDeviceRedirector::EmptyBufferedLines()
  */
 void FOutputDeviceRedirector::FlushThreadedLogs()
 {
-	SCOPE_CYCLE_COUNTER(STAT_FlushThreadedLogs);
+	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FlushThreadedLogs);
 	check(IsInGameThread());
 	InternalFlushThreadedLogs(true);
 }
 
 void FOutputDeviceRedirector::PanicFlushThreadedLogs()
 {
-//	SCOPE_CYCLE_COUNTER(STAT_FlushThreadedLogs);
+	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FlushThreadedLogs);
 
 	TLocalOutputDevicesArray LocalBufferedDevices;
 	TLocalOutputDevicesArray LocalUnbufferedDevices;

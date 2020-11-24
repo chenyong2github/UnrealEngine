@@ -65,6 +65,15 @@ UTextureRenderTarget2D* FWaterUtils::GetOrCreateTransientRenderTarget2D(UTexture
 	NewRenderTarget2D->bAutoGenerateMips = bInAutoGenerateMipMaps;
 	NewRenderTarget2D->InitAutoFormat(InSize.X, InSize.Y);
 	NewRenderTarget2D->UpdateResourceImmediate(true);
+
+	// Flush RHI thread after creating texture render target to make sure that RHIUpdateTextureReference is executed before doing any rendering with it
+	// This makes sure that Value->TextureReference.TextureReferenceRHI->GetReferencedTexture() is valid so that FUniformExpressionSet::FillUniformBuffer properly uses the texture for rendering, instead of using a fallback texture
+	ENQUEUE_RENDER_COMMAND(FlushRHIThreadToUpdateTextureRenderTargetReference)(
+	[](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	});
+
 	return NewRenderTarget2D;
 }
 

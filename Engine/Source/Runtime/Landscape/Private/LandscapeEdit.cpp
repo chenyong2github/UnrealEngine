@@ -3765,38 +3765,65 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 
 void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
 {
-	FVector ModifiedScale = DeltaScale;
-
-	// Lock X and Y scaling to the same value
-	ModifiedScale.X = ModifiedScale.Y = (FMath::Abs(DeltaScale.X) > FMath::Abs(DeltaScale.Y)) ? DeltaScale.X : DeltaScale.Y;
-
-	// Correct for attempts to scale to 0 on any axis
+	FVector ModifiedDeltaScale = DeltaScale;
 	FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
+	
+	// Lock X and Y scaling to the same value :
+	FVector2D XYDeltaScaleAbs(FMath::Abs(DeltaScale.X), FMath::Abs(DeltaScale.Y));
+	// Preserve the sign of the chosen delta :
+	bool bFavorX = (XYDeltaScaleAbs.X > XYDeltaScaleAbs.Y);
+
 	if (AActor::bUsePercentageBasedScaling)
 	{
-		if (ModifiedScale.X == -1)
+		// Correct for attempts to scale to 0 on any axis
+		float XYDeltaScale = bFavorX ? DeltaScale.X : DeltaScale.Y;
+		if (XYDeltaScale == -1.0f)
 		{
-			ModifiedScale.X = ModifiedScale.Y = -(CurrentScale.X - 1) / CurrentScale.X;
+			XYDeltaScale = -(CurrentScale.X - 1) / CurrentScale.X;
 		}
-		if (ModifiedScale.Z == -1)
+		if (ModifiedDeltaScale.Z == -1)
 		{
-			ModifiedScale.Z = -(CurrentScale.Z - 1) / CurrentScale.Z;
+			ModifiedDeltaScale.Z = -(CurrentScale.Z - 1) / CurrentScale.Z;
 		}
+
+		ModifiedDeltaScale.X = ModifiedDeltaScale.Y = XYDeltaScale;
 	}
 	else
 	{
-		if (ModifiedScale.X == -CurrentScale.X)
+		// The absolute value of X and Y must be preserved so make sure they are preserved in case they flip from positive to negative (e.g.: a (-X, X) scale is accepted) : 
+		float SignMultiplier = FMath::Sign(CurrentScale.X) * FMath::Sign(CurrentScale.Y);
+		FVector2D NewScale(FVector2D::ZeroVector);
+		if (bFavorX)
 		{
-			CurrentScale.X += 1;
-			CurrentScale.Y += 1;
+			NewScale.X = CurrentScale.X + DeltaScale.X;
+			if (NewScale.X == 0.0f)
+			{
+				// Correct for attempts to scale to 0 on this axis : doubly-increment the scale to avoid reaching 0 :
+				NewScale.X += DeltaScale.X;
+			}
+			NewScale.Y = SignMultiplier * NewScale.X;
 		}
-		if (ModifiedScale.Z == -CurrentScale.Z)
+		else
 		{
-			CurrentScale.Z += 1;
+			NewScale.Y = CurrentScale.Y + DeltaScale.Y;
+			if (NewScale.Y == 0.0f)
+			{
+				// Correct for attempts to scale to 0 on this axis : doubly-increment the scale to avoid reaching 0 :
+				NewScale.Y += DeltaScale.Y;
+			}
+			NewScale.X = SignMultiplier * NewScale.Y;
+		}
+
+		ModifiedDeltaScale.X = NewScale.X - CurrentScale.X;
+		ModifiedDeltaScale.Y = NewScale.Y - CurrentScale.Y;
+
+		if (ModifiedDeltaScale.Z == -CurrentScale.Z)
+		{
+			ModifiedDeltaScale.Z += 1;
 		}
 	}
 
-	Super::EditorApplyScale(ModifiedScale, PivotLocation, bAltDown, bShiftDown, bCtrlDown);
+	Super::EditorApplyScale(ModifiedDeltaScale, PivotLocation, bAltDown, bShiftDown, bCtrlDown);
 
 	// We need to regenerate collision objects, they depend on scale value 
 	for (ULandscapeHeightfieldCollisionComponent* Comp : CollisionComponents)
@@ -3864,6 +3891,9 @@ void ALandscape::PostEditMove(bool bFinished)
 		}
 	}
 
+	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+	RequestLayersContentUpdate(bFinished ? ELandscapeLayerUpdateMode::Update_All : ELandscapeLayerUpdateMode::Update_All_Editing_NoCollision);
+
 	Super::PostEditMove(bFinished);
 }
 
@@ -3893,6 +3923,9 @@ void ALandscape::PostEditImport()
 		}
 	}
 
+	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+
 	Super::PostEditImport();
 }
 
@@ -3904,6 +3937,9 @@ void ALandscape::PostDuplicate(bool bDuplicateForPIE)
 		LandscapeGuid = FGuid::NewGuid();
 		// This makes sure at least we have a LandscapeInfo mapped for this GUID.
 		CreateLandscapeInfo();
+
+		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
 
 	Super::PostDuplicate(bDuplicateForPIE);
@@ -5029,6 +5065,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			Info->FixupProxiesTransform();
 			bNeedsRecalcBoundingBox = true;
 		}
+
+		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
 	else if (GIsEditor && PropertyName == FName(TEXT("MaxLODLevel")))
 	{
@@ -6311,7 +6350,13 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		UTexture2D* CurrentWeightmapTexture = MobileWeightNormalmapTexture;
 		MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 		int32 CurrentChannel = 0;
-		int32 RemainingChannels = 2;
+
+		// Give normal map a full texture if this doesn't increase the overall allocation count.
+		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
+		int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
+		int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
+		bool bIsolateNormalMap = NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
+		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
 
 		MobileBlendableLayerMask = 0;
 
@@ -6363,19 +6408,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		Texture->PostEditChange();
 
 		// PostEditChange() will assign a random GUID to the texture, which leads to non-deterministic builds.
-		// Compute a 128-bit hash based on the texture name and use that as a GUID to fix this issue.
-		FTCHARToUTF8 Converted(*Texture->GetFullName());
-		FMD5 MD5Gen;
-		MD5Gen.Update((const uint8*)Converted.Get(), Converted.Length());
-		uint32 Digest[4];
-		MD5Gen.Final((uint8*)Digest);
-
-		// FGuid::NewGuid() creates a version 4 UUID (at least on Windows), which will have the top 4 bits of the
-		// second field set to 0100. We'll set the top bit to 1 in the GUID we create, to ensure that we can never
-		// have a collision with textures which use implicitly generated GUIDs.
-		Digest[1] |= 0x80000000;
-		FGuid TextureGUID(Digest[0], Digest[1], Digest[2], Digest[3]);
-		Texture->SetLightingGuid(TextureGUID);
+		Texture->SetDeterministicLightingGuid();
 	}
 	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
@@ -6867,7 +6900,8 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(NumVertices);
 
-	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming);
+	// Can't stream if using hole data since at least mip 0 will have holes and we don't support streaming any other mip if mip 0 isn't streamed.
+	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming) && NumHoleLods == 0;
 	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
 	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
 	TArray<int32> StreamingLODVertStartOffsets;
@@ -6953,9 +6987,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
-		if (StreamingLODIdx >= 0
-			&& (StreamingLODIdx >= NumHoleLods - 1)
-			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
+		if (StreamingLODIdx >= 0 && Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
 		{
 			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
 				FMath::Square(SizeVerts) :

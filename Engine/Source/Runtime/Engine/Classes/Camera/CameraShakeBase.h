@@ -185,6 +185,88 @@ struct ENGINE_API FCameraShakeInfo
 };
 
 /**
+ * Parameter structure for appling scale and playspace to a camera shake result.
+ */
+struct ENGINE_API FCameraShakeApplyResultParams
+{
+	/** The scale to apply to the result */
+	float Scale = 1.f;
+	/** The play space to modify the result by */
+	ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal;
+	/** The custom space to use when PlaySpace is UserDefined */
+	FMatrix UserPlaySpaceMatrix;
+};
+
+/**
+ * Transitive state of a shake or shake pattern.
+ */
+struct ENGINE_API FCameraShakeState
+{
+	FCameraShakeState()
+		: ElapsedTime(0.f)
+		, bIsActive(false)
+		, bHasBlendIn(false)
+		, bHasBlendOut(false)
+	{}
+
+	/**
+	 * Initialize the state with a shake's info.
+	 */
+	void Initialize(const FCameraShakeInfo& InShakeInfo);
+
+	/**
+	 * Updates the state with a delta time.
+	 *
+	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
+	 * do anything and returns 1.
+	 *
+	 * If the state is managed, this updates the internal state of this class and auto-computes when
+	 * the shake has ended, along with a blending weight if there is any blending in/out.
+	 *
+	 * @param DeltaTime The elapsed time since last update
+	 * @return The evaluated blending weight (if any) for the new time
+	 */
+	float Update(float DeltaTime);
+
+	/**
+	 * Marks the shake has having been stopped.
+	 *
+	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
+	 * do anything and returns false.
+	 *
+	 * If the state is managed, this puts the current elapsed time at the end of the shake's duration
+	 * (if we need to stop immediately), or at the start of the shake's blend-out, if any (if we don't
+	 * stop immediately).
+	 */
+	bool Stop(bool bImmediately);
+
+	/** Returns whether the shake is active */
+	bool IsActive() const { return bIsActive; }
+
+	/** Returns the elapsed time of the shake's current run */
+	float GetElapsedTime() const { return ElapsedTime; }
+
+	/** Returns the current shake info */
+	const FCameraShakeInfo& GetShakeInfo() const { return ShakeInfo; }
+
+	/** Helper method to get GetShakeInfo().Duration.IsFixed() */
+	bool HasDuration() const { return ShakeInfo.Duration.IsFixed(); }
+
+	/** Helper method to get GetShakeInfo().Duration.Get() */
+	float GetDuration() const { return ShakeInfo.Duration.Get(); }
+
+private:
+
+	FCameraShakeInfo ShakeInfo;
+
+	float ElapsedTime;
+	bool bIsActive : 1;
+
+	bool bHasBlendIn : 1;
+	bool bHasBlendOut : 1;
+};
+
+/**
  * Base class for a camera shake. A camera shake contains a root shake "pattern" which is
  * the object that contains the actual logic driving how the camera is shaken. Keeping the two
  * separate makes it possible to completely change how a shake works without having to create
@@ -258,6 +340,22 @@ public:
 		return false;
 	}
 
+	/** Uses the given result parameters to apply the given result to the given input view info */
+	static void ApplyResult(const FCameraShakeApplyResultParams& ApplyParams, const FCameraShakeUpdateResult& InResult, FMinimalViewInfo& InOutPOV);
+
+	/** Applies the given scale to the current shake offset (only if the result is "relative") */
+	static void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult);
+
+	/** Applies any appropriate system-wide limits */
+	static void ApplyLimits(const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
+
+	/**
+	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
+	 *
+	 * Note that this modifies the result and makes it "absolute".
+	 */
+	static void ApplyPlaySpace(ECameraShakePlaySpace PlaySpace, FMatrix UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
+
 public:
 	/** 
 	 *  If true to only allow a single instance of this shake class to play at any given time.
@@ -324,12 +422,6 @@ protected:
 	/** Applies all the appropriate auto-scaling to the current shake offset (only if the result is "relative") */
 	void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
 
-	/** Applies the given scale to the current shake offset (only if the result is "relative") */
-	void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult) const;
-
-	/** Applies any appropriate system-wide limits */
-	void ApplyLimits(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
-
 	/**
 	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
 	 *
@@ -353,26 +445,7 @@ private:
 	/** Matrix defining a custom play space, used when PlaySpace is UserDefined. Only valid when the shake is active. */
 	FMatrix UserPlaySpaceMatrix;
 
-	/** Information about our shake's specific implementation. Only valid when the shake is active. */
-	FCameraShakeInfo ActiveInfo;
-
-	/** Transitive state of the shake. Only valid when the shake is active. */
-	struct FCameraShakeState
-	{
-		FCameraShakeState() : 
-			ElapsedTime(0.f)
-			, bIsActive(false)
-			, bHasDuration(false)
-			, bHasBlendIn(false)
-			, bHasBlendOut(false)
-		{}
-
-		float ElapsedTime;
-		bool bIsActive : 1;
-		bool bHasDuration : 1;
-		bool bHasBlendIn : 1;
-		bool bHasBlendOut : 1;
-	};
+	/** Root shake pattern state. Only valid when the shake is active. */
 	FCameraShakeState State;
 };
 

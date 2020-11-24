@@ -3,6 +3,7 @@
 #include "Windows/WindowsPlatformSplash.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Misc/AssertionMacros.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/UnrealMemory.h"
@@ -18,7 +19,6 @@
 #include "Stats/Stats.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
-#include "Windows/WindowsPlatformApplicationMisc.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Misc/EngineBuildSettings.h"
@@ -391,7 +391,7 @@ uint32 WINAPI StartSplashScreenThread( LPVOID unused )
 	wc.cbWndExtra  = 0; 
 	wc.hInstance   = hInstance; 
 
-	wc.hIcon       = LoadIcon(hInstance, MAKEINTRESOURCE(FWindowsPlatformApplicationMisc::GetAppIcon()));
+	wc.hIcon       = LoadIcon(hInstance, MAKEINTRESOURCE(FPlatformApplicationMisc::GetAppIcon()));
 	if(wc.hIcon == NULL)
 	{
 		wc.hIcon   = LoadIcon((HINSTANCE) NULL, IDI_APPLICATION); 

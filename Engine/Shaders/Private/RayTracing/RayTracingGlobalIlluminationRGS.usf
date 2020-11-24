@@ -31,6 +31,7 @@ float NextEventEstimationSamples;
 float DiffuseThreshold;
 uint EvalSkyLight;
 uint UseRussianRoulette;
+uint UseFireflySuppression;
 float MaxNormalBias;
 uint RenderTileOffsetX;
 uint RenderTileOffsetY;
@@ -298,6 +299,13 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 #endif
 						// Record the contribution
 						float3 ExitantRadianceSample = Radiance * MaterialThroughput * RayThroughput * SplitFactor * MisWeight / (NeePdf * RayPdf);
+
+						// Tonemap for firefly suppression
+						if (UseFireflySuppression)
+						{
+							ExitantRadianceSample *= rcp(1.0 + Luminance(ExitantRadianceSample));
+						}
+
 						Irradiance += isfinite(ExitantRadianceSample) ? ExitantRadianceSample : 0.0;
 					}
 				}
@@ -347,6 +355,12 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 	if (SamplesPerPixel > 0)
 	{
 		Irradiance /= SamplesPerPixel;
+		// Tonemap inversion for firefly suppression
+		if (UseFireflySuppression)
+		{
+			Irradiance *= rcp(1 - Luminance(Irradiance));
+		}
+
 		AmbientOcclusion /= SamplesPerPixel;
 	}
 

@@ -31,59 +31,24 @@ FString CreateMessage(const FString& InStateDescription, bool bInState, const TM
 	return Message;
 }
 
-FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage)
+FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage, const TMap<FString, FString>& InAdditionalFields)
 {
-	return CreateMessage(
-		InTask.Name, 
-		false, 
-		{ 
-			{ TEXT("id"), InTask.TaskID.ToString() }, 
-			{ TEXT("error"), InErrorMessage},
-		});
+	TMap<FString, FString> AdditionalFields = InAdditionalFields;
+
+	AdditionalFields.Add(TEXT("id"), InTask.TaskID.ToString());
+	AdditionalFields.Add(TEXT("error"), InErrorMessage);
+
+	return CreateMessage(InTask.Name, false, AdditionalFields);
 }
 
 FString CreateCommandAcceptedMessage(const FGuid& InMessageID)
 {
 	return CreateMessage(TEXT("command accepted"), true, { { TEXT("id"), InMessageID.ToString() } });
 }
+
 FString CreateCommandDeclinedMessage(const FGuid& InMessageID, const FString& InErrorMessage)
 {
 	return CreateMessage(TEXT("command accepted"), false, { { TEXT("id"), InMessageID.ToString() }, {TEXT("error"), InErrorMessage} });
-}
-
-FString CreateProgramStartedMessage(const FString& InProgramID, const FString& InMessageID)
-{
-	return CreateMessage(TEXT("program started"), true, { { TEXT("program id"), InProgramID }, { TEXT("message id"), InMessageID } });
-}
-FString CreateProgramStartFailedMessage(const FString& InErrorMessage, const FString& InMessageID)
-{
-	return CreateMessage(TEXT("program started"), false, { { TEXT("error"), InErrorMessage }, { TEXT("message id"), InMessageID } });
-}
-
-FString CreateProgramKilledMessage(const FString& InProgramID)
-{
-	return CreateMessage(TEXT("program killed"), true, { { TEXT("program id"), InProgramID } });
-}
-
-FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString& InErrorMessage)
-{
-	return CreateMessage(TEXT("program killed"), false, { { TEXT("program id"), InProgramID }, { TEXT("error"), InErrorMessage } });
-}
-
-FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, const FString& InProgramOutput)
-{
-	FString Message;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Message);
-	JsonWriter->WriteObjectStart();
-	JsonWriter->WriteValue(TEXT("program ended"), true); // TODO: Phase out this field and replace with two below because parser now needs to check all possibilities.
-	JsonWriter->WriteValue(TEXT("command"), TEXT("program ended"));
-	JsonWriter->WriteValue(TEXT("bAck"), true);
-	JsonWriter->WriteValue(TEXT("program id"), InProgramID);
-	JsonWriter->WriteValue(TEXT("returncode"), InReturnCode);
-	JsonWriter->WriteValue(TEXT("output"), InProgramOutput);
-	JsonWriter->WriteObjectEnd();
-	JsonWriter->Close();
-	return Message;
 }
 
 FString CreateSyncStatusMessage(const FSyncStatus& SyncStatus)
@@ -167,8 +132,22 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
 		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
 		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
+		TSharedPtr<FJsonValue> WorkingDirField = JsonData->TryGetField(TEXT("working_dir"));
+		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = JsonData->TryGetField(TEXT("bUpdateClientsWithStdout"));
+		TSharedPtr<FJsonValue> ForceWindowFocusField = JsonData->TryGetField(TEXT("bForceWindowFocus"));
 
-		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString(), CallerField->AsString());
+		OutTask = MakeUnique<FSwitchboardStartTask>(
+			MessageID,
+			InEndpoint,
+			ExeField->AsString(),
+			ArgsField->AsString(),
+			NameField->AsString(),
+			CallerField->AsString(),
+			WorkingDirField->AsString(),
+			UpdateClientsWithStdoutField->AsBool(),
+			ForceWindowFocusField->AsBool()
+		);
+
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))
@@ -181,11 +160,6 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			OutTask = MakeUnique<FSwitchboardKillTask>(MessageID, InEndpoint, ProgramID);
 			return true;
 		}
-	}
-	else if (CommandName == TEXT("killall"))
-	{
-		OutTask = MakeUnique<FSwitchboardKillAllTask>(MessageID, InEndpoint);
-		return true;
 	}
 	else if (CommandName == TEXT("send file"))
 	{
@@ -227,6 +201,30 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
 		{
 			OutTask = MakeUnique<FSwitchboardGetSyncStatusTask>(MessageID, InEndpoint, ProgramID);
+			return true;
+		}
+	}
+	else if (CommandName == TEXT("forcefocus"))
+	{
+		TSharedPtr<FJsonValue> PidField = JsonData->TryGetField(TEXT("pid"));
+
+		uint32 Pid;
+
+		if (PidField.IsValid() && PidField->TryGetNumber(Pid))
+		{
+			OutTask = MakeUnique<FSwitchboardForceFocusTask>(MessageID, InEndpoint, Pid);
+			return true;
+		}
+	}
+	else if (CommandName == TEXT("fixExeFlags"))
+	{
+		TSharedPtr<FJsonValue> UUIDField = JsonData->TryGetField(TEXT("uuid"));
+
+		FGuid ProgramID;
+
+		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
+		{
+			OutTask = MakeUnique<FSwitchboardFixExeFlagsTask>(MessageID, InEndpoint, ProgramID);
 			return true;
 		}
 	}

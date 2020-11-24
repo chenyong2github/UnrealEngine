@@ -8,10 +8,8 @@ from switchboard import message_protocol
 from PySide2 import QtCore, QtGui
 import pythonosc.udp_client
 
-from enum import IntEnum, unique, auto
-import os
-import random
-import socket
+from enum import IntEnum, IntFlag, unique, auto
+import os, random, socket, threading
 
 @unique
 class DeviceStatus(IntEnum):
@@ -24,6 +22,12 @@ class DeviceStatus(IntEnum):
     READY = auto()
     RECORDING = auto()
 
+@unique
+class PluginHeaderWidgets(IntFlag):
+    OPEN_BUTTON = 1,
+    CONNECT_BUTTON = 2,
+    CHANGELIST_LABEL = 4,
+
 
 class DeviceQtHandler(QtCore.QObject):
     signal_device_status_changed = QtCore.Signal(object, int)
@@ -33,6 +37,8 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_engine_changelist_changed = QtCore.Signal(object)
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
+    signal_device_build_update = QtCore.Signal(object, str, str) # device, step, percent
+    signal_device_sync_update = QtCore.Signal(object, int) # device, progress
 
 
 class Device(QtCore.QObject):
@@ -146,10 +152,12 @@ class Device(QtCore.QObject):
 
     @property
     def category_name(self):
-        if self.is_recording_device and self.status > DeviceStatus.DISCONNECTED:
-            return "Recording"
-        else:
-            return "Available"
+        return self.device_type
+
+    @classmethod
+    def plugin_header_widget_config(cls):
+        """ combination of widgets that will be visualized in the plugin header. """
+        return PluginHeaderWidgets.CONNECT_BUTTON
 
     @property
     def is_recording_device(self):
@@ -204,12 +212,26 @@ class Device(QtCore.QObject):
     def set_take(self, value):
         pass
 
+    @QtCore.Slot()
     def connect_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread().name != 'MainThread':
+            QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
+            return
+
         # If the device was disconnected, set to closed
         if self.status == DeviceStatus.DISCONNECTED:
             self.status = DeviceStatus.CLOSED
 
+    @QtCore.Slot()
     def disconnect_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread().name != 'MainThread':
+            QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
+            return
+
         self.status = DeviceStatus.DISCONNECTED
 
     def setup_osc_client(self, osc_port):

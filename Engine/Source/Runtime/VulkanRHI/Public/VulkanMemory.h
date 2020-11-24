@@ -356,6 +356,7 @@ namespace VulkanRHI
 	class FDeviceMemoryManager
 	{
 		TMap<FDeviceMemoryBlockKey, FDeviceMemoryBlock> Allocations;
+		void UpdateMemoryProperties();
 	public:
 		FDeviceMemoryManager();
 		~FDeviceMemoryManager();
@@ -377,7 +378,7 @@ namespace VulkanRHI
 		}
 
 		bool SupportsMemoryType(VkMemoryPropertyFlags Properties) const;
-		void GetHostMemoryStatus(uint64* Allocated, uint64* Total) const;
+		void GetHostMemoryStatus(uint64* Allocated, uint64* Total);
 		bool IsHostMemory(uint32 MemoryTypeIndex) const;
 
 		VkResult GetMemoryTypeFromProperties(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32* OutTypeIndex);
@@ -402,6 +403,9 @@ namespace VulkanRHI
 		void GetMemoryDump(TArray<FResourceHeapStats>& OutDeviceHeapsStats);
 		void DumpMemory();
 
+
+		double MemoryUpdateTime = 0.0;
+		VkPhysicalDeviceMemoryBudgetPropertiesEXT MemoryBudget;
 		VkPhysicalDeviceMemoryProperties MemoryProperties;
 		VkDevice DeviceHandle;
 		bool bHasUnifiedMemory;

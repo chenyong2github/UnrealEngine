@@ -445,7 +445,7 @@ inout half3 Color)
 #endif
 
 #if !FULLY_ROUGH
-		FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, PointNoL, MaterialParameters.CameraVector, MaterialParameters.WorldNormal, PointH, PointNoH);
+		FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, PointNoL, MaterialParameters.CameraVector, PointH, PointNoH);
 		Color += min(65000.0, (Attenuation) * LightColorAndFalloffExponent.rgb * (1.0 / PI) * (Lighting.Diffuse + Lighting.Specular * SpotLightDirectionAndSpecularScale.w));
 #else
 		Color += (Attenuation * PointNoL) * LightColorAndFalloffExponent.rgb * (1.0 / PI) * ShadingModelContext.DiffuseColor;
@@ -461,7 +461,7 @@ inout half3 Color)
 	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
 #endif
 
-half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters, FMobileShadingModelContext ShadingModelContext, out half IndirectIrradiance, out half3 Color)
+half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, float3 DiffuseDir, FMobileShadingModelContext ShadingModelContext, out half IndirectIrradiance, out half3 Color)
 {
 	//To keep IndirectLightingCache conherence with PC, initialize the IndirectIrradiance to zero.
 	IndirectIrradiance = 0;
@@ -473,7 +473,7 @@ half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPix
 	uint LightmapDataIndex;
 	GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
 
-	half4 LightmapColor = GetLightMapColorLQ(LightmapUV0, LightmapUV1, LightmapDataIndex, MaterialParameters.WorldNormal);
+	half4 LightmapColor = GetLightMapColorLQ(LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir);
 	Color += LightmapColor.rgb * ShadingModelContext.DiffuseColor * View.IndirectLightingColorScale;
 	IndirectIrradiance = LightmapColor.a;
 #elif CACHED_POINT_INDIRECT_LIGHTING
@@ -492,7 +492,7 @@ half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPix
 		PointIndirectLighting.B.V1 = IndirectLightingCache.IndirectLightingSHCoefficients1[2];
 		PointIndirectLighting.B.V2 = IndirectLightingCache.IndirectLightingSHCoefficients2[2];
 
-		FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(MaterialParameters.WorldNormal, 1);
+		FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(DiffuseDir, 1);
 
 		// Compute diffuse lighting which takes the normal into account
 		half3 DiffuseGI = max(half3(0, 0, 0), DotSH3(PointIndirectLighting, DiffuseTransferSH));
@@ -644,10 +644,19 @@ void Main(
 	half CustomData0 = GetMaterialCustomData0(MaterialParameters);
 	half CustomData1 = GetMaterialCustomData1(MaterialParameters);
 	InitShadingModelContext(ShadingModelContext, GBuffer, MaterialParameters.SvPosition, MaterialParameters.CameraVector, CustomData0, CustomData1);
+	float3 DiffuseDir = MaterialParameters.WorldNormal;
 
+#if MATERIAL_SHADINGMODEL_HAIR
+	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+	float3 N = MaterialParameters.WorldNormal;
+	float3 V = MaterialParameters.CameraVector;
+	float3 L = normalize(V - N * dot(V, N));
+	DiffuseDir = L;
+	ShadingModelContext.DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+#endif
 	half IndirectIrradiance;
 	half3 IndirectColor;
-	ComputeIndirect(Interpolants, MaterialParameters, ShadingModelContext, IndirectIrradiance, IndirectColor);
+	ComputeIndirect(Interpolants, DiffuseDir, ShadingModelContext, IndirectIrradiance, IndirectColor);
 	Color += IndirectColor;
 
 	// Shadow
@@ -681,7 +690,12 @@ void Main(
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
 	{
-		Shadow = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+	#if MOVABLE_DIRECTIONAL_LIGHT
+		Shadow = ShadowMap;
+	#else
+		Shadow = min(ShadowMap, Shadow);
+	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */
 
@@ -693,10 +707,11 @@ void Main(
 #if FULLY_ROUGH
 	Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * ShadingModelContext.DiffuseColor;
 #else
-	FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, NoL, MaterialParameters.CameraVector, MaterialParameters.WorldNormal, H, NoH);
+	FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, NoL, MaterialParameters.CameraVector, H, NoH);
 	// MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z saves SpecularScale for direction light.
 	Color += (Shadow) * MobileDirectionalLight.DirectionalLightColor.rgb * (Lighting.Diffuse + Lighting.Specular * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z);
 
+#if	!(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
 	// Environment map has been prenormalized, scale by lightmap luminance
 	half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, IndirectIrradiance, 1.0f);
 	#if MATERIAL_PLANAR_FORWARD_REFLECTIONS
@@ -715,7 +730,7 @@ void Main(
 
 		// Fc * Vis
 		#if FORWARDSHADING_USE_HQ_ENV_BRDF
-			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, ShadingModelContext.Roughness), 0).rg;
+			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, GBuffer.Roughness), 0).rg;
 		#else
 			half3 Fc = (ShadingModelContext.SpecularColor - ShadingModelContext.SpecPreEnvBrdf) * rcp(saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) - ShadingModelContext.SpecPreEnvBrdf);
 			half2 AB = half2(1 - Fc.x, Fc.x);
@@ -724,9 +739,11 @@ void Main(
 
 		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance, F);
 		Color += SpecularIBL;
+
 	#else
 		Color += SpecularIBL * ShadingModelContext.SpecularColor;
 	#endif
+#endif
 #endif /* FULLY_ROUGH */
 
 	// Local lights

@@ -82,13 +82,19 @@ struct FShaderMapCompileResults
 {
 	FShaderMapCompileResults() :
 		bAllJobsSucceeded(true),
-		bSkipResultProcessing(false)
+		bSkipResultProcessing(false),
+		TimeStarted(FPlatformTime::Seconds()),
+		bIsHung(false)
 	{}
+
+	void CheckIfHung();
 
 	TArray<TRefCountPtr<class FShaderCommonCompileJob>> FinishedJobs;
 	FThreadSafeCounter NumPendingJobs;
 	bool bAllJobsSucceeded;
 	bool bSkipResultProcessing;
+	double TimeStarted;
+	bool bIsHung;
 };
 
 struct FPendingShaderMapCompileResults

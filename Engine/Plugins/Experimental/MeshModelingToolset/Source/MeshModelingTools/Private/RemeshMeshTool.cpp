@@ -284,14 +284,9 @@ double URemeshMeshTool::CalculateTargetEdgeLength(int TargetTriCount)
 	return (double)FMath::RoundToInt(EdgeLen*100.0) / 100.0;
 }
 
-bool URemeshMeshTool::HasAccept() const
-{
-	return true;
-}
-
 bool URemeshMeshTool::CanAccept() const
 {
-	return Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
 void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)

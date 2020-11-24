@@ -89,6 +89,10 @@ class UFbxSceneImportOptionsSkeletalMesh : public UObject
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation)
 	bool bDeleteExistingCustomAttributeCurves;
 
+	/** If true, all previous non-curve custom attributes will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	bool bDeleteExistingNonCurveCustomAttributes;
+
 	/** Type of asset to import from the FBX file */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation)
 	bool bPreserveLocalTransform;

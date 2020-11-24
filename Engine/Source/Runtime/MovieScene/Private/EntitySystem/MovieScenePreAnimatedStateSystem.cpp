@@ -74,6 +74,29 @@ UMovieSceneRestorePreAnimatedStateSystem::UMovieSceneRestorePreAnimatedStateSyst
 	}
 }
 
+void UMovieSceneRestorePreAnimatedStateSystem::DiscardPreAnimatedStateForObject(UObject& Object)
+{
+	using namespace UE::MovieScene;
+
+	TArray<IMovieScenePreAnimatedStateSystemInterface*, TInlineAllocator<16>> Interfaces;
+
+	auto ForEachSystem = [&Interfaces](UMovieSceneEntitySystem* InSystem)
+	{
+		IMovieScenePreAnimatedStateSystemInterface* PreAnimInterface = Cast<IMovieScenePreAnimatedStateSystemInterface>(InSystem);
+		if (PreAnimInterface)
+		{
+			Interfaces.Add(PreAnimInterface);
+		}
+	};
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
+
+	for (IMovieScenePreAnimatedStateSystemInterface* Interface : Interfaces)
+	{
+		Interface->DiscardPreAnimatedStateForObject(Object);
+	}
+}
+
 void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;

@@ -15,9 +15,6 @@
 #include "AudioImpulseResponseAsset.h"
 #include "ToolMenus.h"
 #include "Misc/AssertionMacros.h"
-#include "MotoSynthSourceAsset.h"
-#include "MotoSynthSourceFactory.h"
-#include "SoundWaveAssetActionExtenderMotoSynth.h"
 #include "SourceEffects/SourceEffectBitCrusher.h"
 #include "SourceEffects/SourceEffectChorus.h"
 #include "SourceEffects/SourceEffectDynamicsProcessor.h"
@@ -53,8 +50,6 @@ void FSynthesisEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_ModularSynthPresetBank>());
 	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_MonoWaveTableSynthPreset>());
 	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_AudioImpulseResponse>());
-	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_MotoSynthSource>());
-	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_MotoSynthPreset>());
 
 	// Now that we've loaded this module, we need to register our effect preset actions
 	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
@@ -70,5 +65,4 @@ void FSynthesisEditorModule::ShutdownModule()
 void FSynthesisEditorModule::RegisterMenus()
 {
 	FAudioImpulseResponseExtension::RegisterMenus();
-	FMotoSynthExtension::RegisterMenus();
 }

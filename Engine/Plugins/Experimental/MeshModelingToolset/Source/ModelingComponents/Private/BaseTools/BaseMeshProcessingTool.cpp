@@ -208,6 +208,12 @@ void UBaseMeshProcessingTool::SavePropertySets()
 
 void UBaseMeshProcessingTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (ShutdownType == EToolShutdownType::Accept && AreAllTargetsValid() == false)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Tool Target has become Invalid (possibly it has been Force Deleted). Aborting Tool."));
+		ShutdownType = EToolShutdownType::Cancel;
+	}
+
 	OnShutdown(ShutdownType);
 
 	SavePropertySets();
@@ -218,9 +224,9 @@ void UBaseMeshProcessingTool::Shutdown(EToolShutdownType ShutdownType)
 	if (Preview != nullptr)
 	{
 		FDynamicMeshOpResult Result = Preview->Shutdown();
+
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			
 			GetToolManager()->BeginUndoTransaction(GetAcceptTransactionName());
 
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
@@ -286,7 +292,7 @@ bool UBaseMeshProcessingTool::HasAccept() const
 
 bool UBaseMeshProcessingTool::CanAccept() const
 {
-	return bResultValid;
+	return Super::CanAccept() && bResultValid;
 }
 
 

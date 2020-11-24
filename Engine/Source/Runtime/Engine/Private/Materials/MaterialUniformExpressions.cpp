@@ -810,24 +810,32 @@ static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context
 static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture)
+	if (Texture && Texture->Resource)
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
 		const uint32 SizeZ = Texture->Resource->GetSizeZ();
 		Stack.Add(FLinearColor((float)SizeX, (float)SizeY, (float)SizeZ, 0.0f));
 	}
+	else
+	{
+		Stack.Add(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+	}
 }
 
 static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture)
+	if (Texture && Texture->Resource)
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
 		const uint32 SizeZ = Texture->Resource->GetSizeZ();
 		Stack.Add(FLinearColor(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f), 0.0f));
+	}
+	else
+	{
+		Stack.Add(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
 	}
 }
 
@@ -1078,7 +1086,8 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 
 	if (UniformBufferLayout.ConstantBufferSize > 0)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
+		// stat disabled by default due to low-value/high-frequency
+		//QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
 
 		void* BufferCursor = TempBuffer;
 		check(BufferCursor <= TempBuffer + TempBufferSize);

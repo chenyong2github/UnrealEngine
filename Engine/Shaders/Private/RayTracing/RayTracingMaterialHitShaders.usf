@@ -306,6 +306,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		return;
 	}
 
+	GlobalTextureMipBias = PackedPayload.GetMipBias();
+
 	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 
 	ResolvedView = ResolveView();
@@ -383,6 +385,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Roughness = Roughness;
 	Payload.Metallic = Metallic;
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+
+#if MATERIALBLENDING_MASKED
+	if (GetMaterialMask(PixelMaterialInputs) < 0)
+	{
+		Payload.Opacity = 0;
+	}
+#endif // MATERIALBLENDING_MASKED
+
 	Payload.Ior = Refraction.x;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
@@ -440,6 +450,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	#endif
 
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
+
+	// Always sample lightmaps without mip biasing, as they are likely packed in an atlas
+	// and aggressive bias can cause bleeding between charts.
+	float OldGlobalMipBias = GlobalTextureMipBias;
+	GlobalTextureMipBias = 0;
+
 	GetPrecomputedIndirectLightingAndSkyLight(
 		MaterialParameters,
 		Interpolants,
@@ -451,7 +467,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		DiffuseIndirectLighting,
 		SubsurfaceIndirectLighting,
 		IndirectIrradiance);
-	
+
+	// Restore global mip bias after lightmaps are sampled.
+	GlobalTextureMipBias = OldGlobalMipBias;
+
 	Payload.DiffuseColor = BaseColor - BaseColor * Metallic;
 	Payload.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);
 	
@@ -501,6 +520,8 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #endif // MATERIALBLENDING_SOLID
 
 #if MATERIALBLENDING_MASKED
+
+	GlobalTextureMipBias = PackedPayload.GetMipBias();
 
 	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 

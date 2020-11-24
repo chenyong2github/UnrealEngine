@@ -216,12 +216,16 @@ void UVCamComponent::PreEditChange(FProperty* PropertyThatWillChange)
 		}
 		else if (PropertyThatWillChangeName == NAME_Enabled)
 		{
-			void* PropertyData = PropertyThatWillChange->ContainerPtrToValuePtr<void>(this);
-			bool bWasEnabled = false;
-			PropertyThatWillChange->CopySingleValue(&bWasEnabled, PropertyData);
+			// If the property's owner is a struct (like FModifierStackEntry), act on it in PostEditChangeProperty(), not here
+			if (PropertyThatWillChange->GetOwner<UClass>())
+			{
+				void* PropertyData = PropertyThatWillChange->ContainerPtrToValuePtr<void>(this);
+				bool bWasEnabled = false;
+				PropertyThatWillChange->CopySingleValue(&bWasEnabled, PropertyData);
 
-			// Changing the enabled state needs to be done here instead of PostEditChange
-			SetEnabled(!bWasEnabled);
+				// Changing the enabled state needs to be done here instead of PostEditChange
+				SetEnabled(!bWasEnabled);
+			}
 		}
 	}
 
@@ -234,6 +238,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_LockViewportToCamera = GET_MEMBER_NAME_CHECKED(UVCamComponent, bLockViewportToCamera);
+		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
 		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamComponent, TargetViewport);
 
@@ -243,16 +248,30 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		{
 			UpdateActorLock();
 		}
+		else if (PropertyName == NAME_Enabled)
+		{
+			// Only act here if we are a struct (like FModifierStackEntry)
+			if (!Property->GetOwner<UClass>())
+			{
+				SetEnabled(bEnabled);
+			}
+		}
 		else if (PropertyName == NAME_ModifierStack)
 		{
 			EnforceModifierStackNameUniqueness();
 		}
 		else if (PropertyName == NAME_TargetViewport)
 		{
-			if (bEnabled && bLockViewportToCamera)
+			if (bEnabled)
 			{
-				SetActorLock(false);
-				SetActorLock(true);
+				SetEnabled(false);
+				SetEnabled(true);
+
+				if (bLockViewportToCamera)
+				{
+					SetActorLock(false);
+					SetActorLock(true);
+				}
 			}
 		}
 	}
@@ -807,12 +826,16 @@ void UVCamComponent::UpdateActorLock()
 				{
 					Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
 					LevelViewportClient->SetActorLock(GetTargetCamera()->GetOwner());
+					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
+					LevelViewportClient->bLockedCameraView = true;
 					bIsLockedToViewport = true;
 				}
 				else if (Backup_ActorLock.IsValid())
 				{
 					LevelViewportClient->SetActorLock(Backup_ActorLock.Get());
 					Backup_ActorLock = nullptr;
+					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
+					LevelViewportClient->bLockedCameraView = true;
 					bIsLockedToViewport = false;
 				}
 				else
@@ -1091,15 +1114,24 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 {
 	FLevelEditorViewportClient* OutClient = nullptr;
 
+	TSharedPtr<SLevelViewport> LevelViewport = GetTargetLevelViewport();
+	if (LevelViewport.IsValid())
+	{
+		OutClient = &LevelViewport->GetLevelViewportClient();
+	}
+
+	return OutClient;
+}
+
+TSharedPtr<SLevelViewport> UVCamComponent::GetTargetLevelViewport() const
+{
+	TSharedPtr<SLevelViewport> OutLevelViewport = nullptr;
+
 	if (TargetViewport == EVCamTargetViewportID::CurrentlySelected)
 	{
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
 		{
-			TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-			if (ActiveLevelViewport.IsValid())
-			{
-				OutClient = &ActiveLevelViewport->GetLevelViewportClient();
-			}
+			OutLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
 		}
 	}
 	else
@@ -1118,7 +1150,7 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 						const FString ViewportConfigKey = LevelViewport->GetConfigKey().ToString();
 						if (ViewportConfigKey.Contains(*WantedViewportString, ESearchCase::CaseSensitive, ESearchDir::FromStart))
 						{
-							OutClient = Client;
+							OutLevelViewport = LevelViewport;
 							break;
 						}
 					}
@@ -1127,7 +1159,7 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 		}
 	}
 
-	return OutClient;
+	return OutLevelViewport;
 }
 
 void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)

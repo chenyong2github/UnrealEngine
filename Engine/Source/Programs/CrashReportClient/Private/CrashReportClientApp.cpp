@@ -937,6 +937,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MakeTuple(bRunning, ProcessReturnCodeOpt);
 		};
 
+		// The approximative time of death of the monitored application.
+		FDateTime MonitoredProcessDeathTime;
+
 		// Loop until the monitored process dies.
 		TTuple<bool/*bRunning*/, TOptional<int32>/*ExitCode*/> ProcessStatus = GetProcessStatus(MonitoredProcess);
 		while (ProcessStatus.Get<0>())
@@ -979,6 +982,12 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					FDiagnosticLogger::Get().LogEvent(Result == SubmitCrashReportResult::SuccessDiscarded ? TEXT("Report/Discarded") :
 					                                 (Result == SubmitCrashReportResult::Failed ? TEXT("Report/Failed") : TEXT("Report/Sent")));
 
+					// Log the assert condition/file/line/message to the diagnostic log gathered by the analytics to enable grouping asserts later on.
+					if (CrashContext.CrashType == ECrashContextType::Assert)
+					{
+						FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Assert/Msg: %s"), CrashContext.ErrorMessage));
+					}
+
 					if (bReportCrashAnalyticInfo)
 					{
 						if (FCrashReportAnalytics::IsAvailable())
@@ -1015,6 +1024,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 			// Refresh the monitored application status.
 			ProcessStatus = GetProcessStatus(MonitoredProcess);
+			if (!ProcessStatus.Get<0>()) // Not running anymore.
+			{
+				MonitoredProcessDeathTime = FDateTime::UtcNow();
+			}
 
 			PrevLoopStartTime = CurrLoopStartTime;
 
@@ -1046,7 +1059,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
 					{
 						bMonitoredSessionLoaded = true;
-						if (!MonitoredSession.SaveExitCode(MonitoredProcessExitCode.IsSet() ? MonitoredProcessExitCode.GetValue() : ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable))
+						if (!MonitoredSession.SaveExitCode(MonitoredProcessExitCode.IsSet() ? MonitoredProcessExitCode.GetValue() : ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable, MonitoredProcessDeathTime))
 						{
 							FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/ExitCodeNotSaved"));
 						}

@@ -152,17 +152,6 @@ void UVolumeToMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-bool UVolumeToMeshTool::HasAccept() const
-{
-	return true;
-}
-
-bool UVolumeToMeshTool::CanAccept() const
-{
-	return true;
-}
-
-
 
 void UVolumeToMeshTool::UpdateLineSet()
 {

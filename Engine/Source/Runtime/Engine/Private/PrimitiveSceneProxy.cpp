@@ -103,6 +103,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #endif
 	CustomPrimitiveData(InComponent->GetCustomPrimitiveData())
 ,	TranslucencySortPriority(FMath::Clamp(InComponent->TranslucencySortPriority, SHRT_MIN, SHRT_MAX))
+,	TranslucencySortDistanceOffset(InComponent->TranslucencySortDistanceOffset)
 ,	Mobility(InComponent->Mobility)
 ,	LightmapType(InComponent->LightmapType)
 ,	StatId()
@@ -291,7 +292,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		TArray<UMaterialInterface*> UsedMaterials;
 		InComponent->GetUsedMaterials(UsedMaterials);
 
-		for (auto& MaterialInterface : UsedMaterials)
+		for (const UMaterialInterface* MaterialInterface : UsedMaterials)
 		{
 			if (MaterialInterface)
 			{
@@ -365,7 +366,8 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 
 void FPrimitiveSceneProxy::UpdateUniformBuffer()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
+	// stat disabled by default due to low-value/high-frequency
+	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
 
 	// Skip expensive primitive uniform buffer creation for proxies whose vertex factories only use GPUScene for primitive data
 	if (DoesVFRequirePrimitiveUniformBuffer())

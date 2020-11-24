@@ -653,6 +653,11 @@ bool FHittestGrid::SameSize(const FHittestGrid* OtherGrid) const
 	return GridOrigin == OtherGrid->GridOrigin && GridWindowOrigin == OtherGrid->GridWindowOrigin && GridSize == OtherGrid->GridSize;
 }
 
+void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort)
+{
+	AddWidget(InWidget, InBatchPriorityGroup, InLayerId, FSlateInvalidationWidgetSortOrder());
+}
+
 void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort)
 {
 	if (!InWidget->GetVisibility().IsHitTestVisible())

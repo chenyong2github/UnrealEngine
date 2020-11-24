@@ -123,7 +123,7 @@ void UNiagaraNodeReroute::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 }
 
 /** Traces one of this node's output pins to its source output pin if it is a reroute node output pin.*/
-UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const
+UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const
 {
 	check(Pins.Contains(LocallyOwnedOutputPin) && LocallyOwnedOutputPin->Direction == EGPD_Output);
 	UEdGraphPin* InputPin = GetInputPin(0);
@@ -131,7 +131,7 @@ UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOu
 	{
 		UEdGraphPin* LinkedPin = InputPin->LinkedTo[0];
 		UNiagaraNode* LinkedNode = CastChecked<UNiagaraNode>(LinkedPin->GetOwningNode());
-		return LinkedNode->GetTracedOutputPin(LinkedPin);
+		return LinkedNode->GetTracedOutputPin(LinkedPin, bFilterForCompilation);
 	}
 	return nullptr;
 }

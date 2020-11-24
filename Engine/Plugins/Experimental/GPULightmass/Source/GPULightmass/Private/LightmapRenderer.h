@@ -127,6 +127,10 @@ public:
 
 	TArray<TArray<FLightmapTileRequest>> TilesVisibleLastFewFrames;
 
+	bool bIsRecordingTileRequests = false;
+	TArray<FLightmapTileRequest> RecordedTileRequests;
+	void DeduplicateRecordedTileRequests();
+
 private:
 	int32 CurrentRevision = 0;
 	int32 LastInvalidationFrame = 0;

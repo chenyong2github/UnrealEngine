@@ -2592,7 +2592,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						check(Obj->HasAnyMarks(OBJECTMARK_TagExp));
 
 						// Build list.
-						FArchiveSaveTagImports ImportTagger(Linker.Get(), NameMapSaver, ImportsUsedInGame, SoftPackagesUsedInGame, IsEditorOnlyObject(Obj, true /* bCheckRecursive */, true /* bCheckMarks */));
+						bool bReferencerIsEditorOnly = IsEditorOnlyObject(Obj, true /* bCheckRecursive */, true /* bCheckMarks */) && !HasGameDependenciesEvenWhenEditorOnly(Obj);
+						FArchiveSaveTagImports ImportTagger(Linker.Get(), NameMapSaver, ImportsUsedInGame, SoftPackagesUsedInGame, bReferencerIsEditorOnly);
 						ImportTagger.SetPortFlags(ComparisonFlags);
 						ImportTagger.SetFilterEditorOnly(FilterEditorOnly);
 						ImportTagger.SetSerializeContext(SaveContext);

@@ -15,6 +15,9 @@ class nDisplayMonitor(QAbstractTableModel):
     It polls the listener at the specified rate and the UI should update with this info.
     '''
 
+    ColorWarning = QColor(0x70, 0x40, 0x00)
+    ColorNormal  = QColor(0x3d, 0x3d, 0x3d)
+
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
 
@@ -24,23 +27,58 @@ class nDisplayMonitor(QAbstractTableModel):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll_sync_status)
 
-        self.colnames = [
-            'Node', 
-            'Host', 
-            'Connected',
-            'Driver',
-            'FlipMode', 
-            'Gpus', 
-            'Displays', 
-            'Fps', 
-            'HouseSync',
-            'SyncSource',
-            'Mosaics',
-            'Taskbar',
-            'ExeFlags',
+        headerdata = [
+            ('Node'      , 'The cluster name of this device'), 
+            ('Host'      , 'The URL of the remote PC'), 
+            ('Connected' , 'If we are connected to the listner of this device'),
+            ('Driver'    , 'GPU driver version'),
+            ('FlipMode'  , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'), 
+            ('Gpus'      , 'Informs if GPUs are synced.'), 
+            ('Displays'  , 'Detected displays and whether they are in sync or not'), 
+            ('Fps'       , 'Sync Frame Rate'), 
+            ('HouseSync' , 'Presence of an external sync signal connected to the remote Quadro Sync card'),
+            ('SyncSource', 'The source of the GPU sync signal'),
+            ('Mosaics'   , 'Display grids and their resolutions'),
+            ('Taskbar'   , 'Whether the taskbar is set to auto hide or always on top. It is recommended to be consistent across the cluster'),
+            ('InFocus'   , 'Whether nDisplay instance window is in Focus. It is recommended to be in focus.'),
+            ('ExeFlags'  , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
         ]
 
+        self.colnames = [hd[0] for hd in headerdata]
+        self.tooltips = [hd[1] for hd in headerdata]
+
+    def color_for_column(self, colname, value, data):
+        ''' Returns the background color for the given cell
+        '''
+
+        if data['Connected'].lower() == 'no':
+            if colname == 'Connected':
+                return self.ColorWarning
+            return self.ColorNormal
+
+        if colname == 'FlipMode':
+            good_string = 'Hardware Composed: Independent Flip'
+            return self.ColorNormal if good_string in value else self.ColorWarning
+
+        if colname == 'Gpus':
+            return self.ColorNormal if 'Synced' in value and 'Free' not in value else self.ColorWarning
+
+        if colname == 'InFocus':
+            return self.ColorNormal if 'yes' in value else self.ColorWarning
+
+        if colname == 'ExeFlags':
+            good_string = 'DISABLEDXMAXIMIZEDWINDOWEDMODE'
+            return self.ColorNormal if good_string in value else self.ColorWarning
+        
+        if colname == 'Displays':
+            is_normal = ('Slave' in value or 'Master' in value) and 'Unsynced' not in value
+            return self.ColorNormal if is_normal else self.ColorWarning
+
+        return self.ColorNormal
+
     def reset_device_data(self, device, data):
+        ''' Sets device data to unconnected state
+        '''
 
         for colname in self.colnames:
             data[colname] = 'n/a'
@@ -145,7 +183,7 @@ class nDisplayMonitor(QAbstractTableModel):
             # create message
 
             try:
-                program_id = device.programs_ids_with_name('unreal')[-1]
+                program_id = device.program_start_queue.running_puuids_named('unreal')[-1]
             except IndexError:
                 program_id = '00000000-0000-0000-0000-000000000000'
 
@@ -155,7 +193,7 @@ class nDisplayMonitor(QAbstractTableModel):
             device.unreal_client.send_message(msg)
 
     def devicedata_from_device(self, device):
-        '''Retrieves the devicedata and index for given device
+        ''' Retrieves the devicedata and index for given device
         '''
         for deviceIdx, hash_devicedata in enumerate(self.devicedatas.items()):
             device_hash, devicedata = hash_devicedata[0], hash_devicedata[1]
@@ -164,9 +202,12 @@ class nDisplayMonitor(QAbstractTableModel):
 
         raise KeyError
 
-    def populate_sync_data(self, data, message):
+    def populate_sync_data(self, devicedata, message):
         ''' Populates model data with message contents, which comes from 'get sync data' command.
         '''
+
+        data = devicedata['data']
+        device = devicedata['device']
 
         #
         # Sync Topology
@@ -266,6 +307,13 @@ class nDisplayMonitor(QAbstractTableModel):
             if time_since_flip_glitch < 1*60:
                 data['FlipMode'] = data['FlipMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
 
+        # Window in focus or not
+        data['InFocus'] = 'no'
+        for prog in device.program_start_queue.running_programs_named('unreal'):
+            if prog.pid and prog.pid == syncStatus['pidInFocus']:
+                data['InFocus'] = 'yes'
+                break
+
         # Show Exe flags (like Disable Fullscreen Optimization)
         data['ExeFlags'] = '\n'.join([layer for layer in syncStatus['programLayers'][1:]])
 
@@ -294,10 +342,8 @@ class nDisplayMonitor(QAbstractTableModel):
         devicedata['time_last_update'] = time.time()
         devicedata['stale'] = False
 
-        data = devicedata['data']
-
         try:
-            self.populate_sync_data(data, message)
+            self.populate_sync_data(devicedata=devicedata, message=message)
         except KeyError:
             LOGGER.error(f"Error parsing 'get sync status' message and populating model data\n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
             return
@@ -315,35 +361,74 @@ class nDisplayMonitor(QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
 
-        if role != Qt.DisplayRole:
-            return None
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return self.colnames[section]
+            else:
+                return "{}".format(section)
 
-        if orientation == Qt.Horizontal:
-            return self.colnames[section]
-        else:
-            return "{}".format(section)
+        if role == Qt.ToolTipRole:
+            return self.tooltips[section]
+
+        return None
 
     def data(self, index, role=Qt.DisplayRole):
 
         column = index.column()
         row = index.row()
 
+        # get column name
+        colname = self.colnames[column]
+
+        # grab device data from ordered dict
+        _, devicedata = list(self.devicedatas.items())[row] # returns key, value. Where key is the device_hash.
+        data = devicedata['data']
+        value = data[colname]
+
         if role == Qt.DisplayRole:
+            return value
 
-            # grab device data from ordered dict
-            _, devicedata = list(self.devicedatas.items())[row] # returns key, value. Where key is the device_hash.
-            data = devicedata['data']
-
-            # return column data
-            colname = self.colnames[column]
-            return data[colname]
-
-        #elif role == Qt.BackgroundRole:
-        #    return QColor(Qt.white)
+        elif role == Qt.BackgroundRole:
+            return self.color_for_column(colname=colname, value=value, data=data)
 
         elif role == Qt.TextAlignmentRole:
             return Qt.AlignRight
 
         return None
+
+    @QtCore.Slot()
+    def btnForceFocus_clicked(self):
+        ''' Forces focus on the nDisplay window if not already in focus
+        '''
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            data = devicedata['data']
+
+            if data['InFocus'] != 'yes':
+                device.force_focus()
+
+    @QtCore.Slot()
+    def btnFixExeFlags_clicked(self):
+        ''' Tries to force the correct UE4Editor.exe flags
+        '''
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            data = devicedata['data']
+
+            good_string = 'DISABLEDXMAXIMIZEDWINDOWEDMODE'
+
+            if good_string not in data['ExeFlags']:
+                device.fix_exe_flags()
+
+    @QtCore.Slot()
+    def btnSoftKill_clicked(self):
+        ''' Kills the cluster by sending a message to the master.
+        '''
+        devices = [devicedata['device'] for devicedata in self.devicedatas.values()]
+        if len(devices):
+            try:
+                devices[0].__class__.soft_kill_cluster(devices)
+            except:
+                LOGGER.warning("Could not soft kill cluster")
 
     #~ QAbstractTableModel interface end

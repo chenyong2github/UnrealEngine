@@ -7,6 +7,7 @@
 #include "UObject/ScriptMacros.h"
 #include "IMovieScenePlayer.h"
 #include "MovieScene.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlaybackClient.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -468,6 +469,9 @@ public:
 
 public:
 
+	/** Ensure that this player's tick manager is set up correctly for the specified context */
+	void InitializeForTick(UObject* Context);
+
 	/** Initialize this player with a sequence and some settings */
 	void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);
 
@@ -481,6 +485,11 @@ public:
 	 * @return the sequence currently assigned to this player
 	 */
 	UMovieSceneSequence* GetSequence() const { return Sequence; }
+
+	/**
+	 * Access this player's tick manager
+	 */
+	UMovieSceneSequenceTickManager* GetTickManager() const { return TickManager; }
 
 	/**
 	 * Assign a playback client interface for this sequence player, defining instance data and binding overrides
@@ -515,7 +524,7 @@ protected:
 	FFrameTime GetLastValidTime() const;
 
 	bool NeedsQueueLatentAction() const;
-	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const;
+	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();
 
 protected:
@@ -649,6 +658,9 @@ protected:
 	/** Global tick manager, held here to keep it alive while world sequences are in play */
 	UPROPERTY(transient)
 	UMovieSceneSequenceTickManager* TickManager;
+
+	/** Local latent action manager for when we're running a blocking sequence */
+	FMovieSceneLatentActionManager LatentActionManager;
 
 	/** (Optional) Externally supplied time controller */
 	TSharedPtr<FMovieSceneTimeController> TimeController;

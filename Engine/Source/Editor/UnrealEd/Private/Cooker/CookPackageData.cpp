@@ -731,7 +731,7 @@ namespace Cook
 			check(PreloadableFile);
 			if (FPreloadableFile::UnRegister(PreloadableFile))
 			{
-				UE_LOG(LogCook, Warning, TEXT("PreloadableFile was created for %s but never used. This is wasteful and bad for cook performance."), *PackageName.ToString());
+				UE_LOG(LogCook, Display, TEXT("PreloadableFile was created for %s but never used. This is wasteful and bad for cook performance."), *PackageName.ToString());
 			}
 			PreloadableFile->ReleaseCache(); // ReleaseCache to conserve memory if the Linker still has a pointer to it
 		}

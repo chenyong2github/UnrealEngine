@@ -5,6 +5,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/MallocFrameProfiler.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/QueuedThreadPool.h"
@@ -1600,6 +1601,15 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SetEmitDrawEvents(true);
 	}
+
+	// Activates malloc frame profiler from the command line 
+	// Recommend enabling bGenerateSymbols to ensure callstacks can resolve and bRetainFramePointers to ensure frame pointers remain valid.
+	// Also disabling the hitch detector ALLOW_HITCH_DETECTION=0 helps ensure quicker more accurate runs.
+	if (FParse::Param(FCommandLine::Get(), TEXT("mallocframeprofiler")))
+	{
+		GMallocFrameProfilerEnabled = true;
+		GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
+	}
 #endif // !UE_BUILD_SHIPPING
 
 #if RHI_COMMAND_LIST_DEBUG_TRACES
@@ -3059,8 +3069,21 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
 			}
 		}
+#if WITH_EDITOR
+		else if (GAllowCookedDataInEditorBuilds)
+		{
+			//Handle opening shader library after our EarlyLoadScreen
+			{
+				LLM_SCOPE(ELLMTag::Shaders);
+				SCOPED_BOOT_TIMING("FShaderCodeLibrary::OpenLibrary");
 
-		InitGameTextLocalization();
+				// Open the game library which contains the material shaders.
+				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
+			}
+		}
+#endif
+
+		BeginInitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
@@ -3077,6 +3100,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		    FModuleManager::Get().LoadModule("AssetRegistry");
 		}
 #endif
+		EndInitGameTextLocalization();
 
 		FEmbeddedCommunication::ForceTick(5);
 
@@ -4837,7 +4861,7 @@ void FEngineLoop::Tick()
 			});
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
+			//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 			FPlatformApplicationMisc::PumpMessages(true);
 		}
 

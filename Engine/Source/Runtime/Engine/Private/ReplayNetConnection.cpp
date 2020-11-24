@@ -303,9 +303,9 @@ void UReplayNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, E
 {
 	Super::NotifyActorChannelCleanedUp(Channel, CloseReason);
 
-	if (Channel && ReplayHelper.HasDeltaCheckpoints())
+	if (ReplayHelper.HasDeltaCheckpoints() && (ReplayHelper.GetCheckpointSaveState() == FReplayHelper::ECheckpointSaveState::Idle))
 	{
-		if (Channel->bOpenedForCheckpoint)
+		if (Channel && Channel->bOpenedForCheckpoint)
 		{
 			ReplayHelper.RecordingDeltaCheckpointData.ChannelsToClose.Add(Channel->ActorNetGUID, CloseReason);
 		}

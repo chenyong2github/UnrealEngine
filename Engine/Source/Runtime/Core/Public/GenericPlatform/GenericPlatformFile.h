@@ -133,6 +133,13 @@ public:
 	**/
 	virtual bool		Truncate(int64 NewSize) = 0;
 
+	/**
+	 * Minimizes optional system or process cache kept for the file.
+	**/
+	virtual void		ShrinkBuffers()
+	{
+	}
+
 public:
 	/////////// Utility Functions. These have a default implementation that uses the pure virtual operations.
 
@@ -641,4 +648,6 @@ public:
 	 */
 	virtual void PakVisitPrunedFilenames(IPlatformFile::FDirectoryVisitor& Visitor) const = 0;
 	virtual const FString& PakGetMountPoint() const = 0;
+
+	virtual int32 GetNumFiles() const = 0;
 };

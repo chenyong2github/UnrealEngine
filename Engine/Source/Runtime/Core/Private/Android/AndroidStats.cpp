@@ -139,18 +139,7 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Texture Cycles (Mln)"), STAT_ShaderTextu
 DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Read (MB)"), STAT_ExternalMemoryRead, STATGROUP_AndroidGPU);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Write (MB)"), STAT_ExternalMemoryWrite, STATGROUP_AndroidGPU);
 
-static bool GIsHWCPipeInitialized = false;
-
-static hwcpipe::HWCPipe GHWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
-									  hwcpipe::GpuCounter::VertexComputeCycles,
-									  hwcpipe::GpuCounter::FragmentCycles,
-									  hwcpipe::GpuCounter::Pixels,
-									  hwcpipe::GpuCounter::ShaderCycles,
-									  hwcpipe::GpuCounter::ShaderArithmeticCycles,
-									  hwcpipe::GpuCounter::ShaderLoadStoreCycles,
-									  hwcpipe::GpuCounter::ShaderTextureCycles,
-									  hwcpipe::GpuCounter::ExternalMemoryReadBytes,
-									  hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
+static hwcpipe::HWCPipe* GHWCPipe = nullptr;
 #endif
 
 static void UpdateGPUStats();
@@ -165,28 +154,90 @@ static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 	ECVF_Default);
 
 static int GThermalStatus = 0;
+static int GTrimMemoryBackgroundLevel = 0;
+CSV_DEFINE_STAT(AndroidMemory, TrimMemoryBackgroundLevel);
+static int GTrimMemoryForegroundLevel = 0;
+CSV_DEFINE_STAT(AndroidMemory, TrimMemoryForegroundLevel);
 static int GMemoryWarningStatus = 0;
 CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
 
 void FAndroidStats::Init()
 {
 #if HWCPIPE_SUPPORTED
+	static hwcpipe::HWCPipe HWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
+										 hwcpipe::GpuCounter::VertexComputeCycles,
+										 hwcpipe::GpuCounter::FragmentCycles,
+										 hwcpipe::GpuCounter::Pixels,
+										 hwcpipe::GpuCounter::ShaderCycles,
+										 hwcpipe::GpuCounter::ShaderArithmeticCycles,
+										 hwcpipe::GpuCounter::ShaderLoadStoreCycles,
+										 hwcpipe::GpuCounter::ShaderTextureCycles,
+										 hwcpipe::GpuCounter::ExternalMemoryReadBytes,
+										 hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
 	if (hwcpipe::get_last_error() == nullptr)
 	{
-		GIsHWCPipeInitialized = true;
-		GHWCPipe.run();
+		GHWCPipe = &HWCPipe;
+		GHWCPipe->run();
 	}
 #endif
 }
 
-void FAndroidStats::OnThermalStatusChanged(int status)
+void FAndroidStats::OnThermalStatusChanged(int Status)
 {
-	GThermalStatus = status;
+	GThermalStatus = Status;
 }
 
-void FAndroidStats::OnMemoryWarningChanged(int status)
+void FAndroidStats::OnTrimMemory(int TrimLevel)
 {
-	GMemoryWarningStatus = status;
+	// https://developer.android.com/reference/android/content/ComponentCallbacks2#constants_1
+	enum ETrimLevel
+	{
+		TRIM_MEMORY_BACKGROUND = 40,
+		TRIM_MEMORY_COMPLETE = 80,
+		TRIM_MEMORY_MODERATE = 60,
+		TRIM_MEMORY_RUNNING_CRITICAL = 15,
+		TRIM_MEMORY_RUNNING_LOW = 10,
+		TRIM_MEMORY_RUNNING_MODERATE = 5,
+		TRIM_MEMORY_UI_HIDDEN = 20,
+	};
+
+	GTrimMemoryBackgroundLevel = 0;
+	GTrimMemoryForegroundLevel = 0;
+
+	switch (TrimLevel)
+	{
+	case TRIM_MEMORY_UI_HIDDEN:
+		GTrimMemoryBackgroundLevel = 1;
+		break;
+	case TRIM_MEMORY_BACKGROUND:
+		GTrimMemoryBackgroundLevel = 2;
+		break;
+	case TRIM_MEMORY_MODERATE:
+		GTrimMemoryBackgroundLevel = 3;
+		break;
+	case TRIM_MEMORY_COMPLETE:
+		GTrimMemoryBackgroundLevel = 4;
+		break;
+
+	case TRIM_MEMORY_RUNNING_LOW:
+		GTrimMemoryForegroundLevel = 1;
+		break;
+	case TRIM_MEMORY_RUNNING_MODERATE:
+		GTrimMemoryForegroundLevel = 2;
+		break;
+	case TRIM_MEMORY_RUNNING_CRITICAL:
+		GTrimMemoryForegroundLevel = 3;
+		break;
+	default:
+		GTrimMemoryForegroundLevel = -1;
+		GTrimMemoryBackgroundLevel = -1;
+		break;
+}
+}
+
+void FAndroidStats::OnMemoryWarningChanged(int Status)
+{
+	GMemoryWarningStatus = Status;
 }
 
 void FAndroidStats::UpdateAndroidStats()
@@ -208,6 +259,8 @@ void FAndroidStats::UpdateAndroidStats()
 
 	CSV_CUSTOM_STAT_DEFINED(CPUTemp, CPUTemp, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(ThermalStatus, GThermalStatus, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(TrimMemoryBackgroundLevel, GTrimMemoryBackgroundLevel, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(TrimMemoryForegroundLevel, GTrimMemoryForegroundLevel, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(MemoryWarningState, GMemoryWarningStatus, ECsvCustomStatOp::Set);
 
 	static const uint32 MaxFrequencyGroupStats = 4;
@@ -364,7 +417,7 @@ void FAndroidStats::UpdateAndroidStats()
 static void UpdateGPUStats()
 {
 #if HWCPIPE_SUPPORTED
-	if (!GIsHWCPipeInitialized)
+	if (!GHWCPipe)
 	{
 		return;
 	}
@@ -373,7 +426,7 @@ static void UpdateGPUStats()
 	{
 		const double Mln = 1000000.0;
 		const double MB = 1024.0 * 1024.0;
-		hwcpipe::GpuMeasurements counters = GHWCPipe.gpu_profiler()->sample();
+		hwcpipe::GpuMeasurements counters = GHWCPipe->gpu_profiler()->sample();
 		for (hwcpipe::GpuMeasurements::iterator it = counters.begin(); it != counters.end(); ++it)
 		{
 			float value;

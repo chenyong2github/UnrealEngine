@@ -5,9 +5,9 @@
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
 
-void FSequencerCachedKeys::Update(TSharedRef<IKeyArea> InKeyArea, FFrameRate SourceResolution)
+bool FSequencerCachedKeys::Update(FFrameRate SourceResolution)
 {
-	UMovieSceneSection* Section = InKeyArea->GetOwningSection();
+	UMovieSceneSection* Section = KeyArea->GetOwningSection();
 	if (!Section || !CachedSignature.IsValid() || Section->GetSignature() != CachedSignature || SourceResolution != CachedTickResolution)
 	{
 		CachedSignature = Section ? Section->GetSignature() : FGuid();
@@ -16,7 +16,7 @@ void FSequencerCachedKeys::Update(TSharedRef<IKeyArea> InKeyArea, FFrameRate Sou
 		CachedKeyFrames.Reset();
 
 		TArray<FKeyHandle> Handles;
-		InKeyArea->GetKeyInfo(&Handles, &CachedKeyFrames);
+		KeyArea->GetKeyInfo(&Handles, &CachedKeyFrames);
 
 		CachedKeyTimes.Reset(CachedKeyFrames.Num());
 		CachedKeyHandles.Reset(CachedKeyFrames.Num());
@@ -28,8 +28,10 @@ void FSequencerCachedKeys::Update(TSharedRef<IKeyArea> InKeyArea, FFrameRate Sou
 			CachedKeyHandles.Add(Handles[Index]);
 		}
 
-		KeyArea = InKeyArea;
+		return true;
 	}
+
+	return false;
 }
 
 void FSequencerCachedKeys::GetKeysInRange(const TRange<double>& Range, TArrayView<const double>* OutTimes, TArrayView<const FFrameNumber>* OutKeyFrames, TArrayView<const FKeyHandle>* OutHandles) const
@@ -55,6 +57,23 @@ void FSequencerCachedKeys::GetKeysInRange(const TRange<double>& Range, TArrayVie
 		if (OutHandles)
 		{
 			*OutHandles = MakeArrayView(&CachedKeyHandles[FirstVisibleIndex], Num);
+		}
+	}
+	else
+	{
+		if (OutTimes)
+		{
+			*OutTimes = TArrayView<const double>();
+		}
+
+		if (OutKeyFrames)
+		{
+			*OutKeyFrames = TArrayView<const FFrameNumber>();
+		}
+
+		if (OutHandles)
+		{
+			*OutHandles = TArrayView<const FKeyHandle>();
 		}
 	}
 }

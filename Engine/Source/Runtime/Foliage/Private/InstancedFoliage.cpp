@@ -65,7 +65,7 @@ DECLARE_CYCLE_STAT(TEXT("FoliageMeshInfo_CreateComponent"), STAT_FoliageCreateCo
 static TAutoConsoleVariable<int32> CVarFoliageDiscardDataOnLoad(
 	TEXT("foliage.DiscardDataOnLoad"),
 	0,
-	TEXT("1: Discard scalable foliage data on load (disables all scalable foliage types); 0: Keep scalable foliage data (requires reloading level)"),
+	TEXT("1: Discard foliage data on load if the foliage type has it enabled; 0: Keep foliage data regardless of whether the foliage type has it enabled or not (requires reloading level)"),
 	ECVF_Scalability);
 
 const FGuid FFoliageCustomVersion::GUID(0x430C4D19, 0x71544970, 0x87699B69, 0xDF90B0E5);
@@ -466,6 +466,7 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	HiddenEditorViews = 0;
 #endif
 	bEnableDensityScaling = false;
+	bEnableDiscardOnLoad = false;
 
 #if WITH_EDITORONLY_DATA
 	// Deprecated since FFoliageCustomVersion::FoliageTypeCustomization
@@ -3990,6 +3991,12 @@ void AInstancedFoliageActor::PostLoad()
 				}
 			}
 
+			// Discard scalable Foliage data on load
+			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageDiscardOnLoad)
+			{
+				FoliageType->bEnableDiscardOnLoad = FoliageType->bEnableDensityScaling;
+			}
+
 			// Fixup corrupted data
 			if (Info.Type == EFoliageImplType::StaticMesh)
 			{
@@ -4091,7 +4098,7 @@ void AInstancedFoliageActor::PostLoad()
 	{
 		for (auto& Pair : FoliageInfos)
 		{
-			if (!Pair.Key || Pair.Key->bEnableDensityScaling)
+			if (!Pair.Key || Pair.Key->bEnableDiscardOnLoad)
 			{
 				if (Pair.Value->Type == EFoliageImplType::StaticMesh)
 				{

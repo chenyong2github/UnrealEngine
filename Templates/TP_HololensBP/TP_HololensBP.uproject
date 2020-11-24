@@ -59,26 +59,34 @@
 		},
 		{
 			"Name": "HoloLensAR",
-			"Enabled": true
-		},
-		{
-			"Name": "WindowsMixedReality",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win64",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
-			"Name": "AzureSpatialAnchors",
+			"Name": "OpenXRHandTracking",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
+				"Win32",
 				"Win64",
 				"HoloLens",
-				"Android",
-				"IOS",
-				"Mac"
+				"Android"
 			]
+		},
+		{
+			"Name": "OpenXRMsftHandInteraction",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"HoloLens",
+				"Android"
+			]
+		},
+		{
+			"Name": "XRVisualization",
+			"Enabled": true
 		},
 		{
 			"Name": "AzureSpatialAnchorsForWMR",

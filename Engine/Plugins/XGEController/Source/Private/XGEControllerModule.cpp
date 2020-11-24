@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "XGEControllerModule.h"
-#include "Containers/Queue.h"
+#include "Features/IModularFeatures.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformNamedPipe.h"
 #include "HAL/PlatformFilemanager.h"
@@ -9,6 +9,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "Modules/ModuleManager.h"
 
@@ -239,6 +240,8 @@ void FXGEControllerModule::StartupModule()
 {
 	check(!bInitialized);
 
+	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureType(), this);
+	
 	CleanWorkingDirectory();
 
 	bShutdown = false;
@@ -253,6 +256,8 @@ void FXGEControllerModule::StartupModule()
 void FXGEControllerModule::ShutdownModule()
 {
 	check(bInitialized);
+
+	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureType(), this);
 
 	if (bSupported)
 	{

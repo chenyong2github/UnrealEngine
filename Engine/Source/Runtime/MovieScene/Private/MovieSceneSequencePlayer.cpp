@@ -629,6 +629,15 @@ UMovieSceneEntitySystemLinker* UMovieSceneSequencePlayer::ConstructEntitySystemL
 	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext());
 }
 
+void UMovieSceneSequencePlayer::InitializeForTick(UObject* Context)
+{
+	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
+	if (ensure(Context))
+	{
+		TickManager = UMovieSceneSequenceTickManager::Get(Context);
+	}
+}
+
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings)
 {
 	check(InSequence);
@@ -714,15 +723,14 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		}
 	}
 
-
-	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
-	UObject* PlaybackContext = GetPlaybackContext();
-	if (ensure(PlaybackContext))
+	if (!TickManager)
 	{
-		TickManager = UMovieSceneSequenceTickManager::Get(PlaybackContext);
+		InitializeForTick(GetPlaybackContext());
 	}
 
 	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
+
+	LatentActionManager.ClearLatentActions();
 
 	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
 	PlayPosition.Reset(StartTimeWithOffset);
@@ -1384,16 +1392,29 @@ bool UMovieSceneSequencePlayer::NeedsQueueLatentAction() const
 	return bIsEvaluating;
 }
 
-void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const
+void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate)
 {
-	if (ensure(TickManager))
+	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
 	{
+		// Queue latent actions on the global tick manager.
 		TickManager->AddLatentAction(Delegate);
+	}
+	else
+	{
+		// Queue latent actions locally.
+		LatentActionManager.AddLatentAction(Delegate);
 	}
 }
 
 void UMovieSceneSequencePlayer::RunLatentActions()
 {
-	TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
+	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		TickManager->RunLatentActions();
+	}
+	else
+	{
+		LatentActionManager.RunLatentActions(RootTemplateInstance.GetEntitySystemRunner());
+	}
 }
 

@@ -218,7 +218,7 @@ void AVirtualCameraActor::Destroyed()
 
 	if (RemoteSessionHost && RemoteSessionHost->IsConnected())
 	{
-		RemoteSessionHost->Close();
+		RemoteSessionHost->Close(TEXT("Camera Destroyed"));
 	}
 }
 

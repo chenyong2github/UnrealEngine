@@ -19,6 +19,7 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDLongRangeConstraints.h"
+#include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -33,6 +34,12 @@
 #include "Chaos/DebugDrawQueue.h"
 #include "HAL/IConsoleManager.h"
 #endif  // #if CHAOS_DEBUG_DRAW
+
+#if !UE_BUILD_SHIPPING
+#include "FramePro/FramePro.h"
+#else
+#define FRAMEPRO_ENABLED 0
+#endif
 
 #if INTEL_ISPC
 #include "ChaosClothingSimulation.ispc.generated.h"
@@ -76,6 +83,7 @@ namespace ChaosClothingSimulationConsoleVariables
 	TAutoConsoleVariable<bool> CVarDebugBackstopDistances   (TEXT("p.ChaosCloth.DebugDrawBackstopDistances"   ), false, TEXT("Whether to debug draw the Chaos Cloth backstop distances"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugMaxDistances        (TEXT("p.ChaosCloth.DebugDrawMaxDistances"        ), false, TEXT("Whether to debug draw the Chaos Cloth max distances"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugAnimDrive           (TEXT("p.ChaosCloth.DebugDrawAnimDrive"           ), false, TEXT("Whether to debug draw the Chaos Cloth anim drive"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> CVarDebugBendingConstraint   (TEXT("p.ChaosCloth.DebugDrawBendingConstraint"   ), false, TEXT("Whether to debug draw the Chaos Cloth bending constraint"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugLongRangeConstraint (TEXT("p.ChaosCloth.DebugDrawLongRangeConstraint" ), false, TEXT("Whether to debug draw the Chaos Cloth long range constraint (aka tether constraint)"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugWindForces          (TEXT("p.ChaosCloth.DebugDrawWindForces"          ), false, TEXT("Whether to debug draw the Chaos Cloth wind forces"), ECVF_Cheat);
 }
@@ -317,7 +325,7 @@ void FClothingSimulation::ResetStats()
 {
 	check(Solver);
 	NumCloths = 0;
-	NumKinemamicParticles = 0;
+	NumKinematicParticles = 0;
 	NumDynamicParticles = 0;
 	SimulationTime = 0.f;
 	NumSubsteps = Solver->GetNumSubsteps();
@@ -327,7 +335,7 @@ void FClothingSimulation::ResetStats()
 void FClothingSimulation::UpdateStats(const FClothingSimulationCloth* Cloth)
 {
 	NumCloths = Cloths.Num();
-	NumKinemamicParticles += Cloth->GetNumActiveKinematicParticles();
+	NumKinematicParticles += Cloth->GetNumActiveKinematicParticles();
 	NumDynamicParticles += Cloth->GetNumActiveDynamicParticles();
 }
 
@@ -404,6 +412,12 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 	SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
 
+#if FRAMEPRO_ENABLED
+	FRAMEPRO_CUSTOM_STAT("ChaosClothSimulationTimeMs", SimulationTime, "ChaosCloth", "ms", FRAMEPRO_COLOUR(0,128,255));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothNumDynamicParticles", NumDynamicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(0,128,128));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothNumKinematicParticles", NumKinematicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(128, 0, 128));
+#endif
+
 	// Debug draw
 #if CHAOS_DEBUG_DRAW
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawLocalSpace      .GetValueOnAnyThread()) { DebugDrawLocalSpace          (); }
@@ -418,6 +432,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugBackstopDistances   .GetValueOnAnyThread()) { DebugDrawBackstopDistances   (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugMaxDistances        .GetValueOnAnyThread()) { DebugDrawMaxDistances        (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugAnimDrive           .GetValueOnAnyThread()) { DebugDrawAnimDrive           (); }
+	if (ChaosClothingSimulationConsoleVariables::CVarDebugBendingConstraint   .GetValueOnAnyThread()) { DebugDrawBendingConstraint   (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugLongRangeConstraint .GetValueOnAnyThread()) { DebugDrawLongRangeConstraint (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugWindForces          .GetValueOnAnyThread()) { DebugDrawWindForces          (); }
 #endif  // #if CHAOS_DEBUG_DRAW
@@ -442,10 +457,14 @@ void FClothingSimulation::GetSimulationData(
 		OutData.Reset();
 	}
 
-	// Retrieve cloths' particle positions
-	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	// Get the solver's local space
 	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
 
+	// Retrieve the component transforms
+	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ? InOverrideComponent->GetComponentSpaceTransforms() : InOwnerComponent->GetComponentSpaceTransforms();
+
+	// Set the simulation data for each of the cloths
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
 		const int32 AssetIndex = Cloth->GetGroupId();
@@ -456,20 +475,41 @@ void FClothingSimulation::GetSimulationData(
 			continue;
 		}
 
-		// Output data in component space
-		Data.ComponentRelativeTransform = FTransform::Identity;
-		Data.Transform = OwnerTransform;
+		// Get the reference bone index for this cloth
+		const int32 ReferenceBoneIndex = Cloth->GetReferenceBoneIndex();
+		if (!ComponentSpaceTransforms.IsValidIndex(ReferenceBoneIndex))
+		{
+			UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component % as bone transforms are invalid."), *InOwnerComponent->GetName());
+			OutData.Reset();
+			return;
+		}
 
+		// Get the reference transform used in the current animation pose
+		FTransform ReferenceBoneTransform = ComponentSpaceTransforms[ReferenceBoneIndex];
+		ReferenceBoneTransform *= OwnerTransform;
+		ReferenceBoneTransform.SetScale3D(FVector(1.0f));  // Scale is already baked in the cloth mesh
+
+		// Set the world space transform to be this cloth's reference bone
+		Data.Transform = ReferenceBoneTransform;
+		Data.ComponentRelativeTransform = ReferenceBoneTransform.GetRelativeTransform(OwnerTransform);
+
+		// Retrieve the last reference space transform used for this cloth
+		// Note: This won't necessary match the current bone reference transform when the simulation is paused,
+		//       and still allows for the correct positioning of the sim data while the component is animated.
+		const TRigidTransform<float, 3>& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
+
+		// Copy positions and normals
 		Data.Positions = Cloth->GetParticlePositions(Solver.Get());
 		Data.Normals = Cloth->GetParticleNormals(Solver.Get());
 
+		// Transform into the cloth reference simulation space used at the time of simulation
 		if (bChaos_GetSimData_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::GetClothingSimulationData(
 				(ispc::FVector*)Data.Positions.GetData(),
 				(ispc::FVector*)Data.Normals.GetData(),
-				(ispc::FTransform&)OwnerTransform,
+				(ispc::FTransform&)ReferenceSpaceTransform,
 				(ispc::FVector&)LocalSpaceLocation,
 				Data.Positions.Num());
 #endif
@@ -478,8 +518,8 @@ void FClothingSimulation::GetSimulationData(
 		{
 			for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
 			{
-				Data.Positions[Index] = OwnerTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
-				Data.Normals[Index] = OwnerTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+				Data.Positions[Index] = ReferenceSpaceTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
+				Data.Normals[Index] = ReferenceSpaceTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 			}
 		}
 	}
@@ -722,6 +762,38 @@ void FClothingSimulation::DebugDrawParticleIndices(FCanvas* Canvas, const FScene
 
 			const FText Text = FText::AsNumber(Offset + Index);
 			DrawText(Canvas, SceneView, Position, Text, InvMasses[Index] == 0.f ? KinematicColor : DynamicColor);
+		}
+	}
+}
+
+void FClothingSimulation::DebugDrawElementIndices(FCanvas* Canvas, const FSceneView* SceneView) const
+{
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
+	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+
+	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+	{
+		const int32 Offset = Cloth->GetOffset(Solver.Get());
+		if (Offset == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const TArray<TVector<int32, 3>>& Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TConstArrayView<TVector<float, 3>> Positions = Cloth->GetParticlePositions(Solver.Get());
+		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		check(InvMasses.Num() == Positions.Num());
+
+		for (int32 Index = 0; Index < Elements.Num(); ++Index)
+		{
+			const TVector<int32, 3>& Element = Elements[Index];
+			const FVector Position = LocalSpaceLocation + (Positions[Element[0]] + Positions[Element[1]] + Positions[Element[2]]) / 3.f;
+
+			const FLinearColor& Color = (InvMasses[Element[0]] == 0.f && InvMasses[Element[1]] == 0.f && InvMasses[Element[2]] == 0.f) ? KinematicColor : DynamicColor;
+			const FText Text = FText::AsNumber(Index);
+			DrawText(Canvas, SceneView, Position, Text, Color);
 		}
 	}
 }
@@ -1412,6 +1484,38 @@ void FClothingSimulation::DebugDrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 				const FVector AnimationPosition = LocalSpaceLocation + AnimationPositions[Index];
 				const FVector ParticlePosition = LocalSpaceLocation + ParticlePositions[Index];
 				DrawLine(PDI, AnimationPosition, ParticlePosition, FLinearColor(FColor::Cyan) * AnimDriveMultiplier * SpringStiffness);
+			}
+		}
+	}
+}
+
+void FClothingSimulation::DebugDrawBendingConstraint(FPrimitiveDrawInterface* PDI) const
+{
+	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+
+	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+	{
+		const int32 Offset = Cloth->GetOffset(Solver.Get());
+		if (Offset == INDEX_NONE)
+		{
+			continue;
+		}
+
+		// Draw constraints
+		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
+
+		const TConstArrayView<TVector<float, 3>> Positions = Cloth->GetParticlePositions(Solver.Get());
+
+		if (const FPBDSpringConstraints* const BendingConstraints = ClothConstraints.GetBendingConstraints().Get())
+		{
+			const TArray<TVector<int32, 2>>& Constraints = BendingConstraints->GetConstraints();
+			for (const TVector<int32, 2>& Constraint : Constraints)
+			{
+				// Draw line
+				const TVector<float, 3> Pos0 = Positions[Constraint[0]] + LocalSpaceLocation;
+				const TVector<float, 3> Pos1 = Positions[Constraint[1]] + LocalSpaceLocation;
+
+				DrawLine(PDI, Pos0, Pos1, FLinearColor::Black);
 			}
 		}
 	}

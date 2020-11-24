@@ -269,12 +269,13 @@ void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapH
 
 	for (int32 i = 0; i < InputPins.Num(); i++)
 	{
-		if (IsAddPin(InputPins[i]))
+		UEdGraphPin* InputPin = InputPins[i];
+		if (IsAddPin(InputPin))
 		{
 			continue;
 		}
 
-		OutHistory.VisitInputPin(InputPins[i], this, bFilterForCompilation);
+		OutHistory.VisitInputPin(InputPin, this, bFilterForCompilation);
 
 
 		if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
@@ -282,13 +283,13 @@ void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapH
 			continue;
 		}
 
-		FNiagaraTypeDefinition VarTypeDef = Schema->PinToTypeDefinition(InputPins[i]);
-		if (i == 0 && InputPins[i] != nullptr && VarTypeDef == FNiagaraTypeDefinition::GetParameterMapDef())
+		FNiagaraTypeDefinition VarTypeDef = Schema->PinToTypeDefinition(InputPin);
+		if (i == 0 && InputPin != nullptr && VarTypeDef == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			UEdGraphPin* PriorParamPin = nullptr;
-			if (InputPins[i]->LinkedTo.Num() > 0)
+			if (InputPin->LinkedTo.Num() > 0)
 			{
-				PriorParamPin = InputPins[i]->LinkedTo[0];
+				PriorParamPin = InputPin->LinkedTo[0];
 			}
 
 			// Now plow into our ancestor node
@@ -298,9 +299,9 @@ void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapH
 				NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 			}
 		}
-		else if (i > 0 && InputPins[i] != nullptr && ParamMapIdx != INDEX_NONE)
+		else if (i > 0 && InputPin != nullptr && ParamMapIdx != INDEX_NONE)
 		{
-			OutHistory.HandleVariableWrite(ParamMapIdx, InputPins[i]);
+			OutHistory.HandleVariableWrite(ParamMapIdx, InputPin);
 		}
 	}
 

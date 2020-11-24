@@ -313,22 +313,28 @@ class MOVIESCENETRACKS_API UMovieSceneParameterSection
 
 public:
 	/** Adds a a key for a specific scalar parameter at the specified time with the specified value. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
 	void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
 
 	/** Adds a a key for a specific bool parameter at the specified time with the specified value. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
 	void AddBoolParameterKey(FName InParameterName, FFrameNumber InTime, bool InValue);
 
-	 /** Adds a a key for a specific vector2D parameter at the specified time with the specified value. */
-	 void AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue);
+	/** Adds a a key for a specific vector2D parameter at the specified time with the specified value. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue);
 
 	/** Adds a a key for a specific vector parameter at the specified time with the specified value. */
-	 void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
 
 	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
-	 void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
 
 	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
-	 void AddTransformParameterKey(FName InParameterName, FFrameNumber InTime, const FTransform& InValue);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void AddTransformParameterKey(FName InParameterName, FFrameNumber InTime, const FTransform& InValue);
 
 	/** 
 	 * Removes a scalar parameter from this section. 
@@ -336,15 +342,17 @@ public:
 	 * @param InParameterName The name of the scalar parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	 bool RemoveScalarParameter(FName InParameterName);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveScalarParameter(FName InParameterName);
 
-	 /**
-	  * Removes a bool parameter from this section.
-	  *
-	  * @param InParameterName The name of the bool parameter to remove.
-	  * @returns True if a parameter with that name was found and removed, otherwise false.
-	  */
-	 bool RemoveBoolParameter(FName InParameterName);
+	/**
+	 * Removes a bool parameter from this section.
+	 *
+	 * @param InParameterName The name of the bool parameter to remove.
+	 * @returns True if a parameter with that name was found and removed, otherwise false.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveBoolParameter(FName InParameterName);
 
 	/**
 	 * Removes a vector2D parameter from this section.
@@ -352,15 +360,17 @@ public:
 	 * @param InParameterName The name of the vector2D parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	 bool RemoveVector2DParameter(FName InParameterName);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveVector2DParameter(FName InParameterName);
 
-	 /**
-  * Removes a vector parameter from this section.
-  *
-  * @param InParameterName The name of the vector parameter to remove.
-  * @returns True if a parameter with that name was found and removed, otherwise false.
-  */
-	 bool RemoveVectorParameter(FName InParameterName);
+	/**
+     * Removes a vector parameter from this section.
+    *
+    * @param InParameterName The name of the vector parameter to remove.
+    * @returns True if a parameter with that name was found and removed, otherwise false.
+    */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveVectorParameter(FName InParameterName);
 
 	/**
 	 * Removes a color parameter from this section.
@@ -368,7 +378,8 @@ public:
 	 * @param InParameterName The name of the color parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	 bool RemoveColorParameter(FName InParameterName);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveColorParameter(FName InParameterName);
 
 	/**
 	 * Removes a transform parameter from this section.
@@ -376,33 +387,35 @@ public:
 	 * @param InParameterName The name of the transform parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	 bool RemoveTransformParameter(FName InParameterName);
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	bool RemoveTransformParameter(FName InParameterName);
 
 	/** Gets the animated scalar parameters and their associated curves. */
-	 TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
-	 const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
+	TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
+	const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
 
-	 /** Gets the animated bool parameters and their associated curves. */
-	 TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves();
-	 const TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves() const;
+	/** Gets the animated bool parameters and their associated curves. */
+	TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves();
+	const TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves() const;
 
-	 /** Gets the animated vector2D parameters and their associated curves. */
-	 TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves();
-	 const TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves() const;
+	/** Gets the animated vector2D parameters and their associated curves. */
+	TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves();
+	const TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves() const;
 
 	/** Gets the animated vector parameters and their associated curves. */
-	 TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
-	 const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
+	TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
+	const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
 
 	/** Gets the animated color parameters and their associated curves. */
-	 TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
-	 const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
+	TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
+	const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
 
 	/** Gets the animated transform parameters and their associated curves. */
-	 TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves();
-     const TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves() const;
+	TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves();
+    const TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves() const;
 
 	/** Gets the set of all parameter names used by this section. */
+	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
 	void GetParameterNames(TSet<FName>& ParameterNames) const;
 
 protected:

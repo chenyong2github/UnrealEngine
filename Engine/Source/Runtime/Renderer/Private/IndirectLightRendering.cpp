@@ -1240,11 +1240,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				DenoiserConfig.ResolutionFraction = RayTracingReflectionOptions.ResolutionFraction;
 				DenoiserConfig.RayCountPerPixel = RayTracingReflectionOptions.SamplesPerPixel;
 
-				if (!bDenoise)
-				{
-					DenoiserConfig.ResolutionFraction = 1.0f;
-				}
-
 				check(RayTracingReflectionOptions.bReflectOnlyWater == false);
 
 				RenderRayTracingReflections(

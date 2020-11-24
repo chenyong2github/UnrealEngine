@@ -12,7 +12,7 @@ from .ndisplay_monitor    import nDisplayMonitor
 
 from PySide2 import QtWidgets
 
-import os, traceback, json
+import os, traceback, json, socket, struct
 from pathlib import Path
 
 
@@ -48,6 +48,7 @@ class AddnDisplayDialog(AddDeviceDialog):
         res = super().result()
         if res == QtWidgets.QDialog.Accepted:
             config_path = self.config_file_field.text().replace('"', '').strip()
+            config_path = os.path.normpath(config_path)
             DevicenDisplay.csettings['ndisplay_config_file'].update_value(config_path)
         return res
 
@@ -122,6 +123,13 @@ class DevicenDisplay(DeviceUnreal):
             value="", 
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
+        'max_gpu_count': Setting(
+            attr_name="max_gpu_count", 
+            nice_name="Number of GPUs",
+            value=1,
+            possible_values=list(range(1, 17)),
+            tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -182,6 +190,16 @@ class DevicenDisplay(DeviceUnreal):
         # create monitor if it doesn't exist
         self.__class__.create_monitor_if_necessary()
 
+        # node configuration (updated from config file)
+        self.nodeconfig = {}
+
+        try:
+            cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value(self.name)
+            self.update_settings_controlled_by_config(cfg_file)
+        except:
+            LOGGER.error(f"{self.name}: Could not update from '{cfg_file}' during initialization. \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
+
+
     @classmethod
     def create_monitor_if_necessary(cls):
         ''' Creates the nDisplay Monitor if it doesn't exist yet.
@@ -198,7 +216,11 @@ class DevicenDisplay(DeviceUnreal):
     def plugin_settings(cls):
         ''' Returns common settings that belong to all devices of this class.
         '''
-        return [DeviceUnreal.csettings['port'], DeviceUnreal.csettings['roles_filename']] + list(cls.csettings.values())
+        return list(cls.csettings.values()) + [
+            DeviceUnreal.csettings['port'], 
+            DeviceUnreal.csettings['roles_filename'],
+            DeviceUnreal.csettings['stage_session_id'],
+        ]
 
     def device_settings(self):
         ''' This is given to the config, so that it knows to save them when they change.
@@ -210,6 +232,7 @@ class DevicenDisplay(DeviceUnreal):
         return [
             DevicenDisplay.csettings['ndisplay_cmd_args'],
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
+            DevicenDisplay.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
             CONFIG.UPROJECT_PATH,
@@ -220,24 +243,41 @@ class DevicenDisplay(DeviceUnreal):
             self.generate_unreal_command_line()
 
     @property
-    def category_name(self):
-        return "nDisplay"
+    def is_recording_device(self):
+        return False
 
     def generate_unreal_command_line(self, map_name=""):
 
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
+
+        # Extra arguments specified in settings
         additional_args = self.csettings['ndisplay_cmd_args'].get_value(self.name)
 
+        # Path to config file
         cfg_file = self.path_to_config_on_host
 
+        # nDisplay window info
         win_pos = self.settings['window_position'].get_value()
         win_res = self.settings['window_resolution'].get_value()
         fullscreen = self.settings['fullscreen'].get_value()
 
+        # Misc settings
         render_mode = self.render_mode_cmdline_opts[DevicenDisplay.csettings['render_mode'].get_value(self.name)]
         render_api = f"-{DevicenDisplay.csettings['render_api'].get_value(self.name)}"
         use_all_cores = "-useallavailablecores" if DevicenDisplay.csettings['use_all_available_cores'].get_value(self.name) else ""
         no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
+
+        # MaxGPUCount (mGPU)
+        #
+        max_gpu_count = DevicenDisplay.csettings["max_gpu_count"].get_value(self.name)
+        try:
+            max_gpu_count = f"-MaxGPUCount={max_gpu_count}" if int(max_gpu_count) > 1 else ''
+        except ValueError:
+            LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
+            max_gpu_count = ''
+
+        # Overridden classes at runtime
+        #
 
         ini_engine = "-ini:Engine"\
             ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
@@ -245,30 +285,54 @@ class DevicenDisplay(DeviceUnreal):
 
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
+        # VP roles
+        #
+
+        vproles, missing_roles = self.get_vproles()
+
+        if missing_roles:
+            LOGGER.error(f"{self.name}: Omitted roles not in the remote roles ini file which would cause UE to fail at launch: {'|'.join(missing_roles)}")
+
+        vproles = '-VPRole=' + '|'.join(vproles) if vproles else ''
+
+        # Session ID
+        #
+        session_id = DeviceUnreal.csettings["stage_session_id"].get_value(self.name)
+        session_id = f"-StageSessionId={session_id}" if session_id > 0 else ''
+
+        # Friendly name. Avoid spaces to avoid parsing issues.
+        #
+        friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
+
         # fill in fixed arguments
         #
-        # TODO: Consider -unattended to avoid crash window from appearing.
+        # TODO: Consider -unattended as an option to avoid crash window from appearing.
 
         args = [
             f'"{uproject}"',
-            f'{map_name}',              # map to open
-            "-game",                    # render nodes run in -game
-            "-messaging",               # enables messaging, needed for MultiUser
-            "-dc_cluster",              # this is a cluster node
-            "-nosplash",                # avoids splash screen
-            "-fixedseed",               # for determinism
-            "-NoVerifyGC",              # improves performance
-            "-noxrstereo",              # avoids a conflict with steam/oculus
-            f'{additional_args}',       # specified in settings
-            f'-dc_cfg="{cfg_file}"',    # nDisplay config file
-            f'{render_api}',            # dx11/12
-            f'{render_mode}',           # mono/...
-            f'{use_all_cores}',         # -useallavailablecores
-            f'{no_texture_streaming}',  # -notexturestreaming
-            f'-dc_node={self.name}',    # name of this node in the nDisplay cluster
-            f'Log={self.name}.log',     # log file
-            f'{ini_engine}',            # Engine ini injections
-            f'{ini_game}',              # Game ini injections
+            f'{map_name}',                     # map to open
+            "-game",                           # render nodes run in -game
+            "-messaging",                      # enables messaging, needed for MultiUser
+            "-dc_cluster",                     # this is a cluster node
+            "-nosplash",                       # avoids splash screen
+            "-fixedseed",                      # for determinism
+            "-NoVerifyGC",                     # improves performance
+            "-noxrstereo",                     # avoids a conflict with steam/oculus
+            "-RemoteControlIsHeadless",        # avoids notification window when using RemoteControlWebUI
+            f'{additional_args}',              # specified in settings
+            f'{vproles}',                      # VP roles for this instance
+            f'{friendly_name}',                # Stage Friendly Name
+            f'{session_id}',                   # Session ID. 
+            f'{max_gpu_count}',                # Max GPU count (mGPU)
+            f'-dc_cfg="{cfg_file}"',           # nDisplay config file
+            f'{render_api}',                   # dx11/12
+            f'{render_mode}',                  # mono/...
+            f'{use_all_cores}',                # -useallavailablecores
+            f'{no_texture_streaming}',         # -notexturestreaming
+            f'-dc_node={self.name}',           # name of this node in the nDisplay cluster
+            f'Log={self.name}.log',            # log file
+            f'{ini_engine}',                   # Engine ini injections
+            f'{ini_game}',                     # Game ini injections
         ]
 
         # fill in ExecCmds
@@ -285,7 +349,7 @@ class DevicenDisplay(DeviceUnreal):
 
         if fullscreen:
             args.extend([
-                'fullscreen=true',
+                '-fullscreen',
             ])
         else:
             args.extend([
@@ -337,6 +401,7 @@ class DevicenDisplay(DeviceUnreal):
 
         nodes = []
         cnodes = js['nDisplay']['cluster']['nodes']
+        masterNode = js['nDisplay']['cluster']['masterNode']
 
         for name, cnode in cnodes.items():
 
@@ -351,9 +416,13 @@ class DevicenDisplay(DeviceUnreal):
             kwargs["window_resolution"] = (resx, resy)
             kwargs["fullscreen"] = bool(cnode.get('fullScreen', False)) # note the capital 'S'
 
+            master = True if masterNode['id'] == name else False
+
             nodes.append({
                 "name": name, 
-                "ip_address": cnode['host'], 
+                "ip_address": cnode['host'],
+                "master": master,
+                "port_ce": int(masterNode['ports']['ClusterEventsJson']),
                 "kwargs": kwargs,
             })
 
@@ -377,50 +446,57 @@ class DevicenDisplay(DeviceUnreal):
                         window_lines.append(line)
 
         for line in cluster_node_lines:
-            name = line.split("id=")[1]
-            name = name.split(' ', 1)[0]
-            name = name.replace('"', '')
-            
-            node_window = line.split("window=")[1]
-            node_window = node_window.split(' ', 1)[0]
-            node_window = node_window.replace('"', '')
 
-            kwargs = {"ue_command_line": ""}
+            def parse_value(key, line):
+                val = line.split(f"{key}=")[1]
+                val = val.split(' ', 1)[0]
+                val = val.replace('"', '')
+                return val
+
+            name = parse_value(key='id', line=line)
+            node_window = parse_value(key='window', line=line)
+
+            try:
+                port_ce = int(parse_value(key='port_ce', line=line))
+            except (IndexError, ValueError):
+                port_ce = 41003
+
+            try:
+                master = parse_value(key='master', line=line)
+                master = True if (('true' in master.lower()) or (master == "1")) else False
+            except:
+                master = False
+
+            kwargs = {
+                "ue_command_line": "",
+            }
 
             for window_line in window_lines:
                 if node_window in window_line:
                     try:
-                        winx = window_line.split("winx=")[1]
-                        winx = winx.split(' ', 1)[0]
-                        winx = winx.replace('"', '')
-                    except IndexError:
+                        winx = int(parse_value(key='winx', line=window_line))
+                    except (IndexError,ValueError):
                         winx = 0
 
                     try:
-                        winy = window_line.split("winy=")[1]
-                        winy = winy.split(' ', 1)[0]
-                        winy = winy.replace('"', '')
-                    except IndexError:
+                        winy = int(parse_value(key='winy', line=window_line))
+                    except (IndexError,ValueError):
                         winy = 0
 
                     try:
-                        resx = window_line.split("resx=")[1]
-                        resx = resx.split(' ', 1)[0]
-                        resx = resx.replace('"', '')
-                    except IndexError:
+                        resx = int(parse_value(key='resx', line=window_line))
+                    except (IndexError,ValueError):
                         resx = 0
 
                     try:
-                        resy = window_line.split("resy=")[1]
-                        resy = resy.split(' ', 1)[0]
-                        resy = resy.replace('"', '')
-                    except IndexError:
+                        resy = int(parse_value(key='resy', line=window_line))
+                    except (IndexError,ValueError):
                         resy = 0
 
                     try:
                         fullscreen = window_line.split("fullscreen=")[1]
                         fullscreen = fullscreen.split(' ', 1)[0]
-                        fullscreen = True if (('true' in fullscreen) or (fullscreen == "1")) else False
+                        fullscreen = True if (('true' in fullscreen.lower()) or (fullscreen == "1")) else False
                     except IndexError:
                         fullscreen = False
 
@@ -434,7 +510,13 @@ class DevicenDisplay(DeviceUnreal):
             addr = addr.split(' ', 1)[0]
             addr = addr.replace('"', '')
 
-            nodes.append({"name": name, "ip_address": addr, "kwargs": kwargs})
+            nodes.append({
+                "name": name, 
+                "ip_address": addr,
+                "master": master,
+                "port_ce": port_ce,
+                "kwargs": kwargs,
+            })
 
         return nodes
 
@@ -466,11 +548,13 @@ class DevicenDisplay(DeviceUnreal):
         nodes = self.__class__.parse_config(cfg_file)
 
         # find which node is self:
-        menode = next(node for node in nodes if node['name'] == self.name)
-
-        if not menode:
+        try:
+            menode = next(node for node in nodes if node['name'] == self.name)
+        except StopIteration:
             LOGGER.error(f"{self.name} not found in config file {cfg_file}")
             return
+
+        self.nodeconfig = menode
 
         self.settings['window_position'].update_value(menode['kwargs'].get("window_position", (0.0)))
         self.settings['window_resolution'].update_value(menode['kwargs'].get("window_resolution", (100,100)))
@@ -535,4 +619,51 @@ class DevicenDisplay(DeviceUnreal):
             return
 
         cls.ndisplay_monitor.removed_device(device)
+
+    @classmethod
+    def soft_kill_cluster(cls, devices):
+        ''' Kills the cluster by sending a message to the master.
+        '''
+        # find the master nodes (only one expected to be master)
+
+        masters = [dev for dev in devices if dev.nodeconfig['master']]
+                
+        if len(masters) != 1:
+            LOGGER.warning(f"{len(masters)} masters detected but there can only be one")
+            raise ValueError
+
+        master = masters[0]
+
+        # send quit cluster event
+
+        cluster_event = {
+            "Category":"nDisplay",
+            "Name":"quit",
+            "Parameters":{},
+            "Type":"control", 
+            "bIsSystemEvent":"true",
+        }
+
+        msg = bytes(json.dumps(cluster_event), 'utf-8')
+        msg = struct.pack('I', len(msg)) + msg
+
+        port = master.nodeconfig['port_ce']
+        ip = master.nodeconfig['ip_address']
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((ip, port))
+        sock.send(msg)
+
+    @classmethod
+    def close_all(cls, devices):
+        ''' Closes all devices in the plugin
+        '''
+        try:
+            cls.soft_kill_cluster(devices)
+
+            for device in devices:
+                device.device_qt_handler.signal_device_closing.emit(device)
+        except:
+            LOGGER.warning("Could not soft kill the cluster")
+        
 

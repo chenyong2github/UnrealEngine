@@ -89,8 +89,19 @@ public:
 
 	int32 GetXRSystemFlags() const override
 	{
-		//NEEDED - Determine which flags this should have
-		return EXRSystemFlags::IsHeadMounted;
+		int32 flags = EXRSystemFlags::IsHeadMounted;
+
+		if (SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_OPAQUE)
+		{
+			flags |= EXRSystemFlags::IsAR;
+		}
+
+		if (bSupportsHandTracking)
+		{
+			flags |= EXRSystemFlags::SupportsHandTracking;
+		}
+
+		return flags;
 	}
 
 	virtual bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type = EXRTrackedDeviceType::Any) override;
@@ -186,6 +197,7 @@ public:
 	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override;
 	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override;
 	virtual uint32 DeviceGetLODViewIndex() const override;
+	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass) override;
 	
 	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 	virtual void GetEyeRenderParams_RenderThread(const struct FHeadMountedDisplayPassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
@@ -257,6 +269,7 @@ private:
 	bool					bNeedReAllocatedDepth;
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
+	bool					bSupportsHandTracking;
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;

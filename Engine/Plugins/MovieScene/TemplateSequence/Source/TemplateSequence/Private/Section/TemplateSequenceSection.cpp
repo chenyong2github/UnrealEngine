@@ -4,7 +4,8 @@
 #include "TemplateSequence.h"
 #include "Systems/TemplateSequenceSystem.h"
 
-UTemplateSequenceSection::UTemplateSequenceSection()
+UTemplateSequenceSection::UTemplateSequenceSection(const FObjectInitializer& ObjInitializer)
+	: Super(ObjInitializer)
 {
 	SetBlendType(EMovieSceneBlendType::Absolute);
 }

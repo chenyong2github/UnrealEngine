@@ -101,7 +101,7 @@ class UGerstnerWaterWaveGeneratorSimple : public UGerstnerWaterWaveGeneratorBase
 public:
 	virtual void GenerateGerstnerWaves_Implementation(TArray<FGerstnerWave>& OutWaves) const override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 128, Category = "Default"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 128, ClampMax = 4096, Category = "Default"))
 	int32 NumWaves = 16;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Default")
@@ -134,10 +134,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Direction Angular Spread", Category = "Directions", UIMin = 0, ClampMin = 0, Units = deg))
 	float DirectionAngularSpreadDeg = 1325.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0, Category = "Steepness"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 1.0, Category = "Steepness"))
 	float SmallWaveSteepness = 0.4f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0, Category = "Steepness"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 1.0, Category = "Steepness"))
 	float LargeWaveSteepness = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 100.0, Category = "Steepness"))
@@ -148,7 +148,7 @@ public:
 	Default implementation of a gerstner wave generator using known wave spectra from oceanology. 
 	Edited using octaves, where each octave is a set of waves with 2x longer wave length than the previous octave
 */
-UCLASS(EditInlineNew, BlueprintType, MinimalAPI, NotBlueprintable)
+UCLASS(EditInlineNew, BlueprintType, MinimalAPI, NotBlueprintable, HideDropdown)
 class UGerstnerWaterWaveGeneratorSpectrum : public UGerstnerWaterWaveGeneratorBase
 {
 	GENERATED_BODY()

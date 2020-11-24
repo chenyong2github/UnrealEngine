@@ -2552,7 +2552,7 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 			if (!HasAnyFlags(RF_ClassDefaultObject)
-				&& NavSys->GetIsAutoUpdateEnabled()
+				&& NavSys && NavSys->GetIsAutoUpdateEnabled()
 				&& PropName != GET_MEMBER_NAME_CHECKED(ARecastNavMesh, MaxSimultaneousTileGenerationJobsCount))
 			{
 				RebuildAll();

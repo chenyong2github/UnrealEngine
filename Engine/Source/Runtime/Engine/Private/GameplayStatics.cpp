@@ -1691,9 +1691,37 @@ void UGameplayStatics::PrimeSound(USoundBase* InSound)
 	}
 	else if (USoundWave* InSoundWave = Cast<USoundWave>(InSound))
 	{
+#if WITH_EDITORONLY_DATA
+		InSoundWave->CachePlatformData(false); // (an ensure told me to do this)
+#endif // WITH_EDITORONLY_DATA
+
 		if (InSoundWave->GetNumChunks() > 1)
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, TFunction<void(EAudioChunkLoadResult)>());
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, [](EAudioChunkLoadResult) {});
+		}
+	}
+}
+
+void UGameplayStatics::PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass)
+{
+	for (TObjectIterator<USoundWave> Itr; Itr; ++Itr)
+	{
+		const USoundClass* SoundClass = Itr->GetSoundClass();	
+		if (SoundClass && (SoundClass->GetName() == InSoundClass->GetName()))
+		{
+			PrimeSound(*Itr);
+		}
+	}
+}
+
+void UGameplayStatics::UnRetainAllSoundsInSoundClass(USoundClass* InSoundClass)
+{
+	for (TObjectIterator<USoundWave> Itr; Itr; ++Itr)
+	{
+		const USoundClass* SoundClass = Itr->GetSoundClass();
+		if (SoundClass && (SoundClass->GetName() == InSoundClass->GetName()))
+		{
+			Itr->ReleaseCompressedAudio();
 		}
 	}
 }

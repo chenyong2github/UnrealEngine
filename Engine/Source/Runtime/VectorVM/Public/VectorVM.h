@@ -171,7 +171,10 @@ struct FStatScopeData
 	TStatId StatId;
 	std::atomic<uint64> ExecutionCycleCount;
 
-	FStatScopeData(TStatId InStatId) : StatId(InStatId) {}
+	FStatScopeData(TStatId InStatId) : StatId(InStatId)
+	{
+		ExecutionCycleCount.store(0);
+	}
 	
 	FStatScopeData(const FStatScopeData& InObj)
 	{

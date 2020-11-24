@@ -190,7 +190,7 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 	if (bAffectsLandscape || bForceUpdateBrush)
 	{
 		RequestLandscapeUpdate();
-		MarkDirty();
+		MarkRenderTargetsDirty();
 	}
 
 	if (bRebuildWaterMesh)
@@ -202,7 +202,7 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 	}
 }
 
-void AWaterLandscapeBrush::MarkDirty()
+void AWaterLandscapeBrush::MarkRenderTargetsDirty()
 {
 	bRenderTargetsDirty = true;
 }
@@ -222,7 +222,7 @@ void AWaterLandscapeBrush::OnActorsAffectingLandscapeChanged()
 		WaterSubsystem->MarkAllWaterMeshesForRebuild();
 	}
 
-	MarkDirty();
+	MarkRenderTargetsDirty();
 }
 
 bool AWaterLandscapeBrush::IsActorAffectingLandscape(AActor* Actor) const
@@ -498,7 +498,7 @@ void AWaterLandscapeBrush::BlueprintOnRenderTargetTexturesUpdated_Implementation
 
 void AWaterLandscapeBrush::ForceWaterTextureUpdate()
 {
-	MarkDirty();
+	MarkRenderTargetsDirty();
 }
 
 #if WITH_EDITOR

@@ -254,12 +254,7 @@ bool PlatformInitOpenGL()
 		if (bBuildForES31 && bES31Supported)
 		{
 			FOpenGLES::CurrentFeatureLevelSupport = FAndroidOpenGL::GLMinorVersion >= 2 ? FOpenGLES::EFeatureLevelSupport::ES32 : FOpenGLES::EFeatureLevelSupport::ES31;
-			UE_LOG(LogRHI, Log, TEXT("App is packaged for OpenGL ES 3.1 and an ES %d.%d-capable device was detected. Reinitializing OpenGL ES with a %d.%d context."),
-				FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion, FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion);
-
-			FAndroidAppEntry::ReleaseEGL();
-			// Re-init gles for 3.1/3.2
-			AndroidEGL::GetInstance()->Init(AndroidEGL::AV_OpenGLES, FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion, false);
+			UE_LOG(LogRHI, Log, TEXT("App is packaged for OpenGL ES 3.1 and an ES %d.%d-capable device was detected."), FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion);
 		}
 		else
 		{
@@ -1014,8 +1009,8 @@ void FAndroidMisc::GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames)
 
 void FAndroidAppEntry::PlatformInit()
 {
-	// create an ES3.1 EGL here for gpu queries.
-	AndroidEGL::GetInstance()->Init(AndroidEGL::AV_OpenGLES, 3, 1, false);
+	// Try to create an ES3.2 EGL here for gpu queries and don't have to recreate the GL context.
+	AndroidEGL::GetInstance()->Init(AndroidEGL::AV_OpenGLES, 3, 2, false);
 }
 
 void FAndroidAppEntry::ReleaseEGL()

@@ -56,18 +56,7 @@ FName FNiagaraEmitterHandle::GetName() const
 
 void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 {
-	FName SanitizedName;
-	{
-		FString InNameStr = InName.ToString();
-		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
-		while (*InvalidChar)
-		{
-			InNameStr.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
-			++InvalidChar;
-		}
-		SanitizedName = FName(*InNameStr);
-	}
-	
+	FName SanitizedName = *FNiagaraUtilities::SanitizeNameForObjectsAndPackages(InName.ToString());
 	if (SanitizedName.IsEqual(Name, ENameCase::CaseSensitive, false))
 	{
 		return;

@@ -346,7 +346,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsGen5TemporalAA : 1;
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
-	uint32 bSupportsAnisotropicMaterials : 1;
 	uint32 bSupportsComputeFramework : 1;
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
@@ -590,11 +589,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGen5TemporalAA(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsGen5TemporalAA;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsAnisotropicMaterials(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsAnisotropicMaterials;
 	}
 
 private:
@@ -1764,7 +1758,8 @@ inline bool RHISupportsShaderPipelines(const FStaticShaderPlatform Platform)
 inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 {
 	// For now only enable support for SM5
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform));
+	// Metal RHI doesn't support dual source blending properly at the moment.
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform));
 }
 
 inline bool RHISupportsMultithreadedShaderCreation(const FStaticShaderPlatform Platform)

@@ -112,6 +112,13 @@ public:
 
 
 protected:
+	void Reset()
+	{
+		for(FVulkanDescriptorSetWriter& Writer : DSWriter)
+		{
+			Writer.Reset();
+		}
+	}
 	inline void Bind(VkCommandBuffer CmdBuffer, VkPipelineLayout PipelineLayout, VkPipelineBindPoint BindPoint)
 	{
 		VulkanRHI::vkCmdBindDescriptorSets(CmdBuffer,
@@ -157,6 +164,7 @@ public:
 
 	void Reset()
 	{
+		FVulkanCommonPipelineDescriptorState::Reset();
 		PackedUniformBuffersDirty = PackedUniformBuffersMask;
 	}
 
@@ -261,6 +269,7 @@ public:
 	void Reset()
 	{
 		FMemory::Memcpy(PackedUniformBuffersDirty, PackedUniformBuffersMask);
+		FVulkanCommonPipelineDescriptorState::Reset();
 		bIsResourcesDirty = true;
 	}
 

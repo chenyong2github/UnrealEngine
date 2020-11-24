@@ -9,6 +9,9 @@
 		<setBoolFromProperty result="bEnableBundle" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableBundle" default="false"/>
 		<setBoolFromProperty result="bAllowPatchOBBFile" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bAllowPatchOBBFile" default="false"/>
 
+		<!-- NDK path -->
+		<setString result="NDKVersion" value="ndk21.3.6528147"/>
+
 		<if condition="bEnabled">
 			<true>
 				<!-- disable if app bundle disabled -->
@@ -66,7 +69,7 @@
 	<resourceCopies>
 		<log text="Copying libplaycore.so and proguard files"/>
 		<!-- note: have to stage this since we linked it -->
-		<copyFile src="$S(AbsPluginDir)/../ThirdParty/play-core-native-sdk/libs/$S(Architecture)/libplaycore.so"
+		<copyFile src="$S(AbsPluginDir)/../ThirdParty/play-core-native-sdk/libs/$S(Architecture)/$S(NDKVersion)/c++_shared/libplaycore.so"
 					dst="$S(BuildDir)/libs/$S(Architecture)/libplaycore.so" />
 		<isDistribution>
 			<copyDir src="$S(AbsPluginDir)/../ThirdParty/play-core-native-sdk/proguard"
@@ -75,6 +78,7 @@
 	</resourceCopies>
 
 	<gradleCopies>
+	<!--
 		<if condition="bEnabled">
 			<true>
 				<log text="Modifying Gradle version used by replacing gradle-wrapper.properties"/>
@@ -82,15 +86,18 @@
 							dst="$S(BuildDir)/gradle/gradle/wrapper/gradle-wrapper.properties" />
 			</true>
 		</if>
+	-->
 	</gradleCopies>
 
 	<gradleProperties>
+	<!--
 		<if condition="bEnabled">
 			<true>
 				<insertValue value="ANDROID_TOOLS_BUILD_GRADLE_VERSION=com.android.tools.build:gradle:4.0.0"/>
 				<insertNewline/>
 			</true>
 		</if>
+	-->
 	</gradleProperties>
 
 	<settingsGradleAdditions>
@@ -156,9 +163,11 @@ if (assetpacksDir.exists()) assetpacksDir.eachDir {
 android {
 	buildTypes {
 		release {
-			proguardFile "proguard/asset_delivery.pgcfg"
 			proguardFile "proguard/common.pgcfg"
 			proguardFile "proguard/app_update.pgcfg"
+			proguardFile "proguard/asset_delivery.pgcfg"
+			proguardFile "proguard/app_update.pgcfg"
+			proguardFile "proguard/review.pgcfg"
 			proguardFile "proguard/split_install.pgcfg"
 		}
 	}
@@ -172,7 +181,7 @@ android {
 <![CDATA[
 // for GooglePAD
 dependencies {
-	implementation('com.google.android.play:core:1.7.2')
+	implementation('com.google.android.play:core:1.8.3')
 }
 
 // add the assetpacks

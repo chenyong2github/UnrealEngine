@@ -1144,8 +1144,11 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 {
 	RemoveAllToolbarWidgets();
 
-	TSharedPtr<SStandaloneAssetEditorToolkitHost> HostPinned = StandaloneHost.Pin();
-	HostPinned->GenerateMenus(false);
+	TSharedPtr<SStandaloneAssetEditorToolkitHost> HostWidget = StandaloneHost.Pin();
+	if (HostWidget)
+	{
+		HostWidget->GenerateMenus(false);
+	}
 
 	if (Toolbar != SNullWidget::NullWidget)
 	{
@@ -1156,7 +1159,7 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 
 	if (!UsesCustomToolbarPlacement())
 	{
-		HostPinned->SetToolbar(Toolbar);
+		HostWidget->SetToolbar(Toolbar);
 	}
 
 }

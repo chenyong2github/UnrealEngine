@@ -29,6 +29,8 @@ public:
 	int32 FrameNumber = 0;
 	uint64 SamplesTaken = 0;
 
+	int32 GetGISamplesMultiplier();
+
 private:
 	FSceneRenderState* Scene;
 

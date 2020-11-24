@@ -253,7 +253,7 @@ void UHoleFillTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 
 bool UHoleFillTool::CanAccept() const
 {
-	return Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
 void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)

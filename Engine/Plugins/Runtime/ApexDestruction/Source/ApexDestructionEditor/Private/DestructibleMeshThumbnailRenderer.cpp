@@ -18,6 +18,7 @@ UDestructibleMeshThumbnailRenderer::UDestructibleMeshThumbnailRenderer(const FOb
 
 void UDestructibleMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleMesh* DestructibleMesh = Cast<UDestructibleMesh>(Object);
 	if (DestructibleMesh != nullptr)
 	{
@@ -39,6 +40,7 @@ void UDestructibleMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 		RenderViewFamily(Canvas,&ViewFamily);
 		ThumbnailScene->SetDestructibleMesh(nullptr);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UDestructibleMeshThumbnailRenderer::BeginDestroy()

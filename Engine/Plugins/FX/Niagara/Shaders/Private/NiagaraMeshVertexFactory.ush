@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "/Engine/Private/VertexFactoryCommon.ush"
+#include "NiagaraCommon.ush"
 #include "NiagaraVFCommon.usf"
 
 #define USE_PARTICLE_POSITION (NEEDS_PARTICLE_POSITION)
@@ -451,63 +452,6 @@ float4 CalcPrevWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermedia
     return float4(WorldPosition, Input.Position.w);
 }
 
-float3x3 QuatTo3x3(float4 Q)
-{
-	float x2 = Q.x + Q.x;  float y2 = Q.y + Q.y;  float z2 = Q.z + Q.z;
-	float xx = Q.x * x2;   float xy = Q.x * y2;   float xz = Q.x * z2;
-	float yy = Q.y * y2;   float yz = Q.y * z2;   float zz = Q.z * z2;
-	float wx = Q.w * x2;   float wy = Q.w * y2;   float wz = Q.w * z2;
-
-	float3x3 Mat = {
-		1.0f - (yy + zz),	xy + wz,			xz - wy,
-		xy - wz,			1.0f - (xx + zz),	yz + wx,
-		xz + wy,			yz - wx,			1.0f - (xx + yy),
-	};
-
-	return Mat;
-}
-
-float4x4 ComposeTransformMatrix(float3 S, float3x3 R, float3 T)
-{
-	float3x3 ScaleMat = float3x3(
-		S.x, 0.0f, 0.0f,
-		0.0f, S.y, 0.0f,
-		0.0f, 0.0f, S.z);
-
-	float3x3 ScaleRot = mul(ScaleMat, R);
-
-	return float4x4(
-		ScaleRot[0], 0.0f,
-		ScaleRot[1], 0.0f,
-		ScaleRot[2], 0.0f,
-		T, 1.0f);
-}
-
-float4x4 ComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
-{
-	float3x3 InvScaleMat = float3x3(
-		1.0f / S.x, 0.0f, 0.0f,
-		0.0f, 1.0f / S.y, 0.0f,
-		0.0f, 0.0f, 1.0f / S.z);
-
-	float3x3 InvRotScale = mul(transpose(R), InvScaleMat);
-
-	float4x4 InvRotScale44 = float4x4(
-		InvRotScale[0], 0.0f,
-		InvRotScale[1], 0.0f,
-		InvRotScale[2], 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	);
-
-	float4x4 InvTransMat = float4x4(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		-T, 1.0f);
-
-	return mul(InvTransMat, InvRotScale44);
-}
-
 float3x3 GetFacingMatrix(in float3 ParticlePosition, in float4 ParticleVelocity)
 {
 	float3 WorldX = float3(1, 0, 0);
@@ -659,7 +603,7 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	if(NiagaraMeshVF.TransformDataOffset != -1)
 	{
 		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, InstanceId);
-		RotationMat = QuatTo3x3(normalize(Quat));
+		RotationMat = NiagaraQuatTo3x3(normalize(Quat));
 	}
 
 	if (NiagaraMeshVF.FacingMode != MESH_FACING_DEFAULT)
@@ -687,17 +631,17 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// Compose Transforms
-	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, Translation);
-	LocalToWorldNoScale = ComposeTransformMatrix((float3)1.0f, RotationMat, Translation);
-	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, Translation);
+	LocalToWorld = NiagaraComposeTransformMatrix(Scale, RotationMat, Translation);
+	LocalToWorldNoScale = NiagaraComposeTransformMatrix((float3)1.0f, RotationMat, Translation);
+	WorldToLocal = NiagaraComposeInvTransformMatrix(Scale, RotationMat, Translation);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
-	Input.InstanceId = GetInstanceId(Input.InstanceId);
+	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
-	Intermediates.SortedInstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo		
+	Intermediates.SortedInstanceId = Input.InstanceId;
 	if (SortedIndicesOffset != 0xFFFFFFFF)
 	{
 		Intermediates.SortedInstanceId = SortedIndices[SortedIndicesOffset + Intermediates.SortedInstanceId];

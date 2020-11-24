@@ -760,6 +760,13 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			CmdLineDirEntries.Add(Entry);
 		}
 
+		// Check for -NEVERCOOKDIR=<path to directory> entries
+		for (FString& NeverCookDir : GetSwitchValueElements(TEXT("NEVERCOOKDIR")))
+		{
+			FPaths::NormalizeDirectoryName(NeverCookDir);
+			CmdLineNeverCookDirEntries.Add(MoveTemp(NeverCookDir));
+		}
+
 		// Check for -COOKCULTURES=<culture name> entries
 		CmdLineCultEntries += GetSwitchValueElements(TEXT("COOKCULTURES"));
 	}

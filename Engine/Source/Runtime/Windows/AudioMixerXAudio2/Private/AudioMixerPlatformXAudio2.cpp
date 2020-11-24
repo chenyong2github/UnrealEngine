@@ -264,9 +264,35 @@ namespace Audio
 		{
 			if( XAudio2System )
 			{			
-				StopRunningNullDevice();
-				verify(SUCCEEDED(XAudio2System->StartEngine()));
-				bIsSuspended = false;			
+				StopRunningNullDevice();			
+
+				HRESULT Result = XAudio2System->StartEngine();				
+				
+				// Suggestion from Microsoft for this returning 0x80070490 on a quick cycle. 
+				// Try again with delay.
+				constexpr int32 NumStartAttempts = 16;
+				constexpr float DelayBetweenAttemptsSecs = 0.1f;
+				
+				uint64 StartCycles = FPlatformTime::Cycles64();				
+				int32 StartAttempt = 0;
+				for(; StartAttempt < NumStartAttempts && FAILED(Result); ++StartAttempt)
+				{
+					FPlatformProcess::Sleep(DelayBetweenAttemptsSecs);
+					Result = XAudio2System->StartEngine();	
+				}
+
+				UE_CLOG(FAILED(Result), LogAudioMixer, Error,
+					TEXT("Could not resume XAudio2, StartEngine() returned %#010x, after %d attempts"),
+					(uint32)Result, StartAttempt
+				);
+				
+				if(SUCCEEDED(Result))
+				{		
+					bIsSuspended = false;								
+					UE_CLOG(StartAttempt > 1, LogAudioMixer, Warning, 
+						TEXT("StartEngine() took %d attempts to start, taking '%f' ms"), 
+						StartAttempt, FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartCycles));
+				}
 			}						
 		}		
 	}
@@ -1454,10 +1480,6 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::DisablePCMAudioCaching() const
 	{
-#if PLATFORM_WINDOWS
-		return false;
-#else
 		return true;
-#endif
 	}
 }

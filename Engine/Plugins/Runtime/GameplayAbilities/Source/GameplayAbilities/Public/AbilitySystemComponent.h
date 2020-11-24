@@ -1605,6 +1605,7 @@ protected:
 	friend struct FActiveGameplayEffectAction_Add;
 	friend struct FGameplayEffectSpec;
 	friend class AAbilitySystemDebugHUD;
+	friend class UAbilitySystemGlobals;
 
 private:
 	FDelegateHandle MonitoredTagChangedDelegateHandle;

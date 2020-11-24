@@ -29,16 +29,11 @@ bool UMoviePipelineDebugSettings::CanEditChange(const FProperty* InProperty) con
 		return bIsRenderDebugCaptureAvailable;
 	}
 
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMoviePipelineDebugSettings, CaptureStartFrame))
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMoviePipelineDebugSettings, CaptureFrame))
 	{
 		return bIsRenderDebugCaptureAvailable && bCaptureFramesWithRenderDoc;
 	}
 	
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMoviePipelineDebugSettings, CaptureEndFrame))
-	{
-		return bIsRenderDebugCaptureAvailable && bCaptureFramesWithRenderDoc;
-	}
-
 	return Super::CanEditChange(InProperty);
 }
 

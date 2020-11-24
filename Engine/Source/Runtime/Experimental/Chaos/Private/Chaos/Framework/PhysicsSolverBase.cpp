@@ -6,6 +6,8 @@
 #include "ChaosStats.h"
 #include "Chaos/PendingSpatialData.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/Framework/ChaosResultsManager.h"
 
 namespace Chaos
 {	
@@ -52,12 +54,9 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt, int32 InInputDataExternalTimestamp)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData& InPushData)
 		: Solver(InSolver)
-		, Queue(MoveTemp(InQueue))
-		, PushData(MoveTemp(InPushData))
-		, Dt(InDt)
-		, InputDataExternalTimestamp(InInputDataExternalTimestamp)
+		, PushData(&InPushData)	//store as ptr so that we can clear it after freed (but still want to force user to give us a valid push data)
 	{
 	}
 
@@ -90,19 +89,16 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
-		Solver.SetExternalTimestampConsumed_Internal(InputDataExternalTimestamp);
-		Solver.ProcessPushedData_Internal(PushData);
-
-		// Handle our solver commands
-		{
-			SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
-			for(const auto& Command : Queue)
-			{
-				Command();
-			}
-		}
-
-		Solver.AdvanceSolverBy(Dt);
+		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
+		Solver.ProcessPushedData_Internal(*PushData);
+		
+		// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+		// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+		const FReal PseudoFraction = (FReal)1 / (FReal)(PushData->IntervalNumSteps - PushData->IntervalStep);
+		
+		Solver.AdvanceSolverBy(PushData->ExternalDt, FSubStepInfo{PseudoFraction, PushData->IntervalStep, PushData->IntervalNumSteps });
+		Solver.GetMarshallingManager().FreeData_Internal(PushData);	//cannot use push data after this point
+		PushData = nullptr;
 	}
 
 	CHAOS_API int32 UseAsyncInterpolation = 1;
@@ -111,15 +107,22 @@ namespace Chaos
 	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
 	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
+	CHAOS_API float AsyncInterpolationMultiplier = 3.f;
+	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
+
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
+		, PullResultsManager(MakeUnique<FChaosResultsManager>())
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
+		, bIsShuttingDown(false)
 		, AsyncDt(-1)
+		, AccumulatedTime(0)
+		, ExternalSteps(0)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)
 #endif
@@ -151,14 +154,6 @@ namespace Chaos
 			InSolver.WaitOnPendingTasks_External();
 		}
 
-		//make sure any pending commands are executed
-		//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
-		//but in this case we just need to ensure all resources are freed
-		for(const auto& Command : InSolver.CommandQueue)
-		{
-			Command();
-		}
-		
 		// GeometryCollection particles do not always remove collision constraints on unregister,
 		// explicitly clear constraints so we will not crash when filling collision events in advance.
 		InSolver.CastHelper([](auto& Concrete)
@@ -172,6 +167,7 @@ namespace Chaos
 
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		InSolver.MarkShuttingDown();
 		InSolver.AdvanceAndDispatch_External(0);
 
 		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
@@ -192,7 +188,7 @@ namespace Chaos
 		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
 
 		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
-		ensure(SpatialData.SyncTimestamp <= MarshallingManager.GetExternalTimestampConsumed_External() || !SpatialData.bDelete);
+		ensure(SpatialData.SyncTimestamp < MarshallingManager.GetExternalTimestamp_External() || !SpatialData.bDelete);
 
 		SpatialData.bDelete = bDelete;
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
@@ -242,7 +238,5 @@ namespace Chaos
 			UniqueIdxToGTParticles[Idx] = nullptr;
 		}
 	}
-
-
 	//////////////////////////////////////////////////////////////////////////
 }

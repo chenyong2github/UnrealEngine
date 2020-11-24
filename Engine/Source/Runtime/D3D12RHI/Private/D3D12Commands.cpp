@@ -1936,7 +1936,7 @@ void FD3D12DynamicRHI::RHISubmitCommandsAndFlushGPU()
 */
 uint32 FD3D12DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
-	return D3D12RHI::FD3DGPUProfiler::GetGPUFrameCycles(GPUIndex);
+	return GGPUFrameTime;
 }
 
 void FD3D12DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)

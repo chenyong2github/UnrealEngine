@@ -7,7 +7,8 @@
 #include "SequencerCommonHelpers.h"
 
 FSequencerSelection::FSequencerSelection()
-	: SuspendBroadcastCount(0)
+	: SerialNumber(0)
+	, SuspendBroadcastCount(0)
 	, bOutlinerNodeSelectionChangedBroadcastPending(false)
 {
 }
@@ -111,8 +112,10 @@ TArray<UMovieSceneTrack*> FSequencerSelection::GetSelectedTracks() const
 	return OutTracks;
 }
 
-void FSequencerSelection::AddToSelection(FSequencerSelectedKey Key)
+void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 {
+	++SerialNumber;
+
 	SelectedKeys.Add(Key);
 	if ( IsBroadcasting() )
 	{
@@ -126,6 +129,8 @@ void FSequencerSelection::AddToSelection(FSequencerSelectedKey Key)
 
 void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
 {
+	++SerialNumber;
+
 	SelectedSections.Add(Section);
 	if ( IsBroadcasting() )
 	{
@@ -142,6 +147,8 @@ void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
 
 void FSequencerSelection::AddToSelection(TSharedRef<FSequencerDisplayNode> OutlinerNode)
 {
+	++SerialNumber;
+
 	SelectedOutlinerNodes.Add(OutlinerNode);
 	if ( IsBroadcasting() )
 	{
@@ -155,6 +162,8 @@ void FSequencerSelection::AddToSelection(TSharedRef<FSequencerDisplayNode> Outli
 
 void FSequencerSelection::AddToSelection(const TArray<TSharedRef<FSequencerDisplayNode>>& OutlinerNodes)
 {
+	++SerialNumber;
+
 	SelectedOutlinerNodes.Append(OutlinerNodes);
 	if (IsBroadcasting())
 	{
@@ -168,17 +177,22 @@ void FSequencerSelection::AddToSelection(const TArray<TSharedRef<FSequencerDispl
 
 void FSequencerSelection::AddToNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode)
 {
+	++SerialNumber;
+
 	NodesWithSelectedKeysOrSections.Add(OutlinerNode);
 	if ( IsBroadcasting() )
 	{
+		++SerialNumber;
 		OnNodesWithSelectedKeysOrSectionsChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 	}
 }
 
 
-void FSequencerSelection::RemoveFromSelection(FSequencerSelectedKey Key)
+void FSequencerSelection::RemoveFromSelection(const FSequencerSelectedKey& Key)
 {
+	++SerialNumber;
+
 	SelectedKeys.Remove(Key);
 	if ( IsBroadcasting() )
 	{
@@ -188,6 +202,8 @@ void FSequencerSelection::RemoveFromSelection(FSequencerSelectedKey Key)
 
 void FSequencerSelection::RemoveFromSelection(UMovieSceneSection* Section)
 {
+	++SerialNumber;
+
 	SelectedSections.Remove(Section);
 	if ( IsBroadcasting() )
 	{
@@ -197,6 +213,8 @@ void FSequencerSelection::RemoveFromSelection(UMovieSceneSection* Section)
 
 void FSequencerSelection::RemoveFromSelection(TSharedRef<FSequencerDisplayNode> OutlinerNode)
 {
+	++SerialNumber;
+
 	SelectedOutlinerNodes.Remove(OutlinerNode);
 	if ( IsBroadcasting() )
 	{
@@ -206,6 +224,8 @@ void FSequencerSelection::RemoveFromSelection(TSharedRef<FSequencerDisplayNode> 
 
 void FSequencerSelection::RemoveFromNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode)
 {
+	++SerialNumber;
+
 	NodesWithSelectedKeysOrSections.Remove(OutlinerNode);
 	if ( IsBroadcasting() )
 	{
@@ -213,7 +233,7 @@ void FSequencerSelection::RemoveFromNodesWithSelectedKeysOrSections(TSharedRef<F
 	}
 }
 
-bool FSequencerSelection::IsSelected(FSequencerSelectedKey Key) const
+bool FSequencerSelection::IsSelected(const FSequencerSelectedKey& Key) const
 {
 	return SelectedKeys.Contains(Key);
 }
@@ -235,6 +255,8 @@ bool FSequencerSelection::NodeHasSelectedKeysOrSections(TSharedRef<FSequencerDis
 
 void FSequencerSelection::Empty()
 {
+	++SerialNumber;
+
 	EmptySelectedKeys();
 	EmptySelectedSections();
 	EmptySelectedOutlinerNodes();
@@ -247,6 +269,8 @@ void FSequencerSelection::EmptySelectedKeys()
 	{
 		return;
 	}
+
+	++SerialNumber;
 
 	SelectedKeys.Empty();
 	if ( IsBroadcasting() )
@@ -262,6 +286,8 @@ void FSequencerSelection::EmptySelectedSections()
 		return;
 	}
 
+	++SerialNumber;
+
 	SelectedSections.Empty();
 	if ( IsBroadcasting() )
 	{
@@ -276,6 +302,8 @@ void FSequencerSelection::EmptySelectedOutlinerNodes()
 		return;
 	}
 
+	++SerialNumber;
+
 	SelectedOutlinerNodes.Empty();
 	if ( IsBroadcasting() )
 	{
@@ -289,6 +317,8 @@ void FSequencerSelection::EmptyNodesWithSelectedKeysOrSections()
 	{
 		return;
 	}
+
+	++SerialNumber;
 
 	NodesWithSelectedKeysOrSections.Empty();
 	if ( IsBroadcasting() )
@@ -352,6 +382,8 @@ void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSe
 
 	if (bRemoved)
 	{
+		++SerialNumber;
+
 		OnOutlinerNodeSelectionChanged.Broadcast();
 	}
 }

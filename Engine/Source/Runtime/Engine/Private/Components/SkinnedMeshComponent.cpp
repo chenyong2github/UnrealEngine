@@ -371,6 +371,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 #endif
 
 	CurrentSkinWeightProfileName = NAME_None;
+
+	PredictedLODLevel = 0;
 }
 
 
@@ -583,8 +585,17 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 
 		if(MeshObject)
 		{
-			// Calculate new lod level
-			UpdateLODStatus();
+			// Clamp LOD within the VALID range
+			// This is just to re-verify if LOD is WITHIN the valid range
+			// Do not replace this with UpdateLODStatus, which could change the LOD 
+			//	without animated, causing random skinning issues
+			// This can happen if your MinLOD is not valid anymore after loading
+			// which causes meshes to be invisible
+			{
+				int32 MinLodIndex = ComputeMinLOD();
+				int32 MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
+				PredictedLODLevel = FMath::Clamp(PredictedLODLevel, MinLodIndex, MaxLODIndex);
+			}
 
 			// If we have a valid LOD, set up required data, during reimport we may try to create data before we have all the LODs
 			// imported, in that case we skip until we have all the LODs
@@ -661,21 +672,25 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 		const int32 UseLOD = PredictedLODLevel;
 
-		const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
-
-		// Are morph targets disabled for this LOD?
-		if (bDisableMorphTarget || !bMorphTargetsAllowed)
+		// Only update the state if PredictedLODLevel is valid
+		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+		if (SkelMeshRenderData && SkelMeshRenderData->LODRenderData.IsValidIndex(UseLOD))
 		{
-			ActiveMorphTargets.Empty();
-		}
+			const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
-		check (UseLOD < MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num());
-		MeshObject->Update(UseLOD,this,ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
-		MeshObject->bHasBeenUpdatedAtLeastOnce = true;
-		bForceMeshObjectUpdate = false; 
-		
-		// scene proxy update of material usage based on active morphs
-		UpdateMorphMaterialUsageOnProxy();
+			// Are morph targets disabled for this LOD?
+			if (bDisableMorphTarget || !bMorphTargetsAllowed)
+			{
+				ActiveMorphTargets.Empty();
+			}
+
+			MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+			MeshObject->bHasBeenUpdatedAtLeastOnce = true;
+			bForceMeshObjectUpdate = false;
+
+			// scene proxy update of material usage based on active morphs
+			UpdateMorphMaterialUsageOnProxy();
+		}
 	}
 }
 
@@ -1511,6 +1526,7 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		FRenderStateRecreator RenderStateRecreator(this);
 
 		SkeletalMesh = InSkelMesh;
+		PredictedLODLevel = 0;
 
 		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
 		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
@@ -1951,7 +1967,7 @@ void USkinnedMeshComponent::UpdateMasterBoneMap()
 
 FTransform USkinnedMeshComponent::GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(USkinnedMeshComponent_GetSocketTransform);
+	//QUICK_SCOPE_CYCLE_COUNTER(USkinnedMeshComponent_GetSocketTransform);
 
 	FTransform OutSocketTransform = GetComponentTransform();
 

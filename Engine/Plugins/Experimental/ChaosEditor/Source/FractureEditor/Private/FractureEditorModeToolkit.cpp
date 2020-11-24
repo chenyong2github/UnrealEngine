@@ -1512,6 +1512,14 @@ class AGeometryCollectionActor* FFractureEditorModeToolkit::CreateNewGeometryAct
 	UPackage* Package = CreatePackage(*UniquePackageName);
 	UGeometryCollection* InGeometryCollection = static_cast<UGeometryCollection*>(NewObject<UGeometryCollection>(Package, UGeometryCollection::StaticClass(), FName(*UniqueAssetName), RF_Transactional | RF_Public | RF_Standalone));
 
+	// Set default collision type here in the factory instead of the geometry collection constructor to only
+	// affect new geometry collections and not update the default for previously created objects.
+	if(InGeometryCollection)
+	{
+		InGeometryCollection->CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
+		InGeometryCollection->ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
+	}
+
 	// Create the new Geometry Collection actor
 	AGeometryCollectionActor* NewActor = Cast<AGeometryCollectionActor>(AddActor(GetSelectedLevel(), AGeometryCollectionActor::StaticClass()));
 	check(NewActor->GetGeometryCollectionComponent());

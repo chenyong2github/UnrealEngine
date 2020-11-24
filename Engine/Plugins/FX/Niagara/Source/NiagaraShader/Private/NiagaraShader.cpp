@@ -160,6 +160,11 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 		HashState.Update(ReferencedCompileHashes[Index].Hash, FNiagaraCompileHash::HashSize);
 	}
 
+	for (const FShaderTypeDependency& Dependency : ShaderTypeDependencies)
+	{
+		HashState.Update(Dependency.SourceHash.Hash, sizeof(Dependency.SourceHash));
+	}
+
 	//ParameterSet.UpdateHash(HashState);		// will need for static switches
 	
 	HashState.Final();
@@ -210,6 +215,11 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		{
 			return false;
 		}
+	}
+
+	if (ShaderTypeDependencies != ReferenceSet.ShaderTypeDependencies)
+	{
+		return false;
 	}
 
 	/*
@@ -300,6 +310,12 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 		{
 			KeyString += TEXT("_");
 		}
+	}
+
+	for (const FShaderTypeDependency& Dependency : ShaderTypeDependencies)
+	{
+		KeyString += TEXT("_");
+		KeyString += Dependency.SourceHash.ToString();
 	}
 
 	/*

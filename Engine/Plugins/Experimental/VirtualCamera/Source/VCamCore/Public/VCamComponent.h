@@ -36,7 +36,7 @@ enum class EVCamTargetViewportID : uint8
 	Viewport4 = 4
 };
 
-UCLASS(Blueprintable, ClassGroup=(VCam), meta=(BlueprintSpawnableComponent, DisplayName = "VCam Component"))
+UCLASS(Blueprintable, ClassGroup=(VCam), meta=(BlueprintSpawnableComponent))
 class VCAMCORE_API UVCamComponent : public USceneComponent
 {
 	GENERATED_BODY()
@@ -55,6 +55,7 @@ public:
 
 #if WITH_EDITOR
 	FLevelEditorViewportClient* GetTargetLevelViewportClient() const;
+	TSharedPtr<SLevelViewport> GetTargetLevelViewport() const;
 
 	virtual void CheckForErrors() override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;

@@ -2032,6 +2032,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnTrimMemory(JNIEnv* jenv, jobject thiz, jint MemoryTrimValue)
 {
 	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
+	FAndroidStats::OnTrimMemory(MemoryTrimValue);
 }
 
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetEstimatedAvailableMemoryMB(JNIEnv* jenv, jobject thiz, jint Estimate)

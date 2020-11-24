@@ -679,9 +679,6 @@ DEFINE_STAT(STAT_TaskGraph_RenderStalls);
 DEFINE_STAT(STAT_TaskGraph_GameTasks);
 DEFINE_STAT(STAT_TaskGraph_GameStalls);
 
-DEFINE_STAT(STAT_FlushThreadedLogs);
-DEFINE_STAT(STAT_PumpMessages);
-
 DEFINE_STAT(STAT_CPUTimePct);
 DEFINE_STAT(STAT_CPUTimePctRelative);
 

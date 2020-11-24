@@ -18,6 +18,7 @@
 #include "Materials/MaterialInterface.h"
 #include "SceneTypes.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 
 struct FExportMaterialCompiler : public FProxyMaterialCompiler
 {
@@ -232,10 +233,11 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, bool bInSynchronousCompilation = true)
+	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true)
 		: FMaterial()
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
+		, CustomOutputToCompile(InCustomOutputToCompile)
 		, bSynchronousCompilation(bInSynchronousCompilation)
 	{
 		SetQualityLevelProperties(GMaxRHIFeatureLevel);
@@ -278,6 +280,12 @@ public:
 		case MP_Opacity: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacity; break;
 		case MP_OpacityMask: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacityMask; break;
 		case MP_SubsurfaceColor: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportSubSurfaceColor; break;
+		case MP_CustomData0: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoat; break;
+		case MP_CustomData1: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoatRoughness; break;
+		case MP_CustomOutput:
+			ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportCustomOutput;
+			ResourceId.UsageCustomOutput = InCustomOutputToCompile;
+			break;
 		default:
 			ensureMsgf(false, TEXT("ExportMaterial has no usage for property %i.  Will likely reuse the normal rendering shader and crash later with a parameter mismatch"), (int32)InPropertyToCompile);
 			break;
@@ -388,6 +396,8 @@ public:
 			case MP_Anisotropy:
 			case MP_Metallic:
 			case MP_AmbientOcclusion:
+			case MP_CustomData0:
+			case MP_CustomData1:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
@@ -405,13 +415,16 @@ public:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
-					return Compiler->Add(
-						Compiler->Mul(MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate), Compiler->Constant(0.5f)), // [-1,1] * 0.5
-						Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
+					return CompileNormalEncoding(
+						Compiler,
+						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
 				}
 				break;
 			case MP_ShadingModel:
 				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
+			case MP_CustomOutput:
+				 // NOTE: Currently we can assume input index is always 0, which it is for all custom outputs that are registered as material attributes
+				return CompileInputForCustomOutput(Compiler, 0, ForceCast_Exact_Replicate);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -628,12 +641,67 @@ public:
 	}
 
 private:
+	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, int32 InputIndex, uint32 ForceCastFlags) const
+	{
+		FGuid AttributeID = FMaterialAttributeDefinitionMap::GetCustomAttributeID(CustomOutputToCompile);
+		check(AttributeID.IsValid());
+
+		UMaterialExpressionCustomOutput* Expression = GetCustomOutputExpressionToCompile();
+		FExpressionInput* ExpressionInput = Expression ? Expression->GetInput(InputIndex) : nullptr;
+		int32 Result = INDEX_NONE;
+
+		if (ExpressionInput)
+		{
+			Result = ExpressionInput->Compile(Compiler);
+		}
+		else
+		{
+			Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, AttributeID);
+		}
+
+		if (CustomOutputToCompile == TEXT("ClearCoatBottomNormal"))
+		{
+			Result = CompileNormalEncoding(Compiler, Result);
+		}
+
+		if (ForceCastFlags & MFCF_ForceCast)
+		{
+			Result = Compiler->ForceCast(Result, FMaterialAttributeDefinitionMap::GetValueType(AttributeID), ForceCastFlags);
+		}
+
+		return Result;
+	}
+
+	UMaterialExpressionCustomOutput* GetCustomOutputExpressionToCompile() const
+	{
+		for (UMaterialExpression* Expression : Material->Expressions)
+		{
+			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
+			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutputToCompile)
+			{
+				return CustomOutputExpression;
+			}
+		}
+
+		return nullptr;
+	}
+
+	static int32 CompileNormalEncoding(FMaterialCompiler* Compiler, int32 NormalInput)
+	{
+		return Compiler->Add(
+			Compiler->Mul(NormalInput, Compiler->Constant(0.5f)), // [-1,1] * 0.5
+			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
+	}
+
+private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
 	TArray<UObject*> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
+	/** The name of the specific custom output to compile for rendering the sample. Only used if PropertyToCompile is MP_CustomOutput */
+	FString CustomOutputToCompile;
 	FGuid Id;
 	bool bSynchronousCompilation;
 };

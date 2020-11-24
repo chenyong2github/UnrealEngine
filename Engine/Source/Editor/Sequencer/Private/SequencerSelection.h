@@ -41,7 +41,7 @@ public:
 	TArray<UMovieSceneTrack*> GetSelectedTracks() const;
 
 	/** Adds a key to the selection */
-	void AddToSelection(FSequencerSelectedKey Key);
+	void AddToSelection(const FSequencerSelectedKey& Key);
 
 	/** Adds a section to the selection */
 	void AddToSelection(UMovieSceneSection* Section);
@@ -56,7 +56,7 @@ public:
 	void AddToNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode);
 
 	/** Removes a key from the selection */
-	void RemoveFromSelection(FSequencerSelectedKey Key);
+	void RemoveFromSelection(const FSequencerSelectedKey& Key);
 
 	/** Removes a section from the selection */
 	void RemoveFromSelection(UMovieSceneSection* Section);
@@ -71,7 +71,7 @@ public:
 	void EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSection* Section);
 
 	/** Returns whether or not the key is selected. */
-	bool IsSelected(FSequencerSelectedKey Key) const;
+	bool IsSelected(const FSequencerSelectedKey& Key) const;
 
 	/** Returns whether or not the section is selected. */
 	bool IsSelected(UMovieSceneSection* Section) const;
@@ -129,7 +129,13 @@ public:
 
 	/** When true, selection change notifications should be broadcasted. */
 	bool IsBroadcasting();
-	
+
+	/** Retrieve the serial number that identifies this selection's state. */
+	uint32 GetSerialNumber() const
+	{
+		return SerialNumber;
+	}
+
 private:
 
 	TSet<FSequencerSelectedKey> SelectedKeys;
@@ -143,6 +149,9 @@ private:
 	FOnSelectionChanged OnNodesWithSelectedKeysOrSectionsChanged;
 
 	FOnSelectionChangedObjectGuids OnOutlinerNodeSelectionChangedObjectGuids;
+
+	/** Serial number that is incremented whenever the state of this selection has changed. */
+	uint32 SerialNumber;
 
 	/** The number of times the broadcasting of selection change notifications has been suspended. */
 	int32 SuspendBroadcastCount;

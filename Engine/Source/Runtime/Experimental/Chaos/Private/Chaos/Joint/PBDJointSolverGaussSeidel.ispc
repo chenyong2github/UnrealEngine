@@ -338,7 +338,7 @@ export void ApplyRotationConstraintSoftKD(
 	ApplyRotationDelta(M, DIndex, 1.0f, DR1);
 
 	Lambda += DLambda;
-	M->NetAngularImpulse = M->NetAngularImpulse + DLambda * Axis;
+	M->NetAngularImpulse = M->NetAngularImpulse + (KIndex == 0 ? 1 : -1) * DLambda * Axis;
 }
 
 export void ApplyRotationConstraintSoftDD(
@@ -407,7 +407,7 @@ export void ApplyPointPositionConstraintKD(
 
 	ApplyDelta(M, DIndex, LinearStiffness, DP1, DR1);
 
-	M->NetLinearImpulse = M->NetLinearImpulse + LinearStiffness * DX;
+	M->NetLinearImpulse = M->NetLinearImpulse + (KIndex == 0 ? 1 : -1) * LinearStiffness * DX;
 }
 
 export void ApplyPointPositionConstraintDD(

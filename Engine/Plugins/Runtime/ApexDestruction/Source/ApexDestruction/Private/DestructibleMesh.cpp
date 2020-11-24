@@ -26,10 +26,12 @@
 
 DEFINE_LOG_CATEGORY(LogDestructible)
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDestructibleMesh::UDestructibleMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UDestructibleMesh::PostLoad()
 {
@@ -68,7 +70,9 @@ void UDestructibleMesh::PostLoad()
 				// re create destructible asset if it exceeds
 				if (ApexDestructibleAsset != NULL)
 				{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					SetApexDestructibleAsset(*this, *ApexDestructibleAsset, NULL, EDestructibleImportOptions::PreserveSettings);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 #else
 				UE_LOG(LogDestructible, Warning, TEXT("Can't render %s asset because it exceeds max GPU skin bones supported(%d). You'll need to resave this in the editor."), *GetName(), MaxGPUSkinBones);
@@ -289,9 +293,11 @@ void UDestructibleMesh::Serialize(FArchive& Ar)
 
 	if (Ar.UE4Ver() < VER_UE4_CLEAN_DESTRUCTIBLE_SETTINGS)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		APEXToImpactResistance(DefaultDestructibleParameters.DamageParameters.bCustomImpactResistance, DefaultDestructibleParameters.DamageParameters.ImpactResistance);
 		APEXToDefaultImpactDamageDepth(DefaultDestructibleParameters.DamageParameters.bEnableImpactDamage, DefaultDestructibleParameters.DamageParameters.DefaultImpactDamageDepth);
 		APEXToDebrisDepth(DefaultDestructibleParameters.SpecialHierarchyDepths.bEnableDebris, DefaultDestructibleParameters.SpecialHierarchyDepths.DebrisDepth);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -483,6 +489,7 @@ void FDestructibleDepthParameters::LoadDefaultDestructibleParametersFromApexAsse
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 NvParameterized::Interface* UDestructibleMesh::GetDestructibleActorDesc(UPhysicalMaterial* PhysMat)
 {
 	NvParameterized::Interface* Params = NULL;
@@ -513,6 +520,7 @@ NvParameterized::Interface* UDestructibleMesh::GetDestructibleActorDesc(UPhysica
 
 	return Params;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_APEX
 
 void UDestructibleMesh::LoadDefaultDestructibleParametersFromApexAsset()
@@ -522,6 +530,7 @@ void UDestructibleMesh::LoadDefaultDestructibleParametersFromApexAsset()
 
 	if (Params != NULL)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		DefaultDestructibleParameters.DebrisParameters.LoadDefaultDestructibleParametersFromApexAsset(Params);
 		DefaultDestructibleParameters.SpecialHierarchyDepths.LoadDefaultDestructibleParametersFromApexAsset(Params);
 		DefaultDestructibleParameters.AdvancedParameters.LoadDefaultDestructibleParametersFromApexAsset(Params);
@@ -538,12 +547,14 @@ void UDestructibleMesh::LoadDefaultDestructibleParametersFromApexAsset()
 
 			DefaultDestructibleParameters.DepthParameters[Depth].LoadDefaultDestructibleParametersFromApexAsset(Params, OverrideName, OverrideValueName);
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 #endif
 }
 
 void UDestructibleMesh::CreateFractureSettings()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	if (FractureSettings == NULL)
 	{
@@ -551,6 +562,7 @@ void UDestructibleMesh::CreateFractureSettings()
 		check(FractureSettings);
 	}
 #endif	// WITH_EDITORONLY_DATA
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_APEX && WITH_EDITORONLY_DATA
@@ -697,8 +709,9 @@ bool UDestructibleMesh::BuildFractureSettingsFromStaticMesh(UStaticMesh* StaticM
 			MeshPartitions.Add(Triangles.Num());
 		}
 	}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FractureSettings->SetRootMesh(Triangles, MeshMaterials, Submeshes, MeshPartitions, true);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return true;
 #else // WITH_APEX && WITH_EDITOR
 	return false;
@@ -725,7 +738,9 @@ APEXDESTRUCTION_API bool UDestructibleMesh::BuildFromStaticMesh( UStaticMesh& St
 	}
 
 #if WITH_APEX
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BuildDestructibleMeshFromFractureSettings(*this, NULL);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	PostEditChange();
@@ -755,7 +770,9 @@ APEXDESTRUCTION_API bool UDestructibleMesh::SetupChunksFromStaticMeshes( const T
 	}
 
 #if WITH_APEX
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BuildDestructibleMeshFromFractureSettings(*this, NULL);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	// Clear the fracture chunk meshes again

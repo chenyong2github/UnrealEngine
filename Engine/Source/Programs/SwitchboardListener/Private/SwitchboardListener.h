@@ -13,10 +13,11 @@ struct FSwitchboardDisconnectTask;
 struct FSwitchboardSendFileToClientTask;
 struct FSwitchboardStartTask;
 struct FSwitchboardKillTask;
-struct FSwitchboardKillAllTask;
 struct FSwitchboardReceiveFileFromClientTask;
 struct FSwitchboardGetSyncStatusTask;
 struct FSwitchboardMessageFuture;
+struct FSwitchboardForceFocusTask;
+struct FSwitchboardFixExeFlagsTask;
 
 class FInternetAddr;
 class FSocket;
@@ -40,16 +41,16 @@ private:
 	bool StartProcess(const FSwitchboardStartTask& InRunTask);
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
 	bool KillProcess(const FSwitchboardKillTask& KillTask);
-	bool KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask);
-	void KillAllProcessesNow();
 	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
 	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
 	bool GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
+	bool ForceFocus(const FSwitchboardForceFocusTask& ForceFocusTask);
+	bool FixExeFlags(const FSwitchboardFixExeFlagsTask& ForceFocusTask);
 	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
-	void HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded);
+	void HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
 	void SendMessageFutures();
@@ -66,7 +67,7 @@ private:
 
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> ScheduledTasks;
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> DisconnectTasks;
-	TArray<FRunningProcess> RunningProcesses;
-	TArray<FRunningProcess> FlipModeMonitors;
+	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> RunningProcesses;
+	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 };

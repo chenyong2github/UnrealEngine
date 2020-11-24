@@ -83,6 +83,14 @@ TAutoConsoleVariable<int32> CVarCsvContinuousWrites(
 	ECVF_Default
 );
 
+TAutoConsoleVariable<int32> CVarCsvForceExit(
+	TEXT("csv.ForceExit"),
+	0,
+	TEXT("If 1, do a forced exit when if exitOnCompletion is enabled"),
+	ECVF_Default
+);
+
+
 #if UE_BUILD_SHIPPING
 TAutoConsoleVariable<int32> CVarCsvShippingContinuousWrites(
 	TEXT("csv.Shipping.ContinuousWrites"),
@@ -1656,11 +1664,11 @@ public:
 		}
 	}
 
-	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData()
+	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData(const FString* InThreadName = nullptr)
 	{
 		FScopeLock Lock(&TlsCS);
 
-		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData());
+		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData(InThreadName));
 		FPlatformTLS::SetTlsValue(TlsSlot, ProfilerThreadPtr.Get());
 
 		// Keep a weak reference to this thread data in the global array.
@@ -1673,12 +1681,12 @@ public:
 		return ProfilerThreadPtr.Get();
 	}
 
-	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get()
+	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get(const FString* InThreadName = nullptr)
 	{
 		FCsvProfilerThreadData* ProfilerThread = (FCsvProfilerThreadData*)FPlatformTLS::GetTlsValue(TlsSlot);
 		if (UNLIKELY(!ProfilerThread))
 		{
-			ProfilerThread = CreateTLSData();
+			ProfilerThread = CreateTLSData(InThreadName);
 		}
 		return *ProfilerThread;
 	}
@@ -1699,9 +1707,9 @@ public:
 		}
 	}
 
-	FCsvProfilerThreadData()
+	FCsvProfilerThreadData(const FString* InThreadName = nullptr)
 		: ThreadId(FPlatformTLS::GetCurrentThreadId())
-		, ThreadName(FThreadManager::GetThreadName(ThreadId))
+		, ThreadName((InThreadName==nullptr) ? FThreadManager::GetThreadName(ThreadId) : *InThreadName)
 		, DataProcessor(nullptr)
 	{
 	}
@@ -2611,9 +2619,9 @@ void FCsvProfiler::BeginFrame()
 							GCsvUseProcessingThread = false;
 						}
 					}
-
+					 
 					// Figure out the target framerate
-					int TargetFPS = 60;
+					int TargetFPS = FPlatformMisc::GetMaxRefreshRate();
 					static IConsoleVariable* MaxFPSCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("t.MaxFPS"));
 					static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.SyncInterval"));
 					if (MaxFPSCVar && MaxFPSCVar->GetInt() > 0)
@@ -2802,7 +2810,8 @@ void FCsvProfiler::EndFrame()
 
 			if (bCaptureEnded && (GCsvExitOnCompletion || FParse::Param(FCommandLine::Get(), TEXT("ExitAfterCsvProfiling"))))
 			{
-				FPlatformMisc::RequestExit(false);
+				bool bForceExit = !!CVarCsvForceExit.GetValueOnGameThread();
+				FPlatformMisc::RequestExit(bForceExit);
 			}
 		}
 	}
@@ -3099,6 +3108,11 @@ void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 
 	FScopeLock Lock(&CsvProfiler->MetadataCS);
 	CsvProfiler->MetadataMap.FindOrAdd(KeyLower) = Value;
+}
+
+void FCsvProfiler::SetThreadName(const FString& InThreadName)
+{
+	FCsvProfilerThreadData::Get(&InThreadName);
 }
 
 void FCsvProfiler::RecordEventAtTimestamp(int32 CategoryIndex, const FString& EventText, uint64 Cycles64)

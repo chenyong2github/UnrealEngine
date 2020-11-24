@@ -17,17 +17,54 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	auto PackedResourceCounts = InShaderCode.FindOptionalData<FShaderCodePackedResourceCounts>();
 	check(PackedResourceCounts);
 	OutShader.OutputMask = PackedResourceCounts->OutputMask;
+	
 	uint32 UAVMask = 0;
-	for (uint32 UAVBinding : OutShader.ShaderResourceTable.UnorderedAccessViewMap)
+	uint32 MinOffset = OutShader.ShaderResourceTable.UnorderedAccessViewMap.Num();
+	// If the token stream isn't empty, it has a length of at least 2, because it's always terminated with 0xffffffff. If it has
+	// a length of 2, it means it only contains an offset entry for a single uniform buffer, which must be 0, because there's nothing
+	// for it to offset into. Therefore, we only care about streams which have 3 or more tokens (including the terminator).
+	if (MinOffset > 2)
 	{
-		if (UAVBinding == 0 || UAVBinding == 0xffffffff)
+		// Ignore the terminator.
+		--MinOffset;
+
+		// The token stream starts with a table of offsets, followed by a list of UAV bindings, like this:
+		//		O1 O2 O3 ... On B1 B2 B3 ... Bm
+		// The offsets indicate where to find the bindings for each active uniform buffer, relative to the start of the
+		// data (not the start of the binding list). Therefore, this buffer:
+		//		9 0 7 6 0 0 B1 B2 B3 B4
+		// means that:
+		//		buffer 0 starts at index 9 (B4)
+		//		buffers 1, 4 and 5 are empty (offsets are 0)
+		//		buffer 2 starts at index 7 (B2)
+		//		buffer 3 starts at index 6 (B1)
+		// We can also infer that buffer 2 has two elements in this case (B2 and B3). Since we don't know how many buffers there are,
+		// we will parse the data like this:
+		//		* read an offset from the start of the list
+		//		* process every binding from that offset until the end, since the bindings list is contiguous
+		//		* read the next offset, process bindings from that until the first biding we've already processed
+		//		* stop when the next offset is at a location we've already processed as a binding (we've found the first binding in that case).
+		for (uint32 BufferIdx = 0; BufferIdx < MinOffset; ++BufferIdx)
 		{
-			break;
+			uint32 BufferOffset = OutShader.ShaderResourceTable.UnorderedAccessViewMap[BufferIdx];
+			if (BufferOffset == 0 || BufferOffset >= MinOffset)
+			{
+				continue;
+			}
+
+			for (uint32 ElemIdx = BufferOffset; ElemIdx < MinOffset; ++ElemIdx)
+			{
+				uint32 UAVBinding = OutShader.ShaderResourceTable.UnorderedAccessViewMap[ElemIdx];
+				const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(UAVBinding);
+				UAVMask |= (1 << BindIndex);
+			}
+
+			MinOffset = BufferOffset;
 		}
-		const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(UAVBinding);
-		UAVMask |= (1 << BindIndex);
 	}
+
 	OutShader.UAVMask = UAVMask;
+
 	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	OutShader.ShaderName = InShaderCode.FindOptionalData('n');

@@ -58,7 +58,17 @@ public:
 };
 
 UCLASS()
-class CONTENTBROWSER_API UContentBrowserFolderContext : public UObject
+class CONTENTBROWSER_API UContentBrowserMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	TWeakPtr<SContentBrowser> ContentBrowser;
+};
+
+UCLASS()
+class CONTENTBROWSER_API UContentBrowserFolderContext : public UContentBrowserMenuContext
 {
 	GENERATED_BODY()
 
@@ -73,8 +83,17 @@ public:
 	UPROPERTY()
 	int32 NumClassPaths;
 
-	TWeakPtr<SContentBrowser> ContentBrowser;
 	FOnCreateNewFolder OnCreateNewFolder;
+};
+
+UCLASS()
+class CONTENTBROWSER_API UContentBrowserAddNewContextMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	TWeakPtr<SContentBrowser> ContentBrowser;
 };
 
 UCLASS()
@@ -88,4 +107,3 @@ public:
 
 	TWeakPtr<SContentBrowser> ContentBrowser;
 };
-

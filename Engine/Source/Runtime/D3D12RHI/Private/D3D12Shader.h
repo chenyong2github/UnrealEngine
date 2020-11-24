@@ -204,6 +204,7 @@ public:
 	FString EntryPoint; // Primary entry point for all ray tracing shaders. Assumed to be closest hit shader for SF_RayHitGroup.
 	FString AnyHitEntryPoint; // Optional any-hit shader entry point for SF_RayHitGroup.
 	FString IntersectionEntryPoint; // Optional intersection shader entry point for SF_RayHitGroup.
+	bool bPrecompiledPSO = false;
 
 	FShaderCodePackedResourceCounts ResourceCounts;
 

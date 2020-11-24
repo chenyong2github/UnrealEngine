@@ -10,11 +10,13 @@ static float GHairTT = 1;
 static float GHairTRT = 1;
 static float GHairGlobalScattering = 1;
 static float GHairLocalScattering = 1;
+static int32 GHairTTModel = 0;
 static FAutoConsoleVariableRef CVarHairR(TEXT("r.HairStrands.Components.R"), GHairR, TEXT("Enable/disable hair BSDF component R"));
 static FAutoConsoleVariableRef CVarHairTT(TEXT("r.HairStrands.Components.TT"), GHairTT, TEXT("Enable/disable hair BSDF component TT"));
 static FAutoConsoleVariableRef CVarHairTRT(TEXT("r.HairStrands.Components.TRT"), GHairTRT, TEXT("Enable/disable hair BSDF component TRT"));
 static FAutoConsoleVariableRef CVarHairGlobalScattering(TEXT("r.HairStrands.Components.GlobalScattering"), GHairGlobalScattering, TEXT("Enable/disable hair BSDF component global scattering"));
 static FAutoConsoleVariableRef CVarHairLocalScattering(TEXT("r.HairStrands.Components.LocalScattering"), GHairLocalScattering, TEXT("Enable/disable hair BSDF component local scattering"));
+static FAutoConsoleVariableRef CVarHairTTModel(TEXT("r.HairStrands.Components.TTModel"), GHairTTModel, TEXT("Select hair TT model"));
 
 static float GStrandHairRasterizationScale = 0.5f; // For no AA without TAA, a good value is: 1.325f (Empirical)
 static FAutoConsoleVariableRef CVarStrandHairRasterizationScale(TEXT("r.HairStrands.RasterizationScale"), GStrandHairRasterizationScale, TEXT("Rasterization scale to snap strand to pixel"), ECVF_Scalability | ECVF_RenderThreadSafe);
@@ -74,6 +76,7 @@ FHairComponent GetHairComponents()
 	Out.TRT = GHairTRT > 0;
 	Out.LocalScattering = GHairLocalScattering > 0;
 	Out.GlobalScattering = GHairGlobalScattering > 0;
+	Out.TTModel = GHairTTModel > 0 ? 1 : 0;
 	return Out;
 }
 
@@ -84,7 +87,9 @@ uint32 ToBitfield(const FHairComponent& C)
 		(C.TT				? 1u : 0u) << 1 |
 		(C.TRT				? 1u : 0u) << 2 |
 		(C.LocalScattering  ? 1u : 0u) << 3 |
-		(C.GlobalScattering ? 1u : 0u) << 4 ;
+		(C.GlobalScattering ? 1u : 0u) << 4 |
+		// Multiple scattering         << 5 (used only within shader)
+		(C.TTModel			? 1u : 0u) << 6;
 }
 
 float GetPrimiartyRasterizationScale()

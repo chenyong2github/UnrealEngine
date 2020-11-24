@@ -1822,11 +1822,9 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
 	if (LoadedPackage->GetFName() != PackageData.GetPackageName())
 	{
-		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
-		UE_LOG(LogCook, Warning, TEXT("Unexpected change in PackageName when loading a requested package. \"%s\" changed to \"%s\"."),
-			*PackageData.GetPackageName().ToString(), *LoadedPackage->GetName());
-
-		// The PackageName is not the name that we loaded
+		// The PackageName is not the name that we loaded. This can happen due to CoreRedirects.
+		// We refuse to cook requests for packages that no longer exist in PumpExternalRequests, but it is possible
+		// that a CoreRedirect exists from a (externally requested or requested as a reference) package that still exists.
 		// Mark the original PackageName as cooked for all platforms and send a request to cook the new FileName
 		check(NewPackageFileName != PackageFileName);
 
@@ -2287,6 +2285,14 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 				{
 					Obj->WillNeverCacheCookedPlatformDataAgain();
 				}
+			}
+
+			UPackage* Package = PackageData.GetPackage();
+			if (Package && Package->LinkerLoad)
+			{
+				// Loaders and their handles can have large buffers held in process memory and in the system file cache from the
+				// data that was loaded.  Keeping this for the lifetime of the cook is costly, so we try and unload it here.
+				Package->LinkerLoad->FlushCache();
 			}
 		}
 	};
@@ -3859,17 +3865,19 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 					if (DiffModeHelper.IsRunningCookDiff())
 					{
+						FSavePackageContext* const SavePackageContext = (IsCookByTheBookMode() && SavePackageContexts.Num() > 0) ? SavePackageContexts[PlatformIndex] : nullptr;
+
 						DiffModeHelper.ProcessPackage(Package);
 
 						// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
 						uint32 DiffSaveFlags = SaveFlags | SAVE_DiffOnly;
 						FArchiveDiffMap DiffMap;
-						Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap);
+						Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
 						if (Result == ESavePackageResult::DifferentContent)
 						{
 							// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
 							DiffSaveFlags = SaveFlags | SAVE_DiffCallstack;
-							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap);
+							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
 						}
 					}
 					else
@@ -8314,7 +8322,9 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						}
 								
 						GIsCookerLoadingPackage = true;
-						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
+						FSavePackageContext* const SavePackageContext = (IsCookByTheBookMode() && SavePackageContexts.Num() > 0) ? SavePackageContexts[PlatformIndex] : nullptr;
+						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), 
+																			false, /*DiffMap*/ nullptr,	SavePackageContext);
 						GIsCookerLoadingPackage = false;
 
 						if (SaveResult == ESavePackageResult::Success && UAssetManager::IsValid())

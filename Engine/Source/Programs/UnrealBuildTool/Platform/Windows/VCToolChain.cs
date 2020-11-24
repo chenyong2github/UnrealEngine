@@ -1407,6 +1407,11 @@ namespace UnrealBuildTool
 			}
 		}
 
+		public virtual FileReference GetApplicationIcon(FileReference ProjectFile)
+		{
+			return WindowsPlatform.GetWindowsApplicationIcon(ProjectFile);
+		}
+
 		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
@@ -1469,11 +1474,11 @@ namespace UnrealBuildTool
 				FileReference IconFile;
 				if(Target.ProjectFile != null && !CompileEnvironment.bUseSharedBuildEnvironment)
 				{
-					IconFile = WindowsPlatform.GetApplicationIcon(Target.ProjectFile);
+					IconFile = GetApplicationIcon(Target.ProjectFile);
 				}
 				else
 				{
-					IconFile = WindowsPlatform.GetApplicationIcon(null);
+					IconFile = GetApplicationIcon(null);
 				}
 				CompileAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(IconFile));
 

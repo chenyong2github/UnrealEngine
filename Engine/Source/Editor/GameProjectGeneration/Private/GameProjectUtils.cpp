@@ -101,6 +101,9 @@ struct FAudioDefaultPlatformSettings
 	FAudioPlatformSettings Settings;
 	const TCHAR* ConfigSectionName;
 	bool bUseAudioMixer;
+	FString HardwareOcclusionPlugin;
+	FString HardwareReverbPlugin;
+	FString HardwareSpatializationPlugin;
 
 	FAudioDefaultPlatformSettings(const TCHAR* InConfigSectionName)
 		: ConfigSectionName(InConfigSectionName)
@@ -138,7 +141,15 @@ namespace
 		PS4Settings.Settings.CallbackBufferFrameSize = 256;
 		PS4Settings.Settings.NumBuffers = 7;
 		PS4Settings.Settings.NumSourceWorkers = 4;
+		PS4Settings.HardwareSpatializationPlugin = TEXT("Audio3D");
 		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
+
+		FAudioDefaultPlatformSettings PS5Settings(TEXT("/Script/PS5PlatformEditor.PS5TargetSettings"));
+		PS5Settings.Settings.CallbackBufferFrameSize = 256;
+		PS5Settings.Settings.NumBuffers = 7;
+		PS5Settings.Settings.NumSourceWorkers = 4;
+		PS5Settings.HardwareSpatializationPlugin = TEXT("Audio3D");
+		DefaultProjectSettings.Add(TEXT("PS5"), PS5Settings);
 
 		FAudioDefaultPlatformSettings SwitchSettings(TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings"));
 		SwitchSettings.Settings.MaxChannels = 16;
@@ -153,6 +164,11 @@ namespace
 		XBoxSettings.Settings.CallbackBufferFrameSize = 256;
 		XBoxSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
+
+		FAudioDefaultPlatformSettings XSXSettings(TEXT("/Script/XSXPlatformEditor.XSXTargetSettings"));
+		XSXSettings.Settings.CallbackBufferFrameSize = 256;
+		XSXSettings.Settings.NumBuffers = 7;
+		DefaultProjectSettings.Add(TEXT("XSX"), XSXSettings);
 
 		return MoveTemp(DefaultProjectSettings);
 	}
@@ -2210,10 +2226,14 @@ bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& In
 		FileContents += TEXT("AudioNumSourceWorkers=") + FString::Printf(TEXT("%d"), PlatformSettings.NumSourceWorkers) + LINE_TERMINATOR;
 
 		FileContents += LINE_TERMINATOR;
+		FileContents += TEXT("; Audio Plugins (must be enabled in .uproject") LINE_TERMINATOR;
+		FileContents += TEXT("; ReverbPlugin=") + SettingsPair.Value.HardwareReverbPlugin + LINE_TERMINATOR;
+		FileContents += TEXT("; OcclusionPlugin=") + SettingsPair.Value.HardwareOcclusionPlugin + LINE_TERMINATOR;
+		FileContents += TEXT("; SpatializationPlugin=") + SettingsPair.Value.HardwareSpatializationPlugin + LINE_TERMINATOR;
 
 		const FString NewProjectFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
-		const FString ProjectConfigPath = NewProjectFolder / TEXT("Config");
-		const FString PlatformEngineIniFilename = ProjectConfigPath / PlatformName / PlatformName + TEXT("Engine.ini");
+		const FString ProjectConfigPath = NewProjectFolder / TEXT("Platforms") / PlatformName / TEXT("Config");
+		const FString PlatformEngineIniFilename = ProjectConfigPath / PlatformName + TEXT("Engine.ini");
 		if (!WriteOutputFile(PlatformEngineIniFilename, FileContents, OutFailReason))
 		{
 			return false;

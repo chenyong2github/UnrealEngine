@@ -42,7 +42,7 @@ void UNiagaraDataInterfaceVector2DCurve::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (bUseLUT && Ar.IsCooking() && Ar.CookingTarget()->RequiresCookedData())
 	{
-		UpdateLUT();
+		UpdateLUT(true);
 
 		FRichCurve TempXCurve;
 		FRichCurve TempYCurve;

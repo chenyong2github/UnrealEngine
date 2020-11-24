@@ -109,6 +109,15 @@ static const ANSICHAR* GDeviceExtensions[] =
 	VK_EXT_VALIDATION_CACHE_EXTENSION_NAME,
 #endif
 
+#if VULKAN_SUPPORTS_MEMORY_BUDGET
+	VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
+#endif
+
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME,
+#endif
+
+
 #if VULKAN_SUPPORTS_MEMORY_PRIORITY
 	VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
 #endif
@@ -800,6 +809,16 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasMemoryPriority = 0;
 #endif
 
+#if VULKAN_SUPPORTS_MEMORY_BUDGET
+	HasMemoryBudget = HasExtension(DeviceExtensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+	if (FParse::Param(FCommandLine::Get(), TEXT("disablememorybudget")))
+	{
+		HasMemoryBudget = 0;
+	}
+#else
+	HasMemoryBudget = 0;
+#endif
+
 #if VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	HasEXTASTCDecodeMode = HasExtension(DeviceExtensions, VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
 #else
@@ -824,6 +843,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 
 #if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
 	HasAtomicInt64 = HasExtension(DeviceExtensions, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	HasScalarBlockLayoutFeatures = HasExtension(DeviceExtensions, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
 #endif
 }
 

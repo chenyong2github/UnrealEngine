@@ -16,6 +16,9 @@
 #include "Animation/CustomAttributesRuntime.h"
 #include "SkeletalDebugRendering.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "BoneContainer.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationTrack"
 
@@ -233,8 +236,24 @@ void UMovieSceneSkeletalAnimationTrack::SortSections()
 	AnimationSections.Sort([](UMovieSceneSection& A,  UMovieSceneSection& B) {return ((A).GetTrueRange().GetLowerBoundValue() < (B).GetTrueRange().GetLowerBoundValue());});
 }
 
-static void BlendTheseTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms, const TArray<float>& Weights)
+//expectation is the weights may be unnormalized.
+static void BlendTheseTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms,  TArray<float>& Weights)
 {
+	if (Weights.Num() > 0)
+	{
+		float TotalWeight = 0.0f;
+		for (int32 WeightIndex = 0; WeightIndex < Weights.Num(); ++WeightIndex)
+		{
+			TotalWeight += Weights[WeightIndex];
+		}
+		if (!FMath::IsNearlyEqual(TotalWeight, 1.0f))
+		{
+			for (int32 DivideIndex = 0; DivideIndex < Weights.Num(); ++DivideIndex)
+			{
+				Weights[DivideIndex] /= TotalWeight;
+			}
+		}
+	}
 	int32 NumBlends = Transforms.Num();
 	check(Transforms.Num() == Weights.Num());
 	if (NumBlends == 0)
@@ -445,11 +464,17 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		//Set the TempOffset.
 		FTransform InitialTransform = FTransform::Identity;
 		UMovieSceneSkeletalAnimationSection* PrevAnimSection = nullptr;
+		//valid anim sequence to use to calculate bones.
+		UAnimSequenceBase* ValidAnimSequence = nullptr;
 		for (UMovieSceneSection* Section : AnimationSections)
 		{
 			UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
 			if (AnimSection)
 			{
+				if (ValidAnimSequence == nullptr)
+				{
+					ValidAnimSequence = AnimSection->Params.Animation;
+				}
 				if (PrevAnimSection)
 				{
 					AnimSection->TempOffsetTransform = PrevAnimSection->GetOffsetTransform() * InitialTransform;
@@ -463,66 +488,92 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				AnimSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
 			}
 		}
-
-		TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
-
-		RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
-		RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() -1;
-
-		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-		FFrameRate TickResolution = MovieScene->GetTickResolution();
-		RootMotionParams.FrameTick = FFrameTime(TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value);
-
-		int32 NumTotal = (RootMotionParams.EndFrame.FrameNumber.Value - RootMotionParams.StartFrame.FrameNumber.Value) / (RootMotionParams.FrameTick.FrameNumber.Value) + 1;
-		RootMotionParams.RootTransforms.SetNum(NumTotal);
-		TArray<FTransform> CurrentTransforms;
-		TArray<float> CurrentWeights;
-
-		FFrameTime PreviousFrame = RootMotionParams.StartFrame;
-		int32 Index = 0;
-		for (FFrameTime FrameNumber = RootMotionParams.StartFrame; FrameNumber <= RootMotionParams.EndFrame; FrameNumber += RootMotionParams.FrameTick)
+		//set up pose from valid anim sequences.
+		FCompactPose OutPose;
+		if (ValidAnimSequence)
 		{
-			CurrentTransforms.SetNum(0);
-			CurrentWeights.SetNum(0);
-			FTransform CurrentTransform = FTransform::Identity;
-			float CurrentWeight;
-			UMovieSceneSkeletalAnimationSection* PrevSection = nullptr;
-			for (UMovieSceneSection* Section : AnimationSections)
+			TArray<FBoneIndexType> RequiredBoneIndexArray;
+			const FCurveEvaluationOption CurveEvalOption;
+			RequiredBoneIndexArray.AddUninitialized(ValidAnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
+			for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 			{
-				if (Section && Section->GetRange().Contains(FrameNumber.FrameNumber))
-				{
-					UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
-				
-					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, CurrentTransform, CurrentWeight))
-					{
-						CurrentTransform =  CurrentTransform * AnimSection->TempOffsetTransform;
-						CurrentTransforms.Add(CurrentTransform);
-						CurrentWeights.Add(CurrentWeight);
-					}
-					PrevSection = AnimSection;
-				}
+				RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 			}
-			if (CurrentWeights.Num() > 0)
-			{
-				float TotalWeight = 0.0f;
-				for (int32 WeightIndex = 0; WeightIndex < CurrentWeights.Num(); ++WeightIndex)
-				{
-					TotalWeight += CurrentWeights[WeightIndex];
-				}
-				if (!FMath::IsNearlyEqual(TotalWeight, 1.0f))
-				{
-					for (int32 DivideIndex = 0; DivideIndex < CurrentWeights.Num(); ++DivideIndex)
-					{
-						CurrentWeights[DivideIndex] /= TotalWeight;
-					}
-				}
-			}
-			BlendTheseTransformsByWeight(CurrentTransform, CurrentTransforms, CurrentWeights);
-			RootMotionParams.RootTransforms[Index] = CurrentTransform;
-			++Index;
-			PreviousFrame = FrameNumber;
 
+			FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *ValidAnimSequence->GetSkeleton());
+			OutPose.ResetToRefPose(BoneContainer);
+			TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
+			RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
+			RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() - 1;
+
+			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			RootMotionParams.FrameTick = FFrameTime(TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value);
+
+			int32 NumTotal = (RootMotionParams.EndFrame.FrameNumber.Value - RootMotionParams.StartFrame.FrameNumber.Value) / (RootMotionParams.FrameTick.FrameNumber.Value) + 1;
+			RootMotionParams.RootTransforms.SetNum(NumTotal);
+			TArray<FTransform> CurrentTransforms;
+			TArray<float> CurrentWeights;
+			TArray<FTransform> CurrentAdditiveTransforms;
+			TArray<float> CurrentAdditiveWeights;
+			FFrameTime PreviousFrame = RootMotionParams.StartFrame;
+			int32 Index = 0;
+			for (FFrameTime FrameNumber = RootMotionParams.StartFrame; FrameNumber <= RootMotionParams.EndFrame; FrameNumber += RootMotionParams.FrameTick)
+			{
+				CurrentTransforms.SetNum(0);
+				CurrentWeights.SetNum(0);
+				FTransform CurrentTransform = FTransform::Identity;
+				float CurrentWeight;
+				UMovieSceneSkeletalAnimationSection* PrevSection = nullptr;
+				for (UMovieSceneSection* Section : AnimationSections)
+				{
+					if (Section && Section->GetRange().Contains(FrameNumber.FrameNumber))
+					{
+						UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
+
+						FBlendedCurve OutCurve;
+						FStackCustomAttributes TempAttributes;
+						FAnimationPoseData AnimationPoseData(OutPose, OutCurve, TempAttributes);
+						bool bIsAdditive = false;
+						if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, AnimationPoseData, bIsAdditive, CurrentTransform, CurrentWeight))
+						{
+							if (!bIsAdditive)
+							{
+								CurrentTransform = CurrentTransform * AnimSection->TempOffsetTransform;
+								CurrentTransforms.Add(CurrentTransform);
+								CurrentWeights.Add(CurrentWeight);
+							}
+							else
+							{
+								CurrentAdditiveTransforms.Add(CurrentTransform);
+								CurrentAdditiveWeights.Add(CurrentWeight);
+							}
+						}
+						PrevSection = AnimSection;
+					}
+				}
+
+				BlendTheseTransformsByWeight(CurrentTransform, CurrentTransforms, CurrentWeights);
+				//now handle additive onto the current
+				if (CurrentAdditiveWeights.Num() > 0)
+				{
+					FTransform AdditiveTransform;
+					BlendTheseTransformsByWeight(AdditiveTransform, CurrentAdditiveTransforms, CurrentAdditiveWeights);
+					const ScalarRegister VBlendWeight(1.0f);
+					FTransform::BlendFromIdentityAndAccumulate(CurrentTransform, AdditiveTransform, VBlendWeight);
+				}
+				RootMotionParams.RootTransforms[Index] = CurrentTransform;
+				++Index;
+				PreviousFrame = FrameNumber;
+
+			}
 		}
+		else //no valid anim sequence just clear out
+		{
+			RootMotionParams.RootTransforms.SetNum(0);
+			return;
+		}
+
 	}
 }
 

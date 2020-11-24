@@ -863,7 +863,7 @@ FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& Mate
 			QualityLevelForResource = EMaterialQualityLevel::Num;
 		}
 	}
-
+	
 	FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, InFeatureLevel, QualityLevelForResource, false);
 	if (!CurrentResource)
 	{
@@ -871,26 +871,13 @@ FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& Mate
 		CurrentResource->SetMaterial(OwnerMaterial, OwnerMaterialInstance, InFeatureLevel, QualityLevelForResource);
 		MaterialResources.Add(CurrentResource);
 	}
-
-	const UMaterial* CurrentOwnerMaterial = CurrentResource->GetMaterial();
-	const UMaterialInstance* CurrentOwnerMaterialInstance = CurrentResource->GetMaterialInstance();
-	
-	// make sure the material resource we found has the correct owner
-	// special case for nullptrs: since the Material and MI get fed to the reference collector, they can be zeroed out by GC or utility tools
-	checkf(CurrentOwnerMaterial == OwnerMaterial || CurrentOwnerMaterial == nullptr, TEXT("expected FMaterialResource with material %s, got %s"),
-		*GetNameSafe(OwnerMaterial), *GetNameSafe(CurrentOwnerMaterial));
-	checkf(CurrentOwnerMaterialInstance == OwnerMaterialInstance || CurrentOwnerMaterialInstance == nullptr, TEXT("expected FMaterialResource with MI %s, got %s"),
-		*GetNameSafe(OwnerMaterialInstance), *GetNameSafe(CurrentOwnerMaterialInstance));
-
-	// assume previous ownership and restore zeroed-out references
-	if (UNLIKELY(CurrentOwnerMaterial == nullptr))
+	else
 	{
+		// Make sure the resource we found still has the correct owner
+		// This needs to be updated for various complicated reasons...
+		// * Since these pointers are passed to reference collector, the GC may null them out
+		// * Landscape does lots of complicated material reparenting under the hood, which can cause these pointers to get stale
 		CurrentResource->SetMaterial(OwnerMaterial);
-	}
-
-	// OwnerMI itself can be nullptr (for UMaterial resources).
-	if (UNLIKELY(CurrentOwnerMaterialInstance == nullptr && OwnerMaterialInstance != nullptr))
-	{
 		CurrentResource->SetMaterialInstance(OwnerMaterialInstance);
 	}
 
@@ -3077,6 +3064,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, ActiveQualityLevel))
 				{
 					CurrentResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
+					CurrentResource->UpdateInlineShaderMapIsComplete();
 				}
 			}
 #endif // STORE_ONLY_ACTIVE_SHADERMAPS
@@ -3799,7 +3787,7 @@ void UMaterial::PostLoad()
 	//DumpDebugInfo();
 }
 
-void UMaterial::DumpDebugInfo()
+void UMaterial::DumpDebugInfo() const
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- %s"), *GetFullName());
 

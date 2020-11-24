@@ -35,7 +35,8 @@ public:
 	virtual void AddActions(XrInstance Instance, TFunction<XrAction(XrActionType InActionType, const FName& InName, const TArray<XrPath>& InSubactionPaths)> AddAction) override;
 
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext) override;
-	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
+	virtual void PostSyncActions(XrSession InSession) override;
+	virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
 
 	void DrawDebug(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos);
 

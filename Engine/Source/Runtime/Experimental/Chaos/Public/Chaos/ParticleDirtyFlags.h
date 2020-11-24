@@ -9,6 +9,7 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/KinematicTargets.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 
@@ -16,6 +17,8 @@ class FName;
 
 namespace Chaos
 {
+
+using FKinematicTarget = TKinematicTarget<float, 3>;
 
 enum class EResimType: uint8;
 
@@ -370,6 +373,7 @@ public:
 		return IsEqual(Other);
 	}
 
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& AccessGeometry() { return MGeometry; }
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& Geometry() const { return MGeometry;}
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
 	void SetGeometry(const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
@@ -1110,6 +1114,11 @@ public:
 	FParticleDirtyFlags GetFlags() const
 	{
 		return Flags;
+	}
+
+	void DirtyFlag(EParticleFlags Flag)
+	{
+		Flags.MarkDirty(Flag);
 	}
 
 	template <typename T, EParticleProperty PropName>

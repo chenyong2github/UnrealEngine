@@ -598,7 +598,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
 	}
 	RemoveFromComponentMaps(InObject);
-	RemovePhysicsProxy(InObject, Solver, ChaosModule);
 }
 
 #if XGE_FIXED
@@ -709,45 +708,50 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 		for (TArray<UPrimitiveComponent*>::TIterator It(CollisionEventRegistrations); It; ++It)
 		{
 			UPrimitiveComponent* const Comp0 = *It;
-			IPhysicsProxyBase* const PhysicsProxy0 = GetOwnedPhysicsProxy(Comp0);
-			TArray<int32> const* const CollisionIndices = PhysicsProxyToCollisionIndicesMap.Find(PhysicsProxy0);
-			if (CollisionIndices)
+			const TArray<IPhysicsProxyBase*>* PhysicsProxyArray = GetOwnedPhysicsProxies(Comp0);
+
+			if (PhysicsProxyArray)
 			{
-				for (int32 EncodedCollisionIdx : *CollisionIndices)
+				for (IPhysicsProxyBase* PhysicsProxy0 : *PhysicsProxyArray)
 				{
-					bool bSwapOrder;
-					int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
-
-					Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
-					IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
-
+					TArray<int32> const* const CollisionIndices = PhysicsProxyToCollisionIndicesMap.Find(PhysicsProxy0);
+					if (CollisionIndices)
 					{
-						bool bNewEntry = false;
-						FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
-
-						// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
-						const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
-						const FVector FrictionImpulse = FVector(CollisionDataItem.AccumulatedImpulse) - NormalImpulse; // friction is component not along contact normal
-						NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
-						NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
-
-						if (bNewEntry)
+						for (int32 EncodedCollisionIdx : *CollisionIndices)
 						{
-							UPrimitiveComponent* const Comp1 = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+							bool bSwapOrder;
+							int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
-							// fill in legacy contact data
-							NotifyInfo.bCallEvent0 = true;
-							// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
+							Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
+							IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
-							SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
-							SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
+							bool bNewEntry = false;
+							FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
 
-							FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
-							NewContact.ContactNormal = CollisionDataItem.Normal;
-							NewContact.ContactPosition = CollisionDataItem.Location;
-							NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
-							NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold = CollisionDataItem.DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) && CollisionDataItem.DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
-							// NewContact.PhysMaterial[1] UPhysicalMaterial required here
+							// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
+							const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
+							const FVector FrictionImpulse = FVector(CollisionDataItem.AccumulatedImpulse) - NormalImpulse; // friction is component not along contact normal
+							NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
+							NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
+
+							if (bNewEntry)
+							{
+								UPrimitiveComponent* const Comp1 = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+
+								// fill in legacy contact data
+								NotifyInfo.bCallEvent0 = true;
+								// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
+
+								SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
+								SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
+
+								FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
+								NewContact.ContactNormal = CollisionDataItem.Normal;
+								NewContact.ContactPosition = CollisionDataItem.Location;
+								NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+								NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold = CollisionDataItem.DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) && CollisionDataItem.DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
+								// NewContact.PhysMaterial[1] UPhysicalMaterial required here
+							}
 						}
 					}
 				}
@@ -832,7 +836,18 @@ void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysi
 	if (Component != nullptr && InObject != nullptr)
 	{
 		PhysicsProxyToComponentMap.Add(InObject, Component);
-		ComponentToPhysicsProxyMap.Add(Component, InObject);
+
+		TArray<IPhysicsProxyBase*>* ProxyArray = ComponentToPhysicsProxyMap.Find(Component);
+		if (ProxyArray == nullptr)
+		{
+			TArray<IPhysicsProxyBase*> NewProxyArray;
+			NewProxyArray.Add(InObject);
+			ComponentToPhysicsProxyMap.Add(Component, NewProxyArray);
+		}
+		else
+		{
+			ProxyArray->Add(InObject);
+		}
 	}
 }
 
@@ -841,7 +856,15 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 	UPrimitiveComponent** const Component = PhysicsProxyToComponentMap.Find(InObject);
 	if (Component)
 	{
-		ComponentToPhysicsProxyMap.Remove(*Component);
+		TArray<IPhysicsProxyBase*>* ProxyArray = ComponentToPhysicsProxyMap.Find(*Component);
+		if (ProxyArray)
+		{
+			ProxyArray->Remove(InObject);
+			if (ProxyArray->Num() == 0)
+			{
+				ComponentToPhysicsProxyMap.Remove(*Component);
+			}		
+		}
 	}
 
 	PhysicsProxyToComponentMap.Remove(InObject);
@@ -973,16 +996,15 @@ void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const
 			{
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
 
-				const Chaos::TVector<float, 3> CurrentForce = Rigid->F();
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetF(TotalAcceleration);
+					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					Rigid->AddForce(Acceleration);
 				}
 				else
 				{
-					Rigid->SetF(CurrentForce + Force);
+					Rigid->AddForce(Force);
 				}
 
 			}
@@ -1004,8 +1026,6 @@ void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInsta
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->F();
-				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
@@ -1016,14 +1036,14 @@ void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInsta
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->SetF(CurrentForce + WorldForce);
-					Rigid->SetTorque(CurrentTorque + WorldTorque);
+					Rigid->AddForce(WorldForce);
+					Rigid->AddTorque(WorldTorque);
 				}
 				else
 				{
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->SetF(CurrentForce + Force);
-					Rigid->SetTorque(CurrentTorque + WorldTorque);
+					Rigid->AddForce(Force);
+					Rigid->AddTorque(WorldTorque);
 				}
 
 			}
@@ -1043,8 +1063,6 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 			Chaos::EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->F();
-				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Chaos::FVec3 Direction = WorldCOM - Origin;
@@ -1077,12 +1095,12 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetF(TotalAcceleration);
+					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					Rigid->AddForce(Acceleration);
 				}
 				else
 				{
-					Rigid->SetF(CurrentForce + Force);
+					Rigid->AddForce(Force);
 				}
 			}
 		}
@@ -1097,7 +1115,7 @@ void FPhysScene_Chaos::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bo
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetF(Chaos::TVector<float, 3>(0.f,0.f,0.f));
+			Rigid->ClearForces();
 		}
 	}
 }
@@ -1116,14 +1134,13 @@ void FPhysScene_Chaos::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, cons
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetTorque(CurrentTorque + (FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque));
+					Rigid->AddTorque(FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque);
 				}
 				else
 				{
-					Rigid->SetTorque(CurrentTorque + Torque);
+					Rigid->AddTorque(Torque);
 				}
 			}
 		}
@@ -1138,7 +1155,7 @@ void FPhysScene_Chaos::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, b
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetTorque(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
+			Rigid->ClearTorques();
 		}
 	}
 }

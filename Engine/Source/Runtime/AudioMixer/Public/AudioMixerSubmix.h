@@ -327,7 +327,7 @@ namespace Audio
 		void SubmixCommand(TFunction<void()> Command);
 
 		// Generates audio from the given effect chain into the given buffer
-		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer);
+		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, AlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer);
 
 		// This mixer submix's Id
 		uint32 Id;
@@ -505,7 +505,7 @@ namespace Audio
 		// Spectrum analyzer. Created and destroyed on the audio thread.
 		FCriticalSection SpectrumAnalyzerCriticalSection;
 		FSoundSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
-		TUniquePtr<FSpectrumAnalyzer> SpectrumAnalyzer;
+		TSharedPtr<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe> SpectrumAnalyzer;
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
 		AlignedFloatBuffer MonoMixBuffer;

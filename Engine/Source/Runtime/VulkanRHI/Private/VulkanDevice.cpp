@@ -336,6 +336,17 @@ void FVulkanDevice::CreateDevice()
 	}
 #endif
 
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	VkPhysicalDeviceScalarBlockLayoutFeaturesEXT ScalarBlockLayoutFeatures;
+	if (OptionalDeviceExtensions.HasScalarBlockLayoutFeatures)
+	{
+		ZeroVulkanStruct(ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
+		ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
+		ScalarBlockLayoutFeatures.pNext = (void*)DeviceInfo.pNext;
+		DeviceInfo.pNext = &ScalarBlockLayoutFeatures;
+	}
+#endif
+
 	// Create the device
 	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
 	if (Result == VK_ERROR_INITIALIZATION_FAILED)
@@ -800,11 +811,6 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
 #endif
 
-#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
-	VkImageViewASTCDecodeModeEXT GpuImageViewASTCDecodeModeProps;
-	ZeroVulkanStruct(GpuImageViewASTCDecodeModeProps, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
-#endif
-
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
@@ -821,13 +827,6 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		{
 			*NextPropsAddr = &PhysicalDeviceProperties;
 			NextPropsAddr = &PhysicalDeviceProperties.pNext;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
-		if (GetOptionalExtensions().HasEXTASTCDecodeMode)
-		{
-			*NextPropsAddr = &GpuImageViewASTCDecodeModeProps;
 		}
 #endif
 

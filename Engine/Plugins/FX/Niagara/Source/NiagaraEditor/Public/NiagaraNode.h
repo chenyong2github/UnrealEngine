@@ -117,13 +117,29 @@ public:
 	/** Sets whether or not the supplied pin has a rename pending. */
 	void SetIsPinRenamePending(const UEdGraphPin* Pin, bool bInIsRenamePending);
 
+	/** Adds the current node information to the parameter map history
+	 *
+	 *  @Param	OutHistory				The resulting history
+	 *  @Param	bRecursive				If true then the history of all of this node's input pins will also be added
+	 *  @Param	bFilterForCompilation	If true, some nodes like static switches or reroute nodes are jumped over. The ui usually sets this to false to follow all possible paths.  
+	 */
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const;
 	
 	/** Go through all the external dependencies of this node in isolation and add them to the reference id list.*/
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const {};
 
-	/** Traces one of this node's output pins to its source output pin if it is a reroute node output pin.*/
-	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const {return LocallyOwnedOutputPin;}
+	/** Traces one of this node's output pins to its source output pin.
+	 *
+	 *  @Param	LocallyOwnedOutputPin	The pin to trace, must be a child of this node
+	 *  @Param	bFilterForCompilation	If true, some nodes like static switches or reroute nodes are jumped over. The ui usually sets this to false to follow all possible paths.  
+	 */
+	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const {return LocallyOwnedOutputPin;}
+
+	/** Traces a node's output pins to its source output pin.
+	*
+	*  @Param	LocallyOwnedOutputPin	The pin to trace
+	*  @Param	bFilterForCompilation	If true, some nodes like static switches or reroute nodes are jumped over. The ui usually sets this to false to follow all possible paths.  
+	*/
 	static UEdGraphPin* TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation = true);
 
 	/** Allows a node to replace a pin that is about to be compiled with another pin. This can be used for either optimizations or features such as the static switch. Returns true if the pin was successfully replaced, false otherwise. */

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define RAY_TRACING_DEFERRED_REFLECTIONS_SHADER_VERSION 0x672EBB8E  // Change to force shader compilation of this shader
+#define RAY_TRACING_DEFERRED_REFLECTIONS_SHADER_VERSION 0xC1669BC2  // Change to force shader compilation of this shader
 
 // EDeferredMaterialMode
 #define DEFERRED_MATERIAL_MODE_NONE   0
@@ -53,6 +53,8 @@ float ReflectionMaxNormalBias;
 float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
 float AnyHitMaxRoughness;
+float TextureMipBias;
+int   UpscaleFactor;
 int   GlossyReflections;
 int   ShouldDoDirectLighting;
 int   ShouldDoEmissiveAndIndirectLighting;
@@ -87,9 +89,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		const uint  RayIndexInTile   = DispatchThreadId % ThreadGroupSize;
 		const uint2 NumTiles         = TileAlignedResolution / TileSize;
 		const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
-		const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
+		const uint2 PixelPos = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
+		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, (uint2)UpscaleFactor, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
 		RayBuffer[DispatchThreadId] = ReflectionRay; // Store the ray to be used in shading phase
 	}	
 	#else
@@ -118,7 +120,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		if (bIsValidPixel)
 		{
 			TraceDeferredMaterialGatherRay(TLAS,
-				RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
+				RAY_FLAG_FORCE_OPAQUE,
 				RAY_TRACING_MASK_OPAQUE,
 				Ray,
 				Bookmark,
@@ -169,16 +171,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			PackedPayload.SetEnableSkyLightContribution();
 		}
 		PackedPayload.SetPixelCoord(PixelPos);
-
-		uint RayFlags = 0;
-		if (ReflectionRay.Roughness >= AnyHitMaxRoughness)
-		{
-			RayFlags |= RAY_FLAG_FORCE_OPAQUE;
-		}
+		PackedPayload.SetMipBias(TextureMipBias);
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
-			RayFlags,
+			RAY_FLAG_FORCE_OPAQUE,
 			RAY_TRACING_MASK_OPAQUE,
 			Ray,
 			Bookmark,
@@ -190,7 +187,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		// we can trace another ray that performs full traversal and masked material evaluation.
 		// The assumption here is that majority of the rays will actually hit opaque surfaces and
 		// the win from skipping AHS invocations during initial traversal will lead to overall win on average.
-		if (!PackedPayload.IsHit())
+		if ((!PackedPayload.IsHit() || PackedPayload.GetOpacity() == 0) 
+			&& ReflectionRay.Roughness <= AnyHitMaxRoughness)
 		{
 			FRayCone RayCone = (FRayCone)0;
 			TraceMaterialRayPacked(

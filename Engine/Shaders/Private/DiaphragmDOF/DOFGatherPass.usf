@@ -328,16 +328,18 @@ void GatherMainCS(
 		// Ignore Accumulator, just return the fast accumulator.
 		FAccumulatorOutput AccumulatorOutput = CreateAccumulatorOutput();
 		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
+		{
 			AccumulatorOutput.ForegroundColor = FastAccumulatorOutput.Color;
-			AccumulatorOutput.ForegroundAlpha = 1;
-
+			AccumulatorOutput.ForegroundAlpha = saturate(GatherParameters.KernelRadius - (GatherParameters.MaxRecombineAbsCocRadius - 1.0));
+		}
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
+		{
 			AccumulatorOutput.BackgroundColor = FastAccumulatorOutput.Color;
 			AccumulatorOutput.BackgroundWeight = 1;
 
 			AccumulatorOutput.BackgroundCocAvgAndSquareAvg.x = GatherParameters.KernelRadius;
 			AccumulatorOutput.BackgroundCocAvgAndSquareAvg.y = 0;
-
+		}
 		#else
 			#error Fast gathering is not supported.
 		#endif

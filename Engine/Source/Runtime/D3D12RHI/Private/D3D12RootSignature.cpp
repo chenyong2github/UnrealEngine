@@ -8,6 +8,10 @@
 #include "D3D12RootSignatureDefinitions.h"
 #include "RayTracingBuiltInResources.h"
 
+#if D3D12_RHI_RAYTRACING
+#include "D3D12RayTracingRootSignature.h"
+#endif // D3D12_RHI_RAYTRACING
+
 #ifndef FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE
 #define FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE D3D12_ROOT_SIGNATURE_FLAG_NONE
 #endif
@@ -342,7 +346,7 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 
 }
 
-D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc()
+const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc()
 {
 	// TODO: Support vendor extensions for static root signatures?
 
@@ -399,7 +403,7 @@ D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGraphicsR
 	return RootDesc;
 }
 
-D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc()
+const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc()
 {
 	// TODO: Support vendor extensions for static root signatures?
 
@@ -423,6 +427,28 @@ D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticComputeRo
 
 	static CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootDesc(RangeIndex, TableSlots, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 	return RootDesc;
+}
+
+const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticRayTracingGlobalRootSignatureDesc()
+{
+#if D3D12_RHI_RAYTRACING
+	return D3D12ShaderUtils::GetStaticRayTracingRootSignatureDesc<false, FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE>();
+#else // D3D12_RHI_RAYTRACING
+	checkNoEntry();
+	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC Desc = {};
+	return Desc;
+#endif // D3D12_RHI_RAYTRACING
+}
+
+const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticRayTracingLocalRootSignatureDesc()
+{
+#if D3D12_RHI_RAYTRACING
+	return D3D12ShaderUtils::GetStaticRayTracingRootSignatureDesc<true, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE>();
+#else // D3D12_RHI_RAYTRACING
+	checkNoEntry();
+	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC Desc = {};
+	return Desc;
+#endif // D3D12_RHI_RAYTRACING
 }
 
 void FD3D12RootSignature::Init(const FD3D12QuantizedBoundShaderState& InQBSS)

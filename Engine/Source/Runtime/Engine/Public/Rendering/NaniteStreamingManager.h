@@ -74,8 +74,6 @@ struct FPendingPage
 #if !WITH_EDITOR
 	uint8*					MemoryPtr;
 	FIoRequest				Request;
-	FIoBatch				Batch;
-	bool					bFreeBatchWhenDone;		// Should the batch be freed once this request has been processed?
 
 	// Legacy compatibility
 	// Delete when we can rely on IoStore

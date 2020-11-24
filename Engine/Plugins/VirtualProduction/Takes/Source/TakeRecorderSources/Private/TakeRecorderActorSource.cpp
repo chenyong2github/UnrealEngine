@@ -182,6 +182,11 @@ UTakeRecorderActorSource::UTakeRecorderActorSource(const FObjectInitializer& Obj
 	RebuildRecordedPropertyMap();
 }
 
+bool UTakeRecorderActorSource::IsValid() const
+{
+	return (Target.IsValid());
+}
+
 
 TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
@@ -617,22 +622,24 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 
 	TOptional<TRange<FFrameNumber> > FrameRange;
 	FMovieSceneBinding* Binding = MovieScene->FindBinding(CachedObjectBindingGuid);
-	if (Binding)
+	if (!Binding)
 	{
-		for (UMovieSceneTrack* Track : Binding->GetTracks())
+		return;
+	}
+
+	for (UMovieSceneTrack* Track : Binding->GetTracks())
+	{
+		for (UMovieSceneSection* Section : Track->GetAllSections())
 		{
-			for (UMovieSceneSection* Section : Track->GetAllSections())
+			if (Section->HasStartFrame() && Section->HasEndFrame())
 			{
-				if (Section->HasStartFrame() && Section->HasEndFrame())
+				if (!FrameRange.IsSet())
 				{
-					if (!FrameRange.IsSet())
-					{
-						FrameRange = Section->GetRange();
-					}
-					else
-					{
-						FrameRange = TRange<FFrameNumber>::Hull(FrameRange.GetValue(), Section->GetRange());
-					}
+					FrameRange = Section->GetRange();
+				}
+				else
+				{
+					FrameRange = TRange<FFrameNumber>::Hull(FrameRange.GetValue(), Section->GetRange());
 				}
 			}
 		}

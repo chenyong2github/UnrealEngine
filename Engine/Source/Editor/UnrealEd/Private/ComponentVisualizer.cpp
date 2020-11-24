@@ -350,5 +350,8 @@ void FComponentVisualizer::NotifyPropertiesModified(UActorComponent* Component, 
 	}
 
 	// Rerun construction script on preview actor
-	Owner->PostEditMove(false);
+	if (Owner)
+	{
+		Owner->PostEditMove(false);
+	}
 }

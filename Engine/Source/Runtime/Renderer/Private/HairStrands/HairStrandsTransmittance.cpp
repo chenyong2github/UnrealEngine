@@ -47,7 +47,7 @@ static FAutoConsoleVariableRef CVarHairStrandsTransmittanceSuperSampling(TEXT("r
 static int32 GHairStrandsTransmittanceMaskUseMipTraversal = 1;
 static FAutoConsoleVariableRef CVarHairStrandsTransmittanceMaskUseMipTraversal(TEXT("r.HairStrands.DeepShadow.MipTraversal"), GHairStrandsTransmittanceMaskUseMipTraversal, TEXT("Evaluate transmittance using mip-map traversal (faster)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static int32 GHairStrandsShadowRandomTraversalType = 0;
+static int32 GHairStrandsShadowRandomTraversalType = 2;
 static FAutoConsoleVariableRef CVarHairStrandsShadowRandomTraversalType(TEXT("r.HairStrands.DeepShadow.RandomType"), GHairStrandsShadowRandomTraversalType, TEXT("Change how traversal jittering is initialized. Valid value are 0, 1, and 2. Each type makes different type of tradeoff."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensityScale); }

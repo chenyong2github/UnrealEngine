@@ -20,6 +20,14 @@ void SDMXControllerEditor::Construct(const FArguments& InArgs)
 	SetCanTick(false);
 	bCanSupportFocus = false;
 
+	// Required to instantiate this ahead of entity list to support Mac
+	// Mac will raise OnSelectionUpdated as soon as it is instantiated.
+	// At this point Controller Inspector needs to be valid.
+	InspectorWidget =
+		SNew(SDMXEntityInspectorControllers)
+		.DMXEditor(DMXEditor)
+		.OnFinishedChangingProperties(this, &SDMXControllerEditor::OnFinishedChangingProperties);
+
 	ChildSlot
 	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Fill)
@@ -41,9 +49,7 @@ void SDMXControllerEditor::Construct(const FArguments& InArgs)
 		+SSplitter::Slot()
 		.Value(0.65f)
 		[
-			SAssignNew(InspectorWidget, SDMXEntityInspectorControllers)
-			.DMXEditor(DMXEditor)
-			.OnFinishedChangingProperties(this, &SDMXControllerEditor::OnFinishedChangingProperties)
+			InspectorWidget.ToSharedRef()
 		]
 	];
 }

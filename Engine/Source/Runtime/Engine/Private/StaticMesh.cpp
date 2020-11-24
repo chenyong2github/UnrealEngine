@@ -696,7 +696,12 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
-	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
+#if WITH_EDITOR
+	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData)
+		|| (Ar.IsCooking() && OwnerStaticMesh && Index < GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerStaticMesh));
+#else
+	const bool bIsBelowMinLOD = false;
+#endif
 	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerStaticMesh, bIsBelowMinLOD);
 	Ar << bIsLODCookedOut;
 
@@ -2332,7 +2337,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("B276A7E60B40410CA1E40553ED11D53B")
+#define STATICMESH_DERIVEDDATA_VER TEXT("C3BD3DE6DEB1402FB100C9144E57D58B")
 
 const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2840,6 +2845,13 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	BuildCacheAutomationTestGuid.Invalidate();
 #endif
 }
+
+// We don't care if the default implementation of the destructor is cleaning up 
+// deprecated fields... The UObject has been properly destroyed by the garbage
+// collect anyway.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UStaticMesh::~UStaticMesh() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 

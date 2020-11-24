@@ -72,6 +72,7 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 	}
 
 	// Load MPCDI config
+	FScopeLock lock(&WarpRefCS);
 	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
 		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't initialize PICP MPCDI for viewport %s"), *GetViewportId());
@@ -99,6 +100,7 @@ bool FPicpProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& In
 {
 	check(IsInGameThread());
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Picp Warp data not assigned for viewport '%s'"), *GetViewportId());
@@ -184,6 +186,7 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 		return;
 	}
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		return;
@@ -193,7 +196,7 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 	MPCDIAPI.ReloadAll_RenderThread();
 	
 	FPicpProjectionOverlayViewportData ViewportOverlayData;
-	ViewportOverlayData.Initialize(OverlayViewportData);
+	GetOverlayData_RenderThread(ViewportOverlayData);
 
 	// Initialize shader input data
 	IMPCDI::FShaderInputData ShaderInputData;
@@ -377,9 +380,19 @@ void FPicpProjectionMPCDIPolicy::SetOverlayData_RenderThread(const FPicpProjecti
 
 	if (Source)
 	{
-		OverlayViewportData.Initialize(*Source); // Copy data on render thread
+		FScopeLock lock(&LocalOverlayViewportDataCS);
+		LocalOverlayViewportData.Initialize(*Source); // Copy data on render thread
 	}
 }
+
+void FPicpProjectionMPCDIPolicy::GetOverlayData_RenderThread(FPicpProjectionOverlayViewportData& Output)
+{
+	check(IsInRenderingThread());
+
+	FScopeLock lock(&LocalOverlayViewportDataCS);
+	Output.Initialize(LocalOverlayViewportData);
+}
+
 
 void FPicpProjectionOverlayViewportData::Initialize(const FPicpProjectionOverlayViewportData& Source)
 {

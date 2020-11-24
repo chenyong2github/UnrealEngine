@@ -606,7 +606,8 @@ public:
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
 		bUsesDistanceCullFade(false),
-		bHasRuntimeVirtualTextureOutputNode(false)
+		bHasRuntimeVirtualTextureOutputNode(false),
+		bUsesAnisotropy(false)
 	{}
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
@@ -692,6 +693,9 @@ public:
 
 	/** true if the material writes to a runtime virtual texture custom output node. */
 	LAYOUT_BITFIELD(uint8, bHasRuntimeVirtualTextureOutputNode, 1);
+
+	/** true if the material uses non 0 anisotropy value */
+	LAYOUT_BITFIELD(uint8, bUsesAnisotropy, 1);
 };
 
 /** 
@@ -722,6 +726,9 @@ namespace EMaterialShaderMapUsage
 		MaterialExportOpacity,
 		MaterialExportOpacityMask,
 		MaterialExportSubSurfaceColor,
+		MaterialExportClearCoat,
+		MaterialExportClearCoatRoughness,
+		MaterialExportCustomOutput,
 	};
 }
 
@@ -756,6 +763,11 @@ public:
 	 * While still creating an Id that is deterministic between runs (no appCreateGuid used).
 	 */
 	EMaterialShaderMapUsage::Type Usage;
+
+	/** 
+	 * Name of which specific custom output this shader map will be a use case for. Only used if Usage is MaterialExportCustomOutput.
+	 */
+	FString UsageCustomOutput;
 
 private:
 	/** Was the shadermap Id loaded in from a cooked resource. */
@@ -1223,6 +1235,7 @@ public:
 	bool UsesSceneDepthLookup() const { return GetContent()->MaterialCompilationOutput.UsesSceneDepthLookup(); }
 	bool UsesVelocitySceneTexture() const { return GetContent()->MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return GetContent()->MaterialCompilationOutput.bUsesDistanceCullFade; }
+	bool UsesAnisotropy() const { return GetContent()->MaterialCompilationOutput.bUsesAnisotropy; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -1857,6 +1870,9 @@ public:
 	/** Get the runtime virtual texture output attribute mask for the material. */
 	ENGINE_API uint8 GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const;
 
+	ENGINE_API bool MaterialUsesAnisotropy_GameThread() const;
+	ENGINE_API bool MaterialUsesAnisotropy_RenderThread() const;
+
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
@@ -1865,6 +1881,7 @@ public:
 
 	ENGINE_API void SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap);
 	ENGINE_API void SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+	ENGINE_API void UpdateInlineShaderMapIsComplete();
 
 	ENGINE_API class FMaterialShaderMap* GetRenderingThreadShaderMap() const;
 
@@ -2730,7 +2747,7 @@ public:
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex = INDEX_NONE, bool bInIsHidden = false, MaterialAttributeBlendFunction InBlendFunction = nullptr);
 
-	int32 CompileDefaultValue(FMaterialCompiler* Compiler);
+	ENGINE_API int32 CompileDefaultValue(FMaterialCompiler* Compiler);
 
 	bool operator==(const FMaterialAttributeDefintion& Other) const
 	{
@@ -2913,6 +2930,9 @@ public:
 
 	/** Appends a new attribute definition to the custom output list */
 	ENGINE_API static void AddCustomAttribute(const FGuid& AttributeID, const FString& AttributeName, const FString& FunctionName, EMaterialValueType ValueType, const FVector4& DefaultValue, MaterialAttributeBlendFunction BlendFunction = nullptr);
+
+	/** Returns the first custom attribute ID that has the specificed attribute name */
+	ENGINE_API static FGuid GetCustomAttributeID(const FString& AttributeName);
 
 	/** Returns a list of registered custom attributes */
 	ENGINE_API static void GetCustomAttributeList(TArray<FMaterialCustomOutputAttributeDefintion>& CustomAttributeList);

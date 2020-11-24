@@ -52,7 +52,7 @@ public:
 	static bool ShouldCompilePermutation(const FNiagaraShaderPermutationParameters& Parameters)
 	{
 		//@todo - lit materials only 
-		return FNiagaraUtilities::SupportsGPUParticles(Parameters.Platform);
+		return FNiagaraUtilities::SupportsComputeShaders(Parameters.Platform);
 	}
 
 	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);

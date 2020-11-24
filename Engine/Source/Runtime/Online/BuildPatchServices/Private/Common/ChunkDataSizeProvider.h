@@ -10,7 +10,7 @@ namespace BuildPatchServices
 		: public IDataSizeProvider
 	{
 	public:
-		virtual void AddManifestData(const FBuildPatchAppManifest* Manifest) = 0;
+		virtual void AddManifestData(FBuildPatchAppManifestPtr Manifest) = 0;
 	};
 
 	class FChunkDataSizeProviderFactory

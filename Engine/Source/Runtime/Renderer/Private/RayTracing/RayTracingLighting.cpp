@@ -190,6 +190,7 @@ static void CreateRaytracingLightCullingStructure(
 
 
 static void SetupRaytracingLightDataPacked(
+	FRHICommandListImmediate& RHICmdList,
 	const TSparseArray<FLightSceneInfoCompact>& Lights,
 	const TArray<int32>& LightIndices,
 	const FViewInfo& View,
@@ -364,7 +365,7 @@ static void SetupRaytracingLightDataPacked(
 			IESProfilesArray[It->Value] = It->Key;
 		}
 
-		View.IESLightProfileResource->BuildIESLightProfilesTexture(IESProfilesArray);
+		View.IESLightProfileResource->BuildIESLightProfilesTexture(RHICmdList, IESProfilesArray);
 	}
 }
 
@@ -388,7 +389,7 @@ FRayTracingLightData CreateRayTracingLightData(
 	LightData.LightCullingVolume = LightingData.LightCullVolumeSRV;
 	LightData.LightIndices = LightingData.LightIndices.SRV;
 
-	SetupRaytracingLightDataPacked(Lights, LightIndices, View, &LightData, LightDataArray);
+	SetupRaytracingLightDataPacked(RHICmdList, Lights, LightIndices, View, &LightData, LightDataArray);
 
 	check(LightData.Count == LightDataArray.Num());
 

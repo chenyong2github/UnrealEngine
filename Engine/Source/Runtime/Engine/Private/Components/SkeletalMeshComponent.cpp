@@ -3841,13 +3841,13 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 			}
 			else
 			{
-			// interpolate curve
-			InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
+				// interpolate curve
+				InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
+			}
 
 			FCustomAttributesRuntime::InterpolateAttributes(InAnimEvaluationContext.CachedCustomAttributes, InAnimEvaluationContext.CustomAttributes, Alpha);
 		}
 	}
-}
 }
 
 void USkeletalMeshComponent::CompleteParallelAnimationEvaluation(bool bDoPostAnimEvaluation)
@@ -4346,39 +4346,39 @@ bool USkeletalMeshComponent::GetBoneAttribute(const FName& BoneName, const FName
 
 	if (SkeletalMesh)
 	{
-	const FHeapCustomAttributes& Attributes = GetCustomAttributes();
-	const int32 BoneIndex = SkeletalMesh->RefSkeleton.FindBoneIndex(BoneName);
+		const FHeapCustomAttributes& Attributes = GetCustomAttributes();
+		const int32 BoneIndex = SkeletalMesh->RefSkeleton.FindBoneIndex(BoneName);
 
 		bFound = Attributes.GetBoneAttribute(FCompactPoseBoneIndex(BoneIndex), AttributeName, OutValue);
 
-	if (!bFound && LookupType != ECustomBoneAttributeLookup::BoneOnly)
-	{
-		if (LookupType == ECustomBoneAttributeLookup::ImmediateParent)
+		if (!bFound && LookupType != ECustomBoneAttributeLookup::BoneOnly)
 		{
-			const int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
-			if (ParentIndex != INDEX_NONE)
+			if (LookupType == ECustomBoneAttributeLookup::ImmediateParent)
 			{
-				bFound = Attributes.GetBoneAttribute(FCompactPoseBoneIndex(ParentIndex), AttributeName, OutValue);
-			}
-		}
-		else if (LookupType == ECustomBoneAttributeLookup::ParentHierarchy)
-		{
-			int32 SearchBoneIndex = BoneIndex;
-			int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(SearchBoneIndex);
-
-			while (ParentIndex != INDEX_NONE)
-			{
-				bFound = Attributes.GetBoneAttribute(FCompactPoseBoneIndex(ParentIndex), AttributeName, OutValue);
-				if (bFound)
+				const int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+				if (ParentIndex != INDEX_NONE)
 				{
-					break;
+					bFound = Attributes.GetBoneAttribute(FCompactPoseBoneIndex(ParentIndex), AttributeName, OutValue);
 				}
+			}
+			else if (LookupType == ECustomBoneAttributeLookup::ParentHierarchy)
+			{
+				int32 SearchBoneIndex = BoneIndex;
+				int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(SearchBoneIndex);
 
-				SearchBoneIndex = ParentIndex;
-				ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(SearchBoneIndex);
+				while (ParentIndex != INDEX_NONE)
+				{
+					bFound = Attributes.GetBoneAttribute(FCompactPoseBoneIndex(ParentIndex), AttributeName, OutValue);
+					if (bFound)
+					{
+						break;
+					}
+
+					SearchBoneIndex = ParentIndex;
+					ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(SearchBoneIndex);
+				}
 			}
 		}
-	}
 	}
 
 	return bFound;

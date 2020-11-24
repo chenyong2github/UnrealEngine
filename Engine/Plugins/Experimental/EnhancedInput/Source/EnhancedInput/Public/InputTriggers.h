@@ -216,7 +216,7 @@ protected:
 
 public:
 	// How long does the input have to be held to cause trigger?
-	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings", meta = (ClampMin = "0"))
 	float HoldTimeThreshold = 1.0f;
 
 	// Should this trigger fire only once, or fire every frame once the hold time threshold is met?
@@ -240,7 +240,7 @@ protected:
 
 public:
 	// How long does the input have to be held to cause trigger?
-	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings", meta = (ClampMin = "0"))
 	float HoldTimeThreshold = 0.5f;
 };
 
@@ -259,7 +259,7 @@ protected:
 public:
 
 	// Release within this time-frame to trigger a tap
-	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings", meta = (ClampMin = "0"))
 	float TapReleaseTimeThreshold = 0.2f;
 };
 

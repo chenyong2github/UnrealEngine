@@ -1128,7 +1128,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 		{
 			for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
 			{
-				if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::InsideTheVolume)
+				if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume)
 				{
 					for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
 					{
@@ -1154,7 +1154,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 			{
 				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
 				{
-					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::OutsideTheVolume)
+					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume)
 					{
 						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
 						{
@@ -1190,7 +1190,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 			{
 				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
 				{
-					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::OutsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::InsideTheVolume)
+					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::OutsideTheVolume)
 					{
 						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
 						{

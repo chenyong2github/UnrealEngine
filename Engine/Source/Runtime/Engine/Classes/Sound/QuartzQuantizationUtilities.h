@@ -186,7 +186,7 @@ enum class EQuartzCommandDelegateSubType : uint8
 	CommandOnCanceled			UMETA(DisplayName = "Canceled", ToolTip = "The command was stopped before it could execute"),
 	CommandOnAboutToStart		UMETA(DisplayName = "About To Start", ToolTip = "execute off this to be in sync w/ sound starting"),
 	CommandOnStarted			UMETA(DisplayName = "Started", ToolTip = "the command was just executed on the Audio Render Thrtead"),
-	CommandCompleted			UMETA(DisplayName = "Completed", ToolTip = "same as 'Started' unless command is looping"),
+//	CommandCompleted			UMETA(DisplayName = "Completed", ToolTip = "same as 'Started' unless command is looping"),
 
 	Count					UMETA(Hidden)
 };
@@ -210,7 +210,7 @@ struct ENGINE_API FQuartzQuantizationBoundary
 	EQuartzCommandQuantization Quantization;
 
 	// how many "Resolutions" to wait before the onset we care about
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings", meta = (ClampMin = "1.0"))
 	float Multiplier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
@@ -290,6 +290,9 @@ namespace Audio
 	{
 
 	public:
+		// ctor
+		FQuartzClockTickRate();
+
 		// Setters
 		void SetFramesPerTick(int32 InNewFramesPerTick);
 

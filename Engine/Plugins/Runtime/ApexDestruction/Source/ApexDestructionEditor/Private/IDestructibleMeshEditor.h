@@ -13,7 +13,9 @@ class IDestructibleMeshEditor : public FAssetEditorToolkit
 
 public:
 	/** Returns the UDestructibleMesh being edited. */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual UDestructibleMesh* GetDestructibleMesh() { return NULL; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Returns the current preview depth selected in the UI */
 	virtual int32 GetCurrentPreviewDepth() const { return 0; }

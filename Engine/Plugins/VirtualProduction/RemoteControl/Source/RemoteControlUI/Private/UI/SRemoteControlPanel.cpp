@@ -985,6 +985,7 @@ void SRemoteControlPanel::Tick(const FGeometry& AllottedGeometry, const double I
 			}
 		}
 
+		TreeView->RequestListRefresh();
 		bTriggerRefreshForPIE = false;
 	}
 }

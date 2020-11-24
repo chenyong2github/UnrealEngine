@@ -18,8 +18,9 @@ float DeprecatedMagicNumber = TNumericLimits<float>::Lowest();
 /* UMovieSceneSubSection structors
  *****************************************************************************/
 
-UMovieSceneSubSection::UMovieSceneSubSection()
-	: StartOffset_DEPRECATED(DeprecatedMagicNumber)
+UMovieSceneSubSection::UMovieSceneSubSection(const FObjectInitializer& ObjInitializer)
+	: Super(ObjInitializer)
+	, StartOffset_DEPRECATED(DeprecatedMagicNumber)
 	, TimeScale_DEPRECATED(DeprecatedMagicNumber)
 	, PrerollTime_DEPRECATED(DeprecatedMagicNumber)
 {

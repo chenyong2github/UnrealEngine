@@ -260,6 +260,8 @@ void AWaterBrushManager::ForceUpdate()
 	bKillCache = true;
 	ClearCurveCache();
 	ALandscapeBlueprintBrushBase::RequestLandscapeUpdate();
+	// Regenerate the water depth velocity RT : 
+	MarkRenderTargetsDirty();
 }
 
 void AWaterBrushManager::SingleJumpStep()
@@ -423,7 +425,10 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 	LocationVector.Z = 50000.0f;
 	SceneCaptureComponent2D->SetWorldLocation(LocationVector);
 
+	// The landscape transform has changed, let's re-draw everything (no need to request a landscape update because we're in the middle of one) :
 	bKillCache = true;
+	// Of course we also need to regenerate the water depth velocity RT : 
+	MarkRenderTargetsDirty();
 }
 
 bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bClearMIDs)
@@ -505,8 +510,8 @@ void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderCon
 
 	SceneCaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_SceneDepth;
 	SceneCaptureComponent2D->TextureTarget = DepthAndShapeRT;
-
 	CaptureMeshDepth(SplineMeshComponents);
+
 	WaterBody->SetIsTemporarilyHiddenInEditor(Hidden);
 
 	// Cleanup the spline components at the end (we're not supposed to have modified the water actors) :
@@ -896,6 +901,8 @@ void AWaterBrushManager::SetBrushMIDParams(const FBrushRenderContext& BrushRende
 
 void AWaterBrushManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
 	if (ChangedProperty == GET_MEMBER_NAME_CHECKED(AWaterBrushManager, RenderRiverSplineDepthMaterial))
 	{
@@ -1040,7 +1047,7 @@ void AWaterBrushManager::SetMPCParams()
 			{
 				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZLocation\" on Landscape MaterialParameterCollection"));
 			}
-			// TODO [jonathan.bard] : find out what this 128.0f corresponds to and put in a constant :
+			// TODO [jonathan.bard] : find out what this 128.0f corresponds to and put in a constant : ZSCALE in LandscapeLayersPS.usf maybe ??
 			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZScale")), LandscapeTransform.GetScale3D().Z / 128.0f))
 			{
 				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZScale\" on Landscape MaterialParameterCollection"));

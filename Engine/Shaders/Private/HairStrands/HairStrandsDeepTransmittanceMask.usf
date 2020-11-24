@@ -313,7 +313,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
-		TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
+		TraversalSettings.DensityScale = VirtualVoxel.DensityScale_Transmittance;
 		TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled = bDebugEnabled;

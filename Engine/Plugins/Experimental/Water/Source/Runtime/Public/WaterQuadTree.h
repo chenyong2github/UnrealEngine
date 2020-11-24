@@ -149,11 +149,14 @@ struct FWaterQuadTree
 	/** Get bounds of the root node if there is one, otherwise some default box */
 	FBox GetBounds() const { return NodeData.Nodes.Num() > 0 ? NodeData.Nodes[0].Bounds : FBox(-FVector::OneVector, FVector::OneVector); }
 	
-	/** Return the 2D region containing water tiles */
+	/** Return the 2D region containing water tiles. Tiles can not be generated outside of this region */
 	FBox2D GetTileRegion() const { return TileRegion; }
 
 	/** Build the instance data needed to render the water tiles from a given point of view. Typically called on Render Thread for rendering */
 	void BuildWaterTileInstanceData(const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const;
+
+	/** Bilinear interpolation between four neighboring base height samples around InWorldLocationXY. The samples are done on the leaf node grid resolution. Returns true if all 4 samples were taken in valid nodes */
+	bool QueryInterpolatedTileBaseHeightAtLocation(const FVector2D& InWorldLocationXY, float& OutHeight) const;
 
 	/** Walks down the tree and returns the tile height at InWorldLocationXY in OutWorldHeight. Returns true if the query hits an exact solution (either leaf tile or a complete subtree parent), otherwise false. */
 	bool QueryTileBaseHeightAtLocation(const FVector2D& InWorldLocationXY, float& OutWorldHeight) const;
@@ -236,13 +239,10 @@ private:
 		/** Index to parent */
 		uint32 ParentIndex : 28;
 
-		/** 
-		 *	If all descendant nodes from here are from the same waterbody and there are a full set of leaf nodes (each descentant has 4 children all the way down). 
-		 *	This means that this node can trivially be used to render instead of children. 
-		 */
+		/** If all 4 child nodes have a full set of leaf nodes (each descentant has 4 children all the way down) */
 		uint32 HasCompleteSubtree : 1;
 
-		/** This node and its subtree are from the same water body. We can safely force collapse this. */
+		/** If all descendant nodes are from the same waterbody. We can safely collapse this even if HasCompleteSubtree is false */
 		uint32 IsSubtreeSameWaterBody : 1;
 
 		// 2 spare bits here in the bit field with ParentIndex

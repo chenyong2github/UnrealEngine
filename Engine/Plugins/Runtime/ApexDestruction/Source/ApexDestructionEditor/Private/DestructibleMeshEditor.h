@@ -59,7 +59,9 @@ public:
 	 * @param	InitToolkitHost			When Mode is WorldCentric, this is the level editor instance to spawn this editor within
 	 * @param	DestructibleMesh		The mesh to edit
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void InitDestructibleMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDestructibleMesh* DestructibleMesh );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Destructor */
 	virtual ~FDestructibleMeshEditor();
@@ -79,7 +81,9 @@ public:
 	}
 
 	/** IDestructibleMeshEditor interface */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual UDestructibleMesh* GetDestructibleMesh() override;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual int32 GetCurrentPreviewDepth() const override;
 	virtual void SetCurrentPreviewDepth(uint32 InPreviewDepthDepth) override;
 	virtual void RefreshTool() override;
@@ -103,7 +107,9 @@ private:
 	 *
 	 *	@param	InDestructibleMesh		The destructible mesh to use for the editor.
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void SetEditorMesh(UDestructibleMesh* InDestructibleMesh);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Change the mesh the editor is viewing. */
 	void OnChangeMesh();
@@ -165,7 +171,9 @@ private:
 	float												ExplodeFractionOfRange;
 
 	/* The DestructibleMesh that is active in the editor */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleMesh*									DestructibleMesh;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**	The tab ids for all the tabs used */
 	static const FName ViewportTabId;

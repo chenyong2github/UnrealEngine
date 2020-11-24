@@ -186,8 +186,6 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 	}
 
-	// TODO: Make this dynamic
-	const float WaterHeightForLOD = -3750.0f;
 	const int32 NumBuckets = WaterQuadTree.GetWaterMaterials().Num() * DensityCount;
 	const int32 NumFarInstances = FarDistanceWaterInstanceData.Streams[0].Num();
 	const bool bHasFarWaterMesh = FarDistanceMaterial && NumFarInstances > 0;
@@ -203,6 +201,9 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			const FSceneView* View = Views[ViewIndex];
 
 			const FVector ObserverPosition = View->ViewMatrices.GetViewOrigin();
+
+			float WaterHeightForLOD = 0.0f;
+			WaterQuadTree.QueryInterpolatedTileBaseHeightAtLocation(FVector2D(ObserverPosition), WaterHeightForLOD);
 
 			// Need to let the lowest LOD morph globally towards the next LOD. When the LOD is done morphing, simply clamp the LOD in the LOD selection to effectively promote the lowest LOD to the same LOD level as the one above
 			float DistToWater = FMath::Abs(ObserverPosition.Z - WaterHeightForLOD) / LODScale;

@@ -171,6 +171,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	OnChannelChangedHandle = InSequencer->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
 	OnMovieSceneChannelChangedHandle = MovieScene->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FControlRigParameterTrackEditor::HandleActorAdded);
+	OnTreeViewChangedHandle = InSequencer->OnTreeViewChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnTreeViewChanged);
 
 	InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
 	{
@@ -1203,6 +1204,29 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 			GetSequencer()->SelectByChannels(MovieSection, Channels, true, bDisplayed);
 			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
 			GetSequencer()->ResumeSelectionBroadcast();
+		}
+	}
+}
+void FControlRigParameterTrackEditor::OnTreeViewChanged()
+{
+	if (!bIsDoingSelection)
+	{
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		if (ControlRigEditMode)
+		{
+			if (UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true))
+			{
+				const TArray<FName>SelectedControls = ControlRig->CurrentControlSelection();
+				for (const FName  ControlName: SelectedControls)
+				{
+					int32 Index = ControlRig->GetControlHierarchy().GetIndex(ControlName);
+					if (Index != INDEX_NONE)
+					{
+						const FRigControl& RigControl = ControlRig->GetControlHierarchy().GetControls()[Index];
+						HandleControlSelected(ControlRig, RigControl, true);
+					}
+				}
+			}
 		}
 	}
 }

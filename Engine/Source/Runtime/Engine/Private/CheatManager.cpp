@@ -60,6 +60,59 @@ UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	bDebugCapsuleTraceComplex = false;
 }
 
+bool UCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor)
+{
+#if UE_WITH_CHEAT_MANAGER
+	// If on the client and calling a cheat function marked as BlueprintAuthorityOnly, automatically route it through the ServerExec() RPC to the server
+	APlayerController* MyPC = GetOuterAPlayerController();
+	if (MyPC->GetLocalRole() != ROLE_Authority)
+	{
+		const TCHAR* TestCmd = Cmd;
+
+		FString FunctionNameStr;
+		if (FParse::Token(TestCmd, FunctionNameStr, true))
+		{
+			const FName FunctionName = FName(*FunctionNameStr, FNAME_Find);
+
+			if (FunctionName != NAME_None)
+			{
+				// Check first in this class
+				UFunction* Function = FindFunction(FunctionName);
+
+				// Failing that, check in each of the child cheat managers for a function by this name
+				if (Function == nullptr)
+				{
+					for (UObject* CheatObject : CheatManagerExtensions)
+					{
+						Function = CheatObject ? CheatObject->FindFunction(FunctionName) : nullptr;
+						if (Function != nullptr)
+						{
+							break;
+						}
+					}
+				}
+
+				if ((Function != nullptr) && Function->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly))
+				{
+					MyPC->ServerExec(Cmd);
+					return true;
+				}
+			}
+		}
+	}
+#endif
+
+	for (UObject* CheatObject : CheatManagerExtensions)
+	{
+		if ((CheatObject != nullptr) && CheatObject->ProcessConsoleExec(Cmd, Ar, Executor))
+		{
+			return true;
+		}
+	}
+
+	return Super::ProcessConsoleExec(Cmd, Ar, Executor);
+}
+
 void UCheatManager::FreezeFrame(float delay)
 {
 	FCanUnpause DefaultCanUnpause;
@@ -1285,6 +1338,48 @@ void UCheatManager::ToggleServerStatReplicatorUpdateStatNet()
 void UCheatManager::UpdateSafeArea()
 {
 	FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
+}
+
+void UCheatManager::AddCheatManagerExtension(UCheatManagerExtension* CheatObject)
+{
+	if (ensure(CheatObject))
+	{
+		CheatManagerExtensions.AddUnique(CheatObject);
+	}
+}
+
+void UCheatManager::RemoveCheatManagerExtension(UCheatManagerExtension* CheatObject)
+{
+	if (ensure(CheatObject))
+	{
+		CheatManagerExtensions.Remove(CheatObject);
+	}
+}
+
+UCheatManagerExtension* UCheatManager::FindCheatManagerExtension(const UClass* InClass) const
+{
+	for (UCheatManagerExtension* CheatObject : CheatManagerExtensions)
+	{
+		if (CheatObject && CheatObject->IsA(InClass))
+		{
+			return CheatObject;
+		}
+	}
+
+	return nullptr;
+}
+
+UCheatManagerExtension* UCheatManager::FindCheatManagerExtensionInterface(const UClass* InClass) const
+{
+	for (UCheatManagerExtension* CheatObject : CheatManagerExtensions)
+	{
+		if (CheatObject && CheatObject->GetClass()->ImplementsInterface(InClass))
+		{
+			return CheatObject;
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

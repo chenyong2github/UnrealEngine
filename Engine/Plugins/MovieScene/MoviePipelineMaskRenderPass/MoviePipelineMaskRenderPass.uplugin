@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "Movie Pipeline Mask Render Passes",
+	"FriendlyName": "Movie Render Queue Additional Render Passes",
 	"Description": "Additional render passes for the Movie Render Queue which generate mattes with some limitations. Editor Only.",
 	"Category": "Rendering",
 	"CreatedBy": "Epic Games, Inc.",

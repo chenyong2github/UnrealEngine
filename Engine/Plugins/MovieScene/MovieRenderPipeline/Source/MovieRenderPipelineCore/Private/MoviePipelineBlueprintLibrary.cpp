@@ -22,6 +22,11 @@
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
 
+// For camera settings
+#include "GameFramework/PlayerController.h"
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
+
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
 	if (InPipeline)
@@ -256,6 +261,71 @@ FFrameNumber UMoviePipelineBlueprintLibrary::GetCurrentShotFrameNumber(const UMo
 	return FFrameNumber(-1);
 }
 
+float UMoviePipelineBlueprintLibrary::GetCurrentFocusDistance(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		if (InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+		{
+			// This only works if you use a Cine Camera (which is almost guranteed with Sequencer) and it's easier (and less human error prone) than re-deriving the information
+			ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+			if (CineCameraActor)
+			{
+				UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
+				if (CineCameraComponent)
+				{
+					return CineCameraComponent->CurrentFocusDistance;
+				}
+			}
+		}
+	}
+
+	return -1.0f;
+}
+
+float UMoviePipelineBlueprintLibrary::GetCurrentFocalLength(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		if (InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+		{
+			// This only works if you use a Cine Camera (which is almost guranteed with Sequencer) and it's easier (and less human error prone) than re-deriving the information
+			ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+			if (CineCameraActor)
+			{
+				UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
+				if (CineCameraComponent)
+				{
+					return CineCameraComponent->CurrentFocalLength;
+				}
+			}
+		}
+	}
+
+	return -1.0f;
+}
+
+float UMoviePipelineBlueprintLibrary::GetCurrentAperture(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		if (InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+		{
+			// This only works if you use a Cine Camera (which is almost guranteed with Sequencer) and it's easier (and less human error prone) than re-deriving the information
+			ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(InMoviePipeline->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+			if (CineCameraActor)
+			{
+				UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
+				if (CineCameraComponent)
+				{
+					return CineCameraComponent->CurrentAperture;
+				}
+			}
+		}
+	}
+
+	return 0.0f;
+}
 
 FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutorJob* InJob)
 {

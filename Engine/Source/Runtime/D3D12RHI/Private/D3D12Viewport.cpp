@@ -584,7 +584,8 @@ static bool IsCompositionEnabled()
 /** Update the expected next present GPU back buffer index from RenderThread point of view */
 void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
 {
-	bool bNeedsNativePresent = IsValidRef(CustomPresent) ? CustomPresent->NeedsNativePresent() : true;
+	bool bNeedsNativePresent = IsValidRef(CustomPresent) ? 
+		CustomPresent->NeedsNativePresent() || CustomPresent->NeedsAdvanceBackbuffer() : true;
 	if (bNeedsNativePresent)
 	{
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
@@ -629,14 +630,7 @@ bool FD3D12Viewport::PresentChecked(int32 SyncInterval)
 		// Present failed so current expected GPU index will not match anymore, so patch up expected back buffer index
 		// Warning: Present is skipped for this frame but could cause a black screen for the next frame as well
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
-		if (ExpectedBackBufferIndex_RenderThread == 0)
-		{
-			ExpectedBackBufferIndex_RenderThread = NumBackBuffers - 1;
-		}
-		else
-		{
-			ExpectedBackBufferIndex_RenderThread--;
-		}
+		ExpectedBackBufferIndex_RenderThread = (ExpectedBackBufferIndex_RenderThread == 0) ? NumBackBuffers - 1 : ExpectedBackBufferIndex_RenderThread - 1;
 #endif // WITH_MGPU
 		return false;
 	}
@@ -870,7 +864,7 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 
 	const int32 SyncInterval = bLockToVsync ? RHIGetSyncInterval() : 0;
 	const bool bNativelyPresented = PresentChecked(SyncInterval);
-	if (bNativelyPresented)
+	if (bNativelyPresented || (CustomPresent && CustomPresent->NeedsAdvanceBackbuffer()))
 	{
 		// Increment back buffer
 		CurrentBackBufferIndex_RHIThread++;

@@ -72,11 +72,13 @@ void SetDepthBoundsTest(FRHICommandList& RHICmdList, float WorldSpaceDepthNear, 
 TAutoConsoleVariable<int32> CVarRHISyncInterval(
 	TEXT("rhi.SyncInterval"),
 	1,
-	TEXT("Determines the frequency of VSyncs in supported RHIs.")
-	TEXT("  0 - Unlocked\n")
-	TEXT("  1 - 60 Hz (16.66 ms)\n")
-	TEXT("  2 - 30 Hz (33.33 ms)\n")
-	TEXT("  3 - 20 Hz (50.00 ms)\n"),
+	TEXT("Determines the frequency of VSyncs in supported RHIs.\n")
+	TEXT("This is in multiples of 16.66 on a 60hz display, but some platforms support higher refresh rates.\n")
+	TEXT("Assuming 60fps, the values correspond to:\n")
+	TEXT("  0 - Unlocked (present immediately)\n")
+	TEXT("  1 - Present every vblank interval\n")
+	TEXT("  2 - Present every 2 vblank intervals\n")
+	TEXT("  3 - etc...\n"),
 	ECVF_Default
 );
 
@@ -174,7 +176,7 @@ struct FRHIFrameOffsetThread : public FRunnable
 			FRHIFlipDetails NewFlipFrame = GDynamicRHI->RHIWaitForFlip(-1);
 
 			int32 SyncInterval = RHIGetSyncInterval();
-			double TargetFrameTimeInSeconds = double(SyncInterval) / 60.0;
+			double TargetFrameTimeInSeconds = double(SyncInterval) / double(FPlatformMisc::GetMaxRefreshRate());
 			double SlackInSeconds = RHIGetSyncSlackMS() / 1000.0;
 			double TargetFlipTime = (NewFlipFrame.VBlankTimeInSeconds + TargetFrameTimeInSeconds) - SlackInSeconds;
 
@@ -335,7 +337,7 @@ uint32 FRHIFrameFlipTrackingRunnable::Run()
 	{
 		// Determine the next expected flip time, based on the previous flip time we synced to.
 		int32 SyncInterval = RHIGetSyncInterval();
-		double TargetFrameTimeInSeconds = double(SyncInterval) / 60.0;
+		double TargetFrameTimeInSeconds = double(SyncInterval) / double(FPlatformMisc::GetMaxRefreshRate());
 		double ExpectedNextFlipTimeInSeconds = SyncTime + (TargetFrameTimeInSeconds * 1.02); // Add 2% to prevent early timeout
 		double CurrentTimeInSeconds = FPlatformTime::Seconds();
 
@@ -481,7 +483,7 @@ bool FRHIFrameFlipTrackingRunnable::bRun = false;
 
 RHI_API uint32 RHIGetSyncInterval()
 {
-	return CVarRHISyncInterval.GetValueOnAnyThread();
+	return FMath::Max(CVarRHISyncInterval.GetValueOnAnyThread(), 0);
 }
 
 RHI_API float RHIGetSyncSlackMS()
@@ -489,7 +491,7 @@ RHI_API float RHIGetSyncSlackMS()
 #if USE_FRAME_OFFSET_THREAD
 	const float SyncSlackMS = CVarRHISyncSlackMS.GetValueOnAnyThread();
 #else // #if USE_FRAME_OFFSET_THREAD
-	const float SyncSlackMS = RHIGetSyncInterval() / 60.f * 1000.f;		// Sync slack is entire frame interval if we aren't using the frame offset system
+	const float SyncSlackMS = RHIGetSyncInterval() / float(FPlatformMisc::GetMaxRefreshRate()) * 1000.f;		// Sync slack is entire frame interval if we aren't using the frame offset system
 #endif // #else // #if USE_FRAME_OFFSET_THREAD
 	return SyncSlackMS;
 }

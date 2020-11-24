@@ -10,18 +10,40 @@
 #include "PhysicsEngine/BodySetup.h"
 
 
+
+bool FStaticMeshComponentTarget::IsValid() const
+{
+	if (!FPrimitiveComponentTarget::IsValid())
+	{
+		return false;
+	}
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	if (StaticMeshComponent == nullptr)
+	{
+		return false;
+	}
+	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+	if (StaticMesh == nullptr)
+	{
+		return false;
+	}
+	if (!(LODIndex < StaticMesh->GetNumSourceModels()))
+	{
+		return false;
+	}
+	return true;
+}
+
 FMeshDescription* FStaticMeshComponentTarget::GetMesh() 
 {
+	ensure(IsValid());
 	return IsValid() ? Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex) : nullptr;
 }
 
 
 void FStaticMeshComponentTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const
 {
-	if (IsValid() == false)
-	{
-		return;
-	}
+	if (ensure(IsValid()) == false) return;
 
 	if (bAssetMaterials)
 	{
@@ -44,7 +66,7 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 {
 	// we only support this right now...
 	check(bApplyToAsset == true);
-	check(IsValid());
+	if (ensure(IsValid()) == false) return;
 	
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
@@ -80,7 +102,7 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 
 bool FStaticMeshComponentTarget::HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const
 {
-	if (IsValid())
+	if (ensure(IsValid()))
 	{
 		const UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 		const UStaticMesh* OtherStaticMesh = Cast<UStaticMeshComponent>(OtherTarget.Component)->GetStaticMesh();
@@ -94,7 +116,7 @@ bool FStaticMeshComponentTarget::HasSameSourceData(const FPrimitiveComponentTarg
 
 void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 {
-	check(IsValid());
+	if (ensure(IsValid()) == false) return;
 
 	//bool bSaved = Component->Modify();
 	//check(bSaved);
@@ -129,13 +151,23 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 bool FStaticMeshComponentTargetFactory::CanBuild(UActorComponent* Component)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-	return StaticMeshComponent != nullptr;
+	if (StaticMeshComponent)
+	{
+		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+		if (StaticMesh)
+		{
+			return (StaticMesh->GetNumSourceModels() > 0);
+		}
+	}
+	return false;
 }
 
 TUniquePtr<FPrimitiveComponentTarget> FStaticMeshComponentTargetFactory::Build(UPrimitiveComponent* Component)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-	if (StaticMeshComponent != nullptr)
+	if (StaticMeshComponent != nullptr 
+		&& StaticMeshComponent->GetStaticMesh() != nullptr 
+		&& StaticMeshComponent->GetStaticMesh()->GetNumSourceModels() > 0)
 	{
 		return TUniquePtr<FPrimitiveComponentTarget> { new FStaticMeshComponentTarget{Component} };
 	}

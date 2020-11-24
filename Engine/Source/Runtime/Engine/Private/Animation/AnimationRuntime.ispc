@@ -308,84 +308,79 @@ export void LerpBoneTransforms(	uniform FTransform ATransformData[],
 								const uniform unsigned int16 RequiredBonesArray[],
 								const uniform int32 NumOfBones)
 {
-	if (IsFullWeight(Alpha))
+	// Note: Check FAnimWeight::IsFullWeight(Alpha) as well as !FAnimWeight::IsRelevant(Alpha) before this function runs
+
+	const uniform float OneMinusAlpha = 1 - Alpha;
+
+	uniform int NumOfBonesBase = NumOfBones & ~(programCount-1);
+
+	for (uniform int Index = 0; Index < NumOfBonesBase; Index+=programCount/4)
 	{
-		memcpy(ATransformData, BTransformData, NumOfBones * sizeof(uniform FTransform));
+		uniform int BoneIndex[programCount / 4];
+
+		for (uniform int i = 0; i < programCount / 4; i++)
+		{
+			BoneIndex[i] = RequiredBonesArray[Index + i] * 3;
+		}
+		uniform int *uniform pBoneIndex = (uniform int* uniform)&BoneIndex;
+
+		// Do rotation work
+		uniform WideFVector4 ARotation, BRotation;
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&ARotation, (uniform FVector4 *uniform)&ATransformData[0].Rotation, pBoneIndex);
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&BRotation, (uniform FVector4 *uniform)&BTransformData[0].Rotation, pBoneIndex);
+
+		// AccumulateWithShortestRotation
+		ARotation = ARotation * OneMinusAlpha;
+		BRotation = BRotation * Alpha;
+
+		ARotation = VectorAccumulateQuaternionShortestPath(ARotation, BRotation);
+		ARotation = VectorNormalizeQuaternion(ARotation);
+
+		StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Rotation, (uniform FVector4 *uniform)&ARotation, pBoneIndex);
+
+		// Do translation work
+		uniform WideFVector4 ATranslation, BTranslation;
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&ATranslation, (uniform FVector4 *uniform)&ATransformData[0].Translation, pBoneIndex);
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&BTranslation, (uniform FVector4 *uniform)&BTransformData[0].Translation, pBoneIndex);
+
+		ATranslation = ATranslation * OneMinusAlpha + BTranslation * Alpha;
+
+		StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Translation, (uniform FVector4 *uniform)&ATranslation, pBoneIndex);
+
+		// Do scale work
+		uniform WideFVector4 AScale3D, BScale3D;
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&AScale3D, (uniform FVector4 *uniform)&ATransformData[0].Scale3D, pBoneIndex);
+		LoadIndexedWideFVector4((uniform FVector4 *uniform)&BScale3D, (uniform FVector4 *uniform)&BTransformData[0].Scale3D, pBoneIndex);
+
+		AScale3D = AScale3D * OneMinusAlpha + BScale3D * Alpha;
+
+		StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Scale3D, (uniform FVector4 *uniform)&AScale3D, pBoneIndex);
 	}
-	else if (IsRelevant(Alpha))
+
+	for (uniform int Index = NumOfBonesBase; Index < NumOfBones; Index++)
 	{
-		const uniform float OneMinusAlpha = 1 - Alpha;
+		// Do rotation work
+		const uniform int32 BoneIndex = RequiredBonesArray[Index];
+		uniform FVector4 ARotation = ATransformData[BoneIndex].Rotation;
+		uniform FVector4 BRotation = BTransformData[BoneIndex].Rotation;
 
-		uniform int NumOfBonesBase = NumOfBones & ~(programCount-1);
+		// AccumulateWithShortestRotation
+		ARotation = ARotation * OneMinusAlpha;
+		BRotation = BRotation * Alpha;
 
-		for (uniform int Index = 0; Index < NumOfBonesBase; Index+=programCount/4)
-		{
-			uniform int BoneIndex[programCount / 4];
+		ARotation = VectorAccumulateQuaternionShortestPath(ARotation, BRotation);
+		ATransformData[BoneIndex].Rotation = VectorNormalizeQuaternion(ARotation);
 
-			for (uniform int i = 0; i < programCount / 4; i++)
-			{
-				BoneIndex[i] = RequiredBonesArray[Index + i] * 3;
-			}
-			uniform int *uniform pBoneIndex = (uniform int* uniform)&BoneIndex;
+		// Do translation work
+		const uniform FVector4 ATranslation = ATransformData[BoneIndex].Translation;
+		const uniform FVector4 BTranslation = BTransformData[BoneIndex].Translation;
 
-			// Do rotation work
-			uniform WideFVector4 ARotation, BRotation;
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&ARotation, (uniform FVector4 *uniform)&ATransformData[0].Rotation, pBoneIndex);
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&BRotation, (uniform FVector4 *uniform)&BTransformData[0].Rotation, pBoneIndex);
+		ATransformData[BoneIndex].Translation = ATranslation * OneMinusAlpha + BTranslation * Alpha;
 
-			// AccumulateWithShortestRotation
-			ARotation = ARotation * OneMinusAlpha;
-			BRotation = BRotation * Alpha;
+		// Do scale work
+		const uniform FVector4 AScale3D = ATransformData[BoneIndex].Scale3D;
+		const uniform FVector4 BScale3D = BTransformData[BoneIndex].Scale3D;
 
-			ARotation = VectorAccumulateQuaternionShortestPath(ARotation, BRotation);
-			ARotation = VectorNormalizeQuaternion(ARotation);
-
-			StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Rotation, (uniform FVector4 *uniform)&ARotation, pBoneIndex);
-
-			// Do translation work
-			uniform WideFVector4 ATranslation, BTranslation;
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&ATranslation, (uniform FVector4 *uniform)&ATransformData[0].Translation, pBoneIndex);
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&BTranslation, (uniform FVector4 *uniform)&BTransformData[0].Translation, pBoneIndex);
-
-			ATranslation = ATranslation * OneMinusAlpha + BTranslation * Alpha;
-
-			StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Translation, (uniform FVector4 *uniform)&ATranslation, pBoneIndex);
-
-			// Do scale work
-			uniform WideFVector4 AScale3D, BScale3D;
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&AScale3D, (uniform FVector4 *uniform)&ATransformData[0].Scale3D, pBoneIndex);
-			LoadIndexedWideFVector4((uniform FVector4 *uniform)&BScale3D, (uniform FVector4 *uniform)&BTransformData[0].Scale3D, pBoneIndex);
-
-			AScale3D = AScale3D * OneMinusAlpha + BScale3D * Alpha;
-
-			StoreIndexedWideFVector4((uniform FVector4 *uniform)&ATransformData[0].Scale3D, (uniform FVector4 *uniform)&AScale3D, pBoneIndex);
-		}
-
-		for (uniform int Index = NumOfBonesBase; Index < NumOfBones; Index++)
-		{
-			// Do rotation work
-			const uniform int32 BoneIndex = RequiredBonesArray[Index];
-			uniform FVector4 ARotation = ATransformData[BoneIndex].Rotation;
-			uniform FVector4 BRotation = BTransformData[BoneIndex].Rotation;
-
-			// AccumulateWithShortestRotation
-			ARotation = ARotation * OneMinusAlpha;
-			BRotation = BRotation * Alpha;
-
-			ARotation = VectorAccumulateQuaternionShortestPath(ARotation, BRotation);
-			ATransformData[BoneIndex].Rotation = VectorNormalizeQuaternion(ARotation);
-
-			// Do translation work
-			const uniform FVector4 ATranslation = ATransformData[BoneIndex].Translation;
-			const uniform FVector4 BTranslation = BTransformData[BoneIndex].Translation;
-
-			ATransformData[BoneIndex].Translation = ATranslation * OneMinusAlpha + BTranslation * Alpha;
-
-			// Do scale work
-			const uniform FVector4 AScale3D = ATransformData[BoneIndex].Scale3D;
-			const uniform FVector4 BScale3D = BTransformData[BoneIndex].Scale3D;
-
-			ATransformData[BoneIndex].Scale3D = AScale3D * OneMinusAlpha + BScale3D * Alpha;
-		}
+		ATransformData[BoneIndex].Scale3D = AScale3D * OneMinusAlpha + BScale3D * Alpha;
 	}
 }

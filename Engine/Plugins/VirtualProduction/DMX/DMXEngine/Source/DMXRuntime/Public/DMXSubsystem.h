@@ -57,7 +57,7 @@ public:
 
 	/**  Return byte array from the DMX buffer given a universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TArray<uint8>& DMXBuffer);
+	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer);
 
 	/**  Return map with all DMX functions and their associated values given DMX buffer and desired universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Get Fixture Attributes"))
@@ -209,8 +209,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	FName GetAttributeLabel(FDMXAttributeName AttributeName);
 
-	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event instead."))
-	FProtocolReceivedDelegate OnProtocolReceived;
+	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead.")
+	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead."))
+	FProtocolReceivedDelegate OnProtocolReceived_DEPRECATED;
 
 	/**  Set DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::SendMatrixCellValue instead"))
@@ -273,6 +274,12 @@ private:
 	/** Called when asset registry removed an asset */
 	UFUNCTION()
 	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
+
+	// DEPRECATED 4.26, here to retain functionality of deprecated OnProtocolReceived
+	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. Exists to retain support of DEPRECATED OnProtocolReceived in 4.26 only"))
+	void OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID);
+
+private:
 
 	/** Strongly references all libraries at all times */
 	UPROPERTY()

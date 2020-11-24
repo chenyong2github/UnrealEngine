@@ -3,10 +3,10 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "VirtualCamera",
-	"Description": "",
+	"Description": "Actors, components, and utilities for controlling and viewing cameras via physical devices",
 	"Category": "Virtual Production",
-	"CreatedBy": "",
-	"CreatedByURL": "",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
@@ -34,7 +34,7 @@
 		{
 			"Name": "VCamInput",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PreDefault",
 			"BlacklistPlatforms": [
 				"TVOS"
 			]

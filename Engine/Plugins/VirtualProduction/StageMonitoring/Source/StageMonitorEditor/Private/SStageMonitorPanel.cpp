@@ -200,8 +200,15 @@ void SStageMonitorPanel::Construct(const FArguments& InArgs)
 					.HAlign(HAlign_Right)
 					.Padding(10.f, 10.f, 10.f, 10.f)
 					[
-						SNew(STextBlock)
-						.Text(this, &SStageMonitorPanel::GetMonitorStatus)
+						SNew(SCheckBox)
+						.Style(FStageMonitorEditorStyle::Get(), "ViewMode")
+						.ToolTipText(LOCTEXT("ViewModeTooltip", "Start / stop monitor"))
+						.IsChecked(this, &SStageMonitorPanel::IsMonitorActive)
+						.OnCheckStateChanged(this, &SStageMonitorPanel::OnMonitorStateChanged)
+						[
+							SNew(STextBlock)
+							.Text(this, &SStageMonitorPanel::GetMonitorStatus)
+						]
 					]
 				]
 			]
@@ -285,7 +292,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-				.Text(FEditorFontGlyphs::Refresh)
+				.Text(FEditorFontGlyphs::Folder_Open)
 				.ColorAndOpacity(FLinearColor::White)
 			]
 		]
@@ -601,6 +608,17 @@ FText SStageMonitorPanel::GetMonitorStatus() const
 	}
 
 	return LOCTEXT("MonitorStatusUnavailable", "Unavailable");
+}
+
+ECheckBoxState SStageMonitorPanel::IsMonitorActive() const
+{
+	IStageMonitor& StageMonitor = IStageMonitorModule::Get().GetStageMonitor();
+	return StageMonitor.IsActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SStageMonitorPanel::OnMonitorStateChanged(ECheckBoxState NewState)
+{
+	IStageMonitorModule::Get().EnableMonitor(NewState == ECheckBoxState::Checked);
 }
 
 FText SStageMonitorPanel::GetCurrentSessionInfo() const

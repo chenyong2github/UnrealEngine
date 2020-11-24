@@ -768,11 +768,11 @@ public:
 	FD3D12SegListAllocator& operator=(const FD3D12SegListAllocator&) = delete;
 	FD3D12SegListAllocator& operator=(FD3D12SegListAllocator&&) = delete;
 
-	uint32 Allocate(uint32 SizeInBytes, uint32 Alignment, TRefCountPtr<FD3D12SegHeap>& OutHeap)
+	uint32 Allocate(uint64 SizeInBytes, uint64 Alignment, TRefCountPtr<FD3D12SegHeap>& OutHeap)
 	{
 		check(!(Alignment & Alignment - 1));
 
-		const uint32 BlockSize = CalculateBlockSize(SizeInBytes, Alignment);
+		const uint64 BlockSize = CalculateBlockSize(SizeInBytes, Alignment);
 		if (ShouldPool(BlockSize))
 		{
 			FD3D12SegList* SegList;
@@ -850,12 +850,12 @@ private:
 		{}
 	};
 
-	static constexpr uint32 CalculateBlockSize(uint32 SizeInBytes, uint32 Alignment)
+	static constexpr uint64 CalculateBlockSize(uint64 SizeInBytes, uint64 Alignment)
 	{
 		return (SizeInBytes + Alignment - 1) & ~(Alignment - 1);
 	}
 
-	bool ShouldPool(uint32 BlockSize) const
+	bool ShouldPool(uint64 BlockSize) const
 	{
 		return BlockSize * 2 <= MaxPoolSize;
 	}

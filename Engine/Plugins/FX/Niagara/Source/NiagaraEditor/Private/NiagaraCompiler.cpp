@@ -1172,7 +1172,9 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 
 	CompileResults.bVMSucceeded = (CompilationJob->TranslatorOutput.Errors.Len() == 0) && (TranslatedHLSL.Len() > 0) && !InTranslateResults.NumErrors;
 
-	if (InOptions.TargetUsage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+	// only issue jobs for VM compilation if we're going to be using the resulting byte code.  This excludes particle scripts when we're using
+	// a GPU simulation
+	if (InOptions.IsGpuScript() && UNiagaraScript::IsParticleScript(InOptions.TargetUsage))
 	{
 		CompileResults.bComputeSucceeded = false;
 		if (CompileResults.bVMSucceeded)

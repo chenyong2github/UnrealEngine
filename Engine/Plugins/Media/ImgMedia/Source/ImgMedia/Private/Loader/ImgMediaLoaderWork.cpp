@@ -52,23 +52,23 @@ void FImgMediaLoaderWork::Abandon()
 
 void FImgMediaLoaderWork::DoThreadedWork()
 {
-	FImgMediaFrame* Frame;
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame;
+	UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Starting to read %i"), this, FrameNumber);
 
 	if ((FrameNumber == INDEX_NONE) || ImagePath.IsEmpty())
 	{
-		Frame = nullptr;
+		Frame.Reset();
 	}
 	else
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderReadFrame);
 
 		// read the image frame
-		Frame = new FImgMediaFrame();
+		Frame = MakeShareable(new FImgMediaFrame());
 
-		if (!Reader->ReadFrame(ImagePath, *Frame))
+		if (!Reader->ReadFrame(ImagePath, Frame, FrameNumber))
 		{
-			delete Frame;
-			Frame = nullptr;
+			Frame.Reset();
 		}
 	}
 
@@ -81,17 +81,18 @@ void FImgMediaLoaderWork::DoThreadedWork()
 /* FImgMediaLoaderWork implementation
  *****************************************************************************/
 
-void FImgMediaLoaderWork::Finalize(FImgMediaFrame* Frame)
+void FImgMediaLoaderWork::Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame)
 {
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Owner = OwnerPtr.Pin();
 
 	if (Owner.IsValid())
 	{
-		Owner->NotifyWorkComplete(*this, FrameNumber, MakeShareable(Frame));
+		Owner->NotifyWorkComplete(*this, FrameNumber, Frame);
 	}
 	else
 	{
-		delete Frame;
+		Frame.Reset();
+		Frame = nullptr;
 		delete this; // owner is gone, self destruct!
 	}
 }

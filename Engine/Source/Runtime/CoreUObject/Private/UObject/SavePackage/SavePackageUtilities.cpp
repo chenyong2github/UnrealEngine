@@ -23,6 +23,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UnrealType.h"
@@ -767,6 +768,12 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 		}
 	}
 	return false;
+}
+
+bool HasGameDependenciesEvenWhenEditorOnly(UObject* Obj)
+{
+	check(Obj);
+	return Obj->IsA(UObjectRedirector::StaticClass());	
 }
 
 bool FObjectImportSortHelper::operator()(const FObjectImport& A, const FObjectImport& B) const

@@ -967,24 +967,6 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 #endif
 	});
 
-#if !WITH_EDITOR
-	// Free any completed batches
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FreeBatches);
-		FIoDispatcher* IODispatcher = FBulkDataBase::GetIoDispatcher();
-		for (FUploadTask& Task : UploadTasks)
-		{
-			FPendingPage& PendingPage = *Task.PendingPage;
-
-			if (PendingPage.bFreeBatchWhenDone)
-			{
-				check(PendingPage.Batch.IsValid());	
-				IODispatcher->FreeBatch(PendingPage.Batch);
-			}
-		}
-	}
-#endif
-
 #if WITH_EDITOR
 	// Unlock BulkData
 	for (auto it : ResourceToBulkPointer)
@@ -1535,22 +1517,15 @@ void FStreamingManager::AsyncUpdate()
 					check( !IsRootPage( SelectedKey.PageIndex ) );
 
 #if !WITH_EDITOR
-					PendingPage.bFreeBatchWhenDone = false;
 					if (!bLegacyRequest)
 					{
 						// Use IODispatcher when available
-						if (!LastPendingPage)
-						{
-							// First request creates the batch
-							Batch = IODispatcher->NewBatch();
-						}
-							
 						LastPendingPage = &PendingPage;
 						FIoChunkId ChunkID = BulkData.CreateChunkId();
 						FIoReadOptions ReadOptions;
 						ReadOptions.SetRange(PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
 						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
-						PendingPage.Request = Batch.Read(ChunkID, ReadOptions);
+						PendingPage.Request = Batch.Read(ChunkID, ReadOptions, IoDispatcherPriority_Low);
 						PendingPage.AsyncHandle = nullptr;
 						PendingPage.AsyncRequest = nullptr;
 					}
@@ -1593,12 +1568,8 @@ void FStreamingManager::AsyncUpdate()
 			if (LastPendingPage)
 			{
 				// Issue batch
-				// Requests are processed in submission order, so once the last request has been processed it is safe to free the batch.
-				// Last request in batch owns it and is responsible for freeing it.
 				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
-				Batch.Issue(IoDispatcherPriority_Low);
-				LastPendingPage->Batch = Batch;
-				LastPendingPage->bFreeBatchWhenDone = true;
+				Batch.Issue();
 			}
 #endif
 		}

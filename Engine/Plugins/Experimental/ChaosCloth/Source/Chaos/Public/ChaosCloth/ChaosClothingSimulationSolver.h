@@ -5,6 +5,7 @@
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Transform.h"
 #include "Chaos/ImplicitObject.h"
+#include "HAL/CriticalSection.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
@@ -90,9 +91,6 @@ namespace Chaos
 		// Set legacy noise wind.
 		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);
 
-		// Enable self collision, or disable if TriangleMesh is null.
-		void SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh = nullptr);
-
 		const TVector<float, 3>* GetOldAnimationPositions(int32 Offset) const { return OldAnimationPositions.GetData() + Offset; }
 		TVector<float, 3>* GetOldAnimationPositions(int32 Offset) { return OldAnimationPositions.GetData() + Offset; }
 		const TVector<float, 3>* GetAnimationPositions(int32 Offset) const { return AnimationPositions.GetData() + Offset; }
@@ -167,6 +165,9 @@ namespace Chaos
 		// Local space simulation
 		TVector<float, 3> OldLocalSpaceLocation;
 		TVector<float, 3> LocalSpaceLocation;  // This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
+
+		// Mutex
+		FCriticalSection AddCollisionParticlesMutex;
 
 		// Time stepping
 		float Time;

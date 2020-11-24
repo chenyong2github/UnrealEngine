@@ -14,6 +14,7 @@
 #include "IVPUtilitiesEditorModule.h"
 #include "VirtualCameraActor.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "SimpleVirtualCamera.h"
 
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraEditorModule"
@@ -71,20 +72,38 @@ public:
 		{
 			if (const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo())
 			{
-				FAssetData VCamActorAssetData(
-					TEXT("/VirtualCamera/V2/VcamActor"), 
+				FAssetData SimpleVirtualCameraAssetData(
+					TEXT("/VirtualCamera/VCamCore/Blueprints/SimpleVirtualCamera"),
+					TEXT("/VirtualCamera/VCamCore/Blueprints"),
+					TEXT("SimpleVirtualCamera"),
+					TEXT("Blueprint")
+				);
+
+				// register the simple virtual camera
+				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+					*UActorFactoryBlueprint::StaticClass(),
+					SimpleVirtualCameraAssetData,
+					FName("ClassIcon.CameraActor"),
+					TOptional<FLinearColor>(),
+					TOptional<int32>(0),
+					LOCTEXT("VSimpleVCamPlacementName", "Simple Virtual Camera")
+					));
+
+				FAssetData VirtualCamera2ActorAssetData(
+					TEXT("/VirtualCamera/V2/VirtualCamera2Actor"), 
 					TEXT("/VirtualCamera/V2"), 
-					TEXT("VcamActor"), 
+					TEXT("VirtualCamera2Actor"), 
 					TEXT("Blueprint")
 				);
 				
+				// register the full-fat camera
 				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
 					*UActorFactoryBlueprint::StaticClass(),
-					VCamActorAssetData,
+					VirtualCamera2ActorAssetData,
 					FName("ClassIcon.CameraActor"),
 					TOptional<FLinearColor>(),
-					TOptional<int32>(),
-					LOCTEXT("VCamActorPlacementName", "VCam Actor")
+					TOptional<int32>(1),
+					LOCTEXT("VCamActorPlacementName", "VirtualCamera2 Actor")
 				));
 			}
 		}

@@ -29,7 +29,7 @@ public:
 
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(TriggerToolbarButtonCmd, "Launch", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(TriggerToolbarButtonCmd, "Launch Switchboard", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
 	}
 
 	TSharedPtr<FUICommandInfo> TriggerToolbarButtonCmd;
@@ -64,7 +64,7 @@ struct FSwitchboardMenuEntryImpl
 				(
 					FUIAction(),
 					FOnGetContent::CreateRaw(this, &FSwitchboardMenuEntryImpl::CreateListenerEntries),
-					FText::GetEmpty(),
+					TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboard", "Switchboard"); }),
 					LOCTEXT("SwitchboardTooltip", "Actions related to the SwitchboardListener"),
 					FSlateIcon(),
 					true
@@ -228,7 +228,13 @@ struct FSwitchboardMenuEntryImpl
 
 		if (!FPaths::FileExists(PythonInterpreter))
 		{
-			return TEXT("");
+			FString EnginePythonPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty") / TEXT("Python3");
+#if PLATFORM_WINDOWS
+			EnginePythonPath = EnginePythonPath / TEXT("Win64") / TEXT("python.exe");
+#elif PLATFORM_LINUX
+			EnginePythonPath = EnginePythonPath / TEXT("Linux") / TEXT("bin") / TEXT("python");
+#endif
+			PythonInterpreter = EnginePythonPath;
 		}
 
 		return PythonInterpreter;

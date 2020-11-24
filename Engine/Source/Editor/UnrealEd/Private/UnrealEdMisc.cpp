@@ -1136,6 +1136,10 @@ void FUnrealEdMisc::CB_MapChange( uint32 InFlags )
 			// CleanupWorld should only be called before destroying the world
 			// So bCleanupResources is being passed as false
 			World->CleanupWorld(true, false);
+
+			// CleanupWorld will have nulled the FXSystem, create a new one or else the dependent
+			// FXSystemComponents will be left unregistered and/or fail to activate.
+			World->CreateFXSystem();
 		}
 
 		GEditor->EditorUpdateComponents();

@@ -3,13 +3,11 @@
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerModule.h"
 
-FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleUpdatedDelegate;
 FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
 
 FInstallBundlePausedMultiDelegate IInstallBundleManager::PausedBundleDelegate;
 
 FInstallBundleReleasedMultiDelegate IInstallBundleManager::ReleasedDelegate;
-FInstallBundleReleasedMultiDelegate IInstallBundleManager::RemovedDelegate;
 
 FInstallBundleManagerOnPatchCheckComplete IInstallBundleManager::PatchCheckCompleteDelegate;
 
@@ -83,9 +81,9 @@ void IInstallBundleManager::CancelRequestRemoveContentOnNextInit(FName BundleNam
 	CancelRequestRemoveContentOnNextInit(MakeArrayView(&BundleName, 1));
 }
 
-void IInstallBundleManager::CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags)
+void IInstallBundleManager::CancelUpdateContent(FName BundleName)
 {
-	CancelUpdateContent(MakeArrayView(&BundleName, 1), Flags);
+	CancelUpdateContent(MakeArrayView(&BundleName, 1));
 }
 
 void IInstallBundleManager::PauseUpdateContent(FName BundleName)

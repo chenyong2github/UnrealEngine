@@ -21,6 +21,8 @@
 #include "PhysXPublic.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 DEFINE_LOG_CATEGORY_STATIC(LogDestructibleMeshEditor, Log, All);
 
 static const float	AnimationEditorViewport_LightRotSpeed = 0.22f;
@@ -33,7 +35,7 @@ class FDestructibleMeshEditorViewportClient : public FEditorViewportClient, publ
 protected:
 	/** Skeletal Mesh Component used for preview */
 	TWeakObjectPtr<UDestructibleComponent> PreviewDestructibleComp;
-
+	
 public:
 	FDestructibleMeshEditorViewportClient(TWeakPtr<IDestructibleMeshEditor> InDestructibleMeshEditor, FPreviewScene& InPreviewScene, const TSharedRef<SDestructibleMeshEditorViewport>& InDestructibleMeshEditorViewport);
 
@@ -746,3 +748,5 @@ void SDestructibleMeshEditorViewport::BindCommands()
 {
 	// No commands. Overridden to prevent the base SEditorViewport commands from being bound.
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

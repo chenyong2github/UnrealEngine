@@ -6,6 +6,8 @@ NiagaraSimulationShader.usf:
 #pragma warning(disable:4008)
 #include "/Engine/Public/Platform.ush"
 
+#include "NiagaraShaderVersion.ush"
+
 
 #if GPU_SIMULATION
 	#include "/Engine/Private/Common.ush"
@@ -75,9 +77,9 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	// To be removed as well but don't know who is using it
 	#include "/Engine/Private/SceneTexturesCommon.ush"
 
-	// Temporary include while everything is moved to plugins
+	// Physics common 
 	#if USE_SIMULATION_STAGES == 1
-		#include "NiagaraStrandsPhysics.ush"
+		#include "NiagaraPhysicsCommon.ush"
 	#endif
 
 	uint EmitterTickCounter;

@@ -16,8 +16,6 @@
 
 DECLARE_CYCLE_STAT(TEXT("RSClientTick"), STAT_RDClientTick, STATGROUP_Game);
 
-#define RS_TIMEOUT_IS_ERROR 0
-
 FRemoteSessionClient::FRemoteSessionClient(const TCHAR* InHostAddress)
 {
 	HostAddress = InHostAddress;
@@ -37,7 +35,7 @@ FRemoteSessionClient::FRemoteSessionClient(const TCHAR* InHostAddress)
 
 FRemoteSessionClient::~FRemoteSessionClient()
 {
-	Close();
+	CloseConnections();
 }
 
 bool FRemoteSessionClient::IsConnected() const
@@ -76,7 +74,7 @@ void  FRemoteSessionClient::StartConnection()
 {
 	check(IsConnecting == false);
 
-	Close();
+	CloseConnections();
 
 	if (IBackChannelTransport* Transport = IBackChannelTransport::Get())
 	{
@@ -136,11 +134,7 @@ void FRemoteSessionClient::CheckConnection()
 			
 			UE_LOG(LogRemoteSession, Log, TEXT("%s"), *Msg);
 			
-#if RS_TIMEOUT_IS_ERROR
-			CloseWithError(*Msg);
-#else
-			Close();
-#endif
+			CloseConnections();
 			TimeConnectionAttemptStarted = FPlatformTime::Seconds();
 		}
 	}
@@ -200,7 +194,6 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 		// need to interpret this from the argument count
 		NumChannels = OSCMessage.GetArgumentCount() / 2;
 	}
-	
 
 	for (int i = 0; i < NumChannels; i++)
 	{
@@ -210,15 +203,16 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 		
 		OSCMessage.Read(TEXT("Name"), ChannelName);
 
-		// in legacy modes we sent an int. In new protocol a string.
 		if (IsLegacyConnection())
 		{
+			// in legacy modes we sent an int and only had read/write. 
 			int32 ChannelModeInt = 0;
 			OSCMessage.Read(TEXT("Mode"), ChannelModeInt);
-			ChannelMode = (ERemoteSessionChannelMode)ChannelModeInt;
+			ChannelMode = (ERemoteSessionChannelMode)(ChannelModeInt+1);
 		}
 		else
 		{
+			// In new protocol a string.
 			OSCMessage.Read(TEXT("Mode"), ChannelModeStr);
 			LexFromString(ChannelMode, *ChannelModeStr);
 		}

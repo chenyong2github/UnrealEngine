@@ -757,6 +757,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void PrimeSound(USoundBase* InSound);
 
+	/** Primes the sound sound waves in the given USoundClass, caching the first chunk of streamed audio. **/
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	static void PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass);
+
+	/** Iterate through all soundwaves an release and handles to retained chunks. (if the chunk is not being played, the chunk will be up for eviction) **/
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	static void UnRetainAllSoundsInSoundClass(class USoundClass* InSoundClass);
+
 	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, the sound class adjustment will be added to the sound mix.
 	 * @param InSoundMixModifier The sound mix to modify.
 	 * @param InSoundClass The sound class to override (or add) in the sound mix.

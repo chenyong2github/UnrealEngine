@@ -478,6 +478,10 @@ namespace Chaos
 		{
 			return (X < Y && X < Z) ? X : (Y < Z ? Y : Z);
 		}
+		int32 MaxAxis() const
+		{
+			return (X > Y && X > Z) ? 0 : (Y > Z ? 1 : 2);
+		}
 		float Mid() const
 		{
 			float XmY = X - Y;

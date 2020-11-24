@@ -70,7 +70,7 @@ void UDeviceProfile::PostInitProperties()
 
 void UDeviceProfile::BeginDestroy()
 {
-	UE_LOG(LogDeviceProfile, Log, TEXT("Device profile begin destroy: [%p] %s"), this, *GetName());
+	UE_LOG(LogDeviceProfile, Verbose, TEXT("Device profile begin destroy: [%p] %s"), this, *GetName());
 
 	Super::BeginDestroy();
 }

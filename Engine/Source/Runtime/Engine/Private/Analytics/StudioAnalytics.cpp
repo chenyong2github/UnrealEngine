@@ -33,6 +33,8 @@ void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 
 	Analytics = InAnalytics;
 
+	ApplyDefaultEventAttributes();
+
 	TimeEstimation = FPlatformTime::Seconds();
 
 	if (FPlatformProcess::SupportsMultithreading())

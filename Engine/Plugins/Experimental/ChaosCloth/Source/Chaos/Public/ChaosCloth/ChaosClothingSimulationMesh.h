@@ -37,6 +37,7 @@ namespace Chaos
 		int32 GetNumPoints(int32 LODIndex) const;
 		TConstArrayView<const uint32> GetIndices(int32 LODIndex) const;
 		TArray<TConstArrayView<const float>> GetWeightMaps(int32 LODIndex) const;
+		int32 GetReferenceBoneIndex() const;
 		TRigidTransform<float, 3> GetReferenceBoneTransform() const;
 
 		bool WrapDeformLOD(
@@ -58,7 +59,6 @@ namespace Chaos
 		// ---- End of the Cloth interface ----
 
 	private:
-		int32 GetReferenceBoneIndex() const;
 		void SkinPhysicsMesh(
 			int32 LODIndex,
 			const TVector<float, 3>& LocalSpaceLocation,

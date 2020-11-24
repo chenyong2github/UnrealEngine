@@ -104,11 +104,14 @@ class FMobileRadialLightPS : public FGlobalShader
 
 	class FSpotLightDim			: SHADER_PERMUTATION_BOOL("IS_SPOT_LIGHT");
 	class FInverseSquaredDim	: SHADER_PERMUTATION_BOOL("INVERSE_SQUARED_FALLOFF");
-	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FInverseSquaredDim>;
+	class FIESProfileDim		: SHADER_PERMUTATION_BOOL("USE_IES_PROFILE");
+	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FInverseSquaredDim, FIESProfileDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
+		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -270,6 +273,14 @@ static void RenderLocalLight(FRHICommandListImmediate& RHICmdList, const FScene&
 	{
 		RenderLocalLightStencilMask(RHICmdList, Scene, View, LightSceneInfo);
 	}
+
+	bool bUseIESTexture = false;
+	FTexture* IESTextureResource = GWhiteTexture;
+	if (View.Family->EngineShowFlags.TexturedLightProfiles && LightSceneInfo.Proxy->GetIESTextureResource())
+	{
+		IESTextureResource = LightSceneInfo.Proxy->GetIESTextureResource();
+		bUseIESTexture = true;
+	}
 			
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -281,6 +292,7 @@ static void RenderLocalLight(FRHICommandListImmediate& RHICmdList, const FScene&
 	FMobileRadialLightPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMobileRadialLightPS::FSpotLightDim>(LightType == LightType_Spot);
 	PermutationVector.Set<FMobileRadialLightPS::FInverseSquaredDim>(LightSceneInfo.Proxy->IsInverseSquared());
+	PermutationVector.Set<FMobileRadialLightPS::FIESProfileDim>(bUseIESTexture);
 	TShaderMapRef<FMobileRadialLightPS> PixelShader(View.ShaderMap, PermutationVector);
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -290,6 +302,8 @@ static void RenderLocalLight(FRHICommandListImmediate& RHICmdList, const FScene&
 	FMobileRadialLightPS::FParameters PassParameters;
 	PassParameters.View = View.ViewUniformBuffer;
 	PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(GetDeferredLightParameters(View, LightSceneInfo), EUniformBufferUsage::UniformBuffer_SingleFrame);
+	PassParameters.IESTexture = IESTextureResource->TextureRHI;
+	PassParameters.IESTextureSampler = IESTextureResource->SamplerStateRHI;
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
 	VertexShader->SetParameters(RHICmdList, View, &LightSceneInfo);
 
@@ -319,17 +333,18 @@ void MobileDeferredShadingPass(FRHICommandListImmediate& RHICmdList, const FScen
 
 	RenderDirectLight(RHICmdList, Scene, View);
 
-	// In case we dont use clustered, render all local lights individually 
-	if (GMobileUseClusteredDeferredShading == 0)
+	// Render non-clustered local lights
+	int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
+	int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+	if (GMobileUseClusteredDeferredShading != 0)
 	{
-		int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
-		int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+		StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
+	}
 
-		for (int32 LightIdx = StandardDeferredStart; LightIdx < AttenuationLightStart; ++LightIdx)
-		{
-			const FSortedLightSceneInfo& SortedLight = SortedLightSet.SortedLights[LightIdx];
-			const FLightSceneInfo& LightSceneInfo = *SortedLight.LightSceneInfo;
-			RenderLocalLight(RHICmdList, Scene, View, LightSceneInfo);
-		}
+	for (int32 LightIdx = StandardDeferredStart; LightIdx < AttenuationLightStart; ++LightIdx)
+	{
+		const FSortedLightSceneInfo& SortedLight = SortedLightSet.SortedLights[LightIdx];
+		const FLightSceneInfo& LightSceneInfo = *SortedLight.LightSceneInfo;
+		RenderLocalLight(RHICmdList, Scene, View, LightSceneInfo);
 	}
 }

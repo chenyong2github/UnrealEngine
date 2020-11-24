@@ -13,5 +13,6 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
 	GEngineLoop.PreInit(ArgC, ArgV);
 	UE_LOG(LogBlankProgram, Display, TEXT("Hello World"));
+	FEngineLoop::AppExit();
 	return 0;
 }

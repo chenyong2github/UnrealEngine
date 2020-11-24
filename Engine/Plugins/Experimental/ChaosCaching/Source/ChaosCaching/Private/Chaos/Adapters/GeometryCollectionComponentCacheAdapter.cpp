@@ -7,6 +7,7 @@
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/ChaosSolverActor.h"
 
 FName FEnableStateEvent::EventName("GC_Enable");
 
@@ -200,7 +201,33 @@ namespace Chaos
 
 			for(TPair<FClusterParticle*, TArray<FRigidParticle*>> Cluster : NewClusters)
 			{
-				Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles(Cluster.Value);
+				TArray<FRigidParticle*>& ChildrenParticles = Cluster.Value;
+				if (ChildrenParticles.Num())
+				{
+					FRigidParticle* ClusterHandle = nullptr;
+					
+					for (FRigidParticle* ChildHandle : ChildrenParticles)
+					{
+						if (FClusterParticle* ClusteredChildHandle = ChildHandle->CastToClustered())
+						{
+							if (ClusteredChildHandle->Disabled() && ClusteredChildHandle->ClusterIds().Id != nullptr)
+							{
+								if (ensure(!ClusterHandle || ClusteredChildHandle->ClusterIds().Id == ClusterHandle))
+								{
+									ClusterHandle = ClusteredChildHandle->ClusterIds().Id;
+								}
+								else
+								{
+									break; //shouldn't be here
+								}
+							}
+						}
+					}
+					if (ClusterHandle)
+					{
+						Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticlesNoInternalCluster(ClusterHandle->CastToClustered(), nullptr, true);
+					}
+				}
 			}
 		}
 
@@ -294,11 +321,21 @@ namespace Chaos
 	{
 #if WITH_CHAOS
 
-		if(InComponent && InComponent->GetWorld())
+		// If the observed component is a Geometry Collection using a non-default Chaos solver..
+		if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(InComponent))
+		{
+			if (AChaosSolverActor* SolverActor = GeometryCollectionComponent->GetPhysicsSolverActor())
+			{
+				return SolverActor->GetSolver();
+			}			
+		}
+
+		// ..otherwise use the default solver.
+		if (InComponent && InComponent->GetWorld())
 		{
 			UWorld* ComponentWorld = InComponent->GetWorld();
 
-			if(FPhysScene* WorldScene = ComponentWorld->GetPhysicsScene())
+			if (FPhysScene* WorldScene = ComponentWorld->GetPhysicsScene())
 			{
 				return WorldScene->GetSolver();
 			}

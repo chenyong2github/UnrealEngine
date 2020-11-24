@@ -86,7 +86,9 @@ typedef TSharedPtr<class IOnlineExternalUI, ESPMode::ThreadSafe> IOnlineExternal
 typedef TSharedPtr<class IOnlineTime, ESPMode::ThreadSafe> IOnlineTimePtr;
 typedef TSharedPtr<class IOnlineIdentity, ESPMode::ThreadSafe> IOnlineIdentityPtr;
 typedef TSharedPtr<class IOnlineTitleFile, ESPMode::ThreadSafe> IOnlineTitleFilePtr;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef TSharedPtr<class IOnlineStore, ESPMode::ThreadSafe> IOnlineStorePtr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 typedef TSharedPtr<class IOnlineStoreV2, ESPMode::ThreadSafe> IOnlineStoreV2Ptr;
 typedef TSharedPtr<class IOnlinePurchase, ESPMode::ThreadSafe> IOnlinePurchasePtr;
 typedef TSharedPtr<class IOnlineEvents, ESPMode::ThreadSafe> IOnlineEventsPtr;
@@ -376,8 +378,7 @@ public:
 	 * Get the interface for accessing an online store
 	 * @return Interface pointer for the appropriate online store service
 	 */
-	// @todo samz
-	//	UE_DEPRECATED(4.26, "Move to OnlineStoreInterfaceV2 and OnlinePurchaseInterface.")
+	UE_DEPRECATED(4.26, "GetStoreInterface() is deprecated, please use GetStoreV2Interface() and GetPurchaseInterface() instead.")
 	virtual IOnlineStorePtr GetStoreInterface() const { return nullptr; }
 
 	/** 

@@ -494,8 +494,32 @@ void UDataprepOperationsLibrary::ConsolidateObjects(const TArray< UObject* >& Se
 		return AValue > BValue;
 	});
 
+	// ObjectTools::ConsolidateObjects is creating undesired Redirectors
+	// Collect existing redirectors to identify the newly created ones
+	TSet<UObject*> ExistingRedirectors;
+	for (TObjectIterator<UObjectRedirector> Itr; Itr; ++Itr)
+	{
+		ExistingRedirectors.Add(*Itr);
+	}	
+
 	// Perform the object consolidation
 	ObjectTools::ConsolidateObjects(ObjectToConsolidateTo, OutCompatibleObjects, false);
+
+	// Delete UObjectRedirector objects created by ObjectTools::ConsolidateObjects
+	TArray<UObject*> RedirectorsToDelete;
+	for (TObjectIterator<UObjectRedirector> Itr; Itr; ++Itr)
+	{
+		if (!ExistingRedirectors.Contains(*Itr))
+		{
+			FDataprepCoreUtils::MoveToTransientPackage(*Itr);
+			RedirectorsToDelete.Add(*Itr);
+		}
+	}
+
+	if (RedirectorsToDelete.Num() > 0)
+	{
+		FDataprepCoreUtils::PurgeObjects(RedirectorsToDelete);
+	}
 }
 
 void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max)

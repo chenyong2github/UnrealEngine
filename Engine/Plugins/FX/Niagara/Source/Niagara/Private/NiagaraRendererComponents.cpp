@@ -124,77 +124,6 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 	InRuntimeObject->ProcessEvent(Setter, Params);
 }
 
-void FNiagaraRendererComponents::Initialize(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
-{
-	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
-	if (!Properties || !Properties->TemplateComponent)
-	{
-		return;
-	}
-
-	// Search for a setter function if not already done before
-	for (const FNiagaraComponentPropertyBinding& PropertyBinding : Properties->PropertyBindings)
-	{
-		if (!SetterFunctionMapping.Contains(PropertyBinding.PropertyName))
-		{
-			UFunction* SetterFunction = nullptr;
-
-			// we first check if the property has some metadata that explicitly mentions the setter to use
-			if (!PropertyBinding.MetadataSetterName.IsNone())
-			{
-				SetterFunction = Properties->TemplateComponent->FindFunction(PropertyBinding.MetadataSetterName);
-			}
-
-			if (!SetterFunction)
-			{
-				// the setter was not specified, so we try to find one that fits the name
-				FString PropertyName = PropertyBinding.PropertyName.ToString();
-				if (PropertyBinding.PropertyType == FNiagaraTypeDefinition::GetBoolDef())
-				{
-					PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
-				}
-				for (const FString& Prefix : FNiagaraRendererComponents::SetterPrefixes)
-				{
-					FName SetterFunctionName = FName(Prefix + PropertyName);
-					SetterFunction = Properties->TemplateComponent->FindFunction(SetterFunctionName);
-					if (SetterFunction)
-					{
-						break;
-					}
-				}
-			}
-
-			FNiagaraPropertySetter Setter;
-			Setter.Function = SetterFunction;
-
-			// Okay, so there is a special case where the *property* of an object has one type, but the *setter* has another type
-			// that either doesn't need to be converted (e.g. the color property on a light component) or doesn't fit the converted value.
-			// If we detect such a case we adapt the binding to either ignore the conversion or we discard the setter completely.
-			if (SetterFunction)
-			{
-				for (FProperty* Property = SetterFunction->PropertyLink; Property; Property = Property->PropertyLinkNext)
-				{
-					if (Property->IsInContainer(SetterFunction->ParmsSize) && Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm))
-					{
-						FNiagaraTypeDefinition FieldType = UNiagaraComponentRendererProperties::ToNiagaraType(Property);
-						if (FieldType != PropertyBinding.PropertyType && FieldType == PropertyBinding.AttributeBinding.GetType())
-						{
-							// we can use the original Niagara value with the setter instead of converting it
-							Setter.bIgnoreConversion = true;
-						} else if (FieldType != PropertyBinding.PropertyType)
-						{
-							// setter is completely unusable
-							Setter.Function = nullptr;
-						}
-						break;
-					}
-				}
-			}
-			SetterFunctionMapping.Add(PropertyBinding.PropertyName, Setter);
-		}
-	}
-}
-
 /** Update render data buffer from attributes */
 FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const
 {
@@ -204,7 +133,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 
 	//Bail if we don't have the required attributes to render this emitter.
 	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
-	if (!SystemInstance || !Properties || SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (!SystemInstance || !Properties || !Properties->TemplateComponent || SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		return nullptr;
 	}
@@ -248,7 +177,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 		TArray<FNiagaraComponentPropertyBinding> BindingsCopy = Properties->PropertyBindings;
 		for (FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
 		{
-			const FNiagaraPropertySetter* PropertySetter = SetterFunctionMapping.Find(PropertyBinding.PropertyName);
+			const FNiagaraPropertySetter* PropertySetter = Properties->SetterFunctionMapping.Find(PropertyBinding.PropertyName);
 			if (!PropertySetter)
 			{
 				// it's possible that Initialize wasn't called or the bindings changed in the meantime

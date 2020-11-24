@@ -48,7 +48,7 @@ void FFramePerformanceProvider::CheckHitches(int64 Frame)
 	const float FullFrameTime = FMath::Max(GameThreadTimeWithWaits, RenderThreadTimeWithWaits);
 
 	// check for hitch (if application not backgrounded)
-	const float TimeThreshold = CachedHitchSettings.TargetFrameRate.AsInterval() * 1000.0f;
+	const float TimeThreshold = CachedHitchSettings.MinimumFrameRate.AsInterval() * 1000.0f;
 	if (FullFrameTime > TimeThreshold)
 	{
 		const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);

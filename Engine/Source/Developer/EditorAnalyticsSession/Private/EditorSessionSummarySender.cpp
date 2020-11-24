@@ -175,9 +175,11 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("Platform"), FPlatformProperties::IniPlatformName());
 	AnalyticsAttributes.Emplace(TEXT("SessionId"), SessionIdString); // The provider is expected to add it as "SessionID" param in the HTTP request, but keep it for completness, because the formats are slightly different.
 	AnalyticsAttributes.Emplace(TEXT("EngineVersion"), Session.EngineVersion); // The provider is expected to add it as "AppVersion" param in the HTTP request, but keep it for completness, because the formats are slightly different.
+	AnalyticsAttributes.Emplace(TEXT("CommandLine"), Session.CommandLine);
 	AnalyticsAttributes.Emplace(TEXT("ShutdownType"), ShutdownTypeString);
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
+	AnalyticsAttributes.Emplace(TEXT("LastTickTimestamp"), Session.LastTickTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("SessionDurationWall"), FMath::FloorToInt(static_cast<float>((Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds()))); // Session duration from system date/time.
 	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.SessionDuration);
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
@@ -187,6 +189,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
 	AnalyticsAttributes.Emplace(TEXT("SessionTickCount"), Session.SessionTickCount);
+	AnalyticsAttributes.Emplace(TEXT("EngineTickCount"), Session.EngineTickCount);
 	AnalyticsAttributes.Emplace(TEXT("UserInteractionCount"), Session.UserInteractionCount);
 	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
 	AnalyticsAttributes.Emplace(TEXT("DesktopGPUAdapter"), Session.DesktopGPUAdapter);
@@ -208,6 +211,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("Is64BitOS"), Session.bIs64BitOS);
 	AnalyticsAttributes.Emplace(TEXT("GPUCrash"), Session.bGPUCrashed);
 	AnalyticsAttributes.Emplace(TEXT("WasDebugged"), Session.bWasEverDebugger);
+	AnalyticsAttributes.Emplace(TEXT("WasDebuggerIgnored"), Session.bIsDebuggerIgnored);
 	AnalyticsAttributes.Emplace(TEXT("IsVanilla"), Session.bIsVanilla);
 	AnalyticsAttributes.Emplace(TEXT("WasShutdown"), Session.bWasShutdown);
 	AnalyticsAttributes.Emplace(TEXT("IsUserLoggingOut"), Session.bIsUserLoggingOut);
@@ -230,6 +234,11 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	else
 	{
 		bShouldAttachMonitorLog = true; // Try to figure out why exit code could not be set.
+	}
+
+	if (Session.DeathTimestamp.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("DeathTimestamp"), Session.DeathTimestamp->ToIso8601());
 	}
 
 	if (Session.MonitorExitCode.IsSet())

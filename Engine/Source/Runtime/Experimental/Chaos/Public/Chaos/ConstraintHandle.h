@@ -47,7 +47,8 @@ namespace Chaos
 		virtual void SetEnabled(bool InEnabled) = 0;
 		virtual bool IsEnabled() const = 0;
 
-		template<typename T>  T* As() { return T::StaticType()==Type?static_cast<T*>(this):nullptr; }
+		template<typename T>  T* As() { return T::StaticType() == Type ? static_cast<T*>(this) : nullptr; }
+		template<typename T>  const T* As() const { return T::StaticType() == Type ? static_cast<const T*>(this) : nullptr; }
 
 	protected:
 		friend class FPBDConstraintContainer;

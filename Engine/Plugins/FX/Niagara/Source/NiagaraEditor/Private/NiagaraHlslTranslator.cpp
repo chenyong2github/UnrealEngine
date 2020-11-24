@@ -1181,8 +1181,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		}
 	}
 
-	bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
-	bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+	const bool bCPUSim = CompileOptions.IsCpuScript();
+	const bool bGPUSim = CompileOptions.IsGpuScript();
 
 	if (bUsesSimStages && bCPUSim)
 	{
@@ -5882,6 +5882,11 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 		}
 	}
 
+	if (DataSetWriteInfo[(int32)AccessMode].Find(DataSet))
+	{
+		Error(LOCTEXT("WritingToSameDataSetError", "Multiple writes to the same dataset.  Only one is allowed per script stage."), nullptr, nullptr);
+		return;
+	}
 
 	TMap<int32, FDataSetAccessInfo>& Writes = DataSetWriteInfo[(int32)AccessMode].FindOrAdd(DataSet);
 	FDataSetAccessInfo* DataSetWriteForInput = Writes.Find(InputChunk);
@@ -6688,8 +6693,8 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 
 void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterfaceCompileInfo& Info, const FNiagaraFunctionSignature& InMatchingSignature)
 {
-	bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
-	bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+	const bool bCPUSim = CompileOptions.IsCpuScript();
+	const bool bGPUSim = CompileOptions.IsGpuScript();
 	const UNiagaraNode* CurNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 	if (bCPUSim && !InMatchingSignature.bSupportsCPU)
 	{

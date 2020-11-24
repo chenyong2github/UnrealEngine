@@ -737,14 +737,6 @@ RWTexture3D<float4> SHCoefficients1G;
 RWTexture3D<float4> SHCoefficients0B;
 RWTexture3D<float4> SHCoefficients1B;
 
-RWTexture3D<float3> OutAmbientVector;
-RWTexture3D<UNORM float4> OutSHCoefficients0R;
-RWTexture3D<UNORM float4> OutSHCoefficients1R;
-RWTexture3D<UNORM float4> OutSHCoefficients0G;
-RWTexture3D<UNORM float4> OutSHCoefficients1G;
-RWTexture3D<UNORM float4> OutSHCoefficients0B;
-RWTexture3D<UNORM float4> OutSHCoefficients1B;
-
 uint MortonEncode3(uint3 Pixel)
 {
 	uint Morton = MortonCode3(Pixel.x & 0xFF) | (MortonCode3(Pixel.y & 0xFF) << 1) | (MortonCode3(Pixel.z & 0xFF) << 1);
@@ -819,7 +811,21 @@ void VolumetricLightmapPathTracingMainRG()
 
 	uint PaddedBrickSize = 4 + 1;
 	uint3 VoxelPos = ComputeBrickLayoutPosition(BrickIndex, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
+
+	if (FrameNumber == 0)
+	{
+		AmbientVector[VoxelPos] = float4(0, 0, 0, 0);
 		
+		SHCoefficients0R[VoxelPos] = float4(0, 0, 0, 0);
+		SHCoefficients1R[VoxelPos] = float4(0, 0, 0, 0);
+		
+		SHCoefficients0G[VoxelPos] = float4(0, 0, 0, 0);
+		SHCoefficients1G[VoxelPos] = float4(0, 0, 0, 0);		
+		
+		SHCoefficients0B[VoxelPos] = float4(0, 0, 0, 0);
+		SHCoefficients1B[VoxelPos] = float4(0, 0, 0, 0);
+	}
+	
 	if (bIsValidSample)
 	{
 		uint SampleCount = asuint(AmbientVector[VoxelPos].w);
@@ -877,35 +883,6 @@ void VolumetricLightmapPathTracingMainRG()
 		}
 		
 		AmbientVector[VoxelPos].w = asfloat(SampleCount + 1);
-	}
-	
-	{
-		uint SampleCount = asuint(AmbientVector[VoxelPos].w);
-		if (SampleCount > 0)
-		{
-			OutAmbientVector[VoxelPos] = AmbientVector[VoxelPos].xyz / SampleCount;
-			
-			float3 InvAmbient = float3(1.0f, 1.0f, 1.0f) / max(AmbientVector[VoxelPos].xyz / SampleCount, float3(0.0001f, 0.0001f, 0.0001f));
-			
-			float4 CoefficientNormalizationScale0 = float4(
-				0.282095f / 0.488603f,
-				0.282095f / 0.488603f,
-				0.282095f / 0.488603f,
-				0.282095f / 1.092548f);
-
-			float4 CoefficientNormalizationScale1 = float4(
-				0.282095f / 1.092548f,
-				0.282095f / (4.0f * 0.315392f),
-				0.282095f / 1.092548f,
-				0.282095f / (2.0f * 0.546274f));
-		
-			OutSHCoefficients0R[VoxelPos] = (SHCoefficients0R[VoxelPos] / SampleCount) * InvAmbient.r * CoefficientNormalizationScale0 * 0.5f + 0.5f;
-			OutSHCoefficients1R[VoxelPos] = (SHCoefficients1R[VoxelPos] / SampleCount) * InvAmbient.r * CoefficientNormalizationScale1 * 0.5f + 0.5f;
-			OutSHCoefficients0G[VoxelPos] = (SHCoefficients0G[VoxelPos] / SampleCount) * InvAmbient.g * CoefficientNormalizationScale0 * 0.5f + 0.5f;
-			OutSHCoefficients1G[VoxelPos] = (SHCoefficients1G[VoxelPos] / SampleCount) * InvAmbient.g * CoefficientNormalizationScale1 * 0.5f + 0.5f;
-			OutSHCoefficients0B[VoxelPos] = (SHCoefficients0B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale0 * 0.5f + 0.5f;
-			OutSHCoefficients1B[VoxelPos] = (SHCoefficients1B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale1 * 0.5f + 0.5f;
-		}
 	}
 }
 
@@ -973,7 +950,6 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			-1,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,

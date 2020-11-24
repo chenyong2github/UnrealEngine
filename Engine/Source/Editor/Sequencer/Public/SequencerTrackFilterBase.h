@@ -36,6 +36,9 @@ public:
 		return InSequence != nullptr && (LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass));
 	}
 
+	/** Returns whether this filter needs reevaluating any time track values have been modified, not just tree changes */
+	virtual bool ShouldUpdateOnTrackValueChanged() const { return false; }
+
 	// IFilter implementation
 	DECLARE_DERIVED_EVENT(FSequencerTrackFilter, IFilter<FTrackFilterType>::FChangedEvent, FChangedEvent);
 	virtual FChangedEvent& OnChanged() override { return ChangedEvent; }

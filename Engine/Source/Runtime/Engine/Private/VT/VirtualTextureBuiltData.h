@@ -33,7 +33,7 @@ struct FVirtualTextureDataChunk
 	FByteBulkData BulkData;
 	uint32 SizeInBytes;
 	uint32 CodecPayloadSize;
-	uint16 CodecPayloadOffset[VIRTUALTEXTURE_DATA_MAXLAYERS];
+	uint32 CodecPayloadOffset[VIRTUALTEXTURE_DATA_MAXLAYERS];
 	EVirtualTextureCodec CodecType[VIRTUALTEXTURE_DATA_MAXLAYERS];
 
 	inline FVirtualTextureDataChunk()

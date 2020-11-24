@@ -224,8 +224,6 @@ void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, const ITarge
 	{
 		INiagaraShaderModule* Module = INiagaraShaderModule::Get();
 
-		TArray<FShaderType*> ShaderTypes;
-		GetDependentShaderTypes(Platform, ShaderTypes);
 		OutId.FeatureLevel = GetFeatureLevel();/*
 		OutId.BaseScriptID = BaseScriptId;*/
 		OutId.bUsesRapidIterationParams = bUsesRapidIterationParams;		
@@ -242,6 +240,13 @@ void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, const ITarge
 		for(const FString& Define : AdditionalDefines)
 		{
 			OutId.AdditionalDefines.Emplace(Define);
+		}
+
+		TArray<FShaderType*> DependentShaderTypes;
+		GetDependentShaderTypes(Platform, DependentShaderTypes);
+		for (FShaderType* ShaderType : DependentShaderTypes)
+		{
+			OutId.ShaderTypeDependencies.Emplace(ShaderType, Platform);
 		}
 
 		if (TargetPlatform)

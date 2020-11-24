@@ -280,7 +280,20 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 #if STATS
 FStatExecutionTimer::FStatExecutionTimer()
 {
-	CapturedTimings = new TSimpleRingBuffer<float>(GbMaxStatRecordedFrames);
+	CapturedTimings.Reserve(GbMaxStatRecordedFrames);
+}
+
+void FStatExecutionTimer::AddTiming(float NewTiming)
+{
+	if (CapturedTimings.Num() < GbMaxStatRecordedFrames)
+	{
+		CapturedTimings.Add(NewTiming);
+	}
+	else if (CapturedTimings.IsValidIndex(CurrentIndex))
+	{
+		CapturedTimings[CurrentIndex] = NewTiming;
+		CurrentIndex = (CurrentIndex + 1) % GbMaxStatRecordedFrames;
+	}
 }
 
 void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData)
@@ -301,7 +314,7 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 	TMap<TStatIdData const*, FStatExecutionTimer>& InstanceData = StatCaptures.FindOrAdd(ReportKey);
 	for (const auto& Entry : CapturedData)
 	{		
-		InstanceData.FindOrAdd(Entry.Key).CapturedTimings->WriteNewElementUninitialized() = Entry.Value;
+		InstanceData.FindOrAdd(Entry.Key).AddTiming(Entry.Value);
 	}
 }
 
@@ -327,12 +340,12 @@ float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage U
 		{
 			if (MinimalNameToName(StatEntry.Key->Name) == StatName)
 			{
-				for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+				ValueCount = StatEntry.Value.CapturedTimings.Num();
+				for (int i = 0; i < ValueCount; i++)
 				{
-					float Value = (*StatEntry.Value.CapturedTimings)(i);
+					float Value = StatEntry.Value.CapturedTimings[i];
 					Max = FMath::Max(Max, Value);
 					Sum += Value;
-					ValueCount++;
 				}
 				break;
 			}
@@ -359,9 +372,9 @@ float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraSt
 		}
 		for (const TTuple<TStatIdData const*, FStatExecutionTimer>& StatEntry : EmitterEntry.Value)
 		{
-			for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+			for (int i = 0; i < StatEntry.Value.CapturedTimings.Num(); i++)
 			{
-				float Value = (*StatEntry.Value.CapturedTimings)(i);
+				float Value = StatEntry.Value.CapturedTimings[i];
 				Max = FMath::Max(Max, Value);
 				Sum += Value;
 				ValueCount++;
@@ -400,14 +413,15 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	const bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
 	const bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespace);
 	const bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespace);
+	const bool bIsStackContextValue = RootVariable.IsInNameSpace(FNiagaraConstants::StackContextNamespace);
 
 	// We clear out the namespace for the sourcemode so that we can keep the values up-to-date if you change the source mode.
-	if (bIsRootParticleValue && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
+	if ((bIsStackContextValue || bIsRootParticleValue) && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsParticleDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
 	}
-	else if (bIsRootUnaliasedEmitterValue && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
+	else if ((bIsStackContextValue || bIsRootUnaliasedEmitterValue) && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
 	{
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
@@ -449,6 +463,10 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	else if (bIsRootUserValue)
 	{
 		BindingSourceMode = ENiagaraBindingSource::ExplicitUser;
+	}
+	else if (bIsStackContextValue)
+	{
+		ensureMsgf(!bIsStackContextValue, TEXT("Should not get to this point! Should be covered by first two branch expresssions."));
 	}
 
 	CacheValues(InEmitter, InSourceMode);	
@@ -745,7 +763,7 @@ void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 
 bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
 {
-	return SupportsGPUParticles(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
+	return FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
 bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
@@ -977,6 +995,27 @@ ETextureRenderTargetFormat FNiagaraUtilities::BufferFormatToRenderTargetFormat(E
 	return ETextureRenderTargetFormat::RTF_R32f;
 }
 
+FString FNiagaraUtilities::SanitizeNameForObjectsAndPackages(const FString& InName)
+{
+	FString SanitizedName = InName;
+
+	const TCHAR* InvalidObjectChar = INVALID_OBJECTNAME_CHARACTERS;
+	while (*InvalidObjectChar)
+	{
+		SanitizedName.ReplaceCharInline(*InvalidObjectChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidObjectChar;
+	}
+
+	const TCHAR* InvalidPackageChar = INVALID_LONGPACKAGE_CHARACTERS;
+	while (*InvalidPackageChar)
+	{
+		SanitizedName.ReplaceCharInline(*InvalidPackageChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidPackageChar;
+	}
+
+	return SanitizedName;
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, const UNiagaraEmitter*>& ScriptToEmitterMap)
 {
@@ -1093,3 +1132,6 @@ bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
 
 	return true;
 }
+
+const FString FNiagaraCompileOptions::CpuScriptDefine = TEXT("CPUSim");
+const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");

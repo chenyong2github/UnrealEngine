@@ -103,10 +103,13 @@ static bool IsPointLightSupported(const UPointLightComponent* InLight)
 {
 	if (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && InLight->IsMovable())
 	{
-		// if project does not support dynamic point lights on mobile do not add them to the renderer 
-		static auto* CVarPointLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
-		const bool bPointLights = CVarPointLights->GetValueOnAnyThread() > 0;
-		return bPointLights;
+		if (!IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
+		{
+			// if project does not support dynamic point lights on mobile do not add them to the renderer 
+			static auto* CVarPointLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
+			const bool bPointLights = CVarPointLights->GetValueOnAnyThread() > 0;
+			return bPointLights;
+		}
 	}
 	return true;
 }

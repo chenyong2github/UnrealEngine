@@ -7,6 +7,7 @@
 #include "ShadingCommon.ush"
 #include "ShadowFilteringCommon.ush"
 #include "DeferredShadingCommon.ush"
+#include "HairBsdf.ush"
 
 #ifndef FEATURE_GATHER4
 #define FEATURE_GATHER4 1
@@ -140,12 +141,12 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 #endif
 }
 
-half CalcSpecular(half Roughness, half NoH, half3 H, half3 N)
+half CalcSpecular(half Roughness, half NoH)
 {
-	return (Roughness*0.25 + 0.25) * GGX_Mobile(Roughness, NoH, H, N);
+	return (Roughness*0.25 + 0.25) * GGX_Mobile(Roughness, NoH);
 }
 
-FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half3 V, half3 N, half3 H, half NoH)
+FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half3 V, half3 H, half NoH)
 {
 	FMobileDirectLighting Lighting;
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT
@@ -163,7 +164,7 @@ FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingMode
 	half Vis_SmithL = ShadingModelContext.NoV * (NoL * (1 - a) + a);
 	float Vis = 0.5 * rcp(Vis_SmithV + Vis_SmithL);
 
-	Lighting.Specular = NoL * ShadingModelContext.ClearCoat * F * Vis * GGX_Mobile(ClearCoatRoughness, NoH, H, N);
+	Lighting.Specular = NoL * ShadingModelContext.ClearCoat * F * Vis * GGX_Mobile(ClearCoatRoughness, NoH);
 
 	half Eta = 0.66666667f;
 	half RefractionBlendFactor = (0.63 - 0.22 * VoH) * VoH - 0.745;
@@ -196,12 +197,16 @@ FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingMode
 	half3 RefractedDiffuse = (LayerAttenuation * BottomNoL) * Transmission;
 	Lighting.Diffuse = CommonDiffuse * lerp(DefaultDiffuse, RefractedDiffuse, ShadingModelContext.ClearCoat);
 
-	half3 CommonSpecular = ShadingModelContext.SpecularColor * CalcSpecular(GBuffer.Roughness, NoH, H, N);
+	half3 CommonSpecular = ShadingModelContext.SpecularColor * CalcSpecular(GBuffer.Roughness, NoH);
 	half3 DefaultSpecular = NoL;
 	half3 RefractedSpecular = LayerAttenuation * Transmission * BottomNoL;
 	Lighting.Specular += CommonSpecular * lerp(DefaultSpecular, RefractedSpecular, ShadingModelContext.ClearCoat);
+#elif MATERIAL_SHADINGMODEL_HAIR
+	 // TODO transmittance
+	Lighting.Specular = half3(0, 0, 0);
+	Lighting.Diffuse = half3(0, 0, 0);
 #else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
-	Lighting.Specular = ShadingModelContext.SpecularColor * (NoL * CalcSpecular(GBuffer.Roughness, NoH, H, N));
+	Lighting.Specular = ShadingModelContext.SpecularColor * (NoL * CalcSpecular(GBuffer.Roughness, NoH));
 	Lighting.Diffuse = NoL * ShadingModelContext.DiffuseColor;
 #endif
 	return Lighting;
@@ -228,7 +233,7 @@ return ShadowMap;
 
 half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
 {
-	half Shadow = 1;
+	half ShadowMap = 1;
 	FPCFSamplerSettings Settings;
 	Settings.ShadowDepthTexture = MobileDirectionalLight.DirectionalLightShadowTexture;
 	Settings.ShadowDepthTextureSampler = MobileDirectionalLight.DirectionalLightShadowSampler;
@@ -262,19 +267,13 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
 		float LightSpacePixelDepthForOpaque = min(ShadowPosition.z, 0.99999f);
 		Settings.SceneDepth = LightSpacePixelDepthForOpaque;
 
-		half ShadowMap = MobileShadowPCF(ShadowPosition.xy, Settings);
+		ShadowMap = MobileShadowPCF(ShadowPosition.xy, Settings);
 
 		#if FADE_CSM
 			float Fade = saturate(SceneDepth * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.x + MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.y);
-		// lerp out shadow based on fade params.
+			// lerp out shadow based on fade params.
 			ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
 		#endif
-
-		#if MOVABLE_DIRECTIONAL_LIGHT
-			Shadow = ShadowMap;
-		#else
-			Shadow = min(ShadowMap, Shadow);
-		#endif
 	}
-	return Shadow;
+	return ShadowMap;
 }

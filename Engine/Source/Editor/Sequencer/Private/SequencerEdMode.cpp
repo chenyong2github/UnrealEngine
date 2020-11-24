@@ -25,7 +25,9 @@
 #include "EditorWorldExtension.h"
 #include "ViewportWorldInteraction.h"
 #include "SSequencer.h"
-#include "Evaluation/MovieScene3DTransformTemplate.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "SequencerSectionPainter.h"
 #include "MovieSceneToolHelpers.h"
 
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
@@ -34,6 +36,90 @@ static TAutoConsoleVariable<bool> CVarDrawMeshTrails(
 	TEXT("Sequencer.DrawMeshTrails"),
 	true,
 	TEXT("Toggle to show or hide Level Sequencer VR Editor trails"));
+
+namespace UE
+{
+namespace SequencerEdMode
+{
+
+static const float DrawTrackTimeRes = 0.1f;
+
+struct FTrackTransforms
+{
+	TArray<FFrameTime> Times;
+	TArray<FTransform> Transforms;
+
+	void Initialize(UObject* BoundObject, TArrayView<const FTrajectoryKey> TrajectoryKeys, ISequencer* Sequencer)
+	{
+		using namespace UE::MovieScene;
+
+		// Hack: static system interrogator for now to avoid re-allocating UObjects all the time
+		static FSystemInterrogator Interrogator;
+		Interrogator.Reset();
+
+		USceneComponent* SceneComponent = Cast<USceneComponent>(BoundObject);
+		if (!SceneComponent)
+		{
+			AActor* Actor = Cast<AActor>(BoundObject);
+			SceneComponent = Actor ? Actor->GetRootComponent() : nullptr;
+		}
+
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+
+		TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
+
+		Times.Reserve(TrajectoryKeys.Num());
+
+		FInterrogationChannel Channel = Interrogator.ImportTransformHierarchy(SceneComponent, Sequencer, Sequencer->GetFocusedTemplateID());
+
+		if (TrajectoryKeys.Num() > 0)
+		{
+			Times.Add(TrajectoryKeys[0].Time);
+			Interrogator.AddInterrogation(TrajectoryKeys[0].Time);
+		}
+
+		const int32 NumTrajectoryKeys = TrajectoryKeys.Num();
+		for (int32 Index = 0; Index < TrajectoryKeys.Num(); ++Index)
+		{
+			const FTrajectoryKey& ThisKey = TrajectoryKeys[Index];
+
+			Times.Add(ThisKey.Time);
+			Interrogator.AddInterrogation(ThisKey.Time);
+
+			const bool bIsConstantKey = ThisKey.Is(ERichCurveInterpMode::RCIM_Constant);
+			if (!bIsConstantKey && Index != NumTrajectoryKeys-1)
+			{
+				const FTrajectoryKey& NextKey = TrajectoryKeys[Index+1];
+
+				FFrameTime Diff = NextKey.Time - ThisKey.Time;
+				int32 NumSteps = FMath::CeilToInt(TickResolution.AsSeconds(Diff) / DrawTrackTimeRes);
+				// Limit the number of steps to prevent a rendering performance hit
+				NumSteps = FMath::Min( 100, NumSteps );
+
+				// Ensure that sub steps evaluate at equal points between the key times such that a NumSteps=2 results in:
+				// PrevKey          step1          step2         ThisKey
+				// |                  '              '              |
+				NumSteps += 1;
+				for (int32 Substep = 1; Substep < NumSteps; ++Substep)
+				{
+					FFrameTime Time = ThisKey.Time + (Diff * float(Substep)/NumSteps);
+
+					Times.Add(Time);
+					Interrogator.AddInterrogation(Time);
+				}
+			}
+		}
+
+		Interrogator.Update();
+		Interrogator.QueryWorldSpaceTransforms(Channel, Transforms);
+
+		check(Transforms.Num() == Times.Num());
+		Interrogator.Reset();
+	}
+};
+
+} // namespace SequencerEdMode
+} // namespace UE
 
 FSequencerEdMode::FSequencerEdMode()
 {
@@ -265,24 +351,13 @@ void FSequencerEdMode::CleanUpMeshTrails()
 	MeshTrails.Empty();
 }
 
-namespace SequencerEdMode_Draw3D
-{
-static const FColor	KeySelectedColor(255,128,0);
-static const float	DrawTrackTimeRes = 0.1f;
-static const float	CurveHandleScale = 0.5f;
-}
-
-
-
 void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequencer, FPrimitiveDrawInterface* PDI,
 											UMovieScene3DTransformTrack* TransformTrack, TArrayView<const TWeakObjectPtr<>> BoundObjects, const bool bIsSelected)
 {
-	bool bHitTesting = true;
-	if( PDI != nullptr )
-	{
-		bHitTesting = PDI->IsHitTesting();
-	}
-	
+	using namespace UE::MovieScene;
+
+	const bool bHitTesting = PDI && PDI->IsHitTesting();
+
 	ASequencerMeshTrail* TrailActor = nullptr;
 	// Get the Trail Actor associated with this track if we are drawing mesh trails
 	if (bDrawMeshTrails)
@@ -316,168 +391,127 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 	
 	FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 
-	FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
-	FMovieSceneCompiledDataID SubDataID = Instance.GetCompiledDataManager()->GetSubDataID(Instance.GetCompiledDataID(), Sequencer->GetFocusedTemplateID());
-	const FMovieSceneEvaluationTemplate* Template = SubDataID.IsValid() ? Instance.GetCompiledDataManager()->FindTrackTemplate(SubDataID) : nullptr;
-
-	if (!bShowTrajectory || !Template || !TransformTrack->GetAllSections().ContainsByPredicate([](UMovieSceneSection* In){ return In->IsActive(); }))
+	if (!bShowTrajectory || !TransformTrack->GetAllSections().ContainsByPredicate([](UMovieSceneSection* In){ return In->IsActive(); }))
 	{
 		return;
 	}
 
-	FLinearColor TrackColor = TransformTrack->GetColorTint();
-	// Draw one line per-track (should only really ever be one)
-	if (const FMovieSceneEvaluationTrack * EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), TransformTrack->GetSignature()))
-	{
-		TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
+	TArray<UMovieScene3DTransformSection*> AllSectionsScratch;
 
-		TArray<FTrajectoryKey> TrajectoryKeys = TransformTrack->GetTrajectoryData(Sequencer->GetLocalTime().Time.FrameNumber, Sequencer->GetSequencerSettings()->GetTrajectoryPathCap(), ViewRange);
-		for (TWeakObjectPtr<> WeakBinding : BoundObjects)
+	FLinearColor TrackColor = FSequencerSectionPainter::BlendColor(TransformTrack->GetColorTint());
+	FColor       KeyColor   = TrackColor.ToFColor(true);
+
+	// Draw one line per-track (should only really ever be one)
+	TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
+
+	TArray<FTrajectoryKey> TrajectoryKeys = TransformTrack->GetTrajectoryData(Sequencer->GetLocalTime().Time.FrameNumber, Sequencer->GetSequencerSettings()->GetTrajectoryPathCap(), ViewRange);
+	for (TWeakObjectPtr<> WeakBinding : BoundObjects)
+	{
+		UObject* BoundObject = WeakBinding.Get();
+		if (!BoundObject)
 		{
-			UObject* BoundObject = WeakBinding.Get();
-			if (!BoundObject)
+			continue;
+		}
+
+		UE::SequencerEdMode::FTrackTransforms TrackTransforms;
+		TrackTransforms.Initialize(BoundObject, TrajectoryKeys, Sequencer.Get());
+
+		int32 TransformIndex = 0;
+
+		for (int32 TrajectoryIndex = 0; TrajectoryIndex < TrajectoryKeys.Num(); ++TrajectoryIndex)
+		{
+			const FTrajectoryKey& ThisKey = TrajectoryKeys[TrajectoryIndex];
+			FTransform ThisTransform = TrackTransforms.Transforms[TransformIndex];
+
+			if (TrajectoryIndex < TrajectoryKeys.Num()-1)
+			{
+				FFrameTime NextKeyTime = TrajectoryKeys[TrajectoryIndex+1].Time;
+
+				// Draw all the interpolated times between this and the next key
+				FVector StartPosition = TrackTransforms.Transforms[TransformIndex].GetTranslation();
+				++TransformIndex;
+
+				const bool bIsConstantKey = ThisKey.Is(ERichCurveInterpMode::RCIM_Constant);
+				if (bIsConstantKey)
+				{
+					if (PDI)
+					{
+						FVector EndPosition = TrackTransforms.Transforms[TransformIndex].GetTranslation();
+						DrawDashedLine(PDI, StartPosition, EndPosition, TrackColor, 20, SDPG_Foreground);
+					}
+				}
+				else
+				{
+					// Draw intermediate segments
+					for ( ; TransformIndex < TrackTransforms.Times.Num() && TrackTransforms.Times[TransformIndex] < NextKeyTime; ++TransformIndex )
+					{
+						FTransform EndTransform = TrackTransforms.Transforms[TransformIndex];
+
+						if (PDI)
+						{
+							PDI->DrawLine(StartPosition, EndTransform.GetTranslation(), TrackColor, SDPG_Foreground);
+						}
+						else if (TrailActor)
+						{
+							FTransform FrameTransform = EndTransform;
+							FrameTransform.SetScale3D(FVector(3.0f));
+
+							FFrameTime FrameTime = TrackTransforms.Times[TransformIndex];
+							TrailActor->AddFrameMeshComponent(FrameTime / TickResolution, FrameTransform);
+						}
+
+						StartPosition = EndTransform.GetTranslation();
+					}
+
+					// Draw the final segment
+					if (PDI && TrackTransforms.Times[TransformIndex] == NextKeyTime)
+					{
+						FTransform EndTransform = TrackTransforms.Transforms[TransformIndex];
+						PDI->DrawLine(StartPosition, EndTransform.GetTranslation(), TrackColor, SDPG_Foreground);
+					}
+				}
+			}
+
+			// If this trajectory key does not have any key handles associated with it, we've nothing left to do
+			if (ThisKey.KeyData.Num() == 0)
 			{
 				continue;
 			}
-			TArray<const UObject *> Parents;
-			MovieSceneToolHelpers::GetParents(Parents, BoundObject);
 
-			FVector OldKeyPos(0);
- 			FFrameTime OldKeyTime = 0;
-			int KeyTimeIndex = 0;
-			FTransform OldPosRefTM;;
-			FVector OldPos_G;
-			//We cache the key times and positions so we don't have to calculate it twice.
-			//In particularly in same cases calling GetRefFrame may be heavy.
-			//We cache time also so we get cache coherence when iterating over them later.
-			struct FKeyPositionRotation
+			if (bHitTesting && PDI)
 			{
-				FVector Position;
-				FRotator Rotation;
-				FVector WorldPosition;
-				FTrajectoryKey TrajectoryKey;
-
-				FKeyPositionRotation(const FTrajectoryKey &InTrajKey, const FVector &InPos, const FRotator &InRot, const FVector &InWorldPos) : 
-					 Position(InPos), Rotation(InRot), WorldPosition(InWorldPos), TrajectoryKey(InTrajKey) {}
-			};
-			TArray<FKeyPositionRotation> KeyPosRots;
-			KeyPosRots.Reserve(TrajectoryKeys.Num());
-			for (const FTrajectoryKey& NewTrajectoryKey : TrajectoryKeys)
-			{
-				if (NewTrajectoryKey.KeyData.Num() == 0)
-				{
-					continue;
-				}
-
-				FFrameTime NewKeyTime = NewTrajectoryKey.Time;
-
-				FVector NewKeyPos(0);
-				FRotator NewKeyRot(0,0,0);
-
-				MovieSceneToolHelpers::GetLocationAtTime(EvalTrack, BoundObject, NewKeyTime, NewKeyPos, NewKeyRot, Sequencer);
-				FTransform NewPosRefTM = MovieSceneToolHelpers::GetRefFrameFromParents(Sequencer, Parents, NewKeyTime);
-				FVector NewKeyPos_G = NewPosRefTM.TransformPosition(NewKeyPos);
-				FKeyPositionRotation KeyPosRot(NewTrajectoryKey,NewKeyPos, NewKeyRot, NewKeyPos_G);
-				KeyPosRots.Push(KeyPosRot);
-				// If not the first keypoint, draw a line to the last keypoint.
-				if(KeyTimeIndex > 0)
-				{
-					int32 NumSteps = FMath::CeilToInt((TickResolution.AsSeconds(NewKeyTime) - TickResolution.AsSeconds(OldKeyTime)) / SequencerEdMode_Draw3D::DrawTrackTimeRes);
-					// Limit the number of steps to prevent a rendering performance hit
-					NumSteps = FMath::Min( 100, NumSteps );
-					FFrameTime DrawSubstep = NumSteps == 0 ? 0 : (NewKeyTime - OldKeyTime)*(1.f/NumSteps);
-					// Find position on first keyframe.
-					FFrameTime OldTime = OldKeyTime;
-					FVector OldPos(0);
-					FRotator OldRot(0,0,0);
-					MovieSceneToolHelpers::GetLocationAtTime(EvalTrack, BoundObject, OldKeyTime, OldPos, OldRot, Sequencer);
-
-					const bool bIsConstantKey = NewTrajectoryKey.Is(ERichCurveInterpMode::RCIM_Constant);
-					// For constant interpolation - don't draw ticks - just draw dotted line.
-					if (bIsConstantKey)
-					{
-						if(PDI != nullptr)
-						{
-							DrawDashedLine(PDI, OldPos_G, NewKeyPos_G, TrackColor, 20, SDPG_Foreground);
-						}
-					}
-					else
-					{
-						// Then draw a line for each substep.
-						for (int32 j=1; j<NumSteps+1; j++)
-						{
-							FFrameTime NewTime = OldKeyTime + DrawSubstep*j;
-
-							FVector NewPos(0);
-							FRotator NewRot(0,0,0);
-							MovieSceneToolHelpers::GetLocationAtTime(EvalTrack, BoundObject, NewTime, NewPos, NewRot, Sequencer);
-
-							FTransform RefTM = MovieSceneToolHelpers::GetRefFrameFromParents(Sequencer, Parents, NewTime);
-
-							FVector NewPos_G = RefTM.TransformPosition(NewPos);
-							if (PDI != nullptr)
-							{
-								PDI->DrawLine(OldPos_G, NewPos_G, TrackColor, SDPG_Foreground);
-							}
-							// Drawing frames
-							// Don't draw point for last one - its the keypoint drawn above.
-							if (j != NumSteps)
-							{
-								if (PDI != nullptr)
-								{
-									PDI->DrawPoint(NewPos_G, TrackColor, 3.f, SDPG_Foreground);
-								}
-								else if (TrailActor != nullptr)
-								{
-									TrailActor->AddFrameMeshComponent(NewTime / TickResolution, FTransform(NewRot, NewPos, FVector(3.0f)));
-								}
-							}
-							OldTime = NewTime;
-							OldPos_G = NewPos_G;
-						}
-					}
-				}
-				OldPosRefTM = NewPosRefTM;
-				OldPos_G = NewKeyPos_G;
-				OldKeyTime = NewKeyTime;
-				OldKeyPos = NewKeyPos;
-				++KeyTimeIndex;
+				PDI->SetHitProxy(new HMovieSceneKeyProxy(TransformTrack, ThisKey));
 			}
 
-			// Draw keypoints on top of curve
-			FColor KeyColor = TrackColor.ToFColor(true);
-			for (const FKeyPositionRotation& KeyPosRot: KeyPosRots)
+			// Drawing keys
+			if (PDI != nullptr)
 			{
-				if (bHitTesting && PDI) 
+				if (bHitTesting)
 				{
-					PDI->SetHitProxy(new HMovieSceneKeyProxy(TransformTrack, KeyPosRot.TrajectoryKey));
+					PDI->SetHitProxy(new HMovieSceneKeyProxy(TransformTrack, ThisKey));
 				}
 
-				// Drawing keys
-				if (PDI != nullptr)
-				{
-					PDI->DrawPoint(KeyPosRot.WorldPosition, KeyColor, 6.f, SDPG_Foreground);
-				}
-				else if (TrailActor != nullptr)
-				{
-					TArray<UMovieScene3DTransformSection*> AllSections;
-					for (const FTrajectoryKey::FData& Value : KeyPosRot.TrajectoryKey.KeyData)
-					{
-						if (UMovieScene3DTransformSection* Section = Value.Section.Get())
-						{
-							AllSections.AddUnique(Section);
-						}
-					}
+				PDI->DrawPoint(ThisTransform.GetTranslation(), KeyColor, 6.f, SDPG_Foreground);
 
-					for (UMovieScene3DTransformSection* Section : AllSections)
-					{
-						TrailActor->AddKeyMeshActor(KeyPosRot.TrajectoryKey.Time / TickResolution, FTransform(KeyPosRot.Rotation, KeyPosRot.Position, FVector(3.0f)), Section);
-					}
-				}
-
-				if (bHitTesting && PDI) 
+				if (bHitTesting)
 				{
 					PDI->SetHitProxy(nullptr);
+				}
+			}
+			else if (TrailActor != nullptr)
+			{
+				AllSectionsScratch.Reset();
+				for (const FTrajectoryKey::FData& Value : ThisKey.KeyData)
+				{
+					UMovieScene3DTransformSection* Section = Value.Section.Get();
+					if (Section && !AllSectionsScratch.Contains(Section))
+					{
+						FTransform MeshTransform = ThisTransform;
+						MeshTransform.SetScale3D(FVector(3.0f));
+
+						TrailActor->AddKeyMeshActor(ThisKey.Time / TickResolution, MeshTransform, Section);
+						AllSectionsScratch.Add(Section);
+					}
 				}
 			}
 		}

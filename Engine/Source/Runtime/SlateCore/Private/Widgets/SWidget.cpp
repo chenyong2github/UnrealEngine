@@ -332,6 +332,7 @@ void SWidget::Construct(
 		// If someone specified a text binding, make a tooltip out of it
 		SetToolTipText(InToolTipText);
 	}
+
 	SetCursor(InCursor);
 
 #if WITH_ACCESSIBILITY

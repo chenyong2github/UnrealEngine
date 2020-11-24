@@ -63,7 +63,6 @@
 		TP_VehicleAdvBP
 		TP_VehicleBP
 		TP_VirtualRealityBP
-		TP_CollaborativeBP
 	</Property>
 
 	<!-- List of projects to build DDC for -->
@@ -89,6 +88,8 @@
 	</Property>
 	<!-- Win64 specific DDC -->
 	<Property Name="ProjectsToBuildDDCWin64" Value="$(ProjectsToBuildDDC)">
+		Templates/TP_InCamVFXBP/TP_InCamVFXBP.uproject
+		Templates/TP_DMXBP/TP_DMXBP.uproject
 	</Property>
 	
 	<!-- Define Editor Filters -->
@@ -292,6 +293,8 @@
 
 		<!-- Enterprise Templates -->
 		Templates/TP_HololensBP/...
+		Templates/TP_InCamVFXBP/...
+		Templates/TP_DMXBP/...
 
 		<!-- CsvTools binaries which are manually updated in P4 -->
 		Engine/Binaries/DotNET/CsvTools/...

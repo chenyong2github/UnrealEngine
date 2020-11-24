@@ -17,6 +17,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "ISoundfieldFormat.h"
 #include "Sound/SoundModulationDestination.h"
+#include "Sound/QuartzQuantizationUtilities.h"
 #include "Stats/Stats.h"
 
 // Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)

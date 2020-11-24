@@ -10,6 +10,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Layout/SBorder.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerTreeFilterStatusBar"
 
@@ -18,23 +20,34 @@ void SSequencerTreeFilterStatusBar::Construct(const FArguments& InArgs, TSharedP
 	WeakSequencer = InSequencer;
 
 	ChildSlot
-	.Padding(FMargin(5.f, 3.f))
+	.Padding(FMargin(5.f, 0.f))
 	[
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
-			SAssignNew(TextBlock, STextBlock)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(FMargin(3.0f, 3.0f))
+			[
+				SAssignNew(TextBlock, STextBlock)
+			]
 		]
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(FMargin(3.f, 0.f, 0.f, 0.f))
 		[
-			SNew(SHyperlink)
-			.Visibility(this, &SSequencerTreeFilterStatusBar::GetVisibilityFromFilter)
-			.Text(LOCTEXT("ClearFilters", "clear"))
-			.OnNavigate(this, &SSequencerTreeFilterStatusBar::ClearFilters)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(FMargin(3.0f, 3.0f))
+			[
+				SNew(SHyperlink)
+				.Visibility(this, &SSequencerTreeFilterStatusBar::GetVisibilityFromFilter)
+				.Text(LOCTEXT("ClearFilters", "clear"))
+				.OnNavigate(this, &SSequencerTreeFilterStatusBar::ClearFilters)
+			]
 		]
 	];
 }

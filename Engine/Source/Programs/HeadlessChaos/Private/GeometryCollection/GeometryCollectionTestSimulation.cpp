@@ -19,6 +19,7 @@
 #include "HeadlessChaosTestUtility.h"
 
 #define SMALL_THRESHOLD 1e-4
+#define MEDIUM_THRESHOLD 5e-2
 
 // #TODO Lots of duplication in here, anyone making solver or object changes
 // has to go and fix up so many callsites here and they're all pretty much
@@ -68,7 +69,7 @@ namespace GeometryCollectionTest
 		{
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD);
 			EXPECT_EQ(Collection->DynamicCollection->Transform.Num(), 1);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale), SMALL_THRESHOLD);
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale), MEDIUM_THRESHOLD);
 		}
 	}
 
@@ -122,7 +123,7 @@ namespace GeometryCollectionTest
 		{
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD);
 			EXPECT_EQ(Collection->DynamicCollection->Transform.Num(), 1);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale[0]), SMALL_THRESHOLD);
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale[0]), MEDIUM_THRESHOLD);
 		}
 	}
 

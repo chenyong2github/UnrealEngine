@@ -10,6 +10,16 @@ namespace UE
 namespace MovieScene
 {
 
+FEntityAllocation* FEntityAllocationIteratorItem::GetAllocation() const
+{
+	return Manager->EntityAllocations[AllocationIndex];
+}
+
+const FComponentMask& FEntityAllocationIteratorItem::GetAllocationType() const
+{
+	return Manager->EntityAllocationMasks[AllocationIndex];
+}
+
 FEntityAllocationIterator::FEntityAllocationIterator(const FEntityManager* InManager)
 	: Filter(nullptr)
 	, Manager(InManager)
@@ -60,9 +70,9 @@ FEntityAllocationIterator& FEntityAllocationIterator::operator++()
 }
 
 
-FEntityAllocation* FEntityAllocationIterator::operator*() const
+FEntityAllocationIteratorItem FEntityAllocationIterator::operator*() const
 {
-	return Manager->EntityAllocations[AllocationIndex];
+	return FEntityAllocationIteratorItem(Manager, AllocationIndex);
 }
 
 

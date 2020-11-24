@@ -194,6 +194,11 @@ void UpdateTranslucentMeshSortKeys(
 			Distance = ViewMatrix.TransformPosition(BoundsOrigin).Z;
 		}
 
+		// Apply distance offset from the primitive
+		const uint32 PackedOffset = VisibleCommand.SortKey.Translucent.Distance;
+		const float DistanceOffset = *((float*)&PackedOffset);
+		Distance += DistanceOffset;
+
 		// Patch distance inside translucent mesh sort key.
 		FMeshDrawCommandSortKey SortKey;
 		SortKey.PackedData = VisibleCommand.SortKey.PackedData;

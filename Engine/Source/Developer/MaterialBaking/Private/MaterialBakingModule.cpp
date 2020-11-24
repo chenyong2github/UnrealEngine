@@ -242,25 +242,27 @@ namespace FMaterialBakingModuleImpl
 void FMaterialBakingModule::StartupModule()
 {
 	// Set which properties should enforce gamma correction
-	FMemory::Memset(PerPropertyGamma, (uint8)false);
-	PerPropertyGamma[MP_Normal] = true;
-	PerPropertyGamma[MP_Opacity] = true;
-	PerPropertyGamma[MP_OpacityMask] = true;
+	PerPropertyGamma.Add(MP_Normal);
+	PerPropertyGamma.Add(MP_Opacity);
+	PerPropertyGamma.Add(MP_OpacityMask);
+	PerPropertyGamma.Add(TEXT("ClearCoatBottomNormal"));
 
 	// Set which pixel format should be used for the possible baked out material properties
-	FMemory::Memset(PerPropertyFormat, (uint8)PF_Unknown);
-	PerPropertyFormat[MP_EmissiveColor] = PF_FloatRGBA;
-	PerPropertyFormat[MP_Opacity] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_OpacityMask] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_BaseColor] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Metallic] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Specular] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Roughness] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Anisotropy] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Normal] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_Tangent] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_AmbientOcclusion] = PF_B8G8R8A8;
-	PerPropertyFormat[MP_SubsurfaceColor] = PF_B8G8R8A8;
+	PerPropertyFormat.Add(MP_EmissiveColor, PF_FloatRGBA);
+	PerPropertyFormat.Add(MP_Opacity, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_OpacityMask, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_BaseColor, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Metallic, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Specular, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Roughness, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Anisotropy, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Normal, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Tangent, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_AmbientOcclusion, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_SubsurfaceColor, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_CustomData0, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_CustomData1, PF_B8G8R8A8);
+	PerPropertyFormat.Add(TEXT("ClearCoatBottomNormal"), PF_B8G8R8A8);
 
 	// Register property customization
 	FPropertyEditorModule& Module = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -283,6 +285,47 @@ void FMaterialBakingModule::ShutdownModule()
 }
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)
+{
+	TArray<FMaterialDataEx> MaterialDataExs;
+	TArray<FMaterialDataEx*> MaterialSettingsEx;
+
+	// Translate old material data to extended types
+	for (const FMaterialData* MaterialData : MaterialSettings)
+	{
+		FMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
+		MaterialDataEx.Material = MaterialData->Material;
+		MaterialDataEx.bPerformBorderSmear = MaterialData->bPerformBorderSmear;
+
+		for (const TPair<EMaterialProperty, FIntPoint>& PropertySizePair : MaterialData->PropertySizes)
+		{
+			MaterialDataEx.PropertySizes.Add(PropertySizePair.Key, PropertySizePair.Value);
+		}
+
+		MaterialSettingsEx.Add(&MaterialDataEx);
+	}
+
+	TArray<FBakeOutputEx> BakeOutputExs;
+	BakeMaterials(MaterialSettingsEx, MeshSettings, BakeOutputExs);
+
+	// Translate extended bake output to old types
+	for (FBakeOutputEx& BakeOutputEx : BakeOutputExs)
+	{
+		FBakeOutput& BakeOutput = Output.AddDefaulted_GetRef();
+		BakeOutput.EmissiveScale = BakeOutputEx.EmissiveScale;
+
+		for (TPair<FMaterialPropertyEx, FIntPoint>& PropertySizePair : BakeOutputEx.PropertySizes)
+		{
+			BakeOutput.PropertySizes.Add(PropertySizePair.Key.Type, PropertySizePair.Value);
+		}
+
+		for (TPair<FMaterialPropertyEx, TArray<FColor>>& PropertyDataPair : BakeOutputEx.PropertyData)
+		{
+			BakeOutput.PropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
+		}
+	}
+}
+
+void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::BakeMaterials)
 
@@ -334,15 +377,15 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareRenderItems);
 		
 		TMap<FMaterialBakingModuleImpl::FRenderItemKey, FMeshMaterialRenderItem*>* RenderItems = new TMap<FRenderItemKey, FMeshMaterialRenderItem *>();
-		const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+		const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 
-		for (TMap<EMaterialProperty, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
+		for (TMap<FMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 		{
 			FRenderItemKey RenderItemKey(CurrentMeshSettings, PropertySizeIterator.Value());
 			if (RenderItems->Find(RenderItemKey) == nullptr)
 			{
-				RenderItems->Add(RenderItemKey, new FMeshMaterialRenderItem(CurrentMaterialSettings, CurrentMeshSettings, PropertySizeIterator.Key(), &MaterialBakingDynamicMeshBufferAllocator));
+				RenderItems->Add(RenderItemKey, new FMeshMaterialRenderItem(PropertySizeIterator.Value(), CurrentMeshSettings, &MaterialBakingDynamicMeshBufferAllocator));
 			}
 		}
 
@@ -371,7 +414,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		for (int32 Index = 0; Index < NumMaterials; ++Index)
 		{
 			int32 MaterialIndex = ProcessingOrder[Index];
-			const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+			const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 
 			TArray<UTexture*> MaterialTextures;
 			CurrentMaterialSettings->Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
@@ -396,7 +439,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 				}
 			}
 
-			for (TMap<EMaterialProperty, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
+			for (TMap<FMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 			{
 				// They will be stored in the pool and compiled asynchronously
 				CreateMaterialProxy(CurrentMaterialSettings->Material, PropertySizeIterator.Key());
@@ -436,11 +479,11 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 			NextRenderItem++;
 		}
 
-		const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+		const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
-		FBakeOutput& CurrentOutput = Output[MaterialIndex];
+		FBakeOutputEx& CurrentOutput = Output[MaterialIndex];
 
-		TArray<EMaterialProperty> MaterialPropertiesToBakeOut;
+		TArray<FMaterialPropertyEx> MaterialPropertiesToBakeOut;
 		CurrentMaterialSettings->PropertySizes.GenerateKeyArray(MaterialPropertiesToBakeOut);
 
 		const int32 NumPropertiesToRender = MaterialPropertiesToBakeOut.Num();
@@ -452,13 +495,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 			CurrentOutput.PropertySizes = CurrentMaterialSettings->PropertySizes;
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
-				const EMaterialProperty Property = MaterialPropertiesToBakeOut[PropertyIndex];
+				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
 				CurrentOutput.PropertyData.Add(Property);
 			}
 
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
-				const EMaterialProperty Property = MaterialPropertiesToBakeOut[PropertyIndex];
+				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
 				FExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(CurrentMaterialSettings->Material, Property);
 
 				if (!ExportMaterialProxy->IsCompilationFinished())
@@ -467,9 +510,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 					ExportMaterialProxy->FinishCompilation();
 				}
 
+				// Lookup gamma and format settings for property, if not found use default values
+				bool InForceLinearGamma = PerPropertyGamma.Contains(Property);
+				EPixelFormat PixelFormat = PerPropertyFormat.Contains(Property) ? PerPropertyFormat[Property] : PF_B8G8R8A8;
+
 				// It is safe to reuse the same render target for each draw pass since they all execute sequentially on the GPU and are copied to staging buffers before
 				// being reused.
-				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(PerPropertyGamma[Property], PerPropertyFormat[Property], CurrentOutput.PropertySizes[Property]);
+				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(InForceLinearGamma, PixelFormat, CurrentOutput.PropertySizes[Property]);
 				if (RenderTarget != nullptr)
 				{
 					// Perform everything left of the operation directly on the render thread since we need to modify some RenderItem's properties
@@ -478,7 +525,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 					ENQUEUE_RENDER_COMMAND(RenderOneMaterial)(
 						[this, RenderItems, RenderTarget, Property, ExportMaterialProxy, &PipelineContext, PipelineIndex, &StagingBufferPool, &NumTasks, bSaveIntermediateTextures, &MaterialSettings, &MeshSettings, MaterialIndex, &Output](FRHICommandListImmediate& RHICmdList)
 						{
-							const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+							const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 							const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 
 							FMeshMaterialRenderItem& RenderItem = *RenderItems->FindChecked(FRenderItemKey(CurrentMeshSettings, FIntPoint(RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight())));
@@ -488,7 +535,6 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 								.SetWorldTimes(0.0f, 0.0f, 0.0f)
 								.SetGammaCorrection(RenderTarget->GetRenderTargetResource()->GetDisplayGamma()));
 
-							RenderItem.MaterialProperty = Property;
 							RenderItem.MaterialRenderProxy = ExportMaterialProxy;
 							RenderItem.ViewFamily = &ViewFamily;
 
@@ -505,7 +551,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 							Canvas.Flush_RenderThread(RHICmdList);
 							SortElement.RenderBatchArray.Empty();
 
-							FTexture2DRHIRef StagingBufferRef = StagingBufferPool.CreateStagingBuffer_RenderThread(RHICmdList, RenderTargetResource->GetSizeX(), RenderTargetResource->GetSizeY(), PerPropertyFormat[Property]);
+							FTexture2DRHIRef StagingBufferRef = StagingBufferPool.CreateStagingBuffer_RenderThread(RHICmdList, RenderTargetResource->GetSizeX(), RenderTargetResource->GetSizeY(), RenderTarget->GetFormat());
 							FGPUFenceRHIRef GPUFence = RHICreateGPUFence(TEXT("MaterialBackingFence"));
 
 							FResolveRect Rect(0, 0, RenderTargetResource->GetSizeX(), RenderTargetResource->GetSizeY());
@@ -519,15 +565,15 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FinalProcessing)
 
-									FBakeOutput& CurrentOutput  = Output[MaterialIndex];
+									FBakeOutputEx& CurrentOutput  = Output[MaterialIndex];
 									TArray<FColor>& OutputColor = CurrentOutput.PropertyData[Property];
 									FIntPoint& OutputSize       = CurrentOutput.PropertySizes[Property];
 
 									OutputColor.SetNum(OutputSize.X * OutputSize.Y);
 
-									if (Property == MP_EmissiveColor)
+									if (Property.Type == MP_EmissiveColor)
 									{
-										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutput
+										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutputEx
 										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale);
 									}
 									else
@@ -551,10 +597,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 									if (bSaveIntermediateTextures)
 									{
 										TRACE_CPUPROFILER_EVENT_SCOPE(SaveIntermediateTextures)
-										const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-										FName PropertyName = PropertyEnum->GetNameByValue(Property);
-										FString TrimmedPropertyName = PropertyName.ToString();
-										TrimmedPropertyName.RemoveFromStart(TEXT("MP_"));
+										FString TrimmedPropertyName = Property.ToString();
 
 										const FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("MaterialBaking/"));
 										FString FilenameString = FString::Printf(TEXT("%s%s-%d-%s.bmp"), *DirectoryPath, *CurrentMaterialSettings->Material->GetName(), MaterialIndex, *TrimmedPropertyName);
@@ -733,7 +776,7 @@ UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceL
 	return RenderTarget;
 }
 
-FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterface* Material, const EMaterialProperty Property)
+FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterface* Material, const FMaterialPropertyEx& Property)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateMaterialProxy)
 
@@ -756,7 +799,7 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 	// Not found, create a new entry
 	if (Proxy == nullptr)
 	{
-		Proxy = new FExportMaterialProxy(Material, Property, false /* bInSynchronousCompilation */);
+		Proxy = new FExportMaterialProxy(Material, Property.Type, Property.CustomOutput.ToString(), false /* bInSynchronousCompilation */);
 		MaterialProxyPool.Add(Material, FMaterialPoolValue(Property, Proxy));
 	}
 

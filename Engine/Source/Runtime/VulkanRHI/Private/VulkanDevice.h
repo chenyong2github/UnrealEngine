@@ -42,6 +42,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasNVDeviceDiagnosticConfig : 1;
 			uint32 HasYcbcrSampler : 1;
 			uint32 HasMemoryPriority : 1;
+			uint32 HasMemoryBudget : 1;
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
@@ -50,6 +51,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasQcomRenderPassTransform : 1;
 			uint32 HasAtomicInt64 : 1;
 			uint32 HasBufferAtomicInt64 : 1;
+			uint32 HasScalarBlockLayoutFeatures : 1;
 		};
 		uint32 Packed;
 	};

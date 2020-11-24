@@ -627,7 +627,7 @@ namespace Chaos
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
-		FAccelerationStructure* NewStruct;
+		FAccelerationStructure* NewStruct = nullptr;
 		while(ExternalStructuresQueue.Dequeue(NewStruct))	//get latest structure
 		{
 			//free old struct
@@ -639,7 +639,7 @@ namespace Chaos
 			StructToUpdate = NewStruct;
 		}
 
-		if (ensure(StructToUpdate))
+		if (ensure(StructToUpdate) && NewStruct != nullptr)
 		{
 			FlushExternalAccelerationQueue(*StructToUpdate, PendingExternal);
 		}
