@@ -17,7 +17,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	virtual TSharedRef<SWidget> MakeTurnkeyMenu() const override;
+	virtual TSharedRef<class SWidget> MakeTurnkeyMenu() const override;
 
 	/**
 	 * @return	The newly-created menu widget

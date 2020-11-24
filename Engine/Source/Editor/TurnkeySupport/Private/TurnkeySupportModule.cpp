@@ -2,7 +2,6 @@
 
 #include "TurnkeySupportModule.h"
 #include "TurnkeySupport.h"
-#include "TurnkeyEditorSupport.h"
 
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
@@ -38,12 +37,15 @@
 #include "Misc/MonitoredProcess.h"
 #include "EditorStyleSet.h"
 #include "CookerSettings.h"
+#include "TurnkeyEditorSupport.h"
 
 #include "Misc/App.h"
 #include "Framework/Application/SlateApplication.h"
 
 
-
+#if WITH_ENGINE
+#include "RenderUtils.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogTurnkeySupport);
 #define LOCTEXT_NAMESPACE "FTurnkeySupportModule"

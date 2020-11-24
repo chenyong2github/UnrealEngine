@@ -5,6 +5,7 @@
 
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "PlatformInfo.h"
