@@ -30,6 +30,9 @@ extern const TCHAR* GLiveCodingEngineDir;
 extern const TCHAR* GLiveCodingProject;
 #endif
 
+LPP_PRECOMPILE_HOOK(FLiveCodingModule::PreCompileHook);
+LPP_POSTCOMPILE_HOOK(FLiveCodingModule::PostCompileHook);
+
 FLiveCodingModule::FLiveCodingModule()
 	: bEnabledLastTick(false)
 	, bEnabledForSession(false)
@@ -428,6 +431,12 @@ void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason R
 
 bool FLiveCodingModule::ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const
 {
+	// For the hooks to work properly, we always have to load the live coding module
+	if (Name == TEXT(LIVE_CODING_MODULE_NAME))
+	{
+		return true;
+	}
+
 	if (Settings->PreloadNamedModules.Contains(Name))
 	{
 		return true;
@@ -470,6 +479,18 @@ bool FLiveCodingModule::ShouldPreloadModule(const FName& Name, const FString& Fu
 			return Settings->bPreloadEngineModules;
 		}
 	}
+}
+
+void FLiveCodingModule::PreCompileHook()
+{
+	UE_LOG(LogLiveCoding, Display, TEXT("Starting Live Coding compile."));
+	GIsCompileActive = true;
+}
+
+void FLiveCodingModule::PostCompileHook()
+{
+	UE_LOG(LogLiveCoding, Display, TEXT("Live Coding compile done.  See Live Coding console for more information."));
+	GIsCompileActive = false;
 }
 
 #undef LOCTEXT_NAMESPACE
