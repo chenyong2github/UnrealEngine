@@ -448,8 +448,9 @@ FQuadricAttr::FQuadricAttr(
 }
 
 void FQuadricAttr::Rebase(
-	const FVector& Point, const float* Attribute,
-	const float* AttributeWeights,
+	const FVector& RESTRICT Point,
+	const float* RESTRICT Attribute,
+	const float* RESTRICT AttributeWeights,
 	uint32 NumAttributes )
 {
 	//if( a < (QScalar)SMALL_NUMBER )
@@ -490,8 +491,9 @@ void FQuadricAttr::Rebase(
 
 void FQuadricAttr::Add(
 	const FQuadricAttr& RESTRICT q,
-	const FVector& Point, const float* Attribute,
-	const float* AttributeWeights,
+	const FVector& RESTRICT Point,
+	const float* RESTRICT Attribute,
+	const float* RESTRICT AttributeWeights,
 	uint32 NumAttributes )
 {
 	//if( q.a < (QScalar)SMALL_NUMBER )
@@ -542,6 +544,39 @@ void FQuadricAttr::Add(
 
 		dn += qd * qg[i];
 		d2 += qd * qda;
+	}
+	
+	a += q.a;
+}
+
+void FQuadricAttr::Add(
+	const FQuadricAttr& RESTRICT q,
+	uint32 NumAttributes )
+{
+	nxx += q.nxx;
+	nyy += q.nyy;
+	nzz += q.nzz;
+
+	nxy += q.nxy;
+	nxz += q.nxz;
+	nyz += q.nyz;
+
+	dn += q.dn;
+	d2 += q.d2;
+
+	nv += q.nv;
+	dv += q.dv;
+
+	QVec3* RESTRICT   g = (QVec3*)( this + 1 );
+	QScalar* RESTRICT d = (QScalar*)( g + NumAttributes );
+
+	QVec3* RESTRICT   qg = (QVec3*)( &q + 1 );
+	QScalar* RESTRICT qd = (QScalar*)( qg + NumAttributes );
+
+	for( uint32 i = 0; i < NumAttributes; i++ )
+	{
+		g[i] += qg[i];
+		d[i] += qd[i];
 	}
 	
 	a += q.a;
@@ -653,7 +688,7 @@ float FQuadricAttr::Evaluate( const FVector& Point, const float* RESTRICT Attrib
 	return Q;
 }
 
-float FQuadricAttr::CalcAttributesAndEvaluate( const FVector& Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
+float FQuadricAttr::CalcAttributesAndEvaluate( const FVector& RESTRICT Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
 {
 	// Q(v) = vt*A*v + 2*bt*v + c
 	

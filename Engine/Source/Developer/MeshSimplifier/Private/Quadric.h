@@ -343,6 +343,7 @@ public:
 
 	void		Rebase( const FVector& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes );
 	void		Add( const FQuadricAttr& q, const FVector& Point, const float* Attribute, const float* AttributeWeights, uint32 NumAttributes );
+	void		Add( const FQuadricAttr& q, uint32 NumAttributes );
 
 	void		Zero( uint32 NumAttributes );
 	

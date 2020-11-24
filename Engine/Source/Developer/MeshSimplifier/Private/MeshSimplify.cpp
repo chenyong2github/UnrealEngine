@@ -291,7 +291,7 @@ void FMeshSimplifier::GatherAdjTris( const FVector& Position, uint32 Flag, TArra
 	TArray< FWedgeVert, TInlineAllocator<16> > WedgeVerts;
 
 	ForAllCorners( Position,
-		[ this, &AdjTris, &WedgeVerts, &VertDegree, &Flag, &FlagsUnion ]( uint32 Corner )
+		[ this, &AdjTris, &WedgeVerts, &VertDegree, Flag, &FlagsUnion ]( uint32 Corner )
 		{
 			VertDegree++;
 			
@@ -345,7 +345,7 @@ void FMeshSimplifier::GatherAdjTris( const FVector& Position, uint32 Flag, TArra
 
 float FMeshSimplifier::EvaluateMerge( const FVector& Position0, const FVector& Position1, bool bMoveVerts )
 {
-	//check( Position0 != Position1 );
+	check( Position0 != Position1 );
 
 	// Find unique adjacent triangles
 	TArray< uint32, TInlineAllocator<16> > AdjTris;
@@ -388,7 +388,7 @@ float FMeshSimplifier::EvaluateMerge( const FVector& Position0, const FVector& P
 	{
 		uint32 TriIndex = AdjTris[ AdjTriIndex ];
 
-		auto& RESTRICT TriQuadric = GetTriQuadric( TriIndex );
+		FQuadricAttr& RESTRICT TriQuadric = GetTriQuadric( TriIndex );
 
 		uint32 WedgeID = WedgeDisjointSet.Find( AdjTriIndex );
 		int32 WedgeIndex = WedgeIDs.Find( WedgeID );
@@ -400,7 +400,7 @@ float FMeshSimplifier::EvaluateMerge( const FVector& Position0, const FVector& P
 			uint32 VertIndex0 = Indexes[ TriIndex * 3 ];
 			WedgeQuadric.Add( TriQuadric, GetPosition( VertIndex0 ) - Position0, GetAttributes( VertIndex0 ), AttributeWeights, NumAttributes );
 #else
-			WedgeQuadric += TriQuadric;
+			WedgeQuadric.Add( TriQuadric, NumAttributes );
 #endif
 		}
 		else
@@ -454,7 +454,8 @@ float FMeshSimplifier::EvaluateMerge( const FVector& Position0, const FVector& P
 #else
 					uint32 VertIndex0 = Indexes[ Corner ];
 					uint32 VertIndex1 = Indexes[ Cycle3( Corner ) ];
-					EdgeQuadric += FQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), GetNormal( TriIndex ), EdgeWeight );
+					//EdgeQuadric += FQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), GetNormal( TriIndex ), EdgeWeight );
+					EdgeQuadric.Add( EdgeQuadrics[ Corner ], GetPosition( Indexes[ Corner ] ) - QuadricOrigin );
 #endif
 				}
 			}
@@ -684,8 +685,7 @@ float FMeshSimplifier::EvaluateMerge( const FVector& Position0, const FVector& P
 	}
 	else
 	{
-		//Error += Penalty;
-		Error *= 1.0f + Penalty;
+		Error += Penalty;
 	}
 
 	for( uint32 TriIndex : AdjTris )

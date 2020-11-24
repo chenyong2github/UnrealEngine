@@ -67,7 +67,7 @@ protected:
 	const int32 DegreeLimit			= 24;
 	const float DegreePenalty		= 0.5f;
 	const float LockPenalty			= 1e8f;
-	const float InversionPenalty	= 10.0f;
+	const float InversionPenalty	= 100.0f;
 
 	uint32		NumVerts;
 	uint32		NumIndexes;
