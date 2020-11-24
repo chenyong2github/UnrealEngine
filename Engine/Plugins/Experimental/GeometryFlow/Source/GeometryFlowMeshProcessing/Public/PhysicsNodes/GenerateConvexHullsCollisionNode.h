@@ -5,6 +5,7 @@
 #include "GeometryFlowCoreNodes.h"
 #include "GeometryFlowNodeUtil.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
+#include "DataTypes/DynamicMeshData.h"
 #include "DataTypes/CollisionGeometryData.h"
 #include "DataTypes/IndexSetsData.h"
 
