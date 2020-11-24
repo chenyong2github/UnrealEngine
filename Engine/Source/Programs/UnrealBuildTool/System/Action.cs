@@ -129,6 +129,12 @@ namespace UnrealBuildTool
 		/// True if any libraries produced by this action should be considered 'import libraries'
 		/// </summary>
 		bool bProducesImportLibrary { get; }
+
+		/// <summary>
+		/// Writes an action to a json file
+		/// </summary>
+		/// <param name="Writer">Writer to receive the output</param>
+		void ExportJson(JsonWriter Writer);
 	}
 
 	/// <summary>
@@ -244,6 +250,28 @@ namespace UnrealBuildTool
 			{
 				bCanExecuteRemotelyWithSNDBS = false;
 			}
+		}
+
+		public Action(IAction InOther)
+		{
+			ActionType = InOther.ActionType;
+			PrerequisiteItems = new List<FileItem>(InOther.PrerequisiteItems);
+			ProducedItems = new List<FileItem>(InOther.ProducedItems);
+			DeleteItems = new List<FileItem>(InOther.DeleteItems);
+			DependencyListFile = InOther.DependencyListFile;
+			CompiledModuleInterfaceFile = InOther.CompiledModuleInterfaceFile;
+			TimingFile = InOther.TimingFile;
+			WorkingDirectory = InOther.WorkingDirectory;
+			bPrintDebugInfo = InOther.bPrintDebugInfo;
+			CommandPath = InOther.CommandPath;
+			CommandArguments = InOther.CommandArguments;
+			CommandDescription = InOther.CommandDescription;
+			StatusDescription = InOther.StatusDescription;
+			bCanExecuteRemotely = InOther.bCanExecuteRemotely;
+			bCanExecuteRemotelyWithSNDBS = InOther.bCanExecuteRemotelyWithSNDBS;
+			bIsGCCCompiler = InOther.bIsGCCCompiler;
+			bShouldOutputStatusDescription = InOther.bShouldOutputStatusDescription;
+			bProducesImportLibrary = InOther.bProducesImportLibrary;
 		}
 
 		public Action(BinaryArchiveReader Reader)
@@ -461,7 +489,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The inner action instance
 		/// </summary>
-		public Action Inner;
+		public IAction Inner;
 
 		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.
@@ -499,13 +527,18 @@ namespace UnrealBuildTool
 		public bool bShouldOutputStatusDescription => Inner.bShouldOutputStatusDescription;
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;
 
+		public void ExportJson(JsonWriter Writer)
+		{
+			Inner.ExportJson(Writer);
+		}
+
 		#endregion
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Inner">The inner action instance</param>
-		public QueuedAction(Action Inner)
+		public QueuedAction(IAction Inner)
 		{
 			this.Inner = Inner;
 		}

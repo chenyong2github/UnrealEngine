@@ -308,21 +308,28 @@ namespace UnrealBuildTool
 					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
 				}
 
+				// Create a QueuedAction instance for each action in the makefiles
+				List<QueuedAction>[] QueuedActions = new List<QueuedAction>[Makefiles.Length];
+				for(int Idx = 0; Idx < Makefiles.Length; Idx++)
+				{
+					QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new QueuedAction(x));
+				}
+
 				// Clean up any previous hot reload runs, and reapply the current state if it's already active
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], BuildConfiguration);
+					HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], QueuedActions[TargetIdx], BuildConfiguration);
 				}
 
 				// Merge the action graphs together
 				List<QueuedAction> MergedActions;
 				if (TargetDescriptors.Count == 1)
 				{
-					MergedActions = Makefiles[0].Actions.ConvertAll(x => new QueuedAction(x));
+					MergedActions = QueuedActions[0];
 				}
 				else
 				{
-					MergedActions = MergeActionGraphs(TargetDescriptors, Makefiles);
+					MergedActions = MergeActionGraphs(TargetDescriptors, QueuedActions);
 				}
 
 				// Gather all the prerequisite actions that are part of the targets
@@ -416,8 +423,10 @@ namespace UnrealBuildTool
 										FileItem ModuleOutput;
 										if (ModuleOutputs.TryGetValue(ImportedModule, out ModuleOutput))
 										{
-											PrerequisiteAction.Inner.PrerequisiteItems.Add(ModuleOutput);
-											PrerequisiteAction.Inner.CommandArguments += String.Format(" /reference \"{0}={1}\"", ImportedModule, ModuleOutput.FullName);
+											Action NewAction = new Action(PrerequisiteAction.Inner);
+											NewAction.PrerequisiteItems.Add(ModuleOutput);
+											NewAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ImportedModule, ModuleOutput.FullName);
+											PrerequisiteAction.Inner = NewAction;
 										}
 										else
 										{
@@ -433,7 +442,9 @@ namespace UnrealBuildTool
 									string ModuleName;
 									if(ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
 									{
-										PrerequisiteAction.Inner.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
+										Action NewAction = new Action(PrerequisiteAction.Inner);
+										NewAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
+										PrerequisiteAction.Inner = NewAction;
 									}
 								}
 							}
@@ -441,7 +452,9 @@ namespace UnrealBuildTool
 							{
 								if (PrerequisiteAction.ActionType != ActionType.GatherModuleDependencies)
 								{
-									PrerequisiteAction.Inner.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
+									Action NewAction = new Action(PrerequisiteAction.Inner);
+									NewAction.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
+									PrerequisiteAction.Inner = NewAction;
 								}
 							}
 						}
@@ -539,7 +552,7 @@ namespace UnrealBuildTool
 					// Write actions to an output file
 					using (Timeline.ScopeEvent("ActionGraph.WriteActions"))
 					{
-						ActionGraph.ExportJson(MergedActionsToExecute.ConvertAll(x => x.Inner), WriteOutdatedActionsFile);
+						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
 					}
 				}
 				else
@@ -781,22 +794,22 @@ namespace UnrealBuildTool
 		/// Merge action graphs for multiple targets into a single set of actions. Sets group names on merged actions to indicate which target they belong to.
 		/// </summary>
 		/// <param name="TargetDescriptors">List of target descriptors</param>
-		/// <param name="Makefiles">The makefiles being built</param>
+		/// <param name="TargetActions">Array of actions for each target</param>
 		/// <returns>List of merged actions</returns>
-		static List<QueuedAction> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
+		static List<QueuedAction> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, List<QueuedAction>[] TargetActions)
 		{
 			// Set of all output items. Knowing that there are no conflicts in produced items, we use this to eliminate duplicate actions.
 			Dictionary<FileItem, QueuedAction> OutputItemToProducingAction = new Dictionary<FileItem, QueuedAction>();
 			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
-				foreach(Action Action in Makefiles[TargetIdx].Actions)
+				foreach(QueuedAction TargetAction in TargetActions[TargetIdx])
 				{
 					QueuedAction ExistingAction;
-					if(!OutputItemToProducingAction.TryGetValue(Action.ProducedItems[0], out ExistingAction))
+					if(!OutputItemToProducingAction.TryGetValue(TargetAction.ProducedItems[0], out ExistingAction))
 					{
-						ExistingAction = new QueuedAction(Action);
-						OutputItemToProducingAction[Action.ProducedItems[0]] = ExistingAction;
+						ExistingAction = new QueuedAction(TargetAction);
+						OutputItemToProducingAction[TargetAction.ProducedItems[0]] = ExistingAction;
 					}
 					ExistingAction.GroupNames.Add(GroupPrefix);
 				}
