@@ -16,11 +16,10 @@ namespace UnrealBuildTool
 	interface IActionGraphBuilder
 	{
 		/// <summary>
-		/// Creates a new action to be built as part of this target
+		/// Adds an action to this graph
 		/// </summary>
-		/// <param name="Type">Type of action to create</param>
-		/// <returns>New action</returns>
-		Action CreateAction(ActionType Type);
+		/// <param name="Action">Action to add</param>
+		void AddAction(IAction Action);
 
 		/// <summary>
 		/// Creates a response file for use in the action graph
@@ -75,9 +74,8 @@ namespace UnrealBuildTool
 	class NullActionGraphBuilder : IActionGraphBuilder
 	{
 		/// <inheritdoc/>
-		public Action CreateAction(ActionType Type)
+		public void AddAction(IAction Action)
 		{
-			return new Action(Type);
 		}
 
 		/// <inheritdoc/>
@@ -138,9 +136,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual Action CreateAction(ActionType Type)
+		public virtual void AddAction(IAction Action)
 		{
-			return Inner.CreateAction(Type);
+			Inner.AddAction(Action);
 		}
 
 		/// <inheritdoc/>
@@ -191,6 +189,19 @@ namespace UnrealBuildTool
 	/// </summary>
 	static class ActionGraphBuilderExtensions
 	{
+		/// <summary>
+		/// Creates a new action to be built as part of this target
+		/// </summary>
+		/// <param name="Graph">Graph to add the action to</param>
+		/// <param name="Type">Type of action to create</param>
+		/// <returns>New action</returns>
+		public static Action CreateAction(this IActionGraphBuilder Graph, ActionType Type)
+		{
+			Action Action = new Action(Type);
+			Graph.AddAction(Action);
+			return Action;
+		}
+
 		/// <summary>
 		/// Creates an action which copies a file from one location to another
 		/// </summary>

@@ -680,11 +680,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public Action CreateAction(ActionType Type)
+		public void AddAction(IAction Action)
 		{
-			Action Action = new Action(Type);
 			Actions.Add(Action);
-			return Action;
 		}
 
 		/// <inheritdoc/>

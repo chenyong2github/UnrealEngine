@@ -397,19 +397,17 @@ namespace UnrealBuildTool
 
 		class ActionGraphCapture : ForwardingActionGraphBuilder
 		{
-			List<Action> Actions;
+			List<IAction> Actions;
 
-			public ActionGraphCapture(IActionGraphBuilder Inner, List<Action> Actions)
+			public ActionGraphCapture(IActionGraphBuilder Inner, List<IAction> Actions)
 				: base(Inner)
 			{
 				this.Actions = Actions;
 			}
 
-			public override Action CreateAction(ActionType Type)
+			public override void AddAction(IAction Action)
 			{
-				Action Action = base.CreateAction(Type);
 				Actions.Add(Action);
-				return Action;
 			}
 		}
 
@@ -424,12 +422,13 @@ namespace UnrealBuildTool
 			PreprocessCompileEnvironment.bEnableUndefinedIdentifierWarnings = false; // Not sure why THIRD_PARTY_INCLUDES_START doesn't pick this up; the _Pragma appears in the preprocessed output. Perhaps in preprocess-only mode the compiler doesn't respect these?
 			PreprocessCompileEnvironment.Definitions.Add("PVS_STUDIO");
 
-			List<Action> PreprocessActions = new List<Action>();
+			List<IAction> PreprocessActions = new List<IAction>();
 			CPPOutput Result = InnerToolChain.CompileCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
 
 			// Run the source files through PVS-Studio
-			foreach(Action PreprocessAction in PreprocessActions)
+			for(int Idx = 0; Idx < PreprocessActions.Count; Idx++)
 			{
+				IAction PreprocessAction = PreprocessActions[Idx];
 				if (PreprocessAction.ActionType != ActionType.Compile)
 				{
 					continue;
@@ -450,8 +449,10 @@ namespace UnrealBuildTool
 				}
 
 				// Disable a few warnings that seem to come from the preprocessor not respecting _Pragma
-				PreprocessAction.CommandArguments += " /wd4005"; // macro redefinition
-				PreprocessAction.CommandArguments += " /wd4828"; // file contains a character starting at offset xxxx that is illegal in the current source character set
+				Action NewPreprocessAction = new Action(PreprocessAction);
+				NewPreprocessAction.CommandArguments += " /wd4005"; // macro redefinition
+				NewPreprocessAction.CommandArguments += " /wd4828"; // file contains a character starting at offset xxxx that is illegal in the current source character set
+				PreprocessActions[Idx] = NewPreprocessAction;
 
 				// Write the PVS studio config file
 				StringBuilder ConfigFileContents = new StringBuilder();
