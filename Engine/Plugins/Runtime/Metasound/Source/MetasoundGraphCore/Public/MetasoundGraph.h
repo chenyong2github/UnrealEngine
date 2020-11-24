@@ -21,27 +21,16 @@ namespace Metasound
 			virtual ~FGraph() = default;
 
 			/** Return the name of this specific instance of the node class. */
-			virtual const FString& GetInstanceName() const override;
+			const FString& GetInstanceName() const override;
 
-			/** Return the type name of this node. */
-			virtual const FName& GetClassName() const override;
-
-			/** Return a longer text description describing how this node is used. */
-			virtual const FText& GetDescription() const override;
-
-			/** Return the original author of this node class. */
-			virtual const FText& GetAuthorName() const override;
-
-			virtual const FText& GetPromptIfMissing() const override;
+			/** Return metadata about this graph. */
+			const FNodeInfo& GetMetadata() const override;
 
 			/** Retrieve all the edges associated with a graph. */
-			virtual const TArray<FDataEdge>& GetDataEdges() const override;
+			const TArray<FDataEdge>& GetDataEdges() const override;
 
 			/** Return the current vertex interface. */
-			virtual const FVertexInterface& GetVertexInterface() const override;
-
-			/** Return the default vertex interface. */
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override;
+			const FVertexInterface& GetVertexInterface() const override;
 
 			/** Set the vertex interface. If the vertex was successfully changed, returns true. 
 			 *
@@ -49,7 +38,7 @@ namespace Metasound
 			 *
 			 * @return True on success, false otherwise.
 			 */
-			virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
+			bool SetVertexInterface(const FVertexInterface& InInterface) override;
 
 			/** Expresses whether a specific vertex interface is supported.
 			 *
@@ -57,13 +46,13 @@ namespace Metasound
 			 *
 			 * @return True if the interface is supported, false otherwise. 
 			 */
-			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
+			bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
 
 			/** Get vertices which contain input parameters. */
-			virtual const FInputDataDestinationCollection& GetInputDataDestinations() const override;
+			const FInputDataDestinationCollection& GetInputDataDestinations() const override;
 
 			/** Get vertices which contain output parameters. */
-			virtual const FOutputDataSourceCollection& GetOutputDataSources() const override;
+			const FOutputDataSourceCollection& GetOutputDataSources() const override;
 
 			/** Add an edge to the graph. */
 			void AddDataEdge(const FDataEdge& InEdge);
@@ -116,12 +105,12 @@ namespace Metasound
 			// TODO: Add ability to remove things.
 
 		private:
-			FString Description;
+			FString InstanceName;
+			FNodeInfo Metadata;
 
 
 			TArray<FDataEdge> Edges;
 
-			FVertexInterface VertexInterface;
 			FInputDataDestinationCollection InputDestinations;
 			FOutputDataSourceCollection OutputSources;
 	};

@@ -78,18 +78,6 @@ namespace Metasound
 		Phase -= FMath::FloorToFloat(Phase / TwoPi) * TwoPi;
 	}
 
-	const FNodeInfo& FOscOperator::GetNodeInfo()
-	{
-		static const FNodeInfo Info = {
-			FName(TEXT("Osc")),
-			LOCTEXT("Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid."),
-			PluginAuthor,
-			PluginNodeMissingPrompt
-		};
-
-		return Info;
-	}
-
 	FVertexInterface FOscOperator::DeclareVertexInterface()
 	{
 		static const FVertexInterface Interface(
@@ -102,6 +90,28 @@ namespace Metasound
 		);
 
 		return Interface;
+	}
+
+
+	const FNodeInfo& FOscOperator::GetNodeInfo()
+	{
+		auto InitNodeInfo = []() -> FNodeInfo
+		{
+			FNodeInfo Info;
+			Info.ClassName = FName(TEXT("Osc"));
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = DeclareVertexInterface();
+
+			return Info;
+		};
+
+		static const FNodeInfo Info = InitNodeInfo();
+
+		return Info;
 	}
 
 

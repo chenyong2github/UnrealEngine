@@ -9,34 +9,26 @@
 #define WITH_METASOUND_FRONTEND 0
 #endif
 
+namespace MetasoundFrontendRegistryPrivate
+{
+	// All registry keys should be created through this function to ensure consistency.
+	Metasound::Frontend::FNodeRegistryKey GetRegistryKey(const FName& InClassName, int32 InMajorVersion)
+	{
+		Metasound::Frontend::FNodeRegistryKey Key;
+
+		Key.NodeName = InClassName;
+
+		// NodeHash is hash of node name and major version.
+		Key.NodeHash = FCrc::StrCrc32(*Key.NodeName.ToString());
+		Key.NodeHash = HashCombine(Key.NodeHash, FCrc::TypeCrc32(InMajorVersion));
+
+		return Key;
+	}
+}
+
 FMetasoundFrontendRegistryContainer::FMetasoundFrontendRegistryContainer()
 	: bHasModuleBeenInitialized(false)
 {
-}
-
-FMetasoundFrontendRegistryContainer::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKeyForNodeInternal(const Metasound::INode& InNode)
-{
-	using FInputVertexInterface = ::Metasound::FInputVertexInterface;
-	using FOutputVertexInterface = ::Metasound::FOutputVertexInterface;
-
-	const FName NodeName = InNode.GetClassName();
-	const FInputVertexInterface& Inputs = InNode.GetDefaultVertexInterface().GetInputInterface();
-	const FOutputVertexInterface& Outputs = InNode.GetDefaultVertexInterface().GetOutputInterface();
-
-	// Construct a hash using a combination of the class name, input names and output names.
-	uint32 NodeHash = FCrc::StrCrc32(*NodeName.ToString());
-
-	for (auto& InputTuple : Inputs)
-	{
-		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*InputTuple.Value.GetVertexTypeName().ToString()));
-	}
-
-	for (auto& OutputTuple : Outputs)
-	{
-		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*OutputTuple.Value.GetVertexTypeName().ToString()));
-	}
-
-	return { NodeName, NodeHash };
 }
 
 FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::LazySingleton = nullptr;
@@ -113,7 +105,7 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructInput
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InInputType), TEXT("Couldn't find data type %s!"), *InInputType.ToString()))
 	{
-		return DataTypeRegistry[InInputType].Callbacks.InputNodeConstructor(MoveTemp(InParams));
+		return DataTypeRegistry[InInputType].Callbacks.CreateInputNode(MoveTemp(InParams));
 	}
 	else
 	{
@@ -125,7 +117,7 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructOutpu
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InOutputType), TEXT("Couldn't find data type %s!"), *InOutputType.ToString()))
 	{
-		return DataTypeRegistry[InOutputType].Callbacks.OutputNodeConstructor(InParams);
+		return DataTypeRegistry[InOutputType].Callbacks.CreateOutputNode(InParams);
 	}
 	else
 	{
@@ -137,7 +129,7 @@ Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLi
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
 	{
-		 Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.ProxyConstructor(InObject);
+		 Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
 		 if (ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!")))
 		 {
 			 return Metasound::FDataTypeLiteralParam(MoveTemp(ProxyPtr));
@@ -163,7 +155,7 @@ Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLi
 		{
 			if (InObject)
 			{
-				Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.ProxyConstructor(InObject);
+				Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
 				ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!"));
 				ProxyArray.Add(MoveTemp(ProxyPtr));
 			}
@@ -189,7 +181,7 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructExter
 	}
 	else
 	{
-		return ExternalNodeRegistry[RegistryKey].GetterCallback(InInitData);
+		return ExternalNodeRegistry[RegistryKey].CreateNode(InInitData);
 	}
 }
 
@@ -328,72 +320,42 @@ bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FD
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallback&& InCallback)
+bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundClassDescriptionFunction&& InCreateDescription)
 {
-	using FVertexInterface = Metasound::FVertexInterface;
-	using FInputVertexInterface = Metasound::FInputVertexInterface;
-	using FOutputVertexInterface = Metasound::FOutputVertexInterface;
+	FNodeRegistryElement RegistryElement = FNodeRegistryElement(MoveTemp(InCreateNode), MoveTemp(InCreateDescription));
 
-	Metasound::FNodeInitData DummyInitData;
-	TUniquePtr<Metasound::INode> DummyNodePtr = InCallback(DummyInitData);
-	if (!ensureAlwaysMsgf(DummyNodePtr.IsValid(), TEXT("Invalid getter registered!")))
+	FNodeRegistryKey Key;
+
+	if (ensure(FMetasoundFrontendRegistryContainer::GetRegistryKey(RegistryElement, Key)))
 	{
-		return false;
+		// check to see if an identical node was already registered, and log
+		ensureAlwaysMsgf(!ExternalNodeRegistry.Contains(Key), TEXT("Node with identical name, inputs and outputs to node %s was already registered. The previously registered node will be overwritten. This could also happen because METASOUND_REGISTER_NODE is in a public header."), *Key.NodeName.ToString());
+
+		ExternalNodeRegistry.Add(MoveTemp(Key), MoveTemp(RegistryElement));
+
+		return true;
 	}
 
-	Metasound::INode& DummyNode = *DummyNodePtr;
+	return false;
+}
 
-	FNodeRegistryKey InKey = GetRegistryKeyForNodeInternal(DummyNode);
-
-	const FName NodeName = DummyNode.GetClassName();
-
-	// check to see if an identical node was already registered, and log
-	ensureAlwaysMsgf(!ExternalNodeRegistry.Contains(InKey), TEXT("Node with identical name, inputs and outputs to node %s was already registered. The previously registered node will be overwritten. This could also happen because METASOUND_REGISTER_NODE is in a public header."), *NodeName.ToString());
-
-	UE_LOG(LogTemp, Display, TEXT("Registered Metasound Node %s"), *NodeName.ToString());
-
-	using FInputVertexInterface = ::Metasound::FInputVertexInterface;
-	using FOutputVertexInterface = ::Metasound::FOutputVertexInterface;
-
-	const FInputVertexInterface& Inputs = DummyNode.GetDefaultVertexInterface().GetInputInterface();
-	const FOutputVertexInterface& Outputs = DummyNode.GetDefaultVertexInterface().GetOutputInterface();
-
-	const bool bShouldLogInputsAndOutputs = true;
-	if (bShouldLogInputsAndOutputs)
+bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Frontend::FNodeRegistryElement& InElement, Metasound::Frontend::FNodeRegistryKey& OutKey)
+{
+	if (InElement.CreateClassDescription)
 	{
-		UE_LOG(LogTemp, Display, TEXT("    %d inputs:"), Inputs.Num());
-		for (auto& InputTuple : Inputs)
-		{
-			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *InputTuple.Value.GetVertexName(), *InputTuple.Value.GetVertexTypeName().ToString());
-		}
+		FMetasoundClassDescription Description = InElement.CreateClassDescription();
 
-		UE_LOG(LogTemp, Display, TEXT("    %d outputs:"), Outputs.Num());
-		for (auto& OutputTuple : Outputs)
-		{
-			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *OutputTuple.Value.GetVertexName(), *OutputTuple.Value.GetVertexTypeName().ToString());
-		}
+		OutKey = MetasoundFrontendRegistryPrivate::GetRegistryKey(FName(Description.Metadata.NodeName), Description.Metadata.MajorVersion);
+
+		return true;
 	}
 
-	TArray<FName> InputTypes;
-	TArray<FName> OutputTypes;
+	return false;
+}
 
-	for (auto& InputTuple : Inputs)
-	{
-		InputTypes.Add(InputTuple.Value.GetVertexTypeName());
-	}
-
-	for (auto& OutputTuple : Outputs)
-	{
-		OutputTypes.Add(OutputTuple.Value.GetVertexTypeName());
-	}
-
-	FNodeRegistryElement RegistryElement = FNodeRegistryElement(MoveTemp(InCallback));
-	RegistryElement.InputTypes = MoveTemp(InputTypes);
-	RegistryElement.OutputTypes = MoveTemp(OutputTypes);
-
-	ExternalNodeRegistry.Add(MoveTemp(InKey), MoveTemp(RegistryElement));
-
-	return true;
+Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeInfo& InNodeMetadata)
+{
+	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName, InNodeMetadata.MajorVersion);
 }
 
 bool FMetasoundFrontendRegistryContainer::RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo)

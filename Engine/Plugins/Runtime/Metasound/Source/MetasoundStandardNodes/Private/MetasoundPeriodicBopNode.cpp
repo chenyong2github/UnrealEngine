@@ -105,18 +105,6 @@ namespace Metasound
 		return MakeUnique<FPeriodicBopOperator>(InParams.OperatorSettings, Period);
 	}
 
-	const FNodeInfo& FPeriodicBopOperator::GetNodeInfo()
-	{
-		static const FNodeInfo Info = {
-			FName(TEXT("PeriodicBop")),
-			LOCTEXT("Metasound_PeriodicBopNodeDescription", "Emits a bop periodically based on the period duration given."),
-			PluginAuthor,
-			PluginNodeMissingPrompt
-		};
-
-		return Info;
-	}
-
 	FVertexInterface FPeriodicBopOperator::DeclareVertexInterface()
 	{
 		static const FVertexInterface Interface(
@@ -130,6 +118,28 @@ namespace Metasound
 
 		return Interface;
 	}
+
+	const FNodeInfo& FPeriodicBopOperator::GetNodeInfo()
+	{
+		auto InitNodeInfo = []() -> FNodeInfo
+		{
+			FNodeInfo Info;
+			Info.ClassName = FName(TEXT("PeriodicBop"));
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("Metasound_PeriodicBopNodeDescription", "Emits a bop periodically based on the period duration given.");
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = DeclareVertexInterface();
+
+			return Info;
+		};
+
+		static const FNodeInfo Info = InitNodeInfo();
+
+		return Info;
+	}
+
 
 	FPeriodicBopNode::FPeriodicBopNode(const FString& InName, float InDefaultPeriodInSeconds)
 	:	FNodeFacade(InName, TFacadeOperatorClass<FPeriodicBopOperator>())

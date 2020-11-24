@@ -20,10 +20,15 @@ UMetasoundFactory::UMetasoundFactory(const FObjectInitializer& ObjectInitializer
 UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 {
 	UMetasound* NewMetasound = NewObject<UMetasound>(InParent, Name, Flags);
+
 	FMetasoundClassMetadata Metadata;
+
 	Metadata.NodeName = NewMetasound->GetName();
+	Metadata.MajorVersion = 1;
+	Metadata.MinorVersion = 0;
 	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
 	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+
 	NewMetasound->SetMetadata(Metadata);
 
 	NewMetasound->ConformDocumentToArchetype();
@@ -44,12 +49,19 @@ UMetasoundSourceFactory::UMetasoundSourceFactory(const FObjectInitializer& Objec
 UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 {
 	UMetasoundSource* MetasoundSource = NewObject<UMetasoundSource>(InParent, Name, Flags);
+
 	FMetasoundClassMetadata Metadata;
+
 	Metadata.NodeName = MetasoundSource->GetName();
+	Metadata.MajorVersion = 1;
+	Metadata.MinorVersion = 0;
 	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
 	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+
 	MetasoundSource->SetMetadata(Metadata);
+
 	MetasoundSource->ConformDocumentToArchetype();
 
 	return MetasoundSource;
 }
+

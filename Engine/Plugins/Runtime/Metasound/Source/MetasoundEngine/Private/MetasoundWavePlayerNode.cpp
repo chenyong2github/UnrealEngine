@@ -122,13 +122,6 @@ namespace Metasound
 		TUniquePtr<Audio::IDecoderOutput> DecoderOutput;
 	};
 
-	const FNodeInfo FWavePlayerNode::Info = FNodeInfo(
-	{
-		FName(TEXT("Wave Player")),
-		LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave"),
-		PluginAuthor,
-		PluginNodeMissingPrompt
-	});
 
 	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
 		const FCreateOperatorParams& InParams, 
@@ -186,12 +179,44 @@ namespace Metasound
 		return MakeUnique<FWavePlayerOperator>(InParams.OperatorSettings, Wave);
 	}
 
-	FWavePlayerNode::FWavePlayerNode(const FString& InName)
-		:	FNode(InName, FWavePlayerNode::Info)
-		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
+	FVertexInterface FWavePlayerNode::DeclareVertexInterface()
 	{
-		Interface.GetInputInterface().Add(TInputDataVertexModel<FWaveAsset>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")));
-		Interface.GetOutputInterface().Add(TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio")));
+		return FVertexInterface(
+			FInputVertexInterface(
+				TInputDataVertexModel<FWaveAsset>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded"))
+			),
+			FOutputVertexInterface(
+				TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"))
+			)
+		);
+	}
+
+	const FNodeInfo& FWavePlayerNode::GetNodeInfo()
+	{
+		auto InitNodeInfo = []() -> FNodeInfo
+		{
+			FNodeInfo Info;
+			Info.ClassName = FName(TEXT("Wave Player"));
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave");
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = DeclareVertexInterface();
+
+			return Info;
+		};
+
+		static const FNodeInfo Info = InitNodeInfo();
+
+		return Info;
+	}
+
+	FWavePlayerNode::FWavePlayerNode(const FString& InName)
+		:	FNode(InName, GetNodeInfo())
+		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
+		,	Interface(DeclareVertexInterface())
+	{
 	}
 
 	FWavePlayerNode::FWavePlayerNode(const FNodeInitData& InInitData)
@@ -199,17 +224,14 @@ namespace Metasound
 	{
 	}
 
-	FOperatorFactorySharedRef FWavePlayerNode::GetDefaultOperatorFactory() const
+	FOperatorFactorySharedRef FWavePlayerNode::GetDefaultOperatorFactory() const 
 	{
 		return Factory;
 	}
 
-	const FVertexInterface& FWavePlayerNode::GetVertexInterface() const
-	{
-		return Interface;
-	}
 
-	const FVertexInterface& FWavePlayerNode::GetDefaultVertexInterface() const
+
+	const FVertexInterface& FWavePlayerNode::GetVertexInterface() const
 	{
 		return Interface;
 	}

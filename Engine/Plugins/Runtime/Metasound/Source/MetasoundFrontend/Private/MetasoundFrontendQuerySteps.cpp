@@ -14,7 +14,7 @@ namespace Metasound
 
 		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
 		{
-			OutEntries.Emplace(TInPlaceType<FMetasoundClassDescription>(), Frontend::GenerateClassDescriptionForNode(ClassInfo));
+			OutEntries.Emplace(TInPlaceType<FMetasoundClassDescription>(), Frontend::GenerateClassDescription(ClassInfo));
 		}
 	}
 

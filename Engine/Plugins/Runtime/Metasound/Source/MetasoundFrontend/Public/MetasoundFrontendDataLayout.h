@@ -45,6 +45,12 @@ struct FMetasoundClassMetadata
 	UPROPERTY()
 	FString NodeName;
 
+	UPROPERTY(EditAnywhere, Category = General)
+	int32 MajorVersion = 1;
+
+	UPROPERTY(EditAnywhere, Category = General)
+	int32 MinorVersion = 0;
+
 	// This will always be set to EMetasoundObjectType::Metasound.
 	UPROPERTY(VisibleAnywhere, Category = General, meta = (DisplayName = "Type"))
 	EMetasoundClassType NodeType;
@@ -194,6 +200,7 @@ struct FMetasoundNodeDescription
 {
 	GENERATED_BODY()
 
+
 	// Unique integer given to this node. Only has to be unique within the Nodes array.
 	UPROPERTY()
 	uint32 UniqueID;
@@ -224,6 +231,12 @@ struct FMetasoundGraphDescription
 {
 	GENERATED_BODY()
 
+	// TODO: pp - Break out FMetasoundNodeDescription to be a list of connections 
+	// and a list of nodes. Currently FMetasoudnNodeConnectionDescription lives 
+	// on the input node, but would be better living on the graph. 
+	//
+	// NodeConnections TMap<Tuple(FromNodeId, ToNodeId), {VertexName, VertexName}>?
+	//
 	UPROPERTY()
 	TArray<FMetasoundNodeDescription> Nodes;
 };

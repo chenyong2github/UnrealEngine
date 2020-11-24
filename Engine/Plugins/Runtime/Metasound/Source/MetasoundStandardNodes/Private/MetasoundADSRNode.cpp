@@ -147,18 +147,6 @@ namespace Metasound
 		);
 	}
 
-	const FNodeInfo& FADSROperator::GetNodeInfo()
-	{
-		static const FNodeInfo Info = {
-			FName(TEXT("ADSR")),
-			LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when bopped."),
-			PluginAuthor,
-			PluginNodeMissingPrompt
-		};
-
-		return Info;
-	}
-
 	FVertexInterface FADSROperator::DeclareVertexInterface()
 	{
 		static const FVertexInterface Interface(
@@ -176,6 +164,28 @@ namespace Metasound
 
 		return Interface;
 	}
+
+	const FNodeInfo& FADSROperator::GetNodeInfo()
+	{
+		auto InitNodeInfo = []() -> FNodeInfo
+		{
+			FNodeInfo Info;
+			Info.ClassName = FName(TEXT("ADSR"));
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when bopped.");
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = DeclareVertexInterface();
+
+			return Info;
+		};
+
+		static const FNodeInfo Info = InitNodeInfo();
+
+		return Info;
+	}
+
 
 	TUniquePtr<IOperator> FADSROperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{

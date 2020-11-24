@@ -19,11 +19,6 @@ namespace Metasound
 		return VertexInterface;
 	}
 
-	const FVertexInterface& FNodeFacade::GetDefaultVertexInterface() const
-	{
-		return VertexInterface;
-	}
-
 	bool FNodeFacade::SetVertexInterface(const FVertexInterface& InInterface)
 	{
 		return InInterface == VertexInterface;

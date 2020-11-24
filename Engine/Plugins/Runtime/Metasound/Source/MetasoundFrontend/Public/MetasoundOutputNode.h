@@ -69,20 +69,6 @@ namespace Metasound
 				FString DataReferenceName;
 		};
 
-		static const FNodeInfo& GetNodeInfo()
-		{
-			static const FString ClassNameString = FString(TEXT("Output_")) + GetMetasoundDataTypeName<DataType>().ToString();
-
-			static const FNodeInfo NodeInfo = {
-				FName(*ClassNameString),
-				LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph."),
-				PluginAuthor,
-				PluginNodeMissingPrompt
-			};
-
-			return NodeInfo;
-		}
-
 		static FVertexInterface GetVertexInterface(const FString& InVertexName)
 		{
 			return FVertexInterface(
@@ -95,9 +81,28 @@ namespace Metasound
 			);
 		}
 
+		static FNodeInfo GetNodeInfo(const FString& InVertexName)
+		{
+			static const FString ClassNameString = FString(TEXT("Output_")) + GetMetasoundDataTypeName<DataType>().ToString();
+
+			FNodeInfo Info;
+
+			Info.ClassName = FName(*ClassNameString);
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = GetVertexInterface(InVertexName);
+
+			return Info;
+		};
+
+
+
 		public:
 			TOutputNode(const FString& InInstanceName, const FString& InVertexName)
-			:	FNode(InInstanceName, GetNodeInfo())
+			:	FNode(InInstanceName, GetNodeInfo(InVertexName))
 			,	VertexInterface(GetVertexInterface(InVertexName))
 			,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
 			{
@@ -105,12 +110,6 @@ namespace Metasound
 
 			/** Return the current vertex interface. */
 			virtual const FVertexInterface& GetVertexInterface() const override
-			{
-				return VertexInterface;
-			}
-
-			/** Return the default vertex interface. */
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override
 			{
 				return VertexInterface;
 			}

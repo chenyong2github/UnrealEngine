@@ -105,21 +105,6 @@ namespace Metasound
 			// If true, this node can be instantiated by the FrontEnd.
 			static constexpr bool bCanRegister = TInputOperatorLiteralFactory<DataType>::bCanRegister;
 
-			static const FNodeInfo& GetNodeInfo()
-			{
-				static const FString ClassNameString = FString(TEXT("Input_")) + GetMetasoundDataTypeName<DataType>().ToString();
-				static const FName ClassName(*ClassNameString);
-
-				static const FNodeInfo Info = {
-					ClassName,
-					LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph."),
-					PluginAuthor,
-					PluginNodeMissingPrompt
-				};
-
-				return Info;
-			}
-
 			static FVertexInterface DeclareVertexInterface(const FString& InVertexName)
 			{
 				return FVertexInterface(
@@ -132,11 +117,30 @@ namespace Metasound
 				);
 			}
 
+			static FNodeInfo GetNodeInfo(const FString& InVertexName)
+			{
+				static const FString ClassNameString = FString(TEXT("Input_")) + GetMetasoundDataTypeName<DataType>().ToString();
+				static const FName ClassName(*ClassNameString);
+
+				FNodeInfo Info;
+
+				Info.ClassName = ClassName;
+				Info.MajorVersion = 1;
+				Info.MinorVersion = 0;
+				Info.Description = LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph.");
+				Info.Author = PluginAuthor;
+				Info.PromptIfMissing = PluginNodeMissingPrompt;
+				Info.DefaultInterface = DeclareVertexInterface(InVertexName);
+
+				return Info;
+			}
+
+
 			/* Construct a TInputNode using the TInputOperatorFactory<> and forwarding 
 			 * Args to the TInputOperatorFactory constructor.*/
 			template<typename... ArgTypes>
 			TInputNode(const FString& InNodeDescription, const FString& InVertexName, ArgTypes&&... Args)
-			:	FNode(InNodeDescription, GetNodeInfo())
+			:	FNode(InNodeDescription, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			,	Factory(MakeOperatorFactoryRef<TInputOperatorFactory<DataType>>(Forward<ArgTypes>(Args)...))
@@ -146,7 +150,7 @@ namespace Metasound
 			/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 			 * InParam to the TInputOperatorLiteralFactory constructor.*/
 			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FDataTypeLiteralParam&& InParam)
-			:	FNode(InNodeDescription, GetNodeInfo())
+			:	FNode(InNodeDescription, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			, 	Factory(MakeOperatorFactoryRef<TInputOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))
@@ -159,11 +163,6 @@ namespace Metasound
 			}
 
 			virtual const FVertexInterface& GetVertexInterface() const override
-			{
-				return Interface;
-			}
-
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override
 			{
 				return Interface;
 			}

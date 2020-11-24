@@ -575,7 +575,7 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
 	for (const FNodeClassInfo& ClassInfo : ClassInfos)
 	{
-		const FMetasoundClassDescription ClassDescription = GenerateClassDescriptionForNode(ClassInfo);
+		const FMetasoundClassDescription ClassDescription = GenerateClassDescription(ClassInfo);
 		const FMetasoundClassMetadata Metadata = ClassDescription.Metadata;
 		const FText Tooltip = Metadata.AuthorName.IsEmpty()
 			? Metadata.MetasoundDescription

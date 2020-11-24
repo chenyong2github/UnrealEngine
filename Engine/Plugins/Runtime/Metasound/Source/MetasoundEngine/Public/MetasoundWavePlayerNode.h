@@ -17,8 +17,11 @@ namespace Metasound
 			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
 		};
 
+		
+
 	public:
-		static const FNodeInfo Info;
+		static FVertexInterface DeclareVertexInterface();
+		static const FNodeInfo& GetNodeInfo();
 
 		FWavePlayerNode(const FString& InName);
 
@@ -31,9 +34,6 @@ namespace Metasound
 
 		/** Return the current vertex interface. */
 		virtual const FVertexInterface& GetVertexInterface() const override;
-
-		/** Return the default vertex interface. */
-		virtual const FVertexInterface& GetDefaultVertexInterface() const override;
 
 		/** Set the vertex interface. If the vertex was successfully changed, returns true. 
 		 *

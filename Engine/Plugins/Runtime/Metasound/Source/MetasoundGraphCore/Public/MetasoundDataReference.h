@@ -64,7 +64,7 @@ namespace Metasound
 
 	/** Return the data type FName for a registered data type. */
 	template<typename DataType>
-	const FName GetMetasoundDataTypeName() 
+	const FName& GetMetasoundDataTypeName() 
 	{
 		static const FName TypeName = FName(TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeName);
 
@@ -73,7 +73,7 @@ namespace Metasound
 
 	/** Return the data type string for a registered data type. */
 	template<typename DataType>
-	const FString GetMetasoundDataTypeString() 
+	const FString& GetMetasoundDataTypeString() 
 	{
 		static const FString TypeString = FString(TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeName);
 

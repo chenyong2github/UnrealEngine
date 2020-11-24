@@ -12,7 +12,7 @@
 #include "MetasoundFrontendRegistries.h"
 
 template<typename TNodeType, typename TFromType, typename TToType>
-bool RegisterConversionNode(const FString& FromPin, const FString& ToPin)
+bool RegisterConversionNode(const FString& FromPin, const FString& ToPin, const Metasound::FNodeInfo& InNodeMetadata)
 {
 	using FConverterNodeRegistryKey = ::Metasound::Frontend::FConverterNodeRegistryKey;
 	using FConverterNodeInfo = ::Metasound::Frontend::FConverterNodeInfo;
@@ -38,7 +38,7 @@ bool RegisterConversionNode(const FString& FromPin, const FString& ToPin)
 	{
 		FromPin,
 		ToPin,
-		FMetasoundFrontendRegistryContainer::GetRegistryKeyForNode<TNodeType>()
+		FMetasoundFrontendRegistryContainer::GetRegistryKey(InNodeMetadata)
 	};
 
 	return FMetasoundFrontendRegistryContainer::Get()->RegisterConversionNode(RegistryKey, ConverterNodeInfo);

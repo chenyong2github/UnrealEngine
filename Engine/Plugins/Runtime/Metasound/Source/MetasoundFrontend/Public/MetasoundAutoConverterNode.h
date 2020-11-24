@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataFactory.h"
@@ -12,14 +13,13 @@
 
 #include <type_traits>
 
-#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
-
+#define LOCTEXT_NAMESPACE "MetasoundFrontend"
 
 namespace Metasound
 {
 	// This convenience node can be registered and will invoke static_cast<ToDataType>(FromDataType) every time it is executed.
 	template<typename FromDataType, typename ToDataType>
-	class TAutoConverterNode : public INode
+	class TAutoConverterNode : public FNode
 	{
 		static_assert(std::is_convertible<FromDataType, ToDataType>::value, "Tried to create an auto converter node between two types we can't static_cast between.");
 
@@ -34,6 +34,42 @@ namespace Metasound
 		{
 			static const FString OutputName = GetMetasoundDataTypeString<ToDataType>();
 			return OutputName;
+		}
+
+		static FVertexInterface DeclareVertexInterface()
+		{
+			return FVertexInterface(
+				FInputVertexInterface(
+					TInputDataVertexModel<FromDataType>(GetInputName(), FText::GetEmpty())
+				),
+				FOutputVertexInterface(
+					TOutputDataVertexModel<ToDataType>(GetOutputName(), FText::GetEmpty())
+				)
+			);
+		}
+
+		static const FNodeInfo& GetAutoConverterNodeMetadata()
+		{
+			auto InitNodeInfo = []() -> FNodeInfo
+			{
+				FNodeInfo Info;
+				Info.ClassName = FName(*FString::Printf(TEXT("%s To %s"), *GetInputName(), *GetOutputName()));
+				Info.MajorVersion = 1;
+				Info.MinorVersion = 0;
+				Info.Description = LOCTEXT("Metasound_ConverterNodeDescription", "Converts between two different data types.");
+				Info.Author = PluginAuthor;
+				Info.PromptIfMissing = PluginNodeMissingPrompt;
+				Info.DefaultInterface = DeclareVertexInterface();
+
+				Info.CategoryHierarchy = {LOCTEXT("Metasound_ConvertNodeCategory", "Convert"), FText::AsCultureInvariant(GetMetasoundDataTypeString<FromDataType>())};
+				Info.Keywords = {TEXT("convert"), GetMetasoundDataTypeName<FromDataType>(), GetMetasoundDataTypeName<ToDataType>()};
+
+				return Info;
+			};
+
+			static const FNodeInfo Info = InitNodeInfo();
+
+			return Info;
 		}
 
 	private:
@@ -109,20 +145,9 @@ namespace Metasound
 		};
 
 		public:
-			static FVertexInterface DeclareVertexInterface()
-			{
-				return FVertexInterface(
-					FInputVertexInterface(
-						TInputDataVertexModel<FromDataType>(GetInputName(), FText::GetEmpty())
-					),
-					FOutputVertexInterface(
-						TOutputDataVertexModel<ToDataType>(GetOutputName(), FText::GetEmpty())
-					)
-				);
-			}
 
 			TAutoConverterNode(const FNodeInitData& InInitData)
-				: NodeDescription(InInitData.InstanceName)
+				: FNode(InInitData.InstanceName, GetAutoConverterNodeMetadata())
 				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FCoverterOperatorFactory>())
 			{
@@ -130,39 +155,7 @@ namespace Metasound
 
 			virtual ~TAutoConverterNode() = default;
 
-			virtual const FName& GetClassName() const override
-			{
-				static const FName ClassName(*FString::Printf(TEXT("%s To %s"), *GetInputName(), *GetOutputName()));
-				return ClassName;
-			}
-
-			virtual const FString& GetInstanceName() const override
-			{
-				return NodeDescription;
-			}
-
-			virtual const FText& GetDescription() const override
-			{
-				static const FText Description = LOCTEXT("Metasound_ConverterNodeDescription", "Converts between two different data types.");
-				return Description;
-			}
-
-			virtual const FText& GetAuthorName() const override
-			{
-				return PluginAuthor;
-			}
-
-			virtual const FText& GetPromptIfMissing() const override
-			{
-				return PluginNodeMissingPrompt;
-			}
-
 			virtual const FVertexInterface& GetVertexInterface() const override
-			{
-				return Interface;
-			}
-
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override
 			{
 				return Interface;
 			}
@@ -183,10 +176,8 @@ namespace Metasound
 			}
 
 		private:
-			FString NodeDescription;
 			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;
-			
 	};
 }
 #undef LOCTEXT_NAMESPACE

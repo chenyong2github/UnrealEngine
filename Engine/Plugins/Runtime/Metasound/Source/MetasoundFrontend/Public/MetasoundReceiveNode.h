@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataFactory.h"
@@ -12,31 +13,13 @@
 
 #include <type_traits>
 
-#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
+#define LOCTEXT_NAMESPACE "MetasoundFrontend"
 
 
 namespace Metasound
 {
-	// TODO: should consider making this a subclass of TInputNode. Both share requirement
-	// of needing a default DataReference. The construction of that gets tricky so 
-	// would be nice to consolidate all that logic. 
-	//
-	//
-	// TODO: Maybe it could work like this...
-	// Can instantiate a factory with default args. Factory is valid as long as constructor of data type supports
-	// parameters (w/ or w/o operator settings.) Factory makes a lambda for creating data type references.
-	// Factory gets instantiated when node is declared.  Basically lets us forward constructor 
-	// args until the creation of the lambda, which requires a copy to capture "[=]". 
-	//
-	// But that still leaves the issue of setting those values on the node. Would be best to have that in NodeInitParams
-	// but its not clear how that is passed about. Maybe something that checks whether it can construct from literal. 
-	//
-	// Or you could go another route where you check whether the Operator constructor takes a specific set of references and 
-	// use that to auto-generate factories.  
-	
-	// This convenience node can be registered and will invoke static_cast<ToDataType>(FromDataType) every time it is executed.
 	template<typename TDataType>
-	class TReceiveNode : public INode
+	class TReceiveNode : public FNode
 	{
 
 	public:
@@ -50,6 +33,41 @@ namespace Metasound
 		{
 			static const FString SendInput = GetMetasoundDataTypeString<TDataType>();
 			return SendInput;
+		}
+
+		static FVertexInterface DeclareVertexInterface()
+		{
+			return FVertexInterface(
+				FInputVertexInterface(
+					TInputDataVertexModel<FSendAddress>(GetAddressInputName(), FText::GetEmpty())
+				),
+				FOutputVertexInterface(
+					TOutputDataVertexModel<TDataType>(GetSendOutputName(), FText::GetEmpty())
+				)
+			);
+		}
+
+		static const FNodeInfo& GetNodeInfo()
+		{
+			auto InitNodeInfo = []() -> FNodeInfo
+			{
+				FNodeInfo Info;
+				Info.ClassName = FName(*FString::Printf(TEXT("Receive %s"), *GetSendOutputName()));
+				Info.MajorVersion = 1;
+				Info.MinorVersion = 0;
+				Info.Description = LOCTEXT("Metasound_ReceiveNodeDescription", "Receives data from a send node with the same name.");
+				Info.Author = PluginAuthor;
+				Info.PromptIfMissing = PluginNodeMissingPrompt;
+				Info.DefaultInterface = DeclareVertexInterface();
+				Info.CategoryHierarchy = {LOCTEXT("Metasound_ReceiveNodeCategory", "Receive"), FText::AsCultureInvariant(GetMetasoundDataTypeString<TDataType>())};
+				Info.Keywords = {TEXT("receive"), GetMetasoundDataTypeName<TDataType>()};
+
+				return Info;
+			};
+
+			static const FNodeInfo Info = InitNodeInfo();
+
+			return Info;
 		}
 
 	private:
@@ -124,20 +142,9 @@ namespace Metasound
 
 		public:
 
-			static FVertexInterface DeclareVertexInterface()
-			{
-				return FVertexInterface(
-					FInputVertexInterface(
-						TInputDataVertexModel<FSendAddress>(GetAddressInputName(), FText::GetEmpty())
-					),
-					FOutputVertexInterface(
-						TOutputDataVertexModel<TDataType>(GetSendOutputName(), FText::GetEmpty())
-					)
-				);
-			}
-
+			// TODO: default value of received object.
 			TReceiveNode(const FNodeInitData& InInitData)
-				: NodeDescription(InInitData.InstanceName)
+				: FNode(InInitData.InstanceName, GetNodeInfo())
 				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FReceiverOperatorFactory>())
 			{
@@ -145,39 +152,7 @@ namespace Metasound
 
 			virtual ~TReceiveNode() = default;
 
-			virtual const FName& GetClassName() const override
-			{
-				static const FName ClassName(*FString::Printf(TEXT("Receive %s"), *GetSendOutputName()));
-				return ClassName;
-			}
-
-			virtual const FString& GetInstanceName() const override
-			{
-				return NodeDescription;
-			}
-
-			virtual const FText& GetDescription() const override
-			{
-				static const FText Description = LOCTEXT("Metasound_ReceiveNodeDescription", "receives data from a send node with the same name.");
-				return Description;
-			}
-
-			virtual const FText& GetAuthorName() const override
-			{
-				return PluginAuthor;
-			}
-
-			virtual const FText& GetPromptIfMissing() const override
-			{
-				return PluginNodeMissingPrompt;
-			}
-
 			virtual const FVertexInterface& GetVertexInterface() const override
-			{
-				return Interface;
-			}
-
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override
 			{
 				return Interface;
 			}
@@ -198,7 +173,6 @@ namespace Metasound
 			}
 
 		private:
-			FString NodeDescription;
 			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;
 	};

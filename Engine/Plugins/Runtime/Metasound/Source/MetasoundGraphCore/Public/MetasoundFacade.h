@@ -13,25 +13,6 @@ namespace Metasound
 	// Helper template to determine whether a static class function is declared
 	// for a given template class.
 	template <typename U>
-	class TIsVertexInterfaceDeclared
-	{
-		private:
-			template<typename T, T> 
-			struct Helper;
-
-			// Check for "static FVertexInterface U::DeclareVertexInterface()"
-			template<typename T>
-			static uint8 Check(Helper<FVertexInterface(*)(), &T::DeclareVertexInterface>*);
-
-			template<typename T> static uint16 Check(...);
-		public:
-			// If the function exists, then "Value" is true. Otherwise "Value" is false.
-			static constexpr bool Value = sizeof(Check<U>(0)) == sizeof(uint8_t);
-	};
-
-	// Helper template to determine whether a static class function is declared
-	// for a given template class.
-	template <typename U>
 	class TIsFactoryMethodDeclared
 	{
 		private:
@@ -81,12 +62,8 @@ namespace Metasound
 		// Require that OperatorType is subclass of IOperator
 		static_assert(std::is_base_of<IOperator, OperatorType>::value, "To use the FNodeFacade consturctor, the OperatorType must be derived from IOperator");
 
-		// Require static FVertexInterface OperatorType::DeclareVertexInterface() exists.
-		static_assert(TIsVertexInterfaceDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static FVertexInterface OperatorType::DeclareVertexInterface()\"");
-
 		// Require static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&) exists.
 		static_assert(TIsFactoryMethodDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&)\"");
-
 
 		// Require static const FNodeInfo& OperatorType::GetNodeInfo() exists.
 		static_assert(TIsNodeInfoDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static const FNodeInfo& OperatorType::GetNodeInfo()\"");
@@ -94,11 +71,6 @@ namespace Metasound
 		static const FNodeInfo& GetNodeInfo() 
 		{ 
 			return OperatorType::GetNodeInfo(); 
-		}
-
-		static FVertexInterface DeclareVertexInterface() 
-		{ 
-			return OperatorType::DeclareVertexInterface(); 
 		}
 
 		static TUniquePtr<TUniquePtr<IOperator>> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
@@ -148,15 +120,13 @@ namespace Metasound
 			FNodeFacade(const FString& InInstanceName, TFacadeOperatorClass<OperatorType> OperatorClass)
 			:	FNode(InInstanceName, OperatorType::GetNodeInfo())
 			, 	Factory(MakeShared<FFactory, ESPMode::ThreadSafe>(&OperatorType::CreateOperator))
-			,	VertexInterface(OperatorType::DeclareVertexInterface())
 			{
+				VertexInterface = GetMetadata().DefaultInterface;
 			}
 
 			virtual ~FNodeFacade() = default;
 
 			virtual const FVertexInterface& GetVertexInterface() const override;
-
-			virtual const FVertexInterface& GetDefaultVertexInterface() const override;
 
 			/** FNodeFacade has a static vertex interface. This will return true
 			 * only if the input interface is equal to the default interface.
@@ -177,6 +147,4 @@ namespace Metasound
 
 			FVertexInterface VertexInterface;
 	};
-
-
 }

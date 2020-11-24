@@ -115,12 +115,21 @@ namespace Metasound
 
 	const FNodeInfo& FAudioMultiplyOperator::GetNodeInfo()
 	{
-		static const FNodeInfo Info = {
-			FName(TEXT("AudioMultiply")),
-			LOCTEXT("NodeDescription", "Multiply two audio streams, sample by sample."),
-			PluginAuthor,
-			PluginNodeMissingPrompt
+		auto InitNodeInfo = []() -> FNodeInfo
+		{
+			FNodeInfo Info;
+			Info.ClassName = FName(TEXT("AudioMultiply"));
+			Info.MajorVersion = 1;
+			Info.MinorVersion = 0;
+			Info.Description = LOCTEXT("AudioMultiply_NodeDescription", "Multiply two audio streams, sample by sample."),
+			Info.Author = PluginAuthor;
+			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.DefaultInterface = DeclareVertexInterface();
+
+			return Info;
 		};
+
+		static const FNodeInfo Info = InitNodeInfo();
 
 		return Info;
 	};

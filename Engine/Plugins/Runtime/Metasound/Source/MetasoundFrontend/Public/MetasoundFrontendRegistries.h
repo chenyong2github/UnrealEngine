@@ -3,21 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundNodeInterface.h"
-#include "MetasoundDataReference.h"
-#include "MetasoundOperatorInterface.h"
 #include "IAudioProxyInitializer.h"
-
-typedef TUniqueFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FInputNodeConstructorCallback;
-typedef TUniqueFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstrutorParams&)> FOutputNodeConstructorCallback;
-
-// This function is used to create a proxy from a datatype's base uclass.
-typedef TUniqueFunction<Audio::IProxyDataPtr(UObject*)> FProxyGetterCallback;
-
-typedef TUniqueFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FNodeGetterCallback;
+#include "MetasoundDataReference.h"
+#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
 
 namespace Metasound
 {
+	typedef TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FCreateInputNodeFunction;
+	typedef TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstrutorParams&)> FCreateOutputNodeFunction;
+
+	// This function is used to create a proxy from a datatype's base uclass.
+	typedef TFunction<Audio::IProxyDataPtr(UObject*)> FCreateAudioProxyFunction;
+
+	typedef TFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FCreateMetasoundNodeFunction;
+	typedef TFunction<FMetasoundClassDescription()> FCreateMetasoundClassDescriptionFunction;
+
 	// Various elements that we pass to the frontend registry based on templated type traits.
 	struct FDataTypeRegistryInfo
 	{
@@ -55,7 +57,7 @@ namespace Metasound
 
 			// A hash generated from the input types and output types for this node.
 			// TODO: Write up some tests to ensure this is deterministic.
-			uint32 NodeHash;
+			uint32 NodeHash = 0;
 
 			FORCEINLINE bool operator==(const FNodeRegistryKey& Other) const
 			{
@@ -72,13 +74,13 @@ namespace Metasound
 		struct METASOUNDFRONTEND_API FNodeRegistryElement
 		{
 			// This lambda can be used to get an INodeBase for this specific node class.
-			FNodeGetterCallback GetterCallback;
+			FCreateMetasoundNodeFunction CreateNode;
 
-			TArray<FName> InputTypes;
-			TArray<FName> OutputTypes;
+			FCreateMetasoundClassDescriptionFunction CreateClassDescription;
 
-			FNodeRegistryElement(FNodeGetterCallback&& InCallback)
-				: GetterCallback(MoveTemp(InCallback))
+			FNodeRegistryElement(FCreateMetasoundNodeFunction&& InCreateNodeFunction, FCreateMetasoundClassDescriptionFunction&& InCreateDescriptionFunction)
+				: CreateNode(MoveTemp(InCreateNodeFunction))
+				, CreateClassDescription(InCreateDescriptionFunction)
 			{
 			}
 		};
@@ -105,10 +107,10 @@ namespace Metasound
 		struct METASOUNDFRONTEND_API FConverterNodeInfo
 		{
 			// If this node has multiple input pins, we use this to designate which pin should be used.
-			FString PreferredConverterInputPin;
+			FVertexKey PreferredConverterInputPin;
 
 			// If this node has multiple output pins, we use this to designate which pin should be used.
-			FString PreferredConverterOutputPin;
+			FVertexKey PreferredConverterOutputPin;
 
 			// The key for this node in the node registry.
 			FNodeRegistryKey NodeKey;
@@ -129,13 +131,13 @@ namespace Metasound
 	struct FDataTypeConstructorCallbacks
 	{
 		// This constructs a TInputNode<> with the corresponding datatype.
-		FInputNodeConstructorCallback InputNodeConstructor;
+		FCreateInputNodeFunction CreateInputNode;
 
 		// This constructs a TOutputNode<> with the corresponding datatype.
-		FOutputNodeConstructorCallback OutputNodeConstructor;
+		FCreateOutputNodeFunction CreateOutputNode;
 
 		// For datatypes that use a UObject literal or a UObject literal array, this lambda generates a literal from the corresponding UObject.
-		FProxyGetterCallback ProxyConstructor;
+		FCreateAudioProxyFunction CreateAudioProxy;
 	};
 }
 
@@ -153,6 +155,7 @@ class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 
 	using FDataTypeRegistryInfo = Metasound::FDataTypeRegistryInfo;
 	using FDataTypeConstructorCallbacks = ::Metasound::FDataTypeConstructorCallbacks;
+	using FNodeInfo = Metasound::FNodeInfo;
 
 public:
 	static FMetasoundFrontendRegistryContainer* Get();
@@ -191,24 +194,25 @@ public:
 	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const;
 
 	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, FDataTypeConstructorCallbacks&& InCallbacks);
-	bool RegisterExternalNode(FNodeGetterCallback&& InCallback);
+
+	/** Register external node with the frontend.
+	 *
+	 * @param InCreateNode - Function for creating node from FNodeInitData.
+	 * @param InCreateDescription - Function for creating a FMetasoundClassDescription.
+	 *
+	 * @return True on success.
+	 */
+	bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundClassDescriptionFunction&& InCreateDescription);
+
 	bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo);
 
-	template <typename TNodeType>
-	static FNodeRegistryKey GetRegistryKeyForNode()
+	bool IsNodeRegistered(const FNodeRegistryKey& InKey) const
 	{
-		Metasound::FNodeInitData DummyInitData;
-
-		TNodeType DummyNode = TNodeType(DummyInitData);
-
-		return GetRegistryKeyForNodeInternal(DummyNode);
+		return ExternalNodeRegistry.Contains(InKey);
 	}
 
-	template <typename TNodeType>
-	bool IsNodeRegistered()
-	{
-		return ExternalNodeRegistry.Contains(GetRegistryKeyForNode<TNodeType>());
-	}
+	static FNodeRegistryKey GetRegistryKey(const FNodeInfo& InNodeMetadata);
+	static bool GetRegistryKey(const FNodeRegistryElement& InElement, FNodeRegistryKey& OutKey);
 
 	// Return any data types that can be used as a metasound input type or output type.
 	TArray<FName> GetAllValidDataTypes();
@@ -219,9 +223,6 @@ public:
 
 private:
 	FMetasoundFrontendRegistryContainer();
-
-	// Internal convenience function for generating a hash for an INode.
-	static FNodeRegistryKey GetRegistryKeyForNodeInternal(const Metasound::INode& InNode);
 
 	static FMetasoundFrontendRegistryContainer* LazySingleton;
 

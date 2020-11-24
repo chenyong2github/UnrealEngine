@@ -333,7 +333,7 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 		case EMetasoundClassType::External:
 		case EMetasoundClassType::MetasoundGraph:
 		{
-			return GenerateClassDescriptionForNode(NodeHandle.GetClassInfo()).Metadata.MetasoundDescription;
+			return GenerateClassDescription(NodeHandle.GetClassInfo()).Metadata.MetasoundDescription;
 		}
 		break;
 	}

@@ -55,22 +55,64 @@ namespace Metasound
 		// Get all available nodes of any type.
 		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllAvailableNodeClasses();
 
-		// Get all possible nodes whose name begins with a specific namespace.
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodeClassesInNamespace(const FString& InNamespace);
+		/** Returns all metadata (name, description, author, what to say if it's missing) for a given node.
+		 *
+		 * @param InInfo - Class info for a already registered external node.
+		 *
+		 * @return Metadata for node.
+		 */
+		METASOUNDFRONTEND_API FMetasoundClassMetadata GenerateClassMetadata(const FNodeClassInfo& InInfo);
 
-		// Similar to GetAllNodeClassesInNamespace, except searches all nodes for a match with a substring.
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWhoseNameContains(const FString& InSubstring);
+		/** Generates a new FMetasoundClassDescription from Node Metadata 
+		 *
+		 * @param InNodeMetadata - Metadata describing an external node.
+		 *
+		 * @return Class description for external node.
+		 */
+		METASOUNDFRONTEND_API FMetasoundClassDescription GenerateClassDescription(const FNodeInfo& InNodeMetadata);
 
-		// Searches for any node types that can output a specific type.
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWithAnOutputOfType(const FName& InType);
+		/** Generates a new FMetasoundClassDescription from node lookup info.
+		 *
+		 * @param InInfo - Class info for a already registered external node.
+		 *
+		 * @return Class description for external node.
+		 */
+		METASOUNDFRONTEND_API FMetasoundClassDescription GenerateClassDescription(const FNodeClassInfo& InInfo);
 
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType);
+		/** Generates a new FMetasoundClassDescription from Node init data
+		 *
+		 * @tparam NodeType - Type of node to instantiate.
+		 * @param InNodeInitData - Data used to call constructor of node.
+		 *
+		 * @return Class description for external node.
+		 */
+		template<typename NodeType>
+		FMetasoundClassDescription GenerateClassDescription(const FNodeInitData& InNodeInitData)
+		{
+			TUniquePtr<INode> Node = MakeUnique<NodeType>(InNodeInitData);
 
-		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		METASOUNDFRONTEND_API FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo);
+			if (ensure(Node.IsValid()))
+			{
+				return GenerateClassDescription(Node->GetMetadata());
+			}
 
-		// Generates a new FMetasoundClassDescription for a given node class. Only used by classes that manipulate Metasound Description data directly.
-		METASOUNDFRONTEND_API FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo);
+			return FMetasoundClassDescription();
+		}
+
+		/** Generates a new FMetasoundClassDescription from a NodeType
+		 *
+		 * @tparam NodeType - Type of node.
+		 *
+		 * @return Class description for external node.
+		 */
+		template<typename NodeType>
+		FMetasoundClassDescription GenerateClassDescription()
+		{
+			FNodeInitData InitData;
+			InitData.InstanceName = FString(TEXT("GenerateClassDescriptionForNode"));
+
+			return GenerateClassDescription<NodeType>(InitData);
+		}
 
 		// Convenience function to convert Metasound::ELiteralArgType to EMetasoundLiteralType, the UEnum used for metasound documents.
 		METASOUNDFRONTEND_API EMetasoundLiteralType GetMetasoundLiteralType(Metasound::ELiteralArgType InLiteralType);

@@ -6,35 +6,20 @@
 
 namespace Metasound
 {
-	FGraph::FGraph(const FString& InDescription)
-		: Description(InDescription)
+	FGraph::FGraph(const FString& InInstanceName)
+	: InstanceName(InInstanceName)
+	, Metadata(FNodeInfo::GetEmpty())
 	{
-	}
-
-	const FText& FGraph::GetDescription() const
-	{
-		return FText::GetEmpty();
 	}
 
 	const FString& FGraph::GetInstanceName() const
 	{
-		return Description;
+		return InstanceName;
 	}
 
-	const FName& FGraph::GetClassName() const
+	const FNodeInfo& FGraph::GetMetadata() const
 	{
-		static const FName ClassName("Graph");
-		return ClassName;
-	}
-
-	const FText& FGraph::GetAuthorName() const
-	{
-		return PluginAuthor;
-	}
-
-	const FText& FGraph::GetPromptIfMissing() const
-	{
-		return PluginNodeMissingPrompt;
+		return Metadata;
 	}
 
 	bool FGraph::AddInputDataDestination(const INode& InNode, const FVertexKey& InVertexKey)
@@ -53,7 +38,7 @@ namespace Metasound
 
 	void FGraph::AddInputDataDestination(const FInputDataDestination& InDestination)
 	{
-		VertexInterface.GetInputInterface().Add(InDestination.Vertex);
+		Metadata.DefaultInterface.GetInputInterface().Add(InDestination.Vertex);
 		InputDestinations.Add(MakeDestinationDataVertexKey(InDestination), InDestination);
 	}
 
@@ -78,7 +63,7 @@ namespace Metasound
 
 	void FGraph::AddOutputDataSource(const FOutputDataSource& InSource)
 	{
-		VertexInterface.GetOutputInterface().Add(InSource.Vertex);
+		Metadata.DefaultInterface.GetOutputInterface().Add(InSource.Vertex);
 		OutputSources.Add(MakeSourceDataVertexKey(InSource), InSource);
 	}
 
@@ -130,23 +115,17 @@ namespace Metasound
 
 	const FVertexInterface& FGraph::GetVertexInterface() const 
 	{
-		return VertexInterface;
+		return Metadata.DefaultInterface;
 	}
 
-	const FVertexInterface& FGraph::GetDefaultVertexInterface() const 
-	{
-		static const FVertexInterface EmptyInterface;
-
-		return EmptyInterface;
-	}
 
 	bool FGraph::SetVertexInterface(const FVertexInterface& InInterface)
 	{
-		return InInterface == VertexInterface;
+		return InInterface == Metadata.DefaultInterface;
 	}
 
 	bool FGraph::IsVertexInterfaceSupported(const FVertexInterface& InInterface) const
 	{
-		return InInterface == VertexInterface;
+		return InInterface == Metadata.DefaultInterface;
 	}
 }

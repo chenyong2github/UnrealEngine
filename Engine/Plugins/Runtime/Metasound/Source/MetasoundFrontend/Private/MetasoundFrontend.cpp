@@ -51,167 +51,76 @@ namespace Metasound
 			return OutClasses;
 		}
 
-		TArray<FNodeClassInfo> GetAllNodeClassesInNamespace(const FString& InNamespace)
-		{
-			TArray<FNodeClassInfo> OutClasses;
-
-			auto& Registry = GetExternalNodeRegistry();
-			for (auto& NodeClassTuple : Registry)
-			{
-				// TODO: Build fname namespace tree. as we register nodes and types.
-				// for now we just parse the string here.
-				FString NodeName = NodeClassTuple.Key.NodeName.ToString();
-				if (NodeName.StartsWith(InNamespace))
-				{
-					FNodeClassInfo ClassInfo;
-					ClassInfo.NodeName = NodeName;
-					ClassInfo.NodeType = EMetasoundClassType::External;
-					ClassInfo.LookupKey = NodeClassTuple.Key;
-
-					OutClasses.Add(ClassInfo);
-				}
-			}
-
-			return OutClasses;
-		}
-
-		TArray<FNodeClassInfo> GetAllNodesWhoseNameContains(const FString& InSubstring)
-		{
-			TArray<FNodeClassInfo> OutClasses;
-
-			auto& Registry = GetExternalNodeRegistry();
-			for (auto& NodeClassTuple : Registry)
-			{
-				FString NodeName = NodeClassTuple.Key.NodeName.ToString();
-				if (NodeName.Contains(InSubstring))
-				{
-					FNodeClassInfo ClassInfo;
-					ClassInfo.NodeName = NodeName;
-					ClassInfo.NodeType = EMetasoundClassType::External;
-					ClassInfo.LookupKey = NodeClassTuple.Key;
-
-					OutClasses.Add(ClassInfo);
-				}
-			}
-
-			return OutClasses;
-		}
-
-		TArray<FNodeClassInfo> GetAllNodesWithAnOutputOfType(const FName& InType)
-		{
-			TArray<FNodeClassInfo> OutClasses;
-
-			auto& Registry = GetExternalNodeRegistry();
-			for (auto& NodeClassTuple : Registry)
-			{
-				if (NodeClassTuple.Value.OutputTypes.Contains(InType))
-				{
-					FNodeClassInfo ClassInfo;
-					ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
-					ClassInfo.NodeType = EMetasoundClassType::External;
-					ClassInfo.LookupKey = NodeClassTuple.Key;
-
-					OutClasses.Add(ClassInfo);
-					break;
-				}
-			}
-
-			return OutClasses;
-		}
-
-		TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType)
-		{
-			TArray<FNodeClassInfo> OutClasses;
-
-			auto& Registry = GetExternalNodeRegistry();
-			for (auto& NodeClassTuple : Registry)
-			{
-				if (NodeClassTuple.Value.InputTypes.Contains(InType))
-				{
-					FNodeClassInfo ClassInfo;
-					ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
-					ClassInfo.NodeType = EMetasoundClassType::External;
-					ClassInfo.LookupKey = NodeClassTuple.Key;
-
-					OutClasses.Add(ClassInfo);
-					break;
-				}
-			}
-
-			return OutClasses;
-		}
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo)
+		FMetasoundClassMetadata GenerateClassMetadata(const FNodeClassInfo& InInfo)
 		{
-			return GenerateClassDescriptionForNode(InInfo).Metadata;
+			return GenerateClassDescription(InInfo).Metadata;
 		}
 
-		FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo)
+		FMetasoundClassDescription GenerateClassDescription(const FNodeInfo& InNodeMetadata)
 		{
-			FNodeInitData DummyInitData;
-			DummyInitData.InstanceName = FString(TEXT("Unused node for registration"));
+			FMetasoundClassDescription ClassDescription;
 
+			// Set metadata for class description.
+			ClassDescription.Metadata = FMetasoundClassMetadata
+			{
+				InNodeMetadata.ClassName.ToString(),
+				InNodeMetadata.MajorVersion,
+				InNodeMetadata.MinorVersion,
+				EMetasoundClassType::External,
+				InNodeMetadata.Description,
+				InNodeMetadata.PromptIfMissing,
+				InNodeMetadata.Author
+			};
+
+			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
+			// is populate the Input and Output sets.
+			for (auto& InputTuple : InNodeMetadata.DefaultInterface.GetInputInterface())
+			{
+				FMetasoundInputDescription InputDescription;
+				InputDescription.Name = InputTuple.Value.GetVertexName();
+				InputDescription.TypeName = InputTuple.Value.GetDataTypeName();
+				InputDescription.ToolTip = InputTuple.Value.GetDescription();
+
+				ClassDescription.Inputs.Add(InputDescription);
+			}
+
+			for (auto& OutputTuple : InNodeMetadata.DefaultInterface.GetOutputInterface())
+			{
+				FMetasoundOutputDescription OutputDescription;
+				OutputDescription.Name = OutputTuple.Value.GetVertexName();
+				OutputDescription.TypeName = OutputTuple.Value.GetDataTypeName();
+				OutputDescription.ToolTip = OutputTuple.Value.GetDescription();
+
+				ClassDescription.Outputs.Add(OutputDescription);
+			}
+
+			for (auto& EnvTuple : InNodeMetadata.DefaultInterface.GetEnvironmentInterface())
+			{
+				FMetasoundEnvironmentVariableDescription EnvironmentDescription;
+				EnvironmentDescription.Name = EnvTuple.Value.GetVertexName();
+				EnvironmentDescription.ToolTip = EnvTuple.Value.GetDescription();
+
+				ClassDescription.EnvironmentVariables.Add(EnvironmentDescription);
+			}
+
+
+			// Populate lookup data.
+			FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InNodeMetadata);
+
+			ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassName = Key.NodeName;
+			ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassHash = Key.NodeHash;
+
+			return ClassDescription;
+		}
+
+		FMetasoundClassDescription GenerateClassDescription(const FNodeClassInfo& InInfo)
+		{
 			auto& Registry = GetExternalNodeRegistry();
 			if (Registry.Contains(InInfo.LookupKey))
 			{
-				TUniquePtr<Metasound::INode> DummyNode = Registry[InInfo.LookupKey].GetterCallback(DummyInitData);
-
-				if (!ensureAlwaysMsgf(DummyNode.IsValid(), TEXT("Node class %s failed to return a valid node. Likely something is wrong with the METASOUND_REGISTER_NODE macro.")))
-				{
-					return FMetasoundClassDescription();
-				}
-
-				const FName NodeName = DummyNode->GetClassName();
-
-				FMetasoundClassMetadata NodeMetadata;
-				NodeMetadata.NodeName = NodeName.ToString();
-				NodeMetadata.NodeType = EMetasoundClassType::External;
-				NodeMetadata.AuthorName = DummyNode->GetAuthorName();
-				NodeMetadata.MetasoundDescription = DummyNode->GetDescription();
-				NodeMetadata.PromptIfMissing = DummyNode->GetPromptIfMissing();
-
-				FMetasoundClassDescription ClassDescription;
-				ClassDescription.Metadata = NodeMetadata;
-
-				const FVertexInterface& DummyNodeInterface = DummyNode->GetDefaultVertexInterface();
-
-				// External metasounds aren't dependent on any other nodes by definition, so all we need to do
-				// is populate the Input and Output sets.
-				for (auto& InputTuple : DummyNodeInterface.GetInputInterface())
-				{
-					FMetasoundInputDescription InputDescription;
-					InputDescription.Name = InputTuple.Value.GetVertexName();
-					InputDescription.TypeName = InputTuple.Value.GetDataTypeName();
-					InputDescription.ToolTip = InputTuple.Value.GetDescription();
-
-					ClassDescription.Inputs.Add(InputDescription);
-				}
-
-				for (auto& OutputTuple : DummyNodeInterface.GetOutputInterface())
-				{
-					FMetasoundOutputDescription OutputDescription;
-					OutputDescription.Name = OutputTuple.Value.GetVertexName();
-					OutputDescription.TypeName = OutputTuple.Value.GetDataTypeName();
-					OutputDescription.ToolTip = OutputTuple.Value.GetDescription();
-
-					ClassDescription.Outputs.Add(OutputDescription);
-				}
-
-				for (auto& EnvTuple : DummyNodeInterface.GetEnvironmentInterface())
-				{
-					FMetasoundEnvironmentVariableDescription EnvironmentDescription;
-					EnvironmentDescription.Name = EnvTuple.Value.GetVertexName();
-					EnvironmentDescription.ToolTip = EnvTuple.Value.GetDescription();
-
-					ClassDescription.EnvironmentVariables.Add(EnvironmentDescription);
-				}
-
-				// Populate lookup data.
-				ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassName = InInfo.LookupKey.NodeName;
-				ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassHash = InInfo.LookupKey.NodeHash;
-
-				return ClassDescription;
+				return Registry[InInfo.LookupKey].CreateClassDescription();
 			}
 			else
 			{
@@ -2020,7 +1929,7 @@ namespace Metasound
 			// If we haven't added a node of this class to the graph yet, add it to the dependencies for this class.
 			if (!bFoundMatchingDependencyInDocument)
 			{
-				FMetasoundClassDescription NewDependencyClassDescription = GenerateClassDescriptionForNode(InNodeClass);
+				FMetasoundClassDescription NewDependencyClassDescription = GenerateClassDescription(InNodeClass);
 				NewDependencyClassDescription.UniqueID = FindNewUniqueDependencyId();
 				Dependencies.Add(NewDependencyClassDescription);
 				GraphsClassDeclaration->DependencyIDs.Add(NewDependencyClassDescription.UniqueID);

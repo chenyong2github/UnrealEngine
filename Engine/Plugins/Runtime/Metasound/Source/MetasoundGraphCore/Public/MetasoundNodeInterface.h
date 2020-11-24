@@ -15,7 +15,6 @@ namespace Metasound
 	static const FText PluginAuthor = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultAuthor", "Epic Games, Inc.");
 	static const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingPrompt", "Make sure that the Metasound plugin is loaded.");
 
-
 	/**
 	 * This struct is used to pass in any arguments required for constructing a single node instance.
 	 * because of this, all FNode implementations have to implement a constructor that takes an FNodeInitData instance.
@@ -30,9 +29,47 @@ namespace Metasound
 		{
 			checkf(ParamMap.Contains(ParamName), TEXT("Tried to use node initialization parameter that didn't exist!"));
 
-			// If this hits, check that you have a constructor for DataType that can interpret the parameter.
-			//checkf(ParamMap[ParamName].IsCompatibleWithType<ParamType>(), TEXT("Tried to parse initialization parameter to an invalid type!"));
 			return TDataTypeLiteralFactory<ParamType>::CreateAny(ParamMap[ParamName]);
+		}
+	};
+
+	/** Provides metadata for a given node. */
+	struct FNodeInfo
+	{
+		// TODO: rename this class to FNodeMetadata
+
+		/** Name of class. Used for registration and lookup. */
+		FName ClassName;
+
+		/** Major version of node. Used for registration and lookup. */
+		int32 MajorVersion = -1;
+
+		/** Minor version of node. */
+		int32 MinorVersion = -1;
+
+		/** Human readable description of node. */
+		FText Description;
+
+		/** Author information. */
+		FText Author;
+
+		/** Human readable prompt for acquiring plugin in case node is not loaded. */
+		FText PromptIfMissing;
+
+		/** Default vertex interface for the node */
+		FVertexInterface DefaultInterface;
+
+		/** Hierarchy of categories for displaying node. */
+		TArray<FText> CategoryHierarchy;
+
+		/** List of keywords for contextual node searching. */
+		TArray<FName> Keywords;
+
+		/** Returns an empty FNodeInfo object. */
+		static const FNodeInfo& GetEmpty()
+		{
+			static const FNodeInfo EmptyInfo;
+			return EmptyInfo;
 		}
 	};
 
@@ -49,25 +86,10 @@ namespace Metasound
 			virtual const FString& GetInstanceName() const = 0;
 
 			/** Return the type name of this node. */
-			virtual const FName& GetClassName() const = 0;
-
-			/** Return a longer text description describing how this node is used. */
-			virtual const FText& GetDescription() const = 0;
-
-			/** Return the original author of this node class. */
-			virtual const FText& GetAuthorName() const = 0;
-
-			/** 
-			 *  Return an optional prompt on how users can get the plugin this node is in,
-			 *  if they have found a metasound that uses this node but don't have this plugin downloaded or enabled.
-			 */
-			virtual const FText& GetPromptIfMissing() const = 0;
+			virtual const FNodeInfo& GetMetadata() const = 0;
 
 			/** Return the current vertex interface. */
 			virtual const FVertexInterface& GetVertexInterface() const = 0;
-
-			/** Return the default vertex interface. */
-			virtual const FVertexInterface& GetDefaultVertexInterface() const = 0;
 
 			/** Set the vertex interface. If the vertex was successfully changed, returns true. 
 			 *
