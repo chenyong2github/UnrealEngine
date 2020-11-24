@@ -331,8 +331,6 @@ void SEditConditionWidget::Construct( const FArguments& Args )
 	EditConditionValue = Args._EditConditionValue;
 	OnEditConditionValueChanged = Args._OnEditConditionValueChanged;
 
-	SetVisibility(HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed);
-
 	ChildSlot
 	[
 		// Some properties become irrelevant depending on the value of other properties.
@@ -341,6 +339,7 @@ void SEditConditionWidget::Construct( const FArguments& Args )
 		SNew(SCheckBox)
 		.OnCheckStateChanged(this, &SEditConditionWidget::OnEditConditionCheckChanged)
 		.IsChecked(this, &SEditConditionWidget::OnGetEditConditionCheckState)
+		.Visibility_Lambda([this]() { return HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed; })
 	];
 }
 

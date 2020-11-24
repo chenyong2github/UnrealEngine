@@ -75,7 +75,7 @@ TSharedRef< SWidget > SPropertyEditorTableRow::ConstructNameColumnWidget()
 			SNew( SEditConditionWidget )
 			.EditConditionValue(PropertyEditor.ToSharedRef(), &FPropertyEditor::IsEditConditionMet)
 			.OnEditConditionValueChanged_Lambda([this](bool bValue) { PropertyEditor->ToggleEditConditionState(); })
-
+			.Visibility_Lambda([this]() { return PropertyEditor->HasEditCondition() ? EVisibility::Visible : EVisibility::Collapsed; })
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()
