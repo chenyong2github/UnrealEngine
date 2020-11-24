@@ -399,14 +399,15 @@ namespace UnrealBuildTool
 						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 						foreach(QueuedAction PrerequisiteAction in PrerequisiteActions)
 						{
-							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface && PrerequisiteAction.CompiledModuleInterfaceFile != null)
+							ICppCompileAction CppModulesAction = PrerequisiteAction.Inner as ICppCompileAction;
+							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
 							{
 								string ProducedModule;
 								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile, out ProducedModule))
 								{
-									ModuleOutputs[ProducedModule] = PrerequisiteAction.CompiledModuleInterfaceFile;
+									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
 								}
-								CompiledModuleInterfaces.Add(PrerequisiteAction.CompiledModuleInterfaceFile);
+								CompiledModuleInterfaces.Add(CppModulesAction.CompiledModuleInterfaceFile);
 							}
 						}
 

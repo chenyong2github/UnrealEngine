@@ -65,11 +65,6 @@ namespace UnrealBuildTool
 		FileItem DependencyListFile { get; }
 
 		/// <summary>
-		/// The compiled C++ module interface (IFC) file produced by this action
-		/// </summary>
-		FileItem CompiledModuleInterfaceFile { get; }
-
-		/// <summary>
 		/// Directory from which to execute the program to create produced items
 		/// </summary>
 		DirectoryReference WorkingDirectory { get; }
@@ -156,11 +151,6 @@ namespace UnrealBuildTool
 		public FileItem DependencyListFile { get; set; }
 
 		/// <summary>
-		/// The compiled C++ module interface (IFC) file produced by this action
-		/// </summary>
-		public FileItem CompiledModuleInterfaceFile { get; set; }
-
-		/// <summary>
 		/// Directory from which to execute the program to create produced items
 		/// </summary>
 		public DirectoryReference WorkingDirectory { get; set; } = null;
@@ -233,7 +223,6 @@ namespace UnrealBuildTool
 			ProducedItems = new List<FileItem>(InOther.ProducedItems);
 			DeleteItems = new List<FileItem>(InOther.DeleteItems);
 			DependencyListFile = InOther.DependencyListFile;
-			CompiledModuleInterfaceFile = InOther.CompiledModuleInterfaceFile;
 			WorkingDirectory = InOther.WorkingDirectory;
 			CommandPath = InOther.CommandPath;
 			CommandArguments = InOther.CommandArguments;
@@ -263,7 +252,6 @@ namespace UnrealBuildTool
 			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem());
 			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem());
 			DependencyListFile = Reader.ReadFileItem();
-			CompiledModuleInterfaceFile = Reader.ReadFileItem();
 		}
 
 		/// <summary>
@@ -286,7 +274,6 @@ namespace UnrealBuildTool
 			Writer.WriteList(ProducedItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(DeleteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteFileItem(DependencyListFile);
-			Writer.WriteFileItem(CompiledModuleInterfaceFile);
 		}
 
 		/// <summary>
@@ -501,7 +488,6 @@ namespace UnrealBuildTool
 		public IEnumerable<FileItem> ProducedItems => Inner.ProducedItems;
 		public IEnumerable<FileItem> DeleteItems => Inner.DeleteItems;
 		public FileItem DependencyListFile => Inner.DependencyListFile;
-		public FileItem CompiledModuleInterfaceFile => Inner.CompiledModuleInterfaceFile;
 		public DirectoryReference WorkingDirectory => Inner.WorkingDirectory;
 		public FileReference CommandPath => Inner.CommandPath;
 		public string CommandArguments => Inner.CommandArguments;

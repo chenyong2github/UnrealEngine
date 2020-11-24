@@ -8,14 +8,30 @@ using Tools.DotNETCommon;
 namespace UnrealBuildTool
 {
 	/// <summary>
-	/// Serializer which creates a portable object file and allows caching it
+	/// Interface for an action that compiles C++ source code
 	/// </summary>
-	class VCCompileAction : Action
+	interface ICppCompileAction : IAction
 	{
 		/// <summary>
-		/// Compiler executable
+		/// Path to the compiled module interface file
 		/// </summary>
-		public FileItem Compiler { get; }
+		FileItem CompiledModuleInterfaceFile { get; }
+	}
+
+	/// <summary>
+	/// Serializer which creates a portable object file and allows caching it
+	/// </summary>
+	class VCCompileAction : ICppCompileAction
+	{
+		/// <summary>
+		/// The dependency list file
+		/// </summary>
+		public FileItem DependencyListFile { get; set; }
+
+		/// <summary>
+		/// Compiled module interface
+		/// </summary>
+		public FileItem CompiledModuleInterfaceFile { get; set; }
 
 		/// <summary>
 		/// For C++ source files, specifies a timing file used to track timing information.
@@ -23,13 +39,52 @@ namespace UnrealBuildTool
 		public FileItem TimingFile { get; set; }
 
 		/// <summary>
+		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
+		/// </summary>
+		public List<FileItem> PrerequisiteItems { get; } = new List<FileItem>();
+
+		/// <summary>
+		/// The files that this action produces after completing
+		/// </summary>
+		public List<FileItem> ProducedItems { get; } = new List<FileItem>();
+
+		/// <summary>
+		/// Items that should be deleted before running this action
+		/// </summary>
+		public List<FileItem> DeleteItems { get; } = new List<FileItem>();
+
+		/// <inheritdoc/>
+		public FileReference CommandPath { get; set; }
+
+		/// <inheritdoc/>
+		public string CommandArguments { get; set; }
+
+		/// <inheritdoc/>
+		public string StatusDescription { get; set; }
+		
+		/// <inheritdoc/>
+		public bool bShouldOutputStatusDescription { get; set; }
+
+		#region Implemenation of IAction
+		ActionType IAction.ActionType => ActionType.Compile;
+		IEnumerable<FileItem> IAction.PrerequisiteItems => PrerequisiteItems;
+		IEnumerable<FileItem> IAction.ProducedItems => ProducedItems;
+		IEnumerable<FileItem> IAction.DeleteItems => DeleteItems;
+		public DirectoryReference WorkingDirectory => UnrealBuildTool.EngineSourceDirectory;
+		string IAction.CommandDescription => "Compile";
+		public bool bCanExecuteRemotely { get; set; }
+		public bool bCanExecuteRemotelyWithSNDBS { get; set; }
+		bool IAction.bIsGCCCompiler => false;
+		bool IAction.bProducesImportLibrary => false;
+		#endregion
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Environment">Compiler executable</param>
 		public VCCompileAction(VCEnvironment Environment)
-			: base(ActionType.Compile)
 		{
-			this.Compiler = FileItem.GetItemByFileReference(Environment.CompilerPath);
+			this.CommandPath = Environment.CompilerPath;
 		}
 
 		/// <summary>
@@ -37,19 +92,32 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Reader">Reader to serialize from</param>
 		public VCCompileAction(BinaryArchiveReader Reader)
-			: base(Reader)
 		{
-			Compiler = Reader.ReadFileItem();
+			DependencyListFile = Reader.ReadFileItem();
+			CompiledModuleInterfaceFile = Reader.ReadFileItem();
 			TimingFile = Reader.ReadFileItem();
+			PrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem());
+			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem());
+			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem());
+			CommandPath = Reader.ReadFileReference();
+			CommandArguments = Reader.ReadString();
+			StatusDescription = Reader.ReadString();
+			bShouldOutputStatusDescription = Reader.ReadBool();
 		}
 
 		/// <inheritdoc/>
-		public new void Write(BinaryArchiveWriter Writer)
+		public void Write(BinaryArchiveWriter Writer)
 		{
-			base.Write(Writer);
-
-			Writer.WriteFileItem(Compiler);
+			Writer.WriteFileItem(DependencyListFile);
+			Writer.WriteFileItem(CompiledModuleInterfaceFile);
 			Writer.WriteFileItem(TimingFile);
+			Writer.WriteList(PrerequisiteItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteList(ProducedItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteList(DeleteItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteFileReference(CommandPath);
+			Writer.WriteString(CommandArguments);
+			Writer.WriteString(StatusDescription);
+			Writer.WriteBool(bShouldOutputStatusDescription);
 		}
 	}
 

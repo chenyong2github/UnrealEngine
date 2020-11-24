@@ -1060,8 +1060,6 @@ namespace UnrealBuildTool
 				VCCompileAction CompileAction = new VCCompileAction(EnvVars);
 				Graph.AddAction(CompileAction);
 
-				CompileAction.CommandDescription = "Compile";
-
 				List<string> FileArguments = new List<string>();
 				bool bIsPlainCFile = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant() == ".C";
 
@@ -1237,8 +1235,6 @@ namespace UnrealBuildTool
 					AppendCLArguments_CPP(CompileEnvironment, FileArguments);
 				}
 
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				CompileAction.CommandPath = EnvVars.CompilerPath;
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
@@ -1274,7 +1270,6 @@ namespace UnrealBuildTool
 					CompileDepsAction.bShouldOutputStatusDescription = false;
 
 					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
-					CompileAction.ActionType = ActionType.CompileModuleInterface;
 					CompileAction.CommandArguments += String.Format(" /interface /ifcOutput \"{0}\"", IfcFile.Location);
 					CompileAction.PrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
 					CompileAction.ProducedItems.Add(IfcFile);

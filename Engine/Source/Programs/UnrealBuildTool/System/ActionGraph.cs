@@ -172,7 +172,7 @@ namespace UnrealBuildTool
 
 				List<FileReference> FailPaths = new List<FileReference>();
 				List<FileReference> WarnPaths = new List<FileReference>();
-				foreach (Action Action in Actions)
+				foreach (IAction Action in Actions)
 				{
 					foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
 					{
