@@ -7,6 +7,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
+#include "Serialization/Archive.h"
 #include "Serialization/VarInt.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,6 +455,13 @@ void FCbField::CopyTo(const FMutableMemoryView Buffer) const
 	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), FMath::Min(Buffer.GetSize(), Source.GetSize()));
 }
 
+void FCbField::CopyTo(FArchive& Ar) const
+{
+	check(Ar.IsSaving());
+	const FConstMemoryView Source = GetFieldView();
+	Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbArray::FCbArray()
@@ -518,6 +526,15 @@ void FCbArray::CopyTo(const FMutableMemoryView Buffer) const
 	*BufferBytes++ = uint8(FCbFieldType::GetType(GetType()));
 	const FConstMemoryView Source = GetPayloadView();
 	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
+}
+
+void FCbArray::CopyTo(FArchive& Ar) const
+{
+	check(Ar.IsSaving());
+	uint8 TypeByte = uint8(FCbFieldType::GetType(GetType()));
+	const FConstMemoryView Source = GetPayloadView();
+	Ar.Serialize(&TypeByte, sizeof(TypeByte));
+	Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -600,113 +617,13 @@ void FCbObject::CopyTo(const FMutableMemoryView Buffer) const
 	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
+void FCbObject::CopyTo(FArchive& Ar) const
 {
-	uint64 Size = 0;
-
-	if (FCbFieldType::HasFieldType(Type))
-	{
-		if (View.GetSize() == 0)
-		{
-			return 0;
-		}
-
-		Type = *static_cast<const ECbFieldType*>(View.GetData());
-		View += 1;
-		Size += 1;
-	}
-
-	bool bVariableSize = false;
-	switch (FCbFieldType::GetType(Type))
-	{
-	case ECbFieldType::None:
-	case ECbFieldType::Null:
-		break;
-	case ECbFieldType::Object:
-	case ECbFieldType::UniformObject:
-	case ECbFieldType::Array:
-	case ECbFieldType::UniformArray:
-	case ECbFieldType::Binary:
-	case ECbFieldType::String:
-	case ECbFieldType::IntegerPositive:
-	case ECbFieldType::IntegerNegative:
-		bVariableSize = true;
-		break;
-	case ECbFieldType::Float32:
-		Size += 4;
-		break;
-	case ECbFieldType::Float64:
-		Size += 8;
-		break;
-	case ECbFieldType::BoolFalse:
-	case ECbFieldType::BoolTrue:
-		break;
-	case ECbFieldType::Reference:
-	case ECbFieldType::BinaryReference:
-	case ECbFieldType::Hash:
-		Size += 32;
-		break;
-	case ECbFieldType::Uuid:
-		Size += 16;
-		break;
-	case ECbFieldType::DateTime:
-	case ECbFieldType::TimeSpan:
-		Size += 8;
-		break;
-	default:
-		return 0;
-	}
-
-	if (FCbFieldType::HasFieldName(Type))
-	{
-		if (View.GetSize() == 0 || View.GetSize() < MeasureVarUInt(View.GetData()))
-		{
-			return 0;
-		}
-
-		uint32 NameLenByteCount;
-		const uint64 NameLen = ReadVarUInt(View.GetData(), NameLenByteCount);
-		const uint64 NameSize = NameLen + NameLenByteCount;
-
-		if (bVariableSize && View.GetSize() < NameSize)
-		{
-			return 0;
-		}
-
-		View += NameSize;
-		Size += NameSize;
-	}
-
-	switch (FCbFieldType::GetType(Type))
-	{
-	case ECbFieldType::Object:
-	case ECbFieldType::UniformObject:
-	case ECbFieldType::Array:
-	case ECbFieldType::UniformArray:
-	case ECbFieldType::Binary:
-	case ECbFieldType::String:
-		if (View.GetSize() == 0 || View.GetSize() < MeasureVarUInt(View.GetData()))
-		{
-			return 0;
-		}
-		else
-		{
-			uint32 PayloadSizeByteCount;
-			const uint64 PayloadSize = ReadVarUInt(View.GetData(), PayloadSizeByteCount);
-			return Size + PayloadSize + PayloadSizeByteCount;
-		}
-	case ECbFieldType::IntegerPositive:
-	case ECbFieldType::IntegerNegative:
-		if (View.GetSize() == 0)
-		{
-			return 0;
-		}
-		return Size + MeasureVarUInt(View.GetData());
-	default:
-		return Size;
-	}
+	check(Ar.IsSaving());
+	uint8 TypeByte = uint8(FCbFieldType::GetType(GetType()));
+	const FConstMemoryView Source = GetPayloadView();
+	Ar.Serialize(&TypeByte, sizeof(TypeByte));
+	Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

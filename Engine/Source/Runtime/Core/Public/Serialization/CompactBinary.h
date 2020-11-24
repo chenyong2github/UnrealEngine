@@ -67,6 +67,7 @@
  * \endcode
  */
 
+class FArchive;
 class FCbArray;
 class FCbField;
 class FCbObject;
@@ -631,6 +632,13 @@ protected:
 	 */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
+	/**
+	 * Copy the field into an archive. This will write GetSize() bytes.
+	 *
+	 * The field type will only be copied if HasFieldType is set.
+	 */
+	CORE_API void CopyTo(FArchive& Ar) const;
+
 	/** Create a view of the field, including the type and name when present. */
 	CORE_API FConstMemoryView GetFieldView() const;
 
@@ -779,6 +787,9 @@ protected:
 	/** Copy the array into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
+	/** Copy the array into an archive. This will write GetSize() bytes. */
+	CORE_API void CopyTo(FArchive& Ar) const;
+
 private:
 	friend inline FCbFieldIterator begin(const FCbArray& Array) { return Array.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbArray&) { return FCbFieldIterator(); }
@@ -874,12 +885,20 @@ protected:
 	/** Copy the object into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
+	/** Copy the object into an archive. This will write GetSize() bytes. */
+	CORE_API void CopyTo(FArchive& Ar) const;
+
 private:
 	friend inline FCbFieldIterator begin(const FCbObject& Object) { return Object.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbObject&) { return FCbFieldIterator(); }
 
 	inline explicit FCbObject(const FCbField& Field) : FCbField(Field) {}
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** A reference to a function that is used to allocate buffers for compact binary data. */
+using FCbBufferAllocator = TFunctionRef<FSharedBufferPtr (ECbFieldType Type, uint64 Size)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1240,23 +1259,5 @@ inline FCbArrayRef FCbFieldRef::AsArrayRef() &&
 {
 	return IsArray() ? FCbArrayRef(AsArray(), MoveTemp(*this)) : FCbArrayRef();
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Determine the size in bytes of a one compact binary field at the start of the view.
- *
- * This may be called on an incomplete or invalid field, in which case the returned size is zero.
- * A size can always be extracted from a valid field with no name if a view of at least the first
- * 10 bytes is provided, regardless of field size. For fields with names, the size of view needed
- * to calculate a size is at most 10 + MaxNameLen + MeasureVarUInt(MaxNameLen).
- *
- * This function can be used when streaming a field, for example, to determine the size of buffer
- * to fill before attempting to construct a field from it.
- *
- * @param View A memory view that may contain the start of a field.
- * @param Type HasFieldType means that View contains the type. Otherwise, use the given type.
- */
-CORE_API uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

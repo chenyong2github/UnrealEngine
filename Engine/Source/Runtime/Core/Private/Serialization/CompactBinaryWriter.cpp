@@ -8,6 +8,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
+#include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/VarInt.h"
 
 enum class FCbWriter::EStateFlags : uint8
