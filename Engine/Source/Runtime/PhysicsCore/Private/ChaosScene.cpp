@@ -285,7 +285,7 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 #endif
 }
 
-void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
+void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping,float InAsyncDt)
 {
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -294,6 +294,14 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 
 	if(FPhysicsSolver* Solver = GetSolver())
 	{
+		if (InAsyncDt > 0)
+		{
+			Solver->EnableAsyncMode(InAsyncDt);
+		}
+		else
+		{
+			Solver->DisableAsyncMode();
+		}
 		if(bSubstepping)
 		{
 			Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);

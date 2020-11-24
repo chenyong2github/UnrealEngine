@@ -168,7 +168,7 @@ public:
 	void ApplyWorldOffset(FVector InOffset);
 
 	/** Set the gravity and timing of all physics scenes */
-	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds = 0.0f, float InMaxPhysicsDeltaTime = 0.0f, float InMaxSubstepDeltaTime = 0.f, int32 InMaxSubsteps = 1, bool bUnused = false);
+	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds = 0.0f, float InMaxPhysicsDeltaTime = 0.0f, float InMaxSubstepDeltaTime = 0.f, int32 InMaxSubsteps = 1, bool bUnused = false, float InUnused = 0);
 
 	/** Starts a frame */
 	ENGINE_API void StartFrame();

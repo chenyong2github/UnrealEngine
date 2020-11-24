@@ -105,9 +105,6 @@ namespace Chaos
 		Solver.AdvanceSolverBy(Dt);
 	}
 
-	CHAOS_API float DefaultAsyncDt = -1;
-	FAutoConsoleVariableRef CVarDefaultAsyncDt(TEXT("p.DefaultAsyncDt"), DefaultAsyncDt,TEXT("Whether to use async results -1 means not async"));
-
 	CHAOS_API int32 UseAsyncInterpolation = 1;
 	FAutoConsoleVariableRef CVarUseAsyncInterpolation(TEXT("p.UseAsyncInterpolation"), UseAsyncInterpolation, TEXT("Whether to interpolate when async mode is enabled"));
 
@@ -122,7 +119,7 @@ namespace Chaos
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
-		, AsyncDt(DefaultAsyncDt)
+		, AsyncDt(-1)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)
 #endif
