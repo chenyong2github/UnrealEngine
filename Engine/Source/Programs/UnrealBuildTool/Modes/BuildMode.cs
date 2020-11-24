@@ -805,11 +805,13 @@ namespace UnrealBuildTool
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
 				foreach(QueuedAction TargetAction in TargetActions[TargetIdx])
 				{
+					FileItem ProducedItem = TargetAction.ProducedItems.First();
+
 					QueuedAction ExistingAction;
-					if(!OutputItemToProducingAction.TryGetValue(TargetAction.ProducedItems[0], out ExistingAction))
+					if(!OutputItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
 						ExistingAction = new QueuedAction(TargetAction);
-						OutputItemToProducingAction[TargetAction.ProducedItems[0]] = ExistingAction;
+						OutputItemToProducingAction[ProducedItem] = ExistingAction;
 					}
 					ExistingAction.GroupNames.Add(GroupPrefix);
 				}

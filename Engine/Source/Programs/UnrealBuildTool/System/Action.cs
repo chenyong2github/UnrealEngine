@@ -47,17 +47,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
 		/// </summary>
-		IReadOnlyList<FileItem> PrerequisiteItems { get; }
+		IEnumerable<FileItem> PrerequisiteItems { get; }
 
 		/// <summary>
 		/// The files that this action produces after completing
 		/// </summary>
-		IReadOnlyList<FileItem> ProducedItems { get; }
+		IEnumerable<FileItem> ProducedItems { get; }
 
 		/// <summary>
 		/// Items that should be deleted before running this action
 		/// </summary>
-		IReadOnlyList<FileItem> DeleteItems { get; }
+		IEnumerable<FileItem> DeleteItems { get; }
 
 		/// <summary>
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
@@ -129,12 +129,6 @@ namespace UnrealBuildTool
 		/// True if any libraries produced by this action should be considered 'import libraries'
 		/// </summary>
 		bool bProducesImportLibrary { get; }
-
-		/// <summary>
-		/// Writes an action to a json file
-		/// </summary>
-		/// <param name="Writer">Writer to receive the output</param>
-		void ExportJson(JsonWriter Writer);
 	}
 
 	/// <summary>
@@ -237,9 +231,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bProducesImportLibrary { get; set; } = false;
 
-		IReadOnlyList<FileItem> IAction.PrerequisiteItems => PrerequisiteItems;
-		IReadOnlyList<FileItem> IAction.ProducedItems => ProducedItems;
-		IReadOnlyList<FileItem> IAction.DeleteItems => DeleteItems;
+		IEnumerable<FileItem> IAction.PrerequisiteItems => PrerequisiteItems;
+		IEnumerable<FileItem> IAction.ProducedItems => ProducedItems;
+		IEnumerable<FileItem> IAction.DeleteItems => DeleteItems;
 
 		public Action(ActionType InActionType)
 		{
@@ -420,52 +414,6 @@ namespace UnrealBuildTool
 			return Action;
 		}
 
-		/// <summary>
-		/// Writes an action to a json file
-		/// </summary>
-		/// <param name="Writer">Writer to receive the output</param>
-		public void ExportJson(JsonWriter Writer)
-		{
-			Writer.WriteEnumValue("Type", ActionType);
-			Writer.WriteValue("WorkingDirectory", WorkingDirectory.FullName);
-			Writer.WriteValue("CommandPath", CommandPath.FullName);
-			Writer.WriteValue("CommandArguments", CommandArguments);
-			Writer.WriteValue("CommandDescription", CommandDescription);
-			Writer.WriteValue("StatusDescription", StatusDescription);
-			Writer.WriteValue("bPrintDebugInfo", bPrintDebugInfo);
-			Writer.WriteValue("bCanExecuteRemotely", bCanExecuteRemotely);
-			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", bCanExecuteRemotelyWithSNDBS);
-			Writer.WriteValue("bIsGCCCompiler", bIsGCCCompiler);
-			Writer.WriteValue("bShouldOutputStatusDescription", bShouldOutputStatusDescription);
-			Writer.WriteValue("bProducesImportLibrary", bProducesImportLibrary);
-
-			Writer.WriteArrayStart("PrerequisiteItems");
-			foreach(FileItem PrerequisiteItem in PrerequisiteItems)
-			{
-				Writer.WriteValue(PrerequisiteItem.AbsolutePath);
-			}
-			Writer.WriteArrayEnd();
-
-			Writer.WriteArrayStart("ProducedItems");
-			foreach(FileItem ProducedItem in ProducedItems)
-			{
-				Writer.WriteValue(ProducedItem.AbsolutePath);
-			}
-			Writer.WriteArrayEnd();
-
-			Writer.WriteArrayStart("DeleteItems");
-			foreach(FileItem DeleteItem in DeleteItems)
-			{
-				Writer.WriteValue(DeleteItem.AbsolutePath);
-			}
-			Writer.WriteArrayEnd();
-
-			if (DependencyListFile != null)
-			{
-				Writer.WriteValue("DependencyListFile", DependencyListFile.AbsolutePath);
-			}
-		}
-
 		public override string ToString()
 		{
 			string ReturnString = "";
@@ -478,6 +426,59 @@ namespace UnrealBuildTool
 				ReturnString += CommandArguments;
 			}
 			return ReturnString;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for action classes
+	/// </summary>
+	static class ActionExtensions
+	{
+		/// <summary>
+		/// Writes an action to a json file
+		/// </summary>
+		/// <param name="Action">The action to write</param>
+		/// <param name="Writer">Writer to receive the output</param>
+		public static void ExportJson(this IAction Action, JsonWriter Writer)
+		{
+			Writer.WriteEnumValue("Type", Action.ActionType);
+			Writer.WriteValue("WorkingDirectory", Action.WorkingDirectory.FullName);
+			Writer.WriteValue("CommandPath", Action.CommandPath.FullName);
+			Writer.WriteValue("CommandArguments", Action.CommandArguments);
+			Writer.WriteValue("CommandDescription", Action.CommandDescription);
+			Writer.WriteValue("StatusDescription", Action.StatusDescription);
+			Writer.WriteValue("bPrintDebugInfo", Action.bPrintDebugInfo);
+			Writer.WriteValue("bCanExecuteRemotely", Action.bCanExecuteRemotely);
+			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", Action.bCanExecuteRemotelyWithSNDBS);
+			Writer.WriteValue("bIsGCCCompiler", Action.bIsGCCCompiler);
+			Writer.WriteValue("bShouldOutputStatusDescription", Action.bShouldOutputStatusDescription);
+			Writer.WriteValue("bProducesImportLibrary", Action.bProducesImportLibrary);
+
+			Writer.WriteArrayStart("PrerequisiteItems");
+			foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
+			{
+				Writer.WriteValue(PrerequisiteItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			Writer.WriteArrayStart("ProducedItems");
+			foreach (FileItem ProducedItem in Action.ProducedItems)
+			{
+				Writer.WriteValue(ProducedItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			Writer.WriteArrayStart("DeleteItems");
+			foreach (FileItem DeleteItem in Action.DeleteItems)
+			{
+				Writer.WriteValue(DeleteItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			if (Action.DependencyListFile != null)
+			{
+				Writer.WriteValue("DependencyListFile", Action.DependencyListFile.AbsolutePath);
+			}
 		}
 	}
 
@@ -527,9 +528,9 @@ namespace UnrealBuildTool
 		#region Wrapper implementation of IAction
 
 		public ActionType ActionType => Inner.ActionType;
-		public IReadOnlyList<FileItem> PrerequisiteItems => Inner.PrerequisiteItems;
-		public IReadOnlyList<FileItem> ProducedItems => Inner.ProducedItems;
-		public IReadOnlyList<FileItem> DeleteItems => Inner.DeleteItems;
+		public IEnumerable<FileItem> PrerequisiteItems => Inner.PrerequisiteItems;
+		public IEnumerable<FileItem> ProducedItems => Inner.ProducedItems;
+		public IEnumerable<FileItem> DeleteItems => Inner.DeleteItems;
 		public FileItem DependencyListFile => Inner.DependencyListFile;
 		public FileItem CompiledModuleInterfaceFile => Inner.CompiledModuleInterfaceFile;
 		public FileItem TimingFile => Inner.TimingFile;
@@ -592,7 +593,7 @@ namespace UnrealBuildTool
 			// Secondary sort criteria is number of pre-requisites.
 			else
 			{
-				return Math.Sign(B.PrerequisiteItems.Count - A.PrerequisiteItems.Count);
+				return Math.Sign(B.PrerequisiteItems.Count() - A.PrerequisiteItems.Count());
 			}
 		}
 	}

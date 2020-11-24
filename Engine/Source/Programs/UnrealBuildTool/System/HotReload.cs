@@ -866,14 +866,16 @@ namespace UnrealBuildTool
 
 			foreach (QueuedAction Action in Actions.Where((Action) => Action.ActionType == ActionType.Link))
 			{
+				FileItem FirstProducedItem = Action.ProducedItems.First();
+
 				// Assume that the first produced item (with no extension) is our output file name
 				FileReference HotReloadFile;
-				if(!OriginalFileToHotReloadFile.TryGetValue(Action.ProducedItems[0].Location, out HotReloadFile))
+				if(!OriginalFileToHotReloadFile.TryGetValue(FirstProducedItem.Location, out HotReloadFile))
 				{
 					continue;
 				}
 
-				string OriginalFileNameWithoutExtension = Utils.GetFilenameWithoutAnyExtensions(Action.ProducedItems[0].AbsolutePath);
+				string OriginalFileNameWithoutExtension = Utils.GetFilenameWithoutAnyExtensions(FirstProducedItem.AbsolutePath);
 				string NewFileNameWithoutExtension = Utils.GetFilenameWithoutAnyExtensions(HotReloadFile.FullName);
 
 				// Find the response file in the command line.  We'll need to make a copy of it with our new file name.
@@ -934,9 +936,9 @@ namespace UnrealBuildTool
 					}
 
 					// Update this action's list of prerequisite items too
-					for (int ItemIndex = 0; ItemIndex < Action.PrerequisiteItems.Count; ++ItemIndex)
+					for (int ItemIndex = 0; ItemIndex < NewAction.PrerequisiteItems.Count; ++ItemIndex)
 					{
-						FileItem OriginalPrerequisiteItem = Action.PrerequisiteItems[ItemIndex];
+						FileItem OriginalPrerequisiteItem = NewAction.PrerequisiteItems[ItemIndex];
 						string NewPrerequisiteItemFilePath = ReplaceBaseFileName(OriginalPrerequisiteItem.AbsolutePath, OriginalFileNameWithoutExtension, NewFileNameWithoutExtension);
 
 						if (OriginalPrerequisiteItem.AbsolutePath != NewPrerequisiteItemFilePath)
@@ -967,9 +969,9 @@ namespace UnrealBuildTool
 				}
 
 				// Update this action's list of produced items too
-				for (int ItemIndex = 0; ItemIndex < Action.ProducedItems.Count; ++ItemIndex)
+				for (int ItemIndex = 0; ItemIndex < NewAction.ProducedItems.Count; ++ItemIndex)
 				{
-					FileItem OriginalProducedItem = Action.ProducedItems[ItemIndex];
+					FileItem OriginalProducedItem = NewAction.ProducedItems[ItemIndex];
 
 					string NewProducedItemFilePath = ReplaceBaseFileName(OriginalProducedItem.AbsolutePath, OriginalFileNameWithoutExtension, NewFileNameWithoutExtension);
 					if (OriginalProducedItem.AbsolutePath != NewProducedItemFilePath)
@@ -984,10 +986,10 @@ namespace UnrealBuildTool
 				}
 
 				// Fix up the list of items to delete too
-				for(int Idx = 0; Idx < Action.DeleteItems.Count; Idx++)
+				for(int Idx = 0; Idx < NewAction.DeleteItems.Count; Idx++)
 				{
 					FileItem NewItem;
-					if(AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(Action.DeleteItems[Idx], out NewItem))
+					if(AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(NewAction.DeleteItems[Idx], out NewItem))
 					{
 						NewAction.DeleteItems[Idx] = NewItem;
 					}
@@ -1011,19 +1013,19 @@ namespace UnrealBuildTool
 			// Do another pass and update any actions that depended on the original file names that we changed
 			foreach (QueuedAction Action in Actions)
 			{
-				for (int ItemIndex = 0; ItemIndex < Action.PrerequisiteItems.Count; ++ItemIndex)
+				Action NewAction = new Action(Action.Inner);
+				for (int ItemIndex = 0; ItemIndex < NewAction.PrerequisiteItems.Count; ++ItemIndex)
 				{
-					FileItem OriginalFileItem = Action.PrerequisiteItems[ItemIndex];
+					FileItem OriginalFileItem = NewAction.PrerequisiteItems[ItemIndex];
 
 					FileItem NewFileItem;
 					if (AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(OriginalFileItem, out NewFileItem))
 					{
 						// OK, looks like we need to replace this file item because we've renamed the file
-						Action NewAction = new Action(Action.Inner);
 						NewAction.PrerequisiteItems[ItemIndex] = NewFileItem;
-						Action.Inner = NewAction;
 					}
 				}
+				Action.Inner = NewAction;
 			}
 
 

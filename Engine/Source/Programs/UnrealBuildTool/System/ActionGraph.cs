@@ -138,7 +138,7 @@ namespace UnrealBuildTool
 		/// <param name="NewValue">Conflicting value for the field</param>
 		static void LogConflict(IAction Action, string Description, string OldValue, string NewValue)
 		{
-			Log.TraceError("Unable to merge actions producing {0}: {1}", Action.ProducedItems[0].Location.GetFileName(), Description);
+			Log.TraceError("Unable to merge actions producing {0}: {1}", Action.ProducedItems.First().Location.GetFileName(), Description);
 			Log.TraceLog("  Previous: {0}", OldValue);
 			Log.TraceLog("  Conflict: {0}", NewValue);
 		}
@@ -408,14 +408,15 @@ namespace UnrealBuildTool
 							{
 								if (CyclicActions.ContainsKey(CyclicPrerequisiteAction))
 								{
-									if (CyclicPrerequisiteAction.ProducedItems.Count == 1)
+									List<FileItem> CyclicProducedItems = CyclicPrerequisiteAction.ProducedItems.ToList();
+									if (CyclicProducedItems.Count == 1)
 									{
-										CycleDescription += string.Format("\t\t{0} (produces: {1})\n", ActionToIndex[CyclicPrerequisiteAction], CyclicPrerequisiteAction.ProducedItems[0].AbsolutePath);
+										CycleDescription += string.Format("\t\t{0} (produces: {1})\n", ActionToIndex[CyclicPrerequisiteAction], CyclicProducedItems[0].AbsolutePath);
 									}
 									else
 									{
 										CycleDescription += string.Format("\t\t{0}\n", ActionToIndex[CyclicPrerequisiteAction]);
-										foreach (FileItem CyclicProducedItem in CyclicPrerequisiteAction.ProducedItems)
+										foreach (FileItem CyclicProducedItem in CyclicProducedItems)
 										{
 											CycleDescription += string.Format("\t\t\tproduces:   {0}\n", CyclicProducedItem.AbsolutePath);
 										}

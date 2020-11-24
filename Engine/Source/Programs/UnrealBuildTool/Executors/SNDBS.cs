@@ -76,7 +76,7 @@ namespace UnrealBuildTool
 						["run_locally"] = !(a.bCanExecuteRemotely && a.bCanExecuteRemotelyWithSNDBS)
 					};
 
-					if (a.PrerequisiteItems.Count > 0)
+					if (a.PrerequisiteItems.Count() > 0)
 					{
 						Job["explicit_input_files"] = a.PrerequisiteItems.Select(i => new Dictionary<string, object>()
 						{
