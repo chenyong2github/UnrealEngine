@@ -19,7 +19,17 @@ static void ServerOutputHandler(logging::Channel::Enum Channel, logging::Type::E
 		UE_LOG(LogLiveCodingServer, Error, TEXT("%s"), *TrimText);
 		break;
 	case logging::Type::LOG_WARNING:
-		UE_LOG(LogLiveCodingServer, Warning, TEXT("%s"), *TrimText);
+		// There are some warnings generated in the dev channel that aren't really actionable by the users.
+		// For example, warnings about symbols being eliminated by the linker.  It would be nice to just 
+		// filter that specific warning, but we can't.
+		if (Channel == logging::Channel::DEV)
+		{
+			UE_LOG(LogLiveCodingServer, Verbose, TEXT("%s"), *TrimText);
+		}
+		else
+		{
+			UE_LOG(LogLiveCodingServer, Warning, TEXT("%s"), *TrimText);
+		}
 		break;
 	default:
 		UE_LOG(LogLiveCodingServer, Display, TEXT("%s"), *TrimText);
