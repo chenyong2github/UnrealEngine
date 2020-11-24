@@ -7,20 +7,17 @@
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
-SLevelSnapshotsEditorBrowser::~SLevelSnapshotsEditorBrowser()
-{
-}
-
 void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
 {
-	ValueAttribute = InArgs._Value;
+	OwningWorldPathAttribute = InArgs._OwningWorldPath;
 	BuilderPtr = InBuilder;
 
-	check(ValueAttribute.IsSet());
+	check(OwningWorldPathAttribute.IsSet());
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
@@ -64,7 +61,13 @@ bool SLevelSnapshotsEditorBrowser::OnShouldFilterAsset(const FAssetData& InAsset
 	{
 		if (!LevelSnapshot->MapName.IsEmpty())
 		{
-			if (UWorld* World = ValueAttribute.Get())
+			// TODO: UEENT-3942: Match Level Snapshots to Levels based on Path rather than map name
+			// TODO: UEENT-3943: Create Metadata for Snapshot asset with Level Path
+			// Get the path from the meta from the snapshot asset and match it against OwningWorldPathAttribute
+			// This avoids having to load the world or the snapshot
+			// When we have this we can remove this expensive asset loading routing we do to get the map name
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			if (UWorld* World = Cast<UWorld>(AssetRegistryModule.Get().GetAssetByObjectPath(FName(OwningWorldPathAttribute.Get().GetAssetPathString())).GetAsset()))
 			{
 				if (LevelSnapshot->MapName.Equals(World->GetMapName()))
 				{
