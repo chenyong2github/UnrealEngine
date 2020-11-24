@@ -1009,12 +1009,6 @@ namespace UnrealBuildTool
 			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
-			// ensure compiler timings are captured when we execute the action.
-			if (!WindowsPlatform.bAllowClangLinker && LinkEnvironment.bPrintTimingInfo)
-			{
-				LinkAction.bPrintDebugInfo = true;
-			}
-
 			// VS 15.3+ does not touch lib files if they do not contain any modifications, but we need to ensure the timestamps are updated to avoid repeatedly building them.
 			if (bBuildImportLibraryOnly || (LinkEnvironment.bHasExports && !bIsBuildingLibrary))
 			{

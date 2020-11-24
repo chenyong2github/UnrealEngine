@@ -1060,12 +1060,6 @@ namespace UnrealBuildTool
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
 
-				// ensure compiler timings are captured when we execute the action.
-				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && CompileEnvironment.bPrintTimingInfo)
-				{
-					CompileAction.bPrintDebugInfo = true;
-				}
-
 				List<string> FileArguments = new List<string>();
 				bool bIsPlainCFile = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant() == ".C";
 
@@ -1865,12 +1859,6 @@ namespace UnrealBuildTool
 			LinkAction.ProducedItems.AddRange(ProducedItems);
 			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
-
-			// ensure compiler timings are captured when we execute the action.
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && LinkEnvironment.bPrintTimingInfo)
-			{
-				LinkAction.bPrintDebugInfo = true;
-			}
 
 			// VS 15.3+ does not touch lib files if they do not contain any modifications, but we need to ensure the timestamps are updated to avoid repeatedly building them.
 			if (bBuildImportLibraryOnly || (LinkEnvironment.bHasExports && !bIsBuildingLibraryOrImportLibrary))

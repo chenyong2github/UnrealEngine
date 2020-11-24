@@ -80,11 +80,6 @@ namespace UnrealBuildTool
 		DirectoryReference WorkingDirectory { get; }
 
 		/// <summary>
-		/// True if we should log extra information when we run a program to create produced items
-		/// </summary>
-		bool bPrintDebugInfo { get; }
-
-		/// <summary>
 		/// The command to run to create produced items
 		/// </summary>
 		FileReference CommandPath { get; }
@@ -181,11 +176,6 @@ namespace UnrealBuildTool
 		public DirectoryReference WorkingDirectory { get; set; } = null;
 
 		/// <summary>
-		/// True if we should log extra information when we run a program to create produced items
-		/// </summary>
-		public bool bPrintDebugInfo { get; set; } = false;
-
-		/// <summary>
 		/// The command to run to create produced items
 		/// </summary>
 		public FileReference CommandPath { get; set; } = null;
@@ -256,7 +246,6 @@ namespace UnrealBuildTool
 			CompiledModuleInterfaceFile = InOther.CompiledModuleInterfaceFile;
 			TimingFile = InOther.TimingFile;
 			WorkingDirectory = InOther.WorkingDirectory;
-			bPrintDebugInfo = InOther.bPrintDebugInfo;
 			CommandPath = InOther.CommandPath;
 			CommandArguments = InOther.CommandArguments;
 			CommandDescription = InOther.CommandDescription;
@@ -272,7 +261,6 @@ namespace UnrealBuildTool
 		{
 			ActionType = (ActionType)Reader.ReadByte();
 			WorkingDirectory = Reader.ReadDirectoryReference();
-			bPrintDebugInfo = Reader.ReadBool();
 			CommandPath = Reader.ReadFileReference();
 			CommandArguments = Reader.ReadString();
 			CommandDescription = Reader.ReadString();
@@ -296,7 +284,6 @@ namespace UnrealBuildTool
 		{
 			Writer.WriteByte((byte)ActionType);
 			Writer.WriteDirectoryReference(WorkingDirectory);
-			Writer.WriteBool(bPrintDebugInfo);
 			Writer.WriteFileReference(CommandPath);
 			Writer.WriteString(CommandArguments);
 			Writer.WriteString(CommandDescription);
@@ -351,12 +338,6 @@ namespace UnrealBuildTool
 				Action.StatusDescription = StatusDescription;
 			}
 
-			bool bPrintDebugInfo;
-			if(Object.TryGetBoolField("bPrintDebugInfo", out bPrintDebugInfo))
-			{
-				Action.bPrintDebugInfo = bPrintDebugInfo;
-			}
-			
 			bool bCanExecuteRemotely;
 			if(Object.TryGetBoolField("bCanExecuteRemotely", out bCanExecuteRemotely))
 			{
@@ -447,7 +428,6 @@ namespace UnrealBuildTool
 			Writer.WriteValue("CommandArguments", Action.CommandArguments);
 			Writer.WriteValue("CommandDescription", Action.CommandDescription);
 			Writer.WriteValue("StatusDescription", Action.StatusDescription);
-			Writer.WriteValue("bPrintDebugInfo", Action.bPrintDebugInfo);
 			Writer.WriteValue("bCanExecuteRemotely", Action.bCanExecuteRemotely);
 			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", Action.bCanExecuteRemotelyWithSNDBS);
 			Writer.WriteValue("bIsGCCCompiler", Action.bIsGCCCompiler);
@@ -535,7 +515,6 @@ namespace UnrealBuildTool
 		public FileItem CompiledModuleInterfaceFile => Inner.CompiledModuleInterfaceFile;
 		public FileItem TimingFile => Inner.TimingFile;
 		public DirectoryReference WorkingDirectory => Inner.WorkingDirectory;
-		public bool bPrintDebugInfo => Inner.bPrintDebugInfo;
 		public FileReference CommandPath => Inner.CommandPath;
 		public string CommandArguments => Inner.CommandArguments;
 		public string CommandDescription => Inner.CommandDescription;

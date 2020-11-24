@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 21;
+		public const int CurrentVersion = 22;
 
 		/// <summary>
 		/// The time at which the makefile was created
