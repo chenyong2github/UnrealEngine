@@ -482,6 +482,24 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Default serializer for <see cref="Action"/> instances
+	/// </summary>
+	class DefaultActionSerializer : ActionSerializerBase<Action>
+	{
+		/// <inheritdoc/>
+		public override Action Read(BinaryArchiveReader Reader)
+		{
+			return new Action(Reader);
+		}
+
+		/// <inheritdoc/>
+		public override void Write(BinaryArchiveWriter Writer, Action Action)
+		{
+			Action.Write(Writer);
+		}
+	}
+
+	/// <summary>
 	/// Information about an action queued to be executed
 	/// </summary>
 	class QueuedAction : IAction

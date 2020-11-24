@@ -1191,11 +1191,11 @@ namespace UnrealBuildTool
 		/// <param name="ManifestFile">File to write to</param>
 		/// <param name="Actions">List of actions that are part of the graph</param>
 		/// <param name="OriginalFileToPatchedFile">Map of original object files to patched object files</param>
-		public static void WriteLiveCodingManifest(FileReference ManifestFile, List<Action> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
+		public static void WriteLiveCodingManifest(FileReference ManifestFile, List<IAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
 		{
 			// Find all the output object files
 			HashSet<FileItem> ObjectFiles = new HashSet<FileItem>();
-			foreach(Action Action in Actions)
+			foreach(IAction Action in Actions)
 			{
 				if(Action.ActionType == ActionType.Compile)
 				{
@@ -1208,7 +1208,7 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteObjectStart();
 
-				Action LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
+				IAction LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
 				if(LinkAction != null)
 				{
 					FileReference LinkerPath = LinkAction.CommandPath;
@@ -1235,7 +1235,7 @@ namespace UnrealBuildTool
 				Writer.WriteObjectEnd();
 
 				Writer.WriteArrayStart("Modules");
-				foreach(Action Action in Actions)
+				foreach(IAction Action in Actions)
 				{
 					if(Action.ActionType == ActionType.Link)
 					{

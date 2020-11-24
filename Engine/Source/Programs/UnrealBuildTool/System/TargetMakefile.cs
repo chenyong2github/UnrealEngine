@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 20;
+		public const int CurrentVersion = 21;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -96,7 +96,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Every action in the action graph
 		/// </summary>
-		public List<Action> Actions;
+		public List<IAction> Actions;
 
 		/// <summary>
 		/// Environment variables that we'll need in order to invoke the platform's compiler and linker
@@ -193,7 +193,7 @@ namespace UnrealBuildTool
 			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
-			this.Actions = new List<Action>();
+			this.Actions = new List<IAction>();
 			this.OutputItems = new List<FileItem>();
 			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
 			this.HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -229,7 +229,7 @@ namespace UnrealBuildTool
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference());
 			PreBuildTargets = Reader.ReadArray(() => new TargetInfo(Reader));
-			Actions = Reader.ReadList(() => new Action(Reader));
+			Actions = Reader.ReadList(() => Reader.ReadAction());
 			EnvironmentVariables = Reader.ReadList(() => Tuple.Create(Reader.ReadString(), Reader.ReadString()));
 			OutputItems = Reader.ReadList(() => Reader.ReadFileItem());
 			ModuleNameToOutputItems = Reader.ReadDictionary(() => Reader.ReadString(), () => Reader.ReadArray(() => Reader.ReadFileItem()), StringComparer.OrdinalIgnoreCase);
@@ -264,7 +264,7 @@ namespace UnrealBuildTool
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
 			Writer.WriteArray(PreBuildTargets, Item => Item.Write(Writer));
-			Writer.WriteList(Actions, Action => Action.Write(Writer));
+			Writer.WriteList(Actions, x => Writer.WriteAction(x));
 			Writer.WriteList(EnvironmentVariables, x => { Writer.WriteString(x.Item1); Writer.WriteString(x.Item2); });
 			Writer.WriteList(OutputItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteDictionary(ModuleNameToOutputItems, k => Writer.WriteString(k), v => Writer.WriteArray(v, e => Writer.WriteFileItem(e)));
