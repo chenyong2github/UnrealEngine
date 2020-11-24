@@ -1249,6 +1249,19 @@ namespace Audio
 		return false;
 	}
 
+	FMixerSubmixPtr FMixerDevice::GetMasterSubmixInstance(uint32 InSubmixId)
+	{
+		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
+		for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
+		{
+			if (InSubmixId == MasterSubmixes[i]->GetUniqueID())
+			{
+				return MasterSubmixInstances[i];
+			}
+		}
+		return nullptr;
+	}
+
 	FMixerSubmixPtr FMixerDevice::GetMasterSubmixInstance(const USoundSubmixBase* InSubmix)
 	{
 		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
@@ -1456,6 +1469,123 @@ namespace Audio
 		IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 		AudioEditorModule->RegisterEffectPresetAssetActions();
 #endif
+	}
+
+	FMixerSubmixPtr FMixerDevice::FindSubmixInstanceByObjectId(uint32 InObjectId)
+	{
+		for (const USoundSubmix* MasterSubmix : MasterSubmixes)
+		{
+			if (!ensure(MasterSubmix))
+			{
+				continue;
+			}
+
+			if (MasterSubmix->GetUniqueID() == InObjectId)
+			{
+				return GetMasterSubmixInstance(MasterSubmix);
+			}
+		}
+
+		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		{
+			const USoundSubmixBase* SubmixBase = Pair.Key;
+			if (SubmixBase)
+			{
+				if (SubmixBase->GetUniqueID() == InObjectId)
+				{
+					return Pair.Value;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	FMixerSubmixPtr FMixerDevice::GetSubmixInstance(uint32 InSubmixId)
+	{
+		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		ensure(!IsInAudioThread() && !IsInGameThread());
+
+		FMixerSubmixPtr MixerSubmix = GetMasterSubmixInstance(InSubmixId);
+		if (MixerSubmix.IsValid())
+		{
+			return MixerSubmix;
+		}
+
+		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		{
+			FMixerSubmixPtr SubmixPtr = Pair.Value;
+			if (ensure(SubmixPtr.IsValid()))
+			{
+				if (SubmixPtr->GetId() == InSubmixId)
+				{
+					return SubmixPtr;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	void FMixerDevice::InitDefaultAudioBuses()
+	{
+		if (!ensure(IsInGameThread()))
+		{
+			return;
+		}
+
+		if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+		{
+			TArray<TStrongObjectPtr<UAudioBus>> StaleBuses = DefaultAudioBuses;
+			DefaultAudioBuses.Reset();
+
+			for (const FDefaultAudioBusSettings& BusSettings : AudioSettings->DefaultAudioBuses)
+			{
+				if (UObject* BusObject = BusSettings.AudioBus.TryLoad())
+				{
+					if (UAudioBus* AudioBus = Cast<UAudioBus>(BusObject))
+					{
+						const int32 NumChannels = static_cast<int32>(AudioBus->AudioBusChannels) + 1;
+						StartAudioBus(AudioBus->GetUniqueID(), NumChannels, false /* bInIsAutomatic */);
+
+						TStrongObjectPtr<UAudioBus>AddedBus(AudioBus);
+						DefaultAudioBuses.AddUnique(AddedBus);
+						StaleBuses.Remove(AddedBus);
+					}
+				}
+			}
+
+			for (TStrongObjectPtr<UAudioBus>& Bus : StaleBuses)
+			{
+				if (Bus.IsValid())
+				{
+					StopAudioBus(Bus->GetUniqueID());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("Failed to initialized Default Audio Buses. Audio Settings not found."));
+		}
+	}
+
+	void FMixerDevice::ShutdownDefaultAudioBuses()
+	{
+		if (!ensure(IsInGameThread()))
+		{
+			return;
+		}
+
+		for (TStrongObjectPtr<UAudioBus>& Bus : DefaultAudioBuses)
+		{
+			if (Bus.IsValid())
+			{
+				StopAudioBus(Bus->GetUniqueID());
+			}
+		}
+
+		DefaultAudioBuses.Reset();
 	}
 
 	FMixerSubmixWeakPtr FMixerDevice::GetSubmixInstance(const USoundSubmixBase* SoundSubmix)
@@ -2147,16 +2277,32 @@ namespace Audio
 		return SourceManager->IsAudioBusActive(InAudioBusId);
 	}
 
-	FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain)
+	FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
 	{
 		if (ensure(!IsInGameThread() && !IsInAudioThread()))
 		{
-			return SourceManager->AddPatchForAudioBus(InAudioBusId, PatchGain);
+			return SourceManager->AddPatchForAudioBus(InAudioBusId, InPatchGain);
 		}
 		else
 		{
 			return nullptr;
 		}
+	}
+
+	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
+	{
+		if (!ensure(!IsInGameThread() && !IsInAudioThread()))
+		{
+			return nullptr;
+		}
+
+		FMixerSubmixPtr SubmixPtr = FindSubmixInstanceByObjectId(InObjectId);
+		if (SubmixPtr.IsValid())
+		{
+			return SubmixPtr->AddPatch(InPatchGain);
+		}
+
+		return nullptr;
 	}
 
 	int32 FMixerDevice::GetDeviceSampleRate() const

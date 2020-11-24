@@ -6,6 +6,7 @@ namespace Audio
 {
 	FDynamicsProcessor::FDynamicsProcessor()
 		: ProcessingMode(EDynamicsProcessingMode::Compressor)
+		, EnvelopeFollowerPeakMode(EPeakMode::RootMeanSquared)
 		, LookaheedDelayMsec(10.0f)
 		, AttackTimeMsec(20.0f)
 		, ReleaseTimeMsec(1000.0f)
@@ -15,7 +16,6 @@ namespace Audio
 		, InputGain(1.0f)
 		, OutputGain(1.0f)
 		, KeyGain(1.0f)
-		, NumChannels(0)
 		, LinkMode(EDynamicsProcessorChannelLinkMode::Disabled)
 		, bIsAnalogMode(true)
 		, bKeyAuditionEnabled(false)
@@ -30,15 +30,15 @@ namespace Audio
 	{
 	}
 
-	void FDynamicsProcessor::Init(const float SampleRate, const int32 InNumChannels)
+	void FDynamicsProcessor::Init(const float InSampleRate, const int32 InNumChannels)
 	{
-		NumChannels = InNumChannels;
+		SampleRate = InSampleRate;
 
+		SetNumChannels(InNumChannels);
+		SetKeyNumChannels(InNumChannels);
+	
 		LookaheadDelay.Reset();
 		LookaheadDelay.AddDefaulted(InNumChannels);
-
-		EnvFollower.Reset();
-		EnvFollower.AddDefaulted(InNumChannels);
 
 		for (int32 Channel = 0; Channel < InNumChannels; ++Channel)
 		{
@@ -58,6 +58,16 @@ namespace Audio
 		Gain.AddZeroed(InNumChannels);
 	}
 
+	int32 FDynamicsProcessor::GetNumChannels() const
+	{
+		return Gain.Num();
+	}
+
+	int32 FDynamicsProcessor::GetKeyNumChannels() const
+	{
+		return EnvFollower.Num();
+	}
+	
 	void FDynamicsProcessor::SetLookaheadMsec(const float InLookAheadMsec)
 	{
 		LookaheedDelayMsec = InLookAheadMsec;
@@ -146,6 +156,36 @@ namespace Audio
 		InputLowshelfFilter.SetGainDB(InGainDb);
 	}
 
+	void FDynamicsProcessor::SetKeyNumChannels(const int32 InNumChannels)
+	{
+		if (InNumChannels != EnvFollower.Num())
+		{
+			EnvFollower.Reset();
+			EnvFollower.AddDefaulted(InNumChannels);
+
+			for (int32 Channel = 0; Channel < InNumChannels; ++Channel)
+			{
+				EnvFollower[Channel].Init(SampleRate, AttackTimeMsec, ReleaseTimeMsec, EnvelopeFollowerPeakMode, bIsAnalogMode);
+			}
+		}
+
+		if (InNumChannels != InputLowshelfFilter.GetNumChannels())
+		{
+			InputLowshelfFilter.Init(SampleRate, InNumChannels, EBiquadFilter::LowShelf);
+		}
+
+		if (InNumChannels != InputHighshelfFilter.GetNumChannels())
+		{
+			InputHighshelfFilter.Init(SampleRate, InNumChannels, EBiquadFilter::HighShelf);
+		}
+
+		if (InNumChannels != DetectorOuts.Num())
+		{
+			DetectorOuts.Reset();
+			DetectorOuts.AddZeroed(InNumChannels);
+		}
+	}
+
 	void FDynamicsProcessor::SetOutputGain(const float InOutputGainDb)
 	{
 		OutputGain = ConvertToLinear(InOutputGainDb);
@@ -165,8 +205,30 @@ namespace Audio
 		}
 	}
 
+	void FDynamicsProcessor::SetNumChannels(const int32 InNumChannels)
+	{
+		if (InNumChannels != Gain.Num())
+		{
+			Gain.Reset();
+			Gain.AddZeroed(InNumChannels);
+		}
+
+		if (InNumChannels != LookaheadDelay.Num())
+		{
+			LookaheadDelay.Reset();
+			LookaheadDelay.AddDefaulted(InNumChannels);
+
+			for (int32 Channel = 0; Channel < InNumChannels; ++Channel)
+			{
+				LookaheadDelay[Channel].Init(SampleRate, 0.1f);
+				LookaheadDelay[Channel].SetDelayMsec(LookaheedDelayMsec);
+			}
+		}
+	}
+
 	void FDynamicsProcessor::SetPeakMode(const EPeakMode::Type InEnvelopeFollowerModeType)
 	{
+		EnvelopeFollowerPeakMode = InEnvelopeFollowerModeType;
 		for (int32 Channel = 0; Channel < EnvFollower.Num(); ++Channel)
 		{
 			EnvFollower[Channel].SetMode(InEnvelopeFollowerModeType);
@@ -180,87 +242,9 @@ namespace Audio
 
 	void FDynamicsProcessor::ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame)
 	{
-		checkSlow(NumChannels == DetectorOuts.Num());
-		checkSlow(NumChannels == Gain.Num());
-
-		// Get detector outputs
-		const float* DetectorIn = InKeyFrame;
-		if (NumChannels > 0)
+		if (ProcessKeyFrame(InKeyFrame, OutFrame))
 		{
-			if (bKeyLowshelfEnabled)
-			{
-				InputLowshelfFilter.ProcessAudioFrame(DetectorIn, DetectorOuts.GetData());
-				DetectorIn = DetectorOuts.GetData();
-			}
-
-			if (bKeyHighshelfEnabled)
-			{
-				InputHighshelfFilter.ProcessAudioFrame(DetectorIn, DetectorOuts.GetData());
-				DetectorIn = DetectorOuts.GetData();
-			}
-		}
-
-		const float DetectorGain = KeyGain * InputGain;
-		if (bKeyAuditionEnabled)
-		{
-			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-			{
-				OutFrame[Channel] = DetectorGain * DetectorIn[Channel];
-			}
-		}
-		else
-		{
-			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-			{
-				DetectorOuts[Channel] = EnvFollower[Channel].ProcessAudio(DetectorGain * DetectorIn[Channel]);
-			}
-
-			switch (LinkMode)
-			{
-				case EDynamicsProcessorChannelLinkMode::Average:
-				{
-					float DetectorOutLinked = 0.0f;
-					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-					{
-						DetectorOutLinked += DetectorOuts[Channel];
-					}
-					DetectorOutLinked /= static_cast<float>(NumChannels);
-					const float DetectorOutLinkedDb = ConvertToDecibels(DetectorOutLinked);
-					const float ComputedGain = ComputeGain(DetectorOutLinkedDb);
-					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-					{
-						Gain[Channel] = ComputedGain;
-					}
-				}
-				break;
-
-				case EDynamicsProcessorChannelLinkMode::Peak:
-				{
-					float DetectorOutLinked = FMath::Max<float>(DetectorOuts);
-					const float DetectorOutLinkedDb = ConvertToDecibels(DetectorOutLinked);
-					const float ComputedGain = ComputeGain(DetectorOutLinkedDb);
-					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-					{
-						Gain[Channel] = ComputedGain;
-					}
-				}
-				break;
-
-				case EDynamicsProcessorChannelLinkMode::Disabled:
-				default:
-				{
-					// compute gain individually per channel
-					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
-					{
-						// convert to decibels
-						const float DetectorOutLinkedDb = ConvertToDecibels(DetectorOuts[Channel]);
-						const float ComputedGain = ComputeGain(DetectorOutLinkedDb);
-						Gain[Channel] = ComputedGain;
-					}
-				}
-				break;
-			}
-
+			const int32 NumChannels = GetNumChannels();
 			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
 			{
 				// Write and read into the look ahead delay line.
@@ -276,11 +260,118 @@ namespace Audio
 
 	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer)
 	{
-		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+		const int32 NumChannels = GetNumChannels();
+		const int32 KeyNumChannels = GetKeyNumChannels();
+
+		if (InKeyBuffer)
 		{
-			const float* KeyFrame = InKeyBuffer ? &InKeyBuffer[SampleIndex] : &InBuffer[SampleIndex];
-			ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame);
+			int32 KeySampleIndex = 0;
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+			{
+				const float* KeyFrame = &InKeyBuffer[KeySampleIndex];
+				ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame);
+				KeySampleIndex += KeyNumChannels;
+			}
 		}
+		else
+		{
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+			{
+				const float* KeyFrame = &InBuffer[SampleIndex];
+				ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame);
+			}
+		}
+	}
+
+	bool FDynamicsProcessor::ProcessKeyFrame(const float* InKeyFrame, float* OutFrame)
+	{
+		// Get detector outputs
+		const float* KeyIn = InKeyFrame;
+
+		const int32 KeyNumChannels = GetKeyNumChannels();
+		const int32 NumChannels = GetNumChannels();
+		if (KeyNumChannels > 0)
+		{
+			if (bKeyLowshelfEnabled)
+			{
+				InputLowshelfFilter.ProcessAudioFrame(KeyIn, DetectorOuts.GetData());
+				KeyIn = DetectorOuts.GetData();
+			}
+
+			if (bKeyHighshelfEnabled)
+			{
+				InputHighshelfFilter.ProcessAudioFrame(KeyIn, DetectorOuts.GetData());
+				KeyIn = DetectorOuts.GetData();
+			}
+		}
+
+		const float DetectorGain = KeyGain * InputGain;
+		if (bKeyAuditionEnabled)
+		{
+			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+			{
+				const int32 KeyIndex = Channel % KeyNumChannels;
+				OutFrame[Channel] = DetectorGain * KeyIn[KeyIndex];
+			}
+
+			return false;
+		}
+
+		for (int32 Channel = 0; Channel < KeyNumChannels; ++Channel)
+		{
+			DetectorOuts[Channel] = EnvFollower[Channel].ProcessAudio(DetectorGain * KeyIn[Channel]);
+		}
+
+		switch (LinkMode)
+		{
+			case EDynamicsProcessorChannelLinkMode::Average:
+			{
+				float KeyOutLinked = 0.0f;
+				for (int32 Channel = 0; Channel < KeyNumChannels; ++Channel)
+				{
+					KeyOutLinked += DetectorOuts[Channel];
+				}
+				KeyOutLinked /= static_cast<float>(KeyNumChannels);
+				const float DetectorOutLinkedDb = ConvertToDecibels(KeyOutLinked);
+				const float ComputedGain = ComputeGain(DetectorOutLinkedDb);
+				for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+				{
+					Gain[Channel] = ComputedGain;
+				}
+			}
+			break;
+
+			case EDynamicsProcessorChannelLinkMode::Peak:
+			{
+				float KeyOutLinked = FMath::Max<float>(DetectorOuts);
+				const float KeyOutLinkedDb = ConvertToDecibels(KeyOutLinked);
+				const float ComputedGain = ComputeGain(KeyOutLinkedDb);
+				for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+				{
+					Gain[Channel] = ComputedGain;
+				}
+			}
+			break;
+
+			case EDynamicsProcessorChannelLinkMode::Disabled:
+			default:
+			{
+				// Compute gain individually per channel and wrap if
+				// channel count is greater than key channel count.
+				for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+				{
+					const int32 KeyIndex = Channel % KeyNumChannels;
+					float ChannelGain = DetectorOuts[KeyIndex];
+
+					const float KeyOutDb = ConvertToDecibels(ChannelGain);
+					const float ComputedGain = ComputeGain(KeyOutDb);
+					Gain[KeyIndex] = ComputedGain;
+				}
+			}
+			break;
+		}
+
+		return true;
 	}
 
 	float FDynamicsProcessor::ComputeGain(const float InEnvFollowerDb)

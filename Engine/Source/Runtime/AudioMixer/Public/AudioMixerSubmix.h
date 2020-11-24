@@ -8,6 +8,7 @@
 #include "ISoundfieldEndpoint.h"
 #include "Sound/SoundSubmix.h"
 #include "DSP/EnvelopeFollower.h"
+#include "DSP/MultithreadedPatching.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "Templates/SharedPointer.h"
 #include "AudioDynamicParameter.h"
@@ -150,6 +151,8 @@ namespace Audio
 
 		// Add (if not already added) or sets the amount of the source voice's send amount
 		void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage);
+
+		FPatchOutputStrongPtr AddPatch(float InGain);
 
 		/** Removes the given source voice from the submix. */
 		void RemoveSourceVoice(FMixerSourceVoice* InSourceVoice);
@@ -584,6 +587,8 @@ namespace Audio
 
 		// Handle back to the owning USoundSubmix. Used when the device is shutdown to prematurely end a recording.
 		const USoundSubmixBase* OwningSubmixObject;
+
+		Audio::FPatchSplitter PatchSplitter;
 
 		friend class FMixerDevice;
 	};
