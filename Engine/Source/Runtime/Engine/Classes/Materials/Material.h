@@ -980,7 +980,9 @@ private:
 	FThreadSafeBool ReleasedByRT;
 
 	UPROPERTY()
-	FMaterialCachedExpressionData CachedExpressionData;
+	bool bSavedCachedExpressionData;
+
+	FMaterialCachedExpressionData* CachedExpressionData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -989,7 +991,7 @@ private:
 #endif // WITH_EDITORONLY_DATA
 public:
 
-	const FMaterialCachedExpressionData& GetCachedExpressionData() const { return CachedExpressionData; }
+	const FMaterialCachedExpressionData& GetCachedExpressionData() const { check(CachedExpressionData); return *CachedExpressionData; }
 
 	//~ Begin UMaterialInterface Interface.
 	ENGINE_API virtual UMaterial* GetMaterial() override;
@@ -1712,7 +1714,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return CachedExpressionData.ReferencedTextures; }
+	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return GetCachedExpressionData().ReferencedTextures; }
 
 protected:
 

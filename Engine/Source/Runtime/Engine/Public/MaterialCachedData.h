@@ -154,6 +154,8 @@ struct FMaterialCachedParameters
 	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void Reset();
 
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
 	UPROPERTY()
 	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];
 
@@ -227,6 +229,8 @@ struct FMaterialCachedExpressionData
 
 	void Reset();
 
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
 	UPROPERTY()
 	FMaterialCachedParameters Parameters;
 
@@ -262,4 +266,19 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
+};
+
+USTRUCT()
+struct FMaterialInstanceCachedData
+{
+	GENERATED_USTRUCT_BODY()
+
+	void Initialize(FMaterialCachedExpressionData&& InCachedExpressionData);
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	UPROPERTY()
+	FMaterialCachedParameters Parameters;
+
+	UPROPERTY()
+	TArray<UObject*> ReferencedTextures;
 };

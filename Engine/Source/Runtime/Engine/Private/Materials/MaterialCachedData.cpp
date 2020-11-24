@@ -53,6 +53,40 @@ void FMaterialCachedExpressionData::Reset()
 	bHasSceneColor = false;
 }
 
+void FMaterialCachedExpressionData::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Parameters.AddReferencedObjects(Collector);
+	Collector.AddReferencedObjects(ReferencedTextures);
+	Collector.AddReferencedObjects(DefaultLayers);
+	Collector.AddReferencedObjects(DefaultLayerBlends);
+	Collector.AddReferencedObjects(GrassTypes);
+	for (FMaterialFunctionInfo& FunctionInfo : FunctionInfos)
+	{
+		Collector.AddReferencedObject(FunctionInfo.Function);
+	}
+	for (FMaterialParameterCollectionInfo& ParameterCollectionInfo : ParameterCollectionInfos)
+	{
+		Collector.AddReferencedObject(ParameterCollectionInfo.ParameterCollection);
+	}
+}
+
+void FMaterialInstanceCachedData::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Parameters.AddReferencedObjects(Collector);
+	Collector.AddReferencedObjects(ReferencedTextures);
+}
+
+void FMaterialCachedParameters::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(TextureValues);
+	Collector.AddReferencedObjects(RuntimeVirtualTextureValues);
+	Collector.AddReferencedObjects(FontValues);
+#if WITH_EDITORONLY_DATA
+	Collector.AddReferencedObjects(ScalarCurveValues);
+	Collector.AddReferencedObjects(ScalarCurveAtlasValues);
+#endif
+}
+
 #if WITH_EDITOR
 static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool bOverride = false)
 {
@@ -716,3 +750,8 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 	}
 }
 
+void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InCachedExpressionData)
+{
+	Parameters = MoveTemp(InCachedExpressionData.Parameters);
+	ReferencedTextures = MoveTemp(InCachedExpressionData.ReferencedTextures);
+}

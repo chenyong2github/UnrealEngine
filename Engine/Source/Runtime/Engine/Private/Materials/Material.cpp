@@ -1739,27 +1739,27 @@ void UMaterial::FixupMaterialUsageAfterLoad()
 
 void UMaterial::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	CachedExpressionData.Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Scalar, true, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Scalar, true, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterial::GetAllVectorParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	CachedExpressionData.Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Vector, true, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Vector, true, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterial::GetAllTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	CachedExpressionData.Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Texture, true, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Texture, true, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterial::GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	CachedExpressionData.Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Font, true, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::Font, true, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterial::GetAllRuntimeVirtualTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	CachedExpressionData.Parameters.GetAllParameterInfoOfType(EMaterialParameterType::RuntimeVirtualTexture, true, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::RuntimeVirtualTexture, true, OutParameterInfo, OutParameterIds);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2106,24 +2106,20 @@ bool UMaterial::GetParameterDesc(const FHashedMaterialParameterInfo& ParameterIn
 }
 void UMaterial::UpdateCachedExpressionData()
 {
-	if (!GIsClient)
+	if (bSavedCachedExpressionData)
 	{
-		// Expressions may not be loaded on server, so only rebuild the data if we're the client
+		// Don't need to rebuild cached data if it was serialized
 		return;
 	}
 
+	if (!CachedExpressionData)
 	{
-		FMaterialCachedExpressionData UpdatedCachedExpressionData;
-		UpdatedCachedExpressionData.Reset();
-		FMaterialCachedExpressionContext Context(nullptr); // UMaterial have no parent
-		if (UpdatedCachedExpressionData.UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1))
-		{
-			// Only update our cached data if the update succeeded
-			// It's possible we could have some nullptr UMaterialExpressions, if we're loading cooked data here
-			// In that case we simply keep existing cached data
-			CachedExpressionData = MoveTemp(UpdatedCachedExpressionData);
-		}
+		CachedExpressionData = new FMaterialCachedExpressionData();
 	}
+
+	CachedExpressionData->Reset();
+	FMaterialCachedExpressionContext Context(nullptr); // UMaterial have no parent
+	CachedExpressionData->UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
 }
 #endif // WITH_EDITOR
 
@@ -2146,13 +2142,13 @@ bool UMaterial::GetScalarParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetScalarParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo, bOveriddenOnly);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
 
-	OutValue = CachedExpressionData.Parameters.ScalarValues[Index];
+	OutValue = CachedExpressionData->Parameters.ScalarValues[Index];
 	return true;
 }
 
@@ -2231,14 +2227,14 @@ bool UMaterial::GetScalarParameterValue_Legacy(const FHashedMaterialParameterInf
 
 bool UMaterial::IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
 
-	UCurveLinearColor* Curve = CachedExpressionData.Parameters.ScalarCurveValues[Index];
-	UCurveLinearColorAtlas* Atlas = CachedExpressionData.Parameters.ScalarCurveAtlasValues[Index];
+	UCurveLinearColor* Curve = CachedExpressionData->Parameters.ScalarCurveValues[Index];
+	UCurveLinearColorAtlas* Atlas = CachedExpressionData->Parameters.ScalarCurveAtlasValues[Index];
 	if (Curve && Atlas)
 	{
 		OutCurve = TSoftObjectPtr<UCurveLinearColor>(FSoftObjectPath(Curve->GetPathName()));
@@ -2255,13 +2251,13 @@ bool UMaterial::IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParame
 
 bool UMaterial::GetScalarParameterSliderMinMax(const FHashedMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
-	OutSliderMin = CachedExpressionData.Parameters.ScalarMinMaxValues[Index].X;
-	OutSliderMax = CachedExpressionData.Parameters.ScalarMinMaxValues[Index].Y;
+	OutSliderMin = CachedExpressionData->Parameters.ScalarMinMaxValues[Index].X;
+	OutSliderMax = CachedExpressionData->Parameters.ScalarMinMaxValues[Index].Y;
 	return true;
 }
 #endif // WITH_EDITOR
@@ -2285,12 +2281,12 @@ bool UMaterial::GetVectorParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetVectorParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo, bOveriddenOnly);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.VectorValues[Index];
+	OutValue = CachedExpressionData->Parameters.VectorValues[Index];
 	return true;
 }
 
@@ -2366,23 +2362,23 @@ bool UMaterial::GetVectorParameterValue_Legacy(const FHashedMaterialParameterInf
 
 bool UMaterial::IsVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.VectorUsedAsChannelMaskValues[Index];
+	OutValue = CachedExpressionData->Parameters.VectorUsedAsChannelMaskValues[Index];
 	return true;
 }
 
 bool UMaterial::GetVectorParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.VectorChannelNameValues[Index];
+	OutValue = CachedExpressionData->Parameters.VectorChannelNameValues[Index];
 	return true;
 }
 
@@ -2410,13 +2406,13 @@ bool UMaterial::GetTextureParameterValue(const FHashedMaterialParameterInfo& Par
 
 bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo, bOveriddenOnly);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
 		OutValue = nullptr;
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.TextureValues[Index];
+	OutValue = CachedExpressionData->Parameters.TextureValues[Index];
 	return true;
 }
 
@@ -2515,13 +2511,13 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialPara
 
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, bOveriddenOnly);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
 		OutValue = nullptr;
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.RuntimeVirtualTextureValues[Index];
+	OutValue = CachedExpressionData->Parameters.RuntimeVirtualTextureValues[Index];
 	return true;
 }
 
@@ -2602,12 +2598,12 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 #if WITH_EDITOR
 bool UMaterial::GetTextureParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
 	if (Index == INDEX_NONE)
 	{
 		return false;
 	}
-	OutValue = CachedExpressionData.Parameters.TextureChannelNameValues[Index];
+	OutValue = CachedExpressionData->Parameters.TextureChannelNameValues[Index];
 	return true;
 }
 #endif // WITH_EDITOR
@@ -2634,15 +2630,15 @@ bool UMaterial::GetFontParameterValue(const FHashedMaterialParameterInfo& Parame
 
 bool UMaterial::GetFontParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo, bOveriddenOnly);
+	const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
 		OutFontValue = nullptr;
 		OutFontPage = INDEX_NONE;
 		return false;
 	}
-	OutFontValue = CachedExpressionData.Parameters.FontValues[Index];
-	OutFontPage = CachedExpressionData.Parameters.FontPageValues[Index];
+	OutFontValue = CachedExpressionData->Parameters.FontValues[Index];
+	OutFontPage = CachedExpressionData->Parameters.FontPageValues[Index];
 	return true;
 }
 
@@ -3163,6 +3159,9 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 
 	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
 
+	// Make sure cached data is saved in cooked builds
+	bSavedCachedExpressionData = true;
+
 	OutCachedMaterialResources.Append(NewResourcesToCache);
 }
 
@@ -3289,6 +3288,19 @@ void UMaterial::Serialize(FArchive& Ar)
 		StateId = LegacyResource->GetLegacyId();
 		delete LegacyResource;
 #endif
+	}
+
+#if !WITH_EDITORONLY_DATA
+	checkf(bSavedCachedExpressionData, TEXT("Material %s must have saved cached expression data, if editor-only data is not present"), *GetName());
+#endif
+	if (bSavedCachedExpressionData)
+	{
+		if (Ar.IsLoading())
+		{
+			CachedExpressionData = new FMaterialCachedExpressionData();
+		}
+		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData, Struct, nullptr);
 	}
 
 #if WITH_EDITOR
@@ -3499,7 +3511,7 @@ void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
 
 void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)
 {
-	OutQualityLevelsUsed = CachedExpressionData.QualityLevelsUsed;
+	OutQualityLevelsUsed = CachedExpressionData->QualityLevelsUsed;
 	if (OutQualityLevelsUsed.Num() == 0)
 	{
 		OutQualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
@@ -3615,14 +3627,6 @@ void UMaterial::PostLoad()
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	for (int32 CollectionIndex = 0; CollectionIndex < CachedExpressionData.ParameterCollectionInfos.Num(); CollectionIndex++)
-	{
-		if (CachedExpressionData.ParameterCollectionInfos[CollectionIndex].ParameterCollection)
-		{
-			CachedExpressionData.ParameterCollectionInfos[CollectionIndex].ParameterCollection->ConditionalPostLoad();
-		}
-	}
-
 	// Fixup for legacy materials which didn't recreate the lighting guid properly on duplication
 	if (GetLinker() && GetLinker()->UE4Ver() < VER_UE4_BUMPED_MATERIAL_EXPORT_GUIDS)
 	{
@@ -3720,6 +3724,14 @@ void UMaterial::PostLoad()
 	UpdateCachedExpressionData();
 #endif // WITH_EDITOR
 
+	for (int32 CollectionIndex = 0; CollectionIndex < CachedExpressionData->ParameterCollectionInfos.Num(); CollectionIndex++)
+	{
+		if (CachedExpressionData->ParameterCollectionInfos[CollectionIndex].ParameterCollection)
+		{
+			CachedExpressionData->ParameterCollectionInfos[CollectionIndex].ParameterCollection->ConditionalPostLoad();
+		}
+	}
+
 	STAT(double MaterialLoadTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(MaterialLoadTime);
@@ -3742,7 +3754,7 @@ void UMaterial::PostLoad()
 		{
 			// Before caching shader resources we have to make sure all referenced textures have been post loaded
 			// as we depend on their resources being valid.
-			for (UObject* Texture : CachedExpressionData.ReferencedTextures)
+			for (UObject* Texture : CachedExpressionData->ReferencedTextures)
 			{
 				if (Texture)
 				{
@@ -4660,6 +4672,11 @@ void UMaterial::ReleaseResources()
 		DefaultMaterialInstance->GameThread_Destroy();
 		DefaultMaterialInstance = nullptr;
 	}
+	if (CachedExpressionData)
+	{
+		delete CachedExpressionData;
+		CachedExpressionData = nullptr;
+	}
 }
 
 void UMaterial::FinishDestroy()
@@ -4688,6 +4705,11 @@ void UMaterial::AddReferencedObjects(UObject* InThis, FReferenceCollector& Colle
 {
 	UMaterial* This = CastChecked<UMaterial>(InThis);
 
+	if (This->CachedExpressionData)
+	{
+		This->CachedExpressionData->AddReferencedObjects(Collector);
+	}
+
 	for (FMaterialResource* CurrentResource : This->MaterialResources)
 	{
 		CurrentResource->AddReferencedObjects(Collector);
@@ -4706,7 +4728,9 @@ bool UMaterial::CanBeClusterRoot() const
 
 void UMaterial::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	OutTags.Add(FAssetRegistryTag("HasSceneColor", CachedExpressionData.bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	// CachedExpressionData may be NULL here for default objects
+	const bool bHasSceneColor = CachedExpressionData ? CachedExpressionData->bHasSceneColor : false;
+	OutTags.Add(FAssetRegistryTag("HasSceneColor", bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 	Super::GetAssetRegistryTags(OutTags);
 }
 
@@ -4984,8 +5008,8 @@ int32 UMaterial::GetLayerParameterIndex(EMaterialParameterAssociation Associatio
 	int32 Index = INDEX_NONE;
 	switch (Association)
 	{
-	case BlendParameter: Index = CachedExpressionData.DefaultLayerBlends.Find(LayerFunction); break;
-	case LayerParameter: Index = CachedExpressionData.DefaultLayers.Find(LayerFunction); break;
+	case BlendParameter: Index = CachedExpressionData->DefaultLayerBlends.Find(LayerFunction); break;
+	case LayerParameter: Index = CachedExpressionData->DefaultLayers.Find(LayerFunction); break;
 	default: checkNoEntry(); break;
 	}
 	return Index;
@@ -4995,7 +5019,7 @@ int32 UMaterial::GetLayerParameterIndex(EMaterialParameterAssociation Associatio
 
 void UMaterial::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
 {
-	for (UObject* UsedObject : CachedExpressionData.ReferencedTextures)
+	for (UObject* UsedObject : CachedExpressionData->ReferencedTextures)
 	{
 		if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
 		{
@@ -5547,17 +5571,17 @@ void UMaterial::RecursiveUpdateRealtimePreview( UMaterialExpression* InExpressio
 
 void UMaterial::AppendReferencedFunctionIdsTo(TArray<FGuid>& Ids) const
 {
-	for (int32 FunctionIndex = 0; FunctionIndex < CachedExpressionData.FunctionInfos.Num(); FunctionIndex++)
+	for (int32 FunctionIndex = 0; FunctionIndex < CachedExpressionData->FunctionInfos.Num(); FunctionIndex++)
 	{
-		Ids.AddUnique(CachedExpressionData.FunctionInfos[FunctionIndex].StateId);
+		Ids.AddUnique(CachedExpressionData->FunctionInfos[FunctionIndex].StateId);
 	}
 }
 
 void UMaterial::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& Ids) const
 {
-	for (int32 CollectionIndex = 0; CollectionIndex < CachedExpressionData.ParameterCollectionInfos.Num(); CollectionIndex++)
+	for (int32 CollectionIndex = 0; CollectionIndex < CachedExpressionData->ParameterCollectionInfos.Num(); CollectionIndex++)
 	{
-		Ids.AddUnique(CachedExpressionData.ParameterCollectionInfos[CollectionIndex].StateId);
+		Ids.AddUnique(CachedExpressionData->ParameterCollectionInfos[CollectionIndex].StateId);
 	}
 }
 

@@ -442,14 +442,9 @@ private:
 	FStaticParameterSet StaticParameters;
 
 	UPROPERTY()
-	FMaterialCachedParameters CachedLayerParameters;
+	bool bSavedCachedData;
 
-	/**
-	 * Cached texture references from all expressions in the material (including nested functions).
-	 * This is used to link uniform texture expressions which were stored in the DDC with the UTextures that they reference.
-	 */
-	UPROPERTY()
-	TArray<UObject*> CachedReferencedTextures;
+	FMaterialInstanceCachedData* CachedData;
 
 #ifdef WITH_EDITOR
 	mutable TOptional<FStaticParameterSet> CachedStaticParameterValues;
@@ -670,7 +665,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return CachedReferencedTextures; }
+	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { check(CachedData); return CachedData->ReferencedTextures; }
 
 #if WITH_EDITOR
 	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */
