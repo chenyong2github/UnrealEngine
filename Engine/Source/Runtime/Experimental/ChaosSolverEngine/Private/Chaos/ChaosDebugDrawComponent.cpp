@@ -152,6 +152,7 @@ UChaosDebugDrawComponent::UChaosDebugDrawComponent()
 	: bInPlay(false)
 {
 	// We must tick after anything that uses Chaos Debug Draw and also after the Line Batcher Component
+	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.SetTickFunctionEnable(true);
 	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;
@@ -219,12 +220,19 @@ void UChaosDebugDrawComponent::HandlePostWorldInitialization(UWorld* World, cons
 void UChaosDebugDrawComponent::CreateDebugDrawActor(UWorld* World)
 {
 #if CHAOS_DEBUG_DRAW
+	if (!World->IsClient())
+		return;
+
 	static FName NAME_ChaosDebugDrawActor = TEXT("ChaosDebugDrawActor");
 
 	FActorSpawnParameters Params;
 	Params.Name = NAME_ChaosDebugDrawActor;
 	Params.ObjectFlags = Params.ObjectFlags | RF_Transient;
 
+#if WITH_EDITOR
+	Params.bHideFromSceneOutliner = true;
+#endif
+	
 	AActor* Actor = World->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
 	
 	UChaosDebugDrawComponent* Comp = NewObject<UChaosDebugDrawComponent>(Actor);
