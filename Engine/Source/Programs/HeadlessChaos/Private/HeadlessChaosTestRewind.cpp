@@ -58,7 +58,7 @@ namespace ChaosTest {
 
 			for (int Optimization = 0; Optimization < 2; ++Optimization)
 			{
-				for (int DtMode = 2; DtMode < 3; ++DtMode)
+				for (int DtMode = 0; DtMode < 4; ++DtMode)
 				{
 					FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 					FReal SimDt;
@@ -486,7 +486,7 @@ namespace ChaosTest {
 				const float SimStart = SimDt * Step;
 				const float SimEnd = SimDt * (Step + 1);
 				if (SimStart <= 5 && SimEnd > 5)
-			{
+				{
 					ExpectedVZ = 0;
 					ExpectedXZ = 10;
 				}
@@ -515,80 +515,87 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
-		for(int Optimization = 0; Optimization < 2; ++Optimization)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Particle, auto Sphere)
 		{
-			if(TypeParam::IsRewindable() == false){ return; }
-			auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
-
-			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-
-			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			InitSolverSettings(Solver);
-
-			Solver->EnableRewindCapture(20, !!Optimization);
-
-
-			// Make particles
-			auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
-
-			Particle->SetGeometry(Sphere);
-			Solver->RegisterObject(Particle.Get());
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
 			Particle->SetGravityEnabled(true);
-			Particle->SetX(FVec3(0,0,100));
+			Particle->SetX(FVec3(0, 0, 100));
 
-			TArray<FVec3> X;
-			TArray<FVec3> V;
-
-			for(int Step = 0; Step < 10; ++Step)
+			const int32 LastGameStep = 20;
+			for (int Step = 0; Step <= LastGameStep; ++Step)
 			{
 				//teleport from GT
-				if(Step == 5)
+				if (Step == 5)
 				{
-					Particle->SetX(FVec3(0,0,10));
-					Particle->SetV(FVec3(0,0,1));
+					Particle->SetX(FVec3(0, 0, 10));
+					Particle->SetV(FVec3(0, 0, 0));
 				}
 
-				X.Add(Particle->X());
-				V.Add(Particle->V());
 				TickSolverHelper(Solver);
 			}
-			X.Add(Particle->X());
-			V.Add(Particle->V());
 
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(0));
-		
+			RewindData->RewindToFrame(0);
+			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
+
+			const int32 LastSimStep = LastGameStep / SimDt;
 			//make sure recorded data is still valid even at head
-			for(int Step = 0; Step < 11; ++Step)
 			{
+				float ExpectedVZ = 0;
+				float ExpectedXZ = 100;
+
+				for (int Step = 0; Step < LastSimStep; ++Step)
+				{
+					const float SimStart = SimDt * Step;
+					const float SimEnd = SimDt * (Step + 1);
+					if (SimStart <= 5 && SimEnd > 5)
+					{
+						ExpectedVZ = 0;
+						ExpectedXZ = 10;
+					}
+
 				FGeometryParticleState State(*Particle);
-				const EFutureQueryResult Status = RewindData->GetFutureStateAtFrame(State,Step);
-				EXPECT_EQ(Status,EFutureQueryResult::Ok);
-				EXPECT_EQ(State.X()[2],X[Step][2]);
-				EXPECT_EQ(State.V()[2],V[Step][2]);
+					const EFutureQueryResult Status = RewindData->GetFutureStateAtFrame(State, Step);
+					EXPECT_EQ(Status, EFutureQueryResult::Ok);
+					EXPECT_EQ(State.X()[2], ExpectedXZ);
+					EXPECT_EQ(State.V()[2], ExpectedVZ);
+
+					ExpectedVZ -= SimDt;
+					ExpectedXZ += ExpectedVZ * SimDt;
+				}
 			}
 
 			//rewind to each frame and make sure data is recorded
-			for(int Step = 0; Step < 10; ++Step)
 			{
+				float ExpectedVZ = 0;
+				float ExpectedXZ = 100;
+
+				for (int Step = 0; Step < LastSimStep -1; ++Step)
+				{
+					const float SimStart = SimDt * Step;
+					const float SimEnd = SimDt * (Step + 1);
+					if (SimStart <= 5 && SimEnd > 5)
+					{
+						ExpectedVZ = 0;
+						ExpectedXZ = 10;
+					}
+
 				EXPECT_TRUE(RewindData->RewindToFrame(Step));
-				EXPECT_EQ(Particle->X()[2],X[Step][2]);
-				EXPECT_EQ(Particle->V()[2],V[Step][2]);
+					EXPECT_NEAR(Particle->X()[2], ExpectedXZ, 1e-4);
+					EXPECT_NEAR(Particle->V()[2], ExpectedVZ, 1e-4);
+
+					ExpectedVZ -= SimDt;
+					ExpectedXZ += ExpectedVZ * SimDt;
+				}
 			}
 
 			//no desync so should be empty
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
-			EXPECT_EQ(DesyncedParticles.Num(),0);
+			EXPECT_EQ(DesyncedParticles.Num(), 0);
 
 			//can't rewind earlier than latest rewind
-			EXPECT_FALSE(RewindData->RewindToFrame(5));
-
-			// Throw out the proxy
-			Solver->UnregisterObject(Particle.Get());
-
-			Module->DestroySolver(Solver);
-		}
+			EXPECT_FALSE(RewindData->RewindToFrame(1));
+		});
 	}
 
 	TYPED_TEST(AllTraits, RewindTest_Remove)
