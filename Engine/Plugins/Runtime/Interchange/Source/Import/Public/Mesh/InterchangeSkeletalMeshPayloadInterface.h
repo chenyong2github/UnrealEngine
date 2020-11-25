@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "InterchangeSourceData.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
+#include "UObject/Interface.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
