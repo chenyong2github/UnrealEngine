@@ -42,7 +42,7 @@ public:
 	EStackDataType StackDataType;
 
 	UPROPERTY(Transient)
-	class UDEditorParameterValue* Parameter;
+	class UDEditorParameterValue* Parameter = nullptr;
 
 	FName PropertyName;
 
@@ -64,7 +64,7 @@ struct FUnsortedParamData
 {
 	GENERATED_USTRUCT_BODY()
 	UPROPERTY(Transient)
-	class UDEditorParameterValue* Parameter;
+	class UDEditorParameterValue* Parameter = nullptr;
 	FEditorParameterGroup ParameterGroup;
 	TSharedPtr<class IDetailTreeNode> ParameterNode;
 	FName UnsortedName;

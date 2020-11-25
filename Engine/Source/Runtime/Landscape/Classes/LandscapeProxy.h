@@ -324,7 +324,7 @@ struct FLandscapeProxyMaterialOverride
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
-	UMaterialInterface* Material;
+	UMaterialInterface* Material = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	bool operator==(const FLandscapeProxyMaterialOverride& InOther) const

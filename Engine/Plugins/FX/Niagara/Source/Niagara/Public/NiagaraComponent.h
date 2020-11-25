@@ -35,13 +35,13 @@ struct FNiagaraMaterialOverride
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	class UMaterialInterface* Material;
+	class UMaterialInterface* Material = nullptr;
 
 	UPROPERTY()
 	uint32 MaterialSubIndex;
 
 	UPROPERTY()
-	UNiagaraRendererProperties* EmitterRendererProperty;
+	UNiagaraRendererProperties* EmitterRendererProperty = nullptr;
 };
 
 /**

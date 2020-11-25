@@ -25,10 +25,10 @@ public:
 
 public:
 	UPROPERTY()
-	UStaticMesh* StaticMesh;
+	UStaticMesh* StaticMesh = nullptr;
 	
 	UPROPERTY()
-	const UMaterialInterface* Material;
+	const UMaterialInterface* Material = nullptr;
 
 	UPROPERTY()
 	TArray<FTransform> Instances;

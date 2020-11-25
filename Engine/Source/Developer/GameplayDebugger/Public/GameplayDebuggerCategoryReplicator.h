@@ -52,7 +52,7 @@ struct FGameplayDebuggerDebugActor
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	AActor* Actor;
+	AActor* Actor = nullptr;
 
 	UPROPERTY()
 	FName ActorName;

@@ -153,7 +153,7 @@ private:
 	int32 GetGameStateTime(const UWorld* World) const;
 
 	UPROPERTY()
-	class UAbilitySystemComponent*	Owner;
+	class UAbilitySystemComponent*	Owner = nullptr;
 	
 	friend struct FActiveGameplayCue;
 };

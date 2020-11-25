@@ -83,7 +83,7 @@ struct FEnvQueryInstanceCache
 
 	/** query template, duplicated in manager's world */
 	UPROPERTY()
-	UEnvQuery* Template;
+	UEnvQuery* Template = nullptr;
 
 	/** instance to duplicate */
 	FEnvQueryInstance Instance;

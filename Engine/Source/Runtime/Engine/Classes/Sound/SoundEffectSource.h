@@ -27,7 +27,7 @@ struct ENGINE_API FSourceEffectChainEntry
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect")
-	USoundEffectSourcePreset* Preset;
+	USoundEffectSourcePreset* Preset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect")
 	uint32 bBypass : 1;

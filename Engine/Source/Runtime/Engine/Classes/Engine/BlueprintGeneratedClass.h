@@ -505,7 +505,7 @@ struct ENGINE_API FEventGraphFastCallPair
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UFunction* FunctionToPatch;
+	UFunction* FunctionToPatch = nullptr;
 
 	UPROPERTY()
 	int32 EventGraphCallOffset;

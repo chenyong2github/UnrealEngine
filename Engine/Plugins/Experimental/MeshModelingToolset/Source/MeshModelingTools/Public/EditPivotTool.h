@@ -75,10 +75,10 @@ struct FEditPivotTarget
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy;
+	UTransformProxy* TransformProxy = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo;
+	UTransformGizmo* TransformGizmo = nullptr;
 };
 
 

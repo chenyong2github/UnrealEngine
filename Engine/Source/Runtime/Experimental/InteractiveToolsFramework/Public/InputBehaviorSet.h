@@ -19,10 +19,10 @@ struct INTERACTIVETOOLSFRAMEWORK_API FBehaviorInfo
 	
 	/** Reference to a Behavior */
 	UPROPERTY()
-	UInputBehavior* Behavior;
+	UInputBehavior* Behavior = nullptr;
 
 	/** Source object that provided this Behavior */
-	void* Source;
+	void* Source = nullptr;
 
 	/** Group identifier for this Behavior */
 	FString Group;
