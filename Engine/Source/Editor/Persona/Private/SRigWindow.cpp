@@ -306,7 +306,7 @@ const struct FReferenceSkeleton& SRigWindow::GetReferenceSkeleton() const
 	UDebugSkelMeshComponent* PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 	USkeletalMesh* PreviewMesh = (PreviewMeshComp) ? PreviewMeshComp->SkeletalMesh : nullptr;
 	// it's because retarget base pose leaves in mesh, so if you give ref skeleton of skeleton, you might have joint that your mesh doesn't have
-	return (PreviewMesh)? PreviewMesh->RefSkeleton : EditableSkeletonPtr.Pin()->GetSkeleton().GetReferenceSkeleton();
+	return (PreviewMesh)? PreviewMesh->GetRefSkeleton() : EditableSkeletonPtr.Pin()->GetSkeleton().GetReferenceSkeleton();
 }
 
 bool SRigWindow::OnTargetSkeletonSelected(USkeleton* SelectedSkeleton, URig*  Rig) const

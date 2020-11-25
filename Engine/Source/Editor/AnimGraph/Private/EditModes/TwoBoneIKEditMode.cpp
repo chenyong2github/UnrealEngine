@@ -57,9 +57,9 @@ void FTwoBoneIKEditMode::ExitMode()
 void FTwoBoneIKEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->Skeleton)
+	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
 	{
-		USkeleton* Skeleton = SkelMeshComp->SkeletalMesh->Skeleton;
+		USkeleton* Skeleton = SkelMeshComp->SkeletalMesh->GetSkeleton();
 
 		PDI->SetHitProxy(new HTwoBoneIKProxy(BSM_EndEffector));
 		DrawTargetLocation(PDI, BSM_EndEffector, FColor(255, 128, 128), FColor(180, 128, 128));

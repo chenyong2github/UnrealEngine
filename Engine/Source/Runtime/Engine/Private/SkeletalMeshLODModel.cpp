@@ -817,7 +817,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 			}
 
 			USkeletalMesh* SkelMeshOwner = CastChecked<USkeletalMesh>(Owner);
-			if (SkelMeshOwner->bHasVertexColors)
+			if (SkelMeshOwner->GetHasVertexColors())
 			{
 				// Handling for old color buffer data
 				if (Ar.IsLoading() && Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::UseSharedColorBufferFormat)

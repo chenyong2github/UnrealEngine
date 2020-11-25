@@ -187,7 +187,7 @@ void FDNAToSkelMeshMap::MapJoints(IDNAReader* DNAReader)
 
 	double StartTime = FPlatformTime::Seconds();
 
-	FReferenceSkeleton* RefSkeleton = &TargetSkelMesh->RefSkeleton;
+	FReferenceSkeleton* RefSkeleton = &TargetSkelMesh->GetRefSkeleton();
 	uint32 JointCount = DNAReader->GetJointCount();
 
 	// Map Joints to Bones.
@@ -222,7 +222,7 @@ void FDNAToSkelMeshMap::MapMorphTargets(IDNAReader* DNAReader)
 	// Assemble the reverse map, for each MorphTarget index save corresponding FDNABlendShapeTarget Index
 	// Keeping MeshIndex and TargetIndex for each MorphTarget.
 	MeshBlendShapeTargets.Empty();
-	MeshBlendShapeTargets.Init(FDNABlendShapeTarget(), TargetSkelMesh->MorphTargets.Num());
+	MeshBlendShapeTargets.Init(FDNABlendShapeTarget(), TargetSkelMesh->GetMorphTargets().Num());
 
 	for (int16 MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
 	{

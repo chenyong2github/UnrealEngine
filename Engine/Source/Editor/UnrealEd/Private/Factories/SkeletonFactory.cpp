@@ -92,9 +92,9 @@ UObject* USkeletonFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FN
 			NewAsset = NULL;
 		}
 
-		if (TargetSkeletalMesh->Skeleton != NewAsset)
+		if (TargetSkeletalMesh->GetSkeleton() != NewAsset)
 		{
-			TargetSkeletalMesh->Skeleton = NewAsset;
+			TargetSkeletalMesh->SetSkeleton(NewAsset);
 			TargetSkeletalMesh->MarkPackageDirty();
 		}
 	}

@@ -81,7 +81,7 @@ void UAnimGraphNode_SkeletalControlBase::CreateOutputPins()
 
 void UAnimGraphNode_SkeletalControlBase::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space) const
 {
-	USkeleton * Skeleton = SkelComp->SkeletalMesh->Skeleton;
+	USkeleton * Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 
 	switch (Space)
 	{
@@ -250,7 +250,7 @@ FVector UAnimGraphNode_SkeletalControlBase::ConvertWidgetLocation(const USkeleta
 
 	if (MeshBases.GetPose().IsValid())
 	{
-		USkeleton * Skeleton = SkelComp->SkeletalMesh->Skeleton;
+		USkeleton * Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 		const FMeshPoseBoneIndex MeshBoneIndex(SkelComp->GetBoneIndex(BoneName));
 		const FCompactPoseBoneIndex CompactBoneIndex = MeshBases.GetPose().GetBoneContainer().MakeCompactPoseIndex(MeshBoneIndex);
 

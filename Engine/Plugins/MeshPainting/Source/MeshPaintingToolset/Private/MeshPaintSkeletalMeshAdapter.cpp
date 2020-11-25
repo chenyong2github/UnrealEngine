@@ -334,8 +334,8 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 	ReferencedSkeletalMesh->SetFlags(RF_Transactional);
 	ReferencedSkeletalMesh->Modify();
 
-	ReferencedSkeletalMesh->bHasVertexColors = true;
-	ReferencedSkeletalMesh->VertexColorGuid = FGuid::NewGuid();
+	ReferencedSkeletalMesh->SetHasVertexColors(true);
+	ReferencedSkeletalMesh->SetVertexColorGuid(FGuid::NewGuid());
 
 	// Release the static mesh's resources.
 	ReferencedSkeletalMesh->ReleaseResources();
@@ -348,14 +348,14 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 	{
 		// Mesh doesn't have a color vertex buffer yet!  We'll create one now.
 		LODData->StaticVertexBuffers.ColorVertexBuffer.InitFromSingleColor(FColor(255, 255, 255, 255), LODData->GetNumVertices());
-		ReferencedSkeletalMesh->bHasVertexColors = true;
-		ReferencedSkeletalMesh->VertexColorGuid = FGuid::NewGuid();
+		ReferencedSkeletalMesh->SetHasVertexColors(true);
+		ReferencedSkeletalMesh->SetVertexColorGuid(FGuid::NewGuid());
 		BeginInitResource(&LODData->StaticVertexBuffers.ColorVertexBuffer);
 	}
 	//Make sure we change the import data so the re-import do not replace the new data
-	if (ReferencedSkeletalMesh->AssetImportData)
+	if (ReferencedSkeletalMesh->GetAssetImportData())
 	{
-		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReferencedSkeletalMesh->AssetImportData);
+		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReferencedSkeletalMesh->GetAssetImportData());
 		if (ImportData && ImportData->VertexColorImportOption != EVertexColorImportOption::Ignore)
 		{
 			ImportData->SetFlags(RF_Transactional);

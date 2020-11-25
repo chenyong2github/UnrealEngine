@@ -5716,31 +5716,31 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		int32 MaxNumStreamedLODs = -1;
 		int32 MaxNumOptionalLODs = -1;
 #if WITH_EDITORONLY_DATA
-		if (Mesh->MinLod.PerPlatform.Find(("Mobile")) != nullptr)
+		if (Mesh->GetMinLod().PerPlatform.Find(("Mobile")) != nullptr)
 		{
-			MobileMinLOD = *Mesh->MinLod.PerPlatform.Find(("Mobile"));
+			MobileMinLOD = *Mesh->GetMinLod().PerPlatform.Find(("Mobile"));
 		}
 
-		MeshDisablesMinLODStripping = Mesh->DisableBelowMinLodStripping.Default ? 1 : 0;
-		if (Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) != nullptr)
+		MeshDisablesMinLODStripping = Mesh->GetDisableBelowMinLodStripping().Default ? 1 : 0;
+		if (Mesh->GetDisableBelowMinLodStripping().PerPlatform.Find(("Mobile")) != nullptr)
 		{
-			MeshDisablesMinLODStripping = *Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) ? 1 : 0;
+			MeshDisablesMinLODStripping = *Mesh->GetDisableBelowMinLodStripping().PerPlatform.Find(("Mobile")) ? 1 : 0;
 		}
 
-		bSupportLODStreaming = Mesh->bSupportLODStreaming.Default;
-		if (const bool* Found = Mesh->bSupportLODStreaming.PerPlatform.Find("Mobile"))
+		bSupportLODStreaming = Mesh->GetSupportLODStreaming().Default;
+		if (const bool* Found = Mesh->GetSupportLODStreaming().PerPlatform.Find("Mobile"))
 		{
 			bSupportLODStreaming = *Found;
 		}
 
-		MaxNumStreamedLODs = Mesh->MaxNumStreamedLODs.Default;
-		if (const int32* Found = Mesh->MaxNumStreamedLODs.PerPlatform.Find("Mobile"))
+		MaxNumStreamedLODs = Mesh->GetMaxNumStreamedLODs().Default;
+		if (const int32* Found = Mesh->GetMaxNumStreamedLODs().PerPlatform.Find("Mobile"))
 		{
 			MaxNumStreamedLODs = *Found;
 		}
 
-		MaxNumOptionalLODs = Mesh->MaxNumOptionalLODs.Default;
-		if (const int32* Found = Mesh->MaxNumOptionalLODs.PerPlatform.Find("Mobile"))
+		MaxNumOptionalLODs = Mesh->GetMaxNumOptionalLODs().Default;
+		if (const int32* Found = Mesh->GetMaxNumOptionalLODs().PerPlatform.Find("Mobile"))
 		{
 			MaxNumOptionalLODs = *Found;
 		}
@@ -5782,16 +5782,17 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		}
 
 		int32 VertexCountCollision = 0;
-		if (Mesh->BodySetup)
+		const USkeletalMesh* MeshConst = Mesh;
+		if (MeshConst->GetBodySetup())
 		{
 #if PHYSICS_INTERFACE_PHYSX
 			// Count PhysX trimesh mem usage
-			for (physx::PxTriangleMesh* TriMesh : Mesh->BodySetup->TriMeshes)
+			for (physx::PxTriangleMesh* TriMesh : MeshConst->GetBodySetup()->TriMeshes)
 			{
 				VertexCountCollision += TriMesh->getNbVertices();
 			}
 #elif WITH_CHAOS
-			for (auto& TriMesh : Mesh->BodySetup->ChaosTriMeshes)
+			for (auto& TriMesh : MeshConst->GetBodySetup()->ChaosTriMeshes)
 			{
 				VertexCountCollision += TriMesh->Particles().Size();
 			}

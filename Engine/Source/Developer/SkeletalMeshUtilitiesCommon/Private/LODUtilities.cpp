@@ -410,7 +410,7 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 		}
 
 		//remove all Morph target data for this LOD
-		for (UMorphTarget* MorphTarget : SkeletalMesh->MorphTargets)
+		for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 		{
 			if (MorphTarget->HasDataForLOD(DesiredLOD))
 			{
@@ -850,7 +850,7 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 
 	bool bInitializeMorphData = false;
 
-	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+	for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 	{
 		if (!MorphTarget->HasDataForLOD(SourceLOD))
 		{
@@ -972,7 +972,7 @@ void FLODUtilities::ClearGeneratedMorphTarget(USkeletalMesh* SkeletalMesh, int32
 
 	const FSkeletalMeshLODModel& TargetLODModel = SkeletalMeshResource->LODModels[TargetLOD];
 	//Make sure we have some morph for this LOD
-	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+	for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 	{
 		if (!MorphTarget->HasDataForLOD(TargetLOD))
 		{
@@ -1016,7 +1016,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 
 	//Make sure we have some morph for this LOD
 	bool bContainsMorphTargets = false;
-	for (UMorphTarget* MorphTarget : SkeletalMesh->MorphTargets)
+	for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 	{
 		if (MorphTarget->HasDataForLOD(SourceLOD))
 		{
@@ -1130,7 +1130,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	TMap<UMorphTarget *, TMap<uint32, uint32>> PerMorphTargetBaseIndexToMorphTargetDelta;
 	//Create a map from BaseIndex to a list of match target index for all base morph target point
 	TMap<uint32, TArray<uint32>> BaseMorphIndexToTargetIndexList;
-	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+	for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 	{
 		if (!MorphTarget->HasDataForLOD(SourceLOD))
 		{
@@ -1241,8 +1241,8 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 			if (SkeletalMeshResource->OriginalReductionSourceMeshData[DesiredLOD]->IsEmpty())
 			{
 				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-				BaseLODMorphTargetData.Empty(SkeletalMesh->MorphTargets.Num());
-				for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+				BaseLODMorphTargetData.Empty(SkeletalMesh->GetMorphTargets().Num());
+				for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 				{
 					if (!MorphTarget->HasDataForLOD(DesiredLOD))
 					{
@@ -1273,7 +1273,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 
 				if (DesiredLOD == 0)
 				{
-					SkeletalMesh->GetLODInfo(DesiredLOD)->SourceImportFilename = SkeletalMesh->AssetImportData->GetFirstFilename();
+					SkeletalMesh->GetLODInfo(DesiredLOD)->SourceImportFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
 				}
 			}
 		}
@@ -1377,7 +1377,7 @@ bool FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		FSkeletalMeshLODModel::CopyStructure(&(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]), &ImportedBaseLODModel);
 		//Copy the morph target deltas
 		bool bInitMorphTargetData = false;
-		for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+		for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 		{
 			if (!ImportedBaseLODMorphTargetData.Contains(MorphTarget->GetFullName()))
 			{
@@ -1804,7 +1804,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	}
 	FSkeletalMeshImportData ImportDataDest;
 	SkeletalMeshDest->LoadLODImportedData(LODIndexDest, ImportDataDest);
-	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, SkeletalMeshDest->RefSkeleton, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, SkeletalMeshDest->GetRefSkeleton(), ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
 }
 
 bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
@@ -2123,7 +2123,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	TArray<FName> WarningNames;
 
 	//BaseLOD need to make sure the source data fit with the skeletalmesh materials array before using meshutilities.BuildSkeletalMesh
-	AdjustImportDataFaceMaterialIndex(SkeletalMeshDest->Materials, ImportDataDest.Materials, LODFacesDest, LODIndexDest);
+	AdjustImportDataFaceMaterialIndex(SkeletalMeshDest->GetMaterials(), ImportDataDest.Materials, LODFacesDest, LODIndexDest);
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
 	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMeshDest->GetName(), RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
@@ -2824,7 +2824,7 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 
 			TArray< FMorphTargetDelta >* Deltas = Results[NewMorphDeltasIdx];
 
-			FAsyncTask<FAsyncImportMorphTargetWork>* NewWork = new FAsyncTask<FAsyncImportMorphTargetWork>(&BaseLODModel, BaseSkelMesh->RefSkeleton, BaseImportData,
+			FAsyncTask<FAsyncImportMorphTargetWork>* NewWork = new FAsyncTask<FAsyncImportMorphTargetWork>(&BaseLODModel, BaseSkelMesh->GetRefSkeleton(), BaseImportData,
 				MoveTemp(ShapeImportData.Points), *Deltas, BaseIndexData, BaseWedgePointIndices, WedgePointToVertexIndexMap, OverlappingVertices, MoveTemp(ModifiedPoints), WedgeToFaces, MeshDataBundle, TangentZ,
 				ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, Thresholds);
 			PendingWork.Add(NewWork);

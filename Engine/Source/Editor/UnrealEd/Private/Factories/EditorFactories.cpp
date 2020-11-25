@@ -5975,19 +5975,19 @@ bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
 	if (SkeletalMesh && !SkeletalMesh->HasCustomActorReimportFactory())
 	{
-		if (SkeletalMesh->AssetImportData)
+		if (SkeletalMesh->GetAssetImportData())
 		{
-			UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(SkeletalMesh->AssetImportData);
+			UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(SkeletalMesh->GetAssetImportData());
 			if (FbxAssetImportData != nullptr && FbxAssetImportData->bImportAsScene)
 			{
 				//This skeletal mesh was import with a scene import, we cannot reimport it here
 				return false;
 			}
-			else if (FPaths::GetExtension(SkeletalMesh->AssetImportData->GetFirstFilename()) == TEXT("abc"))
+			else if (FPaths::GetExtension(SkeletalMesh->GetAssetImportData()->GetFirstFilename()) == TEXT("abc"))
 			{
 				return false;
 			}
-			SkeletalMesh->AssetImportData->ExtractFilenames(OutFilenames);
+			SkeletalMesh->GetAssetImportData()->ExtractFilenames(OutFilenames);
 		}
 		else
 		{
@@ -6043,7 +6043,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	//Clean up the options
 	UnFbx::FBXImportOptions::ResetOptions(ImportOptions);
 
-	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
+	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData());
 	
 	// Prepare the import options
 	UFbxImportUI* ReimportUI;
@@ -6062,9 +6062,9 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	}
 
 	ReimportUI->MeshTypeToImport = FBXIT_SkeletalMesh;
-	ReimportUI->Skeleton = SkeletalMesh->Skeleton;
+	ReimportUI->Skeleton = SkeletalMesh->GetSkeleton();
 	ReimportUI->bCreatePhysicsAsset = false;
-	ReimportUI->PhysicsAsset = SkeletalMesh->PhysicsAsset;
+	ReimportUI->PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
 	ReimportUI->bImportAnimations = false;
 	ReimportUI->OverrideAnimationName = TEXT("");
 	ReimportUI->bImportRigidMesh = false;
@@ -6083,7 +6083,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	{
 		// An existing import data object was not found, make one here and show the options dialog
 		ImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, ImportUI->SkeletalMeshImportData);
-		SkeletalMesh->AssetImportData = ImportData;
+		SkeletalMesh->SetAssetImportData(ImportData);
 	}
 	check(ImportData != nullptr);
 
@@ -6239,9 +6239,9 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		bool bIsObjFormat = false;
 		bool bIsAutomated = false;
 		// @hack to make sure skeleton is set before opening the dialog
-		ImportOptions->SkeletonForAnimation = SkeletalMesh->Skeleton;
+		ImportOptions->SkeletonForAnimation = SkeletalMesh->GetSkeleton();
 		ImportOptions->bCreatePhysicsAsset = false;
-		ImportOptions->PhysicsAsset = SkeletalMesh->PhysicsAsset;
+		ImportOptions->PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
 		
 		EFBXImportContentType BeforeUIContentType = ReimportUI->SkeletalMeshImportData->ImportContentType;
 		ImportOptions = GetImportOptions( FFbxImporter, ReimportUI, bShowOptionDialog, bIsAutomated, Obj->GetPathName(), bOperationCanceled, bOutImportAll, bIsObjFormat, Filename, bForceImportType, FBXIT_SkeletalMesh);
@@ -6250,15 +6250,15 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		if (bShowOptionDialog && ReimportUI->SkeletalMeshImportData->ImportContentType != BeforeUIContentType && ReimportUI->SkeletalMeshImportData->ImportContentType != EFBXImportContentType::FBXICT_All)
 		{
 			TArray<FString> ExtractedFilenames;
-			SkeletalMesh->AssetImportData->ExtractFilenames(ExtractedFilenames);
+			SkeletalMesh->GetAssetImportData()->ExtractFilenames(ExtractedFilenames);
 			//By default add the original file
 			if (!ExtractedFilenames.IsValidIndex(1))
 			{
-				SkeletalMesh->AssetImportData->AddFileName(ExtractedFilenames[0], 1, NSSkeletalMeshSourceFileLabels::GeometryText().ToString());
+				SkeletalMesh->GetAssetImportData()->AddFileName(ExtractedFilenames[0], 1, NSSkeletalMeshSourceFileLabels::GeometryText().ToString());
 			}
 			if (!ExtractedFilenames.IsValidIndex(2))
 			{
-				SkeletalMesh->AssetImportData->AddFileName(ExtractedFilenames[0], 2, NSSkeletalMeshSourceFileLabels::SkinningText().ToString());
+				SkeletalMesh->GetAssetImportData()->AddFileName(ExtractedFilenames[0], 2, NSSkeletalMeshSourceFileLabels::SkinningText().ToString());
 			}
 		}
 

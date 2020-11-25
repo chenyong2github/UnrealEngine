@@ -266,7 +266,7 @@ void UDebugSkelMeshComponent::InitAnim(bool bForceReinit)
 	// then we need to clear it up to avoid an issue
 	if ( PreviewInstance && PreviewInstance->GetCurrentAsset() && SkeletalMesh )
 	{
-		if ( PreviewInstance->GetCurrentAsset()->GetSkeleton() != SkeletalMesh->Skeleton )
+		if ( PreviewInstance->GetCurrentAsset()->GetSkeleton() != SkeletalMesh->GetSkeleton() )
 		{
 			// if it doesn't match, just clear it
 			PreviewInstance->SetAnimationAsset(NULL);
@@ -681,7 +681,7 @@ void UDebugSkelMeshComponent::ToggleClothSectionsVisibility(bool bShowOnlyClothS
 void UDebugSkelMeshComponent::RestoreClothSectionsVisibility()
 {
 	// if this skeletal mesh doesn't have any clothing assets, just return
-	if (!SkeletalMesh || SkeletalMesh->MeshClothingAssets.Num() == 0)
+	if (!SkeletalMesh || SkeletalMesh->GetMeshClothingAssets().Num() == 0)
 	{
 		return;
 	}
@@ -827,7 +827,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 {
 	if(SkeletalMesh && SelectedClothingGuidForPainting.IsValid())
 	{
-		UClothingAssetBase** Asset = SkeletalMesh->MeshClothingAssets.FindByPredicate([&](UClothingAssetBase* Item)
+		UClothingAssetBase** Asset = SkeletalMesh->GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* Item)
 		{
 			return Item && SelectedClothingGuidForPainting == Item->GetAssetGuid();
 		});
@@ -1040,10 +1040,10 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 
 		if(USkeletalMesh* Mesh = InComponent->SkeletalMesh)
 		{
-			const int32 NumClothingAssets = Mesh->MeshClothingAssets.Num();
+			const int32 NumClothingAssets = Mesh->GetMeshClothingAssets().Num();
 			for(int32 ClothingAssetIndex = 0; ClothingAssetIndex < NumClothingAssets; ++ClothingAssetIndex)
 			{
-				UClothingAssetBase* BaseAsset = Mesh->MeshClothingAssets[ClothingAssetIndex];
+				UClothingAssetBase* BaseAsset = Mesh->GetMeshClothingAssets()[ClothingAssetIndex];
 				if(BaseAsset && BaseAsset->GetAssetGuid() == InComponent->SelectedClothingGuidForPainting)
 				{
 					ClothingSimDataIndexWhenPainting = ClothingAssetIndex;

@@ -1463,7 +1463,7 @@ bool FPhysicsAssetEditor::ShouldFilterAssetBasedOnSkeleton( const FAssetData& As
 		USkeletalMesh* EditorSkelMesh = SharedData->PhysicsAsset->GetPreviewMesh();
 		if(EditorSkelMesh != nullptr)
 		{
-			USkeleton* Skeleton = EditorSkelMesh->Skeleton;
+			USkeleton* Skeleton = EditorSkelMesh->GetSkeleton();
 
 			if ( Skeleton && (*SkeletonName) == FString::Printf(TEXT("%s'%s'"), *Skeleton->GetClass()->GetName(), *Skeleton->GetPathName()) )
 			{
@@ -1838,7 +1838,7 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 			SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BodySetup->BoneName)));
 			BodySetup->Modify();
 
-			int32 BoneIndex = EditorSkelMesh->RefSkeleton.FindBoneIndex(BodySetup->BoneName);
+			int32 BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName);
 			check(BoneIndex != INDEX_NONE);
 
 			const FBoneVertInfo& UseVertInfo = NewBodyData.VertWeight == EVW_DominantWeight ? SharedData->DominantWeightBoneInfos[BoneIndex] : SharedData->AnyWeightBoneInfos[BoneIndex];

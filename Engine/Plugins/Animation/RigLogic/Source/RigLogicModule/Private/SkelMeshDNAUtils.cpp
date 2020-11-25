@@ -51,10 +51,10 @@ FDNAToSkelMeshMap* USkelMeshDNAUtils::CreateMapForUpdatingNeutralMesh(IDNAReader
 void USkelMeshDNAUtils::UpdateJoints(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap)
 {
 	{	// Scoping of RefSkelModifier
-		FReferenceSkeletonModifier RefSkelModifier(SkelMesh->RefSkeleton, SkelMesh->Skeleton);
+		FReferenceSkeletonModifier RefSkelModifier(SkelMesh->GetRefSkeleton(), SkelMesh->GetSkeleton());
 
 		// copy here
-		TArray<FTransform> RawBonePose = SkelMesh->RefSkeleton.GetRawRefBonePose();
+		TArray<FTransform> RawBonePose = SkelMesh->GetRefSkeleton().GetRawRefBonePose();
 
 		// When we are mounting the head to different bodies than female average, we need to use
 		// component space, as the joint to which the head root is snapped to will be on a different
@@ -62,9 +62,9 @@ void USkelMeshDNAUtils::UpdateJoints(USkeletalMesh* SkelMesh, IDNAReader* DNARea
 
 		// calculate component space ahead of current transform
 		TArray<FTransform> ComponentTransforms;
-		FAnimationRuntime::FillUpComponentSpaceTransforms(SkelMesh->RefSkeleton, RawBonePose, ComponentTransforms);
+		FAnimationRuntime::FillUpComponentSpaceTransforms(SkelMesh->GetRefSkeleton(), RawBonePose, ComponentTransforms);
 
-		const TArray<FMeshBoneInfo>& RawBoneInfo = SkelMesh->RefSkeleton.GetRawRefBoneInfo();
+		const TArray<FMeshBoneInfo>& RawBoneInfo = SkelMesh->GetRefSkeleton().GetRawRefBoneInfo();
 
 		// Skipping root joint (index 0) to avoid blinking of the mesh due to bounding box issue
 		for (uint16 JointIndex = 0; JointIndex < DNAReader->GetJointCount(); JointIndex++)
@@ -127,7 +127,7 @@ void USkelMeshDNAUtils::UpdateJoints(USkeletalMesh* SkelMesh, IDNAReader* DNARea
 		}
 	}
 
-	SkelMesh->RefBasesInvMatrix.Reset();
+	SkelMesh->GetRefBasesInvMatrix().Reset();
 	SkelMesh->CalculateInvRefMatrices(); // Needs to be called after RefSkelModifier is destroyed
 }
 
@@ -188,9 +188,9 @@ void USkelMeshDNAUtils::UpdateMorphTargets(USkeletalMesh* SkelMesh, IDNAReader* 
 		return;
 	}
 	TArray<TArray<TArray<int32>>>& BlendShapeVertexDeltas = DNAToSkelMeshMap->GetBlendShapeVertexDeltaIndices();
-	ParallelFor(SkelMesh->MorphTargets.Num(), [&](int32 MorphIndex)
+	ParallelFor(SkelMesh->GetMorphTargets().Num(), [&](int32 MorphIndex)
 	{
-		UMorphTarget* MorphTarget = SkelMesh->MorphTargets[MorphIndex];
+		UMorphTarget* MorphTarget = SkelMesh->GetMorphTargets()[MorphIndex];
 		const FDNABlendShapeTarget& MeshTarget = MeshBlendShapeTargets[MorphIndex];
 		// First get all DNA deltas for current Morph Target.
 		TArrayView<const uint32> BlendShapeVertexIndices = DNAReader->GetBlendShapeTargetVertexIndices(MeshTarget.MeshIndex, MeshTarget.TargetIndex);

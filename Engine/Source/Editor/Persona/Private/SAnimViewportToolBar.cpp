@@ -447,7 +447,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFollowBoneWidget(TWeakPtr<SComboBu
 				USkeletalMesh* PreviewMesh = Viewport.Pin()->GetPreviewScene()->GetPreviewMesh();
 				if (PreviewMesh)
 				{
-					return PreviewMesh->RefSkeleton;
+					return PreviewMesh->GetRefSkeleton();
 				}
 
 				static FReferenceSkeleton EmptySkeleton;

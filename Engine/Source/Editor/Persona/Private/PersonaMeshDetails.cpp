@@ -280,16 +280,16 @@ private:
 				return false;
 			}
 			bool bValidLODSettings = false;
-			if (SkeletalMesh->LODSettings != nullptr)
+			if (SkeletalMesh->GetLODSettings() != nullptr)
 			{
-				const int32 NumSettings = FMath::Min(SkeletalMesh->LODSettings->GetNumberOfSettings(), SkeletalMesh->GetLODNum());
+				const int32 NumSettings = FMath::Min(SkeletalMesh->GetLODSettings()->GetNumberOfSettings(), SkeletalMesh->GetLODNum());
 				if (LODIndex < NumSettings)
 				{
 					bValidLODSettings = true;
 				}
 			}
 			
-			const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings = bValidLODSettings ? &SkeletalMesh->LODSettings->GetSettingsForLODLevel(LODIndex) : nullptr;
+			const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings = bValidLODSettings ? &SkeletalMesh->GetLODSettings()->GetSettingsForLODLevel(LODIndex) : nullptr;
 
 			FGuid BuildGUID = LODInfo->ComputeDeriveDataCacheKey(SkeletalMeshLODGroupSettings);
 			if (LODInfo->BuildGUID != BuildGUID)
@@ -2201,8 +2201,8 @@ void FPersonaMeshDetails::OnCopyMaterialList()
 
 	if (Mesh != nullptr)
 	{
-		FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
-		auto JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, &Mesh->Materials, 0, 0);
+		FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(USkeletalMesh::GetMaterialsMemberName());
+		auto JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, &Mesh->GetMaterials(), 0, 0);
 
 		typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriter;
 		typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriterFactory;
@@ -2224,7 +2224,7 @@ bool FPersonaMeshDetails::OnCanCopyMaterialList() const
 
 	if (Mesh != nullptr)
 	{
-		return Mesh->Materials.Num() > 0;
+		return Mesh->GetMaterials().Num() > 0;
 	}
 
 	return false;
@@ -2245,7 +2245,7 @@ void FPersonaMeshDetails::OnPasteMaterialList()
 
 		if (RootJsonValue.IsValid())
 		{
-			FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
+			FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(USkeletalMesh::GetMaterialsMemberName());
 
 			Mesh->PreEditChange(Property);
 			FScopedTransaction Transaction(LOCTEXT("PersonaChangedPasteMaterialList", "Persona editor: Pasted material list"));
@@ -2253,11 +2253,12 @@ void FPersonaMeshDetails::OnPasteMaterialList()
 			TArray<FSkeletalMaterial> TempMaterials;
 			FJsonObjectConverter::JsonValueToUProperty(RootJsonValue, Property, &TempMaterials, 0, 0);
 			//Do not change the number of material in the array
+			TArray<FSkeletalMaterial>& MeshMaterials = Mesh->GetMaterials();
 			for (int32 MaterialIndex = 0; MaterialIndex < TempMaterials.Num(); ++MaterialIndex)
 			{
-				if (Mesh->Materials.IsValidIndex(MaterialIndex))
+				if (MeshMaterials.IsValidIndex(MaterialIndex))
 				{
-					Mesh->Materials[MaterialIndex].MaterialInterface = TempMaterials[MaterialIndex].MaterialInterface;
+					MeshMaterials[MaterialIndex].MaterialInterface = TempMaterials[MaterialIndex].MaterialInterface;
 				}
 			}
 			
@@ -2275,9 +2276,9 @@ void FPersonaMeshDetails::OnCopyMaterialItem(int32 CurrentSlot)
 	{
 		TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
 
-		if (Mesh->Materials.IsValidIndex(CurrentSlot))
+		if (Mesh->GetMaterials().IsValidIndex(CurrentSlot))
 		{
-			const FSkeletalMaterial& Material = Mesh->Materials[CurrentSlot];
+			const FSkeletalMaterial& Material = Mesh->GetMaterials()[CurrentSlot];
 
 			FJsonObjectConverter::UStructToJsonObject(FSkeletalMaterial::StaticStruct(), &Material, RootJsonObject, 0, 0);
 		}
@@ -2302,7 +2303,7 @@ bool FPersonaMeshDetails::OnCanCopyMaterialItem(int32 CurrentSlot) const
 
 	if (Mesh != nullptr)
 	{
-		return Mesh->Materials.IsValidIndex(CurrentSlot);
+		return Mesh->GetMaterials().IsValidIndex(CurrentSlot);
 	}
 
 	return false;
@@ -2323,15 +2324,15 @@ void FPersonaMeshDetails::OnPasteMaterialItem(int32 CurrentSlot)
 
 		if (RootJsonObject.IsValid())
 		{
-			Mesh->PreEditChange(USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials)));
+			Mesh->PreEditChange(USkeletalMesh::StaticClass()->FindPropertyByName(USkeletalMesh::GetMaterialsMemberName()));
 			FScopedTransaction Transaction(LOCTEXT("PersonaChangedPasteMaterialItem", "Persona editor: Pasted material item"));
 			Mesh->Modify();
 
-			if (Mesh->Materials.IsValidIndex(CurrentSlot))
+			if (Mesh->GetMaterials().IsValidIndex(CurrentSlot))
 			{
 				FSkeletalMaterial TmpSkeletalMaterial;
 				FJsonObjectConverter::JsonObjectToUStruct(RootJsonObject.ToSharedRef(), FSkeletalMaterial::StaticStruct(), &TmpSkeletalMaterial, 0, 0);
-				Mesh->Materials[CurrentSlot].MaterialInterface = TmpSkeletalMaterial.MaterialInterface;
+				Mesh->GetMaterials()[CurrentSlot].MaterialInterface = TmpSkeletalMaterial.MaterialInterface;
 			}
 
 			Mesh->PostEditChange();
@@ -2466,7 +2467,7 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 		SNew(SObjectPropertyEntryBox)
 		.PropertyHandle(BakePoseHandle)
 		.AllowedClass(UAnimSequence::StaticClass())
-		.OnShouldFilterAsset(this, &FPersonaMeshDetails::FilterOutBakePose, SkelMesh->Skeleton)
+		.OnShouldFilterAsset(this, &FPersonaMeshDetails::FilterOutBakePose, SkelMesh->GetSkeleton())
 	];
 
 	TSharedPtr<IPropertyHandle> BakePoseOverrideHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BakePoseOverride));
@@ -2484,7 +2485,7 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 		SNew(SObjectPropertyEntryBox)
 		.PropertyHandle(BakePoseOverrideHandle)
 		.AllowedClass(UAnimSequence::StaticClass())
-		.OnShouldFilterAsset(this, &FPersonaMeshDetails::FilterOutBakePose, SkelMesh->Skeleton)
+		.OnShouldFilterAsset(this, &FPersonaMeshDetails::FilterOutBakePose, SkelMesh->GetSkeleton())
 	];
 
 	TSharedPtr<IPropertyHandle> RemovedBonesHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BonesToRemove));
@@ -3128,7 +3129,7 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	];
 
 	// add lod setting assets
-	TSharedPtr<IPropertyHandle> LODSettingAssetPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, LODSettings), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> LODSettingAssetPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetLODSettingsMemberName(), USkeletalMesh::StaticClass());
 	DetailLayout.HideProperty(LODSettingAssetPropertyHandle);
 	LODSettingsCategory.AddCustomRow(LODSettingAssetPropertyHandle->GetPropertyDisplayName())
 	.NameContent()
@@ -3162,32 +3163,32 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 		]
 	];
 
-	TSharedPtr<IPropertyHandle> MinLODPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MinLod), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> MinLODPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetMinLodMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& MinLODRow = LODSettingsCategory.AddProperty(MinLODPropertyHandle);
 	MinLODRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(MinLODPropertyHandle);
 
-	TSharedPtr<IPropertyHandle> DisableBelowMinLodStrippingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, DisableBelowMinLodStripping), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> DisableBelowMinLodStrippingPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetDisableBelowMinLodStrippingMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& DisableBelowMinLodStrippingRow = LODSettingsCategory.AddProperty(DisableBelowMinLodStrippingPropertyHandle);
 	DisableBelowMinLodStrippingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(DisableBelowMinLodStrippingPropertyHandle);
 
-	TSharedPtr<IPropertyHandle> bOverrideLODStreamingSettingsHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bOverrideLODStreamingSettings), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> bOverrideLODStreamingSettingsHandle = DetailLayout.GetProperty(USkeletalMesh::GetOverrideLODStreamingSettingsMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& bOverrideLODStreamingSettingsRow = LODSettingsCategory.AddProperty(bOverrideLODStreamingSettingsHandle);
 	bOverrideLODStreamingSettingsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(bOverrideLODStreamingSettingsHandle);
 
-	TSharedPtr<IPropertyHandle> bSupportLODStreamingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bSupportLODStreaming), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> bSupportLODStreamingPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetSupportLODStreamingMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& bSupportLODStreamingRow = LODSettingsCategory.AddProperty(bSupportLODStreamingPropertyHandle);
 	bSupportLODStreamingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(bSupportLODStreamingPropertyHandle);
 
-	TSharedPtr<IPropertyHandle> MaxNumStreamedLODsPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumStreamedLODs), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> MaxNumStreamedLODsPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetMaxNumStreamedLODsMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& MaxNumStreamedLODsRow = LODSettingsCategory.AddProperty(MaxNumStreamedLODsPropertyHandle);
 	MaxNumStreamedLODsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(MaxNumStreamedLODsPropertyHandle);
 
-	TSharedPtr<IPropertyHandle> MaxNumOptionalLODsPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumOptionalLODs), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> MaxNumOptionalLODsPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetMaxNumOptionalLODsMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& MaxNumOptionalLODsRow = LODSettingsCategory.AddProperty(MaxNumOptionalLODsPropertyHandle);
 	MaxNumOptionalLODsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(MaxNumOptionalLODsPropertyHandle);
@@ -3235,7 +3236,7 @@ FReply FPersonaMeshDetails::OnSaveLODSettings()
 				UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
 
 				// set the property back to SkelMesh;
-				SkelMesh->LODSettings = NewLODSettingAsset;
+				SkelMesh->SetLODSettings(NewLODSettingAsset);
 			}
 		}
 	}
@@ -3261,7 +3262,7 @@ bool FPersonaMeshDetails::IsLODInfoEditingEnabled(int32 LODIndex) const
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	if (SkelMesh)
 	{
-		if (SkelMesh->LODSettings)
+		if (SkelMesh->GetLODSettings())
 		{
 			// if LODIndex == -1, we don't care about lod index
 			if (LODIndex == -1)
@@ -3269,7 +3270,7 @@ bool FPersonaMeshDetails::IsLODInfoEditingEnabled(int32 LODIndex) const
 				return false;
 			}
 
-			if (SkelMesh->LODSettings->GetNumberOfSettings() > LODIndex)
+			if (SkelMesh->GetLODSettings()->GetNumberOfSettings() > LODIndex)
 			{
 				return false;
 			}
@@ -3398,7 +3399,7 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 			if (LODIndex == 0) //Base LOD must update the asset import data
 			{
 				//Update the Asset Import Data
-				UFbxSkeletalMeshImportData* SKImportData = Cast<UFbxSkeletalMeshImportData>(SkelMesh->AssetImportData);
+				UFbxSkeletalMeshImportData* SKImportData = Cast<UFbxSkeletalMeshImportData>(SkelMesh->GetAssetImportData());
 				if (SKImportData)
 				{
 					check(bSrcBuildDataAvailable);
@@ -3427,7 +3428,7 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 	}
 
 	RefreshMeshDetailLayout();
-	if (SkelMesh->MorphTargets.Num() > 0)
+	if (SkelMesh->GetMorphTargets().Num() > 0)
 	{
 		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
 	}
@@ -3565,15 +3566,15 @@ FReply FPersonaMeshDetails::RemoveOneLOD(int32 LODIndex)
 		FText ConfirmRemoveLODText = FText::Format( LOCTEXT("PersonaRemoveLOD_Confirmation", "Are you sure you want to remove LOD {0} from {1}?"), LODIndex, FText::FromString(SkelMesh->GetName()) );
 
 		// if we have lod settings, and then 
-		if (SkelMesh->LODSettings != nullptr)
+		if (SkelMesh->GetLODSettings() != nullptr)
 		{
 			// if I have more LODs, and if LODSettings will be copied back over, 
 			// all LODs have to be regenerated
 			// warn users about it
-			if (SkelMesh->IsValidLODIndex(LODIndex + 1) && SkelMesh->LODSettings->GetNumberOfSettings() > LODIndex)
+			if (SkelMesh->IsValidLODIndex(LODIndex + 1) && SkelMesh->GetLODSettings()->GetNumberOfSettings() > LODIndex)
 			{
 				// now the information will get copied over after removing this LOD
-				ConfirmRemoveLODText = FText::Format(LOCTEXT("PersonaRemoveLODOverriding_Confirmation", "You're currently using LOD Setting Asset \'{2}\' that will override the next LODs with current setting. This will require to regenerate the next LODs after removing this LOD. If you do not want this, clear the LOD Setting Asset before removing LODs. \n\n Are you sure you want to remove LOD {0} from {1}?"), LODIndex, FText::FromString(SkelMesh->GetName()), FText::FromString(SkelMesh->LODSettings->GetName()));
+				ConfirmRemoveLODText = FText::Format(LOCTEXT("PersonaRemoveLODOverriding_Confirmation", "You're currently using LOD Setting Asset \'{2}\' that will override the next LODs with current setting. This will require to regenerate the next LODs after removing this LOD. If you do not want this, clear the LOD Setting Asset before removing LODs. \n\n Are you sure you want to remove LOD {0} from {1}?"), LODIndex, FText::FromString(SkelMesh->GetName()), FText::FromString(SkelMesh->GetLODSettings()->GetName()));
 			}
 		}
 
@@ -3594,9 +3595,9 @@ FReply FPersonaMeshDetails::RemoveOneLOD(int32 LODIndex)
 
 				FLODUtilities::RemoveLOD(UpdateContext, LODIndex);
 
-				if (SkelMesh->LODSettings)
+				if (SkelMesh->GetLODSettings())
 				{
-					SkelMesh->LODSettings->SetLODSettingsToMesh(SkelMesh);
+					SkelMesh->GetLODSettings()->SetLODSettingsToMesh(SkelMesh);
 				}
 			}
 
@@ -3674,7 +3675,7 @@ void FPersonaMeshDetails::ApplyChanges()
 		//PostEditChange will be call when going out of scope
 	}
 	//Update the morph target list since we have rebuild the asset
-	if (SkelMesh->MorphTargets.Num() > 0)
+	if (SkelMesh->GetMorphTargets().Num() > 0)
 	{
 		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
 	}
@@ -3737,9 +3738,9 @@ FText FPersonaMeshDetails::GetLODImportedText(int32 LODIndex) const
 FText FPersonaMeshDetails::GetMaterialSlotNameText(int32 MaterialIndex) const
 {
 	USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
-	if (Mesh && Mesh->Materials.IsValidIndex(MaterialIndex))
+	if (Mesh && Mesh->GetMaterials().IsValidIndex(MaterialIndex))
 	{
-		return FText::FromName(Mesh->Materials[MaterialIndex].MaterialSlotName);
+		return FText::FromName(Mesh->GetMaterials()[MaterialIndex].MaterialSlotName);
 	}
 
 	return LOCTEXT("SkeletalMeshMaterial_InvalidIndex", "Invalid Material Index");
@@ -3769,7 +3770,7 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 
 	// Post process selector
 	IDetailCategoryBuilder& SkelMeshCategory = DetailLayout.EditCategory("SkeletalMesh");
-	TSharedRef<IPropertyHandle> PostProcessHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint), USkeletalMesh::StaticClass());
+	TSharedRef<IPropertyHandle> PostProcessHandle = DetailLayout.GetProperty(USkeletalMesh::GetPostProcessAnimBlueprintMemberName(), USkeletalMesh::StaticClass());
 	PostProcessHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPersonaMeshDetails::OnPostProcessBlueprintChanged, &DetailLayout));
 	PostProcessHandle->MarkHiddenByCustomization();
 
@@ -3790,8 +3791,8 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 	];
 
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailLayout.EditCategory("ImportSettings");
-	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData), USkeletalMesh::StaticClass());
-	if (!SkeletalMeshPtr.IsValid() || !IsValid(SkeletalMeshPtr->AssetImportData) || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
+	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(USkeletalMesh::GetAssetImportDataMemberName(), USkeletalMesh::StaticClass());
+	if (!SkeletalMeshPtr.IsValid() || !IsValid(SkeletalMeshPtr->GetAssetImportData()) || !SkeletalMeshPtr->GetAssetImportData()->IsA<UFbxSkeletalMeshImportData>())
 	{
 		// Hide the ability to change the import settings object
 		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);
@@ -3869,7 +3870,7 @@ void FPersonaMeshDetails::HideUnnecessaryProperties(IDetailLayoutBuilder& Detail
 		}
 	}
 
-	TSharedRef<IPropertyHandle> MaterialsProperty = DetailLayout.GetProperty(FName("Materials"), USkeletalMesh::StaticClass());
+	TSharedRef<IPropertyHandle> MaterialsProperty = DetailLayout.GetProperty(USkeletalMesh::GetMaterialsMemberName(), USkeletalMesh::StaticClass());
 	DetailLayout.HideProperty(MaterialsProperty);
 
 	// hide all properties in Mirroring category to hide Mirroring category itself
@@ -3890,7 +3891,7 @@ void FPersonaMeshDetails::OnPostProcessBlueprintChanged(IDetailLayoutBuilder* De
 FString FPersonaMeshDetails::GetCurrentPostProcessBlueprintPath() const
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-	if(UClass* PostProcessClass = *SkelMesh->PostProcessAnimBlueprint)
+	if(UClass* PostProcessClass = *SkelMesh->GetPostProcessAnimBlueprint())
 	{
 		return PostProcessClass->GetPathName();
 	}
@@ -3902,7 +3903,7 @@ bool FPersonaMeshDetails::OnShouldFilterPostProcessBlueprint(const FAssetData& A
 {
 	if(USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh())
 	{
-		const FString CurrentMeshSkeletonName = FString::Printf(TEXT("%s'%s'"), *SkelMesh->Skeleton->GetClass()->GetName(), *SkelMesh->Skeleton->GetPathName());
+		const FString CurrentMeshSkeletonName = FString::Printf(TEXT("%s'%s'"), *SkelMesh->GetSkeleton()->GetClass()->GetName(), *SkelMesh->GetSkeleton()->GetPathName());
 		const FString SkeletonName = AssetData.GetTagValueRef<FString>("TargetSkeleton");
 
 		return SkeletonName != CurrentMeshSkeletonName;
@@ -3947,7 +3948,7 @@ FReply FPersonaMeshDetails::OnReimportLodClicked(EReimportButtonType InReimportT
 			LODInfo->SourceImportFilename.Empty();
 			
 			//Avoid changing the settings if the skeletal mesh is using a LODSettings asset valid for this LOD
-			bool bUseLODSettingAsset = SkelMesh->LODSettings != nullptr && SkelMesh->LODSettings->GetNumberOfSettings() > InLODIndex;
+			bool bUseLODSettingAsset = SkelMesh->GetLODSettings() != nullptr && SkelMesh->GetLODSettings()->GetNumberOfSettings() > InLODIndex;
 			//Make the reduction settings change according to the context
 			if (!bUseLODSettingAsset && SkelMesh->IsReductionActive(InLODIndex) && LODInfo->bHasBeenSimplified && SkelMesh->IsLODImportedDataEmpty(InLODIndex))
 			{
@@ -4008,9 +4009,10 @@ void FPersonaMeshDetails::OnGetMaterialsForArray(class IMaterialListBuilder& Out
 	if (!SkelMesh)
 		return;
 
-	for (int32 MaterialIndex = 0; MaterialIndex < SkelMesh->Materials.Num(); ++MaterialIndex)
+	TArray<FSkeletalMaterial>& SkelMeshMaterials = SkelMesh->GetMaterials();
+	for (int32 MaterialIndex = 0; MaterialIndex < SkelMeshMaterials.Num(); ++MaterialIndex)
 	{
-		OutMaterials.AddMaterial(MaterialIndex, SkelMesh->Materials[MaterialIndex].MaterialInterface, true);
+		OutMaterials.AddMaterial(MaterialIndex, SkelMeshMaterials[MaterialIndex].MaterialInterface, true);
 	}
 }
 
@@ -4025,36 +4027,36 @@ void FPersonaMeshDetails::OnMaterialArrayChanged(UMaterialInterface* NewMaterial
 		FProperty* MaterialProperty = FindFProperty<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(MaterialProperty);
 		Mesh->PreEditChange(MaterialProperty);
-		check(Mesh->Materials.Num() > SlotIndex)
+		TArray<FSkeletalMaterial>& MeshMaterials = Mesh->GetMaterials();
+		check(MeshMaterials.Num() > SlotIndex);
 
 		if (NewMaterial != PrevMaterial)
 		{
 			GEditor->BeginTransaction(LOCTEXT("PersonaEditorMaterialChanged", "Persona editor: material changed"));
 			bMadeTransaction = true;
 			Mesh->Modify();
-			Mesh->Materials[SlotIndex].MaterialInterface = NewMaterial;
+			MeshMaterials[SlotIndex].MaterialInterface = NewMaterial;
 
 			//Add a default name to the material slot if this slot was manually add and there is no name yet
-			if (NewMaterial != nullptr && (Mesh->Materials[SlotIndex].ImportedMaterialSlotName == NAME_None || Mesh->Materials[SlotIndex].MaterialSlotName == NAME_None))
+			if (NewMaterial != nullptr && (MeshMaterials[SlotIndex].ImportedMaterialSlotName == NAME_None || MeshMaterials[SlotIndex].MaterialSlotName == NAME_None))
 			{
-				if (Mesh->Materials[SlotIndex].MaterialSlotName == NAME_None)
+				if (MeshMaterials[SlotIndex].MaterialSlotName == NAME_None)
 				{
-					
-					Mesh->Materials[SlotIndex].MaterialSlotName = NewMaterial->GetFName();
+					MeshMaterials[SlotIndex].MaterialSlotName = NewMaterial->GetFName();
 				}
 
 				//Ensure the imported material slot name is unique
-				if (Mesh->Materials[SlotIndex].ImportedMaterialSlotName == NAME_None)
+				if (MeshMaterials[SlotIndex].ImportedMaterialSlotName == NAME_None)
 				{
-					auto IsMaterialNameUnique = [&Mesh, SlotIndex](const FName TestName)
+					auto IsMaterialNameUnique = [&Mesh, &MeshMaterials, SlotIndex](const FName TestName)
 					{
-						for (int32 MaterialIndex = 0; MaterialIndex < Mesh->Materials.Num(); ++MaterialIndex)
+						for (int32 MaterialIndex = 0; MaterialIndex < MeshMaterials.Num(); ++MaterialIndex)
 						{
 							if (MaterialIndex == SlotIndex)
 							{
 								continue;
 							}
-							if (Mesh->Materials[MaterialIndex].ImportedMaterialSlotName == TestName)
+							if (MeshMaterials[MaterialIndex].ImportedMaterialSlotName == TestName)
 							{
 								return false;
 							}
@@ -4075,7 +4077,7 @@ void FPersonaMeshDetails::OnMaterialArrayChanged(UMaterialInterface* NewMaterial
 							MaterialSlotName = NewMaterial->GetName() + TEXT("_") + FString::FromInt(MatchNameCounter);
 						}
 					}
-					Mesh->Materials[SlotIndex].ImportedMaterialSlotName = FName(*MaterialSlotName);
+					MeshMaterials[SlotIndex].ImportedMaterialSlotName = FName(*MaterialSlotName);
 				}
 			}
 		}
@@ -4102,7 +4104,7 @@ FReply FPersonaMeshDetails::AddMaterialSlot()
 
 	FScopedTransaction Transaction(LOCTEXT("PersonaAddMaterialSlotTransaction", "Persona editor: Add material slot"));
 	SkeletalMeshPtr->Modify();
-	SkeletalMeshPtr->Materials.Add(FSkeletalMaterial());
+	SkeletalMeshPtr->GetMaterials().Add(FSkeletalMaterial());
 
 	SkeletalMeshPtr->PostEditChange();
 
@@ -4115,7 +4117,7 @@ FText FPersonaMeshDetails::GetMaterialArrayText() const
 	int32 SlotNumber = 0;
 	if (SkeletalMeshPtr.IsValid())
 	{
-		SlotNumber = SkeletalMeshPtr->Materials.Num();
+		SlotNumber = SkeletalMeshPtr->GetMaterials().Num();
 	}
 	MaterialArrayText = FString::FromInt(SlotNumber) + MaterialArrayText;
 	return FText::FromString(MaterialArrayText);
@@ -4132,23 +4134,24 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 		FSkeletalMeshLODModel& Model = ImportedResource->LODModels[LODIndex];
 
 		TArray<int32>& MaterialMap = SkelMesh->GetLODInfo(LODIndex)->LODMaterialMap;
+		const TArray<FSkeletalMaterial>& SkelMeshMaterials = SkelMesh->GetMaterials();
 		int32 NumSections = Model.Sections.Num();
 		for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
 		{
 			int32 DefaultSectionMaterialIndex = GetDefaultMaterialIndex(SkelMesh, LODIndex, SectionIdx);
 			int32 MaterialIndex = Model.Sections[SectionIdx].MaterialIndex;;
-			if (MaterialMap.IsValidIndex(SectionIdx) && SkelMesh->Materials.IsValidIndex(MaterialMap[SectionIdx]))
+			if (MaterialMap.IsValidIndex(SectionIdx) && SkelMeshMaterials.IsValidIndex(MaterialMap[SectionIdx]))
 			{
 				MaterialIndex = MaterialMap[SectionIdx];
 			}
 
-			if (SkelMesh->Materials.IsValidIndex(MaterialIndex))
+			if (SkelMeshMaterials.IsValidIndex(MaterialIndex))
 			{
-				FName CurrentSectionMaterialSlotName = SkelMesh->Materials[MaterialIndex].MaterialSlotName;
-				FName CurrentSectionOriginalImportedMaterialName = SkelMesh->Materials[MaterialIndex].ImportedMaterialSlotName;
+				FName CurrentSectionMaterialSlotName = SkelMeshMaterials[MaterialIndex].MaterialSlotName;
+				FName CurrentSectionOriginalImportedMaterialName = SkelMeshMaterials[MaterialIndex].ImportedMaterialSlotName;
 				TMap<int32, FName> AvailableSectionName;
 				int32 CurrentIterMaterialIndex = 0;
-				for (const FSkeletalMaterial &SkeletalMaterial : SkelMesh->Materials)
+				for (const FSkeletalMaterial &SkeletalMaterial : SkelMeshMaterials)
 				{
 					if (MaterialIndex != CurrentIterMaterialIndex)
 					{
@@ -4166,7 +4169,7 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 				}
 				bool bClothSection = Model.Sections[SectionIdx].HasClothingData();
 				bool bIsChunkSection = Model.Sections[SectionIdx].ChunkedParentSectionIndex != INDEX_NONE;
-				OutSections.AddSection(LODIndex, SectionIdx, CurrentSectionMaterialSlotName, MaterialIndex, CurrentSectionOriginalImportedMaterialName, AvailableSectionName, SkelMesh->Materials[MaterialIndex].MaterialInterface, bClothSection, bIsChunkSection, DefaultSectionMaterialIndex);
+				OutSections.AddSection(LODIndex, SectionIdx, CurrentSectionMaterialSlotName, MaterialIndex, CurrentSectionOriginalImportedMaterialName, AvailableSectionName, SkelMeshMaterials[MaterialIndex].MaterialInterface, bClothSection, bIsChunkSection, DefaultSectionMaterialIndex);
 			}
 		}
 	}
@@ -4174,19 +4177,19 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 
 FText FPersonaMeshDetails::GetMaterialNameText(int32 MaterialIndex) const
 {
-	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->Materials.IsValidIndex(MaterialIndex))
+	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->GetMaterials().IsValidIndex(MaterialIndex))
 	{
-		return FText::FromName(SkeletalMeshPtr->Materials[MaterialIndex].MaterialSlotName);
+		return FText::FromName(SkeletalMeshPtr->GetMaterials()[MaterialIndex].MaterialSlotName);
 	}
 	return FText::FromName(NAME_None);
 }
 
 FText FPersonaMeshDetails::GetOriginalImportMaterialNameText(int32 MaterialIndex) const
 {
-	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->Materials.IsValidIndex(MaterialIndex))
+	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->GetMaterials().IsValidIndex(MaterialIndex))
 	{
 		FString OriginalImportMaterialName;
-		SkeletalMeshPtr->Materials[MaterialIndex].ImportedMaterialSlotName.ToString(OriginalImportMaterialName);
+		SkeletalMeshPtr->GetMaterials()[MaterialIndex].ImportedMaterialSlotName.ToString(OriginalImportMaterialName);
 		OriginalImportMaterialName = TEXT("Original Imported Material Name: ") + OriginalImportMaterialName;
 		return FText::FromString(OriginalImportMaterialName);
 			}
@@ -4196,7 +4199,7 @@ FText FPersonaMeshDetails::GetOriginalImportMaterialNameText(int32 MaterialIndex
 void FPersonaMeshDetails::OnMaterialNameCommitted(const FText& InValue, ETextCommit::Type CommitType, int32 MaterialIndex)
 {
 	FName InValueName = FName(*(InValue.ToString()));
-	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->Materials.IsValidIndex(MaterialIndex) && InValueName != SkeletalMeshPtr->Materials[MaterialIndex].MaterialSlotName)
+	if (SkeletalMeshPtr.IsValid() && SkeletalMeshPtr->GetMaterials().IsValidIndex(MaterialIndex) && InValueName != SkeletalMeshPtr->GetMaterials()[MaterialIndex].MaterialSlotName)
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("PersonaMaterialSlotNameChanged", "Persona editor: Material slot name change"));
 
@@ -4204,7 +4207,7 @@ void FPersonaMeshDetails::OnMaterialNameCommitted(const FText& InValue, ETextCom
 		check(ChangedProperty);
 		SkeletalMeshPtr->PreEditChange(ChangedProperty);
 
-		SkeletalMeshPtr->Materials[MaterialIndex].MaterialSlotName = InValueName;
+		SkeletalMeshPtr->GetMaterials()[MaterialIndex].MaterialSlotName = InValueName;
 		
 		FPropertyChangedEvent PropertyUpdateStruct(ChangedProperty);
 		SkeletalMeshPtr->PostEditChangeProperty(PropertyUpdateStruct);
@@ -4299,14 +4302,14 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGetMaterialSlotUsedByMenuContent(int3
 }
 
 bool FPersonaMeshDetails::CanDeleteMaterialSlot(int32 MaterialIndex) const
-	{
+{
 	if (!SkeletalMeshPtr.IsValid())
 	{
 		return false;
 	}
 
-	return SkeletalMeshPtr->Materials.IsValidIndex(MaterialIndex);
-	}
+	return SkeletalMeshPtr->GetMaterials().IsValidIndex(MaterialIndex);
+}
 	
 void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 {
@@ -4330,7 +4333,7 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
 		//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
-		SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
+		SkeletalMeshPtr->GetMaterials().RemoveAt(MaterialIndex);
 		FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
 
 		int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
@@ -4369,7 +4372,8 @@ bool FPersonaMeshDetails::OnMaterialListDirty()
 	TMap<int32, TArray<FSectionLocalizer>> TempMaterialUsedMap;
 	if (SkeletalMeshPtr.IsValid())
 	{
-		for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMeshPtr->Materials.Num(); ++MaterialIndex)
+		const int32 MaterialCount = SkeletalMeshPtr->GetMaterials().Num();
+		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
 			TArray<FSectionLocalizer> SectionLocalizers;
 			FSkeletalMeshModel* ImportedResource = SkeletalMeshPtr->GetImportedModel();
@@ -5395,11 +5399,11 @@ EVisibility FPersonaMeshDetails::GetOverrideUVDensityVisibililty() const
 ECheckBoxState FPersonaMeshDetails::IsUVDensityOverridden(int32 MaterialIndex) const
 {
 	USkeletalMesh* Mesh = SkeletalMeshPtr.Get();
-	if (!Mesh || !Mesh->Materials.IsValidIndex(MaterialIndex))
+	if (!Mesh || !Mesh->GetMaterials().IsValidIndex(MaterialIndex))
 	{
 		return ECheckBoxState::Undetermined;
 	}
-	else if (Mesh->Materials[MaterialIndex].UVChannelData.bOverrideDensities)
+	else if (Mesh->GetMaterials()[MaterialIndex].UVChannelData.bOverrideDensities)
 	{
 		return ECheckBoxState::Checked;
 	}
@@ -5413,9 +5417,9 @@ ECheckBoxState FPersonaMeshDetails::IsUVDensityOverridden(int32 MaterialIndex) c
 void FPersonaMeshDetails::OnOverrideUVDensityChanged(ECheckBoxState NewState, int32 MaterialIndex)
 {
 	USkeletalMesh* Mesh = SkeletalMeshPtr.Get();
-	if (NewState != ECheckBoxState::Undetermined && Mesh && Mesh->Materials.IsValidIndex(MaterialIndex))
+	if (NewState != ECheckBoxState::Undetermined && Mesh && Mesh->GetMaterials().IsValidIndex(MaterialIndex))
 	{
-		Mesh->Materials[MaterialIndex].UVChannelData.bOverrideDensities = (NewState == ECheckBoxState::Checked);
+		Mesh->GetMaterials()[MaterialIndex].UVChannelData.bOverrideDensities = (NewState == ECheckBoxState::Checked);
 		Mesh->UpdateUVChannelData(true);
 	}
 }
@@ -5436,9 +5440,9 @@ EVisibility FPersonaMeshDetails::GetUVDensityVisibility(int32 MaterialIndex, int
 TOptional<float> FPersonaMeshDetails::GetUVDensityValue(int32 MaterialIndex, int32 UVChannelIndex) const
 {
 	USkeletalMesh* Mesh = SkeletalMeshPtr.Get();
-	if (Mesh && Mesh->Materials.IsValidIndex(MaterialIndex))
+	if (Mesh && Mesh->GetMaterials().IsValidIndex(MaterialIndex))
 	{
-		float Value = Mesh->Materials[MaterialIndex].UVChannelData.LocalUVDensities[UVChannelIndex];
+		float Value = Mesh->GetMaterials()[MaterialIndex].UVChannelData.LocalUVDensities[UVChannelIndex];
 		return FMath::RoundToFloat(Value * 4.f) * .25f;
 	}
 	return TOptional<float>();
@@ -5447,9 +5451,9 @@ TOptional<float> FPersonaMeshDetails::GetUVDensityValue(int32 MaterialIndex, int
 void FPersonaMeshDetails::SetUVDensityValue(float InDensity, ETextCommit::Type CommitType, int32 MaterialIndex, int32 UVChannelIndex)
 {
 	USkeletalMesh* Mesh = SkeletalMeshPtr.Get();
-	if (Mesh && Mesh->Materials.IsValidIndex(MaterialIndex))
+	if (Mesh && Mesh->GetMaterials().IsValidIndex(MaterialIndex))
 	{
-		Mesh->Materials[MaterialIndex].UVChannelData.LocalUVDensities[UVChannelIndex] = FMath::Max<float>(0, InDensity);
+		Mesh->GetMaterials()[MaterialIndex].UVChannelData.LocalUVDensities[UVChannelIndex] = FMath::Max<float>(0, InDensity);
 		Mesh->UpdateUVChannelData(true);
 	}
 }
@@ -5464,7 +5468,7 @@ int32 FPersonaMeshDetails::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) 
 	check(ImportedResource && ImportedResource->LODModels.IsValidIndex(LODIndex));
 	int32 MaterialIndex = ImportedResource->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 	FSkeletalMeshLODInfo& Info = *(SkelMesh->GetLODInfo(LODIndex));
-	if (Info.LODMaterialMap.IsValidIndex(SectionIndex) && SkelMesh->Materials.IsValidIndex(Info.LODMaterialMap[SectionIndex]))
+	if (Info.LODMaterialMap.IsValidIndex(SectionIndex) && SkelMesh->GetMaterials().IsValidIndex(Info.LODMaterialMap[SectionIndex]))
 	{
 		return Info.LODMaterialMap[SectionIndex];
 		
@@ -5489,12 +5493,13 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 
 		int32 NewSkeletalMaterialIndex = INDEX_NONE;
 		FName NewImportedMaterialSlotName = NAME_None;
-		for (int SkeletalMaterialIndex = 0; SkeletalMaterialIndex < Mesh->Materials.Num(); ++SkeletalMaterialIndex)
+		const TArray<FSkeletalMaterial>& MeshMaterials = Mesh->GetMaterials();
+		for (int SkeletalMaterialIndex = 0; SkeletalMaterialIndex < MeshMaterials.Num(); ++SkeletalMaterialIndex)
 		{
-			if (NewMaterialSlotIndex == SkeletalMaterialIndex && Mesh->Materials[SkeletalMaterialIndex].MaterialSlotName == CleanNewMaterialSlotName)
+			if (NewMaterialSlotIndex == SkeletalMaterialIndex && MeshMaterials[SkeletalMaterialIndex].MaterialSlotName == CleanNewMaterialSlotName)
 			{
 				NewSkeletalMaterialIndex = SkeletalMaterialIndex;
-				NewImportedMaterialSlotName = Mesh->Materials[SkeletalMaterialIndex].ImportedMaterialSlotName;
+				NewImportedMaterialSlotName = MeshMaterials[SkeletalMaterialIndex].ImportedMaterialSlotName;
 				break;
 			}
 		}
@@ -5507,35 +5512,35 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 		Mesh->Modify();
 		{
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
-		int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
-		FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
+			int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
+			FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
 
 			auto SetLODMaterialMapValue = [&LODIndex, &Info, &ImportedResource](int32 InSectionIndex, int32 OverrideMaterialIndex)
-		{
+			{
 				if (ImportedResource->LODModels[LODIndex].Sections[InSectionIndex].MaterialIndex == OverrideMaterialIndex)
-			{
+				{
 					if (Info.LODMaterialMap.IsValidIndex(InSectionIndex))
-				{
+					{
 						Info.LODMaterialMap[InSectionIndex] = INDEX_NONE;
+					}
 				}
-			}
-			else
-			{
-					while (Info.LODMaterialMap.Num() <= InSectionIndex)
+				else
 				{
-					Info.LODMaterialMap.Add(INDEX_NONE);
-				}
+					while (Info.LODMaterialMap.Num() <= InSectionIndex)
+					{
+						Info.LODMaterialMap.Add(INDEX_NONE);
+					}
 					check(InSectionIndex < Info.LODMaterialMap.Num());
 					Info.LODMaterialMap[InSectionIndex] = OverrideMaterialIndex;
-			}
-		};
+				}
+			};
 
 			SetLODMaterialMapValue(SectionIndex, NewSkeletalMaterialIndex);
-		//Set the chunked section 
+			//Set the chunked section 
 			for (int32 SectionIdx = SectionIndex+1; SectionIdx < NumSections; SectionIdx++)
-		{
-			if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
 			{
+				if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
+				{
 					SetLODMaterialMapValue(SectionIdx, NewSkeletalMaterialIndex);
 				}
 				else
@@ -5555,7 +5560,7 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 //
 void FPersonaMeshDetails::CustomizeClothingProperties(IDetailLayoutBuilder& DetailLayout, IDetailCategoryBuilder& ClothingFilesCategory)
 {
-	TSharedRef<IPropertyHandle> ClothingAssetsProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MeshClothingAssets), USkeletalMesh::StaticClass());
+	TSharedRef<IPropertyHandle> ClothingAssetsProperty = DetailLayout.GetProperty(USkeletalMesh::GetMeshClothingAssetsMemberName(), USkeletalMesh::StaticClass());
 
 	if( ClothingAssetsProperty->IsValidHandle() )
 	{
@@ -5651,7 +5656,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 	];	
 
 	USkeletalMesh* CurrentMesh = GetPersonaToolkit()->GetMesh();
-	UClothingAssetBase* CurrentAsset = CurrentMesh->MeshClothingAssets[ElementIndex];
+	UClothingAssetBase* CurrentAsset = CurrentMesh->GetMeshClothingAssets()[ElementIndex];
 
 	ChildrenBuilder.AddCustomRow(LOCTEXT("ClothingAsset_Search_Name", "Name"))
 	.NameContent()
@@ -5719,7 +5724,7 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(2.0f);
 
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-	UClothingAssetBase* ClothingAsset = SkelMesh->MeshClothingAssets[AssetIndex];
+	UClothingAssetBase* ClothingAsset = SkelMesh->GetMeshClothingAssets()[AssetIndex];
 	if (!ClothingAsset)
 	{
 		return Grid;
@@ -5844,9 +5849,9 @@ FReply FPersonaMeshDetails::OnReimportApexFileClicked(int32 AssetIndex, IDetailL
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 
-	check(SkelMesh && SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex));
+	check(SkelMesh && SkelMesh->GetMeshClothingAssets().IsValidIndex(AssetIndex));
 
-	UClothingAssetBase* AssetToReimport = SkelMesh->MeshClothingAssets[AssetIndex];
+	UClothingAssetBase* AssetToReimport = SkelMesh->GetMeshClothingAssets()[AssetIndex];
 	check(AssetToReimport);
 
 	FString ReimportPath = AssetToReimport->ImportedFilePath;
@@ -5904,16 +5909,16 @@ FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDeta
 
 	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	// Now we can remove the asset.
-	if(SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex))
+	if(SkelMesh->GetMeshClothingAssets().IsValidIndex(AssetIndex))
 	{
 		// Need to unregister our components so they shut down their current clothing simulation
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
 
-		if (UClothingAssetBase* AssetToRemove = SkelMesh->MeshClothingAssets[AssetIndex])
+		if (UClothingAssetBase* AssetToRemove = SkelMesh->GetMeshClothingAssets()[AssetIndex])
 		{
 			AssetToRemove->UnbindFromSkeletalMesh(SkelMesh);
 		}
-		SkelMesh->MeshClothingAssets.RemoveAt(AssetIndex);
+		SkelMesh->GetMeshClothingAssets().RemoveAt(AssetIndex);
 
 		// Need to fix up asset indices on sections.
 		if(FSkeletalMeshModel* MeshResource = SkelMesh->GetImportedModel())
@@ -5972,10 +5977,10 @@ void FPersonaMeshDetails::UpdateClothingEntries()
 
 	NewClothingAssetEntries.Add(ClothingNoneEntry);
 
-	const int32 NumClothingAssets = Mesh->MeshClothingAssets.Num();
+	const int32 NumClothingAssets = Mesh->GetMeshClothingAssets().Num();
 	for(int32 Idx = 0; Idx < NumClothingAssets; ++Idx)
 	{
-		if (UClothingAssetBase* ClothingAsset = Mesh->MeshClothingAssets[Idx])
+		if (UClothingAssetBase* ClothingAsset = Mesh->GetMeshClothingAssets()[Idx])
 		{
 			const int32 NumAssetLods = ClothingAsset->GetNumLods();
 			for (int32 AssetLodIndex = 0; AssetLodIndex < NumAssetLods; ++AssetLodIndex)
@@ -6093,7 +6098,7 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 			{
 				//Successful bind so set the SectionUserData
 				int32 AssetIndex = INDEX_NONE;
-				check(Mesh->MeshClothingAssets.Find(ClothingAsset, AssetIndex));
+				check(Mesh->GetMeshClothingAssets().Find(ClothingAsset, AssetIndex));
 				OriginalSectionData.CorrespondClothAssetIndex = AssetIndex;
 				OriginalSectionData.ClothingData.AssetGuid = ClothingAsset->GetAssetGuid();
 				OriginalSectionData.ClothingData.AssetLodIndex = InNewEntry->AssetLodIndex;

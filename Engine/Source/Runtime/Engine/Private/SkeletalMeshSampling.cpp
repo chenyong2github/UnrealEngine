@@ -248,7 +248,7 @@ FORCEINLINE_DEBUGGABLE void GetRegionValidData(USkeletalMesh* SkeletalMesh, FSke
 	
 	for (FSkelMeshRenderSection& Section : LODData.RenderSections)
 	{
-		FName MaterialName = SkeletalMesh->Materials[Section.MaterialIndex].MaterialSlotName;
+		FName MaterialName = SkeletalMesh->GetMaterials()[Section.MaterialIndex].MaterialSlotName;
 
 		if (SamplingRegion.IsMaterialAllowed(MaterialName))
 		{
@@ -319,7 +319,7 @@ void FSkeletalMeshSamplingInfo::BuildRegions(USkeletalMesh* SkeletalMesh)
 		FSkinWeightVertexBuffer* SkinWeightBuffer = &LODData.SkinWeightVertexBuffer;
 		check(SkinWeightBuffer);
 
-		FReferenceSkeleton& RefSkel = SkeletalMesh->RefSkeleton;
+		FReferenceSkeleton& RefSkel = SkeletalMesh->GetRefSkeleton();
 		TArray<int32> IncludedBoneIndices;
 		TArray<int32> ExcludedBoneIndices;
 		Region.GetFilteredBones(RefSkel, IncludedBoneIndices, ExcludedBoneIndices);

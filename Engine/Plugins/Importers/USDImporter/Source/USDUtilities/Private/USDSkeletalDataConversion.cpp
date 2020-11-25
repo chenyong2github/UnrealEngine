@@ -627,7 +627,7 @@ namespace UsdToUnrealImpl
 			BlendShape.Vertices.Empty();
 
 			MorphTarget->BaseSkelMesh = SkeletalMesh;
-			SkeletalMesh->MorphTargets.Add( MorphTarget );
+			SkeletalMesh->GetMorphTargets().Add( MorphTarget );
 		}
 
 		if ( bHasValidMorphTarget )
@@ -2033,11 +2033,11 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	int32 SkeletalDepth = 0;
 	FSkeletalMeshImportData DummyData;
 	DummyData.RefBonesBinary = InSkeletonBones;
-	if ( !SkeletalMeshHelper::ProcessImportMeshSkeleton( SkeletalMesh->Skeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, DummyData ) )
+	if ( !SkeletalMeshHelper::ProcessImportMeshSkeleton( SkeletalMesh->GetSkeleton(), SkeletalMesh->GetRefSkeleton(), SkeletalDepth, DummyData ) )
 	{
 		return nullptr;
 	}
-	if ( SkeletalMesh->RefSkeleton.GetRawBoneNum() == 0 )
+	if ( SkeletalMesh->GetRefSkeleton().GetRawBoneNum() == 0 )
 	{
 		SkeletalMesh->MarkPendingKill();
 		return nullptr;
@@ -2110,7 +2110,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		TArray<FText> WarningMessages;
 		TArray<FName> WarningNames;
 
-		bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModel, SkeletalMesh->GetPathName(), SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, &WarningNames );
+		bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModel, SkeletalMesh->GetPathName(), SkeletalMesh->GetRefSkeleton(), LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, &WarningNames );
 		if ( !bBuildSuccess )
 		{
 			SkeletalMesh->MarkPendingKill();
@@ -2123,15 +2123,15 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	}
 
 	SkeletalMesh->SetImportedBounds( FBoxSphereBounds( BoundingBox ) );
-	SkeletalMesh->bHasVertexColors = bHasVertexColors;
-	SkeletalMesh->VertexColorGuid = SkeletalMesh->bHasVertexColors ? FGuid::NewGuid() : FGuid();
+	SkeletalMesh->SetHasVertexColors(bHasVertexColors);
+	SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
 	SkeletalMesh->CalculateInvRefMatrices();
 
 	// Generate a Skeleton and associate it to the SkeletalMesh
 	USkeleton* Skeleton = NewObject<USkeleton>(GetTransientPackage(), NAME_None, ObjectFlags | EObjectFlags::RF_Public );
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
 	Skeleton->SetPreviewMesh(SkeletalMesh);
-	SkeletalMesh->Skeleton = Skeleton;
+	SkeletalMesh->SetSkeleton(Skeleton);
 
 	UsdToUnrealImpl::CreateMorphTargets(InBlendShapesByPath, LODIndexToSkeletalMeshImportData, SkeletalMesh);
 
@@ -2310,7 +2310,7 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode )
 {
 	pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
-	if ( !SkeletalMesh || !SkeletalMesh->Skeleton || !SkelRoot )
+	if ( !SkeletalMesh || !SkeletalMesh->GetSkeleton() || !SkelRoot )
 	{
 		return false;
 	}
@@ -2346,7 +2346,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 	// Collect all material assignments, referenced by the sections' material indices
 	bool bHasMaterialAssignments = false;
 	pxr::VtArray< std::string > MaterialAssignments;
-	for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
+	for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials())
 	{
 		FString AssignedMaterialPathName;
 		if ( UMaterialInterface* Material = SkeletalMaterial.MaterialInterface )
@@ -2378,7 +2378,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 		pxr::UsdRelationship SkelRel = SkelBindingAPI.CreateSkeletonRel();
 		SkelRel.SetTargets({SkeletonPrim.GetPath()});
 
-		UnrealToUsd::ConvertSkeleton( SkeletalMesh->Skeleton, SkelSkeleton );
+		UnrealToUsd::ConvertSkeleton( SkeletalMesh->GetSkeleton(), SkelSkeleton );
 	}
 
 	// Actual meshes
@@ -2423,17 +2423,17 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			LODMaterialMap = LODInfo->LODMaterialMap;
 		}
 
-		UnrealToUsdImpl::ConvertSkeletalMeshLOD( LODModel, UsdLODPrimGeomMesh, SkeletalMesh->bHasVertexColors, MaterialAssignments, LODMaterialMap, TimeCode );
+		UnrealToUsdImpl::ConvertSkeletalMeshLOD( LODModel, UsdLODPrimGeomMesh, SkeletalMesh->GetHasVertexColors(), MaterialAssignments, LODMaterialMap, TimeCode );
 
 		// Relationships can't target prims inside variants, so if we have BlendShapes to export we have to disable the edit target
 		// so that the blend shapes end up outside the variants and the Meshes can have their blendShapeTargets relationships pointing at them
-		if ( bExportMultipleLODs && SkeletalMesh->MorphTargets.Num() > 0)
+		if ( bExportMultipleLODs && SkeletalMesh->GetMorphTargets().Num() > 0)
 		{
 			EditContext.Reset();
 		}
 
 		pxr::SdfPathVector AddedBlendShapeTargets;
-		for ( UMorphTarget* MorphTarget : SkeletalMesh->MorphTargets )
+		for ( UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 		{
 			if ( !MorphTarget || !MorphTarget->HasDataForLOD( LODIndex ) )
 			{

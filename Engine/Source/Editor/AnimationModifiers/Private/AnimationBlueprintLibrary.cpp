@@ -1809,7 +1809,7 @@ void UAnimationBlueprintLibrary::GetBonePosesForTime(const UAnimSequence* Animat
 		// Need this for FCompactPose
 		FMemMark Mark(FMemStack::Get());
 
-		const FReferenceSkeleton& RefSkeleton = (PreviewMesh)? PreviewMesh->RefSkeleton : AnimationSequence->GetSkeleton()->GetReferenceSkeleton();
+		const FReferenceSkeleton& RefSkeleton = (PreviewMesh)? PreviewMesh->GetRefSkeleton() : AnimationSequence->GetSkeleton()->GetReferenceSkeleton();
 
 		if (IsValidTimeInternal(AnimationSequence, Time))
 		{

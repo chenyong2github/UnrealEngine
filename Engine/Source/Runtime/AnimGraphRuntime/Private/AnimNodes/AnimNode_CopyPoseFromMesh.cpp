@@ -202,7 +202,7 @@ void FAnimNode_CopyPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 				if (Value && SourceMeshTransformArray.IsValidIndex(*Value))
 				{
 					const int32 SourceBoneIndex = *Value;
-					const int32 ParentIndex = CurrentMesh->RefSkeleton.GetParentIndex(SourceBoneIndex);
+					const int32 ParentIndex = CurrentMesh->GetRefSkeleton().GetParentIndex(SourceBoneIndex);
 					const FCompactPoseBoneIndex MyParentIndex = RequiredBones.GetParentBoneIndex(PoseBoneIndex);
 					// only apply if I also have parent, otherwise, it should apply the space bases
 					if (SourceMeshTransformArray.IsValidIndex(ParentIndex) && MyParentIndex != INDEX_NONE)
@@ -272,29 +272,29 @@ void FAnimNode_CopyPoseFromMesh::ReinitializeMeshComponent(USkeletalMeshComponen
 
 			if (SourceSkelMesh == TargetSkelMesh)
 			{
-				for(int32 ComponentSpaceBoneId = 0; ComponentSpaceBoneId < SourceSkelMesh->RefSkeleton.GetNum(); ++ComponentSpaceBoneId)
+				for(int32 ComponentSpaceBoneId = 0; ComponentSpaceBoneId < SourceSkelMesh->GetRefSkeleton().GetNum(); ++ComponentSpaceBoneId)
 				{
 					BoneMapToSource.Add(ComponentSpaceBoneId, ComponentSpaceBoneId);
 				}
 			}
 			else
 			{
-				const int32 SplitBoneIndex = (RootBoneToCopy != NAME_Name)? TargetSkelMesh->RefSkeleton.FindBoneIndex(RootBoneToCopy) : INDEX_NONE;
-				for (int32 ComponentSpaceBoneId = 0; ComponentSpaceBoneId < TargetSkelMesh->RefSkeleton.GetNum(); ++ComponentSpaceBoneId)
+				const int32 SplitBoneIndex = (RootBoneToCopy != NAME_Name)? TargetSkelMesh->GetRefSkeleton().FindBoneIndex(RootBoneToCopy) : INDEX_NONE;
+				for (int32 ComponentSpaceBoneId = 0; ComponentSpaceBoneId < TargetSkelMesh->GetRefSkeleton().GetNum(); ++ComponentSpaceBoneId)
 				{
 					if (SplitBoneIndex == INDEX_NONE || ComponentSpaceBoneId == SplitBoneIndex
-						|| TargetSkelMesh->RefSkeleton.BoneIsChildOf(ComponentSpaceBoneId, SplitBoneIndex))
+						|| TargetSkelMesh->GetRefSkeleton().BoneIsChildOf(ComponentSpaceBoneId, SplitBoneIndex))
 					{
-						FName BoneName = TargetSkelMesh->RefSkeleton.GetBoneName(ComponentSpaceBoneId);
-						BoneMapToSource.Add(ComponentSpaceBoneId, SourceSkelMesh->RefSkeleton.FindBoneIndex(BoneName));
+						FName BoneName = TargetSkelMesh->GetRefSkeleton().GetBoneName(ComponentSpaceBoneId);
+						BoneMapToSource.Add(ComponentSpaceBoneId, SourceSkelMesh->GetRefSkeleton().FindBoneIndex(BoneName));
 					}
 				}
 			}
 		
 			if (bCopyCurves)
 			{
-				USkeleton* SourceSkeleton = SourceSkelMesh->Skeleton;
-				USkeleton* TargetSkeleton = TargetSkelMesh->Skeleton;
+				USkeleton* SourceSkeleton = SourceSkelMesh->GetSkeleton();
+				USkeleton* TargetSkeleton = TargetSkelMesh->GetSkeleton();
 
 				// you shouldn't be here if this happened
 				if (ensureMsgf(SourceSkeleton, TEXT("Invalid null source skeleton : %s"), *GetNameSafe(SourceSkelMesh))

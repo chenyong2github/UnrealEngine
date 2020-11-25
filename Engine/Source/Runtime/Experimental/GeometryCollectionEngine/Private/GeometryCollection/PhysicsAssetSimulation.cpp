@@ -41,7 +41,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 		return;
 	}
 
-	const USkeleton* Skeleton = SkeletalMesh->Skeleton;
+	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 	const FSkeletalMeshRenderData* SkelMeshRenderData = SkeletalMesh->GetResourceForRendering();
 	if (!PhysicsAsset || !Skeleton || !SkelMeshRenderData || !SkelMeshRenderData->LODRenderData.Num())
 	{

@@ -31,11 +31,11 @@ void FAnimNode_PoseSnapshot::PreUpdate(const UAnimInstance* InAnimInstance)
 		{
 			// cache bone names for the target mesh
 			TargetBoneNames.Reset();
-			TargetBoneNames.AddDefaulted(CurrentSkeletalMesh->RefSkeleton.GetNum());
+			TargetBoneNames.AddDefaulted(CurrentSkeletalMesh->GetRefSkeleton().GetNum());
 
-			for (int32 BoneIndex = 0; BoneIndex < CurrentSkeletalMesh->RefSkeleton.GetNum(); ++BoneIndex)
+			for (int32 BoneIndex = 0; BoneIndex < CurrentSkeletalMesh->GetRefSkeleton().GetNum(); ++BoneIndex)
 			{
-				TargetBoneNames[BoneIndex] = CurrentSkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+				TargetBoneNames[BoneIndex] = CurrentSkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 			}
 		}
 

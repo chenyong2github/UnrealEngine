@@ -422,14 +422,14 @@ void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 
 	TRACE_OBJECT(InMesh);
 
-	uint32 BoneCount = (uint32)InMesh->RefSkeleton.GetNum();
+	uint32 BoneCount = (uint32)InMesh->GetRefSkeleton().GetNum();
 
 	TArray<int32>& ParentIndices = FAnimTraceScratchBuffers::Get().ParentIndices;
 	ParentIndices.Reset();
 	ParentIndices.SetNumUninitialized(BoneCount);
 
 	int32 BoneIndex = 0;
-	for(const FMeshBoneInfo& BoneInfo : InMesh->RefSkeleton.GetRefBoneInfo())
+	for(const FMeshBoneInfo& BoneInfo : InMesh->GetRefSkeleton().GetRefBoneInfo())
 	{
 		ParentIndices[BoneIndex++] = BoneInfo.ParentIndex;
 	}

@@ -390,7 +390,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		{
 			if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 			{
-				if (USkeleton* Skeleton = SkeletalMesh->Skeleton)
+				if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 				{
 					for (const FRigBone& RigBone : CR->GetBoneHierarchy())
 					{
@@ -418,7 +418,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		{
 			if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 			{
-				if (USkeleton* Skeleton = SkeletalMesh->Skeleton)
+				if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 				{
 					for (const FRigCurve& RigCurve : CR->GetCurveContainer())
 					{
@@ -1143,7 +1143,7 @@ void UControlRigComponent::ValidateMappingData()
 				{
 					if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 					{
-						if (USkeleton* Skeleton = SkeletalMesh->Skeleton)
+						if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 						{
 							if (MappedElement.ElementType == ERigElementType::Bone)
 							{

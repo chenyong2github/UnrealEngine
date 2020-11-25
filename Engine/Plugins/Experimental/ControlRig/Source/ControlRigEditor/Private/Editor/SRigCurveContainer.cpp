@@ -650,7 +650,7 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 		const USkeleton* Skeleton = nullptr;
 		if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset()))
 		{
-			Skeleton = Mesh->Skeleton;
+			Skeleton = Mesh->GetSkeleton();
 			ControlRigBlueprint->SourceCurveImport = Skeleton;
 		}
 		else 

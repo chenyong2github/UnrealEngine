@@ -839,8 +839,8 @@ void MeshPaintHelpers::FillSkeletalMeshVertexColors(USkeletalMeshComponent* Mesh
 		// Dirty the mesh
 		Mesh->SetFlags(RF_Transactional);
 		Mesh->Modify();
-		Mesh->bHasVertexColors = true;
-		Mesh->VertexColorGuid = FGuid::NewGuid();
+		Mesh->SetHasVertexColors(true);
+		Mesh->SetVertexColorGuid(FGuid::NewGuid());
 
 		// Release the static mesh's resources.
 		Mesh->ReleaseResources();
@@ -1530,9 +1530,9 @@ void MeshPaintHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalM
 	}
 
 	//Make sure we change the import data so the re-import do not replace the new data
-	if (SkeletalMesh->AssetImportData)
+	if (SkeletalMesh->GetAssetImportData())
 	{
-		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
+		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData());
 		if (ImportData && ImportData->VertexColorImportOption != EVertexColorImportOption::Ignore)
 		{
 			ImportData->SetFlags(RF_Transactional);

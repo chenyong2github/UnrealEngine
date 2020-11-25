@@ -54,7 +54,7 @@ bool USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh, int32
 		// if we have available bake pose
 		// it's possible for skeleton to be null if this happens in the middle of importing
 		// so if skeleton is null, we allow copy (the GetBakePose will check correct skeleton when get it)
-		if (Setting.BakePose && (!InMesh->Skeleton || InMesh->Skeleton->IsCompatible(Setting.BakePose->GetSkeleton())))
+		if (Setting.BakePose && (!InMesh->GetSkeleton() || InMesh->GetSkeleton()->IsCompatible(Setting.BakePose->GetSkeleton())))
 		{
 			LODInfo->BakePose = Setting.BakePose;
 		}
@@ -66,7 +66,7 @@ bool USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh, int32
 		// select joints that mesh has
 		// reset the list
 		LODInfo->BonesToRemove.Reset();
-		const FReferenceSkeleton& RefSkeleton = InMesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = InMesh->GetRefSkeleton();
 
 		// copy the shared setting to mesh setting
 		// make sure we have joint in the mesh 
@@ -165,13 +165,13 @@ int32 USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh) cons
 {
 	if (InMesh)
 	{
-		InMesh->MinLod = MinLod;
-		InMesh->DisableBelowMinLodStripping = DisableBelowMinLodStripping;
+		InMesh->SetMinLod(MinLod);
+		InMesh->SetDisableBelowMinLodStripping(DisableBelowMinLodStripping);
 #if WITH_EDITORONLY_DATA
-		InMesh->bOverrideLODStreamingSettings = bOverrideLODStreamingSettings;
-		InMesh->bSupportLODStreaming = bSupportLODStreaming;
-		InMesh->MaxNumStreamedLODs = MaxNumStreamedLODs;
-		InMesh->MaxNumOptionalLODs = MaxNumOptionalLODs;
+		InMesh->SetOverrideLODStreamingSettings(bOverrideLODStreamingSettings);
+		InMesh->SetSupportLODStreaming(bSupportLODStreaming);
+		InMesh->SetMaxNumStreamedLODs(MaxNumStreamedLODs);
+		InMesh->SetMaxNumOptionalLODs(MaxNumOptionalLODs);
 #endif
 		// we only fill up until we have enough LODs
 		const int32 NumSettings = FMath::Min(LODGroups.Num(), InMesh->GetLODNum());
@@ -191,13 +191,13 @@ int32 USkeletalMeshLODSettings::SetLODSettingsFromMesh(USkeletalMesh* InMesh)
 	// in this case, we just set all settings to Mesh
 	if (InMesh)
 	{
-		MinLod = InMesh->MinLod;
-		DisableBelowMinLodStripping = InMesh->DisableBelowMinLodStripping;
+		MinLod = InMesh->GetMinLod();
+		DisableBelowMinLodStripping = InMesh->GetDisableBelowMinLodStripping();
 #if WITH_EDITORONLY_DATA
-		bOverrideLODStreamingSettings = InMesh->bOverrideLODStreamingSettings;
-		bSupportLODStreaming = InMesh->bSupportLODStreaming;
-		MaxNumStreamedLODs = InMesh->MaxNumStreamedLODs;
-		MaxNumOptionalLODs = InMesh->MaxNumOptionalLODs;
+		bOverrideLODStreamingSettings = InMesh->GetOverrideLODStreamingSettings();
+		bSupportLODStreaming = InMesh->GetSupportLODStreaming();
+		MaxNumStreamedLODs = InMesh->GetMaxNumStreamedLODs();
+		MaxNumOptionalLODs = InMesh->GetMaxNumOptionalLODs();
 #endif
 		// we only fill up until we have enough LODs
 		const int32 NumSettings = InMesh->GetLODNum();
@@ -248,7 +248,7 @@ void USkeletalMeshLODSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	{
 		USkeletalMesh* Mesh = Cast<USkeletalMesh>(*Iter);
 		// if PhysicsAssetOverride is NULL, it uses SkeletalMesh Physics Asset, so I'll need to update here
-		if (Mesh->LODSettings == this)
+		if (Mesh->GetLODSettings() == this)
 		{
 			// apply the change
 			SetLODSettingsToMesh(Mesh);

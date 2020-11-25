@@ -31,9 +31,9 @@ static int32 GetChildIndex(int32 BoneIndex, USkeletalMesh* SkelMesh, const TArra
 {
 	int32 ChildIndex = INDEX_NONE;
 
-	for(int32 i=0; i<SkelMesh->RefSkeleton.GetRawBoneNum(); i++)
+	for(int32 i=0; i<SkelMesh->GetRefSkeleton().GetRawBoneNum(); i++)
 	{
-		int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(i);
+		int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(i);
 
 		if (ParentIndex == BoneIndex && Infos[i].Positions.Num() > 0)
 		{
@@ -76,20 +76,20 @@ static float CalcBoneInfoLength(const FBoneVertInfo& Info)
  */
 static float GetMaximalMinSizeBelow(int32 BoneIndex, USkeletalMesh* SkelMesh, const TArray<FBoneVertInfo>& Infos)
 {
-	check( Infos.Num() == SkelMesh->RefSkeleton.GetRawBoneNum() );
+	check( Infos.Num() == SkelMesh->GetRefSkeleton().GetRawBoneNum() );
 
 	UE_LOG(LogPhysics, Log, TEXT("-------------------------------------------------"));
 
 	float MaximalMinBoxSize = 0.f;
 
 	// For all bones that are children of the supplied one...
-	for(int32 i=BoneIndex; i<SkelMesh->RefSkeleton.GetRawBoneNum(); i++)
+	for(int32 i=BoneIndex; i<SkelMesh->GetRefSkeleton().GetRawBoneNum(); i++)
 	{
-		if( SkelMesh->RefSkeleton.BoneIsChildOf(i, BoneIndex) )
+		if( SkelMesh->GetRefSkeleton().BoneIsChildOf(i, BoneIndex) )
 		{
 			float MinBoneDim = CalcBoneInfoLength( Infos[i] );
 			
-			UE_LOG(LogPhysics, Log,  TEXT("Parent: %s Bone: %s Size: %f"), *SkelMesh->RefSkeleton.GetBoneName(BoneIndex).ToString(), *SkelMesh->RefSkeleton.GetBoneName(i).ToString(), MinBoneDim );
+			UE_LOG(LogPhysics, Log,  TEXT("Parent: %s Bone: %s Size: %f"), *SkelMesh->GetRefSkeleton().GetBoneName(BoneIndex).ToString(), *SkelMesh->GetRefSkeleton().GetBoneName(i).ToString(), MinBoneDim );
 
 			MaximalMinBoxSize = FMath::Max(MaximalMinBoxSize, MinBoneDim);
 		}
@@ -121,7 +121,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 	// For each bone, get the vertices most firmly attached to it.
 	TArray<FBoneVertInfo> Infos;
 	MeshUtilities.CalcBoneVertInfos(SkelMesh, Infos, (Params.VertWeight == EVW_DominantWeight));
-	check(Infos.Num() == SkelMesh->RefSkeleton.GetRawBoneNum());
+	check(Infos.Num() == SkelMesh->GetRefSkeleton().GetRawBoneNum());
 
 	PhysicsAsset->CollisionDisableTable.Empty();
 
@@ -130,7 +130,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 	//If bone is big enough, make a body
 	//If not, add bone to parent for possible merge
 
-	const TArray<FTransform> LocalPose = SkelMesh->RefSkeleton.GetRefBonePose();
+	const TArray<FTransform> LocalPose = SkelMesh->GetRefSkeleton().GetRefBonePose();
 	TMap<int32, FBoneVertInfo> BoneToMergedBones;
 	TMap<FName, TArray<FName>> BoneNameToMergedParent;
 	const int32 NumBones = Infos.Num();
@@ -144,7 +144,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 		if(MyMergedSize < Params.MinBoneSize && MyMergedSize >= Params.MinWeldSize)
 		{
 			//Too small to make a body for, so let's merge with parent bone. TODO: use a merge threshold
-			const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIdx);
+			const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIdx);
 			if(ParentIndex != INDEX_NONE)
 			{
 				MergedSizes[ParentIndex] += MyMergedSize;
@@ -170,7 +170,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 	{
 		if (MergedSizes[BoneIndex] > Params.MinBoneSize)
 		{
-			const int32 ParentBoneIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+			const int32 ParentBoneIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 			if(ParentBoneIndex == INDEX_NONE)
 			{
 				break;	//We already have a single root body, so don't worry about it
@@ -215,7 +215,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 		if (bMakeBone)
 		{
 			// Go ahead and make this bone physical.
-			FName BoneName = SkelMesh->RefSkeleton.GetBoneName(BoneIndex);
+			FName BoneName = SkelMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
 			SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
 
@@ -252,10 +252,10 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 						RelTM = RelTM * LocalPose[ParentIndex];
 
 						//Travel up the hierarchy to find a parent which has a valid body
-						ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(ParentIndex);
+						ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(ParentIndex);
 						if(ParentIndex != INDEX_NONE)
 						{
-							ParentName = SkelMesh->RefSkeleton.GetBoneName(ParentIndex);
+							ParentName = SkelMesh->GetRefSkeleton().GetBoneName(ParentIndex);
 							ParentBodyIndex = PhysicsAsset->FindBodyIndex(ParentName);
 						}
 						else
@@ -371,7 +371,7 @@ bool CreateFromSkeletalMesh(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh
 
 	if(bSuccess && bSetToMesh)
 	{
-		SkelMesh->PhysicsAsset = PhysicsAsset;
+		SkelMesh->SetPhysicsAsset(PhysicsAsset);
 		SkelMesh->MarkPackageDirty();
 	}
 
@@ -683,13 +683,13 @@ void WeldBodies(UPhysicsAsset* PhysAsset, int32 BaseBodyIndex, int32 AddBodyInde
 	}
 
 	UBodySetup* Body1 = PhysAsset->SkeletalBodySetups[BaseBodyIndex];
-	int32 Bone1Index = SkelComp->SkeletalMesh->RefSkeleton.FindBoneIndex(Body1->BoneName);
+	int32 Bone1Index = SkelComp->SkeletalMesh->GetRefSkeleton().FindBoneIndex(Body1->BoneName);
 	check(Bone1Index != INDEX_NONE);
 	FTransform Bone1TM = SkelComp->GetBoneTransform(Bone1Index);
 	Bone1TM.RemoveScaling();
 
 	UBodySetup* Body2 = PhysAsset->SkeletalBodySetups[AddBodyIndex];
-	int32 Bone2Index = SkelComp->SkeletalMesh->RefSkeleton.FindBoneIndex(Body2->BoneName);
+	int32 Bone2Index = SkelComp->SkeletalMesh->GetRefSkeleton().FindBoneIndex(Body2->BoneName);
 	check(Bone2Index != INDEX_NONE);
 	FTransform Bone2TM = SkelComp->GetBoneTransform(Bone2Index);
 	Bone2TM.RemoveScaling();

@@ -82,7 +82,7 @@ bool USkeletalMeshEditorSubsystem::RenameSocket(USkeletalMesh* SkeletalMesh, FNa
 		return false;
 	}
 
-	if (SkeletalMesh->Skeleton == nullptr)
+	if (SkeletalMesh->GetSkeleton() == nullptr)
 	{
 		UE_LOG(LogSkeletalMeshEditorSubsystem, Error, TEXT("RenameSocket: The SkeletalMesh's Skeleton is null."));
 		return false;
@@ -112,7 +112,7 @@ bool USkeletalMeshEditorSubsystem::RenameSocket(USkeletalMesh* SkeletalMesh, FNa
 		return false;
 	}
 
-	USkeletalMeshSocket* SkeletonSocket = SkeletalMesh->Skeleton->FindSocket(OldName);
+	USkeletalMeshSocket* SkeletonSocket = SkeletalMesh->GetSkeleton()->FindSocket(OldName);
 	if (SkeletonSocket == nullptr)
 	{
 		UE_LOG(LogSkeletalMeshEditorSubsystem, Error, TEXT("RenameSocket: The socket named '%s' does not exist on the Skeleton."), *OldName.ToString());
@@ -128,10 +128,11 @@ bool USkeletalMeshEditorSubsystem::RenameSocket(USkeletalMesh* SkeletalMesh, FNa
 	SkeletonSocket->Modify();
 	SkeletonSocket->SocketName = NewName;
 
+	FPreviewAssetAttachContainer& PreviewAssetAttachContainer = SkeletalMesh->GetPreviewAttachedAssetContainer();
 	bool bMeshModified = false;
-	for (int AttachedObjectIndex = 0; AttachedObjectIndex < SkeletalMesh->PreviewAttachedAssetContainer.Num(); ++AttachedObjectIndex)
+	for (int AttachedObjectIndex = 0; AttachedObjectIndex < PreviewAssetAttachContainer.Num(); ++AttachedObjectIndex)
 	{
-		FPreviewAttachedObjectPair& Pair = SkeletalMesh->PreviewAttachedAssetContainer[AttachedObjectIndex];
+		FPreviewAttachedObjectPair& Pair = PreviewAssetAttachContainer[AttachedObjectIndex];
 		if (Pair.AttachedTo == OldName)
 		{
 			// Only modify the mesh if we actually intend to change something. Avoids dirtying
@@ -146,15 +147,15 @@ bool USkeletalMeshEditorSubsystem::RenameSocket(USkeletalMesh* SkeletalMesh, FNa
 	}
 
 	bool bSkeletonModified = false;
-	for (int AttachedObjectIndex = 0; AttachedObjectIndex < SkeletalMesh->Skeleton->PreviewAttachedAssetContainer.Num(); ++AttachedObjectIndex)
+	for (int AttachedObjectIndex = 0; AttachedObjectIndex < SkeletalMesh->GetSkeleton()->PreviewAttachedAssetContainer.Num(); ++AttachedObjectIndex)
 	{
-		FPreviewAttachedObjectPair& Pair = SkeletalMesh->Skeleton->PreviewAttachedAssetContainer[AttachedObjectIndex];
+		FPreviewAttachedObjectPair& Pair = SkeletalMesh->GetSkeleton()->PreviewAttachedAssetContainer[AttachedObjectIndex];
 		if (Pair.AttachedTo == OldName)
 		{
 			// Only modify the skeleton if we actually intend to change something.
 			if (!bSkeletonModified)
 			{
-				SkeletalMesh->Skeleton->Modify();
+				SkeletalMesh->GetSkeleton()->Modify();
 				bSkeletonModified = true;
 			}
 			Pair.AttachedTo = NewName;
@@ -221,7 +222,7 @@ int32 USkeletalMeshEditorSubsystem::ImportLOD(USkeletalMesh* BaseMesh, const int
 		&& BaseMesh->IsReductionActive(LODIndex) //We remove reduction settings only if they are active
 		&& BaseMesh->GetLODInfo(LODIndex) //this test is redundant (IsReductionActive test this), but to avoid static analysis
 		&& BaseMesh->GetLODInfo(LODIndex)->ReductionSettings.BaseLOD < LODIndex //We do not remove the reduction if the reduction is base on this LOD imported data
-		&& (!BaseMesh->LODSettings || BaseMesh->LODSettings->GetNumberOfSettings() < LODIndex)) //We do not remove the reduction if the skeletal mesh is using a LODSettings for this LOD
+		&& (!BaseMesh->GetLODSettings() || BaseMesh->GetLODSettings()->GetNumberOfSettings() < LODIndex)) //We do not remove the reduction if the skeletal mesh is using a LODSettings for this LOD
 	{
 		//Remove the reduction settings
 		BaseMesh->GetLODInfo(LODIndex)->ReductionSettings.NumOfTrianglesPercentage = 1.0f;

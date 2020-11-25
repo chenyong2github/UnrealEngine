@@ -266,7 +266,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
 
-			if (USkeleton * Skeleton = SkeletalMesh->Skeleton)
+			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
 				if (const FSkeletalMeshRenderData * SkelMeshRenderData = SkeletalMesh->GetResourceForRendering())
 				{
@@ -411,15 +411,17 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 
 						// for each material, add a reference in our GeometryCollectionObject
 						int CurrIdx = 0;
+						
+						const TArray<FSkeletalMaterial>& SkeletalMeshMaterials = SkeletalMesh->GetMaterials();
 
-						UMaterialInterface *CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(CurrIdx) : ToRawPtr(SkeletalMesh->Materials[CurrIdx].MaterialInterface);
+						UMaterialInterface* CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(CurrIdx) : ToRawPtr(SkeletalMeshMaterials[CurrIdx].MaterialInterface);
 
 
 						int MaterialStart = GeometryCollectionObject->Materials.Num();
 						while (CurrMaterial)
 						{
 							GeometryCollectionObject->Materials.Add(CurrMaterial);
-							CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(++CurrIdx) : ToRawPtr(SkeletalMesh->Materials[++CurrIdx].MaterialInterface);
+							CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(++CurrIdx) : ToRawPtr(SkeletalMeshMaterials[++CurrIdx].MaterialInterface);
 
 						}
 

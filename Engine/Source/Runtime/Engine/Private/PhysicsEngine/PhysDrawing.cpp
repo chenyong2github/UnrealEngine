@@ -1062,7 +1062,7 @@ void UPhysicsAsset::GetCollisionMesh(int32 ViewIndex, FMeshElementCollector& Col
 {
 	for( int32 i=0; i<SkeletalBodySetups.Num(); i++)
 	{
-		int32 BoneIndex = SkelMesh->RefSkeleton.FindBoneIndex( SkeletalBodySetups[i]->BoneName );
+		int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex( SkeletalBodySetups[i]->BoneName );
 		
 		FColor* BoneColor = (FColor*)( &SkeletalBodySetups[i] );
 
@@ -1093,7 +1093,7 @@ void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Coll
 
 		// Get each constraint frame in world space.
 		FTransform Con1Frame = FTransform::Identity;
-		int32 Bone1Index = SkelMesh->RefSkeleton.FindBoneIndex(Instance.ConstraintBone1);
+		int32 Bone1Index = SkelMesh->GetRefSkeleton().FindBoneIndex(Instance.ConstraintBone1);
 		if (Bone1Index != INDEX_NONE)
 		{
 			FTransform Body1TM = GetSkelBoneTransform(Bone1Index, SpaceBases, LocalToWorld);
@@ -1102,7 +1102,7 @@ void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Coll
 		}
 
 		FTransform Con2Frame = FTransform::Identity;
-		int32 Bone2Index = SkelMesh->RefSkeleton.FindBoneIndex(Instance.ConstraintBone2);
+		int32 Bone2Index = SkelMesh->GetRefSkeleton().FindBoneIndex(Instance.ConstraintBone2);
 		if (Bone2Index != INDEX_NONE)
 		{
 			FTransform Body2TM = GetSkelBoneTransform(Bone2Index, SpaceBases, LocalToWorld);

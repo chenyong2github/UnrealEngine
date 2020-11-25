@@ -342,7 +342,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	TArray<FBoneIndexType> TempBoneMap = OriginalSection.BoneMap;
 	for(FName& BoneName : UsedBoneNames)
 	{
-		const int32 BoneIndex = InSkelMesh->RefSkeleton.FindBoneIndex(BoneName);
+		const int32 BoneIndex = InSkelMesh->GetRefSkeleton().FindBoneIndex(BoneName);
 		if(BoneIndex != INDEX_NONE)
 		{
 			TempBoneMap.AddUnique(BoneIndex);
@@ -378,7 +378,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 
 	// Set the asset index, used during rendering to pick the correct sim mesh buffer
 	int32 AssetIndex = INDEX_NONE;
-	check(InSkelMesh->MeshClothingAssets.Find(this, AssetIndex));
+	check(InSkelMesh->GetMeshClothingAssets().Find(this, AssetIndex));
 	OriginalSection.CorrespondClothAssetIndex = AssetIndex;
 
 	// sim properties
@@ -392,7 +392,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 		if(!SkelLod.RequiredBones.Contains(BoneIndex))
 		{
 			bRequireBoneChange = true;
-			if(InSkelMesh->RefSkeleton.IsValidIndex(BoneIndex))
+			if(InSkelMesh->GetRefSkeleton().IsValidIndex(BoneIndex))
 			{
 				SkelLod.RequiredBones.Add(BoneIndex);
 				SkelLod.ActiveBoneIndices.AddUnique(BoneIndex);
@@ -402,7 +402,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	if(bRequireBoneChange)
 	{
 		SkelLod.RequiredBones.Sort();
-		InSkelMesh->RefSkeleton.EnsureParentsExistAndSort(SkelLod.ActiveBoneIndices);		
+		InSkelMesh->GetRefSkeleton().EnsureParentsExistAndSort(SkelLod.ActiveBoneIndices);
 	}
 
 	if(CustomData)
@@ -639,7 +639,7 @@ void UClothingAssetCommon::RefreshBoneMapping(USkeletalMesh* InSkelMesh)
 	for(int32 BoneNameIndex = 0; BoneNameIndex < UsedBoneNames.Num(); ++BoneNameIndex)
 	{
 		UsedBoneIndices[BoneNameIndex] = 
-			InSkelMesh->RefSkeleton.FindBoneIndex(
+			InSkelMesh->GetRefSkeleton().FindBoneIndex(
 				UsedBoneNames[BoneNameIndex]);
 	}
 }
@@ -696,7 +696,7 @@ void UClothingAssetCommon::CalculateReferenceBoneIndex()
 		PathsToRoot.Reserve(NumWeightedBones);
 		
 		// Compute paths to the root bone
-		const FReferenceSkeleton& RefSkel = OwnerMesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkel = OwnerMesh->GetRefSkeleton();
 		for(int32 WeightedBoneIndex = 0; WeightedBoneIndex < NumWeightedBones; ++WeightedBoneIndex)
 		{
 			PathsToRoot.AddDefaulted();
@@ -1023,7 +1023,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 	// Update this asset's shared config when the asset belongs to a skeletal mesh
 	if (USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(GetOuter()))
 	{
-		const TArray<UClothingAssetBase*>& ClothingAssets = SkeletalMesh->MeshClothingAssets;
+		const TArray<UClothingAssetBase*>& ClothingAssets = SkeletalMesh->GetMeshClothingAssets();
  
 		// Collect all shared configs found in the other assets
 		TMap<FName, UClothConfigBase*> ClothSharedConfigs;

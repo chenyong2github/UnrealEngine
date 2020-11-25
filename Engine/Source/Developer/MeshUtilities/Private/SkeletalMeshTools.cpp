@@ -631,10 +631,10 @@ namespace SkeletalMeshTools
 			return;
 
 		SkeletalMesh->CalculateInvRefMatrices();
-		check( SkeletalMesh->RefSkeleton.GetRawBoneNum() == SkeletalMesh->RefBasesInvMatrix.Num() );
+		check( SkeletalMesh->GetRefSkeleton().GetRawBoneNum() == SkeletalMesh->GetRefBasesInvMatrix().Num() );
 
 		Infos.Empty();
-		Infos.AddZeroed( SkeletalMesh->RefSkeleton.GetRawBoneNum() );
+		Infos.AddZeroed( SkeletalMesh->GetRefSkeleton().GetRawBoneNum() );
 
 		FSkeletalMeshLODModel* LODModel = &ImportedResource->LODModels[0];
 		for(int32 SectionIndex = 0; SectionIndex < LODModel->Sections.Num(); SectionIndex++)
@@ -648,10 +648,10 @@ namespace SkeletalMeshTools
 				{
 					int32 BoneIndex = Section.BoneMap[GetDominantBoneIndex(SoftVert)];
 
-					FVector LocalPos = SkeletalMesh->RefBasesInvMatrix[BoneIndex].TransformPosition(SoftVert->Position);
+					FVector LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
 					Infos[BoneIndex].Positions.Add(LocalPos);
 
-					FVector LocalNormal = SkeletalMesh->RefBasesInvMatrix[BoneIndex].TransformVector(SoftVert->TangentZ);
+					FVector LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
 					Infos[BoneIndex].Normals.Add(LocalNormal);
 				}
 				else
@@ -662,10 +662,10 @@ namespace SkeletalMeshTools
 						{
 							int32 BoneIndex = Section.BoneMap[SoftVert->InfluenceBones[j]];
 
-							FVector LocalPos = SkeletalMesh->RefBasesInvMatrix[BoneIndex].TransformPosition(SoftVert->Position);
+							FVector LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
 							Infos[BoneIndex].Positions.Add(LocalPos);
 
-							FVector LocalNormal = SkeletalMesh->RefBasesInvMatrix[BoneIndex].TransformVector(SoftVert->TangentZ);
+							FVector LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
 							Infos[BoneIndex].Normals.Add(LocalNormal);
 						}
 					}

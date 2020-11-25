@@ -133,9 +133,9 @@ void FMotionTrailTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBu
 					);
 				}
 
-				if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->Skeleton && Hierarchy->GetBonesTracked().Contains(SkelMeshComp))
+				if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton() && Hierarchy->GetBonesTracked().Contains(SkelMeshComp))
 				{
-					USkeleton* Skeleton = SkelMeshComp->SkeletalMesh->Skeleton;
+					USkeleton* Skeleton = SkelMeshComp->SkeletalMesh->GetSkeleton();
 					const FName RootBoneName = Skeleton->GetReferenceSkeleton().GetBoneName(0);
 					const FGuid RootBoneTrailGuid = Hierarchy->GetBonesTracked().FindChecked(SkelMeshComp).FindChecked(RootBoneName);
 					const FGuid ComponentGuid = Hierarchy->GetObjectsTracked().FindChecked(SkelMeshComp);

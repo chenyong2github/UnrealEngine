@@ -201,7 +201,7 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
 				FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
-				LODResource.IncrementMemoryStats(Mesh->bHasVertexColors);
+				LODResource.IncrementMemoryStats(Mesh->GetHasVertexColors());
 				IntermediateBuffersArray[LODIndex].TransferBuffers(LODResource, Batcher);
 			}
 		}

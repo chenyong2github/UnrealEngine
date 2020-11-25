@@ -87,9 +87,9 @@ UFbxSceneImportData *GetFbxSceneImportData(UObject *Obj)
 		{
 			//Reimport from one of the static mesh
 			USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
-			if (SkeletalMesh != nullptr && SkeletalMesh->AssetImportData != nullptr)
+			if (SkeletalMesh != nullptr && SkeletalMesh->GetAssetImportData() != nullptr)
 			{
-				ImportData = Cast<UFbxAssetImportData>(SkeletalMesh->AssetImportData);
+				ImportData = Cast<UFbxAssetImportData>(SkeletalMesh->GetAssetImportData());
 			}
 		}
 		else if (Obj->IsA(UAnimSequence::StaticClass()))
@@ -1285,7 +1285,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 	EReimportResult::Type ReimportResult = EReimportResult::Succeeded;
 	if (FbxImporter->ReimportSkeletalMesh(Mesh, SkeletalMeshImportData, MeshInfo->UniqueId, &OutSkeletalMeshArray))
 	{
-		Mesh->AssetImportData->Update(FbxImportFileName);
+		Mesh->GetAssetImportData()->Update(FbxImportFileName);
 
 		// Copy user data to newly created mesh
 		for (auto Kvp : UserDataCopy)
@@ -1316,10 +1316,10 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 		//1. Store all anim sequence reference that was originally import, for every skeletal mesh
 		//2. On reimport match the existing one
 		//3. Reimport matching animation
-		if (GlobalImportSettings->bImportAnimations)
+		if (GlobalImportSettings->bImportAnimations && ensure(Mesh->GetSkeleton()))
 		{
 			TArray<FbxNode*> FBXMeshNodeArray;
-			FbxNode* SkeletonRoot = FbxImporter->FindFBXMeshesByBone(Mesh->Skeleton->GetReferenceSkeleton().GetBoneName(0), true, FBXMeshNodeArray);
+			FbxNode* SkeletonRoot = FbxImporter->FindFBXMeshesByBone(Mesh->GetSkeleton()->GetReferenceSkeleton().GetBoneName(0), true, FBXMeshNodeArray);
 
 			FString AnimName = FbxImporter->MakeNameForMesh(FBXMeshNodeArray[0]->GetName(), FBXMeshNodeArray[0]).ToString();
 			AnimName = (GlobalImportSettings->AnimationName != "") ? GlobalImportSettings->AnimationName : AnimName + TEXT("_Anim");
@@ -1439,18 +1439,18 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 							{
 								DestSeq->CleanAnimSequenceForImport();
 							}
-							DestSeq->SetSkeleton(Mesh->Skeleton);
+							DestSeq->SetSkeleton(Mesh->GetSkeleton());
 							// since to know full path, reimport will need to do same
 							UFbxAnimSequenceImportData* ImportData = UFbxAnimSequenceImportData::GetImportDataForAnimSequence(DestSeq, AnimSequenceImportData);
 							ImportData->Update(UFactory::CurrentFilename);
-							FbxImporter->ImportAnimation(Mesh->Skeleton, DestSeq, CurrentFilename, SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
+							FbxImporter->ImportAnimation(Mesh->GetSkeleton(), DestSeq, CurrentFilename, SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
 						}
 						else
 						{
 							//Reimport in a existing sequence
 							if (FbxImporter->ValidateAnimStack(SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, true, AnimTimeSpan))
 							{
-								FbxImporter->ImportAnimation(Mesh->Skeleton, DestSeq, CurrentFilename, SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
+								FbxImporter->ImportAnimation(Mesh->GetSkeleton(), DestSeq, CurrentFilename, SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
 							}
 						}
 					}

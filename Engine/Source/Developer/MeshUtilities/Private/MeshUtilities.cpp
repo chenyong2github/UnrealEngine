@@ -306,7 +306,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 				// use the remapping of material indices if there is a valid value
 				if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
-					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->SkeletalMesh->Materials.Num());
+					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->SkeletalMesh->GetMaterials().Num());
 				}
 
 				// copy face info
@@ -3055,7 +3055,7 @@ void FMeshUtilities::FixupMaterialSlotNames(UStaticMesh* StaticMesh) const
 
 void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
 {
-	FixupMaterialSlotNames_Implementation(SkeletalMesh->Materials);
+	FixupMaterialSlotNames_Implementation(SkeletalMesh->GetMaterials());
 }
 
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)

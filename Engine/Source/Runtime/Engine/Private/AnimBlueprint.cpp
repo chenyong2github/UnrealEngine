@@ -209,7 +209,7 @@ USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)
 #if WITH_EDITORONLY_DATA
 	USkeletalMesh* PreviewMesh = PreviewSkeletalMesh.LoadSynchronous();
 	// if somehow skeleton changes, just nullify it. 
-	if (PreviewMesh && PreviewMesh->Skeleton != TargetSkeleton)
+	if (PreviewMesh && PreviewMesh->GetSkeleton() != TargetSkeleton)
 	{
 		PreviewMesh = nullptr;
 		SetPreviewMesh(nullptr);

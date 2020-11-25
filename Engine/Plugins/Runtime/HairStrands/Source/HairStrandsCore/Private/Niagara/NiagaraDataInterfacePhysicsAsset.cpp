@@ -148,26 +148,22 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 					continue;
 				}
 
-				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
-				if (RefSkeleton != nullptr)
+				const FReferenceSkeleton& RefSkeleton = SkelMesh->GetRefSkeleton();
+				if (RefSkeleton.GetNum() > 0)
 				{
-					if (RefSkeleton->GetNum() > 0)
+					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 					{
-
-						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+						const FName BoneName = BodySetup->BoneName;
+						const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+						if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton.GetNum())
 						{
-							const FName BoneName = BodySetup->BoneName;
-							const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-							if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton->GetNum())
-							{
-								NumBoxes += BodySetup->AggGeom.BoxElems.Num();
-								NumSpheres += BodySetup->AggGeom.SphereElems.Num();
-								NumCapsules += BodySetup->AggGeom.SphylElems.Num();
-							}
+							NumBoxes += BodySetup->AggGeom.BoxElems.Num();
+							NumSpheres += BodySetup->AggGeom.SphereElems.Num();
+							NumCapsules += BodySetup->AggGeom.SphylElems.Num();
 						}
-						//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
-						//				NumCapsules, NumSpheres, NumBoxes);
 					}
+					//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
+					//				NumCapsules, NumSpheres, NumBoxes);
 				}
 			}
 		}
@@ -199,7 +195,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 					{
 						continue;
 					}
-					const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
+					const FReferenceSkeleton* RefSkeleton = &SkelMesh->GetRefSkeleton();
 					if (RefSkeleton != nullptr)
 					{
 						TArray<FTransform> RestTransforms;
@@ -290,7 +286,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				{
 					continue;
 				}
-				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
+				const FReferenceSkeleton* RefSkeleton = &SkelMesh->GetRefSkeleton();
 
 				if (RefSkeleton != nullptr)
 				{

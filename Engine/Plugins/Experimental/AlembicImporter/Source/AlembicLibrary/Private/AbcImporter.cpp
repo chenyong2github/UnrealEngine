@@ -597,7 +597,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		const FMeshBoneInfo BoneInfo(FName(TEXT("RootBone"), FNAME_Add), TEXT("RootBone_Export"), INDEX_NONE);
 		const FTransform BoneTransform;
 		{
-			FReferenceSkeletonModifier RefSkelModifier(SkeletalMesh->RefSkeleton, SkeletalMesh->Skeleton);
+			FReferenceSkeletonModifier RefSkelModifier(SkeletalMesh->GetRefSkeleton(), SkeletalMesh->GetSkeleton());
 			RefSkelModifier.Add(BoneInfo, BoneTransform);
 		}
 
@@ -610,8 +610,8 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		
 		// Forced to 1
 		LODModel.NumTexCoords = MergedMeshSample->NumUVSets;
-		SkeletalMesh->bHasVertexColors = true;
-		SkeletalMesh->VertexColorGuid = FGuid::NewGuid();
+		SkeletalMesh->SetHasVertexColors(true);
+		SkeletalMesh->SetVertexColorGuid(FGuid::NewGuid());
 
 		/* Bounding box according to animation */
 		SkeletalMesh->SetImportedBounds(AbcFile->GetArchiveBounds().GetBox());
@@ -621,7 +621,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		TArray<int32> UsedVertexIndicesForMorphs;
 		MergedMeshSample->TangentX.Empty();
 		MergedMeshSample->TangentY.Empty();
-		bBuildSuccess = BuildSkeletalMesh(LODModel, SkeletalMesh->RefSkeleton, MergedMeshSample, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs);
+		bBuildSuccess = BuildSkeletalMesh(LODModel, SkeletalMesh->GetRefSkeleton(), MergedMeshSample, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs);
 
 		if (!bBuildSuccess)
 		{
@@ -636,9 +636,9 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		// Merge bones to the selected skeleton
 		check(Skeleton->MergeAllBonesToBoneTree(SkeletalMesh));
 		Skeleton->MarkPackageDirty();
-		if (SkeletalMesh->Skeleton != Skeleton)
+		if (SkeletalMesh->GetSkeleton() != Skeleton)
 		{
-			SkeletalMesh->Skeleton = Skeleton;
+			SkeletalMesh->SetSkeleton(Skeleton);
 			SkeletalMesh->MarkPackageDirty();
 		}
 
@@ -738,7 +738,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 						RootBoneTrack.PosKeys.Add(DeltaOffsets[FrameIndex]);
 					}
 
-					const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+					const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 					const TArray<FMeshBoneInfo>& BonesInfo = RefSkeleton.GetRawRefBoneInfo();
 					Sequence->AddNewRawTrack(BonesInfo[0].Name, &RootBoneTrack);
 				}
@@ -753,7 +753,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				{
 					const FString& MaterialName = CompressedData.MaterialNames[MaterialIndex];
 					UMaterialInterface* Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, MaterialName, InParent, Flags);
-					SkeletalMesh->Materials.Add(FSkeletalMaterial(Material, true));
+					SkeletalMesh->GetMaterials().Add(FSkeletalMaterial(Material, true));
 					if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 					{
 						Material->PostEditChange();

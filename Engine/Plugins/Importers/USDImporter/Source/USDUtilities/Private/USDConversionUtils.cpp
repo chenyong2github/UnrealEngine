@@ -693,12 +693,12 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 	{
 		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
 		{
-			ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+			ImportData = Cast<UUsdAssetImportData>( SkMesh->GetAssetImportData() );
 		}
 	}
 	else if ( USkeletalMesh* SkMesh = Cast<USkeletalMesh>( Asset ) )
 	{
-		ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+		ImportData = Cast<UUsdAssetImportData>(SkMesh->GetAssetImportData());
 	}
 	else if ( UAnimSequence* SkelAnim = Cast<UAnimSequence>( Asset ) )
 	{

@@ -201,7 +201,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::CleanupGlobals()
 	{
 		if (Pair.Key && Pair.Value.RestoreBodySetup)
 		{
-			Pair.Key->BodySetup = Pair.Value.RestoreBodySetup;
+			Pair.Key->SetBodySetup(Pair.Value.RestoreBodySetup);
 		}
 	}
 
@@ -226,13 +226,14 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 	if (SkeletalMeshReferencers.Referencers.Num() == 0)
 	{
 		// Remember the old body setup (this will be added as a GC reference so that it doesn't get destroyed)
-		SkeletalMeshReferencers.RestoreBodySetup = ReferencedSkeletalMesh->BodySetup;
+		const USkeletalMesh* ReferencedSkeletalMeshConst = ReferencedSkeletalMesh;
+		SkeletalMeshReferencers.RestoreBodySetup = ReferencedSkeletalMeshConst->GetBodySetup();
 
 		if (SkeletalMeshReferencers.RestoreBodySetup)
 		{
 			// Create a new body setup from the mesh's main body setup. This has to have the skeletal mesh as its outer,
 			// otherwise the body instance will not be created correctly.
-			UBodySetup* TempBodySetupRaw = DuplicateObject<UBodySetup>(ReferencedSkeletalMesh->BodySetup, ReferencedSkeletalMesh);
+			UBodySetup* TempBodySetupRaw = DuplicateObject<UBodySetup>(ReferencedSkeletalMeshConst->GetBodySetup(), ReferencedSkeletalMesh);
 			TempBodySetupRaw->ClearFlags(RF_Transactional);
 
 			// Set collide all flag so that the body creates physics meshes using ALL elements from the mesh not just the collision mesh.
@@ -246,7 +247,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 			TempBodySetupRaw->AggGeom.ConvexElems.Empty();
 
 			// Set as new body setup
-			ReferencedSkeletalMesh->BodySetup = TempBodySetupRaw;
+			ReferencedSkeletalMesh->SetBodySetup(TempBodySetupRaw);
 		}
 	}
 
@@ -303,7 +304,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnRemoved()
 	{
 		if (SkeletalMeshReferencers->RestoreBodySetup != nullptr)
 		{
-			ReferencedSkeletalMesh->BodySetup = SkeletalMeshReferencers->RestoreBodySetup;
+			ReferencedSkeletalMesh->SetBodySetup(SkeletalMeshReferencers->RestoreBodySetup);
 		}
 		
 		verify(MeshToComponentMap.Remove(ReferencedSkeletalMesh) == 1);
@@ -437,8 +438,8 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::PreEdit()
 	ReferencedSkeletalMesh->SetFlags(RF_Transactional);
 	ReferencedSkeletalMesh->Modify();
 
-	ReferencedSkeletalMesh->bHasVertexColors = true;
-	ReferencedSkeletalMesh->VertexColorGuid = FGuid::NewGuid();
+	ReferencedSkeletalMesh->SetHasVertexColors(true);
+	ReferencedSkeletalMesh->SetVertexColorGuid(FGuid::NewGuid());
 
 	// Release the static mesh's resources.
 	ReferencedSkeletalMesh->ReleaseResources();
@@ -451,14 +452,14 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::PreEdit()
 	{
 		// Mesh doesn't have a color vertex buffer yet!  We'll create one now.
 		LODData->StaticVertexBuffers.ColorVertexBuffer.InitFromSingleColor(FColor(255, 255, 255, 255), LODData->GetNumVertices());
-		ReferencedSkeletalMesh->bHasVertexColors = true;
-		ReferencedSkeletalMesh->VertexColorGuid = FGuid::NewGuid();
+		ReferencedSkeletalMesh->SetHasVertexColors(true);
+		ReferencedSkeletalMesh->SetVertexColorGuid(FGuid::NewGuid());
 		BeginInitResource(&LODData->StaticVertexBuffers.ColorVertexBuffer);
 	}
 	//Make sure we change the import data so the re-import do not replace the new data
-	if (ReferencedSkeletalMesh->AssetImportData)
+	if (ReferencedSkeletalMesh->GetAssetImportData())
 	{
-		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReferencedSkeletalMesh->AssetImportData);
+		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReferencedSkeletalMesh->GetAssetImportData());
 		if (ImportData && ImportData->VertexColorImportOption != EVertexColorImportOption::Ignore)
 		{
 			ImportData->SetFlags(RF_Transactional);

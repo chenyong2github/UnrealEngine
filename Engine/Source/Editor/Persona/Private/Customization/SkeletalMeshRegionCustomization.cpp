@@ -105,10 +105,10 @@ void FNiagaraSkeletalMeshRegionBoneFilterDetails::HandleBoneNameComboBoxSelectio
 void FNiagaraSkeletalMeshRegionBoneFilterDetails::OnComboOpening()
 {
 	PossibleBoneNames.Reset();
-	if (MeshObject->Skeleton != nullptr)
+	if (MeshObject->GetSkeleton() != nullptr)
 	{
 		//Populate PossibleBonesNames
-		for (FMeshBoneInfo Bone : MeshObject->Skeleton->GetReferenceSkeleton().GetRefBoneInfo())
+		for (FMeshBoneInfo Bone : MeshObject->GetSkeleton()->GetReferenceSkeleton().GetRefBoneInfo())
 		{
 			TSharedPtr<FName> BoneName(new FName(Bone.Name));
 			PossibleBoneNames.Add(BoneName);
@@ -195,10 +195,10 @@ void FNiagaraSkeletalMeshRegionMaterialFilterDetails::HandleMaterialNameComboBox
 void FNiagaraSkeletalMeshRegionMaterialFilterDetails::OnComboOpening()
 {
 	PossibleMaterialNames.Reset();
-	if (MeshObject->Skeleton != nullptr)
+	if (MeshObject->GetSkeleton() != nullptr)
 	{
 		//Populate PossibleMaterialsNames
-		for (FSkeletalMaterial Material : MeshObject->Materials)
+		for (FSkeletalMaterial Material : MeshObject->GetMaterials())
 		{
 			TSharedPtr<FName> MaterialName(new FName(Material.MaterialSlotName));
 			PossibleMaterialNames.Add(MaterialName);

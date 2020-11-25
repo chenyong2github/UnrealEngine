@@ -721,7 +721,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//Create skeleton, skeletal mesh and skeletal mesh component
 	USkeleton* Skeleton = NewObject<USkeleton>(GetTransientPackage());
 	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(GetTransientPackage());
-	SkeletalMesh->Skeleton = Skeleton;
+	SkeletalMesh->SetSkeleton(Skeleton);
 	USkeletalMeshComponent* SkelMeshComponent = NewObject<USkeletalMeshComponent>();
 	SkelMeshComponent->SetSkeletalMesh(SkeletalMesh);
 

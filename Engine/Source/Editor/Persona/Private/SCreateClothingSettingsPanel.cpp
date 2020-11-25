@@ -62,7 +62,7 @@ void SCreateClothingSettingsPanel::Construct(const FArguments& InArgs)
 	StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FClothCreateSettingsCustomization::MakeInstance, InArgs._Mesh, InArgs._bIsSubImport));
 
 	BuildParams.AssetName = InArgs._MeshName + TEXT("_Clothing");
-	BuildParams.PhysicsAsset = InArgs._Mesh->PhysicsAsset;
+	BuildParams.PhysicsAsset = InArgs._Mesh->GetPhysicsAsset();
 
 	FStructOnScope* Struct = new FStructOnScope(FSkeletalMeshClothBuildParams::StaticStruct(), (uint8*)&BuildParams);
 	StructureDetailsView->SetStructureData(MakeShareable(Struct));
@@ -149,10 +149,10 @@ TSharedRef<SWidget> FClothCreateSettingsCustomization::OnGetTargetAssetMenu()
 	{
 		if(USkeletalMesh* Mesh = MeshPtr.Get())
 		{
-			const int32 NumCloths = Mesh->MeshClothingAssets.Num();
+			const int32 NumCloths = Mesh->GetMeshClothingAssets().Num();
 			for(int32 ClothIndex = 0 ; ClothIndex < NumCloths ; ++ClothIndex)
 			{
-				if (UClothingAssetBase* ClothingAsset = Mesh->MeshClothingAssets[ClothIndex])
+				if (UClothingAssetBase* ClothingAsset = Mesh->GetMeshClothingAssets()[ClothIndex])
 				{
 					FUIAction Action;
 					Action.ExecuteAction = FExecuteAction::CreateSP(this, &FClothCreateSettingsCustomization::OnAssetSelected, ClothIndex);
@@ -186,12 +186,12 @@ void FClothCreateSettingsCustomization::OnAssetSelected(int32 InMeshClothingInde
 
 	if(USkeletalMesh* Mesh = MeshPtr.Get())
 	{
-		if(Mesh->MeshClothingAssets.IsValidIndex(InMeshClothingIndex) && 
-		   Mesh->MeshClothingAssets[InMeshClothingIndex])
+		if(Mesh->GetMeshClothingAssets().IsValidIndex(InMeshClothingIndex) &&
+		   Mesh->GetMeshClothingAssets()[InMeshClothingIndex])
 		{
-			if(ParamsStruct->TargetAsset != Mesh->MeshClothingAssets[InMeshClothingIndex])
+			if(ParamsStruct->TargetAsset != Mesh->GetMeshClothingAssets()[InMeshClothingIndex])
 			{
-				ParamsStruct->TargetAsset = Mesh->MeshClothingAssets[InMeshClothingIndex];
+				ParamsStruct->TargetAsset = Mesh->GetMeshClothingAssets()[InMeshClothingIndex];
 				ParamsStruct->TargetLod = INDEX_NONE;
 			}
 		}

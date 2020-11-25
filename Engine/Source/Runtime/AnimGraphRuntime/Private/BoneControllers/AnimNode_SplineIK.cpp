@@ -37,7 +37,7 @@ void FAnimNode_SplineIK::OnInitializeAnimInstance(const FAnimInstanceProxy* InPr
 {
 	if (InAnimInstance->GetSkelMeshComponent() && InAnimInstance->GetSkelMeshComponent()->SkeletalMesh)
 	{
-		GatherBoneReferences(InAnimInstance->GetSkelMeshComponent()->SkeletalMesh->RefSkeleton);
+		GatherBoneReferences(InAnimInstance->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton());
 	}
 }
 

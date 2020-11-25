@@ -243,7 +243,7 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 
 		if (MeshComponent && MeshComponent->SkeletalMesh)
 		{
-			DrawBones(Pose.GetBoneContainer().GetBoneIndicesArray(), MeshComponent->SkeletalMesh->RefSkeleton, WorldTransforms,
+			DrawBones(Pose.GetBoneContainer().GetBoneIndicesArray(), MeshComponent->SkeletalMesh->GetRefSkeleton(), WorldTransforms,
 				LODData, PDI, BoneColours, MeshComponent->Bounds.SphereRadius, 1.0f);
 		}
 
