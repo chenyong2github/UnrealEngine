@@ -1135,7 +1135,7 @@ public:
 	inline uint32 GetFrameIndex(uint32 Pow2Modulus) const
 	{
 		check(FMath::IsPowerOfTwo(Pow2Modulus));
-		return FrameIndex % (Pow2Modulus - 1);
+		return FrameIndex & (Pow2Modulus - 1);
 	}
 
 	// Returns 32bits frame index.
