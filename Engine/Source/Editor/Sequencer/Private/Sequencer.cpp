@@ -6034,8 +6034,7 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		{
 			const float PreviousFOV = PreviousCameraComponent != nullptr ?
 				PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
-			const float InverseBlendFactor = FMath::Clamp(1.0f - BlendFactor, 0.f, 1.f);
-			const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, InverseBlendFactor);
+			const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, BlendFactor);
 
 			InViewportClient.ViewFOV = BlendedFOV;
 			ViewModifierInfo.ViewModifierFOV = BlendedFOV;
