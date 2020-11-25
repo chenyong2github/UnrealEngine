@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 		/// <param name="Makefile">Makefile for the targe</param>
 		/// <param name="Actions">Actions for this target</param>
 		/// <param name="BuildConfiguration">Global build configuration</param>
-		public static void Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<QueuedAction> Actions, BuildConfiguration BuildConfiguration)
+		public static void Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> Actions, BuildConfiguration BuildConfiguration)
 		{
 			// Get the hot-reload mode
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
@@ -442,7 +442,7 @@ namespace UnrealBuildTool
 		/// <param name="HotReloadState">The hot-reload state</param>
 		/// <param name="Makefile">Makefile to apply the state</param>
 		/// <param name="Actions">Actions for this makefile</param>
-		static void ApplyState(HotReloadState HotReloadState, TargetMakefile Makefile, List<QueuedAction> Actions)
+		static void ApplyState(HotReloadState HotReloadState, TargetMakefile Makefile, List<LinkedAction> Actions)
 		{
 			// Update the action graph to produce these new files
 			HotReload.PatchActionGraph(Actions, HotReloadState.OriginalFileToHotReloadFile);
@@ -471,7 +471,7 @@ namespace UnrealBuildTool
 		/// <param name="PrerequisiteActions">The actions to execute</param>
 		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
 		/// <returns>Set of actions to execute</returns>
-		public static List<QueuedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<QueuedAction> PrerequisiteActions, List<QueuedAction> TargetActionsToExecute)
+		public static List<LinkedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> PrerequisiteActions, List<LinkedAction> TargetActionsToExecute)
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
@@ -503,7 +503,7 @@ namespace UnrealBuildTool
 
 					// Find all the binaries that we're actually going to build
 					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
-					foreach (QueuedAction Action in TargetActionsToExecute)
+					foreach (LinkedAction Action in TargetActionsToExecute)
 					{
 						if (Action.ActionType == ActionType.Link)
 						{
@@ -525,7 +525,7 @@ namespace UnrealBuildTool
 				}
 
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
-				PrerequisiteActions = new List<QueuedAction>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
+				PrerequisiteActions = new List<LinkedAction>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
 				// Update the action graph with these new paths
@@ -585,7 +585,7 @@ namespace UnrealBuildTool
 				for (int LastNumFilesWithNewSuffix = 0; FilesRequiringSuffix.Count > LastNumFilesWithNewSuffix;)
 				{
 					LastNumFilesWithNewSuffix = FilesRequiringSuffix.Count;
-					foreach (QueuedAction PrerequisiteAction in PrerequisiteActions)
+					foreach (LinkedAction PrerequisiteAction in PrerequisiteActions)
 					{
 						if (!TargetActionsToExecute.Contains(PrerequisiteAction))
 						{
@@ -634,7 +634,7 @@ namespace UnrealBuildTool
 				}
 
 				// Now filter out all the hot reload files and update the state
-				foreach (QueuedAction Action in TargetActionsToExecute)
+				foreach (LinkedAction Action in TargetActionsToExecute)
 				{
 					foreach (FileItem ProducedItem in Action.ProducedItems)
 					{
@@ -747,9 +747,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Actions">Set of actions</param>
 		/// <param name="OriginalFileToPatchedFile">Dictionary that receives a map of original object file to patched object file</param>
-		public static void PatchActionGraphForLiveCoding(IEnumerable<QueuedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
+		public static void PatchActionGraphForLiveCoding(IEnumerable<LinkedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
 		{
-			foreach (QueuedAction Action in Actions)
+			foreach (LinkedAction Action in Actions)
 			{
 				if(Action.ActionType == ActionType.Compile)
 				{
@@ -848,7 +848,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Patch the action graph for hot reloading, mapping files according to the given dictionary.
 		/// </summary>
-		public static void PatchActionGraph(IEnumerable<QueuedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToHotReloadFile)
+		public static void PatchActionGraph(IEnumerable<LinkedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToHotReloadFile)
 		{
 			// Gather all of the response files for link actions.  We're going to need to patch 'em up after we figure out new
 			// names for all of the output files and import libraries
@@ -864,7 +864,7 @@ namespace UnrealBuildTool
 			// Finally, we'll keep track of any file items that we had to create counterparts for change file names, so we can fix those up too
 			Dictionary<FileItem, FileItem> AffectedOriginalFileItemAndNewFileItemMap = new Dictionary<FileItem, FileItem>();
 
-			foreach (QueuedAction Action in Actions.Where((Action) => Action.ActionType == ActionType.Link))
+			foreach (LinkedAction Action in Actions.Where((Action) => Action.ActionType == ActionType.Link))
 			{
 				FileItem FirstProducedItem = Action.ProducedItems.First();
 
@@ -1011,7 +1011,7 @@ namespace UnrealBuildTool
 
 
 			// Do another pass and update any actions that depended on the original file names that we changed
-			foreach (QueuedAction Action in Actions)
+			foreach (LinkedAction Action in Actions)
 			{
 				Action NewAction = new Action(Action.Inner);
 				for (int ItemIndex = 0; ItemIndex < NewAction.PrerequisiteItems.Count; ++ItemIndex)
@@ -1032,7 +1032,7 @@ namespace UnrealBuildTool
 			if (OriginalFileNameAndNewFileNameList_NoExtensions.Count > 0)
 			{
 				// Update all the paths in link actions
-				foreach (QueuedAction Action in Actions.Where((Action) => Action.ActionType == ActionType.Link))
+				foreach (LinkedAction Action in Actions.Where((Action) => Action.ActionType == ActionType.Link))
 				{
 					foreach (KeyValuePair<string, string> FileNameTuple in OriginalFileNameAndNewFileNameList_NoExtensions)
 					{
@@ -1086,7 +1086,7 @@ namespace UnrealBuildTool
 			}
 
 			// Update the action that writes out the module manifests
-			foreach(QueuedAction Action in Actions)
+			foreach(LinkedAction Action in Actions)
 			{
 				if(Action.ActionType == ActionType.WriteMetadata)
 				{
@@ -1164,7 +1164,7 @@ namespace UnrealBuildTool
 		/// <param name="ModuleNameToSuffix">Map of module name to suffix</param>
 		/// <param name="Makefile">Makefile for the target being built</param>
 		/// <param name="Actions">Actions to be executed for this makefile</param>
-		public static void PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile, List<QueuedAction> Actions)
+		public static void PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile, List<LinkedAction> Actions)
 		{
 			if(ModuleNameToSuffix.Count > 0)
 			{

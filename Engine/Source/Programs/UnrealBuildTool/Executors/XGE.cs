@@ -301,7 +301,7 @@ namespace UnrealBuildTool
 		// precompile the Regex needed to parse the XGE output (the ones we want are of the form "File (Duration at +time)"
 		//private static Regex XGEDurationRegex = new Regex(@"(?<Filename>.*) *\((?<Duration>[0-9:\.]+) at [0-9\+:\.]+\)", RegexOptions.ExplicitCapture);
 
-		public static void ExportActions(List<QueuedAction> ActionsToExecute)
+		public static void ExportActions(List<LinkedAction> ActionsToExecute)
 		{
 			for(int FileNum = 0;;FileNum++)
 			{
@@ -314,22 +314,22 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public static void ExportActions(List<QueuedAction> ActionsToExecute, string OutFile)
+		public static void ExportActions(List<LinkedAction> ActionsToExecute, string OutFile)
 		{
 			WriteTaskFile(ActionsToExecute, OutFile, ProgressWriter.bWriteMarkup, bXGEExport: true);
 			Log.TraceInformation("XGEEXPORT: Exported '{0}'", OutFile);
 		}
 
-		public override bool ExecuteActions(List<QueuedAction> ActionsToExecute)
+		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute)
 		{
 			bool XGEResult = true;
 
 			// Batch up XGE execution by actions with the same output event handler.
-			List<QueuedAction> ActionBatch = new List<QueuedAction>();
+			List<LinkedAction> ActionBatch = new List<LinkedAction>();
 			ActionBatch.Add(ActionsToExecute[0]);
 			for (int ActionIndex = 1; ActionIndex < ActionsToExecute.Count && XGEResult; ++ActionIndex)
 			{
-				QueuedAction CurrentAction = ActionsToExecute[ActionIndex];
+				LinkedAction CurrentAction = ActionsToExecute[ActionIndex];
 				ActionBatch.Add(CurrentAction);
 			}
 			if (ActionBatch.Count > 0 && XGEResult)
@@ -341,7 +341,7 @@ namespace UnrealBuildTool
 			return XGEResult;
 		}
 
-		bool ExecuteActionBatch(List<QueuedAction> Actions)
+		bool ExecuteActionBatch(List<LinkedAction> Actions)
 		{
 			bool XGEResult = true;
 			if (Actions.Count > 0)
@@ -358,11 +358,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Writes a XGE task file containing the specified actions to the specified file path.
 		/// </summary>
-		static void WriteTaskFile(List<QueuedAction> InActions, string TaskFilePath, bool bProgressMarkup, bool bXGEExport)
+		static void WriteTaskFile(List<LinkedAction> InActions, string TaskFilePath, bool bProgressMarkup, bool bXGEExport)
 		{
 			Dictionary<string, string> ExportEnv = new Dictionary<string, string>();
 
-			List<QueuedAction> Actions = InActions;
+			List<LinkedAction> Actions = InActions;
 			if (bXGEExport)
 			{
 				IDictionary CurrentEnvironment = Environment.GetEnvironmentVariables();
@@ -413,7 +413,7 @@ namespace UnrealBuildTool
 
 			for (int ActionIndex = 0; ActionIndex < Actions.Count; ActionIndex++)
 			{
-				QueuedAction Action = Actions[ActionIndex];
+				LinkedAction Action = Actions[ActionIndex];
 
 				// <Tool ... />
 				XmlElement ToolElement = XGETaskDocument.CreateElement("Tool");
@@ -477,7 +477,7 @@ namespace UnrealBuildTool
 
 			for (int ActionIndex = 0; ActionIndex < Actions.Count; ActionIndex++)
 			{
-				QueuedAction Action = Actions[ActionIndex];
+				LinkedAction Action = Actions[ActionIndex];
 
 				// <Task ... />
 				XmlElement TaskElement = XGETaskDocument.CreateElement("Task");
@@ -500,7 +500,7 @@ namespace UnrealBuildTool
 
 				// Create a semi-colon separated list of the other tasks this task depends on the results of.
 				List<string> DependencyNames = new List<string>();
-				foreach(QueuedAction PrerequisiteAction in Action.PrerequisiteActions)
+				foreach(LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
 				{
 					if (Actions.Contains(PrerequisiteAction))
 					{

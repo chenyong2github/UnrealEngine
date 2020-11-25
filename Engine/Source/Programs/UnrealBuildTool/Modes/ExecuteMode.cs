@@ -42,10 +42,10 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Read the actions file
-			List<QueuedAction> Actions;
+			List<LinkedAction> Actions;
 			using(Timeline.ScopeEvent("ActionGraph.ReadActions()"))
 			{
-				Actions = ActionGraph.ImportJson(ActionsFile).ConvertAll(x => new QueuedAction(x));
+				Actions = ActionGraph.ImportJson(ActionsFile).ConvertAll(x => new LinkedAction(x));
 			}
 
 			// Link the action graph

@@ -459,7 +459,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Information about an action queued to be executed
 	/// </summary>
-	class QueuedAction : IAction
+	class LinkedAction : IAction
 	{
 		/// <summary>
 		/// The inner action instance
@@ -469,7 +469,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.
 		/// </summary>
-		public HashSet<QueuedAction> PrerequisiteActions;
+		public HashSet<LinkedAction> PrerequisiteActions;
 
 		/// <summary>
 		/// Total number of actions depending on this one.
@@ -510,7 +510,7 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Inner">The inner action instance</param>
-		public QueuedAction(IAction Inner)
+		public LinkedAction(IAction Inner)
 		{
 			this.Inner = Inner;
 		}
@@ -519,12 +519,12 @@ namespace UnrealBuildTool
 		/// Increment the number of dependents, recursively
 		/// </summary>
 		/// <param name="VisitedActions">Set of visited actions</param>
-		public void IncrementDependentCount(HashSet<QueuedAction> VisitedActions)
+		public void IncrementDependentCount(HashSet<LinkedAction> VisitedActions)
 		{
 			if (VisitedActions.Add(this))
 			{
 				NumTotalDependentActions++;
-				foreach (QueuedAction PrerequisiteAction in PrerequisiteActions)
+				foreach (LinkedAction PrerequisiteAction in PrerequisiteActions)
 				{
 					PrerequisiteAction.IncrementDependentCount(VisitedActions);
 				}
@@ -536,7 +536,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="A">Action to compare</param>
 		/// <param name="B">Action to compare</param>
-		public static int Compare(QueuedAction A, QueuedAction B)
+		public static int Compare(LinkedAction A, LinkedAction B)
 		{
 			// Primary sort criteria is total number of dependent files, up to max depth.
 			if (B.NumTotalDependentActions != A.NumTotalDependentActions)

@@ -20,7 +20,7 @@ namespace UnrealBuildTool
 		class BuildAction
 		{
 			public int SortIndex;
-			public QueuedAction Inner;
+			public LinkedAction Inner;
 
 			public HashSet<BuildAction> Dependencies = new HashSet<BuildAction>();
 			public int MissingDependencyCount;
@@ -96,7 +96,7 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<QueuedAction> InputActions)
+		public override bool ExecuteActions(List<LinkedAction> InputActions)
 		{
 			Log.TraceInformation("Building {0} {1} with {2} {3}...", InputActions.Count, (InputActions.Count == 1) ? "action" : "actions", NumParallelProcesses, (NumParallelProcesses == 1)? "process" : "processes");
 

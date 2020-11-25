@@ -69,25 +69,25 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ActionsToExecute">Actions to be executed</param>
 		/// <returns>True if the build succeeded, false otherwise</returns>
-		public override bool ExecuteActions(List<QueuedAction> ActionsToExecute)
+		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute)
 		{
 			// Find the number of dependants for each action
-			Dictionary<QueuedAction, int> ActionToNumDependents = ActionsToExecute.ToDictionary(x => x, x => 0);
-			foreach(QueuedAction Action in ActionsToExecute)
+			Dictionary<LinkedAction, int> ActionToNumDependents = ActionsToExecute.ToDictionary(x => x, x => 0);
+			foreach(LinkedAction Action in ActionsToExecute)
 			{
-				foreach(QueuedAction PrerequisiteAction in Action.PrerequisiteActions)
+				foreach(LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
 				{
 					ActionToNumDependents[PrerequisiteAction]++;
 				}
 			}
 
 			// Build up a set of leaf actions in several iterations, ensuring that the number of leaf actions in each 
-			HashSet<QueuedAction> LeafActions = new HashSet<QueuedAction>();
+			HashSet<LinkedAction> LeafActions = new HashSet<LinkedAction>();
 			for(;;)
 			{
 				// Find all the leaf actions in the graph
-				List<QueuedAction> NewLeafActions = new List<QueuedAction>();
-				foreach(QueuedAction Action in ActionsToExecute)
+				List<LinkedAction> NewLeafActions = new List<LinkedAction>();
+				foreach(LinkedAction Action in ActionsToExecute)
 				{
 					if(ActionToNumDependents[Action] == 0 && !LeafActions.Contains(Action))
 					{
@@ -105,9 +105,9 @@ namespace UnrealBuildTool
 				LeafActions.UnionWith(NewLeafActions);
 
 				// Decrement the dependent counts for any of their prerequisites, so we can try and remove those from the tree in another iteration
-				foreach(QueuedAction NewLeafAction in NewLeafActions)
+				foreach(LinkedAction NewLeafAction in NewLeafActions)
 				{
-					foreach(QueuedAction PrerequisiteAction in NewLeafAction.PrerequisiteActions)
+					foreach(LinkedAction PrerequisiteAction in NewLeafAction.PrerequisiteActions)
 					{
 						ActionToNumDependents[PrerequisiteAction]--;
 					}
@@ -115,9 +115,9 @@ namespace UnrealBuildTool
 			}
 
 			// Split the list of actions into those which should be executed locally and remotely
-			List<QueuedAction> LocalActionsToExecute = new List<QueuedAction>(LeafActions.Count);
-			List<QueuedAction> RemoteActionsToExecute = new List<QueuedAction>(ActionsToExecute.Count - LeafActions.Count);
-			foreach(QueuedAction ActionToExecute in ActionsToExecute)
+			List<LinkedAction> LocalActionsToExecute = new List<LinkedAction>(LeafActions.Count);
+			List<LinkedAction> RemoteActionsToExecute = new List<LinkedAction>(ActionsToExecute.Count - LeafActions.Count);
+			foreach(LinkedAction ActionToExecute in ActionsToExecute)
 			{
 				if(LeafActions.Contains(ActionToExecute))
 				{

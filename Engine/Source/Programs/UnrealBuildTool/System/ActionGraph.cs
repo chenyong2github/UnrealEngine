@@ -18,11 +18,11 @@ namespace UnrealBuildTool
 		/// Links the actions together and sets up their dependencies
 		/// </summary>
 		/// <param name="Actions">List of actions in the graph</param>
-		public static void Link(List<QueuedAction> Actions)
+		public static void Link(List<LinkedAction> Actions)
 		{
 			// Build a map from item to its producing action
-			Dictionary<FileItem, QueuedAction> ItemToProducingAction = new Dictionary<FileItem, QueuedAction>();
-			foreach (QueuedAction Action in Actions)
+			Dictionary<FileItem, LinkedAction> ItemToProducingAction = new Dictionary<FileItem, LinkedAction>();
+			foreach (LinkedAction Action in Actions)
 			{
 				foreach (FileItem ProducedItem in Action.ProducedItems)
 				{
@@ -34,12 +34,12 @@ namespace UnrealBuildTool
 			DetectActionGraphCycles(Actions, ItemToProducingAction);
 
 			// Use this map to add all the prerequisite actions
-			foreach (QueuedAction Action in Actions)
+			foreach (LinkedAction Action in Actions)
 			{
-				Action.PrerequisiteActions = new HashSet<QueuedAction>();
+				Action.PrerequisiteActions = new HashSet<LinkedAction>();
 				foreach(FileItem PrerequisiteItem in Action.PrerequisiteItems)
 				{
-					QueuedAction PrerequisiteAction;
+					LinkedAction PrerequisiteAction;
 					if(ItemToProducingAction.TryGetValue(PrerequisiteItem, out PrerequisiteAction))
 					{
 						Action.PrerequisiteActions.Add(PrerequisiteAction);
@@ -146,12 +146,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Builds a list of actions that need to be executed to produce the specified output items.
 		/// </summary>
-		public static List<QueuedAction> GetActionsToExecute(List<QueuedAction> Actions, CppDependencyCache CppDependencies, ActionHistory History, bool bIgnoreOutdatedImportLibraries)
+		public static List<LinkedAction> GetActionsToExecute(List<LinkedAction> Actions, CppDependencyCache CppDependencies, ActionHistory History, bool bIgnoreOutdatedImportLibraries)
 		{
 			using (Timeline.ScopeEvent("ActionGraph.GetActionsToExecute()"))
 			{
 				// For all targets, build a set of all actions that are outdated.
-				Dictionary<QueuedAction, bool> OutdatedActionDictionary = new Dictionary<QueuedAction, bool>();
+				Dictionary<LinkedAction, bool> OutdatedActionDictionary = new Dictionary<LinkedAction, bool>();
 				GatherAllOutdatedActions(Actions, History, OutdatedActionDictionary, CppDependencies, bIgnoreOutdatedImportLibraries);
 
 				// Build a list of actions that are both needed for this target and outdated.
@@ -223,7 +223,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Executes a list of actions.
 		/// </summary>
-		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<QueuedAction> ActionsToExecute)
+		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute)
 		{
 			if(ActionsToExecute.Count == 0)
 			{
@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Total time in {0} executor: {1:0.00} seconds", Executor.Name, Timer.Elapsed.TotalSeconds);
 
 				// Reset the file info for all the produced items
-				foreach (QueuedAction BuildAction in ActionsToExecute)
+				foreach (LinkedAction BuildAction in ActionsToExecute)
 				{
 					foreach(FileItem ProducedItem in BuildAction.ProducedItems)
 					{
@@ -276,7 +276,7 @@ namespace UnrealBuildTool
 				}
 
 				// Verify the link outputs were created (seems to happen with Win64 compiles)
-				foreach (QueuedAction BuildAction in ActionsToExecute)
+				foreach (LinkedAction BuildAction in ActionsToExecute)
 				{
 					if (BuildAction.ActionType == ActionType.Link)
 					{
@@ -295,38 +295,38 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Sorts the action list for improved parallelism with local execution.
 		/// </summary>
-		static void SortActionList(List<QueuedAction> Actions)
+		static void SortActionList(List<LinkedAction> Actions)
 		{
 			// Clear the current dependent count
-			foreach(QueuedAction Action in Actions)
+			foreach(LinkedAction Action in Actions)
 			{
 				Action.NumTotalDependentActions = 0;
 			}
 
 			// Increment all the dependencies
-			foreach(QueuedAction Action in Actions)
+			foreach(LinkedAction Action in Actions)
 			{
-				Action.IncrementDependentCount(new HashSet<QueuedAction>());
+				Action.IncrementDependentCount(new HashSet<LinkedAction>());
 			}
 
 			// Sort actions by number of actions depending on them, descending. Secondary sort criteria is file size.
-			Actions.Sort(QueuedAction.Compare);
+			Actions.Sort(LinkedAction.Compare);
 		}
 
 		/// <summary>
 		/// Checks for cycles in the action graph.
 		/// </summary>
-		static void DetectActionGraphCycles(List<QueuedAction> Actions, Dictionary<FileItem, QueuedAction> ItemToProducingAction)
+		static void DetectActionGraphCycles(List<LinkedAction> Actions, Dictionary<FileItem, LinkedAction> ItemToProducingAction)
 		{
 			// Starting with actions that only depend on non-produced items, iteratively expand a set of actions that are only dependent on
 			// non-cyclical actions.
-			Dictionary<QueuedAction, bool> ActionIsNonCyclical = new Dictionary<QueuedAction, bool>();
-			Dictionary<QueuedAction, List<QueuedAction>> CyclicActions = new Dictionary<QueuedAction, List<QueuedAction>>();
+			Dictionary<LinkedAction, bool> ActionIsNonCyclical = new Dictionary<LinkedAction, bool>();
+			Dictionary<LinkedAction, List<LinkedAction>> CyclicActions = new Dictionary<LinkedAction, List<LinkedAction>>();
 			while (true)
 			{
 				bool bFoundNewNonCyclicalAction = false;
 
-				foreach (QueuedAction Action in Actions)
+				foreach (LinkedAction Action in Actions)
 				{
 					if (!ActionIsNonCyclical.ContainsKey(Action))
 					{
@@ -334,7 +334,7 @@ namespace UnrealBuildTool
 						bool bActionOnlyDependsOnNonCyclicalActions = true;
 						foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
 						{
-							QueuedAction ProducingAction;
+							LinkedAction ProducingAction;
 							if (ItemToProducingAction.TryGetValue(PrerequisiteItem, out ProducingAction))
 							{
 								if (!ActionIsNonCyclical.ContainsKey(ProducingAction))
@@ -342,10 +342,10 @@ namespace UnrealBuildTool
 									bActionOnlyDependsOnNonCyclicalActions = false;
 									if (!CyclicActions.ContainsKey(Action))
 									{
-										CyclicActions.Add(Action, new List<QueuedAction>());
+										CyclicActions.Add(Action, new List<LinkedAction>());
 									}
 
-									List<QueuedAction> CyclicPrereq = CyclicActions[Action];
+									List<LinkedAction> CyclicPrereq = CyclicActions[Action];
 									if (!CyclicPrereq.Contains(ProducingAction))
 									{
 										CyclicPrereq.Add(ProducingAction);
@@ -379,7 +379,7 @@ namespace UnrealBuildTool
 			if (ActionIsNonCyclical.Count < Actions.Count)
 			{
 				// Find the index of each action
-				Dictionary<QueuedAction, int> ActionToIndex = new Dictionary<QueuedAction, int>();
+				Dictionary<LinkedAction, int> ActionToIndex = new Dictionary<LinkedAction, int>();
 				for(int Idx = 0; Idx < Actions.Count; Idx++)
 				{
 					ActionToIndex[Actions[Idx]] = Idx;
@@ -387,7 +387,7 @@ namespace UnrealBuildTool
 
 				// Describe the cyclical actions.
 				string CycleDescription = "";
-				foreach (QueuedAction Action in Actions)
+				foreach (LinkedAction Action in Actions)
 				{
 					if (!ActionIsNonCyclical.ContainsKey(Action))
 					{
@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 						CycleDescription += string.Format("\tDepends on cyclic actions:\n");
 						if (CyclicActions.ContainsKey(Action))
 						{
-							foreach (QueuedAction CyclicPrerequisiteAction in CyclicActions[Action])
+							foreach (LinkedAction CyclicPrerequisiteAction in CyclicActions[Action])
 							{
 								if (CyclicActions.ContainsKey(CyclicPrerequisiteAction))
 								{
@@ -443,10 +443,10 @@ namespace UnrealBuildTool
 		/// <param name="Actions">All the actions in the graph</param>
 		/// <param name="OutputItems">Set of output items to be built</param>
 		/// <returns>Set of prerequisite actions</returns>
-		public static List<QueuedAction> GatherPrerequisiteActions(List<QueuedAction> Actions, HashSet<FileItem> OutputItems)
+		public static List<LinkedAction> GatherPrerequisiteActions(List<LinkedAction> Actions, HashSet<FileItem> OutputItems)
 		{
-			HashSet<QueuedAction> PrerequisiteActions = new HashSet<QueuedAction>();
-			foreach(QueuedAction Action in Actions)
+			HashSet<LinkedAction> PrerequisiteActions = new HashSet<LinkedAction>();
+			foreach(LinkedAction Action in Actions)
 			{
 				if(Action.ProducedItems.Any(x => OutputItems.Contains(x)))
 				{
@@ -461,11 +461,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Action">The root action to scan</param>
 		/// <param name="PrerequisiteActions">Set of prerequisite actions</param>
-		private static void GatherPrerequisiteActions(QueuedAction Action, HashSet<QueuedAction> PrerequisiteActions)
+		private static void GatherPrerequisiteActions(LinkedAction Action, HashSet<LinkedAction> PrerequisiteActions)
 		{
 			if(PrerequisiteActions.Add(Action))
 			{
-				foreach(QueuedAction PrerequisiteAction in Action.PrerequisiteActions)
+				foreach(LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
 				{
 					GatherPrerequisiteActions(PrerequisiteAction, PrerequisiteActions);
 				}
@@ -482,7 +482,7 @@ namespace UnrealBuildTool
 		/// <param name="CppDependencies"></param>
 		/// <param name="bIgnoreOutdatedImportLibraries"></param>
 		/// <returns>true if outdated</returns>
-		public static bool IsActionOutdated(QueuedAction RootAction, Dictionary<QueuedAction, bool> OutdatedActionDictionary, ActionHistory ActionHistory, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
+		public static bool IsActionOutdated(LinkedAction RootAction, Dictionary<LinkedAction, bool> OutdatedActionDictionary, ActionHistory ActionHistory, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
 		{
 			// Only compute the outdated-ness for actions that don't aren't cached in the outdated action dictionary.
 			bool bIsOutdated = false;
@@ -543,7 +543,7 @@ namespace UnrealBuildTool
 			// Check if any of the prerequisite actions are out of date
 			if (!bIsOutdated)
 			{
-				foreach (QueuedAction PrerequisiteAction in RootAction.PrerequisiteActions)
+				foreach (LinkedAction PrerequisiteAction in RootAction.PrerequisiteActions)
 				{
 					if (IsActionOutdated(PrerequisiteAction, OutdatedActionDictionary, ActionHistory, CppDependencies, bIgnoreOutdatedImportLibraries))
 					{
@@ -632,7 +632,7 @@ namespace UnrealBuildTool
 		/// <param name="RootAction">The action to check</param>
 		/// <param name="PrerequisiteAction">The action that it depends on</param>
 		/// <returns>True if the only dependency between two actions is for an import library</returns>
-		static bool IsImportLibraryDependency(QueuedAction RootAction, QueuedAction PrerequisiteAction)
+		static bool IsImportLibraryDependency(LinkedAction RootAction, LinkedAction PrerequisiteAction)
 		{
 			if(PrerequisiteAction.bProducesImportLibrary)
 			{
@@ -650,11 +650,11 @@ namespace UnrealBuildTool
 		/// <param name="RootAction">The action to check</param>
 		/// <param name="PrerequisiteItem">The dependency that is out of date</param>
 		/// <returns>True if the only dependency between two actions is for an import library</returns>
-		static bool IsImportLibraryDependency(QueuedAction RootAction, FileItem PrerequisiteItem)
+		static bool IsImportLibraryDependency(LinkedAction RootAction, FileItem PrerequisiteItem)
 		{
 			if(PrerequisiteItem.Location.HasExtension(".lib"))
 			{
-				foreach(QueuedAction PrerequisiteAction in RootAction.PrerequisiteActions)
+				foreach(LinkedAction PrerequisiteAction in RootAction.PrerequisiteActions)
 				{
 					if(PrerequisiteAction.bProducesImportLibrary && PrerequisiteAction.ProducedItems.Contains(PrerequisiteItem))
 					{
@@ -669,12 +669,12 @@ namespace UnrealBuildTool
 		/// Builds a dictionary containing the actions from AllActions that are outdated by calling
 		/// IsActionOutdated.
 		/// </summary>
-		public static void GatherAllOutdatedActions(IEnumerable<QueuedAction> Actions, ActionHistory ActionHistory, Dictionary<QueuedAction, bool> OutdatedActions, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
+		public static void GatherAllOutdatedActions(IEnumerable<LinkedAction> Actions, ActionHistory ActionHistory, Dictionary<LinkedAction, bool> OutdatedActions, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
 		{
 			using(Timeline.ScopeEvent("Prefetching include dependencies"))
 			{
 				List<FileItem> Dependencies = new List<FileItem>();
-				foreach(QueuedAction Action in Actions)
+				foreach(LinkedAction Action in Actions)
 				{
 					if(Action.DependencyListFile != null)
 					{
@@ -693,9 +693,9 @@ namespace UnrealBuildTool
 		/// Deletes all the items produced by actions in the provided outdated action dictionary.
 		/// </summary>
 		/// <param name="OutdatedActions">List of outdated actions</param>
-		public static void DeleteOutdatedProducedItems(List<QueuedAction> OutdatedActions)
+		public static void DeleteOutdatedProducedItems(List<LinkedAction> OutdatedActions)
 		{
-			foreach(QueuedAction OutdatedAction in OutdatedActions)
+			foreach(LinkedAction OutdatedAction in OutdatedActions)
 			{
 				foreach (FileItem DeleteItem in OutdatedAction.DeleteItems)
 				{
@@ -712,10 +712,10 @@ namespace UnrealBuildTool
 		/// Creates directories for all the items produced by actions in the provided outdated action
 		/// dictionary.
 		/// </summary>
-		public static void CreateDirectoriesForProducedItems(List<QueuedAction> OutdatedActions)
+		public static void CreateDirectoriesForProducedItems(List<LinkedAction> OutdatedActions)
 		{
 			HashSet<DirectoryReference> OutputDirectories = new HashSet<DirectoryReference>();
-			foreach(QueuedAction OutdatedAction in OutdatedActions)
+			foreach(LinkedAction OutdatedAction in OutdatedActions)
 			{
 				foreach(FileItem ProducedItem in OutdatedAction.ProducedItems)
 				{

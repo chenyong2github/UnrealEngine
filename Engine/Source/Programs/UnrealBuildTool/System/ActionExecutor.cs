@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 			get;
 		}
 
-		public abstract bool ExecuteActions(List<QueuedAction> ActionsToExecute);
+		public abstract bool ExecuteActions(List<LinkedAction> ActionsToExecute);
 	}
 
 }
