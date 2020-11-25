@@ -136,10 +136,9 @@ protected:
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Index, bool bAttemptFileMapping, int32 ElementSize);
 
 public:
-	// Unimplemented:
 	void* Lock(uint32 LockFlags);
 	const void* LockReadOnly() const;
-	void Unlock();
+	void Unlock() const;
 	bool IsLocked() const;
 
 	void* Realloc(int64 SizeInBytes);

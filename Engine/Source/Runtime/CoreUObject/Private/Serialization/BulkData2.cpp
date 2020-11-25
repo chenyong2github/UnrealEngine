@@ -944,7 +944,7 @@ const void* FBulkDataBase::LockReadOnly() const
 	return GetDataBufferReadOnly();
 }
 
-void FBulkDataBase::Unlock()
+void FBulkDataBase::Unlock() const
 {
 	checkf(LockStatus != LOCKSTATUS_Unlocked, TEXT("Attempting to unlock a BulkData object that is not locked"));
 	LockStatus = LOCKSTATUS_Unlocked;
@@ -952,7 +952,9 @@ void FBulkDataBase::Unlock()
 	// Free pointer if we're guaranteed to only to access the data once.
 	if (IsSingleUse())
 	{
-		FreeData();
+		// Cast away const so that we can match the original bulkdata api
+		// which had ::Unlock as const too.
+		const_cast<FBulkDataBase*>(this)->FreeData();
 	}
 }
 
