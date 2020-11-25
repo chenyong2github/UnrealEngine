@@ -43,14 +43,18 @@ namespace Lumen
 {
 	bool UseIrradianceAtlas()
 	{
-		return UseHardwareRayTracedReflections() &&
-			(GetHardwareRayTracedReflectionsLightingMode() == EHardwareRayTracedReflectionsLightingMode::EvaluateMaterial);
+		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
+		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
+		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
+		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
 	}
 
 	bool UseIndirectIrradianceAtlas()
 	{
-		return UseHardwareRayTracedReflections() &&
-			(GetHardwareRayTracedReflectionsLightingMode() == EHardwareRayTracedReflectionsLightingMode::EvaluateMaterialAndDirectLighting);
+		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
+		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
+		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
+		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
 	}
 }
 

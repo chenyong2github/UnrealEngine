@@ -311,7 +311,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		TRefCountPtr<IPooledRenderTarget> ResultSceneColor;
 		ConvertToExternalTexture(GraphBuilder, SceneColor, ResultSceneColor);
 
-		RenderScreenProbeGatherVisualizeHardwareTraces(GraphBuilder, View, SceneColor);
 		RenderScreenProbeGatherVisualizeTraces(GraphBuilder, View, SceneColor);
 
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
@@ -365,20 +364,9 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 					GraphBuilder,
 					MeshSDFGridParameters);
 			}
-
-			extern bool ShouldVisualizeLumenHardwareRayTracingPrimaryRay();
 			
-			if (ShouldVisualizeLumenHardwareRayTracingPrimaryRay())
+			if (Lumen::ShouldVisualizeHardwareRayTracing())
 			{
-				extern void VisualizeLumenHardwareRayTracingPrimaryRay(FRDGBuilder & GraphBuilder,
-					const FScene * Scene,
-					const FViewInfo & View,
-					const FLumenCardTracingInputs & TracingInputs,
-					FLumenMeshSDFGridParameters & MeshSDFGridParameters,
-					FLumenIndirectTracingParameters & IndirectTracingParameters,
-					const LumenRadianceCache::FRadianceCacheParameters & RadianceCacheParameters,
-					FRDGTextureRef SceneColor);
-
 				FLumenIndirectTracingParameters IndirectTracingParameters;
 				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;
 				IndirectTracingParameters.MinTraceDistance = VisualizeParameters.MinTraceDistance;
@@ -387,8 +375,16 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
 				LumenRadianceCache::GetParameters(View, GraphBuilder, RadianceCacheParameters);
 				
-				VisualizeLumenHardwareRayTracingPrimaryRay(GraphBuilder, Scene, View,
-					TracingInputs, MeshSDFGridParameters, IndirectTracingParameters, RadianceCacheParameters, SceneColor);
+				VisualizeHardwareRayTracing(
+					GraphBuilder,
+					Scene,
+					GetSceneTextureParameters(GraphBuilder),
+					View,
+					TracingInputs,
+					MeshSDFGridParameters,
+					IndirectTracingParameters,
+					RadianceCacheParameters,
+					SceneColor);
 			}
 			else
 			{

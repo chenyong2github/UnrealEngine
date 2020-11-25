@@ -1,0 +1,52 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// TODO: Remove hair dependency
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
+#include "../Common.ush"
+#include "../MonteCarlo.ush"
+#include "../SceneTextureParameters.ush"
+
+#include "LumenCardCommon.ush"
+#include "LumenTracingCommon.ush"
+#include "LumenReflectionCommon.ush"
+#include "LumenHardwareRayTracingCommon.ush"
+
+RWTexture2D<float> RWTraceHit;
+RWTexture2D<float3> RWRadiance;
+
+RaytracingAccelerationStructure TLAS;
+
+int LightingMode;
+int NormalMode;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
+{
+	uint2 TraceCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
+	uint LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
+
+	float HitDistance = 0;
+	bool bHit = false;
+
+	// Viewport guard
+	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
+	{
+		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+		RayDesc Ray = CreatePrimaryRay(ScreenUV);
+
+		FRayCone RayCone = (FRayCone)0;
+		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
+		//float SurfaceCurvature = 0;
+		//RayCone = PropagateRayCone(RayCone, SurfaceCurvature, SceneDepth);
+
+		FRayTracedLightingContext Context;
+		Context.TLAS = TLAS;
+		Context.RayCone = RayCone;
+		Context.TraceCoord = TraceCoord;
+		Context.LinearCoord = LinearCoord;
+
+		float3 Radiance;
+		bHit = CalculateRayTracedLighting(Ray, Context, LightingMode, NormalMode, HitDistance, Radiance);
+		RWRadiance[TraceCoord] = Radiance;
+	}
+}

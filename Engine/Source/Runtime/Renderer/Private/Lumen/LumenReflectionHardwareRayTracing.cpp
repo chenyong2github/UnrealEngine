@@ -16,6 +16,7 @@
 #if RHI_RAYTRACING
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingLighting.h"
+#include "LumenHardwareRayTracingCommon.h"
 
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracing(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing"),
@@ -34,7 +35,7 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightin
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalType(
+static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalMode(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.NormalMode"),
 	0,
 	TEXT("Determines the tracing normal (Default = 0)\n")
@@ -42,7 +43,7 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalT
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
 );
-#endif
+#endif // RHI_RAYTRACING
 
 namespace Lumen
 {
@@ -55,60 +56,48 @@ namespace Lumen
 #endif
 	}
 
-	EHardwareRayTracedReflectionsLightingMode GetHardwareRayTracedReflectionsLightingMode()
+	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode()
 	{
 #if RHI_RAYTRACING
-		return EHardwareRayTracedReflectionsLightingMode(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
+		return EHardwareRayTracingLightingMode(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
 #else
-		return EHardwareRayTracedReflectionsLightingMode::LightingFromSurfaceCache;
+		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
 	}
 
-	const TCHAR* GetLightingModeName(EHardwareRayTracedReflectionsLightingMode LightingMode)
+	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode)
 	{
 		switch (LightingMode)
 		{
-		case EHardwareRayTracedReflectionsLightingMode::LightingFromSurfaceCache:
+		case EHardwareRayTracingLightingMode::LightingFromSurfaceCache:
 			return TEXT("LightingFromSurfaceCache");
-		case EHardwareRayTracedReflectionsLightingMode::EvaluateMaterial:
+		case EHardwareRayTracingLightingMode::EvaluateMaterial:
 			return TEXT("EvaluateMaterial");
-		case EHardwareRayTracedReflectionsLightingMode::EvaluateMaterialAndDirectLighting:
+		case EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting:
 			return TEXT("EvaluateMaterialAndDirectLighting");
 		default:
-			checkf(0, TEXT("Unhandled EHardwareRayTracedReflectionsLightingMode"));
+			checkf(0, TEXT("Unhandled EHardwareRayTracingLightingMode"));
 		}
 		return nullptr;
 	}
 }
 
 #if RHI_RAYTRACING
-class FLumenReflectionHardwareRayTracingRGS : public FGlobalShader
+class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 {
 	DECLARE_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingRGS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenReflectionHardwareRayTracingRGS, FGlobalShader)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenReflectionHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FNormalModeDim : SHADER_PERMUTATION_BOOL("DIM_NORMAL_MODE");
+	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX));
+	using FPermutationDomain = TShaderPermutationDomain<FNormalModeDim, FLightingModeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		// Scene includes
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		//SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-
-		// Lighting structures
-		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
-		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
-
-		// Surface cache
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 		
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
-		SHADER_PARAMETER(int, LightingMode)
-		SHADER_PARAMETER(int, NormalType)
 
 		// Reflection-specific includes (includes output targets)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
@@ -117,13 +106,8 @@ class FLumenReflectionHardwareRayTracingRGS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		bool bEnableMissShaderLighting = false;
-		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_MISS_SHADER"), bEnableMissShaderLighting);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);//DoesPlatformSupportLumenGI(Parameters.Platform);
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
 	}
 };
 
@@ -133,8 +117,18 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 {
 	FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 
-	TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
-	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	for (int32 LightingMode = 0; LightingMode < static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX); ++LightingMode)
+	{
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+
+		for (int32 NormalMode = 0; NormalMode < 2; ++NormalMode)
+		{
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
+
+			TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
+			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+		}
+	}
 }
 #endif
 
@@ -152,32 +146,33 @@ void RenderLumenHardwareRayTracingReflections(
 {
 #if RHI_RAYTRACING
 	FLumenReflectionHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracingRGS::FParameters>();
-	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
-
-	// Lighting data
-	PassParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
-	PassParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
-	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
-	PassParameters->LightingMode = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
-	PassParameters->NormalType = CVarLumenReflectionsHardwareRayTracingNormalType.GetValueOnRenderThread();
-
-	// Use surface cache, instead
-	GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-	PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+	SetLumenHardwareRayTracingSharedParameters(
+		GraphBuilder,
+		SceneTextures,
+		View,
+		TracingInputs,
+		MeshSDFGridParameters,
+		&PassParameters->SharedParameters
+	);
 	PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+	PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
+	int LightingMode = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
+	int NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
 
 	PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 	PassParameters->ReflectionTileParameters = ReflectionTileParameters;
-	PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
 
 	FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
+	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+
 	TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader =
 		View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", ReflectionTracingParameters.ReflectionTracingViewSize.X, ReflectionTracingParameters.ReflectionTracingViewSize.Y, Lumen::GetLightingModeName((Lumen::EHardwareRayTracedReflectionsLightingMode)PassParameters->LightingMode)),
+		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", ReflectionTracingParameters.ReflectionTracingViewSize.X, ReflectionTracingParameters.ReflectionTracingViewSize.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode)LightingMode)),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, &View, RayGenerationShader, ReflectionTracingParameters](FRHICommandList& RHICmdList)

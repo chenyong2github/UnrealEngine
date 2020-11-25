@@ -17,8 +17,6 @@ namespace Lumen
 	bool ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform);
 	float GetDistanceSceneNaniteLODScaleFactor();
 	float GetMaxTraceDistance();
-	bool UseHardwareRayTracedShadows(const FViewInfo& View);
-	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseIrradianceAtlas();
 	bool UseIndirectIrradianceAtlas();
 	bool AnyLumenHardwareRayTracingPassEnabled();
@@ -28,16 +26,25 @@ namespace Lumen
 	bool ShouldRenderLumenForViewWithoutMeshSDFs(const FScene* Scene, const FViewInfo& View);
 	bool ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View);
 	bool ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View);
+	bool ShouldVisualizeHardwareRayTracing();
 
 	// Hardware ray-traced reflections
 	bool UseHardwareRayTracedReflections();
-	enum class EHardwareRayTracedReflectionsLightingMode
+	bool UseHardwareRayTracedScreenProbeGather();
+	bool UseHardwareRayTracedShadows(const FViewInfo& View);
+
+	enum class EHardwareRayTracingLightingMode
 	{
 		LightingFromSurfaceCache = 0,
 		EvaluateMaterial,
-		EvaluateMaterialAndDirectLighting
+		EvaluateMaterialAndDirectLighting,
+		MAX
 	};
-	EHardwareRayTracedReflectionsLightingMode GetHardwareRayTracedReflectionsLightingMode();
+	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode();
+	EHardwareRayTracingLightingMode GetScreenProbeGatherHardwareRayTracingLightingMode();
+	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode();
+
+	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
 };
 
 extern int32 GLumenFastCameraMode;

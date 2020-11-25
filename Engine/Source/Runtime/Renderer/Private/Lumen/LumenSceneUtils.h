@@ -415,6 +415,17 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledNormal)	
 END_SHADER_PARAMETER_STRUCT()
 
+void VisualizeHardwareRayTracing(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	FLumenIndirectTracingParameters& IndirectTracingParameters,
+	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	FRDGTextureRef SceneColor);
+
 extern void CullMeshSDFObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,

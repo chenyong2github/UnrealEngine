@@ -1,0 +1,220 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#define SUPPORT_CONTACT_SHADOWS 0
+#define USE_HAIR_LIGHTING 0
+
+// Additional rewiring to make DeferredShadingCommon happy
+#define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
+#define LTCMatSampler				GlobalBilinearClampedSampler
+#define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
+#define LTCAmpSampler				GlobalBilinearClampedSampler
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
+
+#include "../RayTracing/RayTracingCommon.ush"
+#include "../RayTracing/RayTracingDeferredShadingCommon.ush"
+#include "../RayTracing/RayTracingLightingCommon.ush"
+
+#define DEBUG_EVALUATE_LIGHTING 1
+#define HIDE_INVALID_SDF 0
+
+// Lighting modes
+#define LIGHTING_FROM_SURFACE_CACHE 0
+#define EVALUATE_MATERIAL 1
+#define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
+
+// Normal modes
+#define SDF_NORMAL_TYPE 0
+#define GEOMETRIC_NORMAL_TYPE 1
+
+uint GetAtlasId(int Mode)
+{
+	uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
+	if (Mode == EVALUATE_MATERIAL)
+	{
+		AtlasId = IRRADIANCE_ATLAS_ID;
+	}
+	else if (Mode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
+	{
+		AtlasId = INDIRECT_IRRADIANCE_ATLAS_ID;
+	}
+	return AtlasId;
+}
+
+#define INVALID_INSTANCE_ID	0x7fffffff
+#define INVALID_DF_OBJECT 0x7fffffff
+bool IsValidDFObject(inout FPackedMaterialClosestHitPayload Payload, out int DFObjectIndex)
+{
+	DFObjectIndex = INVALID_DF_OBJECT;
+	if (Payload.GetInstanceID() != INVALID_INSTANCE_ID)
+	{
+		DFObjectIndex = LumenCardScene.PrimitiveToDFObjectIndexBuffer.Load(Payload.GetInstanceID() * 4);
+	}
+	return DFObjectIndex != INVALID_DF_OBJECT;
+}
+
+struct FRayTracedLightingContext
+{
+	RaytracingAccelerationStructure TLAS;
+	FRayCone RayCone;
+	uint2 TraceCoord;
+	uint LinearCoord;
+};
+
+bool CalculateRayTracedLighting(
+	in RayDesc Ray,
+	in FRayTracedLightingContext Context,
+	int LightingMode,
+	int NormalMode,
+	inout float HitDistance,
+	inout float3 Radiance
+)
+{
+	HitDistance = Ray.TMax;
+	Radiance = 0;
+	bool bHit = false;
+
+	uint RayFlags = 0;
+	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
+	bool bEnableSkyLightContribution = false;
+
+	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+	Payload.SetLumenPayload();
+	if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
+	{
+		Payload.SetMinimalPayloadMode();
+	}
+
+	// Trace visibility ray
+	TraceMaterialRayPacked(
+		Payload,
+		Context.TLAS,
+		RayFlags,
+		InstanceMask,
+		Ray,
+		Context.RayCone,
+		Context.TraceCoord,
+		bEnableSkyLightContribution);
+
+	bool bIsRTHit = Payload.IsHit();
+	if (bIsRTHit)
+	{
+		int DFObjectIndex = INVALID_DF_OBJECT;
+		bool bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
+
+#if HIDE_INVALID_SDF
+		while (bIsRTHit && !bIsValidDFObject)
+		{
+			float Epsilon = 0.01;
+			Ray.TMin = Payload.HitT + Epsilon;
+			// Reset payload flag settings for the new trace
+			Payload.SetLumenPayload();
+			if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
+			{
+				Payload.SetMinimalPayloadMode();
+			}
+
+			// Trace visibility ray
+			TraceMaterialRayPacked(
+				Payload,
+				Context.TLAS,
+				RayFlags,
+				InstanceMask,
+				Ray,
+				Context.RayCone,
+				TraceCoord,
+				bEnableSkyLightContribution);
+			bIsRTHit = Payload.IsHit();
+			bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
+		}
+#else
+		HitDistance = Payload.HitT;
+		bHit = true;
+#endif
+
+		if (bIsValidDFObject)
+		{
+			HitDistance = Payload.HitT;
+			bHit = true;
+#if DEBUG_EVALUATE_LIGHTING
+			float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
+			bool bAccurateHit = false;
+
+			float3 RayHitWorldNormal = 0;
+			if (NormalMode == SDF_NORMAL_TYPE)
+			{
+				FTraceMeshSDFResult TraceMeshSDFResult;
+				TraceMeshSDFResult.HitDistance = HitDistance;
+				TraceMeshSDFResult.HitObject = DFObjectIndex;
+
+				FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(Ray.Origin, Ray.Direction, HitDistance, TraceMeshSDFResult);
+				RayHitWorldNormal = TraceSDFData.HitNormal;
+				bAccurateHit = TraceSDFData.bAccurateHit;
+			}
+			else
+			{
+				RayHitWorldNormal = Payload.GetWorldNormal();
+				RayHitWorldNormal = dot(Ray.Direction, RayHitWorldNormal) < 0 ? RayHitWorldNormal : -RayHitWorldNormal;
+			}
+
+			// Perform direct lighting
+			if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
+			{
+				RandomSequence RandSequence;
+				uint SampleOffset = 0;
+				RandomSequence_Initialize(RandSequence, Context.LinearCoord, View.StateFrameIndex + SampleOffset * 16);
+				float MaxNormalBias = 0.05;
+				uint ReflectedShadowsType = 2;
+				bool bShouldDoDirectLighting = true;
+				bool bShouldDoEmissiveAndIndirectLighting = false;
+				bool bTopLayerRayTraceSkyLightContribution = false;
+				bool bDecoupleSampleGeneration = false;
+
+				float3 DirectLighting = 0.0f;
+				AccumulateResults(
+					Payload,
+					RayHitWorldPosition,
+					Ray.Direction,
+					Context.TLAS,
+					RandSequence,
+					Context.TraceCoord,
+					MaxNormalBias,
+					ReflectedShadowsType,
+					bShouldDoDirectLighting,
+					bShouldDoEmissiveAndIndirectLighting,
+					bTopLayerRayTraceSkyLightContribution,
+					bDecoupleSampleGeneration,
+					Context.RayCone,
+					DirectLighting);
+				Radiance = DirectLighting;
+			}
+
+			float InterpolateRadius = tan(Context.RayCone.SpreadAngle) * HitDistance;
+			//@todo - derive from card texel size
+			float CardInterpolateDepthVisibilityRadius = 10;
+			// Mode and AtlasId enums are coupled
+			uint AtlasId = GetAtlasId(LightingMode);
+
+			float3 ResidualLighting = SampleLumenCubeMapTree(
+				DFObjectIndex,
+				RayHitWorldPosition,
+				RayHitWorldNormal,
+				InterpolateRadius,
+				bAccurateHit,
+				CardInterpolateDepthVisibilityRadius,
+				AtlasId);
+
+			// Apply shading when evaluating the material
+			if (LightingMode != LIGHTING_FROM_SURFACE_CACHE)
+			{
+				ResidualLighting *= Diffuse_Lambert(Payload.GetDiffuseColor());
+			}
+			Radiance += ResidualLighting;
+#endif // DEBUG_EVALUATE_LIGHTING
+		}
+
+		Radiance *= View.PreExposure;
+	}
+
+	return bHit;
+}

@@ -1,31 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Not sure why either of these is necessary to successfully compile
-#define SUPPORT_CONTACT_SHADOWS 0
+// TODO: Remove hair dependency
 #include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 
 #include "../Common.ush"
-
-// Additional rewiring to make DeferredShadingCommon happy
-#define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
-#define LTCMatSampler				GlobalBilinearClampedSampler
-#define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
-#define LTCAmpSampler				GlobalBilinearClampedSampler
-#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
-#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
-
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
 
-#define UE_RAY_TRACING_DISPATCH_1D 1
-#include "../RayTracing/RayTracingCommon.ush"
-#include "../RayTracing/RayTracingDeferredShadingCommon.ush"
-#include "../RayTracing/RayTracingLightingCommon.ush"
-
 #include "LumenCardCommon.ush"
-#include "LumenReflectionCommon.ush"
 #include "LumenTracingCommon.ush"
-#include "LumenRadianceCacheCommon.ush"
+#include "LumenReflectionCommon.ush"
+#include "LumenHardwareRayTracingCommon.ush"
 
 RWTexture2D<float> RWTraceHit;
 RWTexture2D<float3> RWTraceRadiance;
@@ -33,216 +18,48 @@ RWTexture2D<float3> RWTraceRadiance;
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
 
-#define EVALUATE_LIGHTING 1
-#define IGNORE_INVALID_SDF 1
-
-#define LIGHTING_FROM_SURFACE_CACHE 0
-#define EVALUATE_MATERIAL 1
-#define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
-int LightingMode;
-
-#define SDF_NORMAL_TYPE 0
-#define GEOMETRIC_NORMAL_TYPE 1
-int NormalType;
-
-uint GetAtlasId(int LightingMode)
-{
-	uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-	if (LightingMode == EVALUATE_MATERIAL)
-	{
-		AtlasId = IRRADIANCE_ATLAS_ID;
-	}
-	else if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
-	{
-		AtlasId = INDIRECT_IRRADIANCE_ATLAS_ID;
-	}
-	return AtlasId;
-}
-
-// @todo Unify with LumenScreenProbeHardwareTracing.usf
-#define INVALID_INSTANCE_ID	0x7fffffff
-#define INVALID_DF_OBJECT 0x7fffffff
-bool IsValidDFObject(inout FPackedMaterialClosestHitPayload Payload, out int DFObjectIndex)
-{
-	DFObjectIndex = INVALID_DF_OBJECT;
-	if (Payload.GetInstanceID() != INVALID_INSTANCE_ID)
-	{
-		DFObjectIndex = LumenCardScene.PrimitiveToDFObjectIndexBuffer.Load(Payload.GetInstanceID() * 4);
-	}
-	return DFObjectIndex != INVALID_DF_OBJECT;
-}
 
 RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 {
 	if (DispatchRaysIndex().x < CompactedTraceTexelAllocator[0])
 	{
 		uint2 ReflectionTracingCoord;
-		float TMin;
-		DecodeTraceTexel(CompactedTraceTexelData[DispatchRaysIndex().x], ReflectionTracingCoord, TMin);
+		float TraceHitDistance = 0;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchRaysIndex().x], ReflectionTracingCoord, TraceHitDistance);
 
 		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
-		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+		float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
+		uint LinearCoord = ScreenCoord.y * View.BufferSizeAndInvSize.x + ScreenCoord.x;
 
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+
 		FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
 
 		RayDesc Ray;
 		Ray.Origin = WorldPosition;
 		Ray.Direction = RayData.Direction;
 		float RayBias = 0.05;
-		Ray.TMin = max(TMin, RayBias);
+		Ray.TMin = max(TraceHitDistance, RayBias);
 		Ray.TMax = MaxTraceDistance;
 
-		uint RayFlags = 0;
-		uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
+		float NormalBias = 0.05;
+		ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
+
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 		RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
-		bool bEnableSkyLightContribution = false;
 
-		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-		Payload.SetLumenPayload();
-		if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
-		{
-			Payload.SetMinimalPayloadMode();
-		}
+		FRayTracedLightingContext Context;
+		Context.TLAS = TLAS;
+		Context.RayCone = RayCone;
+		Context.TraceCoord = ReflectionTracingCoord;
+		Context.LinearCoord = LinearCoord;
 
-		TraceMaterialRayPacked(
-			Payload,
-			TLAS,
-			RayFlags,
-			InstanceMask,
-			Ray,
-			RayCone,
-			ReflectionTracingCoord,
-			bEnableSkyLightContribution);
-
-		bool bIsRTHit = Payload.IsHit();
-		int DFObjectIndex = INVALID_DF_OBJECT;
-		bool bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
-
-#if !IGNORE_INVALID_SDF
-		while (bIsRTHit && !bIsValidDFObject)
-		{
-			float Epsilon = 0.01;
-			Ray.TMin = Payload.HitT + Epsilon;
-			// Reset payload flag settings for the new trace
-			Payload.SetLumenPayload();
-			if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
-			{
-				Payload.SetMinimalPayloadMode();
-			}
-
-			TraceMaterialRayPacked(
-				Payload,
-				TLAS,
-				RayFlags,
-				InstanceMask,
-				Ray,
-				RayCone,
-				ReflectionTracingCoord,
-				bEnableSkyLightContribution);
-			bIsRTHit = Payload.IsHit();
-			bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
-		}
-#endif
-
-		float HitDistance = Ray.TMax;
-		float3 Radiance = 0.0;
-		if (bIsRTHit && bIsValidDFObject)
-		{
-			HitDistance = Payload.HitT;
-#if EVALUATE_LIGHTING
-			float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
-			bool bAccurateHit = false;
-
-			float3 RayHitWorldNormal = 0;
-			if (NormalType == SDF_NORMAL_TYPE)
-			{
-				FTraceMeshSDFResult TraceMeshSDFResult;
-				TraceMeshSDFResult.HitDistance = HitDistance;
-				TraceMeshSDFResult.HitObject = DFObjectIndex;
-
-				FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(Ray.Origin, Ray.Direction, HitDistance, TraceMeshSDFResult);
-				RayHitWorldNormal = TraceSDFData.HitNormal;
-				bAccurateHit = TraceSDFData.bAccurateHit;
-			}
-			else
-			{
-				RayHitWorldNormal = Payload.GetWorldNormal();
-			}
-	
-			RayHitWorldNormal = dot(Ray.Direction, RayHitWorldNormal) < 0 ? RayHitWorldNormal : -RayHitWorldNormal;
-
-			// Perform direct lighting
-			if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
-			{
-				RandomSequence RandSequence;
-				uint SampleOffset = 0;
-				float2 ScreenCoord = ReflectionTracingCoord * ReflectionDownsampleFactor + View.ViewRectMin.xy + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + 0.5f;
-				uint LinearIndex = ScreenCoord.y * View.BufferSizeAndInvSize.x + ScreenCoord.x;
-				RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex + SampleOffset * 16);
-				float ReflectionMaxNormalBias = 0.05;
-				uint ReflectedShadowsType = 2;
-				bool bShouldDoDirectLighting = true;
-				bool bShouldDoEmissiveAndIndirectLighting = false;
-				bool bTopLayerRayTraceSkyLightContribution = false;
-				bool bDecoupleSampleGeneration = false;
-
-				float3 DirectLighting = 0.0f;
-				AccumulateResults(
-					Payload,
-					RayHitWorldPosition,
-					Ray.Direction,
-					TLAS,
-					RandSequence,
-					ReflectionTracingCoord,
-					ReflectionMaxNormalBias,
-					ReflectedShadowsType,
-					bShouldDoDirectLighting,
-					bShouldDoEmissiveAndIndirectLighting,
-					bTopLayerRayTraceSkyLightContribution,
-					bDecoupleSampleGeneration,
-					RayCone,
-					DirectLighting);
-				Radiance = DirectLighting;
-			}
-
-			float ConeHalfAngle = View.EyeToPixelSpreadAngle;
-			//float InterpolateRadius = tan(ConeHalfAngle) * HitDistance;
-			float InterpolateRadius = 0.0 * HitDistance;
-			//@todo - derive from card texel size
-			float CardInterpolateDepthVisibilityRadius = 10;
-			// Mode and AtlasId enums are coupled
-			uint AtlasId = GetAtlasId(LightingMode);
-
-			float3 ResidualLighting = SampleLumenCubeMapTree(
-				DFObjectIndex,
-				RayHitWorldPosition,
-				RayHitWorldNormal,
-				InterpolateRadius,
-				bAccurateHit,
-				CardInterpolateDepthVisibilityRadius,
-				AtlasId);
-
-			// Apply shading when evaluating the material
-			if (LightingMode != LIGHTING_FROM_SURFACE_CACHE)
-			{
-				ResidualLighting *= Diffuse_Lambert(Payload.GetDiffuseColor());
-			}
-			Radiance += ResidualLighting;
-#else
-			// Debug visibility mask
-			Radiance = float3(1.0, 1.0, 0.0);
-#endif // EVALUATE_LIGHTING
-		}
-		else
-		{
-			bIsRTHit = false;
-		}
-		RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(HitDistance, bIsRTHit);
-
-		Radiance *= View.PreExposure;
+		float3 Radiance;
+		bool bHit = CalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
 		RWTraceRadiance[ReflectionTracingCoord] = Radiance;
+		RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
 	}
 }
