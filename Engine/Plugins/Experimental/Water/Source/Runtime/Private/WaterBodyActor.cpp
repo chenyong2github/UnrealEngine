@@ -893,15 +893,16 @@ void AWaterBody::UpdateActorIcon()
 		ActorIcon->SetVisibility(IsIconVisible());
 
 		UTexture2D* IconTexture = ActorIcon->Sprite;
-		if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
+		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 		{
 			if (CheckWaterBodyStatus() != EWaterBodyStatus::Valid)
 			{
-				IconTexture = WaterSubsystem->ErrorSprite;
+				IconTexture = WaterEditorServices->GetErrorSprite();
 			}
 			else
 			{
-				IconTexture = WaterSubsystem->GetWaterActorSprite(GetClass());
+				IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
 			}
 		}
 		FWaterIconHelper::UpdateSpriteComponent(this, IconTexture);

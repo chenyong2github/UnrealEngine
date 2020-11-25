@@ -150,12 +150,6 @@ public:
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterMeshesForRebuild();
-
-#if WITH_EDITOR
-	void RegisterWaterActorClassSprite(UClass* Class, UTexture2D* Sprite);
-	UTexture2D* GetWaterActorSprite(UClass* Class) const;
-#endif // WITH_EDITOR
-
 public:
 	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
 	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
@@ -171,18 +165,6 @@ public:
 	
 	UPROPERTY()
 	UStaticMesh* DefaultLakeMesh;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TMap<UClass*, UTexture2D*> WaterActorSprites;
-
-	UPROPERTY()
-	UTexture2D* DefaultWaterActorSprite;
-
-	UPROPERTY()
-	UTexture2D* ErrorSprite;
-#endif // WITH_EDITORONLY_DATA
-
 private:
 	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
 	void NotifyWaterEnabledChangedInternal(IConsoleVariable* CVar);
