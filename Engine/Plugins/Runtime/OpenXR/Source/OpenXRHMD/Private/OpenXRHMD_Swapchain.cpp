@@ -32,7 +32,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 	WaitInfo.next = nullptr;
 	WaitInfo.timeout = Timeout;
 
-	XrResult WaitResult;
+	XrResult WaitResult = XR_SUCCESS;
 	int RetryCount = 3;
 	do
 	{
