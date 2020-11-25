@@ -1435,10 +1435,21 @@ public:
 
 		if (ValidExtensions.Contains(FileExtension))
 		{
+			FString PackageName;
 			Filename.ReplaceInline(*PlatformSandboxPath, *SandboxFile->GetSandboxDirectory());
 			FString AssetSourcePath = SandboxFile->ConvertFromSandboxPath(*Filename);
 			FString StandardAssetSourcePath = FPaths::CreateStandardFilename(AssetSourcePath);
-			FString PackageName = FPackageName::FilenameToLongPackageName(StandardAssetSourcePath);
+			if (StandardAssetSourcePath.EndsWith(TEXT(".m.ubulk")))
+			{
+				// '.' is an 'invalid' character in a filename; FilenameToLongPackageName will fail.
+				FString BaseAssetSourcePath(StandardAssetSourcePath);
+				BaseAssetSourcePath.RemoveFromEnd(TEXT(".m.ubulk"));
+				PackageName = FPackageName::FilenameToLongPackageName(BaseAssetSourcePath);
+			}
+			else
+			{
+				PackageName = FPackageName::FilenameToLongPackageName(StandardAssetSourcePath);
+			}
 
 			PackageExtensions.AddUnique(PackageName, StandardAssetSourcePath);
 		}
