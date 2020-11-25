@@ -16,7 +16,7 @@ struct FViewportClick;
 struct FBoneSocketTarget;
 
 /** Base implementation for anim node edit modes */
-class FAnimNodeEditMode : public IAnimNodeEditMode
+class ANIMGRAPH_API FAnimNodeEditMode : public IAnimNodeEditMode
 {
 public:
 	FAnimNodeEditMode();
