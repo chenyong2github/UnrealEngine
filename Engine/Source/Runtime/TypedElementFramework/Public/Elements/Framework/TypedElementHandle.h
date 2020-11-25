@@ -9,127 +9,6 @@
 #include "TypedElementHandle.generated.h"
 
 /**
- * The most minimal representation of an element - its ID!
- * This type is not immediately useful on its own, but can be used to find an element from the element registry or an element list.
- * @note This is ref-counted like handles themselves are, so as long as an ID is available, the handle will be too.
- * @note IDs lack the information needed to auto-release on destruction, so must be manually released, either via the corresponding handle or their owner element registry.
- */
-struct TYPEDELEMENTFRAMEWORK_API FTypedElementId
-{
-public:
-	FTypedElementId()
-		: CombinedId(0)
-	{
-	}
-
-	FTypedElementId(const FTypedElementId&) = delete;
-	FTypedElementId& operator=(const FTypedElementId&) = delete;
-	
-	FTypedElementId(FTypedElementId&& InOther)
-		: CombinedId(InOther.CombinedId)
-	{
-		InOther.Private_DestroyNoRef();
-	}
-
-	FTypedElementId& operator=(FTypedElementId&& InOther)
-	{
-		if (this != &InOther)
-		{
-			CombinedId = InOther.CombinedId;
-
-			InOther.Private_DestroyNoRef();
-		}
-		return *this;
-	}
-
-	~FTypedElementId()
-	{
-		checkf(!IsSet(), TEXT("Element ID was still set during destruction! This will leak an element reference, and you should release this ID prior to destruction!"));
-	}
-
-	FORCEINLINE explicit operator bool() const
-	{
-		return IsSet();
-	}
-
-	/**
-	 * Has this ID been initialized to a valid element?
-	 */
-	FORCEINLINE bool IsSet() const
-	{
-		return TypeId != 0;
-	}
-
-	/**
-	 * Access the type ID portion of this element ID.
-	 */
-	FORCEINLINE FTypedHandleTypeId GetTypeId() const
-	{
-		return TypeId;
-	}
-
-	/**
-	 * Access the element ID portion of this element ID.
-	 */
-	FORCEINLINE FTypedHandleElementId GetElementId() const
-	{
-		return ElementId;
-	}
-
-	/**
-	 * Access the combined value of this element ID.
-	 * @note You typically don't want to store this directly as the element ID could be re-used.
-	 *       It is primarily useful as a secondary cache where something is keeping a reference to an element ID or element handle (eg, how UTypedElementList uses it internally).
-	 */
-	FORCEINLINE FTypedHandleCombinedId GetCombinedId() const
-	{
-		return CombinedId;
-	}
-
-	FORCEINLINE friend bool operator==(const FTypedElementId& InLHS, const FTypedElementId& InRHS)
-	{
-		return InLHS.CombinedId == InRHS.CombinedId;
-	}
-
-	FORCEINLINE friend bool operator!=(const FTypedElementId& InLHS, const FTypedElementId& InRHS)
-	{
-		return !(InLHS == InRHS);
-	}
-
-	friend inline uint32 GetTypeHash(const FTypedElementId& InElementId)
-	{
-		return GetTypeHash(InElementId.CombinedId);
-		
-	}
-
-	FORCEINLINE void Private_InitializeNoRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId)
-	{
-		TypeId = InTypeId;
-		ElementId = InElementId;
-	}
-
-	FORCEINLINE void Private_DestroyNoRef()
-	{
-		CombinedId = 0;
-	}
-
-	/** An unset element ID */
-	static const FTypedElementId Unset;
-
-private:
-	union
-	{
-		struct
-		{
-			// Note: These are arranged in this order to give CombinedId better hash distribution for GetTypeHash!
-			FTypedHandleCombinedId ElementId : TypedHandleElementIdBits;
-			FTypedHandleCombinedId TypeId : TypedHandleTypeIdBits;
-		};
-		FTypedHandleCombinedId CombinedId;
-	};
-};
-
-/**
  * A representation of an element that includes its handle data.
  * This type is the most standard way that an element is passed through to interfaces, and also the type that is stored in element lists.
  * C++ code may choose to use TTypedElement instead, which is a combination of an element handle and its associated element interface.
@@ -147,7 +26,7 @@ public:
 	{
 		if (InOther)
 		{
-			Private_InitializeAddRef(InOther.Id.GetTypeId(), InOther.Id.GetElementId(), *InOther.DataPtr);
+			Private_InitializeAddRef(*InOther.DataPtr);
 		}
 	}
 
@@ -159,15 +38,14 @@ public:
 
 			if (InOther)
 			{
-				Private_InitializeAddRef(InOther.Id.GetTypeId(), InOther.Id.GetElementId(), *InOther.DataPtr);
+				Private_InitializeAddRef(*InOther.DataPtr);
 			}
 		}
 		return *this;
 	}
 
 	FTypedElementHandle(FTypedElementHandle&& InOther)
-		: Id(MoveTemp(InOther.Id))
-		, DataPtr(InOther.DataPtr)
+		: DataPtr(InOther.DataPtr)
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 		, ReferenceId(InOther.ReferenceId)
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
@@ -185,7 +63,6 @@ public:
 		{
 			Private_DestroyReleaseRef();
 
-			Id = MoveTemp(InOther.Id);
 			DataPtr = InOther.DataPtr;
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 			ReferenceId = InOther.ReferenceId;
@@ -215,7 +92,7 @@ public:
 	 */
 	FORCEINLINE bool IsSet() const
 	{
-		return Id.IsSet();
+		return DataPtr != nullptr;
 	}
 
 	/**
@@ -231,7 +108,9 @@ public:
 	 */
 	FORCEINLINE const FTypedElementId& GetId() const
 	{
-		return Id;
+		return DataPtr
+			? DataPtr->GetId()
+			: FTypedElementId::Unset;
 	}
 
 	/**
@@ -241,7 +120,7 @@ public:
 	template <typename ElementDataType>
 	FORCEINLINE bool IsDataOfType() const
 	{
-		return Id.GetTypeId() == ElementDataType::StaticTypeId();
+		return GetId().GetTypeId() == ElementDataType::StaticTypeId();
 	}
 
 	/**
@@ -264,7 +143,7 @@ public:
 		{
 			if (!bSilent)
 			{
-				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), Id.GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString()), ELogVerbosity::Error);
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), GetId().GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString()), ELogVerbosity::Error);
 			}
 			return nullptr;
 		}
@@ -280,7 +159,7 @@ public:
 	FORCEINLINE const ElementDataType& GetDataChecked() const
 	{
 		checkf(DataPtr, TEXT("Element handle data is null!"));
-		checkf(IsDataOfType<ElementDataType>(), TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), Id.GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString());
+		checkf(IsDataOfType<ElementDataType>(), TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), GetId().GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString());
 		return *static_cast<const ElementDataType*>(DataPtr->GetUntypedData());
 	}
 	
@@ -294,7 +173,7 @@ public:
 		if (IsSet())
 		{
 			DataPtr->AddRef(/*bCanTrackReference*/false); // Cannot track element ID references as we have no space to store the reference ID
-			ElementId.Private_InitializeNoRef(Id.GetTypeId(), Id.GetElementId());
+			ElementId.Private_InitializeNoRef(DataPtr->GetId().GetTypeId(), DataPtr->GetId().GetElementId());
 		}
 		return ElementId;
 	}
@@ -305,7 +184,7 @@ public:
 	 */
 	void ReleaseId(FTypedElementId& InOutElementId) const
 	{
-		checkf(InOutElementId == Id, TEXT("Element ID does not match this handle!"));
+		checkf(InOutElementId == GetId(), TEXT("Element ID does not match this handle!"));
 		if (InOutElementId)
 		{
 			DataPtr->ReleaseRef(INDEX_NONE); // Cannot track element ID references as we have no space to store the reference ID
@@ -315,7 +194,7 @@ public:
 
 	FORCEINLINE friend bool operator==(const FTypedElementHandle& InLHS, const FTypedElementHandle& InRHS)
 	{
-		return InLHS.Id == InRHS.Id;
+		return InLHS.DataPtr == InRHS.DataPtr;
 	}
 
 	FORCEINLINE friend bool operator!=(const FTypedElementHandle& InLHS, const FTypedElementHandle& InRHS)
@@ -325,24 +204,22 @@ public:
 
 	friend inline uint32 GetTypeHash(const FTypedElementHandle& InElementHandle)
 	{
-		return GetTypeHash(InElementHandle.Id);
+		return GetTypeHash(InElementHandle.GetId());
 	}
 
-	FORCEINLINE void Private_InitializeNoRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, const FTypedElementInternalData& InData)
+	FORCEINLINE void Private_InitializeNoRef(const FTypedElementInternalData& InData)
 	{
-		Id.Private_InitializeNoRef(InTypeId, InElementId);
 		DataPtr = &InData;
 	}
 
-	FORCEINLINE void Private_InitializeAddRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, const FTypedElementInternalData& InData)
+	FORCEINLINE void Private_InitializeAddRef(const FTypedElementInternalData& InData)
 	{
-		Private_InitializeNoRef(InTypeId, InElementId, InData);
+		Private_InitializeNoRef(InData);
 		RegisterRef();
 	}
 
 	FORCEINLINE void Private_DestroyNoRef()
 	{
-		Id.Private_DestroyNoRef();
 		DataPtr = nullptr;
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 		ReferenceId = INDEX_NONE;
@@ -383,7 +260,6 @@ private:
 		}
 	}
 
-	FTypedElementId Id;
 	const FTypedElementInternalData* DataPtr = nullptr;
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 	FTypedElementReferenceId ReferenceId = INDEX_NONE;
@@ -501,15 +377,15 @@ public:
 		return HashCombine(GetTypeHash(static_cast<const FTypedElementHandle&>(InElement)), GetTypeHash(InElement.InterfacePtr));
 	}
 
-	FORCEINLINE void Private_InitializeNoRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, const FTypedElementInternalData& InData, BaseInterfaceType* InInterfacePtr)
+	FORCEINLINE void Private_InitializeNoRef(const FTypedElementInternalData& InData, BaseInterfaceType* InInterfacePtr)
 	{
-		FTypedElementHandle::Private_InitializeNoRef(InTypeId, InElementId, InData);
+		FTypedElementHandle::Private_InitializeNoRef(InData);
 		InterfacePtr = InInterfacePtr;
 	}
 
-	FORCEINLINE void Private_InitializeAddRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, const FTypedElementInternalData& InData, BaseInterfaceType* InInterfacePtr)
+	FORCEINLINE void Private_InitializeAddRef(const FTypedElementInternalData& InData, BaseInterfaceType* InInterfacePtr)
 	{
-		FTypedElementHandle::Private_InitializeAddRef(InTypeId, InElementId, InData);
+		FTypedElementHandle::Private_InitializeAddRef(InData);
 		InterfacePtr = InInterfacePtr;
 	}
 
@@ -659,8 +535,7 @@ public:
 	TTypedElementOwner& operator=(const TTypedElementOwner&) = delete;
 
 	TTypedElementOwner(TTypedElementOwner&& InOther)
-		: Id(MoveTemp(InOther.Id))
-		, DataPtr(InOther.DataPtr)
+		: DataPtr(InOther.DataPtr)
 	{
 		InOther.DataPtr = nullptr;
 		checkSlow(!InOther.IsSet());
@@ -670,7 +545,6 @@ public:
 	{
 		if (this != &InOther)
 		{
-			Id = MoveTemp(InOther.Id);
 			DataPtr = InOther.DataPtr;
 
 			InOther.DataPtr = nullptr;
@@ -694,7 +568,7 @@ public:
 	 */
 	FORCEINLINE bool IsSet() const
 	{
-		return Id.IsSet();
+		return DataPtr != nullptr;
 	}
 
 	/**
@@ -702,7 +576,9 @@ public:
 	 */
 	FORCEINLINE const FTypedElementId& GetId() const
 	{
-		return Id;
+		return DataPtr
+			? DataPtr->GetId()
+			: FTypedElementId::Unset;
 	}
 
 	/**
@@ -738,7 +614,7 @@ public:
 		if (IsSet())
 		{
 			DataPtr->AddRef(/*bCanTrackReference*/false); // Cannot track element ID references as we have no space to store the reference ID
-			ElementId.Private_InitializeNoRef(Id.GetTypeId(), Id.GetElementId());
+			ElementId.Private_InitializeNoRef(DataPtr->GetId().GetTypeId(), DataPtr->GetId().GetElementId());
 		}
 		return ElementId;
 	}
@@ -749,7 +625,7 @@ public:
 	 */
 	void ReleaseId(FTypedElementId& InOutElementId) const
 	{
-		checkf(InOutElementId == Id, TEXT("Element ID does not match this owner!"));
+		checkf(InOutElementId == GetId(), TEXT("Element ID does not match this owner!"));
 		if (InOutElementId)
 		{
 			DataPtr->ReleaseRef(INDEX_NONE); // Cannot track element ID references as we have no space to store the reference ID
@@ -766,7 +642,7 @@ public:
 		FTypedElementHandle ElementHandle;
 		if (IsSet())
 		{
-			ElementHandle.Private_InitializeAddRef(Id.GetTypeId(), Id.GetElementId(), *DataPtr);
+			ElementHandle.Private_InitializeAddRef(*DataPtr);
 		}
 		return ElementHandle;
 	}
@@ -777,13 +653,13 @@ public:
 	 */
 	void ReleaseHandle(FTypedElementHandle& InOutElementHandle) const
 	{
-		checkf(InOutElementHandle.GetId() == Id, TEXT("Element handle ID does not match this owner!"));
+		checkf(InOutElementHandle.GetId() == GetId(), TEXT("Element handle ID does not match this owner!"));
 		InOutElementHandle.Release();
 	}
 
 	FORCEINLINE friend bool operator==(const TTypedElementOwner& InLHS, const TTypedElementOwner& InRHS)
 	{
-		return InLHS.Id == InRHS.Id;
+		return InLHS.DataPtr == InRHS.DataPtr;
 	}
 
 	FORCEINLINE friend bool operator!=(const TTypedElementOwner& InLHS, const TTypedElementOwner& InRHS)
@@ -793,24 +669,22 @@ public:
 
 	friend inline uint32 GetTypeHash(const TTypedElementOwner& InElementOwner)
 	{
-		return GetTypeHash(InElementOwner.Id);
+		return GetTypeHash(InElementOwner.GetId());
 	}
 
-	FORCEINLINE void Private_InitializeNoRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, TTypedElementInternalData<ElementDataType>& InData)
+	FORCEINLINE void Private_InitializeNoRef(TTypedElementInternalData<ElementDataType>& InData)
 	{
-		Id.Private_InitializeNoRef(InTypeId, InElementId);
 		DataPtr = &InData;
 	}
 
-	FORCEINLINE void Private_InitializeAddRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, TTypedElementInternalData<ElementDataType>& InData)
+	FORCEINLINE void Private_InitializeAddRef(TTypedElementInternalData<ElementDataType>& InData)
 	{
-		Private_InitializeNoRef(InTypeId, InElementId, InData);
+		Private_InitializeNoRef(InData);
 		RegisterRef();
 	}
 
 	FORCEINLINE void Private_DestroyNoRef()
 	{
-		Id.Private_DestroyNoRef();
 		DataPtr = nullptr;
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 		ReferenceId = INDEX_NONE;
@@ -851,7 +725,6 @@ private:
 		}
 	}
 
-	FTypedElementId Id;
 	TTypedElementInternalData<ElementDataType>* DataPtr = nullptr;
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 	FTypedElementReferenceId ReferenceId = INDEX_NONE;

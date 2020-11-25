@@ -275,7 +275,7 @@ private:
 		
 		virtual FTypedElementInternalData& AddDataForElement(FTypedHandleElementId& InOutElementId) override
 		{
-			return HandleDataStore.AddDataForElement(InOutElementId);
+			return HandleDataStore.AddDataForElement(TypeId, InOutElementId);
 		}
 
 		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr) override
@@ -322,7 +322,7 @@ private:
 		FTypedElementInternalData& NewElementData = RegisteredElementType->AddDataForElement(NewElementId);
 
 		TTypedElementOwner<ElementDataType> ElementOwner;
-		ElementOwner.Private_InitializeAddRef(RegisteredElementType->TypeId, NewElementId, static_cast<TTypedElementInternalData<ElementDataType>&>(NewElementData));
+		ElementOwner.Private_InitializeAddRef(static_cast<TTypedElementInternalData<ElementDataType>&>(NewElementData));
 
 		return ElementOwner;
 	}
@@ -361,7 +361,7 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementId.GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementId.GetTypeId());
 
-			OutElement.Private_InitializeAddRef(InElementId.GetTypeId(), InElementId.GetElementId(), RegisteredElementType->GetDataForElement(InElementId.GetElementId()), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
+			OutElement.Private_InitializeAddRef(RegisteredElementType->GetDataForElement(InElementId.GetElementId()), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
 		}
 	}
 
@@ -375,7 +375,7 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementHandle.GetId().GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementHandle.GetId().GetTypeId());
 
-			OutElement.Private_InitializeAddRef(InElementHandle.GetId().GetTypeId(), InElementHandle.GetId().GetElementId(), *InElementHandle.Private_GetInternalData(), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
+			OutElement.Private_InitializeAddRef(*InElementHandle.Private_GetInternalData(), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
 		}
 	}
 

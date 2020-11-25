@@ -8,7 +8,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "Containers/SparseArray.h"
 #include "Containers/ChunkedArray.h"
-#include "Elements/Framework/TypedElementLimits.h"
+#include "Elements/Framework/TypedElementId.h"
 
 /**
  * Macro to declare the required RTTI data for types representing element data.
@@ -75,10 +75,20 @@ public:
 	FTypedElementInternalData(FTypedElementInternalData&& InOther) = delete;
 	FTypedElementInternalData& operator=(FTypedElementInternalData&&) = delete;
 
-	virtual ~FTypedElementInternalData() = default;
+	virtual ~FTypedElementInternalData()
+	{
+		Id.Private_DestroyNoRef();
+	}
+
+	void Initialize(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId)
+	{
+		checkSlow(!Id.IsSet());
+		Id.Private_InitializeNoRef(InTypeId, InElementId);
+	}
 
 	virtual void Reset()
 	{
+		Id.Private_DestroyNoRef();
 #if UE_TYPED_ELEMENT_HAS_REFCOUNTING
 		FPlatformAtomics::InterlockedExchange(&RefCount, 0);
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
@@ -88,6 +98,11 @@ public:
 			References.Reset();
 		}
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+	}
+
+	FORCEINLINE const FTypedElementId& GetId() const
+	{
+		return Id;
 	}
 
 	FORCEINLINE FTypedElementReferenceId AddRef(const bool bCanTrackReference) const
@@ -155,6 +170,7 @@ public:
 	}
 
 private:
+	FTypedElementId Id;
 #if UE_TYPED_ELEMENT_HAS_REFCOUNTING
 	mutable FTypedElementRefCount RefCount = 0;
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
@@ -214,7 +230,7 @@ class TTypedElementInternalDataStore
 public:
 	static_assert(TNumericLimits<int32>::Max() >= TypedHandleMaxElementId, "TTypedElementInternalDataStore internally uses signed 32-bit indices so cannot store TypedHandleMaxElementId! Consider making this container 64-bit aware, or explicitly remove this compile time check.");
 
-	TTypedElementInternalData<ElementDataType>& AddDataForElement(FTypedHandleElementId& InOutElementId)
+	TTypedElementInternalData<ElementDataType>& AddDataForElement(const FTypedHandleTypeId InTypeId, FTypedHandleElementId& InOutElementId)
 	{
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
@@ -224,7 +240,9 @@ public:
 			? InternalDataFreeIndices.Pop(/*bAllowShrinking*/false)
 			: InternalDataArray.Add();
 
-		return InternalDataArray[InOutElementId];
+		TTypedElementInternalData<ElementDataType>& InternalData = InternalDataArray[InOutElementId];
+		InternalData.Initialize(InTypeId, InOutElementId);
+		return InternalData;
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
@@ -279,9 +297,8 @@ class TTypedElementInternalDataStore<void>
 public:
 	static_assert(TNumericLimits<int32>::Max() >= TypedHandleMaxElementId, "TTypedElementInternalDataStore internally uses signed 32-bit indices so cannot store TypedHandleMaxElementId! Consider making this container 64-bit aware, or explicitly remove this compile time check.");
 
-	TTypedElementInternalData<void>& AddDataForElement(FTypedHandleElementId& InOutElementId)
+	TTypedElementInternalData<void>& AddDataForElement(const FTypedHandleTypeId InTypeId, FTypedHandleElementId& InOutElementId)
 	{
-#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		checkSlow(InOutElementId >= 0);
@@ -292,15 +309,14 @@ public:
 			: InternalDataArray.Add();
 
 		ElementIdToArrayIndex.Add(InOutElementId, InternalDataArrayIndex);
-		return InternalDataArray[InternalDataArrayIndex];
-#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
-		return SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
+
+		TTypedElementInternalData<void>& InternalData = InternalDataArray[InOutElementId];
+		InternalData.Initialize(InTypeId, InOutElementId);
+		return InternalData;
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
 	{
-#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		int32 InternalDataArrayIndex = INDEX_NONE;
@@ -312,22 +328,15 @@ public:
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
 		InternalData.Reset();
 		InternalDataFreeIndices.Add(InternalDataArrayIndex);
-#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
-		checkf(InExpectedDataPtr == &SharedInternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
-#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	}
 
 	const TTypedElementInternalData<void>& GetDataForElement(const FTypedHandleElementId InElementId) const
 	{
-#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FReadScopeLock InternalDataLock(InternalDataRW);
 
 		const int32* InternalDataArrayIndexPtr = ElementIdToArrayIndex.Find(InElementId);
 		checkSlow(InternalDataArrayIndexPtr && InternalDataArray.IsValidIndex(*InternalDataArrayIndexPtr));
 		return InternalDataArray[*InternalDataArrayIndexPtr];
-#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
-		return SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	}
 
 	static FORCEINLINE void SetStaticDataTypeId(const FTypedHandleTypeId InTypeId)
@@ -345,12 +354,8 @@ public:
 	}
 
 private:
-#if UE_TYPED_ELEMENT_HAS_REFERENCING
 	mutable FRWLock InternalDataRW;
 	TChunkedArray<TTypedElementInternalData<void>> InternalDataArray;
 	TArray<int32> InternalDataFreeIndices;
 	TMap<FTypedHandleElementId, int32> ElementIdToArrayIndex;
-#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
-	TTypedElementInternalData<void> SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 };

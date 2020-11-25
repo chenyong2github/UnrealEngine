@@ -139,7 +139,7 @@ FTypedElementHandle UTypedElementRegistry::GetElementHandle(const FTypedElementI
 	checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementId.GetTypeId());
 
 	FTypedElementHandle ElementHandle;
-	ElementHandle.Private_InitializeAddRef(InElementId.GetTypeId(), InElementId.GetElementId(), RegisteredElementType->GetDataForElement(InElementId.GetElementId()));
+	ElementHandle.Private_InitializeAddRef(RegisteredElementType->GetDataForElement(InElementId.GetElementId()));
 
 	return ElementHandle;
 }
