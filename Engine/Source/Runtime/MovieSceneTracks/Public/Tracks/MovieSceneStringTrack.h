@@ -42,8 +42,4 @@ public:
 	virtual void RemoveAllAnimationData() override;
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
-
-#if WITH_EDITORONLY_DATA
-	virtual FText GetDefaultDisplayName() const override;
-#endif
 };
