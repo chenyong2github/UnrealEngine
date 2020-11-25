@@ -523,6 +523,11 @@ void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TS
 
 FPlatformRect FWindowsApplication::GetWorkArea(const FPlatformRect& CurrentWindow) const
 {
+	if (InitialDisplayMetrics.MonitorInfo.Num() == 0)
+	{
+		return InitialDisplayMetrics.PrimaryDisplayWorkAreaRect;
+	}
+
 	// This function was changed to address the problem where Windows API MonitorFromRect 
 	// do not return the correct screen if the rect is on secondary screen and more than half 
 	// of it is outside the Virtual screen space.
