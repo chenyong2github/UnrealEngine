@@ -4138,8 +4138,11 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 
 	MaterialCompilationOutput.UniformExpressionSet.VTStacks.Add(FMaterialVirtualTextureStack(PreallocatedStackTextureIndex));
 
-	// these two arrays need to stay in sync
+	// These two arrays need to stay in sync
 	check(VTStacks.Num() == MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num());
+
+	// Select LoadVirtualPageTable function name for this context
+	FString BaseFunctionName = bAdaptive ? TEXT("TextureLoadVirtualPageTableAdaptive") : TEXT("TextureLoadVirtualPageTable");
 
 	// Optionally sample without virtual texture feedback but only for miplevel mode
 	check(bGenerateFeedback || MipValueMode == TMVM_MipLevel)
@@ -4151,24 +4154,26 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 	{
 	case TMVM_None:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTable("
+			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"0, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex,
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
 			StackIndex);
 		break;
 	case TMVM_MipBias:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTable("
+			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex, 
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
 			*CoerceParameter(MipValue0Index, MCT_Float1),
@@ -4176,12 +4181,13 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 		break;
 	case TMVM_MipLevel:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTableLevel("
+			"%sLevel("
 			"VIRTUALTEXTURE_PAGETABLE_%d, " 
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s"
 			"%s)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex,
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
 			*CoerceParameter(MipValue0Index, MCT_Float1),
@@ -4189,12 +4195,13 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 		break;
 	case TMVM_Derivative:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTableGrad(" 
+			"%sGrad("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s, %s, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex, 
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
 			*CoerceParameter(MipValue0Index, MCT_Float2), *CoerceParameter(MipValue1Index, MCT_Float2),
