@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Memory.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -232,7 +233,7 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 	// Check if session has Memory events (to spawn the tab), but not too often.
 	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		uint32 TagCount = 0;
+		bool bShouldBeAvailable = false;
 
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
@@ -246,7 +247,20 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 			}
 
 			const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
-			TagCount = MemoryProvider.GetTagCount();
+			uint32 TagCount = MemoryProvider.GetTagCount();
+			if (TagCount > 0)
+			{
+				bShouldBeAvailable = true;
+			}
+
+			const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+			if (AllocationsProvider)
+			{
+				if (AllocationsProvider->IsInitialized())
+				{
+					bShouldBeAvailable = true;
+				}
+			}
 		}
 		else
 		{
@@ -254,7 +268,7 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 			AvailabilityCheck.Disable();
 		}
 
-		if (TagCount > 0)
+		if (bShouldBeAvailable)
 		{
 			bIsAvailable = true;
 

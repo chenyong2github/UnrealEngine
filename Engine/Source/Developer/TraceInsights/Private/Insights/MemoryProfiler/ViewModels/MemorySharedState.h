@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TraceServices/Model/AllocationsProvider.h"
 
 // Insights
 #include "Insights/ITimingViewExtender.h"
@@ -16,39 +17,19 @@ class STimingView;
 
 namespace Insights
 {
-	struct FReportConfig;
-	struct FReportTypeConfig;
-	struct FReportTypeGraphConfig;
-	class FMemoryTracker;
 
-// Known memory rules.
-// The enum uses the following naming convention:
-//     A, B, C, D = time markers
-//     a = time when "alloc" event occurs
-//     f = time when "free" event occurs (can be infinite)
-// Ex.: "AaBf" means "all memory allocations allocated between time A and time B and freed after time B".
-enum class EMemoryRule
-{
-	aAf,     // active allocs at A
-	afA,     // before
-	Aaf,     // after
-	aAfB,    // decline
-	AaBf,    // growth
-	AafB,    // short living allocs
-	aABf,    // long living allocs
-	AaBCf,   // memory leaks
-	AaBfC,   // limited lifetime
-	aABfC,   // decline of long living allocs
-	AaBCfD,  // specific lifetime
-	A_vs_B,  // compare A vs. B; {aAf} vs. {aBf}
-	A_or_B,  // live at A or at B; {aAf} U {aBf}
-	A_xor_B, // live either at A or at B; ({aAf} U {aBf}) \ {aABf}
-};
+struct FReportConfig;
+struct FReportTypeConfig;
+struct FReportTypeGraphConfig;
+class FMemoryTracker;
 
 class FMemoryRuleSpec
 {
 public:
-	FMemoryRuleSpec(EMemoryRule InValue, uint32 InNumTimeMarkers, const FText& InShortName, const FText& InVerboseName, const FText& InDescription)
+	typedef TraceServices::IAllocationsProvider::EQueryRule ERule;
+
+public:
+	FMemoryRuleSpec(ERule InValue, uint32 InNumTimeMarkers, const FText& InShortName, const FText& InVerboseName, const FText& InDescription)
 		: Value(InValue)
 		, NumTimeMarkers(InNumTimeMarkers)
 		, ShortName(InShortName)
@@ -56,18 +37,18 @@ public:
 		, Description(InDescription)
 	{}
 
-	EMemoryRule GetValue() const { return Value; }
+	ERule GetValue() const { return Value; }
 	uint32 GetNumTimeMarkers() const { return NumTimeMarkers; }
 	FText GetShortName() const { return ShortName; }
 	FText GetVerboseName() const { return VerboseName; }
 	FText GetDescription() const { return Description; }
 
 private:
-	EMemoryRule Value;     // ex.: EMemoryRule::AafB
+	ERule Value;           // ex.: ERule::AafB
 	uint32 NumTimeMarkers; // ex.: 2
-	FText ShortName;     // ex.: "A**B"
-	FText VerboseName;   // ex.: "Short Living Allocations"
-	FText Description;   // ex.: "Allocations allocated and freed between time A and time B (A <= a <= f <= B)."
+	FText ShortName;       // ex.: "A**B"
+	FText VerboseName;     // ex.: "Short Living Allocations"
+	FText Description;     // ex.: "Allocations allocated and freed between time A and time B (A <= a <= f <= B)."
 };
 
 } // namespace Insights

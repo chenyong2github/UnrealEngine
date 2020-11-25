@@ -86,9 +86,7 @@ private:
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
-	TraceServices::IAllocationsProvider::QueryHandle Query = 0;
-#endif
+	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
 
 	TSharedPtr<class ITableCellValueFormatter> OriginalLlmTagValueFormatter;
 };

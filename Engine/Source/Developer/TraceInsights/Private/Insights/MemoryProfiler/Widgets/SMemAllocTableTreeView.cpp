@@ -196,7 +196,6 @@ void SMemAllocTableTreeView::OnQueryInvalidated()
 
 void SMemAllocTableTreeView::StartQuery()
 {
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	check(Query == 0);
 
 	if (!Rule)
@@ -205,114 +204,41 @@ void SMemAllocTableTreeView::StartQuery()
 		return;
 	}
 
-	const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
+	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 	if (!AllocationsProvider)
 	{
 		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
 		return;
 	}
-	const IAllocationsProvider& Provider = *AllocationsProvider;
+	const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
 
-	//TODO: Simpler API...
-	//QueryHandle StartQuery(IAllocationsProvider::EQueryRule Rule, double TimeA, double TimeB, double TimeC, double TimeD);
-
-	switch (Rule->GetValue())
-	{
-		case Insights::EMemoryRule::aAf:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[0], IAllocationsProvider::ECrosses::Or);
-			break;
-		}
-		case Insights::EMemoryRule::afA:
-		{
-			Query = Provider.StartQuery(0.0, TimeMarkers[0], IAllocationsProvider::ECrosses::None);
-			break;
-		}
-		case Insights::EMemoryRule::Aaf:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], std::numeric_limits<double>::infinity(), IAllocationsProvider::ECrosses::None);
-			break;
-		}
-		//case Insights::EMemoryRule::aAfB:
-		//{
-		//	Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::A);
-		//	break;
-		//}
-		//case Insights::EMemoryRule::AaBf:
-		//{
-		//	Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::B);
-		//	break;
-		//}
-		case Insights::EMemoryRule::AafB:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::None);
-			break;
-		}
-		case Insights::EMemoryRule::aABf:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::And);
-			break;
-		}
-		case Insights::EMemoryRule::AaBCf:
-		{
-			Query = Provider.StartQuery(TimeMarkers[1], TimeMarkers[2], IAllocationsProvider::ECrosses::And);
-			// needs additional filter Alloc.Start > A
-			break;
-		}
-		//case Insights::EMemoryRule::AaBfC:
-		//	TODO
-		//	break;
-		case Insights::EMemoryRule::aABfC:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::And);
-			// needs additional filter Alloc.End < C
-			break;
-		}
-		//case Insights::EMemoryRule::AaBCfD:
-		//	TODO
-		//	break;
-		case Insights::EMemoryRule::A_vs_B:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::Or);
-			break;
-		}
-		case Insights::EMemoryRule::A_or_B:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::Or);
-			break;
-		}
-		case Insights::EMemoryRule::A_xor_B:
-		{
-			Query = Provider.StartQuery(TimeMarkers[0], TimeMarkers[1], IAllocationsProvider::ECrosses::Xor);
-			break;
-		}
-	}
+	TraceServices::IAllocationsProvider::FQueryParams Params = { Rule->GetValue(), TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3] };
+	Query = Provider.StartQuery(Params);
 
 	if (Query == 0)
 	{
 		UE_LOG(MemoryProfiler, Error, TEXT("[MemAlloc] Unsupported query rule (%s)!"), *Rule->GetShortName().ToString());
 	}
-#endif // defined(UE_USE_ALLOCATIONS_PROVIDER)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemAllocTableTreeView::UpdateQuery()
 {
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
+		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 		if (!AllocationsProvider)
 		{
 			UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
 			return;
 		}
-		const IAllocationsProvider& Provider = *AllocationsProvider;
+		const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
 
-		IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
-		if (Status.Status <= IAllocationsProvider::EQueryStatus::Done)
+		TraceServices::IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
+		if (Status.Status <= TraceServices::IAllocationsProvider::EQueryStatus::Done)
 		{
+			UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query completed."));
 			Query = 0;
 			return;
 		}
@@ -330,7 +256,7 @@ void SMemAllocTableTreeView::UpdateQuery()
 
 			// Multiple 'pages' of results will be returned. No guarantees are made
 			// about the order of pages or the allocations they report.
-			IAllocationsProvider::QueryResult Result = Status.NextResult();
+			TraceServices::IAllocationsProvider::FQueryResult Result = Status.NextResult();
 			while (Result.IsValid())
 			{
 				++PageCount;
@@ -360,7 +286,7 @@ void SMemAllocTableTreeView::UpdateQuery()
 				Allocs.AddUninitialized(AllocCount);
 				for (uint32 AllocIndex = 0; AllocIndex < AllocCount; ++AllocIndex, ++AllocsDestIndex)
 				{
-					const IAllocationsProvider::FAllocation* Allocation = Result->Get(AllocIndex);
+					const TraceServices::IAllocationsProvider::FAllocation* Allocation = Result->Get(AllocIndex);
 					FMemoryAlloc& Alloc = Allocs[AllocsDestIndex];
 					Alloc.StartTime = Allocation->GetStartTime();
 					Alloc.EndTime = Allocation->GetEndTime();
@@ -391,17 +317,15 @@ void SMemAllocTableTreeView::UpdateQuery()
 			}
 		}
 	}
-#endif // defined(UE_USE_ALLOCATIONS_PROVIDER)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemAllocTableTreeView::CancelQuery()
 {
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
+		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 		if (AllocationsProvider)
 		{
 			AllocationsProvider->CancelQuery(Query);
@@ -409,7 +333,6 @@ void SMemAllocTableTreeView::CancelQuery()
 		}
 		Query = 0;
 	}
-#endif // defined(UE_USE_ALLOCATIONS_PROVIDER)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

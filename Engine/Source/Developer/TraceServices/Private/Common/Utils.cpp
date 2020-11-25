@@ -5,6 +5,8 @@
 #include "Templates/SharedPointer.h"
 #include "HAL/FileManager.h"
 
+DEFINE_LOG_CATEGORY(LogTraceServices);
+
 namespace TraceServices
 {
 

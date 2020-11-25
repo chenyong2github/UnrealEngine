@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Logging/LogMacros.h"
 #include "Trace/Analyzer.h"
 #include "TraceServices/Utils.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogTraceServices, Log, All);
 
 namespace TraceServices {
 namespace FTraceAnalyzerUtils {

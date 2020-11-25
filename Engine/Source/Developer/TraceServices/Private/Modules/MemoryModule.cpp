@@ -8,24 +8,24 @@
 #include "Model/CallstacksProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
-
-static void TEMP_TestAllocationsProviderImpl(double TimeA, double TimeB)
+namespace TraceServices
 {
-	FAllocationsProvider Provider;
+
+static void TEMP_TestAllocationsProviderImpl(ILinearAllocator& Allocator, double TimeA, double TimeB)
+{
+	FAllocationsProvider Provider(Allocator);
 
 	// 1. Query is started in response to some form of user interaction.
-	IAllocationsProvider::QueryHandle Query;
+	IAllocationsProvider::FQueryHandle Query;
 	{
-		Query = Provider.StartQuery(TimeA, TimeB, IAllocationsProvider::ECrosses::Xor);
+		const IAllocationsProvider::FQueryParams Params = { IAllocationsProvider::EQueryRule::aABf, TimeA, TimeB, 0.0, 0.0 };
+		Query = Provider.StartQuery(Params);
 	}
-
-
 
 	// 2. At regular intervals the query is polled for results.
 	while (true)
 	{
-		IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
+		const IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
 		if (Status.Status <= IAllocationsProvider::EQueryStatus::Done)
 		{
 			break;
@@ -33,32 +33,35 @@ static void TEMP_TestAllocationsProviderImpl(double TimeA, double TimeB)
 
 		// Multiple 'pages' of results will be returned. No guarantees are made
 		// about the order of pages or the allocations they report.
-		IAllocationsProvider::QueryResult Result = Status.NextResult();
+		IAllocationsProvider::FQueryResult Result = Status.NextResult();
 		while (Result.IsValid())
 		{
 			for (uint32 i = 0, n = Result->Num(); i < n; ++i)
 			{
 				const IAllocationsProvider::FAllocation* Allocation = Result->Get(i);
 
+				auto Addr = Allocation->GetAddress();
+
+				auto Size = Allocation->GetSize();
+				auto Alignment = Allocation->GetAlignment();
+				auto Waste = Allocation->GetWaste();
+
 				uint64 BacktraceId = Allocation->GetBacktraceId();
 				/*
 				auto Backtrace = BacktraceProvider.Get(BacktraceId);
 				for (auto& RetAddress : Backtrace)
 				{
-					auto Addr = Allocation->GetAddress();
-					auto Size = Allocation->GetSize();
-					auto LlmTag = Allocation->GetTag();
-
-					... report to user (e.g. build treeview)
 				}
 				*/
+
+				auto Tag = Allocation->GetTag();
+
+				//... report to user (e.g.build treeview)
 			}
 
 			Result = Status.NextResult();
 		}
 	}
-
-
 
 	// 3a. Queries can be cancelled.
 	if (/*HasUserPressedCance()*/ false)
@@ -70,19 +73,12 @@ static void TEMP_TestAllocationsProviderImpl(double TimeA, double TimeB)
 	/* Queries will automatically clean themselves up */
 }
 
-static void TEMP_TestAllocationsProvider()
+static void TEMP_TestAllocationsProvider(ILinearAllocator& Allocator)
 {
 	double TimeA = 3.0;
 	double TimeB = 11.0;
-	TEMP_TestAllocationsProviderImpl(TimeA, TimeB);
+	TEMP_TestAllocationsProviderImpl(Allocator, TimeA, TimeB);
 }
-
-#endif // UE_USE_ALLOCATIONS_PROVIDER
-
-
-
-namespace TraceServices
-{
 
 static const FName MemoryModuleName("TraceModule_Memory");
 
@@ -94,13 +90,11 @@ void FMemoryModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-#if defined(UE_USE_ALLOCATIONS_PROVIDER)
-	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider();
+	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session.GetLinearAllocator());
 	Session.AddProvider(AllocationsProvider->GetName(), AllocationsProvider);
-	//Session.AddAnalyzer(new FAllocationsAnalyzer(Session));
+	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider));
 
-	TEMP_TestAllocationsProvider();
-#endif // UE_USE_ALLOCATIONS_PROVIDER
+	//TEMP_TestAllocationsProvider(Session.GetLinearAllocator());
 
 	FCallstacksProvider* CallstacksProvider = new FCallstacksProvider(Session);
 	Session.AddProvider(CallstacksProvider->GetName(), CallstacksProvider);
