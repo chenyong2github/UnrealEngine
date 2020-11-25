@@ -156,6 +156,7 @@ protected:
 	bool	TriWillInvert( uint32 TriIndex, const FVector& NewPosition );
 
 	void	FixUpTri( uint32 TriIndex );
+	bool	IsDuplicateTri( uint32 TriIndex ) const;
 	void	SetVertIndex( uint32 Corner, uint32 NewVertIndex );
 	void	RemoveDuplicateVerts( uint32 Corner );
 };

@@ -815,12 +815,25 @@ void FMeshSimplifier::FixUpTri( uint32 TriIndex )
 	const FVector& p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
 	const FVector& p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
 	const FVector& p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
-
-	if( p0 == p1 ||
+	
+	// Remove degenerates
+	bool bRemoveTri =
+		p0 == p1 ||
 		p1 == p2 ||
-		p2 == p0 )
+		p2 == p0;
+
+	if( !bRemoveTri )
 	{
-		// Remove degenerates
+		for( uint32 k = 0; k < 3; k++ )
+		{
+			RemoveDuplicateVerts( TriIndex * 3 + k );
+		}
+
+		bRemoveTri = IsDuplicateTri( TriIndex );
+	}
+
+	if( bRemoveTri )
+	{
 		TriRemoved[ TriIndex ] = true;
 		RemainingNumTris--;
 
@@ -839,13 +852,29 @@ void FMeshSimplifier::FixUpTri( uint32 TriIndex )
 	}
 	else
 	{
-		for( uint32 k = 0; k < 3; k++ )
-		{
-			RemoveDuplicateVerts( TriIndex * 3 + k );
-		}
-
 		CalcTriQuadric( TriIndex );
 	}
+}
+
+bool FMeshSimplifier::IsDuplicateTri( uint32 TriIndex ) const
+{
+	uint32 i0 = Indexes[ TriIndex * 3 + 0 ];
+	uint32 i1 = Indexes[ TriIndex * 3 + 1 ];
+	uint32 i2 = Indexes[ TriIndex * 3 + 2 ];
+
+	uint32 Hash = HashPosition( GetPosition( i0 ) );
+	for( uint32 Corner = CornerHash.First( Hash ); CornerHash.IsValid( Corner ); Corner = CornerHash.Next( Corner ) )
+	{
+		if( Corner != TriIndex * 3 &&
+			i0 == Indexes[ Corner ] &&
+			i1 == Indexes[ Cycle3( Corner ) ] &&
+			i2 == Indexes[ Cycle3( Corner, 2 ) ] )
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FMeshSimplifier::SetVertIndex( uint32 Corner, uint32 NewVertIndex )
