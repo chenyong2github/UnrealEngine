@@ -946,3 +946,83 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeshDescriptionArrayAttributeTest, "Editor.Meshes.MeshDescription.ArrayAttribute", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter);
+
+bool FMeshDescriptionArrayAttributeTest::RunTest(const FString& Parameters)
+{
+	FAttributesSetBase AttributesSet;
+	AttributesSet.RegisterAttribute<int[]>("Test");
+
+	TMeshAttributesArray<TArrayAttribute<int>> Attributes = AttributesSet.GetAttributesRef<TArrayAttribute<int>>("Test");
+	TestTrue("AttributeRef valid", Attributes.IsValid());
+	TestEqual("AttributeRef element count", Attributes.GetNumElements(), 0);
+	TestEqual("AttributeRef channel count", Attributes.GetNumChannels(), 1);
+
+	AttributesSet.Initialize(10);
+	TestEqual("AttributeRef element count", Attributes.GetNumElements(), 10);
+
+	TArrayAttribute<int> Element0 = Attributes.Get(0);
+	TestEqual("Default element array size", Element0.Num(), 0);
+	Element0.Add(42);
+	TestEqual("New element value", Element0[0], 42);
+	Element0.Add(43);
+	TestEqual("New element value", Element0[1], 43);
+	TestEqual("New element array size", Element0.Num(), 2);
+
+	TArrayAttribute<int> Element1 = Attributes.Get(1);
+	Element1.Add(142);
+	Element1.Add(143);
+	Element1.Add(144);
+	TestEqual("Second element array size", Element1.Num(), 3);
+
+	Element0.Add(44);
+	Element0.Add(44);
+	Element0.Add(46);
+	TestEqual("Check after insert 0", Element0[1], 43);
+	TestEqual("Check after insert 1", Element0[2], 44);
+	TestEqual("Check after insert 2", Element0[3], 44);
+	TestEqual("Check after insert 3", Element0[4], 46);
+	TestEqual("Check after insert 4", Element1[0], 142);
+
+	Element0.InsertDefaulted(1, 3);
+	TestEqual("Check after insert 5", Element0[0], 42);
+	TestEqual("Check after insert 6", Element0[1], 0);
+	TestEqual("Check after insert 7", Element0[4], 43);
+	TestEqual("Check after insert 8", Element1[0], 142);
+	TestEqual("Check after insert 9", Element0.Num(), 8);
+
+	Element0.Reserve(20);
+	TestEqual("Check after reserve", Element1[0], 142);
+
+	AttributesSet.SetNumElements(255);
+	TArrayAttribute<int> Element254 = Attributes.Get(254);
+	Element254.Add(25400);
+
+	TestEqual("Add element 254", Element254[0], 25400);
+	TestEqual("Check element 200 empty", Attributes.Get(200).Num(), 0);
+
+	AttributesSet.SetNumElements(256);
+	TArrayAttribute<int> Element255 = Attributes.Get(255);
+	Element255.Add(25500);
+	TestEqual("Add element 255 1", Element254[0], 25400);
+	TestEqual("Add element 255 2", Element255[0], 25500);
+
+	AttributesSet.SetNumElements(300);
+	TArrayAttribute<int> Element290 = Attributes.Get(290);
+	Element290.Add(29000);
+	TestEqual("Check element 256 empty", Attributes.Get(256).Num(), 0);
+	TestEqual("Test element 290", Element290[0], 29000);
+
+	AttributesSet.SetNumElements(522);
+	TArrayAttribute<int> Element514 = Attributes.Get(514);
+	Element514.Add(51400);
+	TestEqual("Check element 512 empty", Attributes.Get(512).Num(), 0);
+	TestEqual("Test element 514", Element514[0], 51400);
+
+	Element0.Remove(44);
+	TestEqual("Remove", Element0.Num(), 6);
+
+	return true;
+}

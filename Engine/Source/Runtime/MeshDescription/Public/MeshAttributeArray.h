@@ -335,7 +335,7 @@ protected:
  * This is a type-specific attribute array, which is actually instanced in the attribute set.
  */
 template <typename AttributeType>
-class TMeshAttributeArraySet : public FMeshAttributeArraySetBase
+class TMeshAttributeArraySet final : public FMeshAttributeArraySetBase
 {
 	static_assert(!TIsArray<AttributeType>::Value, "TMeshAttributeArraySet must take a simple type.");
 
@@ -513,7 +513,7 @@ protected:
 * This is a type-specific attribute array, which is actually instanced in the attribute set.
 */
 template <typename AttributeType>
-class TMeshUnboundedAttributeArraySet : public FMeshAttributeArraySetBase
+class TMeshUnboundedAttributeArraySet final : public FMeshAttributeArraySetBase
 {
 	using Super = FMeshAttributeArraySetBase;
 
@@ -704,20 +704,16 @@ struct TMeshAttributesRefType : TMeshAttributesRefTypeBase<T>
 	using RefType = T;
 	using ConstRefType = const T;
 	using NonConstRefType = typename TRemoveCV<T>::Type;
-	using SetType = TMeshAttributeArraySet<typename TRemoveCV<T>::Type>;
-	using ConstSetType = const TMeshAttributeArraySet<typename TRemoveCV<T>::Type>;
 };
 
 template <typename T>
 struct TMeshAttributesRefType<TArrayView<T>> : TMeshAttributesRefTypeBase<T>
 {
-	static const uint32 MinExpectedExtent = 1;
+	static const uint32 MinExpectedExtent = 0;
 	static const uint32 MaxExpectedExtent = 0xFFFFFFFF;
 	using RefType = TArrayView<T>;
 	using ConstRefType = TArrayView<const T>;
 	using NonConstRefType = TArrayView<typename TRemoveCV<T>::Type>;
-	using SetType = TMeshAttributeArraySet<typename TRemoveCV<T>::Type>;
-	using ConstSetType = const TMeshAttributeArraySet<typename TRemoveCV<T>::Type>;
 };
 
 template <typename T>
@@ -728,8 +724,6 @@ struct TMeshAttributesRefType<TArrayAttribute<T>> : TMeshAttributesRefTypeBase<T
 	using RefType = TArrayAttribute<T>;
 	using ConstRefType = TArrayAttribute<const T>;
 	using NonConstRefType = TArrayAttribute<typename TRemoveCV<T>::Type>;
-	using SetType = TMeshUnboundedAttributeArraySet<typename TRemoveCV<T>::Type>;
-	using ConstSetType = const TMeshUnboundedAttributeArraySet<typename TRemoveCV<T>::Type>;
 };
 
 
@@ -779,191 +773,195 @@ template <typename AttributeType>
 using TMeshAttributesConstArray = TMeshAttributesRef<int32, typename TMeshAttributesRefType<AttributeType>::ConstRefType>;
 
 
+// This is the default implementation which handles simple attributes, i.e. those of a simple type T.
+// There are partial specializations which handle compound attributes below, i.e. those accessed via TArrayView<T> or TAttributeArray<T>
 template <typename ElementIDType, typename AttributeType>
 class TMeshAttributesRef
 {
 	template <typename T, typename U> friend class TMeshAttributesRef;
 
 public:
+	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
 	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
 
-	/** Constructor taking a pointer to a TMeshAttributeArraySet */
-	FORCEINLINE explicit TMeshAttributesRef(ArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
+	/** Constructor taking a pointer to a FMeshAttributeArraySetBase */
+	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
 		: ArrayPtr(InArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<TIsSame<T, const T>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<ElementIDType, typename TRemoveCV<T>::Type> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, typename TRemoveCV<T>::Type> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef from a TMeshAttributesArray **/
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, U> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, U> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<TIsSame<U, const U>::Value, int>::Type = 0, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, typename TRemoveCV<U>::Type> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, typename TRemoveCV<U>::Type> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Access elements from attribute channel 0 */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE AttributeType& operator[](const ElementIDType ElementID) const
+	AttributeType& operator[](const ElementIDType ElementID) const
 	{
-		return ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementID.GetValue())[0];
+		return static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementID.GetValue())[0];
 	}
 
 	/** Get the element with the given ID and channel */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE AttributeType Get(const ElementIDType ElementID, const int32 Channel = 0) const
+	AttributeType Get(const ElementIDType ElementID, const int32 Channel = 0) const
 	{
-		return ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue())[0];
+		return static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue())[0];
 	}
 
-	FORCEINLINE AttributeType& operator[](int32 ElementIndex) const
+	AttributeType& operator[](int32 ElementIndex) const
 	{
-		return ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementIndex)[0];
+		return static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementIndex)[0];
 	}
 
-	FORCEINLINE AttributeType Get(int32 ElementIndex, const int32 Channel = 0) const
+	AttributeType Get(int32 ElementIndex, const int32 Channel = 0) const
 	{
-		return ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0];
+		return static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0];
 	}
 
-	FORCEINLINE TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
+	TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
 	{
-		return TArrayView<AttributeType>(ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex), 1);
+		return TArrayView<AttributeType>(static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex), 1);
 	}
 
-	FORCEINLINE TArrayView<AttributeType> GetRawArray(const int32 AttributeChannel = 0) const
+	TArrayView<AttributeType> GetRawArray(const int32 AttributeChannel = 0) const
 	{
 		if (ArrayPtr == nullptr)
 		{
 			return TArrayView<AttributeType>();
 		}
 
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(AttributeChannel).GetElementBase(0);
+		AttributeType* Element = static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(AttributeChannel).GetElementBase(0);
 		return TArrayView<AttributeType>(Element, GetNumElements());
 	}
 
 	/** Return whether the reference is valid or not */
-	FORCEINLINE bool IsValid() const { return (ArrayPtr != nullptr); }
+	bool IsValid() const { return (ArrayPtr != nullptr); }
 
 	/** Return default value for this attribute type */
-	FORCEINLINE AttributeType GetDefaultValue() const { return ArrayPtr->GetDefaultValue(); }
+	AttributeType GetDefaultValue() const { return static_cast<ArrayType*>(ArrayPtr)->GetDefaultValue(); }
 
 	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
-	FORCEINLINE int32 GetNumIndices() const
+	int32 GetNumIndices() const
 	{
-		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
+		return static_cast<ArrayType*>(ArrayPtr)->ArrayType::GetNumChannels();	// note: override virtual dispatch
 	}
 
 	/** Return number of indices this attribute has */
-	FORCEINLINE int32 GetNumChannels() const
+	int32 GetNumChannels() const
 	{
-		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
+		return static_cast<ArrayType*>(ArrayPtr)->ArrayType::GetNumChannels();	// note: override virtual dispatch
 	}
 
 	/** Get the number of elements in this attribute array */
-	FORCEINLINE int32 GetNumElements() const
+	int32 GetNumElements() const
 	{
 		return ArrayPtr->GetNumElements();
 	}
 
 	/** Get the flags for this attribute array set */
-	FORCEINLINE EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
+	EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
 
-	FORCEINLINE uint32 GetExtent() const { return 1; }
+	/** Get the extent for this attribute type */
+	uint32 GetExtent() const { return 1; }
 
 	/** Set the element with the given ID and index 0 to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, const AttributeType& Value) const
+	void Set(const ElementIDType ElementID, const AttributeType& Value) const
 	{
-		ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementID.GetValue())[0] = Value;
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementID.GetValue())[0] = Value;
 	}
 
 	/** Set the element with the given ID and channel to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, const int32 Channel, const AttributeType& Value) const
+	void Set(const ElementIDType ElementID, const int32 Channel, const AttributeType& Value) const
 	{
-		ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue())[0] = Value;
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue())[0] = Value;
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, const AttributeType& Value) const
+	void Set(int32 ElementIndex, const AttributeType& Value) const
 	{
-		ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementIndex)[0] = Value;
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementIndex)[0] = Value;
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, const int32 Channel, const AttributeType& Value) const
+	void Set(int32 ElementIndex, const int32 Channel, const AttributeType& Value) const
 	{
-		ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0] = Value;
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0] = Value;
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
 	{
 		check(Value.Num() == 1);
-		ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementIndex)[0] = Value[0];
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementIndex)[0] = Value[0];
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
 	{
 		check(Value.Num() == 1);
-		ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0] = Value[0];
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex)[0] = Value[0];
 	}
 
 	/** Copies the given attribute array and channel to this channel */
 	void Copy(TMeshAttributesRef<ElementIDType, const AttributeType> Src, const int32 DestChannel = 0, const int32 SrcChannel = 0);
 
 	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
-	FORCEINLINE void SetNumIndices(const int32 NumChannels) const
+	void SetNumIndices(const int32 NumChannels) const
 	{
-		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
 	}
 
 	/** Sets number of channels this attribute has */
-	FORCEINLINE void SetNumChannels(const int32 NumChannels) const
+	void SetNumChannels(const int32 NumChannels) const
 	{
-		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
 	}
 
 	UE_DEPRECATED(5.0, "Please use InsertChannel().")
-	FORCEINLINE void InsertIndex(const int32 Index) const
+	void InsertIndex(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
 	}
 
 	/** Inserts an attribute channel */
-	FORCEINLINE void InsertChannel(const int32 Index) const
+	void InsertChannel(const int32 Channel) const
 	{
-		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::InsertChannel(Channel);		// note: override virtual dispatch
 	}
 
 	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
-	FORCEINLINE void RemoveIndex(const int32 Index) const
+	void RemoveIndex(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
 	}
 
 	/** Removes an attribute channel */
-	FORCEINLINE void RemoveChannel(const int32 Index) const
+	void RemoveChannel(const int32 Channel) const
 	{
-		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::RemoveChannel(Channel);		// note: override virtual dispatch
 	}
 
-protected:
-	ArrayType* ArrayPtr;
+private:
+	BaseArrayType* ArrayPtr;
 };
 
 template <typename ElementIDType, typename AttributeType>
 void TMeshAttributesRef<ElementIDType, AttributeType>::Copy(TMeshAttributesRef<ElementIDType, const AttributeType> Src, const int32 DestChannel, const int32 SrcChannel)
 {
 	check(Src.IsValid());
-	const TMeshAttributeArrayBase<AttributeType>& SrcArray = Src->ArrayPtr->GetArrayForChannel(SrcChannel);
-	TMeshAttributeArrayBase<AttributeType>& DestArray = ArrayPtr->GetArrayForChannel(DestChannel);
+	const TMeshAttributeArrayBase<AttributeType>& SrcArray = static_cast<const ArrayType*>(Src->ArrayPtr)->GetArrayForChannel(SrcChannel);
+	TMeshAttributeArrayBase<AttributeType>& DestArray = static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(DestChannel);
 	const int32 Num = FMath::Min(SrcArray.Num(), DestArray.Num());
 	for (int32 Index = 0; Index < Num; Index++)
 	{
@@ -978,31 +976,33 @@ class TMeshAttributesRef<ElementIDType, TArrayView<AttributeType>>
 	template <typename T, typename U> friend class TMeshAttributesRef;
 
 public:
-	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
+	using BoundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using UnboundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
 
 	/** Constructor taking a pointer to a TMeshAttributeArraySet */
-	FORCEINLINE explicit TMeshAttributesRef(ArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
+	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
 		: ArrayPtr(InArrayPtr),
 		  Extent(InExtent)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<TIsSame<T, const T>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayView<typename TRemoveCV<T>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayView<typename TRemoveCV<T>::Type>> InRef)
 		: ArrayPtr(InRef.ArrayPtr),
 		  Extent(InRef.Extent)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef from a TMeshAttributesArray **/
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<U>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<U>> InRef)
 		: ArrayPtr(InRef.ArrayPtr),
 		  Extent(InRef.Extent)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<TIsSame<U, const U>::Value, int>::Type = 0, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<typename TRemoveCV<U>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<typename TRemoveCV<U>::Type>> InRef)
 		: ArrayPtr(InRef.ArrayPtr),
 		  Extent(InRef.Extent)
 	{}
@@ -1010,128 +1010,166 @@ public:
 
 	/** Access elements from attribute channel 0 */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE TArrayView<AttributeType> operator[](const ElementIDType ElementID) const
+	TArrayView<AttributeType> operator[](const ElementIDType ElementID) const
 	{
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementID.GetValue());
-		return TArrayView<AttributeType>(Element, Extent);
+		if (Extent > 0)
+		{
+			AttributeType* Element = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementID.GetValue());
+			return TArrayView<AttributeType>(Element, Extent);
+		}
+		else
+		{
+			return static_cast<UnboundedArrayType*>(ArrayPtr)->GetArrayForChannel(0).Get(ElementID.GetValue());
+		}
 	}
 
 	/** Get the element with the given ID and channel */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE TArrayView<AttributeType> Get(const ElementIDType ElementID, const int32 Channel = 0) const
+	TArrayView<AttributeType> Get(const ElementIDType ElementID, const int32 Channel = 0) const
 	{
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue());
-		return TArrayView<AttributeType>(Element, Extent);
+		if (Extent > 0)
+		{
+			AttributeType* Element = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue());
+			return TArrayView<AttributeType>(Element, Extent);
+		}
+		else
+		{
+			return static_cast<UnboundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Get(ElementID.GetValue());
+		}
 	}
 
-	FORCEINLINE TArrayView<AttributeType> operator[](int32 ElementIndex) const
+	TArrayView<AttributeType> operator[](int32 ElementIndex) const
 	{
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementIndex);
-		return TArrayView<AttributeType>(Element, Extent);
+		if (Extent > 0)
+		{
+			AttributeType* Element = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(0).GetElementBase(ElementIndex);
+			return TArrayView<AttributeType>(Element, Extent);
+		}
+		else
+		{
+			return static_cast<UnboundedArrayType*>(ArrayPtr)->GetArrayForChannel(0).Get(ElementIndex);
+		}
 	}
 
-	FORCEINLINE TArrayView<AttributeType> Get(int32 ElementIndex, const int32 Channel = 0) const
+	TArrayView<AttributeType> Get(int32 ElementIndex, const int32 Channel = 0) const
 	{
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex);
-		return TArrayView<AttributeType>(Element, Extent);
+		if (Extent > 0)
+		{
+			AttributeType* Element = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex);
+			return TArrayView<AttributeType>(Element, Extent);
+		}
+		else
+		{
+			return static_cast<UnboundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Get(ElementIndex);
+		}
 	}
 
-	FORCEINLINE TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
+	TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
 	{
-		return TArrayView<AttributeType>(ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex), Extent);
+		if (Extent > 0)
+		{
+			return TArrayView<AttributeType>(static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).GetElementBase(ElementIndex), Extent);
+		}
+		else
+		{
+			return static_cast<UnboundedArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Get(ElementIndex);
+		}
 	}
 
-	FORCEINLINE TArrayView<AttributeType> GetRawArray(const int32 ChannelIndex = 0) const
+	TArrayView<AttributeType> GetRawArray(const int32 ChannelIndex = 0) const
 	{
+		// Can't get the attribute set raw array for unbounded arrays because they are chunked
+		check(Extent > 0);
+
 		if (ArrayPtr == nullptr)
 		{
 			return TArrayView<AttributeType>();
 		}
 
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(ChannelIndex).GetElementBase(0);
+		AttributeType* Element = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(ChannelIndex).GetElementBase(0);
 		return TArrayView<AttributeType>(Element, GetNumElements() * Extent);
 	}
 
 	/** Return whether the reference is valid or not */
-	FORCEINLINE bool IsValid() const { return (ArrayPtr != nullptr); }
+	bool IsValid() const { return (ArrayPtr != nullptr); }
 
 	/** Return default value for this attribute type */
-	FORCEINLINE AttributeType GetDefaultValue() const { return ArrayPtr->GetDefaultValue(); }
+	AttributeType GetDefaultValue() const { return static_cast<BoundedArrayType*>(ArrayPtr)->GetDefaultValue(); }
 
 	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
-	FORCEINLINE int32 GetNumIndices() const
+	int32 GetNumIndices() const
 	{
-		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
+		return ArrayPtr->GetNumChannels();
 	}
 
 	/** Return number of channels this attribute has */
-	FORCEINLINE int32 GetNumChannels() const
+	int32 GetNumChannels() const
 	{
-		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
+		return ArrayPtr->GetNumChannels();
 	}
 
 	/** Get the number of elements in this attribute array */
-	FORCEINLINE int32 GetNumElements() const
+	int32 GetNumElements() const
 	{
 		return ArrayPtr->GetNumElements();
 	}
 
 	/** Get the flags for this attribute array set */
-	FORCEINLINE EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
+	EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
 
 	/** Return the extent of this attribute, i.e. the number of array elements it comprises */
-	FORCEINLINE uint32 GetExtent() const { return Extent; }
+	uint32 GetExtent() const { return Extent; }
 
 	/** Set the element with the given ID and index 0 to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, TArrayView<const AttributeType> Value) const
+	void Set(const ElementIDType ElementID, TArrayView<const AttributeType> Value) const
 	{
-		check(Value.Num() == Extent);
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementID.GetValue());
+		TArrayView<AttributeType> Elements = Get(ElementID);
+		check(Value.Num() == Elements.Num());
 		for (uint32 Index = 0; Index < Extent; Index++)
 		{
-			Element[Index] = Value[Index];
+			Elements[Index] = Value[Index];
 		}
 	}
 
 	/** Set the element with the given ID and channel to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, const int32 Channel, TArrayView<const AttributeType> Value) const
+	void Set(const ElementIDType ElementID, const int32 Channel, TArrayView<const AttributeType> Value) const
 	{
-		check(Value.Num() == Extent);
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementID.GetValue());
+		TArrayView<AttributeType> Elements = Get(ElementID, Channel);
+		check(Value.Num() == Elements.Num());
 		for (uint32 Index = 0; Index < Extent; Index++)
 		{
-			Element[Index] = Value[Index];
+			Elements[Index] = Value[Index];
 		}
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, TArrayView<const AttributeType> Value) const
+	void Set(int32 ElementIndex, TArrayView<const AttributeType> Value) const
 	{
-		check(Value.Num() == Extent);
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(0).GetElementBase(ElementIndex);
+		TArrayView<AttributeType> Elements = Get(ElementIndex);
+		check(Value.Num() == Elements.Num());
 		for (uint32 Index = 0; Index < Extent; Index++)
 		{
-			Element[Index] = Value[Index];
+			Elements[Index] = Value[Index];
 		}
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
+	void Set(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
 	{
-		check(Value.Num() == Extent);
-		AttributeType* Element = ArrayPtr->GetArrayForChannel(Channel).GetElementBase(ElementIndex);
+		TArrayView<AttributeType> Elements = Get(ElementIndex, Channel);
+		check(Value.Num() == Elements.Num());
 		for (uint32 Index = 0; Index < Extent; Index++)
 		{
-			Element[Index] = Value[Index];
+			Elements[Index] = Value[Index];
 		}
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
 	{
 		Set(ElementIndex, Value);
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
 	{
 		Set(ElementIndex, Channel, Value);
 	}
@@ -1140,53 +1178,54 @@ public:
 	void Copy(TMeshAttributesConstRef<ElementIDType, TArrayView<AttributeType>> Src, const int32 DestChannel = 0, const int32 SrcChannel = 0);
 
 	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
-	FORCEINLINE void SetNumIndices(const int32 NumChannels) const
+	void SetNumIndices(const int32 NumChannels) const
 	{
-		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
+		ArrayPtr->SetNumChannels(NumChannels);
 	}
 
 	/** Sets number of channels this attribute has */
-	FORCEINLINE void SetNumChannels(const int32 NumChannels) const
+	void SetNumChannels(const int32 NumChannels) const
 	{
-		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
+		ArrayPtr->SetNumChannels(NumChannels);
 	}
 
 	UE_DEPRECATED(5.0, "Please use InsertChannel().")
-	FORCEINLINE void InsertIndex(const int32 Index) const
+	void InsertIndex(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
+		ArrayPtr->InsertChannel(Index);
 	}
 
 	/** Inserts an attribute channel */
-	FORCEINLINE void InsertChannel(const int32 Index) const
+	void InsertChannel(const int32 Channel) const
 	{
-		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
+		ArrayPtr->InsertChannel(Channel);
 	}
 
 	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
-	FORCEINLINE void RemoveIndex(const int32 Index) const
+	void RemoveIndex(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
+		ArrayPtr->RemoveChannel(Index);
 	}
 
 	/** Removes an attribute channel */
-	FORCEINLINE void RemoveChannel(const int32 Index) const
+	void RemoveChannel(const int32 Channel) const
 	{
-		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
+		ArrayPtr->RemoveChannel(Channel);
 	}
 
-protected:
-	ArrayType* ArrayPtr;
+private:
+	BaseArrayType* ArrayPtr;
 	uint32 Extent;
 };
 
 template <typename ElementIDType, typename AttributeType>
 void TMeshAttributesRef<ElementIDType, TArrayView<AttributeType>>::Copy(TMeshAttributesConstRef<ElementIDType, TArrayView<AttributeType>> Src, const int32 DestChannel, const int32 SrcChannel)
 {
+	check(Extent > 0);
 	check(Src.IsValid());
 	check(Src.Extent == Extent);
-	const TMeshAttributeArrayBase<AttributeType>& SrcArray = Src->ArrayPtr->GetArrayForChannel(SrcChannel);
-	TMeshAttributeArrayBase<AttributeType>& DestArray = ArrayPtr->GetArrayForChannel(DestChannel);
+	const TMeshAttributeArrayBase<AttributeType>& SrcArray = static_cast<const BoundedArrayType*>(Src->ArrayPtr)->GetArrayForChannel(SrcChannel);
+	TMeshAttributeArrayBase<AttributeType>& DestArray = static_cast<BoundedArrayType*>(ArrayPtr)->GetArrayForChannel(DestChannel);
 	const int32 Num = FMath::Min(SrcArray.Num(), DestArray.Num());
 	for (int32 Index = 0; Index < Num; Index++)
 	{
@@ -1204,140 +1243,151 @@ class TMeshAttributesRef<ElementIDType, TArrayAttribute<AttributeType>>
 	template <typename T, typename U> friend class TMeshAttributesRef;
 
 public:
+	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
 	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
 
 	/** Constructor taking a pointer to a TMeshUnboundedAttributeArraySet */
-	FORCEINLINE explicit TMeshAttributesRef(ArrayType* InArrayPtr = nullptr, uint32 InExtent = 0)
+	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 0)
 		: ArrayPtr(InArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<TIsSame<T, const T>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayAttribute<typename TRemoveCV<T>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayAttribute<typename TRemoveCV<T>::Type>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef from a TMeshAttributesArray **/
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<U>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<U>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<TIsSame<U, const U>::Value, int>::Type = 0, typename TEnableIf<!TIsSame<T, int32>::Value, int>::Type = 0>
-	FORCEINLINE TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<typename TRemoveCV<U>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<typename TRemoveCV<U>::Type>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 
 	/** Access elements from attribute channel 0 */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE TArrayAttribute<AttributeType> operator[](const ElementIDType ElementID) const
+	TArrayAttribute<AttributeType> operator[](const ElementIDType ElementID) const
 	{
-		return TArrayAttribute<AttributeType>(ArrayPtr->GetArrayForChannel(0), ElementID.GetValue());
+		return TArrayAttribute<AttributeType>(static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0), ElementID.GetValue());
 	}
 
 	/** Get the element with the given ID and channel */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE TArrayAttribute<AttributeType> Get(const ElementIDType ElementID, const int32 Channel = 0) const
+	TArrayAttribute<AttributeType> Get(const ElementIDType ElementID, const int32 Channel = 0) const
 	{
-		return TArrayAttribute<AttributeType>(ArrayPtr->GetArrayForChannel(Channel), ElementID.GetValue());
+		return TArrayAttribute<AttributeType>(static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel), ElementID.GetValue());
 	}
 
-	FORCEINLINE TArrayAttribute<AttributeType> operator[](int32 ElementIndex) const
+	TArrayAttribute<AttributeType> operator[](int32 ElementIndex) const
 	{
-		return TArrayAttribute<AttributeType>(ArrayPtr->GetArrayForChannel(0), ElementIndex);
+		return TArrayAttribute<AttributeType>(static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0), ElementIndex);
 	}
 
-	FORCEINLINE TArrayAttribute<AttributeType> Get(int32 ElementIndex, const int32 Channel = 0) const
+	TArrayAttribute<AttributeType> Get(int32 ElementIndex, const int32 Channel = 0) const
 	{
-		return TArrayAttribute<AttributeType>(ArrayPtr->GetArrayForChannel(Channel), ElementIndex);
+		return TArrayAttribute<AttributeType>(static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel), ElementIndex);
 	}
 
-	FORCEINLINE TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
+	TArrayView<AttributeType> GetArrayView(int32 ElementIndex, const int32 Channel = 0) const
 	{
 		return Get(ElementIndex, Channel).ToArrayView();
 	}
 
+	/** In this specialization, GetRawArray returns a pointer to the attribute array container holding the attributes and their index pointers */
+	const TAttributeArrayContainer<AttributeType>* GetRawArray(const int32 AttributeChannel = 0) const
+	{
+		if (ArrayPtr == nullptr)
+		{
+			return nullptr;
+		}
+
+		return &static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(AttributeChannel);
+	}
+
 	/** Return whether the reference is valid or not */
-	FORCEINLINE bool IsValid() const { return (ArrayPtr != nullptr); }
+	bool IsValid() const { return (ArrayPtr != nullptr); }
 
 	/** Return default value for this attribute type */
-	FORCEINLINE AttributeType GetDefaultValue() const { return ArrayPtr->GetDefaultValue(); }
+	AttributeType GetDefaultValue() const { return static_cast<ArrayType*>(ArrayPtr)->GetDefaultValue(); }
 
 	/** Return number of channels this attribute has */
-	FORCEINLINE int32 GetNumChannels() const
+	int32 GetNumChannels() const
 	{
-		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
+		return static_cast<ArrayType*>(ArrayPtr)->ArrayType::GetNumChannels();	// note: override virtual dispatch
 	}
 
 	/** Get the number of elements in this attribute array */
-	FORCEINLINE int32 GetNumElements() const
+	int32 GetNumElements() const
 	{
 		return ArrayPtr->GetNumElements();
 	}
 
 	/** Get the flags for this attribute array set */
-	FORCEINLINE EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
+	EMeshAttributeFlags GetFlags() const { return ArrayPtr->GetFlags(); }
 
 	/** Set the element with the given ID and index 0 to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, TArrayAttribute<const AttributeType> Value) const
+	void Set(const ElementIDType ElementID, TArrayAttribute<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(0).Set(ElementID.GetValue(), Value.ToArrayView());
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).Set(ElementID.GetValue(), Value.ToArrayView());
 	}
 
 	/** Set the element with the given ID and channel to the provided value */
 	template <typename T = ElementIDType, typename TEnableIf<TIsDerivedFrom<T, FElementID>::Value, int>::Type = 0>
-	FORCEINLINE void Set(const ElementIDType ElementID, const int32 Channel, TArrayAttribute<const AttributeType> Value) const
+	void Set(const ElementIDType ElementID, const int32 Channel, TArrayAttribute<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(Channel).Set(ElementID.GetValue(), Value.ToArrayView());
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Set(ElementID.GetValue(), Value.ToArrayView());
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, TArrayAttribute<const AttributeType> Value) const
+	void Set(int32 ElementIndex, TArrayAttribute<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(0).Set(ElementIndex, Value.ToArrayView());
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).Set(ElementIndex, Value.ToArrayView());
 	}
 
-	FORCEINLINE void Set(int32 ElementIndex, const int32 Channel, TArrayAttribute<const AttributeType> Value) const
+	void Set(int32 ElementIndex, const int32 Channel, TArrayAttribute<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(Channel).Set(ElementIndex, Value.ToArrayView());
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Set(ElementIndex, Value.ToArrayView());
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, TArrayView<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(0).Set(ElementIndex, Value);
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(0).Set(ElementIndex, Value);
 	}
 
-	FORCEINLINE void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
+	void SetArrayView(int32 ElementIndex, const int32 Channel, TArrayView<const AttributeType> Value) const
 	{
-		ArrayPtr->GetArrayForChannel(Channel).Set(ElementIndex, Value);
+		static_cast<ArrayType*>(ArrayPtr)->GetArrayForChannel(Channel).Set(ElementIndex, Value);
 	}
 
 	/** Copies the given attribute array and index to this index */
 	void Copy(TMeshAttributesConstRef<ElementIDType, TArrayAttribute<AttributeType>> Src, const int32 DestChannel = 0, const int32 SrcChannel = 0);
 
 	/** Sets number of channels this attribute has */
-	FORCEINLINE void SetNumChannels(const int32 NumChannels) const
+	void SetNumChannels(const int32 NumChannels) const
 	{
-		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
 	}
 
 	/** Inserts an attribute channel */
-	FORCEINLINE void InsertChannel(const int32 Index) const
+	void InsertChannel(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
 	}
 
 	/** Removes an attribute channel */
-	FORCEINLINE void RemoveChannel(const int32 Index) const
+	void RemoveChannel(const int32 Index) const
 	{
-		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
+		static_cast<ArrayType*>(ArrayPtr)->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
 	}
 
-protected:
-	ArrayType* ArrayPtr;
-	uint32 Extent;
+private:
+	BaseArrayType* ArrayPtr;
 };
 
 
@@ -1450,16 +1500,15 @@ public:
 		using AttributeType = typename TMeshAttributesRegisterType<T>::AttributeType;
 		using RealAttributeType = typename TMeshAttributesRegisterType<T>::RealAttributeType;
 		using RefType = typename TMeshAttributesRegisterType<T>::RefType;
-		using SetType = typename TMeshAttributesRegisterType<T>::SetType;
 		const uint32 Extent = TMeshAttributesRegisterType<T>::Extent;
 
 		if (FAttributesSetEntry* ArraySetPtr = Map.Find(AttributeName))
 		{
 			if ((*ArraySetPtr)->HasType<RealAttributeType>() && (*ArraySetPtr)->GetExtent() == Extent)
 			{
-				static_cast<SetType*>(ArraySetPtr->Get())->SetType::SetNumChannels(NumberOfChannels);	// note: override virtual dispatch
+				(*ArraySetPtr)->SetNumChannels(NumberOfChannels);
 				(*ArraySetPtr)->SetFlags(Flags);
-				return TMeshAttributesArray<RefType>(static_cast<SetType*>(ArraySetPtr->Get()), Extent);
+				return TMeshAttributesArray<RefType>(ArraySetPtr->Get(), Extent);
 			}
 			else
 			{
@@ -1468,7 +1517,7 @@ public:
 		}
 
 		FAttributesSetEntry& Entry = Map.Emplace(AttributeName, FAttributesSetEntry(NumberOfChannels, Default, Flags, NumElements, Extent));
-		return TMeshAttributesArray<RefType>(static_cast<SetType*>(Entry.Get()), Extent);
+		return TMeshAttributesArray<RefType>(Entry.Get(), Extent);
 	}
 
 	/**
@@ -1666,7 +1715,7 @@ public:
 				uint32 ActualExtent = (*ArraySetPtr)->GetExtent();
 				if (ActualExtent >= TMeshAttributesRefType<T>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<T>::MaxExpectedExtent)
 				{
-					return TMeshAttributesConstRef<int32, RefType>(static_cast<typename TMeshAttributesRefType<T>::ConstSetType*>(ArraySetPtr->Get()), ActualExtent);
+					return TMeshAttributesConstRef<int32, RefType>(ArraySetPtr->Get(), ActualExtent);
 				}
 			}
 		}
@@ -1689,7 +1738,7 @@ public:
 				uint32 ActualExtent = (*ArraySetPtr)->GetExtent();
 				if (ActualExtent >= TMeshAttributesRefType<T>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<T>::MaxExpectedExtent)
 				{
-					return TMeshAttributesRef<int32, RefType>(static_cast<typename TMeshAttributesRefType<T>::SetType*>(ArraySetPtr->Get()), ActualExtent);
+					return TMeshAttributesRef<int32, RefType>(ArraySetPtr->Get(), ActualExtent);
 				}
 			}
 		}
@@ -1749,17 +1798,14 @@ public:
 		if (const FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
 		{
 			using AttributeType = typename TMeshAttributesRefType<T>::AttributeType;
-
-			// Get the real attribute type; this will normally be the same as the templated type,
-			// but element ID types are coerced to simple int32s.
-			using RealAttributeType = typename TChooseClass<TIsDerivedFrom<AttributeType, FElementID>::Value, int32, AttributeType>::Result;
+			using RealAttributeType = typename TMeshAttributesRefType<T>::RealAttributeType;
 
 			if ((*ArraySetPtr)->HasType<RealAttributeType>())
 			{
 				uint32 ActualExtent = (*ArraySetPtr)->GetExtent();
 				if (ActualExtent >= TMeshAttributesRefType<T>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<T>::MaxExpectedExtent)
 				{
-					return TMeshAttributesConstRef<ElementIDType, RefType>(static_cast<typename TMeshAttributesRefType<T>::ConstSetType*>(ArraySetPtr->Get()), ActualExtent);
+					return TMeshAttributesConstRef<ElementIDType, RefType>(ArraySetPtr->Get(), ActualExtent);
 				}
 			}
 		}
@@ -1776,17 +1822,14 @@ public:
 		if (FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
 		{
 			using AttributeType = typename TMeshAttributesRefType<T>::AttributeType;
-
-			// Get the real attribute type; this will normally be the same as the templated type,
-			// but element ID types are coerced to simple int32s.
-			using RealAttributeType = typename TChooseClass<TIsDerivedFrom<AttributeType, FElementID>::Value, int32, AttributeType>::Result;
+			using RealAttributeType = typename TMeshAttributesRefType<T>::RealAttributeType;
 
 			if ((*ArraySetPtr)->HasType<RealAttributeType>())
 			{
 				uint32 ActualExtent = (*ArraySetPtr)->GetExtent();
 				if (ActualExtent >= TMeshAttributesRefType<T>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<T>::MaxExpectedExtent)
 				{
-					return TMeshAttributesRef<ElementIDType, RefType>(static_cast<typename TMeshAttributesRefType<T>::SetType*>(ArraySetPtr->Get()), ActualExtent);
+					return TMeshAttributesRef<ElementIDType, RefType>(ArraySetPtr->Get(), ActualExtent);
 				}
 			}
 		}
@@ -1923,7 +1966,6 @@ public:
 	T GetAttribute(const ElementIDType ElementID, const FName AttributeName, const int32 AttributeChannel = 0) const
 	{
 		using RefType = typename TMeshAttributesRefType<T>::ConstRefType;
-		using SetType = typename TMeshAttributesRefType<T>::ConstSetType;
 		using AttributeType = typename TMeshAttributesRefType<T>::AttributeType;
 		using RealAttributeType = typename TMeshAttributesRefType<T>::RealAttributeType;
 
@@ -1932,7 +1974,7 @@ public:
 		check(ArraySetPtr->HasType<RealAttributeType>());
 		check(ActualExtent >= TMeshAttributesRefType<AttributeType>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<AttributeType>::MaxExpectedExtent);
 
-		TMeshAttributesConstRef<FElementID, RefType> Ref(static_cast<SetType*>(ArraySetPtr), ActualExtent);
+		TMeshAttributesConstRef<FElementID, RefType> Ref(ArraySetPtr, ActualExtent);
 		return Ref.Get(ElementID, AttributeChannel);
 	}
 
@@ -1945,7 +1987,6 @@ public:
 	void SetAttribute(const ElementIDType ElementID, const FName AttributeName, const int32 AttributeChannel, const T& AttributeValue)
 	{
 		using NonConstRefType = typename TMeshAttributesRefType<T>::NonConstRefType;
-		using SetType = typename TMeshAttributesRefType<T>::SetType;
 		using AttributeType = typename TMeshAttributesRefType<T>::AttributeType;
 		using RealAttributeType = typename TMeshAttributesRefType<T>::RealAttributeType;
 
@@ -1954,7 +1995,7 @@ public:
 		check(ArraySetPtr->HasType<typename TRemoveCV<RealAttributeType>::Type>());
 		check(ActualExtent >= TMeshAttributesRefType<AttributeType>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<AttributeType>::MaxExpectedExtent);
 
-		TMeshAttributesRef<FElementID, NonConstRefType> Ref(static_cast<SetType*>(ArraySetPtr), ActualExtent);
+		TMeshAttributesRef<FElementID, NonConstRefType> Ref(ArraySetPtr, ActualExtent);
 		return Ref.Set(ElementID, AttributeChannel, AttributeValue);
 	}
 
