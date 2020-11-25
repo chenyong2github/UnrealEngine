@@ -1491,7 +1491,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 
 			if (RayTracingGeometry.RayTracingGeometryRHI.IsValid())
 			{
-				// RayTracingGeometry.UpdateRHI() releases the old RT geometry, however due to the deferred deletion nature of RHI resources
+				// CreateRayTracingGeometry releases the old RT geometry, however due to the deferred deletion nature of RHI resources
 				// they will not be released until the end of the frame. We may get OOM in the middle of batched updates if not flushing.
 				// This memory size is an estimation based on vertex & index buffer size. In reality the flush happens at 2-3x of the number specified.
 				RayTracingGeometryMemoryPendingRelease += MemoryEstimation;
@@ -1505,7 +1505,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			}
 
 			RayTracingGeometry.SetInitializer(Initializer);
-			RayTracingGeometry.UpdateRHI();
+			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Immediate);
 		}
 		else
 		{

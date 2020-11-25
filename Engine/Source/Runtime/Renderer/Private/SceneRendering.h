@@ -1276,6 +1276,9 @@ public:
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 
+	// Geometries which still have a pending build request but are used this frame and require a force build
+	TSet<const FRayTracingGeometry*> ForceBuildRayTracingGeometries;
+
 #ifdef DO_CHECK
 	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
 	TSet<const FRayTracingGeometry*> RayTracingGeometries;

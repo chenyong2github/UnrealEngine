@@ -1691,6 +1691,15 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	}
 
 	FRayTracingGeometry& Geometry = bEvaluateWPO? DynamicRayTracingGeometries[LODIndex] : RenderData->LODResources[LODIndex].RayTracingGeometry;
+
+	// Early out for now if no valid RHI RT geometry yet (still pending build request)
+	// TODO: select different LOD if available
+	if (Geometry.HasPendingBuildRequest())
+	{
+		Geometry.BoostBuildPriority();
+		return;
+	}
+
 	{
 		FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.AddDefaulted_GetRef();
 	

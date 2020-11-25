@@ -1120,8 +1120,7 @@ static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, 
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
-	OutRayTracingGeometry->RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
-	RHICmdList.BuildAccelerationStructure(OutRayTracingGeometry->RayTracingGeometryRHI);
+	OutRayTracingGeometry->CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Immediate);
 }
 
 static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList, 	
@@ -1150,7 +1149,7 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
-	OutRayTracingGeometry->InitRHI();
+	OutRayTracingGeometry->CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Immediate);
 }
 
 static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
@@ -1179,7 +1178,7 @@ static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
-	OutRayTracingGeometry->InitRHI();
+	OutRayTracingGeometry->CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Immediate);
 }
 #endif // RHI_RAYTRACING
 

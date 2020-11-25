@@ -50,6 +50,7 @@
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
+#include "RayTracingGeometryManager.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("r.StencilForLODDither"),
@@ -861,6 +862,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			{
 				for (FRayTracingInstance& Instance : RayTracingInstances)
 				{
+					// If geometry still has pending build request then add to list which requires a force build
+					if (Instance.Geometry->HasPendingBuildRequest())
+					{
+						ReferenceView.ForceBuildRayTracingGeometries.Add(Instance.Geometry);
+					}
+
 					FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
 					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 					RayTracingInstance.Mask = Instance.Mask;
@@ -1090,6 +1097,14 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates);
 
 	FViewInfo& ReferenceView = Views[0];
+
+	if (ReferenceView.ForceBuildRayTracingGeometries.Num() > 0)
+	{
+		// Force update all the collected geometries (use stack allocator?)
+		TArray<const FRayTracingGeometry*> ForceBuildRayTracingGeometries = ReferenceView.ForceBuildRayTracingGeometries.Array();
+		GRayTracingGeometryManager.ForceBuild(RHICmdList, MakeArrayView(ForceBuildRayTracingGeometries.GetData(), ForceBuildRayTracingGeometries.Num()));
+	}
+
 	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WaitRayTracingAddMesh);
