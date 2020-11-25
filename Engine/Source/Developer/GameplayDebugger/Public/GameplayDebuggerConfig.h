@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "InputCoreTypes.h"
+#include "Engine/DeveloperSettings.h"
 #include "GameplayDebuggerConfig.generated.h"
 
 struct FGameplayDebuggerInputModifier;
@@ -204,4 +205,18 @@ private:
 	TArray<FName> KnownExtensionNames;
 	TMultiMap<FName, FName> KnownCategoryInputNames;
 	TMultiMap<FName, FName> KnownExtensionInputNames;
+};
+
+
+UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Gameplay Debugger"))
+class GAMEPLAYDEBUGGER_API UGameplayDebuggerUserSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+public:
+	virtual FName GetCategoryName() const override { return TEXT("Advanced"); }
+
+	/** Controls whether GamplayDebugger will be available in pure editor mode. 
+	 *  @Note that you need to reload the map for the changes to this property to take effect */
+	UPROPERTY(config, EditAnywhere, Category = GameplayDebugger)
+	uint32 bEnableGameplayDebuggerInEditor : 1;
 };

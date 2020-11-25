@@ -7,6 +7,7 @@
 #include "GameplayDebuggerLocalController.h"
 #include "Engine/DebugCameraController.h"
 #include "Engine/InputDelegateBinding.h"
+#include "GameplayDebuggerConfig.h"
 
 
 AGameplayDebuggerPlayerManager::AGameplayDebuggerPlayerManager(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -97,7 +98,7 @@ void AGameplayDebuggerPlayerManager::Init()
 {
 #if WITH_EDITOR
 	UWorld* World = GetWorld();
-	if (World != nullptr && World->WorldType == EWorldType::Editor)
+	if (World != nullptr && World->WorldType == EWorldType::Editor && (GetDefault<UGameplayDebuggerUserSettings>()->bEnableGameplayDebuggerInEditor))
 	{
 		bHasAuthority = true;
 		bIsLocal = true;
