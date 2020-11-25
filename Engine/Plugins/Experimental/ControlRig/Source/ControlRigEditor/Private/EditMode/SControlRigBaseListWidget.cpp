@@ -885,6 +885,15 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetAssetContextMenu(const TArra
 			}
 			MenuBuilder.EndSection();
 
+			MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("PoseDialogUpdateHeading", "Update"));
+			{
+				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteUpdatePose, PoseAsset));
+				const FText Label = LOCTEXT("UpdatePose", "Update Pose");
+				const FText ToolTipText = LOCTEXT("Update Pose Tooltip", "Update The Pose Based Upon Current Control Rig Pose");
+				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+			}
+			MenuBuilder.EndSection();
+
 		}
 	}
 	return MenuBuilder.MakeWidget();
@@ -1051,6 +1060,16 @@ bool SControlRigBaseListWidget::CanExecutePastePose(UControlRigPoseAsset* PoseAs
 {
 	return PoseAsset != nullptr;
 }
+
+void SControlRigBaseListWidget::ExecuteUpdatePose(UControlRigPoseAsset* PoseAsset)
+{
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+	{
+		PoseAsset->SavePose(ControlRigEditMode->GetControlRig(true),false);
+	}
+}
+
 void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* PoseAsset)
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));

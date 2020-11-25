@@ -13,6 +13,7 @@
 class UControlRig;
 struct FRigControl;
 struct FRigControlCopy;
+struct FControlRigControlPose;
 
 struct FControlRigPoseMirrorTable
 {
@@ -24,7 +25,7 @@ public:
 	void SetUpMirrorTable(const UControlRig* ControlRig);
 
 	/*Get the matched control with the given name*/
-	FRigControl* GetControl(UControlRig* ControlRig, const FName& ControlName) const;
+	FRigControlCopy* GetControl(FControlRigControlPose& Pose, FName ControlrigName);
 
 	/*Whether or not the Control with this name is matched*/
 	bool IsMatched(const FName& ControlName) const;

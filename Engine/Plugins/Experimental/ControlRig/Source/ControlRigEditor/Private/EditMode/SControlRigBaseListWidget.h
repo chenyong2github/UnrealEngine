@@ -99,6 +99,7 @@ private:
 	void ExecuteSelectControls(UControlRigPoseAsset* PoseAsset);
 	void ExecutePasteMirrorPose(UControlRigPoseAsset* PoseAsset);
 	bool CanExecutePasteMirrorPose(UControlRigPoseAsset* PoseAsset) const;
+	void ExecuteUpdatePose(UControlRigPoseAsset* PoseAsset);
 
 	/** Create the Views for the Selected Asset*/
 	void CreateCurrentView(UObject* Asset);

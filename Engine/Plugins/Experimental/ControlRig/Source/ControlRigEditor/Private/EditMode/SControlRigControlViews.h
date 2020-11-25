@@ -57,12 +57,12 @@ private:
 	FReply OnSelectControls();
 	FReply OnCaptureThumbnail();
 
-	bool bIsKey;
-	bool bIsMirror;
+	static bool bIsKey;
+	static bool bIsMirror;
 	float PoseBlendValue;
 	bool bIsBlending;
 	bool bSliderStartedTransaction;
-	TArray<FRigControlCopy> InitialControlValues;
+	FControlRigControlPose TempPose;
 
 	TWeakObjectPtr<UControlRigPoseAsset> PoseAsset;
 

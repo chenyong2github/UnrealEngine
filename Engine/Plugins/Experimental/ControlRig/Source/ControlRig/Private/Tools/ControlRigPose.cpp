@@ -14,10 +14,15 @@ UControlRigPoseAsset::UControlRigPoseAsset(const FObjectInitializer& ObjectIniti
 {
 }
 
+void UControlRigPoseAsset::PostLoad()
+{
+	Super::PostLoad();
+	Pose.SetUpControlMap();
+}
+
 void UControlRigPoseAsset::SavePose(UControlRig* InControlRig, bool bUseAll)
 {
 	Pose.SavePose(InControlRig,bUseAll);
-	Controls = Pose.GetControlNames();
 }
 
 void UControlRigPoseAsset::PastePose(UControlRig* InControlRig, bool bDoKey, bool bDoMirror)
@@ -36,26 +41,31 @@ void UControlRigPoseAsset::SelectControls(UControlRig* InControlRig)
 	InControlRig->Modify();
 #endif
 	InControlRig->ClearControlSelection();
-	Controls = Pose.GetControlNames();
+	TArray<FName> Controls = Pose.GetControlNames();
 	for (const FName& Name : Controls)
 	{
 		InControlRig->SelectControl(Name, true);
 	}
 }
 
+void UControlRigPoseAsset::GetCurrentPose(UControlRig* InControlRig, FControlRigControlPose& OutPose)
+{
+	OutPose.SavePose(InControlRig, true);
+}
+
+
 TArray<FRigControlCopy> UControlRigPoseAsset::GetCurrentPose(UControlRig* InControlRig) 
 {
 	FControlRigControlPose TempPose;
-	FString Name;
 	TempPose.SavePose(InControlRig,true);
 	return TempPose.GetPoses();
 }
 
-void UControlRigPoseAsset::BlendWithInitialPoses(TArray<FRigControlCopy>& InitialControls, UControlRig* InControlRig, bool bDoKey, bool bDoMirror, float BlendValue)
+void UControlRigPoseAsset::BlendWithInitialPoses(FControlRigControlPose& InitialPose, UControlRig* InControlRig, bool bDoKey, bool bDoMirror, float BlendValue)
 {
 	if (BlendValue > 0.0f)
 	{
-		Pose.BlendWithInitialPoses(InitialControls, InControlRig, bDoKey, bDoMirror, BlendValue);
+		Pose.BlendWithInitialPoses(InitialPose, InControlRig, bDoKey, bDoMirror, BlendValue);
 	}
 }
 

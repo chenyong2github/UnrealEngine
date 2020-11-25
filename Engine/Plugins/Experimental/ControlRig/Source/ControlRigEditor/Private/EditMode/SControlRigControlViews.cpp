@@ -178,16 +178,17 @@ void SControlRigAssetEditableTextBox::OnTextChanged(const FText& InLabel)
 	}
 }
 
+bool SControlRigPoseView::bIsKey = false;
+bool SControlRigPoseView::bIsMirror = false;
+
 void SControlRigPoseView::Construct(const FArguments& InArgs)
 {
 	PoseAsset = InArgs._PoseAsset;
 
-	bIsKey = false;
-	bIsMirror = false;
+
 	PoseBlendValue = 0.0f;
 	bIsBlending = false;
 	bSliderStartedTransaction = false;
-	InitialControlValues.SetNum(0);
 
 	TSharedRef<SWidget> Thumbnail = GetThumbnailWidget();
 	TSharedRef <SControlRigAssetEditableTextBox> ObjectNameBox = SNew(SControlRigAssetEditableTextBox).Asset(PoseAsset);
@@ -471,10 +472,10 @@ void SControlRigPoseView::OnPoseBlendChanged(float ChangedVal)
 		if (!bIsBlending)
 		{
 			bIsBlending = true;
-			InitialControlValues = PoseAsset->GetCurrentPose(ControlRig);
+			PoseAsset->GetCurrentPose(ControlRig,TempPose);
 		}
 
-		PoseAsset->BlendWithInitialPoses(InitialControlValues, ControlRig, false, bIsMirror, PoseBlendValue);
+		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, false, bIsMirror, PoseBlendValue);
 	}
 }
 void SControlRigPoseView::OnBeginSliderMovement()
@@ -502,7 +503,7 @@ void SControlRigPoseView::OnPoseBlendCommited(float ChangedVal, ETextCommit::Typ
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("PastePoseTransaction", "Paste Pose"));
 		PoseBlendValue = ChangedVal;
-		PoseAsset->BlendWithInitialPoses(InitialControlValues, ControlRig, bIsKey, bIsMirror, PoseBlendValue);
+		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, bIsKey, bIsMirror, PoseBlendValue);
 		bIsBlending = false;
 		PoseBlendValue = 0.0f;
 	}

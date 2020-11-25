@@ -1122,7 +1122,7 @@ FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) co
 	return Hierarchy.ControlHierarchy.GetGlobalTransform(InControlName);
 }
 
-bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, const FRigControlModifiedContext& Context)
+bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify, const FRigControlModifiedContext& Context)
 {
 	FTransform GlobalTransform = InGlobalTransform;
 	if (IsSetupModeEnabled())
@@ -1140,7 +1140,7 @@ bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FT
 		}
 	}
 
-	SetControlValue(InControlName, Value, true /* notify */, Context);
+	SetControlValue(InControlName, Value, bNotify, Context);
 	return true;
 }
 
