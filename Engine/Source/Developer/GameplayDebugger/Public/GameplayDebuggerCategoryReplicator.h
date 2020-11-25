@@ -51,8 +51,7 @@ struct FGameplayDebuggerDebugActor
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY()
-	AActor* Actor;
+	TWeakObjectPtr<AActor> Actor;
 
 	UPROPERTY()
 	FName ActorName;
@@ -111,7 +110,7 @@ public:
 	void CollectCategoryData(bool bForce = false);
 
 	/** get current debug actor */
-	AActor* GetDebugActor() const { return IsValid(DebugActor.Actor) ? DebugActor.Actor : nullptr; }
+	AActor* GetDebugActor() const { return DebugActor.Actor.Get(); }
 	
 	/** get name of debug actor */
 	FName GetDebugActorName() const { return DebugActor.ActorName; }

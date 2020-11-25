@@ -703,7 +703,7 @@ void AGameplayDebuggerCategoryReplicator::CollectCategoryData(bool bForce)
 			CategoryOb.ReplicatedLines.Reset();
 			CategoryOb.ReplicatedShapes.Reset();
 
-			CategoryOb.CollectData(OwnerPC, DebugActor.Actor);
+			CategoryOb.CollectData(OwnerPC, DebugActor.Actor.Get());
 			CategoryOb.LastCollectDataTime = GameTime;
 
 			// update dirty data packs
