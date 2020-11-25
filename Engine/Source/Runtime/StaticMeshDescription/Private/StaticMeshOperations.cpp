@@ -2186,15 +2186,32 @@ void FStaticMeshOperations::BuildWeldedVertexIDRemap(const FMeshDescription& Mes
 	}
 }
 
-FSHAHash FStaticMeshOperations::ComputeSHAHash(const FMeshDescription& MeshDescription)
+FSHAHash FStaticMeshOperations::ComputeSHAHash(const FMeshDescription& MeshDescription, bool bSkipTransientAttributes)
 {
 	FSHA1 HashState;
 	TArray< FName > AttributesNames;
 
-	auto HashAttributeSet = [&AttributesNames, &HashState](const FAttributesSetBase& AttributeSet)
+	auto HashAttributeSet = [&AttributesNames, &HashState, bSkipTransientAttributes](const auto& AttributeSet)
 	{
 		AttributesNames.Reset();
-		AttributeSet.GetAttributeNames(AttributesNames);
+
+		if (!bSkipTransientAttributes)
+		{
+			AttributeSet.GetAttributeNames(AttributesNames);
+		}
+		else
+		{
+			AttributeSet.ForEach([&AttributesNames](const FName AttributeName, auto AttributesRef)
+			{
+				bool bIsTransient = (AttributesRef.GetFlags() & EMeshAttributeFlags::Transient) != EMeshAttributeFlags::None;
+				if (!bIsTransient)
+				{
+					AttributesNames.Add(AttributeName);
+				}
+			});
+		}
+
+		AttributesNames.Sort(FNameLexicalLess());
 
 		for (FName AttributeName : AttributesNames)
 		{
