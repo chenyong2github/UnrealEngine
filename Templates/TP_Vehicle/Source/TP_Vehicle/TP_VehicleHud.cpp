@@ -2,11 +2,11 @@
 
 #include "TP_VehicleHud.h"
 #include "TP_VehiclePawn.h"
-#include "WheeledVehicle.h"
+#include "WheeledVehiclePawn.h"
 #include "RenderResource.h"
 #include "Shader.h"
 #include "Engine/Canvas.h"
-#include "WheeledVehicleMovementComponent.h"
+#include "ChaosWheeledVehicleMovementComponent.h"
 #include "Engine/Font.h"
 #include "CanvasItem.h"
 #include "UObject/ConstructorHelpers.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WheeledVehicle.h"
+#include "WheeledVehiclePawn.h"
 #include "TP_VehiclePawn.generated.h"
 
 class UCameraComponent;
@@ -14,7 +14,7 @@ class UInputComponent;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UCLASS(config=Game)
-class ATP_VehiclePawn : public AWheeledVehicle
+class ATP_VehiclePawn : public AWheeledVehiclePawn
 {
 	GENERATED_BODY()
 
