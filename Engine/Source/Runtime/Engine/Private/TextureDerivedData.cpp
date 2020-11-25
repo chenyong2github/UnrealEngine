@@ -591,7 +591,7 @@ static void GetBuildSettingsPerFormat(const UTexture& Texture, const FTextureBui
  * @param bForceAllMipsToBeInlined - Whether to store all mips in the main DDC. Relates to how the texture resources get initialized (not supporting streaming).
  * @return number of bytes put to the DDC (total, including all mips)
  */
-uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined)
+uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC)
 {
 	TArray<uint8> RawDerivedData;
 	FString DerivedDataKey;
@@ -639,7 +639,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 		if (!bInline)
 		{
 			// store in the DDC, also drop the bulk data storage.
-			TotalBytesPut += Mip.StoreInDerivedDataCache(MipDerivedDataKey, TextureName);
+			TotalBytesPut += Mip.StoreInDerivedDataCache(MipDerivedDataKey, TextureName, bReplaceExistingDDC);
 		}
 	}
 
@@ -654,7 +654,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 				*FString::Printf(TEXT("%s_VTCHUNK%u"), *DerivedDataKeySuffix, ChunkIndex));
 
 			FVirtualTextureDataChunk& Chunk = DerivedData->VTData->Chunks[ChunkIndex];
-			TotalBytesPut += Chunk.StoreInDerivedDataCache(ChunkDerivedDataKey, TextureName);
+			TotalBytesPut += Chunk.StoreInDerivedDataCache(ChunkDerivedDataKey, TextureName, bReplaceExistingDDC);
 		}
 	}
 

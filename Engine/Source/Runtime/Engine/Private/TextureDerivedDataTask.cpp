@@ -35,6 +35,20 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "VT/VirtualTextureDataBuilder.h"
 
+static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
+	TEXT("r.VT.ValidateCompressionOnLoad"),
+	0,
+	TEXT("Validates that VT data contains no compression errors when loading from DDC")
+	TEXT("This is slow, but allows debugging corrupt VT data (and allows recovering from bad DDC)")
+);
+
+static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnSave(
+	TEXT("r.VT.ValidateCompressionOnSave"),
+	1,
+	TEXT("Validates that VT data contains no compression errors before saving to DDC")
+	TEXT("This is slow, but allows debugging corrupt VT data")
+);
+
 class FTextureStatusMessageContext : public FScopedSlowTask
 {
 public:
@@ -197,7 +211,7 @@ void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 	}
 }
 
-void FTextureCacheDerivedDataWorker::BuildTexture()
+void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::BuildTexture);
 
@@ -233,20 +247,29 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->PixelFormat = DerivedData->VTData->LayerTypes[0];
 		DerivedData->SetNumSlices(1);
 
-		// Store it in the cache.
-		// @todo: This will remove the streaming bulk data, which we immediately reload below!
-		// Should ideally avoid this redundant work, but it only happens when we actually have 
-		// to build the texture, which should only ever be once.
-		this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray);
-
-		if (DerivedData->VTData->Chunks.Num())
+		bool bCompressionValid = true;
+		if (CVarVTValidateCompressionOnSave.GetValueOnAnyThread())
 		{
-			const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+			bCompressionValid = DerivedData->VTData->ValidateCompression();
 		}
-		else
+
+		if (ensureMsgf(bCompressionValid, TEXT("Corrupt Virtual Texture compression for %s, can't store to DDC"), *Texture.GetPathName()))
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			// Store it in the cache.
+			// @todo: This will remove the streaming bulk data, which we immediately reload below!
+			// Should ideally avoid this redundant work, but it only happens when we actually have 
+			// to build the texture, which should only ever be once.
+			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray, bReplaceExistingDDC);
+
+			if (DerivedData->VTData->Chunks.Num())
+			{
+				const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+			}
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			}
 		}
 	}
 	else if (bHasValidMip0)
@@ -321,7 +344,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
 			// to build the texture, which should only ever be once.
-			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || (BuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (BuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming));
+			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || (BuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (BuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
 		}
 
 		if (DerivedData->Mips.Num())
@@ -406,6 +429,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
 	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
 	const bool bForVirtualTextureStreamingBuild = (CacheFlags & ETextureCacheFlags::ForVirtualTextureStreamingBuild) != 0;
+	bool bInvalidVirtualTextureCompression = false;
 
 	TArray<uint8> RawDerivedData;
 
@@ -464,6 +488,16 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		}
 		bLoadedFromDDC = true;
 
+		if (bSucceeded && bForVirtualTextureStreamingBuild && CVarVTValidateCompressionOnLoad.GetValueOnAnyThread())
+		{
+			bSucceeded = DerivedData->VTData->ValidateCompression();
+			if (!bSucceeded)
+			{
+				UE_LOG(LogTexture, Error, TEXT("Texture %s has corrupt Virtual Texture compression. The texture will be rebuild."), *Texture.GetFullName());
+				bInvalidVirtualTextureCompression = true;
+			}
+		}
+
 		// Reset everything derived data so that we can do a clean load from the source data
 		if (!bSucceeded)
 		{
@@ -504,7 +538,19 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		if (TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num() && 
 			(!CompositeTextureData.IsValid() || (CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num() && CompositeTextureData.Blocks[0].MipsPerLayer[0].Num())))
 		{
-			BuildTexture();
+			// Replace any existing DDC data, if corrupt compression was detected
+			const bool bReplaceExistingDDC = bInvalidVirtualTextureCompression;
+			BuildTexture(bReplaceExistingDDC);
+			if (bInvalidVirtualTextureCompression && DerivedData->VTData)
+			{
+				// If we loaded data that turned out to be corrupt, flag it here so we can also recreate the VT data cached to local /DerivedDataCache/VT/ directory
+				for (FVirtualTextureDataChunk& Chunk : DerivedData->VTData->Chunks)
+				{
+					Chunk.bCorruptDataLoadedFromDDC = true;
+				}
+
+			}
+
 			bSucceeded = true;
 		}
 		else

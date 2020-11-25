@@ -225,6 +225,14 @@ bool FVirtualTextureChunkDDCCache::MakeChunkAvailable(struct FVirtualTextureData
 	const FString CachedFilePath = AbsoluteCachePath / Chunk->ShortDerivedDataKey;
 	const FString TempFilePath = AbsoluteCachePath / FGuid::NewGuid().ToString() + ".tmp";
 
+	if (Chunk->bCorruptDataLoadedFromDDC)
+	{
+		// We determined data loaded from DDC was corrupt...this means any file saved to VT DDC cache is also corrupt and can no longer be used
+		FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*CachedFilePath);
+		Chunk->bCorruptDataLoadedFromDDC = false;
+		Chunk->bFileAvailableInVTDDCDache = false;
+	}
+
 	// File already available? 
 	if (Chunk->bFileAvailableInVTDDCDache)
 	{

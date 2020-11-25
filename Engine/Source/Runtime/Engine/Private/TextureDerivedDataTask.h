@@ -27,7 +27,7 @@ enum
 #if WITH_EDITOR
 
 void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix);
-uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined);
+uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC);
 
 namespace ETextureCacheFlags
 {
@@ -132,7 +132,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	bool bLoadedFromDDC = false;
 
 	/** Build the texture. This function is safe to call from any thread. */
-	void BuildTexture();
+	void BuildTexture(bool bReplaceExistingDDC = false);
 
 public:
 

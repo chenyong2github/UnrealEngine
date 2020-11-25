@@ -180,6 +180,75 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	}
 }
 
+bool FVirtualTextureBuiltData::ValidateCompression() const
+{
+	const uint32 TilePixelSize = GetPhysicalTileSize();
+	TArray<uint8> UncompressedResult;
+	TArray<uint8> ChunkDataDDC;
+
+	bool bResult = true;
+	for (int32 ChunkIndex = 0; bResult && ChunkIndex < Chunks.Num(); ++ChunkIndex)
+	{
+		const FVirtualTextureDataChunk& Chunk = Chunks[ChunkIndex];
+
+		const uint8* ChunkData = nullptr;
+		bool bNeedToUnlockBulkData = false;
+		if (Chunk.BulkData.GetBulkDataSize() > 0)
+		{
+			ChunkData = (uint8*)Chunk.BulkData.LockReadOnly();
+			bNeedToUnlockBulkData = true;
+		}
+		else
+		{
+			ChunkDataDDC.Reset();
+			const bool bDDCResult = GetDerivedDataCacheRef().GetSynchronous(*Chunk.DerivedDataKey, ChunkDataDDC);
+			check(bDDCResult);
+			ChunkData = ChunkDataDDC.GetData() + 4;
+		}
+
+		uint32 TileIndex = TileIndexPerChunk[ChunkIndex];
+		while (bResult && TileIndex < TileIndexPerChunk[ChunkIndex + 1])
+		{
+			for (uint32 LayerIndex = 0u; LayerIndex < GetNumLayers(); ++LayerIndex)
+			{
+				const EVirtualTextureCodec VTCodec = Chunk.CodecType[LayerIndex];
+				const EPixelFormat LayerFormat = LayerTypes[LayerIndex];
+				const uint32 TileWidthInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeX);
+				const uint32 TileHeightInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeY);
+				const uint32 PackedStride = TileWidthInBlocks * GPixelFormats[LayerFormat].BlockBytes;
+				const size_t PackedOutputSize = PackedStride * TileHeightInBlocks;
+
+				if (VTCodec == EVirtualTextureCodec::ZippedGPU)
+				{
+					const uint32 TileOffset = GetTileOffset(ChunkIndex, TileIndex);
+					const uint32 NextTileOffset = GetTileOffset(ChunkIndex, TileIndex + 1);
+					check(NextTileOffset >= TileOffset);
+					if (NextTileOffset > TileOffset)
+					{
+						const uint32 CompressedTileSize = NextTileOffset - TileOffset;
+
+						UncompressedResult.SetNumUninitialized(PackedOutputSize, false);
+						const bool bUncompressResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedResult.GetData(), PackedOutputSize, &ChunkData[TileOffset], CompressedTileSize);
+						if (!bUncompressResult)
+						{
+							bResult = false;
+							break;
+						}
+					}
+				}
+				++TileIndex;
+			}
+		}
+
+		if (bNeedToUnlockBulkData)
+		{
+			Chunk.BulkData.Unlock();
+		}
+	}
+
+	return bResult;
+}
+
 #if WITH_EDITORONLY_DATA
 
 bool FVirtualTextureDataChunk::ShortenKey(const FString& CacheKey, FString& Result)
@@ -214,7 +283,7 @@ bool FVirtualTextureDataChunk::ShortenKey(const FString& CacheKey, FString& Resu
 	return true;
 }
 
-uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName)
+uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
 {
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
@@ -228,7 +297,7 @@ uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerive
 		BulkData.Unlock();
 	}
 	const uint32 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName);
+	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
 	DerivedDataKey = InDerivedDataKey;
 	ShortenKey(DerivedDataKey, ShortDerivedDataKey);
 

@@ -59,8 +59,9 @@ struct FVirtualTextureDataChunk
 	FString ShortDerivedDataKey;
 	bool ShortenKey(const FString& CacheKey, FString& Result);
 	FThreadSafeBool bFileAvailableInVTDDCDache;
+	bool bCorruptDataLoadedFromDDC = false;
 
-	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName);
+	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -188,4 +189,10 @@ struct FVirtualTextureBuiltData
 		// This allows us to determine size of region by asking for start/end offsets
 		return Chunks[ChunkIndex].SizeInBytes;
 	}
+
+	/**
+	* Attempts to decompress every VT tile, to verify data is valid
+	* This will be very slow
+	*/
+	bool ValidateCompression() const;
 };
