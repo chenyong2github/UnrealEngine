@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 class FMatineeConverter;
 class IAssetTools;
 class UCameraAnim;
