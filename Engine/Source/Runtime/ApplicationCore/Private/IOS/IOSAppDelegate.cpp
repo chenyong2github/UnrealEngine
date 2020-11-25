@@ -303,6 +303,8 @@ static IOSAppDelegate* CachedDelegate = nil;
 		}
 	}
 
+    FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	FAppEntry::Init();
 
 	// check for update on app store if cvar is enabled

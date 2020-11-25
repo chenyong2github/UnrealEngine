@@ -274,15 +274,19 @@ id<MTLDevice> GMetalDevice = nil;
 		// look up what the device can support
 		const float NativeScale = [[UIScreen mainScreen] scale];
 
-		// look up the CVar for the scale factor
-		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
-		float RequestedContentScaleFactor = CVar->GetFloat();
-
-		FString CmdLineCSF;
-		if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
+		float RequestedContentScaleFactor = 1.0;
+		[IOSAppDelegate WaitAndRunOnGameThread:[&RequestedContentScaleFactor]()
 		{
-			RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
-		}
+			// look up the CVar for the scale factor
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
+			RequestedContentScaleFactor = CVar->GetFloat();
+
+			FString CmdLineCSF;
+			if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
+			{
+				RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
+			}
+		}];
 
 		// 0 means to leave the scale alone, use native
 		if (RequestedContentScaleFactor == 0.0f)
