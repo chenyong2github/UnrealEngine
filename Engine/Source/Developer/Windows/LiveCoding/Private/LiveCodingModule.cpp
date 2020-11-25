@@ -31,8 +31,17 @@ extern const TCHAR* GLiveCodingEngineDir;
 extern const TCHAR* GLiveCodingProject;
 #endif
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wextern-initializer"
+#endif
+
 LPP_PRECOMPILE_HOOK(FLiveCodingModule::PreCompileHook);
 LPP_POSTCOMPILE_HOOK(FLiveCodingModule::PostCompileHook);
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 FLiveCodingModule::FLiveCodingModule()
 	: bEnabledLastTick(false)
