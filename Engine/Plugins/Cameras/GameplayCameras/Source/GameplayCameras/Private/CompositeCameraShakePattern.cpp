@@ -49,17 +49,15 @@ void UCompositeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpda
 	for (uint32 Index = 0, Num = ChildPatterns.Num(); Index < Num; ++Index)
 	{
 		FCameraShakeState& PatternState = ChildStates[Index];
-		if (!PatternState.IsActive())
-		{
-			// This pattern was finished for some time already.
-			continue;
-		}
-
 		UCameraShakePattern* Pattern = ChildPatterns[Index];
 		if (Pattern != nullptr)
 		{
 			// Update the child state.
 			float ChildBlendingWeight = PatternState.Update(Params.DeltaTime);
+			if (!PatternState.IsActive())
+			{
+				continue;
+			}
 
 			// Let the child pattern run on the current result, with its own blending weight.
 			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendingWeight;

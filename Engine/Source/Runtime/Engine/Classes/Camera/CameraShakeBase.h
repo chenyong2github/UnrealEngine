@@ -439,6 +439,13 @@ public:
 	/** Gets some infromation about this specific camera shake */
 	void GetShakeInfo(FCameraShakeInfo& OutInfo) const;
 
+	/**
+	 * Returns whether this shake is active.
+	 *
+	 * A camera shake is active between the calls to StartShake and TeardownShake.
+	 */
+	bool IsActive() const { return State.IsActive(); }
+
 	/** Starts this camera shake with the given parameters */
 	void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 

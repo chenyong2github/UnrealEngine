@@ -2,7 +2,7 @@
 
 #include "SCameraShakePreviewer.h"
 #include "Camera/CameraModifier_CameraShake.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceActor.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "CameraShakePreviewerModule.h"
