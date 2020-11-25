@@ -109,7 +109,20 @@ namespace Chaos
 		void SetSuspensionLength(float InLength, float WheelRadius)
 		{
 			DisplacementInput = InLength - Setup().RaycastSafetyMargin - WheelRadius;
+			DisplacementInput = FMath::Max(0.f, DisplacementInput);
 			SpringDisplacement = Setup().MaxLength - DisplacementInput;
+		}
+
+		float GetNormalizedLength()
+		{
+			float NormalizedLength = 1.0f;
+
+			if (Setup().MaxLength > SMALL_NUMBER)
+			{
+				NormalizedLength = DisplacementInput / Setup().MaxLength;
+			}
+			NormalizedLength = FMath::Max(FMath::Min(NormalizedLength, 1.0f), 0.0f);
+			return NormalizedLength;
 		}
 
 		/** set local velocity at suspension position */
