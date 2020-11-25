@@ -417,10 +417,18 @@ void FMemoryGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 {
 	TSharedPtr<FMemoryGraphSeries> Series = MainSeries;
 
-	if (!Series.IsValid() && AllSeries.Num() > 0)
+	if (!Series.IsValid())
 	{
-		//TODO: if (Series->Is<FMemoryGraphSeries>())
-		Series = StaticCastSharedPtr<FMemoryGraphSeries>(AllSeries[0]);
+		// Use the first visible series.
+		for (const TSharedPtr<FGraphSeries>& GraphSeries : AllSeries)
+		{
+			if (GraphSeries->IsVisible())
+			{
+				//TODO: if (GraphSeries->Is<FMemoryGraphSeries>())
+				Series = StaticCastSharedPtr<FMemoryGraphSeries>(GraphSeries);
+				break;
+			}
+		}
 	}
 
 	if (!Series.IsValid())
