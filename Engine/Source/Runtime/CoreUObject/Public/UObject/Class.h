@@ -731,7 +731,17 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	{
 		new (Data) CPPSTRUCT(ForceInit);
 	}
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<!TStructOpsTypeTraits<CPPSTRUCT>::WithNoInitConstructor>::Type ConstructForTestsWithNoInitOrNot(void* Data)
+	{
+		new (Data) CPPSTRUCT;
+	}
 
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithNoInitConstructor>::Type ConstructForTestsWithNoInitOrNot(void* Data)
+	{
+		new (Data) CPPSTRUCT(ForceInit);
+	}
 
 	/**
 	 * Selection of Serialize call.
@@ -1011,7 +1021,9 @@ public:
 		/** return true if memset can be used instead of the constructor **/
 		virtual bool HasZeroConstructor() = 0;
 		/** Call the C++ constructor **/
-		virtual void Construct(void *Dest)=0;
+		virtual void Construct(void *Dest) = 0;
+		/** Call the C++ constructor without value-init (new T instead of new T()) **/
+		virtual void ConstructForTests(void* Dest) = 0;
 		/** return false if this destructor can be skipped **/
 		virtual bool HasDestructor() = 0;
 		/** Call the C++ destructor **/
@@ -1174,6 +1186,24 @@ public:
 			}
 #else
 			ConstructWithNoInitOrNot<CPPSTRUCT>(Dest);
+#endif
+		}
+		virtual void ConstructForTests(void* Dest) override
+		{
+			check(!TTraits::WithZeroConstructor); // don't call this if we have indicated it is not necessary
+			// that could have been an if statement, but we might as well force optimization above the virtual call
+			// could also not attempt to call the constructor for types where this is not possible, but I didn't do that here
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+			if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithNoInitConstructor)
+			{
+				new (Dest) CPPSTRUCT(ForceInit);
+			}
+			else
+			{
+				new (Dest) CPPSTRUCT;
+			}
+#else
+			ConstructForTestsWithNoInitOrNot<CPPSTRUCT>(Dest);
 #endif
 		}
 		virtual bool HasDestructor() override
@@ -3649,6 +3679,14 @@ struct FStructUtils
 #endif
 };
 
+// Helper struct to test if member initialization tests work properly
+struct FTestUninitializedScriptStructMembersTest
+{
+	UObject* UninitializedObjectReference;
+	UObject* InitializedObjectReference = nullptr;
+	float UnusedValue;
+};
+
 /*-----------------------------------------------------------------------------
 	Mirrors of mirror structures in Object.h. These are used by generated code 
 	to facilitate correct offsets and alignments for structures containing these
@@ -3808,6 +3846,11 @@ template<> struct TBaseStructure<FPolyglotTextData>
 
 struct FAssetBundleData;
 template<> struct TBaseStructure<FAssetBundleData>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FTestUninitializedScriptStructMembersTest>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };

@@ -66,6 +66,8 @@
 DEFINE_LOG_CATEGORY(LogScriptSerialization);
 DEFINE_LOG_CATEGORY(LogClass);
 
+IMPLEMENT_STRUCT(TestUninitializedScriptStructMembersTest);
+
 #if defined(_MSC_VER) && _MSC_VER == 1900
 	#ifdef PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 		PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
@@ -3290,7 +3292,7 @@ public:
 				int32 InitializedSize = 0;
 				if (StructOps != nullptr)
 				{
-					StructOps->Construct(TempBuffer);
+					StructOps->ConstructForTests(TempBuffer);
 					InitializedSize = StructOps->GetSize();
 				}
 
@@ -3358,19 +3360,42 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 	};
 
 	int32 UninitializedScriptStructMemberCount = 0;
+	int32 UninitializedObjectPropertyCount = 0;
+	UScriptStruct* TestUninitializedScriptStructMembersTestStruct = TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get();
+	check(TestUninitializedScriptStructMembersTestStruct != nullptr);
+	const void* BadPointer = (void*)0xFFFFFFFFFFFFFFFFull;
+
+	{
+		// First test if the tests aren't broken
+		FScriptStructTestWrapper WrapperFF(TestUninitializedScriptStructMembersTestStruct, 0xFF);
+		const FObjectPropertyBase* UninitializedProperty = CastFieldChecked<const FObjectPropertyBase>(TestUninitializedScriptStructMembersTestStruct->FindPropertyByName(TEXT("UninitializedObjectReference")));
+		const FObjectPropertyBase* InitializedProperty = CastFieldChecked<const FObjectPropertyBase>(TestUninitializedScriptStructMembersTestStruct->FindPropertyByName(TEXT("InitializedObjectReference")));
+		
+		const UObject* UninitializedPropValue = UninitializedProperty->GetObjectPropertyValue_InContainer(WrapperFF.GetData());
+		if (UninitializedPropValue != BadPointer)
+		{
+			UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s seems to be initialized properly but it shouldn't be. Verify that AttemptToFindUninitializedScriptStructMembers() is working properly"), 
+				TestUninitializedScriptStructMembersTestStruct->GetPrefixCPP(), *TestUninitializedScriptStructMembersTestStruct->GetName(), *UninitializedProperty->GetNameCPP());
+		}
+		const UObject* InitializedPropValue = InitializedProperty->GetObjectPropertyValue_InContainer(WrapperFF.GetData());
+		if (InitializedPropValue != nullptr)
+		{
+			UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s seems to be not initialized properly but it should be. Verify that AttemptToFindUninitializedScriptStructMembers() is working properly"),
+				TestUninitializedScriptStructMembersTestStruct->GetPrefixCPP(), *TestUninitializedScriptStructMembersTestStruct->GetName(), *InitializedProperty->GetNameCPP());
+		}
+	}
 
 	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
 	{
 		UScriptStruct* ScriptStruct = *ScriptIt;
-		if (FScriptStructTestWrapper::CanRunTests(ScriptStruct))
+
+		if (FScriptStructTestWrapper::CanRunTests(ScriptStruct) && ScriptStruct != TestUninitializedScriptStructMembersTestStruct)
 		{
 			FScriptStructTestWrapper WrapperFF(ScriptStruct, 0xFF);
 			FScriptStructTestWrapper Wrapper00(ScriptStruct, 0x00);
 			FScriptStructTestWrapper WrapperAA(ScriptStruct, 0xAA);
 			FScriptStructTestWrapper Wrapper55(ScriptStruct, 0x55);
 
-			const void* BadPointer = (void*)0xFFFFFFFFFFFFFFFFull;
-			
 			for (const FProperty* Property : TFieldRange<FProperty>(ScriptStruct, EFieldIteratorFlags::ExcludeSuper))
 			{
 #if	WITH_EDITORONLY_DATA
@@ -3387,6 +3412,8 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 					const UObject* PropValue = ObjectProperty->GetObjectPropertyValue_InContainer(WrapperFF.GetData());
 					if (PropValue == BadPointer)
 					{
+
+						++UninitializedObjectPropertyCount;
 						++UninitializedScriptStructMemberCount;
 						UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
@@ -3400,7 +3427,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 					if (Value0 != Value1)
 					{
 						++UninitializedScriptStructMemberCount;
-						UE_LOG(LogClass, Warning, TEXT("BoolProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+						UE_LOG(LogClass, Log, TEXT("BoolProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
 				}
 				else if (Property->IsA(FNameProperty::StaticClass()))
@@ -3428,7 +3455,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 						if (!Property->Identical_InContainer(WrapperAA.GetData(), Wrapper55.GetData()))
 						{
 							++UninitializedScriptStructMemberCount;
-							UE_LOG(LogClass, Warning, TEXT("%s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+							UE_LOG(LogClass, Log, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 						}
 					}
 				}
@@ -3438,7 +3465,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 
 	if (UninitializedScriptStructMemberCount > 0)
 	{
-		UE_LOG(LogClass, Display, TEXT("%i Uninitialized script struct members found"), UninitializedScriptStructMemberCount);
+		UE_LOG(LogClass, Display, TEXT("%i Uninitialized script struct members found including %d object properties"), UninitializedScriptStructMemberCount, UninitializedObjectPropertyCount);
 	}
 	return UninitializedScriptStructMemberCount;
 }
@@ -6011,6 +6038,12 @@ UScriptStruct* TBaseStructure<FFrameTime>::Get()
 UScriptStruct* TBaseStructure<FAssetBundleData>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("AssetBundleData"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("TestUninitializedScriptStructMembersTest"));
 	return ScriptStruct;
 }
 

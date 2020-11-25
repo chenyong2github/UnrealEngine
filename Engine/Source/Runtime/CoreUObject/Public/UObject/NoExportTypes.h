@@ -1632,6 +1632,19 @@ struct FAssetData
 	uint32 PackageFlags = 0;
 };
 
+USTRUCT(noexport)
+struct FTestUninitializedScriptStructMembersTest
+{
+	UPROPERTY(Transient)
+	UObject* UninitializedObjectReference;
+
+	UPROPERTY(Transient)
+	UObject* InitializedObjectReference;
+
+	UPROPERTY(Transient)
+	float UnusedValue;
+};
+
 /**
  * Direct base class for all UE4 objects
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\Object.h
