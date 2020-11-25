@@ -63,6 +63,21 @@ FAutoConsoleCommand CVarCommandVehiclesPrevDebugPage(
 	FConsoleCommandDelegate::CreateStatic(UChaosWheeledVehicleMovementComponent::PrevDebugPage));
 
 
+FString FWheelStatus::ToString() const
+{
+	return FString::Printf(TEXT("bInContact:%s ContactPoint:%s PhysMaterial:%s NormSuspensionLength:%f SpringForce:%f bIsSlipping:%s SlipMagnitude:%f bIsSkidding:%s SkidMagnitude:%f SkidNormal:%s"),
+		bInContact == true ? TEXT("True") : TEXT("False"),
+		*ContactPoint.ToString(),
+		PhysMaterial.IsValid() ? *PhysMaterial->GetName() : TEXT("None"),
+		NormalizedSuspensionLength,
+		SpringForce,
+		bIsSlipping == true ? TEXT("True") : TEXT("False"),
+		SlipMagnitude,
+		bIsSkidding == true ? TEXT("True") : TEXT("False"),
+		SkidMagnitude,
+		*SkidNormal.ToString());
+}
+
 void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance)
 {
 	check(TargetInstance);
@@ -265,16 +280,15 @@ void UChaosWheeledVehicleMovementComponent::OnDestroyPhysicsState()
 
 		DestroyWheels();
 
-		if (GetBodyInstance() && ConstraintHandles.Num() > 0)
+		if (ConstraintHandles.Num() > 0)
 		{
-			FPhysicsCommand::ExecuteWrite(GetBodyInstance()->ActorHandle, [&](const FPhysicsActorHandle& Actor)
-				{
-					for (FPhysicsConstraintHandle ConstraintHandle : ConstraintHandles)
+			for (FPhysicsConstraintHandle ConstraintHandle : ConstraintHandles)
+			{
+				FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
 					{
 						FPhysicsInterface::ReleaseConstraint(ConstraintHandle);
-					}
-
-				});
+					});
+			}
 		}
 		ConstraintHandles.Empty();
 	}
@@ -343,6 +357,8 @@ void UChaosWheeledVehicleMovementComponent::CreateWheels()
 	{
 		Wheels[WheelIdx]->Init(this, WheelIdx);
 	}
+
+	WheelStatus.SetNum(WheelSetups.Num());
 
 	RecalculateAxles();
 }
@@ -615,6 +631,10 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		{
 			PerformanceMeasure.Update(DeltaTime, VehicleState.VehicleWorldTransform.GetLocation(), VehicleState.ForwardSpeed);
 		}
+
+		///////////////////////////////////////////////////////////////////////
+		// Consolidate wheel output state
+		FillWheelOutputState();
 
 	}
 
@@ -1153,11 +1173,11 @@ float UChaosWheeledVehicleMovementComponent::GetEngineMaxRotationSpeed() const
 	return MaxEngineRPM;
 }
 
-bool UChaosWheeledVehicleMovementComponent::IsWheelSpinning() const
+bool UChaosWheeledVehicleMovementComponent::IsWheelSpinning() const // rename? / skidding too, covered by GetWheelState
 {
 	for (auto& Wheel : PVehicle->Wheels)
 	{
-		if (Wheel.IsSpinning())
+		if (Wheel.IsSlipping())
 		{
 			return true;
 		}
@@ -1723,6 +1743,75 @@ void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D 
 
 }
 
+void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
+{
+	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+	{
+		FChaosWheelSetup& WheelSetup = WheelSetups[WheelIdx];
+		UChaosVehicleWheel* Wheel = WheelSetup.WheelClass.GetDefaultObject();
+		auto& PWheel = PVehicle->Wheels[WheelIdx];
+		auto& PSuspension = PVehicle->Suspension[WheelIdx];
+		FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
+
+		FWheelStatus& State = WheelStatus[WheelIdx];
+	
+		State.bInContact = HitResult.bBlockingHit;
+		State.ContactPoint = HitResult.ImpactPoint;
+		State.PhysMaterial = HitResult.PhysMaterial;
+		State.NormalizedSuspensionLength = PSuspension.GetNormalizedLength();
+		State.SpringForce = PSuspension.GetSuspensionForce();
+		State.bIsSlipping = PWheel.IsSlipping();
+		State.SlipMagnitude = PWheel.GetSlipMagnitude();
+		State.bIsSkidding = PWheel.IsSkidding();
+		State.SkidMagnitude = PWheel.GetSkidMagnitude();
+		if (State.bIsSkidding)
+		{
+			State.SkidNormal = WheelState.WorldWheelVelocity[WheelIdx].GetSafeNormal();
+			//DrawDebugLine(GetWorld()
+			//	, State.ContactPoint
+			//	, State.ContactPoint + State.SkidNormal
+			//	, FColor::Yellow, true, -1.0f, 0, 4);
+		}
+		else
+		{
+			State.SkidNormal = FVector::ZeroVector;
+		}
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
+	, float& NormalizedSuspensionLength, float& SpringForce, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal)
+{
+	bInContact = Status.bInContact;
+	ContactPoint = Status.ContactPoint;
+	PhysMaterial = Status.PhysMaterial.Get();
+	NormalizedSuspensionLength = Status.NormalizedSuspensionLength;
+	SpringForce = Status.SpringForce;
+	bIsSlipping = Status.bIsSlipping;
+	SlipMagnitude = Status.SlipMagnitude;
+	bIsSkidding = Status.bIsSkidding;
+	SkidMagnitude = Status.SkidMagnitude;
+	SkidNormal = Status.SkidNormal;
+}
+
+FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
+	, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal)
+{
+	FWheelStatus Status;
+	Status.bInContact = bInContact;
+	Status.ContactPoint = ContactPoint;
+	Status.PhysMaterial = PhysMaterial;
+	Status.NormalizedSuspensionLength = NormalizedSuspensionLength;
+	Status.SpringForce = SpringForce;
+	Status.bIsSlipping = bIsSlipping;
+	Status.SlipMagnitude = SlipMagnitude;
+	Status.bIsSkidding = bIsSkidding;
+	Status.SkidMagnitude = SkidMagnitude;
+	Status.SkidNormal = SkidNormal;
+
+	return Status;
+}
+
 
 #endif
 
@@ -1735,7 +1824,8 @@ FChaosWheelSetup::FChaosWheelSetup()
 
 }
 
-
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_ENABLE_OPTIMIZATION
 #endif
+
+
