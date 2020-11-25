@@ -203,7 +203,16 @@ FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance
 {
 	if (RayTracingGeometries.Num() > LodLevel)
 	{
-		return RayTracingGeometries[LodLevel]->RayTracingGeometryRHI;
+		// TODO: Select different LOD, when build is still pending for this LOD?
+		if (RayTracingGeometries[LodLevel]->HasPendingBuildRequest())
+		{
+			RayTracingGeometries[LodLevel]->BoostBuildPriority();
+			return nullptr;
+		}
+		else
+		{
+			return RayTracingGeometries[LodLevel]->RayTracingGeometryRHI;
+		}
 	}
 	else
 	{

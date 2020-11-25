@@ -22,6 +22,7 @@
 #include "LightmapDenoising.h"
 #include "EngineModule.h"
 #include "PostProcess/PostProcessing.h"
+#include "RayTracingGeometryManager.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -619,6 +620,12 @@ void FSceneRenderState::SetupRayTracingScene()
 	TRACE_CPUPROFILER_EVENT_SCOPE(SetupRayTracingScene);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+#ifdef RHI_RAYTRACING
+	// Force build all the open build requests
+	bool bBuildAll = true;
+	GRayTracingGeometryManager.ProcessBuildRequests(RHICmdList, bBuildAll);
+#endif // RHI_RAYTRACING
 
 	if (!CachedRayTracingScene.IsValid())
 	{

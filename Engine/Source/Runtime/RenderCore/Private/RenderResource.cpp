@@ -10,6 +10,7 @@
 #include "RenderingThread.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "CoreGlobals.h"
+#include "RayTracingGeometryManager.h"
 
 /** Whether to enable mip-level fading or not: +1.0f if enabled, -1.0f if disabled. */
 float GEnableMipLevelFading = 1.0f;
@@ -309,6 +310,71 @@ TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
 
 /** The global null vertex buffer, which is set with a stride of 0 on meshes */
 TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
+
+/*------------------------------------------------------------------------------
+	FRayTracingGeometry implementation.
+------------------------------------------------------------------------------*/
+
+#if RHI_RAYTRACING
+
+void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority)
+{
+	// Release previous RHI object if any
+	ReleaseRHI();
+
+	check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
+	if (RawData.Num())
+	{
+		Initializer.OfflineData = &RawData;
+	}
+
+	bool bAllSegmentsAreValid = true;
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
+	{
+		if (!Segment.VertexBuffer)
+		{
+			bAllSegmentsAreValid = false;
+			break;
+		}
+	}
+
+	if (Initializer.IndexBuffer && bAllSegmentsAreValid)
+	{
+		RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+		if (Initializer.OfflineData == nullptr)
+		{
+			// Request build if not skip
+			if (InBuildPriority != ERTAccelerationStructureBuildPriority::Skip)
+			{
+				RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
+			}
+		}
+		else
+		{
+			// Offline data ownership is transferred to the RHI, which discards it after use.
+			// It is no longer valid to use it after this point.
+			Initializer.OfflineData = nullptr;
+		}
+	}
+}
+
+void FRayTracingGeometry::ReleaseRHI()
+{
+	if (HasPendingBuildRequest())
+	{
+		GRayTracingGeometryManager.RemoveBuildRequest(RayTracingBuildRequestIndex);
+		RayTracingBuildRequestIndex = INDEX_NONE;
+	}
+	RayTracingGeometryRHI.SafeRelease();
+}
+
+void FRayTracingGeometry::BoostBuildPriority(float InBoostValue) const
+{
+	check(HasPendingBuildRequest());
+	GRayTracingGeometryManager.BoostPriority(RayTracingBuildRequestIndex, InBoostValue);
+}
+
+#endif // RHI_RAYTRACING
 
 /*------------------------------------------------------------------------------
 	FGlobalDynamicVertexBuffer implementation.
