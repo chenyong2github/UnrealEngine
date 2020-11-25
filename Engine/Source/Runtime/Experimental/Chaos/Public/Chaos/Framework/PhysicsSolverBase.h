@@ -238,8 +238,12 @@ namespace Chaos
 
 		void EnableAsyncMode(FReal FixedDt)
 		{
+			if (AsyncDt != FixedDt)
+			{
+				AccumulatedTime = 0;
+			}
+
 			AsyncDt = FixedDt;
-			AccumulatedTime = 0;
 		}
 
 		void DisableAsyncMode()
