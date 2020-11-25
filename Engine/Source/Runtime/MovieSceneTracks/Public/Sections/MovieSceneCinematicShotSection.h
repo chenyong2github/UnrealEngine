@@ -24,12 +24,9 @@ class MOVIESCENETRACKS_API UMovieSceneCinematicShotSection
 
 public:
 
-	/** @return The shot display name */
+	/** @return The shot display name. if empty, returns the sequence's name*/
 	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
-	FString GetShotDisplayName() const
-	{
-		return ShotDisplayName;
-	}
+	FString GetShotDisplayName() const;
 
 	/** Set the shot display name */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
