@@ -1181,11 +1181,28 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			return &CachePool[CacheOffset];
 		}
+		else
+		{
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("Falling back to linear search. Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s")
+			, CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString(), *InKey.SoundWaveName.ToString());
+		}
+	}
+
+	// Otherwise, linearly search the cache.
+	return LinearSearchForElement(InKey);
+}
+
+FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchForElement(const FChunkKey& InKey)
+{
+	static bool bHasLogged = false;
+	if (!bHasLogged)
+	{
+		UE_LOG(LogAudioStreamCaching, Display, TEXT("Linear searching cache on cache offset lookup failure"));
+		bHasLogged = true;
 	}
 
 	//Otherwise, linearly search the cache.
 	FCacheElement* CurrentElement = MostRecentElement;
-
 
 	// In debuggable situations, we breadcrumb how far down the cache the cache we were.
 	int32 ElementPosition = 0;
@@ -1199,13 +1216,12 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 			float& CMA = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 			CMA += ((ElementPosition - CMA) / (CurrentElement->DebugInfo.NumTimesTouched + 1));
 #endif
-
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("Found element in cache using linear search"));
 			return CurrentElement;
 		}
 		else
 		{
 			CurrentElement = CurrentElement->LessRecentElement;
-
 
 			ElementPosition++;
 
@@ -2242,7 +2258,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	}
 
 	// Draw the composition bar
-	const int32 BarWidth = 0.75f * Canvas->GetParentCanvasSize().X;
+	const int32 BarWidth = 0.5f * (Canvas->GetParentCanvasSize().X - 2*X);
 	const int32 BarHeight = 20;
 	const int32 BarPad = BarHeight / 7;
 
@@ -2391,7 +2407,6 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		Size = DebugVisualDisplay(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 	}
 
-	// TODO: Fixup the return value
 	return Size;
 }
 
@@ -2412,7 +2427,7 @@ TPair<int, int> FAudioChunkCache::DebugVisualDisplay(UWorld* World, FViewport* V
 	// More detailed info about individual chunks here:
 	const int32 TileSize = 3;
 	const int32 TilePadding = 2;
-	const int32 MaxWidth = 0.75f * Canvas->GetParentCanvasSize().X;
+	const int32 MaxWidth = 0.5f * (Canvas->GetParentCanvasSize().X -2*X);
 
 	int32 CurrentXOffset = 0;
 
@@ -2515,11 +2530,11 @@ TPair<int, int> FAudioChunkCache::DebugBirdsEyeDisplay(UWorld* World, FViewport*
 	const int32 NumChunks = ChunksInUse;
 	const FIntPoint CanvasSize = Canvas->GetParentCanvasSize();
 
-	const int32 DisplayWidth = 0.75 * CanvasSize.X;
-	const int32 DisplayHeight = 0.15 * CanvasSize.Y;
+	const int32 DisplayWidth = 0.5 * (CanvasSize.X - 2*X);
+	const int32 DisplayHeight = DisplayElementSize * 4;
 
 	const int32 NumDisplayElementsHortz = DisplayWidth / DisplayElementSize;
-	const int32 NumDisplayElementsVert = DisplayHeight / DisplayElementSize;
+	const int32 NumDisplayElementsVert = 4;
 	const int32 NumDisplayElements = NumDisplayElementsHortz * NumDisplayElementsVert;
 
 	const int32 NumChunksPerDispalyElement = FMath::CeilToInt(FMath::Max(1.f, NumChunks / static_cast<float>(NumDisplayElements)));

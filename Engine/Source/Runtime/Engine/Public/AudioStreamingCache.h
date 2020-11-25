@@ -339,6 +339,7 @@ private:
 	// Returns cached element if it exists in our cache, nullptr otherwise.
 	// If the index of the element is already known, it can be used here to avoid searching the cache.
 	FCacheElement* FindElementForKey(const FChunkKey& InKey, uint64 CacheLookupID = InvalidAudioStreamCacheLookupID);
+	FCacheElement* LinearSearchForElement(const FChunkKey& InKey);
 
 	// Puts this element at the front of the linked list.
 	void TouchElement(FCacheElement* InElement);
