@@ -6,6 +6,8 @@
 
 # Setup Environment
 if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+  # remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
+  unset TARGETNAME
   source  Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
 else
   source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
