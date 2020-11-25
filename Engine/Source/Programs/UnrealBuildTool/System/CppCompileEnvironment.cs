@@ -78,7 +78,6 @@ namespace UnrealBuildTool
 	class CPPOutput
 	{
 		public List<FileItem> ObjectFiles = new List<FileItem>();
-		public List<FileItem> DebugDataFiles = new List<FileItem>();
 		public List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
 		public FileItem PrecompiledHeaderFile = null;

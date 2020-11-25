@@ -625,7 +625,6 @@ namespace UnrealBuildTool
 					if (CompileEnvironment.bUsePDBFiles && bActionProducesPDB)
 					{
 						CompileAction.ProducedItems.Add(PDBFile);
-						Result.DebugDataFiles.Add(PDBFile);
 					}
 				}
 
@@ -639,7 +638,6 @@ namespace UnrealBuildTool
 							)
 						);
 					CompileAction.ProducedItems.Add(AnalysisLogFile);
-					Result.DebugDataFiles.Add(AnalysisLogFile);
 					// Peform code analysis with results in a log file
 					FileArguments.AddFormat(" /analyze:log \"{0}\"", AnalysisLogFile.AbsolutePath);
 					// Suppress code analysis output

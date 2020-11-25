@@ -1008,25 +1008,31 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			List<string> SharedArguments = new List<string>();
-			AppendCLArguments_Global(CompileEnvironment, SharedArguments);
+			VCCompileAction BaseCompileAction = new VCCompileAction(EnvVars);
+			AppendCLArguments_Global(CompileEnvironment, BaseCompileAction.Arguments);
 
 			// Add include paths to the argument list.
-			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
+			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
+			BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
+
+			// Add preprocessor definitions to the argument list.
+			BaseCompileAction.Definitions.AddRange(CompileEnvironment.Definitions);
+
+			// Add the force included headers
+			BaseCompileAction.ForceIncludeFiles.AddRange(CompileEnvironment.ForceIncludeFiles);
+
+			// If we're using precompiled headers, set that up now
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				AddIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+				FileItem IncludeHeader = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename);
+				BaseCompileAction.ForceIncludeFiles.Insert(0, IncludeHeader);
+
+				BaseCompileAction.UsingPchFile = CompileEnvironment.PrecompiledHeaderFile;
+				BaseCompileAction.PchThroughHeaderFile = IncludeHeader;
 			}
 
-			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-			{
-				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
-			}
-
-			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
-			{
-				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
-			}
-
+			// Generate the timing info
 			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
 				if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED ||
@@ -1035,64 +1041,35 @@ namespace UnrealBuildTool
 				{
 					if (CompileEnvironment.bPrintTimingInfo)
 					{
-						SharedArguments.Add("/Bt+ /d2cgsummary");
+						BaseCompileAction.Arguments.Add("/Bt+ /d2cgsummary");
 					}
 
 					if(EnvVars.ToolChainVersion >= VersionNumber.Parse("14.14.26316"))
 					{
-						SharedArguments.Add("/d1reportTime");
+						BaseCompileAction.Arguments.Add("/d1reportTime");
 					}
 				}
 			}
 
-			// Add preprocessor definitions to the argument list.
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				// Escape all quotation marks so that they get properly passed with the command line.
-				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
-				AddDefinition(SharedArguments, DefinitionArgument);
-			}
-
 			// Create a compile action for each source file.
-			CPPOutput Result = new CPPOutput();
+			List<VCCompileAction> Actions = new List<VCCompileAction>();
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				VCCompileAction CompileAction = new VCCompileAction(EnvVars);
-				Graph.AddAction(CompileAction);
+				VCCompileAction CompileAction = new VCCompileAction(BaseCompileAction);
+				CompileAction.SourceFile = SourceFile;
 
-				List<string> FileArguments = new List<string>();
 				bool bIsPlainCFile = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant() == ".C";
 
-				// Add the C++ source file and its included files to the prerequisite item list.
-				CompileAction.PrerequisiteItems.Add(SourceFile);
-
-				bool bEmitsObjectFile = true;
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Generate a CPP File that just includes the precompiled header.
-					FileReference PCHCPPPath = CompileEnvironment.PrecompiledHeaderIncludeFilename.ChangeExtension(".cpp");
-					FileItem PCHCPPFile = Graph.CreateIntermediateTextFile(
-						PCHCPPPath,
-						string.Format("// Compiler: {0}\n#include \"{1}\"\r\n", EnvVars.CompilerVersion, CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/'))
-						);
-
-					// Make sure the original source directory the PCH header file existed in is added as an include
-					// path -- it might be a private PCH header and we need to make sure that its found!
-					AddIncludePath(FileArguments, SourceFile.Location.Directory, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+					string PchCppFile = string.Format("// Compiler: {0}\n#include \"{1}\"\r\n", EnvVars.CompilerVersion, CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/'));
+					CompileAction.SourceFile = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename.ChangeExtension(".cpp"));
+					Graph.CreateIntermediateTextFile(CompileAction.SourceFile, PchCppFile);
 
 					// Add the precompiled header file to the produced items list.
-					FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							OutputDir,
-							Path.GetFileName(SourceFile.AbsolutePath) + ".pch"
-							)
-						);
-					CompileAction.ProducedItems.Add(PrecompiledHeaderFile);
-					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
-
-					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments.Add(String.Format("/Yc\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename));
-					FileArguments.Add(String.Format("/Fp\"{0}\"", PrecompiledHeaderFile.AbsolutePath));
+					CompileAction.CreatePchFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".pch"));
+					CompileAction.PchThroughHeaderFile = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename);
 
 					// If we're creating a PCH that will be used to compile source files for a library, we need
 					// the compiled modules to retain a reference to PCH's module, so that debugging information
@@ -1103,60 +1080,24 @@ namespace UnrealBuildTool
 						// NOTE: The symbol name we use here is arbitrary, and all that matters is that it is
 						// unique per PCH module used in our library
 						string FakeUniquePCHSymbolName = CompileEnvironment.PrecompiledHeaderIncludeFilename.GetFileNameWithoutExtension();
-						FileArguments.Add(String.Format("/Yl{0}", FakeUniquePCHSymbolName));
+						CompileAction.Arguments.Add(String.Format("/Yl{0}", FakeUniquePCHSymbolName));
 					}
-
-					FileArguments.Add(String.Format("\"{0}\"", PCHCPPFile.AbsolutePath));
-
-					CompileAction.StatusDescription = PCHCPPPath.GetFileName();
-				}
-				else
-				{
-					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-					{
-						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile);
-
-						if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
-						{
-							FileArguments.Add(String.Format("/FI\"{0}\"", Path.ChangeExtension(CompileEnvironment.PrecompiledHeaderFile.AbsolutePath, null)));
-						}
-						else
-						{
-							FileArguments.Add(String.Format("/FI\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName));
-							FileArguments.Add(String.Format("/Yu\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName));
-							FileArguments.Add(String.Format("/Fp\"{0}\"", CompileEnvironment.PrecompiledHeaderFile.AbsolutePath));
-						}
-					}
-
-					// Add the source file path to the command-line.
-					FileArguments.Add(String.Format("\"{0}\"", SourceFile.AbsolutePath));
-
-					CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
-				}
-
-				foreach(FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-				{
-					FileArguments.Add(String.Format("/FI\"{0}\"", ForceIncludeFile.Location));
 				}
 
 				if (CompileEnvironment.bPreprocessOnly)
 				{
-					FileItem PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".i"));
-
-					FileArguments.Add("/P"); // Preprocess
-					FileArguments.Add("/C"); // Preserve comments when preprocessing
-					FileArguments.Add(String.Format("/Fi\"{0}\"", PreprocessedFile)); // Preprocess to a file
-
-					CompileAction.ProducedItems.Add(PreprocessedFile);
-
-					bEmitsObjectFile = false;
+					CompileAction.PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".i"));
+					CompileAction.ResponseFile = FileItem.GetItemByPath(CompileAction.PreprocessedFile.FullName + ".response");
 				}
-
-				if (bEmitsObjectFile)
+				else
 				{
 					// Add the object file to the produced item list.
 					string ObjectLeafFilename = Path.GetFileName(SourceFile.AbsolutePath) + ".obj";
 					FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, ObjectLeafFilename));
+
+					CompileAction.ObjectFile = ObjectFile;
+					CompileAction.ResponseFile = FileItem.GetItemByPath(ObjectFile.FullName + ".response");
+
 					if (Target.WindowsPlatform.ObjSrcMapFile != null)
 					{
 						using (StreamWriter Writer = File.AppendText(Target.WindowsPlatform.ObjSrcMapFile))
@@ -1164,15 +1105,12 @@ namespace UnrealBuildTool
 							Writer.WriteLine(string.Format("\"{0}\" -> \"{1}\"", ObjectLeafFilename, SourceFile.AbsolutePath));
 						}
 					}
-					CompileAction.ProducedItems.Add(ObjectFile);
-					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments.Add(String.Format("/Fo\"{0}\"", ObjectFile.AbsolutePath));
 
 					// Experimental: support for JSON output of timing data
 					if(Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && Target.WindowsPlatform.bClangTimeTrace)
 					{
-						SharedArguments.Add("-Xclang -ftime-trace");
-						CompileAction.ProducedItems.Add(FileItem.GetItemByFileReference(ObjectFile.Location.ChangeExtension(".json")));
+						CompileAction.Arguments.Add("-Xclang -ftime-trace");
+						CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(ObjectFile.Location.ChangeExtension(".json")));
 					}
 				}
 
@@ -1192,7 +1130,7 @@ namespace UnrealBuildTool
 						PDBLocation = CompileEnvironment.PrecompiledHeaderFile.Location.ChangeExtension(".pdb");
 
 						// Enable synchronous file writes, since we'll be modifying the existing PDB
-						FileArguments.Add("/FS");
+						CompileAction.Arguments.Add("/FS");
 					}
 					else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 					{
@@ -1200,7 +1138,7 @@ namespace UnrealBuildTool
 						PDBLocation = FileReference.Combine(OutputDir, CompileEnvironment.PrecompiledHeaderIncludeFilename.GetFileName() + ".pdb");
 
 						// Enable synchronous file writes, since we'll be modifying the existing PDB
-						FileArguments.Add("/FS");
+						CompileAction.Arguments.Add("/FS");
 					}
 					else if (!bIsPlainCFile)
 					{
@@ -1214,11 +1152,7 @@ namespace UnrealBuildTool
 					}
 
 					// Specify the PDB file that the compiler should write to.
-					FileArguments.Add(String.Format("/Fd\"{0}\"", PDBLocation));
-
-					// Don't add the PDB as an output file because it's modified multiple times. This will break timestamp dependency tracking.
-					FileItem PDBFile = FileItem.GetItemByFileReference(PDBLocation);
-					Result.DebugDataFiles.Add(PDBFile);
+					CompileAction.Arguments.Add(String.Format("/Fd\"{0}\"", PDBLocation));
 
 					// Don't allow remote execution when PDB files are enabled; we need to modify the same files. XGE works around this by generating separate
 					// PDB files per agent, but this functionality is only available with the Visual C++ extension package (via the VCCompiler=true tool option).
@@ -1228,79 +1162,54 @@ namespace UnrealBuildTool
 				// Add C or C++ specific compiler arguments.
 				if (bIsPlainCFile)
 				{
-					AppendCLArguments_C(FileArguments);
+					AppendCLArguments_C(CompileAction.Arguments);
 				}
 				else
 				{
-					AppendCLArguments_CPP(CompileEnvironment, FileArguments);
+					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments);
 				}
 
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+				CompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
-				string[] AdditionalArguments = String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments)? new string[0] : new string[] { CompileEnvironment.AdditionalArguments };
-
-				if (!ProjectFileGenerator.bGenerateProjectFiles
-					&& CompileAction.ProducedItems.Count > 0)
+				if (!String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments))
 				{
-					FileItem TargetFile = CompileAction.ProducedItems[0];
-					FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, SharedArguments.Concat(FileArguments).Concat(AdditionalArguments).Select(x => Utils.ExpandVariables(x)));
-					CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
-					CompileAction.PrerequisiteItems.Add(ResponseFileItem);
-				}
-				else
-				{
-					CompileAction.CommandArguments = String.Join(" ", SharedArguments.Concat(FileArguments).Concat(AdditionalArguments));
+					CompileAction.Arguments.Add(CompileEnvironment.AdditionalArguments);
 				}
 
 				if (SourceFile.HasExtension(".ixx"))
 				{
 					FileItem IfcDepsFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".md.json"));
 
-					Action CompileDepsAction = Graph.CreateAction(ActionType.GatherModuleDependencies);
-					CompileDepsAction.StatusDescription = SourceFile.Location.GetFileName();
-					CompileDepsAction.WorkingDirectory = CompileAction.WorkingDirectory;
-					CompileDepsAction.CommandPath = CompileAction.CommandPath;
-					CompileDepsAction.CommandArguments = String.Format("{0} /sourceDependencies:directives \"{1}\"", CompileAction.CommandArguments, IfcDepsFile.Location);
-					CompileDepsAction.PrerequisiteItems.Add(SourceFile);
-					CompileDepsAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-					CompileDepsAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
-					CompileDepsAction.ProducedItems.Add(IfcDepsFile);
-					CompileDepsAction.bShouldOutputStatusDescription = false;
+					VCCompileAction CompileDepsAction = new VCCompileAction(CompileAction);
+					CompileDepsAction.Arguments.Add(String.Format("/sourceDependencies:directives \"{0}\"", IfcDepsFile.Location));
+					CompileDepsAction.AdditionalPrerequisiteItems.Add(SourceFile);
+					CompileDepsAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+					CompileDepsAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+					CompileDepsAction.AdditionalProducedItems.Add(IfcDepsFile);
 
 					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
-					CompileAction.CommandArguments += String.Format(" /interface /ifcOutput \"{0}\"", IfcFile.Location);
-					CompileAction.PrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
-					CompileAction.ProducedItems.Add(IfcFile);
+					CompileAction.Arguments.Add("/interface");
+					CompileAction.Arguments.Add(String.Format("/ifcOutput \"{0}\"", IfcFile.Location));
+					CompileAction.AdditionalPrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
+					CompileAction.AdditionalProducedItems.Add(IfcFile);
 					CompileAction.DependencyListFile = IfcDepsFile;
 					CompileAction.CompiledModuleInterfaceFile = IfcFile;
-
-					Result.CompiledModuleInterfaces.Add(IfcFile);
 				}
 				else if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, CompileAction, Graph);
+					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
+					CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
 				}
 
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+				if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 				{
-					Log.TraceVerbose("Creating PCH " + CompileEnvironment.PrecompiledHeaderIncludeFilename + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
-				}
-				else
-				{
-					Log.TraceVerbose("   Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+					CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing", SourceFile.Location.GetFileName())));
+					GenerateParseTimingInfoAction(SourceFile, CompileAction.TimingFile, Graph);
 				}
 
-				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+				if (!ProjectFileGenerator.bGenerateProjectFiles)
 				{
-					// Clang doesn't print the file names by default, so we'll do it ourselves
-					CompileAction.bShouldOutputStatusDescription = true;
-				}
-				else
-				{
-					// VC++ always outputs the source file name being compiled, so we don't need to emit this ourselves
-					CompileAction.bShouldOutputStatusDescription = false;
+					CompileAction.WriteResponseFile(Graph);
 				}
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
@@ -1309,18 +1218,24 @@ namespace UnrealBuildTool
 				{
 					CompileAction.bCanExecuteRemotelyWithSNDBS = false;
 				}
+
+				// Update the output
+				Graph.AddAction(CompileAction);
+				Actions.Add(CompileAction);
 			}
 
+			CPPOutput Result = new CPPOutput();
+			Result.ObjectFiles.AddRange(Actions.Select(x => x.ObjectFile).Where(x => x != null));
+			Result.CompiledModuleInterfaces.AddRange(Actions.Select(x => x.CompiledModuleInterfaceFile).Where(x => x != null));
+			Result.PrecompiledHeaderFile = Actions.Select(x => x.CreatePchFile).Where(x => x != null).FirstOrDefault();
 			return Result;
 		}
 
-		private Action GenerateParseTimingInfoAction(FileItem SourceFile, VCCompileAction CompileAction, CPPOutput Result, IActionGraphBuilder Graph)
+		private Action GenerateParseTimingInfoAction(FileItem SourceFile, FileItem TimingFile, IActionGraphBuilder Graph)
 		{
-			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".cta"));
-			Result.DebugDataFiles.Add(TimingJsonFile);
-			Result.DebugDataFiles.Add(CompileAction.TimingFile);
+			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(TimingFile.AbsolutePath, ".cta"));
 
-			string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", CompileAction.TimingFile);
+			string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", TimingFile);
 			if (Target.bParseTimingInfoForTracing)
 			{
 				ParseTimingArguments += " -Tracing";
@@ -1328,42 +1243,13 @@ namespace UnrealBuildTool
 
 			Action ParseTimingInfoAction = Graph.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
 			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			ParseTimingInfoAction.StatusDescription = Path.GetFileName(CompileAction.TimingFile.AbsolutePath);
+			ParseTimingInfoAction.StatusDescription = Path.GetFileName(TimingFile.AbsolutePath);
 			ParseTimingInfoAction.bCanExecuteRemotely = true;
 			ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
 			ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
-			ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
+			ParseTimingInfoAction.PrerequisiteItems.Add(TimingFile);
 			ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);
 			return ParseTimingInfoAction;
-		}
-
-		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, VCCompileAction CompileAction, IActionGraphBuilder Graph)
-		{
-			List<string> CommandArguments = new List<string>();
-			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
-			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
-			CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
-
-			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
-			{
-				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing", SourceFile.Location.GetFileName())));
-				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
-				GenerateParseTimingInfoAction(SourceFile, CompileAction, Result, Graph);
-				CommandArguments.Add(string.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location)));
-			}
-
-			if (Target.WindowsPlatform.bShowIncludes)
-			{
-				CommandArguments.Add("-showincludes");
-			}
-
-			CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
-			CommandArguments.Add("--");
-			CommandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
-			CommandArguments.Add(CompileAction.CommandArguments);
-			CommandArguments.Add("/showIncludes");
-			CompileAction.CommandArguments = string.Join(" ", CommandArguments);
-			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)

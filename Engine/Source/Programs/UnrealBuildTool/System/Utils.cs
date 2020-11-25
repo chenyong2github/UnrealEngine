@@ -1276,32 +1276,47 @@ namespace UnrealBuildTool
 		/// <param name="Location">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		public static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison)
+		internal static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison)
+		{
+			FileItem FileItem = FileItem.GetItemByFileReference(Location);
+			WriteFileIfChanged(FileItem, Contents, Comparison);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="FileItem">Location of the file</param>
+		/// <param name="Contents">New contents of the file</param>
+		/// <param name="Comparison">The type of string comparison to use</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, StringComparison Comparison)
 		{
 			// Only write the file if its contents have changed.
-			if (!FileReference.Exists(Location))
+			FileReference Location = FileItem.Location;
+			if (!FileItem.Exists)
 			{
 				DirectoryReference.CreateDirectory(Location.Directory);
 				FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
+				FileItem.ResetCachedInfo();
 			}
 			else
 			{
-				string CurrentContents = Utils.ReadAllText(Location.FullName);
+				string CurrentContents = Utils.ReadAllText(FileItem.FullName);
 				if (!String.Equals(CurrentContents, Contents, Comparison))
 				{
-					FileReference BackupFile = new FileReference(Location.FullName + ".old");
+					FileReference BackupFile = new FileReference(FileItem.FullName + ".old");
 					try
 					{
-						Log.TraceLog("Updating {0}: contents have changed. Saving previous version to {1}.", Location, BackupFile);
+						Log.TraceLog("Updating {0}: contents have changed. Saving previous version to {1}.", FileItem, BackupFile);
 						FileReference.Delete(BackupFile);
 						FileReference.Move(Location, BackupFile);
 					}
 					catch (Exception Ex)
 					{
-						Log.TraceWarning("Unable to rename {0} to {1}", Location, BackupFile);
+						Log.TraceWarning("Unable to rename {0} to {1}", FileItem, BackupFile);
 						Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
 					}
 					FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
+					FileItem.ResetCachedInfo();
 				}
 			}
 		}

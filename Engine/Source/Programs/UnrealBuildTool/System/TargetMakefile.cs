@@ -686,16 +686,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public FileItem CreateIntermediateTextFile(FileReference Location, string Contents)
+		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
 			// Write the file
-			Utils.WriteFileIfChanged(Location, Contents, StringComparison.InvariantCultureIgnoreCase);
+			Utils.WriteFileIfChanged(FileItem.Location, Contents, StringComparison.InvariantCultureIgnoreCase);
 
 			// Reset the file info, in case it already knows about the old file
-			FileItem Item = FileItem.GetItemByFileReference(Location);
-			InternalDependencies.Add(Item);
-			Item.ResetCachedInfo();
-			return Item;
+			InternalDependencies.Add(FileItem);
+			FileItem.ResetCachedInfo();
 		}
 
 		/// <inheritdoc/>

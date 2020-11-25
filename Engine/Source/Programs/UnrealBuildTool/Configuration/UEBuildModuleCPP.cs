@@ -457,6 +457,7 @@ namespace UnrealBuildTool
 			{
 				CPPOutput ModuleOutput = ToolChain.CompileCPPFiles(CompileEnvironment, InputFiles.IXXFiles, IntermediateDirectory, Name, Graph);
 				LinkInputFiles.AddRange(ModuleOutput.ObjectFiles);
+				CompileEnvironment.AdditionalPrerequisites.AddRange(ModuleOutput.CompiledModuleInterfaces);
 			}
 
 			// Configure the precompiled headers for this module
@@ -940,7 +941,6 @@ namespace UnrealBuildTool
 
 				// Merge output
 				OutputFiles.ObjectFiles.AddRange(AdaptiveOutput.ObjectFiles);
-				OutputFiles.DebugDataFiles.AddRange(AdaptiveOutput.DebugDataFiles);
 			}
 
 			return OutputFiles;

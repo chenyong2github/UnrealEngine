@@ -27,7 +27,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">Location of the response file</param>
 		/// <param name="Contents">Contents of the file</param>
 		/// <returns>New file item</returns>
-		FileItem CreateIntermediateTextFile(FileReference Location, string Contents);
+		void CreateIntermediateTextFile(FileItem Location, string Contents);
 
 		/// <summary>
 		/// Adds a file which is in the non-unity working set
@@ -79,10 +79,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual FileItem CreateIntermediateTextFile(FileReference Location, string Contents)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
-			Utils.WriteFileIfChanged(Location, Contents, StringComparison.OrdinalIgnoreCase);
-			return FileItem.GetItemByFileReference(Location);
+			Utils.WriteFileIfChanged(FileItem, Contents, StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <inheritdoc/>
@@ -142,9 +141,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual FileItem CreateIntermediateTextFile(FileReference Location, string Contents)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
-			return Inner.CreateIntermediateTextFile(Location, Contents);
+			Inner.CreateIntermediateTextFile(FileItem, Contents);
 		}
 
 		/// <inheritdoc/>
@@ -267,6 +266,33 @@ namespace UnrealBuildTool
 			NewAction.CommandPath = UnrealBuildTool.GetUBTPath();
 			NewAction.CommandArguments = String.Format("-Mode={0} {1}", Attribute.Name, Arguments);
 			return NewAction;
+		}
+
+		/// <summary>
+		/// Creates a text file with the given contents.  If the contents of the text file aren't changed, it won't write the new contents to
+		/// the file to avoid causing an action to be considered outdated.
+		/// </summary>
+		/// <param name="Graph">The action graph</param>
+		/// <param name="AbsolutePath">Path to the intermediate file to create</param>
+		/// <param name="Contents">Contents of the new file</param>
+		/// <returns>File item for the newly created file</returns>
+		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, string Contents)
+		{
+			FileItem FileItem = FileItem.GetItemByFileReference(AbsolutePath);
+			Graph.CreateIntermediateTextFile(FileItem, Contents);
+			return FileItem;
+		}
+
+		/// <summary>
+		/// Creates a text file with the given contents.  If the contents of the text file aren't changed, it won't write the new contents to
+		/// the file to avoid causing an action to be considered outdated.
+		/// </summary>
+		/// <param name="Graph">The action graph</param>
+		/// <param name="FileItem">Path to the intermediate file to create</param>
+		/// <param name="Contents">Contents of the new file</param>
+		public static void CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileItem FileItem, IEnumerable<string> Contents)
+		{
+			Graph.CreateIntermediateTextFile(FileItem, string.Join(Environment.NewLine, Contents));
 		}
 
 		/// <summary>
