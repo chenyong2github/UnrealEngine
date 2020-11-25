@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #if RHI_RAYTRACING
 
 #include "RendererPrivate.h"
