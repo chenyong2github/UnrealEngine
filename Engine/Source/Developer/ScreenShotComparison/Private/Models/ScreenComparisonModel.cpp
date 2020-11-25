@@ -4,6 +4,7 @@
 #include "ISourceControlModule.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
+#include "SourceControlHelpers.h"
 #include "ISourceControlProvider.h"
 #include "Misc/Paths.h"
 
@@ -156,28 +157,14 @@ bool FScreenComparisonModel::RemoveExistingApproved()
 
 	TArray<FString> SourceControlFiles;
 
-	bool bSuccess = false;
-
 	IFileManager::Get().FindFilesRecursive(SourceControlFiles, *FPaths::GetPath(ApprovedFolder), TEXT("*.*"), true, false, false);
 
 	if (SourceControlFiles.Num())
 	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		if (SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), SourceControlFiles) != ECommandResult::Failed)
-		{
-			if (SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), SourceControlFiles) != ECommandResult::Failed)
-			{
-				for (const FString& File : SourceControlFiles)
-				{
-					IFileManager::Get().Delete(*File, false, true, false);
-				}
-
-				bSuccess = true;
-			}
-		}
+		return USourceControlHelpers::MarkFilesForDelete(SourceControlFiles);
 	}
 
-	return bSuccess;
+	return true;
 }
 
 bool FScreenComparisonModel::AddAlternative()
