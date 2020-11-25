@@ -194,5 +194,5 @@ struct FVirtualTextureBuiltData
 	* Attempts to decompress every VT tile, to verify data is valid
 	* This will be very slow
 	*/
-	bool ValidateCompression() const;
+	bool ValidateCompression(FStringView const& InDDCDebugContext) const;
 };

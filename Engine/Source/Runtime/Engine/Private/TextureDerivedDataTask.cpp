@@ -250,7 +250,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		bool bCompressionValid = true;
 		if (CVarVTValidateCompressionOnSave.GetValueOnAnyThread())
 		{
-			bCompressionValid = DerivedData->VTData->ValidateCompression();
+			bCompressionValid = DerivedData->VTData->ValidateCompression(Texture.GetPathName());
 		}
 
 		if (ensureMsgf(bCompressionValid, TEXT("Corrupt Virtual Texture compression for %s, can't store to DDC"), *Texture.GetPathName()))
@@ -490,7 +490,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 		if (bSucceeded && bForVirtualTextureStreamingBuild && CVarVTValidateCompressionOnLoad.GetValueOnAnyThread())
 		{
-			bSucceeded = DerivedData->VTData->ValidateCompression();
+			bSucceeded = DerivedData->VTData->ValidateCompression(Texture.GetPathName());
 			if (!bSucceeded)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Texture %s has corrupt Virtual Texture compression. The texture will be rebuild."), *Texture.GetFullName());

@@ -180,7 +180,7 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	}
 }
 
-bool FVirtualTextureBuiltData::ValidateCompression() const
+bool FVirtualTextureBuiltData::ValidateCompression(FStringView const& InDDCDebugContext) const
 {
 	const uint32 TilePixelSize = GetPhysicalTileSize();
 	TArray<uint8> UncompressedResult;
@@ -202,7 +202,7 @@ bool FVirtualTextureBuiltData::ValidateCompression() const
 		else
 		{
 			ChunkDataDDC.Reset();
-			const bool bDDCResult = GetDerivedDataCacheRef().GetSynchronous(*Chunk.DerivedDataKey, ChunkDataDDC);
+			const bool bDDCResult = GetDerivedDataCacheRef().GetSynchronous(*Chunk.DerivedDataKey, ChunkDataDDC, InDDCDebugContext);
 			check(bDDCResult);
 			ChunkData = ChunkDataDDC.GetData() + 4;
 		}
