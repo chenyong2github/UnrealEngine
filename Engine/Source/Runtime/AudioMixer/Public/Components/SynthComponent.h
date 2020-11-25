@@ -106,7 +106,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
 	bool IsPlaying() const;
 
-	/** Sets how much audio the sound should send to the given submix. */
+	/** Set a new volume multiplier */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetVolumeMultiplier(float VolumeMultiplier);
 
@@ -142,7 +142,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	uint8 bOverrideAttenuation : 1;
 
-	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
+	/** Whether or not to only send this audio's output to a bus. If true, this sound will not be audible except through bus sends. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
 	uint32 bOutputToBusOnly : 1;
 
@@ -197,27 +197,35 @@ public:
 	/** Whether to artificially prioritize the component to play */
 	uint8 bAlwaysPlay : 1;
 
-	/** Call if creating this synth component not via an actor component in BP, but in code or some other location. Optionally override the sample rate of the sound wave, otherwise it uses the audio device's sample rate. */
+	/** Call if creating this synth component not via an actor component in BP, but in code or some other location. 
+	 *  Optionally override the sample rate of the sound wave, otherwise it uses the audio device's sample rate. 
+	 */
 	void Initialize(int32 SampleRateOverride = INDEX_NONE);
 
-	/** Creates the audio component if it hasn't already been created yet. This should only be used when trying to assign explicit settings to the AudioComponent before calling Start(). */
+	/** Creates the audio component if it hasn't already been created yet. This should only be used when trying to
+	 *  assign explicit settings to the AudioComponent before calling Start(). 
+	 */
 	void CreateAudioComponent();
 
 	/** Retrieves this synth component's audio component. */
 	UAudioComponent* GetAudioComponent();
 
-	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this audio component. Only used in audio mixer. */
+	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the
+	 *  envelope value of sounds played with this audio component. Only used in audio mixer.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerAttackTime;
 
-	/** The release time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this audio component. Only used in audio mixer. */
+	/** The release time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the
+	 *  envelope value of sounds played with this audio component. Only used in audio mixer. 
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerReleaseTime;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnSynthEnvelopeValue OnAudioEnvelopeValue;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnSynthEnvelopeValueNative OnAudioEnvelopeValueNative;
 
 	void OnAudioComponentEnvelopeValue(const UAudioComponent* AudioComponent, const USoundWave* SoundWave, const float EnvelopeValue);

@@ -483,13 +483,13 @@ public:
 	static void SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec);
 
 	/** 
-	* Sets attenuation distance scale value on the sound class over the given amount of time from it's current attenuation distance override value (1.0f it not overridden). 
-	* Attenuation scale allows scaling the attenuation distance used for computing distance attenuation. 
+	* Linearly interpolates the attenuation distance scale value from it's current attenuation distance override value 
+	* (1.0f it not overridden) to its new attenuation distance override, over the given amount of time
 	*
 	* * Fire and Forget.
 	* * Not Replicated.
 	* @param SoundClass - Sound class to to use to set the attenuation distance scale on.
-	* @param DistanceAttenuationScale - A distance attenuation scale value.
+	* @param DistanceAttenuationScale - A scalar for the attenuation distance used for computing distance attenuation. 
 	* @param TimeSec - A time value to linearly interpolate from the current distance attenuation scale value to the new value.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
@@ -497,18 +497,24 @@ public:
 
 
 	/**
-	* Sets the global listener focus parameters which will scale focus behavior of sounds based on their focus azimuth settings in their attenuation settings. 
+	* Sets the global listener focus parameters, which will scale focus behavior of sounds based on their focus azimuth
+	* settings in their attenuation settings.
 	*
 	* * Fire and Forget.
 	* * Not Replicated.
 	* @param FocusAzimuthScale - An angle scale value used to scale the azimuth angle that defines where sounds are in-focus.
 	* @param NonFocusAzimuthScale- An angle scale value used to scale the azimuth angle that defines where sounds are out-of-focus.
-	* @param FocusDistanceScale - A distance scale value to use for sounds which are in-focus. Values < 1.0 will reduce perceived distance to sounds, values > 1.0 will increase perceived distance to in-focus sounds.
-	* @param NonFocusDistanceScale - A distance scale value to use for sounds which are out-of-focus. Values < 1.0 will reduce perceived distance to sounds, values > 1.0 will increase perceived distance to in-focus sounds.
+	* @param FocusDistanceScale - A distance scale value to use for sounds which are in-focus. Values < 1.0 will reduce perceived 
+	*							  distance to sounds, values > 1.0 will increase perceived distance to in-focus sounds.
+	* @param NonFocusDistanceScale - A distance scale value to use for sounds which are out-of-focus. Values < 1.0 will reduce 
+	*								 perceived distance to sounds, values > 1.0 will increase perceived distance to in-focus sounds.
 	* @param FocusVolumeScale- A volume attenuation value to use for sounds which are in-focus.
 	* @param NonFocusVolumeScale- A volume attenuation value to use for sounds which are out-of-focus.
-	* @param FocusPriorityScale - A priority scale value (> 0.0) to use for sounds which are in-focus. Values < 1.0 will reduce the priority of in-focus sounds, values > 1.0 will increase the priority of in-focus sounds.
-	* @param NonFocusPriorityScale - A priority scale value (> 0.0) to use for sounds which are out-of-focus. Values < 1.0 will reduce the priority of sounds out-of-focus sounds, values > 1.0 will increase the priority of out-of-focus sounds.
+	* @param FocusPriorityScale - A priority scale value (> 0.0) to use for sounds which are in-focus. Values < 1.0 will reduce
+	*							  the priority of in-focus sounds, values > 1.0 will increase the priority of in-focus sounds.
+	* @param NonFocusPriorityScale - A priority scale value (> 0.0) to use for sounds which are out-of-focus. Values < 1.0 will
+	*								 reduce the priority of sounds out-of-focus sounds, values > 1.0 will increase the priority of
+	*								 out-of-focus sounds.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void SetGlobalListenerFocusParameters(const UObject* WorldContextObject, float FocusAzimuthScale = 1.0f, float NonFocusAzimuthScale = 1.0f, float FocusDistanceScale = 1.0f, float NonFocusDistanceScale = 1.0f, float FocusVolumeScale = 1.0f, float NonFocusVolumeScale = 1.0f, float FocusPriorityScale = 1.0f, float NonFocusPriorityScale = 1.0f);
@@ -519,60 +525,65 @@ public:
 	 * * Fire and Forget.
 	 * * Not Replicated.
 	 * @param Sound - Sound to play.
-	 * @param VolumeMultiplier - Multiplied with the volume to make the sound louder or softer.
-	 * @param PitchMultiplier - Multiplies the pitch.
-	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the sound to begin playback at
-	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
-	 * @param OwningActor - The actor to use as the "owner" for concurrency settings purposes. Allows PlaySound calls to do a concurrency limit per owner.
+ 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
+	 * @param OwningActor - The actor to use as the "owner" for concurrency settings purposes. 
+	 *						Allows PlaySound calls to do a concurrency limit per owner.
 	 * @param bIsUISound - True if sound is UI related, else false
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true" ))
 	static void PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, AActor* OwningActor = nullptr, bool bIsUISound = true);
 
 	/**
-	 * Spawns a sound with no attenuation, perfect for UI sounds.
+	 * This function allows users to create Audio Components with settings specifically for non-spatialized,
+	 * non-distance-attenuated sounds. Audio Components created using this function by default will not have 
+	 * Spatialization applied. Sound instances will begin playing upon spawning this Audio Component.
 	 *
 	 * * Not Replicated.
 	 * @param Sound - Sound to play.
-	 * @param VolumeMultiplier - Multiplied with the volume to make the sound louder or softer.
-	 * @param PitchMultiplier - Multiplies the pitch.
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the sound to begin playback at
 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
 	 * @param PersistAcrossLevelTransition - Whether the sound should continue to play when the map it was played in is unloaded
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes 
+	 *						 (by completing or stopping) or whether it can be reactivated
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
 	static UAudioComponent* SpawnSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
 
 	/**
-	 * Creates a sound with no attenuation, perfect for UI sounds. This does NOT play the sound
-	 *
-	 * * Not Replicated.
+	 * This function allows users to create Audio Components in advance of playback with settings specifically for non-spatialized,
+	 * non-distance-attenuated sounds. Audio Components created using this function by default will not have Spatialization applied.
 	 * @param Sound - Sound to create.
-	 * @param VolumeMultiplier - Multiplied with the volume to make the sound louder or softer.
-	 * @param PitchMultiplier - Multiplies the pitch.
-	 * @param StartTime - How far in to the sound to begin playback at
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
+	 * @param StartTime - How far into the sound to begin playback at
 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
 	 * @param PersistAcrossLevelTransition - Whether the sound should continue to play when the map it was played in is unloaded
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes 
+	 *						 (by completing or stopping), or whether it can be reactivated
 	 * @return An audio component to manipulate the created sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
 	static UAudioComponent* CreateSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
 
 	/**
-	 * Plays a sound at the given location. This is a fire and forget sound and does not travel with any actor. Replication is also not handled at this point.
+	 * Plays a sound at the given location. This is a fire and forget sound and does not travel with any actor. 
+	 * Replication is also not handled at this point.
 	 * @param Sound - sound to play
 	 * @param Location - World position to play sound at
 	 * @param Rotation - World rotation to play sound at
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - PitchMultiplier
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the sound to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
-	 * @param OwningActor - The actor to use as the "owner" for concurrency settings purposes. Allows PlaySound calls to do a concurrency limit per owner.
+	 * @param OwningActor - The actor to use as the "owner" for concurrency settings purposes. Allows PlaySound calls
+	 *						to do a concurrency limit per owner.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
 	static void PlaySoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, AActor* OwningActor = nullptr);
@@ -587,31 +598,37 @@ public:
 	 * @param Sound - sound to play
 	 * @param Location - World position to play sound at
 	 * @param Rotation - World rotation to play sound at
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - PitchMultiplier
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the sound to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes 
+	 *						 (by completing or stopping) or whether it can be reactivated
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
 	static UAudioComponent* SpawnSoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true);
 
-	/** Plays a sound attached to and following the specified component. This is a fire and forget sound. Replication is also not handled at this point.
+	/** This function allows users to create and play Audio Components attached to a specific Scene Component. 
+	 *  Useful for spatialized and/or distance-attenuated sounds that need to follow another object in space.
 	 * @param Sound - sound to play
 	 * @param AttachComponent - Component to attach to.
 	 * @param AttachPointName - Optional named point within the AttachComponent to play the sound at
-	 * @param Location - Depending on the value of Location Type this is either a relative offset from the attach component/point or an absolute world position that will be translated to a relative offset
-	 * @param Rotation - Depending on the value of Location Type this is either a relative offset from the attach component/point or an absolute world rotation that will be translated to a relative offset
+	 * @param Location - Depending on the value of Location Type this is either a relative offset from 
+	 *					 the attach component/point or an absolute world position that will be translated to a relative offset
+	 * @param Rotation - Depending on the value of Location Type this is either a relative offset from
+	 *					 the attach component/point or an absolute world rotation that will be translated to a relative offset
 	 * @param LocationType - Specifies whether Location is a relative offset or an absolute world position
-	 * @param bStopWhenAttachedToDestroyed - Specifies whether the sound should stop playing when the owner of the attach to component is destroyed.
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - PitchMultiplier	 
+	 * @param bStopWhenAttachedToDestroyed - Specifies whether the sound should stop playing when the
+	 *										 owner of the attach to component is destroyed.
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the sound to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
 	 * @param ConcurrencySettings - Override concurrency settings package to play sound with
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes
+	 *						 (by completing or stopping) or whether it can be reactivated
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play"))
@@ -629,35 +646,39 @@ public:
 	 * * Not Replicated.
 	 * @param Dialogue - dialogue to play
 	 * @param Context - context the dialogue is to play in
-	 * @param VolumeMultiplier - Multiplied with the volume to make the sound louder or softer.
-	 * @param PitchMultiplier - Multiplies the pitch.
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the dialogue to begin playback at
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true" ))
 	static void PlayDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f);
 
 	/**
-	 * Spawns a dialogue with no attenuation, perfect for UI.
+	 * Spawns a DialogueWave, a special type of Asset that requires Context data in order to resolve a specific SoundBase,
+	 * which is then passed on to the new Audio Component. Audio Components created using this function by default will not
+	 * have Spatialization applied. Sound instances will begin playing upon spawning this Audio Component.
 	 *
 	 * * Not Replicated.
 	 * @param Dialogue - dialogue to play
 	 * @param Context - context the dialogue is to play in
-	 * @param VolumeMultiplier - Multiplied with the volume to make the sound louder or softer.
-	 * @param PitchMultiplier - Multiplies the pitch.
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the dialogue to begin playback at
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound
+	 *						 finishes (by completing or stopping) or whether it can be reactivated
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
 	static UAudioComponent* SpawnDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, bool bAutoDestroy = true);
 
-	/** Plays a dialogue at the given location. This is a fire and forget sound and does not travel with any actor. Replication is also not handled at this point.
+	/** Plays a dialogue at the given location. This is a fire and forget sound and does not travel with any actor. 
+	 *	Replication is also not handled at this point.
 	 * @param Dialogue - dialogue to play
 	 * @param Context - context the dialogue is to play in
 	 * @param Location - World position to play dialogue at
 	 * @param Rotation - World rotation to play dialogue at
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - Pitch multiplier
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the dialogue to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
 	 */
@@ -669,35 +690,45 @@ public:
 		PlayDialogueAtLocation(WorldContextObject, Dialogue, Context, Location, FRotator::ZeroRotator, VolumeMultiplier, PitchMultiplier, StartTime, AttenuationSettings);
 	}
 
-	/** Plays a dialogue at the given location. This is a fire and forget sound and does not travel with any actor. Replication is also not handled at this point.
-	 * @param Dialogue - dialogue to play
-	 * @param Context - context the dialogue is to play in
+	/** Spawns a DialogueWave, a special type of Asset that requires Context data in order to resolve a specific SoundBase,
+	 *  which is then passed on to the new Audio Component. This function allows users to create and play Audio Components at a
+	 *  specific World Location and Rotation. Useful for spatialized and/or distance-attenuated dialogue.
+	 * @param Dialogue - Dialogue to play
+	 * @param Context - Context the dialogue is to play in
 	 * @param Location - World position to play dialogue at
 	 * @param Rotation - World rotation to play dialogue at
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - PitchMultiplier
-	 * @param StartTime - How far in to the dialogue to begin playback at
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
+	 * @param StartTime - How far into the dialogue to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes
+	 *						 (by completing or stopping) or whether it can be reactivated
 	 * @return Audio Component to manipulate the playing dialogue with
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "4", UnsafeDuringActorConstruction = "true", Keywords = "play"))
 	static UAudioComponent* SpawnDialogueAtLocation(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
 
-	/** Spawns a dialogue attached to and following the specified component. This is a fire and forget sound. Replication is also not handled at this point.
+	/** Spawns a DialogueWave, a special type of Asset that requires Context data in order to resolve a specific SoundBase,
+	 *	which is then passed on to the new Audio Component. This function allows users to create and play Audio Components
+	 *	attached to a specific Scene Component. Useful for spatialized and/or distance-attenuated dialogue that needs to 
+	 *	follow another object in space.
 	 * @param Dialogue - dialogue to play
 	 * @param Context - context the dialogue is to play in
 	 * @param AttachComponent - Component to attach to.
 	 * @param AttachPointName - Optional named point within the AttachComponent to play the sound at
-	 * @param Location - Depending on the value of Location Type this is either a relative offset from the attach component/point or an absolute world position that will be translated to a relative offset
-	 * @param Rotation - Depending on the value of Location Type this is either a relative offset from the attach component/point or an absolute world rotation that will be translated to a relative offset
+	 * @param Location - Depending on the value of Location Type this is either a relative offset from the 
+	 *					 attach component/point or an absolute world position that will be translated to a relative offset
+	 * @param Rotation - Depending on the value of Location Type this is either a relative offset from the 
+	 *					 attach component/point or an absolute world rotation that will be translated to a relative offset
 	 * @param LocationType - Specifies whether Location is a relative offset or an absolute world position
-	 * @param bStopWhenAttachedToDestroyed - Specifies whether the sound should stop playing when the owner of the attach to component is destroyed.
-	 * @param VolumeMultiplier - Volume multiplier 
-	 * @param PitchMultiplier - PitchMultiplier	 
+	 * @param bStopWhenAttachedToDestroyed - Specifies whether the sound should stop playing when the owner its attached
+	 *										 to is destroyed.
+	 * @param VolumeMultiplier - A linear scalar multiplied with the volume, in order to make the sound louder or softer.
+	 * @param PitchMultiplier - A linear scalar multiplied with the pitch.
 	 * @param StartTime - How far in to the dialogue to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
-	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned audio component will be automatically cleaned up when the sound finishes 
+	 *						 (by completing or stopping) or whether it can be reactivated
 	 * @return Audio Component to manipulate the playing dialogue with
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play"))
@@ -715,7 +746,7 @@ public:
 	 * @param IntensityMultiplier - Intensity multiplier 
 	 * @param StartTime - How far in to the feedback effect to begin playback at
 	 * @param AttenuationSettings - Override attenuation settings package to play effect with
-	 * @param bAutoDestroy - Whether the returned force feedback component will be automatically cleaned up when the feedback patern finishes (by completing or stopping) or whether it can be reactivated
+	 * @param bAutoDestroy - Whether the returned force feedback component will be automatically cleaned up when the feedback pattern finishes (by completing or stopping) or whether it can be reactivated
 	 * @return Force Feedback Component to manipulate the playing feedback effect with
 	 */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
@@ -753,11 +784,11 @@ public:
 	static bool AreSubtitlesEnabled();
 
 	// --- Audio Functions ----------------------------
-	/** Set the sound mix of the audio system for special EQing **/
+	/** Set the sound mix of the audio system for special EQing */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
 	static void SetBaseSoundMix(const UObject* WorldContextObject, class USoundMix* InSoundMix);
 
-	/** Primes the sound, caching the first chunk of streamed audio. **/
+	/** Primes the sound, caching the first chunk of streamed audio. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void PrimeSound(USoundBase* InSound);
 
@@ -769,7 +800,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void UnRetainAllSoundsInSoundClass(class USoundClass* InSoundClass);
 
-	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, the sound class adjustment will be added to the sound mix.
+	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, 
+	 *	the sound class adjuster will be added to the list of active sound mix modifiers. 
 	 * @param InSoundMixModifier The sound mix to modify.
 	 * @param InSoundClass The sound class to override (or add) in the sound mix.
 	 * @param Volume The volume scale to set the sound class adjuster to.
@@ -780,27 +812,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void SetSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float Volume = 1.0f, float Pitch = 1.0f, float FadeInTime = 1.0f, bool bApplyToChildren = true);
 
-	/** Clears the override of the sound class adjuster in the given sound mix. If the override did not exist in the sound mix, this will do nothing.
+	/** Clears any existing override of the Sound Class Adjuster in the given Sound Mix
 	 * @param InSoundMixModifier The sound mix to modify.
-	 * @param InSoundClass The sound class to override (or add) in the sound mix.
+	 * @param InSoundClass The sound class in the sound mix to clear overrides from.
 	 * @param FadeOutTime The interpolation time to use to go from the current sound class adjuster override values to the non-override values.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void ClearSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float FadeOutTime = 1.0f);
 
-	/** Push a sound mix modifier onto the audio system **/
+	/** Push a sound mix modifier onto the audio system 
+	 * @param InSoundMixModifier The Sound Mix Modifier to add to the system
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
 	static void PushSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
 
-	/** Pop a sound mix modifier from the audio system **/
+	/** Pop a sound mix modifier from the audio system 
+	 *	@param InSoundMixModifier The Sound Mix Modifier to remove from the system
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
 	static void PopSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
 
-	/** Clear all sound mix modifiers from the audio system **/
+	/** Clear all sound mix modifiers from the audio system */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
 	static void ClearSoundMixModifiers(const UObject* WorldContextObject);
 
-	/** Activates a Reverb Effect without the need for a volume
+	/** Activates a Reverb Effect without the need for an Audio Volume
 	 * @param ReverbEffect Reverb Effect to use
 	 * @param TagName Tag to associate with Reverb Effect
 	 * @param Priority Priority of the Reverb Effect
@@ -811,7 +847,7 @@ public:
 	static void ActivateReverbEffect(const UObject* WorldContextObject, class UReverbEffect* ReverbEffect, FName TagName, float Priority = 0.f, float Volume = 0.5f, float FadeTime = 2.f);
 
 	/**
-	 * Deactivates a Reverb Effect not applied by a volume
+	 * Deactivates a Reverb Effect that was applied outside of an Audio Volume
 	 *
 	 * @param TagName Tag associated with Reverb Effect to remove
 	 */
@@ -819,13 +855,15 @@ public:
 	static void DeactivateReverbEffect(const UObject* WorldContextObject, FName TagName);
 
 	/** 
-	 * Returns the highest priority reverb settings currently active from any source (volumes or manual setting).
+	 * Returns the highest priority reverb settings currently active from any source (Audio Volumes or manual settings). 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static class UReverbEffect* GetCurrentReverbEffect(const UObject* WorldContextObject);
 
 	/**
-	 * Sets the max number of voices (also known as "channels") dynamically by percentage. E.g. if you want to temporarily reduce voice count by 50%, use 0.50. Later, you can return to the original max voice count by using 1.0.
+	 * Sets the max number of voices (also known as "channels") dynamically by percentage. E.g. if you want to temporarily
+	 * reduce voice count by 50%, use 0.50. Later, you can return to the original max voice count by using 1.0.
+	 * @param MaxChannelCountScale The percentage of the original voice count to set the max number of voices to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void SetMaxAudioChannelsScaled(const UObject* WorldContextObject, float MaxChannelCountScale);

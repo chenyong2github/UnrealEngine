@@ -373,7 +373,7 @@ public:
 
 	void StopSpectralAnalysis(FAudioDevice* InDevice);
 
-	/** Sets the output volume of the submix. This dynamic volume scales with the OutputVolume property of this submix. */
+	/** Sets the output volume of the submix. This dynamic volume acts as a multiplier on the OutputVolume property of this submix.  */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	void SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume);
 
@@ -492,7 +492,7 @@ public:
 	*/
 	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
-	// This function goes through every child submix and the parent submix to ensure that they have a compatible format with this  submix's format.
+	// This function goes through every child submix and the parent submix to ensure that they have a compatible format.
 	void SanitizeLinks();
 
 	//TODO: Make this editable only if EndpointType is non-default,

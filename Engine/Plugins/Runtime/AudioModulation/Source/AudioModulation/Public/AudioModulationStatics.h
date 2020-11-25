@@ -35,7 +35,7 @@ public:
 	 */
 	static AudioModulation::FAudioModulation* GetModulation(UWorld* World);
 
-	/** Activates a bus. Does nothing if an instance of the provided bus is already active
+	/** Activates a modulation bus. Does nothing if an instance of the provided bus is already active
 	 * @param Bus - Bus to activate
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Control Bus", meta = (
@@ -64,7 +64,7 @@ public:
 
 	/** Creates a modulation bus with the provided default value.
 	 * @param Name - Name of bus
-	 * @param DefaultValue - Default value for created bus
+	 * @param Parameter - Default value for created bus
 	 * @param Activate - Whether or not to activate bus on creation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus", meta = (
@@ -76,8 +76,9 @@ public:
 
 	/** Creates a stage used to mix a control bus.
 	 * @param Bus - Bus stage is in charge of applying mix value to.
-	 * @param Stages - Value for added bus stage to target when mix is active.
-	 * @param Attack/ReleaseTime - Time in seconds for stage to mix in/out.
+	 * @param Value - Value for added bus stage to target when mix is active.
+	 * @param AttackTime - Time in seconds for stage to mix in.
+	 * @param ReleaseTime - Time in seconds for stage to mix out.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus Mix Stage", meta = (
 		AdvancedDisplay = "3",
@@ -91,7 +92,7 @@ public:
 		float AttackTime = 0.1f,
 		float ReleaseTime = 0.1f);
 
-	/** Creates a modulation bus mix and adds a bus stage set to the provided target value
+	/** Creates a modulation bus mix, with a bus channel set to the provided target value
 	 * @param Name - Name of mix.
 	 * @param Stages - Stages mix is responsible for.
 	 * @param Activate - Whether or not to activate mix on creation.
@@ -106,7 +107,7 @@ public:
 		TArray<FSoundControlBusMixStage> Stages, 
 		bool Activate);
 
-	/** Deactivates a bus. Does nothing if an instance of the provided bus is already inactive
+	/** Deactivates a bus. Does nothing if the provided bus is already inactive
 	 * @param Bus - Scope of modulator
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Control Bus", meta = (
@@ -159,12 +160,14 @@ public:
 	)
 	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, bool bActivate = true, int32 ProfileIndex = 0);
 
-	/** Sets a mix with the provided stage data if stages provided in active instance proxy of mix. Does not update UObject definition of mix.
+	/** Sets a Control Bus Mix with the provided channel data, if the channels
+	 *  are provided in an active instance proxy of the mix. 
+	 *  Does not update UObject definition of the mix. 
 	 * @param Mix - Mix to update
 	 * @param Stages - Stages to set.  If stage's bus is not referenced by mix, stage's update request is ignored.
-	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
-	 * If negative, falls back to last fade time set on stage. If fade time never set on stage,
-	 * uses attack time set on stage in mix asset.
+	 * @param InFadeTime - Fade time to user when interpolating between current value and new values.
+	 *					 If negative, falls back to last fade time set on stage. If fade time never set on stage,
+	 *					 uses attack time set on stage in mix asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
@@ -172,7 +175,8 @@ public:
 	)
 	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float FadeTime = -1.0f);
 
-	/** Sets filtered stages of a given class to a provided target value for active instance of mix. Does not update UObject definition of mix.
+	/** Sets filtered stages of a given class to a provided target value for active instance of mix.
+	 * Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
 	 * @param AddressFilter - (Optional) Address filter to apply to provided mix's stages.
 	 * @param ParamClassFilter - (Optional) Filters buses by parameter class.
@@ -198,8 +202,8 @@ public:
 	 * (ignored if mix has not been activated).
 	 * @param Mix - Mix to update
 	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
-	 * If negative, falls back to last fade time set on stage. If fade time never set on stage,
-	 * uses attack time set on stage in mix asset.
+	 *					 If negative, falls back to last fade time set on stage. If fade time never set on stage,
+	 *					 uses attack time set on stage in mix asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
@@ -207,8 +211,8 @@ public:
 	)
 	static void UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix, float FadeTime = -1.0f);
 
-	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, LFO) to active instance in audio thread
-	 * (ignored if modulator type has not been activated).
+	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, LFO)
+	 *  to active instance in audio thread (ignored if modulator type has not been activated).
 	 * @param Modulator - Modulator to update
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Modulator", meta = (
