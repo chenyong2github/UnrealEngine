@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MatineeToLevelSequenceConverter.h"
 #include "AssetToolsModule.h"
 #include "Editor.h"
