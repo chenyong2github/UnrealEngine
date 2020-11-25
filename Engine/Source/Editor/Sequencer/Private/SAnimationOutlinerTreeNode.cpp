@@ -192,7 +192,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 				SNew(SButton)
 				.ContentPadding(0)
 				.VAlign(VAlign_Fill)
-				.IsFocusable(true)
+				.IsFocusable(false) // Intentionally false so that it's easier to tab to the next numeric input
 				.IsEnabled(!DisplayNode->GetSequencer().IsReadOnly())
 				.ButtonStyle(FEditorStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip")
 				.OnClicked(this, &SAnimationOutlinerTreeNode::OnSetTrackColor)
