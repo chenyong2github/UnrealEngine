@@ -2858,6 +2858,11 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStart
 			// We need to actually update disk cache
 			UpdateAssetData(*CachedData, NewAssetData);
 		}
+		else
+		{
+			// Bundle tags might have changed but CachedAssetsByTag is up to date
+			(*CachedData)->TaggedAssetBundles = NewAssetData.TaggedAssetBundles;
+		}
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
