@@ -1626,6 +1626,11 @@ struct SLATECORE_API FHeaderRowStyle : public FSlateWidgetStyle
 	FSplitterStyle ColumnSplitterStyle;
 	FHeaderRowStyle& SetColumnSplitterStyle( const FSplitterStyle& InColumnSplitterStyle ){ ColumnSplitterStyle = InColumnSplitterStyle; return *this; }
 
+	/** Size of the splitter used between the columns */
+	UPROPERTY(EditAnywhere, Category=Appearance)
+	float SplitterHandleSize;
+	FHeaderRowStyle& SetSplitterHandleSize( const float  InSplitterHandleSize){ SplitterHandleSize = InSplitterHandleSize; return *this; }
+
 	/** Brush used to draw the header row background */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FSlateBrush BackgroundBrush;

@@ -579,7 +579,8 @@ const FTableColumnHeaderStyle& FTableColumnHeaderStyle::GetDefault()
 
 
 FHeaderRowStyle::FHeaderRowStyle()
-	: HorizontalSeparatorBrush(FSlateNoResource())
+	: SplitterHandleSize(0.0)
+	, HorizontalSeparatorBrush(FSlateNoResource())
 	, HorizontalSeparatorThickness(0)
 {
 }

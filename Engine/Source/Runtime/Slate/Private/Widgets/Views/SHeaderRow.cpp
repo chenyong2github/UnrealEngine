@@ -451,7 +451,12 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 	Style = InArgs._Style;
 	OnGetMaxRowSizeForColumn = InArgs._OnGetMaxRowSizeForColumn;
 	ResizeMode = InArgs._ResizeMode;
-	SplitterHandleSize = InArgs._SplitterHandleSize;
+
+	SplitterHandleSize =   Style->SplitterHandleSize;
+	if (InArgs._SplitterHandleSize.IsSet())
+	{
+		SplitterHandleSize = InArgs._SplitterHandleSize.GetValue();
+	}
 	bCanSelectGeneratedColumn = InArgs._CanSelectGeneratedColumn;
 	OnHiddenColumnsListChanged = InArgs._OnHiddenColumnsListChanged;
 
