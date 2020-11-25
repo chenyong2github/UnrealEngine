@@ -13,6 +13,7 @@
 
 class FLevelEditorViewportClient;
 class FViewport;
+class UTypedElementSelectionSet;
 
 UCLASS(hidedropdown,MinimalAPI, notplaceable, NotBlueprintable)
 class AGroupActor : public AActor
@@ -54,13 +55,11 @@ class AGroupActor : public AActor
 	virtual bool IsSelected() const;
 
 	/**
-	 * Apply given deltas to all actors and subgroups for this group.
-	 * @param	Viewport		The viewport to draw to apply our deltas
-	 * @param	InDrag			Delta Transition
-	 * @param	InRot			Delta Rotation
-	 * @param	InScale			Delta Scale
+	 * Enumerate all actors and subgroups for this group that should be moved alongside this actor (includes this).
+	 * @param InSelectionSet	The selection set to use, or null to use the global selection set
+	 * @param InCallback		The function to call for each movable actor
 	 */
-	void GroupApplyDelta(FLevelEditorViewportClient* Viewport, const FVector& InDrag, const FRotator& InRot, const FVector& InScale );
+	UNREALED_API void ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*)> InCallback);
 	
 	/**
 	 * Apply given deltas to all actors and subgroups for this group.
@@ -69,7 +68,6 @@ class AGroupActor : public AActor
 	 * @param	InScale			Delta Scale
 	 */
 	UNREALED_API void GroupApplyDelta(const FVector& InDrag, const FRotator& InRot, const FVector& InScale );
-
 
 	/**
 	 * Draw brackets around all selected groups

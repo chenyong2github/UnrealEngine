@@ -12,7 +12,7 @@ class TYPEDELEMENTINTERFACES_API UTypedElementObjectInterface : public UTypedEle
 
 public:
 	/**
-	 * Retreive the object instance that this handle represents, if any.
+	 * Get the object instance that this handle represents, if any.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Object")
 	virtual UObject* GetObject(const FTypedElementHandle& InElementHandle) { return nullptr; }

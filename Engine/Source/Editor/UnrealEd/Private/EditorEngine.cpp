@@ -131,6 +131,8 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Object/ObjectElementEditorSelectionCustomization.h"
+#include "Elements/Actor/ActorElementEditorViewportInteractionCustomization.h"
+#include "Elements/Component/ComponentElementEditorViewportInteractionCustomization.h"
 
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
@@ -2617,166 +2619,10 @@ void UEditorEngine::ApplyDeltaToActor(AActor* InActor,
 									  bool bShiftDown,
 									  bool bControlDown) const
 {
-	if(!bDisableDeltaModification)
-	{
-		InActor->Modify();
-	}
-	
-	FNavigationLockContext LockNavigationUpdates(InActor->GetWorld(), ENavigationLockReason::ContinuousEditorMove);
+	FInputDeviceState InputState;
+	InputState.SetModifierKeyStates(bShiftDown, bAltDown, bControlDown, false);
 
-	bool bTranslationOnly = true;
-
-	///////////////////
-	// Rotation
-
-	// Unfortunately this can't be moved into ABrush::EditorApplyRotation, as that would
-	// create a dependence in Engine on Editor.
-	if ( InRot )
-	{
-		const FRotator& InDeltaRot = *InRot;
-		const bool bRotatingActor = !bDelta || !InDeltaRot.IsZero();
-		if( bRotatingActor )
-		{
-			bTranslationOnly = false;
-
-			if ( bDelta )
-			{
-				if( InActor->GetRootComponent() != NULL )
-				{
-					const FRotator OriginalRotation = InActor->GetRootComponent()->GetComponentRotation();
-
-					InActor->EditorApplyRotation( InDeltaRot, bAltDown, bShiftDown, bControlDown );
-
-					// Check to see if we should transform the rigid body
-					UPrimitiveComponent* RootPrimitiveComponent = Cast< UPrimitiveComponent >( InActor->GetRootComponent() );
-					if( bIsSimulatingInEditor && GIsPlayInEditorWorld && RootPrimitiveComponent != NULL )
-					{
-						FRotator ActorRotWind, ActorRotRem;
-						OriginalRotation.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
-
-						const FQuat ActorQ = ActorRotRem.Quaternion();
-						const FQuat DeltaQ = InDeltaRot.Quaternion();
-						const FQuat ResultQ = DeltaQ * ActorQ;
-
-						const FRotator NewActorRotRem = FRotator( ResultQ );
-						FRotator DeltaRot = NewActorRotRem - ActorRotRem;
-						DeltaRot.Normalize();
-
-						// @todo SIE: Not taking into account possible offset between root component and actor
-						RootPrimitiveComponent->SetWorldRotation( OriginalRotation + DeltaRot );
-					}
-				}
-
-				FVector NewActorLocation = InActor->GetActorLocation();
-				NewActorLocation -= GLevelEditorModeTools().PivotLocation;
-				NewActorLocation = FRotationMatrix(InDeltaRot).TransformPosition(NewActorLocation);
-				NewActorLocation += GLevelEditorModeTools().PivotLocation;
-				NewActorLocation -= InActor->GetActorLocation();
-				InActor->EditorApplyTranslation(NewActorLocation, bAltDown, bShiftDown, bControlDown);
-			}
-			else
-			{
-				InActor->SetActorRotation( InDeltaRot );
-			}
-		}
-	}
-
-	///////////////////
-	// Translation
-	if ( InTrans )
-	{
-		if ( bDelta )
-		{
-			if( InActor->GetRootComponent() != NULL )
-			{
-				const FVector OriginalLocation = InActor->GetRootComponent()->GetComponentLocation();
-
-				InActor->EditorApplyTranslation( *InTrans, bAltDown, bShiftDown, bControlDown );
-
-				// Check to see if we should transform the rigid body
-				UPrimitiveComponent* RootPrimitiveComponent = Cast< UPrimitiveComponent >( InActor->GetRootComponent() );
-				if( bIsSimulatingInEditor && GIsPlayInEditorWorld && RootPrimitiveComponent != NULL )
-				{
-					// @todo SIE: Not taking into account possible offset between root component and actor
-					RootPrimitiveComponent->SetWorldLocation( OriginalLocation + *InTrans );
-				}
-			}
-		}
-		else
-		{
-			InActor->SetActorLocation( *InTrans, false );
-		}
-	}
-
-	///////////////////
-	// Scaling
-	if ( InScale )
-	{
-		const FVector& InDeltaScale = *InScale;
-		const bool bScalingActor = !bDelta || !InDeltaScale.IsNearlyZero(0.000001f);
-		if( bScalingActor )
-		{
-			bTranslationOnly = false;
-
-			FVector ModifiedScale = InDeltaScale;
-
-			// Note: With the new additive scaling method, this is handled in FLevelEditorViewportClient::ModifyScale
-			if( UsePercentageBasedScaling() )
-			{
-				// Get actor box extents
-				const FBox BoundingBox = InActor->GetComponentsBoundingBox( true );
-				const FVector BoundsExtents = BoundingBox.GetExtent();
-
-				// Make sure scale on actors is clamped to a minimum and maximum size.
-				const float MinThreshold = 1.0f;
-
-				for (int32 Idx=0; Idx<3; Idx++)
-				{
-					if ( ( FMath::Pow(BoundsExtents[Idx], 2) ) > BIG_NUMBER)
-					{
-						ModifiedScale[Idx] = 0.0f;
-					}
-					else if (SMALL_NUMBER < BoundsExtents[Idx])
-					{
-						const bool bBelowAllowableScaleThreshold = ((InDeltaScale[Idx] + 1.0f) * BoundsExtents[Idx]) < MinThreshold;
-
-						if(bBelowAllowableScaleThreshold)
-						{
-							ModifiedScale[Idx] = (MinThreshold / BoundsExtents[Idx]) - 1.0f;
-						}
-					}
-				}
-			}
-
-			if ( bDelta )
-			{
-				// Flag actors to use old-style scaling or not
-				// @todo: Remove this hack once we have decided on the scaling method to use.
-				AActor::bUsePercentageBasedScaling = UsePercentageBasedScaling();
-
-				InActor->EditorApplyScale( 
-					ModifiedScale,
-					&GLevelEditorModeTools().PivotLocation,
-					bAltDown,
-					bShiftDown,
-					bControlDown
-					);
-
-			}
-			else if( InActor->GetRootComponent() != NULL )
-			{
-				InActor->GetRootComponent()->SetRelativeScale3D( InDeltaScale );
-			}
-		}
-	}
-
-	// Update the actor before leaving.
-	InActor->MarkPackageDirty();
-	if (!GIsDemoMode)
-	{
-		InActor->InvalidateLightingCacheDetailed(bTranslationOnly);
-	}
-	InActor->PostEditMove( false );
+	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(InActor, bDelta, InTrans, InRot, InScale, GLevelEditorModeTools().PivotLocation, InputState);
 }
 
 void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
@@ -2786,99 +2632,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 	const FVector* InScale,
 	const FVector& PivotLocation ) const
 {
-	if(!bDisableDeltaModification)
-	{
-		InComponent->Modify();
-	}
-
-	///////////////////
-	// Rotation
-	if ( InRot )
-	{
-		const FRotator& InDeltaRot = *InRot;
-		const bool bRotatingComp = !bDelta || !InDeltaRot.IsZero();
-		if( bRotatingComp )
-		{
-			if ( bDelta )
-			{
-				const FRotator Rot = InComponent->GetRelativeRotation();
-				FRotator ActorRotWind, ActorRotRem;
-				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
-				const FQuat ActorQ = ActorRotRem.Quaternion();
-				const FQuat DeltaQ = InDeltaRot.Quaternion();
-				const FQuat ResultQ = DeltaQ * ActorQ;
-
-				FRotator NewActorRotRem = FRotator(ResultQ);
-				ActorRotRem.SetClosestToMe(NewActorRotRem);
-				FRotator DeltaRot = NewActorRotRem - ActorRotRem;
-				DeltaRot.Normalize();
-				InComponent->SetRelativeRotationExact(Rot + DeltaRot);
-			}
-			else
-			{
-				InComponent->SetRelativeRotationExact( InDeltaRot );
-			}
-
-			if ( bDelta )
-			{
-				FVector NewCompLocation = InComponent->GetRelativeLocation();
-				NewCompLocation -= PivotLocation;
-				NewCompLocation = FRotationMatrix( InDeltaRot ).TransformPosition( NewCompLocation );
-				NewCompLocation += PivotLocation;
-				InComponent->SetRelativeLocation(NewCompLocation);
-			}
-		}
-	}
-
-	///////////////////
-	// Translation
-	if ( InTrans )
-	{
-		if ( bDelta )
-		{
-			InComponent->SetRelativeLocation(InComponent->GetRelativeLocation() + *InTrans);
-		}
-		else
-		{
-			InComponent->SetRelativeLocation( *InTrans );
-		}
-	}
-
-	///////////////////
-	// Scaling
-	if ( InScale )
-	{
-		const FVector& InDeltaScale = *InScale;
-		const bool bScalingComp = !bDelta || !InDeltaScale.IsNearlyZero(0.000001f);
-		if( bScalingComp )
-		{
-			if ( bDelta )
-			{
-				InComponent->SetRelativeScale3D(InComponent->GetRelativeScale3D() + InDeltaScale);
-
-				FVector NewCompLocation = InComponent->GetRelativeLocation();
-				NewCompLocation -= PivotLocation;
-				NewCompLocation += FScaleMatrix( InDeltaScale ).TransformPosition( NewCompLocation );
-				NewCompLocation += PivotLocation;
-				InComponent->SetRelativeLocation(NewCompLocation);
-			}
-			else
-			{
-				InComponent->SetRelativeScale3D(InDeltaScale);
-			}
-		}
-	}
-
-	// Update the actor before leaving.
-	InComponent->MarkPackageDirty();
-
-	{
-		InComponent->PostEditComponentMove(false);
-	}
-
-	// Fire callbacks
-	FEditorSupportDelegates::RefreshPropertyWindows.Broadcast();
-	FEditorSupportDelegates::UpdateUI.Broadcast();
+	FComponentElementEditorViewportInteractionCustomization::ApplyDeltaToComponent(InComponent, bDelta, InTrans, InRot, InScale, PivotLocation, FInputDeviceState());
 }
 
 

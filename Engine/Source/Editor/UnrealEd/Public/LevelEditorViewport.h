@@ -21,7 +21,10 @@ class ILevelEditor;
 class SLevelViewport;
 class UActorFactory;
 class UModel;
+class UTypedElementList;
+class UTypedElementSelectionSet;
 struct FWorldContext;
+struct FTypedElementHandle;
 
 /** Describes an object that's currently hovered over in the level viewport */
 struct FViewportHoverTarget
@@ -156,6 +159,9 @@ struct UNREALED_API FLevelViewportActorLock
 /** */
 class UNREALED_API FLevelEditorViewportClient : public FEditorViewportClient
 {
+	friend class FActorElementLevelEditorViewportInteractionCustomization;
+	friend class FComponentElementLevelEditorViewportInteractionCustomization;
+
 public:
 
 	/** @return Returns the current global drop preview actor, or a NULL pointer if we don't currently have one */
@@ -307,6 +313,9 @@ public:
 	void ApplyDeltaToActors( const FVector& InDrag, const FRotator& InRot, const FVector& InScale );
 	void ApplyDeltaToActor( AActor* InActor, const FVector& InDeltaDrag, const FRotator& InDeltaRot, const FVector& InDeltaScale );
 	void ApplyDeltaToComponent(USceneComponent* InComponent, const FVector& InDeltaDrag, const FRotator& InDeltaRot, const FVector& InDeltaScale);
+	
+	void ApplyDeltaToSelectedElements(const FTransform& InDeltaTransform);
+	void ApplyDeltaToElement(const FTypedElementHandle& InElementHandle, const FTransform& InDeltaTransform);
 
 	virtual void SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport ) override;
 
@@ -450,13 +459,6 @@ public:
 	 * Static: Clears viewport hover effects from any objects that currently have that
 	 */
 	static void ClearHoverFromObjects();
-
-
-	/**
-	 * Helper function for ApplyDeltaTo* functions - modifies scale based on grid settings.
-	 * Currently public so it can be re-used in FEdModeBlueprint.
-	 */
-	void ModifyScale( USceneComponent* InComponent, FVector& ScaleDelta ) const;
 
 	/** Set the global ptr to the current viewport */
 	void SetCurrentViewport();
@@ -663,31 +665,8 @@ protected:
 	/** Delegate handler for ActorMoved events */
 	void OnActorMoved(AActor* InActor);
 
-	/** FEditorViewportClient Interface*/
-
-	/**
-	 * Collects the set of components and actors on which to apply move operations during or after drag operations.
-	 */
-	void GetSelectedActorsAndComponentsForMove(TArray<AActor*>& OutActorsToMove, TArray<USceneComponent*>& OutComponentsToMove) const;
-
-	/**
-	 * Determines if it is valid to move an actor in this viewport.
-	 *
-	 * @param InActor - the actor that the viewport may be interested in moving.
-	 * @returns true if it is valid for this viewport to update the given actor's transform.
-	 */
-	bool CanMoveActorInViewport(const AActor* InActor) const;
-
-	/** Performs the legacy behavior for calling post edit move and updating transforms from ApplyDeltaToActors function. */
-	UE_DEPRECATED(4.26, "This functions is meant to be used for ease of rollback if too many post edit move calls degrade performance during drag operations. See ULevelEditorSettings::bUseLegacyPostEditBehavior to toggle legacy behavior.")
-	bool LegacyApplyDeltasForSelectedComponentsAndActors(const FVector& InDrag, const FRotator& InRot, const FVector& ModifiedScale);
-
-	/** Performs the legacy behavior for applying transforms and calling post edit move and property changed events from TrackingStopped function. */
-	UE_DEPRECATED(4.26, "This functions is meant to be used for ease of rollback if too many post edit move calls degrade performance during drag operations. See ULevelEditorSettings::bUseLegacyPostEditBehavior to toggle legacy behavior.")
-	bool LegacyTrackingStoppedForSelectedComponentsAndActors(FPropertyChangedEvent& PropertyChangedEvent);
-
 public:
-
+	/** FEditorViewportClient Interface*/
 	virtual void UpdateLinkedOrthoViewports(bool bInvalidate = false) override;
 	virtual ELevelViewportType GetViewportType() const override;
 	virtual void SetViewportType(ELevelViewportType InViewportType) override;
@@ -703,6 +682,8 @@ protected:
 	virtual void RedrawAllViewportsIntoThisScene() override;
 
 private:
+	FTransform CachePreDragActorTransform(const AActor* InActor);
+
 	/**
 	 * Checks to see the viewports locked actor need updating
 	 */
@@ -716,6 +697,13 @@ private:
 	
 	/** @return	Returns true if the delta tracker was used to modify any selected actors or BSP.  Must be called before EndTracking(). */
 	bool HaveSelectedObjectsBeenChanged() const;
+
+	/** Cache the list of elements to manipulate based on the current selection set. */
+	void CacheElementsToManipulate();
+
+	/** Get the selection set that associated with our level editor. */
+	const UTypedElementSelectionSet* GetSelectionSet() const;
+	UTypedElementSelectionSet* GetMutableSelectionSet() const;
 
 	/**
 	 * Called when to attempt to apply an object to a BSP surface
@@ -788,10 +776,6 @@ private:
 	 * @return	true if the drop operation was successfully handled; false otherwise
 	 */
 	bool DropObjectsOnWidget(FSceneView* View, struct FViewportCursorLocation& Cursor, const TArray<UObject*>& DroppedObjects, bool bCreateDropPreview = false);
-
-	/** Helper functions for ApplyDeltaTo* functions - modifies scale based on grid settings */
-	void ModifyScale( AActor* InActor, FVector& ScaleDelta, bool bCheckSmallExtent = false ) const;
-	void ValidateScale( const FVector& InOriginalPreDragScale, const FVector& CurrentScale, const FVector& BoxExtent, FVector& ScaleDelta, bool bCheckSmallExtent = false ) const;
 
 	/** Project the specified actors into the world according to the current drag parameters */
 	void ProjectActorsIntoWorld(const TArray<AActor*>& Actors, FViewport* Viewport, const FVector& Drag, const FRotator& Rot);
@@ -875,7 +859,10 @@ private:
 	static bool bIsDroppingPreviewActor;
 
 	/** A map of actor locations before a drag operation */
-	mutable TMap<TWeakObjectPtr<AActor>, FTransform> PreDragActorTransforms;
+	mutable TMap<TWeakObjectPtr<const AActor>, FTransform> PreDragActorTransforms;
+
+	/** List of elements that are currently being manipulated (eg, via a drag) */
+	UTypedElementList* ElementsToManipulate;
 
 	/** Bit array representing the visibility of every sprite category in the current viewport */
 	TBitArray<>	SpriteCategoryVisibility;

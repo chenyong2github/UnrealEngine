@@ -49,6 +49,7 @@
 #include "EditorBuildUtils.h"
 #include "AudioDevice.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "Elements/Framework/TypedElementViewportInteraction.h"
 #include "ImageWriteQueue.h"
 #include "DebugViewModeHelpers.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
@@ -437,6 +438,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bIsCameraMoving(false)
 	, bIsCameraMovingOnTick(false)
 	, EditorViewportWidget(InEditorViewportWidget)
+	, ViewportInteraction(NewObject<UTypedElementViewportInteraction>())
 	, PreviewScene(InPreviewScene)
 	, MovingPreviewLightSavedScreenPos(ForceInitToZero)
 	, MovingPreviewLightTimer(0.0f)
@@ -3487,6 +3489,8 @@ void FEditorViewportClient::OnChangeCameraSpeed( const struct FInputEventState& 
 
 void FEditorViewportClient::AddReferencedObjects( FReferenceCollector& Collector )
 {
+	Collector.AddReferencedObject(ViewportInteraction);
+
 	if( PreviewScene )
 	{
 		PreviewScene->AddReferencedObjects( Collector );

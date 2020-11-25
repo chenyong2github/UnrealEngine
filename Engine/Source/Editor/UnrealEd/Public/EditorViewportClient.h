@@ -34,6 +34,7 @@ class FPreviewScene;
 class IMatineeBase;
 class SEditorViewport;
 class UActorFactory;
+class UTypedElementViewportInteraction;
 
 /** Delegate called by FEditorViewportClient to check its visibility */
 DECLARE_DELEGATE_RetVal( bool, FViewportStateGetter );
@@ -1720,6 +1721,9 @@ protected:
 
 	/** The editor viewport widget this client is attached to */
 	TWeakPtr<SEditorViewport> EditorViewportWidget;
+
+	/** The viewport interaction instance for this viewport */
+	UTypedElementViewportInteraction* ViewportInteraction;
 
 	/** The scene used for the viewport. Owned externally */
 	FPreviewScene* PreviewScene;

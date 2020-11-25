@@ -2105,6 +2105,11 @@ public:
 	void DisableDeltaModification(bool bDisable) { bDisableDeltaModification = bDisable; }
 
 	/**
+	 * Test whether actor/component modification during delta movement is currently enabled?
+	 */
+	bool IsDeltaModificationEnabled() const { return !bDisableDeltaModification; }
+
+	/**
 	 *	Game-specific function called by Map_Check BEFORE iterating over all actors.
 	 *
 	 *	@param	Str						The exec command parameters

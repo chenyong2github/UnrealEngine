@@ -12,6 +12,8 @@
 #include "LevelEditorViewport.h"
 #include "Layers/LayersSubsystem.h"
 #include "ActorGroupingUtils.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 const FLinearColor BOXCOLOR_LOCKEDGROUPS( 0.0f, 1.0f, 0.0f );
 const FLinearColor BOXCOLOR_UNLOCKEDGROUPS( 1.0f, 0.0f, 0.0f );
@@ -101,19 +103,20 @@ bool AGroupActor::IsSelected() const
 	return (IsLocked() && HasSelectedActors()) || Super::IsSelected();
 }
 
+namespace GroupActorHelpers
+{
 
-bool ActorHasParentInGroup(const TArray<class AActor*> &GroupActors, const AActor* Actor)
+bool ActorHasParentInGroup(const TArray<AActor*>& GroupActors, const AActor* Actor)
 {
 	check(Actor);
 	// Check that we've not got a parent attachment within the group.
-	USceneComponent *Curr = Actor->GetRootComponent();
-	for(int32 OtherIndex=0; OtherIndex<GroupActors.Num(); ++OtherIndex)
+	USceneComponent* RootComponent = Actor->GetRootComponent();
+	for (const AActor* OtherActor : GroupActors)
 	{
-		const AActor* OtherActor = GroupActors[OtherIndex];
-		if( OtherActor != NULL && OtherActor != Actor )
+		if (OtherActor && OtherActor != Actor)
 		{
-			USceneComponent *Other = OtherActor->GetRootComponent();
-			if( Curr->IsAttachedTo( Other ) )
+			USceneComponent* OtherRootComponent = OtherActor->GetRootComponent();
+			if (RootComponent->IsAttachedTo(OtherRootComponent))
 			{
 				// We do have parent so don't apply the delta - our parent object will apply it instead.
 				return true;
@@ -123,69 +126,56 @@ bool ActorHasParentInGroup(const TArray<class AActor*> &GroupActors, const AActo
 	return false;
 }
 
-bool ActorHasParentInSelection(const AActor* Actor)
+bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementSelectionSet* SelectionSet)
 {
 	check(Actor);
-	bool bHasParentInSelection = false;
-	AActor* ParentActor = Actor->GetAttachParentActor();
-	while (ParentActor != NULL && !bHasParentInSelection)
+	if (SelectionSet)
 	{
-		if (ParentActor->IsSelected())
+		for (const AActor* ParentActor = Actor->GetAttachParentActor(); ParentActor; ParentActor = ParentActor->GetAttachParentActor())
 		{
-			bHasParentInSelection = true;
-		}
-		ParentActor = ParentActor->GetAttachParentActor();
-	}
-	return bHasParentInSelection;
-}
-
-void AGroupActor::GroupApplyDelta(FLevelEditorViewportClient* Viewport, const FVector& InDrag, const FRotator& InRot, const FVector& InScale )
-{
-	check(Viewport);
-	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
-	{
-		if( GroupActors[ActorIndex] != NULL )
-		{
-			// Check that we've not got a parent attachment within the group/selection
-			const bool bCanApplyDelta = !ActorHasParentInGroup(GroupActors, GroupActors[ActorIndex]) && !ActorHasParentInSelection(GroupActors[ActorIndex]);
-			if(bCanApplyDelta)
+			FTypedElementHandle ParentActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentActor, /*bAllowCreate*/false);
+			if (ParentActorElementHandle && SelectionSet->IsElementSelected(ParentActorElementHandle, FTypedElementIsSelectedOptions()))
 			{
-				Viewport->ApplyDeltaToActor(GroupActors[ActorIndex], InDrag, InRot, InScale);
+				return true;
 			}
 		}
 	}
-	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
+	return false;
+}
+
+} // namespace GroupActorHelpers
+
+void AGroupActor::ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*)> InCallback)
+{
+	const UTypedElementSelectionSet* SelectionSet = InSelectionSet ? InSelectionSet : GEditor->GetSelectedActors()->GetElementSelectionSet();
+	for (AActor* Actor : GroupActors)
 	{
-		if( SubGroups[SubGroupIndex] != NULL )
+		if (Actor)
 		{
-			SubGroups[SubGroupIndex]->GroupApplyDelta(Viewport, InDrag, InRot, InScale);
+			// Check that we've not got a parent attachment within the group/selection
+			const bool bCanApplyDelta = !GroupActorHelpers::ActorHasParentInGroup(GroupActors, Actor) && !GroupActorHelpers::ActorHasParentInSelection(Actor, SelectionSet);
+			if (bCanApplyDelta)
+			{
+				InCallback(Actor);
+			}
 		}
 	}
-	Viewport->ApplyDeltaToActor(this, InDrag, InRot, InScale);
+	for (AGroupActor* SubGroup : SubGroups)
+	{
+		if (SubGroup)
+		{
+			SubGroup->ForEachMovableActorInGroup(SelectionSet, InCallback);
+		}
+	}
+	InCallback(this);
 }
 
 void AGroupActor::GroupApplyDelta(const FVector& InDrag, const FRotator& InRot, const FVector& InScale )
 {
-	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
+	ForEachMovableActorInGroup(nullptr, [&InDrag, &InRot, &InScale](AActor* InActor)
 	{
-		if (GroupActors[ActorIndex] != NULL)
-		{
-			// Check that we've not got a parent attachment within the group/selection
-			const bool bCanApplyDelta = !ActorHasParentInGroup(GroupActors, GroupActors[ActorIndex]) && !ActorHasParentInSelection(GroupActors[ActorIndex]);
-			if(bCanApplyDelta)
-			{
-				GEditor->ApplyDeltaToActor(GroupActors[ActorIndex], true, &InDrag, &InRot, &InScale);
-			}
-		}
-	}
-	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
-	{
-		if( SubGroups[SubGroupIndex] != NULL )
-		{
-			SubGroups[SubGroupIndex]->GroupApplyDelta(InDrag, InRot, InScale);
-		}
-	}
-	GEditor->ApplyDeltaToActor(this, true, &InDrag, &InRot, &InScale);
+		GEditor->ApplyDeltaToActor(InActor, true, &InDrag, &InRot, &InScale);
+	});
 }
 
 bool AGroupActor::Modify(bool bAlwaysMarkDirty/*=true*/)

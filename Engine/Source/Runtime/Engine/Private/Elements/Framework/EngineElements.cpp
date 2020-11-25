@@ -9,10 +9,12 @@
 
 #include "Elements/Actor/ActorElementData.h"
 #include "Elements/Actor/ActorElementObjectInterface.h"
+#include "Elements/Actor/ActorElementWorldInterface.h"
 #include "Elements/Actor/ActorElementSelectionInterface.h"
 
 #include "Elements/Component/ComponentElementData.h"
 #include "Elements/Component/ComponentElementObjectInterface.h"
+#include "Elements/Component/ComponentElementWorldInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
 
 #include "Modules/ModuleManager.h"
@@ -34,6 +36,7 @@ void RegisterEngineActorElements()
 
 	Registry->RegisterElementType<FActorElementData>(NAME_Actor);
 	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Actor, NewObject<UActorElementObjectInterface>());
+	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Actor, NewObject<UActorElementWorldInterface>());
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementSelectionInterface>());
 }
 
@@ -43,6 +46,7 @@ void RegisterEngineComponentElements()
 
 	Registry->RegisterElementType<FComponentElementData>(NAME_Components);
 	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Components, NewObject<UComponentElementObjectInterface>());
+	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Components, NewObject<UComponentElementWorldInterface>());
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Components, NewObject<UComponentElementSelectionInterface>());
 }
 
