@@ -15123,6 +15123,7 @@ UMaterialExpressionNamedRerouteDeclaration::UMaterialExpressionNamedRerouteDecla
 	static FConstructorStatics ConstructorStatics;
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	NodeColor = FLinearColor::MakeRandomColor();
 #endif
 	Name = TEXT("Name");
 }

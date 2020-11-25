@@ -275,9 +275,20 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 		// Previously FColor(255, 155, 0);
 		return Settings->ResultNodeTitleColor;
 	}
-	else if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteBase::StaticClass()))
+	else if (const UMaterialExpressionNamedRerouteDeclaration* RerouteDeclaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(MaterialExpression))
 	{
-		return FColor::Black;
+		// If it's a declaration node, we simply get the color from it 
+		return RerouteDeclaration->NodeColor;
+	}
+	else if (const UMaterialExpressionNamedRerouteUsage* RerouteUsage = Cast<UMaterialExpressionNamedRerouteUsage>(MaterialExpression))
+	{
+		// Return the color of the declaration
+		if (RerouteUsage->Declaration)
+		{
+			return RerouteUsage->Declaration->NodeColor;
+		}
+		
+		return FLinearColor::Black;
 	}
 	else if (UMaterial::IsParameter(MaterialExpression))
 	{
