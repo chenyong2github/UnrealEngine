@@ -1046,6 +1046,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	TSoftObjectPtr<UObject> GetDefaultAnimatingRig() const;
 
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorAxis() or USkeletalMesh::SetSkelMirrorAxis().")
 	UPROPERTY(EditAnywhere, Category=Mirroring)
 	TEnumAsByte<EAxis::Type> SkelMirrorAxis;
 	static FName GetSkelMirrorAxisMemberName()
