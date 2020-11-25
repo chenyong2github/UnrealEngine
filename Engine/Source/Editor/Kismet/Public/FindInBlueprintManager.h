@@ -795,7 +795,7 @@ private:
 	EFiBCacheOpType CurrentCacheOpType;
 
 	/** Mapping between a class name and its UClass instance - used for faster look up in FFindInBlueprintSearchManager::OnAssetAdded */
-	TMap<FName, const UClass*> CachedAssetClasses;
+	TMap<FName, TWeakObjectPtr<const UClass>> CachedAssetClasses;
 
 	/** The tab identifier/instance name for global find results */
 	FName GlobalFindResultsTabIDs[MAX_GLOBAL_FIND_RESULTS];

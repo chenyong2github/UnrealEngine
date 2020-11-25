@@ -2075,17 +2075,17 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 {
 	const UClass* AssetClass = nullptr;
 	{
-		const UClass** FoundClass = CachedAssetClasses.Find(InAssetData.AssetClass);
-		if (FoundClass)
+		TWeakObjectPtr<const UClass> FoundClass = CachedAssetClasses.FindRef(InAssetData.AssetClass);
+		if (FoundClass.IsValid())
 		{
-			AssetClass = *FoundClass;
+			AssetClass = FoundClass.Get();
 		}
 		else
 		{
 			AssetClass = InAssetData.GetClass();
 			if (AssetClass)
 			{
-				CachedAssetClasses.Add(InAssetData.AssetClass, AssetClass);
+				CachedAssetClasses.Add(InAssetData.AssetClass, TWeakObjectPtr<const UClass>(AssetClass));
 			}
 		}
 	}
