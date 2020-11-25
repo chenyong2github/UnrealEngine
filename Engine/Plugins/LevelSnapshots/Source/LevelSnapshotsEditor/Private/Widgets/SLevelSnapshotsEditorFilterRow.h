@@ -2,31 +2,41 @@
 
 #pragma once
 
+#include "ConjunctionFilter.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-struct FLevelSnapshotsEditorFilterRowGroup;
+
 class SLevelSnapshotsEditorFilters;
 class SLevelSnapshotsEditorFilterList;
 
+/* Creates all widgets needed to show an AND-condition of filters. */
 class SLevelSnapshotsEditorFilterRow : public SCompoundWidget
 {
 public:
 
+	DECLARE_DELEGATE_OneParam(FOnClickRemoveRow, TSharedRef<SLevelSnapshotsEditorFilterRow>);
+	
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilterRow)
 	{}
-
+		SLATE_EVENT(FOnClickRemoveRow, OnClickRemoveRow)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters, const TSharedRef<FLevelSnapshotsEditorFilterRowGroup>& InFieldGroup);
+	void Construct(
+		const FArguments& InArgs, 
+		const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters, 
+		UConjunctionFilter* InManagedFilter
+	);
 
+	const TWeakObjectPtr<UConjunctionFilter>& GetManagedFilter();
+	
 private:
 
-	FReply RemoveFilter();
+	FOnClickRemoveRow OnClickRemoveRow;
 
-	TWeakPtr<SLevelSnapshotsEditorFilters> EditorFiltersPtr;
-	TWeakPtr<FLevelSnapshotsEditorFilterRowGroup> FieldGroupPtr;
-	
+	TWeakObjectPtr<UConjunctionFilter> ManagedFilterWeakPtr;
+	/* Stores all filters */
 	TSharedPtr<SLevelSnapshotsEditorFilterList> FilterList;
 
 };

@@ -7,45 +7,27 @@
 
 #include "LevelSnapshotsEditorData.generated.h"
 
-class ULevelSnapshotFilter;
+class UDisjunctiveNormalFormFilter;
 class UFavoriteFilterContainer;
 
-UCLASS()
-class ULevelSnapshotEditorFilterGroup : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	ULevelSnapshotFilter* AddOrFindFilter(TSubclassOf<ULevelSnapshotFilter> InClass, const FName& InName);
-
-public:
-	UPROPERTY()
-	TMap<FName, ULevelSnapshotFilter*> Filters;
-};
-
+/* Stores all data shared across the editor's UI. */
 UCLASS()
 class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorData : public UObject
 {
 	GENERATED_BODY()
-
 public:
 
 	ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer);
-	
-	ULevelSnapshotEditorFilterGroup* AddOrFindGroup(const FName& InName);
 
 	UFavoriteFilterContainer* GetFavoriteFilters() const;
-	
-public:
-
-	// TODO: FilterGroups and AddOrFindGroup will be extracted & refactored into a separate class
-	
-	UPROPERTY()
-	TMap<FName, ULevelSnapshotEditorFilterGroup*> FilterGroups;
+	UDisjunctiveNormalFormFilter* GetUserDefinedFilters() const;
 
 private:
 
 	UPROPERTY()
 	UFavoriteFilterContainer* FavoriteFilters;
+	/* Stores user-defined filters in chain of ORs of ANDs. */
+	UPROPERTY()
+	UDisjunctiveNormalFormFilter* UserDefinedFilters;
 	
 };

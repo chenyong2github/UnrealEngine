@@ -2,63 +2,53 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "NegatableFilter.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "UObject/WeakObjectPtr.h"
-
 class SFilterCheckBox;
-class ULevelSnapshotFilter;
 class FLevelSnapshotsEditorFilters;
 
 enum class ECheckBoxState : uint8;
 
 struct FSlateColor;
 
+/* Displays a filter in the editor. */
 class SLevelSnapshotsEditorFilter : public SCompoundWidget
 {
 public:
 	friend class SFilterCheckBox;
-
-	~SLevelSnapshotsEditorFilter();
+	DECLARE_DELEGATE_OneParam(FOnClickRemoveFilter, TSharedRef<SLevelSnapshotsEditorFilter>);
 
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilter)
 	{}
-
-		SLATE_ATTRIBUTE(FText, Text)
-
-		SLATE_ATTRIBUTE(FLinearColor, FilterColor)
-
+		SLATE_EVENT(FOnClickRemoveFilter, OnClickRemoveFilter)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, ULevelSnapshotFilter* InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+	void Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
 
+	const TWeakObjectPtr<UNegatableFilter>& GetSnapshotFilter() const;
+	
 private:
+	
 	ECheckBoxState IsChecked() const;
-
-	FMargin GetFilterNamePadding() const;
-
 	void FilterToggled(ECheckBoxState NewState);
 
 	TSharedRef<SWidget> GetRightClickMenuContent();
 
-	FSlateColor GetFilterForegroundColor() const;
-
-	FSlateColor GetFilterNameColorAndOpacity() const;
-
-	FText GetFilterName() const;
-
 	void OnClick() const;
 
-private:
+
+	
+	FOnClickRemoveFilter OnClickRemoveFilter;
+	
 	/** The button to toggle the filter on or off */
 	TSharedPtr<SFilterCheckBox> ToggleButtonPtr;
 
-	TAttribute<FText> Name;
-
-	TAttribute<FLinearColor> FilterColor;
-
-	TWeakObjectPtr<ULevelSnapshotFilter> SnapshotFilter;
-
+	/* Filter managed by this widget */
+	TWeakObjectPtr<UNegatableFilter> SnapshotFilter;
+	/* Used to set the filter to edit */
 	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

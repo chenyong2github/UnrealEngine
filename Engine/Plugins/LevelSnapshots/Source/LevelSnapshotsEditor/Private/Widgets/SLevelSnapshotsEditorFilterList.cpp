@@ -2,39 +2,58 @@
 
 #include "Widgets/SLevelSnapshotsEditorFilterList.h"
 
-#include "Widgets/SLevelSnapshotsEditorFilter.h"
-#include "Views/Filter/LevelSnapshotsEditorFilters.h"
+#include "ConjunctionFilter.h"
+#include "SLevelSnapshotsEditorFilter.h"
+#include "LevelSnapshotsEditorFilters.h"
 
 #include "Widgets/Layout/SWrapBox.h"
 
-#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
+namespace
+{
+	void OnClickRemoveFilter(TSharedRef<SLevelSnapshotsEditorFilter> RemovedFilterWidget, const TSharedPtr<SWrapBox> FilterContainer, const TWeakObjectPtr<UConjunctionFilter> ManagedAndCondition)
+	{
+		const TWeakObjectPtr<UNegatableFilter> RemovedFilter = RemovedFilterWidget->GetSnapshotFilter();
+		if (!ensure(FilterContainer.IsValid()) || !ensure(ManagedAndCondition.IsValid() || !ensure(RemovedFilter.IsValid())))
+		{
+			return;
+		}
+
+		FilterContainer->RemoveSlot(RemovedFilterWidget);
+	}
+}
 
 SLevelSnapshotsEditorFilterList::~SLevelSnapshotsEditorFilterList()
 {
+	if (ensure(ManagedAndCondition.IsValid()))
+	{
+		ManagedAndCondition->OnChildAdded.Remove(AddDelegateHandle);
+	}
 }
 
-void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
+void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConjunctionFilter* InManagedAndCondition, const TSharedRef<FLevelSnapshotsEditorFilters>& InEditorFilterModel)
 {
-	FiltersModelPtr = InFilters;
+	ManagedAndCondition = InManagedAndCondition;
 
-	FilterBox = SNew(SWrapBox)
-		.UseAllottedSize(true);
+	AddDelegateHandle = InManagedAndCondition->OnChildAdded.AddRaw(this, &SLevelSnapshotsEditorFilterList::AddChild, InEditorFilterModel);
 
 	ChildSlot
 	[
-		FilterBox.ToSharedRef()
+		SAssignNew(FilterBox, SWrapBox)
+			.UseAllottedSize(true)
 	];
-}
 
-void SLevelSnapshotsEditorFilterList::AddFilter(const FName& InName,  ULevelSnapshotFilter* InFilter)
+	for (UNegatableFilter* Filter : InManagedAndCondition->GetChildren())
+	{
+		AddChild(Filter, InEditorFilterModel);
+	}
+}
+	
+void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TSharedRef<FLevelSnapshotsEditorFilters> InEditorFilterModel) const
 {
 	FilterBox->AddSlot()
 		.Padding(3, 3)
 		[
-			SNew(SLevelSnapshotsEditorFilter, InFilter, FiltersModelPtr.Pin().ToSharedRef())
-				.Text(FText::FromName(InName))
-				.FilterColor(FLinearColor::Green)
+			SNew(SLevelSnapshotsEditorFilter, AddedFilter, InEditorFilterModel)
+				.OnClickRemoveFilter(SLevelSnapshotsEditorFilter::FOnClickRemoveFilter::CreateStatic(&OnClickRemoveFilter, FilterBox, ManagedAndCondition))
 		];
 }
-
-#undef LOCTEXT_NAMESPACE

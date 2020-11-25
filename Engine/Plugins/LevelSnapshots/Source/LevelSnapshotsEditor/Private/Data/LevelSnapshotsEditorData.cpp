@@ -3,27 +3,17 @@
 #include "LevelSnapshotsEditorData.h"
 
 #include "FavoriteFilterContainer.h"
-#include "LevelSnapshotFilters.h"
-
-ULevelSnapshotFilter* ULevelSnapshotEditorFilterGroup::AddOrFindFilter(TSubclassOf<ULevelSnapshotFilter> InClass, const FName& InName)
-{
-	if (ULevelSnapshotFilter** ExistingFilter = Filters.Find(InName))
-	{
-		return *ExistingFilter;
-	}
-
-	ULevelSnapshotFilter* const NewFilter = NewObject<ULevelSnapshotFilter>(this, InClass, InName);
-
-	Filters.Add(InName, NewFilter);
-
-	return NewFilter;
-}
+#include "DisjunctiveNormalFormFilter.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
 	FavoriteFilters = ObjectInitializer.CreateDefaultSubobject<UFavoriteFilterContainer>(
 		this,
 		TEXT("FavoriteFilters")
+		);
+	UserDefinedFilters = ObjectInitializer.CreateDefaultSubobject<UDisjunctiveNormalFormFilter>(
+		this,
+		TEXT("UserDefinedFilters")
 		);
 }
 
@@ -32,16 +22,7 @@ UFavoriteFilterContainer* ULevelSnapshotsEditorData::GetFavoriteFilters() const
 	return FavoriteFilters;
 }
 
-ULevelSnapshotEditorFilterGroup* ULevelSnapshotsEditorData::AddOrFindGroup(const FName& InName)
+UDisjunctiveNormalFormFilter* ULevelSnapshotsEditorData::GetUserDefinedFilters() const
 {
-	if (ULevelSnapshotEditorFilterGroup** ExistingGroup = FilterGroups.Find(InName))
-	{
-		return *ExistingGroup;
-	}
-
-	ULevelSnapshotEditorFilterGroup* const NewGroup = NewObject<ULevelSnapshotEditorFilterGroup>(this, ULevelSnapshotEditorFilterGroup::StaticClass(), InName);
-
-	FilterGroups.Add(InName, NewGroup);
-
-	return NewGroup;
+	return UserDefinedFilters;
 }

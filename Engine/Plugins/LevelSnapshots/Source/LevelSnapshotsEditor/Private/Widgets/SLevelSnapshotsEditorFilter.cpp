@@ -7,6 +7,7 @@
 #include "Views/Filter/LevelSnapshotsEditorFilters.h"
 
 #include "EditorStyleSet.h"
+#include "NegatableFilter.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -89,26 +90,16 @@ private:
 	TWeakPtr<SLevelSnapshotsEditorFilter> SnapshotFilterPtr;
 };
 
-
-SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
+void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
-}
-
-void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, ULevelSnapshotFilter* InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
-{
-	// TODO. For now we can initialize the UObject here
-	// Outer the Editor UObject
-
-	//UBlueprint* const Blueprint = LoadObject<UBlueprint>(GetTransientPackage(), TEXT("Blueprint'/Game/LevelSnapshots/TestFilter.TestFilter'"));
-	//UObject* const NewObj = NewObject<UObject>(GetTransientPackage(), Blueprint->GeneratedClass, Blueprint->GeneratedClass->GetFName());
-
+	if (!ensure(InFilter.IsValid()))
+	{
+		return;
+	}
+	
+	OnClickRemoveFilter = InArgs._OnClickRemoveFilter;
 	SnapshotFilter = InFilter;
 	FiltersModelPtr = InFilters;
-
-	TAttribute<FText> FilterToolTip;
-
-	Name = InArgs._Text;
-	FilterColor = InArgs._FilterColor;
 
 	ChildSlot
 		[
@@ -119,18 +110,17 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, ULevelSnap
 			[
 				SAssignNew( ToggleButtonPtr, SFilterCheckBox)
 				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
-				.ToolTipText(FilterToolTip)
-				.Padding(this, &SLevelSnapshotsEditorFilter::GetFilterNamePadding)
+				.Padding(FMargin(3, 2, 4, 0))
 				.IsChecked(this, &SLevelSnapshotsEditorFilter::IsChecked)
 				.OnCheckStateChanged(this, &SLevelSnapshotsEditorFilter::FilterToggled)
 				.OnGetMenuContent(this, &SLevelSnapshotsEditorFilter::GetRightClickMenuContent)
-				.ForegroundColor(this, &SLevelSnapshotsEditorFilter::GetFilterForegroundColor)
+				.ForegroundColor(FLinearColor::Green)
 				[
 					SNew(STextBlock)
-					.ColorAndOpacity(this, &SLevelSnapshotsEditorFilter::GetFilterNameColorAndOpacity)
+					.ColorAndOpacity(FLinearColor::White)
 					.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
 					.ShadowOffset(FVector2D(1.f, 1.f))
-					.Text(this, &SLevelSnapshotsEditorFilter::GetFilterName)
+					.Text(InFilter->GetDisplayName())
 				]
 			]
 		];
@@ -138,59 +128,59 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, ULevelSnap
 	ToggleButtonPtr->SetEditorFilter(SharedThis(this));
 }
 
-ECheckBoxState SLevelSnapshotsEditorFilter::IsChecked() const
+const TWeakObjectPtr<UNegatableFilter>& SLevelSnapshotsEditorFilter::GetSnapshotFilter() const
 {
-	return ECheckBoxState::Checked;
+	return SnapshotFilter;
 }
 
-FMargin SLevelSnapshotsEditorFilter::GetFilterNamePadding() const
+ECheckBoxState SLevelSnapshotsEditorFilter::IsChecked() const
 {
-	return FMargin(3, 2, 4, 0);
+	if (ensure(SnapshotFilter.IsValid()))
+	{
+		return SnapshotFilter->ShouldNegate() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+	}
+	return ECheckBoxState::Undetermined;
 }
 
 void SLevelSnapshotsEditorFilter::FilterToggled(ECheckBoxState NewState)
 {
+	if (ensure(SnapshotFilter.IsValid()))
+	{
+		SnapshotFilter->SetShouldNegate(NewState == ECheckBoxState::Unchecked);
+	}
 }
 
 TSharedRef<SWidget> SLevelSnapshotsEditorFilter::GetRightClickMenuContent()
 {
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, NULL);
-
+	FMenuBuilder MenuBuilder(true, NULL);
+	if (!ensure(SnapshotFilter.IsValid()))
+	{
+		return MenuBuilder.MakeWidget();
+	}
+	
 	MenuBuilder.BeginSection("FilterOptions", LOCTEXT("FilterContextHeading", "Filter Options"));
 	{
 		MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("RemoveFilter", "Remove: {0}"), GetFilterName()),
+			FText::Format(LOCTEXT("RemoveFilter", "Remove: {0}"), SnapshotFilter->GetDisplayName()),
 			LOCTEXT("RemoveFilterTooltip", "Remove this filter from the list. It can be added again in the filters menu."),
 			FSlateIcon(),
-			FUIAction()
+			FUIAction(FExecuteAction::CreateLambda([this]()
+			{
+				OnClickRemoveFilter.ExecuteIfBound(SharedThis(this));
+			}))
 			);
 
-		MenuBuilder.AddMenuEntry(
+		// TODO:
+		/*MenuBuilder.AddMenuEntry(
 			FText::Format(LOCTEXT("EnableOnlyThisFilter", "Enable Only This: {0}"), GetFilterName()),
 			LOCTEXT("EnableOnlyThisFilterTooltip", "Enable only this filter from the list."),
 			FSlateIcon(),
 			FUIAction()
-			);
-
+			);*/
 	}
 	MenuBuilder.EndSection();
-
+	
 	return MenuBuilder.MakeWidget();
-}
-
-FSlateColor SLevelSnapshotsEditorFilter::GetFilterForegroundColor() const
-{
-	return FilterColor.Get();
-}
-
-FSlateColor SLevelSnapshotsEditorFilter::GetFilterNameColorAndOpacity() const
-{
-	return FLinearColor::White;
-}
-
-FText SLevelSnapshotsEditorFilter::GetFilterName() const
-{
-	return Name.Get();
 }
 
 void SLevelSnapshotsEditorFilter::OnClick() const

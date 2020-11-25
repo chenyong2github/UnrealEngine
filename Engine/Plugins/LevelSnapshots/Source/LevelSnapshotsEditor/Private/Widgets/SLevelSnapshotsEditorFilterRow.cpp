@@ -2,23 +2,24 @@
 
 #include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 
-#include "Widgets/SLevelSnapshotsEditorFilterList.h"
-#include "Views/Filter/SLevelSnapshotsEditorFilters.h"
-#include "Views/Filter/LevelSnapshotsEditorFilterClass.h"
+#include "ConjunctionFilter.h"
+#include "SLevelSnapshotsEditorFilterList.h"
+#include "SLevelSnapshotsEditorFilters.h"
 
-#include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorStyle.h"
 
 #include "EditorStyleSet.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SBoxPanel.h"
 
-void SLevelSnapshotsEditorFilterRow::Construct(const FArguments& InArgs, const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters, const TSharedRef<FLevelSnapshotsEditorFilterRowGroup>& InFieldGroup)
+void SLevelSnapshotsEditorFilterRow::Construct(
+	const FArguments& InArgs, 
+	const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters,
+	UConjunctionFilter* InManagedFilter
+)
 {
-	EditorFiltersPtr = InEditorFilters;
-	FieldGroupPtr = InFieldGroup;
-
+	OnClickRemoveRow = InArgs._OnClickRemoveRow;
+	
 	ChildSlot
 		[
 			SNew(SBorder)
@@ -40,8 +41,11 @@ void SLevelSnapshotsEditorFilterRow::Construct(const FArguments& InArgs, const T
 					.AutoWidth()
 					[
 						SNew(SButton)
-						//.Visibility_Raw(this, &SFieldGroup::GetVisibilityAccordingToEditMode)
-						.OnClicked(this, &SLevelSnapshotsEditorFilterRow::RemoveFilter)
+						.OnClicked(FOnClicked::CreateLambda([this]()
+						{
+							OnClickRemoveRow.ExecuteIfBound(SharedThis(this)); ;
+							return FReply::Handled();
+						}))
 						.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
 						[
 							SNew(STextBlock)
@@ -57,32 +61,13 @@ void SLevelSnapshotsEditorFilterRow::Construct(const FArguments& InArgs, const T
 				.Padding(5.f, 5.f)
 				.AutoHeight()
 				[
-					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InEditorFilters->GetFiltersModel())
+					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel())
 				]
 			]
 		];
-
-	// Restore all filters from Object
-	{
-		if (ULevelSnapshotEditorFilterGroup* FilterGroup = InFieldGroup->GetFilterGroupObject())
-		{
-			for (const TPair<FName, ULevelSnapshotFilter*>& FilterGroupsPair : FilterGroup->Filters)
-			{
-				FilterList->AddFilter(FilterGroupsPair.Key, FilterGroupsPair.Value);
-			}
-		}
-	}
 }
 
-FReply SLevelSnapshotsEditorFilterRow::RemoveFilter()
+const TWeakObjectPtr<UConjunctionFilter>& SLevelSnapshotsEditorFilterRow::GetManagedFilter()
 {
-	TSharedPtr<SLevelSnapshotsEditorFilters> EditorFilters = EditorFiltersPtr.Pin();
-	check(EditorFilters.IsValid());
-
-	TSharedPtr<FLevelSnapshotsEditorFilterRowGroup> FieldGroup = FieldGroupPtr.Pin();
-	check(FieldGroup.IsValid());
-	
-	EditorFilters->RemoveFilterRow(FieldGroup);
-
-	return FReply::Handled();
+	return ManagedFilterWeakPtr;
 }
