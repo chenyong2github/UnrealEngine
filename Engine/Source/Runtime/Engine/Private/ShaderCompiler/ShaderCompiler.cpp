@@ -2590,6 +2590,26 @@ void FShaderCompilingManager::SubmitJobs(TArray<FShaderCommonCompileJobPtr>& New
 	AllJobs.SubmitJobs(NewJobs);
 }
 
+bool FShaderCompilingManager::IsCompilingShaderMap(uint32 Id)
+{
+	if (Id != 0u)
+	{
+		FScopeLock Lock(&CompileQueueSection);
+		FPendingShaderMapCompileResultsPtr* PendingShaderMapPtr = ShaderMapJobs.Find(Id);
+		if (PendingShaderMapPtr)
+		{
+			return true;
+		}
+
+		FShaderMapFinalizeResults* FinalizedShaderMapPtr = PendingFinalizeShaderMaps.Find(Id);
+		if (FinalizedShaderMapPtr)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 FShaderCompileJob* FShaderCompilingManager::PrepareShaderCompileJob(uint32 Id, const FShaderCompileJobKey& Key, EShaderCompileJobPriority Priority)
 {
 	return AllJobs.PrepareJob(Id, Key, Priority);

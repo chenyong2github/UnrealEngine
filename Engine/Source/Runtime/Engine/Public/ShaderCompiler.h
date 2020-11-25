@@ -933,6 +933,8 @@ public:
 		bNoShaderCompilation = toggle;
 	}
 
+	ENGINE_API bool IsCompilingShaderMap(uint32 Id);
+
 	/** Prepares a job of the given type for compilation.  If a job with the given Id/Key already exists, it will attempt to adjust to the higher priority if possible, and nullptr will be returned.
 	  * If a non-nullptr is returned, the given job should be filled out with relevant information, then passed to SubmitJobs() when ready
 	  */

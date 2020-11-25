@@ -598,18 +598,7 @@ bool FMaterial::IsRequiredComplete() const
 #if WITH_EDITOR
 void FMaterial::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMapIds)
 {
-#if 0
-	// Build an array of the shader map Id's are not finished compiling.
-	if (GameThreadShaderMap && !GameThreadShaderMap->IsCompilationFinalized())
-	{
-		ShaderMapIds.Add(GameThreadShaderMap->GetCompilingId());
-	}
-	else if (CompilingShaderMapId != 0u)
-	{
-		ShaderMapIds.Add(CompilingShaderMapId);
-	}
-#endif
-	if (GameThreadCompilingShaderMapId != 0u)
+	if (GameThreadCompilingShaderMapId != 0u && GShaderCompilingManager->IsCompilingShaderMap(GameThreadCompilingShaderMapId))
 	{
 		ShaderMapIds.Add(GameThreadCompilingShaderMapId);
 	}
@@ -617,19 +606,11 @@ void FMaterial::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMa
 
 bool FMaterial::IsCompilationFinished() const
 {
-#if 0
-	// Build an array of the shader map Id's are not finished compiling.
-	if (GameThreadShaderMap && !GameThreadShaderMap->IsCompilationFinalized())
+	if (GameThreadCompilingShaderMapId != 0u)
 	{
-		return false;
-	}
-	else if (CompilingShaderMapId != 0u)
-	{
-		return false;
+		return !GShaderCompilingManager->IsCompilingShaderMap(GameThreadCompilingShaderMapId);
 	}
 	return true;
-#endif
-	return GameThreadCompilingShaderMapId == 0u;
 }
 
 void FMaterial::CancelCompilation()
