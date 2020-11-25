@@ -18,7 +18,8 @@ namespace ExtendedMeshAttribute
 
 
 /**
- * Utility class to construct MeshDescription instances
+ * Utility class to construct MeshDescription instances.
+ * NB: this will add a vertex-instance UV to the Description, if it has none. 
  */
 class MESHCONVERSION_API FMeshDescriptionBuilder
 {
