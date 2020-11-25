@@ -493,11 +493,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.UseOldShaderStages"));
 		}
-
-		// in order to generate deterministic cooks we need to differentiate between two emitters that might
-		// generate the same hash but slightly different shaders.  In particular the full path of the emitter
-		// is used to generate the stat scopes that won't directly change the shader but will alter the name map
-		Id.AdditionalDefines.Add(Emitter->GetFullName());
 	}
 
 	UObject* Obj = GetOuter();
@@ -527,10 +522,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 				}
 			}
 		}
-
-		//// as with the emitter scripts above we need to be able to differentiate between identical scripts
-		//// belonging to different systems in order to ensure deterministic cooking
-		Id.AdditionalDefines.Add(System->GetFullName());
 	}
 
 	switch (SimTargetToBuild)
@@ -1645,14 +1636,10 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		// Compiler errors for Niagara will have a strong UI impact but the game should still function properly, there 
 		// will just be oddities in the visuals. It should be acted upon, but in no way should the game be blocked from
 		// a successful cook because of it. Therefore, we do a warning.
-		UE_ASSET_LOG(LogNiagara, Warning, this, TEXT("%s"), *CachedScriptVM.ErrorMsg);
-	}
-	else if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings)
-	{
-		// Compiler warnings for Niagara are meant for notification and should have a UI representation, but 
-		// should be expected to still function properly and can be acted upon at the user's leisure. This makes
-		// them best logged as Display messages, as Log will not be shown in the cook.
-		UE_ASSET_LOG(LogNiagara, Display, this, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		if (!CachedScriptVM.ErrorMsg.IsEmpty())
+		{
+			UE_ASSET_LOG(LogNiagara, Warning, this, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		}
 	}
 
 	// The compilation process only references via soft references any parameter collections. This resolves those 
