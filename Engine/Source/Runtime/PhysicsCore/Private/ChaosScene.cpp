@@ -80,7 +80,7 @@ FChaosScene::FChaosScene(
 		});
 	}
 
-	Flush_AssumesLocked();	//make sure acceleration structure exists right away
+	Flush();	//make sure acceleration structure exists right away
 }
 
 FChaosScene::~FChaosScene()
@@ -146,7 +146,7 @@ void FChaosScene::CopySolverAccelerationStructure()
 	}
 }
 
-void FChaosScene::Flush_AssumesLocked()
+void FChaosScene::Flush()
 {
 	check(IsInGameThread());
 
