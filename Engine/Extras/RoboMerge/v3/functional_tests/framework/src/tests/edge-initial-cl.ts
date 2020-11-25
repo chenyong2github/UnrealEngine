@@ -32,20 +32,23 @@ export class EdgeInitialCl extends FunctionalTest {
 			, this.makeForceAllBranchDef('Dev-Pootle', [])
 			], 'Main',
 			[ { from: this.fullBranchName('Main'), to: this.fullBranchName('Dev-Perkin')
-		      , initialCL: 1
-		      }
+			  , initialCL: 1
+			  }
 			]
 		)
 
-		for (let safety = 0; safety !== 30; ++safety) {
+		let sleepTime = .5
+		for (let safety = 0; safety < 20; ++safety) {
 			try {
 				await this.getBranchState('Dev-Perkin')
 				return
 			}
 			catch (err) {
 			}
-			await System.sleep(.5)
+			await System.sleep(sleepTime)
+			sleepTime *= 1.2 // roughly 3 second interval after 10 tries, 20s after 20
 		}
+
 		throw new Error('timed out!')
 	}
 
