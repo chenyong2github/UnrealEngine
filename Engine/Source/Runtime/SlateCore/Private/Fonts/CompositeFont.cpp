@@ -31,6 +31,7 @@ FFontData::FFontData()
 	, FontData_DEPRECATED()
 #endif // WITH_EDITORONLY_DATA
 {
+	FontFilenameHash = GetTypeHash(FontFilename);
 }
 
 FFontData::FFontData(const UObject* const InFontFaceAsset, const int32 InSubFaceIndex)
@@ -44,6 +45,7 @@ FFontData::FFontData(const UObject* const InFontFaceAsset, const int32 InSubFace
 	, FontData_DEPRECATED()
 #endif // WITH_EDITORONLY_DATA
 {
+	FontFilenameHash = GetTypeHash(FontFilename);
 	if (FontFaceAsset)
 	{
 		CastChecked<const IFontFaceInterface>(FontFaceAsset);
@@ -62,6 +64,7 @@ FFontData::FFontData(FString InFontFilename, const EFontHinting InHinting, const
 #endif // WITH_EDITORONLY_DATA
 {
 	check(InLoadingPolicy != EFontLoadingPolicy::Inline);
+	FontFilenameHash = GetTypeHash(FontFilename);
 }
 
 bool FFontData::HasFont() const
@@ -187,10 +190,11 @@ bool FFontData::operator==(const FFontData& Other) const
 	}
 
 	// Compare inline properties
-	return FontFilename == Other.FontFilename
+	return FontFilenameHash == Other.FontFilenameHash 
 		&& Hinting == Other.Hinting
 		&& LoadingPolicy == Other.LoadingPolicy
-		&& SubFaceIndex == Other.SubFaceIndex;
+		&& SubFaceIndex == Other.SubFaceIndex
+		&& FontFilename == Other.FontFilename;
 }
 
 bool FFontData::operator!=(const FFontData& Other) const
@@ -242,6 +246,7 @@ bool FFontData::Serialize(FArchive& Ar)
 		}
 	}
 
+	FontFilenameHash = GetTypeHash(FontFilename);
 	return true;
 }
 

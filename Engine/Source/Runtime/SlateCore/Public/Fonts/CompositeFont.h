@@ -201,7 +201,7 @@ struct SLATECORE_API FFontData
 		}
 		else
 		{
-			KeyHash = HashCombine(KeyHash, GetTypeHash(Key.FontFilename));
+			KeyHash = HashCombine(KeyHash, Key.FontFilenameHash);
 			KeyHash = HashCombine(KeyHash, GetTypeHash(Key.Hinting));
 			KeyHash = HashCombine(KeyHash, GetTypeHash(Key.LoadingPolicy));
 		}
@@ -228,6 +228,12 @@ private:
 	 */
 	UPROPERTY()
 	FString FontFilename;
+
+	/**
+	 * Cached hash value of FontFilename.
+	 * Must be updated everytime FontFilename changes.
+	 */
+	uint32  FontFilenameHash;
 
 	/**
 	 * The hinting algorithm to use with the font.
