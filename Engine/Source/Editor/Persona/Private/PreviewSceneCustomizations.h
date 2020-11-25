@@ -132,6 +132,7 @@ private:
 	* Called when reset to base is clicked
 	*/
 	void OnResetToBaseClicked(TSharedPtr<IPropertyHandle> PropertyHandle);
+	void OnResetAdditionalMeshes();
 
 	TSharedPtr<IPropertyHandle> AdditionalMeshesProperty;
 };
