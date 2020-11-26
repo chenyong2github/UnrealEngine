@@ -124,7 +124,7 @@ public:
 	 * for the scene. Required when querying against a currently non-running scene to ensure the scene
 	 * is correctly represented
 	 */
-	void Flush_AssumesLocked();
+	void Flush();
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
 #endif

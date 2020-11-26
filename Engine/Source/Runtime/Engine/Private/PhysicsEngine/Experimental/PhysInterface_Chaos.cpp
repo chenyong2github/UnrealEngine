@@ -228,10 +228,7 @@ bool FPhysInterface_Chaos::IsInScene(const FPhysicsActorHandle& InActorReference
 
 void FPhysInterface_Chaos::FlushScene(FPhysScene* InScene)
 {
-	FPhysicsCommand::ExecuteWrite(InScene, [&]()
-	{
-		InScene->Flush_AssumesLocked();
-	});
+	InScene->Flush();
 }
 
 Chaos::EJointMotionType ConvertMotionType(ELinearConstraintMotion InEngineType)
