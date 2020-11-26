@@ -8,6 +8,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
+#include "Serialization/Archive.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/VarInt.h"
 
@@ -86,7 +87,7 @@ void FCbWriter::Reset()
 
 FCbFieldRefIterator FCbWriter::Save() const
 {
-	const uint64 Size = SaveSize();
+	const uint64 Size = GetSaveSize();
 	FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
 	const FCbFieldIterator Output = SaveToMemory(Buffer->GetView());
 	return FCbFieldRefIterator(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
@@ -103,7 +104,16 @@ FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
 	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.GetDataEnd());
 }
 
-uint64 FCbWriter::SaveSize() const
+void FCbWriter::SaveToArchive(FArchive& Ar) const
+{
+	check(Ar.IsSaving());
+	checkf(States.Num() == 1 && States.Last().Flags == EStateFlags::None,
+		TEXT("It is invalid to save while there are incomplete write operations."));
+	checkf(Data.Num() > 0, TEXT("It is invalid to save when nothing has been written."));
+	Ar.Serialize(const_cast<uint8*>(Data.GetData()), Data.Num());
+}
+
+uint64 FCbWriter::GetSaveSize() const
 {
 	return Data.Num();
 }
@@ -229,6 +239,11 @@ void FCbWriter::Field(const FCbField& Value)
 	EndField(AppendCompactBinary(Value, Data));
 }
 
+void FCbWriter::Field(const FCbFieldRef& Value)
+{
+	Field(FCbField(Value));
+}
+
 void FCbWriter::BeginObject()
 {
 	BeginField();
@@ -275,6 +290,11 @@ void FCbWriter::Object(const FCbObject& Value)
 {
 	BeginField();
 	EndField(AppendCompactBinary(Value, Data));
+}
+
+void FCbWriter::Object(const FCbObjectRef& Value)
+{
+	Object(FCbObject(Value));
 }
 
 void FCbWriter::BeginArray()
@@ -327,6 +347,11 @@ void FCbWriter::Array(const FCbArray& Value)
 	EndField(AppendCompactBinary(Value, Data));
 }
 
+void FCbWriter::Array(const FCbArrayRef& Value)
+{
+	Array(FCbArray(Value));
+}
+
 void FCbWriter::Null()
 {
 	BeginField();
@@ -341,6 +366,14 @@ void FCbWriter::Binary(const void* const Value, const uint64 Size)
 	WriteVarUInt(Size, Data.GetData() + SizeOffset);
 	Data.Append(static_cast<const uint8*>(Value), Size);
 	EndField(ECbFieldType::Binary);
+}
+
+void FCbWriter::Binary(const FSharedBufferConstPtr& Buffer)
+{
+	if (Buffer)
+	{
+		Binary(Buffer->GetData(), Buffer->GetSize());
+	}
 }
 
 void FCbWriter::String(const FAnsiStringView Value)

@@ -8,6 +8,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinaryValidation.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -737,21 +738,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterComplexTest, "System.Core.Serializatio
 bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 {
 	FCbObjectRef Object;
+	FBufferArchive Archive;
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
 
 		const uint8 LocalField[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 };
 		Writer.Name("FieldCopy"_ASV).Field(FCbField(LocalField));
+		Writer.Name("FieldRefCopy"_ASV).Field(FCbFieldRef(FSharedBuffer::Clone(MakeMemoryView(LocalField))));
 
 		const uint8 LocalObject[] = { uint8(ECbFieldType::Object | ECbFieldType::HasFieldName), 1, 'O', 7,
 			uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42,
 			uint8(ECbFieldType::Null | ECbFieldType::HasFieldName), 1, 'N' };
 		Writer.Name("ObjectCopy"_ASV).Object(FCbObject(LocalObject));
+		Writer.Name("ObjectRefCopy"_ASV).Object(FCbObjectRef(FSharedBuffer::Clone(MakeMemoryView(LocalObject))));
 
 		const uint8 LocalArray[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 4, 2,
 			uint8(ECbFieldType::IntegerPositive), 42, 21 };
 		Writer.Name("ArrayCopy"_ASV).Array(FCbArray(LocalArray));
+		Writer.Name("ArrayRefCopy"_ASV).Array(FCbArrayRef(FSharedBuffer::Clone(MakeMemoryView(LocalArray))));
 
 		Writer.Name("Null"_ASV).Null();
 
@@ -761,6 +766,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 			Writer.Name("Empty"_ASV).Binary(FConstMemoryView());
 			Writer.Name("Value"_ASV).Binary(MakeMemoryView("BinaryValue"));
 			Writer.Name("LargeValue"_ASV).Binary(MakeMemoryView(FString::ChrN(256, TEXT('.'))));
+			Writer.Name("LargeRefValue"_ASV).Binary(FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));
 		}
 		Writer.EndObject();
 
@@ -771,6 +777,8 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 			Writer.Name("WideString"_ASV).String(FString::ChrN(256, TEXT('.')));
 			Writer.Name("EmptyAnsiString"_ASV).String(FAnsiStringView());
 			Writer.Name("EmptyWideString"_ASV).String(FWideStringView());
+			Writer.Name("AnsiStringLiteral").String("AnsiValue");
+			Writer.Name("WideStringLiteral").String(TEXT("AnsiValue"));
 		}
 		Writer.EndObject();
 
@@ -903,9 +911,16 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 
 		Writer.EndObject();
 		Object = Writer.Save().AsObjectRef();
+
+		Writer.SaveToArchive(Archive);
+		TestEqual(TEXT("FCbWriter(Complex).SaveToArchive()->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
 	}
 
-	TestEqual(TEXT("FCbWriter(Complex) Validate"), ValidateCompactBinary(*Object.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
+	TestEqual(TEXT("FCbWriter(Complex).Save()->Validate"),
+		ValidateCompactBinary(*Object.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
+
+	TestEqual(TEXT("FCbWriter(Complex).SaveToArchive()->Validate"),
+		ValidateCompactBinary(MakeMemoryView(Archive), ECbValidateMode::All), ECbValidateError::None);
 
 	return true;
 }
@@ -953,7 +968,9 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 		Writer.BeginObject();
 		Writer
 			<< "AnsiString"_ASV << "AnsiValue"_ASV
-			<< "WideString"_ASV << TEXT("WideValue"_SV);
+			<< "AnsiStringLiteral"_ASV << "AnsiValue"
+			<< "WideString"_ASV << TEXT("WideValue"_SV)
+			<< "WideStringLiteral"_ASV << TEXT("WideValue");
 		Writer.EndObject();
 
 		Writer << "Integers"_ASV;

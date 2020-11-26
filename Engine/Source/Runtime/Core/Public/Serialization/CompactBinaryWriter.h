@@ -8,6 +8,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FArchive;
+class FSharedBufferConstPtr;
 struct FBlake3Hash;
 struct FDateTime;
 struct FGuid;
@@ -26,12 +28,13 @@ struct FTimespan;
  *
  * It is most convenient to use the streaming API for the writer, as demonstrated in the example.
  *
- * When writing a small amount of compact binary data, \see \ref TCbWriter can be more efficient,
- * as it uses a fixed-size stack buffer for storage before spilling onto the heap.
+ * When writing a small amount of compact binary data, TCbWriter can be more efficient as it uses
+ * a fixed-size stack buffer for storage before spilling onto the heap.
+ *
+ * @see TCbWriter
  *
  * Example:
  *
- * \code
  * FCbObjectRef WriteObject()
  * {
  *     TCbWriter<256> Writer;
@@ -48,7 +51,6 @@ struct FTimespan;
  *     Writer.EndObject();
  *     return Writer.Save().AsObjectRef();
  * }
- * \endcode
  */
 class FCbWriter
 {
@@ -76,17 +78,27 @@ public:
 	 * It is not valid to call this function in the middle of writing an object, array, or field.
 	 * The writer remains valid for further use when this function returns.
 	 *
-	 * @param Buffer A mutable memory view to write to. Must be exactly SaveSize() bytes.
+	 * @param Buffer A mutable memory view to write to. Must be exactly GetSaveSize() bytes.
 	 * @return An iterator for the field(s) written to the buffer.
 	 */
 	CORE_API FCbFieldIterator SaveToMemory(FMutableMemoryView Buffer) const;
+
+	/**
+	 * Serialize the field(s) to an archive.
+	 *
+	 * It is not valid to call this function in the middle of writing an object, array, or field.
+	 * The writer remains valid for further use when this function returns.
+	 *
+	 * @param Ar An archive to write to. Exactly GetSaveSize() bytes will be written.
+	 */
+	CORE_API void SaveToArchive(FArchive& Ar) const;
 
 	/**
 	 * The size of buffer (in bytes) required to serialize the fields that have been written.
 	 *
 	 * It is not valid to call this function in the middle of writing an object, array, or field.
 	 */
-	CORE_API uint64 SaveSize() const;
+	CORE_API uint64 GetSaveSize() const;
 
 	/**
 	 * Write a field name.
@@ -98,22 +110,28 @@ public:
 
 	/** Copy the value (not the name) of an existing field. */
 	CORE_API void Field(const FCbField& Value);
+	/** Copy the value (not the name) of an existing field. Holds a reference if owned. */
+	CORE_API void Field(const FCbFieldRef& Value);
 
-	/** Begin a new object. Must have a matching call to \ref EndObject. */
+	/** Begin a new object. Must have a matching call to EndObject. */
 	CORE_API void BeginObject();
 	/** End an object after its fields have been written. */
 	CORE_API void EndObject();
 
 	/** Copy the value (not the name) of an existing object. */
 	CORE_API void Object(const FCbObject& Value);
+	/** Copy the value (not the name) of an existing object. Holds a reference if owned. */
+	CORE_API void Object(const FCbObjectRef& Value);
 
-	/** Begin a new array. Must have a matching call to \ref EndArray. */
+	/** Begin a new array. Must have a matching call to EndArray. */
 	CORE_API void BeginArray();
 	/** End an array after its fields have been written. */
 	CORE_API void EndArray();
 
 	/** Copy the value (not the name) of an existing array. */
 	CORE_API void Array(const FCbArray& Value);
+	/** Copy the value (not the name) of an existing array. Holds a reference if owned. */
+	CORE_API void Array(const FCbArrayRef& Value);
 
 	/** Write a null field. */
 	CORE_API void Null();
@@ -122,6 +140,8 @@ public:
 	CORE_API void Binary(const void* Value, uint64 Size);
 	/** Write a binary field by copying the view. */
 	inline void Binary(FConstMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
+	/** Write a binary field by copying the buffer. Holds a reference if owned. */
+	CORE_API void Binary(const FSharedBufferConstPtr& Buffer);
 
 	/** Write a string field by copying the UTF-8 value. */
 	CORE_API void String(FAnsiStringView Value);
@@ -221,7 +241,7 @@ private:
 /**
  * A writer for compact binary object, arrays, and fields that uses a fixed-size stack buffer.
  *
- * \see \ref FCbWriter
+ * @see FCbWriter
  */
 template <uint32 InlineBufferSize>
 class TCbWriter : public FCbWriter
@@ -262,13 +282,31 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const FCbField& Value)
 	return Writer;
 }
 
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldRef& Value)
+{
+	Writer.Field(Value);
+	return Writer;
+}
+
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObject& Value)
 {
 	Writer.Object(Value);
 	return Writer;
 }
 
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectRef& Value)
+{
+	Writer.Object(Value);
+	return Writer;
+}
+
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArray& Value)
+{
+	Writer.Array(Value);
+	return Writer;
+}
+
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArrayRef& Value)
 {
 	Writer.Array(Value);
 	return Writer;
@@ -281,6 +319,12 @@ inline FCbWriter& operator<<(FCbWriter& Writer, nullptr_t)
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, FWideStringView Value)
+{
+	Writer.String(Value);
+	return Writer;
+}
+
+inline FCbWriter& operator<<(FCbWriter& Writer, const WIDECHAR* Value)
 {
 	Writer.String(Value);
 	return Writer;
