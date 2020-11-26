@@ -250,10 +250,10 @@ void ALODActor::PostLoad()
 	// Rebuild the InstancedStaticMeshComponents map
 	ForEachComponent<UInstancedStaticMeshComponent>(false, [this](UInstancedStaticMeshComponent* ISMComponent)
 	{
-		FHLODInstancingKey Key;
-		Key.StaticMesh = ISMComponent->GetStaticMesh();
-		Key.Material = ISMComponent->GetMaterial(0);
-		InstancedStaticMeshComponents.Emplace(Key, ISMComponent);
+		FHLODInstancingKey InstancingKey;
+		InstancingKey.StaticMesh = ISMComponent->GetStaticMesh();
+		InstancingKey.Material = ISMComponent->GetMaterial(0);
+		InstancedStaticMeshComponents.Emplace(InstancingKey, ISMComponent);
 	});
 #endif
 
