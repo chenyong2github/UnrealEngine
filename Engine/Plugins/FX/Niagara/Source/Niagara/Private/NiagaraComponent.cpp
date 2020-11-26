@@ -1734,6 +1734,10 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	else
 	{
 		FBox SimBounds(ForceInit);
+		if (Asset && Asset->bFixedBounds)
+		{
+			SimBounds = Asset->GetFixedBounds();
+		}
 		SystemBounds = FBoxSphereBounds(SimBounds);
 	}
 
