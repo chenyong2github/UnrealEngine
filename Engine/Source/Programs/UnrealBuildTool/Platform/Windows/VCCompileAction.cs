@@ -339,11 +339,11 @@ namespace UnrealBuildTool
 		{
 			if (ResponseFile != null)
 			{
-				Graph.CreateIntermediateTextFile(ResponseFile, GetFullClArgumentList());
+				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments());
 			}
 		}
 
-		List<string> GetFullClArgumentList()
+		public List<string> GetCompilerArguments()
 		{
 			List<string> Arguments = new List<string>();
 

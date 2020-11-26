@@ -559,7 +559,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/wd4463"); // 4463 - overflow; assigning 1 to bit-field that can only hold values from -1 to 0
 			}
 
-			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
+			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings && !CompileEnvironment.bPreprocessOnly)
 			{
 				if (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors)
 				{
@@ -1225,7 +1225,7 @@ namespace UnrealBuildTool
 			}
 
 			CPPOutput Result = new CPPOutput();
-			Result.ObjectFiles.AddRange(Actions.Select(x => x.ObjectFile).Where(x => x != null));
+			Result.ObjectFiles.AddRange(Actions.Select(x => x.ObjectFile ?? x.PreprocessedFile).Where(x => x != null));
 			Result.CompiledModuleInterfaces.AddRange(Actions.Select(x => x.CompiledModuleInterfaceFile).Where(x => x != null));
 			Result.PrecompiledHeaderFile = Actions.Select(x => x.CreatePchFile).Where(x => x != null).FirstOrDefault();
 			return Result;
