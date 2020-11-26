@@ -1528,7 +1528,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const commandOverride = (change.commandOverride || '').trim()
 		if (commandOverride) {
-			parsedLines.override(parse(commandOverride.split('|')))
+			parsedLines.override(parse(commandOverride.split('|').map(s => s.trim())))
 		}
 
 		// Author is always CL user
