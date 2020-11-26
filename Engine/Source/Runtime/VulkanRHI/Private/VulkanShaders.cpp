@@ -53,7 +53,13 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 			
 		FRWScopeLock ScopedLock(Lock, SLT_Write);
 		ShaderMap[ShaderType::StaticFrequency].Add(ShaderKey, RetShader);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FShaderCodeReader ShaderCode(Code);
+		RetShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+#endif
 	}
+
 	return RetShader;
 }
 

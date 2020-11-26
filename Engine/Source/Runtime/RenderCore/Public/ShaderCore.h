@@ -538,6 +538,14 @@ struct FShaderCodeFeatures
 };
 
 // if this changes you need to make sure all shaders get invalidated
+struct FShaderCodeName
+{
+	static const uint8 Key = 'n';
+
+	// We store the straight ANSICHAR zero-terminated string
+};
+
+// if this changes you need to make sure all shaders get invalidated
 struct FShaderCodeVendorExtension
 {
 	// for FindOptionalData() and AddOptionalData()
@@ -737,9 +745,11 @@ public:
 		}
 	}
 
-	// for write access
+	// Write access for regular microcode: Optional Data must be added AFTER regular microcode and BEFORE Finalize
 	TArray<uint8>& GetWriteAccess()
 	{
+		checkf(OptionalDataSize != -1, TEXT("Tried to add ShaderCode after adding being finalized!"));
+		checkf(OptionalDataSize == 0, TEXT("Tried to add ShaderCode after adding Optional data!"));
 		return ShaderCodeWithOptionalData;
 	}
 
@@ -750,16 +760,6 @@ public:
 		FShaderCodeReader Wrapper(ShaderCodeWithOptionalData);
 
 		return Wrapper.GetShaderCodeSize();
-	}
-
-	// inefficient, will/should be replaced by GetShaderCodeToRead()
-	UE_DEPRECATED(4.26, "Please switch to GetShaderCodeToRead()")
-	void GetShaderCodeLegacy(TArray<uint8>& Out) const
-	{
-		Out.Empty();
-
-		Out.AddUninitialized(GetShaderCodeSize());
-		FMemory::Memcpy(Out.GetData(), GetReadAccess().GetData(), ShaderCodeWithOptionalData.Num());
 	}
 
 	// for read access, can have additional data attached to the end

@@ -67,7 +67,7 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 
 	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	OutShader.ShaderName = InShaderCode.FindOptionalData('n');
+	OutShader.ShaderName = InShaderCode.FindOptionalData(FShaderCodeName::Key);
 	int32 UniformBufferTableSize = 0;
 	auto* UniformBufferData = InShaderCode.FindOptionalDataAndSize('u', UniformBufferTableSize);
 	if (UniformBufferData && UniformBufferTableSize > 0)

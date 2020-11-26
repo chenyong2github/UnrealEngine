@@ -2905,6 +2905,12 @@ static bool CompileWithShaderConductor(
 	// Write final output shader
 	Output.Target = Input.Target;
 	Output.ShaderCode.GetWriteAccess().Append(reinterpret_cast<const uint8*>(Spirv.Data.GetData()), Spirv.Data.Num() * sizeof(uint32));
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+	{
+		Output.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*Input.GenerateShaderName()));
+	}
+
 	Output.bSucceeded = true;
 
 	if (bDebugDump)
