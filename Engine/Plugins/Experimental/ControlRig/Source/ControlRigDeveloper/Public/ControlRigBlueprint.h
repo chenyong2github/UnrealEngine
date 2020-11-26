@@ -127,10 +127,21 @@ public:
 	static TArray<UControlRigBlueprint*> GetCurrentlyOpenRigBlueprints();
 
 	UFUNCTION(BlueprintCallable, Category = "VM")
+	UClass* GetControlRigClass();
+
+	UFUNCTION(BlueprintCallable, Category = "VM")
+	UControlRig* CreateControlRig();
+
+	UFUNCTION(BlueprintCallable, Category = "VM")
 	static TArray<UStruct*> GetAvailableRigUnits();
 
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	UControlRigHierarchyModifier* GetHierarchyModifier();
+
+#if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, Category = "Variables")
+	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false);
+#endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)

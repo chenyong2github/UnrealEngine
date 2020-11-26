@@ -461,6 +461,11 @@ void FRigControl::SetValueFromTransform(const FTransform& InTransform, ERigContr
 			break;
 		}
 	}
+
+	if (InValueType == ERigControlValueType::Current)
+	{
+		ApplyLimits(GetValue(InValueType));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

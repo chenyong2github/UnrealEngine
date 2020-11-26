@@ -16,6 +16,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "Engine/Blueprint.h"
 #include "EdGraphSchema_K2.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #endif// WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRig"
@@ -277,6 +278,55 @@ FRigVMExternalVariable UControlRig::GetPublicVariableByName(const FName& InVaria
 		return FRigVMExternalVariable::Make(Property, (UObject*)this);
 	}
 	return FRigVMExternalVariable();
+}
+
+TArray<FName> UControlRig::GetScriptAccessibleVariables() const
+{
+	TArray<FRigVMExternalVariable> PublicVariables = GetPublicVariables();
+	TArray<FName> Names;
+	for (const FRigVMExternalVariable& PublicVariable : PublicVariables)
+	{
+		Names.Add(PublicVariable.Name);
+	}
+	return Names;
+}
+
+FName UControlRig::GetVariableType(const FName& InVariableName) const
+{
+	FRigVMExternalVariable PublicVariable = GetPublicVariableByName(InVariableName);
+	if (PublicVariable.IsValid(true /* allow nullptr */))
+	{
+		return PublicVariable.TypeName;
+	}
+	return NAME_None;
+}
+
+FString UControlRig::GetVariableAsString(const FName& InVariableName) const
+{
+#if WITH_EDITOR
+	if (const FProperty* Property = GetClass()->FindPropertyByName(InVariableName))
+	{
+		FString Result;
+		const uint8* Container = (const uint8*)this;
+		if (FBlueprintEditorUtils::PropertyValueToString(Property, Container, Result, nullptr))
+		{
+			return Result;
+		}
+	}
+#endif
+	return FString();
+}
+
+bool UControlRig::SetVariableFromString(const FName& InVariableName, const FString& InValue)
+{
+#if WITH_EDITOR
+	if (const FProperty* Property = GetClass()->FindPropertyByName(InVariableName))
+	{
+		uint8* Container = (uint8*)this;
+		return FBlueprintEditorUtils::PropertyValueFromString(Property, InValue, Container, nullptr);
+	}
+#endif
+	return false;
 }
 
 bool UControlRig::SupportsEvent(const FName& InEventName) const
@@ -862,6 +912,16 @@ URigVM* UControlRig::GetVM()
 		check(VM);
 	}
 	return VM;
+}
+
+FTransform UControlRig::GetGlobalTransform(const FRigElementKey& InKey) const
+{
+	return Hierarchy.GetGlobalTransform(InKey);
+}
+
+void UControlRig::SetGlobalTransform(const FRigElementKey& InKey, const FTransform& InTransform, bool bPropagateTransform)
+{
+	Hierarchy.SetGlobalTransform(InKey, InTransform, bPropagateTransform);
 }
 
 FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const

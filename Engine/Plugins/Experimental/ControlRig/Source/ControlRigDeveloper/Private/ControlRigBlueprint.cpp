@@ -514,6 +514,20 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetCurrentlyOpenRigBlueprint
 	return sCurrentlyOpenedRigBlueprints;
 }
 
+UClass* UControlRigBlueprint::GetControlRigClass()
+{
+	return GeneratedClass;
+}
+
+UControlRig* UControlRigBlueprint::CreateControlRig()
+{
+	RecompileVMIfRequired();
+
+	UControlRig* Rig = NewObject<UControlRig>(this, GetControlRigClass());
+	Rig->Initialize(true);
+	return Rig;
+}
+
 TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 {
 	const TArray<FRigVMFunction>& Functions = FRigVMRegistry::Get().GetFunctions();
@@ -546,6 +560,78 @@ UControlRigHierarchyModifier* UControlRigBlueprint::GetHierarchyModifier()
 }
 
 #if WITH_EDITOR
+
+FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly)
+{
+	FRigVMExternalVariable Variable;
+	Variable.Name = InName;
+	Variable.bIsPublic = bIsPublic;
+	Variable.bIsReadOnly = bIsReadOnly;
+
+	FString CPPType = InCPPType;
+	if (CPPType.StartsWith(TEXT("TMap<")))
+	{
+		UE_LOG(LogControlRigDeveloper, Warning, TEXT("TMap Variables are not supported."));
+		return NAME_None;
+	}
+
+	Variable.bIsArray = CPPType.StartsWith(TEXT("TArray<"));
+	if (Variable.bIsArray)
+	{
+		CPPType = CPPType.RightChop(7).LeftChop(1);
+	}
+
+	if (CPPType == TEXT("bool"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(bool);
+	}
+	else if (CPPType == TEXT("float"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(float);
+	}
+	else if (CPPType == TEXT("int32"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(int32);
+	}
+	else if (CPPType == TEXT("FString"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(FString);
+	}
+	else if (CPPType == TEXT("FName"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(FName);
+	}
+	else if (CPPType == TEXT("FName"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(FName);
+	}
+	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
+	{
+		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeObject = ScriptStruct;
+		Variable.Size = ScriptStruct->GetStructureSize();
+	}
+	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
+	{
+		Variable.TypeName = *Enum->CppType;
+		Variable.TypeObject = Enum;
+		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
+	}
+
+	FName Result = AddCRMemberVariableFromExternal(Variable);
+	if (!Result.IsNone())
+	{
+		FBPCompileRequest Request(this, EBlueprintCompileOptions::None, nullptr);
+		FBlueprintCompilationManager::CompileSynchronously(Request);
+	}
+	return Result;
+}
 
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 {

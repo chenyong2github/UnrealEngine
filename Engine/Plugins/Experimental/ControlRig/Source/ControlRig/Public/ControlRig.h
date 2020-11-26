@@ -78,18 +78,23 @@ public:
 #endif
 	
 	/** Set the current delta time */
+	UFUNCTION(BlueprintCallable, Category="Control Rig")
 	void SetDeltaTime(float InDeltaTime);
 
 	/** Set the current absolute time */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void SetAbsoluteTime(float InAbsoluteTime, bool InSetDeltaTimeZero = false);
 
 	/** Set the current absolute and delta times */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void SetAbsoluteAndDeltaTime(float InAbsoluteTime, float InDeltaTime);
 
 	/** Set the current fps */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void SetFramesPerSecond(float InFramesPerSecond);
 
 	/** Returns the current frames per second (this may change over time) */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	float GetCurrentFramesPerSecond() const;
 
 #if WITH_EDITOR
@@ -118,6 +123,22 @@ public:
 	/** Returns a public variable given its name */
 	FRigVMExternalVariable GetPublicVariableByName(const FName& InVariableName) const;
 
+	/** Returns the names of variables accessible in scripting */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig", meta=(DisplayName="Get Variables"))
+	TArray<FName> GetScriptAccessibleVariables() const;
+
+	/** Returns the type of a given variable */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	FName GetVariableType(const FName& InVariableName) const;
+
+	/** Returns the value of a given variable as a string */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	FString GetVariableAsString(const FName& InVariableName) const;
+
+	/** Returns the value of a given variable as a string */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	bool SetVariableFromString(const FName& InVariableName, const FString& InValue);
+
 	template<class T>
 	FORCEINLINE T GetPublicVariableValue(const FName& InVariableName)
 	{
@@ -136,8 +157,10 @@ public:
 		return SupportsEvent(T::EventName);
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	bool SupportsEvent(const FName& InEventName) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	TArray<FName> GetSupportedEvents() const;
 
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
@@ -184,21 +207,31 @@ public:
 	}
 
 	/** Evaluate another animation ControlRig */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	FTransform GetGlobalTransform(const FRigElementKey& InKey) const;
+
+	/** Evaluate another animation ControlRig */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	void SetGlobalTransform(const FRigElementKey& InKey, const FTransform& InTransform, bool bPropagateTransform = true);
+
+	/** Evaluate another animation ControlRig */
 	FTransform GetGlobalTransform(const FName& BoneName) const;
 
 	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true) ;
+	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true);
 
 	/** Evaluate another animation ControlRig */
 	FTransform GetGlobalTransform(const int32 BoneIndex) const;
 
 	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
+	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true);
 
 	/** Evaluate another animation ControlRig */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	float GetCurveValue(const FName& CurveName) const;
 
 	/** Evaluate another animation ControlRig */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void SetCurveValue(const FName& CurveName, const float CurveValue);
 
 	/** Evaluate another animation ControlRig */
@@ -223,15 +256,18 @@ public:
 	ERigExecutionType ExecutionType;
 
 	/** Execute */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void Execute(const EControlRigState State, const FName& InEventName);
 
 	/** ExecuteUnits */
 	virtual void ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
 
 	/** Requests to perform an init during the next execution */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestInit();
 
 	/** Requests to perform a setup during the next execution */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestSetup();
 
 	/** Returns the queue of events to run */
