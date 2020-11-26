@@ -89,10 +89,10 @@ namespace ChaosTest {
 
 				if(Particle->GetProxy() != nullptr)
 				{
-				// Throw out the proxy
-				Solver->UnregisterObject(Particle.Get());
+					// Throw out the proxy
+					Solver->UnregisterObject(Particle.Get());
 				}
-			});
+			}, RewindHistorySize);
 		}
 	};
 
@@ -647,69 +647,47 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
 	{
-		for(int Optimization = 0; Optimization < 2; ++Optimization)
+		//test that we are getting as much of the history buffer as possible and that we properly wrap around
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Particle, auto Sphere)
 		{
-			if(TypeParam::IsRewindable() == false){ return; }
-			auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Particle->SetGravityEnabled(true);
+				Particle->SetX(FVec3(0, 0, 100));
 
-			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+				FRewindData* RewindData = Solver->GetRewindData();
 
-			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			InitSolverSettings(Solver);
+				const int32 ExpectedNumSimSteps = RewindData->Capacity() + 10;
+				const int32 NumGTSteps = ExpectedNumSimSteps * SimDt;
+				const int32 NumSimSteps = NumGTSteps / SimDt;
 
-			Solver->EnableRewindCapture(5 , !!Optimization);
-
-
-			// Make particles
-			auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
-
-			Particle->SetGeometry(Sphere);
-			Solver->RegisterObject(Particle.Get());
-			Particle->SetGravityEnabled(true);
-			Particle->SetX(FVec3(0,0,100));
-
-			TArray<FVec3> X;
-			TArray<FVec3> V;
-
-			const int32 NumSteps = 20;
-			for(int Step = 0; Step < NumSteps; ++Step)
+				for (int Step = 0; Step < NumGTSteps; ++Step)
 			{
-				//teleport from GT
-				if(Step == 15)
-				{
-					Particle->SetX(FVec3(0,0,10));
-					Particle->SetV(FVec3(0,0,1));
+					TickSolverHelper(Solver);
 				}
 
-				X.Add(Particle->X());
-				V.Add(Particle->V());
-				TickSolverHelper(Solver);
-			}
-			X.Add(Particle->X());
-			V.Add(Particle->V());
+				float ExpectedVZ = 0;
+				float ExpectedXZ = 100;
 
-			FRewindData* RewindData = Solver->GetRewindData();
-			const int32 LastValidStep = NumSteps - 1;
-			const int32 FirstValid = NumSteps - RewindData->Capacity() + 1;	//we lose 1 step because we have to save head
-			for(int Step = 0; Step < FirstValid; ++Step)
+				const int32 LastValidStep = NumSimSteps - 1;
+				const int32 FirstValid = NumSimSteps - RewindData->Capacity() + 1;	//we lose 1 step because we have to save head (should the API include this automatically?)
+				for(int Step = 0; Step <= LastValidStep; ++Step)
+				{
+					if(Step < FirstValid)
 			{
 				//can't go back that far
 				EXPECT_FALSE(RewindData->RewindToFrame(Step));
 			}
-
-			for(int Step = FirstValid; Step <= LastValidStep; ++Step)
+					else
 			{
 				EXPECT_TRUE(RewindData->RewindToFrame(Step));
-				EXPECT_EQ(Particle->X()[2],X[Step][2]);
-				EXPECT_EQ(Particle->V()[2],V[Step][2]);
+						EXPECT_EQ(Particle->X()[2], ExpectedXZ);
+						EXPECT_EQ(Particle->V()[2], ExpectedVZ);
 			}
-
-			// Throw out the proxy
-			Solver->UnregisterObject(Particle.Get());
-
-			Module->DestroySolver(Solver);
+					
+					ExpectedVZ -= SimDt;
+					ExpectedXZ += ExpectedVZ * SimDt;
 		}
+			}, 10);	//don't want 200 default steps
 	}
 
 	TYPED_TEST(AllTraits, RewindTest_NumDirty)
