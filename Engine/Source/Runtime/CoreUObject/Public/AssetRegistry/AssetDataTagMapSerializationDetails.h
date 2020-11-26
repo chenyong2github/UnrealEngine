@@ -136,7 +136,7 @@ namespace FixedTagPrivate
 			template<class ExportPathType>
 			static bool Matches(const ExportPathType& A, const ExportPathType& B)
 			{
-				return Matches(A.Class, B.Class) & Matches(A.Package, B.Package) & Matches(A.Object, B.Object);
+				return Matches(A.Class, B.Class) & Matches(A.Package, B.Package) & Matches(A.Object, B.Object); //-V792
 			}
 
 			template<class ExportPathType>

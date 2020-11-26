@@ -33,7 +33,7 @@ struct COREUOBJECT_API FAssetRegistryExportPath
 	FName ToName() const;
 	void ToString(FStringBuilderBase& Out) const;
 
-	bool IsEmpty() const { return Class.IsNone() & Package.IsNone() & Object.IsNone(); }
+	bool IsEmpty() const { return Class.IsNone() & Package.IsNone() & Object.IsNone(); } //-V792
 	explicit operator bool() const { return !IsEmpty(); }
 };
 
@@ -222,6 +222,9 @@ public:
 
 	FString						GetValue() const { return AsString(); }
 
+	// Get FTexts as unlocalized complex strings. For internal use only, to make new FAssetDataTagMapSharedView.
+	FString						ToLoose() const;
+
 	bool						Equals(FStringView Str) const;
 
 	UE_DEPRECATED(4.27, "Use AsString(), AsName(), AsExportPath() or AsText() instead. ")
@@ -272,7 +275,7 @@ class COREUOBJECT_API FAssetDataTagMapSharedView
 
 	bool IsLoose() const
 	{
-		return !Fixed.IsValid && (Loose != nullptr);
+		return (!Fixed.IsValid) & (Loose != nullptr);
 	}
 
 	FAssetTagValueRef FindFixedValue(FName Key) const
@@ -359,7 +362,7 @@ public:
 		return CopyMap();
 	}
 
-	/** Copy map contents to a stand-alone FAssetDataTagMap */
+	/** Copy map contents to a loose FAssetDataTagMap */
 	FAssetDataTagMap CopyMap() const;
 
 	template<typename Func>
