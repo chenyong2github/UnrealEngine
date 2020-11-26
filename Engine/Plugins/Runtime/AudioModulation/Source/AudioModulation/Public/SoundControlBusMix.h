@@ -46,12 +46,12 @@ protected:
 	void SaveMixToProfile();
 
 	// Solos this mix, deactivating all others and activating this
-	// (if its not already active) while testing in-editor in all
+	// (if its not already active), while testing in-editor in all
 	// active worlds
 	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
 	void SoloMix();
 
-	// Deactivates this mix in all active worlds
+	// Activates this mix in all active worlds
 	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
 	void ActivateMix();
 

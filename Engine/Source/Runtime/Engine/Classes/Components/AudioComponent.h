@@ -256,7 +256,8 @@ class ENGINE_API UAudioComponent : public USceneComponent
 	/**
 	* True if we should automatically attach to AutoAttachParent when Played, and detach from our parent when playback is completed.
 	* This overrides any current attachment that may be present at the time of activation (deferring initial attachment until activation, if AutoAttachParent is null).
-	* If enabled, this AudioComponent's WorldLocation will no longer be reliable when not currently playing audio, and any attach children will also be detached/attached along with it.
+	* If enabled, this AudioComponent's WorldLocation will no longer be reliable when not currently playing audio, and any attach children will also be
+	* detached/attached along with it.
 	* When enabled, detachment occurs regardless of whether AutoAttachParent is assigned, and the relative transform from the time of activation is restored.
 	* This also disables attachment on dedicated servers, where we don't actually activate even if bAutoActivate is true.
 	* @see AutoAttachParent, AutoAttachSocketName, AutoAttachLocationType
@@ -296,11 +297,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
 	float VolumeMultiplier;
 
-	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this audio component. Only used in audio mixer. */
+	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the 
+	 *  envelope value of sounds played with this audio component. Only used in audio mixer. 
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerAttackTime;
 
-	/** The release time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this audio component. Only used in audio mixer. */
+	/** The release time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the
+	 *  envelope value of sounds played with this audio component. Only used in audio mixer. 
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerReleaseTime;
 
@@ -312,6 +317,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverrideSubtitlePriority"))
 	float SubtitlePriority;
 
+	/** The chain of Source Effects to apply to the sounds playing on the Audio Component */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
 	USoundEffectSourcePresetChain* SourceEffectChain;
 
@@ -327,7 +333,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
 	float PitchMultiplier;
 
-	/** The frequency of the lowpass filter (in hertz) to apply to this voice. A frequency of 0.0 is the device sample rate and will bypass the filter. */
+	/** The frequency of the Lowpass Filter (in Hz) to apply to this voice. A frequency of 0.0 is the device sample rate and will bypass the filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Filter, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableLowPassFilter"))
 	float LowPassFilterFrequency;
 
@@ -350,7 +356,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
 	TSet<USoundConcurrency*> ConcurrencySet;
 
-	/** while playing, this component will check for occlusion from its closest listener every this many seconds */
+	/** While playing, this component will check for occlusion from its closest listener every this many seconds */
 	float OcclusionCheckInterval;
 
 	/** What time the audio component was told to play. Used to compute audio component state. */
@@ -383,47 +389,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
 	FSoundModulationDefaultRoutingSettings ModulationRouting;
 
-	/** Called when PlayState changes */
+	/** This function returns the Targeted Audio Component’s current Play State.
+	  * Playing, if the sound is currently playing.
+	  * Stopped, if the sound is stopped.
+	  * Paused, if the sound is currently playing, but paused.
+	  * Fading In, if the sound is in the process of Fading In.
+	  * Fading Out, if the sound is in the process of Fading Out.
+	  */
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioPlayStateChanged OnAudioPlayStateChanged;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioPlayStateChangedNative OnAudioPlayStateChangedNative;
 
 	/** Called when virtualization state changes */
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioVirtualizationChanged OnAudioVirtualizationChanged;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioVirtualizationChangedNative OnAudioVirtualizationChangedNative;
 
-	/** called when we finish playing audio, either because it played to completion or because a Stop() call turned it off early */
+	/** Called when we finish playing audio, either because it played to completion or because a Stop() call turned it off early */
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioFinished OnAudioFinished;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioFinishedNative OnAudioFinishedNative;
 
 	/** Called as a sound plays on the audio component to allow BP to perform actions based on playback percentage.
-	* Computed as samples played divided by total samples, taking into account pitch.
-	* Not currently implemented on all platforms.
+	 *  Computed as samples played divided by total samples, taking into account pitch.
+	 *  Not currently implemented on all platforms.
 	*/
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioPlaybackPercent OnAudioPlaybackPercent;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioPlaybackPercentNative OnAudioPlaybackPercentNative;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioSingleEnvelopeValue OnAudioSingleEnvelopeValue;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioSingleEnvelopeValueNative OnAudioSingleEnvelopeValueNative;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnAudioMultiEnvelopeValue OnAudioMultiEnvelopeValue;
 
-	/** shadow delegate for non UObject subscribers */
+	/** Shadow delegate for non UObject subscribers */
 	FOnAudioMultiEnvelopeValueNative OnAudioMultiEnvelopeValueNative;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
@@ -435,31 +447,30 @@ public:
 	void SetSound( USoundBase* NewSound );
 
 	/**
-	 * This can be used in place of "play" when it is desired to fade in the sound over time.
+	 * This function allows designers to call Play on an Audio Component instance while applying a volume curve over time. 
+	 * Parameters allow designers to indicate the duration of the fade, the curve shape, and the start time if seeking into the sound.
 	 *
-	 * If FadeTime is 0.0, the change in volume is instant.
-	 * If FadeTime is > 0.0, the multiplier will be increased from 0 to FadeVolumeLevel over FadeIn seconds.
-	 *
-	 * @param FadeInDuration how long it should take to reach the FadeVolumeLevel
-	 * @param FadeVolumeLevel the percentage of the AudioComponents's calculated volume to fade to
+	 * @param FadeInDuration How long it should take to reach the FadeVolumeLevel
+	 * @param FadeVolumeLevel The percentage of the AudioComponents's calculated volume to fade to
+	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/**
-	 * This is used in place of "stop" when it is desired to fade the volume of the sound before stopping.
-	 *
-	 * If FadeTime is 0.0, this is the same as calling Stop().
-	 * If FadeTime is > 0.0, this will adjust the volume multiplier to FadeVolumeLevel over FadeInTime seconds
-	 * and then stop the sound.
+	 * This function allows designers to call a delayed Stop on an Audio Component instance while applying a
+	 * volume curve over time. Parameters allow designers to indicate the duration of the fade and the curve shape.
 	 *
 	 * @param FadeOutDuration how long it should take to reach the FadeVolumeLevel
 	 * @param FadeVolumeLevel the percentage of the AudioComponents's calculated volume in which to fade to
+	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
-	/** Start a sound playing on an audio component */
+	/** Begins playing the targeted Audio Component’s sound at the designated Start Time, seeking into a sound. 
+	 * @param StartTime The offset, in seconds, to begin reading the sound at
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Play(float StartTime = 0.0f);
 
@@ -480,7 +491,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Stop();
 
-	/** Cues request to stop sound after the provided delay (In Seconds), stopping immediately if delay is zero or negative */
+	/** Cues request to stop sound after the provided delay (in seconds), stopping immediately if delay is zero or negative */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void StopDelayed(float DelayTime);
 
@@ -488,7 +499,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetPaused(bool bPause);
 
-	/** Returns if the sound playing any audio. Doesn't indicate the play state. Use GetPlayState() to get the actual play state. */
+	/** Returns TRUE if the targeted Audio Component’s sound is playing. 
+	 *  Doesn't indicate if the sound is paused or fading in/out. Use GetPlayState() to get the full play state.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual bool IsPlaying() const;
 
@@ -500,23 +513,39 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	EAudioComponentPlayState GetPlayState() const;
 
-	/** This will allow one to adjust the volume of an AudioComponent on the fly */
+	/** This function allows designers to trigger an adjustment to the sound instance’s playback Volume with options for smoothly applying a curve over time.
+	 * @param AdjustVolumeDuration The length of time in which to interpolate between the initial volume and the new volume.
+	 * @param AdjustVolumeLevel The new volume to set the Audio Component to.
+	 * @param FadeCurve The curve used when interpolating between the old and new volume.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
-	/**  Set a float instance parameter for use in sound cues played by this audio component */
+	/** Allows the designer to set the Float Parameter on the SoundCue whose name matches the name indicated.
+	 * @param InName The name of the Float to set. It must match the name set in SoundCue's Crossfade By Param or Continuous Modulator Node.
+	 * @param InFloat The value to set the Parameter to.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void SetFloatParameter(FName InName, float InFloat);
 
-	/**  Set a sound wave instance parameter for use in sound cues played by this audio component */
+	/** Allows the designer to set the Wave Parameter on the SoundCue whose name matches the name indicated.
+	 * @param InName The name of the Wave to set. It must match the name set in SoundCue's WaveParam Node
+	 * @param InWave The value to set the Parameter to
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void SetWaveParameter(FName InName, class USoundWave* InWave);
 
-	/** Set a boolean instance parameter for use in sound cues played by this audio component */
+	/** Allows the designer to set the Boolean Parameter on the SoundCue whose name matches the name indicated.
+	 * @param InName The name of the Boolean to set. It must match the name set in SoundCue's Branch Node 
+	 * @param InBool The value to set the Parameter to
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Boolean Parameter"))
 	void SetBoolParameter(FName InName, bool InBool);
 
-	/** Set an integer instance parameter for use in sound cues played by this audio component */
+	/** Allows the designer to set the Integer Parameter on the SoundCue whose name matches the name indicated.
+	 * @param InName The name of the Integer to set. It must match the name set in SoundCue's Switch Node
+	 * @param InInt The value to set the Parameter to
+	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Integer Parameter"))
 	void SetIntParameter(FName InName, int32 InInt);
 
@@ -532,39 +561,60 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void SetUISound(bool bInUISound);
 
-	/** Modify the attenuation settings of the audio component */
+	/** This function is used to modify the Attenuation Settings on the targeted Audio Component instance. It is worth noting that Attenuation Settings are only passed to new Active Sounds on start, so modified Attenuation data should be set before sound playback. */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void AdjustAttenuation(const FSoundAttenuationSettings& InAttenuationSettings);
 
-	/** Sets how much audio the sound should send to the given submix. */
+	/** Allows designers to target a specific Audio Component instance’s sound set the send level (volume of sound copied) to the indicated Submix.
+	 * @param Submix The Submix to send the signal to.
+	 * @param SendLevel The scalar used to alter the volume of the copied signal.*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
-	/** Sets how much audio the sound should send to the given Source Bus (PRE Source Effects).
-		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	/** Allows designers to target a specific Audio Component instance’s sound and set the send level (volume of sound copied)
+	 *  to the indicated Source Bus. If the Source Bus is not already part of the sound’s sends, the reference will be added to
+	 *  this instance’s Override sends. This particular send occurs before the Source Effect processing chain.
+	 * @param SoundSourceBus The Bus to send the signal to.
+	 * @param SourceBusSendLevel The scalar used to alter the volume of the copied signal.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
-	/** Sets how much audio the sound should send to the given Source Bus (POST Source Effects).
-		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	/** Allows designers to target a specific Audio Component instance’s sound and set the send level (volume of sound copied)
+	 *  to the indicated Source Bus. If the Source Bus is not already part of the sound’s sends, the reference will be added to
+	 *  this instance’s Override sends. This particular send occurs after the Source Effect processing chain.
+	 * @param SoundSourceBus The Bus to send the signal to
+	 * @param SourceBusSendLevel The scalar used to alter the volume of the copied signal
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given Audio Bus (PRE Source Effects).
-	if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	 *  if the Bus Send doesn't already exist, it will be added to the overrides on the active sound. 
+	 * @param AudioBus The Bus to send the signal to
+	 * @param AudioBusSendLevel The scalar used to alter the volume of the copied signal
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given Audio Bus (POST Source Effects).
-		if the Audio Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	 *  if the Audio Bus Send doesn't already exist, it will be added to the overrides on the active sound. 
+	 * @param AudioBus The Bus to send the signal to
+	 * @param AudioBusSendLevel The scalar used to alter the volume of the copied signal
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float SourceBusSendLevel);
+	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
-	/** Sets whether or not the low pass filter is enabled on the audio component. */
+	/** When set to TRUE, enables an additional Low Pass Filter Frequency to be calculated in with the
+	 *  sound instance’s LPF total, allowing designers to set filter settings for the targeted Audio Component’s
+	 *  sound instance.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
 
-	/** Sets lowpass filter frequency of the audio component. */
+	/** Sets a cutoff frequency, in Hz, for the targeted Audio Component’s sound’s Low Pass Filter calculation.
+	 *  The lowest cutoff frequency from all of the sound instance’s possible LPF calculations wins.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
 
@@ -572,11 +622,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetOutputToBusOnly(bool bInOutputToBusOnly);
 
-	/** Queries if the sound wave playing in this audio component has cooked FFT data. */
+	/** Queries if the sound wave playing in this audio component has cooked FFT data, returns FALSE if none found.  */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedFFTData() const;
 
-	/** Queries if the sound wave playing in this audio component has cooked amplitude analyses. */
+	/** Queries whether or not the targeted Audio Component instance’s sound has Envelope Data, returns FALSE if none found. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedAmplitudeEnvelopeData() const;
 
@@ -597,9 +647,9 @@ public:
 	bool GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData);
 
 	/**
-	* Retrieves the current-time cooked envelope data of the playing audio component.
-	* Cooked data is interpolated and averaged across all playing sound waves.
-	* Returns true if there is data and the audio component is playing.
+	 * Retrieves Cooked Envelope Data at the current playback time. If there are multiple
+	 * SoundWaves playing, data is interpolated and averaged across all playing sound waves.
+	 * Returns FALSE if no data was found.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool GetCookedEnvelopeData(float& OutEnvelopeData);
@@ -665,10 +715,15 @@ public:
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
 	const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
 
+	/** Retrieves Attenuation Settings data on the targeted Audio Component. Returns FALSE if no settings were found. 
+	 *  Because the Attenuation Settings data structure is copied, FALSE returns will return default values. 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta = (DisplayName = "Get Attenuation Settings To Apply", ScriptName="GetAttenuationSettingsToApply"))
 	bool BP_GetAttenuationSettingsToApply(FSoundAttenuationSettings& OutAttenuationSettings);
 
-	/** Collects the various attenuation shapes that may be applied to the sound played by the audio component for visualization in the editor or via the in game debug visualization. */
+	/** Collects the various attenuation shapes that may be applied to the sound played by the audio component for visualization
+	 * in the editor or via the in game debug visualization. 
+	 */
 	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
 	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
