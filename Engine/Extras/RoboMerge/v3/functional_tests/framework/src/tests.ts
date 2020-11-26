@@ -31,6 +31,7 @@ import { RequestShelfIndirectTarget } from './tests/request-shelf-indirect-targe
 import { ResolveAfterSkip } from './tests/resolve-after-skip'
 import { RespectStreamPath } from './tests/respect-stream-path'
 import { SyntaxErrorOnUnknownBranch } from './tests/syntax-error-on-unknown-branch'
+import { StompWithAdd } from './tests/stomp-with-add'
 import { TestChain } from './tests/test-chain'
 import { TestEdgeGate } from './tests/test-edge-gate'
 import { TestFlags } from './tests/test-flags'
@@ -49,39 +50,41 @@ const P4_USERS: [string, string][] = [
 	['buildmachine', 'Example automated account']
 ]
 
+type BranchMapSettings = {
+	branches: RobomergeBranchSpec[]
+	edges: EdgeProperties[]
+	macros: {[name:string]: string[]}
+}
+
+function addTest(settings: BranchMapSettings, test: FunctionalTest) {
+	settings.branches = [...settings.branches, ...test.getBranches()]
+	settings.edges = [...settings.edges, ...test.getEdges()]
+	settings.macros = {...settings.macros, ...test.getMacros()}
+}
+
 async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	const rootClient = await getRootDataClient(p4, 'RoboMergeData_BranchMaps')
 
 	const botNames = ['ft1', 'ft2', 'ft3', 'ft4']
-	const branches: RobomergeBranchSpec[][] = [[], [], [], []]
-	const edges: EdgeProperties[][] = [[], [], [], []]
-	const macros: {[name:string]: string[]}[] = [{}, {}, {}, {}]
+	const settings: [string, BranchMapSettings][] = botNames.map(n => [n, {branches: [], edges: [], macros: {}}])
 	let groupIndex = 0
 	for (const test of tests) {
 		test.botName = botNames[groupIndex].toUpperCase()
+
 		groupIndex = (groupIndex + 1) % botNames.length
 	}
 
+	// cross bot tests rely on all bot names being set before tests are added
 	groupIndex = 0
 	for (const test of tests) {
-		branches[groupIndex] = [...branches[groupIndex], ...test.getBranches()]
-		edges[groupIndex] = [...edges[groupIndex], ...test.getEdges()]
-		macros[groupIndex] = {...macros[groupIndex], ...test.getMacros()}
+		addTest(settings[groupIndex][1], test)
+
 		groupIndex = (groupIndex + 1) % botNames.length
 	}
 
-	const settings = DEFAULT_BOT_SETTINGS
-
-	await Promise.all([
-		P4Util.addFile(rootClient, 'ft1.branchmap.json', JSON.stringify({...settings, branches: branches[0],
-													edges: edges[0], macros: macros[0], slackChannel: 'ft1', alias: 'ft1-alias'})),
-		P4Util.addFile(rootClient, 'ft2.branchmap.json', JSON.stringify({...settings, branches: branches[1],
-													edges: edges[1], macros: macros[1], slackChannel: 'ft2', alias: 'ft2-alias'})),
-		P4Util.addFile(rootClient, 'ft3.branchmap.json', JSON.stringify({...settings, branches: branches[2],
-													edges: edges[2], macros: macros[2], slackChannel: 'ft3', alias: 'ft3-alias'})),
-		P4Util.addFile(rootClient, 'ft4.branchmap.json', JSON.stringify({...settings, branches: branches[3],
-													edges: edges[3], macros: macros[3], slackChannel: 'ft4', alias: 'ft4-alias'}))
-	])
+	await Promise.all(settings.map(([botName, s]) => 
+		P4Util.addFile(rootClient, botName + '.branchmap.json', JSON.stringify({...DEFAULT_BOT_SETTINGS, ...s, slackChannel: botName, alias: botName + '-alias'}))
+	))
 
 	await rootClient.submit('Adding branchspecs')
 
@@ -182,7 +185,9 @@ async function go() {
 		new ComplexCrossBot3(p4),
 
 		new TestTerminal(p4),
-		new BlockIgnore(p4) // 40
+		new BlockIgnore(p4), // 40
+
+		new StompWithAdd(p4)
 	]
 
 	// const testToDebug = availableTests[30]
@@ -208,7 +213,7 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[20]]/*/availableTests   /*.slice(36)/**/
+	const tests = /*/[availableTests[21]]/*/availableTests  /* .slice(34, 39)/**/
 
 	//
 	///////////////////////
