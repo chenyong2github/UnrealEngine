@@ -860,8 +860,8 @@ public:
 	FString ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource) const;
 	void ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource, FString& OutResult) const;
 
-	FString ToExportedString() const;
-	void ToExportedString(FString& OutResult) const;
+	FString ToExportedString(const bool bStripPackageNamespace = false) const;
+	void ToExportedString(FString& OutResult, const bool bStripPackageNamespace = false) const;
 	const TCHAR* FromExportedString(const TCHAR* InBuffer);
 
 	FORCEINLINE EFormatArgumentType::Type GetType() const
@@ -1149,11 +1149,12 @@ public:
 	/**
 	 * Write the given FText instance to a stream of text
 	 *
-	 * @param Buffer			The buffer of text to write to.
-	 * @param Value				The text value to write into the buffer.
-	 * @param bRequiresQuotes	True if the written text literal must be surrounded by quotes (eg, when saving as a delimited list)
+	 * @param Buffer				 The buffer of text to write to.
+	 * @param Value					 The text value to write into the buffer.
+	 * @param bRequiresQuotes		 True if the written text literal must be surrounded by quotes (eg, when saving as a delimited list)
+	 * @param bStripPackageNamespace True to strip the package namespace from the written NSLOCTEXT value (eg, when saving cooked data)
 	 */
-	static void WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false);
+	static void WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false, const bool bStripPackageNamespace = false);
 	
 	UE_DEPRECATED(4.22, "FTextStringHelper::WriteToString is deprecated. Use FTextStringHelper::WriteToBuffer instead.")
 	static bool WriteToString(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false);
