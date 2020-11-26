@@ -106,6 +106,7 @@ void SkeletalSimplifier::FMeshSimplifier::SetBoxCornersLocked()
 
 void SkeletalSimplifier::FMeshSimplifier::InitCosts()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SkeletalSimplifier::InitCosts);
 
 	const int32 NumEdges = MeshManager.TotalNumEdges();
 	for (int i = 0; i < NumEdges; ++i)

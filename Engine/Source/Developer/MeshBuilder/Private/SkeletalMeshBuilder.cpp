@@ -57,6 +57,8 @@ FSkeletalMeshBuilder::FSkeletalMeshBuilder()
 
 bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSkeletalMeshBuilder::Build);
+
 	check(SkeletalMesh->GetImportedModel());
 	check(SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex));
 	check(SkeletalMesh->GetLODInfo(LODIndex) != nullptr);

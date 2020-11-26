@@ -442,6 +442,7 @@ namespace SkeletalSimplifier
 	template< typename TerminationCriterionType>
 	float FMeshSimplifier::SimplifyMesh(TerminationCriterionType TerminationCriterion)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FMeshSimplifier::SimplifyMesh);
 
 		// Build the cost heap
 		InitCosts();
