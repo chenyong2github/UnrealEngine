@@ -6,6 +6,9 @@
  */
 
 #include "IKRigProcessor.h"
+#include "IKRigDefinition.h"
+#include "IKRigSolverDefinition.h"
+#include "IKRigSolver.h"
 
  // IKRigProcessor implementation functions
 void UIKRigProcessor::SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool bInitialize /*= false*/)

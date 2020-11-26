@@ -2,6 +2,7 @@
 
 #include "IKRigDefinitionFactory.h"
 #include "IKRigDefinition.h"
+#include "AssetTypeCategories.h"
 
 #define LOCTEXT_NAMESPACE "IKRigDefinitionFactory"
 

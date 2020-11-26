@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "IKRigSolver.h"
+#include "IKRigSolverDefinition.h"
+#include "IKRigDataTypes.h"
 
 // input hierarchy and ref pose? 
 void UIKRigSolver::Init(UIKRigSolverDefinition* InSolverDefinition, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)

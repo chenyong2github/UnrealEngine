@@ -6,6 +6,7 @@
  */
 
 #include "IKRigSolverDefinition.h"
+#include "IKRigDefinition.h"
 
 void UIKRigSolverDefinition::CollectGoals(TArray<FName>& OutGoals)
 {

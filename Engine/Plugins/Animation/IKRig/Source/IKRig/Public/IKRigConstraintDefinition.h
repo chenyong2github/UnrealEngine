@@ -12,6 +12,8 @@
 #include "UObject/Object.h"
 #include "IKRigConstraintDefinition.generated.h"
 
+class UIKRigConstraint;
+
 USTRUCT()
 struct IKRIG_API FIKRigConstraintProfile 
 {

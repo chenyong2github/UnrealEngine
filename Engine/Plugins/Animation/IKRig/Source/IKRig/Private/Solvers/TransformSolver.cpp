@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "TransformSolver.h"
+#include "IKRigDataTypes.h"
+#include "IKRigHierarchy.h"
 #include "Solvers/TransformSolverDefinition.h"
 
 void UTransformSolver::InitInternal()

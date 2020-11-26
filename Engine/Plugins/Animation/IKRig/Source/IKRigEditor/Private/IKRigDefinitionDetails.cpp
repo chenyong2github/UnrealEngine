@@ -267,7 +267,7 @@ FReply FIKRigDefinitionDetails::OnImportHierarchy()
 		else if (SelectedAsset->IsA(USkeletalMesh::StaticClass()))
 		{
 			IKRigDefinition->SourceAsset = SelectedAsset.Get();
-			RefSkeleton = &(CastChecked<USkeletalMesh>(SelectedAsset)->RefSkeleton);
+			RefSkeleton = &(CastChecked<USkeletalMesh>(SelectedAsset)->GetRefSkeleton());
 		}
 
 		if (RefSkeleton)

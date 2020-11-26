@@ -10,6 +10,8 @@
 #include "IKRigSolver.h"
 #include "IKRigConstraintSolver.generated.h"
 
+class UIKRigConstraint;
+
 // run time processor 
 UCLASS(config = Engine, hidecategories = UObject)
 class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver

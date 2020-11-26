@@ -14,6 +14,8 @@
 #include "PropertyEditorDelegates.h"
 #include "EditorModeRegistry.h"
 #include "AnimGraphNode_IKRig.h"
+#include "AssetTypeActions_IKRigDefinition.h"
+#include "IKRigDefinition.h"
 
 IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
 
