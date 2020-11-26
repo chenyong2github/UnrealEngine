@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Chaos/Array.h"
+
 namespace GeometryCollectionTest
 {
 
