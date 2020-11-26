@@ -759,7 +759,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Actions">The actions to write</param>
 		/// <param name="OutputFile">Output file to write the actions to</param>
-		public static void ExportJson(IEnumerable<IAction> Actions, FileReference OutputFile)
+		public static void ExportJson(IEnumerable<LinkedAction> Actions, FileReference OutputFile)
 		{
 			DirectoryReference.CreateDirectory(OutputFile.Directory);
 			using (JsonWriter Writer = new JsonWriter(OutputFile))
@@ -776,11 +776,17 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteObjectEnd();
 
+				Dictionary<LinkedAction, int> ActionToId = new Dictionary<LinkedAction, int>();
+				foreach (LinkedAction Action in Actions)
+				{
+					ActionToId[Action] = ActionToId.Count;
+				}
+
 				Writer.WriteArrayStart("Actions");
-				foreach (IAction Action in Actions)
+				foreach (LinkedAction Action in Actions)
 				{
 					Writer.WriteObjectStart();
-					Action.ExportJson(Writer);
+					Action.ExportJson(ActionToId, Writer);
 					Writer.WriteObjectEnd();
 				}
 				Writer.WriteArrayEnd();

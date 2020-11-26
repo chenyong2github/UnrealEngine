@@ -285,17 +285,6 @@ namespace UnrealBuildTool
 		/// <returns>Result from the compilation</returns>
 		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile)
 		{
-			// Export the actions for each target
-			for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
-			{
-				TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
-				foreach(FileReference WriteActionFile in TargetDescriptor.WriteActionFiles)
-				{
-					Log.TraceInformation("Writing actions to {0}", WriteActionFile);
-					ActionGraph.ExportJson(Makefiles[TargetIdx].Actions, WriteActionFile);
-				}
-			}
-
 			// Execute the build
 			if ((Options & BuildOptions.SkipBuild) == 0)
 			{

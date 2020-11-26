@@ -235,6 +235,20 @@ namespace Tools.DotNETCommon
 		/// Write a value with no field name, for the contents of an array
 		/// </summary>
 		/// <param name="Value">Value to write</param>
+		public void WriteValue(int Value)
+		{
+			WriteCommaNewline();
+
+			Writer.Write(Indent);
+			Writer.Write(Value);
+
+			bRequiresComma = true;
+		}
+
+		/// <summary>
+		/// Write a value with no field name, for the contents of an array
+		/// </summary>
+		/// <param name="Value">Value to write</param>
 		public void WriteValue(string Value)
 		{
 			WriteCommaNewline();

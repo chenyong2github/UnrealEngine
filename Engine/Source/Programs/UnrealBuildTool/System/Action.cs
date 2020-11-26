@@ -395,9 +395,11 @@ namespace UnrealBuildTool
 		/// Writes an action to a json file
 		/// </summary>
 		/// <param name="Action">The action to write</param>
+		/// <param name="LinkedActionToId">Map of action to unique id</param>
 		/// <param name="Writer">Writer to receive the output</param>
-		public static void ExportJson(this IAction Action, JsonWriter Writer)
+		public static void ExportJson(this LinkedAction Action, Dictionary<LinkedAction, int> LinkedActionToId, JsonWriter Writer)
 		{
+			Writer.WriteValue("Id", LinkedActionToId[Action]);
 			Writer.WriteEnumValue("Type", Action.ActionType);
 			Writer.WriteValue("WorkingDirectory", Action.WorkingDirectory.FullName);
 			Writer.WriteValue("CommandPath", Action.CommandPath.FullName);
@@ -410,10 +412,10 @@ namespace UnrealBuildTool
 			Writer.WriteValue("bShouldOutputStatusDescription", Action.bShouldOutputStatusDescription);
 			Writer.WriteValue("bProducesImportLibrary", Action.bProducesImportLibrary);
 
-			Writer.WriteArrayStart("PrerequisiteItems");
-			foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
+			Writer.WriteArrayStart("PrerequisiteActions");
+			foreach (LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
 			{
-				Writer.WriteValue(PrerequisiteItem.AbsolutePath);
+				Writer.WriteValue(LinkedActionToId[PrerequisiteAction]);
 			}
 			Writer.WriteArrayEnd();
 
@@ -498,11 +500,6 @@ namespace UnrealBuildTool
 		public bool bIsGCCCompiler => Inner.bIsGCCCompiler;
 		public bool bShouldOutputStatusDescription => Inner.bShouldOutputStatusDescription;
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;
-
-		public void ExportJson(JsonWriter Writer)
-		{
-			Inner.ExportJson(Writer);
-		}
 
 		#endregion
 

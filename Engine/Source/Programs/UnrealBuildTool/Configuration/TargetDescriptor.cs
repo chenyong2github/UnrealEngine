@@ -53,12 +53,6 @@ namespace UnrealBuildTool
 		public Dictionary<string, int> HotReloadModuleNameToSuffix = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
-		/// Export the actions for the target to a file
-		/// </summary>
-		[CommandLine("-WriteActions=")]
-		public List<FileReference> WriteActionFiles = new List<FileReference>();
-
-		/// <summary>
 		/// Path to a file containing a list of modules that may be modified for live coding.
 		/// </summary>
 		[CommandLine("-LiveCodingModules=")]
