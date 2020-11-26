@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "LevelSnapshotFilters.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FLevelSnapshotsEditorFilters;
+
 /* Display in the favorite filter list.
- * TODO: Can be drag & dropped to 1. create new AND chain or 2. add a condition to an AND chain.
  */
 class SFavoriteFilter : public SCompoundWidget
 {
@@ -18,6 +22,16 @@ public:
 		SLATE_ATTRIBUTE(FText, FilterName)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSubclassOf<ULevelSnapshotFilter>& InFilterClass, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
 
+	//~ Begin SWidget Interface
+	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	//~ End SWidget Interface
+
+private:
+
+	TSubclassOf<ULevelSnapshotFilter> FilterClass;
+	/* Passed to drag drop operation so it can set the filter being edited. */
+	TSharedPtr<FLevelSnapshotsEditorFilters> DragDropActiveFilterSetterArgument;
 };

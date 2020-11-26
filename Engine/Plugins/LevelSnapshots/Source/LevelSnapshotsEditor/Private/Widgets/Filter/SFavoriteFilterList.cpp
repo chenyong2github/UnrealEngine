@@ -230,27 +230,33 @@ namespace
 	}
 }
 
-void SFavoriteFilterList::Construct(const FArguments& InArgs, const TWeakObjectPtr<UFavoriteFilterContainer>& InModel)
+SFavoriteFilterList::~SFavoriteFilterList()
 {
-	if (!ensure(InModel.IsValid()))
+	FavoriteModel->OnFavoritesChanged.Remove(ChangedFavoritesDelegateHandle);
+}
+
+void SFavoriteFilterList::Construct(const FArguments& InArgs, UFavoriteFilterContainer* InModel, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
+{
+	if (!ensure(InModel))
 	{
 		return;
 	}
+	FavoriteModel = InModel;
 
-	InModel->OnFavoritesChanged.AddLambda(
-		[this, InModel]()
+	ChangedFavoritesDelegateHandle = InModel->OnFavoritesChanged.AddLambda(
+		[this, InFilters]()
 		{
-			if (ensure(InModel.IsValid()) && ensure(FilterList.IsValid()))
+			if (ensure(FavoriteModel.IsValid()) && ensure(FilterList.IsValid()))
 			{
 				FilterList->ClearChildren();
 				
-				const TArray<TSubclassOf<ULevelSnapshotFilter>>& FavoriteFilters = InModel->GetFavorites();
+				const TArray<TSubclassOf<ULevelSnapshotFilter>>& FavoriteFilters = FavoriteModel->GetFavorites();
 				for (const TSubclassOf<ULevelSnapshotFilter>& FavoriteFilter : FavoriteFilters)
 				{
 					FilterList->AddSlot()
 						.Padding(3.f, 3.f)
 						[
-							SNew(SFavoriteFilter)
+							SNew(SFavoriteFilter, FavoriteFilter, InFilters)
 								.FilterName(FavoriteFilter->GetDisplayNameText())
 						];
 				}

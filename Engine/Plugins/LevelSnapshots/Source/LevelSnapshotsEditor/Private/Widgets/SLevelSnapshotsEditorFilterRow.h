@@ -7,7 +7,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-
 class SLevelSnapshotsEditorFilters;
 class SLevelSnapshotsEditorFilterList;
 
@@ -30,7 +29,13 @@ public:
 	);
 
 	const TWeakObjectPtr<UConjunctionFilter>& GetManagedFilter();
-	
+
+	//~ Begin SWidget Interface
+	void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+	FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	//~ End SWidget Interface
+
 private:
 
 	FOnClickRemoveRow OnClickRemoveRow;

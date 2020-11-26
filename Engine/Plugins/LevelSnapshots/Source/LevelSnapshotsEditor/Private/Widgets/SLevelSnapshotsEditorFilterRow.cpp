@@ -3,6 +3,7 @@
 #include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 
 #include "ConjunctionFilter.h"
+#include "FavoriteFilterDragDrop.h"
 #include "SLevelSnapshotsEditorFilterList.h"
 #include "SLevelSnapshotsEditorFilters.h"
 
@@ -19,6 +20,7 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 )
 {
 	OnClickRemoveRow = InArgs._OnClickRemoveRow;
+	ManagedFilterWeakPtr = InManagedFilter;
 	
 	ChildSlot
 		[
@@ -26,18 +28,26 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 			.Padding(FMargin(5.0f, 5.f))
 			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
 			[
-				SNew(SVerticalBox)
+				SNew(SHorizontalBox)
 
-				// Search and commands
-				+ SVerticalBox::Slot()
-				.AutoHeight()
+				// Filters
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.Padding(5.f, 5.f)
+				.FillWidth(1.f)
+				[
+					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel())
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Top)
+				.AutoWidth()
 				[
 					SNew(SHorizontalBox)
 
 					// Remove Button
 					+ SHorizontalBox::Slot()
 					.Padding(0.f, 0.f)
-					.HAlign(HAlign_Right)
 					.AutoWidth()
 					[
 						SNew(SButton)
@@ -55,14 +65,6 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 						]
 					]
 				]
-
-				// Filters
-				+ SVerticalBox::Slot()
-				.Padding(5.f, 5.f)
-				.AutoHeight()
-				[
-					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel())
-				]
 			]
 		];
 }
@@ -70,4 +72,30 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 const TWeakObjectPtr<UConjunctionFilter>& SLevelSnapshotsEditorFilterRow::GetManagedFilter()
 {
 	return ManagedFilterWeakPtr;
+}
+
+void SLevelSnapshotsEditorFilterRow::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FFavoriteFilterDragDrop> DragDrop = DragDropEvent.GetOperationAs<FFavoriteFilterDragDrop>())
+	{
+		DragDrop->OnEnterRow(SharedThis(this));
+	}
+}
+
+void SLevelSnapshotsEditorFilterRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FFavoriteFilterDragDrop> DragDrop = DragDropEvent.GetOperationAs<FFavoriteFilterDragDrop>())
+	{
+		DragDrop->OnLeaveRow(SharedThis(this));
+	}
+}
+
+FReply SLevelSnapshotsEditorFilterRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FFavoriteFilterDragDrop> DragDrop = DragDropEvent.GetOperationAs<FFavoriteFilterDragDrop>())
+	{
+		const bool bDropResult = DragDrop->OnDropOnRow(SharedThis(this));
+		return bDropResult ? FReply::Handled().EndDragDrop() : FReply::Unhandled();
+	}
+	return FReply::Unhandled();
 }

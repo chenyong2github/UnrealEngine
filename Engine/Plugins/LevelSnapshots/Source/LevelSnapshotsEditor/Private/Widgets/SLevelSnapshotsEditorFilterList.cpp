@@ -19,6 +19,7 @@ namespace
 		}
 
 		FilterContainer->RemoveSlot(RemovedFilterWidget);
+		ManagedAndCondition->RemoveChild(RemovedFilterWidget->GetSnapshotFilter().Get());
 	}
 }
 

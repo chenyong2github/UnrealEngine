@@ -2,12 +2,22 @@
 
 #include "SFavoriteFilter.h"
 
+#include "FavoriteFilterDragDrop.h"
+
 #include "EditorStyleSet.h"
+#include "LevelSnapshotsEditorFilters.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 
-void SFavoriteFilter::Construct(const FArguments& InArgs)
+void SFavoriteFilter::Construct(const FArguments& InArgs, const TSubclassOf<ULevelSnapshotFilter>& InFilterClass, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
+	if (!ensure(InFilterClass.Get()))
+	{
+		return;
+	}
+	FilterClass = InFilterClass;
+	DragDropActiveFilterSetterArgument = InFilters;
+	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -22,4 +32,14 @@ void SFavoriteFilter::Construct(const FArguments& InArgs)
 				.Text(InArgs._FilterName)
 		]
 	];
+}
+
+FReply SFavoriteFilter::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+}
+
+FReply SFavoriteFilter::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return FReply::Handled().BeginDragDrop(MakeShared<FFavoriteFilterDragDrop>(FilterClass, DragDropActiveFilterSetterArgument.ToSharedRef()));
 }
