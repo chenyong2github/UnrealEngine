@@ -6,6 +6,7 @@
 #include "Containers/StringFwd.h"
 
 class FString;
+template <typename FuncType> class TFunctionRef;
 
 class CORE_API FPathViews
 {
@@ -98,6 +99,16 @@ public:
 	 * @return The last non-empty path component.
 	 */
 	static FStringView GetPathLeaf(const FStringView& InPath);
+
+	/**
+	 * Splits InPath into individual directory components, and calls ComponentVisitor on each.
+	 *
+	 * Examples:
+	 * "A/B.C" -> {"A", "B.C"}
+	 * "A/B/C" -> {"A", "B", "C"}
+	 * "../../A/B/C.D" -> {"..", "..", "A", "B", "C.D" }
+	 */
+	static void IterateComponents(FStringView InPath, TFunctionRef<void(FStringView)> ComponentVisitor);
 
 	/**
 	 * Splits a path into three parts, any of which may be empty: the path, the clean name, and the extension.

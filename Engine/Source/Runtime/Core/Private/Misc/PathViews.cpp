@@ -6,6 +6,8 @@
 #include "Containers/UnrealString.h"
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
+#include "String/ParseTokens.h"
+#include "Templates/Function.h"
 
 namespace UE4PathViews_Private
 {
@@ -67,6 +69,11 @@ FStringView FPathViews::GetPathLeaf(const FStringView& InPath)
 		return GetCleanFilename(InPath.Left((FStringView::SizeType)(EndPos - InPath.GetData())));
 	}
 	return FStringView();
+}
+
+void FPathViews::IterateComponents(FStringView InPath, TFunctionRef<void(FStringView)> ComponentVisitor)
+{
+	UE::String::ParseTokensMultiple(InPath, { TEXT('/'), TEXT('\\') }, ComponentVisitor);
 }
 
 void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringView& OutName, FStringView& OutExt)
