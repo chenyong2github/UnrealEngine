@@ -11,11 +11,19 @@
 
 static int32 MaxQuartzSubscribersToUpdatePerTickCvar = -1;
 FAutoConsoleVariableRef CVarMaxQuartzSubscribersToUpdatePerTick(
-TEXT("au.Quartz.MaxSubscribersToUpdatePerTick"),
-MaxQuartzSubscribersToUpdatePerTickCvar,
-TEXT("Limits the number of Quartz subscribers to update per Tick.\n")
-TEXT("<= 0: No Limit, >= 1: Limit"),
-ECVF_Default);
+	TEXT("au.Quartz.MaxSubscribersToUpdatePerTick"),
+	MaxQuartzSubscribersToUpdatePerTickCvar,
+	TEXT("Limits the number of Quartz subscribers to update per Tick.\n")
+	TEXT("<= 0: No Limit, >= 1: Limit"),
+	ECVF_Default);
+
+static int32 DisableQuartzCvar = 0;
+FAutoConsoleVariableRef CVarDisableQuartz(
+	TEXT("au.Quartz.DisableQuartz"),
+	DisableQuartzCvar,
+	TEXT("Disables Quartz.\n")
+	TEXT("0 (default): Enabled, 1: Disabled"),
+	ECVF_Default);
 
 
 static FAudioDevice* GetAudioDeviceUsingWorldContext(const UObject* WorldContextObject)
@@ -58,6 +66,11 @@ UQuartzSubsystem::~UQuartzSubsystem()
 
 void UQuartzSubsystem::Tick(float DeltaTime)
 {
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
 	const int32 NumSubscribers = QuartzTickSubscribers.Num();
 
 	if (MaxQuartzSubscribersToUpdatePerTickCvar <= 0 || NumSubscribers <= MaxQuartzSubscribersToUpdatePerTickCvar)
@@ -93,6 +106,11 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 
 bool UQuartzSubsystem::IsTickable() const
 {
+	if (DisableQuartzCvar)
+	{
+		return false;
+	}
+
 	if (!QuartzTickSubscribers.Num())
 	{
 		return false;
@@ -117,18 +135,33 @@ TStatId UQuartzSubsystem::GetStatId() const
 
 void UQuartzSubsystem::SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
 	QuartzTickSubscribers.AddUnique(InObjectToTick);
 }
 
 
 void UQuartzSubsystem::UnsubscribeFromQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
 	QuartzTickSubscribers.RemoveSingleSwap(InObjectToTick);
 }
 
 
 UQuartzSubsystem* UQuartzSubsystem::Get(UWorld* World)
 {
+	if (DisableQuartzCvar)
+	{
+		return nullptr;
+	}
+
 	return World->GetSubsystem<UQuartzSubsystem>();
 }
 
@@ -155,6 +188,11 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataDataForSchedulePl
 	}
 
 	return CommandInitInfo;
+}
+
+bool UQuartzSubsystem::IsQuartzEnabled()
+{
+	return DisableQuartzCvar == 0;
 }
 
 
@@ -199,6 +237,11 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset
 
 UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists)
 {
+	if (DisableQuartzCvar)
+	{
+		return nullptr;
+	}
+
 	if (ClockName.IsNone())
 	{
 		return nullptr; // TODO: Create a unique name
@@ -220,6 +263,11 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 
 UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldContextObject, FName ClockName)
 {
+	if (DisableQuartzCvar)
+	{
+		return nullptr;
+	}
+
 	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
 	if (!ClockManager)
 	{
@@ -237,6 +285,11 @@ UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldCont
 
 bool UQuartzSubsystem::DoesClockExist(const UObject* WorldContextObject, FName ClockName)
 {
+	if (DisableQuartzCvar)
+	{
+		return false;
+	}
+
 	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
 	if (!ClockManager)
 	{
@@ -319,6 +372,11 @@ float UQuartzSubsystem::GetRoundTripMaxLatency(const UObject* WorldContextObject
 
 void UQuartzSubsystem::AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo)
 {
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
 	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
 	if (!ClockManager)
 	{
@@ -331,6 +389,11 @@ void UQuartzSubsystem::AddCommandToClock(const UObject* WorldContextObject, Audi
 
 Audio::FQuartzClockManager* UQuartzSubsystem::GetClockManager(const UObject* WorldContextObject) const
 {
+	if (DisableQuartzCvar)
+	{
+		return nullptr;
+	}
+
 	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceUsingWorldContext(WorldContextObject);
 
 	if (MixerDevice)
