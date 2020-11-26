@@ -585,6 +585,10 @@ public:
 	UPROPERTY()
 	FGuid BakedTextureMaterialGuid;
 
+	/** The Material Guid that last saved, to notify manual build operation to bake textures */
+	UPROPERTY(Transient)
+	FGuid LastBakedTextureMaterialGuid;
+
 	/** Pre-baked Base Color texture for use by distance field GI */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BakedTextures)
 	UTexture2D* GIBakedBaseColorTexture;

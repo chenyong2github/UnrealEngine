@@ -65,7 +65,7 @@ const FName FBuildOptions::BuildAllOnlySelectedPaths(TEXT("BuildAllOnlySelectedP
 const FName FBuildOptions::BuildHierarchicalLOD(TEXT("BuildHierarchicalLOD"));
 const FName FBuildOptions::BuildTextureStreaming(TEXT("BuildTextureStreaming"));
 const FName FBuildOptions::BuildVirtualTexture(TEXT("BuildVirtualTexture"));
-const FName FBuildOptions::BuildGrassMaps(TEXT("BuildGrassMaps"));
+const FName FBuildOptions::BuildAllLandscape(TEXT("BuildAllLandscape"));
 
 bool FEditorBuildUtils::bBuildingNavigationFromUserRequest = false;
 TMap<FName, FEditorBuildUtils::FCustomBuildType> FEditorBuildUtils::CustomBuildTypes;
@@ -307,9 +307,9 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 	{
 		BuildType = SBuildProgressWidget::BUILDTYPE_VirtualTexture;
 	}
-	else if (Id == FBuildOptions::BuildGrassMaps)
+	else if (Id == FBuildOptions::BuildAllLandscape)
 	{
-		BuildType = SBuildProgressWidget::BUILDTYPE_GrassMaps;
+		BuildType = SBuildProgressWidget::BUILDTYPE_AllLandscape;
 	}
 	else
 	{
@@ -432,13 +432,13 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 			TriggerHierarchicalLODBuilder(InWorld, Id);
 		}
 	}
-	else if (Id == FBuildOptions::BuildGrassMaps)
+	else if (Id == FBuildOptions::BuildAllLandscape)
 	{
 		bDoBuild = GEditor->WarnAboutHiddenLevels(InWorld, false);
 		if (bDoBuild)
 		{
-			GEditor->ResetTransaction(NSLOCTEXT("UnrealEd", "BuildGrassMaps", "Building Grass Maps"));
-			EditorBuildGrassMaps(InWorld);
+			GEditor->ResetTransaction(NSLOCTEXT("UnrealEd", "BuildAllLandscape", "Building Landscape"));
+			EditorBuildAllLandscape(InWorld);
 		}
 	}
 	else if (Id == FBuildOptions::BuildAll || Id == FBuildOptions::BuildAllSubmit)
@@ -928,7 +928,7 @@ FBuildAllHandler::FBuildAllHandler()
 	: CurrentStep(0)
 {
 	// Add built in build steps.
-	BuildSteps.Add(FBuildOptions::BuildGrassMaps);
+	BuildSteps.Add(FBuildOptions::BuildAllLandscape);
 	BuildSteps.Add(FBuildOptions::BuildGeometry);
 	BuildSteps.Add(FBuildOptions::BuildHierarchicalLOD);
 	BuildSteps.Add(FBuildOptions::BuildAIPaths);
@@ -1030,10 +1030,10 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_VirtualTexture);
 			FEditorBuildUtils::EditorBuildVirtualTexture(CurrentWorld);
 		}
-		else if (StepId == FBuildOptions::BuildGrassMaps)
+		else if (StepId == FBuildOptions::BuildAllLandscape)
 		{
-			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_GrassMaps);
-			FEditorBuildUtils::EditorBuildGrassMaps(CurrentWorld);
+			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_AllLandscape);
+			FEditorBuildUtils::EditorBuildAllLandscape(CurrentWorld);
 		}
 		else if (StepId == FBuildOptions::BuildAIPaths)
 		{
@@ -1432,13 +1432,13 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 	return true;
 }
 
-void FEditorBuildUtils::EditorBuildGrassMaps(UWorld* InWorld)
+void FEditorBuildUtils::EditorBuildAllLandscape(UWorld* InWorld)
 {
 	if (InWorld)
 	{
 		if (ULandscapeSubsystem* LandscapeSubsystem = InWorld->GetSubsystem<ULandscapeSubsystem>())
 		{
-			LandscapeSubsystem->BuildGrassMaps();
+			LandscapeSubsystem->BuildAll();
 		}
 	}
 }

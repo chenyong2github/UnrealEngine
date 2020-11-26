@@ -570,8 +570,8 @@ void FLevelEditorMenu::RegisterBuildMenu()
 	}
 
 	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorGrass", LOCTEXT("GrassHeading", "Grass Maps"));
-		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildGrassMapsOnly);
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLandscape", LOCTEXT("LandscapeHeading", "Landscape"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildAllLandscape);
 	}
 
 	{

@@ -46,8 +46,8 @@ public:
 		BUILDTYPE_TextureStreaming, 
 		/** Virtual texture data is being built */
 		BUILDTYPE_VirtualTexture,
-		/** Grass maps are being built */
-		BUILDTYPE_GrassMaps,
+		/** All Landscape is being built*/
+		BUILDTYPE_AllLandscape,
 	};
 
 	/** The various issues that can occur. */

@@ -28,6 +28,9 @@
 #include "LandscapeSplineDetails.h"
 
 #include "LevelEditor.h"
+#include "ToolMenus.h"
+#include "Editor/EditorEngine.h"
+#include "LandscapeSubsystem.h"
 
 #include "LandscapeRender.h"
 
@@ -72,7 +75,7 @@ public:
 			true,
 			300
 			);
-	
+
 		// register customizations
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("LandscapeEditorObject", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeEditorDetails::MakeInstance));
@@ -112,6 +115,20 @@ public:
 		RegisterWeightmapFileFormat(MakeShareable(new FLandscapeWeightmapFileFormat_Png()));
 		RegisterHeightmapFileFormat(MakeShareable(new FLandscapeHeightmapFileFormat_Raw()));
 		RegisterWeightmapFileFormat(MakeShareable(new FLandscapeWeightmapFileFormat_Raw()));
+
+		//Landscape extended menu
+		UToolMenu* BuildMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Build");
+		if (BuildMenu)
+		{
+			FToolMenuSection& Section = BuildMenu->FindOrAddSection("LevelEditorLandscape");
+
+			FUIAction ActionBakeTextures(FExecuteAction::CreateStatic(&BuildGITextures), FCanExecuteAction());
+			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildGITexturesOnly", "Build GI Textures Only"),LOCTEXT("BuildGIBakedTextures ", "Build GI baked base color textures"), TAttribute<FSlateIcon>(), ActionBakeTextures,EUserInterfaceActionType::Button);
+			
+			FUIAction ActionBuildGrassMaps(FExecuteAction::CreateStatic(&BuildGrassMaps), FCanExecuteAction());
+			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildGrassMapsOnly","Build Grass Maps Only"), LOCTEXT("BuildLandscapeGrassMaps","Build landscape grass maps"),TAttribute<FSlateIcon>(), ActionBuildGrassMaps, EUserInterfaceActionType::Button);
+		}
+
 	}
 
 	/**
@@ -183,6 +200,28 @@ public:
 			false, 
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.Visualizers")
 		);
+	}
+
+	static void BuildGITextures()
+	{
+		if (UWorld* World = GEditor->GetEditorWorldContext().World())
+		{
+			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+			{
+				LandscapeSubsystem->BuildGITextures();
+			}
+		}
+	}
+
+	static void BuildGrassMaps()
+	{
+		if (UWorld* World = GEditor->GetEditorWorldContext().World())
+		{
+			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+			{
+				LandscapeSubsystem->BuildGrassMaps();
+			}
+		}
 	}
 
 	static void ChangeLandscapeViewMode(ELandscapeViewMode::Type ViewMode)

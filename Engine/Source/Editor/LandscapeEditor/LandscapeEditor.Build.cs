@@ -26,6 +26,7 @@ public class LandscapeEditor : ModuleRules
 				"ImageWrapper",
                 "EditorWidgets",
                 "Foliage",
+				"ToolMenus"
 			}
 			);
 

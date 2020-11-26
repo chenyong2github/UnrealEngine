@@ -1489,8 +1489,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction(Commands.BuildVirtualTextureOnly,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildVirtualTextureOnly_Execute));
 
-	ActionList.MapAction(Commands.BuildGrassMapsOnly,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildGrassMapsOnly_Execute));
+	ActionList.MapAction(Commands.BuildAllLandscape,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildAllLandscape_Execute));
 
 	ActionList.MapAction( 
 		Commands.LightingQuality_Production, 

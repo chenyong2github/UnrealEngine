@@ -71,6 +71,7 @@ Landscape.cpp: Terrain rendering
 #include "Algo/BinarySearch.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
+#include "Misc/ScopedSlowTask.h"
 #endif
 
 /** Landscape stats */
@@ -553,6 +554,14 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		PlatformData.Serialize(Ar, this);
 	}
 #endif
+
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsPersistent())
+	{
+		//Update the lastsaved Guid for GI texture
+		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
+	}
+#endif
 }
 
 void ULandscapeComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -795,6 +804,7 @@ void ULandscapeComponent::PostLoad()
 				}
 			}
 		}
+		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
 	}
 #endif
 
@@ -2087,6 +2097,8 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 #if WITH_EDITOR
 	// Work out whether we have grass or not for the next game run
 	BuildGrassMaps();
+	//Update the baked textures before saving
+	BuildGITextures();
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
@@ -3749,13 +3761,77 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 	}
 }
 
-void ALandscapeProxy::UpdateBakedTextures()
+#if WITH_EDITOR
+FLandscapeBakedGITextureBuilder::FLandscapeBakedGITextureBuilder(UWorld* InWorld)
+	:World(InWorld)
+	,ComponentsNeedingTextureBaking(0)
+{
+
+}
+
+void FLandscapeBakedGITextureBuilder::Build()
+{
+	if (World)
+	{
+		const int32 Count = GetComponentsNeedingTextureBaking();
+		FScopedSlowTask SlowTask(Count, (LOCTEXT("BakeTextures_BuildLandscapeBakedTextures", "Baking Landscape Textures")));
+		SlowTask.MakeDialog();
+
+		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+		{
+			ProxyIt->BuildGITextures(&SlowTask);
+		}
+	}
+}
+
+int32 FLandscapeBakedGITextureBuilder::GetComponentsNeedingTextureBaking()
+{
+	if (World)
+	{
+		ComponentsNeedingTextureBaking = 0;
+		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+		{
+			ComponentsNeedingTextureBaking += ProxyIt->GetComponentsNeedingGITextureBaking();
+		}
+	}
+	return ComponentsNeedingTextureBaking;
+}
+
+void ALandscapeProxy::BuildGITextures(struct FScopedSlowTask* InSlowTask /* = nullptr */)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		const bool bShouldMarkDirty = true;
+		UpdateBakedTextures(bShouldMarkDirty);
+	}
+}
+int32 ALandscapeProxy::GetComponentsNeedingGITextureBaking() const
+{
+	int32 NumOfComponentsNeedingTextureBaking = 0;
+	for (auto Component : LandscapeComponents)
+	{
+		const bool bIsDirty = Component->GetPackage()->IsDirty();
+		if (Component->LastBakedTextureMaterialGuid != Component->BakedTextureMaterialGuid && !bIsDirty)
+		{
+			NumOfComponentsNeedingTextureBaking++;
+		}
+	}
+	return NumOfComponentsNeedingTextureBaking;
+}
+#endif
+
+void ALandscapeProxy::UpdateBakedTextures(bool bInShouldMarkDirty)
 {
 	// See if we can render
 	UWorld* World = GetWorld();
 	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->FeatureLevel < ERHIFeatureLevel::SM5)
 	{
 		return;
+	}
+
+	if (bInShouldMarkDirty && GetComponentsNeedingGITextureBaking()>0)
+	{
+		MarkPackageDirty();
 	}
 
 	if (UpdateBakedTexturesCountdown-- > 0)
@@ -3773,6 +3849,7 @@ void ALandscapeProxy::UpdateBakedTextures()
 		{
 			if (Component != nullptr && Component->GIBakedBaseColorTexture != nullptr)
 			{
+				Component->Modify(bInShouldMarkDirty);
 				Component->BakedTextureMaterialGuid.Invalidate();
 				Component->GIBakedBaseColorTexture = nullptr;
 				Component->MarkRenderStateDirty();
@@ -3784,7 +3861,7 @@ void ALandscapeProxy::UpdateBakedTextures()
 
 		return;
 	}
-	
+
 	// Stores the components and their state hash data for a single atlas
 	struct FBakedTextureSourceInfo
 	{
@@ -3815,6 +3892,8 @@ void ALandscapeProxy::UpdateBakedTextures()
 	TotalComponentsNeedingTextureBaking -= NumComponentsNeedingTextureBaking;
 	NumComponentsNeedingTextureBaking = 0;
 	int32 NumGenerated = 0;
+
+
 
 	for (auto It = ComponentsByHeightmap.CreateConstIterator(); It; ++It)
 	{
@@ -3863,7 +3942,7 @@ void ALandscapeProxy::UpdateBakedTextures()
 					break;
 				}
 			}
-			
+
 			if (bNeedsBake)
 			{
 				// We throttle, baking only one atlas per frame
@@ -3909,6 +3988,7 @@ void ALandscapeProxy::UpdateBakedTextures()
 
 					for (ULandscapeComponent* Component : Info.Components)
 					{
+						Component->Modify(bInShouldMarkDirty);
 						Component->BakedTextureMaterialGuid = CombinedStateId;
 						Component->GIBakedBaseColorTexture = AtlasTexture;
 						Component->MarkRenderStateDirty();

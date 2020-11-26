@@ -931,7 +931,7 @@ public:
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
 	/** Update any textures baked from the landscape as necessary */
-	void UpdateBakedTextures();
+	void UpdateBakedTextures(bool bInShouldMarkDirty = false);
 
 	/** Update the landscape physical material render tasks */
 	void UpdatePhysicalMaterialTasks();
@@ -981,6 +981,8 @@ public:
 
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API void BuildGITextures(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API int32 GetComponentsNeedingGITextureBaking() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
 	LANDSCAPE_API virtual void CreateSplineComponent(const FVector& Scale3D) override;
 
@@ -1204,5 +1206,19 @@ private:
 	UWorld* World;
 	mutable int32 OutdatedGrassMapCount;
 	mutable double GrassMapsLastCheckTime;
+};
+
+/**
+ * Helper class used to Build or monitor Landscape GI Textures
+ */
+class LANDSCAPE_API FLandscapeBakedGITextureBuilder
+{
+public:
+	FLandscapeBakedGITextureBuilder(UWorld* InWorld);
+	void Build();
+	int32 GetComponentsNeedingTextureBaking();
+private:
+	UWorld* World;
+	int32 ComponentsNeedingTextureBaking;
 };
 #endif

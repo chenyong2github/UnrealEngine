@@ -32,12 +32,15 @@ public:
 	// End FTickableGameObject overrides
 
 #if WITH_EDITOR
+	LANDSCAPE_API void BuildAll();
 	LANDSCAPE_API void BuildGrassMaps();
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
-
+	LANDSCAPE_API void BuildGITextures();
+	LANDSCAPE_API int32 GetComponentsNeedingGITextureBaking();
 	LANDSCAPE_API bool IsGridBased() const;
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
+	LANDSCAPE_API void DisplayBuildMessages(class FCanvas* Canvas, float& XPos, float& YPos);
 #endif
 
 private:
@@ -50,6 +53,7 @@ private:
 
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
+	class FLandscapeBakedGITextureBuilder* BakedGITextureBuilder;
 	FLandscapeActorDescFactory LandscapeActorDescFactory;
 #endif
 };

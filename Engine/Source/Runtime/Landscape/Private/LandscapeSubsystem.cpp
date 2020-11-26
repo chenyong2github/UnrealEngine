@@ -15,6 +15,7 @@
 #include "Engine/World.h"
 #include "Math/IntRect.h"
 #include "LandscapeConfigHelper.h"
+#include "Engine/Canvas.h"
 
 static int32 GUseStreamingManagerForCameras = 1;
 static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
@@ -23,6 +24,8 @@ static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
 	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
 
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
+
+#define LOCTEXT_NAMESPACE "LandscapeSubsystem"
 
 ULandscapeSubsystem::ULandscapeSubsystem()
 {
@@ -56,6 +59,7 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
+	BakedGITextureBuilder = new FLandscapeBakedGITextureBuilder(GetWorld());
 #endif
 }
 
@@ -156,6 +160,12 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 }
 
 #if WITH_EDITOR
+void ULandscapeSubsystem::BuildAll()
+{
+	BuildGrassMaps();
+	BuildGITextures();
+}
+
 void ULandscapeSubsystem::BuildGrassMaps()
 {
 	GrassMapsBuilder->Build();
@@ -164,6 +174,16 @@ void ULandscapeSubsystem::BuildGrassMaps()
 int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
 {
 	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
+}
+
+void ULandscapeSubsystem::BuildGITextures()
+{
+	BakedGITextureBuilder->Build();
+}
+
+int32 ULandscapeSubsystem::GetComponentsNeedingGITextureBaking()
+{
+	return BakedGITextureBuilder->GetComponentsNeedingTextureBaking();
 }
 
 bool ULandscapeSubsystem::IsGridBased() const
@@ -194,4 +214,29 @@ ALandscapeProxy* ULandscapeSubsystem::FindOrAddLandscapeProxy(ULandscapeInfo* La
 	return FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(LandscapeInfo, SectionBase);
 }
 
+void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, float& YPos)
+{
+	const int32 FontSizeY = 20;
+	FCanvasTextItem SmallTextItem(FVector2D(0, 0), FText::GetEmpty(), GEngine->GetSmallFont(), FLinearColor::White);
+	SmallTextItem.EnableShadow(FLinearColor::Black);
+
+	if (int32 OutdatedGrassMapCount = GetOutdatedGrassMapCount())
+	{
+		SmallTextItem.SetColor(FLinearColor::Red);
+		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "GRASS MAPS NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
+		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
+		YPos += FontSizeY;
+	}
+
+	if (int32 ComponentsNeedingGITextureBaking = GetComponentsNeedingGITextureBaking())
+	{
+		SmallTextItem.SetColor(FLinearColor::Red);
+		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE BAKED TEXTURES NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
+		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
+		YPos += FontSizeY;
+	}
+}
+
 #endif
+
+#undef LOCTEXT_NAMESPACE
