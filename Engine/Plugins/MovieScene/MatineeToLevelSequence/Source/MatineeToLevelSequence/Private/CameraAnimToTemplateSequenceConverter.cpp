@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "CameraAnimToTemplateSequenceConverter.h"
 #include "AssetToolsModule.h"
 #include "Camera/CameraActor.h"

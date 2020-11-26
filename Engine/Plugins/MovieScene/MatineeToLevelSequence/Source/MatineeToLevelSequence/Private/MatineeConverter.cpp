@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MatineeConverter.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Camera/CameraActor.h"
