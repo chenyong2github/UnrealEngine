@@ -666,6 +666,77 @@ bool USourceControlHelpers::MarkFileForDelete(const FString& InFile, bool bSilen
 }
 
 
+bool USourceControlHelpers::MarkFilesForDelete(const TArray<FString>& InFiles, bool bSilent)
+{
+	// Determine file type and ensure it is in form source control wants
+	// Even if some files were skipped, still apply to the others
+	TArray<FString> SCFiles;
+	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, SCFiles, bSilent);
+	const int32 NumFiles = SCFiles.Num();
+
+	// Ensure source control system is up and running
+	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
+	if (!Provider)
+	{
+		// Error or can't communicate with source control
+		// Could erase the files anyway, though keeping them for now.
+		return false;
+	}
+
+	TArray<FSourceControlStateRef> SCStates;
+	Provider->GetState(SCFiles, SCStates, EStateCacheUsage::ForceUpdate);
+
+	TArray<FString> SCFilesToRevert;
+	TArray<FString> SCFilesToMarkForDelete;
+	for (int32 Index = 0; Index < NumFiles; ++Index)
+	{
+		FString SCFile = SCFiles[Index];
+		FSourceControlStateRef SCState = SCStates[Index];
+
+		// Less error checking and info is made for multiple files than the single file version.
+		// This multi-file version could be made similarly more sophisticated.
+		if (SCState->IsSourceControlled())
+		{
+			bool bAdded = SCState->IsAdded();
+			if (bAdded || SCState->IsCheckedOut())
+			{
+				SCFilesToRevert.Add(SCFile);
+			}
+
+			if (!bAdded)
+			{
+				SCFilesToMarkForDelete.Add(SCFile);
+			}
+		}
+	}
+
+	bool bSuccess = bFilesSkipped;
+	if (SCFilesToRevert.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FRevert>(), SCFiles) != ECommandResult::Failed;
+	}
+
+	if (SCFilesToMarkForDelete.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FDelete>(), SCFiles) != ECommandResult::Failed;
+	}
+
+	// Delete remaining files if they still exist : 
+	IFileManager& FileManager = IFileManager::Get();
+	for (FString SCFile : SCFiles)
+	{
+		if (FileManager.FileExists(*SCFile))
+		{
+			// Just a regular file not tracked by source control so erase it.
+			// Don't bother checking if it exists since Delete doesn't care.
+			bSuccess &= FileManager.Delete(*SCFile, false, true);
+		}
+	}
+
+	return bSuccess;
+}
+
+
 bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 {
 	// Determine file type and ensure it is in form source control wants
