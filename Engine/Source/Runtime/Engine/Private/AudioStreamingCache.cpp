@@ -1760,8 +1760,7 @@ int32 FCachedAudioStreamingManager::RenderStatAudioStreaming(UWorld* World, FVie
 		Canvas->DrawShadowedString(X, Y, *CacheTitle, UEngine::GetSmallFont(), FLinearColor::White);
 		Y += 12;
 
-		TPair<int, int> Size;
-		Size = Cache.DebugDisplay(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
+		TPair<int, int> Size = Cache.DebugDisplay(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 
 		// Separate caches are laid out horizontally across the screen, so the total height is equal to our tallest cache panel:
 		X += Size.Key;
@@ -2389,7 +2388,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	Y = (CurrVertOffset + 24);
 
 	// Draw the body of our display depending on the CVAR
-	TPair<int, int> Size;
+	TPair<int, int> Size(X,Y);
 	if (StreamCacheDebugViewCVar == 0)
 	{
 		Size = DebugDisplayLegacy(World, Viewport, Canvas, X, Y + 2 * BarPad, ViewLocation, ViewRotation);
