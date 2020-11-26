@@ -191,12 +191,12 @@ namespace FixedTagPrivate
 	{
 		return A == B || FName::GetComparisonIdFromDisplayId(A) == FName::GetComparisonIdFromDisplayId(B);
 	}
-
+	
 	static bool EqualsInsensitive(const FNumberlessExportPath& A, const FNumberlessExportPath& B)
 	{
-		return	EqualsInsensitive(A.Class, B.Class) &
-				EqualsInsensitive(A.Package, B.Package) &
-				EqualsInsensitive(A.Object, B.Object);
+		return	EqualsInsensitive(A.Class, B.Class) &		//-V792
+				EqualsInsensitive(A.Package, B.Package) &	//-V792
+				EqualsInsensitive(A.Object, B.Object);		//-V792
 	}
 
 	static bool EqualsInsensitive(const FAssetRegistryExportPath& A, const FAssetRegistryExportPath& B)
@@ -222,7 +222,7 @@ namespace FixedTagPrivate
 
 	static bool IsNumberless(FAssetRegistryExportPath Path)
 	{
-		return IsNumberless(Path.Class) & IsNumberless(Path.Object) & IsNumberless(Path.Package);
+		return IsNumberless(Path.Class) & IsNumberless(Path.Object) & IsNumberless(Path.Package); //-V792
 	}
 
 	static FAssetRegistryExportPath MakeNumberedPath(const FNumberlessExportPath& Path)
@@ -404,7 +404,7 @@ namespace FixedTagPrivate
 		return false;
 	}
 
-	static FString ToLoose(FValueHandle Fixed)
+	static FString FixedToLoose(FValueHandle Fixed)
 	{
 		return Fixed.Id.Type == EValueType::LocalizedText
 			? ToComplexString(GStores[Fixed.StoreIndex].Texts[Fixed.Id.Index]) : Fixed.AsString();
@@ -1106,6 +1106,11 @@ FText FAssetTagValueRef::AsText() const
 	return TryGetAsText(Tmp) ? Tmp : FText::FromString(IsFixed() ? AsFixed().AsString() : AsLoose());
 }
 
+FString FAssetTagValueRef::ToLoose() const
+{
+	return IsFixed() ? FixedToLoose(AsFixed()) : AsLoose();
+}
+
 bool FAssetTagValueRef::Equals(FStringView Str) const
 {
 	if (IsSet())
@@ -1187,7 +1192,7 @@ FAssetDataTagMap FAssetDataTagMapSharedView::CopyMap() const
 	{
 		FAssetDataTagMap Out;
 		Out.Reserve(Num());
-		ForEach([&](TPair<FName, FAssetTagValueRef> Pair){ Out.Add(Pair.Key, ToLoose(Pair.Value.AsFixed())); });
+		ForEach([&](TPair<FName, FAssetTagValueRef> Pair){ Out.Add(Pair.Key, FixedToLoose(Pair.Value.AsFixed())); });
 		return Out;
 	}
 	else

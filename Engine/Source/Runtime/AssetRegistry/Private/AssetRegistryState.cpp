@@ -153,7 +153,7 @@ void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAnd
 			if (bInAllClasseslist || bInClassSpecificlist)
 			{
 				// It is in the white list. Keep it.
-				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.AsString());
+				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.ToLoose());
 			}
 		}
 		else
@@ -162,7 +162,7 @@ void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAnd
 			if (!bInAllClasseslist && !bInClassSpecificlist)
 			{
 				// It isn't in the blacklist. Keep it.
-				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.AsString());
+				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.ToLoose());
 			}
 		}
 	}
@@ -690,9 +690,9 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	{
 		auto SkipAssetData = [&](const FAssetData* AssetData) 
 		{ 
-			return	PackageNamesToSkip.Contains(AssetData->PackageName) |
-					AssetData->HasAnyPackageFlags(FilterWithoutPackageFlags) |
-					!AssetData->HasAllPackageFlags(FilterWithPackageFlags);
+			return	PackageNamesToSkip.Contains(AssetData->PackageName) |			//-V792
+					AssetData->HasAnyPackageFlags(FilterWithoutPackageFlags) |		//-V792
+					!AssetData->HasAllPackageFlags(FilterWithPackageFlags);			//-V792
 		};
 
 		if (FilterResults.Num() > 1)
