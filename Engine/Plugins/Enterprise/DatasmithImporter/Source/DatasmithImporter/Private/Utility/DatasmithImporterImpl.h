@@ -39,6 +39,7 @@ class FFeedbackContext;
 class IDatasmithBaseMaterialElement;
 class UActorComponent;
 class UDatasmithObjectTemplate;
+class FMaterialUpdateContext;
 class UMaterial;
 class UMaterialInterface;
 class USceneComponent;
@@ -73,7 +74,7 @@ public:
 	/** Set the texture mode on each texture element based on its usage in the materials */
 	static void SetTexturesMode( FDatasmithImportContext& ImportContext );
 
-	static void CompileMaterial( UObject* Material );
+	static void CompileMaterial( UObject* Material, FMaterialUpdateContext* MaterialUpdateContext = nullptr);
 
 	static void FixReferencesForObject( UObject* Object, const TMap< UObject*, UObject* >& ReferencesToRemap );
 

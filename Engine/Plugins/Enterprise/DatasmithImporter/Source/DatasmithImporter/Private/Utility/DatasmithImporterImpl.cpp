@@ -307,7 +307,7 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 	}
 }
 
-void FDatasmithImporterImpl::CompileMaterial( UObject* Material )
+void FDatasmithImporterImpl::CompileMaterial( UObject* Material, FMaterialUpdateContext* MaterialUpdateContext)
 {
 	if ( !Material->IsA< UMaterialInterface >() && !Material->IsA< UMaterialFunctionInterface >() )
 	{
@@ -316,11 +316,16 @@ void FDatasmithImporterImpl::CompileMaterial( UObject* Material )
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporterImpl::CompileMaterial);
 
-	FMaterialUpdateContext MaterialUpdateContext;
+	TUniquePtr<FMaterialUpdateContext> LocalMaterialUpdateContext;
+	if (MaterialUpdateContext == nullptr)
+	{
+		LocalMaterialUpdateContext = MakeUnique<FMaterialUpdateContext>();
+		MaterialUpdateContext = LocalMaterialUpdateContext.Get();
+	}
 
 	if ( UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >( Material ) )
 	{
-		MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
+		MaterialUpdateContext->AddMaterialInterface( MaterialInterface );
 	}
 
 	if ( UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >( Material ) )

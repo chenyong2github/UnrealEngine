@@ -584,7 +584,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 	return ImportedMaterial;
 }
 
-UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialFolderPath, const TCHAR* TransientPackagePath, const TCHAR* RootFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
+UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialFolderPath, const TCHAR* TransientPackagePath, const TCHAR* RootFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap, FMaterialUpdateContext* MaterialUpdateContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
 
@@ -622,7 +622,7 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 
 	UObject* DestinationMaterial = FDatasmithImporterImpl::FinalizeAsset( SourceMaterial, MaterialFolderPath, ExistingMaterial, ReferencesToRemap );
 
-	FDatasmithImporterImpl::CompileMaterial( DestinationMaterial );
+	FDatasmithImporterImpl::CompileMaterial( DestinationMaterial, MaterialUpdateContext);
 
 	return DestinationMaterial;
 }
@@ -1551,118 +1551,106 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingTexture, ImportContext);
 	}
 
-	// Unregister all actors component to avoid excessive refresh in the 3D engine while updating materials.
-	for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
 	{
-		if (ActorIterator->GetWorld())
+		// Destroy render states of all actors to avoid excessive refresh in the renderer while updating materials.
+		// Also batch all the material update together to improve performance.
+		FMaterialUpdateContext MaterialUpdateContext;
+
+		for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* >& ImportedMaterialFunctionPair : ImportContext.ImportedMaterialFunctions)
 		{
-			ActorIterator->UnregisterAllComponents( /* bForReregister = */true);
-		}
-	}
-
-	for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* >& ImportedMaterialFunctionPair : ImportContext.ImportedMaterialFunctions)
-	{
-		if (ImportContext.bUserCancelled)
-		{
-			break;
-		}
-
-		UMaterialFunction* SourceMaterialFunction = ImportedMaterialFunctionPair.Value;
-
-		if (!SourceMaterialFunction || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceMaterialFunction))))
-		{
-			continue;
-		}
-
-		FName MaterialFunctionId = ImportedMaterialFunctionPair.Key->GetName();
-		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
-
-		UMaterialFunction* ExistingMaterialFunction = ImportContext.SceneAsset ? ImportContext.SceneAsset->MaterialFunctions.FindOrAdd(MaterialFunctionId).Get() : nullptr;
-
-		FString SourcePackagePath = SourceMaterialFunction->GetOutermost()->GetName();
-		FString DestinationPackagePath = SourcePackagePath.Replace(*TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive);
-
-		ExistingMaterialFunction = FinalizeMaterialFunction(SourceMaterialFunction, *DestinationPackagePath, ExistingMaterialFunction, &ReferencesToRemap);
-		if (ImportContext.SceneAsset)
-		{
-			ImportContext.SceneAsset->MaterialFunctions[MaterialFunctionId] = ExistingMaterialFunction;
-		}
-
-		FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunction, ImportContext);
-	}
-
-	TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
-	for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& ImportedMaterialPair : ImportContext.ImportedMaterials)
-	{
-		if (ImportContext.bUserCancelled)
-		{
-			break;
-		}
-
-		UMaterialInterface* SourceMaterialInterface = ImportedMaterialPair.Value;
-
-		if (!SourceMaterialInterface || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceMaterialInterface))))
-		{
-			continue;
-		}
-
-		FName MaterialId = ImportedMaterialPair.Key->GetName();
-
-		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
-
-		UMaterialInterface* ExistingMaterial = ImportContext.SceneAsset ? ImportContext.SceneAsset->Materials.FindOrAdd(MaterialId).Get() : NULL;
-
-		FString SourcePackagePath = SourceMaterialInterface->GetOutermost()->GetName();
-		FString DestinationPackagePath = SourcePackagePath.Replace( *TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive );
-
-		if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
-		{
-			SourceMaterial->UpdateCachedExpressionData();
-
-			TArray<UObject*> ReferencedTextures;
-			ReferencedTextures = SourceMaterial->GetReferencedTextures();
-			for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
+			if (ImportContext.bUserCancelled)
 			{
-				if (ReferencedTextures.Contains(VirtualTexture))
+				break;
+			}
+  
+			UMaterialFunction* SourceMaterialFunction = ImportedMaterialFunctionPair.Value;
+  
+			if (!SourceMaterialFunction || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceMaterialFunction))))
+			{
+				continue;
+			}
+  
+			FName MaterialFunctionId = ImportedMaterialFunctionPair.Key->GetName();
+			FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
+  
+			UMaterialFunction* ExistingMaterialFunction = ImportContext.SceneAsset ? ImportContext.SceneAsset->MaterialFunctions.FindOrAdd(MaterialFunctionId).Get() : nullptr;
+  
+			FString SourcePackagePath = SourceMaterialFunction->GetOutermost()->GetName();
+			FString DestinationPackagePath = SourcePackagePath.Replace(*TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive);
+  
+			ExistingMaterialFunction = FinalizeMaterialFunction(SourceMaterialFunction, *DestinationPackagePath, ExistingMaterialFunction, &ReferencesToRemap);
+			if (ImportContext.SceneAsset)
+			{
+				ImportContext.SceneAsset->MaterialFunctions[MaterialFunctionId] = ExistingMaterialFunction;
+			}
+  
+			FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunction, ImportContext);
+		}
+
+		TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
+		for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& ImportedMaterialPair : ImportContext.ImportedMaterials)
+		{
+			if (ImportContext.bUserCancelled)
+			{
+				break;
+			}
+
+			UMaterialInterface* SourceMaterialInterface = ImportedMaterialPair.Value;
+
+			if (!SourceMaterialInterface || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceMaterialInterface))))
+			{
+				continue;
+			}
+
+			FName MaterialId = ImportedMaterialPair.Key->GetName();
+
+			FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
+
+			UMaterialInterface* ExistingMaterial = ImportContext.SceneAsset ? ImportContext.SceneAsset->Materials.FindOrAdd(MaterialId).Get() : NULL;
+
+			FString SourcePackagePath = SourceMaterialInterface->GetOutermost()->GetName();
+			FString DestinationPackagePath = SourcePackagePath.Replace( *TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive );
+
+			if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
+			{
+				SourceMaterial->UpdateCachedExpressionData();
+
+				TArray<UObject*> ReferencedTextures;
+				ReferencedTextures = SourceMaterial->GetReferencedTextures();
+				for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
 				{
-					MaterialsToRefreshAfterVirtualTextureConversion.Add(SourceMaterial);
-					break;
+					if (ReferencedTextures.Contains(VirtualTexture))
+					{
+						MaterialsToRefreshAfterVirtualTextureConversion.Add(SourceMaterial);
+						break;
+					}
+				}
+
+				for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
+				{
+					if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
+					{
+						FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap, &MaterialUpdateContext);
+					}
 				}
 			}
 
-			for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
+			ExistingMaterial = Cast<UMaterialInterface>( FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, ExistingMaterial, &ReferencesToRemap, &MaterialUpdateContext) );
+			if (ImportContext.SceneAsset)
 			{
-				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
-				{
-					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap);
-				}
+				ImportContext.SceneAsset->Materials[MaterialId] = ExistingMaterial;
 			}
-		}
 
-		ExistingMaterial = Cast<UMaterialInterface>( FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, ExistingMaterial, &ReferencesToRemap) );
-		if (ImportContext.SceneAsset)
-		{
-			ImportContext.SceneAsset->Materials[MaterialId] = ExistingMaterial;
-		}
-
-		// Add material to array of packages to apply soft object path redirection to
-		if (ExistingMaterial)
-		{
-			PackagesToCheck.Add(ExistingMaterial->GetOutermost());
-			FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterial, ImportContext);
+			// Add material to array of packages to apply soft object path redirection to
+			if (ExistingMaterial)
+			{
+				PackagesToCheck.Add(ExistingMaterial->GetOutermost());
+				FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterial, ImportContext);
+			}
 		}
 	}
 
 	FDatasmithImporterImpl::ConvertUnsupportedVirtualTexture(ImportContext, ImportContext.AssetsContext.VirtualTexturesToConvert, ReferencesToRemap);
-
-	// Materials have been updated, we can register everything back.
-	for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
-	{
-		if (ActorIterator->GetWorld())
-		{
-			ActorIterator->RegisterAllComponents();
-		}
-	}
 
 	// Sometimes, the data is invalid and we get the same UStaticMesh multiple times
 	TSet< UStaticMesh* > StaticMeshes;
