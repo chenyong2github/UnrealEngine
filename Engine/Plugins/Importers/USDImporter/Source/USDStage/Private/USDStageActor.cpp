@@ -1209,12 +1209,14 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-	auto CreateAssetsForPrims = [ &UsdSchemasModule, &TranslationContext ]( const TArray< UE::FUsdPrim >& AllPrimAssets )
+	auto CreateAssetsForPrims = [ &UsdSchemasModule, &TranslationContext ]( const TArray< UE::FUsdPrim >& AllPrimAssets, FSlowTask& Progress )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrims );
 
 		for ( const UE::FUsdPrim& UsdPrim : AllPrimAssets )
 		{
+			Progress.EnterProgressFrame(1.f);
+
 			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), UE::FUsdTyped( UsdPrim ) ) )
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrim );
@@ -1237,11 +1239,17 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 	// Load materials first since meshes are referencing them
 	TArray< UE::FUsdPrim > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, TEXT("UsdShadeMaterial") );
-	CreateAssetsForPrims( AllPrimAssets );
+	{
+		FScopedSlowTask MaterialsProgress( AllPrimAssets.Num(), LOCTEXT("CreateMaterials", "Creating materials"));
+		CreateAssetsForPrims( AllPrimAssets, MaterialsProgress );
+	}
 
 	// Load everything else (including meshes)
 	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, TEXT("UsdSchemaBase"), PruneChildren, { TEXT("UsdShadeMaterial") } );
-	CreateAssetsForPrims( AllPrimAssets );
+	{
+		FScopedSlowTask AssetsProgress( AllPrimAssets.Num(), LOCTEXT("CreateAssets", "Creating assets"));
+		CreateAssetsForPrims( AllPrimAssets, AssetsProgress );
+	}
 }
 
 void AUsdStageActor::AnimatePrims()

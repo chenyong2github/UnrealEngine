@@ -30,8 +30,12 @@ bool UsdToUnreal::ConvertLight( const pxr::UsdLuxLight& Light, ULightComponentBa
 	{
 		return false;
 	}
-
-	LightComponentBase.Intensity = UsdUtils::GetUsdValue< float >( Light.GetIntensityAttr(), TimeCode );
+	
+	// Calculate the light intensity: this is equivalent to UsdLuxLight::ComputeBaseEmission() without the color term
+	float LightIntensity = 1.f;
+	LightIntensity *= UsdUtils::GetUsdValue< float >( Light.GetIntensityAttr(), TimeCode );
+	LightIntensity *= FMath::Exp2( UsdUtils::GetUsdValue< float >( Light.GetExposureAttr(), TimeCode ) );
+	LightComponentBase.Intensity = LightIntensity;
 
 	if ( ULightComponent* LightComponent = Cast< ULightComponent >( &LightComponentBase ) )
 	{
@@ -102,6 +106,7 @@ bool UsdToUnreal::ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr:
 	}
 
 	const float Radius = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( SphereLight.GetRadiusAttr(), TimeCode ) );
+	LightComponent.SourceRadius = Radius;
 
 	const float AreaInSqMeters = 4.f * PI * FMath::Square( Radius / 100.f );
 	LightComponent.Intensity *= PI * AreaInSqMeters; // Lumen = Nits * PI * Area
@@ -129,14 +134,13 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 	if ( !Cubemap )
 	{
 		Cubemap = Cast< UTextureCube >( UsdUtils::CreateTexture( DomeLight.GetTextureFileAttr(), UsdToUnreal::ConvertPath(DomeLight.GetPrim().GetPath()) ) );
+		TexturesCache.Add( ResolvedDomeTexturePath ) = Cubemap;
+	}
 
-		if ( Cubemap )
-		{
-			LightComponent.Cubemap = Cubemap;
-			LightComponent.SourceType = ESkyLightSourceType::SLS_SpecifiedCubemap;
-
-			TexturesCache.Add( ResolvedDomeTexturePath ) = Cubemap;
-		}
+	if ( Cubemap )
+	{
+		LightComponent.Cubemap = Cubemap;
+		LightComponent.SourceType = ESkyLightSourceType::SLS_SpecifiedCubemap;
 	}
 
 	return true;

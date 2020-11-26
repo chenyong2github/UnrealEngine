@@ -13,6 +13,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Engine/TextureCube.h"
 
 #if USE_USD_SDK
 
@@ -78,6 +79,11 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	{
 		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, Context->AssetsCache, Context->Time );
 		SkyLightComponent->Mobility = EComponentMobility::Movable; // We won't bake geometry in the sky light so it needs to be movable
+
+		if ( SkyLightComponent->Cubemap )
+		{
+			Context->CurrentlyUsedAssets.Add( SkyLightComponent->Cubemap );
+		}
 	}
 }
 
