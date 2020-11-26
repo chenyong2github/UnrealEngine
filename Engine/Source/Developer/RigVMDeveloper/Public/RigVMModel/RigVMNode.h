@@ -49,7 +49,7 @@ public:
 
 	// Returns all of the top-level Pins of this Node.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	const TArray<URigVMPin*>& GetPins() const;
+	virtual const TArray<URigVMPin*>& GetPins() const;
 
 	// Returns all of the Pins of this Node (including SubPins).
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
@@ -149,6 +149,10 @@ public:
 	// given node through any of the Nodes' Pins.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	bool IsLinkedTo(URigVMNode* InNode) const;
+
+	// Returns all links to any pin on this node
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	TArray<URigVMLink*> GetLinks() const;
 
 	// Returns a list of Nodes connected as sources to
 	// this Node as the target.

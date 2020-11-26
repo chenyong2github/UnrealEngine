@@ -646,7 +646,7 @@ bool FRigVMAddInjectedNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
-FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode)
+FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMController* InController)
 {
 	FRigVMInverseAction InverseAction;
 
@@ -713,6 +713,10 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode)
 	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddEnumNodeAction(EnumNode));
+	}
+	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController));
 	}
 	else
 	{
@@ -1277,4 +1281,122 @@ bool FRigVMSetPinBoundVariableAction::Redo(URigVMController* InController)
 {
 	InController->BindPinToVariable(PinPath, NewBoundVariablePath, false);
 	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMImportNodeFromTextAction::FRigVMImportNodeFromTextAction()
+	: Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMImportNodeFromTextAction::FRigVMImportNodeFromTextAction(URigVMNode* InNode, URigVMController* InController)
+	: Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+	, ExportedText()
+{
+	TArray<FName> NodeNamesToExport;
+	NodeNamesToExport.Add(InNode->GetFName());
+	ExportedText = InController->ExportNodesToText(NodeNamesToExport);
+}
+
+bool FRigVMImportNodeFromTextAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMImportNodeFromTextAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	TArray<FName> NodeNames = InController->ImportNodesFromText(ExportedText, false);
+	if (NodeNames.Num() == 1)
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMCollapseNodesAction::FRigVMCollapseNodesAction()
+	: LibraryNodePath()
+{
+}
+
+FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(const TArray<URigVMNode*>& InNodes, const FString& InNodePath)
+	: LibraryNodePath(InNodePath)
+{
+	for (URigVMNode* InNode : InNodes)
+	{
+		CollapsedNodesPaths.Add(InNode->GetName());
+	}
+}
+
+bool FRigVMCollapseNodesAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	TArray<URigVMNode*> ExpandedNodes = InController->ExpandLibraryNode(*LibraryNodePath, false);
+	return ExpandedNodes.Num() == CollapsedNodesPaths.Num();
+}
+
+bool FRigVMCollapseNodesAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	TArray<FName> NodeNames;
+	for (const FString& NodePath : CollapsedNodesPaths)
+	{
+		NodeNames.Add(*NodePath);
+	}
+
+	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, LibraryNodePath, false);
+	if (LibraryNode)
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMExpandNodeAction::FRigVMExpandNodeAction()
+	: LibraryNodePath()
+{
+}
+
+FRigVMExpandNodeAction::FRigVMExpandNodeAction(URigVMLibraryNode* InLibraryNode)
+	: LibraryNodePath(InLibraryNode->GetName())
+{
+}
+
+bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+
+	TArray<FName> NodeNames;
+	for (const FString& NodePath : ExpandedNodePaths)
+	{
+		NodeNames.Add(*NodePath);
+	}
+
+	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, *LibraryNodePath, false);
+	return LibraryNode != nullptr;
+}
+
+bool FRigVMExpandNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	TArray<URigVMNode*> ExpandedNodes = InController->ExpandLibraryNode(*LibraryNodePath, false);
+	if (ExpandedNodes.Num() == ExpandedNodePaths.Num())
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
 }

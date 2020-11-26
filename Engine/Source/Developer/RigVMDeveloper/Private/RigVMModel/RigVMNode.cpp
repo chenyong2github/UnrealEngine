@@ -69,7 +69,7 @@ TArray<URigVMPin*> URigVMNode::GetAllPinsRecursively() const
 	};
 
 	TArray<URigVMPin*> Result;
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		Local::VisitPinRecursively(Pin, Result);
 	}
@@ -84,7 +84,7 @@ URigVMPin* URigVMNode::FindPin(const FString& InPinPath) const
 		Left = InPinPath;
 	}
 
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		if (Pin->GetName() == Left)
 		{
@@ -177,7 +177,7 @@ bool URigVMNode::IsPure() const
 		return false;
 	}
 
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		if(Pin->GetDirection() == ERigVMPinDirection::Hidden)
 		{
@@ -245,7 +245,7 @@ bool URigVMNode::HasOutputPin(bool bIncludeIO) const
 
 bool URigVMNode::HasPinOfDirection(ERigVMPinDirection InDirection) const
 {
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		if (Pin->GetDirection() == InDirection)
 		{
@@ -269,7 +269,7 @@ bool URigVMNode::IsLinkedTo(URigVMNode* InNode) const
 	{
 		return false;
 	}
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		if (IsLinkedToRecursive(Pin, InNode))
 		{
@@ -305,10 +305,34 @@ bool URigVMNode::IsLinkedToRecursive(URigVMPin* InPin, URigVMNode* InNode) const
 	return false;
 }
 
+TArray<URigVMLink*> URigVMNode::GetLinks() const
+{
+	TArray<URigVMLink*> Links;
+
+	struct Local
+	{
+		static void Traverse(URigVMPin* InPin, TArray<URigVMLink*>& Links)
+		{
+			Links.Append(InPin->GetLinks());
+			for (URigVMPin* SubPin : InPin->GetSubPins())
+			{
+				Local::Traverse(SubPin, Links);
+			}
+		}
+	};
+
+	for (URigVMPin* Pin : GetPins())
+	{
+		Local::Traverse(Pin, Links);
+	}
+
+	return Links;
+}
+
 TArray<URigVMNode*> URigVMNode::GetLinkedSourceNodes() const
 {
 	TArray<URigVMNode*> Nodes;
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		GetLinkedNodesRecursive(Pin, true, Nodes);
 	}
@@ -318,7 +342,7 @@ TArray<URigVMNode*> URigVMNode::GetLinkedSourceNodes() const
 TArray<URigVMNode*> URigVMNode::GetLinkedTargetNodes() const
 {
 	TArray<URigVMNode*> Nodes;
-	for (URigVMPin* Pin : Pins)
+	for (URigVMPin* Pin : GetPins())
 	{
 		GetLinkedNodesRecursive(Pin, false, Nodes);
 	}
@@ -350,7 +374,7 @@ int32 URigVMNode::GetNumSlices(const FRigVMUserDataArray& InUserData)
 
 int32 URigVMNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
 {
-	for (URigVMPin* RootPin : Pins)
+	for (URigVMPin* RootPin : GetPins())
 	{
 		if (RootPin->GetFName() == InContextName)
 		{
@@ -364,7 +388,7 @@ int32 URigVMNode::GetNumSlicesForContext(const FName& InContextName, const FRigV
 	{
 		TGuardValue<int32> ReentrantGuard(GetSliceContextBracket, GetSliceContextBracket + 1);
 
-		for (URigVMPin* Pin : Pins)
+		for (URigVMPin* Pin : GetPins())
 		{
 			TArray<URigVMPin*> SourcePins = Pin->GetLinkedSourcePins(true /* recursive */);
 			if (SourcePins.Num() > 0)

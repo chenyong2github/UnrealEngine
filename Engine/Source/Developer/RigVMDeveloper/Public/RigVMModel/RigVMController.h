@@ -13,6 +13,7 @@
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
 #include "RigVMModel/Nodes/RigVMPrototypeNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
+#include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMController.generated.h"
 
 class URigVMActionStack;
@@ -262,6 +263,14 @@ public:
 	// Returns a unique name
 	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction);
 
+	// Turns a series of nodes into a Collapse node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMCollapseNode* CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName = TEXT(""), bool bSetupUndoRedo = true);
+
+	// Turns a library node into its contained nodes
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	TArray<URigVMNode*> ExpandLibraryNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+
 #endif
 
 	// Removes a node from the graph
@@ -454,8 +463,8 @@ public:
 	// A delegate to retrieve the list of external variables
 	FRigVMController_GetExternalVariablesDelegate GetExternalVariablesDelegate;
 
-	int32 DetachLinksFromPinObjects();
-	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false);
+	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr);
+	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
 
 	// Removes nodes which went stale.
@@ -466,7 +475,7 @@ public:
 	bool ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const;
 	bool ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const;
 
-	void RepopulatePinsOnNode(URigVMNode* InNode);
+	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true);
 #endif
 
 	FRigVMStructNodeCreatedContext& GetStructNodeCreatedContext() { return StructNodeCreatedContext; }
@@ -516,6 +525,23 @@ private:
 	bool SetParameterName(URigVMParameterNode* InParameterNode, const FName& InParameterName, bool bSetupUndoRedo);
 	static void ForEveryPinRecursively(URigVMPin* InPin, TFunction<void(URigVMPin*)> OnEachPinFunction);
 	static void ForEveryPinRecursively(URigVMNode* InNode, TFunction<void(URigVMPin*)> OnEachPinFunction);
+	URigVMCollapseNode* CollapseNodes(const TArray<URigVMNode*>& InNodes, const FString& InCollapseNodeName, bool bSetupUndoRedo);
+	TArray<URigVMNode*> ExpandLibraryNode(URigVMLibraryNode* InNode, bool bSetupUndoRedo);
+	void RefreshFunctionPins(URigVMNode* InNode);
+
+	struct FPinState
+	{
+		FString DefaultValue;
+		FString BoundVariable;
+		bool bIsExpanded;
+		TArray<URigVMInjectionInfo*> InjectionInfos;
+	};
+
+	TMap<FString, FString> GetRedirectedPinPaths(URigVMNode* InNode) const;
+	FPinState GetPinState(URigVMPin* InPin) const;
+	TMap<FString, FPinState> GetPinStates(URigVMNode* InNode) const;
+	void ApplyPinState(URigVMPin* InPin, const FPinState& InPinState);
+	void ApplyPinStates(URigVMNode* InNode, const TMap<FString, FPinState>& InPinStates, const TMap<FString, FString>& InRedirectedPinPaths = TMap<FString, FString>());
 
 	void ReportWarning(const FString& InMessage);
 	void ReportError(const FString& InMessage);

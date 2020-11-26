@@ -657,7 +657,7 @@ struct FRigVMRemoveNodeAction : public FRigVMBaseAction
 public:
 
 	FRigVMRemoveNodeAction() {}
-	FRigVMRemoveNodeAction(URigVMNode* InNode);
+	FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMController* InController);
 	virtual ~FRigVMRemoveNodeAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
@@ -1126,4 +1126,76 @@ public:
 
 	UPROPERTY()
 	FString NewBoundVariablePath;
+};
+
+/**
+ * An action to add a node from a text buffer
+ */
+USTRUCT()
+struct FRigVMImportNodeFromTextAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMImportNodeFromTextAction();
+	FRigVMImportNodeFromTextAction(URigVMNode* InNode, URigVMController* InController);
+	virtual ~FRigVMImportNodeFromTextAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FString ExportedText;
+};
+
+/**
+ * An action to collapse a selection of nodes
+ */
+USTRUCT()
+struct FRigVMCollapseNodesAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMCollapseNodesAction();
+	FRigVMCollapseNodesAction(const TArray<URigVMNode*>& InNodes, const FString& InNodePath);
+	virtual ~FRigVMCollapseNodesAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString LibraryNodePath;
+
+	UPROPERTY()
+	TArray<FString> CollapsedNodesPaths;
+};
+
+/**
+ * An action to expand a library node into its content
+ */
+USTRUCT()
+struct FRigVMExpandNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMExpandNodeAction();
+	FRigVMExpandNodeAction(URigVMLibraryNode* InLibraryNode);
+	virtual ~FRigVMExpandNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString LibraryNodePath;
+
+	UPROPERTY()
+	TArray<FString> ExpandedNodePaths;
 };
