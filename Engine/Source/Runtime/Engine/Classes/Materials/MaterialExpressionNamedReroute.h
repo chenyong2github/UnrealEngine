@@ -33,12 +33,19 @@ class ENGINE_API UMaterialExpressionNamedRerouteDeclaration : public UMaterialEx
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	// The input pin
 	UPROPERTY()
 	FExpressionInput Input;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionNamedRerouteDeclaration)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionNamedRerouteDeclaration)
 	FName Name;
+
+#if WITH_EDITORONLY_DATA
+	/** The color of the graph node. The same color will apply to all linked usages of this Declaration node */
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionNamedRerouteDeclaration)
+	FLinearColor NodeColor;
+#endif
 
 	// The variable GUID, to support copy across graphs
 	UPROPERTY()
@@ -88,7 +95,8 @@ UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Named Reroute U
 class ENGINE_API UMaterialExpressionNamedRerouteUsage : public UMaterialExpressionNamedRerouteBase
 {
 	GENERATED_UCLASS_BODY()
-		
+
+public:
 	// The declaration this node is linked to
 	UPROPERTY()
 	UMaterialExpressionNamedRerouteDeclaration* Declaration;
