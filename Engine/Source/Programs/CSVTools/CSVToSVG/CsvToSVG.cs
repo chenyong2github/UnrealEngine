@@ -25,7 +25,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.32";
+        private static string VersionString = "2.40";
         
         public static string Get() { return VersionString; }
     };
@@ -191,6 +191,7 @@ namespace CSVTools
         string[] ignoreStats;
         string[] showEventNames;
         string stackTotalStat;
+		bool stackTotalStatIsAutomatic =false;
         int maxHierarchyDepth = -1;
         char hierarchySeparator = '/';
         int colourOffset = 0;
@@ -235,7 +236,7 @@ namespace CSVTools
 			"       -smoothKernelPercent <percentage>\n" +
 			"       -smoothKernelSize <numFrames>\n" +
 			"       -stacked\n" +
-			"       -stacktotalstat <stat name>\n" +
+			"       -stackTotalStat <stat name>\n" +
 			"		-minFilterStatValue <value>\n" +
 			"		-minFilterStatName <stat name>\n" +
 			"       -stackedUnsorted\n" +
@@ -549,7 +550,6 @@ namespace CSVTools
             string[] hideStatPrefixes = GetArg("hideStatPrefix").ToLower().Split(';');
 
             bool stacked = GetArg("stacked") == "1";
-            stackTotalStat = GetArg("stackTotalStat");
 
             if(percentile && (stacked || interactive))
             {
@@ -558,13 +558,15 @@ namespace CSVTools
                 interactive = false;
             }
 
-            if (stacked && stackTotalStat != "")
+			if (stacked)
             {
-                stackTotalStat = stackTotalStat.ToLower();
-                string[] newStatNames = new string[statNames.Length + 1];
-                for (int i = 0; i < statNames.Length; i++) newStatNames[i] = statNames[i];
-                newStatNames[statNames.Length] = stackTotalStat;
-                statNames = newStatNames;
+				stackTotalStat = GetArg("stackTotalStat").ToLower();
+				if (stackTotalStat != "")
+				{
+					List<string> newStatNames = statNames.ToList();
+					newStatNames.Add(stackTotalStat);
+					statNames = newStatNames.ToArray();
+				}
             }
 
             Range range = new Range();
@@ -627,7 +629,29 @@ namespace CSVTools
             {
                 CsvStats csv = ProcessCSV(csvFilename, statNames, bDiscardLastFrame);
 
-                if (firstFileNumSamples == -1)
+				if (stacked && stackTotalStat == "")
+				{
+					// Make a total stat by summing each frame
+					StatSamples totalStat = new StatSamples("Total");
+					totalStat.samples.Capacity = csv.SampleCount;
+					for (int i=0;i<csv.SampleCount;i++)
+					{
+						float totalValue = 0.0f;
+						foreach( StatSamples stat in csv.Stats.Values)
+						{
+							totalValue += stat.samples[i];
+						}
+						totalStat.samples.Add(totalValue);
+					}
+					totalStat.ComputeAverageAndTotal();
+					totalStat.colour = new Colour(0x6E6E6E);
+					csv.AddStat(totalStat);
+					stackTotalStat = "total";
+					stackTotalStatIsAutomatic = true;
+				}
+
+
+				if (firstFileNumSamples == -1)
                 {
                     foreach (StatSamples stat in csv.Stats.Values)
                     {
@@ -688,7 +712,7 @@ namespace CSVTools
                     foreach (StatSamples samples in unstackedCsvStats[i].Stats.Values)
                     {
                         string statName = samples.Name;
-                        if (samples.Name.ToLower() == stackTotalStat.ToLower())
+                        if (stackTotalStatIsAutomatic == false && samples.Name.ToLower() == stackTotalStat.ToLower())
                         {
                             statName = "other";
                         }
@@ -714,7 +738,7 @@ namespace CSVTools
             thickness = Math.Max(Math.Min(thickness, 1.5f), 0.11f);
 
             // Get the title
-            if (graphTitle.Length == 0 && statNames.Length == 1 && csvStats.Count > 0 && !statNames[0].EndsWith("*"))
+            if (graphTitle.Length == 0 && statNames.Length == 1 && csvStats.Count > 0 && !statNames[0].Contains("*"))
             {
                 StatSamples stat = csvStats[0].GetStat(statNames[0]);
                 if (stat == null)
@@ -1320,7 +1344,7 @@ namespace CSVTools
             int rangeStart = Math.Max(0, (int)range.MinX);
             int rangeEnd = (int)range.MaxX;
 
-            if (totalStat != null)
+            if (!stackTotalStatIsAutomatic && totalStat != null)
             {
                 OtherStat = new StatSamples("Other");
                 OtherStat.colour = new Colour(0x6E6E6E);
@@ -1373,7 +1397,12 @@ namespace CSVTools
 
             // Copy out the list in reverse order (so they get rendered front->back)
             CsvStats stackedStats = new CsvStats();
-            for (int i = StatSamplesList.Count-1; i >= 0; i--)
+			if (stackTotalStatIsAutomatic)
+			{
+				stackedStats.AddStat(totalStat);
+			}
+
+			for (int i = StatSamplesList.Count-1; i >= 0; i--)
             {
                 stackedStats.AddStat(StatSamplesList[i]);
             }
