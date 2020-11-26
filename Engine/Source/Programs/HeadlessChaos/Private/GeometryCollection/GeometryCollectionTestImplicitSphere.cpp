@@ -29,7 +29,7 @@ namespace GeometryCollectionTest
 		IntersectionResult Res = Sphere.FindClosestIntersection(StartPt, EndPt, Thickness);
 		EXPECT_TRUE(
 			(!Res.Second && !ExpectedRes.Second) ||
-			(Res.Second && ExpectedRes.Second && (Res.First - ExpectedRes.First).Size() < SMALL_NUMBER)) <<
+			(Res.Second && ExpectedRes.Second && (Res.First - ExpectedRes.First).Size() < KINDA_SMALL_NUMBER)) <<
 			*FString::Printf(
 				TEXT(
 					"%s - Sphere((%g, %g, %g), %g).FindClosestIntersection("
