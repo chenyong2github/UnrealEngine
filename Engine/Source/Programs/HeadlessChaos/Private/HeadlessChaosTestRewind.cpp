@@ -87,8 +87,11 @@ namespace ChaosTest {
 
 				Lambda(Solver, SimDt, Optimization, Particle.Get(), Sphere.Get());
 
+				if(Particle->GetProxy() != nullptr)
+				{
 				// Throw out the proxy
 				Solver->UnregisterObject(Particle.Get());
+				}
 			});
 		}
 	};
@@ -554,7 +557,7 @@ namespace ChaosTest {
 						ExpectedXZ = 10;
 					}
 
-				FGeometryParticleState State(*Particle);
+					FGeometryParticleState State(*Particle);
 					const EFutureQueryResult Status = RewindData->GetFutureStateAtFrame(State, Step);
 					EXPECT_EQ(Status, EFutureQueryResult::Ok);
 					EXPECT_EQ(State.X()[2], ExpectedXZ);
@@ -580,7 +583,7 @@ namespace ChaosTest {
 						ExpectedXZ = 10;
 					}
 
-				EXPECT_TRUE(RewindData->RewindToFrame(Step));
+					EXPECT_TRUE(RewindData->RewindToFrame(Step));
 					EXPECT_NEAR(Particle->X()[2], ExpectedXZ, 1e-4);
 					EXPECT_NEAR(Particle->V()[2], ExpectedVZ, 1e-4);
 
@@ -600,65 +603,46 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_Remove)
 	{
-		for(int Optimization = 0; Optimization < 2; ++Optimization)
+		//this tests that particles that are not in the rewind data are left as they are
+		//but users of the system do not have to take special care
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Particle, auto Sphere)
 		{
-			if(TypeParam::IsRewindable() == false){ return; }
-			auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
-
-			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-
-			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			InitSolverSettings(Solver);
-
-			Solver->EnableRewindCapture(20, !!Optimization);
-
-
-			// Make particles
-			auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
-
-			Particle->SetGeometry(Sphere);
-			Solver->RegisterObject(Particle.Get());
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
 			Particle->SetGravityEnabled(true);
-			Particle->SetX(FVec3(0,0,100));
+			Particle->SetX(FVec3(0, 0, 100));
 
-			TArray<FVec3> X;
-			TArray<FVec3> V;
-
-			for(int Step = 0; Step < 10; ++Step)
+			const int32 LastGameStep = 20;
+			for (int Step = 0; Step <= LastGameStep; ++Step)
 			{
-				X.Add(Particle->X());
-				V.Add(Particle->V());
 				TickSolverHelper(Solver);
 			}
 
+			//shows that state after first step was recorded
 			FRewindData* RewindData = Solver->GetRewindData();
-
+			float ExpectedVZ = -SimDt;
+			float ExpectedXZ = 100 + ExpectedVZ * SimDt;
 			{
-				const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
-				EXPECT_EQ(State.X(),X[5]);
+				const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle, 1);
+				EXPECT_EQ(State.X()[2], ExpectedXZ);
+				EXPECT_EQ(State.V()[2], ExpectedVZ);
 			}
 
-			// Throw out the proxy
-			Solver->UnregisterObject(Particle.Get());
-			
+			// Unregister the proxy which will automatically remove it from rewind data
+			Solver->UnregisterObject(Particle);
+
 			//Unregister enqueues commands which won't run until next tick.
 			//Use this callback to inspect state after commands, but before sim of next step
 			Solver->RegisterSimOneShotCallback([&]()
 			{
-				// State should be the same as being at head because we removed it from solver
+				// State should be the same as being at head because we removed it from solver (even though we're asking for info from the past)
 				{
-					const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
-					EXPECT_EQ(Particle->X(),State.X());
+					const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle, 1);
+					EXPECT_EQ(Particle->X(), State.X());
 				}
 			});
 
-			TickSolverHelper(Solver);
-
-			
-
-			Module->DestroySolver(Solver);
-		}
+			TickSolverHelper(Solver, 10);	//use large dt to make sure our callback fires
+		});
 	}
 
 	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
