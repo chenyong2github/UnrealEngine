@@ -113,7 +113,7 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 			TEXT("Detaching from existing linker for %s while object %s needs loading from linker %s."),
 			*Existing.Linker->GetArchiveName(),
 			*GetFullName(),
-			LinkerLoad ? *LinkerLoad->Filename : TEXT(""));
+			LinkerLoad ? *LinkerLoad->GetDebugName() : TEXT(""));
 		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object!=nullptr);
 		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object==this);
 		Existing.Linker->ExportMap[Existing.LinkerIndex].ResetObject();
@@ -140,9 +140,9 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 		UE_CLOG(Existing.Linker && LinkerLoad, LogUObjectLinker, Fatal,
 			TEXT("It is only legal to change linkers in the editor. Trying to change linker on %s from %s (Existing->LinkerRoot=%s) to %s (LinkerLoad->LinkerRoot=%s)"),
 			*GetFullName(),
-			*Existing.Linker->Filename,
+			*Existing.Linker->GetDebugName(),
 			*GetNameSafe(Existing.Linker->LinkerRoot),
-			*LinkerLoad->Filename,
+			*LinkerLoad->GetDebugName(),
 			*GetNameSafe(LinkerLoad->LinkerRoot));
 #endif
 	}

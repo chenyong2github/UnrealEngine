@@ -718,7 +718,7 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 		{
 			if (CurrentPackageName == NAME_None)
 			{
-				CurrentPackageName = FName(*FPackageName::FilenameToLongPackageName(Linker->Filename));
+				CurrentPackageName = Linker->GetPackagePath().GetPackageFName();
 			}
 			if (Archive == nullptr)
 			{

@@ -2053,9 +2053,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 	// if the in memory package filename is different the filename we are saving it to,
 	// regenerate a new persistent id for it.
-	FString PackageFilename(Filename);
-	bool bIsValidLongPackageName = FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageFilename);
-	if (!bIsCooking && !InOuter->FileName.IsNone() && InOuter->FileName.ToString() != PackageFilename && !(SaveFlags & SAVE_FromAutosave))
+	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
+	if (!bIsCooking && !InOuter->GetLoadedPath().IsEmpty() && InOuter->GetLoadedPath() != TargetPackagePath && !(SaveFlags & SAVE_FromAutosave))
 	{
 		InOuter->SetPersistentGuid(FGuid::NewGuid());
 	}
@@ -2401,13 +2400,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					{
 						// The entire package will be serialized to memory and then compared against package on disk.
 						// Each difference will be log with its Serialize call stack trace
-						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->FileName.ToString(), true, InOutDiffMap);
+						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->GetLoadedPath().GetPackageName(), true, InOutDiffMap);
 						Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
 					}
 					else if (TargetPlatform != nullptr && (SaveFlags & SAVE_DiffOnly))
 					{
 						// The entire package will be serialized to memory and then compared against package on disk
-						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->FileName.ToString(), false);
+						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->GetLoadedPath().GetPackageName(), false);
 						Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
 					}
 					else if ((!!TargetPlatform) && FParse::Value(FCommandLine::Get(), TEXT("DiffCookedPackages="), DiffCookedPackagesPath))
@@ -2422,7 +2421,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						TestArchiveFilename.ReplaceInline(*CookedPath, *DiffCookedPackagesPath);
 
 						FArchive* TestArchive = IFileManager::Get().CreateFileReader(*TestArchiveFilename);
-						FArchive* Saver = new FDiffSerializeArchive(*InOuter->FileName.ToString(), TestArchive);
+						FArchive* Saver = new FDiffSerializeArchive(*InOuter->GetLoadedPath().GetPackageName(), TestArchive);
 						Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping));
 					}
 					else
@@ -3030,7 +3029,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if( Conform )
 				{
 					// Conform to previous generation of file.
-					UE_LOG(LogSavePackage, Log,  TEXT("Conformal save, relative to: %s, Generation %i"), *Conform->Filename, Conform->Summary.Generations.Num()+1 );
+					UE_LOG(LogSavePackage, Log,  TEXT("Conformal save, relative to: %s, Generation %i"), *Conform->GetDebugName(), Conform->Summary.Generations.Num()+1 );
 					Linker->Summary.Guid = Conform->Summary.Guid;
 #if WITH_EDITORONLY_DATA
 					Linker->Summary.PersistentGuid = Conform->Summary.PersistentGuid;					
@@ -4654,9 +4653,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		{
 			// if the save was successful, update the internal package filename path if we aren't currently cooking
 #if WITH_EDITOR
-			if (TargetPlatform == nullptr && bIsValidLongPackageName)
+			if (TargetPlatform == nullptr && !TargetPackagePath.IsMountedPath())
 			{
-				InOuter->FileName = *PackageFilename;
+				InOuter->SetLoadedPath(TargetPackagePath);
 			}
 #endif
 

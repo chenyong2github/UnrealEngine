@@ -1122,9 +1122,19 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 				Package.LeftInline(FirstDot,false);
 			}
 
-			Existing->bAsyncLoadRequestOutstanding = true;
-			Existing->bLoadFailed = false;
-			int32 RequestId = LoadPackageAsync(Package, FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName), Priority);
+			FPackagePath PackagePath;
+			if (!FPackagePath::TryFromPackageName(Package, PackagePath))
+			{
+				UE_LOG(LogStreamableManager, Error, TEXT("Failed attempt to load %s; it is not a valid LongPackageName"), *Package);
+				Existing->bLoadFailed = true;
+				Existing->bAsyncLoadRequestOutstanding = false;
+			}
+			else
+			{
+				Existing->bLoadFailed = false;
+				Existing->bAsyncLoadRequestOutstanding = true;
+				LoadPackageAsync(PackagePath, NAME_None /* PackageNameToCreate */, FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName), nullptr /* InGuid */, PKG_None /* InPackageFlags */, Priority);
+			}
 		}
 	}
 	return Existing;

@@ -1100,9 +1100,12 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	if (bAllowLevelLoadRequests)
 	{
 		const FName DesiredPackageNameToLoad = bIsGameWorld ? GetLODPackageNameToLoad() : PackageNameToLoad;
-		const FString PackageNameToLoadFrom = DesiredPackageNameToLoad != NAME_None ? DesiredPackageNameToLoad.ToString() : DesiredPackageName.ToString();
+		FString NormalizedPackageName = (DesiredPackageNameToLoad.IsNone() ? DesiredPackageName : DesiredPackageNameToLoad).ToString();
+		// The PackageName might be an objectpath; convert it to a packagename if it is not one already
+		NormalizedPackageName = FPackageName::ObjectPathToPackageName(NormalizedPackageName);
+		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(NormalizedPackageName);
 
-		if (FPackageName::DoesPackageExist(PackageNameToLoadFrom))
+		if (FPackageName::DoesPackageExist(PackagePath, &PackagePath))
 		{
 			CurrentState = ECurrentState::Loading;
 			FWorldNotifyStreamingLevelLoading::Started(PersistentWorld);
@@ -1113,7 +1116,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
-			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID, GetPriority());
+			LoadPackageAsync(PackagePath, DesiredPackageName, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), nullptr, PackageFlags, PIEInstanceID, GetPriority());
 
 			// streamingServer: server loads everything?
 			// Editor immediately blocks on load and we also block if background level streaming is disabled.
@@ -1130,7 +1133,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 		}
 		else
 		{
-			UE_LOG(LogStreaming, Error,TEXT("Couldn't find file for package %s."), *PackageNameToLoadFrom);
+			UE_LOG(LogStreaming, Error,TEXT("Couldn't find file for package %s."), *PackagePath.GetDebugName());
 			CurrentState = ECurrentState::FailedToLoad;
 			return false;
 		}

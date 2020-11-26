@@ -9323,6 +9323,11 @@ void UEngine::AddTextureStreamingSlaveLoc(FVector InLoc, float BoostFactor, bool
 FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 {
 	FGuid Result(0,0,0,0);
+	FPackagePath PackagePath;
+	if (!FPackagePath::TryFromMountedName(PackageName.ToString(), PackagePath))
+	{
+		return Result;
+	}
 
 	uint32 LoadFlags = LOAD_NoWarn | LOAD_NoVerify;
 	if (bForPIE)
@@ -9330,7 +9335,8 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 		LoadFlags |= LOAD_PackageForPIE;
 	}
 	UPackage* PackageToReset = nullptr;
-	FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageName.ToString(), LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
+
+	FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
 	{
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{

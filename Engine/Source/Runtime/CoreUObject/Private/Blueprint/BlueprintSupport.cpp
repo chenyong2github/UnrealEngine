@@ -1263,7 +1263,7 @@ int32 FLinkerLoad::FindCDOExportIndex(UClass* LoadClass)
 	return INDEX_NONE;
 }
 
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext);
+UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath);
 
 void FLinkerLoad::ResolveDeferredDependencies(UStruct* LoadStruct)
 {
@@ -1383,7 +1383,7 @@ void FLinkerLoad::ResolveDeferredDependencies(UStruct* LoadStruct)
 			{
 				uint32 InternalLoadFlags = LoadFlags & (LOAD_NoVerify | LOAD_NoWarn | LOAD_Quiet);
 				// make sure LoadAllObjects() is called for this package
-				LoadPackageInternal(/*Outer =*/nullptr, *SourceLinker->Filename, InternalLoadFlags, this, nullptr/*InReaderOverride*/, nullptr/*InstancingContext*/); //-V595
+				LoadPackageInternal(/*Outer =*/nullptr, SourceLinker->GetPackagePath(), InternalLoadFlags, this, nullptr/*InReaderOverride*/, nullptr/*InstancingContext*/, nullptr /* DiffPackagePath */); //-V595
 			}
 
 			DEFERRED_DEPENDENCY_CHECK(ResolvingPlaceholderStack.Num() == 0);

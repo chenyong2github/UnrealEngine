@@ -640,7 +640,7 @@ static void EditorCommandLineUtilsImpl::RunAssetMerge(FMergeAsset const& Base, F
 		{
 			if ((Resolution != EMergeResult::Cancelled) && !MergingPackage->IsDirty())
 			{
-				FString SrcFilePath = MergingPackage->FileName.ToString();
+				FString SrcFilePath = MergingPackage->GetLoadedPath().GetLocalFullPath();
 				IFileManager::Get().Copy(*DstFilePath, *SrcFilePath);
 			}
 		}

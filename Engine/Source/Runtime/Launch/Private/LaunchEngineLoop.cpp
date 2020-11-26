@@ -72,6 +72,7 @@
 	#include "UObject/Package.h"
 	#include "UObject/Linker.h"
 	#include "UObject/LinkerLoad.h"
+	#include "UObject/PackageResourceManager.h"
 	#include "UObject/ReferencerFinder.h"
 #endif
 
@@ -3093,12 +3094,15 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		SlowTask.EnterProgressFrame(5);
 
-#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME && !USE_PER_MODULE_UOBJECT_BOOTSTRAP
 		{
 		    SCOPED_BOOT_TIMING("LoadAssetRegistryModule");
 		    // If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
 		    FModuleManager::Get().LoadModule("AssetRegistry");
 		}
+#if WITH_COREUOBJECT
+		// Initialize the PackageResourceManager, which is needed to load any (non-script) Packages. It is first used in ProcessNewlyLoadedObjects (due to the loading of asset references in Class Default Objects)
+		// It has to be intialized after the AssetRegistryModule; the editor implementations of PackageResourceManager relies on it
+		IPackageResourceManager::Initialize();
 #endif
 		EndInitGameTextLocalization();
 
@@ -4275,6 +4279,11 @@ void FEngineLoop::Exit()
 	{
 		FEngineFontServices::Destroy();
 	}
+#endif
+
+#if WITH_COREUOBJECT
+	// PackageResourceManager depends on AssetRegistry, so must be shutdown before we unload the AssetRegistry module
+	IPackageResourceManager::Shutdown();
 #endif
 
 #if WITH_EDITOR

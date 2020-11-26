@@ -3,6 +3,7 @@
 #include "Virtualization/VirtualizedBulkData.h"
 
 #include "HAL/FileManager.h"
+#include "Misc/PackageSegment.h"
 #include "Misc/SecureHash.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/BulkData.h"
@@ -23,7 +24,8 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 
 	Reset();
 
-	Filename = InBulkData.GetFilename();
+	PackagePath = InBulkData.GetPackagePath();
+	PackageSegment = InBulkData.GetPackageSegment();
 
 	OffsetInFile = InBulkData.GetBulkDataOffsetInFile();
 	PayloadLength = InBulkData.GetBulkDataSize();
@@ -47,14 +49,15 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		{
 			Ar << Key;
 			Ar << PayloadLength;
-			Ar << bIsVirtualized;		
+			Ar << bIsVirtualized;
 			Ar << bShouldCompressData;
 			Ar << bIsDataStoredAsCompressed;
-			Ar << Filename;
+			Ar << PackagePath;
+			Ar << PackageSegment;
 			Ar << OffsetInFile;
 
 			bool bKeepBuffer = !Ar.IsLoading();
-			if (!bIsVirtualized && Filename.IsEmpty())
+			if (!bIsVirtualized && PackagePath.IsEmpty())
 			{
 				// Data is held in memory so we need to serialize it to the archive
 				bKeepBuffer = SerializeData(Ar, Payload);
@@ -78,7 +81,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		{
 			FLinkerSave* LinkerSave = Cast<FLinkerSave>(Ar.GetLinker());
 
-			const bool bCanAttemptVirtualization = LinkerSave != nullptr;			
+			const bool bCanAttemptVirtualization = LinkerSave != nullptr;
 
 			if (bCanAttemptVirtualization)
 			{
@@ -86,7 +89,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 			}
 
 			Ar << bIsVirtualized;
-					
+
 			if (!bIsVirtualized)
 			{
 				// Need to load the payload so that we can write it out
@@ -145,33 +148,35 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 				bIsDataStoredAsCompressed = false;
 				OffsetInFile = INDEX_NONE;
 
-				Filename.Empty();
+				PackagePath.Empty();
+				PackageSegment = EPackageSegment::Header;
 			}
 			else
 			{
 				Ar << bIsDataStoredAsCompressed;
 
-				// If we can lazy load then find the filename, otherwise we will want
+				// If we can lazy load then find the PackagePath, otherwise we will want
 				// to serialize immediately.
 				if (Ar.IsAllowingLazyLoading())
 				{
-					Filename = GetFilenameFromOwner(Owner);
+					PackagePath = GetPackagePathFromOwner(Owner, PackageSegment);
 				}
 				else
 				{
-					Filename.Empty();
+					PackagePath.Empty();
+					PackageSegment = EPackageSegment::Header;
 				}
 				
 				OffsetInFile = INDEX_NONE;
 				Ar << OffsetInFile;
 
-				if (Filename.IsEmpty())
+				if (PackagePath.IsEmpty())
 				{
-					// If we have no filename then we need to load the data immediately
+					// If we have no packagepath then we need to load the data immediately
 					// as we will not be able to load it on demand.
 					SerializeData(Ar, Payload);
-				}		
-			}	
+				}
+			}
 		}
 	}
 }
@@ -198,19 +203,20 @@ FSharedBufferConstPtr FVirtualizedUntypedBulkData::LoadFromDisk() const
 	FSharedBufferConstPtr PayloadFromDisk;
 
 	// Open a reader to the file
-	TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent));
-	if (Ar.IsValid())
+	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+	if (Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary)
 	{
 		// Move the correct location of the data in the file
-		Ar->Seek(OffsetInFile);
+		Result.Archive->Seek(OffsetInFile);
 
 		// Now we can actually serialize it
-		SerializeData(*Ar, PayloadFromDisk);
+		SerializeData(*Result.Archive, PayloadFromDisk);
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FVirtualizedUntypedBulkData"), *Filename);
-	}	
+		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FVirtualizedUntypedBulkData: %s."), *PackagePath.GetDebugNameWithExtension(PackageSegment),
+			(!Result.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
+	}
 
 	return PayloadFromDisk;
 }
@@ -304,34 +310,35 @@ FSharedBufferConstPtr FVirtualizedUntypedBulkData::PullData() const
 	return PulledPayload;
 }
 
-FString FVirtualizedUntypedBulkData::GetFilenameFromOwner(UObject* Owner) const
+FPackagePath FVirtualizedUntypedBulkData::GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const
 {
+	OutPackageSegment = EPackageSegment::Header;
 	if (Owner != nullptr)
 	{
 		UPackage* Package = Owner->GetOutermost();
 		checkf(Package != nullptr, TEXT("Owner was not a valid UPackage!"));
 
-		FLinker* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
+		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
 		checkf(Linker != nullptr, TEXT("UPackage did not have a valid FLinkerLoad!"));
 
-		return Linker->Filename;
+		return Linker->GetPackagePath();
 	}
-
 	else
 	{
-		return FString();
+		return FPackagePath();
 	}
 }
 
 bool FVirtualizedUntypedBulkData::CanUnloadData() const
 {
 	// We cannot unload the data if are unable to reload it from a file
-	return bIsVirtualized || Filename.IsEmpty() == false;
+	return bIsVirtualized || PackagePath.IsEmpty() == false;
 }
 
 void FVirtualizedUntypedBulkData::Reset()
 {
-	Filename.Empty();
+	PackagePath.Empty();
+	PackageSegment = EPackageSegment::Header;
 	OffsetInFile = INDEX_NONE;
 	Key.Invalidate();
 	Payload.Reset();
@@ -405,7 +412,8 @@ void FVirtualizedUntypedBulkData::UpdatePayload(const FSharedBufferConstRef& InP
 	bIsVirtualized = false;
 	bIsDataStoredAsCompressed = false;
 
-	Filename.Empty();
+	PackagePath.Empty();
+	PackageSegment = EPackageSegment::Header;
 	OffsetInFile = INDEX_NONE;
 
 	CalculateKey();

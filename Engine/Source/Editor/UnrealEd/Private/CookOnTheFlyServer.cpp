@@ -3641,9 +3641,10 @@ private:
 		{
 			bInclude = true;
 		}
-		else if (InPackage->LinkerLoad && InPackage->LinkerLoad->Filename.MatchesWildcard(InWildcard))
+		else if (InPackage->LinkerLoad)
 		{
-			bInclude = true;
+			FString Filename(InPackage->LinkerLoad->GetPackagePath().GetLocalFullPath());
+			bInclude = Filename.MatchesWildcard(InWildcard);
 		}
 		return bInclude;
 	}
@@ -5517,8 +5518,8 @@ void UCookOnTheFlyServer::GenerateLongPackageNames(TArray<FName>& FilesInPath)
 		else
 		{
 			FString LongPackageName;
-			FString FailureReason;
-			if (FPackageName::TryConvertFilenameToLongPackageName(FileInPath, LongPackageName, &FailureReason))
+			FPackageName::EErrorCode FailureReason;
+			if (FPackageName::TryConvertToMountedPath(FileInPath, nullptr /* LocalPath */, &LongPackageName, nullptr /* ObjectName */, nullptr /* SubObjectName */, nullptr /* Extension */, nullptr /* FlexNameType */, &FailureReason))
 			{
 				const FName LongPackageFName(*LongPackageName);
 				bool bIsAlreadyAdded;
@@ -5530,7 +5531,7 @@ void UCookOnTheFlyServer::GenerateLongPackageNames(TArray<FName>& FilesInPath)
 			}
 			else
 			{
-				LogCookerMessage(FString::Printf(TEXT("Unable to generate long package name for %s because %s"), *FileInPath, *FailureReason), EMessageSeverity::Warning);
+				LogCookerMessage(FString::Printf(TEXT("Unable to generate long package name, %s"), *FileInPath, *FPackageName::FormatErrorAsString(FileInPath, FailureReason)), EMessageSeverity::Warning);
 			}
 		}
 	}

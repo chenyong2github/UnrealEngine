@@ -121,7 +121,8 @@ class FLandscapeComponentDerivedData
 	/** Cached render data. Only valid on device. */
 	TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe > CachedRenderData;
 
-	FString CachedLODDataFileName;
+	FPackagePath CachedLODDataPackagePath;
+	EPackageSegment CachedLODDataPackageSegment;
 
 	friend class ULandscapeLODStreamingProxy;
 
@@ -398,7 +399,9 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::LandscapeMeshMobile; }
 	//~ End UStreamableRenderAsset Interface
 
+	UE_DEPRECATED(5.0, "Use GetMipDataPackagePath instead")
 	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
+	LANDSCAPE_API bool GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutBulkDataPackagePath, EPackageSegment& OutPackageSegment) const;
 
 
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;

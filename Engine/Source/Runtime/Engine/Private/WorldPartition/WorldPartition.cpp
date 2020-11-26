@@ -223,11 +223,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 
-		if (!LevelPackage->FileName.IsNone())
+		if (!LevelPackage->GetLoadedPath().GetPackageFName().IsNone())
 		{
 			TGuardValue<bool> IgnoreAssetRegistryEvents(bIgnoreAssetRegistryEvents, true);
 
-			const FString LevelPathStr = LevelPackage->FileName.ToString();
+			const FString LevelPathStr = LevelPackage->GetLoadedPath().GetPackageName();
 			const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
 
 			// Do a synchronous scan of the level external actors path.			
@@ -249,9 +249,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		if (bIsInstanced)
 		{
-			InstancingContext.AddMapping(LevelPackage->FileName, LevelPackage->GetFName());
+			InstancingContext.AddMapping(LevelPackage->GetLoadedPath().GetPackageFName(), LevelPackage->GetFName());
 
-			const FString SourceWorldName = FPaths::GetBaseFilename(LevelPackage->FileName.ToString());
+			const FString SourceWorldName = FPaths::GetBaseFilename(LevelPackage->GetLoadedPath().GetPackageName());
 			const FString DestWorldName = FPaths::GetBaseFilename(LevelPackage->GetFName().ToString());
 
 			ReplaceFrom = SourceWorldName + TEXT(".") + SourceWorldName;
@@ -940,7 +940,7 @@ bool UWorldPartition::ShouldHandleAssetEvent(const FAssetData& InAssetData)
 		return InValue;
 	};
 
-	const FString ThisLevelPath = RemoveAfterFirstDot(GetPackage()->FileName.ToString());
+	const FString ThisLevelPath = GetPackage()->GetLoadedPath().GetPackageName();
 	const FString AssetLevelPath = RemoveAfterFirstDot(InAssetData.ObjectPath.ToString());
 	return (ThisLevelPath == AssetLevelPath);
 }

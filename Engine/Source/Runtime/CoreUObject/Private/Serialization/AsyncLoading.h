@@ -400,11 +400,11 @@ struct FAsyncPackage : public FGCObject
 	}
 
 	/**
-	 * Returns the name to load of the package.
+	 * Returns the PackagePath from which to load the package.
 	 */
-	FORCEINLINE const FName& GetPackageNameToLoad() const
+	FORCEINLINE const FPackagePath& GetPackagePath() const
 	{
-		return Desc.NameToLoad;
+		return Desc.PackagePath;
 	}
 
 	void AddCompletionCallback(TUniquePtr<FLoadPackageAsyncDelegate>&& Callback, bool bInternal);

@@ -1132,7 +1132,7 @@ bool UOnlineHotfixManager::HotfixPakFile(const FCloudFileHeader& FileHeader)
 			UPackage* Package = *it;
 			if (Package && Package->ContainsMap())
 			{
-				const FString FileName = FPackageName::LongPackageNameToFilename(Package->FileName.ToString(), FPackageName::GetMapPackageExtension());
+				const FString FileName = FPackageName::LongPackageNameToFilename(Package->GetLoadedPath().GetPackageName(), FPackageName::GetMapPackageExtension());
 				if (PakFile->PakContains(FileName))
 				{
 					bHotfixNeedsMapReload = true;

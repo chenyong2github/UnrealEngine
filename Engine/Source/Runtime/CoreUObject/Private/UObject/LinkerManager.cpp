@@ -34,19 +34,19 @@ bool FLinkerManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 		UE_LOG(LogLinker, Display, TEXT("ObjectLoaders: %d"), ObjectLoaders.Num());
 		for (auto Linker : ObjectLoaders)
 		{
-			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->Filename);
+			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->GetDebugName());
 		}
 
 		UE_LOG(LogLinker, Display, TEXT("LoadersWithNewImports: %d"), LoadersWithNewImports.Num());
 		for (auto Linker : LoadersWithNewImports)
 		{
-			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->Filename);
+			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->GetDebugName());
 		}
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		UE_LOG(LogLinker, Display, TEXT("LiveLinkers: %d"), LiveLinkers.Num());
 		for (auto Linker : LiveLinkers)
 		{
-			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->Filename);
+			UE_LOG(LogLinker, Display, TEXT("%s"), *Linker->GetDebugName());
 		}
 #endif
 		return true;
@@ -67,7 +67,7 @@ bool FLinkerManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 			Ar.Logf
 				(
 				TEXT("%s (%s): Names=%i (%iK/%iK) Text=%i (%iK) Imports=%i (%iK) Exports=%i (%iK) Gen=%i Bulk=%i"),
-				*Linker->Filename,
+				*Linker->GetDebugName(),
 				*Linker->LinkerRoot->GetFullName(),
 				Linker->NameMap.Num(),
 				Linker->NameMap.Num() * sizeof(FName) / 1024,

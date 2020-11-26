@@ -7,6 +7,8 @@
 #include "FileCache/FileCache.h"
 #include "CrunchCompression.h"
 #include "VirtualTextureChunkDDCCache.h"
+#include "UObject/PackageResourceManager.h"
+#include "Misc/PackageSegment.h"
 
 DECLARE_MEMORY_STAT(TEXT("File Cache Size"), STAT_FileCacheSize, STATGROUP_VirtualTextureMemory);
 DECLARE_MEMORY_STAT(TEXT("Total Header Size"), STAT_TotalHeaderSize, STATGROUP_VirtualTextureMemory);
@@ -359,16 +361,27 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	TUniquePtr<IFileCacheHandle>& Handle = HandlePerChunk[ChunkIndex];
 	if (!Handle)
 	{
+		enum class EChunkSource
+		{
+			PackagePath,
+			File,
+			BulkData,
+			Invalid
+		};
+		EChunkSource ChunkSource = EChunkSource::Invalid;
+		FPackagePath ChunkPackagePath;
+		EPackageSegment ChunkPackageSegment = EPackageSegment::Header;
 		FString ChunkFileName;
 		int64 ChunkOffsetInFile = 0;
 #if WITH_EDITOR
-		FString ChunkFileNameDCC;
 		// If the bulkdata has a file associated with it, we stream directly from it.
 		// This only happens for lightmaps atm
-		if (!BulkData.GetFilename().IsEmpty())
+		if (!BulkData.GetPackagePath().IsEmpty())
 		{
 			ensure(Size <= (size_t)BulkData.GetBulkDataSize());
-			ChunkFileName = BulkData.GetFilename();
+			ChunkPackagePath = BulkData.GetPackagePath();
+			ChunkPackageSegment = BulkData.GetPackageSegment();
+			ChunkSource = EChunkSource::PackagePath;
 			ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
 		}
 		// Else it should be VT data that is injected into the DDC (and stream from VT DDC cache)
@@ -376,6 +389,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		{
 			SCOPE_CYCLE_COUNTER(STAT_VTP_MakeChunkAvailable);
 			check(Chunk.DerivedDataKey.IsEmpty() == false);
+			FString ChunkFileNameDCC;
 
 			// If request is flagged as high priority, we will block here until DCC cache is populated
 			// This way we can service these high priority tasks immediately
@@ -388,6 +402,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 				return EVTRequestPageStatus::Saturated;
 			}
 			ChunkFileName = ChunkFileNameDCC;
+			ChunkSource = EChunkSource::File;
 		}
 #else // WITH_EDITOR
 		ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
@@ -395,22 +410,32 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		{
 			if (!InvalidChunks[ChunkIndex])
 			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *ChunkFileName);
+				UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *BulkData.GetPackagePath().GetDebugName());
 				InvalidChunks[ChunkIndex] = true;
 			}
 			return EVTRequestPageStatus::Invalid;
 		}
+		ChunkSource = EChunkSource::BulkData;
 #endif // !WITH_EDITOR
 		// If we have a valid file name then we can create a file handle directly to it.
 		// If we do not then pass in the BulkData object which will create the IAsyncReadFileHandle for us.
-		//
-		if (!ChunkFileName.IsEmpty())
+		switch (ChunkSource)
 		{
-			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName, ChunkOffsetInFile));
+		case EChunkSource::PackagePath:
+		{
+			IAsyncReadFileHandle* AsyncFileHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(ChunkPackagePath, ChunkPackageSegment);
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(AsyncFileHandle, ChunkOffsetInFile));
+			break;
 		}
-		else
-		{
+		case EChunkSource::File:
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName, ChunkOffsetInFile));
+			break;
+		case EChunkSource::BulkData:
 			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(BulkData.OpenAsyncReadHandle(), ChunkOffsetInFile));
+			break;
+		default:
+			check(false);
+			return EVTRequestPageStatus::Invalid;
 		}
 		
 		// Don't expect CreateFileCacheHandle() to fail, async files should never fail to open
@@ -457,10 +482,10 @@ void FUploadingVirtualTexture::DumpToConsole(bool verbose)
 		}
 		else
 #endif
-			BulkDataFiles.Add(Chunk.BulkData.GetFilename());
+			BulkDataFiles.Add(Chunk.BulkData.GetPackagePath().GetLocalFullPath());
 	}
 
-	for (auto FileName : BulkDataFiles)
+	for (const auto& FileName : BulkDataFiles)
 	{
 		UE_LOG(LogConsoleResponse, Display, TEXT("Bulk data file / DDC entry: %s"), *FileName);
 	}

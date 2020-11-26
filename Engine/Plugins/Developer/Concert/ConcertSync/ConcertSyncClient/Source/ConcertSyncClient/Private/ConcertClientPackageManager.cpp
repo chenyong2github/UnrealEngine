@@ -209,7 +209,7 @@ void FConcertClientPackageManager::QueueDirtyPackagesForReload()
 		if (WorldPackage && WorldPackage->IsDirty() &&
 			(WorldPackage->HasAnyPackageFlags(PKG_PlayInEditor | PKG_InMemoryOnly) ||
 			WorldPackage->HasAnyFlags(RF_Transient) ||
-			WorldPackage->FileName != WorldPackage->GetFName()))
+			WorldPackage->GetLoadedPath().GetPackageFName() != WorldPackage->GetFName()))
 		{
 			DirtyPkgs.Remove(WorldPackage);
 		}

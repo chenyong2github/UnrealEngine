@@ -29,6 +29,7 @@ Landscape.cpp: Terrain rendering
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "Misc/PackageSegment.h"
 #include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "LandscapeMeshCollisionComponent.h"
@@ -3530,7 +3531,8 @@ void FLandscapeComponentDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 		StreamingLODDataArray.AddDefaulted(NumStreamingLODs);
 	}
 
-	CachedLODDataFileName.Empty();
+	CachedLODDataPackagePath.Empty();
+	CachedLODDataPackageSegment = EPackageSegment::Header;
 
 	for (int32 Idx = 0; Idx < NumStreamingLODs; ++Idx)
 	{
@@ -3542,9 +3544,10 @@ void FLandscapeComponentDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 		FByteBulkData& LODData = StreamingLODDataArray[Idx];
 		LODData.Serialize(Ar, Owner, Idx);
 #endif
-		if (CachedLODDataFileName.IsEmpty() && !!(LODData.GetBulkDataFlags() & BULKDATA_Force_NOT_InlinePayload))
+		if (CachedLODDataPackagePath.IsEmpty() && !!(LODData.GetBulkDataFlags() & BULKDATA_Force_NOT_InlinePayload))
 		{
-			CachedLODDataFileName = LODData.GetFilename();
+			CachedLODDataPackagePath = LODData.GetPackagePath();
+			CachedLODDataPackageSegment = LODData.GetPackageSegment();
 		}
 	}
 }
@@ -3990,11 +3993,24 @@ int32 ULandscapeLODStreamingProxy::CalcCumulativeLODSize(int32 NumLODs) const
 
 bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
+	{
+		OutBulkDataFilename = PackagePath.GetLocalFullPath(PackageSegment);
+		return true;
+	}
+	return false;
+}
+
+bool ULandscapeLODStreamingProxy::GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment) const
+{
 	check(LandscapeComponent);
 	const int32 NumStreamingLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
 	if (MipIndex >= 0 && MipIndex < NumStreamingLODs)
 	{
-		OutBulkDataFilename = LandscapeComponent->PlatformData.CachedLODDataFileName;
+		OutPackagePath = LandscapeComponent->PlatformData.CachedLODDataPackagePath;
+		OutPackageSegment = LandscapeComponent->PlatformData.CachedLODDataPackageSegment;
 		return true;
 	}
 	return false;
@@ -4003,10 +4019,11 @@ bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FStri
 FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 MipIndex) const
 {
 #if LANDSCAPE_LOD_STREAMING_USE_TOKEN
-	FString MipFilename;
-	if (GetMipDataFilename(MipIndex, MipFilename))
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
 	{
-		return MakeIoFilenameHash(MipFilename);
+		return MakeIoFilenameHash(PackagePath);
 	}
 #else
 	if (LandscapeComponent && LandscapeComponent->PlatformData.StreamingLODDataArray.IsValidIndex(MipIndex))

@@ -12,6 +12,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/PackagePath.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 #include "Templates/Function.h"
@@ -378,14 +379,30 @@ COREUOBJECT_API void StaticTick( float DeltaTime, bool bUseFullTimeLimit = true,
  * Loads a package and all contained objects that match context flags.
  *
  * @param	InOuter				Package to load new package into (usually nullptr or ULevel->GetOuter())
- * @param	InLongPackageName	Long package name to load
+ * @param	InLongPackageName	Long package name to load, if null the name is taken from InOuter
  * @param	LoadFlags			Flags controlling loading behavior, from the ELoadFlags enum
  * @param	InReaderOverride	Optional archive to use for reading package data
  * @param	InLoadContext		Additional context when called during serialization
+ * @param   InstancingContext   Additional context to map object names to their instanced counterpart when loading an instanced package
  *
  * @return	Loaded package if successful, nullptr otherwise
  */
 COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
+
+/**
+ * Loads a package and all contained objects that match context flags.
+ *
+ * @param	InOuter				Package to load new package into (usually nullptr or ULevel->GetOuter())
+ * @param	InPackagePath		PackagePath to load, must be non-empty
+ * @param	LoadFlags			Flags controlling loading behavior, from the ELoadFlags enum
+ * @param	InReaderOverride	Optional archive to use for reading package data
+ * @param	InLoadContext		Additional context when called during serialization
+ * @param   InstancingContext   Additional context to map object names to their instanced counterpart when loading an instanced package
+ * @param   DiffPackagePath		An additional PackagePath to load and compare to the package at InPackagePath, used when diffing packages
+ *
+ * @return	Loaded package if successful, nullptr otherwise
+ */
+COREUOBJECT_API UPackage* LoadPackage(UPackage* InOuter, const FPackagePath& InPackagePath, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr, const FPackagePath* DiffPackagePath = nullptr);
 
 /** Async package loading result */
 namespace EAsyncLoadingResult
@@ -414,32 +431,46 @@ DECLARE_DELEGATE_ThreeParams(FLoadPackageAsyncDelegate, const FName& /*PackageNa
 
 /**
  * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
- * This version is useful when loading multiple copies of the same package.
+ * Use this version to specify the PackagePath rather than having the other versions internally convert the InName to a PackagePath by searching the current package mount points.
+ * Use this version if you need to specify a packagename that is different from the packagename on disk; this is useful when loading multiple copies of the same package.
  *
- * @param	InName					Name of package to load
- * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
- * @param	InPackageToLoadFrom		If non-null, this is another package name. We load from this package name, into a (probably new) package named InName
+ * @param	InPackagePath			PackagePath to load. Must be a mounted path. The package is created if it does not already exist.
+ * @param	InPackageNameToCreate	If not none, this is the name of the package to load the bytes on disk into (and create if not yet existing). If none, the name is taken from PackagePath.
  * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
+ * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
  * @param	InPackageFlags			Package flags used to construct loaded package in memory
  * @param	InPIEInstanceID			Play in Editor instance ID
  * @param	InPackagePriority		Loading priority
+ * @param   InstancingContext		Additional context to map object names to their instanced counterpart when loading an instanced package
  * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
  */
-COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate = NAME_None, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), const FGuid* InGuid = nullptr, EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
  * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
+ * Use this version for convenience when you just need to load a package without notification and with default behavior from a packagename/filename.
  *
- * @param	InName					Name of package to load
+ * @param	InName					PackageName or LocalFilePath of package to load. Must be a mounted name/path. The package is created if it does not already exist.
+ * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
+ * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
+ */
+COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr);
+
+/**
+ * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
+ * Use this version when you need to load a package with default behavior from a packagename/filename, and need to be notified when it is loaded.
+ *
+ * @param	InName					PackageName or LocalFilePath of package to load. Must be a mounted name/path. The package is created if it does not already exist.
  * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
  * @param	InPackagePriority		Loading priority
  * @param	InPackageFlags			Package flags used to construct loaded package in memory
  * @param	InPIEInstanceID			Play in Editor instance ID
  * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
- *
- * @see FStreamableManager for an engine-level wrapper
  */
 COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, FLoadPackageAsyncDelegate InCompletionDelegate, TAsyncLoadPriority InPackagePriority = 0, EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE);
+
+UE_DEPRECATED(5.0, "Use version that takes a PackagePath")
+COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
 * Cancels all async package loading requests.

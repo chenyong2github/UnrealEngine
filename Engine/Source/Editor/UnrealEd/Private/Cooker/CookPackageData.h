@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <atomic>
 #include "CookTypes.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
@@ -15,6 +16,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
+#include "UObject/PackageResourceManager.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -340,9 +342,10 @@ namespace Cook
 		FName CookedFileName; // Override filename to be used when saving cooked package (used by generated packages)
 		TWeakObjectPtr<UPackage> Package;
 		FPackageDatas& PackageDatas; // The one-per-CookOnTheFlyServer owner of this PackageData
-		TSharedPtr<FPreloadableFile> PreloadableFile;
+		TSharedPtr<FPreloadableArchive> PreloadableFile;
 		int32 NumPendingCookedPlatformData = 0;
 		int32 CookedPlatformDataNextIndex = -1;
+		std::atomic<EPackageFormat> PreloadableFileFormat;
 
 		uint32 State : int32(EPackageState::BitCount);
 		uint32 bIsUrgent : 1;

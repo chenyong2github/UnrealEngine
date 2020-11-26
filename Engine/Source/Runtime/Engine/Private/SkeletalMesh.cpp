@@ -6,10 +6,9 @@
 
 #include "Engine/SkeletalMesh.h"
 #include "Serialization/CustomVersion.h"
-#include "UObject/FrameworkObjectVersion.h"
 #include "Misc/App.h"
+#include "Misc/PackageSegment.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/UObjectIterator.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "RawIndexBuffer.h"
@@ -23,9 +22,15 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "ComponentReregisterContext.h"
-#include "UObject/EditorObjectVersion.h"
-#include "UObject/RenderingObjectVersion.h"
 #include "UObject/CoreObjectVersion.h"
+#include "UObject/CoreRedirects.h"
+#include "UObject/EditorObjectVersion.h"
+#include "UObject/FrameworkObjectVersion.h"
+#include "UObject/NiagaraObjectVersion.h"
+#include "UObject/PackageResourceManager.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/RenderingObjectVersion.h"
+#include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "EditorSupportDelegates.h"
 #include "GPUSkinVertexFactory.h"
@@ -46,14 +51,11 @@
 #include "SkeletalMeshTypes.h"
 #include "Rendering/SkeletalMeshVertexBuffer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "UObject/PropertyPortFlags.h"
 #include "Templates/UniquePtr.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimSequence.h"
-#include "UObject/NiagaraObjectVersion.h"
 #include "Animation/SkinWeightProfile.h"
 #include "Streaming/SkeletalMeshUpdate.h"
-#include "UObject/CoreRedirects.h"
 #include "HAL/FileManager.h"
 
 #if WITH_EDITOR
@@ -1025,21 +1027,41 @@ int32 USkeletalMesh::CalcCumulativeLODSize(int32 NumLODs) const
 #if USE_BULKDATA_STREAMING_TOKEN
 bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
+	{
+		OutBulkDataFilename = PackagePath.GetLocalFullPath(PackageSegment);
+		return true;
+	}
+	return false;
+}
+
+bool USkeletalMesh::GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment) const
+{
 	// TODO: this is slow. Should cache the name once per mesh
-	FString PackageName = GetOutermost()->FileName.ToString();
+	FPackagePath PackagePath = GetOutermost()->GetLoadedPath();
 	// Handle name redirection and localization
-	const FCoreRedirectObjectName RedirectedName =
-		FCoreRedirects::GetRedirectedName(
-			ECoreRedirectFlags::Type_Package,
-			FCoreRedirectObjectName(NAME_None, NAME_None, *PackageName));
-	FString LocalizedName;
-	LocalizedName = FPackageName::GetDelegateResolvedPackagePath(RedirectedName.PackageName.ToString());
-	LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
-	bool bSucceed = FPackageName::DoesPackageExist(LocalizedName, nullptr, &OutBulkDataFilename);
+	{
+		FString PackageName = PackagePath.GetPackageName();
+		const FCoreRedirectObjectName RedirectedName =
+			FCoreRedirects::GetRedirectedName(
+				ECoreRedirectFlags::Type_Package,
+				FCoreRedirectObjectName(NAME_None, NAME_None, *PackageName));
+		FString LocalizedName;
+		LocalizedName = FPackageName::GetDelegateResolvedPackagePath(RedirectedName.PackageName.ToString());
+		LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
+		if (LocalizedName != PackageName)
+		{
+			PackagePath = FPackagePath::FromPackageNameChecked(LocalizedName);
+		}
+	}
+	bool bSucceed = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
 	check(bSucceed);
 	const FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	const bool bLODIsOptional = SkelMeshRenderData ? (MipIndex < SkelMeshRenderData->LODRenderData.Num() - SkelMeshRenderData->NumNonOptionalLODs) : false;
-	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, bLODIsOptional ? TEXT(".uptnl") : TEXT(".ubulk"));
+	OutPackagePath = MoveTemp(PackagePath);
+	OutPackageSegment = bLODIsOptional ? EPackageSegment::BulkDataOptional : EPackageSegment::BulkDataDefault;
 	return true;
 }
 #endif // USE_BULKDATA_STREAMING_TOKEN
@@ -1047,10 +1069,11 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 FIoFilenameHash USkeletalMesh::GetMipIoFilenameHash(const int32 MipIndex) const
 {
 #if USE_BULKDATA_STREAMING_TOKEN
-	FString MipFilename;
-	if (GetMipDataFilename(MipIndex, MipFilename))
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
 	{
-		return MakeIoFilenameHash(MipFilename);
+		return MakeIoFilenameHash(PackagePath);
 	}
 #else
 	if (SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex))
@@ -1067,8 +1090,9 @@ FIoFilenameHash USkeletalMesh::GetMipIoFilenameHash(const int32 MipIndex) const
 bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
 {
 #if USE_BULKDATA_STREAMING_TOKEN
-	FString MipDataFilename;
-	return GetMipDataFilename(MipIndex, MipDataFilename) && IFileManager::Get().FileExists(*MipDataFilename);
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	return GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment) && IPackageResourceManager::Get().DoesPackageExist(PackagePath, PackageSegment);
 #else
 	return SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex) && SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
 #endif

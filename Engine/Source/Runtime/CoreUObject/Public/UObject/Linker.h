@@ -11,6 +11,7 @@
 #include "Templates/RefCounting.h"
 
 class FReferenceCollector;
+class FPackagePath;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLinker, Log, All);
 
@@ -239,6 +240,7 @@ public:
 	TArray<FGatherableTextData> GatherableTextDataMap;
 
 	/** The name of the file for this package */
+	UE_DEPRECATED(5.0, "Use GetDebugName for logging identifiers. For other purposes, use GetPackagePath on LinkerLoad and GetFilename on LinkerSave.")
 	FString					Filename;
 
 	/** If true, filter out exports that are for clients but not servers */
@@ -251,6 +253,8 @@ public:
 	class FSHA1*			ScriptSHA;
 
 	/** Constructor. */
+	FLinker(ELinkerType::Type InType, UPackage* InRoot);
+	UE_DEPRECATED(5.0, "Linker's filename is deprecated; subclasses should create their own filename if required")
 	FLinker(ELinkerType::Type InType, UPackage* InRoot, const TCHAR* InFilename);
 
 	virtual ~FLinker();
@@ -298,6 +302,9 @@ public:
 	{
 		return LinkerType;
 	}
+
+	/** Returns a descriptor of the PackagePath this Linker is reading from or writing to, usable for an identifier in warning and log messages */
+	virtual FString GetDebugName() const;
 
 	/**
 	 * I/O function
@@ -618,7 +625,7 @@ COREUOBJECT_API void DeleteLoader(FLinkerLoad* Loader);
 /** 
  * Loads a linker for a package and returns it without loading any objects.
  * @param InOuter Package if known, can be null
- * @param InLongPackageName Name of the package to load
+ * @param PackagePath Package resource to load, must not be empty
  * @param LoadFlags Flags to pass to the new linker
  * @param Sandbox Additional sandbox for loading
  * @param CompatibleGuid Net GUID
@@ -626,13 +633,18 @@ COREUOBJECT_API void DeleteLoader(FLinkerLoad* Loader);
  * @param LinkerLoadedCallback Callback when the linker is loaded (or not found)
  * @return Pointer to the loaded linker or null if the file didn't exist
  */
+COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback);
+COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, FGuid* CompatibleGuid = nullptr, FArchive* InReaderOverride = nullptr);
+
+UE_DEPRECATED(5.0, "Use version that takes an FPackagePath instead")
 COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback);
+UE_DEPRECATED(5.0, "Use version that takes an FPackagePath instead")
 COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, FGuid* CompatibleGuid = nullptr, FArchive* InReaderOverride = nullptr);
 
 /** 
  * Gets a linker for a package and returns it without loading any objects. This call must be preceeded by BeginLoad and followed by EndLoad calls
  * @param InOuter Package if known, can be null
- * @param InLongPackageName Name of the package to load
+ * @param PackagePath Package resource to load, must not be empty
  * @param LoadFlags Flags to pass to the new linker
  * @param Sandbox Additional sandbox for loading
  * @param CompatibleGuid Net GUID
@@ -642,11 +654,14 @@ COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* I
  * @param InstancingContext Optional instancing context to pass in if a linker is created
  * @return Pointer to the loaded linker or null if the file didn't exist
  */
+COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride = nullptr, FUObjectSerializeContext** InOutLoadContext = nullptr, FLinkerLoad* ImportLinker = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
+
+UE_DEPRECATED(5.0, "Use version that takes a PackagePath")
 COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride = nullptr, FUObjectSerializeContext** InOutLoadContext = nullptr, FLinkerLoad* ImportLinker = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 
 
-COREUOBJECT_API FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bExistSkip = true);
+COREUOBJECT_API FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkipIfExists = true);
 
 UE_DEPRECATED(4.25, "No longer used; use version that takes a UPackage* and call EnsureLoadingComplete separately.")
 COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);

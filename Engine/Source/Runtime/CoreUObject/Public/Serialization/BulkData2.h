@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "BulkDataCommon.h"
 #include "BulkDataBuffer.h"
+#include "Containers/StringView.h"
 #include "Async/AsyncFileHandle.h"
 #include "IO/IoDispatcher.h"
+#include "Misc/PackagePath.h"
+#include "Misc/PackageSegment.h"
 
 struct FOwnedBulkDataPtr;
 class IMappedFileHandle;
@@ -18,6 +21,8 @@ using FIoFilenameHash = uint32;
 const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
 /** Helpers to create the hash from a filename. Returns IOFILENAMEHASH_NONE if and only if the filename is empty. */
 COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FString& Filename);
+/** Helpers to create the hash from a FPackagePath. Returns IOFILENAMEHASH_NONE if and only if the PackagePath is empty. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FPackagePath& Filename);
 /** Helpers to create the hash from a chunk id. Returns IOFILENAMEHASH_NONE if and only if the chunk id is invalid. */
 COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID);
 
@@ -208,7 +213,14 @@ public:
 	// Added for compatibility with the older BulkData system
 	int64 GetBulkDataOffsetInFile() const;
 
+	UE_DEPRECATED(5.0, "Use GetPackagePath instead")
 	FString GetFilename() const;
+
+	/** Returns the PackagePath this bulkdata resides in */
+	FPackagePath GetPackagePath() const;
+
+	/** Returns which segment of its PackagePath this bulkdata resides in */
+	EPackageSegment GetPackageSegment() const;
 
 	/** 
 	 * Returns the io filename hash associated with this bulk data.
@@ -240,11 +252,11 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile);
+	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FPackagePath* PackagePath, int64& InOutOffsetInFile);
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
-	bool MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead);
+	bool MemoryMapBulkData(const FPackagePath& PackagePath, EPackageSegment PackageSegment, int64 OffsetInBulkData, int64 BytesToRead);
 
 	// Methods for dealing with the allocated data
 	FORCEINLINE void* AllocateData(SIZE_T SizeInBytes) { return DataAllocation.AllocateData(this, SizeInBytes); }
@@ -256,7 +268,7 @@ private:
 	/** Blocking call that waits until any pending async load finishes */
 	void FlushAsyncLoading();
 	
-	FString ConvertFilenameFromFlags(const FString& Filename) const;
+	EPackageSegment GetPackageSegmentFromFlags() const;
 
 private:
 	using AsyncCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
@@ -265,7 +277,7 @@ private:
 	void LoadDataAsynchronously(AsyncCallback&& Callback);
 
 	// Used by LoadDataDirectly/LoadDataAsynchronously
-	void InternalLoadFromFileSystem(void** DstBuffer);
+	void InternalLoadFromPackageResource(void** DstBuffer);
 	void InternalLoadFromIoStore(void** DstBuffer);
 	void InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback);
 

@@ -550,14 +550,14 @@ bool UWorldPartitionConvertCommandlet::RenameWorldPackageWithSuffix(UWorld* Worl
 
 	FString OldPackageName = Package->GetName();
 	FString NewPackageName = OldPackageName + ConversionSuffix;
-	FString NewPackageFilename = Package->FileName.ToString().Replace(*OldPackageName, *NewPackageName);
+	FString NewPackageResourceName = Package->GetLoadedPath().GetPackageName().Replace(*OldPackageName, *NewPackageName);
 	bRenamedSuccess = Package->Rename(*NewPackageName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 	if (!bRenamedSuccess)
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Unable to rename package to %s"), *NewPackageName);
 		return false;
 	}
-	Package->FileName = *NewPackageFilename;
+	Package->SetLoadedPath(FPackagePath::FromPackageNameChecked(NewPackageResourceName));
 
 	return true;
 }
@@ -1066,12 +1066,12 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		if (LevelHasLevelScriptBlueprint(SubLevel))
 		{
-			MapsWithLevelScriptsBPs.Add(SubPackage->FileName.ToString());
+			MapsWithLevelScriptsBPs.Add(SubPackage->GetLoadedPath().GetPackageName());
 		}
 
 		if (LevelHasMapBuildData(SubLevel))
 		{
-			MapsWithMapBuildData.Add(SubPackage->FileName.ToString());
+			MapsWithMapBuildData.Add(SubPackage->GetLoadedPath().GetPackageName());
 		}
 
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());

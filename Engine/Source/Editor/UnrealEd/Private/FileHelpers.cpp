@@ -2505,35 +2505,32 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 
 	const FScopedBusyCursor BusyCursor;
 
-	FString Filename( InFilename );
-
+	FString Filename;
 	FString LongMapPackageName;
-	if ( FPackageName::IsValidLongPackageName(InFilename) )
-	{
-		LongMapPackageName = InFilename;
-		FPackageName::TryConvertLongPackageNameToFilename(InFilename, Filename, FPackageName::GetMapPackageExtension());
-	}
-	else
-	{
+	FString Extension;
+	bool bFoundPath = FPackageName::TryConvertToMountedPath(InFilename, &Filename, &LongMapPackageName, nullptr /* ObjectName */, nullptr /* SubObjectName */, &Extension, nullptr /* OutFlexNameType */);
 #if PLATFORM_WINDOWS
+	if (!bFoundPath)
 	{
 		// Check if the Filename is actually from network drive and if so attempt to
 		// resolve to local path (if it's pointing to local machine's shared folder)
 		FString LocalFilename;
-		if ( FWindowsPlatformProcess::ResolveNetworkPath( Filename, LocalFilename ) )
+		if (FWindowsPlatformProcess::ResolveNetworkPath(InFilename, LocalFilename))
 		{
-			// Use local path if resolve succeeded
-			Filename = FString( *LocalFilename );
+			bFoundPath = FPackageName::TryConvertToMountedPath(LocalFilename, &Filename, &LongMapPackageName, nullptr /* ObjectName */, nullptr /* SubObjectName */, &Extension, nullptr /* OutFlexNameType */);
 		}
 	}
 #endif
-
-		if ( !FPackageName::TryConvertFilenameToLongPackageName(Filename, LongMapPackageName) )
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("Editor", "MapLoad_FriendlyBadFilename", "Map load failed. The filename '{0}' is not within the game or engine content folders found in '{1}'."), FText::FromString(Filename), FText::FromString(FPaths::RootDir())));
-			return false;
-		}
+	if (!bFoundPath)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("Editor", "MapLoad_FriendlyBadFilename", "Map load failed. The filename '{0}' is not within the game or engine content folders found in '{1}'."), FText::FromString(Filename), FText::FromString(FPaths::RootDir())));
+		return false;
 	}
+	if (Extension.IsEmpty())
+	{
+		Extension = FPackageName::GetMapPackageExtension();
+	}
+	Filename += Extension;
 
 	// If a PIE world exists, warn the user that the PIE session will be terminated.
 	// Abort if the user refuses to terminate the PIE session.

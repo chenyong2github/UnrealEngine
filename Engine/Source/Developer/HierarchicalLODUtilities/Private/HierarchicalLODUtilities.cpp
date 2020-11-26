@@ -180,10 +180,8 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	HLODPackage->FullyLoad();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
-	// Target level filename
-	const FString HLODLevelFileName = FPackageName::LongPackageNameToFilename(HLODLevelPackageName);
-	// This is a hack to avoid save file dialog when we will be saving HLOD map package
-	HLODPackage->FileName = FName(*HLODLevelFileName);
+	// Target PackagePath; this is a hack to avoid save file dialog when we will be saving HLOD map package
+	HLODPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(HLODLevelPackageName));
 
 	return HLODPackage;
 }
@@ -224,10 +222,8 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	HLODPackage->Modify();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
-	// Target level filename
-	const FString HLODLevelFileName = FPackageName::LongPackageNameToFilename(HLODLevelPackageName);
-	// This is a hack to avoid save file dialog when we will be saving HLOD map package
-	HLODPackage->FileName = FName(*HLODLevelFileName);
+	// Target PackagePath; this is a hack to avoid save file dialog when we will be saving HLOD map package
+	HLODPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(HLODLevelPackageName));
 
 	return HLODPackage;
 }
@@ -271,10 +267,8 @@ UPackage* CreateOrRetrieveImposterMeshPackage(const UMaterialInterface* InImpost
 	UPackage* MeshPackage = CreatePackage( *MeshPackageName);
 	MeshPackage->FullyLoad();
 
-	// Target filename
-	const FString MeshPackageFileName = FPackageName::LongPackageNameToFilename(MeshPackageName);
-	// This is a hack to avoid save file dialog when we will be saving imposter mesh package
-	MeshPackage->FileName = FName(*MeshPackageFileName);
+	// Target PackagePath; this is a hack to avoid save file dialog when we will be saving imposter mesh package
+	MeshPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(MeshPackageName));
 
 	return MeshPackage;
 }

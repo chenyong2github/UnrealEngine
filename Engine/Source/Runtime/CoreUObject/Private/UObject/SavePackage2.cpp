@@ -665,7 +665,7 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 
 			// The entire package will be serialized to memory and then compared against package on disk.
 			// Each difference will be log with its Serialize call stack trace if IsDiffCallstack is true
-			FArchive* Saver = new FArchiveStackTrace(SaveContext.GetAsset(), *SaveContext.GetPackage()->FileName.ToString(), SaveContext.IsDiffCallstack(), SaveContext.GetDiffMapPtr());
+			FArchive* Saver = new FArchiveStackTrace(SaveContext.GetAsset(), *SaveContext.GetPackage()->GetLoadedPath().GetPackageName(), SaveContext.IsDiffCallstack(), SaveContext.GetDiffMapPtr());
 			SaveContext.Linker = MakeUnique<FLinkerSave>(SaveContext.GetPackage(), Saver, SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
 		}
 		else

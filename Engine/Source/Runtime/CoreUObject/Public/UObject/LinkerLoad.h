@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/PackagePath.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/Linker.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/ObjectResource.h"
-#include "UObject/Linker.h"
+#include "UObject/PackageResourceManager.h"
 
 class FLinkerPlaceholderBase;
 class IPakFile;
@@ -136,6 +138,17 @@ public:
 		return bIsAsyncLoader ? (FAsyncArchive*)Loader : nullptr;
 	}
 
+	virtual FString GetDebugName() const override
+	{
+		return GetPackagePath().GetDebugName();
+	}
+
+	/** Get the PackagePath being loaded. For linkers created from LoadPackage this will be a mounted and extension-specified path, but it may be unmounted and unspecified for other linkers */
+	const FPackagePath& GetPackagePath() const
+	{
+		return PackagePath;
+	}
+
 	FORCEINLINE const FLinkerInstancingContext& GetInstancingContext() const
 	{
 		return InstancingContext;
@@ -153,6 +166,11 @@ private:
 	FArchiveFormatterType* StructuredArchiveFormatter;
 	TOptional<FStructuredArchive::FRecord> StructuredArchiveRootRecord;
 	TArray<FStructuredArchiveChildReader*> ExportReaders;
+	/** The packagepath being loaded */
+	FPackagePath		PackagePath;
+
+	/** Set the packagepath being loaded */
+	void SetPackagePath(const FPackagePath& PackagePath);
 
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
@@ -471,13 +489,15 @@ public:
 	 * Creates and returns a FLinkerLoad object.
 	 *
 	 * @param	Parent				Parent object to load into, can be NULL (most likely case)
-	 * @param	Filename			Name of file on disk to load
+	 * @param	PackagePath			Path of the package on disk to load
 	 * @param	LoadFlags			Load flags determining behavior
 	 * @param	InLoader			Loader archive override
 	 * @param	InstancingContext	Context to remap package name when loading a package on disk into a package with a different name
 	 *
 	 * @return	new FLinkerLoad object for Parent/ Filename
 	 */
+	COREUOBJECT_API static FLinkerLoad* CreateLinker(FUObjectSerializeContext* LoadContext, UPackage* Parent, const FPackagePath& PackagePath, uint32 LoadFlags, FArchive* InLoader = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
+	UE_DEPRECATED(5.0, "Use version that takes an FPackagePath instead")
 	COREUOBJECT_API static FLinkerLoad* CreateLinker(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags, FArchive* InLoader = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 	void Verify();
@@ -664,6 +684,8 @@ public:
 #if WITH_EDITOR
 	COREUOBJECT_API static bool GetPreloadingEnabled();
 	COREUOBJECT_API static void SetPreloadingEnabled(bool bEnabled);
+	COREUOBJECT_API static bool TryGetPreloadedLoader(const FPackagePath& InPackagePath, FOpenPackageResult& OutResult);
+	UE_DEPRECATED(5.0, "Use version that takes a PackagePath instead")
 	COREUOBJECT_API static bool TryGetPreloadedLoader(FArchive*& OutLoader, const TCHAR* FileName);
 	private:
 		static bool bPreloadingEnabled;
@@ -909,13 +931,13 @@ private:
 	 * true in which case the returned linker object has finished the async creation process.
 	 *
 	 * @param	Parent				Parent object to load into, can be NULL (most likely case)
-	 * @param	Filename			Name of file on disk to load
+	 * @param	PackagePath			Path of the package data to load
 	 * @param	LoadFlags			Load flags determining behavior
 	 * @param	InstancingContext	Context to remap package name when loading a package on disk into a package with a different name
 	 *
 	 * @return	new FLinkerLoad object for Parent/ Filename
 	 */
-	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags, const FLinkerInstancingContext* InstancingContext
+	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync(FUObjectSerializeContext* LoadContext, UPackage* Parent, const FPackagePath& PackagePath, uint32 LoadFlags, const FLinkerInstancingContext* InstancingContext
 		, TFunction<void()>&& InSummaryReadyCallback
 	);
 
@@ -936,11 +958,11 @@ protected: // Daniel L: Made this protected so I can override the constructor an
 	 * Private constructor, passing arguments through from CreateLinker.
 	 *
 	 * @param	Parent				Parent object to load into, can be NULL (most likely case)
-	 * @param	Filename			Name of file on disk to load
+	 * @param	PackagePath			Path of the package data to load
 	 * @param	LoadFlags			Load flags determining behavior
 	 * @param	InstancingContext	The instancing context for remapping imports if needed.
 	 */
-	FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InLoadFlags, FLinkerInstancingContext InstancingContext = FLinkerInstancingContext());
+	FLinkerLoad(UPackage* InParent, const FPackagePath& PackagePath, uint32 InLoadFlags, FLinkerInstancingContext InstancingContext = FLinkerInstancingContext());
 private:
 	/**
 	 * Returns whether the time limit allotted has been exceeded, if enabled.

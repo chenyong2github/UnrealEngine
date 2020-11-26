@@ -1995,15 +1995,15 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 		FString SourceShortPackageName = FPackageName::GetShortName(SourceLongPackageName);
 		// Target PackageName for generated level: /LongPackageName+LOD/ShortPackageName_LOD[LODIndex]
 		const FString LODLevelPackageName = FString::Printf(TEXT("%sLOD/%s_LOD%d"),	*SourceLongPackageName, *SourceShortPackageName, TargetLODIndex+1);
-		// Target level filename
-		const FString LODLevelFileName = FPackageName::LongPackageNameToFilename(LODLevelPackageName) + FPackageName::GetMapPackageExtension();
 
 		// Create a package for a LOD level
 		UPackage* LODPackage = CreatePackage( *LODLevelPackageName);
 		LODPackage->FullyLoad();
 		LODPackage->Modify();
 		// This is a hack to avoid save file dialog when we will be saving LOD map package
-		LODPackage->FileName = FName(*LODLevelFileName);
+		FPackagePath LODLevelPackagePath = FPackagePath::FromPackageNameChecked(LODLevelPackageName);
+		LODLevelPackagePath.SetHeaderExtension(EPackageExtension::Map);
+		LODPackage->SetLoadedPath(LODLevelPackagePath);
 
 		// This is current actors offset from their original position
 		FVector ActorsOffset = FVector(TileModel->GetAbsoluteLevelPosition() - GetWorld()->OriginLocation);
@@ -2256,7 +2256,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			// Save generated level
 			if (FEditorFileUtils::PromptToCheckoutLevels(false, LODWorld->PersistentLevel))
 			{
-				FEditorFileUtils::SaveLevel(LODWorld->PersistentLevel, LODLevelFileName);
+				FEditorFileUtils::SaveLevel(LODWorld->PersistentLevel, LODLevelPackagePath.GetLocalFullPath());
 				FAssetRegistryModule::AssetCreated(LODWorld);
 			}
 			

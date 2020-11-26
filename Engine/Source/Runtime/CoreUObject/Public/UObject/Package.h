@@ -9,12 +9,13 @@
 #include "UObject/PackageId.h"
 #include "UObject/LinkerSave.h"
 #include "Misc/Guid.h"
-#include "Misc/WorldCompositionUtility.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
+#include "Misc/PackagePath.h"
+#include "Misc/SecureHash.h"
+#include "Misc/WorldCompositionUtility.h"
 #include "Serialization/CustomVersion.h"
 #include "Templates/UniquePtr.h"
-#include "Misc/SecureHash.h"
 #include "Async/Future.h"
 
 class Error;
@@ -202,12 +203,16 @@ private:
 	
 	/** Globally unique id used to address I/O chunks within the package */
 	FPackageId PackageId;
+
+	/** The PackagePath this package was loaded from */
+	FPackagePath LoadedPath;
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
 	int32 PIEInstanceID;		// TODO: strip from runtime?
 
 	/** The name of the file that this package was loaded from */
+	UE_DEPRECATED(5.0, "Use GetLoadedPath instead")
 	FName	FileName;
 
 	/** Linker load associated with this package */
@@ -331,6 +336,16 @@ public:
 	* Fully loads this package. Safe to call multiple times and won't clobber already loaded assets.
 	*/
 	void FullyLoad();
+
+	/**
+	 * Get the path this package was loaded from; may be different than packagename, and may not be set if the package was not loaded from disk
+	 */
+	const FPackagePath& GetLoadedPath() const;
+
+	/**
+	 * Set the path this package was loaded from; typically called only by the linker during load
+	 */
+	void SetLoadedPath(const FPackagePath& PackagePath);
 
 	/**
 	* Marks/Unmarks the package's bCanBeImported flag.

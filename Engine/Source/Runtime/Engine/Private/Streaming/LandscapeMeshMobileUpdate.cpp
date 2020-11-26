@@ -9,6 +9,7 @@ LandscapeMeshMobileUpdate.cpp: Helpers to stream in and out mobile landscape ver
 #include "LandscapeComponent.h"
 #include "LandscapeRenderMobile.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "Misc/PackageSegment.h"
 
 template class TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>;
 
@@ -213,18 +214,20 @@ bool FLandscapeMeshMobileStreamIn_IO::HasPendingIORequests() const
 	return false;
 }
 
-FString FLandscapeMeshMobileStreamIn_IO::GetIOFilename(const FContext& Context)
+void FLandscapeMeshMobileStreamIn_IO::GetIOPackagePath(const FContext& Context, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment)
 {
 	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 
 	if (!IsCancelled() && LandscapeProxy)
 	{
-		FString Filename;
-		verify(LandscapeProxy->GetMipDataFilename(PendingFirstLODIdx, Filename));
-		return Filename;
+		verify(LandscapeProxy->GetMipDataPackagePath(PendingFirstLODIdx, OutPackagePath, OutPackageSegment));
 	}
-	MarkAsCancelled();
-	return FString();
+	else
+	{
+		MarkAsCancelled();
+		OutPackagePath = FPackagePath();
+		OutPackageSegment = EPackageSegment::Header;
+	}
 }
 
 void FLandscapeMeshMobileStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
@@ -249,7 +252,7 @@ void FLandscapeMeshMobileStreamIn_IO::SetAsyncFileCallback(const FContext& Conte
 	};
 }
 
-void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, const FString& IOFilename)
+void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, const FPackagePath& PackagePath, EPackageSegment PackageSegment)
 {
 	if (IsCancelled())
 	{
@@ -274,10 +277,11 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, cons
 #endif
 			if (BulkDataArray[0]->GetBulkDataSize() > 0)
 			{
-				check(!IOFilename.IsEmpty());
+				check(!PackagePath.IsEmpty());
 				TaskSynchronization.Increment();
 				IORequests[Index] = FBulkDataInterface::CreateStreamingRequestForRange(
-					STREAMINGTOKEN_PARAM(IOFilename)
+					STREAMINGTOKEN_PARAM(PackagePath)
+					STREAMINGTOKEN_PARAM(PackageSegment)
 					BulkDataArray,
 					bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 					&AsyncFileCallback);
@@ -366,8 +370,10 @@ void FLandscapeMeshMobileStreamIn_IO_AsyncReallocate::DoInitiateIO(const FContex
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LSMMStreamInIOAsyncRealloc_DoInitiateIO"), STAT_LSMMStreamInIOAsyncRealloc_DoInitiateIO, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
-	const FString IOFilename = GetIOFilename(Context);
-	SetIORequest(Context, IOFilename);
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	GetIOPackagePath(Context, PackagePath, PackageSegment);
+	SetIORequest(Context, PackagePath, PackageSegment);
 	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(DoGetIORequestResults), TT_Async, SRA_UPDATE_CALLBACK(DoCancelIO));
 }
 

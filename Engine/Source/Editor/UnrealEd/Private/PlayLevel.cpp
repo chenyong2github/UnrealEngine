@@ -2186,7 +2186,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	UPackage* PlayWorldPackage = CreatePackage(*PlayWorldMapName);
 	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
-	PlayWorldPackage->FileName = InPackage->FileName;
+	PlayWorldPackage->SetLoadedPath(InPackage->GetLoadedPath());
 	PlayWorldPackage->SetGuid( InPackage->GetGuid() );
 	PlayWorldPackage->MarkAsFullyLoaded();
 

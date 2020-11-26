@@ -4,6 +4,7 @@
 #include "Serialization/BulkData.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/PackageSegment.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Serialization/LargeMemoryWriter.h"
@@ -16,6 +17,7 @@
 #include "UObject/LinkerSave.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/DebugSerializationFlags.h"
+#include "UObject/PackageResourceManager.h"
 #include "Serialization/AsyncLoadingPrivate.h"
 #include "Async/MappedFileHandle.h"
 #include "HAL/PlatformFileManager.h"
@@ -119,11 +121,11 @@ const void* FOwnedBulkDataPtr::GetPointer()
 	return AllocatedData ? AllocatedData : (MappedRegion ? MappedRegion->GetMappedPtr() : nullptr);
 }
 
-bool FUntypedBulkData::FAllocatedPtr::MapFile(const TCHAR *InFilename, int64 Offset, int64 Size)
+bool FUntypedBulkData::FAllocatedPtr::MapFile(const FPackagePath& InPackagePath, EPackageSegment InPackageSegment, int64 Offset, int64 Size)
 {
 	check(!MappedHandle && !MappedRegion); // It doesn't make sense to do this twice, but if need be, not hard to do
 
-	MappedHandle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(InFilename);
+	MappedHandle = IPackageResourceManager::Get().OpenMappedHandleToPackage(InPackagePath, InPackageSegment);
 
 	if (!MappedHandle)
 	{
@@ -246,7 +248,8 @@ FUntypedBulkData& FUntypedBulkData::operator=( const FUntypedBulkData& Other )
 	}
 	else // Otherwise setup the bulk so that the data can be loaded through LoadBulkDataWithFileReader()
 	{
-		Filename = Other.Filename;
+		PackagePath = Other.PackagePath;
+		PackageSegment = Other.PackageSegment;
 		BulkDataFlags = Other.BulkDataFlags;
 		ElementCount = Other.ElementCount;
 		BulkDataOffsetInFile = Other.BulkDataOffsetInFile;
@@ -402,7 +405,7 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 	return AttachedAr != NULL;
 #else
 	bool bCanLoadFromDisk = false;
-	if (!Filename.IsEmpty())
+	if (!PackagePath.IsEmpty())
 	{
 		bCanLoadFromDisk = true;
 	}
@@ -416,7 +419,7 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 
 bool FUntypedBulkData::DoesExist() const
 {
-	return IFileManager::Get().FileExists(*Filename);
+	return IPackageResourceManager::Get().DoesPackageExist(PackagePath, PackageSegment);
 }
 
 /**
@@ -715,7 +718,7 @@ bool FUntypedBulkData::LoadBulkDataWithFileReader()
 bool FUntypedBulkData::CanLoadBulkDataWithFileReader() const
 {
 #if WITH_EDITOR
-	return !Filename.IsEmpty();
+	return !PackagePath.IsEmpty();
 #else
 	return false;
 #endif
@@ -829,13 +832,13 @@ void FUntypedBulkData::AsyncLoadBulkData()
 {
 	BulkDataAsync.Reallocate(GetBulkDataSize(), BulkDataAlignment);
 
-	FArchive* FileReaderAr = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
-	checkf(FileReaderAr != NULL, TEXT("Attempted to load bulk data from an invalid filename '%s'."), *Filename);
+	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+	checkf(Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid package '%s'%s."),
+		*PackagePath.GetDebugName(PackageSegment), (Result.Archive == nullptr ? TEXT("") : TEXT(": Package Format is Text which is not supported")));
 
 	// Seek to the beginning of the bulk data in the file.
-	FileReaderAr->Seek(BulkDataOffsetInFile);
-	SerializeBulkData(*FileReaderAr, BulkDataAsync.Get());
-	delete FileReaderAr;
+	Result.Archive->Seek(BulkDataOffsetInFile);
+	SerializeBulkData(*Result.Archive, BulkDataAsync.Get());
 }
 
 /*-----------------------------------------------------------------------------
@@ -849,7 +852,7 @@ void FUntypedBulkData::StartSerializingBulkData(FArchive& Ar, UObject* Owner, in
 
 	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]() 
 	{ 
-		UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to stream bulk data with EDL enabled. This is not desireable. File %s"), *Filename);
+		UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to stream bulk data with EDL enabled. This is not desireable. Package %s"), *PackagePath.GetDebugName(PackageSegment));
 		AsyncLoadBulkData();
 
 		return true;
@@ -890,7 +893,7 @@ bool FUntypedBulkData::ShouldStreamBulkData()
 
 	const bool bForceStream = !!(BulkDataFlags & BULKDATA_ForceStreamPayload);
 
-	return (FPlatformProperties::RequiresCookedData() && !Filename.IsEmpty() &&
+	return (FPlatformProperties::RequiresCookedData() && !PackagePath.IsEmpty() &&
 		FPlatformProcess::SupportsMultithreading() && IsInGameThread() &&
 		(bForceStream || GetBulkDataSize() > GMinimumBulkDataSizeForAsyncLoading) &&
 		GMinimumBulkDataSizeForAsyncLoading >= 0);
@@ -994,7 +997,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 		// We're loading from the persistent archive.
 		if (Ar.IsLoading())
 		{
-			Filename = TEXT("");
+			PackagePath = FPackagePath();
+			PackageSegment = EPackageSegment::Header;
 
 			// @todo when Landscape (and others?) only Lock/Unlock once, we can enable this
 			if (false) // FPlatformProperties::RequiresCookedData())
@@ -1043,7 +1047,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				Linker = Owner->GetLinker();
 			}
 #else
-			FLinker* Linker = nullptr;
+			FLinkerLoad* Linker = nullptr;
 			if (Owner != nullptr)
 			{
 				Package = Owner->GetOutermost();
@@ -1060,7 +1064,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			}
 			BulkDataOffsetInFile += OffsetInFileFixup;
 
-			// We're allowing defered serialization.
+			// We're allowing deferred serialization.
 			FArchive* CacheableArchive = Ar.GetCacheableArchive();
 			if (Ar.IsAllowingLazyLoading() && Owner != NULL && CacheableArchive)
 			{				
@@ -1069,10 +1073,12 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				CacheableArchive->AttachBulkData(Owner, this);
 				check(!CacheableArchive->IsTextFormat());
 				AttachedAr = CacheableArchive;
-				Filename = Linker->Filename;
+				PackagePath = Linker->GetPackagePath();
+				PackageSegment = EPackageSegment::Header;
 #else
 				check(Linker);
-				Filename = Linker->Filename;
+				PackagePath = Linker->GetPackagePath();
+				PackageSegment = EPackageSegment::Header;
 
 				check(!Owner->GetLinker() || Owner->GetLinker() == Linker);
 #endif // WITH_EDITOR
@@ -1089,15 +1095,15 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						bool bWasMapped = false;
 						if (bAttemptFileMapping)
 						{
-							UE_LOG(LogSerialization, Error, TEXT("Attempt to file map inline bulk data. This is not desireable. File %s"), *Filename);
+							UE_LOG(LogSerialization, Error, TEXT("Attempt to file map inline bulk data. This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
 
-							if (GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+							if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
 							{
-								BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
+								BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
 								check(BulkDataOffsetInFile >= 0);
-								Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
+								PackageSegment = EPackageSegment::Exports;
 							}
-							bWasMapped = BulkData.MapFile(*Filename, BulkDataOffsetInFile, GetBulkDataSize());
+							bWasMapped = BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize());
 						}
 						if (bWasMapped)
 						{
@@ -1117,10 +1123,9 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				else if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
 				{
 					// Load from optional payload instead if optional payload is available
-					FString OptionalFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
-					if (IFileManager::Get().FileExists(*OptionalFilename))
+					if (IPackageResourceManager::Get().DoesPackageExist(PackagePath, EPackageSegment::BulkDataOptional))
 					{
-						Filename = OptionalFilename;
+						PackageSegment = EPackageSegment::BulkDataOptional;
 						Ar << BulkDataFlags;
 						SetBulkDataFlags(BULKDATA_OptionalPayload);
 
@@ -1140,6 +1145,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					}
 					else
 					{
+						PackageSegment = EPackageSegment::BulkDataDefault;
 						// Skip all bulkdata info of the copy in uptnl.
 						uint32 DummyBulkDataFlags;
 						Ar << DummyBulkDataFlags;
@@ -1157,30 +1163,28 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						int64 DummyBulkDataOffsetInFile;
 						Ar << DummyBulkDataOffsetInFile;
-
-						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 					}
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
 				{
-					Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
+					PackageSegment = EPackageSegment::BulkDataOptional;
 				}
 				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 				{
 					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 					{
-						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
+						PackageSegment = EPackageSegment::BulkDataMemoryMapped;
 					}
 					else
 					{
-						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
+						PackageSegment = EPackageSegment::BulkDataDefault;
 					}
 
 
 					if (bAttemptFileMapping)
 					{
 						check(!FPlatformProperties::GetMemoryMappingAlignment() || IsAligned(BulkDataOffsetInFile, FPlatformProperties::GetMemoryMappingAlignment()));
-						bool bWasMapped = BulkData.MapFile(*Filename, BulkDataOffsetInFile, GetBulkDataSize());
+						bool bWasMapped = BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize());
 						if (!bWasMapped)
 						{
 							// we failed to map when requested, so they will be looking for the memory, do a sync load now.
@@ -1194,7 +1198,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			{
 				if (Owner && Owner->GetLinker())
 				{
-					Filename = Owner->GetLinker()->Filename;
+					PackagePath = Owner->GetLinker()->GetPackagePath();
+					PackageSegment = EPackageSegment::Header;
 				}
 				if (ShouldStreamBulkData())
 				{
@@ -1215,26 +1220,27 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 						{
 							// open separate bulk data file
-							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *Filename);
+							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
 
-							if (GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+							if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
 							{
-								BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
+								BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
 								check(BulkDataOffsetInFile >= 0);
-								Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
+								PackageSegment = EPackageSegment::Exports;
 							}
 
-							FArchive* TargetArchive = IFileManager::Get().CreateFileReader(*Filename);
+							FOpenPackageResult TargetArchive = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+							checkf(TargetArchive.Archive.IsValid() && TargetArchive.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid PackagePath '%s': %s."),
+								*PackagePath.GetDebugName(PackageSegment), (!TargetArchive.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
+
 							// seek to the location in the file where the payload is stored
-							TargetArchive->Seek(BulkDataOffsetInFile);
+							TargetArchive.Archive->Seek(BulkDataOffsetInFile);
 							// serialize the payload
-							SerializeBulkData(*TargetArchive, BulkData.Get());
-							// cleanup file
-							delete TargetArchive;
+							SerializeBulkData(*TargetArchive.Archive, BulkData.Get());
 						}
 						else
 						{
-							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled. This is not desireable. File %s"), *Filename);
+							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled. This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
 
 							// store the current file offset
 							int64 CurOffset = Ar.Tell();
@@ -1548,6 +1554,7 @@ void FUntypedBulkData::InitializeMemberVariables()
 	BulkDataSizeOnDisk = INDEX_NONE;
 	BulkDataAlignment = DEFAULT_ALIGNMENT;
 	LockStatus = LOCKSTATUS_Unlocked;
+	PackageSegment = EPackageSegment::Header;
 #if WITH_EDITOR
 	Linker = nullptr;
 	AttachedAr = nullptr;
@@ -1662,7 +1669,7 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 
 IAsyncReadFileHandle* FUntypedBulkData::OpenAsyncReadHandle() const
 {
-	return FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*GetFilename());
+	return IPackageResourceManager::Get().OpenAsyncReadPackage(GetPackagePath(), GetPackageSegment());
 }
 
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
@@ -1674,27 +1681,27 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAnd
 
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
-	check(Filename.IsEmpty() == false);
+	check(PackagePath.IsEmpty() == false);
 
-	// If we are loading from a .uexp file then we need to adjust the filename and offset stored by BulkData in order to use them
+	// If we are loading from a .uexp file then we need to adjust the segment and offset stored by BulkData in order to use them
 	// to access the data in the .uexp file. To keep the method const (due to a large number of places calling this, assuming that
 	// it is const) we take a copy of these data values which if needed can be adjusted and use them instead.
-	FString AdjustedFilename = Filename; 
+	EPackageSegment AdjustedPackageSegment = PackageSegment;
 	int64 AdjustedBulkDataOffsetInFile = BulkDataOffsetInFile;
 
-	// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
-	if (GEventDrivenLoaderEnabled && (AdjustedFilename.EndsWith(TEXT(".uasset")) || AdjustedFilename.EndsWith(TEXT(".umap"))))
+	// Fix up the Segment/Offset to work with streaming if EDL is enabled and the segment is still referencing the header
+	if (GEventDrivenLoaderEnabled && AdjustedPackageSegment == EPackageSegment::Header)
 	{
-		AdjustedBulkDataOffsetInFile -= IFileManager::Get().FileSize(*AdjustedFilename);
-		AdjustedFilename = FPaths::GetBaseFilename(AdjustedFilename, false) + BulkDataExt::Export;
+		AdjustedBulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, AdjustedPackageSegment);
+		AdjustedPackageSegment = EPackageSegment::Exports;
 
-		UE_LOG(LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *AdjustedFilename);
+		UE_LOG(LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *PackagePath.GetDebugName(AdjustedPackageSegment));
 	}
 
-	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *AdjustedFilename);
-	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *AdjustedFilename);
+	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *PackagePath.GetDebugName(AdjustedPackageSegment));
+	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *PackagePath.GetDebugName(AdjustedPackageSegment));
 
-	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*AdjustedFilename);
+	IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, AdjustedPackageSegment);
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
@@ -1732,7 +1739,15 @@ FBulkDataStreamingToken FUntypedBulkData::CreateStreamingToken() const
 
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
 {
-	check(Filename.IsEmpty() == false);
+	FPackagePath PackagePath;
+	EPackageSegment PackageSegment;
+	PackagePath = FPackagePath::FromLocalPath(Filename, PackageSegment);
+	return CreateStreamingRequestForRange(PackagePath, PackageSegment, RangeArray, Priority, CompleteCallback);
+}
+
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPackagePath& PackagePath, EPackageSegment PackageSegment, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
+{
+	check(PackagePath.IsEmpty() == false);
 	check(RangeArray.Num() > 0);
 
 	const FBulkDataStreamingToken& Start = *(RangeArray[0]);
@@ -1741,7 +1756,7 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FStri
 	check(Start.IsValid());
 	check(End.IsValid());
 
-	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+	IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
@@ -1882,7 +1897,7 @@ void FUntypedBulkData::WaitForAsyncLoading()
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::WaitForAsyncLoading"), STAT_UBD_WaitForAsyncLoading, STATGROUP_Memory);
 	while (!SerializeFuture.WaitFor(FTimespan::FromMilliseconds(1000.0)))
 	{
-		UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *Filename, GetBulkDataSize());
+		UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *PackagePath.GetDebugName(PackageSegment), GetBulkDataSize());
 	}
 	check(BulkDataAsync);
 }
@@ -1923,20 +1938,22 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
 		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.
-		FString BulkDataFilename;
+		EPackageSegment BulkDataSegment;
+
 		if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 		{
-			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
+			BulkDataSegment = EPackageSegment::BulkDataMemoryMapped;
 		}
 		else
 		{
-			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
+			BulkDataSegment = EPackageSegment::BulkDataDefault;
 		}
-		BulkDataArchive = IFileManager::Get().CreateFileReader(*BulkDataFilename, FILEREAD_Silent);
+		FOpenPackageResult OpenResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, BulkDataSegment);
+		BulkDataArchive = OpenResult.Archive.Release();
+		check(BulkDataArchive == nullptr || OpenResult.Format == EPackageFormat::Binary);
 	}
 
 	if (!BulkDataArchive)
-
 	{
 		BulkDataArchive = AttachedAr;
 	}
@@ -1988,11 +2005,11 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 			}
 		}
 	}
-	// if we weren't able to load via linker, load directly by filename
+	// if we weren't able to load via linker, load directly by PackagePath
 	if (!bWasLoadedSuccessfully)
 	{
-		// load from the specied filename when the linker has been cleared
-		checkf( Filename != TEXT(""), TEXT( "Attempted to load bulk data without a proper filename." ) );
+		// load from the specied PackagePath when the linker has been cleared
+		checkf(!PackagePath.IsEmpty(), TEXT( "Attempted to load bulk data without a proper PackagePath." ) );
 
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 		static auto CVarTextureStreamingEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.TextureStreaming"));
@@ -2001,25 +2018,26 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		// is it possible for streaming mips to be loaded in non streaming ways.
 		if (CVarTextureStreamingEnabled->GetValueOnAnyThread() != 0)
 		{
-			bool bIsBulkFile = Filename.EndsWith(BulkDataExt::Default);
-			UE_CLOG(GEventDrivenLoaderEnabled && bIsBulkFile && (IsInGameThread() || IsInAsyncLoadingThread()), LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (LoadDataIntoMemory). This is not desireable. File %s"), *Filename);
+			bool bIsBulkFile = PackageSegment == EPackageSegment::BulkDataDefault;
+			UE_CLOG(GEventDrivenLoaderEnabled && bIsBulkFile && (IsInGameThread() || IsInAsyncLoadingThread()), LogSerialization, Error,
+				TEXT("Attempt to sync load bulk data with EDL enabled (LoadDataIntoMemory). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
 		}
 #endif
 
-		if (GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+		if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
 		{
-			BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
+			BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
 			check(BulkDataOffsetInFile >= 0);
-			Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
+			PackageSegment = EPackageSegment::Exports;
 		}
 
-		FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
-		checkf( Ar != NULL, TEXT( "Attempted to load bulk data from an invalid filename '%s'." ), *Filename );
+		FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+		checkf( Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary, TEXT( "Attempted to load bulk data from an invalid PackagePath '%s'%s." ),
+			*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("") : TEXT("; package is in non-binary format and this is not supported.")));
 	
 		// Seek to the beginning of the bulk data in the file.
-		Ar->Seek( BulkDataOffsetInFile );
-		SerializeBulkData( *Ar, Dest );
-		delete Ar;
+		Result.Archive->Seek( BulkDataOffsetInFile );
+		SerializeBulkData( *Result.Archive, Dest );
 	}
 #endif // WITH_EDITOR
 }

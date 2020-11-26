@@ -8,6 +8,7 @@
 #include "Async/Future.h"
 #include "Async/AsyncFileHandle.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Misc/PackagePath.h"
 #include "Serialization/FileRegions.h"
 #include "BulkDataCommon.h"
 #include "BulkData2.h"
@@ -251,7 +252,7 @@ private:
 			bAllocated = false;
 		}
 
-		COREUOBJECT_API bool MapFile(const TCHAR *Filename, int64 Offset, int64 Size);
+		COREUOBJECT_API bool MapFile(const FPackagePath& PackagePath, EPackageSegment PackageSegment, int64 Offset, int64 Size);
 		COREUOBJECT_API void UnmapFile();
 
 		FOwnedBulkDataPtr* StealFileMapping()
@@ -493,19 +494,21 @@ public:
 	 */
 	void ClearBulkDataFlags( uint32 BulkDataFlagsToClear );
 
-	/** 
-	 * Returns the filename this bulkdata resides in
-	 *
-	 * @return Filename where this bulkdata can be loaded from
-	 **/
-	const FString& GetFilename() const { return Filename; }
+	UE_DEPRECATED(5.0, "Use GetPackagePath instead")
+	FString GetFilename() const { return GetPackagePath().GetLocalFullPath(GetPackageSegment()); }
+
+	/** Returns the PackagePath this bulkdata resides in */
+	const FPackagePath& GetPackagePath() const { return PackagePath; }
+
+	/** Returns which segment of its PackagePath this bulkdata resides in */
+	EPackageSegment GetPackageSegment() const { return PackageSegment; }
 
 	/** 
 	 * Returns the io filename hash associated with this bulk data.
 	 *
 	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
 	 **/
-	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(Filename); }
+	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(PackagePath); }
 
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.
@@ -690,13 +693,16 @@ public:
 	 * There is no way to validate this and it is up to the caller to make sure that it is correct.
 	 * The memory to be read into will be automatically allocated the size of which can be retrieved by calling IBulkDataIORequest::GetSize()
 	 *
-	 * @param Filename			The file to read from.
+	 * @param PackagePath		The PackagePath to read from.
+	 * @param PackageSegment	The PackageSegment to read from.
 	 * @param Start				The bulk data to start reading from.
 	 * @param End				The bulk data to finish reading from.
 	 * @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
 	 * @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
 	 * @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const FPackagePath& PackagePath, EPackageSegment PackageSegment, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
+	UE_DEPRECATED(4.26, "Use version that takes a FPackagePath instead")
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 #endif
 
@@ -819,8 +825,10 @@ private:
 	TFuture<bool> SerializeFuture;
 
 protected:
-	/** name of the package file containing the bulkdata */
-	FString				Filename;
+	/** name of the PackagePath containing the bulkdata */
+	FPackagePath PackagePath;
+	/** Which segment of the package's data in the PackageResourceManager contains the bulkdata */
+	EPackageSegment PackageSegment;
 #if WITH_EDITOR
 	/** Archive associated with bulk data for serialization																*/
 	FArchive*			AttachedAr;

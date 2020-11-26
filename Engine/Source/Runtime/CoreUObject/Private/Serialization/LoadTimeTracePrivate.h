@@ -15,7 +15,8 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputStartAsyncLoading();
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
-	static void OutputNewAsyncPackage(const void* AsyncPackage, const FName& PackageName);
+	static void OutputNewAsyncPackage(const void* AsyncPackage, FName PackageName);
+	static void OutputNewAsyncPackage(const void* AsyncPackage, const FString& PackageName);
 	static void OutputBeginLoadAsyncPackage(const void* AsyncPackage);
 	static void OutputEndLoadAsyncPackage(const void* AsyncPackage);
 	static void OutputDestroyAsyncPackage(const void* AsyncPackage);

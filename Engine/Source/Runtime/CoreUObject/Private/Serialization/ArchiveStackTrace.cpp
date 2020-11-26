@@ -1016,7 +1016,7 @@ FLinkerLoad* FArchiveStackTrace::CreateLinkerForPackage(FUObjectSerializeContext
 	}
 	// Create an archive for the linker. The linker will take ownership of it.
 	FLargeMemoryReader* PackageReader = new FLargeMemoryReader(PackageData.Data, PackageData.Size, ELargeMemoryReaderFlags::None, *InPackageName);	
-	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, *InFilename, LOAD_NoVerify, PackageReader);
+	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, FPackagePath::FromLocalPath(InFilename), LOAD_NoVerify, PackageReader);
 
 	if (Linker && Package)
 	{

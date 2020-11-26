@@ -766,8 +766,9 @@ int32 ULoadPackageCommandlet::Main( const FString& Params )
 
 		UE_LOG(LogPackageUtilities, Display, TEXT("Loading %s"), *Filename );
 
-		FString PackageName;
-		if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+		FPackagePath PackagePath = FPackagePath::FromLocalPath(Filename);
+		FString PackageName = PackagePath.GetPackageName();
+		if (!PackageName.IsEmpty())
 		{
 			UPackage* Package = FindObject<UPackage>(nullptr, *PackageName, true);
 			if (Package != NULL && !bLoadAllPackages)
@@ -778,12 +779,12 @@ int32 ULoadPackageCommandlet::Main( const FString& Params )
 
 		if (bCheckForLegacyPackages)
 		{
-			FLinkerLoad* Linker = LoadPackageLinker(nullptr, *Filename, LOAD_NoVerify);
+			FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_NoVerify);
 			MinVersion = FMath::Min<int32>(MinVersion, Linker->Summary.GetFileVersionUE4());
 		}
 		else
 		{
-			UPackage* Package = LoadPackage(nullptr, *Filename, LOAD_None );
+			UPackage* Package = LoadPackage(nullptr, PackagePath, LOAD_None );
 			if(Package == nullptr)
 			{
 				UE_LOG(LogPackageUtilities, Error, TEXT("Error loading %s!"), *Filename );
@@ -906,7 +907,7 @@ FLinkerLoad* CreateLinkerForFilename(FUObjectSerializeContext* LoadContext, cons
 	{
 		Package = CreatePackage( *TempPackageName);
 	}
-	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, *InFilename, LOAD_NoVerify);
+	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, FPackagePath::FromLocalPath(InFilename), LOAD_NoVerify);
 	return Linker;
 }
 
@@ -942,7 +943,7 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 	Out.Logf(ELogVerbosity::Display, TEXT("Package '%s' Summary"), *LinkerName.ToString() );
 	Out.Logf(ELogVerbosity::Display, TEXT("--------------------------------------------") );
 
-	Out.Logf(ELogVerbosity::Display, TEXT("\t         Filename: %s"), *Linker->Filename);
+	Out.Logf(ELogVerbosity::Display, TEXT("\t         Filename: %s"), *Linker->GetPackagePath().GetLocalFullPath());
 	Out.Logf(ELogVerbosity::Display, TEXT("\t     File Version: %i"), Linker->UE4Ver() );
 	Out.Logf(ELogVerbosity::Display, TEXT("\t   Engine Version: %s"), *Linker->Summary.SavedByEngineVersion.ToString());
 	Out.Logf(ELogVerbosity::Display, TEXT("\t   Compat Version: %s"), *Linker->Summary.CompatibleWithEngineVersion.ToString());

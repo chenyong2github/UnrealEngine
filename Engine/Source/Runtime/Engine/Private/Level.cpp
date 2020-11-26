@@ -732,13 +732,14 @@ void ULevel::PostLoad()
 	{
 		UPackage* LevelPackage = GetPackage();
 		bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);
-		bool bInstanced = !LevelPackage->FileName.IsNone() && (LevelPackage->FileName != LevelPackage->GetFName());
+		FName PackageResourceName = LevelPackage->GetLoadedPath().GetPackageFName();
+		bool bInstanced = !PackageResourceName.IsNone() && (PackageResourceName != LevelPackage->GetFName());
 
 		// if the level is instanced, create an instancing context for remapping the actor imports
 		FLinkerInstancingContext InstancingContext;
 		if (bInstanced)
 		{
-			InstancingContext.AddMapping(LevelPackage->FileName, LevelPackage->GetFName());
+			InstancingContext.AddMapping(PackageResourceName, LevelPackage->GetFName());
 		}
 
 		TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages();
@@ -2326,7 +2327,7 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 	{
 		for (TObjectIterator<UPackage> It; It; ++It)
 		{
-			if (!ActorPackages.Contains(*It) && It->FileName.ToString().Contains(ExternalActorsPath))
+			if (!ActorPackages.Contains(*It) && It->GetLoadedPath().GetPackageName().Contains(ExternalActorsPath))
 			{
 				ActorPackages.Add(*It);
 			}
@@ -2636,7 +2637,9 @@ bool ULevel::IsInstancedLevel() const
 {
 	UPackage* LevelPackage = GetOutermost();
 	static FName UnsavedPackageName("/Temp/Untitled");
-	return !LevelPackage->FileName.IsNone() && (LevelPackage->FileName != LevelPackage->GetFName()) && !LevelPackage->GetFName().IsEqual(UnsavedPackageName, ENameCase::IgnoreCase, /*bCompareNumber*/false);
+	const FPackagePath& PackagePath = LevelPackage->GetLoadedPath();
+	return !PackagePath.IsEmpty() && PackagePath.GetPackageFName() != LevelPackage->GetFName() 
+		&& !LevelPackage->GetFName().IsEqual(UnsavedPackageName, ENameCase::IgnoreCase, /*bCompareNumber*/false);
 }
 
 void ULevel::ApplyWorldOffset(const FVector& InWorldOffset, bool bWorldShift)

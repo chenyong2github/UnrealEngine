@@ -6,6 +6,7 @@
 #include "HAL/Platform.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
+#include "Misc/PackagePath.h"
 #include "Virtualization/VirtualizationManager.h"
 
 class FArchive;
@@ -123,7 +124,7 @@ private:
 	void PushData();
 	FSharedBufferConstPtr PullData() const;
 
-	FString GetFilenameFromOwner(UObject* Owner) const;
+	FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const;
 
 	bool CanUnloadData() const;
 
@@ -148,8 +149,11 @@ private:
 	/** If the data has been saved to disk rather than being Virtualized, was it stored in a compressed format? */
 	bool bIsDataStoredAsCompressed = false ;
 
-	/** File containing the payload (this will be empty if the payload does not come from a file)*/
-	FString Filename;
+	/** PackagePath containing the payload (this will be empty if the payload does not come from PackageResourceManager)*/
+	FPackagePath PackagePath;
+
+	/** PackageSegment to load with the packagepath (unused if the payload does not come from PackageResourceManager) */
+	EPackageSegment PackageSegment;
 
 	/** Offset of the payload in the file that contains it (INDEX_NONE if the payload does not come from a file)*/
 	int64 OffsetInFile = INDEX_NONE;

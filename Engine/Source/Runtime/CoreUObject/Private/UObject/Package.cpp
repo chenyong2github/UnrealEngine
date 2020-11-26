@@ -7,6 +7,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerManager.h"
+#include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
 
@@ -201,6 +202,19 @@ void UPackage::FullyLoad()
 	}
 }
 
+const FPackagePath& UPackage::GetLoadedPath() const
+{
+	return LoadedPath;
+}
+
+void UPackage::SetLoadedPath(const FPackagePath& InPackagePath)
+{
+	LoadedPath = InPackagePath;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FileName = InPackagePath.GetPackageFName();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 /** Tags generated objects with flags */
 void UPackage::TagSubobjects(EObjectFlags NewFlags)
 {
@@ -221,32 +235,51 @@ void UPackage::TagSubobjects(EObjectFlags NewFlags)
  */
 bool UPackage::IsFullyLoaded() const
 {
-	// Newly created packages aren't loaded and therefore haven't been marked as being fully loaded. They are treated as fully
-	// loaded packages though in this case, which is why we are looking to see whether the package exists on disk and assume it
-	// has been fully loaded if it doesn't.
-	if (!bHasBeenFullyLoaded && !HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading) && FileSize == 0)
+	if (bHasBeenFullyLoaded)
 	{
+		return true;
+	}
+
+	// We set bHasBeenFullyLoaded to true when it is read for some special cases
+
+	if (FileSize != 0)
+	{
+		// If it has a filesize, it is a normal on-disk package, therefore is not a special case, and we respect the current 'false' value of bHasBeenFullyLoaded
+		return false;
+	}
+
+	if (HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
+	{
+		// If it's in the middle of an async load, don't make any changes and respect the current 'false' value of bHasBeenFullyLoaded
+		return false;
+	}
+
+	if (HasAnyPackageFlags(PKG_CompiledIn))
+	{
+		// Native packages don't have a file size but are always considered fully loaded.
+		bHasBeenFullyLoaded = true;
+		return true;
+	}
+
+	if (!GetConvertedDynamicPackageNameToTypeName().Contains(GetFName())) // ConvertedDynamicPackageNames do not exist on disk, but are not a special case
+	{
+		// Newly created packages aren't loaded and therefore haven't been marked as being fully loaded. They are treated as fully
+		// loaded packages though in this case, which is why we are looking to see whether the package exists on disk and assume it
+		// has been fully loaded if it doesn't.
+		// Try to find matching package in package file cache. We use the LoadedPath here as it may be loaded into a temporary package
 		FString DummyFilename;
-		FString SourcePackageName = FileName != NAME_None ? FileName.ToString() : GetName();
-		// Try to find matching package in package file cache. We use the source package name here as it may be loaded into a temporary package
-		if (HasAnyPackageFlags(PKG_CompiledIn))
-		{
-			// Native packages don't have a file size but are always considered fully loaded.
-			bHasBeenFullyLoaded = true;
-		}
-		else if (	!GetConvertedDynamicPackageNameToTypeName().Contains(GetFName()) &&
-				(
-					!FPackageName::DoesPackageExist(*SourcePackageName, NULL, &DummyFilename ) ||
-					(GIsEditor && IFileManager::Get().FileSize(*DummyFilename) < 0) 
-				)
-			)
+		FPackagePath SourcePackagePath = !LoadedPath.IsEmpty() ? LoadedPath : FPackagePath::FromPackageNameChecked(GetName());
+		if (!FPackageName::DoesPackageExist(SourcePackagePath, &SourcePackagePath) ||
+			(GIsEditor && IPackageResourceManager::Get().FileSize(SourcePackagePath) < 0))
 		{
 			// Package has NOT been found, so we assume it's a newly created one and therefore fully loaded.
 			bHasBeenFullyLoaded = true;
+			return true;
 		}
 	}
 
-	return bHasBeenFullyLoaded;
+	// Not a special case; respect the current 'false' value of bHasBeenFullyLoaded
+	return false;
 }
 
 void UPackage::BeginDestroy()

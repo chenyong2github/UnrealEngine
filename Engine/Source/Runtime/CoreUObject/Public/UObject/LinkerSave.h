@@ -127,6 +127,10 @@ public:
 	using FLinker::Serialize;
 	void Serialize( void* V, int64 Length );
 
+	// FLinker interface
+	virtual FString GetDebugName() const override;
+
+	// LinkerSave interface
 	/**
 	 * Closes and deletes the Saver (file, memory or custom writer) which will close any associated file handle.
 	 * Returns false if the owned saver contains errors after closing it, true otherwise.
@@ -137,4 +141,11 @@ public:
 	 * Sets a flag indicating that this archive contains data required to be gathered for localization.
 	 */
 	void ThisRequiresLocalizationGather();
+
+	/** Get the filename being saved to */
+	const FString& GetFilename() const;
+
+protected:
+	/** Set the filename being saved to */
+	void SetFilename(FStringView InFilename);
 };

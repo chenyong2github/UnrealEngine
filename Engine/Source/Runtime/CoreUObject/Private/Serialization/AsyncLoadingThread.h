@@ -266,10 +266,10 @@ public:
 	void StartThread() override;
 
 	int32 LoadPackage(
-			const FString& InPackageName,
-			const FGuid* InGuid,
-			const TCHAR* InPackageToLoadFrom,
+			const FPackagePath& InPackagePath,
+			FName InCustomName,
 			FLoadPackageAsyncDelegate InCompletionDelegate,
+			const FGuid* InGuid,
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
 			int32 InPackagePriority,

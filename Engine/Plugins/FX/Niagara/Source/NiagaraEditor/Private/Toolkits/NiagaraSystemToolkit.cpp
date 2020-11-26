@@ -226,7 +226,7 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	{
 		FString ExportText;
 		SystemViewModel->DumpToText(ExportText);
-		FString FilePath = System->GetOutermost()->FileName.ToString();
+		FString FilePath = System->GetOutermost()->GetLoadedPath().GetPackageName();
 		FString PathPart, FilenamePart, ExtensionPart;
 		FPaths::Split(FilePath, PathPart, FilenamePart, ExtensionPart);
 
@@ -303,7 +303,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	{
 		FString ExportText;
 		SystemViewModel->DumpToText(ExportText);
-		FString FilePath = Emitter->GetOutermost()->FileName.ToString();
+		FString FilePath = Emitter->GetOutermost()->GetLoadedPath().GetPackageName();
 		FString PathPart, FilenamePart, ExtensionPart;
 		FPaths::Split(FilePath, PathPart, FilenamePart, ExtensionPart);
 
@@ -1592,11 +1592,11 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 
 		if (SystemToolkitMode == ESystemToolkitMode::System)
 		{
-			FilePath = System->GetOutermost()->FileName.ToString();
+			FilePath = System->GetOutermost()->GetLoadedPath().GetPackageName();
 		}
 		else if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 		{
-			FilePath = Emitter->GetOutermost()->FileName.ToString();
+			FilePath = Emitter->GetOutermost()->GetLoadedPath().GetPackageName();
 		}
 
 		FString PathPart, FilenamePart, ExtensionPart;

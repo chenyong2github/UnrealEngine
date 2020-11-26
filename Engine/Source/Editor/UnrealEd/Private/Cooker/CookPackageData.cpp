@@ -26,7 +26,7 @@ namespace Cook
 
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
-		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
+		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas), PreloadableFileFormat(EPackageFormat::Binary)
 		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bIsGeneratorPackage(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 	{
 		SetState(EPackageState::Idle);
@@ -687,9 +687,22 @@ namespace Cook
 		{
 			TStringBuilder<NAME_SIZE> FileNameString;
 			GetFileName().ToString(FileNameString);
-			PreloadableFile = MakeShared<FPreloadableFile>(FileNameString.ToString());
+			PreloadableFile = MakeShared<FPreloadableArchive>(FileNameString.ToString());
 			PackageDatas.GetMonitor().OnPreloadAllocatedChanged(*this, true);
-			PreloadableFile->InitializeAsync(FPreloadableFile::Flags::PreloadHandle | FPreloadableFile::Flags::Prime);
+			PreloadableFile->InitializeAsync([this]()
+				{
+					TStringBuilder<NAME_SIZE> FileNameString;
+					// Note this is an unsynchronized read of this->GetFilename. It is allowed because GetFilename does not change until this is destructed, and the destructor of this waits for PreloadableFile to finish initialization
+					this->GetFileName().ToString(FileNameString);
+					FPackagePath PackagePath = FPackagePath::FromLocalPath(FileNameString);
+					FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath);
+					if (Result.Archive)
+					{
+						this->PreloadableFileFormat = Result.Format; // PreloadableFileFormat is an atomic, so this write is safe with other reads
+					}
+					return Result.Archive.Release();
+				},
+				FPreloadableFile::Flags::PreloadHandle | FPreloadableFile::Flags::Prime);
 		}
 		if (!PreloadableFile->IsInitialized())
 		{
@@ -708,14 +721,18 @@ namespace Cook
 		{
 			SetIsPreloadAttempted(true);
 			PreloadableFile.Reset();
+			PreloadableFileFormat = EPackageFormat::Binary;
 			return true;
 		}
 
-		if (!FPreloadableFile::TryRegister(PreloadableFile))
+		TStringBuilder<NAME_SIZE> FileNameString;
+		GetFileName().ToString(FileNameString);
+		if (!IPackageResourceManager::TryRegisterPreloadableArchive(FPackagePath::FromLocalPath(FileNameString), PreloadableFile, PreloadableFileFormat))
 		{
-			UE_LOG(LogCook, Warning, TEXT("Duplicate attempts to register %s for preload."), *GetFileName().ToString());
+			UE_LOG(LogCook, Warning, TEXT("Failed to register %s for preload."), *GetFileName().ToString());
 			SetIsPreloadAttempted(true);
 			PreloadableFile.Reset();
+			PreloadableFileFormat = EPackageFormat::Binary;
 			return true;
 		}
 
@@ -729,7 +746,9 @@ namespace Cook
 		if (GetIsPreloaded())
 		{
 			check(PreloadableFile);
-			if (FPreloadableFile::UnRegister(PreloadableFile))
+			TStringBuilder<NAME_SIZE> FileNameString;
+			GetFileName().ToString(FileNameString);
+			if (IPackageResourceManager::UnRegisterPreloadableArchive(FPackagePath::FromLocalPath(FileNameString)))
 			{
 				UE_LOG(LogCook, Display, TEXT("PreloadableFile was created for %s but never used. This is wasteful and bad for cook performance."), *PackageName.ToString());
 			}
@@ -738,12 +757,12 @@ namespace Cook
 		else
 		{
 			check(!PreloadableFile || !PreloadableFile->IsCacheAllocated());
-			check(!PreloadableFile || !FPreloadableFile::UnRegister(PreloadableFile));
 		}
 
 		if (PreloadableFile)
 		{
 			PreloadableFile.Reset();
+			PreloadableFileFormat = EPackageFormat::Binary;
 			PackageDatas.GetMonitor().OnPreloadAllocatedChanged(*this, false);
 		}
 		SetIsPreloaded(false);

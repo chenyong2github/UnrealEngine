@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/PackagePath.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectArray.h"
 #include "Stats/Stats2.h"
@@ -96,23 +97,34 @@ public:
 
 	virtual void StartThread() = 0;
 
+	UE_DEPRECATED(5.0, "Call the version that takes a FPackagePath instead")
+	COREUOBJECT_API int32 LoadPackage(
+		const FString& InPackageName,
+		const FGuid* InGuid,
+		const TCHAR* InPackageToLoadFrom,
+		FLoadPackageAsyncDelegate InCompletionDelegate,
+		EPackageFlags InPackageFlags,
+		int32 InPIEInstanceID,
+		int32 InPackagePriority,
+		const FLinkerInstancingContext* InstancingContext);
+
 	/**
 	 * Asynchronously load a package.
 	 *
-	 * @param	InName					Name of package to load
-	 * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
-	 * @param	InPackageToLoadFrom		If non-null, this is another package name. We load from this package name, into a (probably new) package named InName
+	 * @param	PackagePath		Name of package to load. The package is created if it does not already exist.
+	 * @param	CustomName				If not none, this is the name of the package to load into (and create if not yet existing). If none, the name is take from PackagePath.
 	 * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
+	 * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
 	 * @param	InPackageFlags			Package flags used to construct loaded package in memory
 	 * @param	InPIEInstanceID			Play in Editor instance ID
 	 * @param	InPackagePriority		Loading priority
 	 * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
 	 */
 	virtual int32 LoadPackage(
-			const FString& InPackageName,
-			const FGuid* InGuid,
-			const TCHAR* InPackageToLoadFrom,
+			const FPackagePath& PackagePath,
+			FName CustomPackageName,
 			FLoadPackageAsyncDelegate InCompletionDelegate,
+			const FGuid* InGuid,
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
 			int32 InPackagePriority,

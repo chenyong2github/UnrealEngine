@@ -8,6 +8,7 @@ Texture2DMipDataProvider_IO.h : Implementation of FTextureMipDataProvider using 
 
 #include "CoreMinimal.h"
 #include "Streaming/TextureMipDataProvider.h"
+#include "Misc/PackagePath.h"
 #include "Async/AsyncFileHandle.h"
 
 /**
@@ -38,7 +39,8 @@ protected:
 	// A structured with information about which file contains which mips.
 	struct FFileInfo
 	{
-		FString IOFilename;
+		FPackagePath PackagePath;
+		EPackageSegment PackageSegment;
 		TUniquePtr<IAsyncReadFileHandle> IOFileHandle;
 		int64 IOFileOffset = 0;
 		int32 FirstMipIndex = INDEX_NONE;

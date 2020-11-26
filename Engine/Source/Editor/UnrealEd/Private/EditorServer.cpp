@@ -5484,7 +5484,7 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 		if (!Linker)
 		{
 			// Create a new linker object which goes off and tries load the file.
-			Linker = GetPackageLinker(NULL, *(ProcessingPackage->GetName()), LOAD_None, NULL, NULL );
+			Linker = GetPackageLinker(nullptr, FPackagePath::FromPackageNameChecked(ProcessingPackage->GetName()), LOAD_None, nullptr, nullptr);
 		}
 		if (Linker)
 		{
@@ -5528,7 +5528,15 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 				if (!Linker)
 				{
 					// Create a new linker object which goes off and tries load the file.
-					Linker = GetPackageLinker(NULL, *RefdPkgName,  LOAD_None, NULL, NULL );
+					FPackagePath PackagePath;
+					if (!FPackagePath::TryFromPackageName(RefdPkgName, PackagePath))
+					{
+						UE_LOG(LogEditorServer, Warning, TEXT("Invalid PackageName \"%s\""), *RefdPkgName);
+					}
+					else
+					{
+						Linker = GetPackageLinker(nullptr, PackagePath, LOAD_None, nullptr, nullptr);
+					}
 				}
 				if (Linker)
 				{

@@ -2110,7 +2110,9 @@ public:
 	//~ End UStreamableRenderAsset Interface.
 
 #if USE_BULKDATA_STREAMING_TOKEN
+	UE_DEPRECATED(5.0, "Use GetMipDataPackagePath instead")
 	bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
+	bool GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment) const;
 #endif
 
 	/**

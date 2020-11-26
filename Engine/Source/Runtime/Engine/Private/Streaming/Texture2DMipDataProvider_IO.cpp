@@ -9,8 +9,10 @@ Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider usin
 #include "TextureResource.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
+#include "Misc/PackageSegment.h"
 #include "Misc/Paths.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "UObject/PackageResourceManager.h"
 
 FTexture2DMipDataProvider_IO::FTexture2DMipDataProvider_IO(const UTexture* InTexture, bool InPrioritizedIORequest)
 	: FTextureMipDataProvider(InTexture, ETickState::Init, ETickThread::Async)
@@ -41,12 +43,12 @@ void FTexture2DMipDataProvider_IO::Init(const FTextureUpdateContext& Context, co
 			continue;
 		}
 
-		FString IOFilename;
-		IOFilename = OwnerMip.BulkData.GetFilename();
+		FPackagePath PackagePath = OwnerMip.BulkData.GetPackagePath();
+		EPackageSegment PackageSegment = OwnerMip.BulkData.GetPackageSegment();
 		if (FileInfos.IsValidIndex(CurrentFileIndex))
 		{
 			FFileInfo& FileInfo = FileInfos[CurrentFileIndex];
-			if (FileInfo.IOFilename == IOFilename && FileInfo.LastMipIndex + 1 == MipIndex)
+			if (FileInfo.PackagePath == PackagePath && FileInfo.LastMipIndex + 1 == MipIndex)
 			{
 				FileInfo.LastMipIndex = MipIndex;
 			}
@@ -61,18 +63,19 @@ void FTexture2DMipDataProvider_IO::Init(const FTextureUpdateContext& Context, co
 			int64 IOFileOffset = 0;
 			if (GEventDrivenLoaderEnabled)
 			{
-				if (IOFilename.EndsWith(TEXT(".uasset")) || IOFilename.EndsWith(TEXT(".umap")))
+				if (PackageSegment == EPackageSegment::Header)
 				{
-					IOFileOffset = -IFileManager::Get().FileSize(*IOFilename);
+					IOFileOffset = -IPackageResourceManager::Get().FileSize(PackagePath, EPackageSegment::Header);
 					check(IOFileOffset < 0);
-					IOFilename = FPaths::GetBaseFilename(IOFilename, false) + TEXT(".uexp");
-					UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *IOFilename);
+					PackageSegment = EPackageSegment::Exports;
+					UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *PackagePath.GetDebugName(PackageSegment));
 				}
 			}
 
 			CurrentFileIndex = FileInfos.AddDefaulted();
 			FFileInfo& FileInfo = FileInfos[CurrentFileIndex];
-			FileInfo.IOFilename = MoveTemp(IOFilename);
+			FileInfo.PackagePath = MoveTemp(PackagePath);
+			FileInfo.PackageSegment = PackageSegment;
 			FileInfo.IOFileOffset = IOFileOffset;
 			FileInfo.FirstMipIndex = MipIndex;
 			FileInfo.LastMipIndex = MipIndex;
@@ -105,7 +108,7 @@ int32 FTexture2DMipDataProvider_IO::GetMips(
 
 			if (!FileInfo.IOFileHandle)
 			{
-				FileInfo.IOFileHandle.Reset(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FileInfo.IOFilename));
+				FileInfo.IOFileHandle.Reset(IPackageResourceManager::Get().OpenAsyncReadPackage(FileInfo.PackagePath, FileInfo.PackageSegment));
 				if (!FileInfo.IOFileHandle)
 				{
 					break;

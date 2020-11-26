@@ -11,13 +11,14 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "UObject/MetaData.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
+#include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/Package.h"
-#include "UObject/MetaData.h"
 #include "Misc/PackageName.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/RedirectCollector.h"
@@ -575,14 +576,10 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 		return;
 	}
 
+	FPackagePath PackagePath = FPackagePath::FromLocalPath(Filename);
 	if (CollectionFilter.Num())
 	{
-		FString PackageNameToCreate;
-		if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageNameToCreate))
-		{
-			PackageNameToCreate = Filename;
-		}
-
+		FString PackageNameToCreate = PackagePath.GetPackageNameOrFallback();
 		FName PackageName(*PackageNameToCreate);
 		if (!CollectionFilter.Contains(PackageName))
 		{
@@ -592,17 +589,13 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 
 	if (bOnlyMaterials)
 	{
-		FString PackageNameToCreate;
-		if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageNameToCreate))
-		{
-			PackageNameToCreate = Filename;
-		}
+		FString PackageNameToCreate = PackagePath.GetPackageNameOrFallback();
+		FName PackageFNameToCreate(*PackageNameToCreate);
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-		FName PackageName(*PackageNameToCreate);
 		TArray<FAssetData> PackageAssetData;
-		if (!AssetRegistry.GetAssetsByPackageName(PackageName, PackageAssetData, true))
+		if (!AssetRegistry.GetAssetsByPackageName(PackageFNameToCreate, PackageAssetData, true))
 		{
 			return;
 		}
@@ -652,7 +645,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 		// Get the package linker.
 		VerboseMessage(TEXT("Pre GetPackageLinker"));
 
-		FLinkerLoad* Linker = LoadPackageLinker(nullptr, *Filename, LOAD_NoVerify);
+		FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_NoVerify);
 	
 		// Bail early if we don't have a valid linker (package was out of date, etc)
 		if( !Linker )
@@ -675,7 +668,9 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 
 			// Only rebuild static meshes on load for the to be saved package.
 			extern ENGINE_API FName GStaticMeshPackageNameToRebuild;
-			GStaticMeshPackageNameToRebuild = FName(*FPackageName::FilenameToLongPackageName(Filename));
+			FName PackageFName = PackagePath.GetPackageFName();
+			check(!PackageFName.IsNone());
+			GStaticMeshPackageNameToRebuild = PackageFName;
 
 			// Assert if package couldn't be opened so we have no chance of messing up saving later packages.
 			UPackage* Package = nullptr;
@@ -2407,7 +2402,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 			}
 		}
 
-		// now add them to the list of all packges to load
+		// now add them to the list of all packages to load
 		for (int32 PackageIndex = 0; PackageIndex < PerMapPackagesToLoad.Num(); PackageIndex++)
 		{
 			PackagesToFullyLoad.Add(TEXT("Package"), *PerMapPackagesToLoad[PackageIndex]);
@@ -2437,102 +2432,105 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 			{
 				// save a copy of the packagename (not a reference in case the PackgesToLoad array gets realloced)
 				FString PackageName = PackagesToLoad[PackageIndex];
-				FString PackageFilename;
-
-				if( FPackageName::DoesPackageExist( PackageName, NULL, &PackageFilename ) == true )
+				FPackagePath PackagePath;
+				if (!FPackagePath::TryFromMountedName(PackageName, PackagePath) ||
+					!FPackageName::DoesPackageExist(PackagePath, &PackagePath))
 				{
-					SET_WARN_COLOR(COLOR_WHITE);
-					UE_LOG(LogContentCommandlet, Warning, TEXT("Fully loading %s..."), *PackageFilename);
-					CLEAR_WARN_COLOR();
+					continue;
+				}
+
+				FString PackageFilename = PackagePath.GetLocalFullPath();
+				SET_WARN_COLOR(COLOR_WHITE);
+				UE_LOG(LogContentCommandlet, Warning, TEXT("Fully loading %s..."), *PackageFilename);
+				CLEAR_WARN_COLOR();
 
 	// @todo josh: track redirects in this package and then save the package instead of copy it if there were redirects
 	// or make sure that the following redirects marks the package dirty (which maybe it shouldn't do in the editor?)
 
-					// load the package fully
-					UPackage* Package = LoadPackage(nullptr, *PackageFilename, LOAD_None);
+				// load the package fully
+				UPackage* Package = LoadPackage(nullptr, PackagePath, LOAD_None);
 
-					FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageFilename, LOAD_Quiet | LOAD_NoWarn | LOAD_NoVerify);
+				FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_Quiet | LOAD_NoWarn | LOAD_NoVerify);
 
-					// look for special package types
-					bool bIsMap = Linker->ContainsMap();
-					bool bIsScriptPackage = Linker->ContainsCode();
+				// look for special package types
+				bool bIsMap = Linker->ContainsMap();
+				bool bIsScriptPackage = Linker->ContainsCode();
 
-					// collect all public objects loaded
-					for(FObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
+				// collect all public objects loaded
+				for(FObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
+				{
+					UObject* Object = *ObjectIt;
+
+					// record all public referenced objects (skipping over top level packages)
+					if (/*Object->HasAnyFlags(RF_Public) &&*/ Object->GetOuter() != NULL)
 					{
-						UObject* Object = *ObjectIt;
+						// is this public object in a fully loaded package?
+						bool bIsObjectInFullyLoadedPackage = Object->IsIn(Package);
 
-						// record all public referenced objects (skipping over top level packages)
-						if (/*Object->HasAnyFlags(RF_Public) &&*/ Object->GetOuter() != NULL)
+						if (bIsMap && bIsObjectInFullyLoadedPackage && Object->HasAnyFlags(RF_Public))
 						{
-							// is this public object in a fully loaded package?
-							bool bIsObjectInFullyLoadedPackage = Object->IsIn(Package);
-
-							if (bIsMap && bIsObjectInFullyLoadedPackage && Object->HasAnyFlags(RF_Public))
-							{
-								UE_LOG(LogContentCommandlet, Warning, TEXT("Clearing public flag on map object %s"), *Object->GetFullName());
-								Object->ClearFlags(RF_Public);
-								// mark that we need to save the package since we modified it (instead of copying it)
-								Object->MarkPackageDirty();
-							}
-							else
-							{
-								// record that this object was referenced
-								ReferenceObject(Object, AllReferencedPublicObjects, bIsObjectInFullyLoadedPackage);
-							}
-						}
-					}
-
-					// add any sublevels of this world to the list of levels to load
-					for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
-					{
-						UWorld*	World = *WorldIt;
-						// iterate over streaming level objects loading the levels.
-						for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
-						{
-							if (StreamingLevel)
-							{
-								FString SubLevelName = StreamingLevel->GetWorldAssetPackageName();
-								// add this sublevel's package to the list of packages to load if it's not already in the master list of packages
-								if (PackagesToFullyLoad.FindKey(SubLevelName) == NULL)
-								{
-									PackagesToLoad.AddUnique(SubLevelName);
-								}
-							}
-						}
-					}
-
-					// save/copy the package if desired, and only if it's not a script package (script code is
-					// not cutdown, so we always use original script code)
-					if (bShouldSavePackages && !bIsScriptPackage)
-					{
-						// make the name of the location to put the package
-						FString CutdownPackageName = MakeCutdownFilename(PackageFilename);
-						
-						// if the package was modified by loading it, then we should save the package
-						if (Package->IsDirty())
-						{
-							// save the fully load packages
-							UE_LOG(LogContentCommandlet, Warning, TEXT("Saving fully loaded package %s..."), *CutdownPackageName);
-							if (!SavePackageHelper(Package, CutdownPackageName))
-							{
-								UE_LOG(LogContentCommandlet, Error, TEXT("Failed to save package %s..."), *CutdownPackageName);
-							}
+							UE_LOG(LogContentCommandlet, Warning, TEXT("Clearing public flag on map object %s"), *Object->GetFullName());
+							Object->ClearFlags(RF_Public);
+							// mark that we need to save the package since we modified it (instead of copying it)
+							Object->MarkPackageDirty();
 						}
 						else
 						{
-							UE_LOG(LogContentCommandlet, Warning, TEXT("Copying fully loaded package %s..."), *CutdownPackageName);
-							// copy the unmodified file (faster than saving) (0 is success)
-							if (IFileManager::Get().Copy(*CutdownPackageName, *PackageFilename) != 0)
+							// record that this object was referenced
+							ReferenceObject(Object, AllReferencedPublicObjects, bIsObjectInFullyLoadedPackage);
+						}
+					}
+				}
+
+				// add any sublevels of this world to the list of levels to load
+				for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
+				{
+					UWorld*	World = *WorldIt;
+					// iterate over streaming level objects loading the levels.
+					for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+					{
+						if (StreamingLevel)
+						{
+							FString SubLevelName = StreamingLevel->GetWorldAssetPackageName();
+							// add this sublevel's package to the list of packages to load if it's not already in the master list of packages
+							if (PackagesToFullyLoad.FindKey(SubLevelName) == NULL)
 							{
-								UE_LOG(LogContentCommandlet, Error, TEXT("Failed to copy package to %s..."), *CutdownPackageName);
+								PackagesToLoad.AddUnique(SubLevelName);
 							}
 						}
 					}
-
-					// close this package
-					CollectGarbage(RF_NoFlags);
 				}
+
+				// save/copy the package if desired, and only if it's not a script package (script code is
+				// not cutdown, so we always use original script code)
+				if (bShouldSavePackages && !bIsScriptPackage)
+				{
+					// make the name of the location to put the package
+					FString CutdownPackageName = MakeCutdownFilename(PackageFilename);
+						
+					// if the package was modified by loading it, then we should save the package
+					if (Package->IsDirty())
+					{
+						// save the fully load packages
+						UE_LOG(LogContentCommandlet, Warning, TEXT("Saving fully loaded package %s..."), *CutdownPackageName);
+						if (!SavePackageHelper(Package, CutdownPackageName))
+						{
+							UE_LOG(LogContentCommandlet, Error, TEXT("Failed to save package %s..."), *CutdownPackageName);
+						}
+					}
+					else
+					{
+						UE_LOG(LogContentCommandlet, Warning, TEXT("Copying fully loaded package %s..."), *CutdownPackageName);
+						// copy the unmodified file (faster than saving) (0 is success)
+						if (IFileManager::Get().Copy(*CutdownPackageName, *PackageFilename) != 0)
+						{
+							UE_LOG(LogContentCommandlet, Error, TEXT("Failed to copy package to %s..."), *CutdownPackageName);
+						}
+					}
+				}
+
+				// close this package
+				CollectGarbage(RF_NoFlags);
 			}
 		}
 
@@ -2562,8 +2560,13 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 		// Iterate over all files doing stuff.
 		for (int32 PackageIndex = 0; PackageIndex < AllPackages.Num(); PackageIndex++)
 		{
-			FString PackageFilename(AllPackages[PackageIndex]);
-			FString PackageName = FPackageName::FilenameToLongPackageName(PackageFilename);
+			FPackagePath PackagePath;
+			if (!FPackagePath::TryFromMountedName(AllPackages[PackageIndex], PackagePath))
+			{
+				UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping unmounted path %s..."), *AllPackages[PackageIndex]);
+				continue;
+			}
+			FString PackageName = PackagePath.GetPackageName();
 
 			// the list of objects in this package
 			FPackageObjects* PackageObjs = NULL;
@@ -2571,9 +2574,9 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 			// this will be set to true if every object in the package is unnecessary
 			bool bAreAllObjectsUnnecessary = false;
 
-			if (FPaths::GetExtension(PackageFilename, true) == FPackageName::GetMapPackageExtension() )
+			if (PackagePath.GetHeaderExtension() == EPackageExtension::Map)
 			{
-				UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping map %s..."), *PackageFilename);
+				UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping map %s..."), *PackagePath.GetDebugName());
 				continue;
 			}
 			else
@@ -2585,25 +2588,25 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				// and mark the whole package as unreferenced
 				if (PackageObjs == NULL)
 				{
-					UE_LOG(LogContentCommandlet, Warning, TEXT("No objects in %s were referenced..."), *PackageFilename);
-					new(UnnecessaryPublicObjects) FUnreferencedObject(PackageName, 
-						TEXT("ENTIRE PACKAGE"), IFileManager::Get().FileSize(*PackageFilename));
+					UE_LOG(LogContentCommandlet, Warning, TEXT("No objects in %s were referenced..."), *PackagePath.GetDebugName());
+					new(UnnecessaryPublicObjects) FUnreferencedObject(PackageName,
+						TEXT("ENTIRE PACKAGE"), IPackageResourceManager::Get().FileSize(PackagePath));
 
-					// all objects in this package are unnecasstry
+					// all objects in this package are unnecessary
 					bAreAllObjectsUnnecessary = true;
 				}
 				else if (PackageObjs->bIsFullyLoadedPackage)
 				{
-					UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping fully loaded package %s..."), *PackageFilename);
+					UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping fully loaded package %s..."), *PackagePath.GetDebugName());
 					continue;
 				}
 				else
 				{
-					UE_LOG(LogContentCommandlet, Warning, TEXT("Scanning %s..."), *PackageFilename);
+					UE_LOG(LogContentCommandlet, Warning, TEXT("Scanning %s..."), *PackagePath.GetDebugName());
 				}
 			}
 
-			FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageFilename, LOAD_Quiet | LOAD_NoWarn | LOAD_NoVerify);
+			FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_Quiet | LOAD_NoWarn | LOAD_NoVerify);
 
 			// go through the exports in the package, looking for public objects
 			for (int32 ExportIndex = 0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++)
@@ -2614,7 +2617,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				// some packages may have brokenness in them so we want to just continue so we can wrangle
 				if( Export.ObjectName == NAME_None )
 				{
-					UE_LOG(LogContentCommandlet, Warning, TEXT( "    Export.ObjectName == NAME_None  for Package: %s " ), *PackageFilename );
+					UE_LOG(LogContentCommandlet, Warning, TEXT( "    Export.ObjectName == NAME_None  for Package: %s " ), *PackagePath.GetDebugName());
 					continue;
 				}
 
@@ -2637,11 +2640,11 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 					}
 
 					// look for existing entry
-					FPackageObjects* ObjectsInPackage = UnnecessaryObjectsByPackage.Find(*PackageFilename);
+					FPackageObjects* ObjectsInPackage = UnnecessaryObjectsByPackage.Find(PackagePath.GetLocalBaseFilenameWithPath());
 					// if not found, make a new one
 					if (ObjectsInPackage == NULL)
 					{
-						ObjectsInPackage = &UnnecessaryObjectsByPackage.Add(*PackageFilename, FPackageObjects());
+						ObjectsInPackage = &UnnecessaryObjectsByPackage.Add(PackagePath.GetLocalBaseFilenameWithPath(), FPackageObjects());
 					}
 
 					// get object's class
@@ -2829,7 +2832,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 			if (PackageIt.Value().ReferencedObjects.Num() == 0)
 			{
 				// just load it, and don't need a reference to it
-				FullyLoadedPackage = LoadPackage(NULL, *PackageIt.Key(), LOAD_None);
+				FullyLoadedPackage = LoadPackage(NULL, FPackagePath::FromLocalPath(PackageIt.Key()), LOAD_None);
 			}
 			else
 			{
@@ -2886,13 +2889,14 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 			}
 
 			// find the one we moved this packages objects to
-			FString PackagePath = PackageIt.Key();
-			FString PackageName = FPackageName::FilenameToLongPackageName(PackagePath);
+			FPackagePath PackagePath = FPackagePath::FromLocalPath(PackageIt.Key());
+			FString PackageFilePath = PackagePath.GetLocalFullPath();
+			FString PackageName = PackagePath.GetPackageName();
 			UPackage* MovedPackage = FindPackage(NULL, *FString::Printf(TEXT("%s/NFS_%s"), *FPackageName::GetLongPackagePath(PackageName), *FPackageName::GetLongPackageAssetName(PackageName)));
 			check(MovedPackage);
 
 			// convert the new name to a a NFS directory directory
-			FString MovedFilename = MakeCutdownFilename(FString::Printf(TEXT("%s/NFS_%s"), *FPaths::GetPath(PackagePath), *FPaths::GetCleanFilename(PackagePath)), TEXT("NFSContent"));
+			FString MovedFilename = MakeCutdownFilename(FString::Printf(TEXT("%s/NFS_%s"), *FPaths::GetPath(PackageFilePath), *FPaths::GetCleanFilename(PackageFilePath)), TEXT("NFSContent"));
 			UE_LOG(LogContentCommandlet, Warning, TEXT("Saving package %s [%d/%d]"), *MovedFilename, PackageIndex, NumPackages);
 			// finally save it out
 			SavePackageHelper(MovedPackage, *MovedFilename);

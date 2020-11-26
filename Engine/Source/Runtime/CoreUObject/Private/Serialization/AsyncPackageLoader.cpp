@@ -7,6 +7,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/LinkerLoad.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/PackageName.h"
 #include "IO/IoDispatcher.h"
 #include "HAL/IConsoleManager.h"
 
@@ -656,18 +657,74 @@ bool IsAsyncLoadingSuspendedInternal()
 	return GetAsyncPackageLoader().IsAsyncLoadingSuspended();
 }
 
-int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)
+static FPackagePath GetLoadPackageAsyncPackagePath(FStringView InPackageNameOrFilePath)
 {
-	LLM_SCOPE(ELLMTag::AsyncLoading);
-	UE_CLOG(!GAsyncLoadingAllowed && !IsInAsyncLoadingThread(), LogStreaming, Fatal, TEXT("Requesting async load of \"%s\" when async loading is not allowed (after shutdown). Please fix higher level code."), *InName);
-	return GetAsyncPackageLoader().LoadPackage(InName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+	FPackagePath PackagePath;
+	if (!FPackagePath::TryFromMountedName(InPackageNameOrFilePath, PackagePath))
+	{
+		// Legacy behavior from FAsyncLoadingThread::LoadPackage: handle asset strings with class references: ClassName'PackageName'. 
+		FStringView ExportTextPackagePath;
+		if (FPackageName::ParseExportTextPath(InPackageNameOrFilePath, nullptr /* OutClassName */, &ExportTextPackagePath))
+		{
+			if (FPackagePath::TryFromMountedName(ExportTextPackagePath, PackagePath))
+			{
+				UE_LOG(LogStreaming, Warning, TEXT("Deprecation warning: calling LoadPackage with the export text format of a package name (ClassName'PackageName') is deprecated and will be removed in a future release."));
+			}
+		}
+	}
+	return PackagePath;
 }
 
-int32 LoadPackageAsync(const FString& PackageName, FLoadPackageAsyncDelegate CompletionDelegate, int32 InPackagePriority /*= 0*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/)
+int32 IAsyncPackageLoader::LoadPackage(
+	const FString& InPackageName,
+	const FGuid* InGuid,
+	const TCHAR* InPackageToLoadFrom,
+	FLoadPackageAsyncDelegate InCompletionDelegate,
+	EPackageFlags InPackageFlags,
+	int32 InPIEInstanceID,
+	int32 InPackagePriority,
+	const FLinkerInstancingContext* InstancingContext)
 {
-	const FGuid* Guid = nullptr;
-	const TCHAR* PackageToLoadFrom = nullptr;
-	return LoadPackageAsync(PackageName, Guid, PackageToLoadFrom, CompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority );
+	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InPackageToLoadFrom ? FStringView(InPackageToLoadFrom) : FStringView(InPackageName));
+	return LoadPackage(PackagePath, FName(InPackageName), InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+}
+
+int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate /* = NAME_None*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, const FGuid* InGuid /*= nullptr*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)
+{
+	LLM_SCOPE(ELLMTag::AsyncLoading);
+	UE_CLOG(!GAsyncLoadingAllowed && !IsInAsyncLoadingThread(), LogStreaming, Fatal, TEXT("Requesting async load of \"%s\" when async loading is not allowed (after shutdown). Please fix higher level code."), *InPackagePath.GetDebugName());
+	return GetAsyncPackageLoader().LoadPackage(InPackagePath, InPackageNameToCreate, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+}
+
+int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /* nullptr*/)
+{
+	LLM_SCOPE(ELLMTag::AsyncLoading);
+	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InName);
+	return LoadPackageAsync(PackagePath, NAME_None /* InPackageNameToCreate */, FLoadPackageAsyncDelegate(), InGuid, PKG_None, INDEX_NONE, 0, nullptr);
+}
+
+int32 LoadPackageAsync(const FString& InName, FLoadPackageAsyncDelegate CompletionDelegate, int32 InPackagePriority /*= 0*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/)
+{
+	LLM_SCOPE(ELLMTag::AsyncLoading);
+	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InName);
+	return LoadPackageAsync(PackagePath, NAME_None /* InPackageNameToCreate */, CompletionDelegate, nullptr /* Guid */, InPackageFlags, InPIEInstanceID, InPackagePriority, nullptr);
+}
+
+int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)
+{
+	LLM_SCOPE(ELLMTag::AsyncLoading);
+	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InPackageToLoadFrom ? FStringView(InPackageToLoadFrom) : FStringView(InName));
+	FName InPackageNameToCreate;
+	if (InPackageToLoadFrom)
+	{
+		// We're loading from PackageToLoadFrom. If InName is different, it is the PackageNameToCreate. InName might be a filepath, so use FPackagePath to convert it to a PackagePath
+		FPackagePath PackagePathToCreate;
+		if (FPackagePath::TryFromMountedName(InName, PackagePathToCreate))
+		{
+			InPackageNameToCreate = PackagePathToCreate.GetPackageFName();
+		}
+	}
+	return LoadPackageAsync(PackagePath, InPackageNameToCreate, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 }
 
 void CancelAsyncLoading()

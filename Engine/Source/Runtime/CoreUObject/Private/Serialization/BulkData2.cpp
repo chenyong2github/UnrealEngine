@@ -7,6 +7,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
+#include "Misc/PackageSegment.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -14,6 +15,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
+#include "UObject/PackageResourceManager.h"
 #include "IO/IoDispatcher.h"
 #include "Async/Async.h"
 #include "Async/MappedFileHandle.h"
@@ -27,15 +29,6 @@ IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
 
 // Handy macro to validate FIoStatus return values
 #define CHECK_IOSTATUS( InIoStatus, InMethodName ) checkf(InIoStatus.IsOk(), TEXT("%s failed: %s"), InMethodName, *InIoStatus.ToString());
-
-namespace BulkDataExt
-{
-	// TODO: Maybe expose this and start using everywhere?
-	const FString Export		= TEXT(".uexp");	// Stored in the export data
-	const FString Default		= TEXT(".ubulk");	// Stored in a separate file
-	const FString MemoryMapped	= TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
-	const FString Optional		= TEXT(".uptnl");	// Stored in a separate file that is optional
-}
 
 namespace
 {
@@ -76,6 +69,20 @@ namespace
 	const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
 }
 
+FIoFilenameHash MakeIoFilenameHash(const FPackagePath& PackagePath)
+{
+	if (!PackagePath.IsEmpty())
+	{
+		FString BaseFileName = PackagePath.GetLocalBaseFilenameWithPath().ToLower();
+		const FIoFilenameHash Hash = FCrc::StrCrc32<TCHAR>(*BaseFileName);
+		return Hash != INVALID_IO_FILENAME_HASH ? Hash : FALLBACK_IO_FILENAME_HASH;
+	}
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
+}
+
 FIoFilenameHash MakeIoFilenameHash(const FString& Filename)
 {
 	if (!Filename.IsEmpty())
@@ -103,51 +110,46 @@ FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID)
 	}
 }
 
-// TODO: The code in the FileTokenSystem namespace is a temporary system so that FBulkDataBase can hold
-// all of it's info about where the data is on disk in a single 8byte value. This can all be removed when
+// TODO: The code in the PackageTokenSystem namespace is a temporary system so that FBulkDataBase can hold
+// all of it's info about where the data is on disk in a single integer value. This can all be removed when
 // we switch this over to the new packing system.
-namespace FileTokenSystem
+namespace PackageTokenSystem
 {
-	struct Data
-	{
-		FString PackageHeaderFilename;
-	};
-
-	// Internal to the FileTokenSystem namespace
+	// Internal to the PackageTokenSystem namespace
 	namespace
 	{
-		struct StringData
+		struct FPayloadData
 		{
-			FString Filename;
+			FPackagePath PackagePath;
 			uint16 RefCount;
 		};
 
 		/**
-		* Provides a ref counted PackageName->Filename look up table.
+		* Provides a ref counted PackageName->FPackagePath look up table.
 		*/
-		class FStringTable
+		class FPackageDataTable
 		{
 		public:
 			using KeyType = uint64;
 
-			void Add(const KeyType& Key, const FString& Filename)
+			void Add(const KeyType& Key, const FPackagePath& PackagePath)
 			{
-				if (StringData* ExistingEntry = Table.Find(Key))
+				if (FPayloadData* ExistingEntry = Table.Find(Key))
 				{
 					ExistingEntry->RefCount++;
-					checkf(ExistingEntry->Filename == Filename, TEXT("Filename mismatch!"));
+					checkf(ExistingEntry->PackagePath == PackagePath, TEXT("PackagePath mismatch!"));
 				}
 				else
 				{
-					StringData& NewEntry = Table.Emplace(Key);
-					NewEntry.Filename = Filename;
+					FPayloadData& NewEntry = Table.Emplace(Key);
+					NewEntry.PackagePath = PackagePath;
 					NewEntry.RefCount = 1;
 				}
 			}
 
 			bool Remove(const KeyType& Key)
 			{
-				if (StringData* ExistingEntry = Table.Find(Key))
+				if (FPayloadData* ExistingEntry = Table.Find(Key))
 				{
 					if (--ExistingEntry->RefCount == 0)
 					{
@@ -161,15 +163,15 @@ namespace FileTokenSystem
 
 			void IncRef(const KeyType& Key)
 			{
-				if (StringData* ExistingEntry = Table.Find(Key))
+				if (FPayloadData* ExistingEntry = Table.Find(Key))
 				{
 					ExistingEntry->RefCount++;
 				}
 			}
 
-			const FString& Resolve(const KeyType& Key)
+			const FPackagePath& Resolve(const KeyType& Key)
 			{
-				return Table.Find(Key)->Filename;
+				return Table.Find(Key)->PackagePath;
 			}
 
 			int32 Num() const
@@ -178,41 +180,41 @@ namespace FileTokenSystem
 			}
 
 		private:
-			TMap<KeyType, StringData> Table;
+			TMap<KeyType, FPayloadData> Table;
 		};
 	}
 
-	FStringTable StringTable;
+	FPackageDataTable PackageDataTable;
 
 	FRWLock TokenLock;
 
-	FBulkDataOrId::FileToken RegisterFileToken( const FName& PackageName, const FString& Filename)
+	FBulkDataOrId::FileToken RegisterToken( const FName& PackageName, const FPackagePath& PackagePath)
 	{
 		const uint64 Token = (uint64(PackageName.GetComparisonIndex().ToUnstableInt()) << 32) | uint64(PackageName.GetNumber());
 
 		FWriteScopeLock LockForScope(TokenLock);
-		StringTable.Add(Token, Filename);
+		PackageDataTable.Add(Token, PackagePath);
 
 		return Token;
 	}
 
-	void UnregisterFileToken(FBulkDataOrId::FileToken ID)
+	void UnRegisterToken(FBulkDataOrId::FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
 			FWriteScopeLock LockForScope(TokenLock);
 
-			StringTable.Remove(ID);
+			PackageDataTable.Remove(ID);
 		}
 	}
 
-	FBulkDataOrId::FileToken CopyFileToken(FBulkDataOrId::FileToken ID)
+	FBulkDataOrId::FileToken CopyToken(FBulkDataOrId::FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
 			FWriteScopeLock LockForScope(TokenLock);
 
-			StringTable.IncRef(ID);
+			PackageDataTable.IncRef(ID);
 
 			return ID;
 		}
@@ -222,15 +224,15 @@ namespace FileTokenSystem
 		}
 	}
 
-	FString GetFilename(FBulkDataOrId::FileToken ID)
+	FPackagePath GetPackagePath(FBulkDataOrId::FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
-			return FString();
+			return FPackagePath();
 		}
 
 		FReadScopeLock LockForScope(TokenLock);
-		return StringTable.Resolve(ID);
+		return PackageDataTable.Resolve(ID);
 	}
 }
 
@@ -674,7 +676,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 	}
 	else
 	{
-		Data.Token = FileTokenSystem::CopyFileToken(Other.Data.Token);
+		Data.Token = PackageTokenSystem::CopyToken(Other.Data.Token);
 	}
 
 	BulkDataSize = Other.BulkDataSize;
@@ -701,9 +703,8 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 		}
 		else
 		{
-			const FString AssetFilename = FileTokenSystem::GetFilename(Data.Token);
-			const FString MemoryMappedFilename = ConvertFilenameFromFlags(AssetFilename);
-			MemoryMapBulkData(MemoryMappedFilename, BulkDataOffset, BulkDataSize);
+			FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
+			MemoryMapBulkData(PackagePath, GetPackageSegmentFromFlags(), BulkDataOffset, BulkDataSize);
 		}
 	}
 
@@ -719,8 +720,8 @@ FBulkDataBase::~FBulkDataBase()
 	FreeData();
 	if (!IsUsingIODispatcher())
 	{
-		FileTokenSystem::UnregisterFileToken(Data.Token);
-	}	
+		PackageTokenSystem::UnRegisterToken(Data.Token);
+	}
 }
 
 void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, bool bAttemptFileMapping, int32 ElementSize)
@@ -771,17 +772,17 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Ar << DummyValue;
 		}
 
-		// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
+		// We assume that Owner/Package/Linker are all valid. The old BulkData system would
 		// generally fail if any of these were nullptr but had plenty of inconsistent checks
 		// scattered throughout.
 		checkf(Owner != nullptr, TEXT("FBulkDataBase::Serialize requires a valid Owner"));
 		const UPackage* Package = Owner->GetOutermost();
-		checkf(Package != nullptr, TEXT("FBulkDataBase::Serialize requires n Owner that returns a valid UPackage"));
+		checkf(Package != nullptr, TEXT("FBulkDataBase::Serialize requires an Owner that returns a valid UPackage"));
 
 		if (!IsInlined() && bUseIoDispatcher)
 		{
 			Data.PackageID = Package->GetPackageId().Value();
-			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a filename
+			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a PackagePath
 		}
 		else
 		{
@@ -789,10 +790,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Data.Token = InvalidToken;
 		}
 
-		const FString* Filename = nullptr;
+		const FPackagePath* PackagePath = nullptr;
 		const FLinkerLoad* Linker = nullptr;
-
-		FString FallbackFilename;
 
 		if (bUseIoDispatcher == false)
 		{
@@ -800,20 +799,17 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 			if (Linker != nullptr)
 			{
-				Filename = &Linker->Filename;
+				PackagePath = &Linker->GetPackagePath();
 			}
 			else if (!::ShouldAllowBulkDataInIoStore() && !IsInlined())
 			{
-				const TCHAR* PackageExtension = Package->ContainsMap() ? TEXT(".umap") : TEXT(".uasset");
-				if (FPackageName::TryConvertLongPackageNameToFilename(Package->FileName.ToString(), FallbackFilename, PackageExtension))
+				PackagePath = &Package->GetLoadedPath();
+				if (PackagePath->IsEmpty())
 				{
-					Filename = &FallbackFilename;
-				}
-				else
-				{	
 					// Note that this Bulkdata object will end up with an invalid token and will end up resolving to an empty file path!
-					UE_LOG(LogSerialization, Warning, TEXT("LongPackageNameToFilename failed to convert '%s'. Path does not map to any roots!"), *Package->FileName.ToString());
-				}				
+					UE_LOG(LogSerialization, Warning, TEXT("Could not get PackagePath from linker or package for package %s!"), *Package->GetName());
+					PackagePath = nullptr;
+				}
 			}
 		}
 
@@ -842,7 +838,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		{
 			if (IsDuplicateNonOptional())
 			{
-				ProcessDuplicateData(Ar, Package, Filename, BulkDataOffset);
+				ProcessDuplicateData(Ar, Package, PackagePath, BulkDataOffset);
 			}
 
 			// Set during cook
@@ -869,11 +865,11 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 				}
 				else
 				{
-					// If we have no valid input file name then the package is broken anyway and we will not be able to find any memory mapped data!
-					if (Filename != nullptr)
+					// If we have no valid input packagepath then the package is broken anyway and we will not be able to find any memory mapped data!
+					if (PackagePath != nullptr)
 					{
-						const FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
-						if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffset, BulkDataSize))
+						EPackageSegment PackageSegment = GetPackageSegmentFromFlags();
+						if (!MemoryMapBulkData(*PackagePath, PackageSegment, BulkDataOffset, BulkDataSize))
 						{
 							bShouldForceLoad = true; // Signal we want to force the BulkData to load
 						}
@@ -896,10 +892,10 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			}
 		}
 
-		// If we are not using the FIoDispatcher and we have a filename then we need to make sure we can retrieve it later!
-		if (bUseIoDispatcher == false && Filename != nullptr)
+		// If we are not using the FIoDispatcher and we have a PackagePath then we need to make sure we can retrieve it later!
+		if (bUseIoDispatcher == false && PackagePath != nullptr)
 		{
-			Data.Token = FileTokenSystem::RegisterFileToken(Package->GetFName(), *Filename);
+			Data.Token = PackageTokenSystem::RegisterToken(Package->GetFName(), *PackagePath);
 		}
 
 		if (bShouldForceLoad)
@@ -1111,10 +1107,8 @@ bool FBulkDataBase::DoesExist() const
 #if ALLOW_OPTIONAL_DATA
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Data.Token);
-		Filename = ConvertFilenameFromFlags(Filename);
-
-		return IFileManager::Get().FileExists(*Filename);
+		FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
+		return IPackageResourceManager::Get().DoesPackageExist(PackagePath, GetPackageSegmentFromFlags());
 	}
 	else
 	{
@@ -1188,7 +1182,7 @@ IAsyncReadFileHandle* FBulkDataBase::OpenAsyncReadHandle() const
 	}
 	else
 	{
-		return FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*GetFilename());
+		return IPackageResourceManager::Get().OpenAsyncReadPackage(GetPackagePath(), GetPackageSegmentFromFlags());
 	}
 }
 
@@ -1211,13 +1205,14 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	}
 	else
 	{
-		const FString AssetFilename = FileTokenSystem::GetFilename(Data.Token);
-		const FString Filename = ConvertFilenameFromFlags(AssetFilename);
+		FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
 
-		UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
-		UE_CLOG(BulkDataSize <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
+		EPackageSegment PackageSegment = GetPackageSegmentFromFlags();
 
-		IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+		UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *PackagePath.GetDebugName(PackageSegment));
+		UE_CLOG(BulkDataSize <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *PackagePath.GetDebugName(PackageSegment));
+
+		IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
 		checkf(IORequestHandle, TEXT("OpenAsyncRead failed")); // An assert as there shouldn't be a way for this to fail
 
 		if (IORequestHandle == nullptr)
@@ -1253,7 +1248,8 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 	{
 		const FBulkDataBase& End = *RangeArray[RangeArray.Num() - 1];
 
-		checkf(Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"), *Start.GetFilename(), *End.GetFilename());
+		checkf(Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
+			*Start.GetPackagePath().GetDebugName(), *End.GetPackagePath().GetDebugName());
 
 		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
 		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
@@ -1269,7 +1265,8 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 	{	
 		const FBulkDataBase& End = *RangeArray[RangeArray.Num() - 1];
 
-		checkf(Start.GetFilename() == End.GetFilename(), TEXT("BulkData range does not come from the same file (%s vs %s)"), *Start.GetFilename(), *End.GetFilename());
+		checkf(Start.GetPackagePath() == End.GetPackagePath(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
+			*Start.GetPackagePath().GetDebugName(), *End.GetPackagePath().GetDebugName());
 
 		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
 		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
@@ -1310,7 +1307,7 @@ void FBulkDataBase::RemoveBulkData()
 
 	if (!IsUsingIODispatcher())
 	{ 
-		FileTokenSystem::UnregisterFileToken(Data.Token);
+		PackageTokenSystem::UnRegisterToken(Data.Token);
 		Data.Token = InvalidToken;
 	}
 
@@ -1380,8 +1377,7 @@ FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
 {
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Data.Token);
-		return MakeIoFilenameHash(Filename);
+		return MakeIoFilenameHash(PackageTokenSystem::GetPackagePath(Data.Token));
 	}
 	else
 	{
@@ -1391,16 +1387,25 @@ FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
 
 FString FBulkDataBase::GetFilename() const
 {
+	return GetPackagePath().GetLocalFullPath(GetPackageSegmentFromFlags());
+}
+
+FPackagePath FBulkDataBase::GetPackagePath() const
+{
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Data.Token);
-		return ConvertFilenameFromFlags(Filename);
+		return PackageTokenSystem::GetPackagePath(Data.Token);
 	}
 	else
 	{
-		UE_LOG(LogBulkDataRuntime, Warning, TEXT("Attempting to get the filename for BulkData that uses the IoDispatcher, this will return an empty string"));
-		return FString("");
+		UE_LOG(LogBulkDataRuntime, Warning, TEXT("Attempting to get the PackagePath for BulkData that uses the IoDispatcher, this will return an empty PackagePath"));
+		return FPackagePath();
 	}
+}
+
+EPackageSegment FBulkDataBase::GetPackageSegment() const
+{
+	return GetPackageSegmentFromFlags();
 }
 
 bool FBulkDataBase::CanDiscardInternalData() const
@@ -1440,7 +1445,7 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 
 	if (!IsIoDispatcherEnabled())
 	{
-		InternalLoadFromFileSystem(DstBuffer);
+		InternalLoadFromPackageResource(DstBuffer);
 	}
 	else if (IsUsingIODispatcher())
 	{
@@ -1468,7 +1473,7 @@ void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
 		Async(EAsyncExecution::ThreadPool, [this, Callback]()
 			{
 				void* DataPtr = nullptr;
-				InternalLoadFromFileSystem(&DataPtr);
+				InternalLoadFromPackageResource(&DataPtr);
 
 				FIoBuffer Buffer(FIoBuffer::Wrap, DataPtr, GetBulkDataSize());
 				TIoStatusOr<FIoBuffer> Status(Buffer);
@@ -1488,41 +1493,41 @@ void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
 	}
 }
 
-void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
+void FBulkDataBase::InternalLoadFromPackageResource(void** DstBuffer)
 {
-	FString Filename = FileTokenSystem::GetFilename(Data.Token);
-
+	FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
 	int64 Offset = BulkDataOffset;
 
-	// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
-	if (IsInlined() && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+	// Fix up the PackageSegment/Offset to work with streaming if inlined
+	EPackageSegment PackageSegment;
+	if (IsInlined())
 	{
-		Offset -= IFileManager::Get().FileSize(*Filename);
-		Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
+		Offset -= IPackageResourceManager::Get().FileSize(PackagePath, EPackageSegment::Header);
+		PackageSegment = EPackageSegment::Exports;
 	}
 	else
 	{
-		Filename = ConvertFilenameFromFlags(Filename);
+		PackageSegment = GetPackageSegmentFromFlags();
 	}
 
-	// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
+	// If the data is inlined then we already loaded it during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
 	// Disabled at the moment
-	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
+	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. PackagePath: '%s'."),
+		*PackagePath.GetDebugName(PackageSegment));
 
-	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
-	checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
+	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+	checkf(Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary, TEXT("Failed to open the file to load bulk data from. PackagePath: '%s': %s."),
+		*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
 
 	// Seek to the beginning of the bulk data in the file.
-	Ar->Seek(Offset);
+	Result.Archive->Seek(Offset);
 
 	if (*DstBuffer == nullptr)
 	{
 		*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
 	}
 
-	SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
-
-	delete Ar;
+	SerializeBulkData(*Result.Archive, *DstBuffer, BulkDataSize);
 }
 
 void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
@@ -1564,7 +1569,7 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	Batch.Issue();
 }
 
-void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile)
+void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FPackagePath* PackagePath, int64& InOutOffsetInFile)
 {
 	// We need to load the optional bulkdata info as we might need to create a FIoChunkId based on it!
 	EBulkDataFlags NewFlags;
@@ -1588,12 +1593,12 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	}
 	else
 	{
-		// If we have no valid input file name then the package is broken anyway and we will not be able to find the optional data!
-		if (Filename != nullptr)
+		// If we have no valid input packagepath then the package is broken anyway and we will not be able to find the optional data!
+		if (PackagePath != nullptr)
 		{
-			const FString OptionalDataFilename = FPathViews::ChangeExtension(*Filename, BulkDataExt::Optional);
+			EPackageSegment PackageSegment = EPackageSegment::BulkDataOptional;
 
-			if (IFileManager::Get().FileExists(*OptionalDataFilename))
+			if (IPackageResourceManager::Get().DoesPackageExist(*PackagePath, PackageSegment))
 			{
 				BulkDataFlags = NewFlags;
 				checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mistach between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
@@ -1657,14 +1662,14 @@ void FBulkDataBase::SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataL
 	}
 }
 
-bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead)
+bool FBulkDataBase::MemoryMapBulkData(const FPackagePath& PackagePath, EPackageSegment PackageSegment, int64 OffsetInBulkData, int64 BytesToRead)
 {
 	checkf(!IsBulkDataLoaded(), TEXT("Attempting to memory map BulkData that is already loaded"));
 
 	IMappedFileHandle* MappedHandle = nullptr;
 	IMappedFileRegion* MappedRegion = nullptr;
 
-	MappedHandle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(*Filename);
+	MappedHandle = IPackageResourceManager::Get().OpenMappedHandleToPackage(PackagePath, PackageSegment);
 
 	if (MappedHandle == nullptr)
 	{
@@ -1704,7 +1709,8 @@ void FBulkDataBase::FlushAsyncLoading()
 		{
 			if (FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime))
 			{
-				UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *GetFilename(), GetBulkDataSize());
+				UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"),
+					*GetPackagePath().GetDebugName(), GetBulkDataSize());
 				StartTime = FPlatformTime::Cycles64(); // Reset so we spam the log every second or so that we are stalled!
 			}
 
@@ -1714,30 +1720,30 @@ void FBulkDataBase::FlushAsyncLoading()
 	}	
 }
 
-FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
-{	
+EPackageSegment FBulkDataBase::GetPackageSegmentFromFlags() const
+{
 	if (IsOptional())
 	{
 		// Optional data should be tested for first as we in theory can have data that would
 		// be marked as inline, also marked as optional and in this case we should treat it as
 		// optional data first.
-		return FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
+		return EPackageSegment::BulkDataOptional;
 	}
 	else if (!IsInSeparateFile())
 	{
-		return Filename;
+		return EPackageSegment::Header;
 	}
 	else if (IsInlined())
 	{
-		return FPathViews::ChangeExtension(Filename, BulkDataExt::Export);
+		return EPackageSegment::Exports;
 	}
 	else if (IsFileMemoryMapped())
 	{
-		return FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
+		return EPackageSegment::BulkDataMemoryMapped;
 	}
 	else
 	{
-		return FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
+		return EPackageSegment::BulkDataDefault;
 	}
 }
 

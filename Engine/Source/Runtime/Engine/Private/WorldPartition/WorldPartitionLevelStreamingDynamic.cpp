@@ -57,7 +57,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	ChildPackages = InCell.GetPackages();
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
-	OriginalLevelPackageName = OuterWorld->GetPackage()->FileName;
+	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
 	PackageNameToLoad = GetWorldAssetPackageFName();
 	OuterWorldPartition = OuterWorld->GetWorldPartition();
 }
@@ -280,7 +280,10 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 			}
 		});
 
-		LoadPackageAsync(*ActorPackageInstanceNames[ChildIndex], nullptr, *ActorPackageName, CompletionCallback, PKG_PlayInEditor, RuntimePackage->PIEInstanceID, 0, &InstancingContext);
+		FPackagePath PackagePath;
+		FPackagePath::TryFromMountedName(!ActorPackageName.IsEmpty() ? ActorPackageName : ActorPackageInstanceNames[ChildIndex], PackagePath);
+		FName PackageName(*ActorPackageInstanceNames[ChildIndex]);
+		LoadPackageAsync(PackagePath, PackageName, CompletionCallback, nullptr, PKG_PlayInEditor, RuntimePackage->PIEInstanceID, 0, &InstancingContext);
 	}
 
 	return !!NumPendingActorRequests;

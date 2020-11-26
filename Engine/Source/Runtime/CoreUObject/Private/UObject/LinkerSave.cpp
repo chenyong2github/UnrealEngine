@@ -22,9 +22,11 @@
 TMap<FString, TArray<uint8> > FLinkerSave::PackagesToScriptSHAMap;
 
 FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned)
-:	FLinker(ELinkerType::Save, InParent, InFilename)
+:	FLinker(ELinkerType::Save, InParent)
 ,	Saver(nullptr)
 {
+	SetFilename(InFilename);
+
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
 		// Create file saver.
@@ -74,9 +76,10 @@ FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForc
 
 
 FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned)
-: FLinker(ELinkerType::Save, InParent, TEXT("$$Memory$$"))
+: FLinker(ELinkerType::Save, InParent)
 , Saver(nullptr)
 {
+	SetFilename(TEXT("$$Memory$$"));
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
 		// Create file saver.
@@ -126,13 +129,14 @@ FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteS
 }
 
 FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned )
-:	FLinker(ELinkerType::Save, InParent, TEXT("$$Memory$$"))
+:	FLinker(ELinkerType::Save, InParent)
 ,	Saver(nullptr)
 {
+	SetFilename(TEXT("$$Memory$$"));
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
 		// Create file saver.
-		Saver = new FLargeMemoryWriter( 0, false, *InParent->FileName.ToString() );
+		Saver = new FLargeMemoryWriter( 0, false, *InParent->GetLoadedPath().GetDebugName() );
 		check(Saver);
 
 		UPackage* Package = dynamic_cast<UPackage*>(LinkerRoot);
@@ -270,6 +274,26 @@ void FLinkerSave::Serialize( void* V, int64 Length )
 	Saver->Serialize( V, Length );
 }
 	
+FString FLinkerSave::GetDebugName() const
+{
+	return GetFilename();
+}
+
+const FString& FLinkerSave::GetFilename() const
+{
+	// When the deprecated Filename is removed from FLinker, add a separate Filename variable to FLinkerSave
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Filename;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FLinkerSave::SetFilename(FStringView InFilename)
+{
+	// When the deprecated Filename is removed from FLinker, add a separate Filename variable to FLinkerSave
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Filename = FString(InFilename);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 FString FLinkerSave::GetArchiveName() const
 {

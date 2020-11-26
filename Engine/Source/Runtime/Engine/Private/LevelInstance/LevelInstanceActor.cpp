@@ -125,7 +125,7 @@ void ALevelInstance::LoadLevelInstance()
 			bool bForce = false;
 #if WITH_EDITOR
 			// When reinstancing or world wasn't ticked between changes. Avoid reloading the level but if the package changed, force the load
-			bForce = IsLoaded() && LevelInstanceSubsystem->GetLevelInstanceLevel(this)->GetPackage()->FileName != FName(*GetWorldAssetPackage());
+			bForce = IsLoaded() && LevelInstanceSubsystem->GetLevelInstanceLevel(this)->GetPackage()->GetLoadedPath() != FPackagePath::FromPackageNameChecked(GetWorldAssetPackage());
 #endif
 			LevelInstanceSubsystem->RequestLoadLevelInstance(this, bForce);
 		}
@@ -316,7 +316,7 @@ bool ALevelInstance::CheckForLoop(TSoftObjectPtr<UWorld> InLevelInstance, TArray
 			FName LongPackageName(*InLevelInstance.GetLongPackageName());
 			// Check to exclude NAME_None since Preview Levels are in the transient package
 			// Check the level we are spawned in to detect the loop (this will handle loops caused by LevelInstances and by regular level streaming)
-			if (LongPackageName != NAME_None && LevelInstanceActor->GetLevel()->GetPackage()->FileName == LongPackageName)
+			if (LongPackageName != NAME_None && LevelInstanceActor->GetLevel()->GetPackage()->GetLoadedPath() == FPackagePath::FromPackageNameChecked(LongPackageName))
 			{
 				bValid = false;
 				if (LoopStart)

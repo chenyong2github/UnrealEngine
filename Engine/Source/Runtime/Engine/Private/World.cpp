@@ -3301,7 +3301,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
-	PIELevelPackage->FileName = PackageFName;
+	PIELevelPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(PackageFName));
 	PIELevelPackage->SetGuid( EditorLevelPackage->GetGuid() );
 	PIELevelPackage->MarkAsFullyLoaded();
 
@@ -6378,16 +6378,26 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 #endif
 
 		// Set the world type in the static map, so that UWorld::PostLoad can set the world type
-		UWorld::WorldTypePreLoadMap.FindOrAdd(FName(*URLMapPackageName)) = CurrentWorld->WorldType;
+		FName PackageName(*URLMapPackageName);
+		UWorld::WorldTypePreLoadMap.FindOrAdd(PackageName) = CurrentWorld->WorldType;
 
-		LoadPackageAsync(
-			URLMapPackageName, 
-			PendingTravelGuid.IsValid() ? &PendingTravelGuid : NULL,
-			*URLMapPackageToLoadFrom,
-			FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback), 			
-			PackageFlags,
-			PIEInstanceID
+		FStringView PackageNameToLoad(!URLMapPackageToLoadFrom.IsEmpty() ? FStringView(URLMapPackageToLoadFrom) : FStringView(URLMapPackageName));
+		FPackagePath PackagePath;
+		if (FPackagePath::TryFromMountedName(PackageNameToLoad, PackagePath))
+		{
+			LoadPackageAsync(
+				PackagePath,
+				PackageName,
+				FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
+				PendingTravelGuid.IsValid() ? &PendingTravelGuid : NULL,
+				PackageFlags,
+				PIEInstanceID
 			);
+		}
+		else
+		{
+			UE_LOG(LogWorld, Error, TEXT("StartLoadingDestination: Invalid PackagePath \"%.*s\""), PackageNameToLoad.Len(), PackageNameToLoad.GetData());
+		}
 	}
 	else
 	{
@@ -7718,7 +7728,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	UPackage* NewPackage = CreatePackage( *PrefixedPackageName );
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
 	NewPackage->PIEInstanceID = InstanceID;
-	NewPackage->FileName = OriginalPackage->FileName;
+	NewPackage->SetLoadedPath(OriginalPackage->GetLoadedPath());
 	NewPackage->SetGuid( OriginalPackage->GetGuid() );
 	NewPackage->MarkAsFullyLoaded();
 

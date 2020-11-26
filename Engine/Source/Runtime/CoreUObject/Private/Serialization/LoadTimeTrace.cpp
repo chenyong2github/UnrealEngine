@@ -144,13 +144,21 @@ void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
 		<< EndRequest.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, const FName& PackageName)
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, FName PackageName)
 {
 	TCHAR Buffer[FName::StringBufferSize];
 	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(LoadTime, NewAsyncPackage, LoadTimeChannel, NameSize)
 		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
 		<< NewAsyncPackage.Attachment(Buffer, NameSize);
+}
+
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, const FString& PackageName)
+{
+	uint16 NameSize = (PackageName.Len() + 1) * sizeof(TCHAR);
+	UE_TRACE_LOG(LoadTime, NewAsyncPackage, LoadTimeChannel, NameSize)
+		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
+		<< NewAsyncPackage.Attachment(*PackageName, NameSize);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const void* AsyncPackage)

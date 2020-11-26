@@ -26,7 +26,8 @@ FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* c
 
 	// When packages are duplicated for PIE, they may not have a FileName.
 	// For now, just revert to the old behavior.
-	FileName = (LevelPackage->FileName == NAME_None) ? PackageName : LevelPackage->FileName;
+	FName LoadedPathName = LevelPackage->GetLoadedPath().GetPackageFName();
+	FileName = (LoadedPathName.IsNone()) ? PackageName : LoadedPathName;
 }
 
 bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)

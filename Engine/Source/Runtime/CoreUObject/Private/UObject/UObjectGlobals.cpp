@@ -33,6 +33,7 @@
 #include "Serialization/SerializedPropertyScope.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectAnnotation.h"
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataReader.h"
@@ -1048,30 +1049,23 @@ public:
 	}
 };
 
-// this class is a hack to work around calling private functions int he linker 
+// this class is a hack to work around calling private functions in the linker 
 // I just want to replace the Linkers loader with a custom one
 class FUnsafeLinkerLoad : public FLinkerLoad
 {
 public:
-	FUnsafeLinkerLoad(UPackage *Package, const TCHAR* FileName, const TCHAR* DiffFilename, uint32 LoadFlags) : FLinkerLoad(Package, FileName, LoadFlags)
+	FUnsafeLinkerLoad(UPackage *Package, const FPackagePath& PackagePath, const FPackagePath& DiffPackagePath, uint32 LoadFlags)
+		: FLinkerLoad(Package, PackagePath, LoadFlags)
 	{
 		Package->LinkerLoad = this;
-
-		/*while (CreateLoader(TFunction<void()>([]() {})) == FLinkerLoad::LINKER_TimedOut)
-		{
-		}*/
-
-
-		
-
 		while ( Tick(0.0, false, false, nullptr) == FLinkerLoad::LINKER_TimedOut ) 
 		{ 
 		}
 
-		FArchive* OtherFile = IFileManager::Get().CreateFileReader(DiffFilename);
-		FDiffFileArchive* DiffArchive = new FDiffFileArchive(GetLoader(), OtherFile);
+		FOpenPackageResult OtherFile = IPackageResourceManager::Get().OpenReadPackage(DiffPackagePath);
+		checkf(!OtherFile.Archive.IsValid() || OtherFile.Format == EPackageFormat::Binary, TEXT("Text format is not yet supported with DiffPackage"));
+		FDiffFileArchive* DiffArchive = new FDiffFileArchive(GetLoader(), OtherFile.Archive.Release());
 		SetLoader(DiffArchive);
-
 	}
 };
 
@@ -1085,51 +1079,41 @@ UE_TRACE_EVENT_BEGIN(CUSTOM_LOADTIMER_LOG, LoadPackageInternal, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, PackageName)
 UE_TRACE_EVENT_END()
 
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
+UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride,
+	const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
 	SCOPED_CUSTOM_LOADTIMER(LoadPackageInternal)
-		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, InLongPackageNameOrFilename);
+		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, *PackagePath.GetPackageNameOrFallback());
 
-	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), InLongPackageNameOrFilename);
-
-	UPackage* Result = nullptr;
+	if (PackagePath.IsEmpty())
+	{
+		UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to LoadPackage from empty PackagePath."));
+		return nullptr;
+	}
+	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), *PackagePath.GetDebugName());
 
 	if (FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
 		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME
 		)
 	{
-		FString InName;
-		FString InPackageName;
-
-		if (FPackageName::IsPackageFilename(InLongPackageNameOrFilename))
+		checkf(!InOuter || !InOuter->GetOuter(), TEXT("Loading into subpackages is not implemented.")); // Subpackages are no longer supported in UE
+		FName PackageName(InOuter ? InOuter->GetFName() : PackagePath.GetPackageFName());
+		if (PackageName.IsNone())
 		{
-			FPackageName::TryConvertFilenameToLongPackageName(InLongPackageNameOrFilename, InPackageName);
-		}
-		else
-		{
-			InPackageName = InLongPackageNameOrFilename;
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to LoadPackage from non-mounted path %s. This is not supported."), *PackagePath.GetDebugName());
+			return nullptr;
 		}
 
-		if (InOuter)
-		{
-			InName = InOuter->GetPathName();
-		}
-		else
-		{
-			InName = InPackageName;
-		}
-
-		FName PackageFName(*InPackageName);
-		UE_TRACK_REFERENCING_PACKAGE_SCOPED(PackageFName, PackageAccessTrackingOps::NAME_Load);
+		UE_TRACK_REFERENCING_PACKAGE_SCOPED(PackageName, PackageAccessTrackingOps::NAME_Load);
 
 		{
 			if (FCoreDelegates::OnSyncLoadPackage.IsBound())
 			{
-				FCoreDelegates::OnSyncLoadPackage.Broadcast(InName);
+				FCoreDelegates::OnSyncLoadPackage.Broadcast(PackageName.ToString());
 			}
 
-			int32 RequestID = LoadPackageAsync(InName, nullptr, *InPackageName);
+			int32 RequestID = LoadPackageAsync(PackagePath, PackageName);
 
 			if (RequestID != INDEX_NONE)
 			{
@@ -1137,48 +1121,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			}
 		}
 
-		Result = (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageFName));
-		return Result;
+		return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
 	}
 
-	FString FileToLoad;
-#if WITH_EDITOR
-	FString DiffFileToLoad;
-#endif
+	UPackage* Result = nullptr;
 
-#if WITH_EDITOR
-	if (LoadFlags & LOAD_ForFileDiff)
-	{
-		FString TempFilenames = InLongPackageNameOrFilename;
-		ensure(TempFilenames.Split(TEXT(";"), &FileToLoad, &DiffFileToLoad, ESearchCase::CaseSensitive));
-	}
-	else
-#endif
-	if (InLongPackageNameOrFilename && FCString::Strlen(InLongPackageNameOrFilename) > 0)
-	{
-		FileToLoad = InLongPackageNameOrFilename;
-	}
-	else if (InOuter)
-	{
-		FileToLoad = InOuter->GetName();
-	}
-
-	// Make sure we're trying to load long package names only.
-	if (FPackageName::IsShortPackageName(FileToLoad))
-	{
-		FString LongPackageName;
-		FName* ScriptPackageName = FPackageName::FindScriptPackageName(*FileToLoad);
-		if (ScriptPackageName)
-		{
-			UE_LOG(LogUObjectGlobals, Warning, TEXT("LoadPackage: %s is a short script package name."), InLongPackageNameOrFilename);
-			FileToLoad = ScriptPackageName->ToString();
-		}
-		else if (!FPackageName::SearchForPackageOnDisk(FileToLoad, &FileToLoad))
-		{
-			UE_LOG(LogUObjectGlobals, Warning, TEXT("LoadPackage can't find package %s."), *FileToLoad);
-			return NULL;
-		}
-	}
 #if WITH_EDITOR
 	// In the editor loading cannot be part of a transaction as it cannot be undone, and may result in recording half-loaded objects. So we suppress any active transaction while in this stack, and set the editor loading flag
 	TGuardValue<ITransaction*> SuppressTransaction(GUndo, nullptr);
@@ -1189,21 +1136,21 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 	if (ShouldCreateThrottledSlowTask())
 	{
 		static const FTextFormat LoadingPackageTextFormat = NSLOCTEXT("Core", "LoadingPackage_Scope", "Loading Package '{0}'");
-		SlowTask.Emplace(100, FText::Format(LoadingPackageTextFormat, FText::FromString(FileToLoad)));
+		SlowTask.Emplace(100, FText::Format(LoadingPackageTextFormat, PackagePath.GetDebugNameText()));
 		SlowTask->Visibility = ESlowTaskVisibility::Invisible;
 		SlowTask->EnterProgressFrame(10);
 	}
 
 	if (FCoreDelegates::OnSyncLoadPackage.IsBound())
 	{
-		FCoreDelegates::OnSyncLoadPackage.Broadcast(FileToLoad);
+		FCoreDelegates::OnSyncLoadPackage.Broadcast(PackagePath.GetPackageNameOrFallback());
 	}
 	
 	// Set up a load context
 	TRefCountPtr<FUObjectSerializeContext> LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
 
 	// Try to load.
-	BeginLoad(LoadContext, InLongPackageNameOrFilename);
+	BeginLoad(LoadContext, *PackagePath.GetDebugName());
 
 	bool bFullyLoadSkipped = false;
 
@@ -1220,21 +1167,21 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 
 		// Create a new linker object which goes off and tries load the file.
 #if WITH_EDITOR
-		if (LoadFlags & LOAD_ForFileDiff)
+		if (DiffPackagePath)
 		{
 			// Create the package with the provided long package name.
 			if (!InOuter)
 			{
-				InOuter = CreatePackage(*FileToLoad);
+				InOuter = CreatePackage(*PackagePath.GetPackageName());
 			}
 			
-			new FUnsafeLinkerLoad(InOuter, *FileToLoad, *DiffFileToLoad, LOAD_ForDiff);
+			new FUnsafeLinkerLoad(InOuter, PackagePath, *DiffPackagePath, LOAD_ForDiff);
 		}
 #endif
 
 		{
 			FUObjectSerializeContext* InOutLoadContext = LoadContext;
-			Linker = GetPackageLinker(InOuter, *FileToLoad, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
+			Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
 			if (InOutLoadContext != LoadContext && InOutLoadContext)
 			{
 				// The linker already existed and was associated with another context
@@ -1304,13 +1251,8 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			Result->SetPackageFlags(PKG_ForDiffing);
 		}
 
-		// Save the filename we load from in Long package name form
-		{
-			// convert will succeed here, otherwise the linker will have been null
-			FString LongPackageFilename;
-			FPackageName::TryConvertFilenameToLongPackageName(FileToLoad, LongPackageFilename);
-			Result->FileName = FName(*LongPackageFilename);
-		}
+		// Save the PackagePath we loaded from
+		Result->SetLoadedPath(PackagePath);
 		
 		// is there a script SHA hash for this package?
 		uint8 SavedScriptSHA[20];
@@ -1377,7 +1319,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			// compare SHA hash keys
 			if (FMemory::Memcmp(SavedScriptSHA, LoadedScriptSHA, 20) != 0)
 			{
-				appOnFailSHAVerification(*Linker->Filename, false);
+				appOnFailSHAVerification(*Linker->GetPackagePath().GetLocalFullPath(), false);
 			}
 		}
 
@@ -1444,22 +1386,86 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 	return Result;
 }
 
-UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
+UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
+{
+	FPackagePath PackagePath;
+	FPackagePath* DiffPackagePathPtr = nullptr;
+
+#if WITH_EDITOR
+	FPackagePath DiffPackagePath;
+	if (LoadFlags & LOAD_ForFileDiff)
+	{
+		FString TempFilenames = InLongPackageNameOrFilename;
+		FString FileToLoad;
+		FString DiffFileToLoad;
+		ensure(TempFilenames.Split(TEXT(";"), &FileToLoad, &DiffFileToLoad, ESearchCase::CaseSensitive));
+		PackagePath = FPackagePath::FromLocalPath(FileToLoad);
+		DiffPackagePath = FPackagePath::FromLocalPath(DiffFileToLoad);
+		DiffPackagePathPtr = &DiffPackagePath;
+	}
+	else
+#endif
+	if (InLongPackageNameOrFilename && InLongPackageNameOrFilename[0] != '\0')
+	{
+		FString BufferName;
+		// Make sure we're trying to load long package names only.
+		if (FPackageName::IsShortPackageName(FStringView(InLongPackageNameOrFilename)))
+		{
+			BufferName = InLongPackageNameOrFilename;
+			FName* ScriptPackageName = FPackageName::FindScriptPackageName(*BufferName);
+			if (ScriptPackageName)
+			{
+				UE_LOG(LogUObjectGlobals, Warning, TEXT("LoadPackage: %s is a short script package name."), InLongPackageNameOrFilename);
+				BufferName = ScriptPackageName->ToString();
+				InLongPackageNameOrFilename = *BufferName;
+			}
+			else if (FPackageName::SearchForPackageOnDisk(BufferName, &BufferName))
+			{
+				InLongPackageNameOrFilename = *BufferName;
+			}
+			else
+			{
+				UE_LOG(LogUObjectGlobals, Warning, TEXT("LoadPackage can't find package %s."), InLongPackageNameOrFilename);
+				return nullptr;
+			}
+		}
+
+		if (!FPackagePath::TryFromMountedName(InLongPackageNameOrFilename, PackagePath))
+		{
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("LoadPackage can't find package %s."), InLongPackageNameOrFilename);
+			return nullptr;
+		}
+	}
+	else if (InOuter)
+	{
+		PackagePath = FPackagePath::FromPackageNameChecked(InOuter->GetName());
+	}
+	else
+	{
+		UE_LOG(LogUObjectGlobals, Warning, TEXT("Empty name passed to LoadPackage."));
+		return nullptr;
+	}
+	return LoadPackage(InOuter, PackagePath, LoadFlags, InReaderOverride, InstancingContext, DiffPackagePathPtr);
+}
+
+UPackage* LoadPackage(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath)
 {
 	COOK_STAT(LoadPackageStats::NumPackagesLoaded++);
 	COOK_STAT(FScopedDurationTimer LoadTimer(LoadPackageStats::LoadPackageTimeSec));
 	// Change to 1 if you want more detailed stats for loading packages, but at the cost of adding dynamic stats.
 #if	STATS && 0
 	static FString Package = TEXT( "Package" );
-	const FString LongName = Package / InLongPackageName;
+	const FString LongName = Package / PackagePath.GetPackageNameOrFallback();
 	const TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_UObjects>( LongName );
 	FScopeCycleCounter CycleCounter( StatId );
 #endif // STATS
 
 	// since we are faking the object name, this is basically a duplicate of LLM_SCOPED_TAG_WITH_OBJECT_IN_SET
-	FString FakePackageName = FString(TEXT("Package ")) + InLongPackageName;
-	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ? FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*FakePackageName)).GetName() : NAME_None, ELLMTagSet::Assets, ELLMTracker::Default);
-	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext);
+	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ?
+											FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*(FString(TEXT("Package ")) + PackagePath.GetPackageNameOrFallback()))).GetName() :
+											NAME_None,
+										 ELLMTagSet::Assets, ELLMTracker::Default);
+	return LoadPackageInternal(InOuter, PackagePath, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext, DiffPackagePath);
 }
 
 /**

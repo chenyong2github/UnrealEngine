@@ -20,7 +20,7 @@ public:
 		ProcessingExports,
 	};
 
-	FAsyncArchive(const TCHAR* InFileName, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback);
+	FAsyncArchive(const FPackagePath& InPackagePath, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback);
 	virtual ~FAsyncArchive ();
 
 	/** Archive overrides */
@@ -41,7 +41,7 @@ public:
 	virtual void FlushCache() override;
 	virtual FString GetArchiveName() const override 
 	{
-		return FileName;
+		return PackagePath.GetDebugName();
 	}
 
 	/** AsyncArchive interface */
@@ -117,8 +117,8 @@ private:
 	bool bCookedForEDLInEditor;
 
 	FAsyncFileCallBack ReadCallbackFunction;
-	/** Cached filename for debugging.												*/
-	FString	FileName;
+	/** Cached PackagePath for debugging.												*/
+	FPackagePath PackagePath;
 	double OpenTime;
 	double SummaryReadTime;
 	double ExportReadTime;

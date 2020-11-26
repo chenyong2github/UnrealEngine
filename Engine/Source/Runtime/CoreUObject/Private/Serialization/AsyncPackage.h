@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/Guid.h"
+#include "Misc/PackagePath.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/LinkerInstancingContext.h"
 
@@ -18,8 +19,8 @@ struct FAsyncPackageDesc
 	int32 RequestID;
 	/** Name of the UPackage to create. */
 	FName Name;
-	/** Name of the package to load. */
-	FName NameToLoad;
+	/** PackagePath of the package to load. */
+	FPackagePath PackagePath;
 	/** GUID of the package to load, or the zeroed invalid GUID for "don't care" */
 	FGuid Guid;
 	/** Delegate called on completion of loading. This delegate can only be created and consumed on the game thread */
@@ -42,27 +43,24 @@ struct FAsyncPackageDesc
 	void SetInstancingContext(FLinkerInstancingContext) {}
 #endif 
 
-	FAsyncPackageDesc(int32 InRequestID, const FName& InName, FName InPackageToLoadFrom = NAME_None, const FGuid& InGuid = FGuid(), TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPriority = 0)
+	FAsyncPackageDesc(int32 InRequestID, const FName& InName, const FPackagePath& InPackagePath, const FGuid& InGuid = FGuid(), TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPriority = 0)
 		: RequestID(InRequestID)
 		, Name(InName)
-		, NameToLoad(InPackageToLoadFrom)
+		, PackagePath(InPackagePath)
 		, Guid(InGuid)
 		, PackageLoadedDelegate(MoveTemp(InCompletionDelegate))
 		, PackageFlags(InPackageFlags)
 		, Priority(InPriority)
 		, PIEInstanceID(InPIEInstanceID)
 	{
-		if (NameToLoad == NAME_None)
-		{
-			NameToLoad = Name;
-		}
+		check(!PackagePath.IsEmpty());
 	}
 
 	/** This constructor does not modify the package loaded delegate as this is not safe outside the game thread */
 	FAsyncPackageDesc(const FAsyncPackageDesc& OldPackage)
 		: RequestID(OldPackage.RequestID)
 		, Name(OldPackage.Name)
-		, NameToLoad(OldPackage.NameToLoad)
+		, PackagePath(OldPackage.PackagePath)
 		, Guid(OldPackage.Guid)
 		, PackageFlags(OldPackage.PackageFlags)
 		, Priority(OldPackage.Priority)
