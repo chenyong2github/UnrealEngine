@@ -32,6 +32,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BookmarkBase.h"
 #include "Engine/BookMark.h"
+#include "WorldSettingsCustomVersion.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -288,28 +289,6 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 	DOREPLIFETIME( AWorldSettings, WorldGravityZ );
 	DOREPLIFETIME( AWorldSettings, bHighPriorityLoading );
 }
-
-// Custom serialization version for all packages containing WorldSetting
-struct FWorldSettingCustomVersion
-{
-	enum Type
-	{
-		// Before any version changes were made
-		BeforeCustomVersionWasAdded = 0,
-
-		// Deprecated bEnableHierarchicalLODSystem
-		DeprecatedEnableHierarchicalLODSystem = 1,
-
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	// The GUID for this custom version number
-	const static FGuid GUID;
-
-	FWorldSettingCustomVersion() = delete;
-};
 
 const FGuid FWorldSettingCustomVersion::GUID(0x1ED048F4, 0x2F2E4C68, 0x89D053A4, 0xF18F102D);
 // Register the custom version with core
