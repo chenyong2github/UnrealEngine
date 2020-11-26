@@ -99,8 +99,7 @@ public:
 				.VAlign( VAlign_Center )
 				[
 					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "ButtonText")
-					.TransformPolicy(ETextTransformPolicy::ToUpper)
+					.TextStyle(FAppStyle::Get(), "NormalText")
 					.Text( LabelText )
 					.ToolTipText( TooltipText )
 				];

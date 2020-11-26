@@ -347,10 +347,11 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerGutter::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
 		.FixedWidth(24.f)
-		.HAlignHeader(HAlign_Right)
+		.HAlignHeader(HAlign_Center)
 		.VAlignHeader(VAlign_Center)
-		.HAlignCell(HAlign_Right)
+		.HAlignCell(HAlign_Center)
 		.VAlignCell(VAlign_Center)
+		.HeaderContentPadding(FMargin(0.0))
 		[
 			SNew(SImage)
 			.ColorAndOpacity(FSlateColor::UseForeground())

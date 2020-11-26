@@ -208,8 +208,6 @@ SHeaderRow::FColumn::FArguments FActorInfoColumn::ConstructHeaderRowColumn()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "ButtonText")
-				.TransformPolicy(ETextTransformPolicy::ToUpper)
 				.Text( this, &FActorInfoColumn::GetSelectedMode )
 			]
 		];
