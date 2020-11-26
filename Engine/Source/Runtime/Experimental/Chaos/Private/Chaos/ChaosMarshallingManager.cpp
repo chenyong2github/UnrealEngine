@@ -133,7 +133,6 @@ void FPushPhysicsData::Reset()
 void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 {
 	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
-	DynamicsWeight = FirstStepData.DynamicsWeight;
 	DirtyPropertiesManager.SetNumParticles(FirstStepData.DirtyProxiesDataBuffer.NumDirtyProxies());
 	FirstStepData.DirtyProxiesDataBuffer.ForEachProxy([this, &FirstManager](int32 FirstDataIdx, const FDirtyProxy& Dirty)
 		{

@@ -26,47 +26,68 @@ namespace ChaosTest {
 		Solver->UpdateGameThreadStructures();
 	}
 
+	template <typename TypeParam>
+	auto* CreateSolverHelper(int32 StepMode, int32 RewindHistorySize, int32 Optimization, FReal& OutSimDt)
+	{
+		constexpr FReal FixedDt = 1;
+		constexpr FReal DtSizes[] = { FixedDt, FixedDt, FixedDt * 0.25, FixedDt * 4 };	//test fixed dt, sub-stepping, step collapsing
+
+		// Make a solver
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+                InitSolverSettings(Solver);
+
+		Solver->EnableRewindCapture(RewindHistorySize, !!Optimization);
+		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		OutSimDt = DtSizes[StepMode];
+		if (StepMode > 0)
+		{
+			Solver->EnableAsyncMode(DtSizes[StepMode]);
+		}
+
+		return Solver;
+	}
+
 	TYPED_TEST(AllTraits, RewindTest_MovingGeomChange)
 	{
-		for(int Optimization = 0; Optimization < 2; ++Optimization)
+		if (TypeParam::IsRewindable() == false) { return; }
+			
+		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if(TypeParam::IsRewindable() == false){ return; }
-			auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
-			auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
-			auto Box2 = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(2),FVec3(3)));
+			for (int DtMode = 0; DtMode < 4; ++DtMode)
+			{
+				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+				auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(0), FVec3(1)));
+				auto Box2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(2), FVec3(3)));
 
-			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-
-			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			InitSolverSettings(Solver);
-
-			Solver->EnableRewindCapture(20, !!Optimization);
-
+				FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+				FReal SimDt;
+				auto* Solver = CreateSolverHelper<TypeParam>(DtMode, 200, Optimization, SimDt);
 
 			// Make particles
-			auto Particle = TKinematicGeometryParticle<float,3>::CreateParticle();
+				auto Particle = TKinematicGeometryParticle<float, 3>::CreateParticle();
 
 			Particle->SetGeometry(Sphere);
 			Solver->RegisterObject(Particle.Get());
+				const int32 LastGameStep = 20;
 
-			for(int Step = 0; Step < 11; ++Step)
+				for (int Step = 0; Step <= LastGameStep; ++Step)
 			{
 				//property that changes every step
-				Particle->SetX(FVec3(0,0,100 - Step));
+					Particle->SetX(FVec3(0, 0, 100 - Step));
 
 				//property that changes once half way through
-				if(Step == 3)
+					if (Step == 3)
 				{
 					Particle->SetGeometry(Box);
 				}
 
-				if(Step == 5)
+					if (Step == 5)
 				{
 					Particle->SetGeometry(Box2);
 				}
 
-				if(Step == 7)
+					if (Step == 7)
 				{
 					Particle->SetGeometry(Box);
 				}
@@ -74,83 +95,103 @@ namespace ChaosTest {
 				TickSolverHelper(Module, Solver);
 			}
 
-			//ended up at z = 90
-			EXPECT_EQ(Particle->X()[2],90);
+				//ended up at z = 100 - LastGameStep
+				EXPECT_EQ(Particle->X()[2], 100 - LastGameStep);
 
 			//ended up with box geometry
-			EXPECT_EQ(Box.Get(),Particle->Geometry().Get());
-		
+				EXPECT_EQ(Box.Get(), Particle->Geometry().Get());
+
 			const FRewindData* RewindData = Solver->GetRewindData();
 
 			//check state at every step except latest
-			for(int Step = 0; Step < 10; ++Step)
+				const int32 LastSimStep = LastGameStep / SimDt;
+				for (int SimStep = 0; SimStep < LastSimStep-1; ++SimStep)
 			{
-				const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
-				EXPECT_EQ(ParticleState.X()[2],100 - Step);
+					const FReal TimeStart = SimStep * SimDt;
+					const FReal TimeEnd = (SimStep + 1) * SimDt;
+					const FReal LastInputTime = SimDt <= 1 ? TimeStart : TimeEnd - 1;	//latest gt time associated with this interval
 
-				if(Step < 3)
+					const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle, SimStep);
+					EXPECT_EQ(ParticleState.X()[2], 100 - FMath::FloorToInt(LastInputTime));	//We teleported on GT so no interpolation
+
+					if (LastInputTime < 3)
 				{
 					//was sphere
-					EXPECT_EQ(ParticleState.Geometry().Get(),Sphere.Get());
+						EXPECT_EQ(ParticleState.Geometry().Get(), Sphere.Get());
 				}
-				else if(Step < 5 || Step >= 7)
+					else if (LastInputTime < 5 || LastInputTime >= 7)
 				{
 					//then became box
-					EXPECT_EQ(ParticleState.Geometry().Get(),Box.Get());
+						EXPECT_EQ(ParticleState.Geometry().Get(), Box.Get());
 				}
 				else
 				{
 					//second box
-					EXPECT_EQ(ParticleState.Geometry().Get(),Box2.Get());
+						EXPECT_EQ(ParticleState.Geometry().Get(), Box2.Get());
 				}
 			}
-		
+
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
 
 			Module->DestroySolver(Solver);
 		}
 	}
+	}
 
 
 	TYPED_TEST(AllTraits, RewindTest_AddForce)
 	{
+		if (TypeParam::IsRewindable() == false) { return; }
+
 		for(int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if(TypeParam::IsRewindable() == false){ return; }
-			auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+			for (int DtMode = 0; DtMode < 4; ++DtMode)
+			{
+				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			InitSolverSettings(Solver);
-
-			Solver->EnableRewindCapture(20, !!Optimization);
-
+				FReal SimDt;
+				auto* Solver = CreateSolverHelper<TypeParam>(DtMode, 200, Optimization, SimDt);
 
 			// Make particles
-			auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+				auto Particle = TPBDRigidParticle<float, 3>::CreateParticle();
 
 			Particle->SetGeometry(Sphere);
 			Solver->RegisterObject(Particle.Get());
+				const int32 LastGameStep = 20;
 
-			for(int Step = 0; Step < 11; ++Step)
+				for (int Step = 0; Step <= LastGameStep; ++Step)
 			{
 				//sim-writable property that changes every step
-				Particle->AddForce(FVec3(0,0,Step + 1));
+					Particle->AddForce(FVec3(0, 0, Step + 1));
 
 
-				TickSolverHelper(Module,Solver);
+					TickSolverHelper(Module, Solver);
 			}
 
 			const FRewindData* RewindData = Solver->GetRewindData();
 
 			//check state at every step except latest
-			for(int Step = 0; Step < 10; ++Step)
+				const int32 LastSimStep = LastGameStep / SimDt;
+				for (int Step = 0; Step < LastSimStep-1; ++Step)
+				{
+					const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle, Step);
+					FReal ExpectedForce = Step + 1;
+					if(SimDt < 1)
+					{
+						//each sub-step gets a constant force applied
+						ExpectedForce = FMath::FloorToFloat(Step * SimDt) + 1;
+					}
+					else if(SimDt > 1)
 			{
-				const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
-				EXPECT_EQ(ParticleState.F()[2],Step+1);
+						//each step gets an average of the forces applied ((step+1) + (step+2) + (step+3) + (step+4))/4 = step + (1+2+3+4)/4 = step + 2.5
+						//where step is game step: so really it's step * 4
+						ExpectedForce = Step * 4 + 2.5;
+					}
+					EXPECT_EQ(ParticleState.F()[2], ExpectedForce);
 			}
 
 			// Throw out the proxy
@@ -158,6 +199,7 @@ namespace ChaosTest {
 
 			Module->DestroySolver(Solver);
 		}
+	}
 	}
 
 	TYPED_TEST(AllTraits, RewindTest_IntermittentForce)

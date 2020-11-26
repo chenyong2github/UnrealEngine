@@ -786,10 +786,10 @@ public:
 	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
 	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
 
-	void SetDynamics(const FParticleDynamics& Dynamics, const FReal DynamicsWeight = FReal(1))
+	void SetDynamics(const FParticleDynamics& Dynamics)
 	{
-		SetF(Dynamics.F() * DynamicsWeight);
-		SetTorque(Dynamics.Torque() * DynamicsWeight);
+		SetF(Dynamics.F());
+		SetTorque(Dynamics.Torque());
 		SetLinearImpulse(Dynamics.LinearImpulse());
 		SetAngularImpulse(Dynamics.AngularImpulse());
 	}
@@ -2280,6 +2280,18 @@ public:
 			SetObjectState(EObjectStateType::Dynamic, true);
 		}
 		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetF(FVec3(0)); });
+	}
+
+	void ApplyDynamicsWeight(const FReal DynamicsWeight)
+	{
+		if (MDynamics.IsDirty(MDirtyFlags))
+		{
+			MDynamics.Modify(false, MDirtyFlags, Proxy, [DynamicsWeight](auto& Data)
+			{
+				Data.SetF(Data.F() * DynamicsWeight);
+				Data.SetTorque(Data.Torque() * DynamicsWeight);
+			});
+		}
 	}
 
 	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque(); }

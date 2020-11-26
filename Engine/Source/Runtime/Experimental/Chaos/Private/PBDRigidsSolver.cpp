@@ -867,14 +867,14 @@ namespace Chaos
 		//TODO: interpolate some data based on num steps
 
 		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
-		PushData->DynamicsWeight = FReal(1) / NumExternalSteps;
+		const FReal DynamicsWeight = FReal(1) / NumExternalSteps;
 		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData, NumExternalSteps](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
+		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
 		{
 			auto Particle = Proxy->GetParticle();
 			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.ParticleData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
@@ -884,13 +884,14 @@ namespace Chaos
 
 
 		//todo: if we allocate remote data ahead of time we could go wide
-		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this, DynamicsWeight](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
 			case EPhysicsProxyType::SingleRigidParticleType:
 			{
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+				Proxy->GetParticle()->ApplyDynamicsWeight(DynamicsWeight);
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
 				break;
 			}
@@ -942,9 +943,8 @@ namespace Chaos
 		FDirtySet* DirtyProxiesData = &PushData.DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData.DirtyPropertiesManager;
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		const FReal DynamicsWeight = PushData.DynamicsWeight;
 
-		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, DynamicsWeight, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
@@ -969,7 +969,7 @@ namespace Chaos
 				}
 			}
 
-			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution(), DynamicsWeight);
+			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution());
 
 			if(bIsNew)
 			{
