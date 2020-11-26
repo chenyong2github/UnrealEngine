@@ -187,7 +187,7 @@ void FDNAToSkelMeshMap::MapJoints(IDNAReader* DNAReader)
 
 	double StartTime = FPlatformTime::Seconds();
 
-	FReferenceSkeleton* RefSkeleton = &TargetSkelMesh->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = TargetSkelMesh->GetRefSkeleton();
 	uint32 JointCount = DNAReader->GetJointCount();
 
 	// Map Joints to Bones.
@@ -197,7 +197,7 @@ void FDNAToSkelMeshMap::MapJoints(IDNAReader* DNAReader)
 	{
 		const FString boneNameFStr = DNAReader->GetJointName(JntIndex);
 		const FName BoneName(*boneNameFStr, 0, FNAME_Add, false);
-		const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
 
 		// BoneIndex can be INDEX_NONE;
 		// We can safely put it into the map with other indices, it will be handled in the Evaluate method.

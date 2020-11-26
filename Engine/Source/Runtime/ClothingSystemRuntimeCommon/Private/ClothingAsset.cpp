@@ -663,7 +663,7 @@ void UClothingAssetCommon::CalculateReferenceBoneIndex()
 	// List of valid paths to the root bone from each weighted bone
 	TArray<BoneIndexArray> PathsToRoot;
 	
-	USkeletalMesh* OwnerMesh = Cast<USkeletalMesh>(GetOuter());
+	const USkeletalMesh* OwnerMesh = Cast<USkeletalMesh>(GetOuter());
 
 	if(OwnerMesh)
 	{

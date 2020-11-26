@@ -388,9 +388,9 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 	{
 		if (UControlRig* CR = SetupControlRigIfRequired())
 		{
-			if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
+			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 			{
-				if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
+				if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 				{
 					for (const FRigBone& RigBone : CR->GetBoneHierarchy())
 					{
