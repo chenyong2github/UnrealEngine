@@ -6,6 +6,7 @@
 #include "Camera/CameraAnim.h"
 #include "CameraAnimationSequence.h"
 #include "ContentBrowserMenuContexts.h"
+#include "Framework/Docking/TabManager.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IAssetTools.h"
 #include "ToolMenuContext.h"
