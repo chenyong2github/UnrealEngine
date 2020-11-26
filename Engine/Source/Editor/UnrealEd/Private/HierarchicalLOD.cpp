@@ -1054,7 +1054,7 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			// We might have created imposters static mesh packages during the HLOD generation, we must save them too.
 			for (ALODActor* LODActor : LODLevelActors[LODIndex])
 			{
-				for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
+				for (UInstancedStaticMeshComponent* Component : LODActor->GetInstancedStaticMeshComponents())
 				{
 					if (Component->GetStaticMesh())
 					{

@@ -19,7 +19,7 @@ struct FHLODISMComponentDesc
 
 public:
 	FHLODISMComponentDesc() = default;
-	FHLODISMComponentDesc(const UInstancedStaticMeshComponent* InISMComponent, const UMaterialInterface* InMaterial);
+	FHLODISMComponentDesc(const UInstancedStaticMeshComponent* InISMComponent);
 
 	bool operator == (const FHLODISMComponentDesc& Other) const;
 
