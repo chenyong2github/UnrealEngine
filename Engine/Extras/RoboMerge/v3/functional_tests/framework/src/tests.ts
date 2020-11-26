@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { DEFAULT_BOT_SETTINGS, EdgeProperties, FunctionalTest, getRootDataClient, P4Client,
-				P4Util, RobomergeBranchSpec, ROBOMERGE_DOMAIN } from './framework'
-import * as System from './system'
+				P4Util, RobomergeBranchSpec, ROBOMERGE_DOMAIN, retryWithBackoff } from './framework'
 import * as bent from 'bent'
 import { Perforce } from './test-perforce'
 import { BlockAssets } from './tests/block-assets'
@@ -78,6 +77,7 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	groupIndex = 0
 	for (const test of tests) {
 		addTest(settings[groupIndex][1], test)
+		test.storeNodesAndEdges()
 
 		groupIndex = (groupIndex + 1) % botNames.length
 	}
@@ -91,16 +91,20 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	const post = bent(ROBOMERGE_DOMAIN, 'POST')
 	await post('/api/control/start')
 
-	for (let safety = 0; safety !== 10; ++safety) {
-		await System.sleep(.5)
-		const response: {[key:string]: any} = await bent('json')(ROBOMERGE_DOMAIN + '/api/branches')
-		if (response.started) {
-			break
-		}
-		// console.log('waiting!')
-	}
+	await retryWithBackoff('Waiting for all branchmaps to load', async () => {
 
-	tests.map(test => test.storeNodesAndEdges())
+		for (const test of tests) {
+			for (const node of test.nodes) {
+				try {
+					await FunctionalTest.getBranchState(test.botName, node)
+				}
+				catch (exc) {
+					return false
+				}
+			}
+		}
+		return true
+	})
 }
 
 async function checkForSyntaxErrors(test: FunctionalTest) {
@@ -213,7 +217,7 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[21]]/*/availableTests  /* .slice(34, 39)/**/
+	const tests = /*/[availableTests[30]]/*/availableTests  /* .slice(34, 39)/**/
 
 	//
 	///////////////////////
@@ -225,9 +229,6 @@ async function go() {
 
 	console.log('Updating RoboMerge branchmaps')
 	await addToRoboMerge(p4, tests)
-
-	// allow RM to update branch map
-	await System.mediumSleep()
 
 	console.log('Running tests')
 	await Promise.all(tests.map(test => test.run()))
