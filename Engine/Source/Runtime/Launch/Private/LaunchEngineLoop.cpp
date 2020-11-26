@@ -3302,6 +3302,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			return 1;
 		}
 	}
+#else // !WITH_ENGINE
+#if WITH_COREUOBJECT
+	// Initialize the PackageResourceManager, which is needed to load any (non-script) Packages.
+	IPackageResourceManager::Initialize();
+#endif
 #endif // WITH_ENGINE
 
 #if WITH_COREUOBJECT
@@ -5846,6 +5851,12 @@ void FEngineLoop::AppPreExit( )
 		UE_LOG(LogInit, Display, TEXT("Closing DDC Pak File."));
 		GetDerivedDataCacheRef().WaitForQuiescence(true);
 	}
+#endif
+#if !WITH_ENGINE
+#if WITH_COREUOBJECT
+	// Shutdown the PackageResourceManager in AppPreExit for programs that do not call FEngineLoop::Exit
+	IPackageResourceManager::Shutdown();
+#endif
 #endif
 
 #if WITH_EDITOR
