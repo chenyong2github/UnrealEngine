@@ -343,14 +343,14 @@ void SRetargetManager::ResetRetargetBasePose()
 	{
 		USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
 
-		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->Skeleton);
+		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 
 		if(PreviewMesh)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("ResetRetargetBasePose_Action", "Reset Retarget Base Pose"));
 			PreviewMesh->Modify();
 			// reset to original ref pose
-			PreviewMesh->RetargetBasePose = PreviewMesh->RefSkeleton.GetRefBonePose();
+			PreviewMesh->SetRetargetBasePose(PreviewMesh->GetRefSkeleton().GetRefBonePose());
 			TurnOnPreviewRetargetBasePose();
 		}
 	}
@@ -365,7 +365,7 @@ void SRetargetManager::UseCurrentPose()
 	{
 		USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
 
-		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->Skeleton);
+		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 
 		if (PreviewMesh)
 		{
@@ -374,11 +374,11 @@ void SRetargetManager::UseCurrentPose()
 			// get space bases and calculate local
 			const TArray<FTransform> & SpaceBases = PreviewMeshComp->GetComponentSpaceTransforms();
 			// @todo check to see if skeleton vs preview mesh makes it different for missing bones
-			const FReferenceSkeleton& RefSkeleton = PreviewMesh->RefSkeleton;
-			TArray<FTransform> & NewRetargetBasePose = PreviewMesh->RetargetBasePose;
+			const FReferenceSkeleton& RefSkeleton = PreviewMesh->GetRefSkeleton();
+			TArray<FTransform> & NewRetargetBasePose = PreviewMesh->GetRetargetBasePose();
 			// if you're using master pose component in preview, this won't work
-			check(PreviewMesh->RefSkeleton.GetNum() == SpaceBases.Num());
-			int32 TotalNumBones = PreviewMesh->RefSkeleton.GetNum();
+			check(PreviewMesh->GetRefSkeleton().GetNum() == SpaceBases.Num());
+			int32 TotalNumBones = PreviewMesh->GetRefSkeleton().GetNum();
 			NewRetargetBasePose.Empty(TotalNumBones);
 			NewRetargetBasePose.AddUninitialized(TotalNumBones);
 
@@ -445,7 +445,7 @@ void SRetargetManager::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 			{
 				USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
 
-				check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->Skeleton);
+				check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 
 				if (PreviewMesh)
 				{
@@ -453,13 +453,13 @@ void SRetargetManager::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 					PreviewMesh->Modify();
 
 					// reset to original ref pose first
-					PreviewMesh->RetargetBasePose = PreviewMesh->RefSkeleton.GetRefBonePose();
+					PreviewMesh->SetRetargetBasePose(PreviewMesh->GetRefSkeleton().GetRefBonePose());
 
 					// now override imported pose
 					for (int32 TrackIndex = 0; TrackIndex < PoseTrackNames.Num(); ++TrackIndex)
 					{
-						int32 BoneIndex = PreviewMesh->RefSkeleton.FindBoneIndex(PoseTrackNames[TrackIndex]);
-						PreviewMesh->RetargetBasePose[BoneIndex] = PoseTransforms[TrackIndex];
+						int32 BoneIndex = PreviewMesh->GetRefSkeleton().FindBoneIndex(PoseTrackNames[TrackIndex]);
+						PreviewMesh->GetRetargetBasePose()[BoneIndex] = PoseTransforms[TrackIndex];
 					}
 
 					TurnOnPreviewRetargetBasePose();

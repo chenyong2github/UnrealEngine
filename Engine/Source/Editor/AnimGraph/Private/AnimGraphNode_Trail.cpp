@@ -137,7 +137,7 @@ void UAnimGraphNode_Trail::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshCompo
 		int32 CurrentIndex = Node.ChainLength - 1;
 		TrailBoneList[CurrentIndex] = Node.TrailBone.BoneName;
 		FName CurrentName = Node.TrailBone.BoneName;
-		const FReferenceSkeleton& RefSkeleton = PreviewSkelMeshComp->SkeletalMesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = PreviewSkelMeshComp->SkeletalMesh->GetRefSkeleton();
 		while (--CurrentIndex >= 0 && CurrentName != NAME_None)
 		{
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(RefSkeleton.FindBoneIndex(CurrentName));

@@ -114,7 +114,7 @@ void FFbxImporter::ShowFbxSkeletonConflictWindow(USkeletalMesh* SkeletalMesh, US
 	
 	if (Skeleton == nullptr)
 	{
-		Skeleton = SkeletalMesh->Skeleton;
+		Skeleton = SkeletalMesh->GetSkeleton();
 	}
 
 	FCompMesh SourceData;

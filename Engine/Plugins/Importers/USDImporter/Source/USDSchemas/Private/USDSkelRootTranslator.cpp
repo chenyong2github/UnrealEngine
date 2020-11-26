@@ -64,7 +64,7 @@ namespace UsdSkelRootTranslatorImpl
 		}
 
 		TArray<UMaterialInterface*> ExistingAssignments;
-		for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
+		for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
 		{
 			ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
 		}
@@ -117,9 +117,9 @@ namespace UsdSkelRootTranslatorImpl
 				FName MaterialSlotName = *LexToString( SkeletalMeshSlotIndex );
 
 				// Already have a material at that skeletal mesh slot, need to reassign
-				if ( SkeletalMesh->Materials.IsValidIndex( SkeletalMeshSlotIndex ) )
+				if ( SkeletalMesh->GetMaterials().IsValidIndex( SkeletalMeshSlotIndex ) )
 				{
-					FSkeletalMaterial& ExistingMaterial = SkeletalMesh->Materials[ SkeletalMeshSlotIndex ];
+					FSkeletalMaterial& ExistingMaterial = SkeletalMesh->GetMaterials()[ SkeletalMeshSlotIndex ];
 
 					if ( ExistingMaterial.MaterialInterface != Material ||
 						 ExistingMaterial.MaterialSlotName != MaterialSlotName ||
@@ -136,7 +136,7 @@ namespace UsdSkelRootTranslatorImpl
 				{
 					const bool bEnableShadowCasting = true;
 					const bool bRecomputeTangents = false;
-					SkeletalMesh->Materials.Add( FSkeletalMaterial( Material, bEnableShadowCasting, bRecomputeTangents, MaterialSlotName, MaterialSlotName ) );
+					SkeletalMesh->GetMaterials().Add( FSkeletalMaterial( Material, bEnableShadowCasting, bRecomputeTangents, MaterialSlotName, MaterialSlotName ) );
 					bMaterialsHaveChanged = true;
 				}
 
@@ -260,7 +260,7 @@ namespace UsdSkelRootTranslatorImpl
 			return;
 		}
 
-		UMorphTarget* MorphTarget = PoseableMeshComponent.SkeletalMesh->MorphTargets[ IndexInSkeletalMesh ];
+		UMorphTarget* MorphTarget = PoseableMeshComponent.SkeletalMesh->GetMorphTargets()[ IndexInSkeletalMesh ];
 		if ( !MorphTarget )
 		{
 			return;
@@ -282,11 +282,11 @@ namespace UsdSkelRootTranslatorImpl
 		{
 			PoseableMeshComponent.ActiveMorphTargets.Reset();
 			PoseableMeshComponent.MorphTargetWeights.Reset();
-
-			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < SkeletalMesh->MorphTargets.Num(); ++MorphTargetIndex )
+			TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
+			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
 			{
 				FActiveMorphTarget ActiveMorphTarget;
-				ActiveMorphTarget.MorphTarget = SkeletalMesh->MorphTargets[ MorphTargetIndex ];
+				ActiveMorphTarget.MorphTarget = MorphTargets[ MorphTargetIndex ];
 				ActiveMorphTarget.WeightIndex = MorphTargetIndex;
 
 				PoseableMeshComponent.ActiveMorphTargets.Add( ActiveMorphTarget );
@@ -753,7 +753,7 @@ namespace UsdSkelRootTranslatorImpl
 				if ( SkeletalMesh )
 				{
 					Context->CurrentlyUsedAssets.Add( SkeletalMesh );
-					Context->CurrentlyUsedAssets.Add( SkeletalMesh->Skeleton );
+					Context->CurrentlyUsedAssets.Add( SkeletalMesh->GetSkeleton() );
 
 					FScopeLock Lock( &Context->CriticalSection );
 					{
@@ -781,10 +781,10 @@ namespace UsdSkelRootTranslatorImpl
 
 						UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( SkeletalMesh, TEXT( "USDAssetImportData" ) );
 						ImportData->PrimPath = SkelRootPath;
-						SkeletalMesh->AssetImportData = ImportData;
+						SkeletalMesh->SetAssetImportData(ImportData);
 
 						Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
-						Context->AssetsCache.Add( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->Skeleton );
+						Context->AssetsCache.Add( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );
 					}
 
 					// We may be reusing a skeletal mesh we got in the cache, but we always need the BlendShapesByPath stored on the
@@ -794,7 +794,7 @@ namespace UsdSkelRootTranslatorImpl
 						Context->BlendShapesByPath->Append( NewBlendShapes );
 					}
 
-					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
+					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
 					{
 						Context->CurrentlyUsedAssets.Add( SkeletalMaterial.MaterialInterface );
 					}
@@ -848,7 +848,7 @@ namespace UsdSkelRootTranslatorImpl
 						FString HashString = Hash.ToString();
 						UAnimSequence* AnimSequence = Cast< UAnimSequence >( Context->AssetsCache.FindRef( HashString ) );
 
-						if ( !AnimSequence || AnimSequence->GetSkeleton() != SkeletalMesh->Skeleton )
+						if ( !AnimSequence || AnimSequence->GetSkeleton() != SkeletalMesh->GetSkeleton() )
 						{
 							FScopedUnrealAllocs UEAllocs;
 
@@ -859,7 +859,7 @@ namespace UsdSkelRootTranslatorImpl
 							// Besides, this particular asset type is only ever created when we import to content folder assets (so never for realtime), and
 							// in that case we don't need it to be transactional anyway
 							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), *UsdToUnreal::ConvertString( SkelAnimPrim.GetName() ), Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
-							AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
+							AnimSequence->SetSkeleton(SkeletalMesh->GetSkeleton());
 
 							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
 							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, Context->bAllowInterpretingLODs, AnimSequence );
@@ -922,7 +922,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		// Handle material overrides
 		if ( TargetSkeletalMesh )
 		{
-			if ( UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( TargetSkeletalMesh->AssetImportData ) )
+			if ( UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( TargetSkeletalMesh->GetAssetImportData() ) )
 			{
 				// If the prim paths match, it means that it was this prim that created (and so "owns") the mesh,
 				// so its material assignments will already be directly on the mesh. If they differ, we're using some other prim's mesh,
@@ -930,7 +930,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 				if ( UsdImportData->PrimPath != PrimPath.GetString() )
 				{
 					TArray<UMaterialInterface*> ExistingAssignments;
-					for ( FSkeletalMaterial& SkeletalMaterial : TargetSkeletalMesh->Materials )
+					for ( FSkeletalMaterial& SkeletalMaterial : TargetSkeletalMesh->GetMaterials() )
 					{
 						ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
 					}
@@ -1002,7 +1002,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			{
 				FScopedUnrealAllocs UnrealAllocs;
 
-				if ( PoseableMeshComponent->BoneSpaceTransforms.Num() != PoseableMeshComponent->SkeletalMesh->RefSkeleton.GetNum() )
+				if ( PoseableMeshComponent->BoneSpaceTransforms.Num() != PoseableMeshComponent->SkeletalMesh->GetRefSkeleton().GetNum() )
 				{
 					PoseableMeshComponent->AllocateTransformData();
 				}

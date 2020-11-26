@@ -90,7 +90,7 @@ void FClothingPaintEditMode::Exit()
 
 			if(USkeletalMesh* SkelMesh = MeshComponent->SkeletalMesh)
 			{
-				for(UClothingAssetBase* AssetBase : SkelMesh->MeshClothingAssets)
+				for(UClothingAssetBase* AssetBase : SkelMesh->GetMeshClothingAssets())
 				{
 					UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(AssetBase);
 					ConcreteAsset->ApplyParameterMasks();

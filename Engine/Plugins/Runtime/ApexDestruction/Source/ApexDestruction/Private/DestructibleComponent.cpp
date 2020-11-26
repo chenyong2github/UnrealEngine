@@ -457,7 +457,8 @@ UBodySetup* UDestructibleComponent::GetBodySetup()
 
 		if (TheDestructibleMesh != NULL)
 		{
-			return TheDestructibleMesh->BodySetup;
+			const UDestructibleMesh* TheDestructibleMeshConst = TheDestructibleMesh;
+			return TheDestructibleMeshConst->GetBodySetup();
 		}
 	}
 
@@ -1640,10 +1641,10 @@ void UDestructibleComponent::SetMaterial(int32 ElementIndex, UMaterialInterface*
 	// Update physical properties for individual bone instances as well
 	if (SkeletalMesh)
 	{
-		int32 NumBones = SkeletalMesh->RefSkeleton.GetRawBoneNum();
+		int32 NumBones = SkeletalMesh->GetRefSkeleton().GetRawBoneNum();
 		for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
 		{
-			FName BoneName = SkeletalMesh->RefSkeleton.GetBoneName(BoneIdx);
+			FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIdx);
 			FBodyInstance* Instance = GetBodyInstance(BoneName);
 			if (Instance)
 			{

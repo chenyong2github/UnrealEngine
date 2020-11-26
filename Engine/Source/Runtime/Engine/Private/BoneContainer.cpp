@@ -61,8 +61,8 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 
 	if (AssetSkeletalMeshObj)
 	{
-		RefSkeleton = &AssetSkeletalMeshObj->RefSkeleton;
-		AssetSkeletonObj = AssetSkeletalMeshObj->Skeleton;
+		RefSkeleton = &AssetSkeletalMeshObj->GetRefSkeleton();
+		AssetSkeletonObj = AssetSkeletalMeshObj->GetSkeleton();
 	}
 	else
 	{

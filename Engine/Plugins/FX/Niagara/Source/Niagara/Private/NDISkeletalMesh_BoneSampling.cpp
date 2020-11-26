@@ -624,7 +624,7 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidBone(FVectorVMContext& Context)
 
 	if (MeshAccessor.AreBonesAccessible())
 	{
-		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->GetRefSkeleton();
 		int32 NumBones = RefSkeleton.GetNum();
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -654,7 +654,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomBone(FVectorVMContext& Context)
 	int32 NumBones = 0;
 	if (MeshAccessor.AreBonesAccessible())
 	{
-		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->GetRefSkeleton();
 		NumBones = RefSkeleton.GetNum() - (ExcludedBoneIndex >= 0 ? 2 : 1);
 	}
 
@@ -689,7 +689,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetBoneCount(FVectorVMContext& Context)
 	int32 NumBones = 0;
 	if (MeshAccessor.AreBonesAccessible())
 	{
-		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->GetRefSkeleton();
 		NumBones = RefSkeleton.GetNum();
 	}
 

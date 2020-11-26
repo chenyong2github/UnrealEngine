@@ -251,7 +251,7 @@ void FSkeletonTreeBuilder::AddAttachedAssets(FSkeletonTreeBuilderOutput& Output)
 		UDebugSkelMeshComponent* PreviewMeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 		if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->SkeletalMesh)
 		{
-			AddAttachedAssetContainer(SkeletalMesh->PreviewAttachedAssetContainer, Output);
+			AddAttachedAssetContainer(SkeletalMesh->GetPreviewAttachedAssetContainer(), Output);
 		}
 	}
 

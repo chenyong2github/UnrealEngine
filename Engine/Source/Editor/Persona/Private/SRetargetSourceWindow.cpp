@@ -455,7 +455,7 @@ void SRetargetSourceWindow::OnAddRetargetSource()
 	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
 
 	FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
-	AssetPickerConfig.Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(USkeletalMesh, Skeleton), SkeletonString);
+	AssetPickerConfig.Filter.TagsAndValues.Add(USkeletalMesh::GetSkeletonMemberName(), SkeletonString);
 
 	TSharedRef<SWidget> Widget = SNew(SBox)
 		.WidthOverride(384)

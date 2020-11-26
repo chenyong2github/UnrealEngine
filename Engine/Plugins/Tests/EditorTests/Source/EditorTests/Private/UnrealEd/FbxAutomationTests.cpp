@@ -318,7 +318,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					FbxSkeletalMeshReimportFactory->ImportUI = TestPlan->ImportUI;
 
 					USkeletalMesh *ReimportSkeletalMesh = Cast<USkeletalMesh>(GlobalImportedObjects[0]);
-					UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReimportSkeletalMesh->AssetImportData);
+					UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ReimportSkeletalMesh->GetAssetImportData());
 
 					//Copy UFbxSkeletalMeshImportData
 					ImportData->ImportContentType = TestPlan->ImportUI->SkeletalMeshImportData->ImportContentType;
@@ -415,7 +415,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 				else if (GlobalImportedObjects[0]->IsA(USkeletalMesh::StaticClass()))
 				{
 					USkeletalMesh *ExistingSkeletalMesh = Cast<USkeletalMesh>(GlobalImportedObjects[0]);
-					UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ExistingSkeletalMesh->AssetImportData);
+					UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(ExistingSkeletalMesh->GetAssetImportData());
 
 					//Copy UFbxSkeletalMeshImportData
 					ImportData->ImportContentType = TestPlan->ImportUI->SkeletalMeshImportData->ImportContentType;
@@ -603,14 +603,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					else if (Object->IsA(USkeletalMesh::StaticClass()))
 					{
 						USkeletalMesh *Mesh = Cast<USkeletalMesh>(Object);
-						if (Mesh->Materials.Num() <= MaterialSlotIndex)
+						if (Mesh->GetMaterials().Num() <= MaterialSlotIndex)
 						{
 							BadSlotIndex = true;
-							MeshMaterialNumber = Mesh->Materials.Num();
+							MeshMaterialNumber = Mesh->GetMaterials().Num();
 						}
 						else
 						{
-							MaterialImportedName = Mesh->Materials[MaterialSlotIndex].ImportedMaterialSlotName.ToString();
+							MaterialImportedName = Mesh->GetMaterials()[MaterialSlotIndex].ImportedMaterialSlotName.ToString();
 						}
 					}
 				}
@@ -750,7 +750,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					else if (Object->IsA(USkeletalMesh::StaticClass()))
 					{
 						USkeletalMesh *Mesh = Cast<USkeletalMesh>(Object);
-						MaterialIndexNumber = Mesh->Materials.Num();
+						MaterialIndexNumber = Mesh->GetMaterials().Num();
 					}
 				}
 				if (MaterialIndexNumber != ExpectedResult.ExpectedPresetsDataInteger[0])
@@ -1034,9 +1034,9 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							else
 							{
 								int32 MaterialIndex = Mesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SectionIndex].MaterialIndex;
-								if (MaterialIndex >= 0 && MaterialIndex < Mesh->Materials.Num())
+								if (MaterialIndex >= 0 && MaterialIndex < Mesh->GetMaterials().Num())
 								{
-									MaterialName = Mesh->Materials[MaterialIndex].MaterialInterface->GetName();
+									MaterialName = Mesh->GetMaterials()[MaterialIndex].MaterialInterface->GetName();
 								}
 							}
 						}
@@ -1200,9 +1200,9 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							else
 							{
 								int32 MaterialIndex = Mesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SectionIndex].MaterialIndex;
-								if (MaterialIndex >= 0 && MaterialIndex < Mesh->Materials.Num())
+								if (MaterialIndex >= 0 && MaterialIndex < Mesh->GetMaterials().Num())
 								{
-									MaterialName = Mesh->Materials[MaterialIndex].ImportedMaterialSlotName.ToString();
+									MaterialName = Mesh->GetMaterials()[MaterialIndex].ImportedMaterialSlotName.ToString();
 								}
 							}
 						}
@@ -1468,9 +1468,9 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					if (Object->IsA(USkeletalMesh::StaticClass()))
 					{
 						USkeletalMesh *Mesh = Cast<USkeletalMesh>(Object);
-						if (Mesh->Skeleton != nullptr)
+						if (Mesh->GetSkeleton() != nullptr)
 						{
-							BoneNumber = Mesh->Skeleton->GetReferenceSkeleton().GetNum();
+							BoneNumber = Mesh->GetSkeleton()->GetReferenceSkeleton().GetNum();
 						}
 					}
 				}
@@ -1505,11 +1505,11 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						FoundSkeletalMesh = true;
 						USkeletalMesh *Mesh = Cast<USkeletalMesh>(Object);
 						FoundSkeleton = true;
-						BoneNumber = Mesh->RefSkeleton.GetNum();
+						BoneNumber = Mesh->GetRefSkeleton().GetNum();
 						if (BoneIndex >= 0 && BoneIndex < BoneNumber)
 						{
 							FoundBoneIndex = true;
-							BoneIndexPosition = Mesh->RefSkeleton.GetRefBonePose()[BoneIndex].GetLocation();
+							BoneIndexPosition = Mesh->GetRefSkeleton().GetRefBonePose()[BoneIndex].GetLocation();
 						}
 					}
 				}

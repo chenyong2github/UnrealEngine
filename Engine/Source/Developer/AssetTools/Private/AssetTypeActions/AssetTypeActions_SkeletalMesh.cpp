@@ -373,9 +373,9 @@ FDlgMergeSkeleton::EResult FDlgMergeSkeleton::ShowModal()
 		BoneIndicesMap.Add(BoneName, BoneTreeId);
 	}
 
-	for ( int32 RefBoneId=0 ; RefBoneId< Mesh->RefSkeleton.GetRawBoneNum() ; ++RefBoneId )
+	for ( int32 RefBoneId=0 ; RefBoneId< Mesh->GetRefSkeleton().GetRawBoneNum() ; ++RefBoneId )
 	{
-		const FName& BoneName = Mesh->RefSkeleton.GetBoneName(RefBoneId);
+		const FName& BoneName = Mesh->GetRefSkeleton().GetBoneName(RefBoneId);
 		// if I can't find this from Skeleton
 		if (BoneIndicesMap.Find(BoneName)==NULL)
 		{
@@ -390,9 +390,9 @@ FDlgMergeSkeleton::EResult FDlgMergeSkeleton::ShowModal()
 	{
 		// it's all identical, but still need to return RequiredBones
 		// for the case, where they'd like to replace the one exactly same hierarchy but different skeleton 
-		for ( int32 RefBoneId= 0 ; RefBoneId< Mesh->RefSkeleton.GetRawBoneNum() ; ++RefBoneId )
+		for ( int32 RefBoneId= 0 ; RefBoneId< Mesh->GetRefSkeleton().GetRawBoneNum() ; ++RefBoneId )
 		{
-			const FName& BoneName = Mesh->RefSkeleton.GetBoneName(RefBoneId);
+			const FName& BoneName = Mesh->GetRefSkeleton().GetBoneName(RefBoneId);
 			RequiredBones.Add(RefBoneId);
 		}
 
@@ -407,14 +407,14 @@ FDlgMergeSkeleton::EResult FDlgMergeSkeleton::ShowModal()
 
 	if(UserResponse == EResult::Confirm)
 	{
-		for ( int32 RefBoneId= 0 ; RefBoneId< Mesh->RefSkeleton.GetRawBoneNum() ; ++RefBoneId )
+		for ( int32 RefBoneId= 0 ; RefBoneId< Mesh->GetRefSkeleton().GetRawBoneNum() ; ++RefBoneId )
 		{
 			if ( DialogWidget->IsBoneIncluded(RefBoneId) )
 			{
 				TArray<int32> ParentList;
 				
 				// I need to make sure parent exists first
-				int32 ParentIndex = Mesh->RefSkeleton.GetParentIndex(RefBoneId);
+				int32 ParentIndex = Mesh->GetRefSkeleton().GetParentIndex(RefBoneId);
 				
 				// make sure RequiredBones already have ParentIndex
 				while (ParentIndex >= 0 )
@@ -425,7 +425,7 @@ FDlgMergeSkeleton::EResult FDlgMergeSkeleton::ShowModal()
 						ParentList.Add(ParentIndex);
 					}
 
-					ParentIndex = Mesh->RefSkeleton.GetParentIndex(ParentIndex);
+					ParentIndex = Mesh->GetRefSkeleton().GetParentIndex(ParentIndex);
 				}
 
 				if ( ParentList.Num() > 0 )
@@ -514,9 +514,9 @@ void FAssetTypeActions_SkeletalMesh::OpenAssetEditor( const TArray<UObject*>& In
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
 		auto Mesh = Cast<USkeletalMesh>(*ObjIt);
-		if (Mesh != NULL)
+		if (Mesh != nullptr)
 		{
-			if (Mesh->Skeleton == NULL)
+			if (Mesh->GetSkeleton() == nullptr)
 			{
 				if ( FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("MissingSkeleton", "This mesh currently has no valid Skeleton. Would you like to create a new Skeleton?")) == EAppReturnType::Yes )
 				{
@@ -538,14 +538,14 @@ void FAssetTypeActions_SkeletalMesh::OpenAssetEditor( const TArray<UObject*>& In
 					AssignSkeletonToMesh(Mesh);
 				}
 
-				if( Mesh->Skeleton == NULL )
+				if( Mesh->GetSkeleton() == NULL )
 				{
 					// error message
 					FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("CreateSkeletonOrAssign", "You need to create a Skeleton or assign one in order to open this in Persona."));
 				}
 			}
 
-			if ( Mesh->Skeleton != NULL )
+			if ( Mesh->GetSkeleton() != NULL )
 			{
 				const bool bBringToFrontIfOpen = true;
 #if WITH_EDITOR
@@ -567,11 +567,11 @@ void FAssetTypeActions_SkeletalMesh::OpenAssetEditor( const TArray<UObject*>& In
 UThumbnailInfo* FAssetTypeActions_SkeletalMesh::GetThumbnailInfo(UObject* Asset) const
 {
 	USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Asset);
-	UThumbnailInfo* ThumbnailInfo = SkeletalMesh->ThumbnailInfo;
+	UThumbnailInfo* ThumbnailInfo = SkeletalMesh->GetThumbnailInfo();
 	if ( ThumbnailInfo == NULL )
 	{
 		ThumbnailInfo = NewObject<USceneThumbnailInfo>(SkeletalMesh, NAME_None, RF_Transactional);
-		SkeletalMesh->ThumbnailInfo = ThumbnailInfo;
+		SkeletalMesh->SetThumbnailInfo(ThumbnailInfo);
 	}
 
 	return ThumbnailInfo;
@@ -603,7 +603,7 @@ EVisibility FAssetTypeActions_SkeletalMesh::GetThumbnailSkinningOverlayVisibilit
 	UObject* Obj = AssetData.GetAsset();
 	if(USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj))
 	{
-		UAssetImportData* GenericImportData = SkeletalMesh->AssetImportData;
+		UAssetImportData* GenericImportData = SkeletalMesh->GetAssetImportData();
 		if (GenericImportData != nullptr)
 		{
 			UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(GenericImportData);
@@ -649,7 +649,7 @@ void FAssetTypeActions_SkeletalMesh::GetResolvedSourceFilePaths(const TArray<UOb
 	for (auto& Asset : TypeAssets)
 	{
 		const auto SkeletalMesh = CastChecked<USkeletalMesh>(Asset);
-		SkeletalMesh->AssetImportData->ExtractFilenames(OutSourceFilePaths);
+		SkeletalMesh->GetAssetImportData()->ExtractFilenames(OutSourceFilePaths);
 	}
 }
 
@@ -659,7 +659,7 @@ void FAssetTypeActions_SkeletalMesh::GetSourceFileLabels(const TArray<UObject*>&
 	{
 		const auto SkeletalMesh = CastChecked<USkeletalMesh>(Asset);
 		TArray<FString> SourceFilePaths;
-		SkeletalMesh->AssetImportData->ExtractFilenames(SourceFilePaths);
+		SkeletalMesh->GetAssetImportData()->ExtractFilenames(SourceFilePaths);
 		for (int32 SourceIndex = 0; SourceIndex < SourceFilePaths.Num(); ++SourceIndex)
 		{
 			FText SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(SourceIndex);
@@ -801,7 +801,7 @@ void FAssetTypeActions_SkeletalMesh::ExecuteFindSkeleton(TArray<TWeakObjectPtr<U
 		auto Object = (*ObjIt).Get();
 		if ( Object )
 		{
-			USkeleton* Skeleton = Object->Skeleton;
+			USkeleton* Skeleton = Object->GetSkeleton();
 			if (Skeleton)
 			{
 				ObjectsToSync.AddUnique(Skeleton);
@@ -916,9 +916,9 @@ void FAssetTypeActions_SkeletalMesh::AssignSkeletonToMesh(USkeletalMesh* SkelMes
 				bool bSuccess = SelectedSkeleton->MergeBonesToBoneTree( SkelMesh, RequiredBones );
 				if ( bSuccess )
 				{
-					if (SkelMesh->Skeleton != SelectedSkeleton)
+					if (SkelMesh->GetSkeleton() != SelectedSkeleton)
 					{
-						SkelMesh->Skeleton = SelectedSkeleton;
+						SkelMesh->SetSkeleton(SelectedSkeleton);
 						SkelMesh->MarkPackageDirty();
 					}
 					FAssetNotifications::SkeletonNeedsToBeSaved(SelectedSkeleton);

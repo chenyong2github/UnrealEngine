@@ -1701,10 +1701,11 @@ namespace ImportCompareHelper
 		if (!bImportSkinningOnly)
 		{
 			//Fill the currrent asset data
-			ImportUI->MaterialCompareData.CurrentAsset.Reserve(SkeletalMesh->Materials.Num());
-			for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMesh->Materials.Num(); ++MaterialIndex)
+			const TArray<FSkeletalMaterial>& SkeletalMeshMaterials = SkeletalMesh->GetMaterials();
+			ImportUI->MaterialCompareData.CurrentAsset.Reserve(SkeletalMeshMaterials.Num());
+			for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMeshMaterials.Num(); ++MaterialIndex)
 			{
-				const FSkeletalMaterial& Material = SkeletalMesh->Materials[MaterialIndex];
+				const FSkeletalMaterial& Material = SkeletalMeshMaterials[MaterialIndex];
 				FMaterialData MaterialData;
 				MaterialData.MaterialIndex = MaterialIndex;
 				MaterialData.ImportedMaterialSlotName = Material.ImportedMaterialSlotName;
@@ -1729,7 +1730,7 @@ namespace ImportCompareHelper
 		if (!bImportGeoOnly)
 		{
 			//Fill the currrent asset data
-			if (ImportUI->Skeleton && SkeletalMesh->Skeleton != ImportUI->Skeleton)
+			if (ImportUI->Skeleton && SkeletalMesh->GetSkeleton() != ImportUI->Skeleton)
 			{
 				//In this case we can't use 
 				const FReferenceSkeleton& ReferenceSkeleton = ImportUI->Skeleton->GetReferenceSkeleton();
@@ -1737,7 +1738,7 @@ namespace ImportCompareHelper
 			}
 			else
 			{
-				FillRecursivelySkeleton(SkeletalMesh->RefSkeleton, 0, ImportUI->SkeletonCompareData.CurrentAssetRoot);
+				FillRecursivelySkeleton(SkeletalMesh->GetRefSkeleton(), 0, ImportUI->SkeletonCompareData.CurrentAssetRoot);
 			}
 			
 			//Fill the result fbx data

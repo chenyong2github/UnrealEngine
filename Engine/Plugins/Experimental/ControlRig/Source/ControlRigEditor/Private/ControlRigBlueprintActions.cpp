@@ -150,7 +150,7 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 
 	if(SkeletalMesh)
 	{
-		Skeleton = SkeletalMesh->Skeleton;
+		Skeleton = SkeletalMesh->GetSkeleton();
 	}
 	else if (Skeleton == nullptr)
 	{
@@ -308,7 +308,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 			if (Track)
 			{
 				USkeletalMesh* SkeletalMesh = MeshActor->GetSkeletalMeshComponent()->SkeletalMesh;
-				USkeleton* Skeleton = SkeletalMesh->Skeleton;
+				USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 				
 				FString ObjectName = (ControlRigClass->GetName());
 				ObjectName.RemoveFromEnd(TEXT("_C"));

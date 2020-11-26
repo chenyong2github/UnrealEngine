@@ -1843,7 +1843,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		ImportantBones.Weight = BonePrioritizationWeight;
 		for (const FBoneReference& BoneReference : BonesToPrioritize)
 		{
-			int32 BoneId = SkeletalMesh.RefSkeleton.FindRawBoneIndex(BoneReference.BoneName);
+			int32 BoneId = SkeletalMesh.GetRefSkeleton().FindRawBoneIndex(BoneReference.BoneName);
 
 			// Q: should we exclude BoneId = 0?
 			ImportantBones.Ids.AddUnique(BoneId);
@@ -1952,10 +1952,10 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	IMeshBoneReduction* MeshBoneReductionInterface = FModuleManager::Get().LoadModuleChecked<IMeshBoneReductionModule>("MeshBoneReduction").GetMeshBoneReductionInterface();
 
 	TArray<FName> BoneNames;
-	const int32 NumBones = SkeletalMesh.RefSkeleton.GetNum();
+	const int32 NumBones = SkeletalMesh.GetRefSkeleton().GetNum();
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 	{
-		BoneNames.Add(SkeletalMesh.RefSkeleton.GetBoneName(BoneIndex));
+		BoneNames.Add(SkeletalMesh.GetRefSkeleton().GetBoneName(BoneIndex));
 	}
 
 	// get the relative to ref pose matrices
@@ -1967,7 +1967,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		TArray<FTransform> BonePoses;
 		UAnimationBlueprintLibrary::GetBonePosesForFrame(BakePoseAnim, BoneNames, 0, true, BonePoses, &SkeletalMesh);
 
-		const FReferenceSkeleton& RefSkeleton = SkeletalMesh.RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = SkeletalMesh.GetRefSkeleton();
 		const TArray<FTransform>& RefPoseInLocal = RefSkeleton.GetRefBonePose();
 
 		// get component ref pose
@@ -2058,7 +2058,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	// Reduce LOD model with SrcMesh if src mesh has more then 1 triangle
-	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
+	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.GetRefSkeleton(), Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
 	{
 		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
 		check(ReducedLODInfoPtr);
@@ -2079,7 +2079,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		}
 		// Flag this LOD as having been simplified.
 		ReducedLODInfoPtr->bHasBeenSimplified = true;
-		SkeletalMesh.bHasBeenSimplified = true;
+		SkeletalMesh.SetHasBeenSimplified(true);
 
 		//Restore the user sections data to what it was. It must be done if we want to avoid changing the DDC key. I.E. UserSectionData is part of the key
 		//DDC key cannot be change during the build
@@ -2155,7 +2155,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 		NewModel->RequiredBones.Empty();
 		SkeletalMesh.GetLODInfo(LODIndex)->bHasBeenSimplified = true;
-		SkeletalMesh.bHasBeenSimplified = true;
+		SkeletalMesh.SetHasBeenSimplified(true);
 	}
 	
 	if (!bLODModelAdded)
@@ -2175,7 +2175,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		SkeletalMesh.SetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
 	}
 
-	SkeletalMesh.CalculateRequiredBones(SkeletalMeshResource.LODModels[LODIndex], SkeletalMesh.RefSkeleton, &BonesToRemove);
+	SkeletalMesh.CalculateRequiredBones(SkeletalMeshResource.LODModels[LODIndex], SkeletalMesh.GetRefSkeleton(), &BonesToRemove);
 }
 
 #undef LOCTEXT_NAMESPACE

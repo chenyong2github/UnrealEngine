@@ -327,7 +327,7 @@ namespace UsdStageImporterImpl
 						if ( OldSkeletalMesh->GetLODNum() != NumUsdLODs )
 						{
 							AssetsToDiscard.Add( OldSkeletalMesh );
-							AssetsToDiscard.Add( OldSkeletalMesh->Skeleton );
+							AssetsToDiscard.Add( OldSkeletalMesh->GetSkeleton() );
 							ImportContext.PrimPathsToAssets.Remove( SkelRootPrimPath );
 						}
 					}
@@ -429,7 +429,7 @@ namespace UsdStageImporterImpl
 		{
 			AssetPrefix = TEXT("SK_");
 
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkMesh->AssetImportData))
+			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkMesh->GetAssetImportData()))
 			{
 				AssetPath = AssetImportData->PrimPath;
 			}
@@ -442,7 +442,7 @@ namespace UsdStageImporterImpl
 			// as it can determine the destination path and how the asset conflicts are resolved
 			if (USkeletalMesh* SkeletalMesh = Skeleton->GetPreviewMesh())
 			{
-				if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkeletalMesh->AssetImportData))
+				if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkeletalMesh->GetAssetImportData()))
 				{
 					AssetPath = AssetImportData->PrimPath;
 				}
@@ -666,7 +666,7 @@ namespace UsdStageImporterImpl
 		// Note that we need to do this even if we never replaced/overwrote assets, as we will at least move from transient to the published folder
 		if ( USkeletalMesh* MovedMeshAsset = Cast<USkeletalMesh>( MovedAsset ) )
 		{
-			if ( USkeleton* Skeleton = MovedMeshAsset->Skeleton )
+			if ( USkeleton* Skeleton = MovedMeshAsset->GetSkeleton() )
 			{
 				Skeleton->SetPreviewMesh( MovedMeshAsset );
 			}
@@ -1002,7 +1002,7 @@ namespace UsdStageImporterImpl
 		USkeletalMesh* NewSkeletalMesh = Cast<USkeletalMesh>(NewAsset);
 		if (ExistingSkeletalMesh && NewSkeletalMesh)
 		{
-			NewSkeletalMesh->Materials = ExistingSkeletalMesh->Materials;
+			NewSkeletalMesh->SetMaterials(ExistingSkeletalMesh->GetMaterials());
 			return;
 		}
 	}
@@ -1014,14 +1014,14 @@ namespace UsdStageImporterImpl
 		if ( ExistingSkeletalMesh && NewSkeletalMesh )
 		{
 			// Never assign a transient skeleton
-			if ( ExistingSkeletalMesh->Skeleton && ExistingSkeletalMesh->Skeleton->GetOutermost() == GetTransientPackage() )
+			if ( ExistingSkeletalMesh->GetSkeleton() && ExistingSkeletalMesh->GetSkeleton()->GetOutermost() == GetTransientPackage() )
 			{
 				return;
 			}
 
 			// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
 			// abandoned Skeleton in the transient package
-			NewSkeletalMesh->Skeleton = ExistingSkeletalMesh->Skeleton;
+			NewSkeletalMesh->SetSkeleton(ExistingSkeletalMesh->GetSkeleton());
 		}
 
 		UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>( ExistingAsset );

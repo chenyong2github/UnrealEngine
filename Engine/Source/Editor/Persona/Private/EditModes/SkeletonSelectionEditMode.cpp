@@ -42,7 +42,7 @@ bool FSkeletonSelectionEditMode::GetCameraTarget(FSphere& OutTarget) const
 		const int32 FocusBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 		if (FocusBoneIndex != INDEX_NONE)
 		{
-			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(FocusBoneIndex);
+			const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(FocusBoneIndex);
 			OutTarget.Center = PreviewMeshComponent->GetBoneLocation(BoneName);
 			OutTarget.W = 30.0f;
 			bHandled = true;
@@ -151,7 +151,7 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 					bInTransaction = true;
 
 					// now modify the bone array
-					const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+					const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 					PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName);
 				}
 			}
@@ -209,7 +209,7 @@ bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportCli
 		if ( BoneIndex >= 0 )
 		{
 			//Get the skeleton control manipulating this bone
-			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+			const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 			SkelControl = &(PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName));
 		}
 
@@ -352,7 +352,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 		const int32 HalfY = ViewPortSize.Y / 2;
 
 		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-		const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+		const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
 		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 		const FPlane Proj = View->Project(BoneMatrix.GetOrigin());
@@ -480,7 +480,7 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	{
 		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
 		{
-			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+			const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
 			const FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 

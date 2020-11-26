@@ -143,7 +143,7 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 					if (BoneTreeIndex != INDEX_NONE)
 					{
 						int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-						int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+						int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 						if (ParentIndex == INDEX_NONE)
 						{
 							// found root

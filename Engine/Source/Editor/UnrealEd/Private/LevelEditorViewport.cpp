@@ -748,7 +748,7 @@ static bool AttemptApplyObjToComponent(UObject* ObjToUse, USceneComponent* Compo
 						SkeletalMeshComponent->Modify();
 
 						// If the component doesn't have a mesh or the anim blueprint's skeleton isn't compatible with the existing mesh's skeleton, the mesh should change
-						const bool bShouldChangeMesh = !SkeletalMeshComponent->SkeletalMesh || !AnimBPSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->Skeleton);
+						const bool bShouldChangeMesh = !SkeletalMeshComponent->SkeletalMesh || !AnimBPSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->GetSkeleton());
 
 						if (bShouldChangeMesh)
 						{
@@ -756,7 +756,7 @@ static bool AttemptApplyObjToComponent(UObject* ObjToUse, USceneComponent* Compo
 						}
 
 						// Verify that the skeletons are compatible before changing the anim BP
-						if (SkeletalMeshComponent->SkeletalMesh && AnimBPSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->Skeleton))
+						if (SkeletalMeshComponent->SkeletalMesh && AnimBPSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->GetSkeleton()))
 						{
 							SkeletalMeshComponent->SetAnimInstanceClass(DroppedObjAsAnimBlueprint->GeneratedClass);
 							bResult = true;
@@ -783,7 +783,7 @@ static bool AttemptApplyObjToComponent(UObject* ObjToUse, USceneComponent* Compo
 						SkeletalMeshComponent->Modify();
 
 						// If the component doesn't have a mesh or the anim blueprint's skeleton isn't compatible with the existing mesh's skeleton, the mesh should change
-						const bool bShouldChangeMesh = !SkeletalMeshComponent->SkeletalMesh || !AnimSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->Skeleton);
+						const bool bShouldChangeMesh = !SkeletalMeshComponent->SkeletalMesh || !AnimSkeleton->IsCompatible(SkeletalMeshComponent->SkeletalMesh->GetSkeleton());
 
 						if (bShouldChangeMesh)
 						{

@@ -160,12 +160,13 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	//Material is a special case since we cannot serialize the UMaterialInstance when saving the RawSkeletalMeshBulkData
 	//So it has to be reconstructed.
 	ImportData->MaxMaterialIndex = 0;
-	for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMesh->Materials.Num(); ++MaterialIndex)
+	const TArray<FSkeletalMaterial>& SkeletalMeshMaterials = SkeletalMesh->GetMaterials();
+	for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMeshMaterials.Num(); ++MaterialIndex)
 	{
 		SkeletalMeshImportData::FMaterial NewMaterial;
 
-		NewMaterial.MaterialImportName = SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName.ToString();
-		NewMaterial.Material = SkeletalMesh->Materials[MaterialIndex].MaterialInterface;
+		NewMaterial.MaterialImportName = SkeletalMeshMaterials[MaterialIndex].ImportedMaterialSlotName.ToString();
+		NewMaterial.Material = SkeletalMeshMaterials[MaterialIndex].MaterialInterface;
 		// Add an entry for each unique material
 		ImportData->MaxMaterialIndex = FMath::Max(ImportData->MaxMaterialIndex, (uint32)(ImportData->Materials.Add(NewMaterial)));
 	}

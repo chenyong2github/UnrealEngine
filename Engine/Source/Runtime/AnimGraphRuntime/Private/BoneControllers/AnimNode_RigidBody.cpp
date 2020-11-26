@@ -873,7 +873,7 @@ void ComputeBodyInsertionOrder(TArray<FBoneIndexType>& InsertionOrder, const USk
 		SKC.ComputeRequiredBones(RequiredBones0, ComponentSpaceTMs0, 0, /*bIgnorePhysicsAsset=*/ true);
 
 		TArray<bool> InSortedOrder;
-		InSortedOrder.AddZeroed(SKC.SkeletalMesh->RefSkeleton.GetNum());
+		InSortedOrder.AddZeroed(SKC.SkeletalMesh->GetRefSkeleton().GetNum());
 
 		auto MergeIndices = [&InsertionOrder, &InSortedOrder](const TArray<FBoneIndexType>& RequiredBones) -> void
 		{
@@ -911,11 +911,11 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
-	const FReferenceSkeleton& SkelMeshRefSkel = SkeletalMeshAsset->RefSkeleton;
+	const FReferenceSkeleton& SkelMeshRefSkel = SkeletalMeshAsset->GetRefSkeleton();
 	UsePhysicsAsset = OverridePhysicsAsset ? OverridePhysicsAsset : InAnimInstance->GetSkelMeshComponent()->GetPhysicsAsset();
 		
 	USkeleton* SkeletonAsset = InAnimInstance->CurrentSkeleton;
-	ensure(SkeletonAsset == SkeletalMeshAsset->Skeleton);
+	ensure(SkeletonAsset == SkeletalMeshAsset->GetSkeleton());
 
 	const int32 SkelMeshLinkupIndex = SkeletonAsset->GetMeshLinkupIndex(SkeletalMeshAsset);
 	ensure(SkelMeshLinkupIndex != INDEX_NONE);

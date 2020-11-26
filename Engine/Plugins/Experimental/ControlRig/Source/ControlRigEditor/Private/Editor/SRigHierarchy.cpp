@@ -1216,7 +1216,7 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		FScopedTransaction Transaction(LOCTEXT("HierarchyRefresh", "Refresh Transform"));
 		ControlRigBlueprint->Modify();
 
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, true, true, true, false /* notify */);
 	}
 
@@ -1260,12 +1260,12 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
 		ControlRigBlueprint->Modify();
 
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, false, false, true, false /* notify */);
-		Hierarchy->CurveContainer.ImportCurvesFromSkeleton(Mesh->Skeleton, NAME_None, true, false, false /* notify */);
+		Hierarchy->CurveContainer.ImportCurvesFromSkeleton(Mesh->GetSkeleton(), NAME_None, true, false, false /* notify */);
 
-		ControlRigBlueprint->SourceHierarchyImport = Mesh->Skeleton;
-		ControlRigBlueprint->SourceCurveImport = Mesh->Skeleton;
+		ControlRigBlueprint->SourceHierarchyImport = Mesh->GetSkeleton();
+		ControlRigBlueprint->SourceCurveImport = Mesh->GetSkeleton();
 	}
 
 	FSlateApplication::Get().DismissAllMenus();

@@ -492,7 +492,7 @@ public:
 	{
 		if (SkeletalMesh)
 		{
-			return SkeletalMesh->RefSkeleton;
+			return SkeletalMesh->GetRefSkeleton();
 		}
 
 		static FReferenceSkeleton EmptySkeleton;

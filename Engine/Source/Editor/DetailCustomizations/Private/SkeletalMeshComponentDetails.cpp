@@ -398,14 +398,14 @@ USkeleton* FSkeletalMeshComponentDetails::GetValidSkeletonFromRegisteredMeshes()
 		// If we've not come across a valid skeleton yet, store this one.
 		if (!Skeleton)
 		{
-			Skeleton = Mesh->SkeletalMesh->Skeleton;
+			Skeleton = Mesh->SkeletalMesh->GetSkeleton();
 			continue;
 		}
 
 		// We've encountered a valid skeleton before.
 		// If this skeleton is not the same one, that means there are multiple
 		// skeletons selected, so we don't want to take any action.
-		if (Mesh->SkeletalMesh->Skeleton != Skeleton)
+		if (Mesh->SkeletalMesh->GetSkeleton() != Skeleton)
 		{
 			return NULL;
 		}

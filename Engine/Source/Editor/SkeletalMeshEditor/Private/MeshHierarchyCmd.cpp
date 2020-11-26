@@ -34,10 +34,10 @@ bool FMeshHierarchyCmd::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 			GWarn->StatusUpdate(MeshIdx, SkeletalMeshes.Num(), StatusUpdate);
 
 			USkeletalMesh* Mesh = Cast<USkeletalMesh>(SkeletalMeshes[MeshIdx].GetAsset());
-			if (Mesh->Skeleton)
+			if (Mesh->GetSkeleton())
 			{
-				FName MeshRoot = Mesh->RefSkeleton.GetBoneName(0);
-				FName SkelRoot = Mesh->Skeleton->GetReferenceSkeleton().GetBoneName(0);
+				FName MeshRoot = Mesh->GetRefSkeleton().GetBoneName(0);
+				FName SkelRoot = Mesh->GetSkeleton()->GetReferenceSkeleton().GetBoneName(0);
 
 				if (MeshRoot != SkelRoot)
 				{

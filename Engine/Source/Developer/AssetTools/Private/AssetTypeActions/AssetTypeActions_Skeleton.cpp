@@ -628,7 +628,7 @@ void FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton(TArray<TWeakObjectPtr<U
 			}
 			else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(EditedAsset))
 			{
-				bCloseAssetEditor = OldSkeleton == SkeletalMesh->Skeleton;
+				bCloseAssetEditor = OldSkeleton == SkeletalMesh->GetSkeleton();
 			}
 			else if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(EditedAsset))
 			{
@@ -639,7 +639,7 @@ void FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton(TArray<TWeakObjectPtr<U
 				USkeletalMesh* PhysicsSkeletalMesh = PhysicsAsset->PreviewSkeletalMesh.LoadSynchronous();
 				if(PhysicsSkeletalMesh != nullptr)
 				{
-					bCloseAssetEditor = OldSkeleton == PhysicsSkeletalMesh->Skeleton;
+					bCloseAssetEditor = OldSkeleton == PhysicsSkeletalMesh->GetSkeleton();
 				}
 			}
 
@@ -975,7 +975,7 @@ void FAssetTypeActions_Skeleton::RetargetSkeleton(TArray<FAssetToRemapSkeleton>&
 	for (FObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent * MeshComponent = Cast<USkeletalMeshComponent>(*Iter);
-		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->Skeleton == OldSkeleton)
+		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->GetSkeleton() == OldSkeleton)
 		{
 			MeshComponent->InitAnim(true);
 		}

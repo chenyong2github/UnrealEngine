@@ -105,7 +105,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	FString AssetPath;
 	FString AssetName;
 
-	if (!Component || !Component->SkeletalMesh || !Component->SkeletalMesh->Skeleton)
+	if (!Component || !Component->SkeletalMesh || !Component->SkeletalMesh->GetSkeleton())
 	{
 		return false;
 	}
@@ -121,7 +121,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 
 bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Component, const FString& InAssetPath, const FString& InAssetName)
 {
-	if (!Component || !Component->SkeletalMesh || !Component->SkeletalMesh->Skeleton)
+	if (!Component || !Component->SkeletalMesh || !Component->SkeletalMesh->GetSkeleton())
 	{
 		return false;
 	}
@@ -162,7 +162,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	if (NewSeq)
 	{
 		// set skeleton
-		NewSeq->SetSkeleton(Component->SkeletalMesh->Skeleton);
+		NewSeq->SetSkeleton(Component->SkeletalMesh->GetSkeleton());
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(NewSeq);
 		StartRecord(Component, NewSeq);
@@ -649,7 +649,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				if (BoneTreeIndex != INDEX_NONE)
 				{
 					int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-					int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+					int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 					FTransform LocalTransform = SpacesBases[BoneIndex];
 					if (ParentIndex == INDEX_NONE)
 					{
@@ -686,7 +686,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-				int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+				int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 				FTransform LocalTransform = SpacesBases[BoneIndex];
 				if ( ParentIndex != INDEX_NONE )
 				{

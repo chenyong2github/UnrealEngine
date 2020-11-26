@@ -137,7 +137,7 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 	}
 
 	int32 OldIndex = INDEX_NONE;
-	if(TargetMesh->MeshClothingAssets.Find(OriginalAsset, OldIndex))
+	if(TargetMesh->GetMeshClothingAssets().Find(OriginalAsset, OldIndex))
 	{
 		TArray<UActorComponent*> ComponentsToReregister;
 		for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
@@ -153,11 +153,11 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 	
 		FMultiComponentReregisterContext ReregisterContext(ComponentsToReregister);
 
-		UClothingAssetCommon* OldClothingAsset = Cast<UClothingAssetCommon>(TargetMesh->MeshClothingAssets[OldIndex]);
+		UClothingAssetCommon* OldClothingAsset = Cast<UClothingAssetCommon>(TargetMesh->GetMeshClothingAssets()[OldIndex]);
 		UClothingAssetCommon* NewClothingAsset = nullptr;
 		FName AssetName = NAME_None;
 
-		if(!OldClothingAsset || !TargetMesh->MeshClothingAssets.IsValidIndex(OldIndex))
+		if(!OldClothingAsset || !TargetMesh->GetMeshClothingAssets().IsValidIndex(OldIndex))
 		{
 			return nullptr;
 		}
@@ -182,7 +182,7 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 				// Store import path
 				NewClothingAsset->ImportedFilePath = Filename;
 
-				TargetMesh->MeshClothingAssets[OldIndex] = NewClothingAsset;
+				TargetMesh->GetMeshClothingAssets()[OldIndex] = NewClothingAsset;
 
 				for(ClothingAssetUtils::FClothingAssetMeshBinding& Binding : AssetBindings)
 				{
@@ -320,7 +320,7 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 	{
 		// Find the clothing asset in the mesh to verify the params are correct
 		int32 MeshAssetIndex = INDEX_NONE;
-		if(TargetMesh->MeshClothingAssets.Find(TargetClothing, MeshAssetIndex))
+		if(TargetMesh->GetMeshClothingAssets().Find(TargetClothing, MeshAssetIndex))
 		{
 			// Everything looks good, continue to actual import
 			UClothingAssetCommon* ConcreteTarget = CastChecked<UClothingAssetCommon>(TargetClothing);
@@ -444,7 +444,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	for(int32 UsedBoneIndex = 0; UsedBoneIndex < NumUsedBones; ++UsedBoneIndex)
 	{
 		const FName& BoneName = NewClothingAsset->UsedBoneNames[UsedBoneIndex];
-		const int32 UnrealBoneIndex = TargetMesh->RefSkeleton.FindBoneIndex(BoneName);
+		const int32 UnrealBoneIndex = TargetMesh->GetRefSkeleton().FindBoneIndex(BoneName);
 
 		// If we find an invalid bone then the asset is invalid, as it cannot be skinned to this mesh
 		if(UnrealBoneIndex == INDEX_NONE)
@@ -1245,7 +1245,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 			const uint16 SourceIndex = SourceSection.BoneMap[SourceVert.InfluenceBones[InfluenceIndex]];
 			if(SourceIndex != INDEX_NONE)
 			{
-				FName BoneName = SourceMesh->RefSkeleton.GetBoneName(SourceIndex);
+				FName BoneName = SourceMesh->GetRefSkeleton().GetBoneName(SourceIndex);
 				BoneData.BoneIndices[InfluenceIndex] = DestAsset->UsedBoneNames.AddUnique(BoneName);
 				BoneData.BoneWeights[InfluenceIndex] = (float)SourceVert.InfluenceWeights[InfluenceIndex] / 255.0f;
 			}

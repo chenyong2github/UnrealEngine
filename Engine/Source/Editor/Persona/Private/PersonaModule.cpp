@@ -527,9 +527,9 @@ void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkel
 		const FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
 
 		TArray<FAssetData> SkeletalMeshes;
-		PopulateWithAssets(USkeletalMesh::StaticClass()->GetFName(), GET_MEMBER_NAME_CHECKED(USkeletalMesh, Skeleton), SkeletonString, SkeletalMeshes);
+		PopulateWithAssets(USkeletalMesh::StaticClass()->GetFName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, SkeletalMeshes);
 		TArray<FAssetData> Animations;
-		PopulateWithAssets(UAnimSequence::StaticClass()->GetFName(), FName("Skeleton"), SkeletonString, Animations);
+		PopulateWithAssets(UAnimSequence::StaticClass()->GetFName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, Animations);
 
 		FText TimeTakenMessage = FText::Format(LOCTEXT("TimeTakenWarning", "In order to verify curve usage all Skeletal Meshes and Animations that use this skeleton will be loaded, this may take some time.\n\nProceed?\n\nNumber of Meshes: {0}\nNumber of Animations: {1}"), FText::AsNumber(SkeletalMeshes.Num()), FText::AsNumber(Animations.Num()));
 
@@ -564,14 +564,14 @@ void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkel
 					const USkeletalMesh* Mesh = Cast<USkeletalMesh>(SkeletalMeshes[MeshIdx].GetAsset());
 
 					// Filter morph targets from curves
-					const TArray<UMorphTarget*>& MorphTargets = Mesh->MorphTargets;
+					const TArray<UMorphTarget*>& MorphTargets = Mesh->GetMorphTargets();
 					for (int32 I = 0; I < MorphTargets.Num(); ++I)
 					{
 						const int32 CurveIndex = UnusedNames.RemoveSingleSwap(MorphTargets[I]->GetFName(), false);
 					}
 
 					// Filter material params from curves
-					for (const FSkeletalMaterial& Mat : Mesh->Materials)
+					for (const FSkeletalMaterial& Mat : Mesh->GetMaterials())
 					{
 						if (UnusedNames.Num() == 0)
 						{
