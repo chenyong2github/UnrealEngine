@@ -61,6 +61,14 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
 
+void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 CodeChunk)
+{
+	FStrataMaterialCompilationInfo StrataInfo;
+	StrataInfo.LayerCount = 0;
+	StrataInfo.TotalBSDFCount = 0;
+	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
+}
+
 
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {

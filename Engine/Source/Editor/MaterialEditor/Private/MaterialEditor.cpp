@@ -234,7 +234,7 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	}
 	else if (Property == MP_FrontMaterial)
 	{
-		Ret = Compiler->FrontMaterial();
+		Ret = Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 	else
 	{

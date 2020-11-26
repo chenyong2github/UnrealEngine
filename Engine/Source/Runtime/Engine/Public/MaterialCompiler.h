@@ -390,7 +390,7 @@ public:
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
 	// Strata
-	virtual int32 FrontMaterial() = 0;
+	virtual int32 StrataCreateAndRegisterNullMaterial() = 0;
 	virtual int32 StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
@@ -800,9 +800,9 @@ public:
 		return Compiler->IsDevelopmentFeatureEnabled(FeatureName);
 	}
 
-	virtual int32 FrontMaterial() override
+	virtual int32 StrataCreateAndRegisterNullMaterial() override
 	{
-		return Compiler->FrontMaterial();
+		return Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 
 	virtual int32 StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override

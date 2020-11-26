@@ -790,7 +790,7 @@ protected:
 	virtual int32 VirtualTextureOutput(uint8 MaterialAttributeMask) override;
 
 	// Strata
-	virtual int32 FrontMaterial() override;
+	virtual int32 StrataCreateAndRegisterNullMaterial() override;
 	virtual int32 StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override;
 	virtual int32 StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override;
 	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override;

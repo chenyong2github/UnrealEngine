@@ -4099,8 +4099,7 @@ int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compil
 	if (Property == MP_FrontMaterial)
 	{
 		check(ValueType == MCT_Strata);
-		// Default to the first shading model of the material. If the material is using a single shading model selected through the dropdown, this is how it gets written to the shader as a constant (optimizing out all the dynamic branches)
-		return Compiler->FrontMaterial();
+		return Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 
 	if (TexCoordIndex == INDEX_NONE)
