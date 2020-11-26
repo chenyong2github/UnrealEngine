@@ -454,6 +454,8 @@ namespace UnrealBuildTool
 
 			public override void AddAction(IAction Action)
 			{
+				base.AddAction(Action);
+
 				Actions.Add(Action);
 			}
 		}
