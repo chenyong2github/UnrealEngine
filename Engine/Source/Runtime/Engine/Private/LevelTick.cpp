@@ -60,7 +60,6 @@
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "GPUSkinCache.h"
-#include "RayTracingGeometryManager.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
@@ -1000,10 +999,6 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
 		#endif // RHI_RAYTRACING
 		}
-
-#if RHI_RAYTRACING
-		GRayTracingGeometryManager.ProcessBuildRequests(RHICmdList);
-#endif // RHI_RAYTRACING
 
 		delete SendAllEndOfFrameUpdates;
 	});
