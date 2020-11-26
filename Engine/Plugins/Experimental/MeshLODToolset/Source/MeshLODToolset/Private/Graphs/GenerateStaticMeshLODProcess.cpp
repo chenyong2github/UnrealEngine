@@ -7,6 +7,7 @@
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "DynamicMeshAttributeSet.h"
 
 #include "AssetUtils/Texture2DUtil.h"
 #include "AssetUtils/Texture2DBuilder.h"
@@ -20,15 +21,19 @@
 #include "IAssetTools.h"
 #include "FileHelpers.h"
 
+#include "Engine/Engine.h"
+#include "Editor.h"
+
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #include "Engine/Classes/Engine/StaticMesh.h"
 #include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 
-
+#define LOCTEXT_NAMESPACE "FGenerateStaticMeshLODProcess"
 
 
 namespace
@@ -146,6 +151,8 @@ bool FGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn)
 
 	CalculateDerivedPathName(GetDefaultDerivedAssetSuffix());
 
+	InitializeGenerator();
+
 	return true;
 }
 
@@ -164,8 +171,7 @@ void FGenerateStaticMeshLODProcess::CalculateDerivedPathName(FString NewAssetSuf
 }
 
 
-
-bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
+bool FGenerateStaticMeshLODProcess::InitializeGenerator()
 {
 	Generator = MakeUnique<FGenerateMeshLODGraph>();
 	Generator->BuildGraph();
@@ -176,7 +182,7 @@ bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 		for (const FTextureInfo& TexInfo : MatInfo.SourceTextures)
 		{
 			if (TexInfo.bShouldBakeTexture &&
-				(TextureToDerivedTexIndex.Contains(TexInfo.SourceTexture) == false) )
+				(TextureToDerivedTexIndex.Contains(TexInfo.SourceTexture) == false))
 			{
 				int32 NewIndex = Generator->AppendTextureBakeNode(TexInfo.Image, TexInfo.SourceTexture->GetName());
 				TextureToDerivedTexIndex.Add(TexInfo.SourceTexture, NewIndex);
@@ -186,8 +192,18 @@ bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 
 	Generator->SetSourceMesh(this->SourceMesh);
 
-	Generator->EvaluateResult(this->DerivedLODMesh, this->DerivedCollision, this->DerivedNormalMapImage, this->DerivedTextureImages);
+	return true;
+}
 
+
+bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
+{
+	Generator->EvaluateResult(
+		this->DerivedLODMesh, 
+		this->DerivedLODMeshTangents,
+		this->DerivedCollision, 
+		this->DerivedNormalMapImage, 
+		this->DerivedTextureImages);
 
 	// copy all materials for now...we are going to replace all the images though, and
 	// should not copy those?
@@ -213,6 +229,108 @@ bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 
 
 
+
+void FGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials& MaterialSetOut)
+{
+	// force garbage collection of outstanding preview materials
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+
+	// create derived textures
+	int32 NumMaterials = SourceMaterials.Num();
+	check(DerivedMaterials.Num() == NumMaterials);
+	TMap<UTexture2D*, UTexture2D*> SourceToPreviewTexMap;
+	for (int32 mi = 0; mi < NumMaterials; ++mi)
+	{
+		const FMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
+		const FMaterialInfo& DerivedMaterialInfo = DerivedMaterials[mi];
+
+		int32 NumTextures = SourceMaterialInfo.SourceTextures.Num();
+		check(DerivedMaterialInfo.SourceTextures.Num() == NumTextures);
+		for (int32 ti = 0; ti < NumTextures; ++ti)
+		{
+			const FTextureInfo& SourceTex = SourceMaterialInfo.SourceTextures[ti];
+			bool bConvertToSRGB = SourceTex.SourceTexture->SRGB;
+			const FTextureInfo& DerivedTex = DerivedMaterialInfo.SourceTextures[ti];
+			if (DerivedTex.bShouldBakeTexture)
+			{
+				FTexture2DBuilder TextureBuilder;
+				TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, DerivedTex.Dimensions);
+				TextureBuilder.GetTexture2D()->SRGB = bConvertToSRGB;
+				TextureBuilder.Copy(DerivedTex.Image, bConvertToSRGB);
+				TextureBuilder.Commit(false);
+				UTexture2D* PreviewTex = TextureBuilder.GetTexture2D();
+				if (ensure(PreviewTex))
+				{
+					SourceToPreviewTexMap.Add(SourceTex.SourceTexture, PreviewTex);
+					MaterialSetOut.Textures.Add(PreviewTex);
+				}
+			}
+		}
+	}
+
+	// create derived normal map texture
+	FTexture2DBuilder NormapMapBuilder;
+	NormapMapBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, DerivedNormalMapImage.Image.GetDimensions());
+	NormapMapBuilder.Copy(DerivedNormalMapImage.Image, false);
+	NormapMapBuilder.Commit(false);
+	UTexture2D* PreviewNormalMapTex = NormapMapBuilder.GetTexture2D();
+	MaterialSetOut.Textures.Add(PreviewNormalMapTex);
+
+	// create derived MIDs and point to new textures
+	for (int32 mi = 0; mi < NumMaterials; ++mi)
+	{
+		const FMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
+
+		UMaterialInterface* MaterialInterface = SourceMaterialInfo.SourceMaterial.MaterialInterface;
+		UMaterialInstanceDynamic* GeneratedMID = UMaterialInstanceDynamic::Create(MaterialInterface, NULL);
+
+		// rewrite texture parameters to new textures
+		UpdateMaterialTextureParameters(GeneratedMID, SourceMaterialInfo, SourceToPreviewTexMap, PreviewNormalMapTex);
+
+		MaterialSetOut.Materials.Add(GeneratedMID);
+	}
+
+}
+
+
+void FGenerateStaticMeshLODProcess::UpdateMaterialTextureParameters(
+	UMaterialInstanceDynamic* Material, 
+	const FMaterialInfo& SourceMaterialInfo,
+	const TMap<UTexture2D*, UTexture2D*>& PreviewTextures, 
+	UTexture2D* PreviewNormalMap)
+{
+	Material->Modify();
+	int32 NumTextures = SourceMaterialInfo.SourceTextures.Num();
+	for (int32 ti = 0; ti < NumTextures; ++ti)
+	{
+		const FTextureInfo& SourceTex = SourceMaterialInfo.SourceTextures[ti];
+
+		if (SourceTex.bIsNormalMap)
+		{
+			if (ensure(PreviewNormalMap))
+			{
+				FMaterialParameterInfo ParamInfo(SourceTex.ParameterName);
+				Material->SetTextureParameterValueByInfo(ParamInfo, PreviewNormalMap);
+			}
+		}
+		else if (SourceTex.bShouldBakeTexture)
+		{
+			UTexture2D*const* FoundTexture = PreviewTextures.Find(SourceTex.SourceTexture);
+			if (ensure(FoundTexture))
+			{
+				FMaterialParameterInfo ParamInfo(SourceTex.ParameterName);
+				Material->SetTextureParameterValueByInfo(ParamInfo, *FoundTexture);
+			}
+		}
+	}
+	Material->PostEditChange();
+}
+
+
+
+
+
 bool FGenerateStaticMeshLODProcess::WriteDerivedAssetData()
 {
 	WriteDerivedTextures();
@@ -224,6 +342,15 @@ bool FGenerateStaticMeshLODProcess::WriteDerivedAssetData()
 	return true;
 }
 
+
+void FGenerateStaticMeshLODProcess::UpdateSourceAsset()
+{
+	WriteDerivedTextures();
+
+	WriteDerivedMaterials();
+
+	UpdateSourceStaticMeshAsset();
+}
 
 
 void FGenerateStaticMeshLODProcess::WriteDerivedTextures()
@@ -504,3 +631,88 @@ void FGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset()
 	// done updating mesh
 	GeneratedStaticMesh->PostEditChange();
 }
+
+
+
+
+void FGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset()
+{
+	GEditor->BeginTransaction(LOCTEXT("UpdateExistingAssetMessage", "Added Generated LOD"));
+
+	SourceStaticMesh->Modify();
+
+	TArray<FStaticMaterial> ExistingMaterials = SourceStaticMesh->GetStaticMaterials();
+
+	// append new materials to material set
+	TArray<int32> NewMatIndexMap;
+	for (FMaterialInfo& DerivedMaterialInfo : DerivedMaterials)
+	{
+		int32 NewIndex = ExistingMaterials.Num();
+		ExistingMaterials.Add(DerivedMaterialInfo.SourceMaterial);
+		NewMatIndexMap.Add(NewIndex);
+	}
+
+	// rewrite material IDs on derived mesh
+	DerivedLODMesh.Attributes()->EnableMaterialID();
+	FDynamicMeshMaterialAttribute* MaterialIDs = DerivedLODMesh.Attributes()->GetMaterialID();
+	for (int32 tid : DerivedLODMesh.TriangleIndicesItr())
+	{
+		int32 CurMaterialID = MaterialIDs->GetValue(tid);
+		int32 NewMaterialID = NewMatIndexMap[CurMaterialID];
+		MaterialIDs->SetValue(tid, NewMaterialID);
+	}
+
+	// update materials on generated mesh
+	SourceStaticMesh->SetStaticMaterials(ExistingMaterials);
+
+	// store new derived LOD as LOD 1
+	SourceStaticMesh->SetNumSourceModels(2);
+	FMeshDescription* MeshDescription = SourceStaticMesh->GetMeshDescription(1);
+	if (MeshDescription == nullptr)
+	{
+		MeshDescription = SourceStaticMesh->CreateMeshDescription(1);
+	}
+	FConversionToMeshDescriptionOptions ConversionOptions;
+	FDynamicMeshToMeshDescription Converter(ConversionOptions);
+	Converter.Convert(&DerivedLODMesh, *MeshDescription);
+	SourceStaticMesh->CommitMeshDescription(1);
+
+	// this will prevent simplification?
+	FStaticMeshSourceModel& SrcModel = SourceStaticMesh->GetSourceModel(1);
+	SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+	SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+	SrcModel.ReductionSettings.PercentVertices = 1.0f;
+
+	// collision
+	FPhysicsDataCollection NewCollisionGeo;
+	NewCollisionGeo.Geometry = DerivedCollision;
+	NewCollisionGeo.CopyGeometryToAggregate();
+
+	// code below derived from FStaticMeshEditor::DuplicateSelectedPrims()
+	UBodySetup* BodySetup = SourceStaticMesh->GetBodySetup();
+	// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
+	BodySetup->Modify();
+	//Clear the cache (PIE may have created some data), create new GUID    (comment from StaticMeshEditor)
+	BodySetup->InvalidatePhysicsData();
+	BodySetup->RemoveSimpleCollision();
+	BodySetup->AggGeom = NewCollisionGeo.AggGeom;
+	// update collision type
+	BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseDefault;
+	// rebuild physics data
+	BodySetup->InvalidatePhysicsData();
+	BodySetup->CreatePhysicsMeshes();
+
+	// do we need to do a post edit change here??
+
+	// is this necessary? 
+	SourceStaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+
+	GEditor->EndTransaction();
+
+	// done updating mesh
+	SourceStaticMesh->PostEditChange();
+}
+
+
+
+#undef LOCTEXT_NAMESPACE

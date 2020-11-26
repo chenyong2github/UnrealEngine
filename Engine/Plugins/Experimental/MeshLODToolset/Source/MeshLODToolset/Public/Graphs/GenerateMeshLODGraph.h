@@ -7,6 +7,7 @@
 #include "DataTypes/TextureImageData.h"
 #include "DataTypes/CollisionGeometryData.h"
 #include "DynamicMesh3.h"
+#include "MeshTangents.h"
 
 
 class FGenerateMeshLODGraph
@@ -21,6 +22,7 @@ public:
 
 	void EvaluateResult(
 		FDynamicMesh3& ResultMesh,
+		FMeshTangentsd& ResultTangents,
 		FSimpleShapeSet3d& ResultCollision,
 		UE::GeometryFlow::FNormalMapImage& NormalMap,
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages);
@@ -62,5 +64,6 @@ protected:
 
 	UE::GeometryFlow::FGraph::FHandle CollisionOutputNode;
 	UE::GeometryFlow::FGraph::FHandle MeshOutputNode;
+	UE::GeometryFlow::FGraph::FHandle TangentsOutputNode;
 
 };

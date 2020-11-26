@@ -11,6 +11,7 @@
 
 class UTexture2D;
 class UMaterialInstanceConstant;
+class UMaterialInstanceDynamic;
 
 class FGenerateStaticMeshLODProcess
 {
@@ -29,13 +30,30 @@ public:
 
 	void CalculateDerivedPathName(FString NewAssetSuffix);
 
-
 	bool ComputeDerivedSourceData();
 	const FDynamicMesh3& GetDerivedLOD0Mesh() const { return DerivedLODMesh; }
+	const FMeshTangentsd& GetDerivedLOD0MeshTangents() const { return DerivedLODMeshTangents; }
 
 
+	/**
+	 * Creates new Asset
+	 */
 	bool WriteDerivedAssetData();
 
+
+	/**
+	 * Updates existing SM Asset
+	 */
+	void UpdateSourceAsset();
+
+
+
+	struct FPreviewMaterials
+	{
+		TArray<UMaterialInterface*> Materials;
+		TArray<UTexture2D*> Textures;
+	};
+	void GetDerivedMaterialsPreview(FPreviewMaterials& MaterialSetOut);
 
 
 protected:
@@ -73,6 +91,7 @@ protected:
 	FString DerivedAssetPath;
 
 	FDynamicMesh3 DerivedLODMesh;
+	FMeshTangentsd DerivedLODMeshTangents;
 	FSimpleShapeSet3d DerivedCollision;
 	UE::GeometryFlow::FNormalMapImage DerivedNormalMapImage;
 	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>> DerivedTextureImages;
@@ -82,6 +101,7 @@ protected:
 	UTexture2D* DerivedNormalMapTex;
 
 	TUniquePtr<FGenerateMeshLODGraph> Generator;
+	bool InitializeGenerator();
 
 	bool WriteDerivedTexture(UTexture2D* SourceTexture, UTexture2D* DerivedTexture);
 	bool WriteDerivedTexture(UTexture2D* DerivedTexture, FString BaseTexName);
@@ -89,4 +109,9 @@ protected:
 	void WriteDerivedMaterials();
 	void UpdateMaterialTextureParameters(UMaterialInstanceConstant* Material, FMaterialInfo& DerivedMaterialInfo);
 	void WriteDerivedStaticMeshAsset();
+
+	void UpdateSourceStaticMeshAsset();
+
+	void UpdateMaterialTextureParameters(UMaterialInstanceDynamic* Material, const FMaterialInfo& SourceMaterialInfo, 
+		const TMap<UTexture2D*,UTexture2D*>& PreviewTextures, UTexture2D* PreviewNormalMap);
 };

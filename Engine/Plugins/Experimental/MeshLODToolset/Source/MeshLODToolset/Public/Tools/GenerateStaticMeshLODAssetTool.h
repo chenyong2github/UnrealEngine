@@ -7,6 +7,7 @@
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
+#include "PreviewMesh.h"
 #include "Templates/PimplPtr.h"
 #include "GenerateStaticMeshLODAssetTool.generated.h"
 
@@ -17,6 +18,13 @@ class USimpleDynamicMeshComponent;
 class IAssetGenerationAPI;
 class FGenerateStaticMeshLODProcess;
 
+
+UENUM()
+enum class EGenerateLODAssetOutputMode : uint8
+{
+	UpdateExistingAsset = 0,
+	CreateNewAsset = 1
+};
 
 
 /**
@@ -45,15 +53,17 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolProperties : public UInt
 
 public:
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
+	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::UpdateExistingAsset;
+
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	FString OutputName;
 
 	/** Base name for newly-generated asset */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	FString GeneratedSuffix;
 
-	/** Name of asset that will be updated */
-	UPROPERTY(VisibleAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
-	FString OutputAsset;
+	UPROPERTY(VisibleAnywhere, Category = Previews)
+	TArray<UTexture2D*> PreviewTextures;
 };
 
 
@@ -85,11 +95,23 @@ protected:
 	UPROPERTY()
 	UGenerateStaticMeshLODAssetToolProperties* BasicProperties;
 
+	UPROPERTY()
+	UPreviewMesh* PreviewMesh;
+
+	UPROPERTY()
+	TArray<UTexture2D*> PreviewTextures;
+
+	UPROPERTY()
+	TArray<UMaterialInterface*> PreviewMaterials;;
+
 protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
 	TPimplPtr<FGenerateStaticMeshLODProcess> GenerateProcess;
+
+	bool bPreviewValid;
+	void ValidatePreview();
 
 	void CreateNewAsset();
 	void UpdateExistingAsset();

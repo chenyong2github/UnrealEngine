@@ -33,6 +33,7 @@ struct FMeshTangentsSettings
 GEOMETRYFLOW_DECLARE_SETTINGS_TYPES(FMeshTangentsSettings, Tangents);
 
 
+typedef TTransferNode<FMeshTangentsd, (int)EMeshProcessingDataTypes::MeshTangentSet> FMeshTangentsTransferNode;
 
 
 class FComputeMeshTangentsNode : public TTransformerWithSettingsNode<

@@ -39,6 +39,7 @@ void FGenerateMeshLODGraph::SetSourceMesh(const FDynamicMesh3& SourceMeshIn)
 
 void FGenerateMeshLODGraph::EvaluateResult(
 	FDynamicMesh3& ResultMesh,
+	FMeshTangentsd& ResultTangents,
 	FSimpleShapeSet3d& ResultCollision,
 	UE::GeometryFlow::FNormalMapImage& NormalMap,
 	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages)
@@ -84,6 +85,20 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	ensure(CollisionEvalResult == EGeometryFlowResult::Ok);
 
 	UE_LOG(LogTemp, Warning, TEXT("OutputCollisionPass - Evaluated %d Nodes, Recomputed %d"), CollisionEvalInfo->NumEvaluations(), CollisionEvalInfo->NumComputes());
+
+	// 
+	// evaluate tangents
+	//
+
+	bool bTakeResultTangents = false;
+	ResultTangents = FMeshTangentsd();
+
+	TUniquePtr<FEvaluationInfo> TangentsEvalInfo = MakeUnique<FEvaluationInfo>();
+	EGeometryFlowResult TangentsEvalResult = Graph->EvaluateResult(TangentsOutputNode, FMeshTangentsTransferNode::OutParamValue(),
+		ResultTangents, (int)EMeshProcessingDataTypes::MeshTangentSet, TangentsEvalInfo, bTakeResultTangents);
+	ensure(TangentsEvalResult == EGeometryFlowResult::Ok);
+
+	UE_LOG(LogTemp, Warning, TEXT("OutputTangentsPass - Evaluated %d Nodes, Recomputed %d"), TangentsEvalInfo->NumEvaluations(), TangentsEvalInfo->NumComputes());
 
 
 	//
@@ -165,6 +180,10 @@ void FGenerateMeshLODGraph::BuildGraph()
 	FGraph::FHandle TangentsSettingsNode = Graph->AddNodeOfType<FTangentsSettingsSourceNode>(TEXT("TangentsSettings"));
 	Graph->InferConnection(TangentsSettingsNode, TangentsNode);
 
+	// tangents output
+	TangentsOutputNode = Graph->AddNodeOfType<FMeshTangentsTransferNode>(TEXT("OutputTangents"));
+	Graph->InferConnection(TangentsNode, TangentsOutputNode);
+
 	// create bake cache
 
 	BakeCacheNode = Graph->AddNodeOfType<FMakeMeshBakingCacheNode>(TEXT("MakeBakeCache"));
@@ -199,7 +218,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	FGraph::FHandle GenerateConvexesSettingsNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionSettingsSourceNode>(TEXT("GenerateConvexesSettings"));
 	Graph->InferConnection(GenerateConvexesSettingsNode, GenerateConvexesNode);
 
-	// final mesh output
+	// final collision output
 
 	CollisionOutputNode = Graph->AddNodeOfType<FCollisionGeometryTransferNode>(TEXT("OutputCollision"));
 	Graph->InferConnection(GenerateConvexesNode, CollisionOutputNode);
