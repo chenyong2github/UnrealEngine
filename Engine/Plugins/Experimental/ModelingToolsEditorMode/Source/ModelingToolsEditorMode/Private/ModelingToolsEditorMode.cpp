@@ -82,6 +82,9 @@
 #include "Hair/GroomCardsEditorTool.h"
 #include "GenerateLODMeshesTool.h"
 
+// asset tools
+#include "Tools/GenerateStaticMeshLODAssetTool.h"
+
 #include "EditorModeManager.h"
 
 // stylus support
@@ -397,6 +400,10 @@ void UModelingToolsEditorMode::Enter()
 	DuplicateMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	DuplicateMeshesToolBuilder->bIsDuplicateTool = true;
 	RegisterTool(ToolManagerCommands.BeginDuplicateMeshesTool, TEXT("DuplicateMeshesTool"), DuplicateMeshesToolBuilder);
+
+	UGenerateStaticMeshLODAssetToolBuilder* GenerateSMLODToolBuilder = NewObject<UGenerateStaticMeshLODAssetToolBuilder>();
+	GenerateSMLODToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterTool(ToolManagerCommands.BeginGenerateStaticMeshLODAssetTool, TEXT("GenerateSMLODTool"), GenerateSMLODToolBuilder);
 
 
 	// edit tools

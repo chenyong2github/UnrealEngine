@@ -101,6 +101,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginGroomMeshToCardsTool;
 	TSharedPtr<FUICommandInfo> BeginGroomCardsEditorTool;
 
+	TSharedPtr<FUICommandInfo> BeginGenerateStaticMeshLODAssetTool;
 
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_FaceSelect;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_EdgeSelect;
