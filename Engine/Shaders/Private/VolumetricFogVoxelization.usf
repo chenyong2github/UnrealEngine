@@ -40,7 +40,7 @@ float3 SampleEmissive(in FPixelMaterialInputs PixelMaterialInputs)
 	float3 EmissiveColor = 0.0f;
 #if STRATA_ENABLED
 	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
-	EmissiveColor = VOLUMETRICFOGCLOUD_EMISSIVE(BSDF);
+	EmissiveColor = VOLUMETRICFOGCLOUD_GETEMISSIVE(BSDF);
 #else
 	EmissiveColor = GetMaterialEmissiveRaw(PixelMaterialInputs);
 #endif
