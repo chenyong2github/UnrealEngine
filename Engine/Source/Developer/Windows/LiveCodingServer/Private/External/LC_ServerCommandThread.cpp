@@ -1148,6 +1148,11 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 			if (!didAllProcessesMakeProgress)
 			{
+				// BEGIN EPIC MOD
+				LC_SUCCESS_USER("Possible debugger detected, can take a while to freeze threads");
+				LC_SUCCESS_USER("Do not continue the execution of the process until the threads have been thawed");
+				// END EPIC MOD
+
 				// not all processes made progress.
 				// this usually means that at least one of them is currently being debugged.
 				// let each process handle this.
@@ -1228,6 +1233,10 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 			if (!didAllProcessesMakeProgress)
 			{
+				// BEGIN EPIC MOD
+				LC_SUCCESS_USER("Possible debugger detected, can take a while to thaw threads");
+				// END EPIC MOD
+
 				const size_t processCount = m_liveProcesses.size();
 				for (size_t i = 0u; i < processCount; ++i)
 				{
@@ -1237,6 +1246,10 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 				// remove the lock on the exception handler dialog
 				m_exceptionCS.Leave();
+
+				// BEGIN EPIC MOD
+				LC_SUCCESS_USER("Thawing process has completed. You may now resume process execution");
+				// END EPIC MOD
 			}
 
 			compilationEvent.Reset();
