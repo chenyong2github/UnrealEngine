@@ -24,6 +24,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_SHEEN:
 		return TEXT("SHEEN");
 		break;
+	case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
+		return TEXT("VOLUMETRICFOGCLOUD");
+		break;
 	}
 	check(false);
 	return "";
@@ -133,6 +136,43 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 
 	UpdateTotalBSDFCount(StrataInfo);
 	return StrataInfo;
+}
+
+bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+{
+	if (Material.TotalBSDFCount == 0 || Material.LayerCount == 0)
+	{
+		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a VolumeBSDF."));
+		return false;
+	}
+	if (Material.TotalBSDFCount > 1 || Material.LayerCount > 1)
+	{
+		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single VolumeBSDF only."));
+		return false;
+	}
+	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD)
+	{
+		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Volume."));
+		return false;
+	}
+
+	return true;
+}
+
+bool StrataMaterialContainsAnyBSDF(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material, uint8 BSDFType)
+{
+	for (uint32 LayerIt = 0; LayerIt < Material.LayerCount; ++LayerIt)
+	{
+		const FStrataMaterialCompilationInfo::FLayer& Layer = Material.Layers[LayerIt];
+		for (uint32 BSDF = 0; BSDF < Layer.BSDFCount; BSDF++)
+		{
+			if (Layer.BSDFs[BSDF].Type == BSDFType)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 FStrataMaterialAnalysisResult::FStrataMaterialAnalysisResult()

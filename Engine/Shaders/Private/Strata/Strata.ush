@@ -25,14 +25,14 @@
 
 
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs representation
 struct FStrataBSDF
 {
+	float3				Weight;		// Weight is a float3 because, when loaded from the material buffer, it contains the BSDF throughput (coverage and transmittance combined)
 	uint				State;		// (27 unused bits) (1bit as HasAnisotropy) (2bits as SharedNormalIndex) (3bits as BSDFType)
 
-	float3				Weight;		// Weight is a float3 because, when loaded from the material buffer, it contains the BSDF throughput (coverage and transmittance combined)
+	float3				Emissive;	// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
 
 	float4 VGPRs[2];
 };
@@ -110,6 +110,11 @@ struct FStrataBSDF
 
 #define SHEEN_ALBEDO(X)					X.VGPRs[0].xyz
 #define SHEEN_ROUGHNESS(X)				X.VGPRs[0].w
+
+#define VOLUMETRICFOGCLOUD_ALBEDO(X)	X.VGPRs[0].xyz
+#define VOLUMETRICFOGCLOUD_EXTINCTION(X)X.VGPRs[1].xyz
+#define VOLUMETRICFOGCLOUD_AO(X)		X.VGPRs[0].w
+#define VOLUMETRICFOGCLOUD_EMISSIVE(X)	X.Emissive
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
@@ -263,6 +268,23 @@ FStrataData GetStrataSheenBSDF(float3 Albedo, float Roughness, uint SharedNormal
 	SHEEN_ROUGHNESS			(StrataData.Layers[0].BSDFs[0])		= Roughness;
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3 Emissive, float AmbientOcclusion)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+	StrataData.Layers[0].BSDFCount++;
+
+	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD);
+	VOLUMETRICFOGCLOUD_ALBEDO		(StrataData.Layers[0].BSDFs[0]) = Albedo;
+	VOLUMETRICFOGCLOUD_EXTINCTION	(StrataData.Layers[0].BSDFs[0]) = Extinction;
+	VOLUMETRICFOGCLOUD_EMISSIVE		(StrataData.Layers[0].BSDFs[0]) = Emissive;
+	VOLUMETRICFOGCLOUD_AO			(StrataData.Layers[0].BSDFs[0]) = AmbientOcclusion;
+
+	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
 
 	return StrataData;
 }

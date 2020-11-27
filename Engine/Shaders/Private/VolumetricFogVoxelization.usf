@@ -10,6 +10,8 @@
 
 #include "Common.ush"
 
+#define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
+
 #define SceneTexturesStruct VoxelizeVolumePass.SceneTextures 
 
 #include "/Engine/Generated/Material.ush"
@@ -18,6 +20,46 @@
 #define VolumetricFog VoxelizeVolumePass.VolumetricFog
 
 uint VoxelizationPassIndex;
+
+float SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
+{
+	float Extinction = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	Extinction = VOLUMETRICFOGCLOUD_EXTINCTION(BSDF).r;
+#else
+	#if !MATERIAL_SHADINGMODEL_UNLIT
+	Extinction = GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).r;
+	#endif
+#endif
+	return clamp(Extinction, 0.0f, 65000.0f);
+}
+
+float3 SampleEmissive(in FPixelMaterialInputs PixelMaterialInputs)
+{
+	float3 EmissiveColor = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	EmissiveColor = VOLUMETRICFOGCLOUD_EMISSIVE(BSDF);
+#else
+	EmissiveColor = GetMaterialEmissiveRaw(PixelMaterialInputs);
+#endif
+	return clamp(EmissiveColor, 0.0f, 65000.0f);
+}
+
+float3 SampleAlbedo(in FPixelMaterialInputs PixelMaterialInputs, in ViewState InputView)
+{
+	float3 Albedo = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	Albedo = VOLUMETRICFOGCLOUD_ALBEDO(BSDF);
+#else
+	#if !MATERIAL_SHADINGMODEL_UNLIT
+	Albedo = GetMaterialBaseColor(PixelMaterialInputs);
+	#endif
+#endif
+	return saturate(Albedo)* InputView.DiffuseOverrideParameter.w + InputView.DiffuseOverrideParameter.xyz;
+}
 
 struct FVoxelizeVolumePrimitiveVSToGS
 {
@@ -261,15 +303,9 @@ void VoxelizePS(
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
-	float3 EmissiveColor = clamp(GetMaterialEmissiveRaw(PixelMaterialInputs), 0.0f, 65000.0f);
-
-	float3 Albedo = 0;
-	float Extinction = 0;
-
-#if !MATERIAL_SHADINGMODEL_UNLIT
-	Albedo = GetMaterialBaseColor(PixelMaterialInputs) * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
-	Extinction = clamp(GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).r, 0.0f, 65000.0f);
-#endif
+	float3 EmissiveColor = SampleEmissive(PixelMaterialInputs);
+	float3 Albedo = SampleAlbedo(PixelMaterialInputs, ResolvedView);
+	float Extinction = SampleExtinctionCoefficients(PixelMaterialInputs);
 
 	float3 Scattering = Albedo * Extinction;
 	float Absorption = max(Extinction - Luminance(Scattering), 0.0f);

@@ -19479,6 +19479,73 @@ bool UMaterialExpressionStrataSheenBSDF::IsResultStrataMaterial(int32 OutputInde
 
 
 
+UMaterialExpressionStrataVolumetricFogCloudBSDF::UMaterialExpressionStrataVolumetricFogCloudBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataVolumetricFogCloudBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 OutputCodeChunk = Compiler->StrataVolumetricFogCloudBSDF(
+		CompileWithDefaultFloat3(Compiler, Albedo, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, Extinction, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, AmbientOcclusion, 1.0f));
+
+	uint8 FakeSharedNormalIndex = 0;
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, FakeSharedNormalIndex, STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD);
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataVolumetricFogCloudBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Sheen BSDF"));
+}
+
+uint32 UMaterialExpressionStrataVolumetricFogCloudBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataVolumetricFogCloudBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float3;
+		break;
+	case 2:
+		return MCT_Float3;
+		break;
+	case 3:
+		return MCT_Float;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataVolumetricFogCloudBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+#endif // WITH_EDITOR
+
 UMaterialExpressionStrataHorizontalMixing::UMaterialExpressionStrataHorizontalMixing(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -13,6 +13,8 @@
 #include "Random.ush"
 #include "VolumetricCloudCommon.ush"
 
+#define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
+
 #if defined(SHADER_MAINVS) || defined(SHADER_RENDERVIEW_PS) || defined(SHADER_SHADOW_PS)
 
 #include "/Engine/Generated/Material.ush"
@@ -32,22 +34,54 @@ struct RenderVolumetricCloudVSToPS
 
 float3 SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
-	return clamp(GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).rgb, 0.0f, 65000.0f);
+	float3 Extinction = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	Extinction = VOLUMETRICFOGCLOUD_EXTINCTION(BSDF).r;
+#else
+	#if !MATERIAL_SHADINGMODEL_UNLIT
+	Extinction = GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).rgb;
+	#endif
+#endif
+	return clamp(Extinction, 0.0f, 65000.0f);
 }
 
 float3 SampleEmissive(in FPixelMaterialInputs PixelMaterialInputs)
 {
-	return USES_EMISSIVE_COLOR ? GetMaterialEmissive(PixelMaterialInputs) : 0.0f;
+	float3 EmissiveColor = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	EmissiveColor = VOLUMETRICFOGCLOUD_EMISSIVE(BSDF);
+#else
+	EmissiveColor = GetMaterialEmissiveRaw(PixelMaterialInputs);
+#endif
+	return clamp(EmissiveColor, 0.0f, 65000.0f);
 }
 
 float3 SampleAlbedo(in FPixelMaterialInputs PixelMaterialInputs)
 {
-	return saturate(GetMaterialBaseColor(PixelMaterialInputs));
+	float3 Albedo = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	Albedo = VOLUMETRICFOGCLOUD_ALBEDO(BSDF);
+#else
+	#if !MATERIAL_SHADINGMODEL_UNLIT
+	Albedo = GetMaterialBaseColor(PixelMaterialInputs) * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
+	#endif
+#endif
+	return saturate(Albedo);
 }
 
-float3 SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
+float SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
 {
-	return GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	float AO = 0.0f;
+#if STRATA_ENABLED
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	AO = VOLUMETRICFOGCLOUD_AO(BSDF);
+#else
+	AO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+#endif
+	return AO;
 }
 
 #endif

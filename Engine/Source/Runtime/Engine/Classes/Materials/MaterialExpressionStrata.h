@@ -247,7 +247,45 @@ class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
-// Subsurface, thinfilm, generalised schlick
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	* Albedo (type = float3, unit = unitless, default = 0)
+	*/
+	UPROPERTY()
+	FExpressionInput Albedo;
+
+	/**
+	 * The rate at which light is absorbed or scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/m, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput Extinction;
+
+	/**
+	 * Emissive (type = float3, unit = luminance, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput Emissive;
+
+	/**
+	 * Ambient occlusion: 1 means no occlusion while 0 means fully occluded. (type = float, unit = unitless, default = 1)
+	 */
+	UPROPERTY()
+	FExpressionInput AmbientOcclusion;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
 
 
 
