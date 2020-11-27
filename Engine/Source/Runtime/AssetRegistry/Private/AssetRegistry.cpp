@@ -2650,6 +2650,10 @@ void UAssetRegistryImpl::AddPathToSearch(const FString& Path)
 	{
 		BackgroundAssetSearch->AddPathToSearch(Path);
 	}
+	else if (!FPlatformProperties::RequiresCookedData())
+	{
+		ScanPathsSynchronous({Path});
+	}
 }
 
 void UAssetRegistryImpl::AddFilesToSearch(const TArray<FString>& Files)
@@ -2657,6 +2661,10 @@ void UAssetRegistryImpl::AddFilesToSearch(const TArray<FString>& Files)
 	if (BackgroundAssetSearch.IsValid())
 	{
 		BackgroundAssetSearch->AddFilesToSearch(Files);
+	}
+	else if (!FPlatformProperties::RequiresCookedData())
+	{
+		ScanFilesSynchronous(Files);
 	}
 }
 
