@@ -20,7 +20,7 @@ bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 		bool bCanModify = true;
 		ElementList->ForEachElement<UTypedElementSelectionInterface>([&bCanModify](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
 		{
-			bCanModify = InSelectionElement.ShouldPreventTransactions();
+			bCanModify = !InSelectionElement.ShouldPreventTransactions();
 			return bCanModify;
 		});
 
