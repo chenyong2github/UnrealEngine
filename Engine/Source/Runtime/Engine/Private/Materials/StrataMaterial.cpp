@@ -142,12 +142,12 @@ bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMa
 {
 	if (Material.TotalBSDFCount == 0 || Material.LayerCount == 0)
 	{
-		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a VolumeBSDF."));
+		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a StrataVolumetricFogCloudBSDF."));
 		return false;
 	}
 	if (Material.TotalBSDFCount > 1 || Material.LayerCount > 1)
 	{
-		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single VolumeBSDF only."));
+		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single StrataVolumetricFogCloudBSDF only."));
 		return false;
 	}
 	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD)

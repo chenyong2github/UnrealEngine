@@ -1124,14 +1124,16 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				if (!StrataIsVolumetricFogCloudOnly(this, StrataCompilationInfo))
 				{
-					UE_LOG(LogMaterial, Error, TEXT("Material %s is in the VOLUME domain but a VolumetricFogCloud BSDF is not provided (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s is in the VOLUME domain but a VolumetricFogCloud BSDF is not provided (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					Error(*ErrorMsg);
 				}
 			}
 			else
 			{
 				if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD))
 				{
-					UE_LOG(LogMaterial, Error, TEXT("Material %s is not in the VOLUME domain but a VolumetricFogCloud BSDF is used. It should not be used out of the VOLUME domain. (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s is not in the VOLUME domain but a VolumetricFogCloud BSDF is used. It should not be used out of the VOLUME domain. (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					Error(*ErrorMsg);
 				}
 			}
 
