@@ -10,8 +10,8 @@ public class IntelTBB : ModuleRules
 		Type = ModuleType.External;
 		
 		string IntelTBBPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel/TBB/IntelTBB-2019u8");
-		string IntelTBBIncludePath = Path.Combine(IntelTBBPath, "Include");
-		string IntelTBBLibPath = Path.Combine(IntelTBBPath, "Lib");
+		string IntelTBBIncludePath = Path.Combine(IntelTBBPath, "include");
+		string IntelTBBLibPath = Path.Combine(IntelTBBPath, "lib");
 
 		PublicSystemIncludePaths.Add(IntelTBBIncludePath);		
 
