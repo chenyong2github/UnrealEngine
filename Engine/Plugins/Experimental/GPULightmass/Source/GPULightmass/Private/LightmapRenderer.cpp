@@ -705,6 +705,11 @@ void FSceneRenderState::SetupRayTracingScene()
 
 			CachedRayTracingScene->CachedViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
 		}
+
+		const_cast<TRange<int32>&>(View.DynamicPrimitiveCollector.GetPrimitiveIdRange()) = TRange<int32>(0,
+			FMath::Max(StaticMeshInstanceRenderStates.Elements.Num(), FMath::Max(InstanceGroupRenderStates.Elements.Num(), LandscapeRenderStates.Elements.Num()))
+			);
+		View.DynamicPrimitiveCollector.Commit();
 	}
 
 #if RHI_RAYTRACING

@@ -70,7 +70,7 @@ public:
 	 * After this is called no more calls to Add are allowed.
 	 * Only allowed inside a FGPUScene::Begin/EndRender block.
 	 */
-	void Commit();
+	RENDERER_API void Commit();
 
 	/**
 	 */
