@@ -1315,6 +1315,12 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 		MaterialIDs->SetValue(ToTriangleID, MaterialIDs->GetValue(FromTriangleID));
 	}
 
+	for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < Mesh->Attributes()->NumPolygroupLayers(); PolygroupLayerIndex++)
+	{
+		FDynamicMeshPolygroupAttribute* Polygroup = Mesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		Polygroup->SetValue(ToTriangleID, Polygroup->GetValue(FromTriangleID));
+	}
+
 }
 
 
@@ -1500,6 +1506,18 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			}
 		}
 
+		int NumPolygroupLayers = FMath::Min(Mesh->Attributes()->NumPolygroupLayers(), AppendMesh->Attributes()->NumPolygroupLayers());
+		for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers; PolygroupLayerIndex++)
+		{
+			// TODO: remap groups? this will be somewhat expensive...
+			const FDynamicMeshPolygroupAttribute* FromPolygroups = AppendMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+			FDynamicMeshPolygroupAttribute* ToPolygroups = Mesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+			for (int TriID : AppendMesh->TriangleIndicesItr())
+			{
+				ToPolygroups->SetValue(TriangleMap.GetTo(TriID), FromPolygroups->GetValue(TriID));
+			}
+		}
+
 		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : AppendMesh->Attributes()->GetAttachedAttributes())
 		{
 			if (Mesh->Attributes()->HasAttachedAttribute(AttribPair.Key))
@@ -1676,6 +1694,15 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		const FDynamicMeshMaterialAttribute* FromMaterialIDs = FromMesh->Attributes()->GetMaterialID();
 		FDynamicMeshMaterialAttribute* ToMaterialIDs = ToMesh->Attributes()->GetMaterialID();
 		ToMaterialIDs->SetValue(ToTriangleID, FromMaterialIDs->GetValue(FromTriangleID));
+	}
+
+	int NumPolygroupLayers = FMath::Min(FromMesh->Attributes()->NumPolygroupLayers(), ToMesh->Attributes()->NumPolygroupLayers());
+	for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers; PolygroupLayerIndex++)
+	{
+		// TODO: remap groups? this will be somewhat expensive...
+		const FDynamicMeshPolygroupAttribute* FromPolygroups = FromMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		FDynamicMeshPolygroupAttribute* ToPolygroups = ToMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		ToPolygroups->SetValue(ToTriangleID, FromPolygroups->GetValue(FromTriangleID));
 	}
 
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : FromMesh->Attributes()->GetAttachedAttributes())

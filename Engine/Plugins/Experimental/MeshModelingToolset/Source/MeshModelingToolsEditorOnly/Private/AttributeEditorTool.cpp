@@ -6,6 +6,7 @@
 
 #include "ToolSetupUtil.h"
 #include "MathUtil.h"
+#include "MeshDescriptionToDynamicMesh.h"   // for FMeshDescriptionToDynamicMesh::IsReservedAttributeName
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
@@ -266,20 +267,6 @@ static bool RemoveAttribute(FMeshDescription* Mesh, EAttributeEditorElementType 
 }
 
 
-static bool IsReservedName(FName AttributeName)
-{
-	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this
-	// will need a way to look up MeshDescription attribute sets from their category.
-	return (AttributeName == MeshAttribute::Vertex::Position)
-		|| (AttributeName == MeshAttribute::VertexInstance::TextureCoordinate)
-		|| (AttributeName == MeshAttribute::VertexInstance::Normal)
-		|| (AttributeName == MeshAttribute::VertexInstance::Tangent)
-		|| (AttributeName == MeshAttribute::VertexInstance::BinormalSign)
-		|| (AttributeName == MeshAttribute::VertexInstance::Color)
-		|| (AttributeName == MeshAttribute::Edge::IsHard)
-		|| (AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-}
-
 
 void UAttributeEditorTool::InitializeAttributeLists()
 {
@@ -493,7 +480,7 @@ void UAttributeEditorTool::AddNewWeightMap()
 
 void UAttributeEditorTool::AddNewGroupsLayer()
 {
-	AddNewAttribute(EAttributeEditorElementType::Polygon, EAttributeEditorAttribType::Int32, FName(NewAttributeProps->NewName));
+	AddNewAttribute(EAttributeEditorElementType::Triangle, EAttributeEditorAttribType::Int32, FName(NewAttributeProps->NewName));
 }
 
 
@@ -506,8 +493,9 @@ void UAttributeEditorTool::DeleteAttribute()
 	FMeshDescription* CurMesh = ComponentTargets[0]->GetMesh();
 	FName SelectedName(ModifyAttributeProps->Attribute);
 
+	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this ?
 	// @todo: introduce 'reserved' attribute flag which we can check here
-	if (IsReservedName(SelectedName))
+	if (FMeshDescriptionToDynamicMesh::IsReservedAttributeName(SelectedName))
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("CannotDeleteReservedNameError", "Cannot delete required mesh Attributes"), EToolMessageLevel::UserWarning);
 		return;

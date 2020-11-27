@@ -93,6 +93,7 @@ public:
 	/** Set this overlay to contain the same arrays as the copy overlay */
 	void Copy(const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& Copy)
 	{
+		TDynamicAttributeBase<ParentType>::CopyParentClassData(Copy);
 		AttribValues = Copy.AttribValues;
 	}
 
@@ -121,6 +122,7 @@ public:
 
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& ToCopy)
 	{
+		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
 		check(CompactMaps.MapV.Num() <= AttribValues.Num() / AttribDimension);
 		AttribValueType Data[AttribDimension];
 		for (int VID = 0; VID < CompactMaps.MapV.Num(); VID++)

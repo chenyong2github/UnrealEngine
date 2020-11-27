@@ -58,7 +58,23 @@ public:
 	{
 	}
 
+
 public:
+	/** Get optional identifier for this attribute set. */
+	FName GetName() const { return Name; }
+
+	/** Set optional identifier for this attribute set. */
+	void SetName(FName NameIn) { Name = NameIn; }
+
+protected:
+	/** Optional FName identifier for this attribute set. Not guaranteed to be unique. */
+	FName Name = FName();
+
+
+
+
+public:
+
 
 	/** Allocate a new copy of the attribute layer, optionally with a different parent */
 	virtual TDynamicAttributeBase* MakeCopy(ParentType* ParentIn) const = 0;
@@ -162,6 +178,16 @@ public:
 	{
 	}
 
+protected:
+
+	/** 
+	 * Implementation of parent-class copy. MakeCopy() and MakeCompactCopy() implementations should call
+	 * this to transfer any custom data added by parent attribute set class.
+	 */
+	virtual void CopyParentClassData(const TDynamicAttributeBase<ParentType>& Other)
+	{
+		Name = Other.Name;
+	}
 };
 
 

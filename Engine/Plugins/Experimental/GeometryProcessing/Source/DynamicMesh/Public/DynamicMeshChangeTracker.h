@@ -84,7 +84,8 @@ protected:
 typedef TDynamicMeshAttributeChange<float,2> FDynamicMeshUVChange;
 /** Standard Normal overlay change type - 3-element float */
 typedef TDynamicMeshAttributeChange<float,3> FDynamicMeshNormalChange;
-
+/** Standard per-triangle integer attribute change type */
+typedef FDynamicMeshTriangleAttributeChange<int32,1> FDynamicMeshTriGroupChange;
 
 /**
  * FDynamicMeshAttributeChangeSet stores a set of UV and Normal changes for a FDynamicMesh3
@@ -97,7 +98,8 @@ public:
 
 	TArray<FDynamicMeshUVChange> UVChanges;
 	TArray<FDynamicMeshNormalChange> NormalChanges;
-	TOptional<FDynamicMeshTriangleAttributeChange<int32, 1>> MaterialIDAttribChange;
+	TOptional<FDynamicMeshTriGroupChange> MaterialIDAttribChange;
+	TArray<FDynamicMeshTriGroupChange> PolygroupChanges;
 	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> RegisteredAttributeChanges;
 
 	/** call ::Apply() on all the UV and Normal changes */

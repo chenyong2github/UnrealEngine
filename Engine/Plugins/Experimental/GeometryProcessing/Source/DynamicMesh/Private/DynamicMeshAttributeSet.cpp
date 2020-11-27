@@ -6,6 +6,249 @@
 
 
 
+void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
+{
+	SetNumUVLayers(Copy.NumUVLayers());
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		UVLayers[UVIdx].Copy(Copy.UVLayers[UVIdx]);
+	}
+	Normals0.Copy(Copy.Normals0);
+
+	if (Copy.MaterialIDAttrib)
+	{
+		EnableMaterialID();
+		MaterialIDAttrib->Copy(*(Copy.MaterialIDAttrib));
+	}
+	else
+	{
+		DisableMaterialID();
+	}
+
+	SetNumPolygroupLayers(Copy.NumPolygroupLayers());
+	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	{
+		PolygroupLayers[GroupIdx].Copy(Copy.PolygroupLayers[GroupIdx]);
+	}
+
+	GenericAttributes.Reset();
+	ResetRegisteredAttributes();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
+	{
+		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCopy(ParentMesh));
+	}
+
+	// parent mesh is *not* copied!
+}
+
+
+bool FDynamicMeshAttributeSet::IsCompact()
+{
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		if (!UVLayers[UVIdx].IsCompact())
+		{
+			return false;
+		}
+	}
+	if (!Normals0.IsCompact())
+	{
+		return false;
+	}
+	// material ID and generic per-element attributes currently cannot be non-compact
+	return true;
+}
+
+
+
+void FDynamicMeshAttributeSet::CompactCopy(const FCompactMaps& CompactMaps, const FDynamicMeshAttributeSet& Copy)
+{
+	SetNumUVLayers(Copy.NumUVLayers());
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		UVLayers[UVIdx].CompactCopy(CompactMaps, Copy.UVLayers[UVIdx]);
+	}
+	Normals0.CompactCopy(CompactMaps, Copy.Normals0);
+
+	if (Copy.MaterialIDAttrib)
+	{
+		EnableMaterialID();
+		MaterialIDAttrib->CompactCopy(CompactMaps, *(Copy.MaterialIDAttrib));
+	}
+	else
+	{
+		DisableMaterialID();
+	}
+
+	SetNumPolygroupLayers(Copy.NumPolygroupLayers());
+	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	{
+		PolygroupLayers[GroupIdx].CompactCopy(CompactMaps, Copy.PolygroupLayers[GroupIdx]);
+	}
+
+	GenericAttributes.Reset();
+	ResetRegisteredAttributes();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
+	{
+		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCompactCopy(CompactMaps, ParentMesh));
+	}
+
+	// parent mesh is *not* copied!
+}
+
+
+
+
+void FDynamicMeshAttributeSet::CompactInPlace(const FCompactMaps& CompactMaps)
+{
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		UVLayers[UVIdx].CompactInPlace(CompactMaps);
+	}
+	Normals0.CompactInPlace(CompactMaps);
+
+	if (MaterialIDAttrib.IsValid())
+	{
+		MaterialIDAttrib->CompactInPlace(CompactMaps);
+	}
+
+	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	{
+		PolygroupLayers[GroupIdx].CompactInPlace(CompactMaps);
+	}
+
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
+	{
+		AttribPair.Value->CompactInPlace(CompactMaps);
+	}
+}
+
+
+
+void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch)
+{
+	SetNumUVLayers(ToMatch.NumUVLayers());
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		UVLayers[UVIdx].ClearElements();
+	}
+	Normals0.ClearElements();
+
+	if (ToMatch.MaterialIDAttrib)
+	{
+		EnableMaterialID();
+	}
+	else
+	{
+		DisableMaterialID();
+	}
+
+	SetNumPolygroupLayers(ToMatch.NumPolygroupLayers());
+	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	{
+		PolygroupLayers[GroupIdx].Initialize((int32)0);
+	}
+
+	GenericAttributes.Reset();
+	ResetRegisteredAttributes();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
+	{
+		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));
+	}
+}
+
+
+
+void FDynamicMeshAttributeSet::Reparent(FDynamicMesh3* NewParent)
+{
+	ParentMesh = NewParent;
+
+	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	{
+		UVLayers[UVIdx].Reparent(NewParent);
+	}
+	Normals0.Reparent(NewParent);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->Reparent(NewParent);
+	}
+
+	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	{
+		PolygroupLayers[GroupIdx].Reparent(NewParent);
+	}
+
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
+	{
+		AttribPair.Value->Reparent(NewParent);
+	}
+}
+
+
+
+void FDynamicMeshAttributeSet::SetNumUVLayers(int Num)
+{
+	if (UVLayers.Num() == Num)
+	{
+		return;
+	}
+	if (Num >= UVLayers.Num())
+	{
+		for (int i = (int)UVLayers.Num(); i < Num; ++i)
+		{
+			UVLayers.Add(new FDynamicMeshUVOverlay(ParentMesh));
+		}
+	}
+	else
+	{
+		UVLayers.RemoveAt(Num, UVLayers.Num() - Num);
+	}
+	check(UVLayers.Num() == Num);
+}
+
+
+
+
+
+int32 FDynamicMeshAttributeSet::NumPolygroupLayers() const
+{
+	return PolygroupLayers.Num();
+}
+
+
+void FDynamicMeshAttributeSet::SetNumPolygroupLayers(int32 Num)
+{
+	if (PolygroupLayers.Num() == Num)
+	{
+		return;
+	}
+	if (Num >= PolygroupLayers.Num())
+	{
+		for (int i = (int)PolygroupLayers.Num(); i < Num; ++i)
+		{
+			PolygroupLayers.Add(new FDynamicMeshPolygroupAttribute(ParentMesh));
+		}
+	}
+	else
+	{
+		PolygroupLayers.RemoveAt(Num, PolygroupLayers.Num() - Num);
+	}
+	check(PolygroupLayers.Num() == Num);
+}
+
+FDynamicMeshPolygroupAttribute* FDynamicMeshAttributeSet::GetPolygroupLayer(int Index)
+{
+	return &PolygroupLayers[Index];
+}
+
+const FDynamicMeshPolygroupAttribute* FDynamicMeshAttributeSet::GetPolygroupLayer(int Index) const
+{
+	return &PolygroupLayers[Index];
+}
+
+
+
 void FDynamicMeshAttributeSet::EnableMaterialID()
 {
 	if (HasMaterialID() == false)
@@ -93,6 +336,12 @@ void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 		int NewValue = 0;
 		MaterialIDAttrib->SetNewValue(TriangleID, &NewValue);
 	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		int32 NewGroup = 0;
+		PolygroupLayer.SetNewValue(TriangleID, &NewGroup);
+	}
 }
 
 
@@ -136,6 +385,11 @@ void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& 
 	{
 		MaterialIDAttrib->OnSplitEdge(SplitInfo);
 	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnSplitEdge(SplitInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo)
@@ -151,6 +405,11 @@ void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & f
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnFlipEdge(flipInfo);
+	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnFlipEdge(flipInfo);
 	}
 }
 
@@ -169,6 +428,11 @@ void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapse
 	{
 		MaterialIDAttrib->OnCollapseEdge(collapseInfo);
 	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnCollapseEdge(collapseInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo)
@@ -184,6 +448,11 @@ void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangle
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnPokeTriangle(pokeInfo);
+	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnPokeTriangle(pokeInfo);
 	}
 }
 
@@ -201,6 +470,11 @@ void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo
 	{
 		MaterialIDAttrib->OnMergeEdges(mergeInfo);
 	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnMergeEdges(mergeInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
@@ -216,6 +490,11 @@ void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplit
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
+
+	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
+	{
+		PolygroupLayer.OnSplitVertex(SplitInfo, TrianglesToUpdate);
 	}
 }
 

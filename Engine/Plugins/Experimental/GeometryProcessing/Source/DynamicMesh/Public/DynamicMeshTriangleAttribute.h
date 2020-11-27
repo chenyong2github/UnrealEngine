@@ -102,6 +102,7 @@ public:
 	/** Set this overlay to contain the same arrays as the copy overlay */
 	void Copy(const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Copy)
 	{
+		CopyParentClassData(Copy);
 		AttribValues = Copy.AttribValues;
 	}
 
@@ -130,6 +131,7 @@ public:
 
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& ToCopy)
 	{
+		CopyParentClassData(ToCopy);
 		check(CompactMaps.MapT.Num() <= int(ToCopy.AttribValues.Num() / AttribDimension));
 		AttribValueType Data[AttribDimension];
 		for (int TID = 0; TID < CompactMaps.MapT.Num(); TID++)

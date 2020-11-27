@@ -177,7 +177,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TArray<FTriData> AddedTriangles;
 	AddedTriangles.SetNum(MeshIn->Triangles().Num());
 
-	// allocate the TriIDMap
+	// allocate the TriIDMap (maps from DynamicMesh triangle ID to MeshDescription FTriangleID)
 	TriIDMap.SetNumUninitialized(MeshIn->Triangles().Num());
 
 
@@ -358,12 +358,32 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	}
 
 
+	// find polygroup attribs
+	const TAttributesSet<FTriangleID>& TriAttribsSet = MeshIn->TriangleAttributes();
+	TArray<TTriangleAttributesConstRef<int32>> PolygroupAttribs;
+	TArray<FName> PolygroupAttribNames;
+	TriAttribsSet.ForEach([&](const FName AttributeName, auto AttributesRef)
+	{
+		if (IsReservedAttributeName(AttributeName)) return;
+
+		if (TriAttribsSet.template HasAttributeOfType<int32>(AttributeName))
+		{
+			PolygroupAttribs.Add(TriAttribsSet.GetAttributesRef<int32>(AttributeName));
+			PolygroupAttribNames.Add(AttributeName);
+		}
+	});
+
 	
 
 	if (!bDisableAttributes)
 	{
 		// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
 		TArray<TFuture<void>> Pending;
+
+		if (PolygroupAttribs.Num() > 0)
+		{
+			MeshOut.Attributes()->SetNumPolygroupLayers(PolygroupAttribs.Num());
+		}
 
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 		{
@@ -515,6 +535,27 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			Pending.Add(MoveTemp(MaterialFuture));
 		}
 
+		// initialize polygroup layers
+		for (int32 GroupLayerIdx = 0; GroupLayerIdx < PolygroupAttribs.Num(); GroupLayerIdx++)
+		{
+			auto PolygroupFuture = Async(EAsyncExecution::ThreadPool, [&,Index=GroupLayerIdx]()
+			{
+				TTriangleAttributesConstRef<int32> InputGroupSet = PolygroupAttribs[Index];
+				FDynamicMeshPolygroupAttribute* OutputGroupSet = MeshOut.Attributes()->GetPolygroupLayer(Index);
+				if (ensure(OutputGroupSet))
+				{
+					OutputGroupSet->SetName(PolygroupAttribNames[Index]);
+					for (int32 tid : MeshOut.TriangleIndicesItr())
+					{
+						FTriangleID SourceTriangleID = TriIDMap[tid];
+						int32 GroupID = InputGroupSet.Get(SourceTriangleID);
+						OutputGroupSet->SetValue(tid, &GroupID);
+					}
+				}
+			});
+			Pending.Add(MoveTemp(PolygroupFuture));
+		}
+
 		// wait for all work to be done
 		for (TFuture<void>& Future : Pending)
 		{
@@ -597,4 +638,34 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	CopyTangents_Internal<double>(SourceMesh, TargetMesh, TangentsOut, TriIDMap);
 }
 
+
+
+
+bool FMeshDescriptionToDynamicMesh::IsReservedAttributeName(FName AttributeName)
+{
+	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this
+	// will need a way to look up MeshDescription attribute sets from their category.
+	return (AttributeName == MeshAttribute::Vertex::Position)
+		|| (AttributeName == MeshAttribute::VertexInstance::VertexIndex)
+		|| (AttributeName == MeshAttribute::VertexInstance::TextureCoordinate)
+		|| (AttributeName == MeshAttribute::VertexInstance::Normal)
+		|| (AttributeName == MeshAttribute::VertexInstance::Tangent)
+		|| (AttributeName == MeshAttribute::VertexInstance::BinormalSign)
+		|| (AttributeName == MeshAttribute::VertexInstance::Color)
+		|| (AttributeName == MeshAttribute::Edge::IsHard)
+		|| (AttributeName == MeshAttribute::Edge::VertexIndex)
+		|| (AttributeName == MeshAttribute::Triangle::VertexInstanceIndex)
+		|| (AttributeName == MeshAttribute::Triangle::PolygonIndex)
+		|| (AttributeName == MeshAttribute::Triangle::EdgeIndex)
+		|| (AttributeName == MeshAttribute::Triangle::VertexIndex)
+		|| (AttributeName == MeshAttribute::Triangle::UVIndex)
+		|| (AttributeName == MeshAttribute::Triangle::PolygonGroupIndex)
+		|| (AttributeName == MeshAttribute::Triangle::Normal)
+		|| (AttributeName == MeshAttribute::Triangle::Tangent)
+		|| (AttributeName == MeshAttribute::Triangle::Binormal)
+		|| (AttributeName == MeshAttribute::UV::UVCoordinate)
+		|| (AttributeName == MeshAttribute::Polygon::PolygonGroupIndex)
+		|| (AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName)
+		|| (AttributeName == ExtendedMeshAttribute::PolyTriGroups);
+}
 

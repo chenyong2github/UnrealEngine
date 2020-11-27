@@ -117,4 +117,16 @@ public:
      * the shared UVs structures are populated.
 	 */
 	void Convert_NoSharedInstances(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+
+
+
+protected:
+
+	/**
+	 * Transfer PolygroupLayers from DynamicMesh AttributeSet to MeshDescription.
+	 * Will copy to existing MeshDescription TriangleAttribute<int32> if one with the same name exists.
+	 * Otherwise will register a new one.
+	 */
+	void ConvertPolygroupLayers(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TArray<FTriangleID>& IndexToTriangleIDMap);
+
 };

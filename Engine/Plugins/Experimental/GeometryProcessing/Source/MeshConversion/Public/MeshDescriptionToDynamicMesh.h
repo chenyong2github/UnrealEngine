@@ -77,4 +77,11 @@ public:
 	 */
 	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<double>* TangentsOut);
 
+
+public:
+
+	/**
+	 * @return true if the Name is the name of a reserved FMeshDescription attribute
+	 */
+	static bool IsReservedAttributeName(FName Name);
 };
