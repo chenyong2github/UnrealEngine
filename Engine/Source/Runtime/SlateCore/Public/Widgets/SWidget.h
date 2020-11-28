@@ -40,6 +40,7 @@ class FWeakWidgetPath;
 class FWidgetPath;
 class IToolTip;
 class SWidget;
+struct FSlateBaseNamedArgs;
 struct FSlateBrush;
 struct FSlatePaintElementLists;
 
@@ -54,8 +55,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("SWidget MetaData"), STAT_SlateGetMetaData, STATG
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory, SLATECORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory, SLATECORE_API);
 
-
-enum class EPopupMethod : uint8;
 
 namespace SharedPointerInternals
 {
@@ -199,14 +198,12 @@ class SLATECORE_API SWidget
 	friend class FSlateWindowElementList;
 	friend class SWindow;
 	friend struct FSlateCachedElementList;
-#if WITH_SLATE_DEBUGGING
-	friend struct FInvalidatedWidgetDrawer;
-#endif
+	template<class WidgetType, typename RequiredArgsPayloadType>
+	friend struct TSlateDecl;
 public:
 
-	/**
-	 * Construct a SWidget based on initial parameters.
-	 */
+	/** Construct a SWidget based on initial parameters. */
+	 UE_DEPRECATED(4.27, "SWidget::Construct should not be called directly. Use SNew or SAssignNew to create a SWidget")
 	void Construct(
 		const TAttribute<FText>& InToolTipText,
 		const TSharedPtr<IToolTip>& InToolTip,
@@ -223,6 +220,7 @@ public:
 		const TOptional<FAccessibleWidgetData>& InAccessibleData,
 		const TArray<TSharedRef<ISlateMetaData>>& InMetaData);
 
+	UE_DEPRECATED(4.27, "SWidget::SWidgetConstruct should not be called directly. Use SNew or SAssignNew to create a SWidget")
 	void SWidgetConstruct(const TAttribute<FText>& InToolTipText,
 		const TSharedPtr<IToolTip>& InToolTip,
 		const TAttribute< TOptional<EMouseCursor::Type> >& InCursor,
@@ -1199,33 +1197,22 @@ public:
 	/** Gets the desired flow direction for the layout. */
 	EFlowDirectionPreference GetFlowDirectionPreference() const { return FlowDirectionPreference; }
 
-	/**
-	 * Set the tool tip that should appear when this widget is hovered.
-	 *
-	 * @param InToolTipText  the text that should appear in the tool tip
-	 */
+	/** Set the tool tip that should appear when this widget is hovered. */
 	void SetToolTipText(const TAttribute<FText>& ToolTipText);
 
+	/** Set the tool tip that should appear when this widget is hovered. */
 	void SetToolTipText( const FText& InToolTipText );
 
-	/**
-	 * Set the tool tip that should appear when this widget is hovered.
-	 *
-	 * @param InToolTip  the widget that should appear in the tool tip
-	 */
-	void SetToolTip( const TSharedPtr<IToolTip>& InToolTip );
+	/** Set the tool tip that should appear when this widget is hovered. */
+	void SetToolTip(const TAttribute<TSharedPtr<IToolTip>>& InToolTip);
 
-	/**
-	 * Set the cursor that should appear when this widget is hovered
-	 */
+	/** Set the cursor that should appear when this widget is hovered  */
 	void SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor );
 
-	/**
-	 * Used by Slate to set the runtime debug info about this widget.
-	 */
-	void SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, size_t InAllocSize );
-	
 protected:
+
+	/** Used by Slate to set the runtime debug info about this widget. */
+	void SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, size_t InAllocSize );
 
 	/** The cursor to show when the mouse is hovering over this widget. */
 	TOptional<EMouseCursor::Type> GetCursor() const;
@@ -1403,6 +1390,7 @@ public:
 	virtual bool Advanced_IsWindow() const { return false; }
 	virtual bool Advanced_IsInvalidationRoot() const { return false; }
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const { return nullptr; }
+
 protected:
 
 	/**
@@ -1413,6 +1401,9 @@ protected:
 	 * @see SNew
 	 */
 	SWidget();
+
+	/** Construct a SWidget based on initial parameters. */
+	void SWidgetConstruct(const FSlateBaseNamedArgs& Args);
 
 	/** 
 	 * Find the geometry of a descendant widget. This method assumes that WidgetsToFind are a descendants of this widget.

@@ -442,7 +442,7 @@ void SGraphNode::OnToolTipClosing()
 {
 	if (bProvidedComplexTooltip)
 	{
-		SetToolTip(NULL);
+		SetToolTip(nullptr);
 		bProvidedComplexTooltip = false;
 	}
 }

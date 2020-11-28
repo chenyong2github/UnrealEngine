@@ -96,7 +96,7 @@ public:
 	{
 	public:
 
-		HACK_SLATE_SLOT_ARGS(FColumn)
+		SLATE_BEGIN_ARGS(FColumn)
 			: _ColumnId()
 			, _DefaultLabel()
 			, _DefaultTooltip()

@@ -51,9 +51,6 @@ public:
 	{
 		check(InArgs._Style);
 
-		SWidget::Construct( InArgs._ToolTipText, InArgs._ToolTip, InArgs._Cursor, InArgs._IsEnabled, InArgs._Visibility, InArgs._RenderOpacity, InArgs._RenderTransform, InArgs._RenderTransformPivot, InArgs._Tag, InArgs._ForceVolatile, InArgs._Clipping,
-							InArgs._FlowDirectionPreference, InArgs._AccessibleParams, InArgs.MetaData );
-
 		Style = InArgs._Style;
 		ColumnId = Column.ColumnId;
 		SortMode = Column.SortMode;
@@ -441,9 +438,6 @@ private:
 void SHeaderRow::Construct( const FArguments& InArgs )
 {
 	check(InArgs._Style);
-
-	SWidget::Construct( InArgs._ToolTipText, InArgs._ToolTip, InArgs._Cursor, InArgs._IsEnabled, InArgs._Visibility, InArgs._RenderOpacity, InArgs._RenderTransform, InArgs._RenderTransformPivot, InArgs._Tag, InArgs._ForceVolatile, InArgs._Clipping,
-						InArgs._FlowDirectionPreference, InArgs._AccessibleParams, InArgs.MetaData );
 
 	ScrollBarThickness = FVector2D::ZeroVector;
 	ScrollBarVisibility = EVisibility::Collapsed;
