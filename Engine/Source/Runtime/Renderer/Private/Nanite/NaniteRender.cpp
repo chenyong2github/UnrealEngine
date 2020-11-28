@@ -45,6 +45,9 @@
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
 
+DECLARE_GPU_STAT_NAMED(NaniteHierarchyCull,		TEXT("Nanite Hierarchy Cull"));
+DECLARE_GPU_STAT_NAMED(NaniteClusterCull,		TEXT("Nanite Cluster Cull"));
+
 DEFINE_GPU_STAT(NaniteDebug);
 DEFINE_GPU_STAT(NaniteDepth);
 DEFINE_GPU_STAT(NaniteEditor);
@@ -2527,6 +2530,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	}
 
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteHierarchyCull);
 		FPersistentHierarchicalCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FPersistentHierarchicalCull_CS::FParameters >();
 
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
@@ -2561,8 +2565,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		
 		if (VirtualShadowMapArray)
 		{
-			PassParameters->VirtualShadowMap = VirtualTargetParameters;
-			PassParameters->HZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32G32_UINT );
+			PassParameters->VirtualShadowMap			= VirtualTargetParameters;
+			PassParameters->HZBPageTable				= GraphBuilder.CreateSRV( HZBPageTable, PF_R32G32_UINT );
 		}
 
 		check(CullingContext.ViewsBuffer);
@@ -2588,6 +2592,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	}
 
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull);
 		FCandidateCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCandidateCull_CS::FParameters >();
 
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
