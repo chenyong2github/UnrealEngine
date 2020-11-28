@@ -99,9 +99,9 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 	GEditor->BroadcastEndObjectMovement(*Actor);
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const TTypedElement<UTypedElementWorldInterface>> InElementWorldHandles, const UE::Widget::EWidgetMode InWidgetMode)
+void FActorElementLevelEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const FTypedElementHandle> InElementHandles, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	TArray<AActor*> MovedActors = ActorElementDataUtil::GetActorsFromHandlesChecked(InElementWorldHandles);
+	TArray<AActor*> MovedActors = ActorElementDataUtil::GetActorsFromHandlesChecked(InElementHandles);
 	GEditor->BroadcastActorsMoved(MovedActors);
 }
 

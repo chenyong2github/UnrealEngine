@@ -21,7 +21,7 @@ bool FTypedElementAssetEditorViewportInteractionCustomization::GetGizmoPivotLoca
 	return false;
 }
 
-void FTypedElementAssetEditorViewportInteractionCustomization::PreGizmoManipulationStarted(TArrayView<const TTypedElement<UTypedElementWorldInterface>> InElementWorldHandles, const UE::Widget::EWidgetMode InWidgetMode)
+void FTypedElementAssetEditorViewportInteractionCustomization::PreGizmoManipulationStarted(TArrayView<const FTypedElementHandle> InElementHandles, const UE::Widget::EWidgetMode InWidgetMode)
 {
 }
 
@@ -78,7 +78,7 @@ void FTypedElementAssetEditorViewportInteractionCustomization::GizmoManipulation
 {
 }
 
-void FTypedElementAssetEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const TTypedElement<UTypedElementWorldInterface>> InElementWorldHandles, const UE::Widget::EWidgetMode InWidgetMode)
+void FTypedElementAssetEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const FTypedElementHandle> InElementHandles, const UE::Widget::EWidgetMode InWidgetMode)
 {
 }
 
@@ -101,7 +101,7 @@ void UTypedElementViewportInteraction::GetSelectedElementsToMove(const UTypedEle
 void UTypedElementViewportInteraction::BeginGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode)
 {
 	{
-		TMap<FTypedHandleTypeId, TArray<TTypedElement<UTypedElementWorldInterface>>> ElementsToMoveByType;
+		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToMoveByType;
 		BatchElementsByType(InElementsToMove, ElementsToMoveByType);
 
 		for (const auto& ElementsByTypePair : ElementsToMoveByType)
@@ -151,7 +151,7 @@ void UTypedElementViewportInteraction::EndGizmoManipulation(const UTypedElementL
 	});
 	
 	{
-		TMap<FTypedHandleTypeId, TArray<TTypedElement<UTypedElementWorldInterface>>> ElementsToMoveByType;
+		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToMoveByType;
 		BatchElementsByType(InElementsToMove, ElementsToMoveByType);
 
 		for (const auto& ElementsByTypePair : ElementsToMoveByType)
@@ -181,13 +181,13 @@ FTypedElementViewportInteractionElement UTypedElementViewportInteraction::Resolv
 		: FTypedElementViewportInteractionElement();
 }
 
-void UTypedElementViewportInteraction::BatchElementsByType(const UTypedElementList* InElementsToMove, TMap<FTypedHandleTypeId, TArray<TTypedElement<UTypedElementWorldInterface>>>& OutElementsByType)
+void UTypedElementViewportInteraction::BatchElementsByType(const UTypedElementList* InElementsToMove, TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>>& OutElementsByType)
 {
 	OutElementsByType.Reset();
-	InElementsToMove->ForEachElement<UTypedElementWorldInterface>([&OutElementsByType](const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle)
+	InElementsToMove->ForEachElementHandle([&OutElementsByType](const FTypedElementHandle& InElementHandle)
 	{
-		TArray<TTypedElement<UTypedElementWorldInterface>>& ElementsForType = OutElementsByType.FindOrAdd(InElementWorldHandle.GetId().GetTypeId());
-		ElementsForType.Add(InElementWorldHandle);
+		TArray<FTypedElementHandle>& ElementsForType = OutElementsByType.FindOrAdd(InElementHandle.GetId().GetTypeId());
+		ElementsForType.Add(InElementHandle);
 		return true;
 	});
 }
