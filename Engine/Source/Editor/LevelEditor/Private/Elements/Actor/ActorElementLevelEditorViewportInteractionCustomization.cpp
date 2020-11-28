@@ -22,7 +22,7 @@ FActorElementLevelEditorViewportInteractionCustomization::FActorElementLevelEdit
 
 void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
-	AActor* Actor = InElementWorldHandle.GetDataChecked<FActorElementData>().Actor;
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	if (UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet->GetElementList()))
 	{
@@ -39,7 +39,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove
 
 void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	AActor* Actor = InElementWorldHandle.GetDataChecked<FActorElementData>().Actor;
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	// Notify that this actor is beginning to move
 	GEditor->BroadcastBeginObjectMovement(*Actor);
@@ -55,7 +55,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 
 void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
-	AActor* Actor = InElementWorldHandle.GetDataChecked<FActorElementData>().Actor;
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	GEditor->NoteActorMovement();
 
@@ -86,7 +86,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 
 void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	AActor* Actor = InElementWorldHandle.GetDataChecked<FActorElementData>().Actor;
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 	if (FProperty* TransformProperty = FComponentElementLevelEditorViewportInteractionCustomization::GetEditTransformProperty(InWidgetMode))
@@ -101,12 +101,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 
 void FActorElementLevelEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const TTypedElement<UTypedElementWorldInterface>> InElementWorldHandles, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	TArray<AActor*> MovedActors;
-	MovedActors.Reserve(InElementWorldHandles.Num());
-	for (const TTypedElement<UTypedElementWorldInterface>& ElementWorldHandle : InElementWorldHandles)
-	{
-		MovedActors.Add(ElementWorldHandle.GetDataChecked<FActorElementData>().Actor);
-	}
+	TArray<AActor*> MovedActors = ActorElementDataUtil::GetActorsFromHandlesChecked(InElementWorldHandles);
 	GEditor->BroadcastActorsMoved(MovedActors);
 }
 

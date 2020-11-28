@@ -10,9 +10,9 @@
 
 bool FComponentElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
-	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
+	if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
 		// If necessary, transform the editor pivot location to be relative to the component's parent
 		const bool bIsRootComponent = SceneComponent->GetOwner()->GetRootComponent() == SceneComponent;
@@ -25,7 +25,7 @@ bool FComponentElementEditorViewportInteractionCustomization::GetGizmoPivotLocat
 
 void FComponentElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{

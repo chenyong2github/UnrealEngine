@@ -5,6 +5,5 @@
 
 UObject* UObjectElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
-	const FObjectElementData* ObjectData = InElementHandle.GetData<FObjectElementData>();
-	return ObjectData ? ObjectData->Object : nullptr;
+	return ObjectElementDataUtil::GetObjectFromHandle(InElementHandle);
 }

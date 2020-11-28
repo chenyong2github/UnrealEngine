@@ -19,7 +19,7 @@ FComponentElementLevelEditorViewportInteractionCustomization::FComponentElementL
 
 void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
@@ -55,7 +55,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsTo
 
 void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
@@ -74,7 +74,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipula
 
 void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
@@ -109,7 +109,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipula
 
 void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
-	UActorComponent* Component = InElementWorldHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{

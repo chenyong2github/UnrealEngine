@@ -10,22 +10,21 @@
 
 bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
-	return ActorData && IsActorSelected(ActorData->Actor, InSelectionSet, InSelectionOptions);
+	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor && IsActorSelected(Actor, InSelectionSet, InSelectionOptions);
 }
 
 bool UActorElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {
-	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
-	return ActorData && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(ActorData->Actor);
+	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(Actor);
 }
 
 void UActorElementEditorSelectionInterface::WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive)
 {
-	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
-	if (ActorData)
+	if (const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
 	{
-		UObjectElementEditorSelectionInterface::WriteTransactedObject(ActorData->Actor, InArchive);
+		UObjectElementEditorSelectionInterface::WriteTransactedObject(Actor, InArchive);
 	}
 }
 

@@ -8,16 +8,15 @@
 
 bool UObjectElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {
-	const FObjectElementData* ObjectData = InElementHandle.GetData<FObjectElementData>();
-	return ObjectData && ShouldObjectPreventTransactions(ObjectData->Object);
+	const UObject* Object = ObjectElementDataUtil::GetObjectFromHandle(InElementHandle);
+	return Object && ShouldObjectPreventTransactions(Object);
 }
 
 void UObjectElementEditorSelectionInterface::WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive)
 {
-	const FObjectElementData* ObjectData = InElementHandle.GetData<FObjectElementData>();
-	if (ObjectData)
+	if (const UObject* Object = ObjectElementDataUtil::GetObjectFromHandle(InElementHandle))
 	{
-		WriteTransactedObject(ObjectData->Object, InArchive);
+		WriteTransactedObject(Object, InArchive);
 	}
 }
 

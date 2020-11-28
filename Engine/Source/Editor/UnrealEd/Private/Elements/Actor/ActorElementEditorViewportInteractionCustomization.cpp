@@ -16,7 +16,7 @@ bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(
 
 void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
-	AActor* Actor = InElementWorldHandle.GetDataChecked<FActorElementData>().Actor;
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	const FVector DeltaTranslation = InDeltaTransform.GetTranslation();
 	const FRotator DeltaRotation = InDeltaTransform.Rotator();

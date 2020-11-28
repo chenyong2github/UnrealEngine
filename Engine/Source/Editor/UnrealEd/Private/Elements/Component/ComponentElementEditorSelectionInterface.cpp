@@ -11,22 +11,21 @@
 
 bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
-	return ComponentData && IsComponentSelected(ComponentData->Component, InSelectionSet, InSelectionOptions);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	return Component && IsComponentSelected(Component, InSelectionSet, InSelectionOptions);
 }
 
 bool UComponentElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {
-	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
-	return ComponentData && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(ComponentData->Component);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	return Component && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(Component);
 }
 
 void UComponentElementEditorSelectionInterface::WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive)
 {
-	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
-	if (ComponentData)
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
 	{
-		UObjectElementEditorSelectionInterface::WriteTransactedObject(ComponentData->Component, InArchive);
+		UObjectElementEditorSelectionInterface::WriteTransactedObject(Component, InArchive);
 	}
 }
 

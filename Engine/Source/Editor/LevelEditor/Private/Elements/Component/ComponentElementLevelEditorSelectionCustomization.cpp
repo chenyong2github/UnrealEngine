@@ -19,30 +19,30 @@ DEFINE_LOG_CATEGORY_STATIC(LogComponentLevelEditorSelection, Log, All);
 
 bool FComponentElementLevelEditorSelectionCustomization::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && CanSelectComponentElement(InElementSelectionHandle, InSelectionOptions);
+	return CanSelectComponentElement(InElementSelectionHandle, InSelectionOptions);
 }
 
 bool FComponentElementLevelEditorSelectionCustomization::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && CanDeselectComponentElement(InElementSelectionHandle, InSelectionOptions);
+	return CanDeselectComponentElement(InElementSelectionHandle, InSelectionOptions);
 }
 
 bool FComponentElementLevelEditorSelectionCustomization::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && SelectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
+	return SelectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
 bool FComponentElementLevelEditorSelectionCustomization::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && DeselectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
+	return DeselectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
 FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
 {
-	if (const FComponentElementData* ComponentData = InElementSelectionHandle.GetData<FComponentElementData>())
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementSelectionHandle))
 	{
-		const AActor* ConsideredActor = ComponentData->Component->GetOwner();
-		const USceneComponent* ConsideredComponent = Cast<USceneComponent>(ComponentData->Component);
+		const AActor* ConsideredActor = Component->GetOwner();
+		const USceneComponent* ConsideredComponent = Cast<USceneComponent>(Component);
 		if (ConsideredActor)
 		{
 			while (ConsideredActor->IsChildActor())
@@ -86,7 +86,7 @@ FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelec
 
 bool FComponentElementLevelEditorSelectionCustomization::CanSelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InComponentSelectionHandle);
 
 	// Bail if global selection is locked
 	return !GEdSelectionLock;
@@ -94,7 +94,7 @@ bool FComponentElementLevelEditorSelectionCustomization::CanSelectComponentEleme
 
 bool FComponentElementLevelEditorSelectionCustomization::CanDeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InComponentSelectionHandle);
 
 	// Bail if global selection is locked
 	return !GEdSelectionLock;
@@ -102,7 +102,7 @@ bool FComponentElementLevelEditorSelectionCustomization::CanDeselectComponentEle
 
 bool FComponentElementLevelEditorSelectionCustomization::SelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InComponentSelectionHandle);
 
 	if (!InComponentSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions))
 	{
@@ -141,7 +141,7 @@ bool FComponentElementLevelEditorSelectionCustomization::SelectComponentElement(
 
 bool FComponentElementLevelEditorSelectionCustomization::DeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InComponentSelectionHandle);
 
 	if (!InComponentSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions))
 	{

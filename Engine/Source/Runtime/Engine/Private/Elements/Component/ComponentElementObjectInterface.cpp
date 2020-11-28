@@ -6,6 +6,5 @@
 
 UObject* UComponentElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
-	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
-	return ComponentData ? ComponentData->Component : nullptr;
+	return ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
 }

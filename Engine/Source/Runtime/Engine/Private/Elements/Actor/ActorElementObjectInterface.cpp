@@ -6,6 +6,5 @@
 
 UObject* UActorElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
-	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
-	return ActorData ? ActorData->Actor : nullptr;
+	return ActorElementDataUtil::GetActorFromHandle(InElementHandle);
 }

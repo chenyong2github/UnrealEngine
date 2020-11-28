@@ -10,7 +10,7 @@ int32 UActorElementSelectionInterface::GetNumSelectedActors(const UTypedElementL
 	int32 NumSelected = 0;
 	InCurrentSelection->ForEachElementHandle([&NumSelected](const FTypedElementHandle& InSelectedElement)
 	{
-		if (InSelectedElement.GetData<FActorElementData>(/*bSilent*/true))
+		if (ActorElementDataUtil::GetActorFromHandle(InSelectedElement, /*bSilent*/true))
 		{
 			++NumSelected;
 		}
@@ -24,7 +24,7 @@ bool UActorElementSelectionInterface::HasSelectedActors(const UTypedElementList*
 	bool bHasSelectedActors = false;
 	InCurrentSelection->ForEachElementHandle([&bHasSelectedActors](const FTypedElementHandle& InSelectedElement)
 	{
-		bHasSelectedActors = InSelectedElement.GetData<FActorElementData>(/*bSilent*/true) != nullptr;
+		bHasSelectedActors = ActorElementDataUtil::GetActorFromHandle(InSelectedElement, /*bSilent*/true) != nullptr;
 		return !bHasSelectedActors;
 	});
 	return bHasSelectedActors;

@@ -6,11 +6,11 @@
 
 bool FObjectElementEditorSelectionCustomization::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	if (const FObjectElementData* ObjectData = InElementSelectionHandle.GetData<FObjectElementData>())
+	if (const UObject* Object = ObjectElementDataUtil::GetObjectFromHandle(InElementSelectionHandle))
 	{
 		if (InElementSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions))
 		{
-			GSelectedObjectAnnotation.Set(ObjectData->Object);
+			GSelectedObjectAnnotation.Set(Object);
 			return true;
 		}
 	}
@@ -20,11 +20,11 @@ bool FObjectElementEditorSelectionCustomization::SelectElement(const TTypedEleme
 
 bool FObjectElementEditorSelectionCustomization::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	if (const FObjectElementData* ObjectData = InElementSelectionHandle.GetData<FObjectElementData>())
+	if (const UObject* Object = ObjectElementDataUtil::GetObjectFromHandle(InElementSelectionHandle))
 	{
 		if (InElementSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions))
 		{
-			GSelectedObjectAnnotation.Clear(ObjectData->Object);
+			GSelectedObjectAnnotation.Clear(Object);
 			return true;
 		}
 	}
