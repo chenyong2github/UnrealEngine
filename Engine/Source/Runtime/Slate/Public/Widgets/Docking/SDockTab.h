@@ -69,7 +69,7 @@ public:
 		: _Content()
 		, _TabWellContentLeft()
 		, _TabWellContentRight()
-		, _ContentPadding(0)
+		, _ContentPadding(0.f)
 		, _TabRole(ETabRole::PanelTab)
 		, _Label()
 		, _LabelSuffix()

@@ -65,11 +65,11 @@ void SSuggestionTextBox::Construct( const FArguments& InArgs )
 							.MaxHeight(InArgs._SuggestionListMaxHeight)
 							[
 								SAssignNew(SuggestionListView, SListView< TSharedPtr<FString> >)
-									.ItemHeight(18)
-									.ListItemsSource(&Suggestions)
-									.SelectionMode(ESelectionMode::Single)
-									.OnGenerateRow(this, &SSuggestionTextBox::HandleSuggestionListViewGenerateRow)
-									.OnSelectionChanged(this, &SSuggestionTextBox::HandleSuggestionListViewSelectionChanged)
+								.ItemHeight(18.f)
+								.ListItemsSource(&Suggestions)
+								.SelectionMode(ESelectionMode::Single)
+								.OnGenerateRow(this, &SSuggestionTextBox::HandleSuggestionListViewGenerateRow)
+								.OnSelectionChanged(this, &SSuggestionTextBox::HandleSuggestionListViewSelectionChanged)
 							]
 					]
 			)
