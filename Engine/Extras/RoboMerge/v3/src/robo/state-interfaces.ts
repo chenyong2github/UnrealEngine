@@ -1,31 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { Context } from "./settings";
+import { AnyStateInfo, AvailableInfo, AvailableTypeEnum, BlockagePauseInfo, ManualPauseInfo, PauseStatusFields } from "./status-types"
+import { BlockagePauseInfoMinimal, ManualPauseTypeEnum } from "./status-types"
+import { BlockagePauseTypeEnum } from "./status-types"
 
-enum BlockagePauseTypeEnum {
-	'branch-stop'
-}
-export interface BlockagePauseInfoMinimal {
-	type: keyof typeof BlockagePauseTypeEnum
-	owner: string
-	message: string
-
-	change?: number
-}
-export interface BlockagePauseInfo extends BlockagePauseInfoMinimal {
-	startedAt: Date
-	endsAt?: Date
-
-	// used for blockages
-	author?: string
-	targetBranchName?: string
-	targetStream?: string  // Used by create shelf feature to filter user workspaces
-	sourceCl?: number
-	source?: string
-
-	// Set when the Acknowledge button is clicked
-	acknowledger?: string
-	acknowledgedAt?: Date
-}
 export function isBlockagePauseInfo(info: AnyStateInfo | undefined | null): info is BlockagePauseInfo {
 	return !!info && info.type in BlockagePauseTypeEnum
 }
@@ -34,26 +12,10 @@ export function isMoreThanBlockagePauseInfoMinimal(info: BlockagePauseInfo | Blo
 }
 
 
-enum ManualPauseTypeEnum {
-	'manual-lock'='manual-lock'
-}
-export interface ManualPauseInfo {
-	type: keyof typeof ManualPauseTypeEnum
-	owner: string
-	message: string
-	startedAt: Date
-}
 export function isManualPauseInfo(info: AnyStateInfo | undefined | null): info is ManualPauseInfo {
 	return !!info && info.type in ManualPauseTypeEnum
 }
 
-enum AvailableTypeEnum {
-	'available'='available'
-}
-export interface AvailableInfo {
-	type: keyof typeof AvailableTypeEnum
-	startedAt: Date
-}
 export function newAvailableInfo(date?: Date) : AvailableInfo {
 	return {
 		type: 'available',
@@ -65,14 +27,6 @@ export function newAvailableInfo(date?: Date) : AvailableInfo {
 // which class BotStateInfo is
 export function isAvailableInfo(info: AnyStateInfo | undefined | null): info is AvailableInfo {
 	return !!info && info.type in AvailableTypeEnum
-}
-
-export type AnyStateInfo = ManualPauseInfo | BlockagePauseInfo | AvailableInfo
-
-export type PauseStatusFields = {
-	available: AvailableInfo
-	blockage: BlockagePauseInfo
-	manual_pause: ManualPauseInfo // careful, startedAt gets written out as string
 }
 
 const MAX_RETRY_TIMEOUT_HOURS = 48 // want to abandon auto retry for any integrations that take say >30 minutes, then bring this way down
