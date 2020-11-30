@@ -39,11 +39,6 @@ public:
 	//~ Platform management
 
 	/*
-	 * Register a platform
-	*/
-	virtual void RegisterPlatform(const FName & PlatformName, const FGuid& PlatformGuid, IMediaInfo* MediaInfo) = 0;
-
-	/*
 	 * Get a nice platform name from a GUID
 	*/
 	virtual FName GetPlatformName(const FGuid& PlatformGuid) const = 0;

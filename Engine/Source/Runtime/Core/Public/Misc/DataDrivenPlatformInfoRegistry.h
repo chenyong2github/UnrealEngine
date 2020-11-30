@@ -117,6 +117,9 @@ struct FDataDrivenPlatformInfo
 	// list of additonal restricted folders
 	TArray<FString> AdditionalRestrictedFolders;
 
+	// GUID to prepresent this platform forever
+	FGuid GlobalIdentifier;
+
 	// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
 	uint32 Freezing_MaxFieldAlignment = 0xffffffff;
 	bool Freezing_b32Bit = false;
