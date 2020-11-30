@@ -2525,7 +2525,7 @@ public:
 	{
 		if (Bypass())
 		{
-			GetContext().RHIBeginUAVOverlap();
+			GetComputeContext().RHIBeginUAVOverlap();
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandBeginUAVOverlap)();
@@ -2557,7 +2557,7 @@ public:
 	{
 		if (Bypass())
 		{
-			GetContext().RHIBeginUAVOverlap(UAVs);
+			GetComputeContext().RHIBeginUAVOverlap(UAVs);
 			return;
 		}
 
@@ -2571,7 +2571,7 @@ public:
 	{
 		if (Bypass())
 		{
-			GetContext().RHIEndUAVOverlap(UAVs);
+			GetComputeContext().RHIEndUAVOverlap(UAVs);
 			return;
 		}
 

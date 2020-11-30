@@ -299,13 +299,13 @@ void FRHICommandEndUAVOverlap::Execute(FRHICommandListBase& CmdList)
 void FRHICommandBeginSpecificUAVOverlap::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginSpecificUAVOverlap);
-	INTERNAL_DECORATOR(RHIBeginUAVOverlap)(UAVs);
+	INTERNAL_DECORATOR_COMPUTE(RHIBeginUAVOverlap)(UAVs);
 }
 
 void FRHICommandEndSpecificUAVOverlap::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EndSpecificUAVOverlap);
-	INTERNAL_DECORATOR(RHIEndUAVOverlap)(UAVs);
+	INTERNAL_DECORATOR_COMPUTE(RHIEndUAVOverlap)(UAVs);
 }
 
 void FRHICommandDrawPrimitiveIndirect::Execute(FRHICommandListBase& CmdList)
