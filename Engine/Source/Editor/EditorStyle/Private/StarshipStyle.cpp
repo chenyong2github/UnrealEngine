@@ -3105,7 +3105,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.ItalicFont", DEFAULT_FONT( "Italic", 8 ) );
 		Set( "PropertyWindow.FilterFont", DEFAULT_FONT( "Regular", 10 ) );
 
-		FSlateFontInfo MobilityFont = FStyleFonts::Get().SmallBold;
+		FSlateFontInfo MobilityFont = FStyleFonts::Get().Small;
 		MobilityFont.LetterSpacing = 100;
 
 		Set("PropertyWindow.MobilityFont", MobilityFont);

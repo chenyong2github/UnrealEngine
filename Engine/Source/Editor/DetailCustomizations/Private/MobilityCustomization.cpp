@@ -55,7 +55,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 		[
 			SNew(STextBlock)
 			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(LOCTEXT("Static", "Static"))
 		]
 		.ToolTip(StaticTooltip);
@@ -72,7 +71,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 		[
 			SNew(STextBlock)
 			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(LOCTEXT("Stationary", "Stationary"))
 		]
 		.ToolTip(StationaryTooltip);
@@ -87,7 +85,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 	[
 		SNew(STextBlock)
 		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-		.TransformPolicy(ETextTransformPolicy::ToUpper)
 		.Text(LOCTEXT("Movable", "Movable"))
 	]
 	.ToolTip(MovableTooltip);
