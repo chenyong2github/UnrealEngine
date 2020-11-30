@@ -318,6 +318,20 @@ public:
 		return false;
 	}
 
+	class IAsyncDestructNotification
+	{
+	public:
+		virtual ~IAsyncDestructNotification() {}
+		virtual void Signal() = 0;
+	};
+	typedef TSharedRef<IAsyncDestructNotification, ESPMode::ThreadSafe> IAsyncDestructNotificationRef;
+
+	virtual bool SetAsyncDestructionNotification(IAsyncDestructNotificationRef AsyncDestructNotification)
+	{
+		// Override in child class if needed.
+		return false;
+	}
+
 public:
 
 	/** Virtual destructor. */

@@ -139,6 +139,24 @@ public:
 		PlayerFactories.AddUnique(&Factory);
 	}
 
+	virtual void SetPlayerLifecycleManagerDelegate(IMediaPlayerLifecycleManagerDelegate* Delegate) override
+	{
+		PlayerLifecycleManagerDelegate = Delegate;
+	}
+
+	virtual IMediaPlayerLifecycleManagerDelegate* GetPlayerLifecycleManagerDelegate() override
+	{
+		return PlayerLifecycleManagerDelegate;
+	}
+
+	virtual uint64 CreateMediaPlayerInstanceID() override
+	{
+		uint64 InstanceID;
+		while ((InstanceID = NextMediaPlayerInstanceID++) == ~0)
+			;
+		return InstanceID;
+	}
+
 	virtual void SetTimeSource(const TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe>& NewTimeSource) override
 	{
 		TimeSource = NewTimeSource;
@@ -256,6 +274,12 @@ private:
 	/** The registered video player factories. */
 	TArray<IMediaPlayerFactory*> PlayerFactories;
 
+	/** Player lifecycle manager delegate */
+	IMediaPlayerLifecycleManagerDelegate* PlayerLifecycleManagerDelegate = nullptr;
+
+	/** MediaPlayer instance ID to hand out next */
+	uint64 NextMediaPlayerInstanceID = 0;
+
 	/** High-frequency ticker runnable. */
 	FMediaTicker Ticker;
 
@@ -266,7 +290,7 @@ private:
 	FSimpleMulticastDelegate OnTickPreEngineCompleted;
 
 	/** Whether media objects should lock to the media clock's time code. */
-	bool TimecodeLocked;
+	bool TimecodeLocked = false;
 
 	/** The media clock's time source. */
 	TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe> TimeSource;
