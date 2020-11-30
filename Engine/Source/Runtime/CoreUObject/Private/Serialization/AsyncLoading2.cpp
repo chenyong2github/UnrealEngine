@@ -1643,7 +1643,7 @@ public:
 	void DependsOn(FEventLoadNode2* Other);
 	void AddBarrier();
 	void AddBarrier(int32 Count);
-	void ReleaseBarrier();
+	void ReleaseBarrier(FAsyncLoadingThreadState2* ThreadState = nullptr);
 	void Execute(FAsyncLoadingThreadState2& ThreadState);
 
 	int32 GetBarrierCount()
@@ -1658,7 +1658,7 @@ public:
 
 private:
 	void ProcessDependencies(FAsyncLoadingThreadState2& ThreadState);
-	void Fire();
+	void Fire(FAsyncLoadingThreadState2* ThreadState = nullptr);
 
 	union
 	{
@@ -1727,7 +1727,7 @@ private:
 
 struct FAsyncLoadEventSpec
 {
-	typedef EAsyncPackageState::Type(*FAsyncLoadEventFunc)(FAsyncPackage2*, int32);
+	typedef EAsyncPackageState::Type(*FAsyncLoadEventFunc)(FAsyncLoadingThreadState2&, FAsyncPackage2*, int32);
 	FAsyncLoadEventFunc Func = nullptr;
 	FAsyncLoadEventQueue2* EventQueue = nullptr;
 	bool bExecuteImmediately = false;
@@ -1946,7 +1946,7 @@ struct FAsyncPackage2
 	bool AreAllDependenciesFullyLoaded(TSet<FPackageId>& VisitedPackages);
 
 	/** Creates GC clusters from loaded objects */
-	EAsyncPackageState::Type CreateClusters();
+	EAsyncPackageState::Type CreateClusters(FAsyncLoadingThreadState2& ThreadState);
 
 	void ImportPackagesRecursive();
 	void StartLoading();
@@ -2014,11 +2014,11 @@ public:
 
 	/** [EDL] Begin Event driven loader specific stuff */
 
-	static EAsyncPackageState::Type Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
-	static EAsyncPackageState::Type Event_ProcessPackageSummary(FAsyncPackage2* Package, int32);
-	static EAsyncPackageState::Type Event_ExportsDone(FAsyncPackage2* Package, int32);
-	static EAsyncPackageState::Type Event_PostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
-	static EAsyncPackageState::Type Event_DeferredPostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
+	static EAsyncPackageState::Type Event_ProcessExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex);
+	static EAsyncPackageState::Type Event_ProcessPackageSummary(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32);
+	static EAsyncPackageState::Type Event_ExportsDone(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32);
+	static EAsyncPackageState::Type Event_PostLoadExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex);
+	static EAsyncPackageState::Type Event_DeferredPostLoadExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex);
 	
 	void EventDrivenCreateExport(int32 LocalExportIndex);
 	bool EventDrivenSerializeExport(int32 LocalExportIndex, FExportArchive& Ar);
@@ -2395,7 +2395,7 @@ public:
 	* @param OutPackagesProcessed Number of packages processed in this call.
 	* @return The current state of async loading
 	*/
-	EAsyncPackageState::Type ProcessAsyncLoadingFromGameThread(int32& OutPackagesProcessed);
+	EAsyncPackageState::Type ProcessAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, int32& OutPackagesProcessed);
 
 	/**
 	* [GAME THREAD] Ticks game thread side of async loading.
@@ -2406,7 +2406,7 @@ public:
 	* @param FlushTree Package dependency tree to be flushed
 	* @return The current state of async loading
 	*/
-	EAsyncPackageState::Type TickAsyncLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID = INDEX_NONE);
+	EAsyncPackageState::Type TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID = INDEX_NONE);
 
 	/**
 	* [ASYNC THREAD] Main thread loop
@@ -2416,7 +2416,7 @@ public:
 	* @param TimeLimit Maximum amount of time that can be spent in this call [time-slicing].
 	* @param FlushTree Package dependency tree to be flushed
 	*/
-	EAsyncPackageState::Type TickAsyncThreadFromGameThread(bool& bDidSomething);
+	EAsyncPackageState::Type TickAsyncThreadFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething);
 
 	/** Initializes async loading thread */
 	virtual void InitializeLoading() override;
@@ -2433,18 +2433,20 @@ public:
 		int32 InPackagePriority,
 		const FLinkerInstancingContext* InstancingContext = nullptr) override;
 
-	EAsyncPackageState::Type ProcessLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit);
+	EAsyncPackageState::Type ProcessLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit);
 
 	inline virtual EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit) override
 	{
-		return ProcessLoadingFromGameThread(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
+		FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
+		return ProcessLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	}
 
-	EAsyncPackageState::Type ProcessLoadingUntilCompleteFromGameThread(TFunctionRef<bool()> CompletionPredicate, float TimeLimit);
+	EAsyncPackageState::Type ProcessLoadingUntilCompleteFromGameThread(FAsyncLoadingThreadState2& ThreadState, TFunctionRef<bool()> CompletionPredicate, float TimeLimit);
 
 	inline virtual EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit) override
 	{
-		return ProcessLoadingUntilCompleteFromGameThread(CompletionPredicate, TimeLimit);
+		FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
+		return ProcessLoadingUntilCompleteFromGameThread(ThreadState, CompletionPredicate, TimeLimit);
 	}
 
 	virtual void CancelLoading() override;
@@ -2558,9 +2560,9 @@ private:
 	* @param FlushTree Package dependency tree to be flushed
 	* @return The current state of async loading
 	*/
-	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
+	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
 
-	bool CreateAsyncPackagesFromQueue();
+	bool CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState2& ThreadState);
 	void AddBundleIoRequest(FAsyncPackage2* Package);
 	void BundleIoRequestCompleted(FAsyncPackage2* Package);
 	void StartBundleIoRequests();
@@ -2754,11 +2756,10 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* De
 	return Package;
 }
 
-bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue()
+bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState2& ThreadState)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateAsyncPackagesFromQueue);
 	
-	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 	bool bPackagesCreated = false;
 	const int32 TimeSliceGranularity = ThreadState.UseTimeLimit() ? 4 : MAX_int32;
 	TArray<FAsyncPackageDesc2*> QueueCopy;
@@ -2957,16 +2958,16 @@ void FEventLoadNode2::AddBarrier(int32 Count)
 	BarrierCount += Count;
 }
 
-void FEventLoadNode2::ReleaseBarrier()
+void FEventLoadNode2::ReleaseBarrier(FAsyncLoadingThreadState2* ThreadState)
 {
 	check(BarrierCount > 0);
 	if (--BarrierCount == 0)
 	{
-		Fire();
+		Fire(ThreadState);
 	}
 }
 
-void FEventLoadNode2::Fire()
+void FEventLoadNode2::Fire(FAsyncLoadingThreadState2* ThreadState)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(Fire);
 
@@ -2974,7 +2975,6 @@ void FEventLoadNode2::Fire()
 	bFired.Store(1);
 #endif
 
-	FAsyncLoadingThreadState2* ThreadState = FAsyncLoadingThreadState2::Get();
 	if (Spec->bExecuteImmediately && ThreadState && !ThreadState->CurrentEventNode)
 	{
 		Execute(*ThreadState);
@@ -2992,7 +2992,7 @@ void FEventLoadNode2::Execute(FAsyncLoadingThreadState2& ThreadState)
 	check(!ThreadState.CurrentEventNode || ThreadState.CurrentEventNode == this);
 
 	ThreadState.CurrentEventNode = this;
-	EAsyncPackageState::Type State = Spec->Func(Package, ImportOrExportIndex);
+	EAsyncPackageState::Type State = Spec->Func(ThreadState, Package, ImportOrExportIndex);
 	if (State == EAsyncPackageState::Complete)
 	{
 		ThreadState.CurrentEventNode = nullptr;
@@ -3041,7 +3041,7 @@ void FEventLoadNode2::ProcessDependencies(FAsyncLoadingThreadState2& ThreadState
 		ThreadState.bShouldFireNodes = false;
 		while (ThreadState.NodesToFire.Num())
 		{
-			ThreadState.NodesToFire.Pop(false)->Fire();
+			ThreadState.NodesToFire.Pop(false)->Fire(&ThreadState);
 		}
 		ThreadState.bShouldFireNodes = true;
 	}
@@ -3408,7 +3408,7 @@ void FAsyncPackage2::StartLoading()
 	AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForIo;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPackage2* Package, int32)
+EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessPackageSummary);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
@@ -3487,7 +3487,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
+EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessExportBundle);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
@@ -3555,7 +3555,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 		check(BundleEntry <= BundleEntryEnd);
 		while (BundleEntry < BundleEntryEnd)
 		{
-			if (FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("Event_ProcessExportBundle")))
+			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_ProcessExportBundle")))
 			{
 				return EAsyncPackageState::TimeOut;
 			}
@@ -3619,7 +3619,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 		{
 			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
 			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ExportsDone;
-			Package->GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
+			Package->GetPackageNode(Package_ExportsSerialized).ReleaseBarrier(&ThreadState);
 		}
 		else
 		{
@@ -3973,9 +3973,8 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	return true;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Package, int32)
+EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32)
 {
-	FGCScopeGuard GCGuard;
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ExportsDone);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ExportsDone);
@@ -3992,7 +3991,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
+EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_PostLoad);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
@@ -4046,7 +4045,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 		check(BundleEntry <= BundleEntryEnd);
 		while (BundleEntry < BundleEntryEnd)
 		{
-			if (FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("Event_PostLoadExportBundle")))
+			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_PostLoadExportBundle")))
 			{
 				LoadingState = EAsyncPackageState::TimeOut;
 				break;
@@ -4120,7 +4119,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
+EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadObjectsGameThread);
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_DeferredPostLoad);
@@ -4149,7 +4148,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 		check(BundleEntry <= BundleEntryEnd);
 		while (BundleEntry < BundleEntryEnd)
 		{
-			if (Package->AsyncLoadingThread.IsAsyncLoadingSuspended() || FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("Event_DeferredPostLoadExportBundle")))
+			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_DeferredPostLoadExportBundle")))
 			{
 				LoadingState = EAsyncPackageState::TimeOut;
 				break;
@@ -4238,7 +4237,7 @@ struct FScopedLoadRecursionVerifier
 };
 #endif
 
-EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread(int32& OutPackagesProcessed)
+EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, int32& OutPackagesProcessed)
 {
 	SCOPED_LOADTIMER(AsyncLoadingTime);
 
@@ -4253,8 +4252,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 #endif
 	FAsyncLoadingTickScope2 InAsyncLoadingTick(*this);
 	uint32 LoopIterations = 0;
-
-	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 
 	while (true)
 	{
@@ -4278,7 +4275,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 
 			if (QueuedPackagesCounter)
 			{
-				CreateAsyncPackagesFromQueue();
+				CreateAsyncPackagesFromQueue(ThreadState);
 				OutPackagesProcessed++;
 				break;
 			}
@@ -4373,7 +4370,7 @@ bool FAsyncPackage2::AreAllDependenciesFullyLoaded(TSet<FPackageId>& VisitedPack
 	return bLoaded;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThread(bool& bDidSomething, int32 FlushRequestID)
+EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, int32 FlushRequestID)
 {
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 
@@ -4387,7 +4384,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 		// The async loading thread might have queued some render thread tasks (we don't have a render thread yet, so these are actually sent to the game thread)
 		// We need to process them now before we do any postloads.
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-		if (FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("ProcessLoadedPackagesFromGameThread")))
+		if (ThreadState.IsTimeLimitExceeded(TEXT("ProcessLoadedPackagesFromGameThread")))
 		{
 			return EAsyncPackageState::TimeOut;
 		}
@@ -4396,7 +4393,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	// For performance reasons this set is created here and reset inside of AreAllDependenciesFullyLoaded
 	TSet<FPackageId> VisistedPackages;
 
-	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 	for (;;)
 	{
 		FPlatformMisc::PumpEssentialAppMessages();
@@ -4411,7 +4407,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 		bLocalDidSomething |= MainThreadEventQueue.PopAndExecute(ThreadState);
 
 		bLocalDidSomething |= LoadedPackagesToProcess.Num() > 0;
-		for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspended(); ++PackageIndex)
+		for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num(); ++PackageIndex)
 		{
 			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
 			FAsyncPackage2* Package = LoadedPackagesToProcess[PackageIndex];
@@ -4545,7 +4541,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
 					if (Package->AreAllDependenciesFullyLoaded(VisistedPackages))
 					{
-						if (Package->CreateClusters() == EAsyncPackageState::Complete)
+						if (Package->CreateClusters(ThreadState) == EAsyncPackageState::Complete)
 						{
 							// All clusters created, it's safe to delete the package
 							bSafeToDelete = true;
@@ -4608,7 +4604,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	return Result;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID)
+EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 	//TRACE_INT_VALUE(QueuedPackagesCounter, QueuedPackagesCounter);
@@ -4625,21 +4621,21 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bo
 
 	if (!bLoadingSuspended)
 	{
-		FAsyncLoadingThreadState2::Get()->SetTimeLimit(bUseTimeLimit, TimeLimit);
+		ThreadState.SetTimeLimit(bUseTimeLimit, TimeLimit);
 
 		const bool bIsMultithreaded = FAsyncLoadingThread2::IsMultithreaded();
 		double TickStartTime = FPlatformTime::Seconds();
 
 		bool bDidSomething = false;
 		{
-			Result = ProcessLoadedPackagesFromGameThread(bDidSomething, FlushRequestID);
+			Result = ProcessLoadedPackagesFromGameThread(ThreadState, bDidSomething, FlushRequestID);
 			double TimeLimitUsedForProcessLoaded = FPlatformTime::Seconds() - TickStartTime;
 			UE_CLOG(!GIsEditor && bUseTimeLimit && TimeLimitUsedForProcessLoaded > .1f, LogStreaming, Warning, TEXT("Took %6.2fms to ProcessLoadedPackages"), float(TimeLimitUsedForProcessLoaded) * 1000.0f);
 		}
 
 		if (!bIsMultithreaded && Result != EAsyncPackageState::TimeOut)
 		{
-			Result = TickAsyncThreadFromGameThread(bDidSomething);
+			Result = TickAsyncThreadFromGameThread(ThreadState, bDidSomething);
 		}
 
 		if (Result != EAsyncPackageState::TimeOut)
@@ -4859,7 +4855,7 @@ uint32 FAsyncLoadingThread2::Run()
 
 					if (QueuedPackagesCounter)
 					{
-						if (CreateAsyncPackagesFromQueue())
+						if (CreateAsyncPackagesFromQueue(ThreadState))
 						{
 							bDidSomething = true;
 						}
@@ -4973,7 +4969,7 @@ uint32 FAsyncLoadingThread2::Run()
 	return 0;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncThreadFromGameThread(bool& bDidSomething)
+EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncThreadFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething)
 {
 	check(IsInGameThread());
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
@@ -4981,14 +4977,14 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncThreadFromGameThread(boo
 	int32 ProcessedRequests = 0;
 	if (AsyncThreadReady.GetValue())
 	{
-		if (IsGarbageCollectionWaiting() || FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("TickAsyncThreadFromGameThread")))
+		if (ThreadState.IsTimeLimitExceeded(TEXT("TickAsyncThreadFromGameThread")))
 		{
 			Result = EAsyncPackageState::TimeOut;
 		}
 		else
 		{
 			FGCScopeGuard GCGuard;
-			Result = ProcessAsyncLoadingFromGameThread(ProcessedRequests);
+			Result = ProcessAsyncLoadingFromGameThread(ThreadState, ProcessedRequests);
 			bDidSomething = bDidSomething || ProcessedRequests > 0;
 		}
 	}
@@ -5563,11 +5559,9 @@ EAsyncPackageState::Type FAsyncPackage2::ProcessExternalReads(EExternalReadActio
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::CreateClusters()
+EAsyncPackageState::Type FAsyncPackage2::CreateClusters(FAsyncLoadingThreadState2& ThreadState)
 {
-	while (DeferredClusterIndex < Data.ExportCount &&
-			!AsyncLoadingThread.IsAsyncLoadingSuspended() &&
-			!FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("CreateClusters")))
+	while (DeferredClusterIndex < Data.ExportCount && !ThreadState.IsTimeLimitExceeded(TEXT("CreateClusters")))
 	{
 		const FExportObject& Export = Data.Exports[DeferredClusterIndex++];
 
@@ -5814,7 +5808,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	return RequestID;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
+EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AsyncLoadingTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncLoading);
@@ -5823,7 +5817,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(bool
 	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
 
-	TickAsyncLoadingFromGameThread(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
+	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
@@ -5847,9 +5841,10 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 
 		// Flush async loaders by not using a time limit. Needed for e.g. garbage collection.
 		{
+			FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 			while (IsAsyncLoading())
 			{
-				EAsyncPackageState::Type Result = TickAsyncLoadingFromGameThread(false, false, 0, RequestId);
+				EAsyncPackageState::Type Result = TickAsyncLoadingFromGameThread(ThreadState, false, false, 0, RequestId);
 				if (RequestId != INDEX_NONE && !ContainsRequestID(RequestId))
 				{
 					break;
@@ -5874,7 +5869,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 	}
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGameThread(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
+EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGameThread(FAsyncLoadingThreadState2& ThreadState, TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
 {
 	if (!IsAsyncLoading())
 	{
@@ -5898,7 +5893,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 	while (IsAsyncLoading() && TimeLimit > 0 && !CompletionPredicate())
 	{
 		double TickStartTime = FPlatformTime::Seconds();
-		if (ProcessLoadingFromGameThread(true, true, TimeLimit) == EAsyncPackageState::Complete)
+		if (ProcessLoadingFromGameThread(ThreadState, true, true, TimeLimit) == EAsyncPackageState::Complete)
 		{
 			return EAsyncPackageState::Complete;
 		}
