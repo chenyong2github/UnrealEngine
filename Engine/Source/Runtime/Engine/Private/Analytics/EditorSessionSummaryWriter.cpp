@@ -66,6 +66,7 @@ FEditorSessionSummaryWriter::FEditorSessionSummaryWriter(uint32 InProcessMonitor
 	, LastEditorActivityTimeSecs(FPlatformTime::Seconds())
 	, SessionStartTimeUtc(FDateTime::UtcNow()) // Reliable only if system date/time doesn't change (like daylight savings or user altering it)
 	, SessionStartTimeSecs(FPlatformTime::Seconds()) // Don't rely on system date/time. May suffer from lack of precision over long period of time (few seconds over a day).
+	, LastSaveTimeSecs(0.0)
 	, OutOfProcessMonitorProcessId(InProcessMonitorProcessId)
 {
 }

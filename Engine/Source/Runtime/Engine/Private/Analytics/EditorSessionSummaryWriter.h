@@ -92,7 +92,7 @@ private:
 	double SessionStartTimeSecs = 0.0;
 
 	/** The last save timestamp from FPlatformTime::Seconds(). */
-	std::atomic<double> LastSaveTimeSecs = 0.0;
+	std::atomic<double> LastSaveTimeSecs;
 
 	/** Non-zero if out-of process monitoring is set. To ensure one CrashReportClient(CRC) doesn't report the session of another CRC instance (race condition). */
 	const uint32 OutOfProcessMonitorProcessId;
