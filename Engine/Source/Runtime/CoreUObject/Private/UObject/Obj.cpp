@@ -2287,6 +2287,9 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 		{
 			ClassSection = BaseClass->GetPathName();
 			LongCommitName = BaseClass->GetOutermost()->GetFName();
+
+			// allow the class to override the expected section name
+			OverrideConfigSection(ClassSection);
 		}
 
 		// globalconfig properties should always use the owning class's config file
@@ -2511,6 +2514,8 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			if ( !bPerObject )
 			{
 				Section = BaseClass->GetPathName();
+				// allow the class to override the expected section name
+				OverrideConfigSection(Section);
 			}
 
 			// globalconfig properties should always use the owning class's config file

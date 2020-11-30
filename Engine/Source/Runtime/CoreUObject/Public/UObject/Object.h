@@ -1110,6 +1110,13 @@ public:
 	virtual const TCHAR* GetConfigOverridePlatform() const { return nullptr; }
 
 	/**
+	 * Allows Non-PerObjectConfig classes, to override the ini section name used for loading config settings
+	 *
+	 * @param SectionName	Reference to the unmodified config section name, that can be altered/modified
+	 */
+	virtual void OverrideConfigSection(FString& SectionName) {}
+
+	/**
 	 * Allows PerObjectConfig classes, to override the ini section name used for the PerObjectConfig object.
 	 *
 	 * @param SectionName	Reference to the unmodified config section name, that can be altered/modified
