@@ -496,6 +496,15 @@ class FScreenProbeTemporalReprojectionDepthRejectionPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		const bool bCompile = DoesPlatformSupportLumenGI(Parameters.Platform);
+
+#if WITH_EDITOR
+		if (bCompile)
+		{
+			ensureMsgf(VelocityEncodeDepth(Parameters.Platform), TEXT("Platform did not return true from VelocityEncodeDepth().  Lumen requires velocity depth."));
+		}
+#endif
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -729,7 +738,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 
 	check(ShouldRenderLumenDiffuseGI(View));
-	ensureMsgf(VelocityEncodeDepth(View.GetShaderPlatform()), TEXT("Platform did not return true from VelocityEncodeDepth().  Lumen requires velocity depth."));
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	if (!GLumenScreenProbeGather)
