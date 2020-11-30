@@ -1759,7 +1759,7 @@ public class IOSPlatform : Platform
 		return bIsClientOnly ? "IOSClient" : "IOS";
 	}
 
-	public override bool DeployLowerCaseFilenames()
+	public override bool DeployLowerCaseFilenames(StagedFileType FileType)
 	{
 		// we shouldn't modify the case on files like Info.plist or the icons
 		return true;

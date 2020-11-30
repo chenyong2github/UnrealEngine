@@ -178,7 +178,7 @@ public abstract class BaseLinuxPlatform : Platform
 	/// return true if we need to change the case of filenames outside of pak files
 	/// </summary>
 	/// <returns></returns>
-	public override bool DeployLowerCaseFilenames()
+	public override bool DeployLowerCaseFilenames(StagedFileType FileType)
 	{
 		return false;
 	}

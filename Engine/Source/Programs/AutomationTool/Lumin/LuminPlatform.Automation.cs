@@ -279,7 +279,7 @@ public class LuminPlatform : Platform
 	/// return true if we need to change the case of filenames outside of pak files
 	/// </summary>
 	/// <returns></returns>
-	public override bool DeployLowerCaseFilenames()
+	public override bool DeployLowerCaseFilenames(StagedFileType FileType)
 	{
 		// @todo quail hack: we don't actually want to lower case some of the OS files, but I HACKED the
 		// CopyBuildToStagingDirectory code to not apply lowercase to root files 

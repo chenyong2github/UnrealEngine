@@ -449,11 +449,23 @@ namespace AutomationTool
 		/// <summary>
 		/// return true if we need to change the case of filenames outside of pak files
 		/// </summary>
-		/// <returns></returns>
-		public virtual bool DeployLowerCaseFilenames()
+		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <returns>true if files should be lower-cased during staging, for the given filetype</returns>
+		public virtual bool DeployLowerCaseFilenames(StagedFileType FileType)
 		{
 			return false;
 		}
+
+		/// <summary>
+		/// return true if we need to change the case of a particular file
+		/// </summary>
+		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <returns>true if files should be lower-cased during staging, for the given filetype</returns>
+		public virtual bool DeployLowerCaseFile(FileReference File, StagedFileType FileType)
+		{
+			return DeployLowerCaseFilenames(FileType);
+		}
+
 
 		/// <summary>
 		/// Converts local path to target platform path.
@@ -606,7 +618,8 @@ namespace AutomationTool
 		public virtual HashSet<StagedFileReference> GetFilesForCRCCheck()
 		{
 			string CmdLine = "UE4CommandLine.txt";
-			if (DeployLowerCaseFilenames())
+			// using SystemNonUFS because that is how it's staged in CreateStagingManifest
+			if (DeployLowerCaseFilenames(StagedFileType.SystemNonUFS))
 			{
 				CmdLine = CmdLine.ToLowerInvariant();
 			}

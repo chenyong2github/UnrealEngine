@@ -703,12 +703,12 @@ public partial class Project : CommandUtils
 
 			// move the UE4Commandline.txt file to the root of the stage
 			// this file needs to be treated as a UFS file for casing, but NonUFS for being put into the .pak file
-			// @todo: Maybe there should be a new category - UFSNotForPak
+			// @todo: Maybe there should be a new category - UFSNotForPak - and reevaluate all SystemNonUFS references
 			FileReference CommandLineFile = FileReference.Combine(GetIntermediateCommandlineDir(SC), "UE4CommandLine.txt");
 			if (FileReference.Exists(CommandLineFile))
 			{
 				StagedFileReference StagedCommandLineFile = new StagedFileReference("UE4CommandLine.txt");
-				if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+				if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.SystemNonUFS))
 				{
 					StagedCommandLineFile = StagedCommandLineFile.ToLowerInvariant();
 				}
@@ -1089,14 +1089,15 @@ public partial class Project : CommandUtils
 		}
 
 		// Make all the filenames lowercase
-		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+		if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.NonUFS))
 		{
 			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
-			SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
-			if (!Params.UsePak(SC.StageTargetPlatform))
-			{
-				SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
-			}
+		}
+		// DebugNonUFS is weird, so ask per-file
+		SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => SC.StageTargetPlatform.DeployLowerCaseFile(x.Value, StagedFileType.DebugNonUFS) ? x.Key.ToLowerInvariant() : x.Key, x => x.Value);
+		if (!Params.UsePak(SC.StageTargetPlatform) && SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
+		{
+			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
 		}
 
 		// Remap all the non-ufs files if not using a PAK file
@@ -2223,7 +2224,7 @@ public partial class Project : CommandUtils
 			{
 				OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", OutputFilename + OutputFilenameExtension);
 			}
-			if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+			if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 			{
 				OutputRelativeLocation = OutputRelativeLocation.ToLowerInvariant();
 			}
@@ -2280,7 +2281,7 @@ public partial class Project : CommandUtils
 				// Check to see if we have an existing pak file we can use
 
 				StagedFileReference SourceOutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content/Paks/", PakParams.PakName + "-" + SC.CookPlatform + PostFix + ".pak");
-				if (SC.CookSourcePlatform.DeployLowerCaseFilenames())
+				if (SC.CookSourcePlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 				{
 					SourceOutputRelativeLocation = SourceOutputRelativeLocation.ToLowerInvariant();
 				}
@@ -2674,7 +2675,7 @@ public partial class Project : CommandUtils
 							{
 								InternalUtils.SafeCopyFile(PakFilePath, OutputDestinationPath.FullName);
 								StagedFileReference OutputDestinationRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content/Paks/", Path.GetFileName(PakFilePath));
-								if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+								if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 								{
 									OutputDestinationRelativeLocation = OutputDestinationRelativeLocation.ToLowerInvariant();
 								}
@@ -2692,7 +2693,7 @@ public partial class Project : CommandUtils
 	{
 		StagedFileReference GlobalContainerOutputRelativeLocation;
 		GlobalContainerOutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", "global.utoc");
-		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+		if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 		{
 			GlobalContainerOutputRelativeLocation = GlobalContainerOutputRelativeLocation.ToLowerInvariant();
 		}
@@ -3460,7 +3461,7 @@ public partial class Project : CommandUtils
 	{
 		// this file needs to be treated as a UFS file for casing, but NonUFS for being put into the .pak file. 
 		// @todo: Maybe there should be a new category - UFSNotForPak
-		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+		if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.SystemNonUFS))
 		{
 			IntermediateCmdLineFile = new FileReference(CombinePaths(Path.GetDirectoryName(IntermediateCmdLineFile.FullName), Path.GetFileName(IntermediateCmdLineFile.FullName).ToLowerInvariant()));
 		}

@@ -2506,7 +2506,7 @@ public class AndroidPlatform : Platform
 		return bIsClientOnly ? "AndroidClient" : "Android";
 	}
 
-	public override bool DeployLowerCaseFilenames()
+	public override bool DeployLowerCaseFilenames(StagedFileType FileType)
 	{
 		return false;
 	}
