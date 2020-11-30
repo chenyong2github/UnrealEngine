@@ -132,8 +132,6 @@ float4 StrataDeferredLighting(
 	ByteAddressBuffer StrataDataBuffer,
 	uint PixelStrataDataByteOffset)
 {
-	float4 OutRadiance = 0;
-
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 	
 	float3 PreintegratedIndicentIrradiance = 0;
@@ -147,6 +145,8 @@ float4 StrataDeferredLighting(
 		FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 		PreintegratedIndicentIrradiance = IntegrateLight(Capsule, LightData.bInverseSquared);
 	}
+
+	FLightAccumulator Out = (FLightAccumulator)0;
 
 	LOOP
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
@@ -165,13 +165,28 @@ float4 StrataDeferredLighting(
 		if (IntegrationContext.bEvaluateBSDF)
 		{
 			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext);
-			OutRadiance.rgb += BSDF.Weight * BSDFEvaluate.Value * IntegrationContext.IncidentIrradiance;
+
+			const float3 DiffuseRadiance  = (BSDFEvaluate.PathType & STRATA_PATH_TYPE_DIFFUSE)  != 0 ? BSDF.Weight * BSDFEvaluate.Value : 0;
+			const float3 SpecularRadiance = (BSDFEvaluate.PathType & STRATA_PATH_TYPE_SPECULAR) != 0 ? BSDF.Weight * BSDFEvaluate.Value : 0;
+
+			float3 CommonFactor = IntegrationContext.IncidentIrradiance;
+			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.PathType & STRATA_PATH_TYPE_SCATTER != 0;
+			LightAccumulator_AddSplit(Out, DiffuseRadiance, SpecularRadiance, DiffuseRadiance, CommonFactor, bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 		else
 		{
-			OutRadiance.rgb += IntegrationContext.OutgoingRadiance;
+			
+			// STRATA_TODO Find a better solution for special of are lighting which handles specular path only, so we can hardcode weight.
+			const float3 DiffuseRadiance  = 0;
+			const float3 SpecularRadiance = 1;
+
+			float3 CommonFactor = IntegrationContext.OutgoingRadiance;
+			const bool bNeedsSeparateSubsurfaceLightAccumulation = false;
+			LightAccumulator_AddSplit(Out, DiffuseRadiance, SpecularRadiance, DiffuseRadiance, CommonFactor, bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 	}
 
+	const FDeferredLightingSplit SplitLighting = LightAccumulator_GetResultSplit(Out);
+	const float4 OutRadiance = SplitLighting.SpecularLighting + SplitLighting.DiffuseLighting;
 	return OutRadiance;
 }

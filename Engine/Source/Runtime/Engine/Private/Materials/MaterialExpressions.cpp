@@ -19122,12 +19122,23 @@ int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Com
 	int32 NormalCodeChunk = CompileWithDefaultCodeChunk(Compiler, Normal, Compiler->VertexNormal());
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
+	FName NameSubsurfaceProfile(FString(TEXT("__SubsurfaceProfile")));
+
+	int32 SSSProfileCodeChunk = INDEX_NONE;
+	const bool bHasScattering = SubsurfaceProfile != nullptr;
+	if (bHasScattering)
+	{
+		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
+	}
+
 	int32 OutputCodeChunk = Compiler->StrataDiffuseBSDF(
 		CompileWithDefaultFloat3(Compiler, Albedo,		0.18f, 0.18f, 0.18f),
 		CompileWithDefaultFloat1(Compiler, Roughness,	0.0f),
+		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(1.0f),
+		CompileWithDefaultFloat1(Compiler, SubsurfaceProfileScale,	0.0f),
 		NormalCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIFFUSE);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIFFUSE, bHasScattering);
 
 	return OutputCodeChunk;
 }
@@ -19154,6 +19165,9 @@ uint32 UMaterialExpressionStrataDiffuseBSDF::GetInputType(int32 InputIndex)
 		break;
 	case 2:
 		return MCT_Float3;
+		break;
+	case 3:
+		return MCT_Float1;
 		break;
 	}
 

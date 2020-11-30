@@ -94,6 +94,8 @@ struct FStrataBSDF
 
 #define DIFFUSE_ALBEDO(X)				X.VGPRs[0].xyz
 #define DIFFUSE_ROUGHNESS(X)			X.VGPRs[0].w
+#define DIFFUSE_SSSPROFILEID(X)			X.VGPRs[1].x
+#define DIFFUSE_SSSPROFILERADIUS(X)		X.VGPRs[1].y
 
 #define DIELECTRIC_TINT(X)				X.VGPRs[0].xyz
 #define DIELECTRIC_IOR(X)				X.VGPRs[0].w
@@ -165,14 +167,19 @@ struct FStrataData
 	FStrataLayer Layers[STRATA_MAX_LAYER_COUNT];	// Layer 0 is the top layer
 };
 
+uint GetStrataSubsurfaceProfile(float NormalizedId)
+{
+	// can be optimized
+	return uint(NormalizedId * 255.0f + 0.5f);
 
+}
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
 	return StrataData;
 }
 
-FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
+FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, float SSSProfileID, float SSSRadiusScale, uint SharedNormalIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
@@ -181,8 +188,11 @@ FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, uint SharedNorm
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_DIFFUSE);
 	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
+	BSDF_SETHASSCATTERING	(StrataData.Layers[0].BSDFs[0],		SSSRadiusScale > 0 ? 1 : 0);
 	DIFFUSE_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
 	DIFFUSE_ROUGHNESS		(StrataData.Layers[0].BSDFs[0])		= Roughness;
+	DIFFUSE_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
+	DIFFUSE_SSSPROFILERADIUS(StrataData.Layers[0].BSDFs[0])		= SSSRadiusScale;
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
 
@@ -510,11 +520,16 @@ void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
 }
 
+#define STRATA_PATH_TYPE_DIFFUSE  0x1 
+#define STRATA_PATH_TYPE_SPECULAR 0x2
+#define STRATA_PATH_TYPE_SCATTER  0x4
+
 struct FStrataEvaluateResult
 {
 	float3 Value;
 	float  PDF;
 	float3 Throughput;	// Throughput to the next layer
+	uint   PathType;	// Type of path (specular|diffuse|scattering)
 };
 
 FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
@@ -534,6 +549,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			Sample.Value		= Diffuse_Chan(DIFFUSE_ALBEDO(BSDFContext.BSDF), a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
 			Sample.PDF			= BSDFContext.SatNoV / PI;
 			Sample.Throughput	= OpaqueBSDFThroughput;
+			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE | (BSDF_GETHASSCATTERING(BSDFContext.BSDF) ? STRATA_PATH_TYPE_SCATTER : 0);
 			break;
 		}
 		case STRATA_BSDF_TYPE_DIELECTRIC:
@@ -573,6 +589,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			Sample.Value		= D * Vis * F;
 			Sample.PDF			= PDF;
 			Sample.Throughput	= bIsDieletric ? (1.0f - F) : OpaqueBSDFThroughput; // STRATA_TODO (Kulla's (1-FDG))
+			Sample.PathType		= STRATA_PATH_TYPE_SPECULAR;
 			break;
 		}
 		case STRATA_BSDF_TYPE_VOLUME:
@@ -602,6 +619,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			Sample.Value		= NormLuminanceSingleScattering * Phase * SelfShadowTransmittance;
 			Sample.PDF			= Phase;
 			Sample.Throughput	= SafePathSegmentTransmittance;
+			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE;
 			break;
 		}
 		case STRATA_BSDF_TYPE_SHEEN:
@@ -617,9 +635,10 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			float Vis = Vis_Cloth(BSDFContext.Context.NoV, BSDFContext.SatNoL);
 			float3 F  = F_Schlick(F0, BSDFContext.Context.VoH);
 
-			Sample.Value = D * Vis * F;
-			Sample.PDF = BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
-			Sample.Throughput = (1.0f - F);
+			Sample.Value		= D * Vis * F;
+			Sample.PDF			= BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
+			Sample.Throughput	= (1.0f - F);
+			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE;
 			break;
 		}
 	}
@@ -1039,6 +1058,25 @@ float4 UnpackAlbedoGamma2ToLinearAlphaLinear(uint rgba)
 	return float4(Gamma2 * Gamma2, a * (1.0f / 255.0f));	// Simple gamma 2.0
 }
 
+uint PackRGBA8(float4 rgba)
+{
+	uint r = (uint(saturate(rgba.r) * 255.0f) << 0);
+	uint g = (uint(saturate(rgba.g) * 255.0f) << 8);
+	uint b = (uint(saturate(rgba.b) * 255.0f) << 16);
+	uint a = (uint(saturate(rgba.a) * 255.0f) << 24);
+	return r | g | b | a;
+}
+
+float4 UnpackRGBA8(uint rgba)
+{
+	float4 Out;
+	Out.r = float((rgba >> 0)  & 0xFF);
+	Out.g = float((rgba >> 8)  & 0xFF);
+	Out.b = float((rgba >> 16) & 0xFF);
+	Out.a = float((rgba >> 24) & 0xFF);
+	return Out;
+}
+
 // Simple Octahedral from "A Survey of Efficient Representations for Independent Unit Vectors" http://jcgt.org/published/0003/02/01/
 float SignNotZero(in float k)
 {
@@ -1274,6 +1312,12 @@ void PackStrataOut(
 	// We clamp the layer count to the maximum one according to our byte per pixel budget (removing the bottom layer first)
 	Strata.LayerCount = STRATA_CLAMPED_LAYER_COUNT;
 
+	// Subsurface scattering parameters
+	bool bHasSubsurfaceScattering = false;
+	float SubsurfaceProfile = 0;
+	float SubsurfaceRadiusScale = 0;
+	float3 SubsurfaceBaseColor = 0;
+
 	// For each of the BSDF, we evaluated their combined weight/throughput according to the material operation performed (layering, mixing, etc.).
 	int l;
 	UNROLL
@@ -1318,6 +1362,15 @@ void PackStrataOut(
 				{
 					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
 					AccumRoughnessCount += BSDFCoverageAvg;
+				}
+
+				// Select the first/toppest layer with subsurface scattering
+				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !bHasSubsurfaceScattering)
+				{
+					bHasSubsurfaceScattering = true;
+					SubsurfaceProfile = DIFFUSE_SSSPROFILEID(BSDF);
+					SubsurfaceRadiusScale = DIFFUSE_SSSPROFILERADIUS(BSDF);
+					SubsurfaceBaseColor = DIFFUSE_ALBEDO(BSDF);
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1430,13 +1483,19 @@ void PackStrataOut(
 			GBuffer.Metallic = 1;
 		}
 
+		if (bHasSubsurfaceScattering)
+		{
+			GBuffer.BaseColor      = SubsurfaceBaseColor;
+			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
+			GBuffer.CustomData.a   = SubsurfaceRadiusScale;
+		}
+
 		// Take into account the non covered part for this layer and update throughput accordingly
 		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;
 
 		// And combine this layer throughtput with he material throughput
 		Throughput *= LayerThroughput;
 	}
-
 
 	// Now write out Strata data
 
@@ -1489,7 +1548,11 @@ void PackStrataOut(
 			case STRATA_BSDF_TYPE_DIFFUSE:
 			{
 				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(DIFFUSE_ALBEDO(BSDF), DIFFUSE_ROUGHNESS(BSDF))));
-				// 4 bytes
+				if (BSDF_GETHASSCATTERING(BSDF))
+				{
+					STRATA_STORE_UINT1(PackRGBA8(float4(DIFFUSE_SSSPROFILEID(BSDF), DIFFUSE_SSSPROFILERADIUS(BSDF), 0, 0)))
+				}
+				// 8 bytes
 			}
 			break;
 			case STRATA_BSDF_TYPE_DIELECTRIC:
@@ -1596,6 +1659,12 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	case STRATA_BSDF_TYPE_DIFFUSE:
 	{
 		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, DIFFUSE_ALBEDO(OutBSDF), DIFFUSE_ROUGHNESS(OutBSDF));
+		if (BSDF_GETHASSCATTERING(OutBSDF))
+		{
+			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
+			DIFFUSE_SSSPROFILEID(OutBSDF) = Data.r;
+			DIFFUSE_SSSPROFILERADIUS(OutBSDF) = Data.g;
+		}
 	}
 	break;
 	case STRATA_BSDF_TYPE_DIELECTRIC:

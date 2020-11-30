@@ -297,7 +297,7 @@ void Main(
 				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 
 			  #if USE_TRANSMISSION
-				if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+				if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE || GBufferData.ShadingModelID == SHADINGMODELID_STRATA)
 				{
 					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, GBufferData, Settings);
 				}

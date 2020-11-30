@@ -349,12 +349,13 @@ bool IsSubsurfaceModel(int ShadingModel)
 		|| ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE
 		|| ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE
 		|| ShadingModel == SHADINGMODELID_HAIR
-		|| ShadingModel == SHADINGMODELID_EYE;
+		|| ShadingModel == SHADINGMODELID_EYE 
+		|| ShadingModel == SHADINGMODELID_STRATA;
 }
 
 bool UseSubsurfaceProfile(int ShadingModel)
 {
-	return ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_EYE;
+	return ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_EYE || ShadingModel == SHADINGMODELID_STRATA;
 }
 
 bool HasCustomGBufferData(int ShadingModelID)

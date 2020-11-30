@@ -58,6 +58,16 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	UPROPERTY()
 	FExpressionInput Normal;
 
+	/**
+	 * SSS radius scale (type = float, unit = unitless)
+	 */
+	UPROPERTY()
+	FExpressionInput SubsurfaceProfileScale;
+
+	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
+	class USubsurfaceProfile* SubsurfaceProfile;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

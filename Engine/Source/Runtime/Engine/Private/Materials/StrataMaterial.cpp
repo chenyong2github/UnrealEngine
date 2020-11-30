@@ -52,14 +52,14 @@ uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32
 	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk, TangentCodeChunk);
 }
 
-void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bVolumeHasScattering)
+void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasScattering)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
 	StrataInfo.Layers[0].BSDFCount = 1;
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
 	StrataInfo.Layers[0].BSDFs[0].SharedNormalIndex = SharedNormalIndex;
-	StrataInfo.Layers[0].BSDFs[0].bVolumeHasScattering = bVolumeHasScattering;
+	StrataInfo.Layers[0].BSDFs[0].bHasScattering = bHasScattering;
 	UpdateTotalBSDFCount(StrataInfo);
 	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
@@ -225,6 +225,10 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 			case STRATA_BSDF_TYPE_DIFFUSE:
 			{
 				Result.RequestedByteCount += UintByteSize;
+				if (BSDF.bHasScattering)
+				{
+					Result.RequestedByteCount += UintByteSize;
+				}
 				break;
 			}
 			case STRATA_BSDF_TYPE_DIELECTRIC:
@@ -243,7 +247,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 			{
 				Result.RequestedByteCount += UintByteSize;
 
-				if (BSDF.bVolumeHasScattering)
+				if (BSDF.bHasScattering)
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}
