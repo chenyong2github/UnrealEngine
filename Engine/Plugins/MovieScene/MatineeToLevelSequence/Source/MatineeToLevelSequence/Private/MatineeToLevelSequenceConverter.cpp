@@ -21,6 +21,10 @@
 #include "Matinee/InterpTrackSlomo.h"
 #include "Matinee/MatineeActor.h"
 #include "MatineeConverter.h"
+#include "MovieScene.h"
+#include "MovieSceneSequence.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieSceneFadeTrack.h"
 #include "Tracks/MovieSceneSlomoTrack.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
