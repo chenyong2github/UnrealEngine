@@ -162,6 +162,9 @@ public:
 	}
 #endif
 
+	/** Sets the current command list stat for all subsequent passes. */
+	void SetCommandListStat(TStatId StatId);
+
 	/** Queues a pooled render target extraction to happen at the end of graph execution. For graph-created textures, this extends
 	 *  the lifetime of the GPU resource until execution, at which point the pointer is filled. If specified, the texture is transitioned
 	 *  to the AccessFinal state, or kDefaultAccessFinal otherwise.
@@ -303,6 +306,8 @@ private:
 	/** Whether we performed the wait for the temporal effect yet. */
 	bool bWaitedForTemporalEffect = false;
 #endif
+
+	IF_RDG_CMDLIST_STATS(TStatId CommandListStat);
 
 	void Compile();
 	void Clear();

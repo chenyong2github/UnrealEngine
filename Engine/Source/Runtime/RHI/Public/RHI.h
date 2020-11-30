@@ -843,11 +843,11 @@ enum class ERHIAccess
 };
 ENUM_CLASS_FLAGS(ERHIAccess)
 
-/** Mask of read states that can be used together for textures. */
-extern RHI_API ERHIAccess GRHITextureReadAccessMask;
+/** Mask of states which are allowed to be considered for state merging. */
+extern RHI_API ERHIAccess GRHIMergeableAccessMask;
 
-/** Mask of states which are allowed to be used on multiple pipelines at the same time. */
-extern RHI_API ERHIAccess GRHIMultiPipelineAccessMask;
+/** Mask of states which are allowed to be considered for multi-pipeline state merging. This should be a subset of GRHIMergeableAccessMask. */
+extern RHI_API ERHIAccess GRHIMultiPipelineMergeableAccessMask;
 
 /** to customize the RHIReadSurfaceData() output */
 class FReadSurfaceDataFlags

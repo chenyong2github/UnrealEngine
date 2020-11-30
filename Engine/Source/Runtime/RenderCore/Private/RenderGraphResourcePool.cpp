@@ -66,11 +66,11 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 		{
-			PooledBuffer->VertexBuffer = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
+			PooledBuffer->Buffer = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
 		}
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
 		{
-			PooledBuffer->StructuredBuffer = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
+			PooledBuffer->Buffer = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
 		}
 		else
 		{

@@ -211,6 +211,14 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 	SetBufferAccessFinal(Buffer, AccessFinal);
 }
 
+inline void FRDGBuilder::SetCommandListStat(TStatId StatId)
+{
+#if RDG_CMDLIST_STATS
+	CommandListStat = StatId;
+	RHICmdList.SetCurrentStat(StatId);
+#endif
+}
+
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateGetPooledTexture(Texture));

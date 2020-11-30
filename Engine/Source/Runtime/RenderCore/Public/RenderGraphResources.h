@@ -9,6 +9,21 @@
 struct FPooledRenderTarget;
 class FRenderTargetPool;
 
+/** Used for tracking pass producer / consumer edges in the graph for culling and pipe fencing. */
+struct FRDGProducerState
+{
+	/** Returns whether the next state is dependent on the last producer in the producer graph. */
+	static bool IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline);
+
+	FRDGProducerState() = default;
+
+	ERHIAccess Access = ERHIAccess::Unknown;
+	FRDGPassHandle PassHandle;
+	FRDGViewHandle NoUAVBarrierHandle;
+};
+
+using FRDGProducerStatesByPipeline = TRHIPipelineArray<FRDGProducerState>;
+
 /** Used for tracking the state of an individual subresource during execution. */
 struct FRDGSubresourceState
 {
@@ -721,7 +736,7 @@ private:
 	FRDGTextureTransientSubresourceStateIndirect MergeState;
 
 	/** Tracks pass producers for each subresource as the graph is built. */
-	TRDGTextureSubresourceArray<FRDGPassHandle> LastProducers;
+	TRDGTextureSubresourceArray<FRDGProducerStatesByPipeline> LastProducers;
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGTextureDebugData* TextureDebugData = nullptr;
@@ -910,25 +925,11 @@ private:
 /** Descriptor for render graph tracked Buffer. */
 struct FRDGBufferDesc
 {
-	// Type of buffers to the RHI
 	enum class EUnderlyingType
 	{
 		VertexBuffer,
-		IndexBuffer, // not implemented yet.
-		StructuredBuffer,
+		StructuredBuffer
 	};
-
-	static inline FRHITransitionInfo::EType GetTransitionResourceType(EUnderlyingType Type)
-	{
-		switch (Type)
-		{
-		default: checkNoEntry();
-		case EUnderlyingType::VertexBuffer:
-		case EUnderlyingType::IndexBuffer:
-		case EUnderlyingType::StructuredBuffer:
-			return FRHITransitionInfo::EType::Buffer;
-		}
-	}
 
 	/** Create the descriptor for an indirect RHI call.
 	 *
@@ -1028,7 +1029,7 @@ struct FRDGBufferDesc
 	/** Bitfields describing the uses of that buffer. */
 	EBufferUsageFlags Usage = BUF_None;
 
-	/** The underlying RHI type to use. A bit of a work around because RHI still have 3 different objects. */
+	/** The underlying RHI type to use. */
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
 };
 
@@ -1086,19 +1087,22 @@ public:
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
 	FRHIShaderResourceView* GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc);
 
-	FRHIVertexBuffer* GetVertexBufferRHI() const
+	/** Returns the RHI buffer. */
+	FRHIBuffer* GetRHI() const
 	{
-		return VertexBuffer;
+		return Buffer;
 	}
 
-	FRHIIndexBuffer* GetIndexBufferRHI() const
+	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
+	FRHIBuffer* GetVertexBufferRHI() const
 	{
-		return IndexBuffer;
+		return Buffer;
 	}
 
-	FRHIStructuredBuffer* GetStructuredBufferRHI() const
+	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
+	FRHIBuffer* GetStructuredBufferRHI() const
 	{
-		return StructuredBuffer;
+		return Buffer;
 	}
 
 	uint32 GetRefCount() const
@@ -1166,9 +1170,7 @@ private:
 		: Desc(InDesc)
 	{}
 
-	FVertexBufferRHIRef VertexBuffer;
-	FIndexBufferRHIRef IndexBuffer;
-	FStructuredBufferRHIRef StructuredBuffer;
+	TRefCountPtr<FRHIBuffer> Buffer;
 	TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>> UAVs;
 	TMap<FRDGBufferSRVDesc, FShaderResourceViewRHIRef, FDefaultSetAllocator, TSRVFuncs<FRDGBufferSRVDesc, FShaderResourceViewRHIRef>> SRVs;
 
@@ -1197,9 +1199,6 @@ private:
 	friend FRDGBuffer;
 };
 
-UE_DEPRECATED(4.26, "FRDGPooledBuffer has been renamed to FRDGPooledBuffer.")
-typedef FRDGPooledBuffer FPooledRDGBuffer;
-
 /** A render graph tracked buffer. */
 class RENDERCORE_API FRDGBuffer final
 	: public FRDGParentResource
@@ -1211,26 +1210,31 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	//! The following methods may only be called during pass execution.
 
-	/** Returns the buffer to use for indirect RHI calls. */
-	FRHIVertexBuffer* GetIndirectRHICallBuffer() const
+	/** Returns the underlying RHI buffer resource */
+	FRHIBuffer* GetRHI() const
 	{
-		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Buffer %s is not an underlying vertex buffer."), Name);
+		return static_cast<FRHIBuffer*>(FRDGParentResource::GetRHI());
+	}
+
+	/** Returns the buffer to use for indirect RHI calls. */
+	FORCEINLINE FRHIBuffer* GetIndirectRHICallBuffer() const
+	{
 		checkf(Desc.Usage & BUF_DrawIndirect, TEXT("Buffer %s was not flagged for indirect draw usage."), Name);
-		return static_cast<FRHIVertexBuffer*>(GetRHI());
+		return GetRHI();
 	}
 
 	/** Returns the buffer to use for RHI calls, eg RHILockVertexBuffer. */
-	FRHIVertexBuffer* GetRHIVertexBuffer() const
+	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
+	FORCEINLINE FRHIBuffer* GetRHIVertexBuffer() const
 	{
-		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Buffer %s is not an underlying vertex buffer."), Name);
-		return static_cast<FRHIVertexBuffer*>(GetRHI());
+		return GetRHI();
 	}
 
 	/** Returns the buffer to use for structured buffer calls. */
-	FRHIStructuredBuffer* GetRHIStructuredBuffer() const
+	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
+	FORCEINLINE FRHIBuffer* GetRHIStructuredBuffer() const
 	{
-		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer, TEXT("Buffer %s is not an underlying structured buffer."), Name);
-		return static_cast<FRHIStructuredBuffer*>(GetRHI());
+		return GetRHI();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1259,7 +1263,7 @@ private:
 	FRDGBufferHandle Handle;
 
 	/** Tracks the last pass that produced this resource as the graph is built. */
-	FRDGPassHandle LastProducer;
+	FRDGProducerStatesByPipeline LastProducer;
 
 	/** The next buffer to own the PooledBuffer allocation during execution. */
 	FRDGBufferHandle NextOwner;

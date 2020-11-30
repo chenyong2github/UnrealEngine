@@ -52,6 +52,14 @@
 	#define IF_RDG_CPU_SCOPES(Op)
 #endif
 
+#define RDG_CMDLIST_STATS (STATS || ENABLE_STATNAMEDEVENTS)
+
+#if RDG_CMDLIST_STATS
+	#define IF_RDG_CMDLIST_STATS(Op) Op
+#else
+	#define IF_RDG_CMDLIST_STATS(Op)
+#endif
+
 /** ENUMS */
 
 enum class ERDGBuilderFlags

@@ -657,12 +657,10 @@ FORCEINLINE void AddUntrackedAccessPassIfDebug(FRDGBuilder& GraphBuilder, Execut
 	AddUntrackedAccessPassIfDebug(GraphBuilder, {}, MoveTemp(ExecuteLambda));
 }
 
+UE_DEPRECATED(5.0, "AddSetCurrentStatPass is deprecated. Use GraphBuilder.SetCommandListStat instead.")
 FORCEINLINE void AddSetCurrentStatPass(FRDGBuilder& GraphBuilder, TStatId StatId)
 {
-	AddPassIfDebug(GraphBuilder, [StatId](FRHICommandListImmediate& RHICmdList)
-	{
-		RHICmdList.SetCurrentStat(StatId);
-	});
+	GraphBuilder.SetCommandListStat(StatId);
 }
 
 FORCEINLINE void AddDispatchToRHIThreadPass(FRDGBuilder& GraphBuilder)

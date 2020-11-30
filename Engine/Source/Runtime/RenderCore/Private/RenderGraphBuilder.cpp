@@ -607,26 +607,38 @@ void FRDGBuilder::Compile()
 	{
 		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_Culling_Dependencies, FColor::Emerald);
 
-		const auto AddCullingDependency = [&](FRDGPassHandle& ProducerHandle, FRDGPassHandle PassHandle, ERHIAccess Access)
+		const auto AddCullingDependency = [&](FRDGProducerStatesByPipeline& LastProducers, const FRDGProducerState& NextState, ERHIPipeline NextPipeline)
 		{
-			if (Access != ERHIAccess::Unknown)
+			if (NextState.Access == ERHIAccess::Unknown)
 			{
-				if (ProducerHandle.IsValid())
+				return;
+			}
+
+			for (ERHIPipeline LastPipeline : GetRHIPipelines())
+			{
+				FRDGProducerState& LastProducer = LastProducers[LastPipeline];
+
+				if (LastProducer.Access == ERHIAccess::Unknown)
 				{
-					AddPassDependency(ProducerHandle, PassHandle);
+					continue;
 				}
 
-				// If the access is writable, we store the new producer.
-				if (IsWritableAccess(Access))
+				if (FRDGProducerState::IsDependencyRequired(LastProducer, LastPipeline, NextState, NextPipeline))
 				{
-					ProducerHandle = PassHandle;
+					AddPassDependency(LastProducer.PassHandle, NextState.PassHandle);
 				}
+			}
+
+			if (IsWritableAccess(NextState.Access))
+			{
+				LastProducers[NextPipeline] = NextState;
 			}
 		};
 
 		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
 		{
 			FRDGPass* Pass = Passes[PassHandle];
+			const ERHIPipeline PassPipeline = Pass->GetPipeline();
 
 			bool bUntrackedOutputs = Pass->GetParameters().HasExternalOutputs();
 
@@ -647,7 +659,14 @@ void FRDGBuilder::Compile()
 
 				for (uint32 Index = 0, Count = LastProducers.Num(); Index < Count; ++Index)
 				{
-					AddCullingDependency(LastProducers[Index], PassHandle, PassState[bWholePassState ? 0 : Index].Access);
+					const auto& SubresourceState = PassState[bWholePassState ? 0 : Index];
+
+					FRDGProducerState ProducerState;
+					ProducerState.Access = SubresourceState.Access;
+					ProducerState.PassHandle = PassHandle;
+					ProducerState.NoUAVBarrierHandle = SubresourceState.NoUAVBarrierFilter.GetUniqueHandle();
+
+					AddCullingDependency(LastProducers[Index], ProducerState, PassPipeline);
 				}
 
 				bUntrackedOutputs |= Texture->bExternal;
@@ -656,7 +675,14 @@ void FRDGBuilder::Compile()
 			for (auto& BufferPair : Pass->BufferStates)
 			{
 				FRDGBufferRef Buffer = BufferPair.Key;
-				AddCullingDependency(Buffer->LastProducer, PassHandle, BufferPair.Value.State.Access);
+				const auto& SubresourceState = BufferPair.Value.State;
+
+				FRDGProducerState ProducerState;
+				ProducerState.Access = SubresourceState.Access;
+				ProducerState.PassHandle = PassHandle;
+				ProducerState.NoUAVBarrierHandle = SubresourceState.NoUAVBarrierFilter.GetUniqueHandle();
+
+				AddCullingDependency(Buffer->LastProducer, ProducerState, PassPipeline);
 				bUntrackedOutputs |= Buffer->bExternal;
 			}
 
@@ -680,9 +706,13 @@ void FRDGBuilder::Compile()
 		for (const auto& Query : ExtractedTextures)
 		{
 			FRDGTextureRef Texture = Query.Key;
-			for (FRDGPassHandle& ProducerHandle : Texture->LastProducers)
+			for (auto& LastProducer : Texture->LastProducers)
 			{
-				AddCullingDependency(ProducerHandle, EpiloguePassHandle, Texture->AccessFinal);
+				FRDGProducerState StateFinal;
+				StateFinal.Access = Texture->AccessFinal;
+				StateFinal.PassHandle = EpiloguePassHandle;
+
+				AddCullingDependency(LastProducer, StateFinal, ERHIPipeline::Graphics);
 			}
 			Texture->ReferenceCount++;
 		}
@@ -690,7 +720,12 @@ void FRDGBuilder::Compile()
 		for (const auto& Query : ExtractedBuffers)
 		{
 			FRDGBufferRef Buffer = Query.Key;
-			AddCullingDependency(Buffer->LastProducer, EpiloguePassHandle, Buffer->AccessFinal);
+
+			FRDGProducerState StateFinal;
+			StateFinal.Access = Buffer->AccessFinal;
+			StateFinal.PassHandle = EpiloguePassHandle;
+
+			AddCullingDependency(Buffer->LastProducer, StateFinal, ERHIPipeline::Graphics);
 			Buffer->ReferenceCount++;
 		}
 	}
@@ -1440,6 +1475,10 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 	Pass->GPUMask = RHICmdList.GetGPUMask();
 #endif
 
+#if STATS
+	Pass->CommandListStat = CommandListStat;
+#endif
+
 	IF_RDG_CPU_SCOPES(Pass->CPUScopes = CPUScopeStacks.GetCurrentScopes());
 	IF_RDG_GPU_SCOPES(Pass->GPUScopes = GPUScopeStacks.GetCurrentScopes(PassPipeline));
 
@@ -1489,6 +1528,7 @@ void FRDGBuilder::ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FR
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_ExecutePassPrologue, GRDGVerboseCSVStats != 0);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecutePassBegin(Pass));
+	IF_RDG_CMDLIST_STATS(RHICmdList.SetCurrentStat(Pass->CommandListStat));
 
 	const ERDGPassFlags PassFlags = Pass->GetFlags();
 	const ERHIPipeline PassPipeline = Pass->GetPipeline();
@@ -1517,12 +1557,16 @@ void FRDGBuilder::ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FR
 			static_cast<FRHICommandList&>(RHICmdListPass).BeginRenderPass(Pass->GetParameters().GetRenderPassInfo(), Pass->GetName());
 		}
 	}
+
+	BeginUAVOverlap(Pass, RHICmdListPass);
 }
 
 void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePassEpilogue);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_ExecutePassEpilogue, GRDGVerboseCSVStats != 0);
+
+	EndUAVOverlap(Pass, RHICmdListPass);
 
 	const ERDGPassFlags PassFlags = Pass->GetFlags();
 	const ERHIPipeline PassPipeline = Pass->GetPipeline();
@@ -1927,7 +1971,7 @@ void FRDGBuilder::AddTransition(FRDGPassHandle PassHandle, FRDGBufferRef Buffer,
 	{
 		FRHITransitionInfo Info;
 		Info.Resource = Buffer->GetRHIUnchecked();
-		Info.Type = FRDGBufferDesc::GetTransitionResourceType(Buffer->Desc.UnderlyingType);
+		Info.Type = FRHITransitionInfo::EType::Buffer;
 		Info.Flags = StateAfter.Flags;
 		Info.AccessBefore = StateBefore.Access;
 		Info.AccessAfter = StateAfter.Access;

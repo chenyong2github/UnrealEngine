@@ -206,7 +206,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);
 
 	// Copy source requires its own image layout.
-	EnumRemoveFlags(GRHITextureReadAccessMask, ERHIAccess::CopySrc);
+	EnumRemoveFlags(GRHIMergeableAccessMask, ERHIAccess::CopySrc);
 }
 
 void FVulkanDynamicRHI::Init()

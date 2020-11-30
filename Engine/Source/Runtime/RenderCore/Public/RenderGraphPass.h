@@ -366,6 +366,8 @@ private:
 	FRHIGPUMask GPUMask;
 #endif
 
+	IF_RDG_CMDLIST_STATS(TStatId CommandListStat);
+
 	IF_RDG_CPU_SCOPES(FRDGCPUScopes CPUScopes);
 	IF_RDG_GPU_SCOPES(FRDGGPUScopes GPUScopes);
 
