@@ -297,11 +297,21 @@ void FContentBrowserSingleton::FocusContentBrowserSearchField(TSharedPtr<SWidget
 
 void FContentBrowserSingleton::CreateNewAsset(const FString& DefaultAssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory)
 {
-	FocusPrimaryContentBrowser(false);
+	const bool bAllowLockedBrowsers = true;
+	const FName ContentBrowserInstanceName = NAME_None;
+	const bool bCreateNewContentBrowser = false;
 
-	if ( PrimaryContentBrowser.IsValid() )
+	TSharedPtr<SContentBrowser> ContentBrowserToSync = FindContentBrowserToSync(bAllowLockedBrowsers, ContentBrowserInstanceName, bCreateNewContentBrowser);
+
+	if (!ContentBrowserToSync.IsValid())
 	{
-		PrimaryContentBrowser.Pin()->CreateNewAsset(DefaultAssetName, PackagePath, AssetClass, Factory);
+		FocusPrimaryContentBrowser(false);
+		ContentBrowserToSync = PrimaryContentBrowser.Pin();
+	}
+
+	if (ContentBrowserToSync.IsValid())
+	{
+		ContentBrowserToSync->CreateNewAsset(DefaultAssetName, PackagePath, AssetClass, Factory);
 	}
 }
 
