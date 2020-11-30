@@ -116,6 +116,7 @@ namespace Cook
 	struct FCookerTimer;
 	class FExternalRequests;
 	struct FPackageData;
+	struct FGeneratorPackage;
 	struct FPackageDatas;
 	struct FPackageTracker;
 	struct FPendingCookedPlatformData;
@@ -872,9 +873,10 @@ private:
 	 * for this UObject.
 	 *
 	 * @param PackageData the PackageData used to gather all uobjects from
+	 * @param bIsPreCaching true if called for precaching
 	 * @return false if time slice was reached, true if all objects have had BeginCacheForCookedPlatformData called
 	 */
-	bool BeginPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
+	bool BeginPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bIsPreCaching);
 	
 	/**
 	 * Returns true when all objects in package have all their cooked platform data loaded
@@ -1067,13 +1069,32 @@ private:
 	const FPackageNameCache& GetPackageNameCache() const;
 
 	/**
-	* In case the given package object is a Package splitter, this function will split the package and generate other packages.
+	* Try to find a registered CookPackageSplitter to split the given package.
 	*
 	* @param PackageData			Package to be potentially split
-	* @param Obj					Package's object to potentially handle splitting
-	* @param bHasError				If function fails, bHasError is set to true, else false.
+	* @param OutSplitDataObject		Return package's object to handle splitting
+	* @param bOutHasError			Return True if function fails
 	*/
-	void ConditionalSplitPackage(UE::Cook::FPackageData& PackageData, UObject* Obj, bool& bHasError);
+	UE::Cook::Private::FRegisteredCookPackageSplitter* TryGetRegisteredCookPackageSplitter(UE::Cook::FPackageData& PackageData, UObject*& OutSplitDataObject, bool& bOutError);
+
+	/**
+	* Generate a creator package helper object that will be used to split package.
+	*
+	* @param PackageData			Package to split
+	* @param SplitDataObject		Package's object to handle splitting
+	* @param Splitter				Registered CookPackageSplitter to be used for splitting the package
+	*/
+	UE::Cook::FGeneratorPackage* CreateGeneratorPackage(UE::Cook::FPackageData& PackageData, UObject* SplitDataObject, UE::Cook::Private::FRegisteredCookPackageSplitter* Splitter);
+
+	/**
+	* Split the package and generate other packages.
+	*
+	* @param PackageData			Package to be split
+	* @param SplitDataObject		Package's object to handle splitting
+	* @param bOutCompleted			Return true is function is done splitting
+	* @param bOutError				Return true if function fails
+	*/
+	void SplitPackage(UE::Cook::FGeneratorPackage* Generator, bool& bCompleted, bool& bOutError);
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 

@@ -23,7 +23,6 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 
 	// Cook methods
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageCookName) override;
-	virtual void FinalizeGeneratedPackageForCook() override;
 	virtual FString GetPackageNameToCreate() const override;
 #endif
 
@@ -48,10 +47,6 @@ private:
 
 	// Actors to be loaded for cook
 	TArray<FGuid> ActorsToLoadForCook;
-
-	// Loaded actors for cook
-	UPROPERTY(Transient)
-	TArray<AActor*> LoadedActorsForCook;
 #endif
 
 	UPROPERTY()

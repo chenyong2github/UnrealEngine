@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include "CookTypes.h"
+#include "CookPackageSplitter.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
@@ -31,6 +32,7 @@ namespace UE
 {
 namespace Cook
 {
+	struct FGeneratorPackage;
 	struct FPackageDataMonitor;
 	class FPackageDataQueue;
 	struct FPendingCookedPlatformDataCancelManager;
@@ -255,10 +257,6 @@ namespace Cook
 		FName GetCookedFileName() const { return CookedFileName; }
 		void SetCookedFileName(FName InCookedFileName) { CookedFileName = InCookedFileName; }
 
-		/** Get/Set the flag for whether this package is a Generator package. */
-		bool GetIsGeneratorPackage() const { return static_cast<bool>(bIsGeneratorPackage); }
-		void SetIsGeneratorPackage(bool bValue) { bIsGeneratorPackage = bValue != 0; }
-
 		/** Validate that the fields related to the BeginCacheForCookedPlatformData calls are empty, as required when not in the save state. */
 		void CheckCookedPlatformDataEmpty() const;
 		/** Clear the fields related to the BeginCacheForCookedPlatformData calls, when e.g. leaving the save state. Caller is responsible for having already executed any required cancellation steps to avoid dangling pending operations. */
@@ -276,6 +274,16 @@ namespace Cook
 
 		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
+
+		/** Create and return a GeneratorPackage helper object for a given CookPackageSplitter. */
+		FGeneratorPackage* CreateGeneratorPackage(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath);
+		/** Destroy GeneratorPackage helper object. */
+		void DestroyGeneratorPackage() { GeneratorPackage.Reset(); }
+		/** Get GeneratorPackage helper object. */
+		FGeneratorPackage* GetGeneratorPackage() const { return GeneratorPackage.Get(); }
+
+		/** Return whether a GC is required by a generator package as soon as possible. */
+		bool GeneratorPackageRequiresGC() const;
 
 	private:
 		friend struct UE::Cook::FPackageDatas;
@@ -332,6 +340,7 @@ namespace Cook
 		void OnExitHasPackage();
 		void OnEnterHasPackage();
 
+		TUniquePtr<FGeneratorPackage> GeneratorPackage;
 		TArray<const ITargetPlatform*> RequestedPlatforms;
 		TArray<const ITargetPlatform*> CookedPlatforms; // Platform part of the CookedPlatforms set. Always the same length as CookSucceeded.
 		TArray<bool> CookSucceeded; // Success flag part of the CookedPlatforms set. Always the same length as CookedPlatforms.
@@ -352,7 +361,6 @@ namespace Cook
 		uint32 bIsVisited : 1;
 		uint32 bIsPreloadAttempted : 1;
 		uint32 bIsPreloaded : 1;
-		uint32 bIsGeneratorPackage : 1;
 		uint32 bHasSaveCache : 1;
 		uint32 bHasBeginPrepareSaveFailed : 1;
 		uint32 bCookedPlatformDataStarted : 1;
@@ -360,6 +368,42 @@ namespace Cook
 		uint32 bCookedPlatformDataComplete : 1;
 		uint32 bMonitorIsCooked : 1;
 	};
+
+	/**
+	 * Helper that wraps a ICookPackageSplitter, gets/caches packages to generate and provide
+	 * the necessary to iterate over all of them iteratively.
+	 */
+	struct FGeneratorPackage
+	{
+	public:
+		/** Store the provided CookPackageSplitter and prepare the packages to generate. */
+		FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath);
+		/** Return next package to generate. */
+		const ICookPackageSplitter::FGeneratedPackage* GetNextPackageToGenerate();
+		/** Finalize generator package. */
+		void Finalize();
+
+		/** Return whether generator package is finalized. */
+		bool IsFinalized() const { return bIsFinalized; }
+		/** Return CookPackageSplitter. */
+		ICookPackageSplitter* GetCookPackageSplitterInstance() const { return CookPackageSplitterInstance.Get(); }
+		/** Return owner FPackageData. */
+		const UE::Cook::FPackageData& GetOwner() const { return Owner; }
+		/** Return the SplitDataObject. */
+		const UObject* GetSplitDataObject() const { return SplitDataObject; }
+		/** Returns root path of generated packages. */
+		const FString& GetGeneratedUncookedRootPath() const { return GeneratedUncookedRootPath; }
+
+	private:
+		bool bIsFinalized;
+		const UE::Cook::FPackageData& Owner;
+		const UObject* SplitDataObject;
+		const FString GeneratedUncookedRootPath;
+		TUniquePtr<ICookPackageSplitter> CookPackageSplitterInstance; // Cached CookPackageSplitter
+		TArray<ICookPackageSplitter::FGeneratedPackage> PackagesToGenerate; // Generator's packages to generate
+		int32 PackageToGenerateNextIndex = 0; // Index of next package to generate
+	};
+
 
 	/**
 	 * Stores information about the pending action in response to a single call to BeginCacheForCookedPlatformData that was made on a given object for the given platform, when saving the given PackageData.

@@ -116,10 +116,7 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 			if (!Actor)
 			{
 				Actor = ActorDesc->Load();
-			}
-			if (ensure(Actor))
-			{
-				LoadedActorsForCook.Add(Actor);
+				ensure(Actor);
 			}
 		}
 
@@ -137,17 +134,6 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		}
 	}
 	return true;
-}
-
-void UWorldPartitionRuntimeLevelStreamingCell::FinalizeGeneratedPackageForCook()
-{
-#if DO_CHECK
-	// Make sure actors are not external anymore
-	for(AActor * Actor : LoadedActorsForCook)
-	{
-		check(!Actor->IsPackageExternal());
-	}
-#endif
 }
 
 int32 UWorldPartitionRuntimeLevelStreamingCell::GetActorCount() const

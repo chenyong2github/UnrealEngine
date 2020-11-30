@@ -27,7 +27,7 @@ namespace Cook
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas), PreloadableFileFormat(EPackageFormat::Binary)
-		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bIsGeneratorPackage(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 	{
 		SetState(EPackageState::Idle);
 		SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -594,8 +594,8 @@ namespace Cook
 	{
 		check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
 
-		SetHasBeginPrepareSaveFailed(false);
-		SetIsGeneratorPackage(false);
+		check(!GetHasBeginPrepareSaveFailed())
+		check(!GetGeneratorPackage())
 		CheckObjectCacheEmpty();
 		CheckCookedPlatformDataEmpty();
 	}
@@ -605,7 +605,7 @@ namespace Cook
 		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this);
 		ClearObjectCache();
 		SetHasBeginPrepareSaveFailed(false);
-		SetIsGeneratorPackage(false);
+		DestroyGeneratorPackage();
 	}
 
 	void FPackageData::OnEnterInProgress()
@@ -891,6 +891,55 @@ namespace Cook
 					// Until we make that change, we will unnecessarily invalidate and demote some packages after a garbage collect
 					return WeakPtr.Get() == nullptr;
 				});
+	}
+
+	bool FPackageData::GeneratorPackageRequiresGC() const
+	{
+		// We consider that if a FPackageData has valid GeneratorPackage helper object,
+		// this means that COTFS's process of generating packages was not completed 
+		// either due to an error or because it has exceeded a maximum memory threshold. 
+		return GetGeneratorPackage() && !GetHasBeginPrepareSaveFailed();
+	}
+
+	UE::Cook::FGeneratorPackage* FPackageData::CreateGeneratorPackage(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath)
+	{
+		check(!GetGeneratorPackage());
+		GeneratorPackage.Reset(new UE::Cook::FGeneratorPackage(*this, InSplitDataObject, InCookPackageSplitterInstance, InGeneratedUncookedRootPath));
+		return GetGeneratorPackage();
+	}
+	
+	//////////////////////////////////////////////////////////////////////////
+	// FGeneratorPackage
+
+	FGeneratorPackage::FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath)
+	: bIsFinalized(false)
+	, Owner(InOwner)
+	, SplitDataObject(InSplitDataObject)
+	, GeneratedUncookedRootPath(InGeneratedUncookedRootPath)
+	{
+		check(PackageToGenerateNextIndex == 0);
+		check(InCookPackageSplitterInstance);
+		CookPackageSplitterInstance.Reset(InCookPackageSplitterInstance);
+		PackagesToGenerate = CookPackageSplitterInstance->GetGenerateList();
+	}
+
+	const ICookPackageSplitter::FGeneratedPackage* FGeneratorPackage::GetNextPackageToGenerate()
+	{
+		if (PackagesToGenerate.IsValidIndex(PackageToGenerateNextIndex))
+		{
+			return &PackagesToGenerate[PackageToGenerateNextIndex++];
+		}
+		return nullptr;
+	}
+
+	void FGeneratorPackage::Finalize()
+	{
+		if (ensure(!bIsFinalized))
+		{
+			check(PackageToGenerateNextIndex == PackagesToGenerate.Num());
+			GetCookPackageSplitterInstance()->FinalizeGeneratorPackage();
+			bIsFinalized = true;
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
