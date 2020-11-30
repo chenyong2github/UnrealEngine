@@ -258,6 +258,7 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 		// Maintain old input system modification order.
 
 		if (AxisProperties.DeadZone != FInputAxisProperties().DeadZone &&
+			AxisProperties.DeadZone > 0 && 
 			!HasExistingModifier(UInputModifierDeadZone::StaticClass()))
 		{
 			UInputModifierDeadZone* DeadZone = NewObject<UInputModifierDeadZone>();
