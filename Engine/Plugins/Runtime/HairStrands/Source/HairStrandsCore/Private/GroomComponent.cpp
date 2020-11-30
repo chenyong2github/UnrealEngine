@@ -831,7 +831,7 @@ public:
 		if (bUseCulling)
 		{
 			BatchElement.NumPrimitives = 0;
-			BatchElement.IndirectArgsBuffer = bUseCulling ? Instance->HairGroupPublicData->GetDrawIndirectBuffer().Buffer->GetVertexBufferRHI() : nullptr;
+			BatchElement.IndirectArgsBuffer = bUseCulling ? Instance->HairGroupPublicData->GetDrawIndirectBuffer().Buffer->GetRHI() : nullptr;
 			BatchElement.IndirectArgsOffset = 0;
 		}
 		else

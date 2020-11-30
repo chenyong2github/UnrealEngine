@@ -1070,7 +1070,7 @@ namespace VirtualHeightfieldMesh
 		GraphBuilder.Execute();
 
 		// The SRV objects referenced by final rendering are managed outside of RDG.
-		InBuffers.InstanceBufferSRV = RHICreateShaderResourceView(InBuffers.InstanceBuffer->GetStructuredBufferRHI());
+		InBuffers.InstanceBufferSRV = RHICreateShaderResourceView(InBuffers.InstanceBuffer->GetRHI());
 	}
 
 	/** Initialize the volatie resources used in the render graph. */
