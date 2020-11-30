@@ -812,7 +812,7 @@ function createNodeRow(nodeData, includeActions, includeCollapseControls=true) {
 	let columnArray = []
 	let conflict = null
 	if (nodeData.is_blocked) {
-		conflict = getConflict(nodeData.conflicts, nodeData.blockage.targetBranchName, nodeData.blockage.cl)
+		conflict = getConflict(nodeData.conflicts, nodeData.blockage.targetBranchName, nodeData.blockage.change)
 	}
 
 	// Branch Name Column 
