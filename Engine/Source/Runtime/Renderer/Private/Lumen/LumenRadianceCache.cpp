@@ -906,7 +906,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 			RadianceProbeIndirectionTextureSize,
 			PF_R32_UINT,
 			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling);
 
 		FRDGTextureRef RadianceProbeIndirectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc(ProbeIndirectionDesc), TEXT("RadianceProbeIndirectionTexture"));
 		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeIndirectionTexture));

@@ -633,7 +633,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuild
 				VolumeTextureSize.Z, 
 				Format,
 				1,
-				TexCreate_ShaderResource | TexCreate_UAV,
+				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
 				ERHIAccess::SRVMask,
 				CreateInfo);
 			VolumeTextureUAVRHI = RHICreateUnorderedAccessView(VolumeTextureRHI, 0);
