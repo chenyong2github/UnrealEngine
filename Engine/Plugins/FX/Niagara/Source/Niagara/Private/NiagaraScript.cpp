@@ -2054,7 +2054,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			CacheShadersForResources(ResourceToCache, false, false, true, TargetPlatform);
 
-			INiagaraModule NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>(TEXT("Niagara"));
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>(TEXT("Niagara"));
 			NiagaraModule.ProcessShaderCompilationQueue();
 
 			InOutCachedResources.Add(ResourceToCache);

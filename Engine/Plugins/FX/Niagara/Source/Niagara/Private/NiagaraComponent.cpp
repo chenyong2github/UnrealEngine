@@ -150,6 +150,9 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 #if WITH_PARTICLE_PERF_STATS
 		, PerfAsset(InComponent->GetAsset())
 #endif
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+		, PreviewLODDistance(-1.0f)
+#endif
 {
 	FNiagaraSystemInstance* SystemInst = InComponent->GetSystemInstance();
 	if (SystemInst)
@@ -528,6 +531,13 @@ void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Par
 UFXSystemAsset* UNiagaraComponent::GetFXSystemAsset() const
 {
 	return Asset;
+}
+
+void UNiagaraComponent::InitForPerformanceBaseline()
+{
+	bNeverDistanceCull = true;
+	SetAllowScalability(false);
+	SetPreviewLODDistance(true, 1.0f);
 }
 
 void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
@@ -1573,7 +1583,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
-	PARTICLE_PERF_STAT_CYCLES(Asset, EndOfFrame);
+	PARTICLE_PERF_STAT_CYCLES_GT(Asset, EndOfFrame);
 
 	Super::SendRenderDynamicData_Concurrent();
 
@@ -1654,11 +1664,17 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			}
 	#endif
 		
+			float LocalPreviewLODDistance = -1.0f;
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+			LocalPreviewLODDistance = GetPreviewLODDistance();
+#endif
+
 			ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
-				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset](FRHICommandListImmediate& RHICmdList)
+				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset, LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
+				PARTICLE_PERF_STAT_CYCLES_RT(PerfAsset, RenderUpdate);
+				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfAsset, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
@@ -1668,6 +1684,10 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 						Renderer->SetDynamicData_RenderThread(DynamicData[i]);
 					}
 				}
+
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+				NiagaraProxy->PreviewLODDistance = LocalPreviewLODDistance;
+#endif
 			});
 		}
 		else
@@ -1676,7 +1696,8 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				[NiagaraProxy, PerfAsset = Asset](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
+				PARTICLE_PERF_STAT_CYCLES_RT(PerfAsset, RenderUpdate);
+				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfAsset, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)

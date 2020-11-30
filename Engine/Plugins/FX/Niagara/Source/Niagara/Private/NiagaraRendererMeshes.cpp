@@ -202,7 +202,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	check(SceneProxy);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderMeshes);
-	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
+	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfAsset, GetDynamicMeshElements);
 
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
 	FNiagaraDynamicDataMesh* DynamicDataMesh = (static_cast<FNiagaraDynamicDataMesh*>(DynamicDataRender));

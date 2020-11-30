@@ -27,7 +27,7 @@ class NiagaraEmitterInstanceBatcher;
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
 
-#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
+#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING) || NIAGARA_PERF_BASELINES
 
 USTRUCT()
 struct FNiagaraMaterialOverride
@@ -493,8 +493,14 @@ public:
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	FORCEINLINE int32 GetPreviewLODDistance()const;
+	FORCEINLINE float GetPreviewLODDistance()const;
 
+	/**
+	Initializes this component for capturing a performance baseline.
+	This will do things such as disabling distance culling and setting a LODDistance of 0 to ensure the effect is at it's maximum cost.
+	*/
+	UFUNCTION(BlueprintCallable, Category = Performance, meta = (Keywords = "Niagara Performance"))
+	void InitForPerformanceBaseline();
 
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance) { if (SystemInstance) SystemInstance->SetLODDistance(InLODDistance, InMaxLODDistance); }
 
@@ -656,12 +662,11 @@ private:
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
+FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
 #else
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
+FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
-
 
 /**
 * Scene proxy for drawing niagara particle simulations.
@@ -749,6 +754,10 @@ private:
 #if WITH_PARTICLE_PERF_STATS
 public:
 	class UNiagaraSystem* PerfAsset;
+#endif
+
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+	float PreviewLODDistance;
 #endif
 };
 

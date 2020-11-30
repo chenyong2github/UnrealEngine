@@ -5,6 +5,7 @@
 #include "InGamePerformanceTracker.h"
 #include "RenderCommandFence.h"
 #include "NiagaraPlatformSet.h"
+#include "NiagaraPerfBaseline.h"
 #include "NiagaraEffectType.generated.h"
 
 #define DEBUG_SCALABILITY_STATE (!UE_BUILD_SHIPPING)
@@ -237,7 +238,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 /** Contains settings and working data shared among many NiagaraSystems that share some commonality of type. For example ImpactFX vs EnvironmentalFX. */
-UCLASS()
+UCLASS(config = Niagara, perObjectConfig)
 class NIAGARA_API UNiagaraEffectType : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -298,6 +299,17 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	/** Marks that there have been new systems added for this effect type since it's last scalability manager update. Will force a manager update. */
 	uint32 bNewSystemsSinceLastScalabilityUpdate : 1;
 
+#if NIAGARA_PERF_BASELINES
+	UNiagaraBaselineController* GetPerfBaselineController() { return PerformanceBaselineController; }
+	FNiagaraPerfBaselineStats& GetPerfBaselineStats(){return PerfBaselineStats;}
+	FORCEINLINE bool IsPerfBaselineValid(){ return PerfBaselineVersion == CurrentPerfBaselineVersion; }
+	void UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats);
+
+	void InvalidatePerfBaseline();
+
+	void SpawnBaselineActor(UWorld* World);
+#endif
+
 private:
 
 	float AvgTimeMS_GT;
@@ -318,6 +330,35 @@ private:
 
 	/** Fence used to guarantee that the RT is finished using our cycle counters in the case we're gathering RT cycle counts. */
 	FRenderCommandFence ReleaseFence;
+
+	/** Controls generation of performance baseline data for this effect type. */
+	UPROPERTY(EditAnywhere, Category="Performance", Instanced)
+	UNiagaraBaselineController* PerformanceBaselineController;
+
+	/**
+	Performance data gathered from the Baseline System. 
+	These give artists a good idea of the perf to aim for in their own FX.
+	*/
+	UPROPERTY(config)
+	FNiagaraPerfBaselineStats PerfBaselineStats;
+
+	//Version guid at the time these baseline stats were generated.
+	//Allows us to invalidate perf baseline results if there are significant performance optimizations
+	UPROPERTY(config)
+	FGuid PerfBaselineVersion;
+
+#if NIAGARA_PERF_BASELINES
+	/** The current version for perf baselines. Regenerate this if there are significant performance improvements that would invalidate existing baseline data. */
+	static const FGuid CurrentPerfBaselineVersion;
+
+	DECLARE_DELEGATE_OneParam(FGeneratePerfBaselines, TArray<UNiagaraEffectType*>&/**BaselinesToGenerate*/);
+
+	/** Delegate allowing us to call into editor code to generate performance baselines. */
+	static FGeneratePerfBaselines GeneratePerfBaselinesDelegate;
+public:
+	static FGeneratePerfBaselines& OnGeneratePerfBaselines(){ return GeneratePerfBaselinesDelegate; }
+	static void GeneratePerfBaselines();
+#endif
 };
 
 FORCEINLINE int32* UNiagaraEffectType::GetCycleCounter(bool bGameThread, bool bConcurrent)

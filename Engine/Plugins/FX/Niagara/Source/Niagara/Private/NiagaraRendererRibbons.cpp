@@ -291,7 +291,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(
 void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
-	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
+	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfAsset, GetDynamicMeshElements);
 
 	FNiagaraDynamicDataRibbon *DynamicDataRibbon = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
 	if (!DynamicDataRibbon)
@@ -1016,7 +1016,11 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 			}
 		}();
 		const float MAX_CURVATURE_FACTOR = 0.002f; // This will clamp the curvature to around 2.5 km and avoid numerical issues.
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+		const float ViewDistance = SceneProxy->PreviewLODDistance >= 0.0f ? SceneProxy->PreviewLODDistance : SceneProxy->GetBounds().ComputeSquaredDistanceFromBoxToPoint(ViewOriginForDistanceCulling);
+#else
 		const float ViewDistance = SceneProxy->GetBounds().ComputeSquaredDistanceFromBoxToPoint(ViewOriginForDistanceCulling);
+#endif
 		const float MaxDisplacementError = FMath::Max(GNiagaraRibbonTessellationMinDisplacementError, ScreenPercentage * FMath::Sqrt(ViewDistance) / View->LODDistanceFactor);
 		float Tess = TessellationAngle / FMath::Max(MAX_CURVATURE_FACTOR, AcosFast(TessellationCurvature / (TessellationCurvature + MaxDisplacementError)));
 		// FMath::RoundUpToPowerOfTwo ? This could avoid vertices moving around as tesselation increases

@@ -243,6 +243,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "TraceFilter.h"
 #include "Animation/SkinWeightProfileManager.h"
 
+#include "Particles/ParticlePerfStatsManager.h"
+
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
 
@@ -1761,47 +1763,48 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Add the stats to the list, note this is also the order that they get rendered in if active.
 #if !UE_BUILD_SHIPPING
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Version"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatVersion, NULL, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Version"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatVersion), FEngineStatToggle(), bIsRHS));
 #endif // !UE_BUILD_SHIPPING
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_NamedEvents"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatNamedEvents, &UEngine::ToggleStatNamedEvents, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FPS"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatFPS, &UEngine::ToggleStatFPS, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Summary"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSummary, NULL, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Unit"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatUnit, &UEngine::ToggleStatUnit, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_DrawCount"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatDrawCount, NULL, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_NamedEvents"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatNamedEvents), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatNamedEvents), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FPS"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatFPS), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatFPS), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Summary"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSummary), FEngineStatToggle(), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Unit"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatUnit), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnit), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_DrawCount"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatDrawCount), FEngineStatToggle(), bIsRHS));
 	/* @todo Slate Rendering
 	#if STATS
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SlateBatches"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSlateBatches, NULL, true));
 	#endif
 	*/
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Hitches"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatHitches, &UEngine::ToggleStatHitches, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AI"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAI, NULL, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Timecode"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatTimecode, NULL, bIsRHS));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FrameCounter"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatFrameCounter, NULL, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Hitches"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatHitches), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatHitches), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AI"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatAI), FEngineStatToggle(), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Timecode"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatTimecode), FEngineStatToggle(), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FrameCounter"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatFrameCounter), FEngineStatToggle(), bIsRHS));
 
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ColorList"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatColorList, NULL));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Levels"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatLevels, NULL));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ColorList"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatColorList), FEngineStatToggle()));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Levels"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatLevels), FEngineStatToggle()));
 #if !UE_BUILD_SHIPPING
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundMixes"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundMixes, &UEngine::ToggleStatSoundMixes));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulators"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundModulators, &UEngine::ToggleStatSoundModulators));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulatorsHelp"), TEXT("STATCAT_Engine"), FText::GetEmpty(), nullptr, &UEngine::PostStatSoundModulatorHelp));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAudioStreaming, &UEngine::ToggleStatAudioStreaming));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundReverb"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundReverb, nullptr));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSounds, &UEngine::ToggleStatSounds));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundCues, &UEngine::ToggleStatSoundCues));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundWaves"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundWaves, &UEngine::ToggleStatSoundWaves));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundMixes"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSoundMixes), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatSoundMixes)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulators"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSoundModulators), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatSoundModulators)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulatorsHelp"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::PostStatSoundModulatorHelp)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatAudioStreaming), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatAudioStreaming)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundReverb"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSoundReverb), FEngineStatToggle()));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSounds), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatSounds)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSoundCues), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatSoundCues)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundWaves"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatSoundWaves), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatSoundWaves)));
 #endif // !UE_BUILD_SHIPPING
 	/* @todo UE4 physx fix this once we have convexelem drawing again
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_LevelMap"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatLevelMap, NULL));
 	*/
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Detailed"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatDetailed));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Detailed"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatDetailed)));
 #if !UE_BUILD_SHIPPING
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitMax"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatUnitMax));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitGraph"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatUnitGraph));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitTime"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatUnitTime));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Raw"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatRaw));
-#endif
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitMax"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitMax)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitGraph"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitGraph)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitTime"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitTime)));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Raw"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatRaw)));
+#endif // !UE_BUILD_SHIPPING
+
 #if WITH_PARTICLE_PERF_STATS
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ParticlePerf"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatParticlePerf, nullptr, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ParticlePerf"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatParticlePerf), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatParticlePerf), bIsRHS));
 #endif
 
 	// Let any listeners know about the new stats
@@ -2402,9 +2405,9 @@ void UEngine::UpdateTimecode()
 		Provider->FetchAndUpdate();
 
 		if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
-		{
-			FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
-		}
+	{
+		FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+	}
 	}
 }
 
@@ -4472,9 +4475,9 @@ bool UEngine::HandleStatCommand( UWorld* World, FCommonViewportClient* ViewportC
 		const FEngineStatFuncs& EngineStat = EngineStats[StatIdx];
 		if (FParse::Command( &Temp, *EngineStat.CommandNameString ))
 		{
-			if (EngineStat.ToggleFunc)
+			if (EngineStat.ToggleFunc.IsBound())
 			{
-				return ViewportClient ? (this->*(EngineStat.ToggleFunc))(World, ViewportClient, Temp) : false;
+				return ViewportClient ? EngineStat.ToggleFunc.Execute(World, ViewportClient, Temp) : false;
 			}
 			return true;
 		}
@@ -8783,7 +8786,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		CauseCrtError();
 		return true;
 	}
@@ -10376,7 +10379,7 @@ float UEngine::DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCa
 /**
 *	Renders stats
 *
-*   @param World			The World to render stats about
+*  @param World			The World to render stats about
 *	@param Viewport			The viewport to render to
 *	@param Canvas			Canvas object to use for rendering
 *	@param CanvasObject		Optional canvas object for visualizing properties
@@ -14744,9 +14747,9 @@ int32 UEngine::GetGlobalFunctionCallspace(UFunction* Function, UObject* Function
 
 		// Next check BP stack
 		if (!PossibleWorld && Stack && Stack->Object)
-		{
+			{
 			PossibleWorld = Stack->Object->GetWorld();
-		}
+			}
 
 		CurrentWorld = GetCurrentPlayWorld(PossibleWorld);
 #endif
@@ -14758,13 +14761,13 @@ int32 UEngine::GetGlobalFunctionCallspace(UFunction* Function, UObject* Function
 			if (WorldNetMode == NM_DedicatedServer && bIsCosmeticFunc)
 			{
 				return FunctionCallspace::Absorbed;
-			}
+		}
 			if (WorldNetMode == NM_Client && bIsAuthoritativeFunc)
-			{
+		{
 				return FunctionCallspace::Absorbed;
 			}
+			}
 		}
-	}
 
 	// If we can't find a net mode always call locally
 	return FunctionCallspace::Local;
@@ -14774,7 +14777,7 @@ bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
 {
 	UWorld* CurrentWorld = GetCurrentPlayWorld();
 	if (CurrentWorld)
-	{
+		{
 		return (CurrentWorld->GetNetMode() == NM_Client);
 	}
 
@@ -14787,7 +14790,7 @@ bool UEngine::ShouldAbsorbCosmeticOnlyEvent()
 	if (CurrentWorld)
 	{
 		return (CurrentWorld->GetNetMode() == NM_DedicatedServer);
-	}
+		}
 
 	return false;
 }
@@ -14932,13 +14935,28 @@ void UEngine::RenderEngineStats(UWorld* World, FViewport* Viewport, FCanvas* Can
 	for (int32 StatIdx = 0; StatIdx < EngineStats.Num(); StatIdx++)
 	{
 		const FEngineStatFuncs& EngineStat = EngineStats[StatIdx];
-		if (EngineStat.RenderFunc && (!Viewport->GetClient() || Viewport->GetClient()->IsStatEnabled(EngineStat.CommandNameString)))
+		if (EngineStat.RenderFunc.IsBound() && (!Viewport->GetClient() || Viewport->GetClient()->IsStatEnabled(EngineStat.CommandNameString)))
 		{
 			// Render the stat either on the left or right hand side of the screen, keeping track of the new Y position
 			const int32 StatX = EngineStat.bIsRHS ? RHSX : LHSX;
 			int32* StatY = EngineStat.bIsRHS ? &InOutRHSY : &InOutLHSY;
-			*StatY = (this->*(EngineStat.RenderFunc))(World, Viewport, Canvas, StatX, *StatY, ViewLocation, ViewRotation);
+			*StatY = EngineStat.RenderFunc.Execute(World, Viewport, Canvas, StatX, *StatY, ViewLocation, ViewRotation);
 		}
+	}
+}
+
+void UEngine::AddEngineStat(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, UEngine::FEngineStatRender InRenderFunc /* = nullptr */, UEngine::FEngineStatToggle InToggleFunc /* = nullptr */, const bool bInIsRHS /* = false */)
+{
+	// Let any listeners know about the new stat
+	const FEngineStatFuncs& EngineStat = EngineStats.Add_GetRef(FEngineStatFuncs(InCommandName, InCategoryName, InDescriptionString, InRenderFunc, InToggleFunc, bInIsRHS));
+	NewStatDelegate.Broadcast(EngineStat.CommandName, EngineStat.CategoryName, EngineStat.DescriptionString);
+}
+
+void UEngine::RemoveEngineStat(const FName& InCommandName)
+{
+	if (int32 Index = EngineStats.IndexOfByPredicate([InCommandName](const FEngineStatFuncs& CheckStat) { return CheckStat.CommandName == InCommandName; }))
+	{
+		EngineStats.RemoveAt(Index);
 	}
 }
 
@@ -16432,13 +16450,21 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 }
 #endif
 
+#if !UE_BUILD_SHIPPING
+bool UEngine::ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
+{
+	FParticlePerfStatsManager::TogglePerfStatsRender(World);
+	return false;
+}
+
 int32 UEngine::RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 #if WITH_PARTICLE_PERF_STATS
-	Y = FParticlePerfStats::RenderStats(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
+	Y = FParticlePerfStatsManager::RenderStats(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 #endif
 	return Y;
 }
+#endif
 
 ERHIFeatureLevel::Type UEngine::GetDefaultWorldFeatureLevel() const
 {
