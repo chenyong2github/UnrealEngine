@@ -33,6 +33,7 @@ TRACELOG_API void Update();
 void	Backtracer_Create(FMalloc*);
 void	Backtracer_Initialize();
 void*	Backtracer_GetBacktraceId(void*);
+void 	MemoryTrace_InitTags(FMalloc*);
 
 ////////////////////////////////////////////////////////////////////////////////
 #if defined(_MSC_VER)
@@ -798,8 +799,12 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 		// getting ticked.
 		atexit([] () { GAllocationTrace->EnableTracePump(); });
 
+		GAllocationTrace.Construct();
 		GAllocationTrace->Initialize();
+
+		MemoryTrace_InitTags(InMalloc);
 #if USE_OVERVIEW_TRACE
+		GSummaryTrace.Construct();
 		GSummaryTrace->Initialize();
 #endif
 
@@ -814,11 +819,6 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 
 		static FUndestructed<FMallocWrapper> MemoryTrace;
 		MemoryTrace.Construct(InMalloc, bLight);
-
-		GAllocationTrace.Construct();
-#if USE_OVERVIEW_TRACE
-		GSummaryTrace.Construct();
-#endif
 
 		return &MemoryTrace;
 	}

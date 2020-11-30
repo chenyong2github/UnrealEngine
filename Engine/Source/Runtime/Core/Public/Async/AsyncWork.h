@@ -63,6 +63,10 @@ class FAutoDeleteAsyncTask
 	TTask Task;
 	/** optional LLM tag */
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
+#if USE_MEMORY_TRACE_TAGS
+	/** optional Trace tag */
+	int32 InheritedTraceTag;
+#endif
 
 	/* Generic start function, not called directly
 	 * @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
@@ -70,6 +74,9 @@ class FAutoDeleteAsyncTask
 	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool)
 	{
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
+#if USE_MEMORY_TRACE_TAGS
+		InheritedTraceTag = MemoryTrace_GetActiveTag();
+#endif
 
 		FPlatformMisc::MemoryBarrier();
 		FQueuedThreadPool* QueuedPool = InQueuedPool;
@@ -94,6 +101,7 @@ class FAutoDeleteAsyncTask
 	void DoWork()
 	{
 		LLM_SCOPE(InheritedLLMTag);
+		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
 		FScopeCycleCounter Scope(Task.GetStatId(), true);
 
 		Task.DoWork();

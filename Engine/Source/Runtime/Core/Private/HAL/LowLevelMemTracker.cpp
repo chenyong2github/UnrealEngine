@@ -1185,6 +1185,8 @@ void FLowLevelMemTracker::RegisterCustomTagInternal(int32 Tag, const TCHAR* InDi
 
 void FLowLevelMemTracker::RegisterPlatformTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag)
 {
+	MemoryTrace_AnnounceCustomTag(Tag, ParentTag, Name);
+
 	if (bIsDisabled)
 	{
 		return;
@@ -1197,6 +1199,8 @@ void FLowLevelMemTracker::RegisterPlatformTag(int32 Tag, const TCHAR* Name, FNam
 
 void FLowLevelMemTracker::RegisterProjectTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag)
 {
+	MemoryTrace_AnnounceCustomTag(Tag, ParentTag, Name);
+
 	if (bIsDisabled)
 	{
 		return;
