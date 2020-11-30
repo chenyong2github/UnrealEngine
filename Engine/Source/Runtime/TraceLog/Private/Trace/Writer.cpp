@@ -555,7 +555,12 @@ void Writer_InternalInitialize()
 			}
 			~FInitializer()
 			{
-				Writer_InternalShutdown();
+				/* We'll not shut anything down here so we can hopefully capture
+				 * any subsequent events. However, we will shutdown the worker
+				 * thread and leave it for something else to call update() (mem
+				 * tracing at time of writing). Windows will have already done
+				 * this implicitly in ExitProcess() anyway. */
+				Writer_WorkerJoin();
 			}
 		} Initializer;
 	}
