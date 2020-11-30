@@ -208,6 +208,8 @@ bool FVirtualTextureBuiltData::ValidateCompression(FStringView const& InDDCDebug
 		}
 #endif // WITH_EDITORONLY_DATA
 
+		bResult = bResult && (ChunkData != nullptr);
+
 		uint32 TileIndex = TileIndexPerChunk[ChunkIndex];
 		while (bResult && TileIndex < TileIndexPerChunk[ChunkIndex + 1])
 		{
