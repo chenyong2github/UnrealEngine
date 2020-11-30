@@ -10,9 +10,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogWinDualShock, Log, All);
 
 #if DUALSHOCK4_SUPPORT
 // If these cannot be found please read Engine/Platforms/PS4/Source/ThirdParty/LibScePad/NoRedistReadme.txt
+#include "Windows/AllowWindowsPlatformTypes.h"
 #include <pad.h>
+#if LIBSCEPAD_STATIC
 #include <pad_windows_static.h>
-#include "PS4Controllers.h"
+#endif
+#include "Windows/HideWindowsPlatformTypes.h"
+#include LIBSCEPAD_PLATFORM_INCLUDE
 
 class FWinDualShock : public IInputDevice
 {

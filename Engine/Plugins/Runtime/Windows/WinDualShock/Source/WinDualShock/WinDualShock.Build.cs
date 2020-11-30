@@ -28,11 +28,10 @@ namespace UnrealBuildTool.Rules
 				if (bHasSupport)
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, new string[] { "LibScePad" });
-					PrivateIncludePathModuleNames.AddRange(new string[]
-					{
-						"ApplicationCore_Sony",
-						"ApplicationCore_PS4"
-					});
+					string[] Includes = new string[2];
+					Includes[0] = "ApplicationCore_Sony";
+					Includes[1] = "ApplicationCore_" + (string)LibScePadType.GetMethod("GetPlatformName").Invoke(null, null);
+					PrivateIncludePathModuleNames.AddRange(Includes);
 				}
 			}
 
