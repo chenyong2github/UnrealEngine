@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Particles/ParticlePerfStats.h"
+#include "ProfilingDebugging/CSVProfiler.h"
+#include "RenderingThread.h"
 
 #if WITH_PARTICLE_PERF_STATS
 

@@ -13,7 +13,7 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UNiagaraEffectType;
 class UTextRenderComponent;
-
+class FCommonViewportClient;
 
 USTRUCT(BlueprintType)
 struct NIAGARA_API FNiagaraPerfBaselineStats

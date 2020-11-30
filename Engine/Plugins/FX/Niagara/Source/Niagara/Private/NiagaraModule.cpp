@@ -22,6 +22,7 @@
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "Misc/CoreDelegates.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
