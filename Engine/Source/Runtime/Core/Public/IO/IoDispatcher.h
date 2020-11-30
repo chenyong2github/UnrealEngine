@@ -784,6 +784,8 @@ public:
 	CORE_API FIoRequest& operator=(FIoRequest&& Other);
 	CORE_API FIoStatus						Status() const;
 	CORE_API TIoStatusOr<FIoBuffer>			GetResult();
+	CORE_API void							Cancel();
+	CORE_API void							UpdatePriority(uint32 NewPriority);
 
 private:
 	FIoRequestImpl* Impl = nullptr;

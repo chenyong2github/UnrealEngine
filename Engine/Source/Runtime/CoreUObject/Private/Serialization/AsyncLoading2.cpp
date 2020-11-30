@@ -2335,14 +2335,8 @@ public:
 		return AsyncPackageLookup.FindRef(PackageId);
 	}
 
-	/**
-	* [ASYNC THREAD] Inserts package to queue according to priority.
-	*
-	* @param PackageName - async package name.
-	* @param InsertMode - Insert mode, describing how we insert this package into the request list
-	*/
-	void InsertPackage(FAsyncPackage2* Package, bool bReinsert = false);
-
+	void UpdatePackagePriority(FAsyncPackage2* Package, int32 NewPriority);
+	
 	FAsyncPackage2* FindOrInsertPackage(FAsyncPackageDesc2* InDesc, bool& bInserted);
 
 	/**
@@ -2673,6 +2667,13 @@ void FAsyncLoadingThread2::QueuePackage(FAsyncPackageDesc2& Package)
 	AltZenaphore.NotifyOne();
 }
 
+void FAsyncLoadingThread2::UpdatePackagePriority(FAsyncPackage2* Package, int32 NewPriority)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePackagePriority);
+	Package->Desc.Priority = NewPriority;
+	Package->IoRequest.UpdatePriority(NewPriority);
+}
+
 FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* Desc, bool& bInserted)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FindOrInsertPackage);
@@ -2689,9 +2690,16 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* De
 			AsyncPackageLookup.Add(Desc->GetAsyncPackageId(), Package);
 			bInserted = true;
 		}
-		else if (Desc->RequestID > 0)
+		else
 		{
-			Package->AddRequestID(Desc->RequestID);
+			if (Desc->RequestID > 0)
+			{
+				Package->AddRequestID(Desc->RequestID);
+			}
+			if (Desc->Priority > Package->Desc.Priority)
+			{
+				UpdatePackagePriority(Package, Desc->Priority);
+			}
 		}
 		if (Desc->PackageLoadedDelegate.IsValid())
 		{
