@@ -20,6 +20,7 @@ import { roboAnalytics } from './roboanalytics';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Settings } from './settings';
 import { Status } from './status';
+import { GraphBotState } from "./status-types"
 import { TickJournal } from './tick-journal';
 import { GraphAPI } from '../new/graph';
 
@@ -407,10 +408,4 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 	private _shutdownCb: Function | null = null
 
 	private crashRequested: string | null = null
-}
-
-export interface GraphBotState {
-	isRunningBots: boolean
-	lastBranchspecCl?: number
-	lastError?: Object
 }
