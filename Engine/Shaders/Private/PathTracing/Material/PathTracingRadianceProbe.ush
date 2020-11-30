@@ -11,12 +11,6 @@ PathTracingLambert.usf: Lambertian BRDF sampling functions
 	#include "FirstBounceRayGuidingCommon.ush"
 #endif
 
-float4 CosineSampleHemisphereConcentric( float2 E )
-{
-	float2 d = UniformSampleDiskConcentric(E);
-	return float4(d.x, d.y, sqrt(saturate(1 - d.x * d.x - d.y * d.y)), sqrt(saturate(1 - d.x * d.x - d.y * d.y)) / PI);
-}
-
 float2 InverseConcentricMapping(float2 p)
 {
 	// Handle degeneracy at the origin
