@@ -53,8 +53,6 @@ struct FGameplayTaskEventData
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClaimedResourcesChangeSignature, FGameplayResourceSet, NewlyClaimed, FGameplayResourceSet, FreshlyReleased);
 
-typedef TArray<UGameplayTask*>::TConstIterator FConstGameplayTaskIterator;
-
 /**
 *	The core ActorComponent for interfacing with the GameplayAbilities System
 */
@@ -168,9 +166,10 @@ public:
 	FString GetTasksPriorityQueueDescription() const;
 	static FString GetTaskStateName(EGameplayTaskState Value);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	FConstGameplayTaskIterator GetTickingTaskIterator() const;
-	FConstGameplayTaskIterator GetKnownTaskIterator() const;
-	FConstGameplayTaskIterator GetPriorityQueueIterator() const;
+	using GameplayTaskContainerType = decltype(TickingTasks);
+	GameplayTaskContainerType::TConstIterator GetTickingTaskIterator() const;
+	GameplayTaskContainerType::TConstIterator GetKnownTaskIterator() const;
+	GameplayTaskContainerType::TConstIterator GetPriorityQueueIterator() const;
 
 #if ENABLE_VISUAL_LOG
 	void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
@@ -201,3 +200,5 @@ private:
 
 	FORCEINLINE bool CanProcessEvents() const { return !bInEventProcessingInProgress && (EventLockCounter == 0); }
 };
+
+typedef UGameplayTasksComponent::GameplayTaskContainerType::TConstIterator FConstGameplayTaskIterator;

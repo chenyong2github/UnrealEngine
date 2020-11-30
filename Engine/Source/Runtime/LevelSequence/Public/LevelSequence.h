@@ -144,7 +144,7 @@ public:
 	UObject* FindMetaDataByClass(TSubclassOf<UObject> InClass) const
 	{
 #if WITH_EDITORONLY_DATA
-		UObject* const* Found = MetaDataObjects.FindByPredicate([InClass](UObject* In) { return In && In->GetClass() == InClass; });
+		auto const* Found = MetaDataObjects.FindByPredicate([InClass](UObject* In) { return In && In->GetClass() == InClass; });
 		return Found ? CastChecked<UObject>(*Found) : nullptr;
 #endif
 		return nullptr;
@@ -218,7 +218,7 @@ public:
 	MetaDataType* FindMetaData() const
 	{
 		UClass* PredicateClass = MetaDataType::StaticClass();
-		UObject* const* Found = MetaDataObjects.FindByPredicate([PredicateClass](UObject* In){ return In && In->GetClass() == PredicateClass; });
+		auto const* Found = MetaDataObjects.FindByPredicate([PredicateClass](UObject* In){ return In && In->GetClass() == PredicateClass; });
 		return Found ? CastChecked<MetaDataType>(*Found) : nullptr;
 	}
 

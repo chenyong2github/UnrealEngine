@@ -358,10 +358,10 @@ public:
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
 	 */
-	FORCEINLINE TArray<UMovieSceneNodeGroup*>::RangedForIteratorType      begin()	{ return NodeGroups.begin(); }
-	FORCEINLINE TArray<UMovieSceneNodeGroup*>::RangedForConstIteratorType begin()	const { return NodeGroups.begin(); }
-	FORCEINLINE TArray<UMovieSceneNodeGroup*>::RangedForIteratorType      end()	{ return NodeGroups.end(); }
-	FORCEINLINE TArray<UMovieSceneNodeGroup*>::RangedForConstIteratorType end()	const { return NodeGroups.end(); }
+	FORCEINLINE auto begin()	{ return NodeGroups.begin(); }
+	FORCEINLINE auto begin()	const { return NodeGroups.begin(); }
+	FORCEINLINE auto end()	{ return NodeGroups.end(); }
+	FORCEINLINE auto end()	const { return NodeGroups.end(); }
 #endif
 };
 

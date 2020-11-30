@@ -430,7 +430,7 @@ public:
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
-		UNiagaraParameterCollectionInstance** Found = ParameterCollectionOverrides.FindByPredicate(
+		auto* Found = ParameterCollectionOverrides.FindByPredicate(
 			[&](const UNiagaraParameterCollectionInstance* CheckInst)
 		{
 			return CheckInst && Collection == CheckInst->Collection;

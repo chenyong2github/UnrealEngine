@@ -116,7 +116,7 @@ struct FMovieSceneBinding
 	 */
 	TArray<UMovieSceneTrack*> StealTracks()
 	{
-		TArray<UMovieSceneTrack*> Empty;
+		decltype(Tracks) Empty;
 		Swap(Empty, Tracks);
 		return Empty;
 	}

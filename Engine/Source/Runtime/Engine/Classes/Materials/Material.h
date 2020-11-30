@@ -1285,8 +1285,8 @@ public:
 					{
 						if (LayersParameter.ParameterInfo.Name == ParameterName)
 						{
-							Layers = &LayersParameter.Value.Layers;
-							Blends = &LayersParameter.Value.Blends;
+							Layers = &static_cast<const TArray<UMaterialFunctionInterface*>&>(LayersParameter.Value.Layers);
+							Blends = &static_cast<const TArray<UMaterialFunctionInterface*>&>(LayersParameter.Value.Blends);
 #if WITH_EDITOR
 							LayerNames = &LayersParameter.Value.LayerNames;
 #endif

@@ -166,7 +166,7 @@ public:
 	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
 	const ClothConfigType* GetClothConfig() const
 	{
-		const UClothConfigBase* const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
+		auto const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
 		return ClothConfig ? ExactCast<ClothConfigType>(*ClothConfig) : nullptr;
 	}
 
@@ -174,7 +174,7 @@ public:
 	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
 	ClothConfigType* GetClothConfig()
 	{
-		UClothConfigBase* const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
+		auto const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
 		return ClothConfig ? ExactCast<ClothConfigType>(*ClothConfig) : nullptr;
 	}
 
