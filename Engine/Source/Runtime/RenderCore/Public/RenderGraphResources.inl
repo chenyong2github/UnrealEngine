@@ -172,58 +172,6 @@ FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTe
 	return OutDesc;
 }
 
-inline FRDGTextureDesc FRDGTextureDesc::Create2DDesc(
-	FIntPoint InExtent,
-	EPixelFormat InFormat,
-	const FClearValueBinding& InClearValue,
-	ETextureCreateFlags InFlags,
-	ETextureCreateFlags InTargetableFlags,
-	bool bInForceSeparateTargetAndShaderResource,
-	uint16 InNumMips)
-{
-	return Translate(FPooledRenderTargetDesc::Create2DDesc(InExtent, InFormat, InClearValue, InFlags, InTargetableFlags, bInForceSeparateTargetAndShaderResource, InNumMips));
-}
-
-inline FRDGTextureDesc FRDGTextureDesc::CreateVolumeDesc(
-	uint32 InSizeX,
-	uint32 InSizeY,
-	uint32 InSizeZ,
-	EPixelFormat InFormat,
-	const FClearValueBinding& InClearValue,
-	ETextureCreateFlags InFlags,
-	ETextureCreateFlags InTargetableFlags,
-	bool bInForceSeparateTargetAndShaderResource,
-	uint16 InNumMips)
-{
-	return Translate(FPooledRenderTargetDesc::CreateVolumeDesc(InSizeX, InSizeY, InSizeZ, InFormat, InClearValue, InFlags, InTargetableFlags, bInForceSeparateTargetAndShaderResource, InNumMips));
-}
-
-inline FRDGTextureDesc FRDGTextureDesc::CreateCubemapDesc(
-	uint32 InExtent,
-	EPixelFormat InFormat,
-	const FClearValueBinding& InClearValue,
-	ETextureCreateFlags InFlags,
-	ETextureCreateFlags InTargetableFlags,
-	bool bInForceSeparateTargetAndShaderResource,
-	uint32 InArraySize,
-	uint16 InNumMips)
-{
-	return Translate(FPooledRenderTargetDesc::CreateCubemapDesc(InExtent, InFormat, InClearValue, InFlags, InTargetableFlags, bInForceSeparateTargetAndShaderResource, InArraySize, InNumMips));
-}
-
-inline FRDGTextureDesc FRDGTextureDesc::CreateCubemapArrayDesc(
-	uint32 InExtent,
-	EPixelFormat InFormat,
-	const FClearValueBinding& InClearValue,
-	ETextureCreateFlags InFlags,
-	ETextureCreateFlags InTargetableFlags,
-	bool bInForceSeparateTargetAndShaderResource,
-	uint32 InArraySize,
-	uint16 InNumMips)
-{
-	return Translate(FPooledRenderTargetDesc::CreateCubemapArrayDesc(InExtent, InFormat, InClearValue, InFlags, InTargetableFlags, bInForceSeparateTargetAndShaderResource, InArraySize, InNumMips));
-}
-
 inline FRDGTextureSubresourceRange FRDGTextureSRV::GetSubresourceRange() const
 {
 	FRDGTextureSubresourceRange Range = GetParent()->GetSubresourceRange();
