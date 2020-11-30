@@ -117,7 +117,7 @@ public:
 		bool bWasAtOldPos;
 		{
 			FScopeLock Lock(&CriticalSection);
-			bWasAtOldPos = Hash.RemoveSingle(old_idx, Value);
+			bWasAtOldPos = Hash.RemoveSingle(old_idx, Value) == 1;
 		}
 		check(bWasAtOldPos);
 		{
