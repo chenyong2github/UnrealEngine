@@ -1348,14 +1348,14 @@ void FFormatArgumentValue::ToFormattedString(const bool bInRebuildText, const bo
 	}
 }
 
-FString FFormatArgumentValue::ToExportedString() const
+FString FFormatArgumentValue::ToExportedString(const bool bStripPackageNamespace) const
 {
 	FString Result;
-	ToExportedString(Result);
+	ToExportedString(Result, bStripPackageNamespace);
 	return Result;
 }
 
-void FFormatArgumentValue::ToExportedString(FString& OutResult) const
+void FFormatArgumentValue::ToExportedString(FString& OutResult, const bool bStripPackageNamespace) const
 {
 	switch (Type)
 	{
@@ -1374,7 +1374,7 @@ void FFormatArgumentValue::ToExportedString(FString& OutResult) const
 		OutResult += LexToString(DoubleValue);
 		break;
 	case EFormatArgumentType::Text:
-		FTextStringHelper::WriteToBuffer(OutResult, GetTextValue(), true);
+		FTextStringHelper::WriteToBuffer(OutResult, GetTextValue(), /*bRequiresQuotes*/true, bStripPackageNamespace);
 		break;
 	case EFormatArgumentType::Gender:
 		TextStringificationUtil::WriteScopedEnumToBuffer(OutResult, TEXT("ETextGender::"), GetGenderValue());
@@ -1781,7 +1781,7 @@ bool FTextStringHelper::ReadFromString(const TCHAR* Buffer, FText& OutValue, con
 	return false;
 }
 
-void FTextStringHelper::WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes)
+void FTextStringHelper::WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes, const bool bStripPackageNamespace)
 {
 	const FTextHistory& TextHistory = Value.TextData->GetTextHistory();
 	const FString& StringValue = FTextInspector::GetDisplayString(Value);
@@ -1797,7 +1797,7 @@ void FTextStringHelper::WriteToBuffer(FString& Buffer, const FText& Value, const
 #undef LOC_DEFINE_REGION
 	}
 	// Is this text that should be written via its text history?
-	else if (TextHistory.WriteToBuffer(Buffer, Value.TextData->GetLocalizedString()))
+	else if (TextHistory.WriteToBuffer(Buffer, Value.TextData->GetLocalizedString(), bStripPackageNamespace))
 	{
 	}
 	// This isn't special text, so write as a raw string (potentially quoted)

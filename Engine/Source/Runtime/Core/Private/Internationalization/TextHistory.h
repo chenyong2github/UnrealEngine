@@ -37,7 +37,7 @@ enum class ETextHistoryType : int8
 	static  bool StaticShouldReadFromBuffer(const TCHAR* Buffer);																											\
 	virtual bool ShouldReadFromBuffer(const TCHAR* Buffer) const override { return StaticShouldReadFromBuffer(Buffer); }													\
 	virtual const TCHAR* ReadFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace, const TCHAR* PackageNamespace, FTextDisplayStringPtr& OutDisplayString) override;	\
-	virtual bool WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString) const override;
+	virtual bool WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString, const bool bStripPackageNamespace) const override;
 
 /** Utilities for stringifying text */
 namespace TextStringificationUtil
@@ -184,12 +184,13 @@ public:
 	/**
 	 * Write this text history to a stream of text
 	 *
-	 * @param Buffer			The buffer of text to write to.
-	 * @param DisplayString		The display string associated with the text being written
+	 * @param Buffer				 The buffer of text to write to.
+	 * @param DisplayString			 The display string associated with the text being written
+	 * @param bStripPackageNamespace True to strip the package namespace from the written NSLOCTEXT value (eg, when saving cooked data)
 	 *
 	 * @return True if we wrote valid data into Buffer, false otherwise
 	 */
-	virtual bool WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString) const;
+	virtual bool WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString, const bool bStripPackageNamespace) const;
 
 	/** Returns TRUE if the Revision is out of date */
 	virtual bool IsOutOfDate() const;
