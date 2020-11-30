@@ -42,7 +42,8 @@ public:
 		TUniqueFunction<void()>&& ThreadFunction,
 		uint32 StackSize = 0,
 		EThreadPriority ThreadPriority = TPri_Normal,
-		uint64 ThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask()
+		uint64 ThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask(),
+		bool bIsForkable = false
 	);
 
 	// non-copyable

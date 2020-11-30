@@ -2072,7 +2072,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		// initialize task graph sub-system with potential multiple threads
 		SCOPED_BOOT_TIMING("FTaskGraphInterface::Startup");
-		FTaskGraphInterface::Startup(FPlatformMisc::NumberOfCores());
+		FTaskGraphInterface::Startup(FPlatformMisc::NumberOfWorkerThreadsToSpawn());
 		FTaskGraphInterface::Get().AttachToThread(ENamedThreads::GameThread);
 	}
 
@@ -2167,15 +2167,36 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 #if WITH_EDITOR
 		{
+			int32 NumThreadsInLargeThreadPool = 1;
+			int32 NumThreadsInThreadPool = 1;
 			// when we are in the editor we like to do things like build lighting and such
 			// this thread pool can be used for those purposes
-			GLargeThreadPool = FQueuedThreadPool::Allocate();
-			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+			extern CORE_API int32 GUseNewTaskBackend;
+			if (!GUseNewTaskBackend)
+			{
+				NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+				NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+				GLargeThreadPool = FQueuedThreadPool::Allocate();
 
+			}
+			else
+			{
+				NumThreadsInLargeThreadPool = FMath::Max(LowLevelTasks::FScheduler::Get().GetNumWorkers() - 2, 2u);			
+				if(NumThreadsInLargeThreadPool < int(LowLevelTasks::FScheduler::Get().GetNumWorkers()))
+				{
+					NumThreadsInThreadPool = FMath::Max(NumThreadsInLargeThreadPool - 1, 1);
+					GLargeThreadPool = new FQueuedLowLevelThreadPool(NumThreadsInLargeThreadPool);
+				}
+				else
+				{
+					NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+					NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+					GLargeThreadPool = FQueuedThreadPool::Allocate();
+				}
+			}
+		
 			// TaskGraph has it's HP threads slightly below normal, we want to be below the taskgraph HP threads to avoid interfering with the game-thread.
 			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_BelowNormal, TEXT("LargeThreadPool")));
-
-			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 
 			// we are only going to give dedicated servers one pool thread
 			if (FPlatformProperties::IsServerOnly())

@@ -24,6 +24,8 @@
 #include "Misc/MemStack.h"
 #include "Templates/Atomic.h"
 
+#include "Async/Fundamental/Task.h"
+
 #if !defined(STATS)
 #error "STATS must be defined as either zero or one."
 #endif
@@ -404,6 +406,10 @@ public:
 		TriggerEventWhenTasksComplete(InEvent, Prerequistes, CurrentThreadIfKnown, TriggerThread);
 	}
 
+	virtual FBaseGraphTask* FindWork(ENamedThreads::Type ThreadInNeed) = 0;
+
+	virtual void StallForTuning(int32 Index, bool Stall) = 0;
+
 	/**
 	*	Delegates for shutdown
 	*	@param	Callback - function to call prior to shutting down the taskgraph
@@ -433,7 +439,7 @@ public:
 	enum
 	{
 		/** Total size in bytes for a small task that will use the custom allocator **/
-		SMALL_TASK_SIZE = 256
+		SMALL_TASK_SIZE = 256 + sizeof(LowLevelTasks::FTask)
 	};
 	typedef TLockFreeFixedSizeAllocator_TLSCache<SMALL_TASK_SIZE, PLATFORM_CACHE_LINE_SIZE, FNoopCounter, true> TSmallTaskAllocator;
 protected:
@@ -507,28 +513,37 @@ private:
 	friend class FTaskThreadAnyThread;
 	friend class FGraphEvent;
 	friend class FTaskGraphImplementation;
+	friend class FTaskGraphCompatibilityImplementation;
+	LowLevelTasks::FTask TaskHandle;
 
 	// Subclass API
 
 	/** 
-	 *	Virtual call to actually execute the task. This should also call the destructor and free any memory.
-	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new taks.
+	 *	Virtual call to actually execute the task. This will also call the destructor and free any memory in the old backend if bDeleteOnCompletion is set to true.
+	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new tasks.
+	 *  @param bDeleteOnCompletion; specifies if the task should delete itself after completion.
 	 **/
-	virtual void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread)=0;
+	virtual void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)=0;
+
+	/** 
+	*	Virtual call to actually delete the task any memory. This is used for the New Backend.
+	**/
+	virtual void DeleteTask() = 0;
 
 	// API called from other parts of the system
 
 	/** 
 	 *	Called by the system to execute this task after it has been removed from an internal queue.
 	 *	Just checks the life stage and passes off to the virtual ExecuteTask method.
-	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new taks.
+	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new tasks.
+	 *  @param bDeleteOnCompletion; specifies if the task should delete itself after completion.
 	 **/
-	FORCEINLINE void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread)
+	FORCEINLINE void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
 	{
 		LLM_SCOPE(InheritedLLMTag);
 		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Executing));
-		ExecuteTask(NewTasks, CurrentThread);
+		ExecuteTask(NewTasks, CurrentThread, bDeleteOnCompletion);
 	}
 
 	// Internal Use
@@ -871,12 +886,13 @@ private:
 	/** 
 	 *	Virtual call to actually execute the task. 
 	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new taks.
+	 *  @param bDeleteOnCompletion; specifies if the task will will delete itself after execution (true) or if DeleteTask has to be called manually (false).
 	 *	Executes the embedded task. 
 	 *  Destroys the embedded task.
 	 *	Dispatches the subsequents.
 	 *	Destroys myself.
 	 **/
-	void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread) override
+	void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion) override
 	{
 		checkThreadGraph(TaskConstructed);
 
@@ -905,6 +921,14 @@ private:
 			Subsequents->DispatchSubsequents(NewTasks, CurrentThread);
 		}
 
+		if (bDeleteOnCompletion)
+		{
+			DeleteTask();
+		}
+	}
+
+	void DeleteTask() final override
+	{
 		if (sizeof(TGraphTask) <= FBaseGraphTask::SMALL_TASK_SIZE)
 		{
 			this->TGraphTask::~TGraphTask();

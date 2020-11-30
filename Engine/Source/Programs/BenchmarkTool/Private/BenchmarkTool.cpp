@@ -724,6 +724,15 @@ void BM_Scheduling_ThreadPoolTaskGraphWrapperOverhead(BenchmarkState& State)
 	BM_Scheduling_ThreadPoolOverhead_Impl(State, &ThreadPoolWrapper);
 }
 
+// This test is probably only meaningful when comparing relative speed
+// of threadpool implementations and to profile the current one.
+void BM_Scheduling_ThreadPoolLowLevelWrapperOverhead(BenchmarkState& State)
+{
+	TUniquePtr<FQueuedThreadPool> ThreadPool = MakeUnique<FQueuedLowLevelThreadPool>();
+	ThreadPool->Create(0);
+	BM_Scheduling_ThreadPoolOverhead_Impl(State, ThreadPool.Get());
+}
+
 UE_BENCHMARK(BM_TSharedPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TRefCountPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtr_NoTS)->Iterations(100000000);
@@ -737,6 +746,7 @@ UE_BENCHMARK(BM_Scheduling_ThreadPoolOverhead)->Iterations(100000);
 UE_BENCHMARK(BM_Scheduling_ThreadPoolWrapperOverhead)->Iterations(100000);
 UE_BENCHMARK(BM_Scheduling_TaskGraphOverhead)->Iterations(100000);
 UE_BENCHMARK(BM_Scheduling_ThreadPoolTaskGraphWrapperOverhead)->Iterations(100000);
+UE_BENCHMARK(BM_Scheduling_ThreadPoolLowLevelWrapperOverhead)->Iterations(100000);
 
 //////////////////////////////////////////////////////////////////////////
 

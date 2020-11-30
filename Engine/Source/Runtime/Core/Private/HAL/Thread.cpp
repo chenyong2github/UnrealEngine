@@ -8,6 +8,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UniquePtr.h"
+#include "Misc/Fork.h"
 
 class FThreadImpl final : public FRunnable
 {
@@ -17,10 +18,12 @@ public:
 		TUniqueFunction<void()>&& InThreadFunction,
 		uint32 StackSize,
 		EThreadPriority ThreadPriority,
-		uint64 ThreadAffinityMask
+		uint64 ThreadAffinityMask,
+		bool bIsForkable
 	) 
 		: ThreadFunction(MoveTemp(InThreadFunction))
-		, RunnableThread(FRunnableThread::Create(this, ThreadName, StackSize, ThreadPriority, ThreadAffinityMask))
+		, RunnableThread(bIsForkable ? FForkProcessHelper::CreateForkableThread(this, ThreadName, StackSize, ThreadPriority, ThreadAffinityMask)
+			: FRunnableThread::Create(this, ThreadName, StackSize, ThreadPriority, ThreadAffinityMask))
 	{
 		check(IsJoinable());
 	}
@@ -93,9 +96,10 @@ FThread::FThread(
 	TUniqueFunction<void()>&& ThreadFunction,
 	uint32 StackSize,
 	EThreadPriority ThreadPriority,
-	uint64 ThreadAffinityMask
+	uint64 ThreadAffinityMask,
+	bool bIsForkable
 )
-	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), StackSize, ThreadPriority, ThreadAffinityMask))
+	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), StackSize, ThreadPriority, ThreadAffinityMask, bIsForkable))
 {
 	Impl->Initialize(Impl);
 }

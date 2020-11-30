@@ -97,7 +97,7 @@ void FAppEntry::Init()
 	}
 
 	// initialize task graph
-	FTaskGraphInterface::Startup(FPlatformMisc::NumberOfCores());
+	FTaskGraphInterface::Startup(FPlatformMisc::NumberOfWorkerThreadsToSpawn());
 	FTaskGraphInterface::Get().AttachToThread(ENamedThreads::GameThread);
 
 	// initialize messaging subsystem

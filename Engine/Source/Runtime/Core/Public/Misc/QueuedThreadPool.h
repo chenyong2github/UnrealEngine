@@ -14,7 +14,8 @@ enum class EQueuedWorkPriority : uint8
 	High = 1,
 	Normal = 2,
 	Low = 3,
-	Lowest = 4
+	Lowest = 4,
+	Count
 };
 
 /** 

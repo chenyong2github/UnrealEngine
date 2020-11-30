@@ -8,6 +8,10 @@
 #include "ScopeRWLock.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/IQueuedWork.h"
+#include "Async/Fundamental/Scheduler.h"
+#include "Experimental/Containers/FAAArrayQueue.h"
+
+#include <atomic>
 
 /** ThreadPool wrapper implementation allowing to schedule
   * up to MaxConcurrency tasks at a time making sub-partitioning
@@ -204,4 +208,192 @@ private:
 	TFunction<ENamedThreads::Type (EQueuedWorkPriority)> PriorityMapper;
 	TAtomic<uint32> TaskCount;
 	TAtomic<bool> bIsExiting;
+};
+
+/** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the the low level backend which is also used by the taskgraph.
+*/
+class CORE_API FQueuedLowLevelThreadPool : public FQueuedThreadPool
+{
+	/* Internal data of the scheduler used for cancellation */
+	struct FQueuedWorkInternalData : IQueuedWorkInternalData
+	{
+		LowLevelTasks::FTask Task;
+
+		virtual bool Retract()
+		{
+			return Task.TryCancel();
+		}
+	};
+public:
+	/**
+    * InMaxConcurrency           Maximum number of concurrent tasks allowed, -1 will limit concurrency to number of threads available in the underlying thread pool.
+	* InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the underlying thread pool.
+	**/
+	FQueuedLowLevelThreadPool(uint32 InMaxConcurrency = ~0, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; }) 
+		: PriorityMapper(InPriorityMapper)
+	{
+		MaxConcurrency = InMaxConcurrency;
+	}
+
+	~FQueuedLowLevelThreadPool()
+	{
+		Destroy();
+	}
+
+	/**
+	*  Queued task are not scheduled against the wrapped thread-pool until resumed
+	*/
+	void Pause()
+	{
+		bIsPaused = true;
+	}
+
+	/**
+	*  Dynamically adjust the maximum number of concurrent tasks, -1 for unlimited.
+	*/
+	void SetMaxConcurrency(uint32 InMaxConcurrency = ~0)
+	{
+		MaxConcurrency = InMaxConcurrency;
+	}
+
+	/**
+	*  Resume a specified amount of queued work, or -1 to unpause.
+	*/
+	void Resume(int32 InNumQueuedWork = -1)
+	{
+		for (uint32 i = 0; i < uint32(InNumQueuedWork); i++)
+		{
+			FQueuedWorkInternalData* QueuedWork = Dequeue();
+			if (!QueuedWork)
+			{
+				break;
+			}
+			TaskCount++;
+			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+		}
+
+		if (InNumQueuedWork == -1)
+		{
+			bIsPaused = false;
+		}
+	}
+
+private:
+	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override
+	{
+		check(bIsExiting == false);
+
+		FQueuedWorkInternalData* QueuedWorkInternalData = new FQueuedWorkInternalData();
+		InQueuedWork->InternalData = QueuedWorkInternalData;
+		
+		checkSlow(int32(InPriority) < int32(EQueuedWorkPriority::Count));
+		const LowLevelTasks::ETaskPriority Mapping[int32(EQueuedWorkPriority::Count)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::Low, LowLevelTasks::ETaskPriority::Low, LowLevelTasks::ETaskPriority::Low };
+
+		LowLevelTasks::ETaskPriority Priority = Mapping[int32(PriorityMapper(InPriority))];
+		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), Priority, [InQueuedWork]
+		{
+			FMemMark Mark(FMemStack::Get());
+			InQueuedWork->DoThreadedWork();
+		},
+		[this, InternalData = InQueuedWork->InternalData]()
+		{
+			--TaskCount;
+			while (TaskCount < MaxConcurrency)
+			{
+				FQueuedWorkInternalData* QueuedWork = Dequeue();
+				if (QueuedWork)
+				{
+					TaskCount++;
+					LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+				}
+				else
+				{
+					break;
+				}
+			}
+		});
+
+		if(!bIsPaused && TaskCount <= MaxConcurrency)
+		{
+			TaskCount++;
+			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWorkInternalData->Task);
+		}
+		else
+		{
+			Enqueue(Priority, QueuedWorkInternalData);
+		}
+	}
+
+	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override
+	{
+		if(InQueuedWork->InternalData.IsValid())
+		{
+			bool bCancelled = InQueuedWork->InternalData->Retract();
+			InQueuedWork->InternalData = nullptr;
+			return bCancelled;
+		}
+		return false;
+	}
+
+	int32 GetNumThreads() const override
+	{
+		return LowLevelTasks::FScheduler::Get().GetNumWorkers();
+	}
+
+protected:
+	bool Create(uint32 InNumQueuedThreads, uint32 InStackSize, EThreadPriority InThreadPriority, const TCHAR* InName) override
+	{
+		MaxConcurrency = InNumQueuedThreads;
+		return true;
+	}
+
+	void Destroy() override
+	{
+		bIsExiting = true;
+
+		while (true)
+		{
+			FQueuedWorkInternalData* QueuedWork = Dequeue();
+			if (!QueuedWork)
+			{
+				break;
+			}
+
+			verify(QueuedWork->Retract());
+			TaskCount++;
+			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+		}
+
+		while (TaskCount != 0)
+		{
+			FPlatformProcess::Sleep(0.01f);
+		}
+	}
+
+private:
+	FAAArrayQueue<FQueuedWorkInternalData> PendingWork[int32(LowLevelTasks::ETaskPriority::Count)];
+
+	inline FQueuedWorkInternalData* Dequeue()
+	{
+		for (int32 i = 0; i < int32(LowLevelTasks::ETaskPriority::Count); i++)
+		{
+			FQueuedWorkInternalData* QueuedWork = PendingWork[i].dequeue();
+			if (QueuedWork)
+			{
+				return QueuedWork;
+			}
+		}
+		return nullptr;
+	}
+
+	inline void Enqueue(LowLevelTasks::ETaskPriority Priority, FQueuedWorkInternalData* Item)
+	{
+		PendingWork[int32(Priority)].enqueue(Item);
+	}
+
+	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
+	std::atomic_uint MaxConcurrency{~0u};
+	std::atomic_uint TaskCount{0};
+	std::atomic_bool bIsExiting{false};
+	std::atomic_bool bIsPaused{false};
 };
