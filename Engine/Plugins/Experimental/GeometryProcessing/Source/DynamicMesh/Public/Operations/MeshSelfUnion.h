@@ -36,7 +36,7 @@ public:
 	double DegenerateEdgeTolFactor = 1.5;
 
 	/** Tolerance distance for considering a point to be on a vertex or edge, especially during mesh-mesh cutting */
-	double SnapTolerance = FMathf::ZeroTolerance * 300.0;
+	double SnapTolerance = FMathf::ZeroTolerance * 1.0;
 
 	/** Amount we nudge samples off the surface when evaluating winding number, to avoid numerical issues */
 	double NormalOffset = FMathd::ZeroTolerance;
@@ -46,6 +46,9 @@ public:
 
 	/** Whether to remove visible "open" geometry */
 	bool bTrimFlaps = false;
+
+	/** Weld newly-created cut edges where the mesh is unioned with itself.  If false, newly joined surfaces remain topologically disconnected. */
+	bool bWeldSharedEdges = true;
 
 
 	/** Set this to be able to cancel running operation */

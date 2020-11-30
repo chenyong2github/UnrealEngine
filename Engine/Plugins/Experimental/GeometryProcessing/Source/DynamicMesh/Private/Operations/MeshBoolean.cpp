@@ -212,8 +212,7 @@ bool FMeshBoolean::Compute()
 	}
 	FDynamicMesh3* CutMesh[2]{ Result, &CutMeshB }; // just an alias to keep things organized
 
-	// transform the copies to a shared space (centered at the origin)
-	// TODO: also rescale the meshes to a standard size (?)
+	// transform the copies to a shared space (centered at the origin and scaled to a unit cube)
 	FAxisAlignedBox3d CombinedAABB(CutMesh[0]->GetCachedBounds(), Transforms[0]);
 	FAxisAlignedBox3d MeshB_AABB(CutMesh[1]->GetCachedBounds(), Transforms[1]);
 	CombinedAABB.Contain(MeshB_AABB);

@@ -11,6 +11,7 @@
 
 #include "Async/ParallelFor.h"
 #include "MeshTransforms.h"
+#include "Spatial/SparseDynamicOctree3.h"
 
 #include "Algo/RemoveIf.h"
 
@@ -18,6 +19,16 @@
 
 bool FMeshSelfUnion::Compute()
 {
+	// transform the mesh to a shared space (centered at the origin, and scaled to a unit cube)
+	FAxisAlignedBox3d AABB = Mesh->GetCachedBounds();
+	double ScaleFactor = 1.0 / FMath::Clamp(AABB.MaxDim(), 0.01, 1000000.0);
+	FTransform3d TransformToCenteredBox = FTransform3d::Identity();
+	TransformToCenteredBox.SetTranslation(ScaleFactor * (TransformToCenteredBox.GetTranslation() - AABB.Center()));
+	TransformToCenteredBox.SetScale(ScaleFactor * FVector3d::One());
+	MeshTransforms::ApplyTransform(*Mesh, TransformToCenteredBox);
+	FTransform3d ResultTransform(AABB.Center());
+	ResultTransform.SetScale((1.0 / ScaleFactor) * FVector3d::One());
+
 	// build spatial data and use it to find intersections
 	FDynamicMeshAABBTree3 Spatial(Mesh);
 	Spatial.SetTolerance(SnapTolerance);
@@ -191,19 +202,19 @@ bool FMeshSelfUnion::Compute()
 					double DotNormals = Normals[OtherTID].Dot(Normals[TID]);
 					//if (FMath::Abs(DotNormals) > .9) // TODO: do we actually want to check for a normal match? coplanar vertex check below is more robust?
 					{
-						// To be extra sure it's a coplanar match, check the vertices are *also* on the other mesh (w/in SnapTolerance)
+						// To be extra sure it's a coplanar match, check the vertices are *also* on the other connected component (w/in SnapTolerance)
 						FTriangle3d Tri;
 						Mesh->GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
-						bool bAllTrisOnOtherMesh = true;
+						bool bAllTrisOnOtherComponent = true;
 						for (int Idx = 0; Idx < 3; Idx++)
 						{
 							if (Spatial.FindNearestTriangle(Tri.V[Idx], DSq, QueryOptions) == FDynamicMesh3::InvalidID)
 							{
-								bAllTrisOnOtherMesh = false;
+								bAllTrisOnOtherComponent = false;
 								break;
 							}
 						}
-						if (bAllTrisOnOtherMesh)
+						if (bAllTrisOnOtherComponent)
 						{
 							if (DotNormals < 0)
 							{
@@ -267,6 +278,42 @@ bool FMeshSelfUnion::Compute()
 	{
 		PointHash.InsertPointUnsafe(BoundaryVID, Mesh->GetVertex(BoundaryVID));
 	}
+
+	FSparseDynamicOctree3 EdgeOctree;
+	EdgeOctree.RootDimension = .25;
+	EdgeOctree.SetMaxTreeDepth(7);
+	auto EdgeBounds = [this](int EID)
+	{
+		FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EID);
+		FVector3d A = Mesh->GetVertex(Edge.Vert.A);
+		FVector3d B = Mesh->GetVertex(Edge.Vert.B);
+		if (A.X > B.X)
+		{
+			Swap(A.X, B.X);
+		}
+		if (A.Y > B.Y)
+		{
+			Swap(A.Y, B.Y);
+		}
+		if (A.Z > B.Z)
+		{
+			Swap(A.Z, B.Z);
+		}
+		return FAxisAlignedBox3d(A, B);
+	};
+	auto AddEdge = [&EdgeOctree, EdgeBounds](int EID)
+	{
+		EdgeOctree.InsertObject(EID, EdgeBounds(EID));
+	};
+	auto UpdateEdge = [&EdgeOctree, EdgeBounds](int EID)
+	{
+		EdgeOctree.ReinsertObject(EID, EdgeBounds(EID));
+	};
+	for (int EID : CutBoundaryEdges)
+	{
+		AddEdge(EID);
+	}
+	TArray<int> EdgesInRange;
 	
 	// mapping of all accepted correspondences of boundary vertices (both ways -- so if A is connected to B we add both A->B and B->A) 
 	TMap<int, int> FoundMatches;
@@ -346,7 +393,11 @@ bool FMeshSelfUnion::Compute()
 			if (NearestVID == FDynamicMesh3::InvalidID)
 			{
 				// vertex had no match -- try to split edge to match it
-				int OtherEID = FindNearestEdge(CutBoundaryEdges, BoundaryNbrEdges, Pos);
+				FAxisAlignedBox3d QueryBox(Pos, SnapTolerance);
+				EdgesInRange.Reset();
+				EdgeOctree.RangeQuery(QueryBox, EdgesInRange);
+
+				int OtherEID = FindNearestEdge(EdgesInRange, BoundaryNbrEdges, Pos);
 				if (OtherEID != FDynamicMesh3::InvalidID)
 				{
 					FVector3d EdgePts[2];
@@ -363,6 +414,8 @@ bool FMeshSelfUnion::Compute()
 							FoundMatches.Add(BoundaryVID, SplitInfo.NewVertex);
 							Mesh->SetVertex(SplitInfo.NewVertex, Pos);
 							CutBoundaryEdges.Add(SplitInfo.NewEdges.A);
+							UpdateEdge(OtherEID);
+							AddEdge(SplitInfo.NewEdges.A);
 							// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
 							// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
 						}
@@ -388,7 +441,13 @@ bool FMeshSelfUnion::Compute()
 		return false;
 	}
 
-	bool bWeldSuccess = MergeEdges(CutBoundaryEdges, FoundMatches);
+	bool bWeldSuccess = true;
+	if (bWeldSharedEdges)
+	{
+		bWeldSuccess = MergeEdges(CutBoundaryEdges, FoundMatches);
+	}
+
+	MeshTransforms::ApplyTransform(*Mesh, ResultTransform);
 
 	return bWeldSuccess;
 }
