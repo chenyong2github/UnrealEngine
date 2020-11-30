@@ -88,7 +88,6 @@ protected:
 	bool bReportOnly;
 	bool bVerbose;
 	bool bConversionSuffix;
-	bool bAllowCommandletRendering;
 	FString ConversionSuffix;
 
 	UPROPERTY(Config)
