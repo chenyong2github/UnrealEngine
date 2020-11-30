@@ -772,8 +772,7 @@ TSharedRef<SWidget> SEditorViewport::BuildFeatureLevelWidget() const
 		[
 			SNew(STextBlock)
 			.Text(this, &SEditorViewport::GetCurrentFeatureLevelPreviewText, true)
-		.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-		.ShadowOffset(FVector2D(1, 1))
+			.ShadowOffset(FVector2D(1, 1))
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -781,8 +780,6 @@ TSharedRef<SWidget> SEditorViewport::BuildFeatureLevelWidget() const
 		[
 			SNew(STextBlock)
 			.Text(this, &SEditorViewport::GetCurrentFeatureLevelPreviewText, false)
-			.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-			.ColorAndOpacity(FLinearColor(0.4f, 1.0f, 1.0f))
 			.ShadowOffset(FVector2D(1, 1))
 		];
 

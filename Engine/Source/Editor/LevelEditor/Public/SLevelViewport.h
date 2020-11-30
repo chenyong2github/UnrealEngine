@@ -59,7 +59,6 @@ public:
 	void ConstructViewportOverlayContent();
 
 	TSharedRef<SWidget> GenerateLevelMenu() const;
-	FReply OnMenuClicked();
 
 	/**
 	 * Constructs the level editor viewport client
@@ -304,7 +303,7 @@ public:
 	FText GetCurrentLevelText( bool bDrawOnlyLabel ) const;
 
 	/** Called to get the screen percentage preview text */
-	FText GetCurrentScreenPercentageText(bool bDrawOnlyLabel) const;
+	FText GetCurrentScreenPercentageText() const;
 
 	/** @return The visibility of the current level text display */
 	virtual EVisibility GetCurrentLevelTextVisibility() const;
@@ -910,9 +909,6 @@ private:
 
 	/** Whether to show a full toolbar, or a compact one */
 	bool bShowFullToolbar;
-
-	TSharedPtr<class SMenuAnchor> LevelMenuAnchor;
-
 protected:
 	void LockActorInternal(AActor* NewActorToLock);
 
