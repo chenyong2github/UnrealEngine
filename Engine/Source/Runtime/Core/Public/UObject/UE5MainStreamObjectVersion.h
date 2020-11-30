@@ -49,6 +49,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Added bCooked to UFontFace assets
 		AddedCookedBoolFontFaceAssets,
 
+		// Serialize CellHash in WorldPartition HLODActorDesc
+		WorldPartitionHLODActorDescSerializeCellHash,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

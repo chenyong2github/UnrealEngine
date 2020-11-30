@@ -217,7 +217,7 @@ public:
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName) override;
 	virtual void FinalizeGeneratedPackageForCook() override;
 	virtual void FlushStreaming() override;
-	virtual bool GenerateHLOD() override;
+	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper) override;
 	virtual bool GenerateNavigationData() override;
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
 #endif

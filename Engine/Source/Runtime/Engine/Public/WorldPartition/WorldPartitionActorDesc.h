@@ -28,6 +28,7 @@ class ENGINE_API FWorldPartitionActorDesc
 {
 #if WITH_EDITOR
 	friend class FWorldPartitionActorDescFactory;
+	friend class UWorldPartition;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -82,7 +83,12 @@ public:
 
 protected:
 	FWorldPartitionActorDesc();
-	
+
+	inline void SetLoadedRefCount(uint32 InLoadedRefCount) const
+	{
+		LoadedRefCount = InLoadedRefCount;
+	}
+
 	virtual void Serialize(FArchive& Ar);
 
 	FGuid						Guid;

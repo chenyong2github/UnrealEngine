@@ -12,8 +12,8 @@ class UWorldPartitionNavigationDataBuilder : public UWorldPartitionBuilder
 
 public:
 	// UWorldPartitionBuilder interface begin
-	virtual bool RequiresCommandletRendering() const override;
-	virtual bool AllowsMapSaving() const override { return false; }
+	virtual bool RequiresCommandletRendering() const override { return false; }
+	virtual bool RequiresEntireWorldLoading() const override { return true; }
 	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

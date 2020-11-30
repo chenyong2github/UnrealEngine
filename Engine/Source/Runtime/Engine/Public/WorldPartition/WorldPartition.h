@@ -8,6 +8,11 @@
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
+
+#if WITH_EDITOR
+#include "PackageSourceControlHelper.h"
+#endif
+
 #include "WorldPartition.generated.h"
 
 class FWorldPartitionActorDesc;
@@ -16,6 +21,7 @@ class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
+class FHLODActorDesc;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
@@ -42,6 +48,28 @@ struct ENGINE_API IWorldPartitionEditor
 	virtual void InvalidatePartition() {}
 	virtual void RecreatePartition() {}
 	virtual void Refresh() {}
+};
+
+class ENGINE_API ISourceControlHelper
+{
+public:
+	virtual FString GetFilename(const FString& PackageName) const =0;
+	virtual FString GetFilename(UPackage* Package) const =0;
+	virtual bool Checkout(UPackage* Package) const =0;
+	virtual bool Add(UPackage* Package) const =0;
+	virtual bool Delete(const FString& PackageName) const =0;
+	virtual bool Delete(UPackage* Package) const =0;
+};
+
+struct ENGINE_API FHLODGenerationContext
+{
+	TMap<uint64, FGuid> HLODActorDescs;
+	
+	// Everything needed to build the cell hash
+	int64 GridIndexX;
+	int64 GridIndexY;
+	int64 GridIndexZ;
+	FName HLODLayerName;
 };
 #endif
 
@@ -121,7 +149,7 @@ public:
 	void FinalizeGeneratedPackageForCook();
 
 	FBox GetWorldBounds() const;
-	void GenerateHLOD();
+	void GenerateHLOD(ISourceControlHelper* SourceControlHelper);
 	void GenerateNavigationData();
 
 	void DumpActorDescs(const FString& Path);

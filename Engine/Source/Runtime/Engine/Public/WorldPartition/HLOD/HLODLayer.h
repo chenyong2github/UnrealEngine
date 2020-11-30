@@ -16,6 +16,7 @@
 class UWorldPartition;
 class AWorldPartitionHLOD;
 class AActor;
+struct FHLODGenerationContext;
 
 UENUM()
 enum class EHLODLayerType : uint8
@@ -32,7 +33,7 @@ class ENGINE_API UHLODLayer : public UObject
 	
 #if WITH_EDITOR
 public:
-	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const FBox& InCellBounds, uint32 InLODLevel, const TArray<AActor*>& InCellActors);
+	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FHLODGenerationContext* Context, FName InCellName, const FBox& InCellBounds, uint32 InLODLevel, const TArray<AActor*>& InCellActors);
 
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static bool ShouldIncludeInHLOD(const UPrimitiveComponent* InComponent, int32 InLevelIndex);

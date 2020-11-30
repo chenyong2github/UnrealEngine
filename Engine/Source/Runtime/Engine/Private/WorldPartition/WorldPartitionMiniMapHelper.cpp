@@ -28,32 +28,27 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 		return nullptr;
 	}
 
-	AWorldPartitionMiniMap* WorldPartitionMiniMap = nullptr;
 	ULevel* PersistentLevel = World->PersistentLevel;
+	check(PersistentLevel);
 
 	for (auto Actor : PersistentLevel->Actors)
 	{
 		if (Actor && Actor->IsA<AWorldPartitionMiniMap>())
 		{
-			WorldPartitionMiniMap = Cast<AWorldPartitionMiniMap>(Actor);
-			return WorldPartitionMiniMap;
+			return Cast<AWorldPartitionMiniMap>(Actor);
 		}
 	}
 
 	if (bCreateNewMiniMap)
 	{
-		check(PersistentLevel);
-		if (!WorldPartitionMiniMap)
-		{
-			TSubclassOf<AWorldPartitionMiniMap> MiniMap(AWorldPartitionMiniMap::StaticClass());
-			FActorSpawnParameters SpawnInfo;
-			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			SpawnInfo.OverrideLevel = PersistentLevel;
-			WorldPartitionMiniMap = World->SpawnActor<AWorldPartitionMiniMap>(MiniMap, SpawnInfo);
-		}
+		TSubclassOf<AWorldPartitionMiniMap> MiniMap(AWorldPartitionMiniMap::StaticClass());
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnInfo.OverrideLevel = PersistentLevel;
+		return World->SpawnActor<AWorldPartitionMiniMap>(MiniMap, SpawnInfo);
 	}
 	
-	return WorldPartitionMiniMap;
+	return nullptr;
 	
 }
 

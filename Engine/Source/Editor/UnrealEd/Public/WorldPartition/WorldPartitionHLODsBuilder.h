@@ -12,7 +12,8 @@ class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 
 public:
 	// UWorldPartitionBuilder interface begin
-	virtual bool RequiresCommandletRendering() const override;
+	virtual bool RequiresCommandletRendering() const override { return true; }
+	virtual bool RequiresEntireWorldLoading() const override { return false; }
 	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

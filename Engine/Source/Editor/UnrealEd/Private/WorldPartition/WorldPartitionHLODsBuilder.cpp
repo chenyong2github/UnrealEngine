@@ -10,17 +10,55 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescIterator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHLODsBuilder, All, All);
+
+class FSourceControlHelper : public ISourceControlHelper
+{
+public:
+	FSourceControlHelper(FPackageSourceControlHelper& InPackageHelper)
+		: PackageHelper(InPackageHelper)
+	{}
+
+	virtual FString GetFilename(const FString& PackageName) const override
+	{
+		return SourceControlHelpers::PackageFilename(PackageName);
+	}
+
+	virtual FString GetFilename(UPackage* Package) const override
+	{
+		return SourceControlHelpers::PackageFilename(Package);
+	}
+
+	virtual bool Checkout(UPackage* Package) const override
+	{
+		return PackageHelper.Checkout(Package);
+	}
+
+	virtual bool Add(UPackage* Package) const override
+	{
+		return PackageHelper.AddToSourceControl(Package);
+	}
+
+	virtual bool Delete(const FString& PackageName) const override
+	{
+		return PackageHelper.Delete(PackageName);
+	}
+
+	virtual bool Delete(UPackage* Package) const override
+	{
+		return PackageHelper.Delete(Package);
+	}
+
+private:
+	FPackageSourceControlHelper& PackageHelper;
+};
 
 UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-bool UWorldPartitionHLODsBuilder::RequiresCommandletRendering() const 
-{
-	return true;
 }
 
 bool UWorldPartitionHLODsBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
@@ -31,97 +69,10 @@ bool UWorldPartitionHLODsBuilder::Run(UWorld* World, FPackageSourceControlHelper
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
 
-	TSet<UPackage*> ActorPackages;
-
-	// Gather all packages
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if (It->IsPackageExternal())
-		{
-			ActorPackages.Add(It->GetPackage());
-		}
-	}
+	FSourceControlHelper SourceControlHelper(PackageHelper);
 
 	// Rebuild HLOD for the whole world
-	WorldPartition->GenerateHLOD();
+	WorldPartition->GenerateHLOD(&SourceControlHelper);
 	
-	// Gather all packages again to include newly created actors
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if (It->IsPackageExternal())
-		{
-			ActorPackages.Add(It->GetPackage());
-		}
-	}
-
-	TArray<UPackage*> PackagesToSave;
-	TArray<UPackage*> PackagesToDelete;
-
-	for (UPackage* ActorPackage : ActorPackages)
-	{
-		if (ActorPackage && ActorPackage->IsDirty())
-		{
-			if (UPackage::IsEmptyPackage(ActorPackage))
-			{
-				PackagesToDelete.Add(ActorPackage);
-			}
-			else
-			{
-				PackagesToSave.Add(ActorPackage);
-			}
-		}
-	}
-
-	// Delete packages
-	if (!PackagesToDelete.IsEmpty())
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Log, TEXT("Deleting %d packages."), PackagesToDelete.Num());
-		if (!PackageHelper.Delete(PackagesToDelete))
-		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error deleting packages."));
-			return 1;
-		}
-	}
-
-	// Save packages
-	if (!PackagesToSave.IsEmpty())
-	{
-		// Checkout packages
-		UE_LOG(LogWorldPartitionHLODsBuilder, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
-		for (UPackage* Package : PackagesToSave)
-		{
-			if (!PackageHelper.Checkout(Package))
-			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error checking out package %s."), *Package->GetName());
-				return 1;
-			}
-		}
-
-		// Save packages
-		UE_LOG(LogWorldPartitionHLODsBuilder, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
-		for (UPackage* Package : PackagesToSave)
-		{
-			FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-			if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
-			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
-				return 1;
-			}
-		}
-
-		// Add new packages to source control
-		UE_LOG(LogWorldPartitionHLODsBuilder, Log, TEXT("Adding packages to source control."));
-		for (UPackage* Package : PackagesToSave)
-		{
-			if (!PackageHelper.AddToSourceControl(Package))
-			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-				return 1;
-			}
-		}
-
-		UPackage::WaitForAsyncFileWrites();
-	}
-
 	return true;
 }

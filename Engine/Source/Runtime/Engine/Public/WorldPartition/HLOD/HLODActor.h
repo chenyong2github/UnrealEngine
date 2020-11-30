@@ -33,6 +33,23 @@ public:
 
 	const TArray<FGuid>& GetSubActors() const;
 
+	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer) { SubActorsHLODLayer = InSubActorsHLODLayer; }
+	const UHLODLayer* GetSubActorsHLODLayer() const { return SubActorsHLODLayer; }
+
+	void SetGridIndices(uint64 InGridIndexX, uint64 InGridIndexY, uint64 InGridIndexZ)
+	{
+		GridIndexX = InGridIndexX;
+		GridIndexY = InGridIndexY;
+		GridIndexZ = InGridIndexZ;
+	}
+
+	void GetGridIndices(uint64& OutGridIndexX, uint64& OutGridIndexY, uint64& OutGridIndexZ) const
+	{
+		OutGridIndexX = GridIndexX;
+		OutGridIndexY = GridIndexY;
+		OutGridIndexZ = GridIndexZ;
+	}
+
 	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
 #endif // WITH_EDITOR
 
@@ -62,7 +79,19 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FGuid> SubActors;
-	
+
+	UPROPERTY()
+	const UHLODLayer* SubActorsHLODLayer;
+
+	UPROPERTY()
+	int64 GridIndexX;
+
+	UPROPERTY()
+	int64 GridIndexY;
+
+	UPROPERTY()
+	int64 GridIndexZ;
+
 	TSet<TWeakObjectPtr<AActor>> LoadedSubActors;
 #endif
 

@@ -60,7 +60,7 @@ FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 	UE_LOG(LogTemp, Log, TEXT("Reload MiniMap has been clicked"));
 
 	//Create a new MiniMap if there isn't one.
-	auto WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
+	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
 	if (!WorldMiniMap)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to create Minimap. WorldPartitionMiniMap actor not found in the persistent level."));

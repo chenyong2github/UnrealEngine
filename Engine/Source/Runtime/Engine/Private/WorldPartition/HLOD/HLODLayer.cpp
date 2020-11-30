@@ -30,7 +30,7 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 
-TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const FBox& InCellBounds, uint32 InHLODLevel, const TArray<AActor*>& InCellActors)
+TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FHLODGenerationContext* InContext, FName InCellName, const FBox& InCellBounds, uint32 InHLODLevel, const TArray<AActor*>& InCellActors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::GenerateHLODForCell);
 
@@ -50,7 +50,7 @@ TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* In
 	TArray<AWorldPartitionHLOD*> HLODActors;
 	for (const auto& HLODLayerActors : HLODLayersActors)
 	{
-		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
+		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InContext, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
 	}
 	return HLODActors;
 }

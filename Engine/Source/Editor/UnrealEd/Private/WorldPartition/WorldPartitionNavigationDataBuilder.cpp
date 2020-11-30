@@ -18,11 +18,6 @@ UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const
 {
 }
 
-bool UWorldPartitionNavigationDataBuilder::RequiresCommandletRendering() const
-{
-	return false;
-}
-
 bool UWorldPartitionNavigationDataBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();

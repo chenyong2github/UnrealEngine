@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/HLOD/HLODActorDesc.h"
 
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
@@ -33,13 +34,37 @@ public:
 		
 	void SpawnHLODActor(const TCHAR* InName, const TArray<UPrimitiveComponent*>& InSubComponents, FCreateComponentsFunction InCreateComponentsFunc)
 	{
-		FString HLODActorName = FString::Printf(TEXT("%s_%s_%s"), *HLODLayer->GetName(), *CellName.ToString(), InName);
-		AWorldPartitionHLOD* HLODActor = FindObjectFast<AWorldPartitionHLOD>(World->PersistentLevel, *HLODActorName);
+		AWorldPartitionHLOD* HLODActor = nullptr;
+
+		// Compute HLODActor hash
+		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
+
+		FGuid HLODActorGuid;
+		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorGuid))
+		{
+			FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
+			check(HLODActorDesc);
+
+			if (IsRunningCommandlet())
+			{
+				check(!HLODActorDesc->GetLoadedRefCount());
+				HLODActorDesc->AddLoadedRefCount();
+				HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->Load());
+				HLODActor->GetLevel()->AddLoadedActor(HLODActor);
+			}
+			else
+			{
+				HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->GetActor());
+			}
+		}
+
 		if (!HLODActor)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.Name = *HLODActorName;
+			SpawnParams.Name = *FString::Printf(TEXT("%s_%016llx_%s"), *HLODLayer->GetName(), CellHash, InName);
+			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 			HLODActor = World->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
+			HLODActor->SetActorLabel(CellName.ToString());
 		}
 
 		TArray<UPrimitiveComponent*> HLODPrimitives = InCreateComponentsFunc(HLODActor);
@@ -50,10 +75,11 @@ public:
 			HLODActor->Modify();
 			HLODActor->SetHLODPrimitives(HLODPrimitives);
 			HLODActor->SetChildrenPrimitives(InSubComponents);
-			HLODActor->SetActorLabel(HLODActorName);
 			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid(HLODLevel);
 			HLODActor->SetLODLevel(HLODLevel);
 			HLODActor->SetHLODLayer(HLODLayer->GetParentLayer().Get());
+			HLODActor->SetSubActorsHLODLayer(HLODLayer);
+			HLODActor->SetGridIndices(Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
 		}
 		else
 		{
@@ -87,13 +113,14 @@ public:
 	}
 
 public:
-	UWorld*				World;
-	UWorldPartition*	WorldPartition;
-	const UHLODLayer*	HLODLayer;
-	uint32				HLODLevel;
-	FName				CellName;
-	FBox				CellBounds;
-	float				CellLoadingRange;
+	UWorld*					World;
+	UWorldPartition*		WorldPartition;
+	const UHLODLayer*		HLODLayer;
+	uint32					HLODLevel;
+	FName					CellName;
+	FBox					CellBounds;
+	float					CellLoadingRange;
+	FHLODGenerationContext* Context;
 
 	TArray<AWorldPartitionHLOD*> HLODActors;
 };
@@ -237,7 +264,7 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	}
 };
 
-TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const FBox& InCellBounds, const UHLODLayer* InHLODLayer, uint32 InHLODLevel, const TArray<const AActor*>& InSubActors)
+TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FHLODGenerationContext* InContext, FName InCellName, const FBox& InCellBounds, const UHLODLayer* InHLODLayer, uint32 InHLODLevel, const TArray<const AActor*>& InSubActors)
 {
 	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
 
@@ -271,6 +298,7 @@ TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* 
 		HLODBuilder->HLODLevel = InHLODLevel;
 		HLODBuilder->CellName = InCellName;
 		HLODBuilder->CellBounds = InCellBounds;
+		HLODBuilder->Context = InContext;
 
 		HLODBuilder->Build(SubComponents);
 			

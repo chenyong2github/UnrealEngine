@@ -22,7 +22,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName) { return false; }
 	virtual void FinalizeGeneratedPackageForCook() {}
 	virtual void FlushStreaming() {}
-	virtual bool GenerateHLOD() { return false; }
+	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper) { return false; }
 	virtual bool GenerateNavigationData() { return false; }
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
 #endif

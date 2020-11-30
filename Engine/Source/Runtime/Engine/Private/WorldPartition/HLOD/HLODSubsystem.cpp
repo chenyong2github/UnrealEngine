@@ -49,8 +49,11 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	RegisterActorDescFactories(WorldPartitionSubsystem);
 
-	GetWorld()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorLoaded);
-	GetWorld()->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorUnloaded);
+	if (!IsRunningCommandlet())
+	{
+		GetWorld()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorLoaded);
+		GetWorld()->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorUnloaded);
+	}
 #endif
 }
 

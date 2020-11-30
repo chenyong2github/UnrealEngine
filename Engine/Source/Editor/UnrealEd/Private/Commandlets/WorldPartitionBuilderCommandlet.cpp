@@ -12,6 +12,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "Trace/Trace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
 
@@ -21,6 +22,8 @@ UWorldPartitionBuilderCommandlet::UWorldPartitionBuilderCommandlet(const FObject
 
 int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionBuilderCommandlet::Main);
+
 	UE_SCOPED_TIMER(TEXT("Execution"), LogWorldPartitionBuilderCommandlet, Display);
 
 	TArray<FString> Tokens, Switches;
@@ -37,7 +40,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		LogWorldPartitionBuilderCommandlet.SetVerbosity(ELogVerbosity::Verbose);
 	}
 
-	// This will convert incomplete package name to a fully qualifed path
+	// This will convert incomplete package name to a fully qualified path
 	FString WorldFilename;
 	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0], &WorldFilename))
 	{
@@ -101,83 +104,50 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
 	WorldContext.SetCurrentWorld(World);
 	GWorld = World;
-	
-	//========================================================================================================================
-	// RUN BUILDERS
-	//========================================================================================================================
-	FString BuilderList;
-	if (!FParse::Value(*Params, TEXT("Builders="), BuilderList, false))
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builders list."));
-		return 1;
-	}
 
-	BuilderList.ReplaceInline(TEXT(","), TEXT(" "));
-	
-	bool bNeedToSave = false;	// Does any builder needs the map to be saved.
-	bool bAllowedToSave = true; // Does all builders are ok with the map being saved.
+	// Parse builder class name
 	FString BuilderClassName;
-	const TCHAR* BuilderListPtr = *BuilderList;
-	while (FParse::Token(BuilderListPtr, BuilderClassName, false))
+	if (!FParse::Value(*Params, TEXT("Builder="), BuilderClassName, false))
 	{
-		UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
-
-		if (!BuilderClass)
-		{
-			UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
-			return 1;
-		}
-
-		UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
-		check(Builder);
-
-		if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
-		{
-			UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *BuilderClassName);
-			return 1;
-		}
-
-		bNeedToSave |= Builder->RequiresMapSaving();
-		bAllowedToSave &= Builder->AllowsMapSaving();
-
-		// Load builder configuration
-		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
-		{
-			Builder->LoadConfig(BuilderClass, *WorldConfigFilename);
-		}
-
-		Builders.Add(Builder);
-	}
-
-	if (bNeedToSave && !bAllowedToSave)
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Some builders are incompatible and must be run separately."));
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
 		return 1;
 	}
 
-	// For now, load all cells
-	// In the future, we'll want the commandlet to be able to perform partial updates of the map
-	// to allow builders to be distributed on multiple machines or run incremental builds.
-	const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
-	WorldPartition->LoadEditorCells(LoadBox);
+	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
 
-	// Run builders
-	for (UWorldPartitionBuilder* Builder: Builders)
+	if (!BuilderClass)
 	{
-		if (!Builder->Run(World, *this))
-		{
-			return 1;
-		}
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
+		return 1;
 	}
 
-	// Save the world
-	if (bNeedToSave && bAllowedToSave)
+	// Create builder instance
+	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
+	check(Builder);
+	
+	// Validate builder settings
+	if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
 	{
-		if (!UPackage::SavePackage(MapPackage, nullptr, RF_Standalone, *WorldFilename))
-		{
-			UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Error saving map package %s."), *MapPackage->GetName());
-			return 1;
-		}
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *BuilderClassName);
+		return 1;
+	}
+
+	if (Builder->RequiresEntireWorldLoading())
+	{
+		const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
+		WorldPartition->LoadEditorCells(LoadBox);
+	}
+
+	// Load builder configuration
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
+	{
+		Builder->LoadConfig(BuilderClass, *WorldConfigFilename);
+	}
+
+	// Run builder
+	if (!Builder->Run(World, *this))
+	{
+		return 1;
 	}
 
 	// Save default configuration
@@ -186,16 +156,29 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	{
 		SaveConfig(CPF_Config, *WorldConfigFilename);
 
-		for (UWorldPartitionBuilder* Builder: Builders)
-		{
-			Builder->SaveConfig(CPF_Config, *WorldConfigFilename);
-		}
+		Builder->SaveConfig(CPF_Config, *WorldConfigFilename);
 	}
 
 	// Cleanup
 	World->RemoveFromRoot();
 	WorldContext.SetCurrentWorld(nullptr);
 	GWorld = nullptr;
+
+    FPlatformMemoryStats PlatformMemoryStats = FPlatformMemory::GetStats();
+    
+    UE_LOG(LogWorldPartitionBuilderCommandlet, Warning, TEXT("MemoryStats:")\
+           TEXT("\n\tAvailablePhysical %llu")\
+           TEXT("\n\t AvailableVirtual %llu")\
+           TEXT("\n\t     UsedPhysical %llu")\
+           TEXT("\n\t PeakUsedPhysical %llu")\
+           TEXT("\n\t      UsedVirtual %llu")\
+           TEXT("\n\t  PeakUsedVirtual %llu"),
+           (uint64)PlatformMemoryStats.AvailablePhysical,
+           (uint64)PlatformMemoryStats.AvailableVirtual,
+           (uint64)PlatformMemoryStats.UsedPhysical,
+           (uint64)PlatformMemoryStats.PeakUsedPhysical,
+           (uint64)PlatformMemoryStats.UsedVirtual,
+           (uint64)PlatformMemoryStats.PeakUsedVirtual);
 
 	return 0;
 }

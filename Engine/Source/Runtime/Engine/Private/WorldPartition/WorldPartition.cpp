@@ -56,7 +56,7 @@ static FAutoConsoleCommand GenerateHLODCmd(
 			{
 				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 				{
-					WorldPartition->GenerateHLOD();
+					WorldPartition->GenerateHLOD(nullptr);
 				}
 			}
 		}
@@ -703,7 +703,6 @@ bool UWorldPartition::ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorD
 void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::UpdateLoadingEditorCell);
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("UWorldPartition::UpdateLoadingEditorCell(%s)"), *Cell->GetFullName()));
 	
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
@@ -903,6 +902,10 @@ void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 			TUniquePtr<FWorldPartitionActorDesc>& ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
 
 			UnhashActorDesc(ExistingActorDesc.Get());
+
+			// This is required to support external load references
+			NewActorDesc->SetLoadedRefCount(ExistingActorDesc->GetLoadedRefCount());
+
 			ExistingActorDesc = MoveTemp(NewActorDesc);
 			HashActorDesc(ExistingActorDesc.Get());
 		}
@@ -974,7 +977,6 @@ TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const F
 void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
-	check(!ActorDesc->GetLoadedRefCount());
 	check(EditorHash);
 	EditorHash->HashActor(ActorDesc);
 }
@@ -984,7 +986,6 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	check(ActorDesc);
 	check(EditorHash);
 	EditorHash->UnhashActor(ActorDesc);
-	check(!ActorDesc->GetLoadedRefCount());
 }
 #endif
 
@@ -1103,9 +1104,9 @@ void UWorldPartition::FlushStreaming()
 	RuntimeHash->FlushStreaming();
 }
 
-void UWorldPartition::GenerateHLOD()
+void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper)
 {
-	RuntimeHash->GenerateHLOD();
+	RuntimeHash->GenerateHLOD(SourceControlHelper);
 }
 
 void UWorldPartition::GenerateNavigationData()
