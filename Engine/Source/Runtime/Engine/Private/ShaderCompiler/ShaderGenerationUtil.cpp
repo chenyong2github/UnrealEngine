@@ -11,6 +11,7 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeLock.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "HAL/PlatformFileManager.h"
 #include "RenderUtils.h"
 #include "RHI.h"
 #include "SceneManagement.h"
