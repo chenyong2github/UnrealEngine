@@ -45,17 +45,10 @@ public:
 			FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
 			check(HLODActorDesc);
 
-			if (IsRunningCommandlet())
-			{
-				check(!HLODActorDesc->GetLoadedRefCount());
-				HLODActorDesc->AddLoadedRefCount();
-				HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->Load());
-				HLODActor->GetLevel()->AddLoadedActor(HLODActor);
-			}
-			else
-			{
-				HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->GetActor());
-			}
+			check(!HLODActorDesc->GetLoadedRefCount());
+			HLODActorDesc->AddLoadedRefCount();
+			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->Load());
+			HLODActor->GetLevel()->AddLoadedActor(HLODActor);
 		}
 
 		if (!HLODActor)

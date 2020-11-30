@@ -45,24 +45,6 @@ DEFINE_LOG_CATEGORY(LogWorldPartition);
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
 #if WITH_EDITOR
-static FAutoConsoleCommand GenerateHLODCmd(
-	TEXT("wp.Editor.GenerateHLOD"),
-	TEXT("Generates HLOD data for runtime."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		if (UWorld* World = GEditor->GetEditorWorldContext().World())
-		{
-			if (!World->IsPlayInEditor())
-			{
-				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
-				{
-					WorldPartition->GenerateHLOD(nullptr);
-				}
-			}
-		}
-	})
-);
-
 static FAutoConsoleCommand DumpActorDescs(
 	TEXT("wp.Editor.DumpActorDescs"),
 	TEXT("Dump the list of actor descriptors in a CSV file."),
