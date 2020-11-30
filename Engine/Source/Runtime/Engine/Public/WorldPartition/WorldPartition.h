@@ -111,7 +111,6 @@ private:
 #endif
 
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void BeginDestroy() override;
 
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);
 

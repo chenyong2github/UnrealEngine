@@ -300,11 +300,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	InitState = EWorldPartitionInitState::Initialized;
 
-	if (World->IsGameWorld())
-	{
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-		WorldPartitionSubsystem->RegisterWorldPartition(this);
-	}
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+	WorldPartitionSubsystem->RegisterWorldPartition(this);
 
 #if WITH_EDITOR
 	if (World->IsPlayInEditor())
@@ -312,13 +309,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		PrepareForPIE();
 	}
 #endif
-}
-
-void UWorldPartition::BeginDestroy()
-{
-	Uninitialize();
-
-	Super::BeginDestroy();
 }
 
 UWorld* UWorldPartition::GetWorld() const
@@ -373,11 +363,8 @@ void UWorldPartition::Uninitialize()
 		EditorHash = nullptr;
 #endif		
 
-		if (World->IsGameWorld())
-		{
-			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-			WorldPartitionSubsystem->UnregisterWorldPartition(this);
-		}
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+		WorldPartitionSubsystem->UnregisterWorldPartition(this);
 
 		World = nullptr;
 
