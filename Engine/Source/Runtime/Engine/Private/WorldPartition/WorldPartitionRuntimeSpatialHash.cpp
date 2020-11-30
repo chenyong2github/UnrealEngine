@@ -1246,8 +1246,15 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	TArray<FSpatialHashRuntimeGrid> AllGrids;
 	AllGrids.Append(Grids);
 
+	// Prepare flags for actor iterator. Don't use default Flags because it uses EActorIteratorFlags::OnlyActiveLevels 
+	// which will make this code return no actor when cooking (because world is not initialized)
+	EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
+	if (!IsRunningCookCommandlet())
+	{
+		Flags |= EActorIteratorFlags::OnlyActiveLevels;
+	}
 	// Append grids from runtime grid actors
-	for (TActorIterator<ASpatialHashRuntimeGridInfo> ItRuntimeGridActor(GetWorld()); ItRuntimeGridActor; ++ItRuntimeGridActor)
+	for (TActorIterator<ASpatialHashRuntimeGridInfo> ItRuntimeGridActor(GetWorld(), ASpatialHashRuntimeGridInfo::StaticClass(), Flags); ItRuntimeGridActor; ++ItRuntimeGridActor)
 	{
 		AllGrids.Add(ItRuntimeGridActor->GridSettings);
 	}

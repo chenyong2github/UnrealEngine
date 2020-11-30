@@ -22,15 +22,15 @@ const AWorldDataLayers* AWorldDataLayers::Get(UWorld* World)
 {
 	if (World)
 	{
-		EActorIteratorFlags Flags = EActorIteratorFlags::OnlyActiveLevels | EActorIteratorFlags::SkipPendingKill;
+		// Prepare flags for actor iterator. Don't use default Flags because it uses EActorIteratorFlags::OnlyActiveLevels 
+		// which will make this code return no actor when cooking (because world is not initialized)
+		EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
 #if WITH_EDITOR
-		if (IsRunningCookCommandlet())
-		{
-			// Don't use default Flags because EActorIteratorFlags::OnlyActiveLevels will make this code return no AWorldDataLayers actor
-			// when cooking (because world is not initialized)
-			Flags &= ~EActorIteratorFlags::OnlyActiveLevels;
-		}
+		if (!IsRunningCookCommandlet())
 #endif
+		{
+			Flags |= EActorIteratorFlags::OnlyActiveLevels;
+		}
 		for (AWorldDataLayers* Actor : TActorRange<AWorldDataLayers>(World, AWorldDataLayers::StaticClass(), Flags))
 		{
 			if (Actor)
