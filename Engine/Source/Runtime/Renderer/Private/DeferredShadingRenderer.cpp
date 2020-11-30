@@ -1779,7 +1779,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (FXSystem && Views.IsValidIndex(0))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_FXPreRender));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
 		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
 		{
 			FXSystem->PreRender(InRHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
@@ -1838,7 +1838,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 
 	{
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_PrePass));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_PrePass));
 
 		// Both compute approaches run earlier, so skip clearing stencil here, just load existing.
 		const ERenderTargetLoadAction StencilLoadAction = DepthPass.IsComputeStencilDitherEnabled()
@@ -1859,16 +1859,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RenderPrePassHMD(GraphBuilder, SceneTextures.Depth.Target);
 		}
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterPrePass));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterPrePass));
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		// special pass for DDM_AllOpaqueNoVelocity, which uses the velocity pass to finish the early depth pass write
 		if (bShouldRenderVelocities && Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity)
 		{
 			// Render the velocities of movable objects
-			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));
+			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Velocity));
 			RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, bHairEnable);
-			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
+			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
 			AddServiceLocalQueuePass(GraphBuilder);
 		}
 
@@ -2307,9 +2307,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs) && (Scene->EarlyZPassMode != DDM_AllOpaqueNoVelocity))
 	{
 		// Render the velocities of movable objects
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Velocity));
 		RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, bHairEnable);
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		// TODO: Populate velocity buffer from Nanite visibility buffer.
@@ -2412,9 +2412,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 #endif
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Lighting));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Lighting));
 		RenderLights(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, LightingChannelsTexture, SortedLightSet, HairDatas);
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterLighting));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterLighting));
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		InjectTranslucencyLightingVolumeAmbientCubemap(GraphBuilder, Views, TranslucencyLightingVolumeTextures);
@@ -2480,12 +2480,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
-			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
+			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
 			RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, nullptr, ETranslucencyView::UnderWater);
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater);
 		}
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_WaterPass));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_WaterPass));
 		RenderSingleLayerWater(GraphBuilder, SceneTextures, bShouldRenderVolumetricCloud, SceneWithoutWaterTextures);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -2575,14 +2575,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif
 
 		// Render all remaining translucency views.
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
 		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
 		AddServiceLocalQueuePass(GraphBuilder);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
 		if (bShouldRenderDistortion)
 		{
-			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Distortion));
+			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Distortion));
 			RenderDistortion(GraphBuilder, SceneTextures.Color.Target, SceneTextures.Depth.Target);
 			AddServiceLocalQueuePass(GraphBuilder);
 		}
@@ -2591,7 +2591,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			const bool bRecreateSceneTextures = !SceneTextures.Velocity;
 
-			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_TranslucentVelocity));
+			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_TranslucentVelocity));
 			RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Translucent, false);
 			AddServiceLocalQueuePass(GraphBuilder);
 
@@ -2602,7 +2602,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 		}
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterTranslucency));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterTranslucency));
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -2636,7 +2636,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.LightShafts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftBloom);
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_LightShaftBloom));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_LightShaftBloom));
 		RenderLightShaftBloom(GraphBuilder, SceneTextures, SeparateTranslucencyTextures);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -2687,7 +2687,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO && ShouldRenderDistanceFieldLighting())
 	{
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_RenderDistanceFieldLighting));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_RenderDistanceFieldLighting));
 
 		// Use the skylight's max distance if there is one, to be consistent with DFAO shadowing on the skylight
 		const float OcclusionMaxDistance = Scene->SkyLight && !Scene->SkyLight->bWantsStaticShadowing ? Scene->SkyLight->OcclusionMaxDistance : Scene->DefaultMaxDistanceFieldOcclusionDistance;
@@ -2728,7 +2728,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Postprocessing);
 		SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_PostProcessing));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_PostProcessing));
 
 		FPostProcessingInputs PostProcessingInputs;
 		PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
@@ -2831,11 +2831,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFinish);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, FrameRenderFinish);
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_RenderFinish));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_RenderFinish));
 
 		RenderFinish(GraphBuilder, ViewFamilyTexture);
 
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterFrame));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterFrame));
 	}
 
 	GraphBuilder.Execute();

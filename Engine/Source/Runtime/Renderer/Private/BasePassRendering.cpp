@@ -891,9 +891,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	ForwardBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
 	ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
 
-	AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_BasePass));
+	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
 	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity);
-	AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterBasePass));
+	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
 	if (ViewFamily.ViewExtensions.Num() > 0)
 	{
@@ -926,9 +926,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	if (ShouldRenderAnisotropyPass())
 	{
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AnisotropyPass));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AnisotropyPass));
 		RenderAnisotropyPass(GraphBuilder, SceneTextures.Depth.Target, bEnableParallelBasePasses);
-		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterAnisotropyPass));
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
 }
 

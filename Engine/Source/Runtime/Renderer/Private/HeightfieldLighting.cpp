@@ -714,9 +714,9 @@ FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TAr
 		{
 			if (UploadBytes > 0)
 			{
-				void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHIVertexBuffer(), 0, UploadBytes, RLM_WriteOnly);
+				void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 				FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-				RHIUnlockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHIVertexBuffer());
+				RHIUnlockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI());
 			}
 		});
 

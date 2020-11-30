@@ -498,7 +498,7 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				FMeshBatchElement& BatchElement = Mesh.Elements[0];
 
 				BatchElement.IndexBuffer = VertexFactory->IndexBuffer;
-				BatchElement.IndirectArgsBuffer = Buffers.IndirectArgsBuffer->GetVertexBufferRHI();
+				BatchElement.IndirectArgsBuffer = Buffers.IndirectArgsBuffer->GetRHI();
 				BatchElement.IndirectArgsOffset = 0;
 
 				BatchElement.FirstIndex = 0;
@@ -1471,7 +1471,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 		{
 			FVirtualTextureFeedbackBufferDesc Desc;
 			Desc.Init(CVarVHMMaxFeedbackItems.GetValueOnRenderThread() + 1);
-			SubmitVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList, FeedbackBuffers[0].GetReference()->GetVertexBufferRHI(), Desc);
+			SubmitVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList, FeedbackBuffers[0].GetReference()->GetRHI(), Desc);
 		}
 	}
 }

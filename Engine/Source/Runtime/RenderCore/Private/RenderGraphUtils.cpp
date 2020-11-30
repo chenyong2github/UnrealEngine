@@ -634,7 +634,7 @@ void AddEnqueueCopyPass(FRDGBuilder& GraphBuilder, FRHIGPUBufferReadback* Readba
 		ERDGPassFlags::Readback,
 		[Readback, SourceBuffer, NumBytes](FRHICommandList& RHICmdList)
 	{
-		Readback->EnqueueCopy(RHICmdList, SourceBuffer->GetRHIVertexBuffer(), NumBytes);
+		Readback->EnqueueCopy(RHICmdList, SourceBuffer->GetRHI(), NumBytes);
 	});
 }
 
@@ -781,7 +781,7 @@ FRDGBufferRef CreateStructuredBuffer(
 			ERDGPassFlags::Copy,
 			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIStructuredBuffer* StructuredBuffer = Buffer->GetRHIStructuredBuffer();
+			FRHIStructuredBuffer* StructuredBuffer = Buffer->GetRHI();
 			void* DestPtr = RHICmdList.LockStructuredBuffer(StructuredBuffer, 0, InitialDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
 			RHICmdList.UnlockStructuredBuffer(StructuredBuffer);
@@ -817,7 +817,7 @@ FRDGBufferRef CreateVertexBuffer(
 			ERDGPassFlags::Copy,
 			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIVertexBuffer* VertexBuffer = Buffer->GetRHIVertexBuffer();
+			FRHIVertexBuffer* VertexBuffer = Buffer->GetRHI();
 			void* DestPtr = RHICmdList.LockVertexBuffer(VertexBuffer, 0, InitialDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
 			RHICmdList.UnlockVertexBuffer(VertexBuffer);

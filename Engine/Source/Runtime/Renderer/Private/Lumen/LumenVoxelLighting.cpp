@@ -919,9 +919,9 @@ void UpdateVoxelVisBuffer(
 					{
 						if (UploadBytes > 0)
 						{
-							void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHIVertexBuffer(), 0, UploadBytes, RLM_WriteOnly);
+							void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 							FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-							RHIUnlockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHIVertexBuffer());
+							RHIUnlockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHI());
 						}
 					});
 			}

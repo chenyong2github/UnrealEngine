@@ -1709,7 +1709,7 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 	AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("Readback"), Buffer,
 		[ReadbackBuffer, Buffer](FRHICommandList& RHICmdList)
 	{
-		ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHIVertexBuffer(), 0u);
+		ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHI(), 0u);
 	});
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32_UINT), 0);
