@@ -5,7 +5,7 @@
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimInstance.h"
-#include "Editor/AnimGraph/Classes/AnimGraphNode_Base.h"
+#include "AnimGraphNode_Base.h"
 
 UAnimBlueprintPostCompileValidation::UAnimBlueprintPostCompileValidation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

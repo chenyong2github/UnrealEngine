@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Editor/AnimGraph/Classes/AnimGraphNode_Base.h"
+#include "AnimGraphNode_Base.h"
 #include "BoneControllers/AnimNode_ScaleChainLength.h"
 #include "AnimGraphNode_ScaleChainLength.generated.h"
 
