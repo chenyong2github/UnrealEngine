@@ -4335,7 +4335,7 @@ int32 USkeletalMesh::GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform
 
 void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	LODSettings = InLODSettings;
 	if (LODSettings)
@@ -4343,6 +4343,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		LODSettings->SetLODSettingsToMesh(this);
 	}
 #endif // WITH_EDITORONLY_DATA
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USkeletalMesh::SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig)
