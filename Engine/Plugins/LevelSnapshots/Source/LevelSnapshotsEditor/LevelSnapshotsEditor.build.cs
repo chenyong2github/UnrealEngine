@@ -17,7 +17,7 @@ public class LevelSnapshotsEditor : ModuleRules
 				Path.Combine(ModuleDirectory, "Private", "Customizations"),
 				Path.Combine(ModuleDirectory, "Private", "Data"),
 				Path.Combine(ModuleDirectory, "Private", "Data", "Filters"),
-				Path.Combine(ModuleDirectory, "Private", "Data", "DragDrop")
+				Path.Combine(ModuleDirectory, "Private", "Data", "DragDrop"),
 				Path.Combine(ModuleDirectory, "Private", "Factories"),
 				Path.Combine(ModuleDirectory, "Private", "Misc"),
 				Path.Combine(ModuleDirectory, "Private", "TempInterfaces"),
