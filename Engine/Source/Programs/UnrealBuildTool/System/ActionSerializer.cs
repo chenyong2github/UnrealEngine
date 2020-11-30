@@ -25,30 +25,30 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Reader">Reader for the action</param>
 		/// <returns>New action</returns>
-		IAction Read(BinaryArchiveReader Reader);
+		IExternalAction Read(BinaryArchiveReader Reader);
 
 		/// <summary>
 		/// Writes an action to an archive
 		/// </summary>
 		/// <param name="Writer">Writer for the archive</param>
 		/// <param name="Action">The action to write</param>
-		void Write(BinaryArchiveWriter Writer, IAction Action);
+		void Write(BinaryArchiveWriter Writer, IExternalAction Action);
 	}
 
 	/// <summary>
 	/// Generic base class for an action serializer
 	/// </summary>
 	/// <typeparam name="TAction"></typeparam>
-	abstract class ActionSerializerBase<TAction> : IActionSerializer where TAction : IAction
+	abstract class ActionSerializerBase<TAction> : IActionSerializer where TAction : IExternalAction
 	{
 		/// <inheritdoc/>
 		public Type Type => typeof(TAction);
 
 		/// <inheritdoc/>
-		IAction IActionSerializer.Read(BinaryArchiveReader Reader) => Read(Reader);
+		IExternalAction IActionSerializer.Read(BinaryArchiveReader Reader) => Read(Reader);
 
 		/// <inheritdoc/>
-		void IActionSerializer.Write(BinaryArchiveWriter Writer, IAction Action) => Write(Writer, (TAction)Action);
+		void IActionSerializer.Write(BinaryArchiveWriter Writer, IExternalAction Action) => Write(Writer, (TAction)Action);
 
 		/// <summary>
 		/// Read the action from an archive
@@ -106,7 +106,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Reader">Reader to deserialize from</param>
 		/// <returns>New action</returns>
-		public static IAction ReadAction(this BinaryArchiveReader Reader)
+		public static IExternalAction ReadAction(this BinaryArchiveReader Reader)
 		{
 			IActionSerializer Serializer = Reader.ReadObjectReference(() => ReadSerializer(Reader));
 			return Serializer.Read(Reader);
@@ -135,7 +135,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Writer">Writer to serialize the action to</param>
 		/// <param name="Action">Action to serialize</param>
-		public static void WriteAction(this BinaryArchiveWriter Writer, IAction Action)
+		public static void WriteAction(this BinaryArchiveWriter Writer, IExternalAction Action)
 		{
 			Type Type = Action.GetType();
 

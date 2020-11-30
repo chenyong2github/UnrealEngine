@@ -19,7 +19,7 @@ namespace UnrealBuildTool
 		/// Adds an action to this graph
 		/// </summary>
 		/// <param name="Action">Action to add</param>
-		void AddAction(IAction Action);
+		void AddAction(IExternalAction Action);
 
 		/// <summary>
 		/// Creates a response file for use in the action graph
@@ -74,7 +74,7 @@ namespace UnrealBuildTool
 	class NullActionGraphBuilder : IActionGraphBuilder
 	{
 		/// <inheritdoc/>
-		public void AddAction(IAction Action)
+		public void AddAction(IExternalAction Action)
 		{
 		}
 
@@ -135,7 +135,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual void AddAction(IAction Action)
+		public virtual void AddAction(IExternalAction Action)
 		{
 			Inner.AddAction(Action);
 		}

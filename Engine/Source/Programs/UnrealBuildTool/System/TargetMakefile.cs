@@ -96,7 +96,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Every action in the action graph
 		/// </summary>
-		public List<IAction> Actions;
+		public List<IExternalAction> Actions;
 
 		/// <summary>
 		/// Environment variables that we'll need in order to invoke the platform's compiler and linker
@@ -193,7 +193,7 @@ namespace UnrealBuildTool
 			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
-			this.Actions = new List<IAction>();
+			this.Actions = new List<IExternalAction>();
 			this.OutputItems = new List<FileItem>();
 			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
 			this.HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -680,7 +680,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public void AddAction(IAction Action)
+		public void AddAction(IExternalAction Action)
 		{
 			Actions.Add(Action);
 		}

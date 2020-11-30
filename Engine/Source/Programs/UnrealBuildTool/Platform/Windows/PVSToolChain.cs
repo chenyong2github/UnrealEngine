@@ -444,15 +444,15 @@ namespace UnrealBuildTool
 
 		class ActionGraphCapture : ForwardingActionGraphBuilder
 		{
-			List<IAction> Actions;
+			List<IExternalAction> Actions;
 
-			public ActionGraphCapture(IActionGraphBuilder Inner, List<IAction> Actions)
+			public ActionGraphCapture(IActionGraphBuilder Inner, List<IExternalAction> Actions)
 				: base(Inner)
 			{
 				this.Actions = Actions;
 			}
 
-			public override void AddAction(IAction Action)
+			public override void AddAction(IExternalAction Action)
 			{
 				base.AddAction(Action);
 
@@ -493,7 +493,7 @@ namespace UnrealBuildTool
 			PreprocessCompileEnvironment.bEnableUndefinedIdentifierWarnings = false; // Not sure why THIRD_PARTY_INCLUDES_START doesn't pick this up; the _Pragma appears in the preprocessed output. Perhaps in preprocess-only mode the compiler doesn't respect these?
 			PreprocessCompileEnvironment.Definitions.Add("PVS_STUDIO");
 
-			List<IAction> PreprocessActions = new List<IAction>();
+			List<IExternalAction> PreprocessActions = new List<IExternalAction>();
 			CPPOutput Result = InnerToolChain.CompileCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
 
 			// Run the source files through PVS-Studio

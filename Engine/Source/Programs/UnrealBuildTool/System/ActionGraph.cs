@@ -55,16 +55,16 @@ namespace UnrealBuildTool
 		/// Checks a set of actions for conflicts (ie. different actions producing the same output items)
 		/// </summary>
 		/// <param name="Actions">The set of actions to check</param>
-		public static void CheckForConflicts(IEnumerable<IAction> Actions)
+		public static void CheckForConflicts(IEnumerable<IExternalAction> Actions)
 		{
 			bool bResult = true;
 
-			Dictionary<FileItem, IAction> ItemToProducingAction = new Dictionary<FileItem, IAction>();
-			foreach(IAction Action in Actions)
+			Dictionary<FileItem, IExternalAction> ItemToProducingAction = new Dictionary<FileItem, IExternalAction>();
+			foreach(IExternalAction Action in Actions)
 			{
 				foreach(FileItem ProducedItem in Action.ProducedItems)
 				{
-					IAction ExistingAction;
+					IExternalAction ExistingAction;
 					if(ItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
 						bResult &= CheckForConflicts(ExistingAction, Action);
@@ -88,7 +88,7 @@ namespace UnrealBuildTool
 		/// <param name="A">The first action</param>
 		/// <param name="B">The second action</param>
 		/// <returns>True if any conflicts were found, false otherwise.</returns>
-		public static bool CheckForConflicts(IAction A, IAction B)
+		public static bool CheckForConflicts(IExternalAction A, IExternalAction B)
 		{
 			bool bResult = true;
 			if (A.ActionType != B.ActionType)
@@ -136,7 +136,7 @@ namespace UnrealBuildTool
 		/// <param name="Description">Description of the difference</param>
 		/// <param name="OldValue">Previous value for the field</param>
 		/// <param name="NewValue">Conflicting value for the field</param>
-		static void LogConflict(IAction Action, string Description, string OldValue, string NewValue)
+		static void LogConflict(IExternalAction Action, string Description, string OldValue, string NewValue)
 		{
 			Log.TraceError("Unable to merge actions producing {0}: {1}", Action.ProducedItems.First().Location.GetFileName(), Description);
 			Log.TraceLog("  Previous: {0}", OldValue);
@@ -164,7 +164,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BuildConfiguration">The build configuration</param>
 		/// <param name="Actions">List of actions in the graph</param>
-		public static void CheckPathLengths(BuildConfiguration BuildConfiguration, IEnumerable<IAction> Actions)
+		public static void CheckPathLengths(BuildConfiguration BuildConfiguration, IEnumerable<IExternalAction> Actions)
 		{
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -172,7 +172,7 @@ namespace UnrealBuildTool
 
 				List<FileReference> FailPaths = new List<FileReference>();
 				List<FileReference> WarnPaths = new List<FileReference>();
-				foreach (IAction Action in Actions)
+				foreach (IExternalAction Action in Actions)
 				{
 					foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
 					{

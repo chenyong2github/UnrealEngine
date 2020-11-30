@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 		ParseTimingInfo,
 	}
 
-	interface IAction
+	interface IExternalAction
 	{
 		/// <summary>
 		/// The type of this action (for debugging purposes).
@@ -119,7 +119,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// A build action.
 	/// </summary>
-	class Action : IAction
+	class Action : IExternalAction
 	{
 		///
 		/// Preparation and Assembly (serialized)
@@ -201,9 +201,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bProducesImportLibrary { get; set; } = false;
 
-		IEnumerable<FileItem> IAction.PrerequisiteItems => PrerequisiteItems;
-		IEnumerable<FileItem> IAction.ProducedItems => ProducedItems;
-		IEnumerable<FileItem> IAction.DeleteItems => DeleteItems;
+		IEnumerable<FileItem> IExternalAction.PrerequisiteItems => PrerequisiteItems;
+		IEnumerable<FileItem> IExternalAction.ProducedItems => ProducedItems;
+		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
 
 		public Action(ActionType InActionType)
 		{
@@ -216,7 +216,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public Action(IAction InOther)
+		public Action(IExternalAction InOther)
 		{
 			ActionType = InOther.ActionType;
 			PrerequisiteItems = new List<FileItem>(InOther.PrerequisiteItems);
@@ -461,12 +461,12 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Information about an action queued to be executed
 	/// </summary>
-	class LinkedAction : IAction
+	class LinkedAction : IExternalAction
 	{
 		/// <summary>
 		/// The inner action instance
 		/// </summary>
-		public IAction Inner;
+		public IExternalAction Inner;
 
 		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.
@@ -507,7 +507,7 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Inner">The inner action instance</param>
-		public LinkedAction(IAction Inner)
+		public LinkedAction(IExternalAction Inner)
 		{
 			this.Inner = Inner;
 		}

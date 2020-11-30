@@ -9,7 +9,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Interface for an action that compiles C++ source code
 	/// </summary>
-	interface ICppCompileAction : IAction
+	interface ICppCompileAction : IExternalAction
 	{
 		/// <summary>
 		/// Path to the compiled module interface file
@@ -139,17 +139,17 @@ namespace UnrealBuildTool
 
 		#region Implementation of IAction
 
-		ActionType IAction.ActionType => ActionType.Compile;
-		IEnumerable<FileItem> IAction.DeleteItems => DeleteItems;
+		ActionType IExternalAction.ActionType => ActionType.Compile;
+		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
 		public DirectoryReference WorkingDirectory => UnrealBuildTool.EngineSourceDirectory;
-		string IAction.CommandDescription => "Compile";
-		bool IAction.bIsGCCCompiler => false;
-		bool IAction.bProducesImportLibrary => false;
-		string IAction.StatusDescription => (SourceFile == null) ? "Compiling" : SourceFile.Location.GetFileName();
-		bool IAction.bShouldOutputStatusDescription => CompilerType == WindowsCompiler.Clang;
+		string IExternalAction.CommandDescription => "Compile";
+		bool IExternalAction.bIsGCCCompiler => false;
+		bool IExternalAction.bProducesImportLibrary => false;
+		string IExternalAction.StatusDescription => (SourceFile == null) ? "Compiling" : SourceFile.Location.GetFileName();
+		bool IExternalAction.bShouldOutputStatusDescription => CompilerType == WindowsCompiler.Clang;
 
 		/// <inheritdoc/>
-		IEnumerable<FileItem> IAction.PrerequisiteItems
+		IEnumerable<FileItem> IExternalAction.PrerequisiteItems
 		{
 			get
 			{
@@ -169,7 +169,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		IEnumerable<FileItem> IAction.ProducedItems
+		IEnumerable<FileItem> IExternalAction.ProducedItems
 		{
 			get
 			{
@@ -201,7 +201,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		FileReference IAction.CommandPath
+		FileReference IExternalAction.CommandPath
 		{
 			get
 			{
@@ -217,7 +217,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		string IAction.CommandArguments
+		string IExternalAction.CommandArguments
 		{
 			get
 			{
