@@ -387,7 +387,7 @@ void FLevelModel::MakeLevelCurrent()
 		}
 							
 		// Force the current level to be visible.
-		SetVisible(true);
+		LevelCollectionModel.ShowLevels({ AsShared() });
 	}
 	else
 	{
