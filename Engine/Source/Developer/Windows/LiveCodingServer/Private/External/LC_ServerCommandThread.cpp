@@ -719,7 +719,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 		TArray<FString> Targets;
 		for (LiveProcess* liveProcess : m_liveProcesses)
 		{
-			Targets.Add(liveProcess->GetBuildArguments());
+			Targets.AddUnique(liveProcess->GetBuildArguments());
 		}
 
 		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Compiling changes for live coding...");
