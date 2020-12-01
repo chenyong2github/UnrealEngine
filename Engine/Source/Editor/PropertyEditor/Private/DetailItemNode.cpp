@@ -4,6 +4,7 @@
 #include "DetailCategoryGroupNode.h"
 #include "DetailGroup.h"
 #include "DetailPropertyRow.h"
+#include "SConstrainedBox.h"
 #include "SDetailSingleItemRow.h"
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"

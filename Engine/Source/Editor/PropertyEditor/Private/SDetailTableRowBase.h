@@ -60,7 +60,7 @@ public:
 		return STableRow< TSharedPtr< FDetailTreeNode > >::OnMouseButtonUp( MyGeometry, MouseEvent );
 	}
 
-	TSharedPtr<FDetailTreeNode> GetOwnerTreeNode() const { return OwnerTreeNode.Pin(); }
+	int32 GetIndentLevelForBackgroundColor() const;
 
 protected:
 	/**

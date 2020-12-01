@@ -32,7 +32,8 @@ public:
 private:
 	EVisibility IsSeparatorVisible() const;
 	const FSlateBrush* GetBackgroundImage() const;
-	FSlateColor GetBackgroundColor() const;
+	FSlateColor GetInnerBackgroundColor() const;
+	FSlateColor GetOuterBackgroundColor() const;
 
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;

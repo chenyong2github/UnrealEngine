@@ -16,6 +16,9 @@
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "SConstrainedBox.h"
+#include "SDetailExpanderArrow.h"
+#include "SDetailRowIndent.h"
 #include "SResetToDefaultPropertyEditor.h"
 #include "PropertyEditorConstants.h"
 
@@ -44,109 +47,6 @@ namespace SDetailSingleItemRow_Helper
 				RecursivelyGetItemShow(ItemChild, ItemShowNum);
 			}
 		}
-	}
-}
-
-class SDetailsIndent : public SCompoundWidget
-{ 
-private:
-	TSharedPtr<SDetailSingleItemRow> Row;
-	TSharedPtr<SHorizontalBox> ChildBox;
-
-public:
-
-	SLATE_BEGIN_ARGS(SDetailsIndent) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, TSharedRef<SDetailSingleItemRow> DetailsRow)
-	{
-		Row = DetailsRow;
-
-		ChildSlot
-		[
-			SNew(SBox)
-			.WidthOverride(this, &SDetailsIndent::GetIndentWidth)
-		];
-	}
-
-	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
-	{
-		const FSlateBrush* BackgroundBrush = FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
-		const FSlateBrush* DropShadowBrush = FAppStyle::Get().GetBrush("DetailsView.ArrayDropShadow");
-
-		int32 IndentLevel = Row->GetIndentLevelForBackgroundColor();
-		for (int32 i = 0; i < IndentLevel; ++i)
-		{
-			FSlateColor BackgroundColor = GetRowBackgroundColor(i);
-
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(16 * i, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
-				BackgroundBrush,
-				ESlateDrawEffect::None,
-				BackgroundColor.GetColor(InWidgetStyle)
-			);
-
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(16 * i, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
-				DropShadowBrush
-			);
-		}
-		
-		return LayerId + 1;
-	}
-
-	FOptionalSize GetIndentWidth() const
-	{
-		int32 IndentLevel = Row->GetIndentLevelForBackgroundColor();
-		return IndentLevel * 16.0f;
-	}
-
-	FSlateColor GetRowBackgroundColor(int32 i) const
-	{
-		if (Row->IsHovered() && !Row->bIsHoveredDragTarget)
-		{
-			return FAppStyle::Get().GetSlateColor("Colors.Header");
-		}
-
-		return PropertyEditorConstants::GetRowBackgroundColor(i);
-	}
-};
-
-void SConstrainedBox::Construct(const FArguments& InArgs)
-{
-	MinWidth = InArgs._MinWidth;
-	MaxWidth = InArgs._MaxWidth;
-
-	ChildSlot
-	[
-		InArgs._Content.Widget
-	];
-}
-
-FVector2D SConstrainedBox::ComputeDesiredSize(float LayoutScaleMultiplier) const
-{
-	const float MinWidthVal = MinWidth.Get().Get(0.0f);
-	const float MaxWidthVal = MaxWidth.Get().Get(0.0f);
-
-	if (MinWidthVal == 0.0f && MaxWidthVal == 0.0f)
-	{
-		return SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
-	}
-	else
-	{
-		FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-
-		float XVal = FMath::Max(MinWidthVal, ChildSize.X);
-		if (MaxWidthVal >= MinWidthVal)
-		{
-			XVal = FMath::Min(MaxWidthVal, XVal);
-		}
-
-		return FVector2D(XVal, ChildSize.Y);
 	}
 }
 
@@ -501,7 +401,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				.Padding(0,0,0,0)
 				.AutoWidth()
 				[
-					SNew(SDetailsIndent, SharedThis(this))
+					SNew(SDetailRowIndent, SharedThis(this))
 				];
 
 			NameColumnBox->AddSlot()
@@ -510,24 +410,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				.Padding(0)
 				.AutoWidth()
 				[
-					SNew(SConstrainedBox)
-					.MinWidth(20)
-					.Visibility(this, &SDetailSingleItemRow::GetExpanderVisibility)
-					[
-						SAssignNew(ExpanderArrow, SButton)
-						.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.ClickMethod(EButtonClickMethod::MouseDown)
-						.OnClicked(this, &SDetailSingleItemRow::OnExpanderClicked)
-						.ContentPadding(FMargin(5,0,0,0))
-						.IsFocusable(false)
-						[
-							SNew(SImage)
-							.Image(this, &SDetailSingleItemRow::GetExpanderImage)
-							.ColorAndOpacity(FSlateColor::UseForeground())
-						]
-					]
+					SNew(SDetailExpanderArrow, SharedThis(this))
 				];
 			
 			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
@@ -789,27 +672,6 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
 }
 
-int32 SDetailSingleItemRow::GetIndentLevelForBackgroundColor() const
-{
-	int32 IndentLevel = 0; 
-	if (OwnerTablePtr.IsValid())
-	{
-		// every item is in a category, but we don't want to show an indent for "top-level" properties
-		IndentLevel = GetIndentLevel() - 1;
-	}
-
-	TSharedPtr<FDetailTreeNode> DetailTreeNode = GetOwnerTreeNode();
-	if (DetailTreeNode.IsValid() && 
-		DetailTreeNode->GetDetailsView() != nullptr && 
-		DetailTreeNode->GetDetailsView()->ContainsMultipleTopLevelObjects())
-	{
-		// if the row is in a multiple top level object display (eg. Project Settings), don't display an indent for the initial level
-		--IndentLevel;
-	}
-
-	return FMath::Max(0, IndentLevel);
-}
-
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 {
 	const bool bIsCopyPasteBound = Customization->GetWidgetRow().IsCopyPasteBound();
@@ -910,62 +772,6 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 	}
 
 	return true;
-}
-
-EVisibility SDetailSingleItemRow::GetExpanderVisibility() const
-{
-	return DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-const FSlateBrush* SDetailSingleItemRow::GetExpanderImage() const
-{
-	const bool bIsItemExpanded = IsItemExpanded();
-
-	FName ResourceName;
-	if (bIsItemExpanded)
-	{
-		if (ExpanderArrow->IsHovered())
-		{
-			static FName ExpandedHoveredName = "TreeArrow_Expanded_Hovered";
-			ResourceName = ExpandedHoveredName;
-		}
-		else
-		{
-			static FName ExpandedName = "TreeArrow_Expanded";
-			ResourceName = ExpandedName;
-		}
-	}
-	else
-	{
-		if (ExpanderArrow->IsHovered())
-		{
-			static FName CollapsedHoveredName = "TreeArrow_Collapsed_Hovered";
-			ResourceName = CollapsedHoveredName;
-		}
-		else
-		{
-			static FName CollapsedName = "TreeArrow_Collapsed";
-			ResourceName = CollapsedName;
-		}
-	}
-
-	return FAppStyle::Get().GetBrush(ResourceName);
-}
-
-FReply SDetailSingleItemRow::OnExpanderClicked()
-{
-	// Recurse the expansion if "shift" is being pressed
-	const FModifierKeysState ModKeyState = FSlateApplication::Get().GetModifierKeys();
-	if(ModKeyState.IsShiftDown())
-	{
-		Private_OnExpanderArrowShiftClicked();
-	}
-	else
-	{
-		ToggleExpansion();
-	}
-
-	return FReply::Handled();
 }
 
 void SDetailSingleItemRow::OnCopyProperty()

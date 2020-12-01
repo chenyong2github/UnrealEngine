@@ -3,3 +3,24 @@
 #include "SDetailTableRowBase.h"
 
 float SDetailTableRowBase::ScrollbarPaddingSize = 16.0f;
+
+int32 SDetailTableRowBase::GetIndentLevelForBackgroundColor() const
+{
+	int32 IndentLevel = 0; 
+	if (OwnerTablePtr.IsValid())
+	{
+		// every item is in a category, but we don't want to show an indent for "top-level" properties
+		IndentLevel = GetIndentLevel() - 1;
+	}
+
+	TSharedPtr<FDetailTreeNode> DetailTreeNode = OwnerTreeNode.Pin();
+	if (DetailTreeNode.IsValid() && 
+		DetailTreeNode->GetDetailsView() != nullptr && 
+		DetailTreeNode->GetDetailsView()->ContainsMultipleTopLevelObjects())
+	{
+		// if the row is in a multiple top level object display (eg. Project Settings), don't display an indent for the initial level
+		--IndentLevel;
+	}
+
+	return FMath::Max(0, IndentLevel);
+}

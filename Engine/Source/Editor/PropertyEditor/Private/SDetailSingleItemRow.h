@@ -18,26 +18,6 @@ class IDetailKeyframeHandler;
 struct FDetailLayoutCustomization;
 class SDetailSingleItemRow;
 
-class SConstrainedBox : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SConstrainedBox)
-		: _MinWidth()
-		, _MaxWidth()
-	{}
-	SLATE_DEFAULT_SLOT(FArguments, Content)
-		SLATE_ATTRIBUTE(TOptional<float>, MinWidth)
-		SLATE_ATTRIBUTE(TOptional<float>, MaxWidth)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs);
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
-
-private:
-	TAttribute< TOptional<float> > MinWidth;
-	TAttribute< TOptional<float> > MaxWidth;
-};
-
 class SArrayRowHandle : public SCompoundWidget
 {
 public:
@@ -114,12 +94,6 @@ private:
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
-	EVisibility GetExpanderVisibility() const;
-	const FSlateBrush* GetExpanderImage() const;
-	FReply OnExpanderClicked();
-
-	int32 GetIndentLevelForBackgroundColor() const;
-
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */
@@ -129,8 +103,6 @@ private:
 	bool bIsDragDropObject;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
 	TSharedPtr<SButton> ExpanderArrow;
-
-	friend class SDetailsIndent;
 };
 
 class FArrayRowDragDropOp : public FDecoratedDragDropOp

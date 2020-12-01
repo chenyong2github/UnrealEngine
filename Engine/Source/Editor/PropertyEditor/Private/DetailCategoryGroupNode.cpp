@@ -3,6 +3,8 @@
 #include "DetailCategoryGroupNode.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorConstants.h"
+#include "SDetailExpanderArrow.h"
+#include "SDetailRowIndent.h"
 
 void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
@@ -11,18 +13,28 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	bIsInnerCategory = InArgs._InnerCategory;
 	bShowBorder = InArgs._ShowBorder;
 
+	const float VerticalPadding = bIsInnerCategory ? 6 : 8;
+
 	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
 	TSharedPtr<SHorizontalBox> HeaderBox = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(8, 0, 8, 0)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Fill)
 		.AutoWidth()
 		[
-			SNew(SExpanderArrow, SharedThis(this))
+			SNew(SDetailRowIndent, SharedThis(this))
+		]
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SDetailExpanderArrow, SharedThis(this))
 		]
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
+		.Padding(12, VerticalPadding, 0, VerticalPadding)
 		.FillWidth(1)
 		[
 			SNew(STextBlock)
@@ -41,9 +53,9 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 			InArgs._HeaderContent.ToSharedRef()
 		];
 	}
-
-	const float VerticalPadding = bIsInnerCategory ? 6 : 8;
 	
+	const float EditConditionWidgetWidth = 33; // this is the width of the edit condition widget displayed on the left in SDetailSingleItemRow
+
 	ChildSlot
 	.Padding(0)
 	[
@@ -51,12 +63,30 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		.BorderImage( FAppStyle::Get().GetBrush( "DetailsView.GridLine") )
 		.Padding( FMargin(0, 0, 0, 1) )
 		[
-			SNew( SBorder )
-			.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
-			.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetBackgroundColor )
-			.Padding( FMargin(0, VerticalPadding, SDetailTableRowBase::ScrollbarPaddingSize, VerticalPadding) )
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoWidth()
 			[
-				HeaderBox.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+				.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetOuterBackgroundColor )
+				.Padding(0)
+				[
+					SNew(SSpacer)
+					.Size(bIsInnerCategory ? FVector2D(EditConditionWidgetWidth,0) : FVector2D(0,0))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			[
+				SNew( SBorder )
+				.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
+				.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetInnerBackgroundColor )
+				.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 0))
+				[
+					HeaderBox.ToSharedRef()
+				]
 			]
 		]
 	];
@@ -96,7 +126,7 @@ const FSlateBrush* SDetailCategoryTableRow::GetBackgroundImage() const
 	return nullptr;
 }
 
-FSlateColor SDetailCategoryTableRow::GetBackgroundColor() const
+FSlateColor SDetailCategoryTableRow::GetInnerBackgroundColor() const
 {
 	if (bShowBorder && bIsInnerCategory)
 	{
@@ -112,6 +142,16 @@ FSlateColor SDetailCategoryTableRow::GetBackgroundColor() const
 	}
 
 	return FSlateColor(FLinearColor::White);
+}
+
+FSlateColor SDetailCategoryTableRow::GetOuterBackgroundColor() const
+{
+	if (bIsHovered)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Header");
+	}
+
+	return FAppStyle::Get().GetSlateColor("Colors.Background");
 }
 
 FReply SDetailCategoryTableRow::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
