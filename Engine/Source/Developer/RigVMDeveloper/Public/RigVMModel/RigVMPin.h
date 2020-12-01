@@ -328,6 +328,11 @@ private:
 	UPROPERTY()
 	FName DisplayName;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	mutable FString CachedPinPath;
+#endif
+
 	UPROPERTY()
 	ERigVMPinDirection Direction;
 

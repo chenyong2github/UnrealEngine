@@ -11,13 +11,13 @@
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigVMDeveloperModule.h"
-
-// #define FRIGVMASTPARSER_DEBUG_TRAVERSAL
 
 FRigVMExprAST::FRigVMExprAST(EType InType, UObject* InSubject)
 	: Name(NAME_None)
@@ -2484,32 +2484,118 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 		TMap<URigVMPin*, URigVMPin*> SourcePins;
 		TMap<URigVMPin*, TArray<URigVMPin*>>* TargetLinks;
 		TMap<URigVMPin*, TArray<URigVMPin*>>* SourceLinks;
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-		FString Indentation;
-#endif
+		TArray<URigVMLibraryNode*> LibraryNodeStack;
+
+		class FLibraryNodeGuard
+		{
+		public:
+			FLibraryNodeGuard(URigVMLibraryNode* InNode, TArray<URigVMLibraryNode*>& InStack)
+				: Stack(InStack)
+			{
+				Stack.Push(InNode);
+			}
+
+			~FLibraryNodeGuard()
+			{
+				Stack.Pop();
+			}
+
+		private:
+
+			TArray<URigVMLibraryNode*>& Stack;
+		};
+
+		static bool ShouldRecursePin(URigVMPin* InPin)
+		{
+			URigVMNode* Node = InPin->GetNode();
+			return Node->IsA<URigVMRerouteNode>() ||
+				Node->IsA<URigVMLibraryNode>() ||
+				Node->IsA<URigVMFunctionEntryNode>() ||
+				Node->IsA<URigVMFunctionReturnNode>();
+		}
+
+		static bool IsValidPinForAST(URigVMPin* InPin)
+		{
+			return !ShouldRecursePin(InPin);
+		}
+
+		static bool IsValidLinkForAST(URigVMPin* InSourcePin, URigVMPin* InTargetPin)
+		{
+			return IsValidPinForAST(InSourcePin) && IsValidPinForAST(InTargetPin);
+		}
 
 		static URigVMPin* FindSourcePin(URigVMPin* InPin, LocalPinTraversalInfo& OutTraversalInfo)
 		{
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-			FString& Indent = OutTraversalInfo.Indentation;
-#endif
+			// if this pin is a root on a library
+			if (InPin->GetParentPin() == nullptr)
+			{
+				if (InPin->GetDirection() == ERigVMPinDirection::Output ||
+					InPin->GetDirection() == ERigVMPinDirection::IO)
+				{
+					URigVMNode* Node = InPin->GetNode();
+					if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+					{
+						if (!OutTraversalInfo.LibraryNodeStack.Contains(LibraryNode))
+						{
+							if (URigVMFunctionReturnNode* ReturnNode = LibraryNode->GetReturnNode())
+							{
+								if (URigVMPin* ReturnPin = ReturnNode->FindPin(InPin->GetName()))
+								{
+									FLibraryNodeGuard NodeGuard(LibraryNode, OutTraversalInfo.LibraryNodeStack);
+									URigVMPin* SourcePin = FindSourcePin(ReturnPin, OutTraversalInfo);
+									SourcePin = SourcePin == nullptr ? ReturnPin : SourcePin;
+									OutTraversalInfo.SourcePins.FindOrAdd(InPin) = SourcePin;
+									return SourcePin;
+
+								}
+							}
+						}
+					}
+					else if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(Node))
+					{
+						for (int32 LibraryNodeIndex = OutTraversalInfo.LibraryNodeStack.Num() - 1; LibraryNodeIndex >= 0; LibraryNodeIndex--)
+						{
+							URigVMLibraryNode* LastLibraryNode = OutTraversalInfo.LibraryNodeStack[LibraryNodeIndex];
+							if(LastLibraryNode->GetEntryNode() == EntryNode)
+							{
+								if (URigVMPin* LibraryPin = LastLibraryNode->FindPin(InPin->GetName()))
+								{
+									URigVMPin* SourcePin = FindSourcePin(LibraryPin, OutTraversalInfo);
+									SourcePin = SourcePin == nullptr ? LibraryPin : SourcePin;
+									OutTraversalInfo.SourcePins.FindOrAdd(InPin) = SourcePin;
+									return SourcePin;
+								}
+							}
+						}
+					}
+				}
+			}
+
 			if (InPin->GetDirection() != ERigVMPinDirection::Input &&
 				InPin->GetDirection() != ERigVMPinDirection::IO)
 			{
 				return nullptr;
 			}
 
-			if (URigVMPin* const* SourcePin = OutTraversalInfo.SourcePins.Find(InPin))
+			bool bIOPinOnLeftOfLibraryNode = false;
+			if (InPin->GetDirection() == ERigVMPinDirection::IO)
 			{
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-				UE_LOG(LogRigVMDeveloper, Display, TEXT("%s= %s (%s)"), *Indent, *InPin->GetPinPath(), *InPin->GetCPPType());
-#endif
-				return *SourcePin;
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InPin->GetNode()))
+				{
+					bIOPinOnLeftOfLibraryNode = OutTraversalInfo.LibraryNodeStack.Contains(LibraryNode);
+				}
 			}
 
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-			UE_LOG(LogRigVMDeveloper, Display, TEXT("%s| %s (%s)"), *Indent, *InPin->GetPinPath(), *InPin->GetCPPType());
-#endif
+			if (!bIOPinOnLeftOfLibraryNode)
+			{
+				// note: this map isn't going to work for functions which are referenced.
+				// (since the pin objects are shared between multiple invocation nodes)
+				if (URigVMPin* const* SourcePin = OutTraversalInfo.SourcePins.Find(InPin))
+				{
+					return *SourcePin;
+				}
+			}
+
 			TArray<FString> SegmentPath;
 			URigVMPin* SourcePin = nullptr;
 
@@ -2522,18 +2608,12 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 					SourcePin = SourceLinks[0]->GetSourcePin();
 
 					// only continue the recursion on reroutes
-					if (SourcePin->GetNode()->IsA<URigVMRerouteNode>())
+					if (ShouldRecursePin(SourcePin))
 					{
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-						Indent += TEXT("  ");
-#endif
 						if (URigVMPin* SourceSourcePin = FindSourcePin(SourcePin, OutTraversalInfo))
 						{
 							SourcePin = SourceSourcePin;
 						}
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-						Indent = Indent.LeftChop(2);
-#endif
 					}
 
 					break;
@@ -2548,7 +2628,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 						URigVMPin* ParentSourcePin = *ParentSourcePinPtr;
 						if (ParentSourcePin)
 						{
-							if (!ParentSourcePin->GetNode()->IsA<URigVMRerouteNode>())
+							if (!ShouldRecursePin(ParentSourcePin))
 							{
 								SourcePin = nullptr;
 								break;
@@ -2557,10 +2637,6 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 					}
 
 					SegmentPath.Push(ChildPin->GetName());
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-					UE_LOG(LogRigVMDeveloper, Display, TEXT("%sPath %s"), *Indent, *URigVMPin::JoinPinPath(SegmentPath));
-					UE_LOG(LogRigVMDeveloper, Display, TEXT("%s> %s (%s)"), *Indent, *ParentPin->GetPinPath(), *ParentPin->GetCPPType());
-#endif
 				}
 				ChildPin = ParentPin;
 			}
@@ -2571,33 +2647,17 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 				{
 					FString Segment = SegmentPath.Pop();
 
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-					if (!SegmentPath.IsEmpty())
-					{
-						UE_LOG(LogRigVMDeveloper, Display, TEXT("%sPath %s"), *Indent, *URigVMPin::JoinPinPath(SegmentPath));
-					}
-					UE_LOG(LogRigVMDeveloper, Display, TEXT("%sChecking segment %s"), *Indent, *Segment);
-#endif
 					if (URigVMPin* SourceSubPin = SourcePin->FindSubPin(Segment))
 					{
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-						UE_LOG(LogRigVMDeveloper, Display, TEXT("%s< %s (%s)"), *Indent, *SourceSubPin->GetPinPath(), *SourceSubPin->GetCPPType());
-#endif
 						SourcePin = SourceSubPin;
 
 						// only continue the recursion on reroutes
-						if (SourcePin->GetNode()->IsA<URigVMRerouteNode>())
+						if (ShouldRecursePin(SourcePin))
 						{
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-							Indent += TEXT("  ");
-#endif
 							if (URigVMPin* SourceSourceSubPin = FindSourcePin(SourcePin, OutTraversalInfo))
 							{
 								SourcePin = SourceSourceSubPin;
 							}
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-							Indent = Indent.LeftChop(2);
-#endif
 						}
 					}
 					else
@@ -2608,13 +2668,10 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 				}
 			}
 
-			OutTraversalInfo.SourcePins.FindOrAdd(InPin) = SourcePin;
-#ifdef FRIGVMASTPARSER_DEBUG_TRAVERSAL
-			if (SourcePin)
+			if (!bIOPinOnLeftOfLibraryNode)
 			{
-				UE_LOG(LogRigVMDeveloper, Display, TEXT("%s%s --> %s"), *Indent, *InPin->GetPinPath(), *SourcePin->GetPinPath());
+				OutTraversalInfo.SourcePins.FindOrAdd(InPin) = SourcePin;
 			}
-#endif
 			return SourcePin;
 		}
 
@@ -2627,15 +2684,23 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 				// If the source pin is on a reroute node, this means that
 				// we only care about the default value - since it is a 
 				// "hanging" reroute without any live input.
+				// same goes for library nodes or return nodes - we'll 
+				// just use the default pin value in that case.
 
-				if (SourcePin->GetNode()->IsA<URigVMRerouteNode>())
+				URigVMNode* SourceNode = SourcePin->GetNode();
+				if (SourceNode->IsA<URigVMRerouteNode>() ||
+					SourceNode->IsA<URigVMLibraryNode>() ||
+					SourceNode->IsA<URigVMFunctionReturnNode>())
 				{
 					OutTraversalInfo.PinDefaultValueOverrides->FindOrAdd(InPin) = SourcePin->GetDefaultValue();
 				}
 				else
 				{
-					OutTraversalInfo.SourceLinks->FindOrAdd(InPin).Add(SourcePin);
-					OutTraversalInfo.TargetLinks->FindOrAdd(SourcePin).Add(InPin);
+					if (IsValidLinkForAST(SourcePin, InPin))
+					{
+						OutTraversalInfo.SourceLinks->FindOrAdd(InPin).Add(SourcePin);
+						OutTraversalInfo.TargetLinks->FindOrAdd(SourcePin).Add(InPin);
+					}
 				}
 			}
 
@@ -2644,18 +2709,45 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 				VisitPin(SubPin, OutTraversalInfo);
 			}
 		}
+
+		static void VisitNode(URigVMNode* InNode, LocalPinTraversalInfo& OutTraversalInfo)
+		{
+			if (InNode->IsA<URigVMRerouteNode>() ||
+				InNode->IsA<URigVMFunctionEntryNode>() || 
+				InNode->IsA<URigVMFunctionReturnNode>())
+			{
+				return;
+			}
+
+			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+			{
+				FLibraryNodeGuard NodeGuard(LibraryNode, OutTraversalInfo.LibraryNodeStack);
+
+				TArray<URigVMNode*> ContainedNodes = LibraryNode->GetContainedNodes();
+				for (URigVMNode* ContainedNode : ContainedNodes)
+				{
+					VisitNode(ContainedNode, OutTraversalInfo);
+				}
+			}
+			else
+			{
+				for (URigVMPin* Pin : InNode->GetPins())
+				{
+					LocalPinTraversalInfo::VisitPin(Pin, OutTraversalInfo);
+				}
+			}
+		}
 	};
 
 	Nodes.Reset();
 	SourceLinks.Reset();
 	TargetLinks.Reset();
 
-	// a) find all of the relevant nodes
-	//    once we support encapsulation we'll have to traverse into library nodes
+	// a) find all of the relevant nodes,
+	//    inline and traverse into library nodes
 	Nodes = InNodes;
 
 	// c) flatten links from an entry node / to a return node
-	//    once we have encapsulation implement this
 	//    also traverse links along reroutes and flatten them
 	LocalPinTraversalInfo TraversalInfo;
 	TraversalInfo.PinDefaultValueOverrides = &PinDefaultValueOverrides;
@@ -2664,15 +2756,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& In
 
 	for (URigVMNode* Node : Nodes)
 	{
-		if (Node->IsA<URigVMRerouteNode>())
-		{
-			continue;
-		}
-
-		for (URigVMPin* Pin : Node->GetPins())
-		{
-			LocalPinTraversalInfo::VisitPin(Pin, TraversalInfo);
-		}
+		LocalPinTraversalInfo::VisitNode(Node, TraversalInfo);
 	}
 }
 

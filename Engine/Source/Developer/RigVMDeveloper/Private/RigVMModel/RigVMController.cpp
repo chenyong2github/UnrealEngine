@@ -1781,6 +1781,25 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 			continue;
 		}
 
+		if (PinToCollapse->IsExecuteContext())
+		{
+			bool bFoundExistingPin = false;
+			for (URigVMPin* ExistingPin : CollapseNode->Pins)
+			{
+				if (ExistingPin->IsExecuteContext())
+				{
+					CollapsedPins.Add(PinToCollapse, ExistingPin);
+					bFoundExistingPin = true;
+					break;
+				}
+			}
+
+			if (bFoundExistingPin)
+			{
+				continue;
+			}
+		}
+
 		// for links that connect to the right side of the collapse
 		// node, we need to skip sub pins of already exposed pins
 		if (bSourceToBeCollapsed)
@@ -1809,6 +1828,16 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 		URigVMPin* CollapsedPin = NewObject<URigVMPin>(CollapseNode, PinName);
 		ConfigurePinFromPin(CollapsedPin, PinToCollapse);
+
+		if (CollapsedPin->IsExecuteContext())
+		{
+			CollapsedPin->Direction = ERigVMPinDirection::IO;
+			bContainsOutputs = true;
+		}
+		else if (CollapsedPin->GetDirection() == ERigVMPinDirection::IO)
+		{
+			CollapsedPin->Direction = ERigVMPinDirection::Input;
+		}
 
 		if (CollapsedPin->IsStruct())
 		{
@@ -5692,29 +5721,36 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 
 			for (URigVMPin* LibraryPin : LibraryNode->GetPins())
 			{
-				if (LibraryPin->GetDirection() == ERigVMPinDirection::Input && !bIsEntryNode)
+				if (LibraryPin->GetDirection() == ERigVMPinDirection::IO && !LibraryPin->IsExecuteContext())
 				{
 					continue;
 				}
-				else if (LibraryPin->GetDirection() == ERigVMPinDirection::Output && bIsEntryNode)
+
+				if (bIsEntryNode)
 				{
-					continue;
+					if (LibraryPin->GetDirection() == ERigVMPinDirection::Output)
+					{
+						continue;
+					}
+				}
+				else
+				{
+					if (LibraryPin->GetDirection() == ERigVMPinDirection::Input)
+					{
+						continue;
+					}
 				}
 
 				URigVMPin* ExposedPin = NewObject<URigVMPin>(InNode, LibraryPin->GetFName());
 				ConfigurePinFromPin(ExposedPin, LibraryPin);
 
-				if (ExposedPin->GetDirection() == ERigVMPinDirection::Input)
+				if (bIsEntryNode)
 				{
 					ExposedPin->Direction = ERigVMPinDirection::Output;
 				}
-				else if (ExposedPin->GetDirection() == ERigVMPinDirection::Output)
+				else
 				{
 					ExposedPin->Direction = ERigVMPinDirection::Input;
-				}
-				else if (ExposedPin->Direction != ERigVMPinDirection::IO)
-				{
-					checkNoEntry();
 				}
 
 				InNode->Pins.Add(ExposedPin);

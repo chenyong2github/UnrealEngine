@@ -84,22 +84,32 @@ URigVMPin::URigVMPin()
 	, DefaultValue(FString())
 	, BoundVariablePath()
 {
+#if WITH_EDITORONLY_DATA
+	CachedPinPath = GetPinPath();
+#endif
 }
 
 FString URigVMPin::GetPinPath() const
 {
+	FString PinPath;
+
 	URigVMPin* ParentPin = GetParentPin();
 	if(ParentPin)
 	{
-		return FString::Printf(TEXT("%s.%s"), *ParentPin->GetPinPath(), *GetName());
+		PinPath = FString::Printf(TEXT("%s.%s"), *ParentPin->GetPinPath(), *GetName());
 	}
-
-	URigVMNode* Node = GetNode();
-	if (Node == nullptr)
+	else
 	{
-		return FString();
+		URigVMNode* Node = GetNode();
+		if (Node != nullptr)
+		{
+			PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(), *GetName());
+		}
 	}
-	return FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(), *GetName());
+#if WITH_EDITORONLY_DATA
+	CachedPinPath = PinPath;
+#endif
+	return PinPath;
 }
 
 FString URigVMPin::GetSegmentPath() const
