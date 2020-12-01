@@ -239,7 +239,7 @@ void FAndroidStats::OnTrimMemory(int TrimLevel)
 }
 }
 
-void FAndroidStats::OnMemoryWarningChanged(int Status)
+void FAndroidStats::SetMemoryWarningState(int Status)
 {
 	GMemoryWarningStatus = Status;
 }
