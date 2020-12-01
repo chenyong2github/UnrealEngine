@@ -580,7 +580,9 @@ static void OnGenerateBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewpor
 				"ClearBookmark",
 				LOCTEXT("ClearBookmarkSubMenu", "Clear Bookmark"),
 				LOCTEXT("ClearBookmarkSubMenu_ToolTip", "Clear viewport bookmarks"),
-				FNewToolMenuDelegate::CreateStatic( &OnGenerateClearBookmarkMenu, Viewport )
+				FNewToolMenuDelegate::CreateStatic( &OnGenerateClearBookmarkMenu, Viewport ),
+				false,
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.Bookmarks")
 				);
 
 			Section.AddMenuEntry( Actions.ClearAllBookmarks );
@@ -646,21 +648,28 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 					
 			}
 
-			Section.AddMenuEntry(FEditorViewportCommands::Get().ToggleStats);
 			Section.AddMenuEntry(FEditorViewportCommands::Get().ToggleFPS);
-			Section.AddMenuEntry(LevelViewportActions.ToggleViewportToolbar);
 
-			FText HideAllLabel = LOCTEXT("HideAllLabel", "Hide All");
 			TArray< FLevelViewportCommands::FShowMenuCommand > HideStatsMenu;
 
+			Section.AddMenuEntry(FEditorViewportCommands::Get().ToggleStats);
+			Section.AddSubMenu(
+				"ShowStatsMenu",
+				LOCTEXT("ShowStatsMenu", "Stat"),
+				LOCTEXT("ShowStatsMenu_ToolTip", "Show Stat commands"),
+				FNewToolMenuDelegate::CreateStatic(&FillShowStatsSubMenus, HideStatsMenu, LevelViewportActions.ShowStatCatCommands),
+				false,
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.Stats"));
+
+
+
+
+			FText HideAllLabel = LOCTEXT("HideAllLabel", "Hide All");
+		
 			// 'Hide All' button
 			HideStatsMenu.Add(FLevelViewportCommands::FShowMenuCommand(LevelViewportActions.HideAllStats, HideAllLabel));
 
-			Section.AddSubMenu(
-				"ShowStatsMenu",
-				LOCTEXT("ShowStatsMenu", "Stat"), 
-				LOCTEXT("ShowStatsMenu_ToolTip", "Show Stat commands"),
-				FNewToolMenuDelegate::CreateStatic(&FillShowStatsSubMenus, HideStatsMenu, LevelViewportActions.ShowStatCatCommands));
+			Section.AddMenuEntry(LevelViewportActions.ToggleViewportToolbar);
 
 			if( bIsPerspective )
 			{
@@ -684,6 +693,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 
 				bAddDefaultScreenPercentageSlider = !GCustomEditorStaticScreenPercentage->GenerateEditorViewportOptionsMenuEntry(Arguments);
 			}
+
 
 			if (bAddDefaultScreenPercentageSlider)
 			{
@@ -715,14 +725,18 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 					"Bookmark",
 					LOCTEXT("BookmarkSubMenu", "Bookmarks"),
 					LOCTEXT("BookmarkSubMenu_ToolTip", "Viewport location bookmarking"),
-					FNewToolMenuDelegate::CreateStatic(&OnGenerateBookmarkMenu, Viewport)
+					FNewToolMenuDelegate::CreateStatic(&OnGenerateBookmarkMenu, Viewport),
+					false,
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.Bookmarks")
 				);
 
 				Section.AddSubMenu(
 					"Camera",
 					LOCTEXT("CameraSubMeun", "Create Camera Here"),
 					LOCTEXT("CameraSubMenu_ToolTip", "Select a camera type to create at current viewport's location"),
-					FNewToolMenuDelegate::CreateSP(this, &SLevelViewportToolBar::GenerateCameraSpawnMenu)
+					FNewToolMenuDelegate::CreateSP(this, &SLevelViewportToolBar::GenerateCameraSpawnMenu),
+					false,
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.CreateCamera")
 				);
 			}
 
@@ -736,7 +750,10 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 				"Configs",
 				LOCTEXT("ConfigsSubMenu", "Layouts"),
 				FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateSP(this, &SLevelViewportToolBar::GenerateViewportConfigsMenu));
+				FNewToolMenuDelegate::CreateSP(this, &SLevelViewportToolBar::GenerateViewportConfigsMenu),
+				false,
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.Layouts")
+			);
 		}
 
 		{
@@ -1170,14 +1187,14 @@ void SLevelViewportToolBar::FillShowMenu(UToolMenu* Menu) const
 				ShowVolumesMenu += Actions.ShowVolumeCommands;
 
 				Section.AddSubMenu("ShowVolumes", LOCTEXT("ShowVolumesMenu", "Volumes"), LOCTEXT("ShowVolumesMenu_ToolTip", "Show volumes flags"),
-					FNewToolMenuDelegate::CreateStatic(&FillShowMenuStatic, ShowVolumesMenu, 2));
+					FNewToolMenuDelegate::CreateStatic(&FillShowMenuStatic, ShowVolumesMenu, 2), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.Volumes"));
 			}
 
 			// Show Layers sub-menu is dynamically generated when the user enters 'show' menu
 			if (!UWorld::HasSubsystem<UWorldPartitionSubsystem>(World))
 			{
 				Section.AddSubMenu("ShowLayers", LOCTEXT("ShowLayersMenu", "Layers"), LOCTEXT("ShowLayersMenu_ToolTip", "Show layers flags"),
-					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowLayersMenu, Viewport));
+					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowLayersMenu, Viewport), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.Layers"));
 			}
 			else
 			{
@@ -1199,13 +1216,13 @@ void SLevelViewportToolBar::FillShowMenu(UToolMenu* Menu) const
 				ShowSpritesMenu += Actions.ShowSpriteCommands;
 
 				Section.AddSubMenu("ShowSprites", LOCTEXT("ShowSpritesMenu", "Sprites"), LOCTEXT("ShowSpritesMenu_ToolTip", "Show sprites flags"),
-					FNewToolMenuDelegate::CreateStatic(&FillShowMenuStatic, ShowSpritesMenu, 2));
+					FNewToolMenuDelegate::CreateStatic(&FillShowMenuStatic, ShowSpritesMenu, 2), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.Sprites"));
 			}
 
 			// Show 'Foliage types' sub-menu is dynamically generated when the user enters 'show' menu
 			{
 				Section.AddSubMenu("ShowFoliageTypes", LOCTEXT("ShowFoliageTypesMenu", "Foliage Types"), LOCTEXT("ShowFoliageTypesMenu_ToolTip", "Show/hide specific foliage types"),
-					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowFoliageTypesMenu, Viewport));
+					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowFoliageTypesMenu, Viewport), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.FoliageTypes"));
 			}
 
 		}

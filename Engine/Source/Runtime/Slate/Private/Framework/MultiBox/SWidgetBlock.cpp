@@ -90,7 +90,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 	if(OwnerMultiBoxWidgetPinned->GetMultiBox()->GetType() == EMultiBoxType::Menu)
 	{
 		// Account for checkmark used in other menu blocks but not used in for widget rows
-		Padding = Padding + FMargin(12, 0, 8, 0);
+		Padding = Padding + FMargin(14, 0, 8, 0);
 	}
 
 	// Add this widget to the search list of the multibox

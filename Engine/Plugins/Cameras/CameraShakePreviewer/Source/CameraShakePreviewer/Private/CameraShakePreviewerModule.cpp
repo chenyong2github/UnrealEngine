@@ -160,7 +160,7 @@ void FCameraShakePreviewerModule::RegisterViewportOptionMenuExtender()
 						"ToggleCameraShakesPreview",
 						ToggleCameraShakesPreview->GetLabel(),
 						ToggleCameraShakesPreview->GetDescription(),
-						ToggleCameraShakesPreview->GetIcon(),
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelViewport.ToggleCameraShakePreview"),
 						Action,
 						ToggleCameraShakesPreview->GetUserInterfaceType()
 					);
