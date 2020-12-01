@@ -629,10 +629,36 @@ public:
 	FString GetDDCCacheKeySuffix(const bool bPerformStripping) const;
 	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data);
 #endif
+
+#if !WITH_EDITOR
+	UE_DEPRECATED(5.0, "WaitOnExistingCompression will be marked EDITOR_ONLY")
+#endif // !WITH_EDITOR
 	void WaitOnExistingCompression(const bool bWantResults=true);
+
+#if !WITH_EDITOR
+	UE_DEPRECATED(5.0, "RequestAnimCompression will be marked EDITOR_ONLY")
+#endif // !WITH_EDITOR
 	void RequestAnimCompression(FRequestAnimCompressionParams Params);
-	void RequestSyncAnimRecompression(bool bOutput = false) { RequestAnimCompression(FRequestAnimCompressionParams(false, false, bOutput)); }
-	void RequestAsyncAnimRecompression(bool bOutput = false) { RequestAnimCompression(FRequestAnimCompressionParams(true, false, bOutput)); }
+
+#if !WITH_EDITOR
+	UE_DEPRECATED(5.0, "RequestSyncAnimRecompression will be marked EDITOR_ONLY")
+#endif // !WITH_EDITOR
+	void RequestSyncAnimRecompression(bool bOutput = false)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RequestAnimCompression(FRequestAnimCompressionParams(false, false, bOutput));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+#if !WITH_EDITOR
+	UE_DEPRECATED(5.0, "RequestAsyncAnimRecompression will be marked EDITOR_ONLY")
+#endif // !WITH_EDITOR
+	void RequestAsyncAnimRecompression(bool bOutput = false)
+	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RequestAnimCompression(FRequestAnimCompressionParams(true, false, bOutput));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 protected:
 	void ApplyCompressedData(const TArray<uint8>& Data);
@@ -642,10 +668,12 @@ public:
 	bool IsCompressedDataValid() const;
 	bool IsCurveCompressedDataValid() const;
 
+	UE_DEPRECATED(5.0, "ClearCompressedBoneData will be marked protected")
 	void ClearCompressedBoneData();
+	UE_DEPRECATED(5.0, "ClearCompressedCurveData will be marked protected")
 	void ClearCompressedCurveData();
-
 	// Write the compressed data to the supplied FArchive
+	UE_DEPRECATED(5.0, "SerializeCompressedData will be marked protected")
 	void SerializeCompressedData(FArchive& Ar, bool bDDCData);
 
 	// End Memory related functions

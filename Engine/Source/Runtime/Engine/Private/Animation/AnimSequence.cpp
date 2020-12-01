@@ -781,7 +781,9 @@ void UAnimSequence::Serialize(FArchive& Ar)
 
 		if (bSerializeCompressedData)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			SerializeCompressedData(Ar,false);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Ar << bUseRawDataOnly;
 		}
 	}
@@ -1209,13 +1211,19 @@ void UAnimSequence::VerifyTrackMap(USkeleton* MySkeleton)
 #endif // WITH_EDITOR
 void UAnimSequence::BeginDestroy()
 {
+#if WITH_EDITOR
 	// Could already be compressing
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WaitOnExistingCompression(false);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
 
 	Super::BeginDestroy();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearCompressedCurveData();
 	ClearCompressedBoneData();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_EDITOR
@@ -2524,7 +2532,9 @@ void UAnimSequence::ApplyCompressedData(const TArray<uint8>& Data)
 	if(Data.Num() > 0)
 	{
 		FMemoryReader MemAr(Data);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SerializeCompressedData(MemAr, true);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		//This is only safe during sync anim compression
 		SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
 		bUseRawDataOnly = false;
@@ -2965,8 +2975,10 @@ void UAnimSequence::RecycleAnimSequence()
 	TrackToSkeletonMapTable.Empty();
 	RawCurveData.Empty();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearCompressedBoneData();
 	ClearCompressedCurveData();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	AuthoredSyncMarkers.Empty();
 	UniqueMarkerNames.Empty();
@@ -2983,8 +2995,10 @@ void UAnimSequence::CleanAnimSequenceForImport()
 	RawDataGuid.Invalidate();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearCompressedBoneData();
 	ClearCompressedCurveData();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -4652,8 +4666,10 @@ void UAnimSequence::ResetAnimation()
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearCompressedBoneData();
 	ClearCompressedCurveData();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Notifies.Empty();
 	AuthoredSyncMarkers.Empty();
@@ -5976,7 +5992,10 @@ void UAnimSequence::EnableRootMotionSettingFromMontage(bool bInEnableRootMotion,
 #if WITH_EDITOR
 void UAnimSequence::OnRawDataChanged()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearCompressedBoneData();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	bUseRawDataOnly = true;
 
 	RequestAsyncAnimRecompression(false);
