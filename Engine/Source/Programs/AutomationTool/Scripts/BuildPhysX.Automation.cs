@@ -51,7 +51,7 @@ public sealed class BuildPhysX : BuildCommand
 		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Source/ThirdParty");
 		public static DirectoryReference PxSharedRootDirectory = DirectoryReference.Combine(PhysX3RootDirectory, "PxShared");
 
-		private DirectoryReference PlatformEngineRoot => IsPlatformExtension
+		public DirectoryReference PlatformEngineRoot => IsPlatformExtension
 			? DirectoryReference.Combine(RootDirectory, "Engine", "Platforms", Platform.ToString())
 			: DirectoryReference.Combine(RootDirectory, "Engine");
 
@@ -1419,47 +1419,3 @@ class BuildPhysX_Win64 : BuildPhysX_WindowsCommon
 	}
 }
 
-class BuildPhysX_XboxOne : BuildPhysX.MSBuildTargetPlatform
-{
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.XboxOne;
-	public override bool HasBinaries => false;
-	public override string DebugDatabaseExtension => "pdb";
-	public override string DynamicLibraryExtension => null;
-	public override string StaticLibraryExtension => "lib";
-	public override bool IsPlatformExtension => false;
-	public override bool UseResponseFiles => false;
-	public override string TargetBuildPlatform => "xboxone";
-	public override bool UseMsBuild => true;
-	public override string GetToolchainName(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => "XboxOneToolchain.txt";
-	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => " -DCMAKE_GENERATOR_PLATFORM=DURANGO";
-
-	public override bool SupportsTargetLib(BuildPhysX.PhysXTargetLib Library)
-	{
-		switch (Library)
-		{
-			case BuildPhysX.PhysXTargetLib.APEX: return true;
-			case BuildPhysX.PhysXTargetLib.NvCloth: return true;
-			case BuildPhysX.PhysXTargetLib.PhysX: return true;
-			default: return false;
-		}
-	}
-
-	public override string GetMsDevCommandArgs(string SolutionFile, string TargetConfiguration)
-	{
-		string AdditionalProperties = "";
-
-		string AutoSDKPropsPath = Environment.GetEnvironmentVariable("XboxOneAutoSDKProp");
-		if (AutoSDKPropsPath != null && AutoSDKPropsPath.Length > 0)
-		{
-			AdditionalProperties += string.Format(";CustomBeforeMicrosoftCommonProps={0}", AutoSDKPropsPath);
-		}
-
-		FileReference XboxCMakeModulesPath = FileReference.Combine(PhysX3RootDirectory, "Externals/CMakeModules/XboxOne/Microsoft.Cpp.Durango.user.props");
-		if (FileReference.Exists(XboxCMakeModulesPath))
-		{
-			AdditionalProperties += string.Format(";ForceImportBeforeCppTargets={0}", XboxCMakeModulesPath);
-		}
-
-		return string.Format("\"{0}\" /t:build /p:Configuration={1};Platform=Durango{2}", SolutionFile, TargetConfiguration, AdditionalProperties);
-	}
-}
