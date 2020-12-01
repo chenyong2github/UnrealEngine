@@ -1939,6 +1939,28 @@ bool UNiagaraScript::IsEditorOnly() const
 	return Super::IsEditorOnly();
 }
 
+void UNiagaraScript::ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const
+{
+	// Add all data interfaces
+	TSet<UClass*> DIUniqueClasses;
+	for ( const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : CachedDefaultDataInterfaces )
+	{
+		if ( UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface )
+		{
+			DIUniqueClasses.Add(DataInterface->GetClass());
+		}
+	}
+
+	// For each data interface allow them to modify the compilation environment
+	for ( UClass* DIClass : DIUniqueClasses)
+	{
+		if ( UNiagaraDataInterface* DICDO = CastChecked<UNiagaraDataInterface>(DIClass->GetDefaultObject(true)) )
+		{
+			DICDO->ModifyCompilationEnvironment(OutEnvironment);
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform)

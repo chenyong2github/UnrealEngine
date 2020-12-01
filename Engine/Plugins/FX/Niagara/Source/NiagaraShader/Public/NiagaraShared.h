@@ -653,6 +653,12 @@ public:
 	 */
 	NIAGARASHADER_API  virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType) const;
 
+	/**
+	 * Allow Niagara script the opportunity to modify the compilation environment for GPU simulations.
+	 * Generally used for data interfaces to inject project defines.
+	*/
+	NIAGARASHADER_API  virtual void ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const;
+
 	/** Serializes the script. */
 	NIAGARASHADER_API  virtual void LegacySerialize(FArchive& Ar);
 

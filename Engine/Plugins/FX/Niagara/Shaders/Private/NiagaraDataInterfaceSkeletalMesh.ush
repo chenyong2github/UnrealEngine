@@ -2,12 +2,12 @@
 
 #pragma once
 
-#define DISKELMESH_BONE_INFLUENCES_DEFAULT		0
-#define DISKELMESH_BONE_INFLUENCES_EXTRA		1
+#define DISKELMESH_BONE_INFLUENCES_MAX4			0
+#define DISKELMESH_BONE_INFLUENCES_MAX8			1
 #define DISKELMESH_BONE_INFLUENCES_UNLIMITED	2
 
 #ifndef DISKELMESH_BONE_INFLUENCES
-#define DISKELMESH_BONE_INFLUENCES	DISKELMESH_BONE_INFLUENCES_DEFAULT
+#define DISKELMESH_BONE_INFLUENCES	DISKELMESH_BONE_INFLUENCES_UNLIMITED
 #endif
 
 struct FDISkelMeshContext
@@ -179,23 +179,19 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DICon
 #endif
 		{
 			uint WeightOffset = DIContext.MeshNumWeights == 8 ? 2 : 1;
-#if DISKELMESH_BONE_INFLUENCES > DISKELMESH_BONE_INFLUENCES_DEFAULT
 			int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
-			float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset]);
+	        float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset]);
 			CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
 			PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+#if DISKELMESH_BONE_INFLUENCES != DISKELMESH_BONE_INFLUENCES_MAX4
+			// We are in 8 or unlimited mode so need to check for the extended weights
 			if (DIContext.MeshNumWeights == 8)
 			{
-            BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 1]);
+			    BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 1]);
 			    BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset + 1]);
 				CurrBoneMatrix += DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
 				PrevBoneMatrix += DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
 			}
-#else
-			int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
-        float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset]);
-			CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-			PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
 #endif
 		}
 
