@@ -169,6 +169,7 @@ public:
 	void GetCellSize(FVectorVMContext& Context);
 
 	void SetNumCells(FVectorVMContext& Context);
+	void GetNumCells(FVectorVMContext& Context);
 
 	static const FName SetNumCellsFunctionName;
 
