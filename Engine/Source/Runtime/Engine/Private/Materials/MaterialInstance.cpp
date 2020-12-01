@@ -28,6 +28,7 @@
 #include "Materials/MaterialInstanceSupport.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Components.h"
@@ -41,6 +42,21 @@
 #include "Materials/MaterialStaticParameterValueResolver.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
+
+#if ENABLE_COOK_STATS
+#include "ProfilingDebugging/ScopedTimers.h"
+namespace MaterialInstanceCookStats
+{
+	static double UpdateCachedExpressionDataSec = 0.0;
+
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			AddStat(TEXT("MaterialInstance"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("UpdateCachedExpressionDataSec"), UpdateCachedExpressionDataSec
+			));
+		});
+}
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
@@ -747,7 +763,7 @@ bool UMaterialInstance::GetScalarParameterSliderMinMax(const FHashedMaterialPara
 		return false;
 	}
 
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -786,7 +802,7 @@ bool UMaterialInstance::GetScalarParameterValue(const FHashedMaterialParameterIn
 	}
 	
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -830,7 +846,7 @@ bool UMaterialInstance::IsScalarParameterUsedAsAtlasPosition(const FHashedMateri
 #endif
 
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -880,7 +896,7 @@ bool UMaterialInstance::GetVectorParameterValue(const FHashedMaterialParameterIn
 	}
 	
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -912,7 +928,7 @@ bool UMaterialInstance::IsVectorParameterUsedAsChannelMask(const FHashedMaterial
 	}
 	
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -942,7 +958,7 @@ bool  UMaterialInstance::GetVectorParameterChannelNames(const FHashedMaterialPar
 	}
 
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -982,7 +998,7 @@ bool UMaterialInstance::GetTextureParameterValue(const FHashedMaterialParameterI
 	}
 	
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -1023,7 +1039,7 @@ bool UMaterialInstance::GetRuntimeVirtualTextureParameterValue(const FHashedMate
 	}
 
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -1057,7 +1073,7 @@ bool  UMaterialInstance::GetTextureParameterChannelNames(const FHashedMaterialPa
 	}
 
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -1099,7 +1115,7 @@ bool UMaterialInstance::GetFontParameterValue(const FHashedMaterialParameterInfo
 	}
 	
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -2150,7 +2166,11 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	const UMaterial* Material = GetMaterial_Concurrent();
-	int32 NumParameters = CachedData->Parameters.GetNumParameters(Type);
+	int32 NumParameters = 0;
+	if (CachedData)
+	{
+		NumParameters += CachedData->Parameters.GetNumParameters(Type);
+	}
 	if (Material)
 	{
 		NumParameters += Material->GetCachedExpressionData().Parameters.GetNumParameters(Type);
@@ -2158,7 +2178,10 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArr
 
 	OutParameterInfo.Empty(NumParameters);
 	OutParameterIds.Empty(NumParameters);
-	CachedData->Parameters.GetAllParameterInfoOfType(Type, false, OutParameterInfo, OutParameterIds);
+	if (CachedData)
+	{
+		CachedData->Parameters.GetAllParameterInfoOfType(Type, false, OutParameterInfo, OutParameterIds);
+	}
 	if (Material)
 	{
 		Material->GetCachedExpressionData().Parameters.GetAllGlobalParameterInfoOfType(Type, false, OutParameterInfo, OutParameterIds);
@@ -2298,7 +2321,7 @@ bool UMaterialInstance::GetScalarParameterDefaultValue(const FHashedMaterialPara
 
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -2343,7 +2366,7 @@ bool UMaterialInstance::GetVectorParameterDefaultValue(const FHashedMaterialPara
 		}
 	}
 
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -2388,7 +2411,7 @@ bool UMaterialInstance::GetTextureParameterDefaultValue(const FHashedMaterialPar
 		}
 	}
 
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -2433,7 +2456,7 @@ bool UMaterialInstance::GetRuntimeVirtualTextureParameterDefaultValue(const FHas
 		}
 	}
 
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -2479,7 +2502,7 @@ bool UMaterialInstance::GetFontParameterDefaultValue(const FHashedMaterialParame
 		}
 	}
 
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
 	{
 		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
 		if (ParameterIndex != INDEX_NONE)
@@ -4041,11 +4064,14 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 
 void UMaterialInstance::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
 {
-	for (UObject* UsedObject : CachedData->ReferencedTextures)
+	if (CachedData)
 	{
-		if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
+		for (UObject* UsedObject : CachedData->ReferencedTextures)
 		{
-			InOutTextures.Add(UsedTexture);
+			if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
+			{
+				InOutTextures.Add(UsedTexture);
+			}
 		}
 	}
 
@@ -4069,6 +4095,8 @@ extern void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedPa
 
 void UMaterialInstance::UpdateCachedLayerParameters()
 {
+	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
+
 	if (bSavedCachedData)
 	{
 		// Don't need to rebuild cached data if it was serialized

@@ -665,7 +665,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { check(CachedData); return CachedData->ReferencedTextures; }
+	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return CachedData ? CachedData->ReferencedTextures : TArrayView<UObject* const>(); }
 
 #if WITH_EDITOR
 	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */

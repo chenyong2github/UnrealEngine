@@ -991,7 +991,7 @@ private:
 #endif // WITH_EDITORONLY_DATA
 public:
 
-	const FMaterialCachedExpressionData& GetCachedExpressionData() const { check(CachedExpressionData); return *CachedExpressionData; }
+	const FMaterialCachedExpressionData& GetCachedExpressionData() const { return CachedExpressionData ? *CachedExpressionData : FMaterialCachedExpressionData::EmptyData; }
 
 	//~ Begin UMaterialInterface Interface.
 	ENGINE_API virtual UMaterial* GetMaterial() override;

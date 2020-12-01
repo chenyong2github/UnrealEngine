@@ -220,6 +220,8 @@ struct FMaterialCachedExpressionData
 {
 	GENERATED_USTRUCT_BODY()
 
+	ENGINE_API static const FMaterialCachedExpressionData EmptyData;
+
 #if WITH_EDITOR
 	/** Returns 'false' if update is incomplete, due to missing expression data (stripped from non-editor build) */
 	bool UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
