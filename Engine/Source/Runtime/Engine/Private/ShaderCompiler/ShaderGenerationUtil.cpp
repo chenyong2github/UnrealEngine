@@ -226,7 +226,9 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(IS_BASE_PASS);
 	FETCH_COMPILE_BOOL(IS_MATERIAL_SHADER);
 
-	FETCH_COMPILE_BOOL(STRATA_TRANSLUCENT_ENABLED);
+	FETCH_COMPILE_BOOL(PROJECT_STRATA);
+	FETCH_COMPILE_BOOL(MATERIAL_IS_STRATA);
+
 	FETCH_COMPILE_BOOL(DUAL_SOURCE_COLOR_BLENDING_ENABLED);
 
 	FETCH_COMPILE_INT(DECAL_RENDERTARGET_COUNT);
@@ -1837,7 +1839,7 @@ void FShaderCompileUtilities::ApplyDerivedDefines(FShaderCompilerEnvironment& Ou
 		{
 			bTargetUsage[0] = true;
 			// we also need MRT for thin translucency due to dual blending if we are not on the fallback path
-			bTargetUsage[1] = (DerivedDefines.WRITES_VELOCITY_TO_GBUFFER || (MaterialDefines.MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && DerivedDefines.THIN_TRANSLUCENT_USE_DUAL_BLEND));
+			bTargetUsage[1] = (DerivedDefines.WRITES_VELOCITY_TO_GBUFFER || (MaterialDefines.DUAL_SOURCE_COLOR_BLENDING_ENABLED && DerivedDefines.MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING));
 		}
 	}
 	else if (MaterialDefines.IS_VIRTUAL_TEXTURE_MATERIAL)

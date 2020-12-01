@@ -129,6 +129,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	virtual bool MatchesSearchQuery( const TCHAR* SearchQuery ) override;
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
 	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	//~ End UMaterialExpression Interface
 

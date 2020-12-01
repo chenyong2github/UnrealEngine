@@ -4474,9 +4474,66 @@ void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
 
+	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
+	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
+	if (bStrataEnabled && FrontMaterial.IsConnected())
+	{
+		FStrataMaterialInfo StrataMaterialInfo;
+		check(this->FrontMaterial.Expression);
+		if (this->FrontMaterial.Expression->IsResultStrataMaterial(this->FrontMaterial.OutputIndex))
+		{
+			this->FrontMaterial.Expression->GatherStrataMaterialInfo(StrataMaterialInfo, this->FrontMaterial.OutputIndex);
+		}
+
+		bool bSanitizeMaterial = false;
+		if (!StrataMaterialInfo.IsValid())
+		{
+			bSanitizeMaterial = true;
+			UE_LOG(LogMaterial, Error, TEXT("%s: Material information is invalid."), *GetName());
+		}
+		if (StrataMaterialInfo.CountShadingModels() > 1)
+		{
+			bSanitizeMaterial = true;
+			UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single material represented."), *GetName());
+		}
+		if (bSanitizeMaterial)
+		{
+			StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+		}
+		
+
+		// Now derive some properties from the material
+		if (StrataMaterialInfo.HasOnlyShadingModel(SSM_Unlit))
+		{
+			MaterialDomain = EMaterialDomain::MD_Surface;
+			ShadingModel = MSM_Unlit;
+			if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
+			{
+				BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
+			}
+		}
+		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_DefaultLit))
+		{
+			MaterialDomain = EMaterialDomain::MD_Surface;
+			ShadingModel = MSM_DefaultLit;
+			if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
+			{
+				BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
+			}
+		}
+		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_VolumetricFogCloud))
+		{
+			MaterialDomain = EMaterialDomain::MD_Volume;
+			ShadingModel = MSM_DefaultLit;
+			BlendMode = EBlendMode::BLEND_Additive;
+		}
+
+		// Also update the ShadingModels for remaining pipeline operation
+		ShadingModels.AddShadingModel(ShadingModel);
+	}
 	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
 	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.
-	if (ShadingModel == MSM_FromMaterialExpression)
+	else if (ShadingModel == MSM_FromMaterialExpression)
 	{
 
 		TArray<UMaterialExpressionShadingModel*> ShadingModelExpressions;

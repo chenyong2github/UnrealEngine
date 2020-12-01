@@ -92,6 +92,14 @@ struct FStrataBSDF
 #define BSDF_GETWEIGHT10F(X)			BSDF_GETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F)
 #define BSDF_SETWEIGHT10F(X, Weight)	BSDF_SETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F, Weight)
 
+#if STRATA_INLINE_SHADING
+#define BSDF_SETEMISSIVE(X, V)	X.Emissive = V
+#define BSDF_GETEMISSIVE(X)		X.Emissive
+#else
+#define BSDF_SETEMISSIVE(X, V)	X
+#define BSDF_GETEMISSIVE(X)		0.0f
+#endif
+
 #define DIFFUSE_ALBEDO(X)				X.VGPRs[0].xyz
 #define DIFFUSE_ROUGHNESS(X)			X.VGPRs[0].w
 #define DIFFUSE_SSSPROFILEID(X)			X.VGPRs[1].x
@@ -118,13 +126,8 @@ struct FStrataBSDF
 #define VOLUMETRICFOGCLOUD_ALBEDO(X)	X.VGPRs[0].xyz
 #define VOLUMETRICFOGCLOUD_EXTINCTION(X)X.VGPRs[1].xyz
 #define VOLUMETRICFOGCLOUD_AO(X)		X.VGPRs[0].w
-#if STRATA_INLINE_SHADING
-#define VOLUMETRICFOGCLOUD_SETEMISSIVE(X, V)	X.Emissive = V
-#define VOLUMETRICFOGCLOUD_GETEMISSIVE(X)		X.Emissive
-#else
-#define VOLUMETRICFOGCLOUD_SETEMISSIVE(X, V)	X
-#define VOLUMETRICFOGCLOUD_GETEMISSIVE(X)		0.0f
-#endif
+
+#define UNLIT_TRANSMITTANCE(X)			X.VGPRs[0].xyz
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
@@ -300,7 +303,22 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 	VOLUMETRICFOGCLOUD_ALBEDO		(StrataData.Layers[0].BSDFs[0]) = Albedo;
 	VOLUMETRICFOGCLOUD_EXTINCTION	(StrataData.Layers[0].BSDFs[0]) = Extinction;
 	VOLUMETRICFOGCLOUD_AO			(StrataData.Layers[0].BSDFs[0]) = AmbientOcclusion;
-	VOLUMETRICFOGCLOUD_SETEMISSIVE	(StrataData.Layers[0].BSDFs[0], Emissive);
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
+
+	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataUnlitBSDF(float3 EmissiveColor, float3 TransmittanceColor)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+	StrataData.Layers[0].BSDFCount++;
+
+	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_UNLIT);
+	UNLIT_TRANSMITTANCE				(StrataData.Layers[0].BSDFs[0]) = TransmittanceColor;
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], EmissiveColor);
 
 	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
 

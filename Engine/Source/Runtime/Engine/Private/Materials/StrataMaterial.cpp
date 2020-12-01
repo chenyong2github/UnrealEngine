@@ -27,6 +27,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
 		return TEXT("VOLUMETRICFOGCLOUD");
 		break;
+	case STRATA_BSDF_TYPE_UNLIT:
+		return TEXT("UNLIT");
+		break;
 	}
 	check(false);
 	return "";
@@ -151,6 +154,27 @@ bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMa
 		return false;
 	}
 	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD)
+	{
+		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Volume."));
+		return false;
+	}
+
+	return true;
+}
+
+bool StrataIsUnlitOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+{
+	if (Material.TotalBSDFCount == 0 || Material.LayerCount == 0)
+	{
+		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a StrataUnlitBSDF."));
+		return false;
+	}
+	if (Material.TotalBSDFCount > 1 || Material.LayerCount > 1)
+	{
+		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single StrataUnlitBSDF only."));
+		return false;
+	}
+	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_UNLIT)
 	{
 		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Volume."));
 		return false;

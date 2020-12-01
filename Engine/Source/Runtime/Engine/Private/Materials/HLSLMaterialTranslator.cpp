@@ -946,7 +946,7 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			if (Domain!= MD_Volume && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_Opaque))
 			{
-				Errorf(TEXT("Strata materials must be opaque or translucent."));
+				Errorf(TEXT("Strata materials must be an opaque or translucent surface, or a volume."));
 			}
 		}
 
@@ -1119,20 +1119,24 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
 
-			// Verify the validity of the strata material
-			if (Domain == MD_Volume)
+			// VolumetricFogCloud must be used in isolation
+			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD))
 			{
+				// If the unlit node is used, it must be the only one used
 				if (!StrataIsVolumetricFogCloudOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s is in the VOLUME domain but a VolumetricFogCloud BSDF is not provided (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
 					Error(*ErrorMsg);
 				}
 			}
-			else
+
+			// Unlit must be used in isolation
+			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_UNLIT))
 			{
-				if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD))
+				// If the unlit node is used, it must be the only one used
+				if (!StrataIsUnlitOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s is not in the VOLUME domain but a VolumetricFogCloud BSDF is used. It should not be used out of the VOLUME domain. (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
 					Error(*ErrorMsg);
 				}
 			}
@@ -1547,6 +1551,9 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 	const bool bStrataMaterial = Material->IsStrataMaterial();
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bStrataMaterial ? TEXT("1") : TEXT("0"));
+
+	// STRATA_TODO do not request DualSourceBlending if gray scale transmittance is selected.
+	// bMaterialRequestsDualSourceBlending this base on limited set of blend mode: Opaque, Masked, TransmittanceCoverage, TransmittanceColored;
 	bMaterialRequestsDualSourceBlending |= bStrataMaterial;
 
 	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
@@ -7549,6 +7556,15 @@ int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 
 		*GetParameterCode(Extinction),
 		*GetParameterCode(Emissive),
 		*GetParameterCode(AmbientOcclusion)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor)
+{
+	return AddCodeChunk(
+		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s)"),
+		*GetParameterCode(EmissiveColor),
+		*GetParameterCode(TransmittanceColor)
 	);
 }
 

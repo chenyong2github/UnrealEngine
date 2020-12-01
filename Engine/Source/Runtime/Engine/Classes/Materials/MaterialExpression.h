@@ -16,6 +16,7 @@ class UEdGraphNode;
 class UMaterial;
 class UTexture;
 struct FPropertyChangedEvent;
+struct FMaterialShadingModelField;
 
 //@warning: FExpressionInput is mirrored in MaterialShared.h and manually "subclassed" in Material.h (FMaterialInput)
 #if !CPP      //noexport struct
@@ -330,6 +331,11 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * Marks certain expression types as outputting Strata material. Allows the material functions to directly return a Strata material as output pin.
 	 */
 	virtual bool IsResultStrataMaterial(int32 OutputIndex) { return false; }
+
+	/**
+	 * Recursively parse nodes outputing strata material in order to gather all the possible shading models used in a material graph output a Strata material.
+	 */
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) { }
 
 	/**
 	 * If true, discards the output index when caching this expression which allows more cases to re-use the output instead of adding a separate instruction

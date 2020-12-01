@@ -5763,6 +5763,23 @@ uint32 UMaterialExpressionMakeMaterialAttributes::GetInputType(int32 InputIndex)
 		return UMaterialExpression::GetInputType(InputIndex);
 	}
 }
+
+bool UMaterialExpressionMakeMaterialAttributes::IsResultStrataMaterial(int32 OutputIndex)
+{
+	if (FrontMaterial.GetTracedInput().Expression)
+	{
+		return FrontMaterial.GetTracedInput().Expression->IsResultStrataMaterial(FrontMaterial.OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionMakeMaterialAttributes::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (FrontMaterial.GetTracedInput().Expression)
+	{
+		FrontMaterial.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, FrontMaterial.OutputIndex);
+	}
+}
 #endif // WITH_EDITOR
 
 // -----
@@ -6097,6 +6114,23 @@ uint32 UMaterialExpressionGetMaterialAttributes::GetOutputType(int32 OutputIndex
 	}
 
 	return OutputType;
+}
+
+bool UMaterialExpressionGetMaterialAttributes::IsResultStrataMaterial(int32 OutputIndex)
+{
+	if (MaterialAttributes.Expression)
+	{
+		return MaterialAttributes.Expression->IsResultStrataMaterial(0);
+	}
+	return false;
+}
+
+void UMaterialExpressionGetMaterialAttributes::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (MaterialAttributes.Expression)
+	{
+		MaterialAttributes.Expression->GatherStrataMaterialInfo(StrataMaterialInfo, 0);
+	}
 }
 
 void UMaterialExpressionGetMaterialAttributes::PreEditChange(FProperty* PropertyAboutToChange)
@@ -6541,6 +6575,31 @@ FName UMaterialExpressionBlendMaterialAttributes::GetInputName(int32 InputIndex)
 	};
 
 	return Name;
+}
+
+bool UMaterialExpressionBlendMaterialAttributes::IsResultStrataMaterial(int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression)
+	{
+		return A.GetTracedInput().Expression->IsResultStrataMaterial(0); // can only blend Starta type together so one or the othjer input is enough
+	}
+	if (B.GetTracedInput().Expression)
+	{
+		return B.GetTracedInput().Expression->IsResultStrataMaterial(0);
+	}
+	return false;
+}
+
+void UMaterialExpressionBlendMaterialAttributes::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
+	if (B.GetTracedInput().Expression)
+	{
+		B.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, B.OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -14283,6 +14342,14 @@ bool UMaterialExpressionMaterialFunctionCall::IsResultStrataMaterial(int32 Outpu
 	}
 }
 
+void UMaterialExpressionMaterialFunctionCall::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (OutputIndex >= 0 && OutputIndex < FunctionOutputs.Num() && FunctionOutputs[OutputIndex].ExpressionOutput)
+	{
+		return FunctionOutputs[OutputIndex].ExpressionOutput->GatherStrataMaterialInfo(StrataMaterialInfo, 0);
+	}
+}
+
 uint32 UMaterialExpressionMaterialFunctionCall::GetInputType(int32 InputIndex)
 {
 	if (InputIndex < FunctionInputs.Num())
@@ -14804,6 +14871,15 @@ bool UMaterialExpressionFunctionOutput::IsResultStrataMaterial(int32 OutputIndex
 	else
 	{
 		return false;
+	}
+}
+
+void UMaterialExpressionFunctionOutput::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// If there is a loop anywhere in this expression's inputs then we can't risk checking them
+	if( A.GetTracedInput().Expression && !A.Expression->ContainsInputLoop() )
+	{
+		A.Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
 	}
 }
 
@@ -19179,6 +19255,11 @@ bool UMaterialExpressionStrataDiffuseBSDF::IsResultStrataMaterial(int32 OutputIn
 {
 	return true;
 }
+
+void UMaterialExpressionStrataDiffuseBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+}
 #endif // WITH_EDITOR
 
 
@@ -19262,6 +19343,11 @@ uint32 UMaterialExpressionStrataDielectricBSDF::GetInputType(int32 InputIndex)
 bool UMaterialExpressionStrataDielectricBSDF::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
+}
+
+void UMaterialExpressionStrataDielectricBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 }
 #endif // WITH_EDITOR
 
@@ -19347,6 +19433,11 @@ bool UMaterialExpressionStrataConductorBSDF::IsResultStrataMaterial(int32 Output
 {
 	return true;
 }
+
+void UMaterialExpressionStrataConductorBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+}
 #endif // WITH_EDITOR
 
 
@@ -19422,6 +19513,11 @@ bool UMaterialExpressionStrataVolumeBSDF::IsResultStrataMaterial(int32 OutputInd
 {
 	return true;
 }
+
+void UMaterialExpressionStrataVolumeBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+}
 #endif // WITH_EDITOR
 
 
@@ -19488,6 +19584,11 @@ uint32 UMaterialExpressionStrataSheenBSDF::GetInputType(int32 InputIndex)
 bool UMaterialExpressionStrataSheenBSDF::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
+}
+
+void UMaterialExpressionStrataSheenBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 }
 #endif // WITH_EDITOR
 
@@ -19558,7 +19659,79 @@ bool UMaterialExpressionStrataVolumetricFogCloudBSDF::IsResultStrataMaterial(int
 {
 	return true;
 }
+
+void UMaterialExpressionStrataVolumetricFogCloudBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_VolumetricFogCloud);
+}
 #endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataUnlitBSDF::UMaterialExpressionStrataUnlitBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataUnlitBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f));
+
+	uint8 FakeSharedNormalIndex = 0;
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, FakeSharedNormalIndex, STRATA_BSDF_TYPE_UNLIT);
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataUnlitBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Unlit BSDF"));
+}
+
+uint32 UMaterialExpressionStrataUnlitBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataUnlitBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float3;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataUnlitBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataUnlitBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_Unlit);
+}
+#endif // WITH_EDITOR
+
+
 
 UMaterialExpressionStrataHorizontalMixing::UMaterialExpressionStrataHorizontalMixing(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -19622,6 +19795,18 @@ uint32 UMaterialExpressionStrataHorizontalMixing::GetInputType(int32 InputIndex)
 bool UMaterialExpressionStrataHorizontalMixing::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
+}
+
+void UMaterialExpressionStrataHorizontalMixing::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (Foreground.GetTracedInput().Expression)
+	{
+		Foreground.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Foreground.OutputIndex);
+	}
+	if (Background.GetTracedInput().Expression)
+	{
+		Background.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Background.OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -19687,6 +19872,18 @@ bool UMaterialExpressionStrataVerticalLayering::IsResultStrataMaterial(int32 Out
 {
 	return true;
 }
+
+void UMaterialExpressionStrataVerticalLayering::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (Top.GetTracedInput().Expression)
+	{
+		Top.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Top.OutputIndex);
+	}
+	if (Base.GetTracedInput().Expression)
+	{
+		Base.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Base.OutputIndex);
+	}
+}
 #endif // WITH_EDITOR
 
 
@@ -19751,6 +19948,18 @@ bool UMaterialExpressionStrataAdd::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
 }
+
+void UMaterialExpressionStrataAdd::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
+	if (B.GetTracedInput().Expression)
+	{
+		B.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, B.OutputIndex);
+	}
+}
 #endif // WITH_EDITOR
 
 
@@ -19814,6 +20023,14 @@ uint32 UMaterialExpressionStrataMultiply::GetInputType(int32 InputIndex)
 bool UMaterialExpressionStrataMultiply::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
+}
+
+void UMaterialExpressionStrataMultiply::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 

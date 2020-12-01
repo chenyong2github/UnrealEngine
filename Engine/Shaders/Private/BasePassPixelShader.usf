@@ -1517,14 +1517,26 @@ void FPixelShaderInOut_MainPS(
 			Throughput);
 
 		DualBlendColorAdd = Color;
-		DualBlendColorMul = Throughput;	// TODO transmittance
+		DualBlendColorMul = Throughput;
 		Color = 0.0f;
-		Opacity = 1.0f;
+		Opacity = 1.0f; // 1 is needed if using translucent. STRATA_TODO: we should only allow premultiplied alpha
 	}
 #endif // STRATA_TRANSLUCENT_ENABLED
 
-#endif // STRATA_ENABLED
+#elif STRATA_ENABLED && MATERIAL_SHADINGMODEL_UNLIT
 
+	// Unlit forces a single BSDF
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+#if STRATA_OPAQUE_ENABLED
+	Color = BSDF_GETEMISSIVE(UnlitBSDF);
+#else // STRATA_TRANSLUCENT_ENABLED
+	DualBlendColorAdd = BSDF_GETEMISSIVE(UnlitBSDF);
+	DualBlendColorMul = UNLIT_TRANSMITTANCE(UnlitBSDF);
+	Color = 0.0f;
+	Opacity = 1.0f; // 1 is needed if using translucent. STRATA_TODO: we should only allow premultiplied alpha
+#endif
+	
+#endif
 
 	#if MATERIAL_DOMAIN_POSTPROCESS
 		#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA

@@ -531,6 +531,49 @@ private:
 	uint16 ShadingModelField = 0;
 };
 
+/**
+ * Specifies the Strata runtime shading model summarized from the material graph
+ */
+UENUM()
+enum EStrataShadingModel
+{
+	SSM_Unlit					UMETA(DisplayName = "Unlit"),
+	SSM_DefaultLit				UMETA(DisplayName = "DefaultLit"),
+	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
+	/** Number of unique shading models. */
+	SSM_NUM						UMETA(Hidden),
+};
+static_assert(SSM_NUM <= 8, "Do not exceed 16 shading models without expanding FStrataMaterialShadingModelField to support uint32 instead of uint16!");
+
+/** Gather information from the Strata material graph to setup material for runtime. */
+USTRUCT()
+struct ENGINE_API FStrataMaterialInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	FStrataMaterialInfo() {}
+	FStrataMaterialInfo(EStrataShadingModel InShadingModel) { AddShadingModel(InShadingModel); }
+
+	// Shading model
+	void AddShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField |= (1 << (uint16)InShadingModel); }
+	bool HasShadingModel(EStrataShadingModel InShadingModel) const { return (ShadingModelField & (1 << (uint16)InShadingModel)) != 0; }
+	bool HasOnlyShadingModel(EStrataShadingModel InShadingModel) const { return ShadingModelField == (1 << (uint16)InShadingModel); }
+	uint8 GetShadingModelField() const { return ShadingModelField; }
+	int32 CountShadingModels() const { return FMath::CountBits(ShadingModelField); }
+
+	// STRATA_TODO SSS LUT
+
+	bool IsValid() const { return (ShadingModelField > 0) && (ShadingModelField < (1 << SSM_NUM)); }
+
+	bool operator==(const FStrataMaterialInfo& Other) const { return ShadingModelField == Other.GetShadingModelField(); }
+	bool operator!=(const FStrataMaterialInfo& Other) const { return ShadingModelField != Other.GetShadingModelField(); }
+
+private:
+	UPROPERTY()
+	uint8 ShadingModelField = 0;
+};
+
 /** This is used by the drawing passes to determine tessellation policy, so changes here need to be supported in native code. */
 UENUM()
 enum EMaterialTessellationMode
