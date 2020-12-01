@@ -6941,6 +6941,11 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 				}
 			}
 
+			if (Property.Type == CPT_Struct && Property.Struct && !(Function->FunctionFlags & FUNC_NetRequest || Function->FunctionFlags & FUNC_NetResponse))
+			{
+				ValidateScriptStructOkForNet(Property.Struct->GetName(), Property.Struct);
+			}
+
 			if (!(Function->FunctionFlags & FUNC_NetRequest))
 			{
 				if (Property.PropertyFlags & CPF_OutParm)
@@ -8031,6 +8036,63 @@ void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase&
 	}
 }
 
+bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName, UScriptStruct* InStruct)
+{
+	if (!InStruct)
+	{
+		return false;
+	}
+
+	if (ScriptStructsValidForNet.Contains(InStruct))
+	{
+		return true;
+	}
+
+	bool bIsStructValid = true;
+
+	if (UScriptStruct* SuperScriptStruct = Cast<UScriptStruct>(InStruct->GetSuperStruct()))
+	{
+		if (!ValidateScriptStructOkForNet(OriginStructName, SuperScriptStruct))
+		{
+			bIsStructValid = false;
+		}
+	}
+
+	for (FField* ChildProp = InStruct->ChildProperties; ChildProp != nullptr; ChildProp = ChildProp->Next)
+	{
+		if (const FSetProperty* const SetProp = CastField<FSetProperty>(ChildProp))
+		{
+			if (!(SetProp->PropertyFlags & CPF_RepSkip))
+			{
+				bIsStructValid = false;
+				UE_LOG_ERROR_UHT(TEXT("Sets are not supported for Replication or RPCs.  Set %s in %s.  Origin %s"), *ChildProp->GetName(), *ChildProp->Owner.GetName(), *OriginStructName);
+			}
+		}
+		else if (const FMapProperty* const MapProp = CastField<FMapProperty>(ChildProp))
+		{
+			if (!(MapProp->PropertyFlags & CPF_RepSkip))
+			{
+				bIsStructValid = false;
+				UE_LOG_ERROR_UHT(TEXT("Maps are not supported for Replication or RPCs.  Map %s in %s.  Origin %s"), *ChildProp->GetName(), *ChildProp->Owner.GetName(), *OriginStructName);
+			}
+		}
+		else if (const FStructProperty* const StructProperty = CastField<FStructProperty>(ChildProp))
+		{
+			if (!ValidateScriptStructOkForNet(OriginStructName, StructProperty->Struct))
+			{
+				bIsStructValid = false;
+			}
+		}
+	}
+
+	if (bIsStructValid)
+	{
+		ScriptStructsValidForNet.Add(InStruct);
+	}
+
+	return bIsStructValid;
+}
+
 struct FExposeOnSpawnValidator
 {
 	// Keep this function synced with UEdGraphSchema_K2::FindSetVariableByNameFunction
@@ -8135,6 +8197,12 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 	if (LayoutMacroType != ELayoutMacroType::None)
 	{
 		RequireSymbol(TEXT(','), GLayoutMacroNames[(int32)LayoutMacroType]);
+	}
+
+	// If Property is a Replicated Struct check to make sure there are no Properties that are not allowed to be Replicated in the Struct 
+	if (OriginalProperty.Type == CPT_Struct && OriginalProperty.PropertyFlags & CPF_Net && OriginalProperty.Struct)
+	{
+		ValidateScriptStructOkForNet(OriginalProperty.Struct->GetName(), OriginalProperty.Struct);
 	}
 
 	// Process all variables of this type.
