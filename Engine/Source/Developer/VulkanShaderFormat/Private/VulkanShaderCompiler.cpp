@@ -2258,7 +2258,7 @@ static const TCHAR* SpvBuiltinToString(const SpvBuiltIn BuiltIn)
 	return nullptr;
 }
 
-static FString ConvertMetaDataSemantic(const FString& InSemantic, const SpvBuiltIn BuiltIn, bool bIsInput)
+static FString ConvertAttributeToMetaDataSemantic(const ANSICHAR* AttributeName, const SpvBuiltIn BuiltIn, bool bIsInput)
 {
 	if (const TCHAR* BuiltInName = SpvBuiltinToString(BuiltIn))
 	{
@@ -2266,6 +2266,8 @@ static FString ConvertMetaDataSemantic(const FString& InSemantic, const SpvBuilt
 	}
 	else
 	{
+		check(AttributeName != nullptr && *AttributeName != '\0');
+		FString InSemantic = ANSI_TO_TCHAR(AttributeName);
 		FString OutSemantic = (bIsInput ? TEXT("in_") : TEXT("out_"));
 
 		if (InSemantic.StartsWith(TEXT("SV_")))
@@ -2304,9 +2306,8 @@ static void BuildShaderInterfaceVariableMetaData(const SpvReflectInterfaceVariab
 		return;
 	}
 
-	check(Attribute.semantic != nullptr);
 	const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute.type_description);
-	FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute.semantic), Attribute.built_in, bIsInput);
+	FString Semantic = ConvertAttributeToMetaDataSemantic(Attribute.semantic, Attribute.built_in, bIsInput);
 
 	if (Attribute.array.dims_count > 0)
 	{

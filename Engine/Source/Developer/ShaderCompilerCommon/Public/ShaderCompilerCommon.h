@@ -387,8 +387,8 @@ namespace CrossCompiler
 		/** Removes unused global variables and resources. This can only be used in the HLSL rewrite pass, i.e. 'RewriteHlslSource'. */
 		bool bRemoveUnusedGlobals = false;
 
-		/** Experimental: Decide how a matrix get packed. */
-		bool bPackMatricesInRowMajor = false;
+		/** Experimental: Decide how a matrix get packed. Default in HLSL is row-major. This will be inverted in the SPIR-V backend to match SPIR-V's column-major default. */
+		bool bPackMatricesInRowMajor = true;
 
 		/** Enable 16-bit types, such as half, uint16_t. Requires shader model 6.2+. */
 		bool bEnable16bitTypes = false;
@@ -401,9 +401,6 @@ namespace CrossCompiler
 
 		/** Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid re-association. */
 		bool bEnableFMAPass = false;
-
-		/** Cross compile global variables as push constants (for Vulkan backend). */
-		bool bGlobalsAsPushConstants = false;
 
 		/** Target shader profile. By default HCT_FeatureLevelSM5. */
 		EHlslCompileTarget TargetProfile = HCT_FeatureLevelSM5;

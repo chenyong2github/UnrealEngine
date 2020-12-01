@@ -460,14 +460,19 @@ static ShaderConductor::ShaderStage ToDXCShaderStage(EShaderFrequency Frequency)
 	}
 }
 
-static void InnerDXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
-	const ShaderConductor::Compiler::Options& InOptions, ShaderConductor::Compiler::ResultDesc& ResultDesc)
+// Inner wrapper function is required here because '__try'-statement cannot be used with function that requires object unwinding
+static void InnerScRewriteWrapper(
+	const ShaderConductor::Compiler::SourceDesc& InDesc,
+	const ShaderConductor::Compiler::Options& InOptions,
+	ShaderConductor::Compiler::ResultDesc& OutResultDesc)
 {
-	ResultDesc = ShaderConductor::Compiler::Rewrite(InDesc, InOptions);
+	OutResultDesc = ShaderConductor::Compiler::Rewrite(InDesc, InOptions);
 }
 
-static ShaderConductor::Compiler::ResultDesc DXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
+static bool DXCRewriteWrapper(
+	const ShaderConductor::Compiler::SourceDesc& InDesc,
 	const ShaderConductor::Compiler::Options& InOptions,
+	ShaderConductor::Compiler::ResultDesc& OutResultDesc,
 	bool& bOutException)
 {
 	bOutException = false;
@@ -475,18 +480,16 @@ static ShaderConductor::Compiler::ResultDesc DXCRewriteWrapper(const ShaderCondu
 	__try
 #endif
 	{
-		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		InnerDXCRewriteWrapper(InDesc, InOptions, ResultDesc);
-		return ResultDesc;
+		InnerScRewriteWrapper(InDesc, InOptions, OutResultDesc);
+		return true;
 	}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
 		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		FMemory::Memzero(ResultDesc);
+		FMemory::Memzero(OutResultDesc);
 		bOutException = true;
-		return ResultDesc;
+		return false;
 	}
 #endif
 }
@@ -538,12 +541,10 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 		TargetDesc.language = ShaderConductor::ShadingLanguage::Dxil;
 
 		// Rewrite HLSL source to remove unused global variables (DXC retains them when compiling)
-		ShaderConductor::Blob* RewriteBlob = nullptr;
-
-		// Rewrite HLSL
 		Options.removeUnusedGlobals = true;
 		bool bException = false;
-		ShaderConductor::Compiler::ResultDesc RewriteResultDesc = DXCRewriteWrapper(SourceDesc, Options, bException);
+		ShaderConductor::Compiler::ResultDesc RewriteResultDesc;
+		DXCRewriteWrapper(SourceDesc, Options, RewriteResultDesc, bException);
 		Options.removeUnusedGlobals = false;
 		if (RewriteResultDesc.hasError || bException)
 		{
@@ -552,37 +553,27 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 				Output.Errors.Add(TEXT("ShaderConductor exception during rewrite"));
 			}
 			// Append compile error to output reports
-			if (ShaderConductor::Blob* ErrorBlob = RewriteResultDesc.errorWarningMsg)
+			if (RewriteResultDesc.errorWarningMsg.Size() > 0)
 			{
-				FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
-				const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
+				FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(RewriteResultDesc.errorWarningMsg.Data()), RewriteResultDesc.errorWarningMsg.Size());
+				const FString ErrorString(RewriteResultDesc.errorWarningMsg.Size(), UTF8Converter.Get());
 				Output.Errors.Add(*ErrorString);
-
-				ShaderConductor::DestroyBlob(RewriteResultDesc.errorWarningMsg);
-				RewriteResultDesc.errorWarningMsg = nullptr;
+				RewriteResultDesc.errorWarningMsg.Reset();
 				bResult = false;
 			}
 		}
 		else
 		{
 			// Copy rewritten HLSL code into new source data string
-			RewriteBlob = RewriteResultDesc.target;
-
 			CStrSourceData.clear();
-			CStrSourceData.resize(RewriteBlob->Size());
-			FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
+			CStrSourceData.resize(RewriteResultDesc.target.Size());
+			FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteResultDesc.target.Data()), RewriteResultDesc.target.Size());
 			PreprocessedShaderSource = CStrSourceData.c_str();
 
 			if (bDumpDebugInfo)
 			{
 				DumpDebugUSF(Input, CStrSourceData.c_str(), 0, GRewrittenBaseFilename);
 			}
-		}
-
-		// Release ShaderConductor resources
-		if (RewriteBlob)
-		{
-			ShaderConductor::DestroyBlob(RewriteBlob);
 		}
 	}
 
