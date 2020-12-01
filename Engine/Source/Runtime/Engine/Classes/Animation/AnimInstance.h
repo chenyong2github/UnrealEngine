@@ -600,9 +600,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	float Montage_Play(UAnimMontage* MontageToPlay, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt=0.f, bool bStopAllMontages = true);
 
+	/** Plays an animation montage. Same as Montage_Play, but you can specify an AlphaBlend for Blend In settings. */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	float Montage_PlayWithBlendIn(UAnimMontage* MontageToPlay, const FAlphaBlendArgs& BlendIn, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt=0.f, bool bStopAllMontages = true);
+
 	/** Stops the animation montage. If reference is NULL, it will stop ALL active montages. */
+	/** Stopped montages will blend out using their montage asset's BlendOut, with InBlendOutTime as the BlendTime */
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	void Montage_Stop(float InBlendOutTime, const UAnimMontage* Montage = NULL);
+
+	/** Same as Montage_Stop, but all BlendOut settings are provided instead of using the ones on the montage asset*/
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	void Montage_StopWithBlendOut(const FAlphaBlendArgs& BlendOut, const UAnimMontage* Montage = nullptr);
 
 	/** Stops all active montages belonging to a group. */
 	UFUNCTION(BlueprintCallable, Category = "Montage")
@@ -840,6 +849,9 @@ protected:
 	virtual void Montage_UpdateWeight(float DeltaSeconds);
 	/** Advance montages **/
 	virtual void Montage_Advance(float DeltaSeconds);
+
+	void Montage_StopInternal(TFunctionRef<FAlphaBlend(const FAnimMontageInstance*)> AlphaBlendSelectorFunction, const UAnimMontage* Montage = nullptr);
+	float Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAlphaBlend& BlendIn, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt = 0.f, bool bStopAllMontages = true);
 
 public:
 	/** Queue a Montage BlendingOut Event to be triggered. */

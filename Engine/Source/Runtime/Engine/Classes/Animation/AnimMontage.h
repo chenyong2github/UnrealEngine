@@ -434,7 +434,12 @@ public:
 	FAnimMontageInstance(UAnimInstance * InAnimInstance);
 
 	//~ Begin montage instance Interfaces
+
+	// Fills BlendIn from the associated montage 
 	void Play(float InPlayRate = 1.f);
+	// Use provided BlendIn
+	void Play(float InPlayRate, const FAlphaBlend& BlendIn);
+
 	void Stop(const FAlphaBlend& InBlendOut, bool bInterrupt=true);
 	void Pause();
 	void Initialize(class UAnimMontage * InMontage);

@@ -1331,6 +1331,11 @@ FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
 
 void FAnimMontageInstance::Play(float InPlayRate)
 {
+	Play(InPlayRate, Montage->BlendIn);
+}
+
+void FAnimMontageInstance::Play(float InPlayRate, const FAlphaBlend& BlendIn)
+{
 	bPlaying = true;
 	PlayRate = InPlayRate;
 
@@ -1339,8 +1344,9 @@ void FAnimMontageInstance::Play(float InPlayRate)
 	
 	// set blend option
 	float CurrentWeight = Blend.GetBlendedValue();
-	InitializeBlend(Montage->BlendIn);	
-	Blend.SetBlendTime(Montage->BlendIn.GetBlendTime() * DefaultBlendTimeMultiplier);
+
+	InitializeBlend(BlendIn);
+	Blend.SetBlendTime(BlendIn.GetBlendTime() * DefaultBlendTimeMultiplier);
 	Blend.SetValueRange(CurrentWeight, 1.f);
 	bEnableAutoBlendOut = Montage->bEnableAutoBlendOut;
 }
