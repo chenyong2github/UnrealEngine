@@ -2090,8 +2090,8 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumKeys, bool bInse
 				// If Notify is inside of the trimmed time frame, zero out the duration
 				if(NotifyEnd >= OldStartTime && NotifyEnd <= OldEndTime)
 				{
-					// small number @todo see if there is define for this
-					NewDuration = 0.1f;
+					// Set duration to a single frame according to the current sampling rate
+					NewDuration = (float)GetSamplingFrameRate().AsInterval();
 				}
 				// If Notify overlaps trimmed time frame, remove trimmed duration
 				else if (CurrentTime < OldEndTime && NotifyEnd > OldEndTime)
@@ -2099,7 +2099,8 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumKeys, bool bInse
 					NewDuration = NotifyEnd-Duration-CurrentTime;
 				}
 
-				NewDuration = FMath::Max(NewDuration, 0.1f);
+				// Clamp duration to a single frame according to the current sampling rate
+				NewDuration = FMath::Max(NewDuration, (float)GetSamplingFrameRate().AsInterval());
 			}
 
 			if (CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
@@ -4661,7 +4662,9 @@ void UAnimSequence::ResetAnimation()
 {
 	// clear everything. Making new animation, so need to reset all the things that belong here
 	NumberOfKeys = 0;
-	SetSequenceLength(0.f);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SequenceLength = 0.f;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RawAnimationData.Empty();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();

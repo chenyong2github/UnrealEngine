@@ -199,8 +199,6 @@ struct ENGINE_API FRequestAnimCompressionParams
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
 class ENGINE_API UAnimSequence : public UAnimSequenceBase
 {
-	friend class UAnimationBlueprintLibrary;
-
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITORONLY_DATA
@@ -1068,4 +1066,6 @@ public:
 	friend class UAnimationBlueprintLibrary;
 	friend class UAnimBoneCompressionSettings;
 	friend class FCustomAttributeCustomization;
+	friend class UAnimationBlueprintLibrary;
+	friend class FAnimSequenceTestBase;
 };

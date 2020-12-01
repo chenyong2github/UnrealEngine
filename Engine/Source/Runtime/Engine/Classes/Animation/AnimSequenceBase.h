@@ -43,7 +43,10 @@ public:
 	virtual void SetSequenceLength(float NewLength) 	
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SequenceLength = NewLength; 
+		if (NewLength > 0.f)
+		{
+			SequenceLength = NewLength;
+		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 

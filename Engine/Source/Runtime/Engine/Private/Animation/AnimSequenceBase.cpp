@@ -577,7 +577,7 @@ void UAnimSequenceBase::UnregisterOnNotifyChanged(void* Unregister)
 
 void UAnimSequenceBase::ClampNotifiesAtEndOfSequence()
 {
-	const float NotifyClampTime = GetPlayLength() - 0.01f; //Slight offset so that notify is still draggable
+	const float NotifyClampTime = GetPlayLength();
 	for(int i = 0; i < Notifies.Num(); ++ i)
 	{
 		if(Notifies[i].GetTime() >= GetPlayLength())

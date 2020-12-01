@@ -508,6 +508,16 @@ struct FAnimSyncMarker
 
 	/** This can be used with the Sort() function on a TArray of FAnimSyncMarker to sort the notifies array by time, earliest first. */
 	ENGINE_API bool operator <(const FAnimSyncMarker& Other) const { return Time < Other.Time; }
+
+	ENGINE_API bool operator ==(const FAnimSyncMarker& Other) const
+	{
+		return MarkerName == Other.MarkerName &&
+#if WITH_EDITORONLY_DATA
+			TrackIndex == Other.TrackIndex &&
+			Guid == Other.Guid &&
+#endif
+			Time == Other.Time;
+	}
 };
 
 #if WITH_EDITORONLY_DATA
