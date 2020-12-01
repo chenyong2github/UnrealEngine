@@ -51,6 +51,7 @@ public:
 	bool					Stop();
 	void					EnableChannels();
 	void					DisableChannels();
+	void					SetTruncateFile(bool bTruncateFile);
 
 private:
 	enum class EState : uint8
@@ -74,6 +75,7 @@ private:
 	TMap<uint32, FChannel>	Channels;
 	FString					TraceDest;
 	EState					State = EState::Stopped;
+	bool					bTruncateFile = false;
 };
 
 static FTraceAuxiliaryImpl GTraceAuxiliary;
@@ -230,6 +232,12 @@ void FTraceAuxiliaryImpl::DisableChannels()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::SetTruncateFile(bool bNewTruncateFileState)
+{
+	bTruncateFile = bNewTruncateFileState;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host)
 {
 	if (!UE::Trace::SendTo(Host))
@@ -280,7 +288,7 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path)
 		return false;
 	}
 
-	if (FileManager.FileExists(*WritePath))
+	if (!bTruncateFile && FileManager.FileExists(*WritePath))
 	{
 		UE_LOG(LogCore, Warning, TEXT("Trace file '%s' already exists"), *WritePath);
 		return false;
@@ -427,6 +435,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	}
 	else if (FParse::Value(CommandLine, TEXT("-tracefile="), Parameter))
 	{
+		GTraceAuxiliary.SetTruncateFile(FParse::Param(CommandLine, TEXT("tracefiletrunc")));
 		GTraceAuxiliary.Connect(ETraceConnectType::File, *Parameter);
 	}
 	else if (FParse::Param(CommandLine, TEXT("tracefile")))
