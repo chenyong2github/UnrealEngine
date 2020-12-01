@@ -14,11 +14,14 @@
 #include "EditorStyleSet.h"
 #include "TexAligner/TexAligner.h"
 #include "LightmapResRatioAdjust.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 
 class AMatineeActor;
 class FLightingBuildOptions;
 class SLevelEditor;
 class UActorFactory;
+class UTypedElementSelectionSet;
 
 /**
  * Unreal level editor actions
@@ -1239,9 +1242,9 @@ public:
 	static class UWorld* GetWorld();
 public:
 	/** 
-	 * Moves an actor to the grid.
+	 * Moves the selected elements to the grid.
 	 */
-	static void MoveActorToGrid_Clicked( bool InAlign, bool bInPerActor );
+	static void MoveElementsToGrid_Clicked( bool InAlign, bool InPerElement );
 
 	/**
 	* Snaps a selected actor to the camera view.
@@ -1249,9 +1252,9 @@ public:
 	static void SnapObjectToView_Clicked();
 
 	/** 
-	 * Moves an actor to another actor.
+	 * Moves the selected elements to the last selected element.
 	 */
-	static void MoveActorToActor_Clicked( bool InAlign );
+	static void MoveElementsToElement_Clicked( bool InAlign );
 
 	/** 
 	 * Snaps an actor to the currently selected 2D snap layer
@@ -1281,7 +1284,7 @@ public:
 	static void Select2DLayerDeltaAway_Clicked(int32 Delta);
 
 	/** 
-	 * Snaps an actor to the floor.  Optionally will align with the trace normal.
+	 * Snaps the selected elements to the floor.  Optionally will align with the trace normal.
 	 * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
 	 * @param InUseLineTrace	Whether or not to only trace with a line through the world.
 	 * @param InUseBounds		Whether or not to base the line trace off of the bounds.
@@ -1290,18 +1293,24 @@ public:
 	static void SnapToFloor_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot );
 
 	/**
-	 * Snaps an actor to another actor.  Optionally will align with the trace normal.
+	 * Snaps the selected elements to another element.  Optionally will align with the trace normal.
 	 * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
 	 * @param InUseLineTrace	Whether or not to only trace with a line through the world.
 	 * @param InUseBounds		Whether or not to base the line trace off of the bounds.
 	 * @param InUsePivot		Whether or not to use the pivot position.
 	 */
-	static void SnapActorToActor_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot );
+	static void SnapElementsToElement_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot );
 
 	/**
 	 * Aligns brush verticies to the nearest grid point.
 	 */
 	static void AlignBrushVerticesToGrid_Execute();
+
+	/**
+	 * Checks to see if at least one actor is selected
+	 *	@return true if it can execute.
+	 */
+	static bool ActorSelected_CanExecute();
 
 	/**
 	 * Checks to see if multiple actors are selected
@@ -1310,31 +1319,36 @@ public:
 	static bool ActorsSelected_CanExecute();
 
 	/**
-	 * Checks to see if at least a single actor is selected
+	 * Checks to see if at least one element is selected
 	 *	@return true if it can execute.
 	 */
-	static bool ActorSelected_CanExecute();
+	static bool ElementSelected_CanExecute();
 
+	/**
+	 * Checks to see if multiple elements are selected
+	 *	@return true if it can execute.
+	 */
+	static bool ElementsSelected_CanExecute();
 
 	/** Called when 'Open Merge Actor' is clicked */
 	static void OpenMergeActor_Clicked();
 
 private:
 	/** 
-	 * Moves an actor...
-	 * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to use the grid
+	 * Moves the selected elements.
+	 * @param InDestination		The destination element we want to move this element to, or invalid to move to the grid
 	 */
-	static void MoveActorTo_Clicked( const bool InAlign, const AActor* InDestination = NULL, bool bInPerActor = false );
+	static void MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<UTypedElementWorldInterface>& InDestination = TTypedElement<UTypedElementWorldInterface>() );
 
 	/** 
-	 * Snaps an actor or component...  Optionally will align with the trace normal.
+	 * Snaps the selected elements. Optionally will align with the trace normal.
 	 * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
 	 * @param InUseLineTrace	Whether or not to only trace with a line through the world.
 	 * @param InUseBounds		Whether or not to base the line trace off of the bounds.
 	 * @param InUsePivot		Whether or not to use the pivot position.
-	 * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
+	 * @param InDestination		The destination element we want to move this actor to, or invalid to go towards the floor
 	 */
-	static void SnapTo_Clicked( const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, AActor* InDestination = NULL );
+	static void SnapTo_Clicked(const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<UTypedElementWorldInterface>& InDestination = TTypedElement<UTypedElementWorldInterface>() );
 
 	/** 
 	 * Create and apply animation to the SkeletalMeshComponent if Simulating

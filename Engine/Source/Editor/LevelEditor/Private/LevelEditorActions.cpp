@@ -42,6 +42,9 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
 
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
+
 #include "LevelEditor.h"
 #include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
@@ -2786,23 +2789,30 @@ bool FLevelEditorActionCallbacks::IsCoordinateSystemActive( ECoordSystem Coordin
 	return GLevelEditorModeTools().GetCoordSystem() == CoordinateSystem;
 }
 
-void FLevelEditorActionCallbacks::MoveActorToGrid_Clicked( bool InAlign, bool bInPerActor )
+void FLevelEditorActionCallbacks::MoveElementsToGrid_Clicked( bool InAlign, bool InPerElement )
 {
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MoveActorToGrid", "Snap Origin to Grid") );
-	MoveActorTo_Clicked( InAlign, NULL, bInPerActor );
-}
-
-void FLevelEditorActionCallbacks::MoveActorToActor_Clicked( bool InAlign )
-{
-	AActor* Actor = GEditor->GetSelectedActors()->GetBottom<AActor>();
-	if( Actor )
+	// TODO: Ideally this would come from some level editor context
+	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MoveActorToActor", "Snap Origin to Actor") );
-		MoveActorTo_Clicked( InAlign, Actor );
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveElementsToGrid", "Snap Origin to Grid"));
+		MoveTo_Clicked(SelectionSet, InAlign, InPerElement);
 	}
 }
 
-void FLevelEditorActionCallbacks::MoveActorTo_Clicked( const bool InAlign, const AActor* InDestination/* = NULL*/, bool bInPerActor/* = false*/ )
+void FLevelEditorActionCallbacks::MoveElementsToElement_Clicked(bool InAlign)
+{
+	// TODO: Ideally this would come from some level editor context
+	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
+	{
+		if (const TTypedElement<UTypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveElementsToElement", "Snap Origin to Element"));
+			MoveTo_Clicked(SelectionSet, InAlign, /*bPerElement*/false, DestElement);
+		}
+	}
+}
+
+void FLevelEditorActionCallbacks::MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<UTypedElementWorldInterface>& InDestination )
 {
 	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
 	FScopedLevelDirtied		LevelDirtyCallback;
@@ -2810,57 +2820,75 @@ void FLevelEditorActionCallbacks::MoveActorTo_Clicked( const bool InAlign, const
 	// Update the pivot location.
 	FVector Delta = FVector::ZeroVector;
 	FVector NewLocation = FVector::ZeroVector;
-	FRotator NewRotation = FRotator::ZeroRotator;
+	FQuat NewRotation = FQuat::Identity;
 
-	if(!bInPerActor)
+	if (!InPerElement)
 	{
-		if ( InDestination )
+		if (InDestination)
 		{
-			NewLocation = InDestination->GetActorLocation();
-			NewRotation = InDestination->GetActorRotation();
-			GEditor->SetPivot( NewLocation, false, true );
+			FTransform DestinationTransform;
+			if (InDestination.GetWorldTransform(DestinationTransform))
+			{
+				NewLocation = DestinationTransform.GetLocation();
+				NewRotation = DestinationTransform.GetRotation();
+				GEditor->SetPivot(NewLocation, false, true);
+			}
 		}
 		else
 		{
 			const FVector OldPivot = GEditor->GetPivotLocation();
 			const FVector NewPivot = OldPivot.GridSnap(GEditor->GetGridSize());
 			Delta = NewPivot - OldPivot;
-			GEditor->SetPivot( NewPivot, false, true );
+			GEditor->SetPivot(NewPivot, false, true);
 		}
 	}
 
-	for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
+	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([InAlign, InPerElement, &InDestination, &Delta, &NewLocation, &NewRotation, &LevelDirtyCallback](const TTypedElement<UTypedElementWorldInterface>& InElement)
 	{
-		AActor* Actor = Cast<AActor>( *It );
-		checkSlow( Actor );
-		if ( Actor == InDestination )	// Early out
+		// Skip moving the destination element
+		if (InElement == InDestination)
 		{
-			continue;
+			return true;
 		}
 
-		Actor->Modify();
-
-		if(!InDestination)
+		FTransform CurrentTransform;
+		if (InElement.GetWorldTransform(CurrentTransform))
 		{
-			if ( bInPerActor )
+			if (!InDestination)
 			{
-				const FVector OldPivot = Actor->GetActorLocation();
-				const FVector NewPivot = OldPivot.GridSnap(GEditor->GetGridSize());
-				Delta = NewPivot - OldPivot;
-				GEditor->SetPivot( NewPivot, false, true );
+				if (InPerElement)
+				{
+					const FVector OldPivot = CurrentTransform.GetLocation();
+					const FVector NewPivot = OldPivot.GridSnap(GEditor->GetGridSize());
+					Delta = NewPivot - OldPivot;
+					GEditor->SetPivot(NewPivot, false, true);
+				}
+
+				NewLocation = CurrentTransform.GetLocation() + Delta;
 			}
 
-			NewLocation = Actor->GetActorLocation() + Delta;
-		}
-		
-		Actor->TeleportTo( NewLocation, ( !InAlign ? Actor->GetActorRotation() : NewRotation ), false, true );
-		Actor->InvalidateLightingCache();
-		Actor->UpdateComponentTransforms();
-		Actor->PostEditMove(true);
+			FTransform NewTransform = CurrentTransform;
+			NewTransform.SetLocation(NewLocation);
+			if (InAlign)
+			{
+				NewTransform.SetRotation(NewRotation);
+			}
 
-		Actor->MarkPackageDirty();
-		LevelDirtyCallback.Request();
-	}
+			FTransform SuitableTransform;
+			if (!InElement.FindSuitableTransformAtPoint(NewTransform, SuitableTransform))
+			{
+				SuitableTransform = NewTransform;
+			}
+
+			InElement.NotifyMovementStarted();
+			InElement.SetWorldTransform(SuitableTransform);
+			InElement.NotifyMovementEnded();
+
+			LevelDirtyCallback.Request();
+		}
+
+		return true;
+	});
 
 	GEditor->RedrawLevelEditingViewports();
 	GEditor->RebuildAlteredBSP(); // Update the Bsp of any levels containing a modified brush
@@ -2980,103 +3008,83 @@ void FLevelEditorActionCallbacks::Select2DLayerDeltaAway_Clicked(int32 Delta)
 
 void FLevelEditorActionCallbacks::SnapToFloor_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot )
 {
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SnapActorsToFloor", "Snap Actors To Floor") );
-	SnapTo_Clicked( InAlign, InUseLineTrace, InUseBounds, InUsePivot );
-}
-
-void FLevelEditorActionCallbacks::SnapActorToActor_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot )
-{
-	AActor* Actor = GEditor->GetSelectedActors()->GetBottom<AActor>();
-	if( Actor )
+	// TODO: Ideally this would come from some level editor context
+	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SnapActorsToActor", "Snap Actors To Actor") );
-		SnapTo_Clicked( InAlign, InUseLineTrace, InUseBounds, InUsePivot, Actor );
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SnapActorsToFloor", "Snap Elements To Floor"));
+		SnapTo_Clicked(SelectionSet, InAlign, InUseLineTrace, InUseBounds, InUsePivot);
 	}
 }
 
-void FLevelEditorActionCallbacks::SnapTo_Clicked( const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, AActor* InDestination )
+void FLevelEditorActionCallbacks::SnapElementsToElement_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot )
+{
+	// TODO: Ideally this would come from some level editor context
+	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
+	{
+		if (const TTypedElement<UTypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SnapElementsToElement", "Snap Elements to Element"));
+			SnapTo_Clicked(SelectionSet, InAlign, InUseLineTrace, InUseBounds, InUsePivot, DestElement);
+		}
+	}
+}
+
+void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<UTypedElementWorldInterface>& InDestination )
 {
 	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
 	FScopedLevelDirtied		LevelDirtyCallback;
 
-	bool bSnappedComponents = false;
-
 	// Let the component visualizers try to handle the selection.
-	if (GUnrealEd->ComponentVisManager.HandleSnapTo(InAlign, InUseLineTrace, InUseBounds, InUsePivot, InDestination))
+	// TODO: Should this also take an element?
+	if (TTypedElement<UTypedElementObjectInterface> DestinationObjectHandle = InSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InDestination))
 	{
-		bSnappedComponents = true;
-	}
-
-	// Gather the selected actors and components to later add to the ingore list for object snapping
-	TArray<FActorOrComponent> ObjectsToIgnore;
-	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
-	{
-		USceneComponent* SceneComponent = Cast<USceneComponent>(*It);
-		ObjectsToIgnore.Add(FActorOrComponent(SceneComponent));
-	}
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		AActor* Actor = Cast<AActor>(*It);
-		ObjectsToIgnore.Add(FActorOrComponent(Actor));
-	}
-
-
-	if( !bSnappedComponents && GEditor->GetSelectedComponentCount() > 0 )
-	{
-		for(FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
+		if (AActor* DestinationActor = Cast<AActor>(DestinationObjectHandle.GetObject()))
 		{
-			USceneComponent* SceneComponent = Cast<USceneComponent>(*It);
-			if(SceneComponent)
+			if (GUnrealEd->ComponentVisManager.HandleSnapTo(InAlign, InUseLineTrace, InUseBounds, InUsePivot, DestinationActor))
 			{
-				SceneComponent->Modify();
-				AActor* ActorOwner = SceneComponent->GetOwner();
-				bSnappedComponents = true;
-				if(ActorOwner)
-				{
-					ActorOwner->Modify();
-					GEditor->SnapObjectTo(FActorOrComponent(SceneComponent), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination), ObjectsToIgnore);
-					ActorOwner->InvalidateLightingCache();
-					ActorOwner->UpdateComponentTransforms();
-
-					LevelDirtyCallback.Request();
-				}
+				return;
 			}
 		}
-
-		USceneComponent* LastComp = GEditor->GetSelectedComponents()->GetBottom<USceneComponent>();
-
-		GEditor->SetPivot(LastComp->GetComponentLocation(), false, true);
 	}
 
-	if( !bSnappedComponents )
+	// Ignore the selected elements when sweeping for the snap location
+	const TArray<FTypedElementHandle> ElementsToIgnore = InSelectionSet->GetSelectedElementHandles();
+
+	// Snap each selected element
+	bool bSnappedElements = false;
+	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([InAlign, InUseLineTrace, InUseBounds, InUsePivot, &InDestination, &ElementsToIgnore, &LevelDirtyCallback, &bSnappedElements](const TTypedElement<UTypedElementWorldInterface>& InElement)
 	{
-		for(FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+		if (GEditor->SnapElementTo(InElement, InAlign, InUseLineTrace, InUseBounds, InUsePivot, InDestination, ElementsToIgnore))
 		{
-			AActor* Actor = Cast<AActor>(*It);
-			if(Actor)
-			{
-				Actor->Modify();
-				GEditor->SnapObjectTo(FActorOrComponent(Actor), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination), ObjectsToIgnore);
-				Actor->InvalidateLightingCache();
-				Actor->UpdateComponentTransforms();
-
-				LevelDirtyCallback.Request();
-			}
+			bSnappedElements = true;
+			LevelDirtyCallback.Request();
 		}
+		return true;
+	});
 
-
-		AActor* Actor = GEditor->GetSelectedActors()->GetBottom<AActor>();
-		if(Actor)
+	// Update the pivot location
+	if (bSnappedElements)
+	{
+		if (TTypedElement<UTypedElementWorldInterface> LastElement = InSelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
 		{
-			GEditor->SetPivot(Actor->GetActorLocation(), false, true);
-
-			if(UActorGroupingUtils::IsGroupingActive())
+			FTransform LastElementTransform;
+			if (LastElement.GetWorldTransform(LastElementTransform))
 			{
-				// set group pivot for the root-most group
-				AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(Actor, true, true);
-				if(ActorGroupRoot)
+				GEditor->SetPivot(LastElementTransform.GetLocation(), false, true);
+
+				if (UActorGroupingUtils::IsGroupingActive())
 				{
-					ActorGroupRoot->CenterGroupLocation();
+					if (TTypedElement<UTypedElementObjectInterface> LastObjectElement = InSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(LastElement))
+					{
+						if (AActor* LastActor = Cast<AActor>(LastObjectElement.GetObject()))
+						{
+							// Set group pivot for the root-most group
+							if (AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(LastActor, true, true))
+							{
+								ActorGroupRoot->CenterGroupLocation();
+							}
+						}
+					}
 				}
 			}
 		}
@@ -3093,14 +3101,26 @@ void FLevelEditorActionCallbacks::AlignBrushVerticesToGrid_Execute()
 
 bool FLevelEditorActionCallbacks::ActorSelected_CanExecute()
 {
-	// Had to have something selected
-	return ( ( GEditor->GetSelectedActorCount() > 0 ) ? true : false );
+	return GEditor->GetSelectedActorCount() > 0;
 }
 
 bool FLevelEditorActionCallbacks::ActorsSelected_CanExecute()
 {
-	// Has to have more than one selected
-	return ( ( GEditor->GetSelectedActorCount() > 1 ) ? true : false );
+	return GEditor->GetSelectedActorCount() > 1;
+}
+
+bool FLevelEditorActionCallbacks::ElementSelected_CanExecute()
+{
+	// TODO: Ideally this would come from some level editor context
+	const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet();
+	return SelectionSet && SelectionSet->GetNumSelectedElements() > 0;
+}
+
+bool FLevelEditorActionCallbacks::ElementsSelected_CanExecute()
+{
+	// TODO: Ideally this would come from some level editor context
+	const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet();
+	return SelectionSet && SelectionSet->GetNumSelectedElements() > 1;
 }
 
 void FLevelEditorActionCallbacks::GeometryCollection_SelectAllGeometry()

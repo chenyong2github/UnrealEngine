@@ -64,6 +64,7 @@ class USkeleton;
 class USoundBase;
 class USoundNode;
 class UTextureRenderTarget2D;
+struct FTypedElementHandle;
 struct FAnalyticsEventAttribute;
 class UEditorWorldExtensionManager;
 class ITargetDevice;
@@ -177,82 +178,6 @@ struct FCachedActorLabels
 
 private:
 	TSet<FString> ActorLabels;
-};
-
-/** 
- * Represents an actor or a component for use in editor functionality such as snapping which can operate on either type
- */
-struct FActorOrComponent
-{
-	AActor* Actor;
-	USceneComponent* Component;
-
-	FActorOrComponent()
-		: Actor( nullptr )
-		, Component( nullptr )
-	{}
-
-	FActorOrComponent( AActor* InActor )
-		: Actor( InActor )
-		, Component( nullptr )
-	{}
-
-	FActorOrComponent( USceneComponent* InComponent )
-		: Actor( nullptr )
-		, Component( InComponent )
-	{}
-
-	UWorld* GetWorld() const
-	{
-		return Actor ? Actor->GetWorld() : Component->GetWorld();
-	}
-
-	bool operator==( const FActorOrComponent& Other ) const
-	{
-		return Actor == Other.Actor && Component == Other.Component;
-	}
-
-	const FBoxSphereBounds& GetBounds() const
-	{
-		return Actor ? Actor->GetRootComponent()->Bounds : Component->Bounds;
-	}
-
-	FVector GetWorldLocation() const
-	{
-		return Actor ? Actor->GetActorLocation() : Component->GetComponentLocation();
-	}
-
-	FRotator GetWorldRotation() const
-	{
-		return Actor ? Actor->GetActorRotation() : Component->GetComponentRotation();
-	}
-
-	void SetWorldLocation( const FVector& NewLocation )
-	{
-		if( Actor )
-		{
-			Actor->SetActorLocation( NewLocation );
-		}
-		else
-		{
-			Component->SetWorldLocation( NewLocation );
-		}
-	}
-
-	void SetWorldRotation( const FRotator& NewRotation )
-	{
-		if(Actor)
-		{
-			Actor->SetActorRotation(NewRotation);
-		}
-		else
-		{
-			Component->SetWorldRotation(NewRotation);
-		}
-	}
-
-	/** @return true if this is a valid actor or component but not both */
-	bool IsValid() const { return (Actor != nullptr) ^ (Component != nullptr);}
 };
 
 /**
@@ -1084,23 +1009,23 @@ public:
 	void MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const;
 
 	/** 
-	 * Snaps an actor in a direction.  Optionally will align with the trace normal.
-	 * @param InActor			Actor to move to the floor.
+	 * Snaps an element in a direction.  Optionally will align with the trace normal.
+	 * @param InElementHandle	Element to move to the floor.
 	 * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
 	 * @param InUseLineTrace	Whether or not to only trace with a line through the world.
 	 * @param InUseBounds		Whether or not to base the line trace off of the bounds.
 	 * @param InUsePivot		Whether or not to use the pivot position.
-	 * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
+	 * @param InDestination		The destination element we want to move this actor to, unset assumes we just want to go towards the floor
 	 * @return					Whether or not the actor was moved.
 	 */
-	bool SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination = FActorOrComponent(), TArray<FActorOrComponent> ObjectsToIgnore = TArray<FActorOrComponent>() );
+	bool SnapElementTo(const FTypedElementHandle& InElementHandle, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const FTypedElementHandle& InDestination = FTypedElementHandle(), TArrayView<const FTypedElementHandle> InElementsToIgnore = TArrayView<const FTypedElementHandle>());
 
 	/**
-	 * Snaps the view of the camera to that of the provided actor.
+	 * Snaps the view of the camera to that of the provided element.
 	 *
-	 * @param	Actor	The actor the camera is going to be snapped to.
+	 * @param InElementHandle	The element the camera is going to be snapped to.
 	 */
-	void SnapViewTo(const FActorOrComponent& Object);
+	void SnapViewTo(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Remove the roll, pitch and/or yaw from the perspective viewports' cameras.

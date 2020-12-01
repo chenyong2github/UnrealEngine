@@ -27,6 +27,7 @@ void FTypedElementAssetEditorViewportInteractionCustomization::PreGizmoManipulat
 
 void FTypedElementAssetEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
+	InElementWorldHandle.NotifyMovementStarted();
 }
 
 void FTypedElementAssetEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
@@ -71,15 +72,66 @@ void FTypedElementAssetEditorViewportInteractionCustomization::GizmoManipulation
 		}
 
 		InElementWorldHandle.SetWorldTransform(ElementWorldTransform);
+		InElementWorldHandle.NotifyMovementOngoing();
 	}
 }
 
 void FTypedElementAssetEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
+	InElementWorldHandle.NotifyMovementEnded();
 }
 
 void FTypedElementAssetEditorViewportInteractionCustomization::PostGizmoManipulationStopped(TArrayView<const FTypedElementHandle> InElementHandles, const UE::Widget::EWidgetMode InWidgetMode)
 {
+}
+
+void FTypedElementAssetEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
+{
+	FTransform ElementWorldTransform;
+	if (InElementWorldHandle.GetWorldTransform(ElementWorldTransform))
+	{
+		InElementWorldHandle.NotifyMovementStarted();
+
+		// Apply mirrored rotation
+		{
+			// Revert the handedness of the rotation, but make up for it in the scaling
+			// Arbitrarily choose the X axis to remain fixed
+			const FMatrix TempRot = FRotationMatrix::Make(ElementWorldTransform.GetRotation());
+			const FMatrix NewRot(
+				-TempRot.GetScaledAxis(EAxis::X) * InMirrorScale, 
+				TempRot.GetScaledAxis(EAxis::Y) * InMirrorScale, 
+				TempRot.GetScaledAxis(EAxis::Z) * InMirrorScale, 
+				FVector::ZeroVector
+				);
+			ElementWorldTransform.SetRotation(NewRot.ToQuat());
+		}
+
+		// Apply mirrored location around the pivot location
+		{
+			FVector Loc = ElementWorldTransform.GetTranslation();
+			Loc -= InPivotLocation;
+			Loc *= InMirrorScale;
+			Loc += InPivotLocation;
+			ElementWorldTransform.SetTranslation(Loc);
+		}
+
+		InElementWorldHandle.SetWorldTransform(ElementWorldTransform);
+
+		// Apply mirrored relative scale
+		{
+			FTransform ElementRelativeTransform;
+			if (InElementWorldHandle.GetRelativeTransform(ElementRelativeTransform))
+			{
+				FVector Scale3D = ElementRelativeTransform.GetScale3D();
+				Scale3D.X = -Scale3D.X;
+				ElementRelativeTransform.SetScale3D(Scale3D);
+
+				InElementWorldHandle.SetRelativeTransform(ElementRelativeTransform);
+			}
+		}
+
+		InElementWorldHandle.NotifyMovementEnded();
+	}
 }
 
 
@@ -171,6 +223,17 @@ void UTypedElementViewportInteraction::ApplyDeltaToElement(const FTypedElementHa
 		FVector PivotLocation = FVector::ZeroVector;
 		ViewportInteractionElement.GetGizmoPivotLocation(InWidgetMode, PivotLocation);
 		ViewportInteractionElement.GizmoManipulationDeltaUpdate(InWidgetMode, InDragAxis, InInputState, InDeltaTransform, PivotLocation);
+	}
+}
+
+void UTypedElementViewportInteraction::MirrorElement(const FTypedElementHandle& InElementHandle, const FVector& InMirrorScale)
+{
+	FTypedElementViewportInteractionElement ViewportInteractionElement = ResolveViewportInteractionElement(InElementHandle);
+	if (ViewportInteractionElement)
+	{
+		FVector PivotLocation = FVector::ZeroVector;
+		ViewportInteractionElement.GetGizmoPivotLocation(UE::Widget::WM_None, PivotLocation);
+		ViewportInteractionElement.MirrorElement(InMirrorScale, PivotLocation);
 	}
 }
 

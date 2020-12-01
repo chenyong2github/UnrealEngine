@@ -104,6 +104,7 @@
 #endif
 #include "ActorGroupingUtils.h"
 #include "EdMode.h"
+#include "ILevelEditor.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Subsystems/EditorActorSubsystem.h"
 
@@ -480,7 +481,7 @@ UPackage* UUnrealEdEngine::GeneratePackageThumbnailsIfRequired( const TCHAR* Str
 				if( !bSilent )
 				{
 					GWarn->UpdateProgress( 1, 1 );
-					GWarn->EndSlowTask();
+					GWarn->EndSlowTask();
 				}
 			}
 		}
@@ -761,6 +762,13 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 	else if (FParse::Command(&Str,TEXT("ACTOR")))
 	{
 		return Exec_Actor( InWorld, Str, Ar );
+	}
+	//------------------------------------------------------------------------------------
+	// ELEMENT: Element-related functions
+	//
+	else if (FParse::Command(&Str,TEXT("ELEMENT")))
+	{
+		return Exec_Element( InWorld, Str, Ar );
 	}
 	//------------------------------------------------------------------------------------
 	// MODE management (Global EDITOR mode):
@@ -1693,45 +1701,6 @@ bool UUnrealEdEngine::Exec_Pivot( const TCHAR* Str, FOutputDevice& Ar )
 	return false;
 }
 
-static void MirrorActors(const FVector& MirrorScale)
-{
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MirroringActors", "Mirroring Actors") );
-
-	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
-	FScopedLevelDirtied		LevelDirtyCallback;
-
-	for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
-	{
-		AActor* Actor = static_cast<AActor*>( *It );
-		checkSlow( Actor->IsA(AActor::StaticClass()) );
-
-		const FVector PivotLocation = GLevelEditorModeTools().PivotLocation;
-
-		Actor->Modify();
-		Actor->EditorApplyMirror( MirrorScale, PivotLocation );
-
-		ABrush* Brush = Cast< ABrush >(Actor);
-		if (Brush && Brush->GetBrushComponent())
-		{
-			Brush->GetBrushComponent()->RequestUpdateBrushCollision();
-		}
-
-		Actor->InvalidateLightingCache();
-		Actor->PostEditMove( true );
-
-		Actor->MarkPackageDirty();
-		LevelDirtyCallback.Request();
-	}
-
-	if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
-	{
-		BrushSubsystem->UpdateGeometryFromSelectedBrushes();
-	}
-
-	GEditor->RedrawLevelEditingViewports();
-}
-
-
 /**
 * Gathers up a list of selection FPolys from selected static meshes.
 *
@@ -2230,9 +2199,13 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		if( !MirrorScale.Y )		MirrorScale.Y = 1;
 		if( !MirrorScale.Z )		MirrorScale.Z = 1;
 
-		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MirroringActors", "Mirroring Actors"));
-		MirrorActors(MirrorScale);
-		RebuildAlteredBSP(); // Update the Bsp of any levels containing a modified brush
+		if (GCurrentLevelEditingViewportClient)
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MirroringActors", "Mirroring Actors"));
+			GCurrentLevelEditingViewportClient->MirrorSelectedActors(MirrorScale);
+			RebuildAlteredBSP(); // Update the Bsp of any levels containing a modified brush
+		}
+
 		return true;
 	}
 	else if( FParse::Command(&Str,TEXT("DELTAMOVE")) )
@@ -2241,14 +2214,17 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		FVector DeltaMove = FVector::ZeroVector;
 		GetFVECTOR( Str, DeltaMove );
 
-		FEditorModeTools& Tools = GLevelEditorModeTools();
-		Tools.SetPivotLocation( Tools.PivotLocation + DeltaMove, false );
-
 		if (GCurrentLevelEditingViewportClient)
 		{
+			if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
+			{
+				FEditorModeTools& Tools = LevelEditor->GetEditorModeManager();
+				Tools.SetPivotLocation(Tools.PivotLocation + DeltaMove, false);
+			}
+
 			GCurrentLevelEditingViewportClient->ApplyDeltaToActors(DeltaMove, FRotator::ZeroRotator, FVector::ZeroVector);
+			RedrawLevelEditingViewports();
 		}
-		RedrawLevelEditingViewports();
 
 		return true;
 	}
@@ -2825,6 +2801,53 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	return false;
 }
 
+bool UUnrealEdEngine::Exec_Element( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar )
+{
+	// Keep a pointer to the beginning of the string to use for message displaying purposes
+	const TCHAR* const FullStr = Str;
+
+	if (FParse::Command(&Str, TEXT("MIRROR")))
+	{
+		FVector MirrorScale(1, 1, 1);
+		GetFVECTOR(Str, MirrorScale);
+		// We can't have zeroes in the vector
+		if (!MirrorScale.X)		MirrorScale.X = 1;
+		if (!MirrorScale.Y)		MirrorScale.Y = 1;
+		if (!MirrorScale.Z)		MirrorScale.Z = 1;
+
+		if (GCurrentLevelEditingViewportClient)
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MirroringElements", "Mirroring Elements"));
+			GCurrentLevelEditingViewportClient->MirrorSelectedElements(MirrorScale);
+			RebuildAlteredBSP(); // Update the Bsp of any levels containing a modified brush
+		}
+
+		return true;
+	}
+	
+	if (FParse::Command(&Str, TEXT("DELTAMOVE")))
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DeltaMovElements", "Move Elements by Delta"));
+		FVector DeltaMove = FVector::ZeroVector;
+		GetFVECTOR(Str, DeltaMove);
+
+		if (GCurrentLevelEditingViewportClient)
+		{
+			if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
+			{
+				FEditorModeTools& Tools = LevelEditor->GetEditorModeManager();
+				Tools.SetPivotLocation(Tools.PivotLocation + DeltaMove, false);
+			}
+
+			GCurrentLevelEditingViewportClient->ApplyDeltaToSelectedElements(FTransform(FRotator::ZeroRotator, DeltaMove, FVector::ZeroVector));
+			RedrawLevelEditingViewports();
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 bool UUnrealEdEngine::Exec_Mode( const TCHAR* Str, FOutputDevice& Ar )
 {

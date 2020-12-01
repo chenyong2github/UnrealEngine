@@ -191,7 +191,7 @@ private:
 		if (ButtonID == FDlgDeltaTransform::OK)
 		{
 			GUnrealEd->Exec( GEditor->GetEditorWorldContext().World(), 
-				*FString::Printf(TEXT("ACTOR DELTAMOVE X=%.5f Y=%.5f Z=%.5f"), 
+				*FString::Printf(TEXT("ELEMENT DELTAMOVE X=%.5f Y=%.5f Z=%.5f"), 
 				DeltaTransform.X.GetValue(), DeltaTransform.Y.GetValue(), DeltaTransform.Z.GetValue()) );
 		}
 

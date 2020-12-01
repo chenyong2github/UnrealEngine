@@ -126,6 +126,11 @@
 #include "AssetRegistryModule.h"
 #include "SnappingUtils.h"
 
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "Editor/ActorPositioning.h"
 
@@ -4935,32 +4940,46 @@ void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActi
 	}
 }
 
-/** 
- * Snaps an actor in a direction.  Optionally will align with the trace normal.
- * @param InActor			Actor to move to the floor.
- * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
- * @param InUseLineTrace	Whether or not to only trace with a line through the world.
- * @param InUseBounds		Whether or not to base the line trace off of the bounds.
- * @param InUsePivot		Whether or not to use the pivot position.
- * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
- * @return					Whether or not the actor was moved.
- */
-bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination, TArray<FActorOrComponent> ObjectsToIgnore)
+bool UEditorEngine::SnapElementTo(const FTypedElementHandle& InElementHandle, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const FTypedElementHandle& InDestination, TArrayView<const FTypedElementHandle> InElementsToIgnore)
 {
-	if ( !Object.IsValid() || Object == InDestination )	// Early out
+	if (!InElementHandle || InElementHandle == InDestination)
 	{
 		return false;
 	}
 
+	const UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
-	FVector	StartLocation = Object.GetWorldLocation();
+	TTypedElement<UTypedElementWorldInterface> ElementWorldHandle = Registry->GetElement<UTypedElementWorldInterface>(InElementHandle);
+	if (!ElementWorldHandle)
+	{
+		return false;
+	}
+
+	FTransform ElementTransform;
+	if (!ElementWorldHandle.GetWorldTransform(ElementTransform))
+	{
+		return false;
+	}
+
+	FBoxSphereBounds ElementBounds;
+	if (!ElementWorldHandle.GetBounds(ElementBounds))
+	{
+		return false;
+	}
+
+	ABrush* Brush = nullptr;
+	if (TTypedElement<UTypedElementObjectInterface> ElementObjectHandle = Registry->GetElement<UTypedElementObjectInterface>(InElementHandle))
+	{
+		Brush = Cast<ABrush>(ElementObjectHandle.GetObject());
+	}
+
+	FVector	StartLocation = ElementTransform.GetLocation();
 	FVector	LocationOffset = FVector::ZeroVector;
 	FVector	Extent = FVector::ZeroVector;
-	ABrush* Brush = Cast< ABrush >( Object.Actor );
-	bool UseLineTrace = Brush ? true: InUseLineTrace;
-	bool UseBounds = Brush ? true: InUseBounds;
+	bool UseLineTrace = Brush ? true : InUseLineTrace;
+	bool UseBounds = Brush ? true : InUseBounds;
 
-	if( UseLineTrace && UseBounds )
+	if (UseLineTrace && UseBounds)
 	{
 		if (InUsePivot)
 		{
@@ -4970,72 +4989,75 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 		else
 		{
 			// Will do a line trace from the center bottom of the bounds through the world. Will begin at the bottom center of the component's bounds.
-			StartLocation = Object.GetBounds().Origin;
-			StartLocation.Z -= Object.GetBounds().BoxExtent.Z;
+			StartLocation = ElementBounds.Origin;
+			StartLocation.Z -= ElementBounds.BoxExtent.Z;
 		}
 
 		// Forces a line trace.
 		Extent = FVector::ZeroVector;
-		LocationOffset = StartLocation - Object.GetWorldLocation();
+		LocationOffset = StartLocation - ElementTransform.GetLocation();
 	}
-	else if( UseLineTrace )
+	else if (UseLineTrace)
 	{
 		// This will be false if multiple objects are selected. In that case the actor's position should be used so all the objects do not go to the same point.
-		if( InUsePivot && !InDestination.IsValid() )	// @todo: If the destination actor is part of the selection tho, we can't use the pivot! (remove check if not)
+		if (InUsePivot && !InDestination)	// @todo: If the destination actor is part of the selection tho, we can't use the pivot! (remove check if not)
 		{
 			StartLocation = GetPivotLocation();
 		}
 		else
 		{
-			StartLocation = Object.GetWorldLocation();
+			StartLocation = ElementTransform.GetLocation();
 		}
 
 		// Forces a line trace.
 		Extent = FVector::ZeroVector;
-		LocationOffset = StartLocation - Object.GetWorldLocation();
+		LocationOffset = StartLocation - ElementTransform.GetLocation();
 	}
-	else 
+	else
 	{
-		StartLocation = Object.GetBounds().Origin;
+		StartLocation = ElementBounds.Origin;
 
-		Extent = Object.GetBounds().BoxExtent;
-		LocationOffset = StartLocation - Object.GetWorldLocation();
+		Extent = ElementBounds.BoxExtent;
+		LocationOffset = StartLocation - ElementTransform.GetLocation();
 	}
 
-
-	FVector Direction = FVector(0.f,0.f,-1.f);
-	if ( InDestination.IsValid() )	// If a destination actor was specified, work out the direction
+	FVector Direction = FVector(0.f, 0.f, -1.f);
+	if (TTypedElement<UTypedElementWorldInterface> DestinationWorldHandle = Registry->GetElement<UTypedElementWorldInterface>(InDestination))	// If a destination actor was specified, work out the direction
 	{
-		FVector	EndLocation = InDestination.GetWorldLocation();
-
-		// Code here assumes you want to same type of end point as the start point used, comment out to just use the destination actors origin!
-		if( UseLineTrace && UseBounds )
-		{
-			EndLocation = InDestination.GetBounds().Origin;
-			EndLocation.Z -= InDestination.GetBounds().BoxExtent.Z;
-		}
-		else if( UseLineTrace )
-		{
-			// This will be false if multiple objects are selected. In that case the actor's position should be used so all the objects do not go to the same point.
-			if( InUsePivot && !InDestination.IsValid() )	// @todo: If the destination actor is part of the selection tho, we can't use the pivot! (remove check if not)
-			{
-				EndLocation = GetPivotLocation();
-			}
-			else
-			{
-				EndLocation = InDestination.GetWorldLocation();
-			}
-		}
-		else
-		{
-			EndLocation = InDestination.GetBounds().Origin;
-		}
-
-		if ( EndLocation.Equals( StartLocation ) )
+		FTransform DestinationTransform;
+		if (!DestinationWorldHandle.GetWorldTransform(DestinationTransform))
 		{
 			return false;
 		}
-		Direction = ( EndLocation - StartLocation );
+
+		FBoxSphereBounds DestinationBounds;
+		if (!DestinationWorldHandle.GetBounds(DestinationBounds))
+		{
+			return false;
+		}
+
+		FVector	EndLocation = DestinationTransform.GetLocation();
+
+		// Code here assumes you want to same type of end point as the start point used, comment out to just use the destination actors origin!
+		if (UseLineTrace && UseBounds)
+		{
+			EndLocation = DestinationBounds.Origin;
+			EndLocation.Z -= DestinationBounds.BoxExtent.Z;
+		}
+		else if (UseLineTrace)
+		{
+			EndLocation = DestinationTransform.GetLocation();
+		}
+		else
+		{
+			EndLocation = DestinationBounds.Origin;
+		}
+
+		if (EndLocation.Equals(StartLocation))
+		{
+			return false;
+		}
+		Direction = (EndLocation - StartLocation);
 		Direction.Normalize();
 	}
 
@@ -5047,72 +5069,25 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 		StartLocation.Z = Brush->GetRootComponent()->Bounds.Origin.Z - Brush->GetRootComponent()->Bounds.BoxExtent.Z - fTinyOffset;
 	}
 
-	// Do the actual actor->world check.  We try to collide against the world, straight down from our current position.
+	// Do the actual sweep test. We try to collide against the world, straight down from our current position.
 	// If we hit anything, we will move the actor to a position that lets it rest on the floor.
-	FHitResult Hit(1.0f);
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(MoveActorToTrace), false);
-	for (FActorOrComponent ObjectToIgnore : ObjectsToIgnore)
+	FTransform NewTransform;
+	if (ElementWorldHandle.FindSuitableTransformAlongPath(StartLocation, StartLocation + Direction * WORLD_MAX, FCollisionShape::MakeBox(Extent), InElementsToIgnore, NewTransform))
 	{
-		if (ObjectToIgnore.Actor)
+		NewTransform.SetTranslation(NewTransform.GetTranslation() - LocationOffset);
+		if (!InAlign)
 		{
-			Params.AddIgnoredActor(ObjectToIgnore.Actor);
+			NewTransform.SetRotation(ElementTransform.GetRotation());
 		}
-		else
-		{
-			Params.AddIgnoredComponent(Cast<UPrimitiveComponent>(ObjectToIgnore.Component));
-		}
-	}
-	if( Object.Actor )
-	{
-		Params.AddIgnoredActor( Object.Actor );
-		TArray<AActor*> ChildActors;
-		Object.Actor->GetAllChildActors(ChildActors);
-		Params.AddIgnoredActors(ChildActors);
-	}
-	else
-	{
-		Params.AddIgnoredComponent( Cast<UPrimitiveComponent>(Object.Component) );
-	}
-
-	if (Object.GetWorld()->SweepSingleByChannel(Hit, StartLocation, StartLocation + Direction*WORLD_MAX, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeBox(Extent), Params))
-	{
-		FVector NewLocation = Hit.Location - LocationOffset;
-		NewLocation.Z += KINDA_SMALL_NUMBER;	// Move the new desired location up by an error tolerance
-		
-		if (Object.Actor)
-		{
-			BroadcastBeginObjectMovement(*Object.Actor);
-		}
-		else
-		{
-			BroadcastBeginObjectMovement(*Object.Component);
-		}
-
-		Object.SetWorldLocation( NewLocation );
-		//InActor->TeleportTo( NewLocation, InActor->GetActorRotation(), false,true );
-		
-		if( InAlign )
-		{
-			//@todo: This doesn't take into account that rotating the actor changes LocationOffset.
-			FRotator NewRotation( Hit.Normal.Rotation() );
-			NewRotation.Pitch -= 90.f;
-			Object.SetWorldRotation( NewRotation );
-		}
-
-		if (Object.Actor)
-		{
-			BroadcastEndObjectMovement(*Object.Actor);
-		}
-		else
-		{
-			BroadcastEndObjectMovement(*Object.Component);
-		}
+		NewTransform.SetScale3D(ElementTransform.GetScale3D());
 
 		// Switch to the pie world if we have one
-		FScopedConditionalWorldSwitcher WorldSwitcher( GCurrentLevelEditingViewportClient );
+		FScopedConditionalWorldSwitcher WorldSwitcher(GCurrentLevelEditingViewportClient);
 
-		Object.Actor ? Object.Actor->PostEditMove(true) : Object.Component->GetOwner()->PostEditMove(true);
-		//InActor->PostEditMove( true );
+		ElementWorldHandle.NotifyMovementStarted();
+		ElementWorldHandle.SetWorldTransform(NewTransform);
+		ElementWorldHandle.NotifyMovementEnded();
+
 		if (Brush)
 		{
 			RebuildAlteredBSP();
@@ -5125,7 +5100,6 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 
 	return false;
 }
-
 
 void UEditorEngine::MoveActorInFrontOfCamera( AActor& InActor, const FVector& InCameraOrigin, const FVector& InCameraDirection )
 {
@@ -5148,16 +5122,22 @@ void UEditorEngine::MoveActorInFrontOfCamera( AActor& InActor, const FVector& In
 	InActor.PostEditMove( true );
 }
 
-
-void UEditorEngine::SnapViewTo(const FActorOrComponent& Object)
+void UEditorEngine::SnapViewTo(const FTypedElementHandle& InElementHandle)
 {
-	for(FLevelEditorViewportClient* ViewportClient : GetLevelViewportClients())
+	if (TTypedElement<UTypedElementWorldInterface> ElementWorldHandle = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(InElementHandle))
 	{
-		if ( ViewportClient->IsPerspective()  )
+		FTransform ElementTransform;
+		if (ElementWorldHandle.GetWorldTransform(ElementTransform))
 		{
-			ViewportClient->SetViewLocation( Object.GetWorldLocation() );
-			ViewportClient->SetViewRotation( Object.GetWorldRotation() );
-			ViewportClient->Invalidate();
+			for (FLevelEditorViewportClient* ViewportClient : GetLevelViewportClients())
+			{
+				if (ViewportClient->IsPerspective())
+				{
+					ViewportClient->SetViewLocation(ElementTransform.GetLocation());
+					ViewportClient->SetViewRotation(ElementTransform.Rotator());
+					ViewportClient->Invalidate();
+				}
+			}
 		}
 	}
 }
@@ -5269,17 +5249,15 @@ bool UEditorEngine::Exec_Camera( const TCHAR* Str, FOutputDevice& Ar )
 	}
 	else if ( bSnap )
 	{
-		FActorOrComponent SelectedObject(GetSelectedComponents()->GetTop<USceneComponent>());
-		if (!SelectedObject.IsValid())
+		const UTypedElementSelectionSet* SelectionSet = GetSelectedActors()->GetElementSelectionSet();
+		if (SelectionSet && SelectionSet->HasSelectedElements())
 		{
-			SelectedObject.Actor = GetSelectedActors()->GetTop<AActor>();
-		}
-
-		if (SelectedObject.IsValid())
-		{
-			// Set perspective viewport camera parameters to that of the selected camera.
-			SnapViewTo(SelectedObject);
-			Ar.Log( TEXT("Snapped camera to the first selected object.") );
+			if (FTypedElementHandle SelectedElement = SelectionSet->GetElementList()->GetElementHandleAt(0))
+			{
+				// Set perspective viewport camera parameters to that of the selected camera.
+				SnapViewTo(SelectedElement);
+				Ar.Log(TEXT("Snapped camera to the first selected element."));
+			}
 		}
 	}
 

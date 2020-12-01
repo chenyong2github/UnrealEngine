@@ -704,10 +704,9 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::FindInContentBrowser_Clicked )
 		);
 
-	const FVector* NullVector = nullptr;
 	ActionList.MapAction(
 		Commands.GoHere,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoHere_Clicked, NullVector )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoHere_Clicked, (const FVector*)nullptr )
 		);
 
 	ActionList.MapAction( 
@@ -772,41 +771,34 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::PasteHere_CanExecute )
 		);
 
-	bool bAlign = false;
-	bool bPerActor = false;
 	ActionList.MapAction(
 		Commands.SnapOriginToGrid,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveActorToGrid_Clicked, bAlign, bPerActor),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveElementsToGrid_Clicked, /*bAlign*/false, /*bPerElement*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bPerActor = true;
 	ActionList.MapAction(
 		Commands.SnapOriginToGridPerActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveActorToGrid_Clicked, bAlign, bPerActor),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveElementsToGrid_Clicked, /*bAlign*/false, /*bPerElement*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 	
-	bAlign = true;
-	bPerActor = false;
 	ActionList.MapAction(
 		Commands.AlignOriginToGrid,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveActorToGrid_Clicked, bAlign, bPerActor),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveElementsToGrid_Clicked, /*bAlign*/true, /*bPerElement*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = false;
 	ActionList.MapAction(
 		Commands.SnapOriginToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveActorToActor_Clicked, bAlign),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveElementsToElement_Clicked, /*bAlign*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 	
-	bAlign = true;
 	ActionList.MapAction(
 		Commands.AlignOriginToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveActorToActor_Clicked, bAlign),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::MoveElementsToElement_Clicked, /*bAlign*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
 	ActionList.MapAction(
@@ -850,147 +842,99 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::AlignBrushVerticesToGrid_Execute)
 		);
 
-	bAlign = false;
-	bool bUseLineTrace = false;
-	bool bUseBounds = false;
-	bool bUsePivot = false;
 	ActionList.MapAction(
 		Commands.SnapToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/false, /*bUseLineTrace*/false, /*bUseBounds*/false, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = false;
-	bUseBounds = false;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.AlignToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/true, /*bUseLineTrace*/false, /*bUseBounds*/false, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = false;
-	bUseLineTrace = true;
-	bUseBounds = false;
-	bUsePivot = true;
 	ActionList.MapAction(
 		Commands.SnapPivotToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/false, /*bUseLineTrace*/true, /*bUseBounds*/false, /*bUsePivot*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = true;
-	bUseBounds = false;
-	bUsePivot = true;
 	ActionList.MapAction(
 		Commands.AlignPivotToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/true, /*bUseLineTrace*/true, /*bUseBounds*/false, /*bUsePivot*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = false;
-	bUseLineTrace = true;
-	bUseBounds = true;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.SnapBottomCenterBoundsToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/false, /*bUseLineTrace*/true, /*bUseBounds*/true, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = true;
-	bUseBounds = true;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.AlignBottomCenterBoundsToFloor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapToFloor_Clicked, /*bAlign*/true, /*bUseLineTrace*/true, /*bUseBounds*/true, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
-	bAlign = false;
-	bUseLineTrace = false;
-	bUseBounds = false;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.SnapToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/false, /*bUseLineTrace*/false, /*bUseBounds*/false, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = false;
-	bUseBounds = false;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.AlignToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/true, /*bUseLineTrace*/false, /*bUseBounds*/false, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
-	bAlign = false;
-	bUseLineTrace = true;
-	bUseBounds = false;
-	bUsePivot = true;
 	ActionList.MapAction(
 		Commands.SnapPivotToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/false, /*bUseLineTrace*/true, /*bUseBounds*/false, /*bUsePivot*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = true;
-	bUseBounds = false;
-	bUsePivot = true;
 	ActionList.MapAction(
 		Commands.AlignPivotToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/true, /*bUseLineTrace*/true, /*bUseBounds*/false, /*bUsePivot*/true),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
-	bAlign = false;
-	bUseLineTrace = true;
-	bUseBounds = true;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.SnapBottomCenterBoundsToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/false, /*bUseLineTrace*/true, /*bUseBounds*/true, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
-	bAlign = true;
-	bUseLineTrace = true;
-	bUseBounds = true;
-	bUsePivot = false;
 	ActionList.MapAction(
 		Commands.AlignBottomCenterBoundsToActor,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapActorToActor_Clicked, bAlign, bUseLineTrace, bUseBounds, bUsePivot),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorsSelected_CanExecute)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SnapElementsToElement_Clicked, /*bAlign*/true, /*bUseLineTrace*/true, /*bUseBounds*/true, /*bUsePivot*/false),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementsSelected_CanExecute)
 		);
 
 	ActionList.MapAction(
 		Commands.DeltaTransformToActors, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::DeltaTransform ), 
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute ) );
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ElementSelected_CanExecute) );
 
 	ActionList.MapAction(
 		Commands.MirrorActorX,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR MIRROR X=-1") ) ),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ELEMENT MIRROR X=-1") ) ),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
 	ActionList.MapAction(
 		Commands.MirrorActorY,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR MIRROR Y=-1") ) ),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ELEMENT MIRROR Y=-1") ) ),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
 	ActionList.MapAction(
 		Commands.MirrorActorZ,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR MIRROR Z=-1") ) ),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ActorSelected_CanExecute)
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ELEMENT MIRROR Z=-1") ) ),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ElementSelected_CanExecute)
 		);
 
 	ActionList.MapAction(
@@ -1117,12 +1061,12 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.SelectAllActorsOfSameClass,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, (bool)false )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, false )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectAllActorsOfSameClassWithArchetype,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, (bool)true )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, true )
 		);
 
 	ActionList.MapAction(

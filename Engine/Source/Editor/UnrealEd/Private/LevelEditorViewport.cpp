@@ -3632,6 +3632,46 @@ void FLevelEditorViewportClient::ApplyDeltaToElement(const FTypedElementHandle& 
 	ViewportInteraction->ApplyDeltaToElement(InElementHandle, GetWidgetMode(), Widget ? Widget->GetCurrentAxis() : EAxisList::None, InputState, InDeltaTransform);
 }
 
+void FLevelEditorViewportClient::MirrorSelectedActors(const FVector& InMirrorScale)
+{
+	FScopedLevelDirtied LevelDirtyCallback;
+
+	const UTypedElementSelectionSet* SelectionSet = GetSelectionSet();
+	SelectionSet->ForEachSelectedObject<AActor>([this, &InMirrorScale, &LevelDirtyCallback](AActor* InActor)
+	{
+		ViewportInteraction->MirrorElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor), InMirrorScale);
+		LevelDirtyCallback.Request();
+		return true;
+	});
+
+	if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
+	{
+		BrushSubsystem->UpdateGeometryFromSelectedBrushes();
+	}
+
+	RedrawAllViewportsIntoThisScene();
+}
+
+void FLevelEditorViewportClient::MirrorSelectedElements(const FVector& InMirrorScale)
+{
+	FScopedLevelDirtied LevelDirtyCallback;
+
+	const UTypedElementSelectionSet* SelectionSet = GetSelectionSet();
+	SelectionSet->ForEachSelectedElementHandle([this, &InMirrorScale, &LevelDirtyCallback](const FTypedElementHandle& InElementHandle)
+	{
+		ViewportInteraction->MirrorElement(InElementHandle, InMirrorScale);
+		LevelDirtyCallback.Request();
+		return true;
+	});
+
+	if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
+	{
+		BrushSubsystem->UpdateGeometryFromSelectedBrushes();
+	}
+
+	RedrawAllViewportsIntoThisScene();
+}
+
 FTransform FLevelEditorViewportClient::CachePreDragActorTransform(const AActor* InActor)
 {
 	if (const FTransform* PreDragTransform = PreDragActorTransforms.Find(InActor))

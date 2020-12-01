@@ -6,6 +6,7 @@
 #include "TypedElementWorldInterface.generated.h"
 
 class UWorld;
+struct FCollisionShape;
 
 UCLASS(Abstract)
 class ENGINE_API UTypedElementWorldInterface : public UTypedElementInterface
@@ -26,10 +27,10 @@ public:
 	virtual UWorld* GetOwnerWorld(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
-	 * Get the bounds of this element within its owner world, if any.
+	 * Get the bounds of this element, if any.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
-	virtual bool GetWorldBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) { return false; }
+	virtual bool GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) { return false; }
 
 	/**
 	 * Get the transform of this element within its owner world, if any.
@@ -42,6 +43,53 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) { return false; }
+
+	/**
+	 * Get the transform of this element relative to its parent, if any.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	virtual bool GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) { return GetWorldTransform(InElementHandle, OutTransform); }
+	
+	/**
+	 * Attempt to set the transform of this element relative to its parent.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) { return SetWorldTransform(InElementHandle, InTransform); }
+
+	/**
+	 * Notify that this element is about to be moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementStarted(const FTypedElementHandle& InElementHandle) {}
+
+	/**
+	 * Notify that this element is currently being moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementOngoing(const FTypedElementHandle& InElementHandle) {}
+
+	/**
+	 * Notify that this element is done being moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementEnded(const FTypedElementHandle& InElementHandle) {}
+
+	/**
+	 * Attempt to find a suitable (non-intersecting) transform for the given element at the given point.
+	 */
+	virtual bool FindSuitableTransformAtPoint(const FTypedElementHandle& InElementHandle, const FTransform& InPotentialTransform, FTransform& OutSuitableTransform)
+	{
+		OutSuitableTransform = InPotentialTransform;
+		return true;
+	}
+
+	/**
+	 * Attempt to find a suitable (non-intersecting) transform for the given element along the given path.
+	 */
+	virtual bool FindSuitableTransformAlongPath(const FTypedElementHandle& InElementHandle, const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform)
+	{
+		return false;
+	}
 };
 
 template <>
@@ -49,7 +97,14 @@ struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTy
 {
 	bool CanEditElement() const { return InterfacePtr->CanEditElement(*this); }
 	UWorld* GetOwnerWorld() const { return InterfacePtr->GetOwnerWorld(*this); }
-	bool GetWorldBounds(FBoxSphereBounds& OutBounds) const { return InterfacePtr->GetWorldBounds(*this, OutBounds); }
+	bool GetBounds(FBoxSphereBounds& OutBounds) const { return InterfacePtr->GetBounds(*this, OutBounds); }
 	bool GetWorldTransform(FTransform& OutTransform) const { return InterfacePtr->GetWorldTransform(*this, OutTransform); }
 	bool SetWorldTransform(const FTransform& InTransform) const { return InterfacePtr->SetWorldTransform(*this, InTransform); }
+	bool GetRelativeTransform(FTransform& OutTransform) const { return InterfacePtr->GetRelativeTransform(*this, OutTransform); }
+	bool SetRelativeTransform(const FTransform& InTransform) const { return InterfacePtr->SetRelativeTransform(*this, InTransform); }
+	void NotifyMovementStarted() const { InterfacePtr->NotifyMovementStarted(*this); }
+	void NotifyMovementOngoing() const { InterfacePtr->NotifyMovementOngoing(*this); }
+	void NotifyMovementEnded() const { InterfacePtr->NotifyMovementEnded(*this); }
+	bool FindSuitableTransformAtPoint(const FTransform& InPotentialTransform, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAtPoint(*this, InPotentialTransform, OutSuitableTransform); }
+	bool FindSuitableTransformAlongPath(const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAlongPath(*this, InPathStart, InPathEnd, InTestShape, InElementsToIgnore, OutSuitableTransform); }
 };

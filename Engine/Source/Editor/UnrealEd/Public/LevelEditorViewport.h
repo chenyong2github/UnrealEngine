@@ -322,6 +322,9 @@ public:
 	void ApplyDeltaToSelectedElements(const FTransform& InDeltaTransform);
 	void ApplyDeltaToElement(const FTypedElementHandle& InElementHandle, const FTransform& InDeltaTransform);
 
+	void MirrorSelectedActors(const FVector& InMirrorScale);
+	void MirrorSelectedElements(const FVector& InMirrorScale);
+
 	virtual void SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport ) override;
 
 	/**

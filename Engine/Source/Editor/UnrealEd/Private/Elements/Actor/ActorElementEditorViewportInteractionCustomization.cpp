@@ -8,6 +8,7 @@
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
 #include "AI/NavigationSystemBase.h"
+#include "Components/BrushComponent.h"
 
 bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
@@ -29,6 +30,27 @@ void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDelta
 	const FVector DeltaScale3D = InDeltaTransform.GetScale3D();
 
 	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(Actor, /*bDelta*/true, &DeltaTranslation, &DeltaRotation, &DeltaScale3D, InPivotLocation, InInputState);
+}
+
+void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
+{
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+
+	Actor->Modify();
+	Actor->EditorApplyMirror(InMirrorScale, InPivotLocation);
+
+	if (ABrush* Brush = Cast<ABrush>(Actor))
+	{
+		if (UBrushComponent* BrushComponent = Brush->GetBrushComponent())
+		{
+			BrushComponent->RequestUpdateBrushCollision();
+		}
+	}
+
+	Actor->InvalidateLightingCache();
+	Actor->PostEditMove(true);
+
+	Actor->MarkPackageDirty();
 }
 
 void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState)
