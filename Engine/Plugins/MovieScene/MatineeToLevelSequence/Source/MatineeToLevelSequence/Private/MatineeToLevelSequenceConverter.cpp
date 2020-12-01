@@ -23,6 +23,7 @@
 #include "MatineeConverter.h"
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Tracks/MovieSceneFadeTrack.h"
 #include "Tracks/MovieSceneSlomoTrack.h"
