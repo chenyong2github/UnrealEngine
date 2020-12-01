@@ -11,6 +11,7 @@
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "SingleLayerWaterRendering.h"
+#include "VolumetricCloudRendering.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -34,6 +35,11 @@ static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetUpsamplingMode(
 	TEXT("Used in compositing volumetric RT over the scene. [0] bilinear [1] bilinear + jitter [2] nearest + depth test [3] bilinear + jitter + keep closest [4] bilaterial upsampling"),
 	ECVF_SetByScalability);
 
+static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetPreferAsyncCompute(
+	TEXT("r.VolumetricRenderTarget.PreferAsyncCompute"), 0,
+	TEXT("Whether to prefer using async compute to generate volumetric cloud render targets."),
+	ECVF_SetByScalability | ECVF_RenderThreadSafe);
+
 
 static bool ShouldPipelineCompileVolumetricRenderTargetShaders(EShaderPlatform ShaderPlatform)
 {
@@ -49,6 +55,11 @@ bool ShouldViewRenderVolumetricCloudRenderTarget(const FViewInfo& ViewInfo)
 bool IsVolumetricRenderTargetEnabled()
 {
 	return CVarVolumetricRenderTarget.GetValueOnRenderThread() > 0;
+}
+
+bool IsVolumetricRenderTargetAsyncCompute()
+{
+	return GSupportsEfficientAsyncCompute && CVarVolumetricRenderTargetPreferAsyncCompute.GetValueOnRenderThread() > 0;
 }
 
 static bool ShouldViewComposeVolumetricRenderTarget(const FViewInfo& ViewInfo)
@@ -437,7 +448,7 @@ IMPLEMENT_GLOBAL_SHADER(FReconstructVolumetricRenderTargetPS, "/Engine/Private/V
 
 //////////////////////////////////////////////////////////////////////////
 
-void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder, bool bWaitFinishFence)
 {
 	if (!AnyViewRequiresProcessing(Views))
 	{
@@ -496,7 +507,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		PassParameters->PreviousVolumetricTextureSizeAndInvSize = FVector4(PreviousVolumetricTextureSize.X, PreviousVolumetricTextureSize.Y, 1.0f / PreviousVolumetricTextureSize.X, 1.0f / PreviousVolumetricTextureSize.Y);
 
 		FPixelShaderUtils::AddFullscreenPass<FReconstructVolumetricRenderTargetPS>(
-			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricReconstruct"), PixelShader, PassParameters, 
+			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricReconstruct"), PixelShader, PassParameters,
 			FIntRect(0, 0, DstVolumetricSize.X, DstVolumetricSize.Y));
 	}
 
