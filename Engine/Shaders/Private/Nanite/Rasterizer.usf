@@ -748,7 +748,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
 	#endif
 
-		VisibleIndex = (MaxClusters - 1) - VisibleIndex;
+		VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 	}
 
 	// Broadcast visible index to all lanes.
@@ -1138,7 +1138,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 #if ADD_CLUSTER_OFFSET
 	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
 #endif
-	VisibleIndex = (MaxClusters - 1) - VisibleIndex;
+	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
@@ -1220,7 +1220,7 @@ VSOut HWRasterizeVS(
 #if ADD_CLUSTER_OFFSET
 	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
 #endif
-	VisibleIndex = (MaxClusters - 1) - VisibleIndex;
+	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 
 	uint TriIndex = VertexID / 3;
 	VertexID = VertexID - TriIndex * 3;

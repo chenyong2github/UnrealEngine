@@ -46,6 +46,7 @@ RWBuffer< uint >			OutOccludedClustersArgs;
 
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 
+uint MaxCandidateClusters;
 uint LargePageRectThreshold;
 #if DEBUG_FLAGS
 RWStructuredBuffer<FStats>	OutStatsBuffer;
@@ -756,7 +757,7 @@ void CandidateCullInner(
 
 			uint ClusterIndex;
 			if( bUseHWRaster )
-				ClusterIndex = MaxClusters - ClusterOffsetHW - NumClustersToEmit;	// HW clusters written from the top
+				ClusterIndex = MaxVisibleClusters - ClusterOffsetHW - NumClustersToEmit;	// HW clusters written from the top
 			else
 				ClusterIndex = ClusterOffsetSW;	// SW clusters written from the bottom
 
@@ -796,9 +797,9 @@ void CandidateCullInner(
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				VisibleClusterOffsetHW += OffsetClustersArgsSWHW[HWClusterCounterIndex];
 #endif
-				if( VisibleClusterOffsetHW < MaxClusters )
+				if( VisibleClusterOffsetHW < MaxVisibleClusters )
 				{
-					StoreVisibleCluster( OutVisibleClustersSWHW, (MaxClusters - 1) - VisibleClusterOffsetHW, VisibleCluster, VIRTUAL_TEXTURE_TARGET );	// HW clusters written from the top
+					StoreVisibleCluster( OutVisibleClustersSWHW, (MaxVisibleClusters - 1) - VisibleClusterOffsetHW, VisibleCluster, VIRTUAL_TEXTURE_TARGET );	// HW clusters written from the top
 				}
 			}
 			else
@@ -808,7 +809,7 @@ void CandidateCullInner(
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				VisibleClusterOffsetSW += OffsetClustersArgsSWHW[ 0 ];
 #endif
-				if( VisibleClusterOffsetSW < MaxClusters )
+				if( VisibleClusterOffsetSW < MaxVisibleClusters )
 				{
 					StoreVisibleCluster( OutVisibleClustersSWHW, VisibleClusterOffsetSW, VisibleCluster, VIRTUAL_TEXTURE_TARGET );	// SW clusters written from the bottom
 				}
@@ -821,7 +822,7 @@ void CandidateCullInner(
 			uint OccludedClusterOffset = 0;
 			WaveInterlockedAddScalarInGroups( OutOccludedClustersArgs[3], OutOccludedClustersArgs[0], 64, 1, OccludedClusterOffset );
 
-			if( OccludedClusterOffset < MaxClusters )
+			if( OccludedClusterOffset < MaxCandidateClusters )
 			{
 				VisibleCluster.Flags = ( bUseHWRaster ? CULLING_FLAG_USE_HW : 0u );
 				StoreVisibleCluster( OutOccludedClusters, OccludedClusterOffset, VisibleCluster, false );

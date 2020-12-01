@@ -291,7 +291,7 @@ struct FInstanceDraw
 #if NANITE_USE_UNIFORM_BUFFER
 	#define SOAStrides 				Nanite.SOAStrides
 	#define MaxNodes				Nanite.MaxNodes
-	#define MaxClusters				Nanite.MaxClusters
+	#define MaxVisibleClusters		Nanite.MaxVisibleClusters
 	#define RenderFlags				Nanite.RenderFlags
 	#define DebugFlags				Nanite.DebugFlags
 	#define ClusterPageData			Nanite.ClusterPageData
@@ -300,7 +300,7 @@ struct FInstanceDraw
 #else
 	uint4 							SOAStrides;
 	uint							MaxNodes;
-	uint							MaxClusters;
+	uint							MaxVisibleClusters;
 	uint							RenderFlags;
 	uint							DebugFlags;
 	ByteAddressBuffer 				ClusterPageData;

@@ -34,7 +34,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w unused
 	SHADER_PARAMETER(float,							MaterialDepth)
 	SHADER_PARAMETER(uint32,						MaxNodes)
-	SHADER_PARAMETER(uint32,						MaxClusters)
+	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
 	SHADER_PARAMETER(FVector4,						RectScaleOffset) // xy: scale, zw: offset
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
@@ -51,7 +51,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
-	SHADER_PARAMETER(uint32, MaxClusters)
+	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
 	SHADER_PARAMETER(FIntVector4, SOAStrides)
@@ -68,7 +68,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
-	SHADER_PARAMETER(uint32, MaxClusters)
+	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
 	SHADER_PARAMETER(FIntVector4, SOAStrides)
@@ -457,7 +457,7 @@ struct FRasterContext
 struct FRasterResults
 {
 	FIntVector4		SOAStrides;
-	uint32			MaxClusters;
+	uint32			MaxVisibleClusters;
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 

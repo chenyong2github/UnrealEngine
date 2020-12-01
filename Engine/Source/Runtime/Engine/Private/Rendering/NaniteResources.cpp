@@ -50,10 +50,26 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 );
 
 int32 GNaniteMaxInstanceCount = 1048576;
-FAutoConsoleVariableRef CVarNaniteMaxInstanceCount(
-	TEXT("r.Nanite.MaxInstanceCount"),
+FAutoConsoleVariableRef CVarNaniteMaxInstance(
+	TEXT("r.Nanite.MaxInstances"),
 	GNaniteMaxInstanceCount,
 	TEXT("Maximum number of Nanite instances in the scene."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteMaxCandidateClusters = 4 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
+	TEXT("r.Nanite.MaxCandidateClusters"),
+	GNaniteMaxCandidateClusters,
+	TEXT("Maximum number of Nanite clusters before cluster culling."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteMaxVisibleClusters = 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
+	TEXT("r.Nanite.MaxVisibleClusters"),
+	GNaniteMaxVisibleClusters,
+	TEXT("Maximum number of visible Nanite clusters."),
 	ECVF_ReadOnly
 );
 
@@ -1039,35 +1055,38 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 		!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid() ||
 		!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
 	{
-		FRDGBufferDesc ClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxClusters()); // uint3 per cluster
-		ClustersBufferDesc.Usage = EBufferUsageFlags(ClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
+		FRDGBufferDesc CandidateClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxCandidateClusters()); // uint3 per cluster
+		CandidateClustersBufferDesc.Usage = EBufferUsageFlags(CandidateClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
+
+		FRDGBufferDesc VisibleClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxVisibleClusters()); // uint3 per cluster
+		VisibleClustersBufferDesc.Usage = EBufferUsageFlags(VisibleClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
 
 		// Allocate scratch buffers (TODO: RDG should support external non-RDG buffers).
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-
-		if (!PrimaryVisibleClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
-		}
-
-		if (!ScratchVisibleClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
-		}
 
 		if (!ScratchOccludedInstancesBuffer.IsValid())
 		{
 			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
 		}
 
+		if (!PrimaryVisibleClustersBuffer.IsValid())
+		{
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+		}
+
+		if (!ScratchVisibleClustersBuffer.IsValid())
+		{
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+		}
+
 		if (!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, MainPassBuffers.ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, CandidateClustersBufferDesc, MainPassBuffers.ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
 		}
 
 		if (!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, CandidateClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
 		}
 
 		check(PrimaryVisibleClustersBuffer.IsValid());
@@ -1092,9 +1111,16 @@ uint32 FGlobalResources::GetMaxInstances()
 	return GNaniteMaxInstanceCount;
 }
 
-uint32 FGlobalResources::GetMaxClusters()
+uint32 FGlobalResources::GetMaxCandidateClusters()
 {
-	return MAX_CLUSTERS;
+	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
+	return GNaniteMaxCandidateClusters;
+}
+
+uint32 FGlobalResources::GetMaxVisibleClusters()
+{
+	checkf(GNaniteMaxVisibleClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxVisibleClusters must be <= MAX_CLUSTERS"));
+	return GNaniteMaxVisibleClusters;
 }
 
 uint32 FGlobalResources::GetMaxNodes()

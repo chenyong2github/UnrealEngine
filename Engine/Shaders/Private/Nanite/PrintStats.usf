@@ -363,7 +363,7 @@ void CalculateStats(
 
 	if (DispatchThreadIndex < NumClustersSW + NumClustersHW)
 	{
-		FVisibleCluster VisCluster = GetVisibleCluster((DispatchThreadIndex < NumClustersSW) ? DispatchThreadIndex : ( (MaxClusters - 1) - (DispatchThreadIndex - NumClustersSW) ), VIRTUAL_TEXTURE_TARGET != 0);
+		FVisibleCluster VisCluster = GetVisibleCluster((DispatchThreadIndex < NumClustersSW) ? DispatchThreadIndex : ( (MaxVisibleClusters - 1) - (DispatchThreadIndex - NumClustersSW) ), VIRTUAL_TEXTURE_TARGET != 0);
 		
 		FCluster Cluster = GetCluster(VisCluster.PageIndex, VisCluster.ClusterIndex);
 

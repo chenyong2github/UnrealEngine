@@ -392,7 +392,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, "Nanite");
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(FIntVector4,	VisualizeConfig)
 	SHADER_PARAMETER(FIntVector4,	SOAStrides)
-	SHADER_PARAMETER(uint32,		MaxClusters)
+	SHADER_PARAMETER(uint32,		MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,		MaxNodes)
 	SHADER_PARAMETER(uint32,		RenderFlags)
 	SHADER_PARAMETER(FIntPoint,		GridSize)
@@ -418,7 +418,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER( FIntVector4,	SOAStrides )
-	SHADER_PARAMETER( uint32,		MaxClusters )
+	SHADER_PARAMETER( uint32,		MaxCandidateClusters )
+	SHADER_PARAMETER( uint32,		MaxVisibleClusters )
 	SHADER_PARAMETER( uint32,		RenderFlags )
 	SHADER_PARAMETER( uint32,		DebugFlags )
 	SHADER_PARAMETER( uint32,		NumViews )
@@ -809,7 +810,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 
 	SHADER_PARAMETER( FIntVector4,	VisualizeConfig )
 	SHADER_PARAMETER( FIntVector4,	SOAStrides )
-	SHADER_PARAMETER( uint32,		MaxClusters )
+	SHADER_PARAMETER( uint32,		MaxVisibleClusters )
 	SHADER_PARAMETER( uint32,		RenderFlags )
 	SHADER_PARAMETER( uint32,       RasterStateReverseCull )
 	
@@ -1488,7 +1489,7 @@ class FDebugVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
 		SHADER_PARAMETER(FIntVector4, VisualizeConfig)
 		SHADER_PARAMETER(FIntVector4, SOAStrides)
-		SHADER_PARAMETER(uint32, MaxClusters)
+		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -1642,7 +1643,7 @@ class FCalculateStatsCS : public FNaniteShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER( FIntVector4, SOAStrides )
-		SHADER_PARAMETER( uint32, MaxClusters )
+		SHADER_PARAMETER( uint32, MaxVisibleClusters )
 		SHADER_PARAMETER( uint32, RenderFlags )
 
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,	ClusterPageData )
@@ -2304,11 +2305,14 @@ FCullingContext InitCullingContext(
 		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
 	}
 	CullingContext.MainPass.CandidateClusters			= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetMainPassBuffers().ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
-#else
-	FRDGBufferDesc VisibleClustersDesc					= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxClusters());	// Max clusters * sizeof(uint3)
+#else	
+	FRDGBufferDesc CandidateClustersDesc				= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxCandidateClusters());	// Max candidate clusters * sizeof(uint3)
+	CandidateClustersDesc.Usage							= EBufferUsageFlags(CandidateClustersDesc.Usage | BUF_ByteAddressBuffer);
+	FRDGBufferDesc VisibleClustersDesc					= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
 	VisibleClustersDesc.Usage							= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
+
 	CullingContext.VisibleClustersSWHW					= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("VisibleClustersSWHW"));
-	CullingContext.MainPass.CandidateClusters			= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("MainPass.CandidateClusters"));
+	CullingContext.MainPass.CandidateClusters			= GraphBuilder.CreateBuffer(CandidateClustersDesc, TEXT("MainPass.CandidateClusters"));
 #endif
 
 	CullingContext.MainPass.CandidateClustersArgs		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 4 ), TEXT("MainPass.CandidateClustersArgs") );	
@@ -2321,7 +2325,7 @@ FCullingContext InitCullingContext(
 		CullingContext.PostPass.CandidateClusters		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPostPassBuffers().ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
 	#else
 		CullingContext.OccludedInstances				= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("OccludedInstances"));
-		CullingContext.PostPass.CandidateClusters		= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("PostPassCandidateClusters"));
+		CullingContext.PostPass.CandidateClusters		= GraphBuilder.CreateBuffer(CandidateClustersDesc, TEXT("PostPassCandidateClusters"));
 	#endif
 
 		CullingContext.OccludedInstancesArgs			= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 4 ), TEXT("OccludedInstancesArgs") );
@@ -2722,7 +2726,7 @@ void AddPass_Rasterize(
 	CommonPassParameters->RasterParameters = RasterContext.Parameters;
 	CommonPassParameters->VisualizeConfig = GetVisualizeConfig();
 	CommonPassParameters->SOAStrides = SOAStrides;
-	CommonPassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
+	CommonPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	CommonPassParameters->RenderFlags = RenderFlags;
 	CommonPassParameters->RasterStateReverseCull = RasterState.CullMode == CM_CCW ? 1 : 0;
 	CommonPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -3102,7 +3106,8 @@ void CullRasterizeInner(
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
 		CullingParameters.SOAStrides	= CullingContext.SOAStrides;
-		CullingParameters.MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
+		CullingParameters.MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();
+		CullingParameters.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
 		CullingParameters.RenderFlags	= CullingContext.RenderFlags;
 		CullingParameters.DebugFlags	= CullingContext.DebugFlags;
 	}
@@ -3429,7 +3434,7 @@ void ExtractStats(
 			FCalculateStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateStatsCS::FParameters>();
 
 			PassParameters->SOAStrides = CullingContext.SOAStrides;
-			PassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
+			PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 			PassParameters->RenderFlags = CullingContext.RenderFlags;
 
 			PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
@@ -3547,7 +3552,7 @@ void ExtractResults(
 	LLM_SCOPE_BYTAG(Nanite);
 
 	RasterResults.SOAStrides 	= CullingContext.SOAStrides;
-	RasterResults.MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
+	RasterResults.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
 	RasterResults.MaxNodes		= Nanite::FGlobalResources::GetMaxNodes();
 	RasterResults.RenderFlags	= CullingContext.RenderFlags;
 
@@ -4215,10 +4220,10 @@ void DrawBasePass(
 	{
 		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
 
-		PassParameters->SOAStrides	= RasterResults.SOAStrides;
-		PassParameters->MaxClusters	= RasterResults.MaxClusters;
-		PassParameters->MaxNodes	= RasterResults.MaxNodes;
-		PassParameters->RenderFlags	= RasterResults.RenderFlags;
+		PassParameters->SOAStrides			= RasterResults.SOAStrides;
+		PassParameters->MaxVisibleClusters	= RasterResults.MaxVisibleClusters;
+		PassParameters->MaxNodes			= RasterResults.MaxNodes;
+		PassParameters->RenderFlags			= RasterResults.RenderFlags;
 			
 		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(); 
 		PassParameters->ClusterPageHeaders	= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
@@ -4279,10 +4284,10 @@ void DrawBasePass(
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
 			FNaniteUniformParameters UniformParams;
-			UniformParams.SOAStrides = PassParameters->SOAStrides;
-			UniformParams.MaxClusters = PassParameters->MaxClusters;
-			UniformParams.MaxNodes = PassParameters->MaxNodes;
-			UniformParams.RenderFlags = PassParameters->RenderFlags;
+			UniformParams.SOAStrides		= PassParameters->SOAStrides;
+			UniformParams.MaxVisibleClusters= PassParameters->MaxVisibleClusters;
+			UniformParams.MaxNodes			= PassParameters->MaxNodes;
+			UniformParams.RenderFlags		= PassParameters->RenderFlags;
 
 			UniformParams.MaterialConfig.X = GNaniteMaterialCulling;
 			UniformParams.MaterialConfig.Y = PassParameters->GridSize.X;
@@ -4385,7 +4390,7 @@ void DrawVisualization(
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisualizeConfig			= GetVisualizeConfig();
 		PassParameters->SOAStrides				= RasterResults.SOAStrides;
-		PassParameters->MaxClusters				= RasterResults.MaxClusters;
+		PassParameters->MaxVisibleClusters		= RasterResults.MaxVisibleClusters;
 		PassParameters->RenderFlags				= RasterResults.RenderFlags;
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->VisBuffer64				= VisBuffer64;
@@ -4602,10 +4607,10 @@ void DrawLumenMeshCapturePass(
 	{
 		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
 
-		PassParameters->SOAStrides	= CullingContext.SOAStrides;
-		PassParameters->MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
-		PassParameters->MaxNodes	= Nanite::FGlobalResources::GetMaxNodes();
-		PassParameters->RenderFlags	= CullingContext.RenderFlags;
+		PassParameters->SOAStrides			= CullingContext.SOAStrides;
+		PassParameters->MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
+		PassParameters->MaxNodes			= Nanite::FGlobalResources::GetMaxNodes();
+		PassParameters->RenderFlags			= CullingContext.RenderFlags;
 			
 		PassParameters->ClusterPageData		= GStreamingManager.GetClusterPageDataSRV(); 
 		PassParameters->ClusterPageHeaders	= GStreamingManager.GetClusterPageHeadersSRV();
@@ -4660,7 +4665,7 @@ void DrawLumenMeshCapturePass(
 
 				FNaniteUniformParameters UniformParams;
 				UniformParams.SOAStrides = PassParameters->SOAStrides;
-				UniformParams.MaxClusters = PassParameters->MaxClusters;
+				UniformParams.MaxVisibleClusters = PassParameters->MaxVisibleClusters;
 				UniformParams.MaxNodes = PassParameters->MaxNodes;
 				UniformParams.RenderFlags = PassParameters->RenderFlags;
 				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
@@ -4845,7 +4850,7 @@ void GetEditorSelectionPassParameters(
 
 	OutPassParameters->View						= View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	OutPassParameters->MaxClusters				= Nanite::FGlobalResources::GetMaxClusters();
+	OutPassParameters->MaxVisibleClusters		= Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->SOAStrides				= NaniteRasterResults->SOAStrides;
 	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
@@ -4913,7 +4918,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 
 	OutPassParameters->View = View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	OutPassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
+	OutPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->SOAStrides = NaniteRasterResults->SOAStrides;
 	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
 	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
