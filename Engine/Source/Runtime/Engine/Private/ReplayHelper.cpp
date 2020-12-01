@@ -17,6 +17,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
+#include "ReplayNetConnection.h"
 
 extern TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes;
 extern TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints;
@@ -135,9 +136,9 @@ void FReplayHelper::OnStartRecordingComplete(const FStartStreamingResult& Result
 	}
 }
 
-void FReplayHelper::StartRecording(UWorld* InWorld)
+void FReplayHelper::StartRecording(UNetConnection* Connection)
 {
-	World = InWorld;
+	World = Connection ? Connection->GetWorld() : nullptr;
 
 	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread();
 	bHasDeltaCheckpoints = !!CVarWithDeltaCheckpoints.GetValueOnAnyThread() && ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta);
@@ -148,7 +149,7 @@ void FReplayHelper::StartRecording(UWorld* InWorld)
 	bRecordMapChanges = DemoURL.GetOption(TEXT("RecordMapChanges"), nullptr) != nullptr;
 
 	TArray<int32> UserIndices;
-	for (FLocalPlayerIterator It(GEngine, InWorld); It; ++It)
+	for (FLocalPlayerIterator It(GEngine, World.Get()); It; ++It)
 	{
 		if (*It)
 		{
@@ -162,7 +163,7 @@ void FReplayHelper::StartRecording(UWorld* InWorld)
 
 	FStartStreamingParameters Params;
 	Params.CustomName = DemoURL.Map;
-	Params.FriendlyName = FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : InWorld->GetMapName();
+	Params.FriendlyName = FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : World->GetMapName();
 	Params.DemoURL = DemoURL.ToString();
 	Params.UserIndices = MoveTemp(UserIndices);
 	Params.bRecord = true;
@@ -170,9 +171,9 @@ void FReplayHelper::StartRecording(UWorld* InWorld)
 
 	ReplayStreamer->StartStreaming(Params, FStartStreamingCallback::CreateRaw(this, &FReplayHelper::OnStartRecordingComplete));
 
-	AddNewLevel(GetNameSafe(InWorld->GetOuter()));
+	AddNewLevel(GetNameSafe(World->GetOuter()));
 
-	WriteNetworkDemoHeader();
+	WriteNetworkDemoHeader(Connection);
 }
 
 void FReplayHelper::StopReplay()
@@ -187,7 +188,7 @@ void FReplayHelper::StopReplay()
 	ActiveReplayName.Empty();
 }
 
-void FReplayHelper::WriteNetworkDemoHeader()
+void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 {
 	if (FArchive* FileAr = ReplayStreamer->GetHeaderArchive())
 	{
@@ -221,6 +222,11 @@ void FReplayHelper::WriteNetworkDemoHeader()
 			DemoHeader.HeaderFlags |= EReplayHeaderFlags::GameSpecificFrameData;
 		}
 
+		if (Cast<UReplayNetConnection>(Connection) != nullptr)
+		{
+			DemoHeader.HeaderFlags |= EReplayHeaderFlags::ReplayConnection;
+		}
+
 		DemoHeader.Guid = FGuid::NewGuid();
 
 		// Write the header
@@ -233,7 +239,7 @@ void FReplayHelper::WriteNetworkDemoHeader()
 	}
 }
 
-void FReplayHelper::OnSeamlessTravelStart(UWorld* InWorld, const FString& LevelName)
+void FReplayHelper::OnSeamlessTravelStart(UWorld* InWorld, const FString& LevelName, UNetConnection* Connection)
 {
 	if (World.Get() == InWorld)
 	{
@@ -241,7 +247,7 @@ void FReplayHelper::OnSeamlessTravelStart(UWorld* InWorld, const FString& LevelN
 
 		AddNewLevel(LevelName);
 
-		WriteNetworkDemoHeader();
+		WriteNetworkDemoHeader(Connection);
 
 		if (ReplayStreamer.IsValid())
 		{
@@ -1983,6 +1989,8 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 		return TEXT("DeltaCheckpoints");
 	case EReplayHeaderFlags::GameSpecificFrameData:
 		return TEXT("GameSpecificFrameData");
+	case EReplayHeaderFlags::ReplayConnection:
+		return TEXT("ReplayConnection");
 	default:
 		check(false);
 		return TEXT("Unknown");
