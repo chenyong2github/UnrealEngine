@@ -786,6 +786,12 @@ public:
 	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
 	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
 
+	// Resets VSmooth value to something plausible based on external forces to prevent object from going back to sleep if it was just impulsed.
+	void ResetVSmoothFromForces()
+	{
+		PBDRigidParticles->ResetVSmoothFromForces(ParticleIdx);
+	}
+
 	void SetDynamics(const FParticleDynamics& Dynamics)
 	{
 		SetF(Dynamics.F());
