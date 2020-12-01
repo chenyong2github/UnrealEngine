@@ -230,7 +230,7 @@ const OP::OpCodeProperty OP::m_OpCodeProps[(unsigned)OP::OpCode::NumOpCodes] = {
   {  OC::WaveActiveAllEqual,      "WaveActiveAllEqual",       OCC::WaveActiveAllEqual,       "waveActiveAllEqual",        { false,  true,  true,  true,  true,  true,  true,  true,  true, false, false}, Attribute::None,     },
   {  OC::WaveActiveBallot,        "WaveActiveBallot",         OCC::WaveActiveBallot,         "waveActiveBallot",          {  true, false, false, false, false, false, false, false, false, false, false}, Attribute::None,     },
   {  OC::WaveReadLaneAt,          "WaveReadLaneAt",           OCC::WaveReadLaneAt,           "waveReadLaneAt",            { false,  true,  true,  true,  true,  true,  true,  true,  true, false, false}, Attribute::None,     },
-  {  OC::WaveReadLaneFirst,       "WaveReadLaneFirst",        OCC::WaveReadLaneFirst,        "waveReadLaneFirst",         { false,  true,  true, false,  true,  true,  true,  true,  true, false, false}, Attribute::None,     },
+  {  OC::WaveReadLaneFirst,       "WaveReadLaneFirst",        OCC::WaveReadLaneFirst,        "waveReadLaneFirst",         { false,  true,  true,  true,  true,  true,  true,  true,  true, false, false}, Attribute::None,     },
   {  OC::WaveActiveOp,            "WaveActiveOp",             OCC::WaveActiveOp,             "waveActiveOp",              { false,  true,  true,  true,  true,  true,  true,  true,  true, false, false}, Attribute::None,     },
   {  OC::WaveActiveBit,           "WaveActiveBit",            OCC::WaveActiveBit,            "waveActiveBit",             { false, false, false, false, false,  true,  true,  true,  true, false, false}, Attribute::None,     },
   {  OC::WavePrefixOp,            "WavePrefixOp",             OCC::WavePrefixOp,             "wavePrefixOp",              { false,  true,  true,  true, false,  true,  true,  true,  true, false, false}, Attribute::None,     },
@@ -261,7 +261,7 @@ const OP::OpCodeProperty OP::m_OpCodeProps[(unsigned)OP::OpCode::NumOpCodes] = {
   {  OC::WavePrefixBitCount,      "WavePrefixBitCount",       OCC::WavePrefixOp,             "wavePrefixOp",              {  true, false, false, false, false, false, false, false, false, false, false}, Attribute::None,     },
 
   // Pixel shader                                                                                                            void,     h,     f,     d,    i1,    i8,   i16,   i32,   i64,   udt,   obj ,  function attribute
-  {  OC::AttributeAtVertex,       "AttributeAtVertex",        OCC::AttributeAtVertex,        "attributeAtVertex",         { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
+  {  OC::AttributeAtVertex,       "AttributeAtVertex",        OCC::AttributeAtVertex,        "attributeAtVertex",         { false,  true,  true, false, false, false,  true,  true, false, false, false}, Attribute::ReadNone, },
 
   // Graphics shader                                                                                                         void,     h,     f,     d,    i1,    i8,   i16,   i32,   i64,   udt,   obj ,  function attribute
   {  OC::ViewID,                  "ViewID",                   OCC::ViewID,                   "viewID",                    { false, false, false, false, false, false, false,  true, false, false, false}, Attribute::ReadNone, },
@@ -464,6 +464,17 @@ llvm::StringRef OP::GetTypeName(Type *Ty, std::string &str) {
   }
 }
 
+llvm::StringRef OP::ConstructOverloadName(Type *Ty, DXIL::OpCode opCode,
+                                          std::string &funcNameStorage) {
+  if (Ty == Type::getVoidTy(Ty->getContext())) {
+    funcNameStorage = (Twine(OP::m_NamePrefix) + Twine(GetOpCodeClassName(opCode))).str();
+  } else {
+    funcNameStorage = (Twine(OP::m_NamePrefix) + Twine(GetOpCodeClassName(opCode)) +
+                       "." + GetTypeName(Ty, funcNameStorage)).str();
+  }
+  return funcNameStorage;
+}
+
 const char *OP::GetOpCodeName(OpCode opCode) {
   DXASSERT(0 <= (unsigned)opCode && opCode < OpCode::NumOpCodes, "otherwise caller passed OOB index");
   return m_OpCodeProps[(unsigned)opCode].pOpCodeName;
@@ -586,10 +597,10 @@ bool OP::IsDxilOpGradient(OpCode C) {
   unsigned op = (unsigned)C;
   /* <py::lines('OPCODE-GRADIENT')>hctdb_instrhelp.get_instrs_pred("op", "is_gradient")</py>*/
   // OPCODE-GRADIENT:BEGIN
-  // Instructions: Sample=60, SampleBias=61, SampleCmp=64, TextureGather=73,
-  // TextureGatherCmp=74, CalculateLOD=81, DerivCoarseX=83, DerivCoarseY=84,
-  // DerivFineX=85, DerivFineY=86
-  return (60 <= op && op <= 61) || op == 64 || (73 <= op && op <= 74) || op == 81 || (83 <= op && op <= 86);
+  // Instructions: Sample=60, SampleBias=61, SampleCmp=64, CalculateLOD=81,
+  // DerivCoarseX=83, DerivCoarseY=84, DerivFineX=85, DerivFineY=86,
+  // WriteSamplerFeedback=174, WriteSamplerFeedbackBias=175
+  return (60 <= op && op <= 61) || op == 64 || op == 81 || (83 <= op && op <= 86) || (174 <= op && op <= 175);
   // OPCODE-GRADIENT:END
 }
 
@@ -833,6 +844,8 @@ void OP::GetMinShaderModelAndMask(const llvm::CallInst *CI, bool bWithTranslatio
     // validator 1.4 didn't exclude wave ops in mask
     if (IsDxilOpWave(opcode))
       mask = ((unsigned)1 << (unsigned)DXIL::ShaderKind::Invalid) - 1;
+    // These shader models don't exist before 1.5
+    mask &= ~(SFLAG(Amplification) | SFLAG(Mesh));
     // validator 1.4 didn't have any additional rules applied:
     return;
   }
@@ -898,6 +911,15 @@ OP::OP(LLVMContext &Ctx, Module *pModule)
 
   Type *Int4Types[4] = { Type::getInt32Ty(m_Ctx), Type::getInt32Ty(m_Ctx), Type::getInt32Ty(m_Ctx), Type::getInt32Ty(m_Ctx) }; // HiHi, HiLo, LoHi, LoLo
   m_pInt4Type = GetOrCreateStructType(m_Ctx, Int4Types, "dx.types.fouri32", pModule);
+
+  // When loading a module into an existing context where types are merged,
+  // type names may change.  When this happens, any intrinsics overloaded on
+  // UDT types will no longer have matching overload names.
+  // This causes RefreshCache() to assert.
+  // This fixes the function names to they match the expected types,
+  // preventing RefreshCache() from failing due to this issue.
+  FixOverloadNames();
+
   // Try to find existing intrinsic function.
   RefreshCache();
 }
@@ -911,6 +933,30 @@ void OP::RefreshCache() {
       Function *OpFunc = GetOpFunc(OpCode, pOverloadType);
       (void)(OpFunc);
       DXASSERT_NOMSG(OpFunc == &F);
+    }
+  }
+}
+
+void OP::FixOverloadNames() {
+  // When merging code from multiple sources, such as with linking,
+  // type names that collide, but don't have the same type will be
+  // automically renamed with .0+ name disambiguation.  However,
+  // DXIL intrinsic overloads will not be renamed to disambiguate them,
+  // since they exist in separate modules at the time.
+  // This leads to name collisions between different types when linking.
+  // Do this after loading into a shared context, and before copying
+  // code into a common module, to prevent this problem.
+  for (Function &F : m_pModule->functions()) {
+    if (F.isDeclaration() && OP::IsDxilOpFunc(&F) && !F.user_empty()) {
+      CallInst *CI = cast<CallInst>(*F.user_begin());
+      DXIL::OpCode opCode = OP::GetDxilOpFuncCallInst(CI);
+      llvm::Type *Ty = OP::GetOverloadType(opCode, &F);
+      if (isa<StructType>(Ty)) {
+        std::string funcName;
+        if (OP::ConstructOverloadName(Ty, opCode, funcName).compare(F.getName()) != 0) {
+          F.setName(funcName);
+        }
+      }
     }
   }
 }
@@ -955,12 +1001,9 @@ Function *OP::GetOpFunc(OpCode opCode, Type *pOverloadType) {
   Type *obj = pOverloadType;
   Type *resProperty = GetResourcePropertiesType();
 
-  std::string funcName = (Twine(OP::m_NamePrefix) + Twine(GetOpCodeClassName(opCode))).str();
-  // Add ret type to the name.
-  if (pOverloadType != pV) {
-    std::string typeName;
-    funcName = Twine(funcName).concat(".").concat(GetTypeName(pOverloadType, typeName)).str();
-  } 
+  std::string funcName;
+  ConstructOverloadName(pOverloadType, opCode, funcName);
+
   // Try to find exist function with the same name in the module.
   if (Function *existF = m_pModule->getFunction(funcName)) {
     F = existF;
@@ -1341,7 +1384,7 @@ Function *OP::GetOpFunc(OpCode opCode, Type *pOverloadType) {
   return F;
 }
 
-const SmallDenseMap<llvm::Type *, llvm::Function *, 8> &
+const SmallMapVector<llvm::Type *, llvm::Function *, 8> &
 OP::GetOpFuncList(OpCode opCode) const {
   DXASSERT(0 <= (unsigned)opCode && opCode < OpCode::NumOpCodes,
            "otherwise caller passed OOB OpCode");
@@ -1398,6 +1441,7 @@ llvm::Type *OP::GetOverloadType(OpCode opCode, llvm::Function *F) {
   DXASSERT(F, "not work on nullptr");
   Type *Ty = F->getReturnType();
   FunctionType *FT = F->getFunctionType();
+  LLVMContext &Ctx = F->getContext();
 /* <py::lines('OPCODE-OLOAD-TYPES')>hctdb_instrhelp.get_funcs_oload_type()</py>*/
   switch (opCode) {            // return     OpCode
   // OPCODE-OLOAD-TYPES:BEGIN
@@ -1489,7 +1533,7 @@ llvm::Type *OP::GetOverloadType(OpCode opCode, llvm::Function *F) {
   case OpCode::RayQuery_CommitProceduralPrimitiveHit:
   case OpCode::CreateHandleFromHeap:
   case OpCode::AnnotateHandle:
-    return Type::getVoidTy(m_Ctx);
+    return Type::getVoidTy(Ctx);
   case OpCode::CheckAccessFullyMapped:
   case OpCode::AtomicBinOp:
   case OpCode::AtomicCompareExchange:
@@ -1527,7 +1571,7 @@ llvm::Type *OP::GetOverloadType(OpCode opCode, llvm::Function *F) {
   case OpCode::GeometryIndex:
   case OpCode::RayQuery_CandidateInstanceContributionToHitGroupIndex:
   case OpCode::RayQuery_CommittedInstanceContributionToHitGroupIndex:
-    return IntegerType::get(m_Ctx, 32);
+    return IntegerType::get(Ctx, 32);
   case OpCode::CalculateLOD:
   case OpCode::DomainLocation:
   case OpCode::WorldRayOrigin:
@@ -1553,15 +1597,15 @@ llvm::Type *OP::GetOverloadType(OpCode opCode, llvm::Function *F) {
   case OpCode::RayQuery_CandidateObjectRayDirection:
   case OpCode::RayQuery_CommittedObjectRayOrigin:
   case OpCode::RayQuery_CommittedObjectRayDirection:
-    return Type::getFloatTy(m_Ctx);
+    return Type::getFloatTy(Ctx);
   case OpCode::MakeDouble:
   case OpCode::SplitDouble:
-    return Type::getDoubleTy(m_Ctx);
+    return Type::getDoubleTy(Ctx);
   case OpCode::RayQuery_Proceed:
   case OpCode::RayQuery_CandidateProceduralPrimitiveNonOpaque:
   case OpCode::RayQuery_CandidateTriangleFrontFace:
   case OpCode::RayQuery_CommittedTriangleFrontFace:
-    return IntegerType::get(m_Ctx, 1);
+    return IntegerType::get(Ctx, 1);
   case OpCode::CBufferLoadLegacy:
   case OpCode::Sample:
   case OpCode::SampleBias:

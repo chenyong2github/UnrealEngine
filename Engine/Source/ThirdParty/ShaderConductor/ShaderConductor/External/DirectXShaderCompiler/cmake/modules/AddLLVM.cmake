@@ -46,7 +46,9 @@ function(llvm_update_compile_flags name)
       # This is just the default exception handling on Linux
     endif (MSVC)
   endif (LLVM_ENABLE_EH)
-  add_definitions(/D_ITERATOR_DEBUG_LEVEL=0)
+  if (NOT HLSL_ENABLE_DEBUG_ITERATORS)
+    add_definitions(/D_ITERATOR_DEBUG_LEVEL=0)
+  endif (NOT HLSL_ENABLE_DEBUG_ITERATORS)
   # HLSL Changes End
 
   # Assume that;
@@ -307,7 +309,7 @@ function(set_windows_version_resource_properties name resource_file)
                "RC_PRODUCT_VERSION=\"${ARG_VERSION_STRING}\"")
 
 # UE Change Begin: Don't bake version into dxcompiler library for Mac platform
-  # HLSL change begin - set common version
+#  # HLSL change begin - set common version
 #  if(${HLSL_EMBED_VERSION})
 #    if (DEFINED resource_file)
 #      add_dependencies(${name} hlsl_version_autogen)
@@ -319,7 +321,7 @@ function(set_windows_version_resource_properties name resource_file)
 #                  "/I" "${HLSL_VERSION_LOCATION}")
 #    endif (DEFINED resource_file)
 #  endif(${HLSL_EMBED_VERSION})
-  # HLSL change ends
+#  # HLSL change ends
 # UE Change End: Don't bake version into dxcompiler library for Mac platform
 endfunction(set_windows_version_resource_properties)
 
@@ -446,12 +448,12 @@ function(llvm_add_library name)
         )
     endif()
 
-	# UE Change Begin: Don't bake version into dxcompiler library for Mac platform
-    #set_target_properties(${name}
-    #  PROPERTIES
-    #  SOVERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-    #  VERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX})
-	# UE Change End: Don't bake version into dxcompiler library for Mac platform
+# UE Change Begin: Don't bake version into dxcompiler library for Mac platform
+#    set_target_properties(${name}
+#      PROPERTIES
+#      SOVERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
+#      VERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX})
+# UE Change End: Don't bake version into dxcompiler library for Mac platform
   endif()
 
   if(ARG_MODULE OR ARG_SHARED)

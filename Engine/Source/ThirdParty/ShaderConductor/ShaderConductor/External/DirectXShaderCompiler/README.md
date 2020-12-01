@@ -1,11 +1,18 @@
 # DirectX Shader Compiler
 
 [![Build status](https://ci.appveyor.com/api/projects/status/oaf66n7w30xbrg38/branch/master?svg=true)](https://ci.appveyor.com/project/antiagainst/directxshadercompiler/branch/master)
-[![Build Status](https://travis-ci.org/Microsoft/DirectXShaderCompiler.svg?branch=master)](https://travis-ci.org/Microsoft/DirectXShaderCompiler)
+[![Build Status](https://travis-ci.org/microsoft/DirectXShaderCompiler.svg?branch=master)](https://travis-ci.org/microsoft/DirectXShaderCompiler)
 
 The DirectX Shader Compiler project includes a compiler and related tools used to compile High-Level Shader Language (HLSL) programs into DirectX Intermediate Language (DXIL) representation. Applications that make use of DirectX for graphics, games, and computation can use it to generate shader programs.
 
-For more information, see the [Wiki](https://github.com/Microsoft/DirectXShaderCompiler/wiki).
+For more information, see the [Wiki](https://github.com/microsoft/DirectXShaderCompiler/wiki).
+
+## Downloads
+You can download the latest successful build's artifacts (built by Appveyor) for the master branch:
+| Downloads |        |
+|-----------|--------|
+| Windows   | [⬇](https://ci.appveyor.com/api/projects/antiagainst/directxshadercompiler/artifacts/build%2FRelease%2Fdxc-artifacts.zip?branch=master&pr=false&job=image%3A%20Visual%20Studio%202017) |
+| Ubuntu    | [⬇](https://ci.appveyor.com/api/projects/antiagainst/directxshadercompiler/artifacts/build%2Fdxc-artifacts.tar.gz?branch=master&pr=false&job=image%3A%20Ubuntu) |
 
 ## Features and Goals
 
@@ -31,15 +38,12 @@ Binary packages containing the output of this project are available from appveyo
 
 ### SPIR-V CodeGen
 
-As an example of community contribution, this project can also target the [SPIR-V](https://www.khronos.org/registry/spir-v/) intermediate representation. Please see the [doc](docs/SPIR-V.rst) for how HLSL features are mapped to SPIR-V, and the [wiki](https://github.com/Microsoft/DirectXShaderCompiler/wiki/SPIR%E2%80%90V-CodeGen) page for how to build, use, and contribute to the SPIR-V CodeGen.
+As an example of community contribution, this project can also target the [SPIR-V](https://www.khronos.org/registry/spir-v/) intermediate representation. Please see the [doc](docs/SPIR-V.rst) for how HLSL features are mapped to SPIR-V, and the [wiki](https://github.com/microsoft/DirectXShaderCompiler/wiki/SPIR%E2%80%90V-CodeGen) page for how to build, use, and contribute to the SPIR-V CodeGen.
 
 ## Building Sources
-
-Note: Instead of building manually, you can download the artifacts built by Appveyor for the latest master branch at [here](https://ci.appveyor.com/project/antiagainst/directxshadercompiler/branch/master/artifacts).
-
 Note: If you intend to build from sources on Linux/macOS, follow [these instructions](docs/DxcOnUnix.rst).
 
-Before you build, you will need to have some additional software installed. This is the most straightforward path - see [Building Sources](https://github.com/Microsoft/DirectXShaderCompiler/wiki/Building-Sources) on the Wiki for more options, including Visual Studio 2015 and Ninja support.
+Before you build, you will need to have some additional software installed. This is the most straightforward path - see [Building Sources](https://github.com/microsoft/DirectXShaderCompiler/wiki/Building-Sources) on the Wiki for more options, including Visual Studio 2015 and Ninja support.
 
 * [Git](http://git-scm.com/downloads).
 * [Python](https://www.python.org/downloads/) - version 3.x is required
@@ -49,7 +53,7 @@ Before you build, you will need to have some additional software installed. This
 * [Windows SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk) - version 10.0.18362.0 or newer
 * [Windows Driver Kit](https://docs.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk) - same version as the SDK
 
-After cloning the project, you can set up a build environment shortcut by double-clicking the `utils\hct\hctshortcut.js` file. This will create a shortcut on your desktop with a default configuration.
+After cloning the project, you can set up a build environment shortcut by double-clicking the `utils\hct\hctshortcut.js` file. This will create a shortcut on your desktop with a default configuration. If your system doesn't have the requisite association for .js files, this may not work. If so, open a cmd window and invoke: `wscript.exe utils\hct\hctshortcut.js`.
 
 Tests are built using the TAEF framework which is included in the Windows Driver Kit.
 
@@ -74,7 +78,7 @@ Some tests will run shaders and verify their behavior. These tests also involve 
 
 ## Running Shaders
 
-To run shaders compiled as DXIL, you will need support from the operating system as well as from the driver for your graphics adapter. Windows 10 Creators Update is the first version to support DXIL shaders. See the [Wiki](https://github.com/Microsoft/DirectXShaderCompiler/wiki/Running-Shaders) for information on using experimental support or the software adapter.
+To run shaders compiled as DXIL, you will need support from the operating system as well as from the driver for your graphics adapter. Windows 10 Creators Update is the first version to support DXIL shaders. See the [Wiki](https://github.com/microsoft/DirectXShaderCompiler/wiki/Running-Shaders) for information on using experimental support or the software adapter.
 
 ### Hardware Support
 

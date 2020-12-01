@@ -807,11 +807,13 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgumentLoc(
 
   case TemplateArgument::Type: {
     // FIXME: how can TSI ever be NULL?
-#if 0 // UE Change Begin: Workaround crash when TSI is uninitialized
+// UE Change Begin: Workaround crash when TSI is uninitialized.
+#if 0
     if (TypeSourceInfo *TSI = ArgLoc.getTypeSourceInfo())
       return getDerived().TraverseTypeLoc(TSI->getTypeLoc());
     else
-#endif // UE Change End: Workaround crash when TSI is uninitialized
+#endif
+// UE Change End: Workaround crash when TSI is uninitialized.
       return getDerived().TraverseType(Arg.getAsType());
   }
 

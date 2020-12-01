@@ -121,7 +121,7 @@ private:
   template <typename T>
   static bool
   AllocateRegisters(const std::vector<std::unique_ptr<T>> &resourceList,
-    LLVMContext &Ctx, SpacesAllocator<unsigned, T> &ReservedRegisters,
+    SpacesAllocator<unsigned, T> &ReservedRegisters,
     unsigned AutoBindingSpace) {
     bool bChanged = false;
     SpacesAllocator<unsigned, T> SAlloc;
@@ -138,9 +138,10 @@ private:
         if (res->IsUnbounded()) {
           const T *unbounded = alloc.GetUnbounded();
           if (unbounded) {
-            Ctx.emitError(Twine("more than one unbounded resource (") +
-              unbounded->GetGlobalName() + (" and ") +
-              res->GetGlobalName() + (") in space ") + Twine(space));
+            dxilutil::EmitErrorOnGlobalVariable(dyn_cast<GlobalVariable>(res->GetGlobalSymbol()),
+                                                Twine("more than one unbounded resource (") +
+                                                unbounded->GetGlobalName() + (" and ") +
+                                                res->GetGlobalName() + (") in space ") + Twine(space));
           }
           else {
             conflict = alloc.Insert(res.get(), reg, res->GetUpperBound());
@@ -154,13 +155,14 @@ private:
           conflict = alloc.Insert(res.get(), reg, res->GetUpperBound());
         }
         if (conflict) {
-          Ctx.emitError(((res->IsUnbounded()) ? Twine("unbounded ") : Twine("")) +
-            Twine("resource ") + res->GetGlobalName() +
-            Twine(" at register ") + Twine(reg) +
-            Twine(" overlaps with resource ") +
-            conflict->GetGlobalName() + Twine(" at register ") +
-            Twine(conflict->GetLowerBound()) + Twine(", space ") +
-            Twine(space));
+          dxilutil::EmitErrorOnGlobalVariable(dyn_cast<GlobalVariable>(res->GetGlobalSymbol()), 
+                                              ((res->IsUnbounded()) ? Twine("unbounded ") : Twine("")) +
+                                              Twine("resource ") + res->GetGlobalName() +
+                                              Twine(" at register ") + Twine(reg) +
+                                              Twine(" overlaps with resource ") +
+                                              conflict->GetGlobalName() + Twine(" at register ") +
+                                              Twine(conflict->GetLowerBound()) + Twine(", space ") +
+                                              Twine(space));
         }
         else {
           // Also add this to the reserved (unallocatable) range, if it wasn't already there.
@@ -185,10 +187,11 @@ private:
       if (res->IsUnbounded()) {
         if (alloc.GetUnbounded() != nullptr) {
           const T *unbounded = alloc.GetUnbounded();
-          Ctx.emitError(Twine("more than one unbounded resource (") +
-            unbounded->GetGlobalName() + Twine(" and ") +
-            res->GetGlobalName() + Twine(") in space ") +
-            Twine(space));
+          dxilutil::EmitErrorOnGlobalVariable(dyn_cast<GlobalVariable>(res->GetGlobalSymbol()),
+                                              Twine("more than one unbounded resource (") +
+                                              unbounded->GetGlobalName() + Twine(" and ") +
+                                              res->GetGlobalName() + Twine(") in space ") +
+                                              Twine(space));
           continue;
         }
 
@@ -218,9 +221,10 @@ private:
         res->SetSpaceID(space);
         bChanged = true;
       } else {
-        Ctx.emitError(((res->IsUnbounded()) ? Twine("unbounded ") : Twine("")) +
-          Twine("resource ") + res->GetGlobalName() +
-          Twine(" could not be allocated"));
+        dxilutil::EmitErrorOnGlobalVariable(dyn_cast<GlobalVariable>(res->GetGlobalSymbol()),
+                                            ((res->IsUnbounded()) ? Twine("unbounded ") : Twine("")) +
+                                            Twine("resource ") + res->GetGlobalName() +
+                                            Twine(" could not be allocated"));
       }
     }
 
@@ -250,10 +254,10 @@ public:
     }
 
     bool bChanged = false;
-    bChanged |= AllocateRegisters(DM.GetCBuffers(), DM.GetCtx(), m_reservedCBufferRegisters, AutoBindingSpace);
-    bChanged |= AllocateRegisters(DM.GetSamplers(), DM.GetCtx(), m_reservedSamplerRegisters, AutoBindingSpace);
-    bChanged |= AllocateRegisters(DM.GetUAVs(), DM.GetCtx(), m_reservedUAVRegisters, AutoBindingSpace);
-    bChanged |= AllocateRegisters(DM.GetSRVs(), DM.GetCtx(), m_reservedSRVRegisters, AutoBindingSpace);
+    bChanged |= AllocateRegisters(DM.GetCBuffers(), m_reservedCBufferRegisters, AutoBindingSpace);
+    bChanged |= AllocateRegisters(DM.GetSamplers(), m_reservedSamplerRegisters, AutoBindingSpace);
+    bChanged |= AllocateRegisters(DM.GetUAVs(), m_reservedUAVRegisters, AutoBindingSpace);
+    bChanged |= AllocateRegisters(DM.GetSRVs(), m_reservedSRVRegisters, AutoBindingSpace);
     return bChanged;
   }
 };
@@ -424,10 +428,123 @@ ModulePass *llvm::createDxilCondenseResourcesPass() {
 
 INITIALIZE_PASS(DxilCondenseResources, "hlsl-dxil-condense", "DXIL Condense Resources", false, false)
 
-static
-bool LegalizeResourcesPHIs(Module &M, DxilValueCache *DVC) {
+static bool GetConstantLegalGepForSplitAlloca(GetElementPtrInst *gep, DxilValueCache *DVC, int64_t *ret) {
+  if (gep->getNumIndices() != 2) {
+    return false;
+  }
+
+  if (ConstantInt *Index0 = dyn_cast<ConstantInt>(gep->getOperand(1))) {
+    if (Index0->getLimitedValue() != 0) {
+      return false;
+    }
+  }
+  else {
+    return false;
+  }
+
+  if (ConstantInt *C = DVC->GetConstInt(gep->getOperand(2))) {
+    int64_t index = C->getSExtValue();
+    *ret = index;
+    return true;
+  }
+
+  return false;
+}
+
+static bool LegalizeResourceArrays(Module &M, DxilValueCache *DVC) {
+  SmallVector<AllocaInst *,16> Allocas;
+
+  bool Changed = false;
+
+  // Find all allocas
+  for (Function &F : M) {
+    if (F.empty())
+      continue;
+
+    BasicBlock &BB = F.getEntryBlock();
+    for (Instruction &I : BB) {
+      if (AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
+        Type *ty = AI->getAllocatedType();
+        // Only handle single dimentional array. Since this pass runs after MultiDimArrayToOneDimArray,
+        // it should handle all arrays.
+        if (ty->isArrayTy() && hlsl::dxilutil::IsHLSLResourceType(ty->getArrayElementType()))
+          Allocas.push_back(AI);
+      }
+    }
+  }
+
+  SmallVector<AllocaInst *,16> ScalarAllocas;
+  std::unordered_map<GetElementPtrInst *, int64_t> ConstIndices;
+
+  for (AllocaInst *AI : Allocas) {
+    Type *ty = AI->getAllocatedType();
+    Type *resType = ty->getArrayElementType();
+
+    ScalarAllocas.clear();
+    ConstIndices.clear();
+
+    bool SplitAlloca = true;
+
+    for (User *U : AI->users()) {
+      if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(U)) {
+        int64_t index = 0;
+        if (!GetConstantLegalGepForSplitAlloca(gep, DVC, &index)) {
+          SplitAlloca = false;
+          break;
+        }
+
+        // Out of bounds. Out of bounds GEP's will trigger and error later.
+        if (index < 0 || index >= (int64_t)ty->getArrayNumElements()) {
+          SplitAlloca = false;
+          Changed = true;
+          dxilutil::EmitErrorOnInstruction(gep, "Accessing resource array with out-out-bounds index.");
+        }
+        ConstIndices[gep] = index;
+      }
+      else {
+        SplitAlloca = false;
+        break;
+      }
+    }
+
+    if (SplitAlloca) {
+
+      IRBuilder<> B(AI);
+      ScalarAllocas.resize(ty->getArrayNumElements());
+
+      for (auto it = AI->user_begin(),end = AI->user_end(); it != end;) {
+        GetElementPtrInst *gep = cast<GetElementPtrInst>(*(it++));
+        assert(ConstIndices.count(gep));
+        int64_t idx = ConstIndices[gep];
+
+        AllocaInst *ScalarAI = ScalarAllocas[idx];
+        if (!ScalarAI) {
+          ScalarAI = B.CreateAlloca(resType);
+          ScalarAllocas[idx] = ScalarAI;
+        }
+
+        gep->replaceAllUsesWith(ScalarAI);
+        gep->eraseFromParent();
+      }
+
+      AI->eraseFromParent();
+
+      Changed = true;
+    }
+  }
+
+  return Changed;
+}
+
+static bool LegalizeResources(Module &M, DxilValueCache *DVC) {
+
+  bool Changed = false;
+
+  Changed |= LegalizeResourceArrays(M, DVC);
+
   // Simple pass to collect resource PHI's
   SmallVector<PHINode *, 8> PHIs;
+
   for (Function &F : M) {
     for (BasicBlock &BB : F) {
       for (Instruction &I : BB) {
@@ -439,12 +556,10 @@ bool LegalizeResourcesPHIs(Module &M, DxilValueCache *DVC) {
         else {
           break;
         }
-
       }
     }
   }
 
-  bool Changed = false;
 
   SmallVector<Instruction *, 8> DCEWorklist;
 
@@ -568,7 +683,7 @@ public:
 
     {
       DxilValueCache *DVC = &getAnalysis<DxilValueCache>();
-      bool bLocalChanged = LegalizeResourcesPHIs(M, DVC);
+      bool bLocalChanged = LegalizeResources(M, DVC);
       if (bLocalChanged) {
         // Remove unused resources.
         DM.RemoveResourcesWithUnusedSymbols();
@@ -743,8 +858,7 @@ public:
         os.flush();
         Name = escName;
       }
-      Twine msg = Twine(ErrorText[ec]) + " Value: " + Name;
-      V->getContext().emitError(msg);
+      V->getContext().emitError(Twine(ErrorText[ec]) + " Value: " + Name);
     }
   }
 
@@ -1675,7 +1789,7 @@ Type *UpdateFieldTypeForLegacyLayout(Type *Ty,
       rows = matrix.Rows;
       cols = matrix.Cols;
     } else {
-      DXASSERT(matrix.Orientation == MatrixOrientation::ColumnMajor, "");
+      DXASSERT_NOMSG(matrix.Orientation == MatrixOrientation::ColumnMajor);
       cols = matrix.Rows;
       rows = matrix.Cols;
     }
@@ -1816,7 +1930,7 @@ void UpdateStructTypeForLegacyLayoutOnDM(DxilModule &DM) {
   }
 
   for (auto &SRV : DM.GetSRVs()) {
-    if (SRV->GetKind() == DxilResourceBase::Kind::StructuredBuffer)
+    if (SRV->IsStructuredBuffer() || SRV->IsTBuffer())
       UpdateStructTypeForLegacyLayout(*SRV.get(), TypeSys, M);
   }
 }
@@ -1872,8 +1986,10 @@ void DxilLowerCreateHandleForLib::UpdateResourceSymbols() {
 namespace {
 
 void ReplaceResourceUserWithHandle(
-    LoadInst *Res, Value *handle) {
-  for (auto resUser = Res->user_begin(); resUser != Res->user_end();) {
+    DxilResource &res,
+    LoadInst *load, Value *handle)
+{
+  for (auto resUser = load->user_begin(); resUser != load->user_end();) {
     Value *V = *(resUser++);
     CallInst *CI = dyn_cast<CallInst>(V);
     DxilInst_CreateHandleForLib createHandle(CI);
@@ -1881,26 +1997,35 @@ void ReplaceResourceUserWithHandle(
     CI->replaceAllUsesWith(handle);
     CI->eraseFromParent();
   }
-  Res->eraseFromParent();
+
+  if (res.GetClass() == DXIL::ResourceClass::UAV) {
+    // Before this pass, the global resources might not have been mapped with all the uses.
+    // Now we're 100% sure who uses what resources (otherwise the compilation would have failed),
+    // so we do a round on marking UAV's as having counter.
+    static auto IsDxilOp = [](Value *V, hlsl::OP::OpCode Op) -> bool {
+      Instruction *I = dyn_cast<Instruction>(V);
+      if (!I)
+        return false;
+      return hlsl::OP::IsDxilOpFuncCallInst(I, Op);
+    };
+
+    // Search all users for update counter
+    for (User *U : handle->users()) {
+      if (IsDxilOp(U, hlsl::OP::OpCode::BufferUpdateCounter)) {
+        res.SetHasCounter(true);
+      }
+      else if (IsDxilOp(U, hlsl::OP::OpCode::AnnotateHandle)) {
+        for (User *UU : U->users()) {
+          if (IsDxilOp(UU, hlsl::OP::OpCode::BufferUpdateCounter))
+            res.SetHasCounter(true);
+        }
+      }
+    }
+  }
+
+  load->eraseFromParent();
 }
 
-DIGlobalVariable *FindGlobalVariableDebugInfo(GlobalVariable *GV,
-                                              DebugInfoFinder &DbgInfoFinder) {
-  struct GlobalFinder {
-    GlobalVariable *GV;
-    bool operator()(llvm::DIGlobalVariable *const arg) const {
-      return arg->getVariable() == GV;
-    }
-  };
-  GlobalFinder F = {GV};
-  DebugInfoFinder::global_variable_iterator Found =
-      std::find_if(DbgInfoFinder.global_variables().begin(),
-                   DbgInfoFinder.global_variables().end(), F);
-  if (Found != DbgInfoFinder.global_variables().end()) {
-    return *Found;
-  }
-  return nullptr;
-}
 } // namespace
 void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
     DxilResourceBase &res) {
@@ -1936,7 +2061,7 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
   DILocation *DL = nullptr;
   if (m_HasDbgInfo) {
     DebugInfoFinder &Finder = m_DM->GetOrCreateDebugInfoFinder();
-    DIV = FindGlobalVariableDebugInfo(cast<GlobalVariable>(GV), Finder);
+    DIV = dxilutil::FindGlobalVariableDebugInfo(cast<GlobalVariable>(GV), Finder);
     if (DIV)
       // TODO: how to get col?
       DL =
@@ -1952,7 +2077,7 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
   for (iplist<Function>::iterator F : pM->getFunctionList()) {
     if (!F->isDeclaration()) {
       if (!isResArray) {
-        IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
+        IRBuilder<> Builder(dxilutil::FindAllocaInsertionPt(F));
         if (m_HasDbgInfo) {
           // TODO: set debug info.
           // Builder.SetCurrentDebugLocation(DL);
@@ -1973,7 +2098,7 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
       Function *userF = ldInst->getParent()->getParent();
       DXASSERT(handleMapOnFunction.count(userF), "must exist");
       Value *handle = handleMapOnFunction[userF];
-      ReplaceResourceUserWithHandle(ldInst, handle);
+      ReplaceResourceUserWithHandle(static_cast<DxilResource &>(res), ldInst, handle);
     } else {
       DXASSERT(dyn_cast<GEPOperator>(user) != nullptr,
                "else AddOpcodeParamForIntrinsic in CodeGen did not patch uses "
@@ -2031,14 +2156,14 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
         // Must be load inst.
         LoadInst *ldInst = cast<LoadInst>(*(GEPU++));
         if (handle) {
-          ReplaceResourceUserWithHandle(ldInst, handle);
+          ReplaceResourceUserWithHandle(static_cast<DxilResource &>(res), ldInst, handle);
         } else {
           IRBuilder<> Builder = IRBuilder<>(ldInst);
           createHandleArgs[DXIL::OperandIndex::kCreateHandleResIndexOpIdx] =
               Builder.CreateAdd(idx, resLowerBound);
           Value *localHandle =
               Builder.CreateCall(createHandle, createHandleArgs, handleName);
-          ReplaceResourceUserWithHandle(ldInst, localHandle);
+          ReplaceResourceUserWithHandle(static_cast<DxilResource &>(res), ldInst, localHandle);
         }
       }
 
@@ -2112,6 +2237,10 @@ void PatchTBufferLoad(CallInst *handle, DxilModule &DM) {
     if (opcode == DXIL::OpCode::CBufferLoadLegacy) {
       DxilInst_CBufferLoadLegacy cbLoad(I);
 
+      StructType *cbRetTy = cast<StructType>(I->getType());
+      // elements will be 4, or 8 for native 16-bit types, which require special handling.
+      bool cbRet8Elt = cbRetTy->getNumElements() > 4;
+
       // Replace with appropriate buffer load instruction
       IRBuilder<> Builder(I);
       opcode = OP::OpCode::BufferLoad;
@@ -2154,8 +2283,29 @@ void PatchTBufferLoad(CallInst *handle, DxilModule &DM) {
               result = EEBuilder.CreateOr(high, low);
             }
           } else {
-            result = EEBuilder.CreateExtractValue(load, idx);
-            result = EEBuilder.CreateBitCast(result, EltTy);
+            if (cbRet8Elt) {
+              DXASSERT_NOMSG(cbRetTy->getNumElements() == 8);
+              DXASSERT_NOMSG(EltTy->getScalarSizeInBits() == 16);
+              // Translate extract from 16bit x 8 to extract and translate from i32 by 4
+              result = EEBuilder.CreateExtractValue(load, idx >> 1);
+              if (idx & 1)
+                result = EEBuilder.CreateLShr(result, 16);
+              result = EEBuilder.CreateTrunc(result, Type::getInt16Ty(Ctx));
+              if (EltTy->isHalfTy())
+                result = EEBuilder.CreateBitCast(result, EltTy);
+            } else {
+              result = EEBuilder.CreateExtractValue(load, idx);
+              if (Ty->getScalarSizeInBits() > EltTy->getScalarSizeInBits()) {
+                if (EltTy->isIntegerTy()) {
+                  result = EEBuilder.CreateTrunc(result, EltTy);
+                } else {
+                  result = EEBuilder.CreateBitCast(result, Type::getFloatTy(Ctx));
+                  result = EEBuilder.CreateFPTrunc(result, EltTy);
+                }
+              } else {
+                result = EEBuilder.CreateBitCast(result, EltTy);
+              }
+            }
           }
         } else {
           result = EEBuilder.CreateExtractValue(load, idx);
@@ -2223,31 +2373,44 @@ bool DxilLowerCreateHandleForLib::PatchTBuffers(DxilModule &DM) {
   return bChanged;
 }
 
+typedef DenseMap<Value*, unsigned> OffsetForValueMap;
+
 // Find the imm offset part from a value.
 // It must exist unless offset is 0.
-static unsigned GetCBOffset(Value *V) {
-  if (ConstantInt *Imm = dyn_cast<ConstantInt>(V))
-    return Imm->getLimitedValue();
-  else if (UnaryInstruction *UI = dyn_cast<UnaryInstruction>(V)) {
-    return 0;
+static unsigned GetCBOffset(Value *V, OffsetForValueMap &visited) {
+  auto it = visited.find(V);
+  if (it != visited.end())
+    return it->second;
+  visited[V] = 0;
+  unsigned result = 0;
+  if (ConstantInt *Imm = dyn_cast<ConstantInt>(V)) {
+    result = Imm->getLimitedValue();
   } else if (BinaryOperator *BO = dyn_cast<BinaryOperator>(V)) {
     switch (BO->getOpcode()) {
     case Instruction::Add: {
-      unsigned left = GetCBOffset(BO->getOperand(0));
-      unsigned right = GetCBOffset(BO->getOperand(1));
-      return left + right;
+      unsigned left = GetCBOffset(BO->getOperand(0), visited);
+      unsigned right = GetCBOffset(BO->getOperand(1), visited);
+      result = left + right;
     } break;
     case Instruction::Or: {
-      unsigned left = GetCBOffset(BO->getOperand(0));
-      unsigned right = GetCBOffset(BO->getOperand(1));
-      return left | right;
+      unsigned left = GetCBOffset(BO->getOperand(0), visited);
+      unsigned right = GetCBOffset(BO->getOperand(1), visited);
+      result = left | right;
     } break;
     default:
-      return 0;
+      break;
     }
-  } else {
-    return 0;
+  } else if (SelectInst *SI = dyn_cast<SelectInst>(V)) {
+    result = std::min(GetCBOffset(SI->getOperand(1), visited),
+                      GetCBOffset(SI->getOperand(2), visited));
+  } else if (PHINode *PN = dyn_cast<PHINode>(V)) {
+    result = UINT_MAX;
+    for (unsigned i = 0, ops = PN->getNumIncomingValues(); i < ops; ++i) {
+      result = std::min(result, GetCBOffset(PN->getIncomingValue(i), visited));
+    }
   }
+  visited[V] = result;
+  return result;
 }
 
 typedef std::map<unsigned, DxilFieldAnnotation*> FieldAnnotationByOffsetMap;
@@ -2259,7 +2422,36 @@ static void MarkCBUse(unsigned offset, FieldAnnotationByOffsetMap &fieldMap) {
     it->second->SetCBVarUsed(true);
 }
 
-static unsigned GetOffsetForCBExtractValue(ExtractValueInst *EV, bool bMinPrecision) {
+// Detect patterns of lshr v,16 or trunc to 16-bits and return low and high
+// word usage.
+static const unsigned kLowWordUsed = 1;
+static const unsigned kHighWordUsed = 2;
+static const unsigned kLowHighWordMask = kLowWordUsed | kHighWordUsed;
+static unsigned DetectLowAndHighWordUsage(ExtractValueInst *EV) {
+  unsigned result = 0;
+  if (EV->getType()->getScalarSizeInBits() == 32) {
+    for (auto U : EV->users()) {
+      Instruction *I = cast<Instruction>(U);
+      if (I->getOpcode() == LLVMLShr) {
+        ConstantInt *CShift = dyn_cast<ConstantInt>(I->getOperand(1));
+        if (CShift && CShift->getLimitedValue() == 16)
+          result |= kHighWordUsed;
+      } else if (I->getOpcode() == LLVMTrunc &&
+               I->getType()->getPrimitiveSizeInBits() == 16) {
+        result |= kLowWordUsed;
+      } else {
+        // Assume whole dword is used, return 0
+        return 0;
+      }
+      if ((result & kLowHighWordMask) == kLowHighWordMask)
+        break;
+    }
+  }
+  return result;
+}
+
+static unsigned GetOffsetForCBExtractValue(ExtractValueInst *EV, bool bMinPrecision,
+                                           unsigned &lowHighWordUsage) {
   DXASSERT(EV->getNumIndices() == 1, "otherwise, unexpected indices/type for extractvalue");
   unsigned typeSize = 4;
   unsigned bits = EV->getType()->getScalarSizeInBits();
@@ -2267,7 +2459,22 @@ static unsigned GetOffsetForCBExtractValue(ExtractValueInst *EV, bool bMinPrecis
     typeSize = 8;
   else if (bits == 16 && !bMinPrecision)
     typeSize = 2;
+  lowHighWordUsage = DetectLowAndHighWordUsage(EV);
   return (EV->getIndices().front() * typeSize);
+}
+
+// Marks up to two CB uses for the case where only 16-bit type(s)
+// are being used from lower or upper word of a tbuffer load,
+// which is always 4 x 32 instead of 8 x 16, like cbuffer.
+static void MarkCBUsesForExtractElement(
+    unsigned offset, FieldAnnotationByOffsetMap &fieldMap,
+    ExtractValueInst *EV, bool bMinPrecision) {
+  unsigned lowHighWordUsage = 0;
+  unsigned evOffset = GetOffsetForCBExtractValue(EV, bMinPrecision, lowHighWordUsage);
+  if (!lowHighWordUsage || 0 != (lowHighWordUsage & kLowWordUsed))
+    MarkCBUse(offset + evOffset, fieldMap);
+  if (lowHighWordUsage & kHighWordUsed)
+    MarkCBUse(offset + evOffset + 2, fieldMap);
 }
 
 static void CollectInPhiChain(PHINode *cbUser, unsigned offset,
@@ -2280,7 +2487,7 @@ static void CollectInPhiChain(PHINode *cbUser, unsigned offset,
   userSet.insert(cbUser);
   for (User *cbU : cbUser->users()) {
     if (ExtractValueInst *EV = dyn_cast<ExtractValueInst>(cbU)) {
-      MarkCBUse(offset + GetOffsetForCBExtractValue(EV, bMinPrecision), fieldMap);
+      MarkCBUsesForExtractElement(offset, fieldMap, EV, bMinPrecision);
     } else {
       PHINode *phi = cast<PHINode>(cbU);
       CollectInPhiChain(phi, offset, userSet, fieldMap, bMinPrecision);
@@ -2291,28 +2498,30 @@ static void CollectInPhiChain(PHINode *cbUser, unsigned offset,
 static void CollectCBufferMemberUsage(Value *V,
                                       FieldAnnotationByOffsetMap &legacyFieldMap,
                                       FieldAnnotationByOffsetMap &newFieldMap,
-                                      hlsl::OP *hlslOP, bool bMinPrecision) {
+                                      hlsl::OP *hlslOP, bool bMinPrecision,
+                                      OffsetForValueMap &visited) {
   for (auto U : V->users()) {
     if (Constant *C = dyn_cast<Constant>(U)) {
-      CollectCBufferMemberUsage(C, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision);
+      CollectCBufferMemberUsage(C, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision, visited);
     } else if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-      CollectCBufferMemberUsage(U, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision);
+      CollectCBufferMemberUsage(U, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision, visited);
     } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
       if (hlslOP->IsDxilOpFuncCallInst(CI)) {
         hlsl::OP::OpCode op = hlslOP->GetDxilOpFuncCallInst(CI);
         if (op == DXIL::OpCode::CreateHandleForLib) {
-          CollectCBufferMemberUsage(U, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision);
+          CollectCBufferMemberUsage(U, legacyFieldMap, newFieldMap, hlslOP, bMinPrecision, visited);
         } else if (op == DXIL::OpCode::AnnotateHandle) {
           CollectCBufferMemberUsage(U, legacyFieldMap, newFieldMap, hlslOP,
-                                    bMinPrecision);
-        } else if (op == DXIL::OpCode::CBufferLoadLegacy) {
-          DxilInst_CBufferLoadLegacy cbload(CI);
-          Value *resIndex = cbload.get_regIndex();
-          unsigned offset = GetCBOffset(resIndex);
-          offset <<= 4; // translate 16-byte vector index to byte offset
+                                    bMinPrecision, visited);
+        } else if (op == DXIL::OpCode::CBufferLoadLegacy ||
+                   op == DXIL::OpCode::BufferLoad) {
+          Value *resIndex = (op == DXIL::OpCode::CBufferLoadLegacy) ?
+            DxilInst_CBufferLoadLegacy(CI).get_regIndex() :
+            DxilInst_BufferLoad(CI).get_index();
+          unsigned offset = GetCBOffset(resIndex, visited) << 4;
           for (User *cbU : U->users()) {
             if (ExtractValueInst *EV = dyn_cast<ExtractValueInst>(cbU)) {
-              MarkCBUse(offset + GetOffsetForCBExtractValue(EV, bMinPrecision), legacyFieldMap);
+              MarkCBUsesForExtractElement(offset, legacyFieldMap, EV, bMinPrecision);
             } else {
               PHINode *phi = cast<PHINode>(cbU);
               std::unordered_set<Value *> userSet;
@@ -2322,7 +2531,7 @@ static void CollectCBufferMemberUsage(Value *V,
         } else if (op == DXIL::OpCode::CBufferLoad) {
           DxilInst_CBufferLoad cbload(CI);
           Value *byteOffset = cbload.get_byteOffset();
-          unsigned offset = GetCBOffset(byteOffset);
+          unsigned offset = GetCBOffset(byteOffset, visited);
           MarkCBUse(offset, newFieldMap);
         }
       }
@@ -2335,11 +2544,30 @@ void DxilLowerCreateHandleForLib::UpdateCBufferUsage() {
   hlsl::OP *hlslOP = m_DM->GetOP();
   const DataLayout &DL = m_DM->GetModule()->getDataLayout();
   const auto &CBuffers = m_DM->GetCBuffers();
+  OffsetForValueMap visited;
+
+  SmallVector<GlobalVariable*, 4> CBufferVars;
+
+  // Collect cbuffers
   for (auto it = CBuffers.begin(); it != CBuffers.end(); it++) {
     DxilCBuffer *CB = it->get();
     GlobalVariable *GV = dyn_cast<GlobalVariable>(CB->GetGlobalSymbol());
     if (GV == nullptr)
       continue;
+    CBufferVars.push_back(GV);
+  }
+
+  // Collect tbuffers
+  for (auto &it : m_DM->GetSRVs()) {
+    if (it->GetKind() != DXIL::ResourceKind::TBuffer)
+      continue;
+    GlobalVariable *GV = dyn_cast<GlobalVariable>(it->GetGlobalSymbol());
+    if (GV == nullptr)
+      continue;
+    CBufferVars.push_back(GV);
+  }
+
+  for (auto GV : CBufferVars) {
     Type *ElemTy = GV->getType()->getPointerElementType();
     ElemTy = dxilutil::StripArrayTypes(ElemTy, nullptr);
     StructType *ST = cast<StructType>(ElemTy);
@@ -2362,7 +2590,7 @@ void DxilLowerCreateHandleForLib::UpdateCBufferUsage() {
       legacyFieldMap[FA.GetCBufferOffset()] = &FA;
       newFieldMap[(unsigned)SL->getElementOffset(i)] = &FA;
     }
-    CollectCBufferMemberUsage(GV, legacyFieldMap, newFieldMap, hlslOP, m_DM->GetUseMinPrecision());
+    CollectCBufferMemberUsage(GV, legacyFieldMap, newFieldMap, hlslOP, m_DM->GetUseMinPrecision(), visited);
  }
 }
 

@@ -94,9 +94,10 @@ namespace llvm {
 ///
 /// Use this instead of assert(0).  It conveys intent more clearly and
 /// allows compilers to omit some unnecessary code.
-/* UE Change Begin: llvm_unreachable() use file/line macros. */
-#if 1//ndef NDEBUG
-/* UE Change End: llvm_unreachable() use file/line macros. */
+// UE Change Begin: llvm_unreachable() use file/line macros.
+//#ifndef NDEBUG
+#if 1
+// UE Change End: llvm_unreachable() use file/line macros.
 #define llvm_unreachable(msg) \
   ::llvm::llvm_unreachable_internal(msg, __FILE__, __LINE__)
 #elif defined(LLVM_BUILTIN_UNREACHABLE)

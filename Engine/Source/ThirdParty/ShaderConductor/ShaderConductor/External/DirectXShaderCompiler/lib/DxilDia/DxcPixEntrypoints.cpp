@@ -17,6 +17,7 @@
 
 #include "dxc/dxcapi.h"
 #include "dxc/dxcpix.h"
+#include "DxilDiaSession.h"
 
 #include "dxc/Support/Global.h"
 #include "dxc/Support/microcom.h"
@@ -63,6 +64,7 @@ OutParamImpl<T> OutParam(T *V)
 {
   return OutParamImpl<T>(V);
 }
+
 
 // InParam/InParamImpl provides a mechanism that entrypoints
 // use to tag method arguments as InParams. InParams are
@@ -212,7 +214,6 @@ void WrapOutParams(IMalloc *M, T, O... Others)
 {
   WrapOutParams(M, Others...);
 }
-
 
 // DEFINE_ENTRYPOINT_WRAPPER_TRAIT is a helper macro that every entrypoint
 // should use in order to define the EntrypointWrapper traits class for
@@ -718,9 +719,65 @@ struct IDxcPixDxilDebugInfoEntrypoint : public Entrypoint<IDxcPixDxilDebugInfo>
   {
     return InvokeOnReal(&IInterface::GetStackDepth, InstructionOffset, CheckNotNull(OutParam(StackDepth)));
   }
+
+  STDMETHODIMP InstructionOffsetsFromSourceLocation(
+      _In_ const wchar_t* FileName,
+      _In_ DWORD SourceLine,
+      _In_ DWORD SourceColumn,
+      _COM_Outptr_ IDxcPixDxilInstructionOffsets** ppOffsets) override
+  {
+    return InvokeOnReal(&IInterface::InstructionOffsetsFromSourceLocation, CheckNotNull(InParam(FileName)), SourceLine, SourceColumn, CheckNotNull(OutParam(ppOffsets)));
+  }
+
+  STDMETHODIMP SourceLocationsFromInstructionOffset(
+      _In_ DWORD InstructionOffset,
+      _COM_Outptr_ IDxcPixDxilSourceLocations** ppSourceLocations) override
+  {
+      return InvokeOnReal(&IInterface::SourceLocationsFromInstructionOffset, InstructionOffset, CheckNotNull(OutParam(ppSourceLocations)));
+  }
 };
 DEFINE_ENTRYPOINT_WRAPPER_TRAIT(IDxcPixDxilDebugInfo);
 
+struct IDxcPixDxilInstructionOffsetsEntrypoint : public Entrypoint<IDxcPixDxilInstructionOffsets>
+{
+  DEFINE_ENTRYPOINT_BOILERPLATE(IDxcPixDxilInstructionOffsetsEntrypoint);
+
+  STDMETHODIMP_(DWORD) GetCount() override
+  {
+    return InvokeOnReal(&IInterface::GetCount);
+  }
+
+  STDMETHODIMP_(DWORD) GetOffsetByIndex(_In_ DWORD Index) override
+  {
+    return InvokeOnReal(&IInterface::GetOffsetByIndex, Index);
+  }
+};
+DEFINE_ENTRYPOINT_WRAPPER_TRAIT(IDxcPixDxilInstructionOffsets);
+
+struct IDxcPixDxilSourceLocationsEntrypoint : public Entrypoint<IDxcPixDxilSourceLocations>
+{
+  DEFINE_ENTRYPOINT_BOILERPLATE(IDxcPixDxilSourceLocationsEntrypoint);
+
+  STDMETHODIMP_(DWORD) GetCount() override
+  {
+      return InvokeOnReal(&IInterface::GetCount);
+  }
+
+  STDMETHODIMP_(DWORD) GetLineNumberByIndex(_In_ DWORD Index) override
+  {
+    return InvokeOnReal(&IInterface::GetLineNumberByIndex, Index);
+  }
+
+  STDMETHODIMP_(DWORD) GetColumnByIndex(_In_ DWORD Index) override
+  {
+    return InvokeOnReal(&IInterface::GetColumnByIndex, Index);
+  }
+  STDMETHODIMP GetFileNameByIndex(_In_ DWORD Index, _Outptr_result_z_ BSTR* Name) override
+  {
+    return InvokeOnReal(&IInterface::GetFileNameByIndex, Index, CheckNotNull(OutParam(Name)));
+  }
+};
+DEFINE_ENTRYPOINT_WRAPPER_TRAIT(IDxcPixDxilSourceLocations);
 
 struct IDxcPixCompilationInfoEntrypoint
     : public Entrypoint<IDxcPixCompilationInfo>

@@ -15,8 +15,24 @@
 #include "clang/SPIRV/SpirvInstruction.h"
 #include "clang/SPIRV/SpirvModule.h"
 
+#include "spirv/unified1/NonSemanticDebugPrintf.h"
+
 namespace clang {
 namespace spirv {
+
+// Provides StringMapInfo for std::string so we can create a DenseMap with key
+// of type std::string.
+struct StringMapInfo {
+  static inline std::string getEmptyKey() { return ""; }
+  static inline std::string getTombstoneKey() { return ""; }
+  static unsigned getHashValue(const std::string Val) {
+    return llvm::hash_combine(Val);
+  }
+  static bool isEqual(const std::string LHS, const std::string RHS) {
+    // Either both are null, or both should have the same underlying type.
+    return LHS == RHS;
+  }
+};
 
 /// The SPIR-V in-memory representation builder class.
 ///
@@ -45,19 +61,24 @@ public:
   SpirvBuilder &operator=(SpirvBuilder &&) = delete;
 
   /// Returns the SPIR-V module being built.
-  SpirvModule *getModule() { return mod; }
+  SpirvModule *getModule() { return mod.get(); }
 
   // === Function and Basic Block ===
+
+  /// \brief Creates a SpirvFunction object with the given information and adds
+  /// it to list of all discovered functions in the SpirvModule.
+  SpirvFunction *createSpirvFunction(QualType returnType, SourceLocation,
+                                     llvm::StringRef name, bool isPrecise,
+                                     bool isNoInline = false);
 
   /// \brief Begins building a SPIR-V function by allocating a SpirvFunction
   /// object. Returns the pointer for the function on success. Returns nullptr
   /// on failure.
   ///
   /// At any time, there can only exist at most one function under building.
-  SpirvFunction *beginFunction(QualType returnType,
-                               llvm::ArrayRef<QualType> paramTypes,
-                               SourceLocation, llvm::StringRef name = "",
-                               bool isPrecise = false,
+  SpirvFunction *beginFunction(QualType returnType, SourceLocation,
+                               llvm::StringRef name = "",
+                               bool isPrecise = false, bool isNoInline = false,
                                SpirvFunction *func = nullptr);
 
   /// \brief Creates and registers a function parameter of the given pointer
@@ -83,6 +104,10 @@ public:
   /// for the basic block. On failure, returns zero.
   SpirvBasicBlock *createBasicBlock(llvm::StringRef name = "");
 
+  /// \brief Creates a SPIR-V DebugScope (OpenCL.DebugInfo.100 instruction).
+  /// On success, returns the <id> of DebugScope. On failure, returns nullptr.
+  SpirvDebugScope *createDebugScope(SpirvDebugInstruction *scope);
+
   /// \brief Adds the basic block with the given label as a successor to the
   /// current basic block.
   void addSuccessor(SpirvBasicBlock *successorBB);
@@ -105,6 +130,9 @@ public:
 
   /// \brief Sets insertion point to the given basic block.
   inline void setInsertPoint(SpirvBasicBlock *bb) { insertPoint = bb; }
+
+  /// \brief Gets insertion point.
+  inline SpirvBasicBlock *getInsertPoint() { return insertPoint; }
 
   // === Instruction at the current Insertion Point ===
 
@@ -148,6 +176,10 @@ public:
                         SourceLocation loc);
   SpirvLoad *createLoad(const SpirvType *resultType, SpirvInstruction *pointer,
                         SourceLocation loc);
+
+  /// \brief Creates an OpCopyObject instruction from the given pointer.
+  SpirvCopyObject *createCopyObject(QualType resultType,
+                                    SpirvInstruction *pointer, SourceLocation);
 
   /// \brief Creates a store instruction storing the given value into the given
   /// address.
@@ -361,17 +393,23 @@ public:
   /// \brief Creates a return value instruction.
   void createReturnValue(SpirvInstruction *value, SourceLocation);
 
-  /// \brief Creates an OpExtInst instruction with the given instruction set,
-  /// instruction number, and operands. Returns the resulting instruction
-  /// pointer.
-  SpirvInstruction *createExtInst(QualType resultType, SpirvExtInstImport *set,
-                                  GLSLstd450 instId,
-                                  llvm::ArrayRef<SpirvInstruction *> operands,
-                                  SourceLocation);
-  SpirvInstruction *createExtInst(const SpirvType *resultType,
-                                  SpirvExtInstImport *set, GLSLstd450 instId,
-                                  llvm::ArrayRef<SpirvInstruction *> operands,
-                                  SourceLocation);
+  /// \brief Creates an OpExtInst instruction for the GLSL extended instruction
+  /// set, with the given instruction number, and operands. Returns the
+  /// resulting instruction pointer.
+  SpirvInstruction *
+  createGLSLExtInst(QualType resultType, GLSLstd450 instId,
+                    llvm::ArrayRef<SpirvInstruction *> operands,
+                    SourceLocation);
+  SpirvInstruction *
+  createGLSLExtInst(const SpirvType *resultType, GLSLstd450 instId,
+                    llvm::ArrayRef<SpirvInstruction *> operands,
+                    SourceLocation);
+
+  /// \brief Creates an OpExtInst instruction for the NonSemantic.DebugPrintf
+  /// extension set. Returns the resulting instruction pointer.
+  SpirvInstruction *createNonSemanticDebugPrintfExtInst(
+      QualType resultType, NonSemanticDebugPrintfInstructions instId,
+      llvm::ArrayRef<SpirvInstruction *> operands, SourceLocation);
 
   /// \brief Creates an OpMemoryBarrier or OpControlBarrier instruction with the
   /// given flags. If execution scope (exec) is provided, an OpControlBarrier
@@ -412,6 +450,53 @@ public:
                         llvm::ArrayRef<SpirvInstruction *> operands,
                         SourceLocation loc);
 
+  /// \brief Creates an OpDemoteToHelperInvocationEXT instruction.
+  SpirvInstruction *createDemoteToHelperInvocationEXT(SourceLocation);
+
+  // === SPIR-V Rich Debug Info Creation ===
+  SpirvDebugSource *createDebugSource(llvm::StringRef file,
+                                      llvm::StringRef text = "");
+
+  SpirvDebugCompilationUnit *createDebugCompilationUnit(SpirvDebugSource *);
+
+  SpirvDebugLexicalBlock *
+  createDebugLexicalBlock(SpirvDebugSource *, uint32_t line, uint32_t column,
+                          SpirvDebugInstruction *parent);
+
+  SpirvDebugLocalVariable *createDebugLocalVariable(
+      QualType debugType, llvm::StringRef varName, SpirvDebugSource *src,
+      uint32_t line, uint32_t column, SpirvDebugInstruction *parentScope,
+      uint32_t flags, llvm::Optional<uint32_t> argNumber = llvm::None);
+
+  SpirvDebugGlobalVariable *createDebugGlobalVariable(
+      QualType debugType, llvm::StringRef varName, SpirvDebugSource *src,
+      uint32_t line, uint32_t column, SpirvDebugInstruction *parentScope,
+      llvm::StringRef linkageName, SpirvVariable *var, uint32_t flags,
+      llvm::Optional<SpirvInstruction *> staticMemberDebugType = llvm::None);
+
+  // Get a DebugInfoNone if exists. Otherwise, create one and return it.
+  SpirvDebugInfoNone *getOrCreateDebugInfoNone();
+
+  // Get a null DebugExpression if exists. Otherwise, create one and return it.
+  SpirvDebugExpression *getOrCreateNullDebugExpression();
+
+  SpirvDebugDeclare *createDebugDeclare(
+      SpirvDebugLocalVariable *dbgVar, SpirvInstruction *var,
+      llvm::Optional<SpirvDebugExpression *> dbgExpr = llvm::None);
+
+  SpirvDebugFunction *
+  createDebugFunction(const FunctionDecl *decl, llvm::StringRef name,
+                      SpirvDebugSource *src, uint32_t fnLine, uint32_t fnColumn,
+                      SpirvDebugInstruction *parentScope,
+                      llvm::StringRef linkageName, uint32_t flags,
+                      uint32_t scopeLine, SpirvFunction *fn);
+
+  /// \brief Create SPIR-V instructions for KHR RayQuery ops
+  SpirvInstruction *
+  createRayQueryOpsKHR(spv::Op opcode, QualType resultType,
+                       llvm::ArrayRef<SpirvInstruction *> operands,
+                       bool cullFlags, SourceLocation loc);
+
   // === SPIR-V Module Structure ===
   inline void setMemoryModel(spv::AddressingModel, spv::MemoryModel);
 
@@ -425,7 +510,7 @@ public:
   /// content. Returns the SpirvString instruction of the file name.
   inline SpirvString *setDebugSource(uint32_t major, uint32_t minor,
                                      const std::vector<llvm::StringRef> &name,
-                                     llvm::StringRef content);
+                                     llvm::StringRef content = "");
 
   /// \brief Adds an execution mode to the module under construction.
   inline void addExecutionMode(SpirvFunction *entryPoint, spv::ExecutionMode em,
@@ -436,9 +521,9 @@ public:
   void addModuleProcessed(llvm::StringRef process);
 
   /// \brief If not added already, adds an OpExtInstImport (import of extended
-  /// instruction set) of the GLSL instruction set. Returns the  the imported
-  /// GLSL instruction set.
-  SpirvExtInstImport *getGLSLExtInstSet();
+  /// instruction set) of the OpenCL.DebugInfo.100 instruction set. Returns the
+  /// imported instruction set.
+  SpirvExtInstImport *getOpenCLDebugInfoExtInstSet();
 
   /// \brief Adds a stage input/ouput variable whose value is of the given type.
   ///
@@ -519,10 +604,10 @@ public:
   /// \brief Decorates the given target with NoContraction
   void decorateNoContraction(SpirvInstruction *target, SourceLocation);
 
-  // UE Change Begin
-  /// \brief Decorates the given target with invariant
+  // UE Change Begin: Decorate SV_Position implicitly with invariant qualifier.
+  /// \brief Decorates the given target with Invariant
   void decorateInvariant(SpirvInstruction *target, SourceLocation);
-  // UE Change Begin
+  // UE Change End: Decorate SV_Position implicitly with invariant qualifier.
 
   /// \brief Decorates the given target with PerPrimitiveNV
   void decoratePerPrimitiveNV(SpirvInstruction *target, SourceLocation);
@@ -530,6 +615,9 @@ public:
   /// \brief Decorates the given target with PerTaskNV
   void decoratePerTaskNV(SpirvInstruction *target, uint32_t offset,
                          SourceLocation);
+
+  /// \brief Decorates the given target with Coherent
+  void decorateCoherent(SpirvInstruction *target, SourceLocation);
 
   /// --- Constants ---
   /// Each of these methods can acquire a unique constant from the SpirvContext,
@@ -544,6 +632,8 @@ public:
                        llvm::ArrayRef<SpirvConstant *> constituents,
                        bool specConst = false);
   SpirvConstant *getConstantNull(QualType);
+
+  SpirvString *getString(llvm::StringRef str);
 
 public:
   std::vector<uint32_t> takeModule();
@@ -561,6 +651,11 @@ protected:
   inline void requireExtension(llvm::StringRef extension, SourceLocation);
 
 private:
+  /// \brief If not added already, adds an OpExtInstImport (import of extended
+  /// instruction set) for the given instruction set. Returns the imported
+  /// instruction set.
+  SpirvExtInstImport *getExtInstSet(llvm::StringRef extensionName);
+
   /// \brief Returns the composed ImageOperandsMask from non-zero parameters
   /// and pushes non-zero parameters to *orderedParams in the expected order.
   spv::ImageOperandsMask composeImageOperandsMask(
@@ -574,16 +669,9 @@ private:
   ASTContext &astContext;
   SpirvContext &context; ///< From which we allocate various SPIR-V object
 
-  SpirvModule *mod;             ///< The current module being built
-  SpirvFunction *function;      ///< The current function being built
-  SpirvBasicBlock *insertPoint; ///< The current basic block being built
-
-  /// \brief List of basic blocks being built.
-  ///
-  /// We need a vector here to remember the order of insertion. Order matters
-  /// here since, for example, we'll know for sure the first basic block is
-  /// the entry block.
-  std::vector<SpirvBasicBlock *> basicBlocks;
+  std::unique_ptr<SpirvModule> mod; ///< The current module being built
+  SpirvFunction *function;          ///< The current function being built
+  SpirvBasicBlock *insertPoint;     ///< The current basic block being built
 
   const SpirvCodeGenOptions &spirvOptions; ///< Command line options.
 
@@ -597,14 +685,27 @@ private:
   };
   /// Used as caches for all created builtin variables to avoid duplication.
   llvm::SmallVector<BuiltInVarInfo, 16> builtinVars;
+
+  SpirvDebugInfoNone *debugNone;
+
+  /// DebugExpression that does not reference any DebugOperation
+  SpirvDebugExpression *nullDebugExpr;
+
+  // To avoid generating multiple OpStrings for the same string literal
+  // the SpirvBuilder will generate and reuse them.
+  llvm::DenseMap<std::string, SpirvString *, StringMapInfo> stringLiterals;
 };
 
 void SpirvBuilder::requireCapability(spv::Capability cap, SourceLocation loc) {
-  mod->addCapability(new (context) SpirvCapability(loc, cap));
+  auto *capability = new (context) SpirvCapability(loc, cap);
+  if (!mod->addCapability(capability))
+    capability->releaseMemory();
 }
 
 void SpirvBuilder::requireExtension(llvm::StringRef ext, SourceLocation loc) {
-  mod->addExtension(new (context) SpirvExtension(loc, ext));
+  auto *extension = new (context) SpirvExtension(loc, ext);
+  if (!mod->addExtension(extension))
+    extension->releaseMemory();
 }
 
 void SpirvBuilder::setMemoryModel(spv::AddressingModel addrModel,
@@ -626,13 +727,11 @@ SpirvBuilder::setDebugSource(uint32_t major, uint32_t minor,
   uint32_t version = 100 * major + 10 * minor;
   SpirvSource *mainSource = nullptr;
   for (const auto &name : fileNames) {
-    SpirvString *fileString =
-        name.empty() ? nullptr
-                     : new (context) SpirvString(/*SourceLocation*/ {}, name);
+    SpirvString *fileString = name.empty() ? nullptr : getString(name);
     SpirvSource *debugSource = new (context)
         SpirvSource(/*SourceLocation*/ {}, spv::SourceLanguage::HLSL, version,
                     fileString, content);
-    mod->addDebugSource(debugSource);
+    mod->addSource(debugSource);
     if (!mainSource)
       mainSource = debugSource;
   }
@@ -643,7 +742,7 @@ SpirvBuilder::setDebugSource(uint32_t major, uint32_t minor,
     mainSource = new (context)
         SpirvSource(/*SourceLocation*/ {}, spv::SourceLanguage::HLSL, version,
                     nullptr, content);
-    mod->addDebugSource(mainSource);
+    mod->addSource(mainSource);
   }
   return mainSource->getFile();
 }

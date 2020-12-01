@@ -12,6 +12,8 @@
 
 
 #include "llvm/Pass.h"
+#include "dxc/DXIL/DxilConstants.h"
+#include "llvm/Analysis/DxilSimplify.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Constants.h"
@@ -146,7 +148,7 @@ Value *DxilValueCache::ProcessAndSimplify_PHI(Instruction *I, DominatorTree *DT)
   return Simplified;
 }
 
-Value *DxilValueCache::ProcessAndSimpilfy_Br(Instruction *I, DominatorTree *DT) {
+Value *DxilValueCache::ProcessAndSimplify_Br(Instruction *I, DominatorTree *DT) {
 
   // The *only* reason we're paying special attention to the
   // branch inst, is to mark certain Basic Blocks as always
@@ -163,8 +165,10 @@ Value *DxilValueCache::ProcessAndSimpilfy_Br(Instruction *I, DominatorTree *DT) 
     Value *Cond = TryGetCachedValue(Br->getCondition());
 
     if (IsUnreachable_(BB)) {
-      MarkUnreachable(FalseSucc);
-      MarkUnreachable(TrueSucc);
+      if (FalseSucc->getSinglePredecessor())
+        MarkUnreachable(FalseSucc);
+      if (TrueSucc->getSinglePredecessor())
+        MarkUnreachable(TrueSucc);
     }
     else if (IsConstantTrue(Cond)) {
       if (IsAlwaysReachable_(BB)) {
@@ -192,7 +196,7 @@ Value *DxilValueCache::ProcessAndSimpilfy_Br(Instruction *I, DominatorTree *DT) 
   return nullptr;
 }
 
-Value *DxilValueCache::ProcessAndSimpilfy_Load(Instruction *I, DominatorTree *DT) {
+Value *DxilValueCache::ProcessAndSimplify_Load(Instruction *I, DominatorTree *DT) {
   LoadInst *LI = cast<LoadInst>(I);
   Value *V = TryGetCachedValue(LI->getPointerOperand());
   if (Constant *ConstPtr = dyn_cast<Constant>(V)) {
@@ -208,19 +212,43 @@ Value *DxilValueCache::SimplifyAndCacheResult(Instruction *I, DominatorTree *DT)
 
   Value *Simplified = nullptr;
   if (Instruction::Br == I->getOpcode()) {
-    Simplified = ProcessAndSimpilfy_Br(I, DT);
+    Simplified = ProcessAndSimplify_Br(I, DT);
   }
   else if (Instruction::PHI == I->getOpcode()) {
     Simplified = ProcessAndSimplify_PHI(I, DT);
   }
   else if (Instruction::Load == I->getOpcode()) {
-    Simplified = ProcessAndSimpilfy_Load(I, DT);
+    Simplified = ProcessAndSimplify_Load(I, DT);
   }
   else if (Instruction::GetElementPtr == I->getOpcode()) {
     SmallVector<Value *, 4> Ops;
     for (unsigned i = 0; i < I->getNumOperands(); i++)
       Ops.push_back(TryGetCachedValue(I->getOperand(i)));
     Simplified = llvm::SimplifyGEPInst(Ops, DL, nullptr, DT);
+  }
+  else if (Instruction::Call == I->getOpcode()) {
+    Module *M = I->getModule();
+    CallInst *CI = cast<CallInst>(I);
+    Value *Callee = CI->getCalledValue();
+    Function *CalledFunction = dyn_cast<Function>(Callee);
+
+    if (CalledFunction && CalledFunction->getName() == hlsl::DXIL::kDxBreakFuncName) {
+      llvm::Type *i1Ty = llvm::Type::getInt1Ty(M->getContext());
+      Simplified = llvm::ConstantInt::get(i1Ty, 1);
+    }
+    else {
+      SmallVector<Value *,16> Args;
+      for (unsigned i = 0; i < CI->getNumArgOperands(); i++) {
+        Args.push_back(TryGetCachedValue(CI->getArgOperand(i)));
+      }
+
+      if (CalledFunction && hlsl::CanSimplify(CalledFunction)) {
+        Simplified = hlsl::SimplifyDxilCall(CalledFunction, Args, CI, /* MayInsert */ false);
+      }
+      else {
+        Simplified = llvm::SimplifyCall(Callee, Args, DL, nullptr, DT);
+      }
+    }
   }
   // The rest of the checks use LLVM stock simplifications
   else if (I->isBinaryOp()) {
@@ -275,8 +303,6 @@ Value *DxilValueCache::SimplifyAndCacheResult(Instruction *I, DominatorTree *DT)
 
   return Simplified;
 }
-
-STATISTIC(StaleValuesEncountered, "Stale Values Encountered");
 
 bool DxilValueCache::WeakValueMap::Seen(Value *V) {
   auto FindIt = Map.find(V);
@@ -376,6 +402,8 @@ const char *DxilValueCache::getPassName() const {
 }
 
 Value *DxilValueCache::GetValue(Value *V, DominatorTree *DT) {
+  if (dyn_cast<Constant>(V))
+    return V;
   if (Value *NewV = ValueMap.Get(V))
     return NewV;
   return ProcessValue(V, DT);
@@ -384,6 +412,12 @@ Value *DxilValueCache::GetValue(Value *V, DominatorTree *DT) {
 Constant *DxilValueCache::GetConstValue(Value *V, DominatorTree *DT) {
   if (Value *NewV = GetValue(V))
     return dyn_cast<Constant>(NewV);
+  return nullptr;
+}
+
+ConstantInt *DxilValueCache::GetConstInt(Value *V, DominatorTree *DT) {
+  if (Value *NewV = GetValue(V))
+    return dyn_cast<ConstantInt>(NewV);
   return nullptr;
 }
 

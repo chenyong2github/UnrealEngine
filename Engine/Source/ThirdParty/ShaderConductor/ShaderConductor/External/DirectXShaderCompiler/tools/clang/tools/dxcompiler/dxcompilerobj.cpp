@@ -68,6 +68,7 @@ using namespace hlsl;
 using std::string;
 
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions)
+DEFINE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions2)
 
 // This declaration is used for the locally-linked validator.
 HRESULT CreateDxcValidator(_In_ REFIID riid, _Out_ LPVOID *ppv);
@@ -81,26 +82,6 @@ HRESULT RunInternalValidator(_In_ IDxcValidator *pValidator,
                              _In_ llvm::Module *pDebugModule,
                              _In_ IDxcBlob *pShader, UINT32 Flags,
                              _In_ IDxcOperationResult **ppResult);
-
-static void CreateOperationResultFromOutputs(
-    IDxcBlob *pResultBlob, dxcutil::DxcArgsFileSystem *msfPtr,
-    const std::string &warnings, clang::DiagnosticsEngine &diags,
-    _COM_Outptr_ IDxcOperationResult **ppResult) {
-  CComPtr<IStream> pErrorStream;
-  msfPtr->GetStdOutpuHandleStream(&pErrorStream);
-  dxcutil::CreateOperationResultFromOutputs(pResultBlob, pErrorStream, warnings,
-                                            diags.hasErrorOccurred(), ppResult);
-}
-
-static void CreateOperationResultFromOutputs(
-    AbstractMemoryStream *pOutputStream, dxcutil::DxcArgsFileSystem *msfPtr,
-    const std::string &warnings, clang::DiagnosticsEngine &diags,
-    _COM_Outptr_ IDxcOperationResult **ppResult) {
-  CComPtr<IDxcBlob> pResultBlob;
-  IFT(pOutputStream->QueryInterface(&pResultBlob));
-  CreateOperationResultFromOutputs(pResultBlob, msfPtr, warnings, diags,
-                                   ppResult);
-}
 
 static bool ShouldPartBeIncludedInPDB(UINT32 FourCC) {
   switch (FourCC) {
@@ -293,10 +274,46 @@ private:
   void WriteSemanticDefines(llvm::Module *M, const ParsedSemanticDefineList &defines) {
     // Create all metadata nodes for each define. Each node is a (name, value) pair.
     std::vector<MDNode *> mdNodes;
+    const std::string enableStr("_ENABLE_");
+    const std::string disableStr("_DISABLE_");
+    const std::string selectStr("_SELECT_");
+
+    auto &optToggles = m_CI.getCodeGenOpts().HLSLOptimizationToggles;
+    auto &optSelects = m_CI.getCodeGenOpts().HLSLOptimizationSelects;
+
+    const llvm::SmallVector<std::string, 2> &semDefPrefixes =
+                             m_langExtensionsHelper.GetSemanticDefines();
+
+    // Add semantic defines to mdNodes and also to codeGenOpts
     for (const ParsedSemanticDefine &define : defines) {
       MDString *name  = MDString::get(M->getContext(), define.Name);
       MDString *value = MDString::get(M->getContext(), define.Value);
       mdNodes.push_back(MDNode::get(M->getContext(), { name, value }));
+
+      // Find index for end of matching semantic define prefix
+      size_t prefixPos = 0;
+      for (auto prefix : semDefPrefixes) {
+        if (IsMacroMatch(define.Name, prefix)) {
+          prefixPos = prefix.length() - 1;
+          break;
+        }
+      }
+
+      // Add semantic defines to option flag equivalents
+      // Convert define-style '_' into option-style '-' and lowercase everything
+      if (!define.Name.compare(prefixPos, enableStr.length(), enableStr)) {
+        std::string optName = define.Name.substr(prefixPos + enableStr.length());
+        std::replace(optName.begin(), optName.end(), '_', '-');
+        optToggles[StringRef(optName).lower()] = true;
+      } else if (!define.Name.compare(prefixPos, disableStr.length(), disableStr)) {
+        std::string optName = define.Name.substr(prefixPos + disableStr.length());
+        std::replace(optName.begin(), optName.end(), '_', '-');
+        optToggles[StringRef(optName).lower()] = false;
+      } else if (!define.Name.compare(prefixPos, selectStr.length(), selectStr)) {
+        std::string optName = define.Name.substr(prefixPos + selectStr.length());
+        std::replace(optName.begin(), optName.end(), '_', '-');
+        optSelects[StringRef(optName).lower()] = define.Value;
+      }
     }
 
     // Add root node with pointers to all define metadata nodes.
@@ -340,6 +357,11 @@ public:
     GetValidatedSemanticDefines(defines, validated, errors);
     WriteSemanticDefines(M, validated);
     return errors;
+  }
+
+  virtual bool IsOptionEnabled(std::string option) override {
+    return m_CI.getCodeGenOpts().HLSLOptimizationToggles.count(option) &&
+      m_CI.getCodeGenOpts().HLSLOptimizationToggles.find(option)->second;
   }
 
   virtual std::string GetIntrinsicName(UINT opcode) override {
@@ -392,7 +414,7 @@ static void CreateDefineStrings(
 }
 
 class DxcCompiler : public IDxcCompiler3,
-                    public IDxcLangExtensions,
+                    public IDxcLangExtensions2,
                     public IDxcContainerEvent,
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
                     public IDxcVersionInfo2
@@ -428,6 +450,7 @@ public:
     HRESULT hr = DoBasicQueryInterface<
       IDxcCompiler3,
       IDxcLangExtensions,
+      IDxcLangExtensions2,
       IDxcContainerEvent,
       IDxcVersionInfo
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
@@ -876,24 +899,22 @@ public:
 
       bool hasErrorOccurred = compiler.getDiagnostics().hasErrorOccurred();
 
-// SPIRV change starts
+      bool writePDB = opts.IsDebugInfoEnabled() && produceFullContainer;
+
+      // SPIRV change starts
 #if defined(ENABLE_SPIRV_CODEGEN)
-      bool writePDB = !opts.GenSPIRV;
-#else
-      bool writePDB = true;
+      writePDB &= !opts.GenSPIRV;
 #endif
-// SPIRV change ends
-      if (!hasErrorOccurred) {
-        if (writePDB && opts.IsDebugInfoEnabled() && !opts.CodeGenHighLevel &&
-            !opts.OptDump) {
-          CComPtr<IDxcBlob> pDebugBlob;
-          IFT(pOutputStream.QueryInterface(&pDebugBlob));
-          CComPtr<IDxcBlob> pStrippedContainer;
-          IFT(CreateContainerForPDB(m_pMalloc, pOutputBlob, pDebugBlob, &pStrippedContainer));
-          pDebugBlob.Release();
-          IFT(hlsl::pdb::WriteDxilPDB(m_pMalloc, pStrippedContainer, ShaderHashContent.Digest, &pDebugBlob));
-          IFT(pResult->SetOutputObject(DXC_OUT_PDB, pDebugBlob));
-        }
+      // SPIRV change ends
+
+      if (!hasErrorOccurred && writePDB) {
+        CComPtr<IDxcBlob> pDebugBlob;
+        IFT(pOutputStream.QueryInterface(&pDebugBlob));
+        CComPtr<IDxcBlob> pStrippedContainer;
+        IFT(CreateContainerForPDB(m_pMalloc, pOutputBlob, pDebugBlob, &pStrippedContainer));
+        pDebugBlob.Release();
+        IFT(hlsl::pdb::WriteDxilPDB(m_pMalloc, pStrippedContainer, ShaderHashContent.Digest, &pDebugBlob));
+        IFT(pResult->SetOutputObject(DXC_OUT_PDB, pDebugBlob));
       }
 
       IFT(primaryOutput.SetObject(pOutputBlob, opts.DefaultTextCodePage));
@@ -999,6 +1020,9 @@ public:
     // Setup a compiler instance.
     std::shared_ptr<TargetOptions> targetOptions(new TargetOptions);
     targetOptions->Triple = "dxil-ms-dx";
+    if (helper) {
+      targetOptions->Triple = helper->GetTargetTriple();
+    }
     targetOptions->DescriptionString = Opts.Enable16BitTypes
       ? hlsl::DXIL::kNewLayoutString
       : hlsl::DXIL::kLegacyLayoutString;
@@ -1106,8 +1130,12 @@ public:
       compiler.getCodeGenOpts().UnrollLoops = true;
 
     compiler.getCodeGenOpts().HLSLHighLevel = Opts.CodeGenHighLevel;
+    compiler.getCodeGenOpts().HLSLAllowPreserveValues = Opts.AllowPreserveValues;
+    compiler.getCodeGenOpts().HLSLOnlyWarnOnUnrollFail = Opts.EnableFXCCompatMode;
     compiler.getCodeGenOpts().HLSLResMayAlias = Opts.ResMayAlias;
     compiler.getCodeGenOpts().ScanLimit = Opts.ScanLimit;
+    compiler.getCodeGenOpts().HLSLOptimizationToggles = Opts.DxcOptimizationToggles;
+    compiler.getCodeGenOpts().HLSLOptimizationSelects = Opts.DxcOptimizationSelects;
     compiler.getCodeGenOpts().HLSLAllResourcesBound = Opts.AllResourcesBound;
     compiler.getCodeGenOpts().HLSLDefaultRowMajor = Opts.DefaultRowMajor;
     compiler.getCodeGenOpts().HLSLPreferControlFlow = Opts.PreferFlowControl;
@@ -1115,7 +1143,9 @@ public:
     compiler.getCodeGenOpts().HLSLNotUseLegacyCBufLoad = Opts.NotUseLegacyCBufLoad;
     compiler.getCodeGenOpts().HLSLLegacyResourceReservation = Opts.LegacyResourceReservation;
     compiler.getCodeGenOpts().HLSLDefines = defines;
+    compiler.getCodeGenOpts().HLSLPreciseOutputs = Opts.PreciseOutputs;
     compiler.getCodeGenOpts().MainFileName = pMainFile;
+    compiler.getCodeGenOpts().HLSLPrintAfterAll = Opts.PrintAfterAll;
 
     // Translate signature packing options
     if (Opts.PackPrefixStable)

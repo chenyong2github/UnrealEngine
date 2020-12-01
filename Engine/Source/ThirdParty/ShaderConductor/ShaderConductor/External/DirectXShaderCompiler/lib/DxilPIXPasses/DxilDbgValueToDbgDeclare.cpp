@@ -421,9 +421,10 @@ llvm::AllocaInst *VariableRegisters::GetRegisterForAlignedOffset(
   return it->second;
 }
 
-// DITypePeelConstAndTypedef peels const and typedef types off of Ty,
+#ifndef NDEBUG
+// DITypePeelTypeAlias peels const, typedef, and other alias types off of Ty,
 // returning the unalised type.
-static llvm::DIType *DITypePeelConstAndTypedef(
+static llvm::DIType *DITypePeelTypeAlias(
     llvm::DIType* Ty
 )
 {
@@ -432,15 +433,19 @@ static llvm::DIType *DITypePeelConstAndTypedef(
     const llvm::DITypeIdentifierMap EmptyMap;
     switch (DerivedTy->getTag())
     {
+    case llvm::dwarf::DW_TAG_restrict_type:
+    case llvm::dwarf::DW_TAG_reference_type:
     case llvm::dwarf::DW_TAG_const_type:
     case llvm::dwarf::DW_TAG_typedef:
-      return DITypePeelConstAndTypedef(
+      return DITypePeelTypeAlias(
           DerivedTy->getBaseType().resolve(EmptyMap));
     }
   }
 
   return Ty;
 }
+#endif // NDEBUG
+
 
 VariableRegisters::VariableRegisters(
     llvm::DIVariable *Variable,
@@ -455,7 +460,7 @@ VariableRegisters::VariableRegisters(
 
   PopulateAllocaMap(Ty);
   assert(m_Offsets.GetCurrentPackedOffset() ==
-         DITypePeelConstAndTypedef(Ty)->getSizeInBits());
+         DITypePeelTypeAlias(Ty)->getSizeInBits());
 }
 
 void VariableRegisters::PopulateAllocaMap(
@@ -471,10 +476,15 @@ void VariableRegisters::PopulateAllocaMap(
       assert(!"Unhandled DIDerivedType");
       m_Offsets.AlignToAndAddUnhandledType(DerivedTy);
       return;
+    case llvm::dwarf::DW_TAG_restrict_type:
+    case llvm::dwarf::DW_TAG_reference_type:
     case llvm::dwarf::DW_TAG_const_type:
     case llvm::dwarf::DW_TAG_typedef:
       PopulateAllocaMap(
           DerivedTy->getBaseType().resolve(EmptyMap));
+      return;
+    case llvm::dwarf::DW_TAG_subroutine_type:
+        //ignore member functions.
       return;
     }
   }
@@ -640,7 +650,6 @@ static bool SortMembers(
     std::map<OffsetInBits, llvm::DIDerivedType*> *SortedMembers
 )
 {
-  const llvm::DITypeIdentifierMap EmptyMap;
   for (auto *Element : Ty->getElements())
   {
     switch (Element->getTag())
@@ -648,14 +657,24 @@ static bool SortMembers(
     case llvm::dwarf::DW_TAG_member: {
       if (auto *Member = llvm::dyn_cast<llvm::DIDerivedType>(Element))
       {
-        auto it = SortedMembers->emplace(std::make_pair(Member->getOffsetInBits(), Member));
-        (void)it;
-        assert(it.second &&
-               "Invalid DIStructType"
-               " - members with the same offset -- are unions possible?");
+        if (Member->getSizeInBits()) {
+          auto it = SortedMembers->emplace(std::make_pair(Member->getOffsetInBits(), Member));
+          (void)it;
+          assert(it.second &&
+                 "Invalid DIStructType"
+                 " - members with the same offset -- are unions possible?");
+        }
         break;
       }
-      // FALLTHROUGH
+      assert(!"member is not a Member");
+      return false;
+    }
+    case llvm::dwarf::DW_TAG_subprogram: {
+      if (auto *SubProgram = llvm::dyn_cast<llvm::DISubprogram>(Element)) {
+        break;
+      }
+      assert(!"DISubprogram not understood");
+      return false;
     }
     default:
       assert(!"Unhandled field type in DIStructType");

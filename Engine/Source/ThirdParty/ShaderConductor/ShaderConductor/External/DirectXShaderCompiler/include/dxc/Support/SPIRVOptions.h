@@ -42,13 +42,16 @@ struct SpirvCodeGenOptions {
   bool debugInfoLine;
   bool debugInfoSource;
   bool debugInfoTool;
+  bool debugInfoRich;
   bool defaultRowMajor;
   bool disableValidation;
   bool enable16BitTypes;
   bool enableReflect;
-  /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  // UE Change Begin: Add 'fused-multiply-add' pass to emulate invariant
+  // qualifier for older versions of Metal.
   bool enableFMAPass;
-  /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  // UE Change End: Add 'fused-multiply-add' pass to emulate invariant
+  // qualifier for older versions of Metal.
   bool invertY; // Additive inverse
   bool invertW; // Multiplicative inverse
   bool noWarnEmulatedFeatures;
@@ -56,9 +59,11 @@ struct SpirvCodeGenOptions {
   bool useDxLayout;
   bool useGlLayout;
   bool useScalarLayout;
+  // UE Change Begin: Use custom layout rules for UE5.
+  bool ue5Layout;
+  // UE Change End: Use custom layout rules for UE5.
   bool flattenResourceArrays;
-  bool ue4Layout;
-  bool globalsAsPushConstants;
+  bool autoShiftBindings;
   SpirvLayoutRule cBufferLayoutRule;
   SpirvLayoutRule sBufferLayoutRule;
   SpirvLayoutRule tBufferLayoutRule;

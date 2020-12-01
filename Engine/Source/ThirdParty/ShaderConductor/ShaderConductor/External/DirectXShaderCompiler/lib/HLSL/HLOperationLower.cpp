@@ -108,13 +108,7 @@ public:
 
   void MarkHasCounter(Value *handle, Type *i8Ty) {
     CallInst *CIHandle = cast<CallInst>(handle);
-	// UE Change Begin: Unused variable "group" warning treated as error
-	#if 0
-    hlsl::HLOpcodeGroup group =
-        hlsl::GetHLOpcodeGroup(CIHandle->getCalledFunction());
-    DXASSERT(group == HLOpcodeGroup::HLAnnotateHandle, "else invalid handle");
-	#endif
-    // UE Change End: Unused variable "group" warning treated as error
+    DXASSERT(hlsl::GetHLOpcodeGroup(CIHandle->getCalledFunction()) == HLOpcodeGroup::HLAnnotateHandle, "else invalid handle");
     // Mark has counter for the input handle.
     Value *counterHandle =
         CIHandle->getArgOperand(HLOperandIndex::kAnnotateHandleHandleOpIdx);
@@ -260,7 +254,7 @@ private:
           CI->getArgOperand(HLOperandIndex::kCreateHandleResourceOpIdx);
       LoadInst *LdRes = dyn_cast<LoadInst>(Res);
       if (!LdRes) {
-        CI->getContext().emitError(CI, "cannot map resource to handle");
+        dxilutil::EmitErrorOnInstruction(CI, "cannot map resource to handle.");
         return;
       }
       UpdateCounterSet.insert(LdRes);
@@ -345,6 +339,27 @@ private:
     Res->SetLowerBound(ResBinding);
     return GV;
   }
+};
+
+// Helper for lowering resource extension methods.
+struct HLObjectExtensionLowerHelper : public hlsl::HLResourceLookup {
+    explicit HLObjectExtensionLowerHelper(HLObjectOperationLowerHelper &ObjHelper)
+        : m_ObjHelper(ObjHelper)
+    { }
+
+    virtual bool GetResourceKindName(Value *HLHandle, const char **ppName)
+    {
+        DXIL::ResourceKind K = m_ObjHelper.GetRK(HLHandle);
+        bool Success = K != DXIL::ResourceKind::Invalid;
+        if (Success)
+        {
+            *ppName = hlsl::GetResourceKindName(K);
+        }
+        return Success;
+    }
+
+private:
+    HLObjectOperationLowerHelper &m_ObjHelper;
 };
 
 using IntrinsicLowerFuncTy = Value *(CallInst *CI, IntrinsicOp IOP,
@@ -535,6 +550,9 @@ Value *TranslateNonUniformResourceIndex(CallInst *CI, IntrinsicOp IOP, OP::OpCod
             DxilMDHelper::MarkNonUniform(I);
         }
       }
+    } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
+      if (hlsl::GetHLOpcodeGroup(CI->getCalledFunction()) == hlsl::HLOpcodeGroup::HLCreateHandle)
+        DxilMDHelper::MarkNonUniform(CI);
     }
   }
   return nullptr;
@@ -604,7 +622,7 @@ Value *TranslateD3DColorToUByte4(CallInst *CI, IntrinsicOp IOP,
       std::vector<int> mask { 2, 1, 0, 3 };
       val = Builder.CreateShuffleVector(val, val, mask);
     } else {
-      CI->getContext().emitError(CI, "Unsupported input type for intrinsic D3DColorToUByte4");
+      dxilutil::EmitErrorOnInstruction(CI, "Unsupported input type for intrinsic D3DColorToUByte4.");
       return UndefValue::get(CI->getType());
     }
   }
@@ -744,15 +762,15 @@ Value *TranslateAddUint64(CallInst *CI, IntrinsicOp IOP,
   Type *Ty = val->getType();
   VectorType *VT = dyn_cast<VectorType>(Ty);
   if (!VT) {
-    CI->getContext().emitError(
-        CI, "AddUint64 can only be applied to uint2 and uint4 operands");
+    dxilutil::EmitErrorOnInstruction(
+        CI, "AddUint64 can only be applied to uint2 and uint4 operands.");
     return UndefValue::get(Ty);
   }
 
   unsigned size = VT->getNumElements();
   if (size != 2 && size != 4) {
-    CI->getContext().emitError(
-        CI, "AddUint64 can only be applied to uint2 and uint4 operands");
+    dxilutil::EmitErrorOnInstruction(
+        CI, "AddUint64 can only be applied to uint2 and uint4 operands.");
     return UndefValue::get(Ty);
   }
   Value *op0 = CI->getArgOperand(HLOperandIndex::kBinaryOpSrc0Idx);
@@ -851,8 +869,8 @@ Value *TranslateEvalHelper(CallInst *CI, Value *val, IRBuilder<> &Builder,
     for (unsigned i = 0; i < Ty->getVectorNumElements(); ++i) {
       Value *InputEl = FindScalarSource(val, i);
       if (!IsValidLoadInput(InputEl)) {
-        CI->getContext().emitError(CI, "attribute evaluation can only be done "
-                                       "on values taken directly from inputs");
+        dxilutil::EmitErrorOnInstruction(CI, "attribute evaluation can only be done "
+                                             "on values taken directly from inputs.");
         return result;
       }
       CallInst *loadInput = cast<CallInst>(InputEl);
@@ -866,8 +884,8 @@ Value *TranslateEvalHelper(CallInst *CI, Value *val, IRBuilder<> &Builder,
   else {
     Value *InputEl = FindScalarSource(val);
     if (!IsValidLoadInput(InputEl)) {
-      CI->getContext().emitError(CI, "attribute evaluation can only be done "
-                                     "on values taken directly from inputs");
+      dxilutil::EmitErrorOnInstruction(CI, "attribute evaluation can only be done "
+                                           "on values taken directly from inputs.");
       return result;
     }
     CallInst *loadInput = cast<CallInst>(InputEl);
@@ -2325,6 +2343,15 @@ Value *TranslatePow(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
   return TranslatePowImpl(hlslOP,Builder,x,y,isFXCCompatMode);
 }
 
+Value *TranslatePrintf(CallInst *CI, IntrinsicOp IOP, DXIL::OpCode opcode,
+                       HLOperationLowerHelper &helper,
+                       HLObjectOperationLowerHelper *pObjHelper,
+                       bool &Translated) {
+  Translated = false;
+  CI->getContext().emitError(CI, "use of undeclared identifier 'printf'");
+  return nullptr;
+}
+
 Value *TranslateFaceforward(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
                             HLOperationLowerHelper &helper,  HLObjectOperationLowerHelper *pObjHelper, bool &Translated) {
   hlsl::OP *hlslOP = &helper.hlslOP;
@@ -3572,7 +3599,12 @@ void TranslateLoad(ResLoadHelper &helper, HLResource::Kind RK,
   Type *i64Ty = Builder.getInt64Ty();
   Type *doubleTy = Builder.getDoubleTy();
   Type *EltTy = Ty->getScalarType();
-  Constant *Alignment = OP->GetI32Const(OP->GetAllocSizeForType(EltTy));
+  // If RawBuffer load of 64-bit value, don't set alignment to 8,
+  // since buffer alignment isn't known to be anything over 4.
+  unsigned alignValue = OP->GetAllocSizeForType(EltTy);
+  if (RK == HLResource::Kind::RawBuffer && alignValue > 4)
+    alignValue = 4;
+  Constant *Alignment = OP->GetI32Const(alignValue);
   unsigned numComponents = 1;
   if (Ty->isVectorTy()) {
     numComponents = Ty->getVectorNumElements();
@@ -3801,7 +3833,12 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
     val = Builder.CreateZExt(val, Ty);
   }
 
-  Constant *Alignment = OP->GetI32Const(OP->GetAllocSizeForType(EltTy));
+  // If RawBuffer store of 64-bit value, don't set alignment to 8,
+  // since buffer alignment isn't known to be anything over 4.
+  unsigned alignValue = OP->GetAllocSizeForType(EltTy);
+  if (RK == HLResource::Kind::RawBuffer && alignValue > 4)
+    alignValue = 4;
+  Constant *Alignment = OP->GetI32Const(alignValue);
   bool is64 = EltTy == i64Ty || EltTy == doubleTy;
   if (is64 && isTyped) {
     EltTy = i32Ty;
@@ -5085,7 +5122,7 @@ namespace {
 Value *EmptyLower(CallInst *CI, IntrinsicOp IOP, DXIL::OpCode opcode,
                   HLOperationLowerHelper &helper,  HLObjectOperationLowerHelper *pObjHelper, bool &Translated) {
   Translated = false;
-  CI->getContext().emitError(CI, "Unsupported intrinsic");
+  dxilutil::EmitErrorOnInstruction(CI, "Unsupported intrinsic.");
   return nullptr;
 }
 
@@ -5097,7 +5134,7 @@ Value *UnsupportedVulkanIntrinsic(CallInst *CI, IntrinsicOp IOP,
                                   HLObjectOperationLowerHelper *pObjHelper,
                                   bool &Translated) {
   Translated = false;
-  CI->getContext().emitError(CI, "Unsupported Vulkan intrinsic");
+  dxilutil::EmitErrorOnInstruction(CI, "Unsupported Vulkan intrinsic.");
   return nullptr;
 }
 #endif // ENABLE_SPIRV_CODEGEN
@@ -5276,6 +5313,7 @@ IntrinsicLower gLowerTable[] = {
     {IntrinsicOp::IOP_mul, TranslateMul, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_normalize, TranslateNormalize, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_pow, TranslatePow, DXIL::OpCode::NumOpCodes},
+    {IntrinsicOp::IOP_printf, TranslatePrintf, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_radians, TranslateRadians, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_rcp, TranslateRCP, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_reflect, TranslateReflect, DXIL::OpCode::NumOpCodes},
@@ -6006,8 +6044,8 @@ void TranslateCBAddressUserLegacy(Instruction *user, Value *handle,
   IRBuilder<> Builder(user);
   if (CallInst *CI = dyn_cast<CallInst>(user)) {
     HLOpcodeGroup group = GetHLOpcodeGroupByName(CI->getCalledFunction());
-    unsigned opcode = GetHLOpcode(CI);
     if (group == HLOpcodeGroup::HLMatLoadStore) {
+      unsigned opcode = GetHLOpcode(CI);
       HLMatLoadStoreOpcode matOp = static_cast<HLMatLoadStoreOpcode>(opcode);
       bool colMajor = matOp == HLMatLoadStoreOpcode::ColMatLoad;
       DXASSERT(matOp == HLMatLoadStoreOpcode::ColMatLoad ||
@@ -6023,6 +6061,7 @@ void TranslateCBAddressUserLegacy(Instruction *user, Value *handle,
       dxilutil::TryScatterDebugValueToVectorElements(newLd);
       CI->eraseFromParent();
     } else if (group == HLOpcodeGroup::HLSubscript) {
+      unsigned opcode = GetHLOpcode(CI);
       HLSubscriptOpcode subOp = static_cast<HLSubscriptOpcode>(opcode);
       Value *basePtr = CI->getArgOperand(HLOperandIndex::kMatSubscriptMatOpIdx);
       HLMatrixType MatTy = HLMatrixType::cast(basePtr->getType()->getPointerElementType());
@@ -6164,11 +6203,6 @@ void TranslateCBAddressUserLegacy(Instruction *user, Value *handle,
       }
 
       CI->eraseFromParent();
-    } else if (group == HLOpcodeGroup::HLIntrinsic) {
-      // FIXME: This case is hit when using built-in structures in constant
-      //        buffers passed directly to an intrinsic, such as:
-      //        RayDesc from cbuffer passed to TraceRay.
-      DXASSERT(0, "not implemented yet");
     } else {
       DXASSERT(0, "not implemented yet");
     }
@@ -7232,7 +7266,7 @@ void TranslateDefaultSubscript(CallInst *CI, HLOperationLowerHelper &helper,  HL
         if (!isa<CallInst>(GEPUser)) {
           // Invalid operations.
           Translated = false;
-          CI->getContext().emitError(GEP, "Invalid operation on typed buffer");
+          dxilutil::EmitErrorOnInstruction(GEP, "Invalid operation on typed buffer.");
           return;
         }
         CallInst *userCall = cast<CallInst>(GEPUser);
@@ -7241,8 +7275,7 @@ void TranslateDefaultSubscript(CallInst *CI, HLOperationLowerHelper &helper,  HL
         if (group != HLOpcodeGroup::HLIntrinsic) {
           // Invalid operations.
           Translated = false;
-          CI->getContext().emitError(userCall,
-                                     "Invalid operation on typed buffer");
+          dxilutil::EmitErrorOnInstruction(userCall, "Invalid operation on typed buffer.");
           return;
         }
         unsigned opcode = hlsl::GetHLOpcode(userCall);
@@ -7261,15 +7294,14 @@ void TranslateDefaultSubscript(CallInst *CI, HLOperationLowerHelper &helper,  HL
         case IntrinsicOp::IOP_InterlockedCompareExchange: {
           // Invalid operations.
           Translated = false;
-          CI->getContext().emitError(
-              userCall, "Atomic operation on typed buffer is not supported");
+          dxilutil::EmitErrorOnInstruction(
+              userCall, "Atomic operation on typed buffer is not supported.");
           return;
         } break;
         default:
           // Invalid operations.
           Translated = false;
-          CI->getContext().emitError(userCall,
-                                     "Invalid operation on typed buffer");
+          dxilutil::EmitErrorOnInstruction(userCall, "Invalid operation on typed buffer.");
           return;
           break;
         }
@@ -7297,13 +7329,12 @@ void TranslateDefaultSubscript(CallInst *CI, HLOperationLowerHelper &helper,  HL
           case IntrinsicOp::IOP_InterlockedXor:
           case IntrinsicOp::IOP_InterlockedCompareStore:
           case IntrinsicOp::IOP_InterlockedCompareExchange: {
-            CI->getContext().emitError(
-                userCall, "Atomic operation targets must be groupshared on UAV");
+            dxilutil::EmitErrorOnInstruction(
+                userCall, "Atomic operation targets must be groupshared on UAV.");
             return;
           } break;
           default:
-            CI->getContext().emitError(userCall,
-                                       "Invalid operation on typed buffer");
+            dxilutil::EmitErrorOnInstruction(userCall, "Invalid operation on typed buffer.");
             return;
             break;
           }
@@ -7682,7 +7713,8 @@ void TranslateHLBuiltinOperation(Function *F, HLOperationLowerHelper &helper,
 typedef std::unordered_map<llvm::Instruction *, llvm::Value *> HandleMap;
 static void TranslateHLExtension(Function *F,
                                  HLSLExtensionsCodegenHelper *helper,
-                                 OP& hlslOp) {
+                                 OP& hlslOp,
+                                 HLObjectOperationLowerHelper &objHelper) {
   // Find all calls to the function F.
   // Store the calls in a vector for now to be replaced the loop below.
   // We use a two step "find then replace" to avoid removing uses while
@@ -7696,7 +7728,8 @@ static void TranslateHLExtension(Function *F,
 
   // Get the lowering strategy to use for this intrinsic.
   llvm::StringRef LowerStrategy = GetHLLowerStrategy(F);
-  ExtensionLowering lower(LowerStrategy, helper, hlslOp);
+  HLObjectExtensionLowerHelper extObjHelper(objHelper);
+  ExtensionLowering lower(LowerStrategy, helper, hlslOp, extObjHelper);
 
   // Replace all calls that were successfully translated.
   for (CallInst *CI : CallsToReplace) {
@@ -7734,7 +7767,7 @@ void TranslateBuiltinOperations(
       continue;
     }
     if (group == HLOpcodeGroup::HLExtIntrinsic) {
-      TranslateHLExtension(F, extCodegenHelper, helper.hlslOP);
+      TranslateHLExtension(F, extCodegenHelper, helper.hlslOP, objHelper);
       continue;
     }
     if (group == HLOpcodeGroup::HLIntrinsic) {

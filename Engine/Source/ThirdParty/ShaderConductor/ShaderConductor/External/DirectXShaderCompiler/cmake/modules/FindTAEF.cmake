@@ -10,6 +10,8 @@ find_path(TAEF_INCLUDE_DIR      # Set variable TAEF_INCLUDE_DIR
           HINTS "${CMAKE_SOURCE_DIR}/external/taef/build/Include"
           HINTS "${WINDOWS_KIT_10_PATH}/Testing/Development/inc"
           HINTS "${WINDOWS_KIT_81_PATH}/Testing/Development/inc"
+          HINTS "$ENV{TAEF_PATH}/../../../Include"
+          HINTS "$ENV{TAEF_PATH}/../../../Development/inc"
           DOC "path to TAEF header files"
           HINTS
           )
@@ -34,7 +36,7 @@ elseif (CMAKE_GENERATOR MATCHES "Visual Studio.*ARM" OR "${DXC_BUILD_ARCH}" STRE
   find_library(TAEF_WEX_LOGGER_LIBRARY NAMES Wex.Logger.lib
                HINTS ${TAEF_INCLUDE_DIR}/../Library/arm
                HINTS ${TAEF_INCLUDE_DIR}/../lib/arm )
-elseif (CMAKE_GENERATOR MATCHES "Visual Studio.*ARM64" OR "${DXC_BUILD_ARCH}" STREQUAL "ARM64")
+elseif (CMAKE_GENERATOR MATCHES "Visual Studio.*ARM64" OR "${DXC_BUILD_ARCH}" MATCHES "ARM64.*")
   find_library(TAEF_COMMON_LIBRARY NAMES Te.Common.lib
                HINTS ${TAEF_INCLUDE_DIR}/../Library/arm64
                HINTS ${TAEF_INCLUDE_DIR}/../lib/arm64 )
@@ -68,6 +70,9 @@ elseif(EXISTS "${WINDOWS_KIT_10_PATH}/Testing/Runtimes/TAEF/x86/te.exe"
 elseif(EXISTS "${WINDOWS_KIT_81_PATH}/Testing/Runtimes/TAEF/x86/te.exe"
     AND EXISTS "${WINDOWS_KIT_81_PATH}/Testing/Runtimes/TAEF/x64/te.exe")
   set(TAEF_BIN_DIR "${WINDOWS_KIT_81_PATH}/Testing/Runtimes/TAEF")
+elseif(EXISTS "${TAEF_PATH}/te.exe")
+  set(TAEF_BIN_DIR "${TAEF_PATH}/..")
+  message("TAEF_BIN_DIR=${TAEF_BIN_DIR}")
 elseif(EXISTS "${WINDOWS_KIT_10_PATH}")
   message(ERROR "Unable to find TAEF binaries under Windows 10 SDK.")
 elseif(EXISTS "${WINDOWS_KIT_81_PATH}")

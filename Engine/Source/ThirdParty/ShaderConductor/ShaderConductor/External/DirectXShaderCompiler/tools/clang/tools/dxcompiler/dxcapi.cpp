@@ -24,6 +24,7 @@
 #include "dxcetw.h"
 #endif
 #include "dxillib.h"
+#include "dxc/DxilContainer/DxcContainerBuilder.h"
 #include <memory>
 
 // Initialize the UUID for the interfaces.
@@ -50,6 +51,7 @@ DEFINE_CROSS_PLATFORM_UUIDOF(IDxcBlobUtf8)
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcCompilerArgs)
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcUtils)
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcResult)
+DEFINE_CROSS_PLATFORM_UUIDOF(IDxcExtraOutputs)
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcCompiler3)
 
 HRESULT CreateDxcCompiler(_In_ REFIID riid, _Out_ LPVOID *ppv);
@@ -78,6 +80,24 @@ HRESULT CreateDxcContainerReflection(_In_ REFIID riid, _Out_ LPVOID *ppv) {
   catch (const std::bad_alloc&) {
     return E_OUTOFMEMORY;
   }
+}
+
+HRESULT CreateDxcContainerBuilder(_In_ REFIID riid, _Out_ LPVOID *ppv) {
+  // Call dxil.dll's containerbuilder 
+  *ppv = nullptr;
+  const char *warning;
+  HRESULT hr = DxilLibCreateInstance(CLSID_DxcContainerBuilder, (IDxcContainerBuilder**)ppv);
+  if (FAILED(hr)) {
+    warning = "Unable to create container builder from dxil.dll. Resulting container will not be signed.\n";
+  }
+  else {
+    return hr;
+  }
+
+  CComPtr<DxcContainerBuilder> Result = DxcContainerBuilder::Alloc(DxcGetThreadMallocNoRef());
+  IFROOM(Result.p);
+  Result->Init(warning);
+  return Result->QueryInterface(riid, ppv);
 }
 
 static HRESULT ThreadMallocDxcCreateInstance(
@@ -111,11 +131,11 @@ static HRESULT ThreadMallocDxcCreateInstance(
   else if (IsEqualCLSID(rclsid, CLSID_DxcIntelliSense)) {
     hr = CreateDxcIntelliSense(riid, ppv);
   }
-  /* UE Change Begin: Rewriter works on non-Windows platforms */
+  // UE Change Begin: Enable DxcRewriter as it's needed for Metal backend.
   else if (IsEqualCLSID(rclsid, CLSID_DxcRewriter)) {
     hr = CreateDxcRewriter(riid, ppv);
   }
-  /* UE Change End: Rewriter works on non-Windows platforms */
+  // UE Change End: Enable DxcRewriter as it's needed for Metal backend.
 // Note: The following targets are not yet enabled for non-Windows platforms.
 #ifdef _WIN32
   else if (IsEqualCLSID(rclsid, CLSID_DxcDiaDataSource)) {
