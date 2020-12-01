@@ -28,7 +28,8 @@ struct FInstanceSceneData
 	float3   LocalBoundsExtent;
 	uint     LastUpdateSceneFrameNumber;
 	uint	 NaniteRuntimeResourceID;
-	int      NaniteHierarchyOffset;
+	uint     NaniteHierarchyOffset;
+	bool	 NaniteHasImposter;
 	uint     Unused2;
 	uint     Unused3;
 };
@@ -86,7 +87,9 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 	InstanceData.LastUpdateSceneFrameNumber				= asuint(LoadInstanceDataElement(12 * SOAStride + InstanceId).w);
 
 	InstanceData.NaniteRuntimeResourceID				= asuint(LoadInstanceDataElement(13 * SOAStride + InstanceId).x);
-	InstanceData.NaniteHierarchyOffset					= asint(LoadInstanceDataElement(13 * SOAStride + InstanceId).y);
+	uint NaniteHierarchyOffset_AndHasImposter			= asint(LoadInstanceDataElement(13 * SOAStride + InstanceId).y);
+	InstanceData.NaniteHierarchyOffset					= NaniteHierarchyOffset_AndHasImposter >> 1;
+	InstanceData.NaniteHasImposter						= (NaniteHierarchyOffset_AndHasImposter & 1u) != 0u;
 
 	return InstanceData;
 }

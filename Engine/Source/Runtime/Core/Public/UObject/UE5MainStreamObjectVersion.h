@@ -52,6 +52,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Serialize CellHash in WorldPartition HLODActorDesc
 		WorldPartitionHLODActorDescSerializeCellHash,
 
+		// Nanite data is now transient in Geometry Collection similar to how RenderData is transient in StaticMesh.
+		GeometryCollectionNaniteTransient,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

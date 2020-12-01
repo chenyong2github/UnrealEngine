@@ -21,6 +21,7 @@ struct FClusterGroup
 	float				MinLODError;
 	float				MaxParentLODError;
 	int32				MipLevel;
+	uint32				MeshIndex;
 	
 	uint32				PageIndexStart;
 	uint32				PageIndexNum;
@@ -29,29 +30,7 @@ struct FClusterGroup
 	friend FArchive& operator<<(FArchive& Ar, FClusterGroup& Group);
 };
 
-class FClusterDAG
-{
-public:
-	FClusterDAG( TArray< FCluster >& InCluster );
-	
-	void		Reduce();
-
-	static const uint32 MinGroupSize = 8;
-	static const uint32 MaxGroupSize = 32;
-	
-	FBounds		MeshBounds;
-	
-	TArray< FCluster >&		Clusters;
-	TArray< FClusterGroup >	Groups;
-
-	TArray< int32 >			MipEnds;
-
-private:
-	void		CompleteCluster( uint32 Index );
-	void		Reduce( TArrayView< uint32 > Children, int32 GroupIndex );
-
-	TAtomic< uint32 >	NumClusters;
-	uint32				NumExternalEdges = 0;
-};
+// Performs DAG reduction and appends the resulting clusters and groups
+void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds& MeshBounds, TArray<int32>* OutMipEnds);
 
 } // namespace Nanite

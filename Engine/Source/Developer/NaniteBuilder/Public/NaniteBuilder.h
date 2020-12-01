@@ -47,6 +47,7 @@ public:
 		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 		TArray<uint32>& TriangleIndices,
 		TArray<int32>& MaterialIndices,
+		TArray<uint32>& MeshTriangleCounts,			// Split into multiple triangle ranges with separate hierarchy roots.
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings)
 	{

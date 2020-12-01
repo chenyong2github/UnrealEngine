@@ -120,7 +120,7 @@ public:
 	/** Releases the render resources. */
 	GEOMETRYCOLLECTIONENGINE_API void ReleaseResources();
 
-	TArray<Nanite::FResources> Resources;
+	Nanite::FResources NaniteResource;
 
 private:
 	bool bIsInitialized = false;
@@ -167,11 +167,13 @@ public:
 	int32 NumElements(const FName& Group) const;
 	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
-	FORCEINLINE FNaniteInfo GetNaniteInfo(int32 GeometryIndex) const
+	FNaniteInfo GetNaniteInfo(int32 GeometryIndex) const
 	{
-		check(NaniteData && GeometryIndex >= 0 && GeometryIndex < NaniteData->Resources.Num());
-		const Nanite::FResources& Resources = NaniteData->Resources[GeometryIndex];
-		return FNaniteInfo(Resources.RuntimeResourceID, Resources.HierarchyOffset);
+		check(NaniteData);
+		Nanite::FResources& Resource = NaniteData->NaniteResource;
+		check(GeometryIndex >= 0 && GeometryIndex < Resource.HierarchyRootOffsets.Num());
+		bool bHasImposter = Resource.ImposterAtlas.Num() > 0;
+		return FNaniteInfo(Resource.RuntimeResourceID, Resource.HierarchyOffset + Resource.HierarchyRootOffsets[GeometryIndex], bHasImposter);
 	}
 
 	/** ReindexMaterialSections */

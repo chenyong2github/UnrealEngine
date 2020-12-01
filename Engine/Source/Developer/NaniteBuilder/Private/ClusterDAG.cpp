@@ -9,21 +9,30 @@
 namespace Nanite
 {
 
-FClusterDAG::FClusterDAG( TArray< FCluster >& InClusters )
-	: Clusters( InClusters )
-	, NumClusters( Clusters.Num() )
-{}
+static const uint32 MinGroupSize = 8;
+static const uint32 MaxGroupSize = 32;
 
-void FClusterDAG::Reduce()
+static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, TAtomic< uint32 >& NumClusters, TArrayView< uint32 > Children, int32 GroupIndex, uint32 MeshIndex );
+
+void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds& MeshBounds, TArray< int32 >* MipEnds)
 {
-	int32 LevelOffset = 0;
+	uint32 LevelOffset	= ClusterRangeStart;
+	
+	TAtomic< uint32 >	NumClusters = Clusters.Num();
+	uint32				NumExternalEdges = 0;
+
+	bool bFirstLevel = true;
 
 	while( true )
 	{
-		MipEnds.Add( Clusters.Num() );
-
-		TArrayView< FCluster > LevelClusters( &Clusters[ LevelOffset ], Clusters.Num() - LevelOffset );
-
+		if( MipEnds )
+		{
+			MipEnds->Add( Clusters.Num() );
+		}
+		
+		TArrayView< FCluster > LevelClusters( &Clusters[LevelOffset], bFirstLevel ? ClusterRangeNum : (Clusters.Num() - LevelOffset) );
+		bFirstLevel = false;
+		
 		for( FCluster& Cluster : LevelClusters )
 		{
 			NumExternalEdges	+= Cluster.NumExternalEdges;
@@ -44,10 +53,11 @@ void FClusterDAG::Reduce()
 				Children.Add( LevelOffset++ );
 			}
 
+			LevelOffset = Clusters.Num();
 			Clusters.AddDefaulted( MaxParents );
 			Groups.AddDefaulted( 1 );
 
-			Reduce( Children, Groups.Num() - 1 );
+			DAGReduce( Groups, Clusters, NumClusters, Children, Groups.Num() - 1, MeshIndex );
 
 			// Correct num to atomic count
 			Clusters.SetNum( NumClusters, false );
@@ -250,7 +260,7 @@ void FClusterDAG::Reduce()
 				TArrayView< uint32 > Children( &Partitioner.Indexes[ Range.Begin ], Range.End - Range.Begin );
 				uint32 ClusterGroupIndex = PartitionIndex + Groups.Num() - Partitioner.Ranges.Num();
 
-				Reduce( Children, ClusterGroupIndex );
+				DAGReduce( Groups, Clusters, NumClusters, Children, ClusterGroupIndex, MeshIndex );
 			});
 
 		// Correct num to atomic count
@@ -258,7 +268,7 @@ void FClusterDAG::Reduce()
 	}
 	
 	// Max out root node
-	int32 RootIndex = Clusters.Num() - 1;
+	uint32 RootIndex = LevelOffset;
 	FClusterGroup RootClusterGroup;
 	RootClusterGroup.Children.Add( RootIndex );
 	RootClusterGroup.Bounds = Clusters[ RootIndex ].SphereBounds;
@@ -266,11 +276,12 @@ void FClusterDAG::Reduce()
 	RootClusterGroup.MaxParentLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
 	RootClusterGroup.MipLevel = MAX_int32;
+	RootClusterGroup.MeshIndex = MeshIndex;
 	Clusters[ RootIndex ].GroupIndex = Groups.Num();
 	Groups.Add( RootClusterGroup );
 }
 
-void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 GroupIndex )
+static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, TAtomic< uint32 >& NumClusters, TArrayView< uint32 > Children, int32 GroupIndex, uint32 MeshIndex )
 {
 	check( GroupIndex >= 0 );
 
@@ -372,7 +383,9 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 GroupIndex )
 	Groups[ GroupIndex ].MinLODError		= ChildMinLODError;
 	Groups[ GroupIndex ].MaxParentLODError	= ParentMaxLODError;
 	Groups[ GroupIndex ].MipLevel			= Merged.MipLevel;
+	Groups[ GroupIndex ].MeshIndex			= MeshIndex;
 }
+
 
 FArchive& operator<<(FArchive& Ar, FClusterGroup& Group)
 {
@@ -381,6 +394,7 @@ FArchive& operator<<(FArchive& Ar, FClusterGroup& Group)
 	Ar << Group.MinLODError;
 	Ar << Group.MaxParentLODError;
 	Ar << Group.MipLevel;
+	Ar << Group.MeshIndex;
 
 	Ar << Group.PageIndexStart;
 	Ar << Group.PageIndexNum;

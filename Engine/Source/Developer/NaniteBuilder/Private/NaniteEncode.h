@@ -17,5 +17,5 @@ namespace Nanite
 	struct FClusterGroup;
 	
 	void BuildMaterialRanges(const TArray<uint32>& TriangleIndices, const TArray<int32>& MaterialIndices, TArray<FMaterialTriangle, TInlineAllocator<128>>& MaterialTris, TArray<FMaterialRange, TInlineAllocator<4>>& MaterialRanges);
-	void Encode(FResources& Resources, TArray<FCluster>& Clusters, TArray<FClusterGroup>& Groups, const FBounds& MeshBounds, uint32 NumTexCoords, bool bHasColors);
+	void Encode(FResources& Resources, TArray<FCluster>& Clusters, TArray<FClusterGroup>& Groups, const FBounds& MeshBounds, uint32 NumMeshes, uint32 NumTexCoords, bool bHasColors);
 } // namespace Nanite

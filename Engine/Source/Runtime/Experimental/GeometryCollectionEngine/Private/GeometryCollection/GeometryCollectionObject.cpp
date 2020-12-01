@@ -14,6 +14,7 @@
 #include "UObject/Package.h"
 #include "Materials/MaterialInstance.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "EngineUtils.h"
 
 
 #if WITH_EDITOR
@@ -287,6 +288,86 @@ bool UGeometryCollection::HasVisibleGeometry() const
 	return false;
 }
 
+struct FPackedHierarchyNode_Old
+{
+	FSphere		LODBounds[64];
+	FSphere		Bounds[64];
+	struct
+	{
+		uint32	MinLODError_MaxParentLODError;
+		uint32	ChildStartReference;
+		uint32	ResourcePageIndex_NumPages_GroupPartSize;
+	} Misc[64];
+};
+
+FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode_Old& Node)
+{
+	for (uint32 i = 0; i < 64; i++)
+	{
+		Ar << Node.LODBounds[i];
+		Ar << Node.Bounds[i];
+		Ar << Node.Misc[i].MinLODError_MaxParentLODError;
+		Ar << Node.Misc[i].ChildStartReference;
+		Ar << Node.Misc[i].ResourcePageIndex_NumPages_GroupPartSize;
+	}
+
+	return Ar;
+}
+
+
+struct FPageStreamingState_Old
+{
+	uint32			BulkOffset;
+	uint32			BulkSize;
+	uint32			PageUncompressedSize;
+	uint32			DependenciesStart;
+	uint32			DependenciesNum;
+};
+
+FArchive& operator<<(FArchive& Ar, FPageStreamingState_Old& PageStreamingState)
+{
+	Ar << PageStreamingState.BulkOffset;
+	Ar << PageStreamingState.BulkSize;
+	Ar << PageStreamingState.PageUncompressedSize;
+	Ar << PageStreamingState.DependenciesStart;
+	Ar << PageStreamingState.DependenciesNum;
+	return Ar;
+}
+
+// Parse old Nanite data and throw it away. We need this to not crash when parsing old files.
+static void SerializeOldNaniteData(FArchive& Ar, UGeometryCollection* Owner)
+{
+	check(Ar.IsLoading());
+
+	int32 NumNaniteResources = 0;
+	Ar << NumNaniteResources;
+
+	for (int32 i = 0; i < NumNaniteResources; ++i)
+	{
+		FStripDataFlags StripFlags(Ar, 0);
+		if (!StripFlags.IsDataStrippedForServer())
+		{
+			bool bLZCompressed;
+			TArray< uint8 >						RootClusterPage;
+			FByteBulkData						StreamableClusterPages;
+			TArray< uint16 >					ImposterAtlas;
+			TArray< FPackedHierarchyNode_Old >	HierarchyNodes;
+			TArray< FPageStreamingState_Old >	PageStreamingStates;
+			TArray< uint32 >					PageDependencies;
+
+			Ar << bLZCompressed;
+			Ar << RootClusterPage;
+			StreamableClusterPages.Serialize(Ar, Owner, 0);
+			Ar << PageStreamingStates;
+
+			Ar << HierarchyNodes;
+			Ar << PageDependencies;
+			Ar << ImposterAtlas;
+		}
+	}
+}
+
+
 /** Serialize */
 void UGeometryCollection::Serialize(FArchive& Ar)
 {
@@ -380,32 +461,28 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #endif
 	}
 
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) == FUE5MainStreamObjectVersion::GeometryCollectionNaniteData)
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) == FUE5MainStreamObjectVersion::GeometryCollectionNaniteData || 
+		(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::GeometryCollectionNaniteCooked &&
+		Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionNaniteTransient))
 	{
 		// This legacy version serialized structure information into archive, but the data is transient.
 		// Just load it and throw away here, it will be rebuilt later and resaved past this point.
-
-		int32 NumNaniteResources = 0;
-		Ar << NumNaniteResources;
-
-		TArray<Nanite::FResources> NaniteResources;
-		NaniteResources.Reset(NumNaniteResources);
-		NaniteResources.AddDefaulted(NumNaniteResources);
-
-		for (int32 ResourceIndex = 0; ResourceIndex < NumNaniteResources; ++ResourceIndex)
-		{
-			NaniteResources[ResourceIndex].Serialize(ChaosAr, this);
-		}
+		SerializeOldNaniteData(ChaosAr, this);
 	}
 
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::GeometryCollectionNaniteCooked)
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::GeometryCollectionNaniteTransient)
 	{
-		if (NaniteData == nullptr)
+		bool bCooked = Ar.IsCooking();
+		Ar << bCooked;
+		if (bCooked)
 		{
-			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-		}
+			if (NaniteData == nullptr)
+			{
+				NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+			}
 
-		NaniteData->Serialize(ChaosAr, this);
+			NaniteData->Serialize(ChaosAr, this);
+		}
 	}
 
 #if WITH_EDITOR
@@ -457,10 +534,7 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 
 			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 			NaniteData->Serialize(ChaosAr, this);
-			for (Nanite::FResources& Resource : NaniteData->Resources)
-			{
-				check(Resource.RootClusterPage.Num() == 0 || Resource.bLZCompressed);
-			}
+			check(NaniteData->NaniteResource.RootClusterPage.Num() == 0 || NaniteData->NaniteResource.bLZCompressed);
 		}
 	}
 }
@@ -512,24 +586,25 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	const TManagedArray<int32>& FaceCountArray = Collection->FaceCount;
 
 	// Material Group
-	const TManagedArray<FGeometryCollectionSection>& Sections = Collection->Sections;
+	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
 
-	int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
-	NaniteData->Resources.AddDefaulted(NumGeometry);
+	const uint32 NumTexCoords = 1;// NumTextureCoord;
+	const bool bHasColors = ColorArray.Num() > 0;
+
+	TArray<FStaticMeshBuildVertex> BuildVertices;
+	TArray<uint32> BuildIndices;
+	TArray<int32> MaterialIndices;
+
+	TArray<uint32> MeshTriangleCounts;
+	MeshTriangleCounts.SetNum(NumGeometry);
 
 	for (int32 GeometryGroupIndex = 0; GeometryGroupIndex < NumGeometry; GeometryGroupIndex++)
 	{
-		Nanite::FResources& NaniteResource = NaniteData->Resources[GeometryGroupIndex];
-		NaniteResource = {};
-
-		uint32 NumTexCoords = 1;// NumTextureCoord;
-		bool bHasColors = ColorArray.Num() > 0;
-
 		const int32 VertexStart = VertexStartArray[GeometryGroupIndex];
 		const int32 VertexCount = VertexCountArray[GeometryGroupIndex];
 
-		TArray<FStaticMeshBuildVertex> BuildVertices;
-		BuildVertices.Reserve(VertexCount);
+		uint32 DestVertexStart = BuildVertices.Num();
+		BuildVertices.Reserve(DestVertexStart + VertexCount);
 		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 		{
 			FStaticMeshBuildVertex& Vertex = BuildVertices.Emplace_GetRef();
@@ -550,11 +625,9 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 
 		// TODO: Respect multiple materials like in FGeometryCollectionConversion::AppendStaticMesh
 
-		TArray<int32> MaterialIndices;
-		MaterialIndices.Reserve(FaceCount);
-
-		TArray<uint32> BuildIndices;
-		BuildIndices.Reserve(FaceCount * 3);
+		uint32 DestFaceStart = MaterialIndices.Num();
+		MaterialIndices.Reserve(DestFaceStart + FaceCount);
+		BuildIndices.Reserve((DestFaceStart + FaceCount) * 3);
 		for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
 		{
 			if (!VisibleArray[FaceStart + FaceIndex]) // TODO: Always in range?
@@ -563,28 +636,25 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 			}
 
 			const FIntVector FaceIndices = IndicesArray[FaceStart + FaceIndex];
-			BuildIndices.Add(FaceIndices.X - VertexStart);
-			BuildIndices.Add(FaceIndices.Y - VertexStart);
-			BuildIndices.Add(FaceIndices.Z - VertexStart);
+			BuildIndices.Add(FaceIndices.X - VertexStart + DestVertexStart);
+			BuildIndices.Add(FaceIndices.Y - VertexStart + DestVertexStart);
+			BuildIndices.Add(FaceIndices.Z - VertexStart + DestVertexStart);
 
 			const int32 MaterialIndex = MaterialIDArray[FaceStart + FaceIndex];
 			MaterialIndices.Add(MaterialIndex);
 		}
 
-		if (BuildIndices.Num() == 0)
-		{
-			// No visible faces of entire geometry, skip any building/rendering.
-			continue;
-		}
+		MeshTriangleCounts[GeometryGroupIndex] = MaterialIndices.Num() - DestFaceStart;
+	}
 
-		FMeshNaniteSettings NaniteSettings = {};
-		NaniteSettings.bEnabled = true;
-		NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
+	FMeshNaniteSettings NaniteSettings = {};
+	NaniteSettings.bEnabled = true;
+	NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
 
-		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, MaterialIndices, NumTexCoords, NaniteSettings))
-		{
-			UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
-		}
+	NaniteData->NaniteResource = {};
+	if (!NaniteBuilderModule.Build(NaniteData->NaniteResource, BuildVertices, BuildIndices, MaterialIndices, MeshTriangleCounts, NumTexCoords, NaniteSettings))
+	{
+		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
 	}
 
 	return NaniteData;
@@ -715,36 +785,21 @@ void FGeometryCollectionNaniteData::Serialize(FArchive& Ar, UGeometryCollection*
 		{
 			// Nanite data is currently 1:1 with each geometry group in the collection.
 			const int32 NumGeometryGroups = Owner->NumElements(FGeometryCollection::GeometryGroup);
-			if (NumGeometryGroups != Resources.Num())
+			if (NumGeometryGroups != NaniteResource.HierarchyRootOffsets.Num())
 			{
 				Ar.SetError();
 			}
 		}
 
-		int32 NumNaniteResources = Resources.Num();
-		Ar << NumNaniteResources;
-
-		for (int32 ResourceIndex = 0; ResourceIndex < NumNaniteResources; ++ResourceIndex)
-		{
-			Resources[ResourceIndex].Serialize(Ar, Owner);
-		}
+		NaniteResource.Serialize(Ar, Owner);
 	}
 	else if (Ar.IsLoading())
 	{
-		int32 NumNaniteResources = 0;
-		Ar << NumNaniteResources;
-
-		Resources.Reset(NumNaniteResources);
-		Resources.AddDefaulted(NumNaniteResources);
-
-		for (int32 ResourceIndex = 0; ResourceIndex < NumNaniteResources; ++ResourceIndex)
-		{
-			Resources[ResourceIndex].Serialize(Ar, Owner);
-		}
-
+		NaniteResource.Serialize(Ar, Owner);
+	
 		if (!Owner->EnableNanite)
 		{
-			Resources.Reset(0);
+			NaniteResource = {};
 		}
 	}
 }
@@ -756,10 +811,7 @@ void FGeometryCollectionNaniteData::InitResources(UGeometryCollection* Owner)
 		ReleaseResources();
 	}
 
-	for (Nanite::FResources& Resource : Resources)
-	{
-		Resource.InitResources();
-	}
+	NaniteResource.InitResources();
 
 	bIsInitialized = true;
 }
@@ -771,10 +823,7 @@ void FGeometryCollectionNaniteData::ReleaseResources()
 		return;
 	}
 
-	for (Nanite::FResources& Resource : Resources)
-	{
-		Resource.ReleaseResources();
-	}
+	NaniteResource.ReleaseResources();
 
 	bIsInitialized = false;
 }

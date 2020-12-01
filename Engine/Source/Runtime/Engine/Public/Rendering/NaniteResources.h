@@ -321,6 +321,7 @@ struct FResources
 	FByteBulkData					StreamableClusterPages;	// Remaining pages are streamed on demand.
 	TArray< uint16 >				ImposterAtlas;
 	TArray< FPackedHierarchyNode >	HierarchyNodes;
+	TArray< uint32 >				HierarchyRootOffsets;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;
 	bool	bLZCompressed			= false;

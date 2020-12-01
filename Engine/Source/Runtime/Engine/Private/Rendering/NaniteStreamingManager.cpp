@@ -1089,7 +1089,10 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		}
 		
 		Hierarchy.UploadBuffer.Add( Resources->HierarchyOffset, &Resources->HierarchyNodes[ 0 ], Resources->HierarchyNodes.Num() );
-		RootPages.UploadBuffer.Add( Resources->RootPageIndex, Resources->ImposterAtlas.GetData() );
+		if(Resources->ImposterAtlas.Num() > 0)
+		{
+			RootPages.UploadBuffer.Add( Resources->RootPageIndex, Resources->ImposterAtlas.GetData() );
+		}
 
 		FRootPageInfo& RootPageInfo = RootPageInfos[ Resources->RootPageIndex ];
 		RootPageInfo.RuntimeResourceID = Resources->RuntimeResourceID;

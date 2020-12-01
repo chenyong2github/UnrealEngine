@@ -237,6 +237,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		}
 		
 		Ar << HierarchyNodes;
+		Ar << HierarchyRootOffsets;
 		Ar << PageDependencies;
 		Ar << ImposterAtlas;
 		
@@ -466,10 +467,11 @@ void FSceneProxy::CreateRenderThreadResources()
 	// by the StreamingManager on the render thread. Initialize them now.
 	check(Resources->RuntimeResourceID != 0xFFFFFFFFu);
 	check(Resources->HierarchyOffset != -1);
+	bool bHasImposter = Resources->ImposterAtlas.Num() > 0;
+	FNaniteInfo NaniteInfo = FNaniteInfo(Resources->RuntimeResourceID, Resources->HierarchyOffset, bHasImposter);
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 	{
-		Instances[InstanceIndex].NaniteInfo.HierarchyOffset = Resources->HierarchyOffset;
-		Instances[InstanceIndex].NaniteInfo.RuntimeResourceID = Resources->RuntimeResourceID;
+		Instances[InstanceIndex].NaniteInfo = NaniteInfo;
 	}
 }
 

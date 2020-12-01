@@ -13,17 +13,17 @@ class FNaniteInfo
 {
 public:
 	uint32 RuntimeResourceID;
-	int32 HierarchyOffset;
+	uint32 HierarchyOffset_AndHasImposter;
 
 	FNaniteInfo()
 	: RuntimeResourceID(0xFFFFFFFFu)
-	, HierarchyOffset(-1)
+	, HierarchyOffset_AndHasImposter(0xFFFFFFFFu)
 	{
 	}
 
-	FNaniteInfo(uint32 InRuntimeResourceID, int32 InHierarchyOffset)
+	FNaniteInfo(uint32 InRuntimeResourceID, int32 InHierarchyOffset, bool bHasImposter)
 	: RuntimeResourceID(InRuntimeResourceID)
-	, HierarchyOffset(InHierarchyOffset)
+	, HierarchyOffset_AndHasImposter((InHierarchyOffset << 1) | (bHasImposter ? 1u : 0u))
 	{
 	}
 };
@@ -60,7 +60,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(FVector,  LocalBoundsExtent)
 	SHADER_PARAMETER(uint32,   LastUpdateSceneFrameNumber)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
-	SHADER_PARAMETER(int32,	   NaniteHierarchyOffset)
+	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset_AndHasImposter)
 	SHADER_PARAMETER(uint32,   Unused2)
 	SHADER_PARAMETER(uint32,   Unused3)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -89,7 +89,7 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.LocalBoundsCenter					= LocalBoundsCenter;
 	Result.LocalBoundsExtent					= LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
-	Result.NaniteHierarchyOffset				= NaniteInfo.HierarchyOffset;
+	Result.NaniteHierarchyOffset_AndHasImposter	= NaniteInfo.HierarchyOffset_AndHasImposter;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	return Result;
 }

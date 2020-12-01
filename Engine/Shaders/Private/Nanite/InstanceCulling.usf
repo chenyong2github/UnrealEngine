@@ -203,7 +203,7 @@ void InstanceCull(
 
 #if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST
 			// Draw imposters
-			if( bIsVisible && !bWasOccluded )
+			if( InstanceData.NaniteHasImposter && bIsVisible && !bWasOccluded )
 			{
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 

@@ -20,7 +20,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("AE428F85-6C98-4FC8-A710-B2F4F5BC8863")
+#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47AC-9085-E6B8C526E5F9")
 
 namespace Nanite
 {
@@ -47,6 +47,7 @@ public:
 		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 		TArray<uint32>& TriangleIndices,
 		TArray<int32>& MaterialIndices,
+		TArray<uint32>& MeshTriangleCounts,
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings) override;
 
@@ -198,9 +199,9 @@ static uint32 BuildCoarseRepresentation(
 
 static void ClusterTriangles(
 	const TArray< FStaticMeshBuildVertex >& Verts,
-	const TArray< uint32 >& Indexes,
-	const TArray< int32 >& MaterialIndexes,
-	TArray< FCluster >& Clusters,
+	const TArrayView< const uint32 >& Indexes,
+	const TArrayView< const int32 >& MaterialIndexes,
+	TArray< FCluster >& Clusters,	// Append
 	const FBounds& MeshBounds,
 	uint32 NumTexCoords,
 	bool bHasColors )
@@ -326,7 +327,7 @@ static void ClusterTriangles(
 	}
 
 	uint32 BoundaryTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Boundary [%.2fs], verts: %i, tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Verts.Num(), Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
+	UE_LOG( LogStaticMesh, Log, TEXT("Boundary [%.2fs], tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
 
 	LOG_CRC( SharedEdges );
 
@@ -377,6 +378,7 @@ static void ClusterTriangles(
 	uint32 ClusterTime = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Clustering [%.2fs]. Ratio: %f"), FPlatformTime::ToMilliseconds( ClusterTime - BoundaryTime ) / 1000.0f, (float)Partitioner.Ranges.Num() / OptimalNumClusters );
 
+	const uint32 BaseCluster = Clusters.Num();
 	Clusters.AddDefaulted( Partitioner.Ranges.Num() );
 
 	const bool bSingleThreaded = Partitioner.Ranges.Num() > 32;
@@ -387,10 +389,14 @@ static void ClusterTriangles(
 			{
 				auto& Range = Partitioner.Ranges[ Index ];
 
-				Clusters[ Index ] = FCluster( Verts, Indexes, MaterialIndexes, BoundaryEdges, Range.Begin, Range.End, Partitioner.Indexes, NumTexCoords, bHasColors );
+
+				Clusters[ BaseCluster + Index ] = FCluster( Verts,
+															Indexes,
+															MaterialIndexes,
+															BoundaryEdges, Range.Begin, Range.End, Partitioner.Indexes, NumTexCoords, bHasColors );
 
 				// Negative notes it's a leaf
-				Clusters[ Index ].EdgeLength *= -1.0f;
+				Clusters[ BaseCluster + Index ].EdgeLength *= -1.0f;
 			}, bSingleThreaded);
 	}
 
@@ -402,8 +408,9 @@ static bool BuildNaniteData(
 	FResources& Resources,
 	TArray< FStaticMeshBuildVertex >& Verts, // TODO: Do not require this vertex type for all users of Nanite
 	TArray< uint32 >& Indexes,
+	TArray< int32 >& MaterialIndexes,
+	TArray<uint32>& MeshTriangleCounts,
 	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
-	TArray< int32 >&  MaterialIndexes,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings
 )
@@ -412,23 +419,40 @@ static bool BuildNaniteData(
 
 	if (NumTexCoords > MAX_NANITE_UVS) NumTexCoords = MAX_NANITE_UVS;
 
-	FBounds	MeshBounds;
+	FBounds	VertexBounds;
 	uint32 Channel = 255;
 	for( auto& Vert : Verts )
 	{
-		MeshBounds += Vert.Position;
+		VertexBounds += Vert.Position;
 
 		Channel &= Vert.Color.R;
 		Channel &= Vert.Color.G;
 		Channel &= Vert.Color.B;
 		Channel &= Vert.Color.A;
 	}
+
+	const uint32 NumMeshes = MeshTriangleCounts.Num();
 	
 	// Don't trust any input. We only have color if it isn't all white.
 	bool bHasColors = Channel != 255;
 
+	TArray< uint32 > ClusterCountPerMesh;
 	TArray< FCluster > Clusters;
-	ClusterTriangles( Verts, Indexes, MaterialIndexes, Clusters, MeshBounds, NumTexCoords, bHasColors );
+	{
+		uint32 BaseTriangle = 0;
+		for (uint32 NumTriangles : MeshTriangleCounts)
+		{
+			uint32 NumClustersBefore = Clusters.Num();
+			if (NumTriangles)
+			{
+				ClusterTriangles(Verts, TArrayView< const uint32 >( &Indexes[BaseTriangle * 3], NumTriangles * 3 ),
+										TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
+										Clusters, VertexBounds, NumTexCoords, bHasColors);
+			}
+			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
+			BaseTriangle += NumTriangles;
+		}
+	}
 	
 	const int32 OldTriangleCount = Indexes.Num() / 3;
 	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
@@ -440,6 +464,7 @@ static bool BuildNaniteData(
 	// This is especially important when building multiple huge Nanite meshes in parallel.
 	if (bUseCoarseRepresentation)
 	{
+		check(MeshTriangleCounts.Num() == 1);
 		Verts.Empty();
 		Indexes.Empty();
 		MaterialIndexes.Empty();
@@ -447,17 +472,23 @@ static bool BuildNaniteData(
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	FClusterDAG DAG( Clusters );
+	TArray<int32> MipEnds;
+	FBounds MeshBounds;
+	TArray<FClusterGroup> Groups;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::DAG.Reduce"));
-		DAG.Reduce();
+		
+		uint32 ClusterStart = 0;
+		for (uint32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
+		{
+			uint32 NumClusters = ClusterCountPerMesh[MeshIndex];
+			DAGReduce(Groups, Clusters, ClusterStart, NumClusters, MeshIndex, MeshBounds, bUseCoarseRepresentation ? &MipEnds : nullptr);
+			ClusterStart += NumClusters;
+		}
 	}
 
 	uint32 ReduceTime = FPlatformTime::Cycles();
 	UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - Time0) / 1000.0f);
-
-	int32 RootClusterIndex = Clusters.Num() - 1;
-	int32 RootGroupIndex = DAG.Groups.Num() - 1;
 
 	if (bUseCoarseRepresentation)
 	{
@@ -467,7 +498,7 @@ static bool BuildNaniteData(
 		bool bCoarseCreated = false;
 
 		int32 Offset = 0;
-		for( int32 NextOffset : DAG.MipEnds )
+		for( int32 NextOffset : MipEnds )
 		{
 			int32 Num = NextOffset - Offset;
 
@@ -495,30 +526,34 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Clusters, DAG.Groups, DAG.MeshBounds, NumTexCoords, bHasColors );
+	Encode( Resources, Clusters, Groups, MeshBounds, NumMeshes, NumTexCoords, bHasColors );
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
 
-	auto& RootChildren = DAG.Groups[ RootGroupIndex ].Children;
+	const bool bGenerateImposter = (NumMeshes == 1);
+	if(bGenerateImposter)
+	{
+		uint32 ImposterStartTime = FPlatformTime::Cycles();
+		auto& RootChildren = Groups.Last().Children;
 	
-	FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
+		FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
 
-	ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
-		[&]( int32 TileIndex )
-		{
-			FIntPoint TilePos(
-				TileIndex % FImposterAtlas::AtlasSize,
-				TileIndex / FImposterAtlas::AtlasSize );
-
-			for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
+		ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
+			[&]( int32 TileIndex )
 			{
-				ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
-			}
-		} );
+				FIntPoint TilePos(
+					TileIndex % FImposterAtlas::AtlasSize,
+					TileIndex / FImposterAtlas::AtlasSize );
 
-	uint32 ImposterTime = FPlatformTime::Cycles();
-	UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds( ImposterTime - EncodeTime1 ) / 1000.0f);
+				for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
+				{
+					ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
+				}
+			} );
+
+		UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - ImposterStartTime ) / 1000.0f);
+	}
 
 	uint32 Time1 = FPlatformTime::Cycles();
 
@@ -531,7 +566,8 @@ bool FBuilderModule::Build(
 	FResources& Resources,
 	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 	TArray<uint32>& TriangleIndices,
-	TArray<int32>&  MaterialIndices,
+	TArray<int32>& MaterialIndices,
+	TArray<uint32>& MeshTriangleCounts,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)
 {
@@ -543,8 +579,9 @@ bool FBuilderModule::Build(
 		Resources,
 		Vertices,
 		TriangleIndices,
-		IgnoredCoarseSections,
 		MaterialIndices,
+		MeshTriangleCounts,
+		IgnoredCoarseSections,
 		NumTexCoords,
 		Settings
 	);
@@ -581,6 +618,9 @@ bool FBuilderModule::Build(
 		}
 	}
 
+	TArray<uint32> MeshTriangleCounts;
+	MeshTriangleCounts.Add(TriangleIndices.Num() / 3);
+
 	// Make sure there is 1 material index per triangle.
 	check(MaterialIndices.Num() * 3 == TriangleIndices.Num());
 
@@ -588,8 +628,9 @@ bool FBuilderModule::Build(
 		Resources,
 		Vertices,
 		TriangleIndices,
-		Sections,
 		MaterialIndices,
+		MeshTriangleCounts,
+		Sections,
 		NumTexCoords,
 		Settings
 	);
