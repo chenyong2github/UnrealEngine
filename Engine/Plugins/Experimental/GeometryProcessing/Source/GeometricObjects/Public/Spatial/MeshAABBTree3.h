@@ -800,12 +800,17 @@ public:
 	virtual MeshIntersection::FIntersectionsQueryResult FindAllIntersections(
 		const TMeshAABBTree3& OtherTree, const TFunction<FVector3d(const FVector3d&)>& TransformF = nullptr,
 		const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions(),
-		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
-		{
-			return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
-		}
+		TFunction<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = nullptr
 	) const
 	{
+		if (!IntersectionFn)
+		{
+			IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
+			{
+				return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
+			};
+		}
+
 		MeshIntersection::FIntersectionsQueryResult result;
 
 		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
@@ -829,12 +834,17 @@ public:
 	virtual MeshIntersection::FIntersectionsQueryResult FindAllSelfIntersections(
 		bool bIgnoreTopoConnected = true,
 		const FQueryOptions& Options = FQueryOptions(),
-		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
-		{
-			return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
-		}
+		TFunction<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = nullptr
 	) const
 	{
+		if (!IntersectionFn)
+		{
+			IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
+			{
+				return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
+			};
+		}
+
 		MeshIntersection::FIntersectionsQueryResult Result;
 
 		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
