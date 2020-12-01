@@ -2896,6 +2896,13 @@ void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
 							break;
 						}
 					}
+
+					// broken channel but the actor never spawned, should be safe to remove
+					if (ActorChannel->Actor == nullptr)
+					{
+						UE_LOG(LogNet, Warning, TEXT("SetAllowExistingChannelIndex:  Cleaning up broken channel: %s"), *ActorChannel->Describe());
+						ActorChannel->ConditionalCleanUp(true, EChannelCloseReason::Destroyed);
+					}
 				}
 			}
 
