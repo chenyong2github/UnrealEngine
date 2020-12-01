@@ -80,7 +80,7 @@ enum OperandClass {
     OperandMemorySemantics,
     OperandMemoryOperands,
     OperandScope,
-	OperandGroupOperation,
+    OperandGroupOperation,
     OperandKernelEnqueueFlags,
     OperandKernelProfilingInfo,
     OperandCapability,
@@ -88,6 +88,7 @@ enum OperandClass {
     OperandRayQueryIntersection,
     OperandRayQueryCommittedIntersectionType,
     OperandRayQueryCandidateIntersectionType,
+    OperandFragmentShadingRate,
 
     OperandOpcode,
 
