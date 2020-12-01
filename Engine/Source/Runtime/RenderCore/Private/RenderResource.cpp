@@ -325,6 +325,7 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
 	if (RawData.Num())
 	{
+		Initializer.bDiscardOfflineData = true;
 		Initializer.OfflineData = &RawData;
 	}
 
