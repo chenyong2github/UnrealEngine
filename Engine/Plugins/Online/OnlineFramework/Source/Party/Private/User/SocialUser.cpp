@@ -594,53 +594,70 @@ FText USocialUser::GetSocialName() const
 
 FUserPlatform USocialUser::GetCurrentPlatform() const
 {
+	FString PlatformString;
+
 	// Local user is obviously on the local platform
 	if (IsLocalUser())
 	{
-		return IOnlineSubsystem::GetLocalPlatformName();
+		PlatformString = IOnlineSubsystem::GetLocalPlatformName();
 	}
+	else
+	{
+		// "Current" in the function name isn't a misnomer - it is possible for a user to log in and out of multiple accounts while maintaining just 1 (or 0) that is actually playing the same game.
+		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
+		const FOnlineUserPresence* PlatformPresence = GetFriendPresenceInfo(ESocialSubsystem::Platform);
 
-	// "Current" in the function name isn't a misnomer - it is possible for a user to log in and out of multiple accounts while maintaining just 1 (or 0) that is actually playing the same game.
-	const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
-	const FOnlineUserPresence* PlatformPresence = GetFriendPresenceInfo(ESocialSubsystem::Platform);
-
-	if (PlatformPresence && PlatformPresence->bIsOnline && PlatformPresence->bIsPlayingThisGame)
-	{
-		// Platform friends that are playing the same game are on the local platform
-		return IOnlineSubsystem::GetLocalPlatformName();
-	}
-	else if (PrimaryPresence && PrimaryPresence->bIsOnline && PrimaryPresence->bIsPlayingThisGame)
-	{
-		// Respect the current platform reported by the primary presence if the user is playing the same game
-		return FUserPlatform(PrimaryPresence->GetPlatform());
-	}
-	else if (PlatformPresence && PlatformPresence->bIsOnline)
-	{
-		// Not playing the same game on either account, but we have presence on the platform, so let that win regardless of whether the primary is valid
-		return IOnlineSubsystem::GetLocalPlatformName();
-	}
-	else if (PrimaryPresence && PrimaryPresence->bIsOnline)
-	{
-		// We have no platform presence, but we do have primary, so get the platform from that
-		return FUserPlatform(PrimaryPresence->GetPlatform());
-	}
-
-	UE_LOG(LogOnline, VeryVerbose, TEXT("%s - No Presence found for user, searching Party..."), ANSI_TO_TCHAR(__FUNCTION__));
-	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetPersistentParty())
-	{
-		if (UPartyMember* PartyMember = Party->GetPartyMember(GetUserId(ESocialSubsystem::Primary)))
+		if (PlatformPresence && PlatformPresence->bIsOnline && PlatformPresence->bIsPlayingThisGame)
 		{
-			FUserPlatform Platform = PartyMember->GetRepData().GetPlatform();
-			UE_LOG(LogOnline, VeryVerbose, TEXT("%s - Party Member Found for user! RepDataPlatform: %s"), ANSI_TO_TCHAR(__FUNCTION__), *Platform.ToString());
-			if (Platform.IsValid())
+			// Platform friends that are playing the same game are on the local platform
+			PlatformString = IOnlineSubsystem::GetLocalPlatformName();
+		}
+		else if (PrimaryPresence && PrimaryPresence->bIsOnline && PrimaryPresence->bIsPlayingThisGame)
+		{
+			// Respect the current platform reported by the primary presence if the user is playing the same game
+			PlatformString = PrimaryPresence->GetPlatform();
+		}
+		else if (PlatformPresence && PlatformPresence->bIsOnline)
+		{
+			// Not playing the same game on either account, but we have presence on the platform, so let that win regardless of whether the primary is valid
+			PlatformString = IOnlineSubsystem::GetLocalPlatformName();
+		}
+		else if (PrimaryPresence && PrimaryPresence->bIsOnline)
+		{
+			// We have no platform presence, but we do have primary, so get the platform from that
+			PlatformString = PrimaryPresence->GetPlatform();
+		}
+		else
+		{
+			UE_LOG(LogOnline, VeryVerbose, TEXT("%s - No Presence found for user, searching Party..."), ANSI_TO_TCHAR(__FUNCTION__));
+			if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetPersistentParty())
 			{
-				return Platform;
+				if (UPartyMember* PartyMember = Party->GetPartyMember(GetUserId(ESocialSubsystem::Primary)))
+				{
+					const FUserPlatform& PartyMemberPlatform = PartyMember->GetRepData().GetPlatform();
+					UE_LOG(LogOnline, VeryVerbose, TEXT("%s - Party Member Found for user! RepDataPlatform: %s"), ANSI_TO_TCHAR(__FUNCTION__), *PartyMemberPlatform.ToString());
+					if (PartyMemberPlatform.IsValid())
+					{
+						PlatformString = PartyMemberPlatform;
+					}
+				}
+			}
+
+			if (PlatformString.IsEmpty())
+			{
+				// We don't have any presence for this user (or we do and they're offline) and they aren't the local player, so we really don't have any idea what their current platform is
+				// Intentionally empty (besides comments)
 			}
 		}
 	}
 
-	// We don't have any presence for this user (or we do and they're offline) and they aren't the local player, so we really don't have any idea what their current platform is
-	return FUserPlatform();
+	FUserPlatform UserPlatform;
+	if (!PlatformString.IsEmpty())
+	{
+		UserPlatform = MoveTemp(PlatformString);
+	}
+
+	return UserPlatform;
 }
 
 FString USocialUser::GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule) const
