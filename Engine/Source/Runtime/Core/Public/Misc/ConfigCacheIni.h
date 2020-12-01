@@ -836,9 +836,6 @@ public:
 		const FString&	Filename
 	);
 
-	// Static allocator.
-	static FConfigCacheIni* Factory();
-
 	// Static helper functions
 
 	/**
@@ -876,7 +873,7 @@ public:
 	 * @param GeneratedConfigDir The location where generated config files are made.
 	 * @return true if the final ini was created successfully.
 	 */
-	static bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false, bool bRequireDefaultIni=false, bool bAllowGeneratedIniWhenCooked=true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir());
+	static bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform = NULL, bool bForceReload = false, bool bRequireDefaultIni = false, bool bAllowGeneratedIniWhenCooked = true, bool bAllowRemoteConfig = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir(), FConfigCacheIni* ConfigSystem=GConfig);
 
 	/**
 	 * Load an ini file directly into an FConfigFile, and nothing is written to GConfig or disk. 
@@ -923,7 +920,40 @@ public:
 	 */
 	void SaveCurrentStateForBootstrap(const TCHAR* Filename);
 
-	friend FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
+	void Serialize(FArchive& Ar);
+
+
+	struct FConfigNamesForAllPlatforms
+	{
+		FString EngineIni;
+		FString GameIni;
+		FString InputIni;
+		FString ScalabilityIni;
+		FString HardwareIni;
+		FString RuntimeOptionsIni;
+		FString InstallBundleIni;
+		FString DeviceProfilesIni;
+		FString GameUserSettingsIni;
+		FString GameplayTagsIni;
+
+		friend FArchive& operator<<(FArchive& Ar, FConfigNamesForAllPlatforms& Names)
+		{
+			return Ar << Names.EngineIni << Names.GameIni << Names.InputIni << Names.ScalabilityIni << Names.HardwareIni <<
+				Names.RuntimeOptionsIni << Names.InstallBundleIni << Names.DeviceProfilesIni << Names.GameUserSettingsIni <<
+				Names.GameplayTagsIni;
+		}
+	};
+
+	/**
+	 * Create a temporary Config system for a target platform, and save it to a file
+	 */
+	void InitializePlatformConfigSystem(const TCHAR* PlatformName, FConfigNamesForAllPlatforms& FinalConfigFilenames);
+
+	/**
+	 * Create GConfig from a saved file
+	 */
+	static bool CreateGConfigFromSaved(const TCHAR* Filename);
+
 private:
 	/** Serialize a bootstrapping state into or from an archive */
 	void SerializeStateForBootstrap_Impl(FArchive& Ar);
@@ -937,8 +967,6 @@ private:
 	/** The type of the cache (basically, do we call Flush in the destructor) */
 	EConfigCacheType Type;
 };
-
-FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
 
 UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
 CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);

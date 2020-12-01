@@ -144,6 +144,23 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 									.Text(LOCTEXT("UseIoStoreCheckBoxText", "Use container files for optimized loading (I/O Store)"))
 								]
 							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0, 4.0, 0.0, 0.0)
+							[
+								SNew(SCheckBox)
+								.IsEnabled(this, &SProjectLauncherPackagingSettings::IsEditable)
+								.IsChecked(this, &SProjectLauncherPackagingSettings::HandleMakeBinaryConfigCheckBoxIsChecked)
+								.OnCheckStateChanged(this, &SProjectLauncherPackagingSettings::HandleMakeBinaryConfigCheckStateChanged)
+								.Padding(FMargin(4.0f, 0.0f))
+								.ToolTipText(LOCTEXT("MakeBinaryConfigCheckBoxTooltip", "Bakes the config (.ini, with plugins) data into a binary file, along with optional custom data"))
+								.Content()
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("MakeBinaryConfigCheckBoxText", "Make a binary config file for faster runtime startup times"))
+								]
+							]
 					]
 			]
 	];
@@ -222,6 +239,28 @@ ECheckBoxState SProjectLauncherPackagingSettings::HandleUseIoStoreCheckBoxIsChec
 	if (SelectedProfile.IsValid())
 	{
 		if (SelectedProfile->IsUsingIoStore())
+		{
+			return ECheckBoxState::Checked;
+		}
+	}
+	return ECheckBoxState::Unchecked;
+}
+
+void SProjectLauncherPackagingSettings::HandleMakeBinaryConfigCheckStateChanged(ECheckBoxState NewState)
+{
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		SelectedProfile->SetMakeBinaryConfig(NewState == ECheckBoxState::Checked);
+	}
+}
+
+ECheckBoxState SProjectLauncherPackagingSettings::HandleMakeBinaryConfigCheckBoxIsChecked() const
+{
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		if (SelectedProfile->MakeBinaryConfig())
 		{
 			return ECheckBoxState::Checked;
 		}

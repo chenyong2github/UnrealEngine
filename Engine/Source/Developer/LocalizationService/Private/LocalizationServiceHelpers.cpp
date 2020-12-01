@@ -23,7 +23,7 @@ namespace LocalizationServiceHelpers
 			if (LocalizationServiceSettingsIni.Len() == 0)
 			{
 				const FString LocalizationServiceSettingsDir = FPaths::GeneratedConfigDir();
-				FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, *LocalizationServiceSettingsDir);
+				FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, true, *LocalizationServiceSettingsDir);
 			}
 			return LocalizationServiceSettingsIni;
 		}
@@ -35,7 +35,7 @@ namespace LocalizationServiceHelpers
 		if (LocalizationServiceGlobalSettingsIni.Len() == 0)
 		{
 			const FString LocalizationServiceSettingsDir = FPaths::EngineSavedDir() + TEXT("Config/");
-			FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceGlobalSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, *LocalizationServiceSettingsDir);
+			FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceGlobalSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, true, *LocalizationServiceSettingsDir);
 		}
 		return LocalizationServiceGlobalSettingsIni;
 	}

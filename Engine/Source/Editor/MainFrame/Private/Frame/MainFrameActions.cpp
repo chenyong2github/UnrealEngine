@@ -689,6 +689,11 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -iostore");
 	}
 
+	if (PackagingSettings->bMakeBinaryConfig)
+	{
+		OptionalParams += TEXT(" -makebinaryconfig");
+	}
+
 	if (PackagingSettings->IncludePrerequisites)
 	{
 		OptionalParams += TEXT(" -prereqs");

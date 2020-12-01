@@ -669,6 +669,11 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				UATCommand += TEXT(" -iostore");
 			}
 
+			if (InProfile->MakeBinaryConfig())
+			{
+				UATCommand += TEXT(" -makebinaryconfig");
+			}
+
 			if ( InProfile->IsCreatingReleaseVersion() )
 			{
 				UATCommand += TEXT(" -createreleaseversion=");
