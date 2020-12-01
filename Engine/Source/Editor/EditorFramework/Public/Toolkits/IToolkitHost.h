@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Toolkits/IToolkit.h"
 
 class FEditorModeTools;
 
