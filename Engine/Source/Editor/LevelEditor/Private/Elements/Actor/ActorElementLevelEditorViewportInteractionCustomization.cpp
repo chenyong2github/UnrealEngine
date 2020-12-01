@@ -15,11 +15,6 @@
 #include "ActorGroupingUtils.h"
 #include "LevelEditorViewport.h"
 
-FActorElementLevelEditorViewportInteractionCustomization::FActorElementLevelEditorViewportInteractionCustomization(FLevelEditorViewportClient* InLevelEditorViewportClient)
-	: LevelEditorViewportClient(InLevelEditorViewportClient)
-{
-}
-
 void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
@@ -81,7 +76,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 	FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(InElementWorldHandle, InWidgetMode, InDragAxis, InInputState, ModifiedDeltaTransform, InPivotLocation);
 
 	// Update the cameras from their locked actor (if any) only if the viewport is real-time enabled
-	LevelEditorViewportClient->UpdateLockedActorViewports(Actor, true);
+	GetMutableLevelEditorViewportClient()->UpdateLockedActorViewports(Actor, true);
 }
 
 void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
@@ -105,7 +100,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::PostGizmoManipula
 	GEditor->BroadcastActorsMoved(MovedActors);
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::ModifyScale(AActor* InActor, const EAxisList::Type InDragAxis, FVector& ScaleDelta, bool bCheckSmallExtent) const
+void FActorElementLevelEditorViewportInteractionCustomization::ModifyScale(AActor* InActor, const EAxisList::Type InDragAxis, FVector& ScaleDelta, bool bCheckSmallExtent)
 {
 	if (InActor->GetRootComponent())
 	{
@@ -113,7 +108,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::ModifyScale(AActo
 
 		const FBox LocalBox = InActor->GetComponentsBoundingBox(true);
 		const FVector ScaledExtents = LocalBox.GetExtent() * CurrentScale;
-		const FTransform PreDragTransform = LevelEditorViewportClient->CachePreDragActorTransform(InActor);
+		const FTransform PreDragTransform = GetMutableLevelEditorViewportClient()->CachePreDragActorTransform(InActor);
 
 		FComponentElementLevelEditorViewportInteractionCustomization::ValidateScale(PreDragTransform.GetScale3D(), InDragAxis, CurrentScale, ScaledExtents, ScaleDelta, bCheckSmallExtent);
 

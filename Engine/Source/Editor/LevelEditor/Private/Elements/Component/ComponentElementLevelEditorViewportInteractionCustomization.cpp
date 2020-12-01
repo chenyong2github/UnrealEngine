@@ -12,11 +12,6 @@
 #include "LevelEditorViewport.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
-FComponentElementLevelEditorViewportInteractionCustomization::FComponentElementLevelEditorViewportInteractionCustomization(FLevelEditorViewportClient* InLevelEditorViewportClient)
-	: LevelEditorViewportClient(InLevelEditorViewportClient)
-{
-}
-
 void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
 	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
@@ -125,10 +120,10 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipula
 	}
 }
 
-void FComponentElementLevelEditorViewportInteractionCustomization::ModifyScale(USceneComponent* InComponent, const EAxisList::Type InDragAxis, FVector& ScaleDelta) const
+void FComponentElementLevelEditorViewportInteractionCustomization::ModifyScale(USceneComponent* InComponent, const EAxisList::Type InDragAxis, FVector& ScaleDelta)
 {
 	AActor* Actor = InComponent->GetOwner();
-	const FTransform PreDragTransform = LevelEditorViewportClient->CachePreDragActorTransform(Actor);
+	const FTransform PreDragTransform = GetMutableLevelEditorViewportClient()->CachePreDragActorTransform(Actor);
 	const FBox LocalBox = Actor->GetComponentsBoundingBox(true);
 	const FVector ScaledExtents = LocalBox.GetExtent() * InComponent->GetRelativeScale3D();
 

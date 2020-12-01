@@ -222,8 +222,16 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	SelectedElements->AddToRoot();
 
 	// Register the level editor specific selection behavior
-	SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MakeUnique<FActorElementLevelEditorSelectionCustomization>());
-	SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MakeUnique<FComponentElementLevelEditorSelectionCustomization>());
+	{
+		TUniquePtr<FActorElementLevelEditorSelectionCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorSelectionCustomization>();
+		ActorCustomization->SetToolkitHost(this);
+		SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
+	}
+	{
+		TUniquePtr<FComponentElementLevelEditorSelectionCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorSelectionCustomization>();
+		ComponentCustomization->SetToolkitHost(this);
+		SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+	}
 
 	// Allow USelection to bridge to our selected element list
 	GUnrealEd->GetSelectedActors()->SetElementSelectionSet(SelectedElements);

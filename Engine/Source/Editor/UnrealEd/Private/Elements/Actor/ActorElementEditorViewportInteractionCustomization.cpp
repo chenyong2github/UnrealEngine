@@ -6,12 +6,18 @@
 
 #include "Editor.h"
 #include "EditorModeManager.h"
+#include "Toolkits/IToolkitHost.h"
 #include "AI/NavigationSystemBase.h"
 
 bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
-	OutPivotLocation = GLevelEditorModeTools().PivotLocation;
-	return true;
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
+	{
+		OutPivotLocation = ToolkitHostPtr->GetEditorModeManager().PivotLocation;
+		return true;
+	}
+	
+	return FTypedElementAssetEditorViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, OutPivotLocation);
 }
 
 void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)

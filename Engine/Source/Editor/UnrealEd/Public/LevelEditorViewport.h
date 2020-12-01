@@ -242,6 +242,11 @@ public:
 	void InitializeVisibilityFlags();
 
 	/**
+	 * Initialize viewport interaction
+	 */
+	void InitializeViewportInteraction();
+
+	/**
 	 * Reset the camera position and rotation.  Used when creating a new level.
 	 */
 	void ResetCamera();

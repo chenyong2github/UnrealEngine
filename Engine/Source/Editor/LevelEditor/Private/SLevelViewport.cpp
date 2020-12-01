@@ -511,6 +511,8 @@ void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInst
 
 	LevelViewportClient->SetViewModes(ViewportInstanceSettings.PerspViewModeIndex, ViewportInstanceSettings.OrthoViewModeIndex );
 
+	LevelViewportClient->InitializeViewportInteraction();
+
 	bShowFullToolbar = ViewportInstanceSettings.bShowFullToolbar;
 
 	// Always set to true initially

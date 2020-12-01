@@ -1718,9 +1718,6 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bWasEditorCameraCut(false)
 	, bApplyCameraSpeedScaleByDistance(true)
 {
-	ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MakeUnique<FActorElementLevelEditorViewportInteractionCustomization>(this));
-	ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MakeUnique<FComponentElementLevelEditorViewportInteractionCustomization>(this));
-
 	// By default a level editor viewport is pointed to the editor world
 	SetReferenceToWorldContext(GEditor->GetEditorWorldContext());
 
@@ -1811,6 +1808,22 @@ void FLevelEditorViewportClient::InitializeVisibilityFlags()
 
 	// Initialize all sprite categories to visible
 	SpriteCategoryVisibility.Init(true, GUnrealEd->SpriteIDToIndexMap.Num());
+}
+
+void FLevelEditorViewportClient::InitializeViewportInteraction()
+{
+	{
+		TUniquePtr<FActorElementLevelEditorViewportInteractionCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorViewportInteractionCustomization>();
+		ActorCustomization->SetLevelEditorViewportClient(this);
+		ActorCustomization->SetToolkitHost(ParentLevelEditor.Pin().Get());
+		ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
+	}
+	{
+		TUniquePtr<FComponentElementLevelEditorViewportInteractionCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorViewportInteractionCustomization>();
+		ComponentCustomization->SetLevelEditorViewportClient(this);
+		ComponentCustomization->SetToolkitHost(ParentLevelEditor.Pin().Get());
+		ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+	}
 }
 
 FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)

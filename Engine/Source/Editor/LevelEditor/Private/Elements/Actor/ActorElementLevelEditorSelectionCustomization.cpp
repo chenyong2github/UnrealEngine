@@ -18,6 +18,7 @@
 #include "Editor/GroupActor.h"
 #include "ActorGroupingUtils.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Toolkits/IToolkitHost.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorLevelEditorSelection, Log, All);
@@ -61,7 +62,7 @@ FTypedElementHandle FActorElementLevelEditorSelectionCustomization::GetSelection
 	return InElementSelectionHandle;
 }
 
-bool FActorElementLevelEditorSelectionCustomization::CanSelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanSelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) const
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InActorSelectionHandle);
 
@@ -103,11 +104,16 @@ bool FActorElementLevelEditorSelectionCustomization::CanSelectActorElement(const
 		return false;
 	}
 
-	// Allow active modes to determine whether the selection is allowed
-	return GLevelEditorModeTools().IsSelectionAllowed(Actor, /*bInSelected*/true);
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
+	{
+		// Allow active modes to determine whether the selection is allowed
+		return ToolkitHostPtr->GetEditorModeManager().IsSelectionAllowed(Actor, /*bInSelected*/true);
+	}
+
+	return true;
 }
 
-bool FActorElementLevelEditorSelectionCustomization::CanDeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanDeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) const
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InActorSelectionHandle);
 
@@ -117,19 +123,27 @@ bool FActorElementLevelEditorSelectionCustomization::CanDeselectActorElement(con
 		return false;
 	}
 
-	// Allow active modes to determine whether the deselection is allowed
-	return GLevelEditorModeTools().IsSelectionAllowed(Actor, /*bInSelected*/false);
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
+	{
+		// Allow active modes to determine whether the deselection is allowed
+		return ToolkitHostPtr->GetEditorModeManager().IsSelectionAllowed(Actor, /*bInSelected*/false);
+	}
+
+	return true;
 }
 
 bool FActorElementLevelEditorSelectionCustomization::SelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InActorSelectionHandle);
 
-	// Allow active modes to potentially handle the selection
-	// TODO: Should this pass through the selection set?
-	if (GLevelEditorModeTools().IsSelectionHandled(Actor, /*bInSelected*/true))
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
 	{
-		return true;
+		// Allow active modes to potentially handle the selection
+		// TODO: Should this pass through the selection set?
+		if (ToolkitHostPtr->GetEditorModeManager().IsSelectionHandled(Actor, /*bInSelected*/true))
+		{
+			return true;
+		}
 	}
 
 	// If trying to select an actor, use this actors root selection actor instead (if it has one)
@@ -190,11 +204,14 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InActorSelectionHandle);
 
-	// Allow active modes to potentially handle the deselection
-	// TODO: Should this pass through the selection set?
-	if (GLevelEditorModeTools().IsSelectionHandled(Actor, /*bInSelected*/false))
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
 	{
-		return true;
+		// Allow active modes to potentially handle the deselection
+		// TODO: Should this pass through the selection set?
+		if (ToolkitHostPtr->GetEditorModeManager().IsSelectionHandled(Actor, /*bInSelected*/false))
+		{
+			return true;
+		}
 	}
 
 	bool bSelectionChanged = false;
