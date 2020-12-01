@@ -34,6 +34,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   dead_variable_elimination.h
   decompose_initialized_variables_pass.h
   decoration_manager.h
+  debug_info_manager.h
   def_use_manager.h
   desc_sroa.h
   dominator_analysis.h
@@ -42,6 +43,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   eliminate_dead_functions_pass.h
   eliminate_dead_functions_util.h
   eliminate_dead_members_pass.h
+  empty_pass.h
   feature_manager.h
   fix_storage_class.h
   flatten_decoration_pass.h
@@ -49,8 +51,8 @@ set(SPIRV_TOOLS_OPT_SOURCES
   folding_rules.h
   fold_spec_constant_op_and_composite_pass.h
   freeze_spec_constant_value_pass.h
-  fused_multiply_add_pass.h
   function.h
+  fused_multiply_add_pass.h
   generate_webgpu_initializers_pass.h
   graphics_robust_access_pass.h
   if_conversion.h
@@ -89,7 +91,6 @@ set(SPIRV_TOOLS_OPT_SOURCES
   pass.h
   pass_manager.h
   private_to_local_pass.h
-  process_lines_pass.h
   propagator.h
   reduce_load_size.h
   redundancy_elimination.h
@@ -142,6 +143,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   dead_variable_elimination.cpp
   decompose_initialized_variables_pass.cpp
   decoration_manager.cpp
+  debug_info_manager.cpp
   def_use_manager.cpp
   desc_sroa.cpp
   dominator_analysis.cpp
@@ -196,7 +198,6 @@ set(SPIRV_TOOLS_OPT_SOURCES
   pass.cpp
   pass_manager.cpp
   private_to_local_pass.cpp
-  process_lines_pass.cpp
   propagator.cpp
   reduce_load_size.cpp
   redundancy_elimination.cpp
@@ -226,14 +227,14 @@ set(SPIRV_TOOLS_OPT_SOURCES
   wrap_opkill.cpp
 )
 
-if(MSVC)
+if(MSVC AND (NOT ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")))
   # Enable parallel builds across four cores for this lib
   add_definitions(/MP4)
 endif()
 
 spvtools_pch(SPIRV_TOOLS_OPT_SOURCES pch_source_opt)
 
-add_library(SPIRV-Tools-opt ${SPIRV_TOOLS_OPT_SOURCES})
+add_library(SPIRV-Tools-opt ${SPIRV_TOOLS_LIBRARY_TYPE} ${SPIRV_TOOLS_OPT_SOURCES})
 
 spvtools_default_compile_options(SPIRV-Tools-opt)
 target_include_directories(SPIRV-Tools-opt
@@ -245,7 +246,7 @@ target_include_directories(SPIRV-Tools-opt
 )
 # We need the assembling and disassembling functionalities in the main library.
 target_link_libraries(SPIRV-Tools-opt
-  PUBLIC ${SPIRV_TOOLS})
+  PUBLIC ${SPIRV_TOOLS_FULL_VISIBILITY})
 
 set_property(TARGET SPIRV-Tools-opt PROPERTY FOLDER "SPIRV-Tools libraries")
 spvtools_check_symbol_exports(SPIRV-Tools-opt)

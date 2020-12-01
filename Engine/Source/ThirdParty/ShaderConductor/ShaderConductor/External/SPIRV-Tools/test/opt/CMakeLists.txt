@@ -33,6 +33,7 @@ add_spvtools_unittest(TARGET opt
        dead_branch_elim_test.cpp
        dead_insert_elim_test.cpp
        dead_variable_elim_test.cpp
+       debug_info_manager_test.cpp
        decompose_initialized_variables_test.cpp
        decoration_manager_test.cpp
        def_use_test.cpp
@@ -77,7 +78,6 @@ add_spvtools_unittest(TARGET opt
        pass_remove_duplicates_test.cpp
        pass_utils.cpp
        private_to_local_test.cpp
-       process_lines_test.cpp
        propagator_test.cpp
        reduce_load_size_test.cpp
        redundancy_elimination_test.cpp

@@ -35,11 +35,16 @@
 #include "source/opt/eliminate_dead_constant_pass.h"
 #include "source/opt/eliminate_dead_functions_pass.h"
 #include "source/opt/eliminate_dead_members_pass.h"
+#include "source/opt/empty_pass.h"
 #include "source/opt/fix_storage_class.h"
 #include "source/opt/flatten_decoration_pass.h"
 #include "source/opt/fold_spec_constant_op_and_composite_pass.h"
 #include "source/opt/freeze_spec_constant_value_pass.h"
+// UE Change Begin: Implement a fused-multiply-add pass to reduce the
+// possibility of re-association.
 #include "source/opt/fused_multiply_add_pass.h"
+// UE Change End: Implement a fused-multiply-add pass to reduce the possibility
+// of re-association.
 #include "source/opt/generate_webgpu_initializers_pass.h"
 #include "source/opt/graphics_robust_access_pass.h"
 #include "source/opt/if_conversion.h"
@@ -62,7 +67,6 @@
 #include "source/opt/merge_return_pass.h"
 #include "source/opt/null_pass.h"
 #include "source/opt/private_to_local_pass.h"
-#include "source/opt/process_lines_pass.h"
 #include "source/opt/reduce_load_size.h"
 #include "source/opt/redundancy_elimination.h"
 #include "source/opt/relax_float_ops_pass.h"

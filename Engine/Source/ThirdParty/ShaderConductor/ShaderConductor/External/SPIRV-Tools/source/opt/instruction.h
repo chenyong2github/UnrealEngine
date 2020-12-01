@@ -22,14 +22,14 @@
 #include <utility>
 #include <vector>
 
-#include "source/opcode.h"
-#include "source/operand.h"
-#include "source/util/ilist_node.h"
-#include "source/util/small_vector.h"
-
+#include "OpenCLDebugInfo100.h"
 #include "source/latest_version_glsl_std_450_header.h"
 #include "source/latest_version_spirv_header.h"
+#include "source/opcode.h"
+#include "source/operand.h"
 #include "source/opt/reflect.h"
+#include "source/util/ilist_node.h"
+#include "source/util/small_vector.h"
 #include "spirv-tools/libspirv.h"
 
 const uint32_t kNoDebugScope = 0;
@@ -91,6 +91,19 @@ struct Operand {
 
   // Returns a string operand as a std::string.
   std::string AsString() const { return AsCString(); }
+
+  // Returns a literal integer operand as a uint64_t
+  uint64_t AsLiteralUint64() const {
+    assert(type == SPV_OPERAND_TYPE_TYPED_LITERAL_NUMBER);
+    assert(1 <= words.size());
+    assert(words.size() <= 2);
+    // Load the low word.
+    uint64_t result = uint64_t(words[0]);
+    if (words.size() > 1) {
+      result = result | (uint64_t(words[1]) << 32);
+    }
+    return result;
+  }
 
   friend bool operator==(const Operand& o1, const Operand& o2) {
     return o1.type == o2.type && o1.words == o2.words;
@@ -226,8 +239,17 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
     return dbg_line_insts_;
   }
 
+  const Instruction* dbg_line_inst() const {
+    return dbg_line_insts_.empty() ? nullptr : &dbg_line_insts_[0];
+  }
+
   // Clear line-related debug instructions attached to this instruction.
   void clear_dbg_line_insts() { dbg_line_insts_.clear(); }
+
+  // Set line-related debug instructions.
+  void set_dbg_line_insts(const std::vector<Instruction>& lines) {
+    dbg_line_insts_ = lines;
+  }
 
   // Same semantics as in the base class except the list the InstructionList
   // containing |pos| will now assume ownership of |this|.
@@ -258,8 +280,12 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
   // It is the responsibility of the caller to make sure
   // that the instruction remains valid.
   inline void AddOperand(Operand&& operand);
+  // UE Change Begin: Allow secondary AddOperand function to take copy of
+  // operand.
   // Adds a copy of |operand| to the list of operands of this instruction.
   inline void AddOperand(const Operand& operand);
+  // UE Change End: Allow secondary AddOperand function to take copy of
+  // operand.
   // Gets the |index|-th logical operand as a single SPIR-V word. This method is
   // not expected to be used with logical operands consisting of multiple SPIR-V
   // words.
@@ -280,9 +306,22 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
   // Sets DebugScope.
   inline void SetDebugScope(const DebugScope& scope);
   inline const DebugScope& GetDebugScope() const { return dbg_scope_; }
+  // Updates DebugInlinedAt of DebugScope and OpLine.
+  void UpdateDebugInlinedAt(uint32_t new_inlined_at);
+  inline uint32_t GetDebugInlinedAt() const {
+    return dbg_scope_.GetInlinedAt();
+  }
+  // Updates lexical scope of DebugScope and OpLine.
+  void UpdateLexicalScope(uint32_t scope);
+  // Updates OpLine and DebugScope based on the information of |from|.
+  void UpdateDebugInfoFrom(const Instruction* from);
   // Remove the |index|-th operand
   void RemoveOperand(uint32_t index) {
     operands_.erase(operands_.begin() + index);
+  }
+  // Insert an operand before the |index|-th operand
+  void InsertOperand(uint32_t index, Operand&& operand) {
+    operands_.insert(operands_.begin() + index, operand);
   }
 
   // The following methods are similar to the above, but are for in operands.
@@ -353,6 +392,10 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
   inline bool WhileEachInOperand(
       const std::function<bool(const uint32_t*)>& f) const;
 
+  // Returns true if it's an OpBranchConditional instruction
+  // with branch weights.
+  bool HasBranchWeights() const;
+
   // Returns true if any operands can be labels
   inline bool HasLabels() const;
 
@@ -385,8 +428,14 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
   // Memory-to-memory instructions are not considered loads.
   inline bool IsLoad() const;
 
-  // Returns true if the instruction declares a variable that is read-only.
-  bool IsReadOnlyVariable() const;
+  // Returns true if the instruction generates a pointer that is definitely
+  // read-only.  This is determined by analysing the pointer type's storage
+  // class and decorations that target the pointer's id.  It does not analyse
+  // other instructions that the pointer may be derived from.  Thus if 'true' is
+  // returned, the pointer is definitely read-only, while if 'false' is returned
+  // it is possible that the pointer may actually be read-only if it is derived
+  // from another pointer that is decorated as read-only.
+  bool IsReadOnlyPointer() const;
 
   // The following functions check for the various descriptor types defined in
   // the Vulkan specification section 13.1.
@@ -498,6 +547,19 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
   // rules for physical addressing.
   bool IsValidBasePointer() const;
 
+  // Returns debug opcode of an OpenCL.100.DebugInfo instruction. If
+  // it is not an OpenCL.100.DebugInfo instruction, just returns
+  // OpenCLDebugInfo100InstructionsMax.
+  OpenCLDebugInfo100Instructions GetOpenCL100DebugOpcode() const;
+
+  // Returns true if it is an OpenCL.DebugInfo.100 instruction.
+  bool IsOpenCL100DebugInstr() const {
+    return GetOpenCL100DebugOpcode() != OpenCLDebugInfo100InstructionsMax;
+  }
+
+  // Returns true if this instructions a non-semantic instruction.
+  bool IsNonSemanticInstruction() const;
+
   // Dump this instruction on stderr.  Useful when running interactive
   // debuggers.
   void Dump() const;
@@ -510,11 +572,12 @@ class Instruction : public utils::IntrusiveNodeBase<Instruction> {
     return 0;
   }
 
-  // Returns true if the instruction declares a variable that is read-only.  The
-  // first version assumes the module is a shader module.  The second assumes a
+  // Returns true if the instruction generates a read-only pointer, with the
+  // same caveats documented in the comment for IsReadOnlyPointer.  The first
+  // version assumes the module is a shader module.  The second assumes a
   // kernel.
-  bool IsReadOnlyVariableShaders() const;
-  bool IsReadOnlyVariableKernel() const;
+  bool IsReadOnlyPointerShaders() const;
+  bool IsReadOnlyPointerKernel() const;
 
   // Returns true if the result of |inst| can be used as the base image for an
   // instruction that samples a image, reads an image, or writes to an image.
@@ -572,9 +635,13 @@ inline void Instruction::AddOperand(Operand&& operand) {
   operands_.push_back(std::move(operand));
 }
 
+// UE Change Begin: Allow secondary AddOperand function to take copy of
+// operand.
 inline void Instruction::AddOperand(const Operand& operand) {
   operands_.push_back(operand);
 }
+// UE Change End: Allow secondary AddOperand function to take copy of
+// operand.
 
 inline void Instruction::SetInOperand(uint32_t index,
                                       Operand::OperandData&& data) {
@@ -686,21 +753,21 @@ inline void Instruction::ForEachInst(
 }
 
 inline void Instruction::ForEachId(const std::function<void(uint32_t*)>& f) {
-  for (auto& opnd : operands_)
-    if (spvIsIdType(opnd.type)) f(&opnd.words[0]);
+  for (auto& operand : operands_)
+    if (spvIsIdType(operand.type)) f(&operand.words[0]);
 }
 
 inline void Instruction::ForEachId(
     const std::function<void(const uint32_t*)>& f) const {
-  for (const auto& opnd : operands_)
-    if (spvIsIdType(opnd.type)) f(&opnd.words[0]);
+  for (const auto& operand : operands_)
+    if (spvIsIdType(operand.type)) f(&operand.words[0]);
 }
 
 inline bool Instruction::WhileEachInId(
     const std::function<bool(uint32_t*)>& f) {
-  for (auto& opnd : operands_) {
-    if (spvIsInIdType(opnd.type)) {
-      if (!f(&opnd.words[0])) return false;
+  for (auto& operand : operands_) {
+    if (spvIsInIdType(operand.type) && !f(&operand.words[0])) {
+      return false;
     }
   }
   return true;
@@ -708,9 +775,9 @@ inline bool Instruction::WhileEachInId(
 
 inline bool Instruction::WhileEachInId(
     const std::function<bool(const uint32_t*)>& f) const {
-  for (const auto& opnd : operands_) {
-    if (spvIsInIdType(opnd.type)) {
-      if (!f(&opnd.words[0])) return false;
+  for (const auto& operand : operands_) {
+    if (spvIsInIdType(operand.type) && !f(&operand.words[0])) {
+      return false;
     }
   }
   return true;
@@ -733,13 +800,13 @@ inline void Instruction::ForEachInId(
 
 inline bool Instruction::WhileEachInOperand(
     const std::function<bool(uint32_t*)>& f) {
-  for (auto& opnd : operands_) {
-    switch (opnd.type) {
+  for (auto& operand : operands_) {
+    switch (operand.type) {
       case SPV_OPERAND_TYPE_RESULT_ID:
       case SPV_OPERAND_TYPE_TYPE_ID:
         break;
       default:
-        if (!f(&opnd.words[0])) return false;
+        if (!f(&operand.words[0])) return false;
         break;
     }
   }
@@ -748,13 +815,13 @@ inline bool Instruction::WhileEachInOperand(
 
 inline bool Instruction::WhileEachInOperand(
     const std::function<bool(const uint32_t*)>& f) const {
-  for (const auto& opnd : operands_) {
-    switch (opnd.type) {
+  for (const auto& operand : operands_) {
+    switch (operand.type) {
       case SPV_OPERAND_TYPE_RESULT_ID:
       case SPV_OPERAND_TYPE_TYPE_ID:
         break;
       default:
-        if (!f(&opnd.words[0])) return false;
+        if (!f(&operand.words[0])) return false;
         break;
     }
   }
@@ -763,16 +830,16 @@ inline bool Instruction::WhileEachInOperand(
 
 inline void Instruction::ForEachInOperand(
     const std::function<void(uint32_t*)>& f) {
-  WhileEachInOperand([&f](uint32_t* op) {
-    f(op);
+  WhileEachInOperand([&f](uint32_t* operand) {
+    f(operand);
     return true;
   });
 }
 
 inline void Instruction::ForEachInOperand(
     const std::function<void(const uint32_t*)>& f) const {
-  WhileEachInOperand([&f](const uint32_t* op) {
-    f(op);
+  WhileEachInOperand([&f](const uint32_t* operand) {
+    f(operand);
     return true;
   });
 }

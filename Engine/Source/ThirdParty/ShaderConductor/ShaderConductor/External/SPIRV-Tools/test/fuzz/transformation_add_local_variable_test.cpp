@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_add_local_variable.h"
+
+#include "gtest/gtest.h"
+#include "source/fuzz/fuzzer_util.h"
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -76,69 +79,88 @@ TEST(TransformationAddLocalVariableTest, BasicTest) {
   const auto env = SPV_ENV_UNIVERSAL_1_4;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
-  FactManager fact_manager;
-
+  spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // A few cases of inapplicable transformations:
   // Id 4 is already in use
   ASSERT_FALSE(TransformationAddLocalVariable(4, 50, 4, 51, true)
-                   .IsApplicable(context.get(), fact_manager));
+                   .IsApplicable(context.get(), transformation_context));
   // Type mismatch between initializer and pointer
   ASSERT_FALSE(TransformationAddLocalVariable(105, 46, 4, 51, true)
-                   .IsApplicable(context.get(), fact_manager));
+                   .IsApplicable(context.get(), transformation_context));
   // Id 5 is not a function
   ASSERT_FALSE(TransformationAddLocalVariable(105, 50, 5, 51, true)
-                   .IsApplicable(context.get(), fact_manager));
+                   .IsApplicable(context.get(), transformation_context));
 
   // %105 = OpVariable %50 Function %51
   {
     TransformationAddLocalVariable transformation(105, 50, 4, 51, true);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   // %104 = OpVariable %41 Function %46
   {
     TransformationAddLocalVariable transformation(104, 41, 4, 46, false);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   // %103 = OpVariable %35 Function %38
   {
     TransformationAddLocalVariable transformation(103, 35, 4, 38, true);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   // %102 = OpVariable %31 Function %33
   {
     TransformationAddLocalVariable transformation(102, 31, 4, 33, false);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   // %101 = OpVariable %19 Function %29
   {
     TransformationAddLocalVariable transformation(101, 19, 4, 29, true);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   // %100 = OpVariable %8 Function %12
   {
     TransformationAddLocalVariable transformation(100, 8, 4, 12, false);
-    ASSERT_TRUE(transformation.IsApplicable(context.get(), fact_manager));
-    transformation.Apply(context.get(), &fact_manager);
+    ASSERT_TRUE(
+        transformation.IsApplicable(context.get(), transformation_context));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
-  ASSERT_FALSE(fact_manager.PointeeValueIsIrrelevant(100));
-  ASSERT_TRUE(fact_manager.PointeeValueIsIrrelevant(101));
-  ASSERT_FALSE(fact_manager.PointeeValueIsIrrelevant(102));
-  ASSERT_TRUE(fact_manager.PointeeValueIsIrrelevant(103));
-  ASSERT_FALSE(fact_manager.PointeeValueIsIrrelevant(104));
-  ASSERT_TRUE(fact_manager.PointeeValueIsIrrelevant(105));
+  ASSERT_FALSE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(100));
+  ASSERT_TRUE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(101));
+  ASSERT_FALSE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(102));
+  ASSERT_TRUE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(103));
+  ASSERT_FALSE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(104));
+  ASSERT_TRUE(
+      transformation_context.GetFactManager()->PointeeValueIsIrrelevant(105));
 
   std::string after_transformation = R"(
                OpCapability Shader

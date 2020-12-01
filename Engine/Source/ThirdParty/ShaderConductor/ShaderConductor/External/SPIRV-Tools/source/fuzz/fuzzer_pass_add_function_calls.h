@@ -25,7 +25,7 @@ namespace fuzz {
 class FuzzerPassAddFunctionCalls : public FuzzerPass {
  public:
   FuzzerPassAddFunctionCalls(
-      opt::IRContext* ir_context, FactManager* fact_manager,
+      opt::IRContext* ir_context, TransformationContext* transformation_context,
       FuzzerContext* fuzzer_context,
       protobufs::TransformationSequence* transformations);
 
@@ -34,14 +34,6 @@ class FuzzerPassAddFunctionCalls : public FuzzerPass {
   void Apply() override;
 
  private:
-  // Identify all instructions available at |instr_it|, in block |block| of
-  // |function|, that are potentially suitable as function call actual
-  // parameters.  The results are grouped by type.
-  std::map<uint32_t, std::vector<opt::Instruction*>>
-  GetAvailableInstructionsSuitableForActualParameters(
-      opt::Function* function, opt::BasicBlock* block,
-      const opt::BasicBlock::iterator& inst_it);
-
   // Randomly chooses suitable arguments to invoke |callee| right before
   // instruction |caller_inst_it| of block |caller_block| in |caller_function|,
   // based on both existing available instructions and the addition of new

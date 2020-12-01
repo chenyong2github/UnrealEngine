@@ -34,23 +34,22 @@ TransformationAddLocalVariable::TransformationAddLocalVariable(
 }
 
 bool TransformationAddLocalVariable::IsApplicable(
-    opt::IRContext* context,
-    const spvtools::fuzz::FactManager& /*unused*/) const {
+    opt::IRContext* ir_context, const TransformationContext& /*unused*/) const {
   // The provided id must be fresh.
-  if (!fuzzerutil::IsFreshId(context, message_.fresh_id())) {
+  if (!fuzzerutil::IsFreshId(ir_context, message_.fresh_id())) {
     return false;
   }
   // The pointer type id must indeed correspond to a pointer, and it must have
   // function storage class.
   auto type_instruction =
-      context->get_def_use_mgr()->GetDef(message_.type_id());
+      ir_context->get_def_use_mgr()->GetDef(message_.type_id());
   if (!type_instruction || type_instruction->opcode() != SpvOpTypePointer ||
       type_instruction->GetSingleWordInOperand(0) != SpvStorageClassFunction) {
     return false;
   }
   // The initializer must...
   auto initializer_instruction =
-      context->get_def_use_mgr()->GetDef(message_.initializer_id());
+      ir_context->get_def_use_mgr()->GetDef(message_.initializer_id());
   // ... exist, ...
   if (!initializer_instruction) {
     return false;
@@ -65,33 +64,33 @@ bool TransformationAddLocalVariable::IsApplicable(
     return false;
   }
   // The function to which the local variable is to be added must exist.
-  return fuzzerutil::FindFunction(context, message_.function_id());
+  return fuzzerutil::FindFunction(ir_context, message_.function_id());
 }
 
 void TransformationAddLocalVariable::Apply(
-    opt::IRContext* context, spvtools::fuzz::FactManager* fact_manager) const {
-  fuzzerutil::UpdateModuleIdBound(context, message_.fresh_id());
-  fuzzerutil::FindFunction(context, message_.function_id())
-      ->begin()
-      ->begin()
-      ->InsertBefore(MakeUnique<opt::Instruction>(
-          context, SpvOpVariable, message_.type_id(), message_.fresh_id(),
-          opt::Instruction::OperandList(
-              {{SPV_OPERAND_TYPE_STORAGE_CLASS,
-                {
+    opt::IRContext* ir_context,
+    TransformationContext* transformation_context) const {
+  fuzzerutil::AddLocalVariable(ir_context, message_.fresh_id(),
+                               message_.type_id(), message_.function_id(),
+                               message_.initializer_id());
 
-                    SpvStorageClassFunction}},
-               {SPV_OPERAND_TYPE_ID, {message_.initializer_id()}}})));
+  ir_context->InvalidateAnalysesExceptFor(opt::IRContext::kAnalysisNone);
+
   if (message_.value_is_irrelevant()) {
-    fact_manager->AddFactValueOfPointeeIsIrrelevant(message_.fresh_id());
+    transformation_context->GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
+        message_.fresh_id());
   }
-  context->InvalidateAnalysesExceptFor(opt::IRContext::kAnalysisNone);
 }
 
 protobufs::Transformation TransformationAddLocalVariable::ToMessage() const {
   protobufs::Transformation result;
   *result.mutable_add_local_variable() = message_;
   return result;
+}
+
+std::unordered_set<uint32_t> TransformationAddLocalVariable::GetFreshIds()
+    const {
+  return {message_.fresh_id()};
 }
 
 }  // namespace fuzz

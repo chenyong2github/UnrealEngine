@@ -19,35 +19,48 @@
 #include "source/fuzz/id_use_descriptor.h"
 #include "source/fuzz/instruction_descriptor.h"
 #include "source/fuzz/transformation_composite_extract.h"
+#include "source/fuzz/transformation_compute_data_synonym_fact_closure.h"
 #include "source/fuzz/transformation_replace_id_with_synonym.h"
 
 namespace spvtools {
 namespace fuzz {
 
 FuzzerPassApplyIdSynonyms::FuzzerPassApplyIdSynonyms(
-    opt::IRContext* ir_context, FactManager* fact_manager,
+    opt::IRContext* ir_context, TransformationContext* transformation_context,
     FuzzerContext* fuzzer_context,
     protobufs::TransformationSequence* transformations)
-    : FuzzerPass(ir_context, fact_manager, fuzzer_context, transformations) {}
+    : FuzzerPass(ir_context, transformation_context, fuzzer_context,
+                 transformations) {}
 
 FuzzerPassApplyIdSynonyms::~FuzzerPassApplyIdSynonyms() = default;
 
 void FuzzerPassApplyIdSynonyms::Apply() {
-  for (auto id_with_known_synonyms :
-       GetFactManager()->GetIdsForWhichSynonymsAreKnown(GetIRContext())) {
-    // Gather up all uses of |id_with_known_synonym|, and then subsequently
-    // iterate over these uses.  We use this separation because, when
-    // considering a given use, we might apply a transformation that will
+  // Compute a closure of data synonym facts, to enrich the pool of synonyms
+  // that are available.
+  ApplyTransformation(TransformationComputeDataSynonymFactClosure(
+      GetFuzzerContext()
+          ->GetMaximumEquivalenceClassSizeForDataSynonymFactClosure()));
+
+  for (auto id_with_known_synonyms : GetTransformationContext()
+                                         ->GetFactManager()
+                                         ->GetIdsForWhichSynonymsAreKnown()) {
+    // Gather up all uses of |id_with_known_synonym| as a regular id, and
+    // subsequently iterate over these uses.  We use this separation because,
+    // when considering a given use, we might apply a transformation that will
     // invalidate the def-use manager.
     std::vector<std::pair<opt::Instruction*, uint32_t>> uses;
     GetIRContext()->get_def_use_mgr()->ForEachUse(
         id_with_known_synonyms,
         [&uses](opt::Instruction* use_inst, uint32_t use_index) -> void {
-          uses.emplace_back(
-              std::pair<opt::Instruction*, uint32_t>(use_inst, use_index));
+          // We only gather up regular id uses; e.g. we do not include a use of
+          // the id as the scope for an atomic operation.
+          if (use_inst->GetOperand(use_index).type == SPV_OPERAND_TYPE_ID) {
+            uses.emplace_back(
+                std::pair<opt::Instruction*, uint32_t>(use_inst, use_index));
+          }
         });
 
-    for (auto& use : uses) {
+    for (const auto& use : uses) {
       auto use_inst = use.first;
       auto use_index = use.second;
       auto block_containing_use = GetIRContext()->get_instr_block(use_inst);
@@ -60,25 +73,31 @@ void FuzzerPassApplyIdSynonyms::Apply() {
         continue;
       }
       // |use_index| is the absolute index of the operand.  We require
-      // the index of the operand restricted to input operands only, so
-      // we subtract the number of non-input operands from |use_index|.
+      // the index of the operand restricted to input operands only.
       uint32_t use_in_operand_index =
-          use_index - use_inst->NumOperands() + use_inst->NumInOperands();
-      if (!TransformationReplaceIdWithSynonym::UseCanBeReplacedWithSynonym(
-              GetIRContext(), use_inst, use_in_operand_index)) {
+          fuzzerutil::InOperandIndexFromOperandIndex(*use_inst, use_index);
+      if (!fuzzerutil::IdUseCanBeReplaced(GetIRContext(),
+                                          *GetTransformationContext(), use_inst,
+                                          use_in_operand_index)) {
         continue;
       }
 
       std::vector<const protobufs::DataDescriptor*> synonyms_to_try;
-      for (auto& data_descriptor : GetFactManager()->GetSynonymsForId(
-               id_with_known_synonyms, GetIRContext())) {
+      for (const auto* data_descriptor :
+           GetTransformationContext()->GetFactManager()->GetSynonymsForId(
+               id_with_known_synonyms)) {
         protobufs::DataDescriptor descriptor_for_this_id =
             MakeDataDescriptor(id_with_known_synonyms, {});
         if (DataDescriptorEquals()(data_descriptor, &descriptor_for_this_id)) {
           // Exclude the fact that the id is synonymous with itself.
           continue;
         }
-        synonyms_to_try.push_back(data_descriptor);
+
+        if (DataDescriptorsHaveCompatibleTypes(
+                use_inst->opcode(), use_in_operand_index,
+                descriptor_for_this_id, *data_descriptor)) {
+          synonyms_to_try.push_back(data_descriptor);
+        }
       }
       while (!synonyms_to_try.empty()) {
         auto synonym_to_try =
@@ -129,11 +148,28 @@ void FuzzerPassApplyIdSynonyms::Apply() {
                                                : parent_block->terminator();
           }
 
+          if (GetTransformationContext()->GetFactManager()->BlockIsDead(
+                  GetIRContext()
+                      ->get_instr_block(instruction_to_insert_before)
+                      ->id())) {
+            // We cannot create a synonym via a composite extraction in a dead
+            // block, as the resulting id is irrelevant.
+            continue;
+          }
+
+          assert(!GetTransformationContext()->GetFactManager()->IdIsIrrelevant(
+                     synonym_to_try->object()) &&
+                 "Irrelevant ids can't participate in DataSynonym facts");
           ApplyTransformation(TransformationCompositeExtract(
               MakeInstructionDescriptor(GetIRContext(),
                                         instruction_to_insert_before),
               id_with_which_to_replace_use, synonym_to_try->object(),
               fuzzerutil::RepeatedFieldToVector(synonym_to_try->index())));
+          assert(GetTransformationContext()->GetFactManager()->IsSynonymous(
+                     MakeDataDescriptor(id_with_which_to_replace_use, {}),
+                     *synonym_to_try) &&
+                 "The extracted id must be synonymous with the component from "
+                 "which it was extracted.");
         }
 
         ApplyTransformation(TransformationReplaceIdWithSynonym(
@@ -144,6 +180,27 @@ void FuzzerPassApplyIdSynonyms::Apply() {
       }
     }
   }
+}
+
+bool FuzzerPassApplyIdSynonyms::DataDescriptorsHaveCompatibleTypes(
+    SpvOp opcode, uint32_t use_in_operand_index,
+    const protobufs::DataDescriptor& dd1,
+    const protobufs::DataDescriptor& dd2) {
+  auto base_object_type_id_1 =
+      fuzzerutil::GetTypeId(GetIRContext(), dd1.object());
+  auto base_object_type_id_2 =
+      fuzzerutil::GetTypeId(GetIRContext(), dd2.object());
+  assert(base_object_type_id_1 && base_object_type_id_2 &&
+         "Data descriptors are invalid");
+
+  auto type_id_1 = fuzzerutil::WalkCompositeTypeIndices(
+      GetIRContext(), base_object_type_id_1, dd1.index());
+  auto type_id_2 = fuzzerutil::WalkCompositeTypeIndices(
+      GetIRContext(), base_object_type_id_2, dd2.index());
+  assert(type_id_1 && type_id_2 && "Data descriptors have invalid types");
+
+  return TransformationReplaceIdWithSynonym::TypesAreCompatible(
+      GetIRContext(), opcode, use_in_operand_index, type_id_1, type_id_2);
 }
 
 }  // namespace fuzz
