@@ -31,7 +31,7 @@ namespace InternalBlueprintEditorLibrary
 	*/
 	static void ReplaceOldNodeWithNew(UEdGraphNode* OldNode, UEdGraphNode* NewNode)
 	{
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();\
+		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 
 		if (Schema && OldNode && NewNode)
 		{
