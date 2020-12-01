@@ -36,10 +36,11 @@
 #include <fstream>
 #include <memory>
 
+#include <dxc/DxilContainer/DxilContainer.h>
 #include <dxc/dxcapi.h>
-/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
+// UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
 #include <dxc/dxctools.h>
-/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+// UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
 #include <llvm/Support/ErrorHandling.h>
 
 #include <spirv-tools/libspirv.h>
@@ -48,6 +49,10 @@
 #include <spirv_glsl.hpp>
 #include <spirv_hlsl.hpp>
 #include <spirv_msl.hpp>
+
+#ifdef LLVM_ON_WIN32
+#include <d3d12shader.h>
+#endif
 
 #define SC_UNUSED(x) (void)(x);
 
@@ -80,13 +85,30 @@ namespace
         {
             return m_compiler;
         }
-		
-		/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-		IDxcRewriter* Rewriter() const
-		{
-			return m_rewriter;
-		}
-		/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+
+        // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+        IDxcRewriter* Rewriter() const
+        {
+            return m_rewriter;
+        }
+        // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+        IDxcContainerReflection* ContainerReflection() const
+        {
+            return m_containerReflection;
+        }
+
+        CComPtr<IDxcLinker> CreateLinker() const
+        {
+            CComPtr<IDxcLinker> linker;
+            IFT(m_createInstanceFunc(CLSID_DxcLinker, __uuidof(IDxcLinker), reinterpret_cast<void**>(&linker)));
+            return linker;
+        }
+
+        bool LinkerSupport() const
+        {
+            return m_linkerSupport;
+        }
 
         void Destroy()
         {
@@ -94,6 +116,7 @@ namespace
             {
                 m_compiler = nullptr;
                 m_library = nullptr;
+                m_containerReflection = nullptr;
 
                 m_createInstanceFunc = nullptr;
 
@@ -113,9 +136,10 @@ namespace
             {
                 m_compiler.Detach();
                 m_library.Detach();
-				/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-				m_rewriter.Detach();
-				/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+                m_containerReflection.Detach();
+                // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+                m_rewriter.Detach();
+                // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
 
                 m_createInstanceFunc = nullptr;
 
@@ -158,9 +182,11 @@ namespace
                 {
                     IFT(m_createInstanceFunc(CLSID_DxcLibrary, __uuidof(IDxcLibrary), reinterpret_cast<void**>(&m_library)));
                     IFT(m_createInstanceFunc(CLSID_DxcCompiler, __uuidof(IDxcCompiler), reinterpret_cast<void**>(&m_compiler)));
-					/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-					IFT(m_createInstanceFunc(CLSID_DxcRewriter, __uuidof(IDxcRewriter), reinterpret_cast<void**>(&m_rewriter)));
-					/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+                    IFT(m_createInstanceFunc(CLSID_DxcContainerReflection, __uuidof(IDxcContainerReflection),
+                                             reinterpret_cast<void**>(&m_containerReflection)));
+                    // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+                    IFT(m_createInstanceFunc(CLSID_DxcRewriter, __uuidof(IDxcRewriter), reinterpret_cast<void**>(&m_rewriter)));
+                    // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
                 }
                 else
                 {
@@ -173,6 +199,8 @@ namespace
             {
                 throw std::runtime_error("COULDN'T load dxcompiler.");
             }
+
+            m_linkerSupport = (CreateLinker() != nullptr);
         }
 
     private:
@@ -181,15 +209,18 @@ namespace
 
         CComPtr<IDxcLibrary> m_library;
         CComPtr<IDxcCompiler> m_compiler;
-		/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-		CComPtr<IDxcRewriter> m_rewriter;
-		/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+        CComPtr<IDxcContainerReflection> m_containerReflection;
+        // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+        CComPtr<IDxcRewriter> m_rewriter;
+        // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+        bool m_linkerSupport;
     };
 
     class ScIncludeHandler : public IDxcIncludeHandler
     {
     public:
-        explicit ScIncludeHandler(std::function<Blob*(const char* includeName)> loadCallback) : m_loadCallback(std::move(loadCallback))
+        explicit ScIncludeHandler(std::function<Blob(const char* includeName)> loadCallback) : m_loadCallback(std::move(loadCallback))
         {
         }
 
@@ -206,12 +237,10 @@ namespace
                 return E_FAIL;
             }
 
-            auto blobDeleter = [](Blob* blob) { DestroyBlob(blob); };
-
-            std::unique_ptr<Blob, decltype(blobDeleter)> source(nullptr, blobDeleter);
+            Blob source;
             try
             {
-                source.reset(m_loadCallback(utf8FileName.c_str()));
+                source = m_loadCallback(utf8FileName.c_str());
             }
             catch (...)
             {
@@ -219,8 +248,8 @@ namespace
             }
 
             *includeSource = nullptr;
-            return Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(
-                source->Data(), source->Size(), CP_UTF8, reinterpret_cast<IDxcBlobEncoding**>(includeSource));
+            return Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(source.Data(), source.Size(), CP_UTF8,
+                                                                                      reinterpret_cast<IDxcBlobEncoding**>(includeSource));
         }
 
         ULONG STDMETHODCALLTYPE AddRef() override
@@ -261,86 +290,60 @@ namespace
         }
 
     private:
-        std::function<Blob*(const char* includeName)> m_loadCallback;
+        std::function<Blob(const char* includeName)> m_loadCallback;
 
         std::atomic<ULONG> m_ref = 0;
     };
 
-    Blob* DefaultLoadCallback(const char* includeName)
+    Blob DefaultLoadCallback(const char* includeName)
     {
         std::vector<char> ret;
         std::ifstream includeFile(includeName, std::ios_base::in);
         if (includeFile)
         {
             includeFile.seekg(0, std::ios::end);
-            ret.resize(includeFile.tellg());
+            ret.resize(static_cast<size_t>(includeFile.tellg()));
             includeFile.seekg(0, std::ios::beg);
             includeFile.read(ret.data(), ret.size());
-            while (!ret.empty() && (ret.back() == '\0'))
-            {
-                ret.pop_back();
-            }
+            ret.resize(static_cast<size_t>(includeFile.gcount()));
         }
         else
         {
             throw std::runtime_error(std::string("COULDN'T load included file ") + includeName + ".");
         }
-        return CreateBlob(ret.data(), static_cast<uint32_t>(ret.size()));
+        return Blob(ret.data(), static_cast<uint32_t>(ret.size()));
     }
-
-    class ScBlob : public Blob
-    {
-    public:
-        ScBlob(const void* data, uint32_t size)
-            : data_(reinterpret_cast<const uint8_t*>(data), reinterpret_cast<const uint8_t*>(data) + size)
-        {
-        }
-
-        const void* Data() const override
-        {
-            return data_.data();
-        }
-
-        uint32_t Size() const override
-        {
-            return static_cast<uint32_t>(data_.size());
-        }
-
-    private:
-        std::vector<uint8_t> data_;
-    };
 
     void AppendError(Compiler::ResultDesc& result, const std::string& msg)
     {
         std::string errorMSg;
-        if (result.errorWarningMsg != nullptr)
+        if (result.errorWarningMsg.Size() != 0)
         {
-            errorMSg.assign(reinterpret_cast<const char*>(result.errorWarningMsg->Data()), result.errorWarningMsg->Size());
+            errorMSg.assign(reinterpret_cast<const char*>(result.errorWarningMsg.Data()), result.errorWarningMsg.Size());
         }
         if (!errorMSg.empty())
         {
             errorMSg += "\n";
         }
         errorMSg += msg;
-        DestroyBlob(result.errorWarningMsg);
-        result.errorWarningMsg = CreateBlob(errorMSg.data(), static_cast<uint32_t>(errorMSg.size()));
+        result.errorWarningMsg.Reset(errorMSg.data(), static_cast<uint32_t>(errorMSg.size()));
         result.hasError = true;
     }
-    
-    /* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
+
+    // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
     Compiler::ResultDesc RewriteHlsl(const Compiler::SourceDesc& source, const Compiler::Options& options)
     {
         CComPtr<IDxcBlobEncoding> sourceBlob;
-		IFT(Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(source.source, static_cast<UINT32>(strlen(source.source)),
-																			   CP_UTF8, &sourceBlob));
+        IFT(Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(source.source, static_cast<UINT32>(strlen(source.source)),
+                                                                               CP_UTF8, &sourceBlob));
         IFTARG(sourceBlob->GetBufferSize() >= 4);
-        
+
         std::wstring shaderNameUtf16;
         Unicode::UTF8ToUTF16String(source.fileName, &shaderNameUtf16);
-        
+
         std::wstring entryPointUtf16;
         Unicode::UTF8ToUTF16String(source.entryPoint, &entryPointUtf16);
-        
+
         std::vector<DxcDefine> dxcDefines;
         std::vector<std::wstring> dxcDefineStrings;
         // Need to reserve capacity so that small-string optimization does not
@@ -349,12 +352,12 @@ namespace
         for (size_t i = 0; i < source.numDefines; ++i)
         {
             const auto& define = source.defines[i];
-            
+
             std::wstring nameUtf16Str;
             Unicode::UTF8ToUTF16String(define.name, &nameUtf16Str);
             dxcDefineStrings.emplace_back(std::move(nameUtf16Str));
             const wchar_t* nameUtf16 = dxcDefineStrings.back().c_str();
-            
+
             const wchar_t* valueUtf16;
             if (define.value != nullptr)
             {
@@ -367,79 +370,184 @@ namespace
             {
                 valueUtf16 = nullptr;
             }
-            
-            dxcDefines.push_back({ nameUtf16, valueUtf16 });
+
+            dxcDefines.push_back({nameUtf16, valueUtf16});
         }
-        
+
         CComPtr<IDxcOperationResult> rewriteResult;
         CComPtr<IDxcIncludeHandler> includeHandler = new ScIncludeHandler(std::move(source.loadIncludeCallback));
-        IFT(Dxcompiler::Instance().Rewriter()->RewriteUnchangedWithInclude(sourceBlob,
-                                                                           shaderNameUtf16.c_str(),
-                                                                           dxcDefines.data(),
-                                                                           static_cast<UINT32>(dxcDefines.size()),
-                                                                           includeHandler,
-                                                                           0,
+        IFT(Dxcompiler::Instance().Rewriter()->RewriteUnchangedWithInclude(sourceBlob, shaderNameUtf16.c_str(), dxcDefines.data(),
+                                                                           static_cast<UINT32>(dxcDefines.size()), includeHandler, 0,
                                                                            &rewriteResult));
-        
+
         HRESULT statusRewrite;
         IFT(rewriteResult->GetStatus(&statusRewrite));
-		
-		Compiler::ResultDesc ret = {};
-		ret.isText = true;
-		ret.hasError = true;
 
-		if (SUCCEEDED(statusRewrite))
+        Compiler::ResultDesc ret = {};
+        ret.isText = true;
+        ret.hasError = true;
+
+        if (SUCCEEDED(statusRewrite))
         {
-			CComPtr<IDxcBlobEncoding> rewritten;
-			
-			CComPtr<IDxcBlobEncoding> temp;
+            CComPtr<IDxcBlobEncoding> rewritten;
+
+            CComPtr<IDxcBlobEncoding> temp;
             IFT(rewriteResult->GetResult((IDxcBlob**)&temp));
-            
+
             if (options.removeUnusedGlobals)
             {
-				CComPtr<IDxcOperationResult> removeUnusedGlobalsResult;
-                IFT(Dxcompiler::Instance().Rewriter()->RemoveUnusedGlobals(temp, entryPointUtf16.c_str(), dxcDefines.data(),
-                                                                           static_cast<UINT32>(dxcDefines.size()), &removeUnusedGlobalsResult));
-				IFT(removeUnusedGlobalsResult->GetStatus(&statusRewrite));
-                
+                CComPtr<IDxcOperationResult> removeUnusedGlobalsResult;
+                IFT(Dxcompiler::Instance().Rewriter()->RemoveUnusedGlobals(
+                    temp, entryPointUtf16.c_str(), dxcDefines.data(), static_cast<UINT32>(dxcDefines.size()), &removeUnusedGlobalsResult));
+                IFT(removeUnusedGlobalsResult->GetStatus(&statusRewrite));
+
                 if (SUCCEEDED(statusRewrite))
                 {
                     IFT(removeUnusedGlobalsResult->GetResult((IDxcBlob**)&rewritten));
-					ret.hasError = false;
-					ret.target = CreateBlob(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
+                    ret.hasError = false;
+                    ret.target.Reset(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
                 }
-				else
-				{
-					CComPtr<IDxcBlobEncoding> errorMsg;
-					IFT(removeUnusedGlobalsResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
-					ret.errorWarningMsg = CreateBlob(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
-				}
+                else
+                {
+                    CComPtr<IDxcBlobEncoding> errorMsg;
+                    IFT(removeUnusedGlobalsResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
+                    ret.errorWarningMsg.Reset(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
+                }
             }
-			else
-			{
-				IFT(rewriteResult->GetResult((IDxcBlob**)&rewritten));
-				ret.hasError = false;
-				ret.target = CreateBlob(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
-			}
+            else
+            {
+                IFT(rewriteResult->GetResult((IDxcBlob**)&rewritten));
+                ret.hasError = false;
+                ret.target.Reset(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
+            }
         }
-		else
-		{
-			CComPtr<IDxcBlobEncoding> errorMsg;
-			IFT(rewriteResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
-			ret.errorWarningMsg = CreateBlob(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
-		}
-        
+        else
+        {
+            CComPtr<IDxcBlobEncoding> errorMsg;
+            IFT(rewriteResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
+            ret.errorWarningMsg.Reset(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
+        }
+
         return ret;
     }
-    /* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+    // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
 
-    Compiler::ResultDesc CompileToBinary(const Compiler::SourceDesc& source, const Compiler::Options& options,
-                                         ShadingLanguage targetLanguage)
+#ifdef LLVM_ON_WIN32
+    template <typename T>
+    HRESULT CreateDxcReflectionFromBlob(IDxcBlob* dxilBlob, CComPtr<T>& outReflection)
     {
-        assert((targetLanguage == ShadingLanguage::Dxil) || (targetLanguage == ShadingLanguage::SpirV));
+        IDxcContainerReflection* containReflection = Dxcompiler::Instance().ContainerReflection();
+        IFT(containReflection->Load(dxilBlob));
 
+        uint32_t dxilPartIndex = ~0u;
+        IFT(containReflection->FindFirstPartKind(hlsl::DFCC_DXIL, &dxilPartIndex));
+        HRESULT result = containReflection->GetPartReflection(dxilPartIndex, __uuidof(T), reinterpret_cast<void**>(&outReflection));
+
+        return result;
+    }
+
+    void ShaderReflection(Compiler::ReflectionResultDesc& result, IDxcBlob* dxilBlob)
+    {
+        CComPtr<ID3D12ShaderReflection> shaderReflection;
+        IFT(CreateDxcReflectionFromBlob(dxilBlob, shaderReflection));
+
+        D3D12_SHADER_DESC shaderDesc;
+        shaderReflection->GetDesc(&shaderDesc);
+
+        std::vector<Compiler::ReflectionDesc> vecReflectionDescs;
+        for (uint32_t resourceIndex = 0; resourceIndex < shaderDesc.BoundResources; ++resourceIndex)
+        {
+            D3D12_SHADER_INPUT_BIND_DESC bindDesc;
+            shaderReflection->GetResourceBindingDesc(resourceIndex, &bindDesc);
+
+            Compiler::ReflectionDesc reflectionDesc{};
+
+            if (bindDesc.Type == D3D_SIT_CBUFFER || bindDesc.Type == D3D_SIT_TBUFFER)
+            {
+                ID3D12ShaderReflectionConstantBuffer* constantBuffer = shaderReflection->GetConstantBufferByName(bindDesc.Name);
+
+                D3D12_SHADER_BUFFER_DESC bufferDesc;
+                constantBuffer->GetDesc(&bufferDesc);
+
+                if (strcmp(bufferDesc.Name, "$Globals") == 0)
+                {
+                    for (uint32_t variableIndex = 0; variableIndex < bufferDesc.Variables; ++variableIndex)
+                    {
+                        ID3D12ShaderReflectionVariable* variable = constantBuffer->GetVariableByIndex(variableIndex);
+                        D3D12_SHADER_VARIABLE_DESC variableDesc;
+                        variable->GetDesc(&variableDesc);
+
+                        std::strncpy(reflectionDesc.name, variableDesc.Name,
+                                     std::min(std::strlen(variableDesc.Name) + 1, sizeof(reflectionDesc.name)));
+
+                        reflectionDesc.type = ShaderResourceType::Parameter;
+                        reflectionDesc.bufferBindPoint = bindDesc.BindPoint;
+                        reflectionDesc.bindPoint = variableDesc.StartOffset;
+                        reflectionDesc.bindCount = variableDesc.Size;
+                    }
+                }
+                else
+                {
+                    std::strncpy(reflectionDesc.name, bufferDesc.Name,
+                                 std::min(std::strlen(bufferDesc.Name) + 1, sizeof(reflectionDesc.name)));
+
+                    reflectionDesc.type = ShaderResourceType::ConstantBuffer;
+                    reflectionDesc.bufferBindPoint = bindDesc.BindPoint;
+                    reflectionDesc.bindPoint = 0;
+                    reflectionDesc.bindCount = 0;
+                }
+            }
+            else
+            {
+                switch (bindDesc.Type)
+                {
+                case D3D_SIT_TEXTURE:
+                    reflectionDesc.type = ShaderResourceType::Texture;
+                    break;
+
+                case D3D_SIT_SAMPLER:
+                    reflectionDesc.type = ShaderResourceType::Sampler;
+                    break;
+
+                case D3D_SIT_STRUCTURED:
+                case D3D_SIT_BYTEADDRESS:
+                    reflectionDesc.type = ShaderResourceType::ShaderResourceView;
+                    break;
+
+                case D3D_SIT_UAV_RWTYPED:
+                case D3D_SIT_UAV_RWSTRUCTURED:
+                case D3D_SIT_UAV_RWBYTEADDRESS:
+                case D3D_SIT_UAV_APPEND_STRUCTURED:
+                case D3D_SIT_UAV_CONSUME_STRUCTURED:
+                case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+                    reflectionDesc.type = ShaderResourceType::UnorderedAccessView;
+                    break;
+
+                default:
+                    llvm_unreachable("Unknown bind type.");
+                    break;
+                }
+
+                std::strncpy(reflectionDesc.name, bindDesc.Name, std::min(std::strlen(bindDesc.Name) + 1, sizeof(reflectionDesc.name)));
+
+                reflectionDesc.bufferBindPoint = 0;
+                reflectionDesc.bindPoint = bindDesc.BindPoint;
+                reflectionDesc.bindCount = bindDesc.BindCount;
+            }
+
+            vecReflectionDescs.push_back(reflectionDesc);
+        }
+
+        result.descCount = static_cast<uint32_t>(vecReflectionDescs.size());
+        result.descs.Reset(vecReflectionDescs.data(), sizeof(Compiler::ReflectionDesc) * result.descCount);
+        result.instructionCount = shaderDesc.InstructionCount;
+    }
+#endif
+
+    std::wstring ShaderProfileName(ShaderStage stage, Compiler::ShaderModel shaderModel)
+    {
         std::wstring shaderProfile;
-        switch (source.stage)
+        switch (stage)
         {
         case ShaderStage::VertexShader:
             shaderProfile = L"vs";
@@ -468,10 +576,77 @@ namespace
         default:
             llvm_unreachable("Invalid shader stage.");
         }
+
         shaderProfile.push_back(L'_');
-        shaderProfile.push_back(L'0' + options.shaderModel.major_ver);
+        shaderProfile.push_back(L'0' + shaderModel.major_ver);
         shaderProfile.push_back(L'_');
-        shaderProfile.push_back(L'0' + options.shaderModel.minor_ver);
+        shaderProfile.push_back(L'0' + shaderModel.minor_ver);
+
+        return shaderProfile;
+    }
+
+    void ConvertDxcResult(Compiler::ResultDesc& result, IDxcOperationResult* dxcResult, ShadingLanguage targetLanguage, bool asModule)
+    {
+        HRESULT status;
+        IFT(dxcResult->GetStatus(&status));
+
+        result.target.Reset();
+        result.errorWarningMsg.Reset();
+
+        CComPtr<IDxcBlobEncoding> errors;
+        IFT(dxcResult->GetErrorBuffer(&errors));
+        if (errors != nullptr)
+        {
+            result.errorWarningMsg.Reset(errors->GetBufferPointer(), static_cast<uint32_t>(errors->GetBufferSize()));
+            errors = nullptr;
+        }
+
+        result.hasError = true;
+        if (SUCCEEDED(status))
+        {
+            CComPtr<IDxcBlob> program;
+            IFT(dxcResult->GetResult(&program));
+            dxcResult = nullptr;
+            if (program != nullptr)
+            {
+                result.target.Reset(program->GetBufferPointer(), static_cast<uint32_t>(program->GetBufferSize()));
+                result.hasError = false;
+            }
+
+#ifdef LLVM_ON_WIN32
+            if ((targetLanguage == ShadingLanguage::Dxil) && !asModule)
+            {
+                // Gather reflection information only for ShadingLanguage::Dxil
+                ShaderReflection(result.reflection, program);
+            }
+#else
+            SC_UNUSED(targetLanguage);
+            SC_UNUSED(asModule);
+#endif
+        }
+    }
+
+    Compiler::ResultDesc CompileToBinary(const Compiler::SourceDesc& source, const Compiler::Options& options,
+                                         ShadingLanguage targetLanguage, bool asModule)
+    {
+        assert((targetLanguage == ShadingLanguage::Dxil) || (targetLanguage == ShadingLanguage::SpirV));
+
+        std::wstring shaderProfile;
+        if (asModule)
+        {
+            if (targetLanguage == ShadingLanguage::Dxil)
+            {
+                shaderProfile = L"lib_6_x";
+            }
+            else
+            {
+                llvm_unreachable("Spir-V module is not supported.");
+            }
+        }
+        else
+        {
+            shaderProfile = ShaderProfileName(source.stage, options.shaderModel);
+        }
 
         std::vector<DxcDefine> dxcDefines;
         std::vector<std::wstring> dxcDefineStrings;
@@ -500,12 +675,12 @@ namespace
                 valueUtf16 = nullptr;
             }
 
-            dxcDefines.push_back({ nameUtf16, valueUtf16 });
+            dxcDefines.push_back({nameUtf16, valueUtf16});
         }
 
         CComPtr<IDxcBlobEncoding> sourceBlob;
-        IFT(Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(source.source, static_cast<UINT32>(strlen(source.source)),
-                                                                               CP_UTF8, &sourceBlob));
+        IFT(Dxcompiler::Instance().Library()->CreateBlobWithEncodingOnHeapCopy(
+            source.source, static_cast<UINT32>(std::strlen(source.source)), CP_UTF8, &sourceBlob));
         IFTARG(sourceBlob->GetBufferSize() >= 4);
 
         std::wstring shaderNameUtf16;
@@ -520,16 +695,16 @@ namespace
         // See also https://antiagainst.github.io/post/hlsl-for-vulkan-matrices/
         if (options.packMatricesInRowMajor)
         {
-            dxcArgStrings.push_back(L"-Zpc");
+            dxcArgStrings.push_back(L"-Zpr");
         }
         else
         {
-            dxcArgStrings.push_back(L"-Zpr");
+            dxcArgStrings.push_back(L"-Zpc");
         }
 
         if (options.enable16bitTypes)
         {
-            if (options.shaderModel >= Compiler::ShaderModel{ 6, 2 })
+            if (options.shaderModel >= Compiler::ShaderModel{6, 2})
             {
                 dxcArgStrings.push_back(L"-enable-16bit-types");
             }
@@ -560,6 +735,34 @@ namespace
             }
         }
 
+        if (options.shiftAllCBuffersBindings > 0)
+        {
+            dxcArgStrings.push_back(L"-fvk-b-shift");
+            dxcArgStrings.push_back(std::to_wstring(options.shiftAllCBuffersBindings));
+            dxcArgStrings.push_back(L"all");
+        }
+
+        if (options.shiftAllUABuffersBindings > 0)
+        {
+            dxcArgStrings.push_back(L"-fvk-u-shift");
+            dxcArgStrings.push_back(std::to_wstring(options.shiftAllUABuffersBindings));
+            dxcArgStrings.push_back(L"all");
+        }
+
+        if (options.shiftAllSamplersBindings > 0)
+        {
+            dxcArgStrings.push_back(L"-fvk-s-shift");
+            dxcArgStrings.push_back(std::to_wstring(options.shiftAllSamplersBindings));
+            dxcArgStrings.push_back(L"all");
+        }
+
+        if (options.shiftAllTexturesBindings > 0)
+        {
+            dxcArgStrings.push_back(L"-fvk-t-shift");
+            dxcArgStrings.push_back(std::to_wstring(options.shiftAllTexturesBindings));
+            dxcArgStrings.push_back(L"all");
+        }
+
         switch (targetLanguage)
         {
         case ShadingLanguage::Dxil:
@@ -569,26 +772,27 @@ namespace
         case ShadingLanguage::Hlsl:
         case ShadingLanguage::Glsl:
         case ShadingLanguage::Essl:
-        case ShadingLanguage::Msl:
+        case ShadingLanguage::Msl_macOS:
+        case ShadingLanguage::Msl_iOS:
             dxcArgStrings.push_back(L"-spirv");
-			dxcArgStrings.push_back(L"-fvk-ue4-layout");
-			if (options.globalsAsPushConstants)
-				dxcArgStrings.push_back(L"-fvk-globals-push-constants");
-			/* UE Change Begin: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
-			if (targetLanguage != ShadingLanguage::Hlsl)
-				dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
-			/* UE Change End: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
-			/* UE Change Begin: Specify SPIRV reflection so that we retain semantic strings! */
-			dxcArgStrings.push_back(L"-fspv-reflect");
-			/* UE Change End: Specify SPIRV reflection so that we retain semantic strings! */
-			/* UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
-			if (targetLanguage == ShadingLanguage::Msl || options.enableFMAPass)
-				dxcArgStrings.push_back(L"-fspv-fusemuladd");
-			/* UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
-			/* UE Change Begin: Emit SPIRV debug info when asked to */
-			if (options.enableDebugInfo)
-				dxcArgStrings.push_back(L"-fspv-debug=line");
-			/* UE Change End: Emit SPIRV debug info when asked to */
+            // UE Change Begin: Use UE5 specific layout rules
+            dxcArgStrings.push_back(L"-fvk-ue5-layout");
+            // UE Change End: 
+            // UE Change Begin: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D.
+            if (targetLanguage != ShadingLanguage::Hlsl)
+                dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
+            // UE Change End: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D.
+            // UE Change Begin: Specify SPIRV reflection so that we retain semantic strings.
+            dxcArgStrings.push_back(L"-fspv-reflect");
+            // UE Change End: Specify SPIRV reflection so that we retain semantic strings.
+            // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
+            if (targetLanguage == ShadingLanguage::Msl_macOS || targetLanguage == ShadingLanguage::Msl_iOS || options.enableFMAPass)
+                dxcArgStrings.push_back(L"-fspv-fusemuladd");
+            // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
+            // UE Change Begin: Emit SPIRV debug info when asked to.
+            if (options.enableDebugInfo)
+                dxcArgStrings.push_back(L"-fspv-debug=line");
+            // UE Change End: Emit SPIRV debug info when asked to.
             break;
 
         default:
@@ -608,56 +812,20 @@ namespace
                                                        dxcArgs.data(), static_cast<UINT32>(dxcArgs.size()), dxcDefines.data(),
                                                        static_cast<UINT32>(dxcDefines.size()), includeHandler, &compileResult));
 
-        HRESULT status;
-        IFT(compileResult->GetStatus(&status));
-
-        Compiler::ResultDesc ret;
-
-        ret.target = nullptr;
-        ret.isText = false;
-        ret.errorWarningMsg = nullptr;
-
-        CComPtr<IDxcBlobEncoding> errors;
-        IFT(compileResult->GetErrorBuffer(&errors));
-        if (errors != nullptr)
-        {
-            if (errors->GetBufferSize() > 0)
-            {
-                ret.errorWarningMsg = CreateBlob(errors->GetBufferPointer(), static_cast<uint32_t>(errors->GetBufferSize()));
-            }
-            errors = nullptr;
-        }
-
-        ret.hasError = true;
-        if (SUCCEEDED(status))
-        {
-            CComPtr<IDxcBlob> program;
-            IFT(compileResult->GetResult(&program));
-            compileResult = nullptr;
-            if (program != nullptr)
-            {
-                ret.target = CreateBlob(program->GetBufferPointer(), static_cast<uint32_t>(program->GetBufferSize()));
-                ret.hasError = false;
-            }
-        }
+        Compiler::ResultDesc ret{};
+        ConvertDxcResult(ret, compileResult, targetLanguage, asModule);
 
         return ret;
     }
-/* UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
-} // namespace
 
-namespace ShaderConductor
-{
-    Compiler::ResultDesc Compiler::ConvertBinary(const Compiler::ResultDesc& binaryResult, const Compiler::SourceDesc& source,
-                                       const Compiler::TargetDesc& target)
-/* UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
+    Compiler::ResultDesc CrossCompile(const Compiler::ResultDesc& binaryResult, const Compiler::SourceDesc& source,
+                                      const Compiler::TargetDesc& target)
     {
         assert((target.language != ShadingLanguage::Dxil) && (target.language != ShadingLanguage::SpirV));
-        assert((binaryResult.target->Size() & (sizeof(uint32_t) - 1)) == 0);
+        assert((binaryResult.target.Size() & (sizeof(uint32_t) - 1)) == 0);
 
         Compiler::ResultDesc ret;
 
-        ret.target = nullptr;
         ret.errorWarningMsg = binaryResult.errorWarningMsg;
         ret.isText = true;
 
@@ -667,8 +835,8 @@ namespace ShaderConductor
             intVersion = std::stoi(target.version);
         }
 
-        const uint32_t* spirvIr = reinterpret_cast<const uint32_t*>(binaryResult.target->Data());
-        const size_t spirvSize = binaryResult.target->Size() / sizeof(uint32_t);
+        const uint32_t* spirvIr = reinterpret_cast<const uint32_t*>(binaryResult.target.Data());
+        const size_t spirvSize = binaryResult.target.Size() / sizeof(uint32_t);
 
         std::unique_ptr<spirv_cross::CompilerGLSL> compiler;
         bool combinedImageSamplers = false;
@@ -707,9 +875,40 @@ namespace ShaderConductor
             compiler = std::make_unique<spirv_cross::CompilerGLSL>(spirvIr, spirvSize);
             combinedImageSamplers = true;
             buildDummySampler = true;
+
+            // Legacy GLSL fixups
+            if (intVersion <= 300)
+            {
+                auto vars = compiler->get_active_interface_variables();
+                for (auto& var : vars)
+                {
+                    auto varClass = compiler->get_storage_class(var);
+
+                    // Make VS out and PS in variable names match
+                    if ((source.stage == ShaderStage::VertexShader) && (varClass == spv::StorageClass::StorageClassOutput))
+                    {
+                        auto name = compiler->get_name(var);
+                        if ((name.find("out_var_") == 0) || (name.find("out.var.") == 0))
+                        {
+                            name.replace(0, 8, "varying_");
+                            compiler->set_name(var, name);
+                        }
+                    }
+                    else if ((source.stage == ShaderStage::PixelShader) && (varClass == spv::StorageClass::StorageClassInput))
+                    {
+                        auto name = compiler->get_name(var);
+                        if ((name.find("in_var_") == 0) || (name.find("in.var.") == 0))
+                        {
+                            name.replace(0, 7, "varying_");
+                            compiler->set_name(var, name);
+                        }
+                    }
+                }
+            }
             break;
 
-        case ShadingLanguage::Msl:
+        case ShadingLanguage::Msl_macOS:
+        case ShadingLanguage::Msl_iOS:
             if (source.stage == ShaderStage::GeometryShader)
             {
                 AppendError(ret, "MSL doesn't have GS.");
@@ -761,32 +960,36 @@ namespace ShaderConductor
         }
         opts.es = (target.language == ShadingLanguage::Essl);
         opts.force_temporary = false;
-        opts.separate_shader_objects = (target.language != ShadingLanguage::Essl);
+        opts.separate_shader_objects = !opts.es;
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
         opts.vulkan_semantics = false;
-        opts.vertex.fixup_clipspace = (target.language == ShadingLanguage::Essl);
-        opts.vertex.flip_vert_y = (target.language == ShadingLanguage::Essl);
+        opts.vertex.fixup_clipspace = opts.es;
+        opts.vertex.flip_vert_y = opts.es;
         opts.vertex.support_nonzero_base_instance = true;
         compiler->set_common_options(opts);
 
+        // UE Change Begin: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
 		if (target.language == ShadingLanguage::Essl)
-		{
-			if (target.variableTypeRenameCallback)
-			{
-				compiler->set_variable_type_remap_callback([&target](const spirv_cross::SPIRType &, const std::string &var_name, std::string &name_of_type)
-				{
-					Blob* Result = target.variableTypeRenameCallback(var_name.c_str(), name_of_type.c_str());
-					if (Result)
-					{
-						name_of_type = (char const*)Result->Data();
-						DestroyBlob(Result);
-					}
-				});
-			}
-		}
-        else if (target.language == ShadingLanguage::Hlsl)
+        {
+            if (target.variableTypeRenameCallback)
+            {
+                compiler->set_variable_type_remap_callback(
+                    [&target](const spirv_cross::SPIRType&, const std::string& var_name, std::string& name_of_type)
+                    {
+                        Blob Result = target.variableTypeRenameCallback(var_name.c_str(), name_of_type.c_str());
+                        if (Result.Size() > 0)
+                        {
+                            name_of_type = (char const*)Result.Data();
+                        }
+                    }
+                );
+            }
+        }
+        else
+        // UE Change End: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
+        if (target.language == ShadingLanguage::Hlsl)
         {
             auto* hlslCompiler = static_cast<spirv_cross::CompilerHLSL*>(compiler.get());
             auto hlslOpts = hlslCompiler->get_hlsl_options();
@@ -808,7 +1011,7 @@ namespace ShaderConductor
 
             hlslCompiler->set_hlsl_options(hlslOpts);
         }
-        else if (target.language == ShadingLanguage::Msl)
+        else if ((target.language == ShadingLanguage::Msl_macOS) || (target.language == ShadingLanguage::Msl_iOS))
         {
             auto* mslCompiler = static_cast<spirv_cross::CompilerMSL*>(compiler.get());
             auto mslOpts = mslCompiler->get_msl_options();
@@ -816,127 +1019,132 @@ namespace ShaderConductor
             {
                 mslOpts.msl_version = opts.version;
             }
-			/* UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code */
-			if (target.platform != nullptr)
-			{
-				if (!strcmp(target.platform,"macOS"))
-				{
-					mslOpts.platform = spirv_cross::CompilerMSL::Options::macOS;
-				}
-				else
-				{
-					mslOpts.platform = spirv_cross::CompilerMSL::Options::iOS;
-				}
-			}
-			mslOpts.swizzle_texture_samples = false;
-			/* UE Change Begin: Ensure base vertex and instance indices start with zero if source language is HLSL */
-			mslOpts.enable_base_index_zero = true;
-			/* UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL */
+            mslOpts.swizzle_texture_samples = false;
+
+            // UE Change Begin: Ensure base vertex and instance indices start with zero if source language is HLSL.
+            mslOpts.enable_base_index_zero = true;
+            // UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL.
+
+            // UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code.
             for (unsigned i = 0; i < target.numOptions; i++)
-			{
+            {
                 auto& Define = target.options[i];
-				if (!strcmp(Define.name, "ios_support_base_vertex_instance"))
-				{
-					mslOpts.ios_support_base_vertex_instance = (std::stoi(Define.value) != 0);
-				}
-				if (!strcmp(Define.name, "swizzle_texture_samples"))
-				{
-					mslOpts.swizzle_texture_samples = (std::stoi(Define.value) != 0);
-				}
-				if (!strcmp(Define.name, "texel_buffer_texture_width"))
-				{
-					mslOpts.texel_buffer_texture_width = (uint32_t)std::stoi(Define.value);
-				}
-                /* UE Change Begin: Use Metal's native texture-buffer type for HLSL buffers. */
-				if (!strcmp(Define.name, "texture_buffer_native"))
-				{
-					mslOpts.texture_buffer_native = (std::stoi(Define.value) != 0);
+                if (!strcmp(Define.name, "ios_support_base_vertex_instance"))
+                {
+                    mslOpts.ios_support_base_vertex_instance = (std::stoi(Define.value) != 0);
                 }
-                /* UE Change End: Use Metal's native texture-buffer type for HLSL buffers. */
-                /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
-				if (!strcmp(Define.name, "ios_use_framebuffer_fetch_subpasses"))
-				{
-					mslOpts.ios_use_framebuffer_fetch_subpasses = (std::stoi(Define.value) != 0);
-				}
-                /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
-				/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-				if (!strcmp(Define.name, "enforce_storge_buffer_bounds"))
-				{
-					mslOpts.enforce_storge_buffer_bounds = (std::stoi(Define.value) != 0);
-				}
-				if (!strcmp(Define.name, "buffer_size_buffer_index"))
-				{
-					mslOpts.buffer_size_buffer_index = (uint32_t)std::stoi(Define.value);
-				}
-				/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-				/* UE Change Begin: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
-				if (!strcmp(Define.name, "capture_output_to_buffer"))
-				{
-					mslOpts.capture_output_to_buffer = (std::stoi(Define.value) != 0);
-				}
-				if (!strcmp(Define.name, "shader_output_buffer_index"))
-				{
-					mslOpts.shader_output_buffer_index = (uint32_t)std::stoi(Define.value);
-				}
-				/* UE Change End: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
-				/* UE Change Begin: Allow the caller to specify the various auxiliary Metal buffer indices */
-				if (!strcmp(Define.name, "indirect_params_buffer_index"))
-				{
-					mslOpts.indirect_params_buffer_index = (uint32_t)std::stoi(Define.value);
-				}
-				if (!strcmp(Define.name, "shader_patch_output_buffer_index"))
-				{
-					mslOpts.shader_patch_output_buffer_index = (uint32_t)std::stoi(Define.value);
-				}
-				if (!strcmp(Define.name, "shader_tess_factor_buffer_index"))
-				{
-					mslOpts.shader_tess_factor_buffer_index = (uint32_t)std::stoi(Define.value);
-				}
-				if (!strcmp(Define.name, "shader_input_wg_index"))
-				{
-					mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
-				}
-				/* UE Change End: Allow the caller to specify the various auxiliary Metal buffer indices */
-				/* UE Change Begin: Allow the caller to specify the Metal translation should use argument buffers */
-				if (!strcmp(Define.name, "argument_buffers"))
-				{
-					mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
-				}
-				if (!strcmp(Define.name, "argument_buffer_offset"))
-				{
-					mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
-				}
-				/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
-				if (!strcmp(Define.name, "invariant_float_math"))
-				{
-					mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
-				}
-				/* UE Change Begin: Emulate texturecube_array with texture2d_array for iOS where this type is not available */
-				if (!strcmp(Define.name, "emulate_cube_array"))
-				{
-					mslOpts.emulate_cube_array = (std::stoi(Define.value) != 0);
-				}
-				/* UE Change End: Emulate texturecube_array with texture2d_array for iOS where this type is not available */
-				/* UE Change Begin: Allow user to enable decoration binding */
-				if (!strcmp(Define.name, "enable_decoration_binding"))
-				{
-					mslOpts.enable_decoration_binding = (std::stoi(Define.value) != 0);
-				}
-				/* UE Change End: Allow user to enable decoration binding */
-				/* UE Change Begin: Specify dimension of subpass input attachments */
-				static const char* subpassInputDimIdent = "subpass_input_dimension";
-				static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
-				if (!strncmp(Define.name, subpassInputDimIdent, subpassInputDimIdentLen))
-				{
-					int binding = std::stoi(Define.name + subpassInputDimIdentLen);
-					mslOpts.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(Define.value);
-				}
-				/* UE Change End: Specify dimension of subpass input attachments */
-			}
-			
-			mslCompiler->set_msl_options(mslOpts);
-			/* UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code */
-        }
+                if (!strcmp(Define.name, "swizzle_texture_samples"))
+                {
+                    mslOpts.swizzle_texture_samples = (std::stoi(Define.value) != 0);
+                }
+                if (!strcmp(Define.name, "texel_buffer_texture_width"))
+                {
+                    mslOpts.texel_buffer_texture_width = (uint32_t)std::stoi(Define.value);
+                }
+                // Use Metal's native texture-buffer type for HLSL buffers.
+                if (!strcmp(Define.name, "texture_buffer_native"))
+                {
+                    mslOpts.texture_buffer_native = (std::stoi(Define.value) != 0);
+                }
+                // Use Metal's native frame-buffer fetch API for subpass inputs.
+                if (!strcmp(Define.name, "use_framebuffer_fetch_subpasses"))
+                {
+                    mslOpts.use_framebuffer_fetch_subpasses = (std::stoi(Define.value) != 0);
+                }
+                // Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
+                if (!strcmp(Define.name, "enforce_storge_buffer_bounds"))
+                {
+                    mslOpts.enforce_storge_buffer_bounds = (std::stoi(Define.value) != 0);
+                }
+                if (!strcmp(Define.name, "buffer_size_buffer_index"))
+                {
+                    mslOpts.buffer_size_buffer_index = (uint32_t)std::stoi(Define.value);
+                }
+                // Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
+                if (!strcmp(Define.name, "capture_output_to_buffer"))
+                {
+                    mslOpts.capture_output_to_buffer = (std::stoi(Define.value) != 0);
+                }
+                if (!strcmp(Define.name, "shader_output_buffer_index"))
+                {
+                    mslOpts.shader_output_buffer_index = (uint32_t)std::stoi(Define.value);
+                }
+                // Allow the caller to specify the various auxiliary Metal buffer indices.
+                if (!strcmp(Define.name, "indirect_params_buffer_index"))
+                {
+                    mslOpts.indirect_params_buffer_index = (uint32_t)std::stoi(Define.value);
+                }
+                if (!strcmp(Define.name, "shader_patch_output_buffer_index"))
+                {
+                    mslOpts.shader_patch_output_buffer_index = (uint32_t)std::stoi(Define.value);
+                }
+                if (!strcmp(Define.name, "shader_tess_factor_buffer_index"))
+                {
+                    mslOpts.shader_tess_factor_buffer_index = (uint32_t)std::stoi(Define.value);
+                }
+                if (!strcmp(Define.name, "shader_input_wg_index"))
+                {
+                    mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
+                }
+                // Allow the caller to specify the Metal translation should use argument buffers.
+                if (!strcmp(Define.name, "argument_buffers"))
+                {
+                    mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
+                }
+                if (!strcmp(Define.name, "argument_buffer_offset"))
+                {
+                    mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
+                }
+                if (!strcmp(Define.name, "invariant_float_math"))
+                {
+                    mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
+                }
+                // Emulate texturecube_array with texture2d_array for iOS where this type is not available.
+                if (!strcmp(Define.name, "emulate_cube_array"))
+                {
+                    mslOpts.emulate_cube_array = (std::stoi(Define.value) != 0);
+                }
+                // Allow user to enable decoration binding.
+                if (!strcmp(Define.name, "enable_decoration_binding"))
+                {
+                    mslOpts.enable_decoration_binding = (std::stoi(Define.value) != 0);
+                }
+                // Specify dimension of subpass input attachments.
+                static const char* subpassInputDimIdent = "subpass_input_dimension";
+                static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
+                if (!strncmp(Define.name, subpassInputDimIdent, subpassInputDimIdentLen))
+                {
+                    int binding = std::stoi(Define.name + subpassInputDimIdentLen);
+                    mslOpts.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(Define.value);
+                }
+            }
+            // UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code.
+
+            mslOpts.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
+                                                                             : spirv_cross::CompilerMSL::Options::macOS;
+
+            mslCompiler->set_msl_options(mslOpts);
+
+			// UE Change Begin: Don't re-assign binding slots. This is done with SPIRV-Reflect.
+#if 0
+            const auto& resources = mslCompiler->get_shader_resources();
+
+            uint32_t textureBinding = 0;
+            for (const auto& image : resources.separate_images)
+            {
+                mslCompiler->set_decoration(image.id, spv::DecorationBinding, textureBinding);
+                ++textureBinding;
+            }
+
+            uint32_t samplerBinding = 0;
+            for (const auto& sampler : resources.separate_samplers)
+            {
+                mslCompiler->set_decoration(sampler.id, spv::DecorationBinding, samplerBinding);
+                ++samplerBinding;
+            }
+#endif
+			// UE Change End: Don't re-assign binding slots. This is done with SPIRV-Reflect.
+		}
 
         if (buildDummySampler)
         {
@@ -973,33 +1181,154 @@ namespace ShaderConductor
         try
         {
             const std::string targetStr = compiler->compile();
-            ret.target = CreateBlob(targetStr.data(), static_cast<uint32_t>(targetStr.size()));
+            ret.target.Reset(targetStr.data(), static_cast<uint32_t>(targetStr.size()));
             ret.hasError = false;
+            ret.reflection.descs.Reset(binaryResult.reflection.descs.Data(),
+                                       sizeof(Compiler::ReflectionDesc) * binaryResult.reflection.descCount);
+            ret.reflection.descCount = binaryResult.reflection.descCount;
+            ret.reflection.instructionCount = binaryResult.reflection.instructionCount;
         }
         catch (spirv_cross::CompilerError& error)
         {
             const char* errorMsg = error.what();
-            DestroyBlob(ret.errorWarningMsg);
-            ret.errorWarningMsg = CreateBlob(errorMsg, static_cast<uint32_t>(strlen(errorMsg)));
+            ret.errorWarningMsg.Reset(errorMsg, static_cast<uint32_t>(std::strlen(errorMsg)));
             ret.hasError = true;
         }
 
         return ret;
     }
-    
-/* UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
-/* UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
-    
-    Blob::~Blob() = default;
 
-    Blob* CreateBlob(const void* data, uint32_t size)
+// UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
+} // namespace
+namespace ShaderConductor
+{
+// UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
+
+    Compiler::ResultDesc Compiler::ConvertBinary(const Compiler::ResultDesc& binaryResult, const Compiler::SourceDesc& source,
+                                       const Compiler::TargetDesc& target)
     {
-        return new ScBlob(data, size);
+        if (!binaryResult.hasError)
+        {
+            if (target.asModule)
+            {
+                return binaryResult;
+            }
+            else
+            {
+                switch (target.language)
+                {
+                case ShadingLanguage::Dxil:
+                case ShadingLanguage::SpirV:
+                    return binaryResult;
+
+                case ShadingLanguage::Hlsl:
+                case ShadingLanguage::Glsl:
+                case ShadingLanguage::Essl:
+                case ShadingLanguage::Msl_macOS:
+                case ShadingLanguage::Msl_iOS:
+                    return CrossCompile(binaryResult, source, target);
+
+                default:
+                    llvm_unreachable("Invalid shading language.");
+                    break;
+                }
+            }
+        }
+        else
+        {
+            return binaryResult;
+        }
+    }
+} // namespace
+
+namespace ShaderConductor
+{
+    class Blob::BlobImpl
+    {
+    public:
+        BlobImpl(const void* data, uint32_t size) noexcept
+            : m_data(reinterpret_cast<const uint8_t*>(data), reinterpret_cast<const uint8_t*>(data) + size)
+        {
+        }
+
+        const void* Data() const noexcept
+        {
+            return m_data.data();
+        }
+
+        uint32_t Size() const noexcept
+        {
+            return static_cast<uint32_t>(m_data.size());
+        }
+
+    private:
+        std::vector<uint8_t> m_data;
+    };
+
+    Blob::Blob() noexcept = default;
+
+    Blob::Blob(const void* data, uint32_t size)
+    {
+        this->Reset(data, size);
     }
 
-    void DestroyBlob(Blob* blob)
+    Blob::Blob(const Blob& other)
     {
-        delete blob;
+        this->Reset(other.Data(), other.Size());
+    }
+
+    Blob::Blob(Blob&& other) noexcept : m_impl(std::move(other.m_impl))
+    {
+        other.m_impl = nullptr;
+    }
+
+    Blob::~Blob() noexcept
+    {
+        delete m_impl;
+    }
+
+    Blob& Blob::operator=(const Blob& other)
+    {
+        if (this != &other)
+        {
+            this->Reset(other.Data(), other.Size());
+        }
+        return *this;
+    }
+
+    Blob& Blob::operator=(Blob&& other) noexcept
+    {
+        if (this != &other)
+        {
+            m_impl = std::move(other.m_impl);
+            other.m_impl = nullptr;
+        }
+        return *this;
+    }
+
+    void Blob::Reset()
+    {
+        delete m_impl;
+        m_impl = nullptr;
+    }
+
+    void Blob::Reset(const void* data, uint32_t size)
+    {
+        this->Reset();
+        if ((data != nullptr) && (size > 0))
+        {
+            m_impl = new BlobImpl(data, size);
+        }
+    }
+
+    const void* Blob::Data() const noexcept
+    {
+        return m_impl ? m_impl->Data() : nullptr;
+    }
+
+    uint32_t Blob::Size() const noexcept
+    {
+        return m_impl ? m_impl->Size() : 0;
     }
 
     Compiler::ResultDesc Compiler::Compile(const SourceDesc& source, const Options& options, const TargetDesc& target)
@@ -1013,7 +1342,7 @@ namespace ShaderConductor
                            ResultDesc* results)
     {
         SourceDesc sourceOverride = source;
-        if (!sourceOverride.entryPoint || (strlen(sourceOverride.entryPoint) == 0))
+        if (!sourceOverride.entryPoint || (std::strlen(sourceOverride.entryPoint) == 0))
         {
             sourceOverride.entryPoint = "main";
         }
@@ -1023,12 +1352,17 @@ namespace ShaderConductor
         }
 
         bool hasDxil = false;
+        bool hasDxilModule = false;
         bool hasSpirV = false;
         for (uint32_t i = 0; i < numTargets; ++i)
         {
             if (targets[i].language == ShadingLanguage::Dxil)
             {
                 hasDxil = true;
+                if (targets[i].asModule)
+                {
+                    hasDxilModule = true;
+                }
             }
             else
             {
@@ -1039,62 +1373,41 @@ namespace ShaderConductor
         ResultDesc dxilBinaryResult{};
         if (hasDxil)
         {
-            dxilBinaryResult = CompileToBinary(sourceOverride, options, ShadingLanguage::Dxil);
+            dxilBinaryResult = CompileToBinary(sourceOverride, options, ShadingLanguage::Dxil, false);
+        }
+
+        ResultDesc dxilModuleBinaryResult{};
+        if (hasDxilModule)
+        {
+            dxilModuleBinaryResult = CompileToBinary(sourceOverride, options, ShadingLanguage::Dxil, true);
         }
 
         ResultDesc spirvBinaryResult{};
         if (hasSpirV)
         {
-            spirvBinaryResult = CompileToBinary(sourceOverride, options, ShadingLanguage::SpirV);
+            spirvBinaryResult = CompileToBinary(sourceOverride, options, ShadingLanguage::SpirV, false);
         }
 
         for (uint32_t i = 0; i < numTargets; ++i)
         {
-            ResultDesc binaryResult = targets[i].language == ShadingLanguage::Dxil ? dxilBinaryResult : spirvBinaryResult;
-            if (binaryResult.target)
+            ResultDesc binaryResult;
+            if (targets[i].language == ShadingLanguage::Dxil)
             {
-                binaryResult.target = CreateBlob(binaryResult.target->Data(), binaryResult.target->Size());
-            }
-            if (binaryResult.errorWarningMsg)
-            {
-                binaryResult.errorWarningMsg = CreateBlob(binaryResult.errorWarningMsg->Data(), binaryResult.errorWarningMsg->Size());
-            }
-            if (!binaryResult.hasError)
-            {
-                switch (targets[i].language)
+                if (targets[i].asModule)
                 {
-                case ShadingLanguage::Dxil:
-                case ShadingLanguage::SpirV:
-                    results[i] = binaryResult;
-                    break;
-
-                case ShadingLanguage::Hlsl:
-                case ShadingLanguage::Glsl:
-                case ShadingLanguage::Essl:
-                case ShadingLanguage::Msl:
-                    results[i] = ConvertBinary(binaryResult, sourceOverride, targets[i]);
-                    break;
-
-                default:
-                    llvm_unreachable("Invalid shading language.");
-                    break;
+                    binaryResult = dxilModuleBinaryResult;
+                }
+                else
+                {
+                    binaryResult = dxilBinaryResult;
                 }
             }
             else
             {
-                results[i] = binaryResult;
+                binaryResult = spirvBinaryResult;
             }
-        }
 
-        if (hasDxil)
-        {
-            DestroyBlob(dxilBinaryResult.target);
-            DestroyBlob(dxilBinaryResult.errorWarningMsg);
-        }
-        if (hasSpirV)
-        {
-            DestroyBlob(spirvBinaryResult.target);
-            DestroyBlob(spirvBinaryResult.errorWarningMsg);
+            results[i] = ConvertBinary(binaryResult, sourceOverride, targets[i]);
         }
     }
 
@@ -1104,9 +1417,7 @@ namespace ShaderConductor
 
         Compiler::ResultDesc ret;
 
-        ret.target = nullptr;
         ret.isText = true;
-        ret.errorWarningMsg = nullptr;
 
         if (source.language == ShadingLanguage::SpirV)
         {
@@ -1123,14 +1434,14 @@ namespace ShaderConductor
 
             if (error)
             {
-                ret.errorWarningMsg = CreateBlob(diagnostic->error, static_cast<uint32_t>(strlen(diagnostic->error)));
+                ret.errorWarningMsg.Reset(diagnostic->error, static_cast<uint32_t>(std::strlen(diagnostic->error)));
                 ret.hasError = true;
                 spvDiagnosticDestroy(diagnostic);
             }
             else
             {
                 const std::string disassemble = text->str;
-                ret.target = CreateBlob(disassemble.data(), static_cast<uint32_t>(disassemble.size()));
+                ret.target.Reset(disassemble.data(), static_cast<uint32_t>(disassemble.size()));
                 ret.hasError = false;
             }
 
@@ -1145,7 +1456,8 @@ namespace ShaderConductor
 
             if (disassembly != nullptr)
             {
-                ret.target = CreateBlob(disassembly->GetBufferPointer(), static_cast<uint32_t>(disassembly->GetBufferSize()));
+                // Remove the tailing \0
+                ret.target.Reset(disassembly->GetBufferPointer(), static_cast<uint32_t>(disassembly->GetBufferSize() - 1));
                 ret.hasError = false;
             }
             else
@@ -1156,23 +1468,66 @@ namespace ShaderConductor
 
         return ret;
     }
-	
-	/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-	Compiler::ResultDesc Compiler::Rewrite(SourceDesc source, const Compiler::Options& options)
-	{
-		if (source.entryPoint == nullptr)
-		{
-			source.entryPoint = "main";
-		}
-		if (!source.loadIncludeCallback)
-		{
-			source.loadIncludeCallback = DefaultLoadCallback;
-		}
-		
-		auto ret = RewriteHlsl(source, options);
-		return ret;
-	}
-	/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+
+	// UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+    Compiler::ResultDesc Compiler::Rewrite(SourceDesc source, const Compiler::Options& options)
+    {
+        if (source.entryPoint == nullptr)
+        {
+            source.entryPoint = "main";
+        }
+        if (!source.loadIncludeCallback)
+        {
+            source.loadIncludeCallback = DefaultLoadCallback;
+        }
+        return RewriteHlsl(source, options);
+    }
+    // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+    bool Compiler::LinkSupport()
+    {
+        return Dxcompiler::Instance().LinkerSupport();
+    }
+
+    Compiler::ResultDesc Compiler::Link(const LinkDesc& modules, const Compiler::Options& options, const TargetDesc& target)
+    {
+        auto linker = Dxcompiler::Instance().CreateLinker();
+        IFTPTR(linker);
+
+        auto* library = Dxcompiler::Instance().Library();
+
+        std::vector<std::wstring> moduleNames(modules.numModules);
+        std::vector<const wchar_t*> moduleNamesUtf16(modules.numModules);
+        std::vector<CComPtr<IDxcBlobEncoding>> moduleBlobs(modules.numModules);
+        for (uint32_t i = 0; i < modules.numModules; ++i)
+        {
+            IFTARG(modules.modules[i] != nullptr);
+
+            IFT(library->CreateBlobWithEncodingOnHeapCopy(modules.modules[i]->target.Data(), modules.modules[i]->target.Size(), CP_UTF8,
+                                                          &moduleBlobs[i]));
+            IFTARG(moduleBlobs[i]->GetBufferSize() >= 4);
+
+            Unicode::UTF8ToUTF16String(modules.modules[i]->name, &moduleNames[i]);
+            moduleNamesUtf16[i] = moduleNames[i].c_str();
+            IFT(linker->RegisterLibrary(moduleNamesUtf16[i], moduleBlobs[i]));
+        }
+
+        std::wstring entryPointUtf16;
+        Unicode::UTF8ToUTF16String(modules.entryPoint, &entryPointUtf16);
+
+        const std::wstring shaderProfile = ShaderProfileName(modules.stage, options.shaderModel);
+        CComPtr<IDxcOperationResult> linkResult;
+        IFT(linker->Link(entryPointUtf16.c_str(), shaderProfile.c_str(), moduleNamesUtf16.data(),
+                         static_cast<UINT32>(moduleNamesUtf16.size()), nullptr, 0, &linkResult));
+
+        Compiler::ResultDesc binaryResult{};
+        ConvertDxcResult(binaryResult, linkResult, ShadingLanguage::Dxil, false);
+
+        Compiler::SourceDesc source{};
+        source.entryPoint = modules.entryPoint;
+        source.stage = modules.stage;
+        return ConvertBinary(binaryResult, source, target);
+    }
 } // namespace ShaderConductor
 
 #ifdef _WIN32

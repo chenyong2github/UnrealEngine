@@ -74,9 +74,22 @@ namespace ShaderConductor
         Hlsl,
         Glsl,
         Essl,
-        Msl,
+        Msl_macOS,
+        Msl_iOS,
 
         NumShadingLanguages,
+    };
+
+    enum class ShaderResourceType : uint32_t
+    {
+        ConstantBuffer,
+        Parameter,
+        Texture,
+        Sampler,
+        ShaderResourceView,
+        UnorderedAccessView,
+
+        NumShaderResourceType,
     };
 
     struct MacroDefine
@@ -88,14 +101,25 @@ namespace ShaderConductor
     class SC_API Blob
     {
     public:
-        virtual ~Blob();
+        Blob() noexcept;
+        Blob(const void* data, uint32_t size);
+        Blob(const Blob& other);
+        Blob(Blob&& other) noexcept;
+        ~Blob() noexcept;
 
-        virtual const void* Data() const = 0;
-        virtual uint32_t Size() const = 0;
+        Blob& operator=(const Blob& other);
+        Blob& operator=(Blob&& other) noexcept;
+
+        void Reset();
+        void Reset(const void* data, uint32_t size);
+
+        const void* Data() const noexcept;
+        uint32_t Size() const noexcept;
+
+    private:
+        class BlobImpl;
+        BlobImpl* m_impl = nullptr;
     };
-
-    SC_API Blob* CreateBlob(const void* data, uint32_t size);
-    SC_API void DestroyBlob(Blob* blob);
 
     class SC_API Compiler
     {
@@ -140,53 +164,94 @@ namespace ShaderConductor
             ShaderStage stage;
             const MacroDefine* defines;
             uint32_t numDefines;
-            std::function<Blob*(const char* includeName)> loadIncludeCallback;
+            std::function<Blob(const char* includeName)> loadIncludeCallback;
         };
 
         struct Options
         {
-            /* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
-            bool removeUnusedGlobals = false;
-            /* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
             bool packMatricesInRowMajor = true; // Experimental: Decide how a matrix get packed
-            bool enable16bitTypes = false; // Enable 16-bit types, such as half, uint16_t. Requires shader model 6.2+
-            bool enableDebugInfo = false; // Embed debug info into the binary
-            bool disableOptimizations = false; // Force to turn off optimizations. Ignore optimizationLevel below.
-			/* UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
-			bool enableFMAPass = false; // Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid reassociation
-			/* UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
-			bool globalsAsPushConstants = false;
+            bool enable16bitTypes = false;      // Enable 16-bit types, such as half, uint16_t. Requires shader model 6.2+
+            bool enableDebugInfo = false;       // Embed debug info into the binary
+            bool disableOptimizations = false;  // Force to turn off optimizations. Ignore optimizationLevel below.
+            // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
+            bool removeUnusedGlobals = false;
+            // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+            // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
+            bool enableFMAPass = false;
+            // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
 
             int optimizationLevel = 3; // 0 to 3, no optimization to most optimization
-            ShaderModel shaderModel = { 6, 0 };
+            ShaderModel shaderModel = {6, 0};
+
+            int shiftAllTexturesBindings = 0;
+            int shiftAllSamplersBindings = 0;
+            int shiftAllCBuffersBindings = 0;
+            int shiftAllUABuffersBindings = 0;
         };
 
         struct TargetDesc
         {
             ShadingLanguage language;
             const char* version;
-            /* UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code */
-            const char* platform;
+            bool asModule;
+
+            // UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code.
             const MacroDefine* options;
             uint32_t numOptions;
-            /* UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code */
-			std::function<Blob*(const char* variableName, const char* typeName)> variableTypeRenameCallback;
+            // UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code.
+
+            // UE Change Begin: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
+            std::function<Blob(const char* variableName, const char* typeName)> variableTypeRenameCallback;
+            // UE Change End: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
+        };
+
+        struct ReflectionDesc
+        {
+            char name[256];           // Name of the resource
+            ShaderResourceType type;  // Type of resource (e.g. texture, cbuffer, etc.)
+            uint32_t bufferBindPoint; // Buffer's starting bind point
+            uint32_t bindPoint;       // Starting bind point
+            uint32_t bindCount;       // Number of contiguous bind points (for arrays)
+        };
+
+        struct ReflectionResultDesc
+        {
+            Blob descs; // The underneath type is ReflectionDesc
+            uint32_t descCount = 0;
+            uint32_t instructionCount = 0;
         };
 
         struct ResultDesc
         {
-            Blob* target;
+            Blob target;
             bool isText;
 
-            Blob* errorWarningMsg;
+            Blob errorWarningMsg;
             bool hasError;
+
+            ReflectionResultDesc reflection;
         };
 
         struct DisassembleDesc
         {
             ShadingLanguage language;
-            uint8_t* binary;
+            const uint8_t* binary;
             uint32_t binarySize;
+        };
+
+        struct ModuleDesc
+        {
+            const char* name;
+            Blob target;
+        };
+
+        struct LinkDesc
+        {
+            const char* entryPoint;
+            ShaderStage stage;
+
+            const ModuleDesc** modules;
+            uint32_t numModules;
         };
 
     public:
@@ -194,12 +259,17 @@ namespace ShaderConductor
         static void Compile(const SourceDesc& source, const Options& options, const TargetDesc* targets, uint32_t numTargets,
                             ResultDesc* results);
         static ResultDesc Disassemble(const DisassembleDesc& source);
-        /* UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
+
+        // UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
         static ResultDesc ConvertBinary(const ResultDesc& binaryResult, const SourceDesc& source, const TargetDesc& target);
-        /* UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities. */
-        /* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
+        // UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
+        // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
         static ResultDesc Rewrite(SourceDesc source, const Compiler::Options& options);
-        /* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
+        // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+        // Currently only Dxil on Windows supports linking
+        static bool LinkSupport();
+        static ResultDesc Link(const LinkDesc& modules, const Options& options, const TargetDesc& target);
     };
 } // namespace ShaderConductor
 

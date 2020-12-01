@@ -29,7 +29,7 @@
 
 using namespace ShaderConductor;
 
-void Compile(SourceDescription* source, TargetDescription* target, ResultDescription* result)
+void Compile(SourceDescription* source, OptionsDescription* optionsDesc, TargetDescription* target, ResultDescription* result)
 {
     Compiler::SourceDesc sourceDesc;
     sourceDesc.entryPoint = source->entryPoint;
@@ -40,8 +40,18 @@ void Compile(SourceDescription* source, TargetDescription* target, ResultDescrip
     sourceDesc.numDefines = 0;
 
     Compiler::Options options;
+    options.packMatricesInRowMajor = optionsDesc->packMatricesInRowMajor;
+    options.enable16bitTypes = optionsDesc->enable16bitTypes;
+    options.enableDebugInfo = optionsDesc->enableDebugInfo;
+    options.disableOptimizations = optionsDesc->disableOptimizations;
+    options.optimizationLevel = optionsDesc->optimizationLevel;
+    options.shaderModel = {static_cast<uint8_t>(optionsDesc->shaderModel.major), static_cast<uint8_t>(optionsDesc->shaderModel.minor)};
+    options.shiftAllTexturesBindings = optionsDesc->shiftAllTexturesBindings;
+    options.shiftAllSamplersBindings = optionsDesc->shiftAllSamplersBindings;
+    options.shiftAllCBuffersBindings = optionsDesc->shiftAllCBuffersBindings;
+    options.shiftAllUABuffersBindings = optionsDesc->shiftAllUABuffersBindings;
 
-    Compiler::TargetDesc targetDesc;
+    Compiler::TargetDesc targetDesc{};
     targetDesc.language = target->shadingLanguage;
     targetDesc.version = target->version;
 
@@ -49,13 +59,13 @@ void Compile(SourceDescription* source, TargetDescription* target, ResultDescrip
     {
         const auto translation = Compiler::Compile(sourceDesc, options, targetDesc);
 
-        if (translation.errorWarningMsg != nullptr)
+        if (translation.errorWarningMsg.Size() > 0)
         {
-            result->errorWarningMsg = reinterpret_cast<ShaderConductorBlob*>(translation.errorWarningMsg);
+            result->errorWarningMsg = CreateShaderConductorBlob(translation.errorWarningMsg.Data(), translation.errorWarningMsg.Size());
         }
-        if (translation.target != nullptr)
+        if (translation.target.Size() > 0)
         {
-            result->target = reinterpret_cast<ShaderConductorBlob*>(translation.target);
+            result->target = CreateShaderConductorBlob(translation.target.Data(), translation.target.Size());
         }
 
         result->hasError = translation.hasError;
@@ -78,13 +88,14 @@ void Disassemble(DisassembleDescription* source, ResultDescription* result)
 
     const auto disassembleResult = Compiler::Disassemble(disassembleSource);
 
-    if (disassembleResult.errorWarningMsg != nullptr)
+    if (disassembleResult.errorWarningMsg.Size() > 0)
     {
-        result->errorWarningMsg = reinterpret_cast<ShaderConductorBlob*>(disassembleResult.errorWarningMsg);
+        result->errorWarningMsg =
+            CreateShaderConductorBlob(disassembleResult.errorWarningMsg.Data(), disassembleResult.errorWarningMsg.Size());
     }
-    if (disassembleResult.target != nullptr)
+    if (disassembleResult.target.Size() > 0)
     {
-        result->target = reinterpret_cast<ShaderConductorBlob*>(disassembleResult.target);
+        result->target = CreateShaderConductorBlob(disassembleResult.target.Data(), disassembleResult.target.Size());
     }
 
     result->hasError = disassembleResult.hasError;
@@ -93,12 +104,12 @@ void Disassemble(DisassembleDescription* source, ResultDescription* result)
 
 ShaderConductorBlob* CreateShaderConductorBlob(const void* data, int size)
 {
-    return reinterpret_cast<ShaderConductorBlob*>(ShaderConductor::CreateBlob(data, size));
+    return reinterpret_cast<ShaderConductorBlob*>(new ShaderConductor::Blob(data, size));
 }
 
 void DestroyShaderConductorBlob(ShaderConductorBlob* blob)
 {
-    DestroyBlob(reinterpret_cast<Blob*>(blob));
+    delete reinterpret_cast<Blob*>(blob);
 }
 
 const void* GetShaderConductorBlobData(ShaderConductorBlob* blob)

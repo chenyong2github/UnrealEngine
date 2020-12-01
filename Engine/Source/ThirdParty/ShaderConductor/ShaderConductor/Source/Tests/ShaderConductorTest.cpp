@@ -49,31 +49,17 @@ namespace
         if (file)
         {
             file.seekg(0, std::ios::end);
-            ret.resize(file.tellg());
+            ret.resize(static_cast<size_t>(file.tellg()));
             file.seekg(0, std::ios::beg);
             file.read(reinterpret_cast<char*>(ret.data()), ret.size());
+            ret.resize(static_cast<size_t>(file.gcount()));
         }
         return ret;
-    }
-
-    void TrimTailingZeros(std::vector<uint8_t>* data)
-    {
-        assert(data != nullptr);
-
-        while (!data->empty() && (data->back() == '\0'))
-        {
-            data->pop_back();
-        }
     }
 
     void CompareWithExpected(const std::vector<uint8_t>& actual, bool isText, const std::string& compareName)
     {
         std::vector<uint8_t> expected = LoadFile(TEST_DATA_DIR "Expected/" + compareName, isText);
-        if (isText)
-        {
-            TrimTailingZeros(&expected);
-        }
-
         if (expected != actual)
         {
             if (!actual.empty())
@@ -86,15 +72,15 @@ namespace
                 std::ofstream actualFile(TEST_DATA_DIR "Result/" + compareName, mode);
                 actualFile.write(reinterpret_cast<const char*>(actual.data()), actual.size());
             }
-
-            EXPECT_TRUE(false);
         }
+
+        EXPECT_EQ(std::string(expected.begin(), expected.end()), std::string(actual.begin(), actual.end()));
     }
 
     void HlslToAnyTest(const std::string& name, const Compiler::SourceDesc& source, const Compiler::Options& options,
                        const std::vector<Compiler::TargetDesc>& targets, const std::vector<bool>& expectSuccessFlags)
     {
-        static const std::string extMap[] = { "dxil", "spv", "hlsl", "glsl", "essl", "msl" };
+        static const std::string extMap[] = {"dxil", "spv", "hlsl", "glsl", "essl", "msl", "msl"};
         static_assert(sizeof(extMap) / sizeof(extMap[0]) == static_cast<uint32_t>(ShadingLanguage::NumShadingLanguages),
                       "extMap doesn't match with the number of shading languages.");
 
@@ -106,7 +92,7 @@ namespace
             if (expectSuccessFlags[i])
             {
                 EXPECT_FALSE(result.hasError);
-                EXPECT_EQ(result.errorWarningMsg, nullptr);
+                EXPECT_EQ(result.errorWarningMsg.Size(), 0U);
                 EXPECT_TRUE(result.isText);
 
                 std::string compareName = name;
@@ -116,18 +102,28 @@ namespace
                 }
                 compareName += "." + extMap[static_cast<uint32_t>(targets[i].language)];
 
-                const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target->Data());
-                CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target->Size()), result.isText, compareName);
+                const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target.Data());
+                CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target.Size()), result.isText, compareName);
             }
             else
             {
                 EXPECT_TRUE(result.hasError);
-                EXPECT_EQ(result.target, nullptr);
+                EXPECT_EQ(result.target.Size(), 0U);
             }
-
-            DestroyBlob(result.errorWarningMsg);
-            DestroyBlob(result.target);
         }
+    }
+
+    Compiler::ModuleDesc CompileToModule(const char* moduleName, const std::string& inputFileName, const Compiler::TargetDesc& target)
+    {
+        std::vector<uint8_t> input = LoadFile(inputFileName, true);
+        const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
+
+        const auto result = Compiler::Compile({source.c_str(), inputFileName.c_str(), "", ShaderStage::PixelShader}, {}, target);
+
+        EXPECT_FALSE(result.hasError);
+        EXPECT_FALSE(result.isText);
+
+        return {moduleName, std::move(result.target)};
     }
 
     class TestBase : public testing::Test
@@ -149,7 +145,6 @@ namespace
                 source.fileName = std::get<2>(src).c_str();
 
                 std::vector<uint8_t> input = LoadFile(source.fileName, true);
-                TrimTailingZeros(&input);
                 std::get<3>(src) = std::string(reinterpret_cast<char*>(input.data()), input.size());
                 source.source = std::get<3>(src).c_str();
             }
@@ -191,7 +186,7 @@ namespace
             { ShadingLanguage::Essl, "300" },
             { ShadingLanguage::Essl, "310" },
 
-            { ShadingLanguage::Msl },
+            { ShadingLanguage::Msl_macOS },
         };
         // clang-format on
 
@@ -290,7 +285,7 @@ namespace
         }
 
     private:
-        std::vector<MacroDefine> defines_ = { { "FIXED_VERTEX_RADIUS", "5.0" } };
+        std::vector<MacroDefine> defines_ = {{"FIXED_VERTEX_RADIUS", "5.0"}};
     };
 
     class HullShaderTest : public TestBase
@@ -384,14 +379,13 @@ namespace
         const std::string fileName = TEST_DATA_DIR "Input/Transform_VS.hlsl";
 
         std::vector<uint8_t> input = LoadFile(fileName, true);
-        TrimTailingZeros(&input);
         const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
 
         Compiler::Options options;
         options.packMatricesInRowMajor = false;
 
-        HlslToAnyTest("Transform_VS_ColumnMajor", { source.c_str(), fileName.c_str(), nullptr, ShaderStage::VertexShader }, options,
-                      { { ShadingLanguage::Glsl, "300" } }, { true });
+        HlslToAnyTest("Transform_VS_ColumnMajor", {source.c_str(), fileName.c_str(), nullptr, ShaderStage::VertexShader}, options,
+                      {{ShadingLanguage::Glsl, "300"}}, {true});
     }
 
     TEST_F(VertexShaderTest, ToEssl)
@@ -401,7 +395,7 @@ namespace
 
     TEST_F(VertexShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
 
@@ -422,7 +416,7 @@ namespace
 
     TEST_F(PixelShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
 
@@ -443,7 +437,7 @@ namespace
 
     TEST_F(GeometryShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
 
@@ -464,7 +458,7 @@ namespace
 
     TEST_F(HullShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
 
@@ -485,7 +479,7 @@ namespace
 
     TEST_F(DomainShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
 
@@ -506,7 +500,7 @@ namespace
 
     TEST_F(ComputeShaderTest, ToMsl)
     {
-        RunTests(ShadingLanguage::Msl);
+        RunTests(ShadingLanguage::Msl_macOS);
     }
 
     TEST(IncludeTest, IncludeExist)
@@ -514,21 +508,17 @@ namespace
         const std::string fileName = TEST_DATA_DIR "Input/IncludeExist.hlsl";
 
         std::vector<uint8_t> input = LoadFile(fileName, true);
-        TrimTailingZeros(&input);
         const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
 
         const auto result =
-            Compiler::Compile({ source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader }, {}, { ShadingLanguage::Glsl, "30" });
+            Compiler::Compile({source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader}, {}, {ShadingLanguage::Glsl, "30"});
 
         EXPECT_FALSE(result.hasError);
-        EXPECT_EQ(result.errorWarningMsg, nullptr);
+        EXPECT_EQ(result.errorWarningMsg.Size(), 0U);
         EXPECT_TRUE(result.isText);
 
-        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target->Data());
-        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target->Size()), result.isText, "IncludeExist.glsl");
-
-        DestroyBlob(result.errorWarningMsg);
-        DestroyBlob(result.target);
+        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target.Data());
+        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target.Size()), result.isText, "IncludeExist.glsl");
     }
 
     TEST(IncludeTest, IncludeNotExist)
@@ -536,18 +526,14 @@ namespace
         const std::string fileName = TEST_DATA_DIR "Input/IncludeNotExist.hlsl";
 
         std::vector<uint8_t> input = LoadFile(fileName, true);
-        TrimTailingZeros(&input);
         const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
 
         const auto result =
-            Compiler::Compile({ source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader }, {}, { ShadingLanguage::Glsl, "30" });
+            Compiler::Compile({source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader}, {}, {ShadingLanguage::Glsl, "30"});
 
         EXPECT_TRUE(result.hasError);
-        const char* errorStr = reinterpret_cast<const char*>(result.errorWarningMsg->Data());
-        EXPECT_GE(std::string(errorStr, errorStr + result.errorWarningMsg->Size()).find("fatal error: 'Header.hlsli' file not found"), 0u);
-
-        DestroyBlob(result.errorWarningMsg);
-        DestroyBlob(result.target);
+        const char* errorStr = reinterpret_cast<const char*>(result.errorWarningMsg.Data());
+        EXPECT_GE(std::string(errorStr, errorStr + result.errorWarningMsg.Size()).find("fatal error: 'Header.hlsli' file not found"), 0U);
     }
 
     TEST(IncludeTest, IncludeEmptyFile)
@@ -555,21 +541,105 @@ namespace
         const std::string fileName = TEST_DATA_DIR "Input/IncludeEmptyHeader.hlsl";
 
         std::vector<uint8_t> input = LoadFile(fileName, true);
-        TrimTailingZeros(&input);
         const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
 
         const auto result =
-            Compiler::Compile({ source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader }, {}, { ShadingLanguage::Glsl, "30" });
+            Compiler::Compile({source.c_str(), fileName.c_str(), "main", ShaderStage::PixelShader}, {}, {ShadingLanguage::Glsl, "30"});
 
         EXPECT_FALSE(result.hasError);
-        EXPECT_EQ(result.errorWarningMsg, nullptr);
+        EXPECT_EQ(result.errorWarningMsg.Size(), 0U);
         EXPECT_TRUE(result.isText);
 
-        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target->Data());
-        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target->Size()), result.isText, "IncludeEmptyHeader.glsl");
+        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target.Data());
+        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target.Size()), result.isText, "IncludeEmptyHeader.glsl");
+    }
 
-        DestroyBlob(result.errorWarningMsg);
-        DestroyBlob(result.target);
+    TEST(HalfDataTypeTest, DotHalf)
+    {
+        const std::string fileName = TEST_DATA_DIR "Input/HalfDataType.hlsl";
+
+        std::vector<uint8_t> input = LoadFile(fileName, true);
+        const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
+
+        Compiler::Options option;
+        option.shaderModel = {6, 2};
+        option.enable16bitTypes = true;
+
+        const auto result = Compiler::Compile({source.c_str(), fileName.c_str(), "DotHalfPS", ShaderStage::PixelShader}, option,
+                                              {ShadingLanguage::Glsl, "30"});
+
+        EXPECT_FALSE(result.hasError);
+        EXPECT_TRUE(result.isText);
+
+        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target.Data());
+        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target.Size()), result.isText, "DotHalfPS.glsl");
+    }
+
+    TEST(HalfDataTypeTest, HalfOutParam)
+    {
+        const std::string fileName = TEST_DATA_DIR "Input/HalfDataType.hlsl";
+
+        std::vector<uint8_t> input = LoadFile(fileName, true);
+        const std::string source = std::string(reinterpret_cast<char*>(input.data()), input.size());
+
+        Compiler::Options option;
+        option.shaderModel = {6, 2};
+        option.enable16bitTypes = true;
+
+        const auto result = Compiler::Compile({source.c_str(), fileName.c_str(), "HalfOutParamPS", ShaderStage::PixelShader}, option,
+                                              {ShadingLanguage::Glsl, "30"});
+
+        EXPECT_FALSE(result.hasError);
+        EXPECT_TRUE(result.isText);
+
+        const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(result.target.Data());
+        CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + result.target.Size()), result.isText, "HalfOutParamPS.glsl");
+    }
+
+    TEST(LinkTest, LinkDxil)
+    {
+        if (!Compiler::LinkSupport())
+        {
+            GTEST_SKIP_("Link is not supported on this platform");
+        }
+
+        const Compiler::TargetDesc target = {ShadingLanguage::Dxil, "", true};
+        const Compiler::ModuleDesc dxilModules[] = {
+            CompileToModule("CalcLight", TEST_DATA_DIR "Input/CalcLight.hlsl", target),
+            CompileToModule("CalcLightDiffuse", TEST_DATA_DIR "Input/CalcLightDiffuse.hlsl", target),
+            CompileToModule("CalcLightDiffuseSpecular", TEST_DATA_DIR "Input/CalcLightDiffuseSpecular.hlsl", target),
+        };
+
+        const Compiler::ModuleDesc* testModules[][2] = {
+            {&dxilModules[0], &dxilModules[1]},
+            {&dxilModules[0], &dxilModules[2]},
+        };
+
+#ifdef NDEBUG
+        const std::string expectedNames[] = {"CalcLight+Diffuse.Release.dxilasm", "CalcLight+DiffuseSpecular.Release.dxilasm"};
+#else
+        const std::string expectedNames[] = {"CalcLight+Diffuse.Debug.dxilasm", "CalcLight+DiffuseSpecular.Debug.dxilasm"};
+#endif
+
+        for (size_t i = 0; i < 2; ++i)
+        {
+            const auto linkedResult =
+                Compiler::Link({"main", ShaderStage::PixelShader, testModules[i], sizeof(testModules[i]) / sizeof(testModules[i][0])}, {},
+                               {ShadingLanguage::Dxil, ""});
+
+            EXPECT_FALSE(linkedResult.hasError);
+            EXPECT_FALSE(linkedResult.isText);
+
+            Compiler::DisassembleDesc disasmDesc;
+            disasmDesc.binary = reinterpret_cast<const uint8_t*>(linkedResult.target.Data());
+            disasmDesc.binarySize = linkedResult.target.Size();
+            disasmDesc.language = ShadingLanguage::Dxil;
+            const auto disasmResult = Compiler::Disassemble(disasmDesc);
+
+            const uint8_t* target_ptr = reinterpret_cast<const uint8_t*>(disasmResult.target.Data());
+            CompareWithExpected(std::vector<uint8_t>(target_ptr, target_ptr + disasmResult.target.Size()), disasmResult.isText,
+                                expectedNames[i]);
+        }
     }
 } // namespace
 
