@@ -479,6 +479,11 @@ namespace UnrealBuildTool
 
 			CompileEnvironment.Definitions.Add("PLATFORM_LINUXAARCH64=" +
 				(Target.Platform == UnrealTargetPlatform.LinuxAArch64 ? "1" : "0"));
+
+			if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				CompileEnvironment.Definitions.Add("PLATFORM_DESKTOP=0");
+			}
 		}
 
 		/// <summary>
