@@ -33,6 +33,8 @@ enum class EClientRequestType : uint8
 	Abandon,
 	/** Remove members from an existing reservation */
 	ReservationRemoveMembers,
+	/** Add new reservation or Update existing one*/
+	AddOrUpdateReservation,
 };
 
 inline const TCHAR* ToString(EClientRequestType RequestType)
@@ -163,6 +165,21 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconClient : public AOnlineBeaconClient
 	 * @return true if the request able to be sent, false if it failed to send
 	 */
 	virtual bool RequestReservationUpdate(const FOnlineSessionSearchResult& DesiredHost, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd, bool bRemovePlayers = false);
+	
+	/**
+	* Sends a request to the remote host. 
+	* If there is an existing reservation it will update it in the host's session.
+	* Otherwise it will allow the specified members to reserve space in the host's session. 
+	* Note this request is async.
+	*
+	* @param ConnectInfoStr the URL of the server that the connection will be made to
+	* @param InSessionId Id of the session expected to be found at this destination
+	* @param RequestingPartyLeader the leader of the party that will be updated
+	* @param PartyMembers the list of players that will be added to the party
+	*
+	* @return true if the request able to be sent, false if it failed to send
+	*/
+	virtual bool RequestAddOrUpdateReservation(const FString& ConnectInfoStr, const FString& InSessionId, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PartyMembers);
 
 	/**
 	 * Cancel an existing request to the remote host to revoke allocated space on the server.
@@ -292,6 +309,16 @@ protected:
 	virtual void ServerUpdateReservationRequest(const FString& SessionId, const FPartyReservation& ReservationUpdate);
 
 	/**
+	 * Tell the server about the reservation add or update request being made
+	 *
+	 * @param SessionId expected session id on the other end (must match)
+	 * @param ReservationUpdate pending reservation request to make with server
+	 */
+
+	UFUNCTION(server, reliable, WithValidation)
+	virtual void ServerAddOrUpdateReservationRequest(const FString& SessionId, const FPartyReservation& Reservation);
+
+	/**
 	 * Tell the server that we are removing members from our reservation
 	 *
 	 * @param SessionId expected session id on the other end (must match)
@@ -299,7 +326,6 @@ protected:
 	 */
 	UFUNCTION(server, reliable, WithValidation)
 	virtual void ServerRemoveMemberFromReservationRequest(const FString& SessionId, const FPartyReservation& ReservationUpdate);
-
 
 	/**
 	 * Tell the server to cancel a pending or existing reservation

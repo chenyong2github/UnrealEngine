@@ -303,6 +303,15 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	 */
 	virtual void ProcessReservationUpdateRequest(APartyBeaconClient* Client, const FString& SessionId, const FPartyReservation& ReservationUpdateRequest, bool bIsRemovingMember);
 
+
+	/**
+	* Handle a reservation add or update request depending on reservation existance received from an incoming client
+	*
+	* @param Client client beacon making the request
+	* @param SessionId id of the session that is being checked
+	* @param ReservationRequest payload of the update request (existing reservation for party leader required)
+	*/
+	virtual void ProcessReservationAddOrUpdateRequest(APartyBeaconClient* Client, const FString& SessionId, const FPartyReservation& ReservationRequest);
 	/**
 	 * Handle a reservation cancellation request received from an incoming client
 	 *
