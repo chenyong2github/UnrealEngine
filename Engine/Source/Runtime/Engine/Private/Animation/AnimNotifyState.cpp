@@ -74,12 +74,10 @@ FString UAnimNotifyState::GetNotifyName_Implementation() const
 
 /// @endcond
 
-#if WITH_EDITOR
 float UAnimNotifyState::GetDefaultTriggerWeightThreshold_Implementation() const
 {
 	return ZERO_ANIMWEIGHT_THRESH;
 }
-#endif
 
 void UAnimNotifyState::PostLoad()
 {

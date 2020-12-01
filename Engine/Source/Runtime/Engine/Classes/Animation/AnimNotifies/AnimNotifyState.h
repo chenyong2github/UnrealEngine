@@ -44,10 +44,6 @@ class ENGINE_API UAnimNotifyState : public UObject
 #if WITH_EDITOR
 	virtual void OnAnimNotifyCreatedInEditor(FAnimNotifyEvent& ContainingAnimNotifyEvent) {};
 	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const { return true; }
-
-	/** TriggerWeightThreshold to use when creating notifies of this type */
-	UFUNCTION(BlueprintNativeEvent)
-	float GetDefaultTriggerWeightThreshold() const;
 #endif
 
 	virtual void NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration);
@@ -63,6 +59,10 @@ class ENGINE_API UAnimNotifyState : public UObject
 	{ 
 		return TEXT(""); 
 	}
+
+	/** TriggerWeightThreshold to use when creating notifies of this type */
+	UFUNCTION(BlueprintNativeEvent)
+	float GetDefaultTriggerWeightThreshold() const;
 
 	// @todo document 
 	virtual FLinearColor GetEditorColor() 
