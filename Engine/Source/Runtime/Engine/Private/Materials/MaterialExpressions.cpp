@@ -19145,9 +19145,9 @@ static int32 CompileWithDefaultCodeChunk(class FMaterialCompiler* Compiler, FExp
 	int32 CodeChunk = Input.GetTracedInput().Expression ? Input.Compile(Compiler) : DefaultCodeChunk;
 	if (bDefaultIsUsed)
 	{
-		*bDefaultIsUsed |= CodeChunk == -1;
+		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
 	}
-	return CodeChunk == -1 ? DefaultCodeChunk : CodeChunk;
+	return CodeChunk == INDEX_NONE ? DefaultCodeChunk : CodeChunk;
 }
 static int32 CompileWithDefaultFloat1(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, bool* bDefaultIsUsed = nullptr)
 {
@@ -19158,9 +19158,9 @@ static int32 CompileWithDefaultFloat1(class FMaterialCompiler* Compiler, FExpres
 	int32 CodeChunk = Input.GetTracedInput().Expression ? Input.Compile(Compiler) : Compiler->Constant(X);
 	if (bDefaultIsUsed)
 	{
-		*bDefaultIsUsed |= CodeChunk == -1;
+		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
 	}
-	return CodeChunk == -1 ? Compiler->Constant(X) : CodeChunk;
+	return CodeChunk == INDEX_NONE ? Compiler->Constant(X) : CodeChunk;
 }
 static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, float Y, float Z, bool* bDefaultIsUsed = nullptr)
 {
@@ -19171,9 +19171,9 @@ static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpres
 	int32 CodeChunk = Input.GetTracedInput().Expression ? Input.Compile(Compiler) : Compiler->Constant3(X, Y, Z);
 	if (bDefaultIsUsed)
 	{
-		*bDefaultIsUsed |= CodeChunk == -1;
+		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
 	}
-	return CodeChunk == -1 ? Compiler->Constant3(X, Y, Z) : CodeChunk;
+	return CodeChunk == INDEX_NONE ? Compiler->Constant3(X, Y, Z) : CodeChunk;
 }
 
 #endif // WITH_EDITOR

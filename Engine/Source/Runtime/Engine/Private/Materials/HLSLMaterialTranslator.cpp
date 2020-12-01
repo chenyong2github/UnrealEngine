@@ -7417,7 +7417,7 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(in
 	{
 		// Allocate a new slot for a new shared normal
 		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
-		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , -1, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), FString() });
+		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , INDEX_NONE, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), FString() });
 		return NewSharedNormalIndex;
 	}
 	// Return the first existing code chunk which match the normal chunk code
@@ -7449,7 +7449,7 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(in
 			bFound = true;
 			break;
 		}
-		else if (NormalInfo->TangentCodeChunk == -1)
+		else if (NormalInfo->TangentCodeChunk == INDEX_NONE)
 		{
 			NormalInfo->TangentCodeChunk = TangentCodeChunk;
 			NormalInfo->SharedTangentCode = *GetParameterCode(TangentCodeChunk);
