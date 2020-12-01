@@ -40,7 +40,7 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
 
-const FMaterialCachedExpressionData FMaterialCachedExpressionData::EmptyData;
+const FMaterialCachedExpressionData FMaterialCachedExpressionData::EmptyData{};
 
 void FMaterialCachedExpressionData::Reset()
 {
