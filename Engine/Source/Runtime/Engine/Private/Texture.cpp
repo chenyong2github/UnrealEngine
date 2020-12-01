@@ -595,6 +595,13 @@ void UTexture::PreSave(const class ITargetPlatform* TargetPlatform)
 		Source.Compress();
 	}
 
+	// Ensure that compilation has finished before saving the package
+	// otherwise async compilation might try to read the bulkdata
+	// while it's being serialized to the package.
+	if (IsCompiling())
+	{
+		FTextureCompilingManager::Get().FinishCompilation({ this });
+	}
 #endif // #if WITH_EDITOR
 }
 
@@ -1098,11 +1105,12 @@ void FTextureSource::InitCubeWithMipChain(
 
 void FTextureSource::Compress()
 {
+#if WITH_EDITOR
+	FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
+#endif
+
 	if (CanPNGCompress())
 	{
-#if WITH_EDITOR
-		FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
-#endif
 		uint8* BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG );

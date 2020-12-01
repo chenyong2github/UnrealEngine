@@ -643,6 +643,16 @@ void UTexture2D::PreSave(const class ITargetPlatform* TargetPlatform)
 		bTemporarilyDisableStreaming = false;
 		UpdateResource();
 	}
+
+	// #TODO DC This is redundant code coming from UTexture::Presave that can be removed once we remove the above streaming code.
+
+	// Ensure that compilation has finished before saving the package
+	// otherwise async compilation might try to read the bulkdata
+	// while it's being serialized to the package.
+	if (IsCompiling())
+	{
+		FTextureCompilingManager::Get().FinishCompilation({ this });
+	}
 #endif
 }
 
