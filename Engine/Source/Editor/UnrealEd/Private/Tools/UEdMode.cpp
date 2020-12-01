@@ -273,9 +273,6 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 
 void UEdMode::Exit()
 {
-	GetToolManager()->OnToolStarted.RemoveAll(this);
-	GetToolManager()->OnToolEnded.RemoveAll(this);
-
 	if (SettingsObject)
 	{
 		SettingsObject->SaveConfig();
@@ -294,6 +291,9 @@ void UEdMode::Exit()
 		Toolkit.Reset();
 	}
 	RegisteredTools.SetNum(0);
+
+	GetToolManager()->OnToolStarted.RemoveAll(this);
+	GetToolManager()->OnToolEnded.RemoveAll(this);
 
 	ToolsContext = nullptr;
 
