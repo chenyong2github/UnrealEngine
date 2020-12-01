@@ -74,7 +74,7 @@ namespace AutomationTool
 
 		public override string P4Exe
 		{
-			get { return "/usr/bin/p4"; }
+			get { return "p4"; }
 		}
 
 		public override Process CreateProcess(string AppName)

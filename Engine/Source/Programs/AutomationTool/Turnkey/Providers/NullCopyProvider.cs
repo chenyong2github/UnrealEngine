@@ -59,7 +59,20 @@ namespace Turnkey
 			}
 
 			// accessing large remote files direcly can be crazy slow, so we cache large-ish files locally before using
-			bool bIsRemotePath = (new System.Uri(OutputPath).IsUnc) || (new DriveInfo(OutputPath).DriveType == DriveType.Network);
+			bool bIsRemotePath = false;
+
+			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac ||
+				UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Linux)
+			{
+				// https://github.com/mono/mono/issues/12157
+				// resolved in newer versions of mono but the current bundled version is crashing when trying to create a new DriveInfo
+				bIsRemotePath = false;
+			}
+			else
+			{
+				bIsRemotePath = (new System.Uri(OutputPath).IsUnc) || (new DriveInfo(OutputPath).DriveType == DriveType.Network);
+			}
+
 			bool bIsLargeFile = File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 5 * 1024 * 1024;
 			bool bIsDirectory = Directory.Exists(OutputPath);
 
