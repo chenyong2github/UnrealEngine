@@ -8,6 +8,10 @@
 #include "AnimationRuntime.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 
+#if ENABLE_ANIM_DEBUG
+TAutoConsoleVariable<int32> CVarAnimNodeControlRigDebug(TEXT("a.AnimNode.ControlRig.Debug"), 0, TEXT("Set to 1 to turn on debug drawing for AnimNode_ControlRigBase"));
+#endif
+
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 	: FAnimNode_CustomProperty()
 	, InputSettings(FControlRigIOSettings())
@@ -233,6 +237,16 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 		{
 			// first evaluate control rig
 			ControlRig->Evaluate_AnyThread();
+
+#if ENABLE_ANIM_DEBUG 
+			// When Control Rig is at editing time (in CR editor), draw instructions are consumed by ControlRigEditMode, so we need to skip drawing here.
+			bool bShowDebug = (CVarAnimNodeControlRigDebug.GetValueOnAnyThread() == 1 && ControlRig->ExecutionType != ERigExecutionType::Editing);
+
+			if (bShowDebug)
+			{ 
+				QueueControlRigDrawInstructions(ControlRig, InOutput.AnimInstanceProxy);
+			}
+#endif
 		}
 
 		// now update output
@@ -415,5 +429,58 @@ UClass* FAnimNode_ControlRigBase::GetTargetClass() const
 	}
 
 	return nullptr;
+}
+
+void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* ControlRig, FAnimInstanceProxy* Proxy) const
+{
+	ensure(ControlRig);
+	ensure(Proxy);
+
+	for (const FControlRigDrawInstruction& Instruction : ControlRig->GetDrawInterface())
+	{
+		if (!Instruction.IsValid())
+		{
+			continue;
+		}
+
+		FTransform InstructionTransform = Instruction.Transform * Proxy->GetComponentTransform();
+		switch (Instruction.PrimitiveType)
+		{
+			case EControlRigDrawSettings::Points:
+			{
+				for (const FVector& Point : Instruction.Positions)
+				{
+					Proxy->AnimDrawDebugPoint(InstructionTransform.TransformPosition(Point), Instruction.Thickness, Instruction.Color.ToFColor(true), false, -1.f, SDPG_Foreground);
+				}
+				break;
+			}
+			case EControlRigDrawSettings::Lines:
+			{
+				const TArray<FVector>& Points = Instruction.Positions;
+
+				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
+				{
+					Proxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(true), false, -1.f, Instruction.Thickness, SDPG_Foreground);
+				}
+				break;
+			}
+			case EControlRigDrawSettings::LineStrip:
+			{
+				const TArray<FVector>& Points = Instruction.Positions;
+
+				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+				{
+					Proxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(true), false, -1.f, Instruction.Thickness, SDPG_Foreground);
+				}
+				break;
+			}
+
+			case EControlRigDrawSettings::DynamicMesh:
+			{
+				// TODO: Add support for this if anyone is actually using it. Currently it is only defined and referenced in an unused API, DrawCone in Control Rig.
+				break;
+			} 
+		}
+	} 
 }
 

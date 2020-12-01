@@ -509,11 +509,12 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 	{
 		switch (DebugItem.ItemType)
 		{
-		case EDrawDebugItemType::OnScreenMessage: GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.f, DebugItem.Color, DebugItem.Message, false, DebugItem.TextScale); break;
-		case EDrawDebugItemType::DirectionalArrow: DrawDebugDirectionalArrow(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc, DebugItem.Size, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, 0, DebugItem.Thickness); break;
-		case EDrawDebugItemType::Sphere : DrawDebugSphere(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.Center, DebugItem.Radius, DebugItem.Segments, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, 0, DebugItem.Thickness); break;
-		case EDrawDebugItemType::Line: DrawDebugLine(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, 0, DebugItem.Thickness); break;
-		case EDrawDebugItemType::CoordinateSystem : DrawDebugCoordinateSystem(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.Rotation, DebugItem.Size, DebugItem.bPersistentLines, DebugItem.LifeTime, 0, DebugItem.Thickness); break;
+			case EDrawDebugItemType::OnScreenMessage: GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.f, DebugItem.Color, DebugItem.Message, false, DebugItem.TextScale); break;
+			case EDrawDebugItemType::DirectionalArrow: DrawDebugDirectionalArrow(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc, DebugItem.Size, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
+			case EDrawDebugItemType::Sphere: DrawDebugSphere(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.Center, DebugItem.Radius, DebugItem.Segments, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
+			case EDrawDebugItemType::Line: DrawDebugLine(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
+			case EDrawDebugItemType::CoordinateSystem: DrawDebugCoordinateSystem(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.Rotation, DebugItem.Size, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
+			case EDrawDebugItemType::Point: DrawDebugPoint(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.Size, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority); break;
 		}
 	}
 #endif
@@ -1787,7 +1788,7 @@ void FAnimInstanceProxy::GatherDebugData_WithRoot(FNodeDebugData& DebugData, FAn
 
 #if ENABLE_ANIM_DRAW_DEBUG
 
-void FAnimInstanceProxy::AnimDrawDebugOnScreenMessage(const FString& DebugMessage, const FColor& Color, const FVector2D& TextScale)
+void FAnimInstanceProxy::AnimDrawDebugOnScreenMessage(const FString& DebugMessage, const FColor& Color, const FVector2D& TextScale, ESceneDepthPriorityGroup DepthPriority)
 {
 	FQueuedDrawDebugItem DrawDebugItem;
 
@@ -1795,11 +1796,12 @@ void FAnimInstanceProxy::AnimDrawDebugOnScreenMessage(const FString& DebugMessag
 	DrawDebugItem.Message = DebugMessage;
 	DrawDebugItem.Color = Color;
 	DrawDebugItem.TextScale = TextScale;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 
-void FAnimInstanceProxy::AnimDrawDebugDirectionalArrow(const FVector& LineStart, const FVector& LineEnd, float ArrowSize, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness)
+void FAnimInstanceProxy::AnimDrawDebugDirectionalArrow(const FVector& LineStart, const FVector& LineEnd, float ArrowSize, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness, ESceneDepthPriorityGroup DepthPriority)
 {
 	FQueuedDrawDebugItem DrawDebugItem;
 
@@ -1811,11 +1813,12 @@ void FAnimInstanceProxy::AnimDrawDebugDirectionalArrow(const FVector& LineStart,
 	DrawDebugItem.bPersistentLines = bPersistentLines;
 	DrawDebugItem.LifeTime = LifeTime;
 	DrawDebugItem.Thickness = Thickness;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 
-void FAnimInstanceProxy::AnimDrawDebugSphere(const FVector& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness)
+void FAnimInstanceProxy::AnimDrawDebugSphere(const FVector& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness, ESceneDepthPriorityGroup DepthPriority)
 {
 	FQueuedDrawDebugItem DrawDebugItem;
 
@@ -1827,11 +1830,12 @@ void FAnimInstanceProxy::AnimDrawDebugSphere(const FVector& Center, float Radius
 	DrawDebugItem.bPersistentLines = bPersistentLines;
 	DrawDebugItem.LifeTime = LifeTime;
 	DrawDebugItem.Thickness = Thickness;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 
-void FAnimInstanceProxy::AnimDrawDebugCoordinateSystem(FVector const& AxisLoc, FRotator const& AxisRot, float Scale, bool bPersistentLines, float LifeTime, float Thickness)
+void FAnimInstanceProxy::AnimDrawDebugCoordinateSystem(FVector const& AxisLoc, FRotator const& AxisRot, float Scale, bool bPersistentLines, float LifeTime, float Thickness, ESceneDepthPriorityGroup DepthPriority)
 {
 	FQueuedDrawDebugItem DrawDebugItem;
 
@@ -1842,11 +1846,12 @@ void FAnimInstanceProxy::AnimDrawDebugCoordinateSystem(FVector const& AxisLoc, F
 	DrawDebugItem.bPersistentLines = bPersistentLines;
 	DrawDebugItem.LifeTime = LifeTime;
 	DrawDebugItem.Thickness = Thickness;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 
-void FAnimInstanceProxy::AnimDrawDebugLine(const FVector& StartLoc, const FVector& EndLoc, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness)
+void FAnimInstanceProxy::AnimDrawDebugLine(const FVector& StartLoc, const FVector& EndLoc, const FColor& Color, bool bPersistentLines, float LifeTime, float Thickness, ESceneDepthPriorityGroup DepthPriority)
 {
 	FQueuedDrawDebugItem DrawDebugItem;
 
@@ -1857,11 +1862,12 @@ void FAnimInstanceProxy::AnimDrawDebugLine(const FVector& StartLoc, const FVecto
 	DrawDebugItem.bPersistentLines = bPersistentLines;
 	DrawDebugItem.LifeTime = LifeTime;
 	DrawDebugItem.Thickness = Thickness;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 
-void FAnimInstanceProxy::AnimDrawDebugPlane(const FTransform& BaseTransform, float Radii, const FColor& Color, bool bPersistentLines /*= false*/, float LifeTime /*= -1.f*/, float Thickness /*= 0.f*/)
+void FAnimInstanceProxy::AnimDrawDebugPlane(const FTransform& BaseTransform, float Radii, const FColor& Color, bool bPersistentLines /*= false*/, float LifeTime /*= -1.f*/, float Thickness /*= 0.f*/, ESceneDepthPriorityGroup DepthPriority)
 {
 	// just draw two triangle from [-Radii,-Radii] to [Radii, Radii]
 	FQueuedDrawDebugItem DrawDebugItem;
@@ -1871,6 +1877,7 @@ void FAnimInstanceProxy::AnimDrawDebugPlane(const FTransform& BaseTransform, flo
 	DrawDebugItem.bPersistentLines = bPersistentLines;
 	DrawDebugItem.LifeTime = LifeTime;
 	DrawDebugItem.Thickness = Thickness;
+	DrawDebugItem.DepthPriority = DepthPriority;
 
 	DrawDebugItem.StartLoc = BaseTransform.TransformPosition(FVector(-Radii, -Radii, 0));
 	DrawDebugItem.EndLoc = BaseTransform.TransformPosition(FVector(-Radii, Radii, 0));
@@ -1890,6 +1897,21 @@ void FAnimInstanceProxy::AnimDrawDebugPlane(const FTransform& BaseTransform, flo
 
 	DrawDebugItem.StartLoc = BaseTransform.TransformPosition(FVector(Radii, Radii, 0));
 	DrawDebugItem.EndLoc = BaseTransform.TransformPosition(FVector(Radii, -Radii, 0));
+	QueuedDrawDebugItems.Add(DrawDebugItem);
+}
+
+void FAnimInstanceProxy::AnimDrawDebugPoint(const FVector& Loc, float Size, const FColor& Color, bool bPersistentLines, float LifeTime, ESceneDepthPriorityGroup DepthPriority)
+{
+	FQueuedDrawDebugItem DrawDebugItem;
+
+	DrawDebugItem.ItemType = EDrawDebugItemType::Point;
+	DrawDebugItem.StartLoc = Loc;
+	DrawDebugItem.Color = Color;
+	DrawDebugItem.Size = Size;
+	DrawDebugItem.bPersistentLines = bPersistentLines;
+	DrawDebugItem.LifeTime = LifeTime;
+	DrawDebugItem.DepthPriority = DepthPriority;
+
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }
 #endif // ENABLE_ANIM_DRAW_DEBUG

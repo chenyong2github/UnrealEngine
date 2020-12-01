@@ -100,6 +100,8 @@ protected:
 	// execute control rig on the input pose and outputs the result
 	void ExecuteControlRig(FPoseContext& InOutput);
 
+	void QueueControlRigDrawInstructions(UControlRig* ControlRig, FAnimInstanceProxy* Proxy) const;
+
 	friend struct FControlRigSequencerAnimInstanceProxy;
 	friend struct FControlRigLayerInstanceProxy;
 };

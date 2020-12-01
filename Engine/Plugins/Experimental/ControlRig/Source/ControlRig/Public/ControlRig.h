@@ -401,6 +401,9 @@ public:
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
+	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; };
+	FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; };
+
 private:
 
 	UPROPERTY()
