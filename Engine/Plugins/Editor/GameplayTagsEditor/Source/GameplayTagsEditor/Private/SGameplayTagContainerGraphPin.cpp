@@ -1,43 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagContainerGraphPin.h"
-#include "Widgets/Input/SComboButton.h"
-#include "GameplayTagsModule.h"
-#include "Widgets/Layout/SScaleBox.h"
 #include "GameplayTagPinUtilities.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagGraphPin"
 
 void SGameplayTagContainerGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
-	TagContainer = MakeShareable( new FGameplayTagContainer() );
-	SGraphPin::Construct( SGraphPin::FArguments(), InGraphPinObj );
-}
-
-TSharedRef<SWidget>	SGameplayTagContainerGraphPin::GetDefaultValueWidget()
-{
-	ParseDefaultValueData();
-
-	//Create widget
-	return SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew( ComboButton, SComboButton )
-			.OnGetMenuContent(this, &SGameplayTagContainerGraphPin::GetListContent)
-			.ContentPadding( FMargin( 2.0f, 2.0f ) )
-			.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
-			.ButtonContent()
-			[
-				SNew( STextBlock )
-				.Text( LOCTEXT("GameplayTagWidget_Edit", "Edit") )
-			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SelectedTags()
-		];
+	SGameplayTagGraphPin::Construct(SGameplayTagGraphPin::FArguments(), InGraphPinObj);
 }
 
 void SGameplayTagContainerGraphPin::ParseDefaultValueData()
@@ -46,6 +16,7 @@ void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 
 	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
+	// This parsing code should be the same as ImportText but there may be older data this handles better
 	if (TagString.StartsWith(TEXT("("), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 	{
 		TagString.LeftChopInline(1, false);
@@ -97,7 +68,7 @@ void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 	}
 }
 
-TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetListContent()
+TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetEditContent()
 {
 	EditableContainers.Empty();
 	EditableContainers.Add( SGameplayTagWidget::FEditableGameplayTagContainerDatum( GraphPinObj->GetOwningNode(), TagContainer.Get() ) );
@@ -108,53 +79,17 @@ TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetListContent()
 		.MaxHeight( 400 )
 		[
 			SNew( SGameplayTagWidget, EditableContainers )
-			.OnTagChanged(this, &SGameplayTagContainerGraphPin::RefreshTagList)
+			.OnTagChanged(this, &SGameplayTagContainerGraphPin::SaveDefaultValueData)
 			.TagContainerName( TEXT("SGameplayTagContainerGraphPin") )
 			.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
+			.MultiSelect(true)
 			.Filter(FilterString)
 		];
 }
 
-TSharedRef<SWidget> SGameplayTagContainerGraphPin::SelectedTags()
-{
-	RefreshTagList();
-
-	SAssignNew( TagListView, SListView<TSharedPtr<FString>> )
-		.ListItemsSource(&TagNames)
-		.SelectionMode(ESelectionMode::None)
-		.OnGenerateRow(this, &SGameplayTagContainerGraphPin::OnGenerateRow);
-
-	return TagListView->AsShared();
-}
-
-TSharedRef<ITableRow> SGameplayTagContainerGraphPin::OnGenerateRow(TSharedPtr<FString> Item, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew( STableRow< TSharedPtr<FString> >, OwnerTable )
-		[
-			SNew(STextBlock) .Text( FText::FromString(*Item.Get()) )
-		];
-}
-
-void SGameplayTagContainerGraphPin::RefreshTagList()
+void SGameplayTagContainerGraphPin::SaveDefaultValueData()
 {	
-	// Clear the list
-	TagNames.Empty();
-
-	// Add tags to list
-	if (TagContainer.IsValid())
-	{
-		for (auto It = TagContainer->CreateConstIterator(); It; ++It)
-		{
-			FString TagName = It->ToString();
-			TagNames.Add( MakeShareable( new FString( TagName ) ) );
-		}
-	}
-
-	// Refresh the slate list
-	if( TagListView.IsValid() )
-	{
-		TagListView->RequestListRefresh();
-	}
+	RefreshCachedData();
 
 	// Set Pin Data
 	FString TagContainerString = TagContainer->ToString();

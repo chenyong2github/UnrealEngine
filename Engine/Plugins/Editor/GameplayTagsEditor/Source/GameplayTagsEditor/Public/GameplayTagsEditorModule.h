@@ -6,7 +6,12 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "IPropertyTypeCustomization.h"
+#include "GameplayTagContainer.h"
 
+DECLARE_DELEGATE_OneParam(FOnSetGameplayTag, const FGameplayTag&);
+DECLARE_DELEGATE_OneParam(FOnSetGameplayTagContainer, const FGameplayTagContainer&);
+
+class SWidget;
 
 /**
  * The public interface to this module
@@ -51,6 +56,22 @@ public:
 
 	/** Adds a transient gameplay tag (only valid for the current editor session) */
 	GAMEPLAYTAGSEDITOR_API virtual bool AddTransientEditorGameplayTag(const FString& NewTransientTag) = 0;
+
+	/**
+	 * Creates a simple version of a tag container widget that has a default value and will call a custom callback
+	 * @param OnSetTag			Delegate called when container is changed
+	 * @param GameplayTagValue	Shared ptr to tag container value that will be used as default and modified
+	 * @param FilterString		Optional filter string, same format as Categories metadata on tag properties
+	 */
+	GAMEPLAYTAGSEDITOR_API virtual TSharedRef<SWidget> MakeGameplayTagContainerWidget(FOnSetGameplayTagContainer OnSetTag, TSharedPtr<FGameplayTagContainer> GameplayTagContainer, const FString& FilterString = FString()) = 0;
+
+	/**
+	 * Creates a simple version of a gameplay tag widget that has a default value and will call a custom callback
+	 * @param OnSetTag			Delegate called when tag is changed
+	 * @param GameplayTagValue	Shared ptr to tag value that will be used as default and modified
+	 * @param FilterString		Optional filter string, same format as Categories metadata on tag properties
+	 */
+	GAMEPLAYTAGSEDITOR_API virtual TSharedRef<SWidget> MakeGameplayTagWidget(FOnSetGameplayTag OnSetTag, TSharedPtr<FGameplayTag> GameplayTag, const FString& FilterString = FString()) = 0;
 };
 
 /** This is public so that child structs of FGameplayTag can use the details customization */

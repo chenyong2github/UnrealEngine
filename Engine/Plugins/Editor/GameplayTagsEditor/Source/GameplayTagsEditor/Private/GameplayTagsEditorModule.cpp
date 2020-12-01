@@ -21,6 +21,7 @@
 #include "ISettingsModule.h"
 #include "ISettingsEditorModule.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SNullWidget.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "AssetRegistryModule.h"
 #include "Editor.h"
@@ -808,6 +809,56 @@ public:
 		}
 
 		return true;
+	}
+
+	TSharedRef<SWidget> MakeGameplayTagContainerWidget(FOnSetGameplayTagContainer OnSetTag, TSharedPtr<FGameplayTagContainer> GameplayTagContainer, const FString& FilterString) override
+	{
+		if (!GameplayTagContainer.IsValid())
+		{
+			return SNullWidget::NullWidget;
+		}
+
+		TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
+		EditableContainers.Emplace(nullptr, GameplayTagContainer.Get());
+
+		// This will keep the shared ptr and delegate alive as long as the widget is
+		SGameplayTagWidget::FOnTagChanged OnChanged = SGameplayTagWidget::FOnTagChanged::CreateLambda([OnSetTag, GameplayTagContainer]()
+		{
+			OnSetTag.Execute(*GameplayTagContainer.Get());
+		});
+
+		return SNew(SGameplayTagWidget, EditableContainers)
+			.Filter(FilterString)
+			.ReadOnly(false)
+			.MultiSelect(true)
+			.OnTagChanged(OnChanged);
+	}
+
+	TSharedRef<SWidget> MakeGameplayTagWidget(FOnSetGameplayTag OnSetTag, TSharedPtr<FGameplayTag> GameplayTag, const FString& FilterString) override
+	{
+		if (!GameplayTag.IsValid())
+		{
+			return SNullWidget::NullWidget;
+		}
+
+		// Make a wrapper tag container
+		TSharedPtr<FGameplayTagContainer> GameplayTagContainer = MakeShareable(new FGameplayTagContainer(*GameplayTag.Get()));
+
+		TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
+		EditableContainers.Emplace(nullptr, GameplayTagContainer.Get());
+
+		// This will keep the shared ptr and delegate alive as long as the widget is
+		SGameplayTagWidget::FOnTagChanged OnChanged = SGameplayTagWidget::FOnTagChanged::CreateLambda([OnSetTag, GameplayTag, GameplayTagContainer]()
+		{
+			*GameplayTag.Get() = GameplayTagContainer->First();
+			OnSetTag.Execute(*GameplayTag.Get());
+		});
+
+		return SNew(SGameplayTagWidget, EditableContainers)
+			.Filter(FilterString)
+			.ReadOnly(false)
+			.MultiSelect(false)
+			.OnTagChanged(OnChanged);
 	}
 
 	static bool WriteCustomReport(FString FileName, TArray<FString>& FileLines)
