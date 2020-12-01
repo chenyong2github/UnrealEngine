@@ -59,11 +59,11 @@ private:
 	// Perform a first pass run of modifiers on an action instance
 	void InitializeMappingActionModifiers(const FEnhancedActionKeyMapping& Mapping);
 
-	FInputActionValue ApplyModifiers(const TArray<UInputModifier*>& Modifiers, FInputActionValue RawValue, float DeltaTime) const;		// Pre-modified (raw) value
-	ETriggerState CalcTriggerState(const TArray<UInputTrigger*>& KeyTriggers, const TArray<UInputTrigger*>& ActionTriggers, FInputActionValue ModifiedValue, float DeltaTime) const;		// Post-modified value
+	FInputActionValue ApplyModifiers(const TArray<UInputModifier*>& Modifiers, FInputActionValue RawValue, float DeltaTime) const;						// Pre-modified (raw) value
+	ETriggerState CalcTriggerState(const TArray<UInputTrigger*>& Triggers, FInputActionValue ModifiedValue, float DeltaTime) const;						// Post-modified value
 	ETriggerEventInternal GetTriggerStateChangeEvent(ETriggerState LastTriggerState, ETriggerState NewTriggerState) const;
 	ETriggerEvent ConvertInternalTriggerEvent(ETriggerEventInternal Event) const;	// Collapse a detailed internal trigger event into a friendly representation
-	FInputActionInstance& ProcessActionValue(const UInputAction* Action, float DeltaTime, bool bGamePaused, FInputActionValue RawValue, EKeyEvent KeyEvent, ETriggerState& LastTriggerState, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+	void ProcessActionMappingEvent(const UInputAction* Action, float DeltaTime, bool bGamePaused, FInputActionValue RawValue, EKeyEvent KeyEvent, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
 	FInputActionInstance& FindOrAddActionEventData(const UInputAction* Action) const;
 
@@ -107,15 +107,8 @@ private:
 	};
 
 	/** Inputs injected since the last call to ProcessInputStack */
-
 	TMap<const UInputAction*, FInjectedInputArray> InputsInjectedThisTick;
 
-	struct FInjectedState
-	{
-		float ElapsedProcessedTime = 0.f;
-		ETriggerState LastTriggerState = ETriggerState::None;
-	};
-
-	/** Track injected input total trigger time */
-	TMap<const UInputAction*, FInjectedState> LastInjectedActionState;
+	/** Last frame's injected inputs */
+	TSet<const UInputAction*> LastInjectedActions;
 };

@@ -99,7 +99,7 @@ enum class EKeyEvent : uint8
 	Held,		// Key generated no event, but is in a held state and wants to continue applying modifiers and triggers
 };
 
-FInputActionInstance& UEnhancedPlayerInput::ProcessActionValue(const UInputAction* Action, float DeltaTime, bool bGamePaused, FInputActionValue RawKeyValue, EKeyEvent KeyEvent, ETriggerState& LastTriggerState, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action, float DeltaTime, bool bGamePaused, FInputActionValue RawKeyValue, EKeyEvent KeyEvent, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {
 	FInputActionInstance& ActionData = FindOrAddActionEventData(Action);
 
@@ -121,26 +121,13 @@ FInputActionInstance& UEnhancedPlayerInput::ProcessActionValue(const UInputActio
 		// Apply modifications to the raw value
 		EInputActionValueType ValueType = ActionData.Value.GetValueType();
 		FInputActionValue ModifiedValue = ApplyModifiers(Modifiers, FInputActionValue(ValueType, RawKeyValue.Get<FVector>()), DeltaTime);
-		ModifiedValue = ApplyModifiers(ActionData.PerInputModifiers, ModifiedValue, DeltaTime);
 		//UE_CLOG(RawKeyValue.GetMagnitudeSq(), LogTemp, Warning, TEXT("Modified %s -> %s"), *RawKeyValue.ToString(), *ModifiedValue.ToString());
 
 		// Derive a trigger state for this mapping using all applicable triggers
-		TriggerState = CalcTriggerState(Triggers, ActionData.Triggers, ModifiedValue, DeltaTime);
-
-		// However, if the game is paused invalidate trigger unless the action allows it. We must still call CalcTriggerState to update internal state.
-		// TODO: Potential issues with e.g. hold event that's canceled due to pausing, but jumps straight back to its "triggered" state on unpause if the user continues to hold the key.
-		if (bGamePaused && !Action->bTriggerWhenPaused)
-		{
-			TriggerState = ETriggerState::None;
-		}
+		TriggerState = CalcTriggerState(Triggers, ModifiedValue, DeltaTime);
 
 		// Combine values for active events only, selecting the input with the greatest magnitude for each component in each tick.
-		if (TriggerState == ETriggerState::None)
-		{
-			// No trigger state on an actuated key always modifies (key released/trigger completed, resetting Value)
-			ActionData.bInputModifiedValueThisTick |= KeyEvent == EKeyEvent::Actuated;
-		}
-		else
+		if (TriggerState != ETriggerState::None)
 		{
 			const int32 NumComponents = FMath::Max(1, int32(ValueType));
 			FVector Modified = ModifiedValue.Get<FVector>();
@@ -150,22 +137,13 @@ FInputActionInstance& UEnhancedPlayerInput::ProcessActionValue(const UInputActio
 				if (FMath::Abs(Modified[Component]) >= FMath::Abs(Merged[Component]))
 				{
 					Merged[Component] = Modified[Component];
-					ActionData.bInputModifiedValueThisTick = true;	// Held keys can modify value only when triggering
 				}
 			}
 			ActionData.Value = FInputActionValue(ValueType, Merged);
 		}
 	}
 
-	// Use the new trigger state it to determine a trigger event based on changes from the previous trigger state.
-	ETriggerEventInternal TriggerEventInternal = GetTriggerStateChangeEvent(LastTriggerState, TriggerState);
-	ActionData.TriggerEventInternal = bResetActionData ? TriggerEventInternal : FMath::Max(ActionData.TriggerEventInternal, TriggerEventInternal);
-	ActionData.TriggerEvent = ConvertInternalTriggerEvent(ActionData.TriggerEventInternal);
-
-	//UE_CLOG(TriggerState != ETriggerState::None || LastTriggerState != TriggerState, LogTemp, Warning, TEXT("%s - Got trigger state %s - trigger event %s : %.2f"), /**Mapping.Key.ToString(),*/ *Action->GetName(), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerState"), TriggerState), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerEvent"), ActionData.TriggerEvent), 0.f/*ModifiedValue.Get<float>()*/);
-	LastTriggerState = TriggerState;
-
-	return ActionData;
+	ActionData.MappingTriggerState = FMath::Max(ActionData.MappingTriggerState, TriggerState);
 }
 
 void UEnhancedPlayerInput::InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
@@ -226,27 +204,24 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		EKeyEvent KeyEvent = bKeyIsHeld ? EKeyEvent::Held : ((bKeyIsDown || bKeyIsReleased) ? EKeyEvent::Actuated : EKeyEvent::None);
 
 		// Perform update
-		FInputActionInstance& ActionData = ProcessActionValue(Mapping.Action, DeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.LastTickTriggerState, Mapping.Modifiers, Mapping.Triggers);
-
-		// Elapsed timers are tracked per mapping, and combined to give a highest trigger time value.
-		Mapping.ElapsedActuatedTime = (Mapping.LastTickTriggerState == ETriggerState::None ? 0.f : Mapping.ElapsedActuatedTime + DeltaTime);
-		ActionData.ElapsedProcessedTime = FMath::Max(ActionData.ElapsedProcessedTime, Mapping.ElapsedActuatedTime);
+		ProcessActionMappingEvent(Mapping.Action, DeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
 	}
 
 
 	// Strip stored injected input states that weren't re-injected this tick
-	for (auto It = LastInjectedActionState.CreateIterator(); It; ++It)
+	for (auto It = LastInjectedActions.CreateIterator(); It; ++It)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_InjectedStrip);
+		const UInputAction* InjectedAction = *It;
 
-		if (!It.Key())
+		if (!InjectedAction)
 		{
 			It.RemoveCurrent();
 		}
-		else if (!InputsInjectedThisTick.Contains(It.Key()))
+		else if (!InputsInjectedThisTick.Contains(InjectedAction))
 		{
 			// Reset action state by "releasing the key".
-			ProcessActionValue(It.Key(), DeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, It.Value().LastTriggerState, {}, {});
+			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, {}, {});
 			It.RemoveCurrent();
 		}
 	}
@@ -261,22 +236,15 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			continue;
 		}
 
-		// Get last injection status data
-		FInjectedState* Status = LastInjectedActionState.Find(InjectedAction);
-		bool bDownLastTick = Status != nullptr;
-		if (!Status)
-		{
-			Status = &LastInjectedActionState.Emplace(InjectedAction);
-		}
+		// Update last injection status data
+		bool bDownLastTick = false;
+		LastInjectedActions.Emplace(InjectedAction, &bDownLastTick);
 
 		EKeyEvent KeyEvent = bDownLastTick ? EKeyEvent::Held : EKeyEvent::Actuated;
 		for (FInjectedInput& InjectedInput : InjectedPair.Value.Injected)
 		{
 			// Perform update
-			FInputActionInstance& ActionData = ProcessActionValue(InjectedAction, DeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, Status->LastTriggerState, InjectedInput.Modifiers, InjectedInput.Triggers);
-
-			Status->ElapsedProcessedTime = (Status->LastTriggerState == ETriggerState::None ? 0.f : Status->ElapsedProcessedTime + DeltaTime);
-			ActionData.ElapsedProcessedTime = FMath::Max(Status->ElapsedProcessedTime, ActionData.ElapsedProcessedTime);
+			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, InjectedInput.Modifiers, InjectedInput.Triggers);
 		}
 	}
 	InputsInjectedThisTick.Reset();
@@ -287,22 +255,35 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_PostTick);
 
+		const UInputAction* Action = ActionPair.Key;
 		FInputActionInstance& ActionData = ActionPair.Value;
+		ETriggerState TriggerState = ETriggerState::None;
 
-		// Apply final value modifiers
-		ActionData.Value = ApplyModifiers(ActionData.FinalValueModifiers, ActionData.Value, DeltaTime);
-
-		// If we had our value changed this tick we must update last values for all action level triggers to match the final value.
-		if (ActionData.bInputModifiedValueThisTick)
+		if (ActionsWithEventsThisTick.Contains(Action))
 		{
-			for (UInputTrigger* Trigger : ActionData.Triggers)
+			// Apply modifiers
+			ActionData.Value = ApplyModifiers(ActionData.Modifiers, ActionData.Value, DeltaTime);
+
+			// Evaluate triggers
+			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, DeltaTime);
+
+			// Mapping triggers limit the final state.
+			TriggerState = FMath::Min(TriggerState, ActionData.MappingTriggerState);
+
+			// However, if the game is paused invalidate trigger unless the action allows it. We must always call CalcTriggerState to update any internal state, even when paused.
+			// TODO: Potential issues with e.g. hold event that's canceled due to pausing, but jumps straight back to its "triggered" state on unpause if the user continues to hold the key.
+			if (bGamePaused && !Action->bTriggerWhenPaused)
 			{
-				Trigger->LastValue = ActionData.Value;	// We must use the unfiltered ActionData value here to ensure we update untriggered triggers correctly.
+				TriggerState = ETriggerState::None;
 			}
-			ActionData.bInputModifiedValueThisTick = false;
 		}
 
+		// Use the new trigger state to determine a trigger event based on changes from the previous trigger state.
+		ActionData.TriggerEventInternal = GetTriggerStateChangeEvent(ActionData.LastTriggerState, TriggerState);
+		ActionData.TriggerEvent = ConvertInternalTriggerEvent(ActionData.TriggerEventInternal);
+		ActionData.LastTriggerState = TriggerState;
 		// Evaluate time per action after establishing the internal trigger state across all mappings
+		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? DeltaTime : 0.f;
 		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? DeltaTime : 0.f;
 	}
 
@@ -395,7 +376,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 
 	for (; StackIndex >= 0; --StackIndex)
 	{
-		if(UEnhancedInputComponent* IC = Cast<UEnhancedInputComponent>(InputComponentStack[StackIndex]))
+		if (UEnhancedInputComponent* IC = Cast<UEnhancedInputComponent>(InputComponentStack[StackIndex]))
 		{
 			for (const FEnhancedInputActionValueBinding& Binding : IC->GetActionValueBindings())
 			{
@@ -420,6 +401,9 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		{
 			ActionData.ElapsedTriggeredTime = 0.f;
 		}
+
+		// Delay MappingTriggerState reset until here to allow dependent triggers (e.g. chords) access to this tick's values.
+		ActionData.MappingTriggerState = ETriggerState::None;
 	}
 }
 
@@ -471,7 +455,7 @@ void UEnhancedPlayerInput::ConditionalBuildKeyMappings_Internal() const
 
 		auto HasActionMapping = [&Action](const FEnhancedActionKeyMapping& Mapping) { return Mapping.Action == Action; };
 
-		if (!LastInjectedActionState.Contains(Action) &&
+		if (!LastInjectedActions.Contains(Action) &&
 			!InputsInjectedThisTick.Contains(Action) &&		// This will be empty for most calls, but could potentially contain data.
 			//EngineDefinedActionMappings.ContainsByPredicate(HasActionMapping) && // TODO: EngineDefinedActionMappings are non-rebindable action/key pairings but we have our own systems to handle this...
 			!EnhancedActionMappings.ContainsByPredicate(HasActionMapping))
@@ -500,7 +484,7 @@ FInputActionValue UEnhancedPlayerInput::ApplyModifiers(const TArray<UInputModifi
 }
 
 // Calculate a collective representation of trigger state from all key mapping trigger states
-ETriggerState UEnhancedPlayerInput::CalcTriggerState(const TArray<UInputTrigger*>& KeyTriggers, const TArray<UInputTrigger*>& ActionTriggers, FInputActionValue ModifiedValue, float DeltaTime) const
+ETriggerState UEnhancedPlayerInput::CalcTriggerState(const TArray<UInputTrigger*>& Triggers, FInputActionValue ModifiedValue, float DeltaTime) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_Triggers);
 
@@ -511,7 +495,7 @@ ETriggerState UEnhancedPlayerInput::CalcTriggerState(const TArray<UInputTrigger*
 	// Implicits  > 0, Explicits  > 0	- All implicits and at least one explicit have fired.
 	// Blockers							- Override all other triggers to force trigger failure.
 
-	if (KeyTriggers.Num() + ActionTriggers.Num() == 0)
+	if (Triggers.Num() == 0)
 	{
 		// With no triggers the trigger state is represented directly by ModifiedValue.
 		return ModifiedValue.IsNonZero() ? ETriggerState::Triggered : ETriggerState::None;
@@ -519,54 +503,43 @@ ETriggerState UEnhancedPlayerInput::CalcTriggerState(const TArray<UInputTrigger*
 
 	bool bFoundActiveTrigger = false;	// If any trigger is in an ongoing or triggered state the final state must be at least ongoing (with the exception of blocking triggers!)
 	bool bAnyExplictTriggered = false;
-	bool bFoundExplicit = false;	// If no explicits are found the trigger may fire through implicit testing only. If explicits exist at least one must be met.
+	bool bFoundExplicit = false;		// If no explicits are found the trigger may fire through implicit testing only. If explicits exist at least one must be met.
 	bool bAllImplicitsTriggered = true;
+	bool bBlocking = false;				// If any trigger is blocking, we can't fire.
 
-	auto ConsiderTriggers = [&](const TArray<UInputTrigger*>& Triggers, bool bUpdateLastValue) -> bool	// Returns bIsBlocking
+	// TODO: Make this more efficient. Split implicit/explicit to allow us to early out on implicit fail/explicit pass?
+	for (UInputTrigger* Trigger : Triggers)
 	{
-		// TODO: Make this more efficient. Split implicit/explicit to allow us to early out on implicit fail/explicit pass?
-		for (UInputTrigger* Trigger : Triggers)
+		if (!Trigger)
 		{
-			if (!Trigger)
-			{
-				continue;
-			}
-
-			ETriggerState CurrentState = Trigger->UpdateState(this, ModifiedValue, DeltaTime);
-
-			// Automatically update the last value, avoiding the trigger having to track it, for mapping triggers. Action triggers will perform this step at the end of the tick.
-			if (bUpdateLastValue)
-			{
-				Trigger->LastValue = ModifiedValue;
-			}
-
-			switch (Trigger->GetTriggerType())
-			{
-			case ETriggerType::Explicit:
-				bFoundExplicit = true;
-				bAnyExplictTriggered |= (CurrentState == ETriggerState::Triggered);
-				bFoundActiveTrigger |= CurrentState != ETriggerState::None;
-				break;
-			case ETriggerType::Implicit:
-				bAllImplicitsTriggered &= (CurrentState == ETriggerState::Triggered);
-				bFoundActiveTrigger |= CurrentState != ETriggerState::None;
-				break;
-			case ETriggerType::Blocker:
-				if(CurrentState == ETriggerState::Triggered)
-				{
-					return true;	// Blockers terminate further trigger evaluation
-				}
-				// Ongoing blockers don't count as active triggers
-				break;
-			}
+			continue;
 		}
 
-		return false;
-	};
+		ETriggerState CurrentState = Trigger->UpdateState(this, ModifiedValue, DeltaTime);
 
-	if (ConsiderTriggers(KeyTriggers, true) || ConsiderTriggers(ActionTriggers, false))
+		// Automatically update the last value, avoiding the trigger having to track it.
+		Trigger->LastValue = ModifiedValue;
+
+		switch (Trigger->GetTriggerType())
+		{
+		case ETriggerType::Explicit:
+			bFoundExplicit = true;
+			bAnyExplictTriggered |= (CurrentState == ETriggerState::Triggered);
+			bFoundActiveTrigger |= (CurrentState != ETriggerState::None);
+			break;
+		case ETriggerType::Implicit:
+			bAllImplicitsTriggered &= (CurrentState == ETriggerState::Triggered);
+			bFoundActiveTrigger |= (CurrentState != ETriggerState::None);
+			break;
+		case ETriggerType::Blocker:
+			bBlocking |= (CurrentState == ETriggerState::Triggered);
+			// Ongoing blockers don't count as active triggers
+			break;
+		}
+	}
+
+	if (bBlocking)
 	{
-		// An active Blocker was encountered.
 		return ETriggerState::None;
 	}
 
@@ -592,16 +565,6 @@ FInputActionInstance& UEnhancedPlayerInput::FindOrAddActionEventData(const UInpu
 
 void UEnhancedPlayerInput::InitializeMappingActionModifiers(const FEnhancedActionKeyMapping& Mapping)
 {
-#if DO_CHECK
-	// Validate no FinalValue modifiers have been applied to the mapping. These will still be processed, but will most likely not have the desired effect.
-	// TODO: Strip them out?
-	for (UInputModifier* Modifier : Mapping.Modifiers)
-	{
-		// Final value modifiers should only ever be applied to actions. TODO: Enforce this via the editor!
-		checkf(!Modifier || Modifier->GetExecutionPhase() != EModifierExecutionPhase::FinalValue, TEXT("Mapping '%s:%s' is applying a final value modifier '%s', which is only supported on actions."), *Mapping.Action->GetName(), *Mapping.Key.GetFName().ToString(), *Modifier->GetName());
-	}
-#endif
-
 	if (Mapping.Action)
 	{
 		// Perform a modifier calculation pass on default data to initialize values correctly.
