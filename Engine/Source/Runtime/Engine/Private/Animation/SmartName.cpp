@@ -338,7 +338,7 @@ bool FSmartName::Serialize(FArchive& Ar)
 		Ar << TempUID;
 	}
 #if WITH_EDITOR
-	else if (Ar.IsTransacting())
+	else if (Ar.IsTransacting() || Ar.HasAnyPortFlags(PPF_Duplicate))
 	{
 		Ar << UID;
 	}
