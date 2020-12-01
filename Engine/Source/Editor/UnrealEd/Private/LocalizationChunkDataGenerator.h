@@ -17,7 +17,7 @@ public:
 	virtual ~FLocalizationChunkDataGenerator() = default;
 
 	//~ IChunkDataGenerator
-	virtual void GenerateChunkDataFiles(const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const FString& InPlatformName, FSandboxPlatformFile* InSandboxFile, TArray<FString>& OutChunkFilenames) override;
+	virtual void GenerateChunkDataFiles(const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, FSandboxPlatformFile* InSandboxFile, TArray<FString>& OutChunkFilenames) override;
 
 private:
 	/** Update CachedLocalizationTargetData if needed */
