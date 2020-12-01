@@ -13,6 +13,7 @@
 #include "Factories/Factory.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
+#include "GameFramework/Actor.h"
 
 class UMovieSceneSequence;
 class UMovieSceneTrack;
