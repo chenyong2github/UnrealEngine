@@ -18,7 +18,7 @@ void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 {
 	uint32 LevelOffset	= ClusterRangeStart;
 	
-	TAtomic< uint32 >	NumClusters = Clusters.Num();
+	TAtomic< uint32 >	NumClusters( Clusters.Num() );
 	uint32				NumExternalEdges = 0;
 
 	bool bFirstLevel = true;
