@@ -7,6 +7,8 @@
 
 #if WITH_PARTICLE_PERF_STATS
 
+#include "CanvasTypes.h"
+#include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Misc/ScopeLock.h"
 #include "RenderingThread.h"
@@ -14,7 +16,6 @@
 #include "HAL/FileManager.h"
 #include "Particles/ParticleSystem.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Particles/ParticleSystem.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
