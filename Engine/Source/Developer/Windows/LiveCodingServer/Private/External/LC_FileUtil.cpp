@@ -7,6 +7,13 @@
 #include <stack>
 #include <Shlwapi.h>
 
+// BEGIN EPIC MOD
+// If PCH files are disabled, this define will cause problems with UnrealString.h
+#ifdef PathAppend
+#undef PathAppend
+#endif
+// END EPIC MOD
+
 #pragma comment(lib, "Shlwapi.lib")
 
 
