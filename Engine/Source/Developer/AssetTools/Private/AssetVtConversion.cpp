@@ -597,12 +597,11 @@ void FVTConversionWorker::DoConvert()
 				UE_LOG(LogVirtualTextureConversion, Display, TEXT("Texture %s"), *TextureToUpdate->GetName());
 				TextureTask.EnterProgressFrame();
 
-				bool OldVt = TextureToUpdate->VirtualTextureStreaming;
-				TextureToUpdate->VirtualTextureStreaming = bVirtualTextureEnable;
-				if (OldVt != TextureToUpdate->VirtualTextureStreaming)
+				if (TextureToUpdate->VirtualTextureStreaming != bVirtualTextureEnable)
 				{
 					FPropertyChangedEvent PropertyChangeEvent(UTexture::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming)));
 					TextureToUpdate->Modify();
+					TextureToUpdate->VirtualTextureStreaming = bVirtualTextureEnable;
 					TextureToUpdate->PostEditChangeProperty(PropertyChangeEvent);
 				}
 			}
