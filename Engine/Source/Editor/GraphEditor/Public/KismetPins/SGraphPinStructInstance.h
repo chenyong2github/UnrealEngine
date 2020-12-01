@@ -21,6 +21,8 @@ struct GRAPHEDITOR_API FPinStructEditWrapper
 {
 	GENERATED_BODY()
 
+	virtual ~FPinStructEditWrapper() { }
+
 	/** Returns a text representation of the data */
 	virtual FText GetPreviewDescription() const { return FText(); }
 
