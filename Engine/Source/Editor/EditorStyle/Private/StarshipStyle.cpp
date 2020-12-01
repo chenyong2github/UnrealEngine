@@ -3123,6 +3123,14 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 
 		Set( "PropertyWindow.WindowBorder", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
 
+		FInlineEditableTextBlockStyle NameStyle(FCoreStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"));
+		NameStyle.EditableTextBoxStyle.SetFont(DEFAULT_FONT("Regular", 11))
+			.SetForegroundColor(FSlateColor(EStyleColor::White));
+		NameStyle.TextStyle.SetFont(DEFAULT_FONT("Regular", 11))
+			.SetColorAndOpacity(FSlateColor(EStyleColor::White));
+
+		Set( "DetailsView.NameTextBlockStyle",  NameStyle );
+
 		Set( "DetailsView.NameChangeCommitted", new BOX_BRUSH( "Common/EditableTextSelectionBackground", FMargin(4.f/16.f) ) );
 		Set( "DetailsView.HyperlinkStyle", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 8 ) ) );
 
