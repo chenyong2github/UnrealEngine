@@ -4,6 +4,7 @@
 
 #include "AllocationsProvider.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Queue.h"
 #include "HAL/PlatformAtomics.h"
 
 #include <atomic>

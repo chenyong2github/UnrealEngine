@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Experimental/Containers/HazardPointer.h"
+#include "Misc/ScopeLock.h"
 
 FHazardPointerCollection::~FHazardPointerCollection()
 {

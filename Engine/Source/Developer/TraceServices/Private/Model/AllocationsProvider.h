@@ -3,6 +3,8 @@
 #pragma once
 
 #include "TraceServices/Model/AllocationsProvider.h"
+#include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
 
 namespace TraceServices
 {

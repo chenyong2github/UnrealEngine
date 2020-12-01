@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SbTree.h"
+
+#include "Misc/FileHelper.h"
 #include "TraceServices/Containers/Allocators.h"
 
 #include <limits>

@@ -12,6 +12,7 @@
 #include "IWebBrowserSingleton.h"
 #include "IWebBrowserCookieManager.h"
 // Widgets
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
