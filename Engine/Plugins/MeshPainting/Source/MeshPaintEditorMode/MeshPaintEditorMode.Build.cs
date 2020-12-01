@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "EditorStyle",
+					"EditorSubsystem"
                 }
             );
 

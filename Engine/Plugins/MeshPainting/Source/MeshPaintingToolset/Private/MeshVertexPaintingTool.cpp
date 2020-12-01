@@ -394,7 +394,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 				{
 					InfluencedVertices.Reset();
 					Args.HitResult = PaintRayResults[PaintRayResultId].BestTraceResult;
-					bPaintApplied |= UMeshPaintingToolset::GetPerVertexPaintInfluencedVertices(Args, InfluencedVertices);
+					bPaintApplied |= GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetPerVertexPaintInfluencedVertices(Args, InfluencedVertices);
 
 					if (InfluencedVertices.Num() == 0)
 					{
@@ -432,7 +432,7 @@ void UMeshVertexPaintingTool::ApplyVertexData(FPerVertexPaintActionArgs& InArgs,
 	InArgs.Adapter->GetVertexPosition(VertexIndex, Position);
 	Position = InArgs.Adapter->GetComponentToWorldMatrix().TransformPosition(Position);
 	InArgs.Adapter->GetVertexColor(VertexIndex, PaintColor, true);
-	UMeshPaintingToolset::PaintVertex(Position, Parameters, PaintColor);
+	GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PaintVertex(Position, Parameters, PaintColor);
 	InArgs.Adapter->SetVertexColor(VertexIndex, PaintColor, true);
 }
 
@@ -599,7 +599,7 @@ void UMeshColorPaintingTool::SetAdditionalPaintParameters(FMeshPaintParameters& 
 	InPaintParameters.bWriteGreen = ColorProperties->bWriteGreen;
 	InPaintParameters.bWriteBlue = ColorProperties->bWriteBlue;
 	InPaintParameters.bWriteAlpha = ColorProperties->bWriteAlpha;
-	InPaintParameters.ApplyVertexDataDelegate.AddStatic(&UMeshPaintingToolset::ApplyVertexColorPaint);
+	InPaintParameters.ApplyVertexDataDelegate.AddUObject(GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>(), &UMeshPaintingSubsystem::ApplyVertexColorPaint);
 }
 
 int32 UMeshColorPaintingTool::GetMaxLODIndexToPaint() const
@@ -614,7 +614,7 @@ int32 UMeshColorPaintingTool::GetMaxLODIndexToPaint() const
 		for (UMeshComponent* MeshComponent : SelectedComponents)
 		{
 			int32 NumMeshLODs = 0;
-			if (UMeshPaintingToolset::TryGetNumberOfLODs(MeshComponent, NumMeshLODs))
+			if (GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->TryGetNumberOfLODs(MeshComponent, NumMeshLODs))
 			{
 				ensure(NumMeshLODs > 0);
 				LODMin = FMath::Min(LODMin, NumMeshLODs - 1);
@@ -673,7 +673,7 @@ void UMeshColorPaintingTool::ApplyForcedLODIndex(int32 ForcedLODIndex)
 		{
 			if (SelectedComponent)
 			{
-				UMeshPaintingToolset::ForceRenderMeshLOD(SelectedComponent, ForcedLODIndex);
+				GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ForceRenderMeshLOD(SelectedComponent, ForcedLODIndex);
 			}
 		}
 	}
@@ -768,7 +768,7 @@ void UMeshWeightPaintingTool::SetAdditionalPaintParameters(FMeshPaintParameters&
 		// Clamp the weight index to fall within the total weight count
 		InPaintParameters.PaintWeightIndex = FMath::Clamp(PaintWeightIndex, 0, InPaintParameters.TotalWeightCount - 1);
 	}
-	InPaintParameters.ApplyVertexDataDelegate.AddStatic(&UMeshPaintingToolset::ApplyVertexWeightPaint);
+	InPaintParameters.ApplyVertexDataDelegate.AddUObject(GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>(), &UMeshPaintingSubsystem::ApplyVertexWeightPaint);
 }
 
 #undef LOCTEXT_NAMESPACE

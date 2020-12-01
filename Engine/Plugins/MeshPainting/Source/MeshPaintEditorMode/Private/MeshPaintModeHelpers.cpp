@@ -48,7 +48,7 @@
 #include "MeshTexturePaintingTool.h"
 
 
-void UMeshPaintModeHelpers::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
+void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
 {
 	if (ViewportClient->IsPerspective())
 	{
@@ -119,7 +119,7 @@ void UMeshPaintModeHelpers::SetViewportColorMode(EMeshPaintDataColorViewMode Col
 	}
 }
 
-void UMeshPaintModeHelpers::SetRealtimeViewport(bool bRealtime)
+void UMeshPaintModeSubsystem::SetRealtimeViewport(bool bRealtime)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr< IAssetViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
@@ -142,7 +142,7 @@ void UMeshPaintModeHelpers::SetRealtimeViewport(bool bRealtime)
 }
 
 
-void UMeshPaintModeHelpers::ImportVertexColorsFromTexture(UMeshComponent* MeshComponent)
+void UMeshPaintModeSubsystem::ImportVertexColorsFromTexture(UMeshComponent* MeshComponent)
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid mesh component ptr"));
 
@@ -249,7 +249,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsFromTexture(UMeshComponent* MeshCo
 }
 
 
-void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeSubsystem::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(SkeletalMesh && Options && Texture, TEXT("Invalid ptr"));
 
@@ -281,7 +281,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Skel
 		for (uint32 VertexIndex = 0; VertexIndex < LODData.GetNumVertices(); ++VertexIndex)
 		{
 			const FVector2D UV = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVIndex);
-			LODData.StaticVertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex) = UMeshPaintingToolset::PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
+			LODData.StaticVertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex) = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
 		}
 
 		SkeletalMesh->InitResources();
@@ -298,7 +298,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Skel
 		LODModel.GetSectionFromVertexIndex(VertexIndex, SectionIndex, SectionVertexIndex);
 
 		const FVector2D UV = LODModel.Sections[SectionIndex].SoftVertices[SectionVertexIndex].UVs[UVIndex];
-		LODModel.Sections[SectionIndex].SoftVertices[SectionVertexIndex].Color = UMeshPaintingToolset::PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
+		LODModel.Sections[SectionIndex].SoftVertices[SectionVertexIndex].Color = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
 	}
 
 	//Make sure we change the import data so the re-import do not replace the new data
@@ -315,7 +315,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Skel
 }
 
 
-bool UMeshPaintModeHelpers::RetrieveViewportPaintRays(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI, TArray<FPaintRay>& OutPaintRays)
+bool UMeshPaintModeSubsystem::RetrieveViewportPaintRays(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI, TArray<FPaintRay>& OutPaintRays)
 {
 	checkf(View && Viewport && PDI, TEXT("Invalid Viewport data"));
 	FEditorViewportClient* ViewportClient = (FEditorViewportClient*)Viewport->GetClient();
@@ -355,7 +355,7 @@ bool UMeshPaintModeHelpers::RetrieveViewportPaintRays(const FSceneView* View, FV
 }
 
 
-void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeSubsystem::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(StaticMesh && Options && Texture, TEXT("Invalid ptr"));
 
@@ -392,7 +392,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMe
 	for (uint32 VertexIndex = 0; VertexIndex < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); ++VertexIndex)
 	{
 		const FVector2D UV = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVIndex);
-		LODModel.VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex) = UMeshPaintingToolset::PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
+		LODModel.VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex) = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
 	}
 
 	// Make sure colors are saved into raw mesh
@@ -400,7 +400,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMe
 	StaticMesh->InitResources();
 }
 
-void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UImportVertexColorOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeSubsystem::ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(StaticMeshComponent && Options && Texture, TEXT("Invalid ptr"));
 
@@ -455,7 +455,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshC
 		for (uint32 VertexIndex = 0; VertexIndex < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); ++VertexIndex)
 		{
 			const FVector2D UV = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVIndex);
-			InstanceMeshLODInfo.OverrideVertexColors->VertexColor(VertexIndex) = UMeshPaintingToolset::PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
+			InstanceMeshLODInfo.OverrideVertexColors->VertexColor(VertexIndex) = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
 		}
 
 		//Update the cache painted vertices
@@ -470,7 +470,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshC
 	}
 }
 
-void UMeshPaintModeHelpers::PropagateVertexColors(const TArray<UStaticMeshComponent *> StaticMeshComponents)
+void UMeshPaintModeSubsystem::PropagateVertexColors(const TArray<UStaticMeshComponent *> StaticMeshComponents)
 {
 	bool SomePaintWasPropagated = false;
 	TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;
@@ -488,7 +488,7 @@ void UMeshPaintModeHelpers::PropagateVertexColors(const TArray<UStaticMeshCompon
 				{
 					Mesh->Modify();
 					// Try using the mapping generated when building the mesh.
-					if (UMeshPaintingToolset::PropagateColorsToRawMesh(Mesh, LODIndex, InstanceMeshLODInfo))
+					if (GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->PropagateColorsToRawMesh(Mesh, LODIndex, InstanceMeshLODInfo))
 					{
 						SomePaintWasPropagated = true;
 					}
@@ -499,13 +499,13 @@ void UMeshPaintModeHelpers::PropagateVertexColors(const TArray<UStaticMeshCompon
 		if (SomePaintWasPropagated)
 		{
 			ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component);
-			UMeshPaintingToolset::RemoveComponentInstanceVertexColors(Component);
+			GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->RemoveComponentInstanceVertexColors(Component);
 			Mesh->Build();
 		}
 	}
 }
 
-bool UMeshPaintModeHelpers::CanPropagateVertexColors(TArray<UStaticMeshComponent*>& StaticMeshComponents, TArray<UStaticMesh*>& StaticMeshes, int32 NumInstanceVertexColorBytes)
+bool UMeshPaintModeSubsystem::CanPropagateVertexColors(TArray<UStaticMeshComponent*>& StaticMeshComponents, TArray<UStaticMesh*>& StaticMeshes, int32 NumInstanceVertexColorBytes)
 {
 	bool bValid = StaticMeshComponents.Num() > 0;
 	for (const UStaticMeshComponent* Component : StaticMeshComponents)
@@ -531,13 +531,13 @@ bool UMeshPaintModeHelpers::CanPropagateVertexColors(TArray<UStaticMeshComponent
 			CachedLODIndex = ColorPaintingTool->GetCachedLODIndex();
 		}
 
-		UMeshPaintingToolset::GetInstanceColorDataInfo(Component, CachedLODIndex, NumInstanceVertexColorBytes);
+		GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetInstanceColorDataInfo(Component, CachedLODIndex, NumInstanceVertexColorBytes);
 	}
 
 	return bValid && (NumInstanceVertexColorBytes > 0);
 }
 
-void UMeshPaintModeHelpers::CopyVertexColors(const TArray<UStaticMeshComponent *> StaticMeshComponents, TArray<FPerComponentVertexColorData>& CopiedVertexColors)
+void UMeshPaintModeSubsystem::CopyVertexColors(const TArray<UStaticMeshComponent *> StaticMeshComponents, TArray<FPerComponentVertexColorData>& CopiedVertexColors)
 {
 	for (UStaticMeshComponent* Component : StaticMeshComponents)
 	{
@@ -562,13 +562,13 @@ void UMeshPaintModeHelpers::CopyVertexColors(const TArray<UStaticMeshComponent *
 
 				if (Component->LODData.IsValidIndex(LODIndex) && (Component->LODData[LODIndex].OverrideVertexColors != nullptr))
 				{
-					ColorData = UMeshPaintingToolset::GetInstanceColorDataForLOD(Component, LODIndex);
+					ColorData = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetInstanceColorDataForLOD(Component, LODIndex);
 				}
 				else
 				{
-					ColorData = UMeshPaintingToolset::GetColorDataForLOD(StaticMesh, LODIndex);
+					ColorData = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetColorDataForLOD(StaticMesh, LODIndex);
 				}
-				VertexData = UMeshPaintingToolset::GetVerticesForLOD(StaticMesh, LODIndex);
+				VertexData = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetVerticesForLOD(StaticMesh, LODIndex);
 
 				const bool bValidColorData = VertexData.Num() == ColorData.Num();
 				for (int32 VertexIndex = 0; VertexIndex < VertexData.Num(); ++VertexIndex)
@@ -584,7 +584,7 @@ void UMeshPaintModeHelpers::CopyVertexColors(const TArray<UStaticMeshComponent *
 	}
 }
 
-bool UMeshPaintModeHelpers::CanCopyInstanceVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, int32 PaintingMeshLODIndex)
+bool UMeshPaintModeSubsystem::CanCopyInstanceVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, int32 PaintingMeshLODIndex)
 {
 	// Ensure that the selection does not contain two components which point to identical meshes
 	TArray<const UStaticMesh*> ContainedMeshes;
@@ -615,7 +615,7 @@ bool UMeshPaintModeHelpers::CanCopyInstanceVertexColors(const TArray<UStaticMesh
 		checkf(Component != nullptr, TEXT("Invalid Static Mesh Component"));
 		if (Component->GetStaticMesh() != nullptr && Component->GetStaticMesh()->GetNumLODs() > (int32)PaintingMeshLODIndex)
 		{
-			uint32 BufferSize = UMeshPaintingToolset::GetVertexColorBufferSize(Component, PaintingMeshLODIndex, true);
+			uint32 BufferSize = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetVertexColorBufferSize(Component, PaintingMeshLODIndex, true);
 
 			if (BufferSize > 0)
 			{
@@ -627,7 +627,7 @@ bool UMeshPaintModeHelpers::CanCopyInstanceVertexColors(const TArray<UStaticMesh
 	return bValidSelection && (NumValidMeshes != 0);
 }
 
-void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, TArray<FPerComponentVertexColorData>& CopiedColorsByComponent)
+void UMeshPaintModeSubsystem::PasteVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, TArray<FPerComponentVertexColorData>& CopiedColorsByComponent)
 {
 	for (UStaticMeshComponent* Component : StaticMeshComponents)
 	{
@@ -652,7 +652,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 				Component->Modify();
 				Component->SetLODDataCount(NumLods, NumLods);
 				/** Remove all vertex colors before we paste in new ones */
-				UMeshPaintingToolset::RemoveComponentInstanceVertexColors(Component);
+				GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->RemoveComponentInstanceVertexColors(Component);
 
 				/** Try and apply copied vertex colors for each LOD in the mesh */
 				for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
@@ -665,7 +665,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 					{
 						// no corresponding LOD in color paste buffer CopiedColorsByLOD
 						// create array of all white verts
-						UMeshPaintingToolset::SetInstanceColorDataForLOD(Component, LODIndex, FColor::White, FColor::White);
+						GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->SetInstanceColorDataForLOD(Component, LODIndex, FColor::White, FColor::White);
 					}
 					else
 					{
@@ -674,7 +674,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 
 						if (NumLODVertices == LODData.ColorsByIndex.Num())
 						{
-							UMeshPaintingToolset::SetInstanceColorDataForLOD(Component, LODIndex, LODData.ColorsByIndex);
+							GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->SetInstanceColorDataForLOD(Component, LODIndex, LODData.ColorsByIndex);
 						}
 						else
 						{
@@ -690,7 +690,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 								PositionMatchedColors.Add(FoundColor ? *FoundColor : FColor::White);
 							}
 
-							UMeshPaintingToolset::SetInstanceColorDataForLOD(Component, LODIndex, PositionMatchedColors);
+							GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->SetInstanceColorDataForLOD(Component, LODIndex, PositionMatchedColors);
 						}
 					}
 				}
@@ -703,7 +703,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 	}
 }
 
-bool UMeshPaintModeHelpers::CanPasteInstanceVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, const TArray<FPerComponentVertexColorData>& CopiedColorsByComponent)
+bool UMeshPaintModeSubsystem::CanPasteInstanceVertexColors(const TArray<UStaticMeshComponent*>& StaticMeshComponents, const TArray<FPerComponentVertexColorData>& CopiedColorsByComponent)
 {
 	bool bValidForPasting = false;
 	/** Make sure we have copied vertex color data which matches at least mesh component in the current selection */
@@ -731,7 +731,7 @@ bool UMeshPaintModeHelpers::CanPasteInstanceVertexColors(const TArray<UStaticMes
 	return bValidForPasting;
 }
 
-void UMeshPaintModeHelpers::RemovePerLODColors(const TArray<UMeshComponent*>& PaintableComponents)
+void UMeshPaintModeSubsystem::RemovePerLODColors(const TArray<UMeshComponent*>& PaintableComponents)
 {
 	//Remove painting on all lowers LODs before doing the propagation
 	for (UMeshComponent* SelectedComponent : PaintableComponents)
@@ -766,7 +766,7 @@ void UMeshPaintModeHelpers::RemovePerLODColors(const TArray<UMeshComponent*>& Pa
 	}
 }
 
-void UMeshPaintModeHelpers::SwapVertexColors()
+void UMeshPaintModeSubsystem::SwapVertexColors()
 {
 	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
 	if (Settings)
@@ -781,7 +781,7 @@ void UMeshPaintModeHelpers::SwapVertexColors()
 
 
 
-void UMeshPaintModeHelpers::SaveModifiedTextures()
+void UMeshPaintModeSubsystem::SaveModifiedTextures()
 {
 	UMeshTexturePaintingToolProperties* Settings = UMeshPaintMode::GetTextureToolProperties();
 	if (Settings)
@@ -797,7 +797,7 @@ void UMeshPaintModeHelpers::SaveModifiedTextures()
 	}
 }
 
-bool UMeshPaintModeHelpers::CanSaveModifiedTextures()
+bool UMeshPaintModeSubsystem::CanSaveModifiedTextures()
 {
 	/** Check whether or not the current selected paint texture requires saving */
 	bool bRequiresSaving = false;

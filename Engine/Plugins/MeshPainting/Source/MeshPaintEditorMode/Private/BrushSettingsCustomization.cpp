@@ -162,7 +162,7 @@ FReply FVertexPaintingSettingsCustomization::OnSwapColorsClicked(TSharedRef<IPro
 {
 	FScopedTransaction Transaction(NSLOCTEXT("VertexPaintSettings", "SwapColorsTransation", "Swap paint and erase colors"));
 
-	UMeshPaintModeHelpers::SwapVertexColors();
+	GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SwapVertexColors();
 	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
 	if (Settings)
 	{

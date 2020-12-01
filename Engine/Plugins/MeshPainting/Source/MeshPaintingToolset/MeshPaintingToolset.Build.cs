@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
                 new string[] {
 					"InteractiveToolsFramework",
 					"EditorInteractiveToolsFramework",
-                    "GeometricObjects"
+                    "GeometricObjects",
                 }
             );
         }

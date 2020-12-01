@@ -23,10 +23,10 @@ void SImportVertexColorOptionsWindow::Construct(const FArguments& InArgs)
 	Options->UVIndex = 0;
 	
 	// Populate max UV index for each LOD in the mesh component
-	const int32 NumLODs = UMeshPaintingToolset::GetNumberOfLODs(InArgs._Component);
+	const int32 NumLODs = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetNumberOfLODs(InArgs._Component);
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
-		Options->LODToMaxUVMap.Add(LODIndex, UMeshPaintingToolset::GetNumberOfUVs(InArgs._Component, LODIndex) - 1 );
+		Options->LODToMaxUVMap.Add(LODIndex, GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetNumberOfUVs(InArgs._Component, LODIndex) - 1 );
 	}
 	Options->NumLODs = NumLODs;
 	// Can only import vertex colors to static mesh component instances

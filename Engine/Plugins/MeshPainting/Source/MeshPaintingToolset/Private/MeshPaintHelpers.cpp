@@ -27,12 +27,12 @@
 
 extern void PropagateVertexPaintToSkeletalMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
-bool UMeshPaintingToolset::HasPaintableMesh(UActorComponent* Component)
+bool UMeshPaintingSubsystem::HasPaintableMesh(UActorComponent* Component)
 {
 	return Cast<UMeshComponent>(Component) != nullptr;
 }
 
-void UMeshPaintingToolset::RemoveInstanceVertexColors(UObject* Obj)
+void UMeshPaintingSubsystem::RemoveInstanceVertexColors(UObject* Obj)
 {
 	// Currently only static mesh component supports per instance vertex colors so only need to retrieve those and remove colors
 	AActor* Actor = Cast<AActor>(Obj);
@@ -44,13 +44,13 @@ void UMeshPaintingToolset::RemoveInstanceVertexColors(UObject* Obj)
 		{
 			if (StaticMeshComponent != nullptr)
 			{
-				UMeshPaintingToolset::RemoveComponentInstanceVertexColors(StaticMeshComponent);
+				UMeshPaintingSubsystem::RemoveComponentInstanceVertexColors(StaticMeshComponent);
 			}
 		}
 	}
 }
 
-void UMeshPaintingToolset::RemoveComponentInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent)
+void UMeshPaintingSubsystem::RemoveComponentInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent != nullptr && StaticMeshComponent->GetStaticMesh() != nullptr)
 	{
@@ -75,7 +75,7 @@ void UMeshPaintingToolset::RemoveComponentInstanceVertexColors(UStaticMeshCompon
 }
 
 
-bool UMeshPaintingToolset::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 LODIndex, FStaticMeshComponentLODInfo& ComponentLODInfo)
+bool UMeshPaintingSubsystem::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 LODIndex, FStaticMeshComponentLODInfo& ComponentLODInfo)
 {
 	check(ComponentLODInfo.OverrideVertexColors);
 	check(StaticMesh->IsSourceModelValid(LODIndex));
@@ -167,14 +167,14 @@ bool UMeshPaintingToolset::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int
 	return bPropagatedColors;
 }
 
-bool UMeshPaintingToolset::PaintVertex(const FVector& InVertexPosition, const FMeshPaintParameters& InParams, FColor& InOutVertexColor)
+bool UMeshPaintingSubsystem::PaintVertex(const FVector& InVertexPosition, const FMeshPaintParameters& InParams, FColor& InOutVertexColor)
 {
 	float SquaredDistanceToVertex2D;
 	float VertexDepthToBrush;
-	if (UMeshPaintingToolset::IsPointInfluencedByBrush(InVertexPosition, InParams, SquaredDistanceToVertex2D, VertexDepthToBrush))
+	if (UMeshPaintingSubsystem::IsPointInfluencedByBrush(InVertexPosition, InParams, SquaredDistanceToVertex2D, VertexDepthToBrush))
 	{
 		// Compute amount of paint to apply
-		const float PaintAmount = UMeshPaintingToolset::ComputePaintMultiplier(SquaredDistanceToVertex2D, InParams.BrushStrength, InParams.InnerBrushRadius, InParams.BrushRadialFalloffRange, InParams.BrushDepth, InParams.BrushDepthFalloffRange, VertexDepthToBrush);
+		const float PaintAmount = UMeshPaintingSubsystem::ComputePaintMultiplier(SquaredDistanceToVertex2D, InParams.BrushStrength, InParams.InnerBrushRadius, InParams.BrushRadialFalloffRange, InParams.BrushDepth, InParams.BrushDepthFalloffRange, VertexDepthToBrush);
 			
 		const FLinearColor OldColor = InOutVertexColor.ReinterpretAsLinear();
 		FLinearColor NewColor = OldColor;
@@ -194,7 +194,7 @@ bool UMeshPaintingToolset::PaintVertex(const FVector& InVertexPosition, const FM
 	return false;
 }
 
-void UMeshPaintingToolset::ApplyVertexColorPaint(const FMeshPaintParameters &InParams, const FLinearColor &OldColor, FLinearColor &NewColor, const float PaintAmount)
+void UMeshPaintingSubsystem::ApplyVertexColorPaint(const FMeshPaintParameters &InParams, const FLinearColor &OldColor, FLinearColor &NewColor, const float PaintAmount)
 {
 	// Color painting
 
@@ -219,7 +219,7 @@ void UMeshPaintingToolset::ApplyVertexColorPaint(const FMeshPaintParameters &InP
 	}
 }
 
-void UMeshPaintingToolset::ApplyVertexWeightPaint(const FMeshPaintParameters &InParams, const FLinearColor &OldColor, FLinearColor &NewColor, const float PaintAmount)
+void UMeshPaintingSubsystem::ApplyVertexWeightPaint(const FMeshPaintParameters &InParams, const FLinearColor &OldColor, FLinearColor &NewColor, const float PaintAmount)
 {
 	// Total number of texture blend weights we're using
 	check(InParams.TotalWeightCount > 0);
@@ -373,7 +373,7 @@ void UMeshPaintingToolset::ApplyVertexWeightPaint(const FMeshPaintParameters &In
 	}	
 }
 
-FLinearColor UMeshPaintingToolset::GenerateColorForTextureWeight(const int32 NumWeights, const int32 WeightIndex)
+FLinearColor UMeshPaintingSubsystem::GenerateColorForTextureWeight(const int32 NumWeights, const int32 WeightIndex)
 {
 	const bool bUsingOneMinusTotal =
 		NumWeights == 2 ||		// Two textures: Use a lerp() in pixel shader (single value)
@@ -470,7 +470,7 @@ FLinearColor UMeshPaintingToolset::GenerateColorForTextureWeight(const int32 Num
 	return NewColor;
 }
 
-float UMeshPaintingToolset::ComputePaintMultiplier(float SquaredDistanceToVertex2D, float BrushStrength, float BrushInnerRadius, float BrushRadialFalloff, float BrushInnerDepth, float BrushDepthFallof, float VertexDepthToBrush)
+float UMeshPaintingSubsystem::ComputePaintMultiplier(float SquaredDistanceToVertex2D, float BrushStrength, float BrushInnerRadius, float BrushRadialFalloff, float BrushInnerDepth, float BrushDepthFallof, float VertexDepthToBrush)
 {
 	float PaintAmount = 1.0f;
 	
@@ -500,7 +500,7 @@ float UMeshPaintingToolset::ComputePaintMultiplier(float SquaredDistanceToVertex
 	return PaintAmount;
 }
 
-bool UMeshPaintingToolset::IsPointInfluencedByBrush(const FVector& InPosition, const FMeshPaintParameters& InParams, float& OutSquaredDistanceToVertex2D, float& OutVertexDepthToBrush)
+bool UMeshPaintingSubsystem::IsPointInfluencedByBrush(const FVector& InPosition, const FMeshPaintParameters& InParams, float& OutSquaredDistanceToVertex2D, float& OutVertexDepthToBrush)
 {
 	// Project the vertex into the plane of the brush
 	FVector BrushSpaceVertexPosition = InParams.InverseBrushToWorldMatrix.TransformPosition(InPosition);
@@ -524,7 +524,7 @@ bool UMeshPaintingToolset::IsPointInfluencedByBrush(const FVector& InPosition, c
 	return false;
 }
 
-bool UMeshPaintingToolset::IsPointInfluencedByBrush(const FVector2D& BrushSpacePosition, const float BrushRadius, float& OutInRangeValue)
+bool UMeshPaintingSubsystem::IsPointInfluencedByBrush(const FVector2D& BrushSpacePosition, const float BrushRadius, float& OutInRangeValue)
 {
 	const float DistanceToBrush = BrushSpacePosition.SizeSquared();
 	if (DistanceToBrush <= BrushRadius)
@@ -536,7 +536,7 @@ bool UMeshPaintingToolset::IsPointInfluencedByBrush(const FVector2D& BrushSpaceP
 	return false;
 }
 
-uint32 UMeshPaintingToolset::GetVertexColorBufferSize(UMeshComponent* MeshComponent, int32 LODIndex, bool bInstance)
+uint32 UMeshPaintingSubsystem::GetVertexColorBufferSize(UMeshComponent* MeshComponent, int32 LODIndex, bool bInstance)
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid static mesh component ptr"));
 	
@@ -595,7 +595,7 @@ uint32 UMeshPaintingToolset::GetVertexColorBufferSize(UMeshComponent* MeshCompon
 	return SizeInBytes;
 }
 
-TArray<FVector> UMeshPaintingToolset::GetVerticesForLOD( const UStaticMesh* StaticMesh, int32 LODIndex)
+TArray<FVector> UMeshPaintingSubsystem::GetVerticesForLOD( const UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	checkf(StaticMesh != nullptr, TEXT("Invalid static mesh ptr"));
 
@@ -614,7 +614,7 @@ TArray<FVector> UMeshPaintingToolset::GetVerticesForLOD( const UStaticMesh* Stat
 	return Vertices;
 }
 
-TArray<FColor> UMeshPaintingToolset::GetColorDataForLOD( const UStaticMesh* StaticMesh, int32 LODIndex)
+TArray<FColor> UMeshPaintingSubsystem::GetColorDataForLOD( const UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	checkf(StaticMesh != nullptr, TEXT("Invalid static mesh ptr"));
 	// Retrieve mesh vertex colors from Static mesh render data 
@@ -632,7 +632,7 @@ TArray<FColor> UMeshPaintingToolset::GetColorDataForLOD( const UStaticMesh* Stat
 	return Colors;
 }
 
-TArray<FColor> UMeshPaintingToolset::GetInstanceColorDataForLOD(const UStaticMeshComponent* MeshComponent, int32 LODIndex)
+TArray<FColor> UMeshPaintingSubsystem::GetInstanceColorDataForLOD(const UStaticMeshComponent* MeshComponent, int32 LODIndex)
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid static mesh component ptr"));
 	TArray<FColor> Colors;
@@ -655,7 +655,7 @@ TArray<FColor> UMeshPaintingToolset::GetInstanceColorDataForLOD(const UStaticMes
 	return Colors;
 }
 
-void UMeshPaintingToolset::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComponent, int32 LODIndex, const TArray<FColor>& Colors)
+void UMeshPaintingSubsystem::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComponent, int32 LODIndex, const TArray<FColor>& Colors)
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid static mesh component ptr"));
 
@@ -689,7 +689,7 @@ void UMeshPaintingToolset::SetInstanceColorDataForLOD(UStaticMeshComponent* Mesh
 	}
 }
 
-void UMeshPaintingToolset::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor )
+void UMeshPaintingSubsystem::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor )
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid static mesh component ptr"));
 
@@ -749,7 +749,7 @@ void UMeshPaintingToolset::SetInstanceColorDataForLOD(UStaticMeshComponent* Mesh
 	}
 }
 
-void UMeshPaintingToolset::FillStaticMeshVertexColors(UStaticMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
+void UMeshPaintingSubsystem::FillStaticMeshVertexColors(UStaticMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
 {
 	UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
 	if (Mesh)
@@ -761,18 +761,18 @@ void UMeshPaintingToolset::FillStaticMeshVertexColors(UStaticMeshComponent* Mesh
 			{
 				for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 				{
-					UMeshPaintingToolset::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
+					UMeshPaintingSubsystem::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
 				}
 			}
 			else
 			{
-				UMeshPaintingToolset::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
+				UMeshPaintingSubsystem::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
 			}
 		}
 	}
 }
 
-void UMeshPaintingToolset::FillSkeletalMeshVertexColors(USkeletalMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
+void UMeshPaintingSubsystem::FillSkeletalMeshVertexColors(USkeletalMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
 {
 	TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext;
 	USkeletalMesh* Mesh = MeshComponent->SkeletalMesh;
@@ -799,7 +799,7 @@ void UMeshPaintingToolset::FillSkeletalMeshVertexColors(USkeletalMeshComponent* 
 			// because currently all LOD data is being released above.
 			for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
-				UMeshPaintingToolset::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
+				UMeshPaintingSubsystem::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
 				PropagateVertexPaintToSkeletalMesh(Mesh, LODIndex);
 			}
 			Mesh->InitResources();
@@ -807,7 +807,7 @@ void UMeshPaintingToolset::FillSkeletalMeshVertexColors(USkeletalMeshComponent* 
 	}
 }
 
-void UMeshPaintingToolset::SetColorDataForLOD(USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColor FillColor, const FColor MaskColor )
+void UMeshPaintingSubsystem::SetColorDataForLOD(USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColor FillColor, const FColor MaskColor )
 {
 	checkf(SkeletalMesh != nullptr, TEXT("Invalid Skeletal Mesh Ptr"));
 	FSkeletalMeshRenderData* Resource = SkeletalMesh->GetResourceForRendering();
@@ -850,7 +850,7 @@ void UMeshPaintingToolset::SetColorDataForLOD(USkeletalMesh* SkeletalMesh, int32
 	}
 }
 
-void UMeshPaintingToolset::ApplyFillWithMask(FColor& InOutColor, const FColor& MaskColor, const FColor& FillColor)
+void UMeshPaintingSubsystem::ApplyFillWithMask(FColor& InOutColor, const FColor& MaskColor, const FColor& FillColor)
 {
 	InOutColor.R = ((InOutColor.R & (~MaskColor.R)) | (FillColor.R & MaskColor.R));
 	InOutColor.G = ((InOutColor.G & (~MaskColor.G)) | (FillColor.G & MaskColor.G));
@@ -859,7 +859,7 @@ void UMeshPaintingToolset::ApplyFillWithMask(FColor& InOutColor, const FColor& M
 }
 
 
-void UMeshPaintingToolset::ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIndex)
+void UMeshPaintingSubsystem::ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIndex)
 {
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 	{
@@ -871,7 +871,7 @@ void UMeshPaintingToolset::ForceRenderMeshLOD(UMeshComponent* Component, int32 L
 	}	
 }
 
-void UMeshPaintingToolset::ClearMeshTextureOverrides(const IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
+void UMeshPaintingSubsystem::ClearMeshTextureOverrides(const IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
 {
 	if (InMeshComponent != nullptr)
 	{
@@ -888,7 +888,7 @@ void UMeshPaintingToolset::ClearMeshTextureOverrides(const IMeshPaintComponentAd
 	}
 }
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
+void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
 {
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(InMeshComponent))
 	{
@@ -900,7 +900,7 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 	}
 }
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent)
+void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent)
 {
 	// If a static mesh component was found, apply LOD0 painting to all lower LODs.
 	if (!StaticMeshComponent || !StaticMeshComponent->GetStaticMesh())
@@ -983,7 +983,7 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 	}
 }
 
-bool UMeshPaintingToolset::TryGetNumberOfLODs(const UMeshComponent* MeshComponent, int32& OutNumLODs)
+bool UMeshPaintingSubsystem::TryGetNumberOfLODs(const UMeshComponent* MeshComponent, int32& OutNumLODs)
 {
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 	{
@@ -1007,14 +1007,14 @@ bool UMeshPaintingToolset::TryGetNumberOfLODs(const UMeshComponent* MeshComponen
 	return false;
 }
 
-int32 UMeshPaintingToolset::GetNumberOfLODs(const UMeshComponent* MeshComponent)
+int32 UMeshPaintingSubsystem::GetNumberOfLODs(const UMeshComponent* MeshComponent)
 {
 	int32 NumLODs = 1;
 	TryGetNumberOfLODs(MeshComponent, NumLODs);
 	return NumLODs;
 }
 
-int32 UMeshPaintingToolset::GetNumberOfUVs(const UMeshComponent* MeshComponent, int32 LODIndex)
+int32 UMeshPaintingSubsystem::GetNumberOfUVs(const UMeshComponent* MeshComponent, int32 LODIndex)
 {
 	int32 NumUVs = 0;
 
@@ -1038,7 +1038,7 @@ int32 UMeshPaintingToolset::GetNumberOfUVs(const UMeshComponent* MeshComponent, 
 	return NumUVs;
 }
 
-bool UMeshPaintingToolset::DoesMeshComponentContainPerLODColors(const UMeshComponent* MeshComponent)
+bool UMeshPaintingSubsystem::DoesMeshComponentContainPerLODColors(const UMeshComponent* MeshComponent)
 {
 	bool bPerLODColors = false;
 
@@ -1087,7 +1087,7 @@ bool UMeshPaintingToolset::DoesMeshComponentContainPerLODColors(const UMeshCompo
 	return bPerLODColors;
 }
 
-void UMeshPaintingToolset::GetInstanceColorDataInfo(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, int32& OutTotalInstanceVertexColorBytes)
+void UMeshPaintingSubsystem::GetInstanceColorDataInfo(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, int32& OutTotalInstanceVertexColorBytes)
 {
 	checkf(StaticMeshComponent, TEXT("Invalid StaticMeshComponent"));
 	OutTotalInstanceVertexColorBytes = 0;
@@ -1104,7 +1104,7 @@ void UMeshPaintingToolset::GetInstanceColorDataInfo(const UStaticMeshComponent* 
 	}
 }
 
-FColor UMeshPaintingToolset::PickVertexColorFromTextureData(const uint8* MipData, const FVector2D& UVCoordinate, const UTexture2D* Texture, const FColor ColorMask)
+FColor UMeshPaintingSubsystem::PickVertexColorFromTextureData(const uint8* MipData, const FVector2D& UVCoordinate, const UTexture2D* Texture, const FColor ColorMask)
 {
 	checkf(MipData, TEXT("Invalid texture MIP data"));
 	FColor VertexColor = FColor::Black;
@@ -1126,7 +1126,7 @@ FColor UMeshPaintingToolset::PickVertexColorFromTextureData(const uint8* MipData
 	return VertexColor;
 }
 
-bool UMeshPaintingToolset::GetPerVertexPaintInfluencedVertices(FPerVertexPaintActionArgs& InArgs, TSet<int32>& InfluencedVertices)
+bool UMeshPaintingSubsystem::GetPerVertexPaintInfluencedVertices(FPerVertexPaintActionArgs& InArgs, TSet<int32>& InfluencedVertices)
 {
 	// Retrieve components world matrix
 	const FMatrix& ComponentToWorldMatrix = InArgs.Adapter->GetComponentToWorldMatrix();
@@ -1146,7 +1146,7 @@ bool UMeshPaintingToolset::GetPerVertexPaintInfluencedVertices(FPerVertexPaintAc
 	return (InfluencedVertices.Num() > 0);
 }
 
-bool UMeshPaintingToolset::ApplyPerVertexPaintAction(FPerVertexPaintActionArgs& InArgs, FPerVertexPaintAction Action)
+bool UMeshPaintingSubsystem::ApplyPerVertexPaintAction(FPerVertexPaintActionArgs& InArgs, FPerVertexPaintAction Action)
 {
 	// Get a list of unique vertices indexed by the influenced triangles
 	TSet<int32> InfluencedVertices;
@@ -1166,7 +1166,7 @@ bool UMeshPaintingToolset::ApplyPerVertexPaintAction(FPerVertexPaintActionArgs& 
 	return (InfluencedVertices.Num() > 0);
 }
 
-bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UBrushBaseProperties* Settings, FPerTrianglePaintAction Action, bool bOnlyFrontFacingTriangles)
+bool UMeshPaintingSubsystem::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UBrushBaseProperties* Settings, FPerTrianglePaintAction Action, bool bOnlyFrontFacingTriangles)
 {
 	// Retrieve components world matrix
 	const FMatrix& ComponentToWorldMatrix = Adapter->GetComponentToWorldMatrix();
@@ -1253,7 +1253,7 @@ struct FVertexColorPropogationOctreeSemantics
 };
 typedef TOctree2<FPaintedMeshVertex, FVertexColorPropogationOctreeSemantics> TVertexColorPropogationPosOctree;
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent)
+void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	checkf(SkeletalMeshComponent != nullptr, TEXT("Invalid Skeletal Mesh Component"));
 	USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh;
@@ -1534,9 +1534,9 @@ void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32
 			AddPaintableMeshComponent(MeshComponent);
 			AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
 			MeshAdapter->OnAdded();
-			UMeshPaintingToolset::ForceRenderMeshLOD(MeshComponent, PaintLODIndex);
+			GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ForceRenderMeshLOD(MeshComponent, PaintLODIndex);
 			ComponentReregisterContext.Reset(new FComponentReregisterContext(MeshComponent));
-			bSelectionContainsPerLODColors |= UMeshPaintingToolset::DoesMeshComponentContainPerLODColors(MeshComponent);
+			bSelectionContainsPerLODColors |= GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->DoesMeshComponentContainPerLODColors(MeshComponent);
 		}
 	}
 	bNeedsRecache = false;
@@ -1546,7 +1546,7 @@ int32 UMeshToolManager::GetMaxUVIndexToPaint() const
 {
 	if (PaintableComponents.Num() == 1 && PaintableComponents[0])
 	{
-		return UMeshPaintingToolset::GetNumberOfUVs(PaintableComponents[0], 0) - 1;
+		return GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetNumberOfUVs(PaintableComponents[0], 0) - 1;
 	}
 
 	return 0;
