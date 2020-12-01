@@ -48,7 +48,17 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
 	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, PathTracingData.TemporalSeed);
+
+	if (PathTracingData.UseErrorDiffusion)
+	{
+		// z-sampler init
+		RandomSequence_Initialize(RandSequence, LaunchIndex, PathTracingData.Iteration, PathTracingData.TemporalSeed - PathTracingData.Iteration, PathTracingData.MaxSamples);
+	}
+	else
+	{
+		// random sobol init
+		RandomSequence_Initialize(RandSequence, LinearIndex, PathTracingData.TemporalSeed);
+	}
 
 	float3 Radiance = 0;
 	uint RayCounter = 0;

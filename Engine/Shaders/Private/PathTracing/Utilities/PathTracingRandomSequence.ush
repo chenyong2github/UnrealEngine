@@ -140,6 +140,18 @@ float Halton(uint Index, uint Base)
 
 
 uint FastOwenScrambling(uint Index, uint Seed) {
+#if 0
+	// reference implementation - scramble bits one at a time
+
+	// loop below does not require pre-inverted bits, so undo the inversion assumed in the optimized case below
+	Index = ReverseBits32(Index);
+	for (uint Mask = 1u << 31; Mask; Mask >>= 1) {
+		Seed = IntegerHash(Seed); // randomize state
+		Index ^= Seed & Mask;  // flip output (depending on state)
+		Seed ^= Index & Mask;  // flip state  (depending on output)
+	}
+	return Index;
+#else
 	// Laine and Karras / Stratified Sampling for Stochastic Transparency / EGSR 2011
 
 	// The operations below will mix bits toward the left, so temporarily reverse the order
@@ -169,6 +181,7 @@ uint FastOwenScrambling(uint Index, uint Seed) {
 	// Undo the reverse so that we get left-to-right scrambling
 	// thereby emulating owen-scrambling
 	return ReverseBits32(Index);
+#endif
 }
 
 // 32-bit Sobol matrices for dimension 1,2,3 from:
@@ -254,6 +267,64 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionS
 #error "Unknown random sequence chosen in path tracer"
 #endif
 }
+
+#if RANDSEQ == RANDSEQ_OWENSOBOL
+
+// This is an alternative initialization to the method above when you know how many samples you are planning on taking.
+// The core idea is to use a single sobol pattern across the screen using a space filling curve to correlate nearby pixels
+// This achieves a much better error diffusion than the random sequence assignment of the method above
+// This algorithm is covered in the following paper:
+//   "Screen-Space Blue-Noise Diffusion of Monte Carlo Sampling Error via Hierarchical Ordering of Pixels"
+//   Siggraph Asia 2020
+//   http://abdallagafar.com/publications/zsampler/
+// Improvements made in this version are: 
+//   - switching the z-order curve for a hilbert curve
+//   - switching sobol points for owen-sobol points
+//   - recognizing that the hierarchical scrambling proposed in the original paper is equivalent to Owen-Scrambling of the index
+// Downsides of this method:
+//   - quality does not improve beyond the target sample count, making usage with adaptive sampling difficult
+//   - error-diffusion property is only achieved at the target sample count, earlier samples look random (sometimes slightly worse than random)
+void RandomSequence_Initialize(inout RandomSequence RandSequence, uint2 PixelCoord, uint SampleIndex, uint TimeSeed0, uint MaxSamples)
+{
+	uint X = PixelCoord.x;
+	uint Y = PixelCoord.y;
+
+#if 0
+	uint TileID = ((X & 255) + (Y & 255) * 256); // Scanline order
+#elif 0
+	uint TileID = ((Y & 1) ? 255 - (X & 255) : (X & 255)) + (Y & 255) * 256; // zig-zag curve
+#elif 0
+	uint TileID = MortonEncode(uint2(X, Y)); // Z-order curve
+#elif 0
+	// ordered dither curve
+	uint TileID = MortonEncode(uint2(X ^ Y, X));
+#elif 0
+    // pure random (breaks nice properties)
+	uint TileID = IntegerHash(X + IntegerHash(Y));
+#else
+	// Hilbert curve: https://github.com/hcs0/Hackers-Delight/blob/master/hilbert/hil_s_from_xy.c.txt
+	uint TileID = 0, HilbertState = 0;
+	for (int i = 7; i >= 0; i--) {
+		int xi = (X >> i) & 1;
+		int yi = (Y >> i) & 1;
+		uint Row = (4 * HilbertState) | (2 * xi) | yi;
+		TileID = (TileID << 2) | ((0x361E9CB4 >> 2 * Row) & 3);
+		HilbertState = (0x8FE65831 >> 2 * Row) & 3;
+	}
+#endif
+
+	// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
+	RandSequence.SampleIndex = ReverseBits32((65536 * TimeSeed0 + TileID) * MaxSamples + SampleIndex);
+
+	// progressive encodings (these kind of work, but quality is much worse)
+	//RandSequence.SampleIndex = ReverseBits32(MortonEncode(uint2(TimeSeed0, TileID)) * MaxSamples + SampleIndex);
+	//RandSequence.SampleIndex = ReverseBits32((MortonCode3(MaxSamples * TimeSeed0 + SampleIndex) * 4) | (MortonCode3(Y) * 2) | MortonCode3(X));
+	//RandSequence.SampleIndex = ReverseBits32(MortonEncode(uint2(MortonEncode(uint2(X, Y)), SampleIndex)));
+
+	RandSequence.SampleSeed = 0; // always use the same sequence
+}
+
+#endif
 
 float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence)
 {
