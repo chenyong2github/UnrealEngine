@@ -67,10 +67,6 @@ public:
 	UPROPERTY()
 	UBlendProfile* BlendProfile;
 
-	// The blend profile mode to use. This determines how the per bone blend weights are calculated when transitioning.
-	UPROPERTY()
-	EBlendProfileMode BlendProfileMode;
-
 	// Type of blend to use
 	EAlphaBlendOption BlendOption;
 
@@ -95,7 +91,6 @@ public:
 protected:
 	float CalculateInverseAlpha(EAlphaBlendOption BlendMode, float InFraction) const;
 	float CalculateAlpha(float InFraction) const;
-	void ProcessBlendProfile(int32 TransitionDirectionIndex);
 };
 
 USTRUCT()

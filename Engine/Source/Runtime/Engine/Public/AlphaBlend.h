@@ -199,10 +199,10 @@ public:
 	/** Reset to zero / restart the blend. This resets whole thing.  */
 	void Reset();
 
-private:
 	/** Reset alpha, this keeps current BlendedValue but modify Alpha to keep the blending state.  */
 	void ResetAlpha();
 
+private:
 	/* Reset Blend Time, this modifies BlendTimeRemaining and possibly Weight when BlendTimeRemaining <= 0.f */
 	void ResetBlendTime();
 

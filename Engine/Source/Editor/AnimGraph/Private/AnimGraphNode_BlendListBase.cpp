@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_BlendListBase.h"
+#include "AnimNodes/AnimNode_BlendListBase.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendListBase

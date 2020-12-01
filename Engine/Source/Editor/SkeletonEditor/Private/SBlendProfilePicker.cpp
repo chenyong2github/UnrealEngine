@@ -134,7 +134,7 @@ public:
 	{
 		if (BlendProfile.IsValid())
 		{
-			return BlendProfile->BlendProfileMode;
+			return BlendProfile->Mode;
 		}
 		return EBlendProfileMode::WeightFactor;
 	}
@@ -143,7 +143,7 @@ public:
 	{
 		if (BlendProfile.IsValid())
 		{
-			return BlendProfile->BlendProfileMode == InMode;
+			return BlendProfile->Mode == InMode;
 		}
 		return false;
 	}
@@ -339,7 +339,7 @@ FText SBlendProfilePicker::GetSelectedProfileName() const
 	{
 		if (bIsStandalone)
 		{
-			return FText::Format(FText(LOCTEXT("SelectedNameEntryStandalone", "{0}: {1}")), BlendProfilePickerNames::GetNameForMode(SelectedProfile->BlendProfileMode), FText::FromName(SelectedProfileName));
+			return FText::Format(FText(LOCTEXT("SelectedNameEntryStandalone", "{0}: {1}")), BlendProfilePickerNames::GetNameForMode(SelectedProfile->Mode), FText::FromName(SelectedProfileName));
 		}
 		else
 		{
@@ -491,7 +491,7 @@ void SBlendProfilePicker::OnCreateNewProfileComitted(const FText& NewName, EText
 		else if(UBlendProfile* NewProfile = EditableSkeleton->CreateNewBlendProfile(NameToUse))
 		{
 			// Set our initial blend profile mode. Blend masks can't change this.
-			NewProfile->BlendProfileMode = InMode;
+			NewProfile->Mode = InMode;
 			OnProfileSelected(NewProfile->GetFName());
 		}
 	}

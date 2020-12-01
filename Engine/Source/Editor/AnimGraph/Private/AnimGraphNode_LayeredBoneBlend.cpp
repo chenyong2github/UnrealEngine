@@ -165,7 +165,7 @@ void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class US
 				bCompilationError = true;
 				continue;
 			}
-			else if (BlendMask->BlendProfileMode != EBlendProfileMode::BlendMask)
+			else if (BlendMask->Mode != EBlendProfileMode::BlendMask)
 			{
 				MessageLog.Error(*FText::Format(LOCTEXT("LayeredBlendProfileModeError", "@@ is using a BlendProfile(@@) without a BlendMask mode for Blend Pose {0}. "), FText::AsNumber(MaskIndex)).ToString(), this, BlendMask);
 				bCompilationError = true;

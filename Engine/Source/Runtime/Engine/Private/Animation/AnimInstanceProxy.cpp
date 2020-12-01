@@ -12,6 +12,8 @@
 #include "Animation/AnimNode_TransitionResult.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/BlendProfile.h"
+#include "Animation/BlendProfileScratchData.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/WorldSettings.h"
@@ -1504,6 +1506,344 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 	SlotEvaluatePose(SlotNodeName, SourceAnimationPoseData, InSourceWeight, BlendedAnimationPoseData, InBlendWeight, InTotalNodeWeight);
 }
 
+
+void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight)
+{
+	const FCompactPose& SourcePose = SourceAnimationPoseData.GetPose();
+	const FBlendedCurve& SourceCurve = SourceAnimationPoseData.GetCurve();
+	const FStackCustomAttributes& SourceAttributes = SourceAnimationPoseData.GetAttributes();
+
+	FCompactPose& BlendedPose = OutBlendedAnimationPoseData.GetPose();
+	FBlendedCurve& BlendedCurve = OutBlendedAnimationPoseData.GetCurve();
+	FStackCustomAttributes& BlendedAttributes = OutBlendedAnimationPoseData.GetAttributes();
+
+	if (InBlendWeight <= ZERO_ANIMWEIGHT_THRESH)
+	{
+		BlendedPose = SourcePose;
+		BlendedCurve = SourceCurve;
+		BlendedAttributes = SourceAttributes;
+		return;
+	}
+
+	// Get the array of per bone weight totals.
+	FBlendProfileScratchData& BlendProfileScratchData = FBlendProfileScratchData::Get();
+	TArray<TArray<float>>& PerBoneWeights = BlendProfileScratchData.PerBoneWeights;
+	TArray<float>& PerBoneWeightTotals = BlendProfileScratchData.PerBoneWeightTotals;
+	TArray<float>& PerBoneWeightTotalsAdditive = BlendProfileScratchData.PerBoneWeightTotalsAdditive;
+	TArray<float>& BoneBlendProfileScales = BlendProfileScratchData.BoneBlendProfileScales;
+	const int32 NumBones = RequiredBones.GetCompactPoseNumBones();
+	PerBoneWeightTotals.Reset(NumBones);
+	PerBoneWeightTotals.AddUninitialized(NumBones);
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+	{
+		PerBoneWeightTotals[BoneIndex] = 0.0f;
+	}
+	PerBoneWeightTotalsAdditive = PerBoneWeightTotals;
+	PerBoneWeights.Reset(MontageEvaluationData.Num());
+
+	//------------------------------------------
+	// Figure out what poses we need to blend.
+	//------------------------------------------
+	// Make a list of all the montages that use the slot we're interested in.
+	// Split this in an additive and non additive list.
+	check(MontageEvaluationData.Num() < 255); // Make sure we're in limits and not blending more than 255 poses (that would indicate another issue anyway)
+	TArray<FSlotEvaluationPose>& Poses = BlendProfileScratchData.Poses;
+	TArray<FSlotEvaluationPose>& AdditivePoses = BlendProfileScratchData.AdditivePoses;
+	TArray<uint8, TInlineAllocator<8>>& PoseIndices = BlendProfileScratchData.PoseIndices;
+	TArray<uint8, TInlineAllocator<8>>& AdditivePoseIndices = BlendProfileScratchData.AdditivePoseIndices;
+	TArray<float, TInlineAllocator<8>>& BlendingWeights = BlendProfileScratchData.BlendingWeights;
+	TArray<const FCompactPose*, TInlineAllocator<8>>& BlendingPoses = BlendProfileScratchData.BlendingPoses;
+	TArray<const FBlendedCurve*, TInlineAllocator<8>>& BlendingCurves = BlendProfileScratchData.BlendingCurves;
+	TArray<const FStackCustomAttributes*, TInlineAllocator<8>>& BlendingAttributes = BlendProfileScratchData.BlendingAttributes;
+	Poses.Reset();
+	AdditivePoses.Reset();
+	PoseIndices.Reset();
+	AdditivePoseIndices.Reset();
+	BlendingWeights.Reset();
+	BlendingPoses.Reset();
+	BlendingCurves.Reset();
+	BlendingAttributes.Reset();
+
+	// Gather all the poses we're interested in.
+	int32 CurrentPoseIndex = 0;
+	float NonAdditiveTotalWeight = 0.0f;
+	float AdditiveTotalWeight = 0.0f;
+	for (int32 Index = 0; Index < MontageEvaluationData.Num(); ++Index)
+	{
+		const FMontageEvaluationState& EvalState = MontageEvaluationData[Index];
+		const UAnimMontage* Montage = EvalState.Montage.Get();
+		if (Montage && Montage->IsValidSlot(SlotNodeName))
+		{
+			const UBlendProfile* BlendProfile = EvalState.ActiveBlendProfile;
+			const FAnimTrack* AnimTrack = Montage->GetAnimationData(SlotNodeName);
+			const EAdditiveAnimationType AdditiveAnimType = AnimTrack->IsAdditive()
+				? (AnimTrack->IsRotationOffsetAdditive() ? AAT_RotationOffsetMeshSpace : AAT_LocalSpaceBase)
+				: AAT_None;
+
+			// Bone array has to be allocated prior to calling GetPoseFromAnimTrack.
+			FSlotEvaluationPose NewPose(EvalState.BlendInfo.GetBlendedValue(), AdditiveAnimType);
+			NewPose.Pose.SetBoneContainer(&RequiredBones);
+			NewPose.Curve.InitFrom(RequiredBones);
+
+			// Extract pose from Track.
+			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction);
+			FAnimationPoseData NewAnimationPoseData(NewPose);
+			AnimTrack->GetAnimationPose(NewAnimationPoseData, ExtractionContext);
+
+			// Add montage curves.
+			FBlendedCurve MontageCurve;
+			MontageCurve.InitFrom(RequiredBones);
+			Montage->EvaluateCurveData(MontageCurve, EvalState.MontagePosition);
+			NewPose.Curve.Combine(MontageCurve);
+
+			// Capture non-additive poses only in the non-additive pass.
+			if (AdditiveAnimType == AAT_None)
+			{
+				Poses.Add(FSlotEvaluationPose(MoveTemp(NewPose)));
+				PoseIndices.Add(static_cast<uint8>(CurrentPoseIndex));
+				NonAdditiveTotalWeight += NewPose.Weight;
+			}
+			else // Grab additives in the additive pass.
+			{
+				AdditivePoses.Add(FSlotEvaluationPose(MoveTemp(NewPose)));
+				AdditivePoseIndices.Add(static_cast<uint8>(CurrentPoseIndex));
+				AdditiveTotalWeight += NewPose.Weight;
+			}
+
+			PerBoneWeights.AddDefaulted();
+			PerBoneWeights[CurrentPoseIndex].Reset(NumBones);
+			PerBoneWeights[CurrentPoseIndex].AddUninitialized(NumBones);
+			const float PoseWeight = EvalState.BlendInfo.GetBlendedValue();
+			if (BlendProfile)
+			{
+				BlendProfile->FillBoneScalesArray(BoneBlendProfileScales, RequiredBones);
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					PerBoneWeights[CurrentPoseIndex][BoneIndex] = BlendProfile->CalculateBoneWeight(BoneBlendProfileScales[BoneIndex], BlendProfile->Mode, EvalState.BlendInfo, EvalState.BlendStartAlpha, NewPose.Weight, false);
+				}
+			}
+			else //  This pose doesn't use a blend profile, use the pose weight.
+			{
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					PerBoneWeights[CurrentPoseIndex][BoneIndex] = PoseWeight;
+				}
+			}
+
+			// Sum up the total weights per bone.
+			if (AdditiveAnimType == AAT_None)
+			{
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					PerBoneWeightTotals[BoneIndex] += PerBoneWeights[CurrentPoseIndex][BoneIndex];
+				}
+			}
+			else
+			{
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					PerBoneWeightTotalsAdditive[BoneIndex] += PerBoneWeights[CurrentPoseIndex][BoneIndex];
+				}
+			}
+			
+			CurrentPoseIndex++;
+		} // If montage slot is valid.
+	} // For all montage eval data.
+
+	// Register the source pose if we have any, but don't include it in our normalizations.
+	const float SourceWeight = FMath::Clamp(InSourceWeight, 0.0f, 1.0f);
+	const bool bHasSourcePose = (SourceWeight > ZERO_ANIMWEIGHT_THRESH);
+	if (bHasSourcePose)
+	{
+		const int32 SourcePoseIndex = PerBoneWeights.AddDefaulted();
+		PerBoneWeights[SourcePoseIndex].Reset(NumBones);
+		PerBoneWeights[SourcePoseIndex].AddUninitialized(NumBones);
+
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			PerBoneWeights[SourcePoseIndex][BoneIndex] = SourceWeight;
+		}
+
+		PoseIndices.Add(SourcePoseIndex);
+		CurrentPoseIndex++;
+	}
+	
+	// Normalize non additive weights.
+	const float NormalizeThreshold = bHasSourcePose ? (1.0f + ZERO_ANIMWEIGHT_THRESH) : ZERO_ANIMWEIGHT_THRESH;
+	const int32 NumPosesToNormalize = Poses.Num();
+	for (int32 PoseIndex = 0; PoseIndex < NumPosesToNormalize; ++PoseIndex)
+	{
+		const int32 PoseWeightIndex = PoseIndices[PoseIndex];
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			const float TotalWeight = PerBoneWeightTotals[BoneIndex];
+			if (TotalWeight > NormalizeThreshold)
+			{
+				PerBoneWeights[PoseWeightIndex][BoneIndex] /= TotalWeight;
+			}
+			else
+			{
+				if (!bHasSourcePose)
+				{
+					PerBoneWeights[PoseWeightIndex][BoneIndex] = 1.0f;
+				}
+			}
+		}
+	}
+
+	// Calculate the source pose weights.
+	if (bHasSourcePose)
+	{
+		const int32 PoseWeightIndex = PoseIndices.Num() - 1;
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			float OthersWeightSum = 0.0f;
+			for (int32 PoseIndex = 0; PoseIndex < PoseIndices.Num() - 1; ++PoseIndex)
+			{
+				OthersWeightSum += PerBoneWeights[PoseIndices[PoseIndex]][BoneIndex];
+			}
+
+			PerBoneWeights[PoseIndices[PoseWeightIndex]][BoneIndex] = 1.0f - OthersWeightSum;
+		}
+	}
+
+	// Normalize non additive pose weights, as we need them for blending curves and attributes.
+	if (NonAdditiveTotalWeight > 1.0f + ZERO_ANIMWEIGHT_THRESH)
+	{
+		for (int32 PoseIndex = 0; PoseIndex < Poses.Num(); ++PoseIndex)
+		{
+			Poses[PoseIndex].Weight /= NonAdditiveTotalWeight;
+		}
+	}
+
+	// NOTE: we don't normalize the additive poses.
+
+	//----------------------------------
+	// Build the blend arrays.
+	//----------------------------------
+	const int32 NumPoses = Poses.Num() + (bHasSourcePose ? 1 : 0); // Include the source input pose when doing non-additive blends.
+	BlendingPoses.AddUninitialized(NumPoses);
+	BlendingCurves.AddUninitialized(NumPoses);
+	BlendingAttributes.AddUninitialized(NumPoses);
+	BlendingWeights.AddUninitialized(NumPoses);
+
+	for (int32 Index = 0; Index < Poses.Num(); Index++)
+	{
+		BlendingPoses[Index] = &Poses[Index].Pose;
+		BlendingCurves[Index] = &Poses[Index].Curve;
+		BlendingAttributes[Index] = &Poses[Index].Attributes;
+		BlendingWeights[Index] = Poses[Index].Weight;
+	}
+
+	// Add the source pose to the blends.
+	if (bHasSourcePose)
+	{
+		const int32 SourceIndex = NumPoses - 1;
+		BlendingPoses[SourceIndex] = &SourcePose;
+		BlendingCurves[SourceIndex] = &SourceCurve;
+		BlendingAttributes[SourceIndex] = &SourceAttributes;
+		BlendingWeights[SourceIndex] = (NonAdditiveTotalWeight > 1.0f + ZERO_ANIMWEIGHT_THRESH) ? SourceWeight / NonAdditiveTotalWeight : SourceWeight; // Normalize the source weight if needed.
+	}
+
+	//------------------------------------------
+	// Blend the transforms.
+	//------------------------------------------
+	if (Poses.Num() == 0) // There are only additive poses.
+	{
+		check(AdditivePoseIndices.Num() > 0); // If there are no non-additive poses, there should be at least an additive.
+		BlendedPose = SourcePose;
+		BlendedCurve = SourceCurve;
+		BlendedAttributes = SourceAttributes;
+	}
+	else
+	{
+		// Perform the actual bone transform blending.
+		for (int32 PoseIndex = 0; PoseIndex < NumPoses; ++PoseIndex)
+		{
+			const int32 WeightPoseIndex = PoseIndices[PoseIndex];
+			if (PoseIndex == 0)
+			{
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					const FCompactPoseBoneIndex CompactBoneIndex(BoneIndex);
+					BlendTransform<ETransformBlendMode::Overwrite>(
+						(*BlendingPoses[PoseIndex])[CompactBoneIndex],
+						BlendedPose[CompactBoneIndex],
+						PerBoneWeights[WeightPoseIndex][BoneIndex]);
+				}
+			}
+			else
+			{
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					const FCompactPoseBoneIndex CompactBoneIndex(BoneIndex);
+					BlendTransform<ETransformBlendMode::Accumulate>(
+						(*BlendingPoses[PoseIndex])[CompactBoneIndex],
+						BlendedPose[CompactBoneIndex],
+						PerBoneWeights[WeightPoseIndex][BoneIndex]);
+				}
+			}
+		}
+
+		BlendedPose.NormalizeRotations();
+	}
+	
+	// Additive blends.
+	for (int32 PoseIndex = 0; PoseIndex < AdditivePoses.Num(); ++PoseIndex)
+	{
+		FCompactPose& AdditivePose = AdditivePoses[PoseIndex].Pose;
+		const int32 WeightPoseIndex = AdditivePoseIndices[PoseIndex];
+		if (AdditivePoses[PoseIndex].AdditiveType == AAT_RotationOffsetMeshSpace)
+		{
+			FAnimationRuntime::ConvertPoseToMeshRotation(BlendedPose);
+
+			// Apply additive.
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+			{
+				const FCompactPoseBoneIndex CompactBoneIndex(BoneIndex);
+				FTransform Additive = AdditivePose[CompactBoneIndex];
+				FTransform::BlendFromIdentityAndAccumulate(BlendedPose[CompactBoneIndex], Additive, ScalarRegister(PerBoneWeights[WeightPoseIndex][BoneIndex]));
+			}
+
+			FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BlendedPose);
+		}
+		else
+		{
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+			{
+				const FCompactPoseBoneIndex CompactBoneIndex(BoneIndex);
+				FTransform Additive = AdditivePose[CompactBoneIndex];
+				FTransform::BlendFromIdentityAndAccumulate(BlendedPose[CompactBoneIndex], Additive, ScalarRegister(PerBoneWeights[WeightPoseIndex][BoneIndex]));
+			}
+		}
+
+		BlendedPose.NormalizeRotations();
+	} // For each additive pose.
+	
+	//------------------------------------------
+	// Blend curves and attributes.
+	//------------------------------------------
+	// Non-additives.
+	if (BlendingCurves.Num() > 0)
+	{
+		BlendCurves(BlendingCurves, BlendingWeights, OutBlendedAnimationPoseData.GetCurve());
+	}
+
+	if (BlendingAttributes.Num() > 0)
+	{
+		FCustomAttributesRuntime::BlendAttributes(BlendingAttributes, BlendingWeights, OutBlendedAnimationPoseData.GetAttributes());
+	}
+
+	// Additives.
+	for (int32 PoseIndex = 0; PoseIndex < Poses.Num(); ++PoseIndex)
+	{
+		FSlotEvaluationPose& AdditivePose = Poses[PoseIndex];
+		const FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);
+		OutBlendedAnimationPoseData.GetCurve().Accumulate(AdditiveAnimationPoseData.GetCurve(), AdditivePose.Weight);
+		FCustomAttributesRuntime::AccumulateAttributes(AdditiveAnimationPoseData.GetAttributes(), OutBlendedAnimationPoseData.GetAttributes(), AdditivePose.Weight);
+	}
+}
+
 void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight, float InTotalNodeWeight)
 {
 	const FCompactPose& SourcePose = SourceAnimationPoseData.GetPose();
@@ -1513,9 +1853,9 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 	FCompactPose& BlendedPose = OutBlendedAnimationPoseData.GetPose();
 	FBlendedCurve& BlendedCurve = OutBlendedAnimationPoseData.GetCurve();
 	FStackCustomAttributes& BlendedAttributes = OutBlendedAnimationPoseData.GetAttributes();
-	
-	//Accessing MontageInstances from this function is not safe (as this can be called during Parallel Anim Evaluation!
-	//Any montage data you need to add should be part of MontageEvaluationData
+
+	// Accessing MontageInstances from this function is not safe (as this can be called during Parallel Anim Evaluation!
+	// Any montage data you need to add should be part of MontageEvaluationData
 	// nothing to blend, just get it out
 	if (InBlendWeight <= ZERO_ANIMWEIGHT_THRESH)
 	{
@@ -1525,15 +1865,35 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 		return;
 	}
 
+	// Check if we are blending a montage using a blend profile, if so take a special code path for this.
+	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
+	{
+		if (EvalState.Montage.IsValid() && EvalState.ActiveBlendProfile && EvalState.Montage->IsValidSlot(SlotNodeName))
+		{
+			SlotEvaluatePoseWithBlendProfiles(SlotNodeName, SourceAnimationPoseData, InSourceWeight, OutBlendedAnimationPoseData, InBlendWeight);
+			return;
+		}
+	}
+
 	// Split our data into additive and non additive.
-	TArray<FSlotEvaluationPose> AdditivePoses;
-	TArray<FSlotEvaluationPose> NonAdditivePoses;
+	FBlendProfileScratchData& BlendProfileScratchData = FBlendProfileScratchData::Get();
+	TArray<FSlotEvaluationPose>& AdditivePoses = BlendProfileScratchData.Poses;
+	TArray<FSlotEvaluationPose>& NonAdditivePoses = BlendProfileScratchData.AdditivePoses;
+	TArray<float, TInlineAllocator<8>>& BlendingWeights = BlendProfileScratchData.BlendingWeights;
+	TArray<const FCompactPose*, TInlineAllocator<8>>& BlendingPoses = BlendProfileScratchData.BlendingPoses;
+	TArray<const FBlendedCurve*, TInlineAllocator<8>>& BlendingCurves = BlendProfileScratchData.BlendingCurves;
+	TArray<const FStackCustomAttributes*, TInlineAllocator<8>>& BlendingAttributes = BlendProfileScratchData.BlendingAttributes;
+	NonAdditivePoses.Reset();
+	AdditivePoses.Reset();
+	BlendingWeights.Reset();
+	BlendingPoses.Reset();
+	BlendingCurves.Reset();
+	BlendingAttributes.Reset();
 
 	// first pass we go through collect weights and valid montages. 
 #if DEBUG_MONTAGEINSTANCE_WEIGHT
 	float TotalWeight = 0.f;
 #endif // DEBUG_MONTAGEINSTANCE_WEIGHT
-
 	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
 	{
 		// If MontageEvaluationData is not valid anymore, pass-through AnimSlot.
@@ -1557,7 +1917,8 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 				? (AnimTrack->IsRotationOffsetAdditive() ? AAT_RotationOffsetMeshSpace : AAT_LocalSpaceBase)
 				: AAT_None;
 
-			FSlotEvaluationPose NewPose(EvalState.MontageWeight, AdditiveAnimType);
+			const float MontageWeight = EvalState.BlendInfo.GetBlendedValue();
+			FSlotEvaluationPose NewPose(MontageWeight, AdditiveAnimType);
 			
 			// Bone array has to be allocated prior to calling GetPoseFromAnimTrack
 			NewPose.Pose.SetBoneContainer(&RequiredBones);
@@ -1576,8 +1937,9 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			NewPose.Curve.Combine(MontageCurve);
 
 #if DEBUG_MONTAGEINSTANCE_WEIGHT
-			TotalWeight += EvalState.MontageWeight;
+			TotalWeight += MontageWeight;
 #endif // DEBUG_MONTAGEINSTANCE_WEIGHT
+
 			if (AdditiveAnimType == AAT_None)
 			{
 				NonAdditivePoses.Add(FSlotEvaluationPose(MoveTemp(NewPose)));
@@ -1586,8 +1948,8 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			{
 				AdditivePoses.Add(FSlotEvaluationPose(MoveTemp(NewPose)));
 			}
-		}
-	}
+		} // if IsValidSlot
+	} // for all MontageEvaluationData
 
 	// allocate for blending
 	// If source has any weight, add it to the blend array.
@@ -1597,7 +1959,6 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 	ensure (FMath::IsNearlyEqual(InTotalNodeWeight, TotalWeight, KINDA_SMALL_NUMBER));
 #endif // DEBUG_MONTAGEINSTANCE_WEIGHT
 	ensure (InTotalNodeWeight > ZERO_ANIMWEIGHT_THRESH);
-
 	if (InTotalNodeWeight > (1.f + ZERO_ANIMWEIGHT_THRESH))
 	{
 		// Re-normalize additive poses
@@ -1623,22 +1984,13 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			BlendedPose = SourcePose;
 			BlendedCurve = SourceCurve;
 			BlendedAttributes = SourceAttributes;
-		}
-		// Otherwise we need to blend non additive poses together
-		else
+		}		
+		else // Otherwise we need to blend non additive poses together
 		{
-			int32 const NumPoses = NonAdditivePoses.Num() + ((SourceWeight > ZERO_ANIMWEIGHT_THRESH) ? 1 : 0);
-
-			TArray<const FCompactPose*, TInlineAllocator<8>> BlendingPoses;
+			const int32 NumPoses = NonAdditivePoses.Num() + ((SourceWeight > ZERO_ANIMWEIGHT_THRESH) ? 1 : 0);
 			BlendingPoses.AddUninitialized(NumPoses);
-
-			TArray<float, TInlineAllocator<8>> BlendWeights;
-			BlendWeights.AddUninitialized(NumPoses);
-
-			TArray<const FBlendedCurve*, TInlineAllocator<8>> BlendingCurves;
+			BlendingWeights.AddUninitialized(NumPoses);
 			BlendingCurves.AddUninitialized(NumPoses);
-
-			TArray<const FStackCustomAttributes*, TInlineAllocator<8>> BlendingAttributes;
 			BlendingAttributes.AddUninitialized(NumPoses);
 
 			for (int32 Index = 0; Index < NonAdditivePoses.Num(); Index++)
@@ -1646,20 +1998,20 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 				BlendingPoses[Index] = &NonAdditivePoses[Index].Pose;
 				BlendingCurves[Index] = &NonAdditivePoses[Index].Curve;
 				BlendingAttributes[Index] = &NonAdditivePoses[Index].Attributes;
-				BlendWeights[Index] = NonAdditivePoses[Index].Weight;
+				BlendingWeights[Index] = NonAdditivePoses[Index].Weight;
 			}
 
 			if (SourceWeight > ZERO_ANIMWEIGHT_THRESH)
 			{
-				int32 const SourceIndex = BlendWeights.Num() - 1;
+				const int32 SourceIndex = NumPoses - 1;
 				BlendingPoses[SourceIndex] = &SourcePose;
 				BlendingCurves[SourceIndex] = &SourceCurve;
 				BlendingAttributes[SourceIndex] = &SourceAttributes;
-				BlendWeights[SourceIndex] = SourceWeight;
+				BlendingWeights[SourceIndex] = SourceWeight;
 			}
 
-			// now time to blend all montages
-			FAnimationRuntime::BlendPosesTogetherIndirect(BlendingPoses, BlendingCurves, BlendingAttributes, BlendWeights, OutBlendedAnimationPoseData);
+			// Blend all montages.
+			FAnimationRuntime::BlendPosesTogetherIndirect(BlendingPoses, BlendingCurves, BlendingAttributes, BlendingWeights, OutBlendedAnimationPoseData);
 		}
 	}
 
@@ -1673,9 +2025,6 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			FAnimationRuntime::AccumulateAdditivePose(OutBlendedAnimationPoseData, AdditiveAnimationPoseData, AdditivePose.Weight, AdditivePose.AdditiveType);
 		}
 	}
-
-	// Normalize rotations after blending/accumulation
-	BlendedPose.NormalizeRotations();
 }
 
 //to debug montage weight
@@ -1692,6 +2041,7 @@ void FAnimInstanceProxy::GetSlotWeight(const FName& SlotNodeName, float& out_Slo
 #if DEBUGMONTAGEWEIGHT
 	float TotalDesiredWeight = 0.f;
 #endif
+
 	// first get all the montage instance weight this slot node has
 	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
 	{
@@ -1700,18 +2050,19 @@ void FAnimInstanceProxy::GetSlotWeight(const FName& SlotNodeName, float& out_Slo
 			const UAnimMontage* const Montage = EvalState.Montage.Get();
 			if (Montage->IsValidSlot(SlotNodeName))
 			{
-				NewSlotNodeWeight += EvalState.MontageWeight;
+				const float MontageWeight = EvalState.BlendInfo.GetBlendedValue();
+				NewSlotNodeWeight += MontageWeight;
 				if (!Montage->IsValidAdditiveSlot(SlotNodeName))
 				{
-					NonAdditiveTotalWeight += EvalState.MontageWeight;
+					NonAdditiveTotalWeight += MontageWeight;
 				}
 
 #if DEBUGMONTAGEWEIGHT			
 				TotalDesiredWeight += EvalState->DesiredWeight;
 #endif
 #if ENABLE_ANIM_LOGGING
-			UE_LOG(LogAnimation, Verbose, TEXT("GetSlotWeight : Owner: %s, AnimMontage: %s,  (DesiredWeight:%0.2f, Weight:%0.2f)"),
-						*GetActorName(), *EvalState.Montage->GetName(), EvalState.DesiredWeight, EvalState.MontageWeight);
+				UE_LOG(LogAnimation, Verbose, TEXT("GetSlotWeight : Owner: %s, AnimMontage: %s,  (DesiredWeight:%0.2f, Weight:%0.2f)"),
+							*GetActorName(), *EvalState.Montage->GetName(), EvalState.BlendInfo.GetDesiredValue(), MontageWeight);
 #endif
 			}
 		}

@@ -193,7 +193,7 @@ void FEditableSkeleton::SetBlendProfileMode(FName InBlendProfileName, EBlendProf
 		const bool bWasBlendMask = BlendProfile->IsBlendMask();
 		BlendProfile->SetFlags(RF_Transactional);
 		BlendProfile->Modify();
-		BlendProfile->BlendProfileMode = ProfileMode;
+		BlendProfile->Mode = ProfileMode;
 		const bool bIsBlendMask = BlendProfile->IsBlendMask();
 		// Re-set entry indices from the end to properly handle different default values when changing from/to blend mask
 		if (bWasBlendMask != bIsBlendMask)

@@ -36,7 +36,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category=BlendType)
 	EAlphaBlendOption BlendType;
-
+	
 protected:
 	/** This reinitializes child pose when re-activated. For example, when active child changes */
 	UPROPERTY(EditAnywhere, Category = Option)
@@ -57,6 +57,8 @@ protected:
 	TArray<float> BlendWeights;
 
 	TArray<float> RemainingBlendTimes;
+
+	TArray<float> BlendStartAlphas;
 
 	TArray<FBlendSampleData> PerBoneSampleData;
 

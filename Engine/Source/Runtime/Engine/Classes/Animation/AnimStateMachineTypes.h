@@ -147,9 +147,6 @@ struct FAnimationTransitionBetweenStates : public FAnimationStateBase
 	UBlendProfile* BlendProfile;
 
 	UPROPERTY()
-	EBlendProfileMode BlendProfileMode;
-
-	UPROPERTY()
 	TEnumAsByte<ETransitionLogicType::Type> LogicType;
 
 #if WITH_EDITORONLY_DATA
@@ -168,7 +165,6 @@ struct FAnimationTransitionBetweenStates : public FAnimationStateBase
 		, BlendMode(EAlphaBlendOption::CubicInOut)
 		, CustomCurve(nullptr)
 		, BlendProfile(nullptr)
-		, BlendProfileMode(EBlendProfileMode::TimeFactor)
 		, LogicType(ETransitionLogicType::TLT_StandardBlend)
 #if WITH_EDITOR
 		, ReverseTransition(false)

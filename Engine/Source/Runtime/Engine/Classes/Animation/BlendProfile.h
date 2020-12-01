@@ -9,6 +9,12 @@
 #include "AnimationRuntime.h"
 #include "BlendProfile.generated.h"
 
+struct FAlphaBlend;
+struct FCompactPose;
+struct FBlendedCurve;
+struct FStackCustomAttributes;
+struct FSlotEvaluationPose;
+
 /** The mode in which the blend profile should be applied. */
 UENUM()
 enum class EBlendProfileMode : uint8
@@ -81,7 +87,7 @@ public:
 	 */
 	float GetBoneBlendScale(int32 InBoneIdx) const;
 
-	/** Get the set blend scale for the specified bone, will return 1.0f if no entry was found (no scale)
+	/** Get the set blend scale for the specified bone, will return 1.0f if no entry was found (no scale). The term bone factor and entry or bone scale refer to the same thing.
 	 *  @param InBoneName Name of the bone to retrieve
 	 */
 	float GetBoneBlendScale(const FName& InBoneName) const;
@@ -96,10 +102,38 @@ public:
 	 */
 	int32 GetEntryIndex(const FName& BoneName) const;
 
-	/** Get the blend scale stored in a specific entry 
+	/** Get the blend scale stored in a specific entry. The term bone factor and entry scale refer to the same thing.
 	 *  @param InEntryIdx Index of the entry to retrieve
 	 */
 	float GetEntryBlendScale(const int32 InEntryIdx) const;
+
+	/** Update all the bone weights for some provided FBlendSampleData.
+	 *  This internally will iterate over all entries inside the InOutCurrentData::PerBoneBlendData parameter and call CalculateBoneWeight for each entry.
+	 *  @param InOutCurrentData This is both input and output. The FBlendSampleData::PerBoneBlendData member will be updated with the weight values as calculated by CalculateBoneWeight for each entry.
+	 *  @param BlendInfo Information about the blend. This contains things like the blend duration and current alpha. Not all blend profile modes might use this data.
+	 *  @param BlendStartAlpha The linear alpha value, so not sampled from the curve, of where the blend started. This is mostly used when we are in the middle of a blend and suddenly reverse its direction.
+	 *  This value basically should contain the alpha value of the blend at the point of reversal.
+	 *  @param MainWeight The weight of the blend. This is used in the weight factor based mode, where this weight is multiplied by the bone factors.
+	 *  @param bInverse Should we inverse the weights? This can be used for things like transition reversal. In most cases you would want it set to false.
+	 */
+	void UpdateBoneWeights(FBlendSampleData& InOutCurrentData, const FAlphaBlend& BlendInfo, float BlendStartAlpha, float MainWeight, bool bInverse = false);
+
+	/** Calculate the blend weight for a given bone. This methoid basically defines how each blend profile mode works.
+	 *  @param BoneFactor This is the per bone value setup in the blend profile editor. The impact of this value depends on what blend profile mode is used.
+	 *  @param Mode The blend profile mode that should be used in combination with this bone factor.
+	 *  @param BlendInfo Information about the blend. This contains things like the blend duration and current alpha. Not all blend profile modes might use this data.
+	 *  @param BlendStartAlpha The linear alpha value, so not sampled from the curve, of where the blend started. This is mostly used when we are in the middle of a blend and suddenly reverse its direction.
+	 *  This value basically should contain the alpha value of the blend at the point of reversal.
+	 *  @param MainWeight The weight of the blend. This is used in the weight factor based mode, where this weight is multiplied by the bone factors.
+	 *  @param bInverse Should we inverse the weights? This can be used for things like transition reversal. In most cases you would want it set to false.
+	 */
+	static float CalculateBoneWeight(float BoneFactor, EBlendProfileMode Mode, const FAlphaBlend& BlendInfo, float BlendStartAlpha, float MainWeight, bool bInverse = false);
+
+	/** Resize and fill an array of floats with the bone factor values. One for each bone inside the compact pose.
+	 *  @param OutBoneBlendProfileFactors This array will be resized and filled with the factors for each bone in the compact pose, as setup in the blend profile editor.
+	 *  @param BoneContainer The bone container which is used to extract how many bones are inside the compact pose and to figure out what factor value to place at what array element.
+	 */
+	void FillBoneScalesArray(TArray<float>& OutBoneBlendProfileFactors, const FBoneContainer& BoneContainer) const;
 
 	// IInterpolationIndexProvider
 	virtual int32 GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const override;
@@ -113,10 +147,11 @@ public:
 	// Default value of entries. Default values are not saved
 	virtual float GetDefaultBlendScale() const { return IsBlendMask() ? 0.0f : 1.0f; }
 
-	bool IsBlendMask() const { return BlendProfileMode == EBlendProfileMode::BlendMask;  }
+	bool IsBlendMask() const { return Mode == EBlendProfileMode::BlendMask;  }
+
+	EBlendProfileMode GetMode() const { return Mode; }
 
 private:
-
 	/** Sets the skeleton this blend profile is used with */
 	void SetSkeleton(USkeleton* InSkeleton);
 
@@ -134,5 +169,5 @@ public:
 
 	// Blend Profile Mode. Read EBlendProfileMode for more details
 	UPROPERTY()
-	EBlendProfileMode BlendProfileMode;
+	EBlendProfileMode Mode;
 };

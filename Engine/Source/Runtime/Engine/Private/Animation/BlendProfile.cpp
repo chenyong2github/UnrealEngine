@@ -4,7 +4,7 @@
 
 UBlendProfile::UBlendProfile()
 	: OwningSkeleton(nullptr)
-	, BlendProfileMode(EBlendProfileMode::WeightFactor)
+	, Mode(EBlendProfileMode::WeightFactor)
 {
 	// Set up our owning skeleton and initialise bone references
 	if(USkeleton* OuterAsSkeleton = Cast<USkeleton>(GetOuter()))
@@ -129,7 +129,7 @@ float UBlendProfile::GetEntryBlendScale(const int32 InEntryIdx) const
 	{
 		return ProfileEntries[InEntryIdx].BlendScale;
 	}
-	// No overriden blend scale, return no scale
+	// No overridden blend scale, return no scale
 	return GetDefaultBlendScale();
 }
 
@@ -169,5 +169,98 @@ void UBlendProfile::SetSingleBoneBlendScale(int32 InBoneIdx, float InScale, bool
 				return Current.BoneReference.BoneIndex == InBoneIdx;
 			});
 		}
+	}
+}
+
+void UBlendProfile::FillBoneScalesArray(TArray<float>& OutBoneBlendProfileFactors, const FBoneContainer& BoneContainer) const
+{
+	const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
+	OutBoneBlendProfileFactors.Reset(NumBones);
+	OutBoneBlendProfileFactors.AddUninitialized(NumBones);
+
+	// Fill the bone values with defaults values.
+	for (int32 Index = 0; Index < NumBones; ++Index)
+	{
+		OutBoneBlendProfileFactors[Index] = 1.0f;
+	}
+
+	// Overwrite the values of the bones that are inside the blend profile.
+	// Since the bones in the blend profile are stored as skeleton indices we need to remap them into our compact pose.
+	for (int32 Index = 0; Index < ProfileEntries.Num(); Index++)
+	{
+		const int32 SkeletonBoneIndex = ProfileEntries[Index].BoneReference.BoneIndex;
+		const FCompactPoseBoneIndex PoseBoneIndex = BoneContainer.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+		OutBoneBlendProfileFactors[PoseBoneIndex.GetInt()] = GetEntryBlendScale(Index);
+	}
+}
+
+float UBlendProfile::CalculateBoneWeight(float BoneFactor, EBlendProfileMode Mode, const FAlphaBlend& BlendInfo, float BlendStartAlpha, float MainWeight, bool bInverse)
+{
+	switch (Mode)
+	{
+		// The per bone value is a factor of the transition time, where 0.5 means half the transition time, 0.1 means one tenth of the transition time, etc.
+		case EBlendProfileMode::TimeFactor:
+		{
+			// Most bones will have a bone factor of 1, so let's optimize that case.
+			// Basically it means it will just follow the main weight.
+			if (BoneFactor >= 1.0f - ZERO_ANIMWEIGHT_THRESH)
+			{
+				return !bInverse ? MainWeight : 1.0f - MainWeight;
+			}
+
+			// Make sure our input values are valid, which is between 0 and 1.
+			const float ClampedFactor = FMath::Clamp(BoneFactor, 0.0f, 1.0f);
+
+			// Calculate where blend begin value is for this specific bone. So where did our blend start from?
+			// Note that this isn't just the BlendInfo.GetBlendedValue() because it can be different per bone as some bones are further ahead in time.
+			// We also need to sample the actual curve for this to get the real value.
+			const float BeginValue = (ClampedFactor > ZERO_ANIMWEIGHT_THRESH) ? FMath::Clamp(BlendStartAlpha / ClampedFactor, 0.0f, 1.0f) : 1.0f;
+			const float RealBeginValue = FAlphaBlend::AlphaToBlendOption(BeginValue, BlendInfo.GetBlendOption(), BlendInfo.GetCustomCurve());
+
+			// Calculate the current alpha value for the bone.
+			// As some bones can blend faster than others, we basically scale the current blend's alpha by the bone's factor.
+			// After that we sample the curve to get the real alpha blend value.
+			const float LinearAlpha = (ClampedFactor > ZERO_ANIMWEIGHT_THRESH) ? FMath::Clamp(BlendInfo.GetAlpha() / ClampedFactor, 0.0f, 1.0f) : 1.0f;
+			const float RealBoneAlpha = FAlphaBlend::AlphaToBlendOption(LinearAlpha, BlendInfo.GetBlendOption(), BlendInfo.GetCustomCurve());
+
+			// Now that we know the alpha for our blend, we can calculate the actual weight value.
+			// Also make sure the bone weight is valid. Values can't be zero because this could introduce issues during normalization internally in the pipeline.
+			const float BoneWeight = RealBeginValue + RealBoneAlpha * (BlendInfo.GetDesiredValue() - RealBeginValue);
+			const float ClampedBoneWeight = FMath::Clamp(BoneWeight, ZERO_ANIMWEIGHT_THRESH, 1.0f);
+
+			// Return our calculated weight, depending whether we'd like to invert it or not.
+			return !bInverse ? ClampedBoneWeight : (1.0f - ClampedBoneWeight);
+		}
+
+		// The per bone value is a factor of the main blend's weight.
+		case EBlendProfileMode::WeightFactor:
+		{
+			if (!bInverse)
+			{
+				return FMath::Clamp(MainWeight * BoneFactor, ZERO_ANIMWEIGHT_THRESH, 1.0f);
+			}
+
+			// We're inversing.
+			const float Weight = (BoneFactor > ZERO_ANIMWEIGHT_THRESH) ? MainWeight / BoneFactor : 1.0f;
+			return FMath::Clamp(Weight, ZERO_ANIMWEIGHT_THRESH, 1.0f);
+		}
+
+		// Handle unsupported modes.
+		// If you reach this point you have to add another case statement for your newly added blend profile mode.
+		default:
+		{
+			checkf(false, TEXT("The selected Blend Profile Mode is not supported (Mode=%d)"), Mode);
+			break;
+		}
+	}
+
+	return MainWeight;
+}
+
+void UBlendProfile::UpdateBoneWeights(FBlendSampleData& InOutCurrentData, const FAlphaBlend& BlendInfo, float BlendStartAlpha, float MainWeight, bool bInverse)
+{
+	for (int32 PerBoneIndex = 0; PerBoneIndex < InOutCurrentData.PerBoneBlendData.Num(); ++PerBoneIndex)
+	{
+		InOutCurrentData.PerBoneBlendData[PerBoneIndex] = CalculateBoneWeight(GetEntryBlendScale(PerBoneIndex), Mode, BlendInfo, BlendStartAlpha, MainWeight, bInverse);
 	}
 }

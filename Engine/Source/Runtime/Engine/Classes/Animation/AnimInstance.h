@@ -330,11 +330,12 @@ struct FMontageActiveSlotTracker
 
 struct FMontageEvaluationState
 {
-	FMontageEvaluationState(UAnimMontage* InMontage, float InWeight, float InDesiredWeight, float InPosition, bool bInIsPlaying, bool bInIsActive) 
+	FMontageEvaluationState(UAnimMontage* InMontage, float InPosition, bool bInIsPlaying, bool bInIsActive, const FAlphaBlend& InBlendInfo, const UBlendProfile* InActiveBlendProfile, float InBlendStartAlpha) 
 		: Montage(InMontage)
-		, MontageWeight(InWeight)
-		, DesiredWeight(InDesiredWeight)
+		, BlendInfo(InBlendInfo)
+		, ActiveBlendProfile(InActiveBlendProfile)
 		, MontagePosition(InPosition)
+		, BlendStartAlpha(InBlendStartAlpha)
 		, bIsPlaying(bInIsPlaying)
 		, bIsActive(bInIsActive)
 	{}
@@ -342,14 +343,17 @@ struct FMontageEvaluationState
 	// The montage to evaluate
 	TWeakObjectPtr<UAnimMontage> Montage;
 
-	// The weight to use for this montage
-	float MontageWeight;
+	// The current blend information.
+	FAlphaBlend BlendInfo;
 
-	// The desired weight of this montage
-	float DesiredWeight;
+	// The active blend profile. Montages have a profile for blending in and blending out.
+	const UBlendProfile* ActiveBlendProfile;
 
 	// The position to evaluate this montage at
 	float MontagePosition;
+
+	// The linear alpha value where to start blending from. So not the blended value that already has been curve sampled.
+	float BlendStartAlpha;
 
 	// Whether this montage is playing
 	bool bIsPlaying;

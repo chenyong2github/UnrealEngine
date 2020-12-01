@@ -52,10 +52,6 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	UPROPERTY(EditAnywhere, Category=Transition, meta=(UseAsBlendProfile=true))
 	UBlendProfile* BlendProfile;
 
-	// The blend profile mode to use. This determines how the per bone blend weights are calculated when transitioning.
-	UPROPERTY(EditAnywhere, Category = Transition)
-	EBlendProfileMode BlendProfileMode;
-
 	// Try setting the rule automatically based on most relevant player node's remaining time and the CrossfadeDuration of the transition, ignoring the internal time
 	UPROPERTY(EditAnywhere, Category=Transition)
 	bool bAutomaticRuleBasedOnSequencePlayerInState;

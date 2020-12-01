@@ -44,6 +44,9 @@ UAnimMontage::UAnimMontage(const FObjectInitializer& ObjectInitializer)
 	bEnableAutoBlendOut = true;
 	SyncSlotIndex = 0;
 
+	BlendProfileIn = nullptr;
+	BlendProfileOut = nullptr;
+
 	BlendInTime_DEPRECATED = -1.f;
 	BlendOutTime_DEPRECATED = -1.f;
 
@@ -1300,7 +1303,10 @@ FAnimMontageInstance::FAnimMontageInstance()
 	, NotifyWeight(0.f)
 	, DeltaMoved(0.f)
 	, PreviousPosition(0.f)
+	, BlendStartAlpha(0.0f)
 	, SyncGroupName(NAME_None)
+	, ActiveBlendProfile(nullptr)
+	, ActiveBlendProfileMode(EBlendProfileMode::TimeFactor)
 	, DisableRootMotionCount(0)
 	, MontageSyncLeader(NULL)
 	, MontageSyncUpdateFrameCounter(INDEX_NONE)
@@ -1322,7 +1328,10 @@ FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
 	, NotifyWeight(0.f)
 	, DeltaMoved(0.f)
 	, PreviousPosition(0.f)
+	, BlendStartAlpha(0.0f)
 	, SyncGroupName(NAME_None)
+	, ActiveBlendProfile(nullptr)
+	, ActiveBlendProfileMode(EBlendProfileMode::TimeFactor)
 	, DisableRootMotionCount(0)
 	, MontageSyncLeader(NULL)
 	, MontageSyncUpdateFrameCounter(INDEX_NONE)
@@ -1344,11 +1353,13 @@ void FAnimMontageInstance::Play(float InPlayRate, const FAlphaBlend& BlendIn)
 	
 	// set blend option
 	float CurrentWeight = Blend.GetBlendedValue();
-
-	InitializeBlend(BlendIn);
+	InitializeBlend(BlendIn);	
+	BlendStartAlpha = Blend.GetAlpha();
 	Blend.SetBlendTime(BlendIn.GetBlendTime() * DefaultBlendTimeMultiplier);
 	Blend.SetValueRange(CurrentWeight, 1.f);
 	bEnableAutoBlendOut = Montage->bEnableAutoBlendOut;
+
+	ActiveBlendProfile = Montage->BlendProfileIn;
 }
 
 void FAnimMontageInstance::InitializeBlend(const FAlphaBlend& InAlphaBlend)
@@ -1379,7 +1390,9 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 		// do not use default Montage->BlendOut 
 		// depending on situation, the BlendOut time can change 
 		InitializeBlend(InBlendOut);
+		BlendStartAlpha = Blend.GetAlpha();
 		Blend.SetDesiredValue(0.f);
+		Blend.Update(0.0f);
 
 		if(Montage)
 		{
@@ -1402,6 +1415,7 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 			// currently set up blend option, but it might be worse to switch between 
 			// blending out, but it is possible options in the future
 			Blend.SetBlendTime(InBlendOut.GetBlendTime());
+			BlendStartAlpha = Blend.GetAlpha();
 			// have to call this again to restart blending with new blend time
 			// we don't change blend options
 			Blend.SetDesiredValue(0.f);
@@ -1419,6 +1433,7 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 
 	if (Montage != nullptr)
 	{
+		ActiveBlendProfile = Montage->BlendProfileOut;
 		UE_LOG(LogAnimMontage, Verbose, TEXT("Montage.Stop After: AnimMontage: %s,  (DesiredWeight:%0.2f, Weight:%0.2f)"),
 			*Montage->GetName(), GetDesiredWeight(), GetWeight());
 	}
@@ -1439,6 +1454,7 @@ void FAnimMontageInstance::Initialize(class UAnimMontage * InMontage)
 	{
 		Montage = InMontage;
 		SetPosition(0.f);
+		BlendStartAlpha = 0.0f;
 		// initialize Blend
 		Blend.SetValueRange(0.f, 1.0f);
 		RefreshNextPrevSections();
@@ -1534,6 +1550,7 @@ void FAnimMontageInstance::Terminate()
 	Blend.SetCustomCurve(NULL);
 	Blend.SetBlendOption(EAlphaBlendOption::Linear);
 
+	ActiveBlendProfile = nullptr;
 	Montage = nullptr;
 
 	UE_LOG(LogAnimMontage, Verbose, TEXT("Terminating: AnimMontage: %s"), *GetNameSafe(OldMontage));
@@ -1752,6 +1769,7 @@ void FAnimMontageInstance::MontageSync_PerformSyncToLeader()
 	}
 }
 
+
 void FAnimMontageInstance::UpdateWeight(float DeltaTime)
 {
 	if ( IsValid() )
@@ -1760,6 +1778,11 @@ void FAnimMontageInstance::UpdateWeight(float DeltaTime)
 
 		// update weight
 		Blend.Update(DeltaTime);
+
+		if (Blend.GetBlendTimeRemaining() < 0.0001f)
+		{
+			ActiveBlendProfile = nullptr;
+		}
 
 		// Notify weight is max of previous and current as notify could have come
 		// from any point between now and last tick
@@ -2675,6 +2698,7 @@ UAnimMontage* FAnimMontageInstance::InitializeMatineeControl(FName SlotName, UAn
 			}
 
 			// Something animating this slot that's not us - set weight to be 0 on this slot
+			MontageInstance->BlendStartAlpha = 1.0f;
 			MontageInstance->Blend.SetDesiredValue(0.f);
 			MontageInstance->Blend.SetAlpha(1.f);
 		}
@@ -2718,6 +2742,7 @@ UAnimMontage* FAnimMontageInstance::SetMatineeAnimPositionInner(FName SlotName, 
 		// ensure full weighting to this instance
 		AnimMontageInst->Blend.SetDesiredValue(1.f);
 		AnimMontageInst->Blend.SetAlpha(1.f);
+		AnimMontageInst->BlendStartAlpha = 1.0f;
 
 		AnimMontageInst->SetNextPositionWithEvents(InPosition);
 	}
@@ -2781,6 +2806,7 @@ UAnimMontage* FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(FName Slo
 		// ensure full weighting to this instance
 		MontageInstanceToUpdate->Blend.SetDesiredValue(1.f);
 		MontageInstanceToUpdate->Blend.SetAlpha(1.f);
+		MontageInstanceToUpdate->BlendStartAlpha = 1.0f;
 
 		PreviousPosition = AnimInst->Montage_GetPosition(PlayingMontage);
 		AnimInst->Montage_SetPosition(PlayingMontage, InPosition);
@@ -2861,6 +2887,7 @@ UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, 
 			// ensure full weighting to this instance
 			MontageInstanceToUpdate->Blend.SetDesiredValue(Weight);
 			MontageInstanceToUpdate->Blend.SetAlpha(Weight);
+			MontageInstanceToUpdate->BlendStartAlpha = MontageInstanceToUpdate->Blend.GetAlpha();
 			
 			if (bInPlaying)
 			{

@@ -138,7 +138,7 @@ FORCEINLINE void BlendCurves(const TArrayView<const FBlendedCurve> SourceCurves,
 	}
 }
 
-FORCEINLINE void BlendCurves(const TArrayView<const FBlendedCurve* const> SourceCurves, const TArrayView<const float> SourceWeights, FBlendedCurve& OutCurve)
+void BlendCurves(const TArrayView<const FBlendedCurve* const> SourceCurves, const TArrayView<const float> SourceWeights, FBlendedCurve& OutCurve)
 {
 	if(SourceCurves.Num() > 0)
 	{
@@ -1837,7 +1837,7 @@ void FAnimationRuntime::CreateMaskWeights(TArray<FPerBoneBlendWeight>& BoneBlend
 		{
 			const UBlendProfile* BlendMask = BlendMasks[MaskIndex];
 
-			if (!BlendMask || BlendMask->BlendProfileMode != EBlendProfileMode::BlendMask)
+			if (!BlendMask || BlendMask->Mode != EBlendProfileMode::BlendMask)
 			{
 				ensureMsgf(false, TEXT("FAnimationRuntime::CreateMaskWeights BlendMask null or BlendProfile mode is not blend mask.  BlendProfile=%s"), *GetNameSafe(BlendMask));
 				continue;

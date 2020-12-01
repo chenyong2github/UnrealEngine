@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "Animation/AnimLinkableElement.h"
 #include "Animation/AnimTypes.h"
+#include "Animation/BlendProfile.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
 #include "AlphaBlend.h"
@@ -23,6 +24,7 @@ class UAnimInstance;
 class UAnimMontage;
 class UAnimSequence;
 class USkeletalMeshComponent;
+
 
 /**
  * Section data for each track. Reference of data will be stored in the child class for the way they want
@@ -362,8 +364,15 @@ private:
 	// transient value of previous position before move
 	float PreviousPosition;
 
+	// The current start linear alpha value of the blend. This is not stored inside the FAlphaBlend struct.
+	float BlendStartAlpha;
+
 	// sync group name
 	FName SyncGroupName;
+
+	// Active blend profile.
+	UBlendProfile* ActiveBlendProfile;
+	EBlendProfileMode ActiveBlendProfileMode;
 
 	/**
 	 * Optional evaluation range to use next update (ignoring the real delta time).
@@ -407,6 +416,10 @@ public:
 	void SetWeight(float InValue) { Blend.SetAlpha(InValue); }
 	/** Set the Desired Weight */
 	void SetDesiredWeight(float InValue) { Blend.SetDesiredValue(InValue); }
+
+	/** Get the current blend info. */
+	const FAlphaBlend& GetBlend() const { return Blend; }
+
 private:
 	/** Followers this Montage will synchronize */
 	TArray<struct FAnimMontageInstance*> MontageSyncFollowers;
@@ -469,7 +482,10 @@ public:
 	float GetPlayRate() const { return PlayRate; }
 	float GetDeltaMoved() const { return DeltaMoved; }
 	float GetPreviousPosition() const { return PreviousPosition;  }
+	float GetBlendStartAlpha() const { return BlendStartAlpha; }
 	const FAnimMontageInstance* GetMontageSyncLeader() const { return MontageSyncLeader; } 
+	const UBlendProfile* GetActiveBlendProfile() const { return ActiveBlendProfile; }
+	const EBlendProfileMode GetActiveBlendProfileMode() const { return ActiveBlendProfileMode; }
 
 	/** 
 	 * Setters
@@ -623,6 +639,14 @@ class UAnimMontage : public UAnimCompositeBase
 	/** When it hits end, it automatically blends out. If this is false, it won't blend out but keep the last pose until stopped explicitly */
 	UPROPERTY(EditAnywhere, Category = BlendOption)
 	bool bEnableAutoBlendOut;
+
+	/** The blend profile to use. */
+	UPROPERTY(EditAnywhere, Category = BlendOption, meta = (UseAsBlendProfile = true))
+	UBlendProfile* BlendProfileIn;
+
+	/** The blend profile to use. */
+	UPROPERTY(EditAnywhere, Category = BlendOption, meta = (UseAsBlendProfile = true))
+	UBlendProfile* BlendProfileOut;
 
 	/** Root Bone will be locked to that position when extracting root motion. DEPRECATED in 4.5 root motion is controlled by anim sequences **/
 	UPROPERTY()

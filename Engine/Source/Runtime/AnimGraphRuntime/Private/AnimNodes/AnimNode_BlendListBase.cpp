@@ -40,6 +40,12 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 	Blends.Empty(NumPoses);
 	Blends.AddZeroed(NumPoses);
 
+	if (BlendProfile)
+	{
+		BlendStartAlphas.Empty(NumPoses);
+		BlendStartAlphas.AddZeroed(NumPoses);
+	}
+
 	LastActiveChildIndex = INDEX_NONE;
 
 	for(int32 i = 0 ; i < Blends.Num() ; ++i)
@@ -49,11 +55,18 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 		Blend.SetBlendTime(0.0f);
 		Blend.SetBlendOption(BlendType);
 		Blend.SetCustomCurve(CustomBlendCurve);
+
+		if (BlendProfile)
+		{
+			BlendStartAlphas[i] = 0.0f;
+		}
 	}
 	Blends[0].SetAlpha(1.0f);
 
 	if(BlendProfile)
 	{
+		BlendStartAlphas[0] = 1.0f;
+
 		// Initialise per-bone data
 		PerBoneSampleData.Empty(NumPoses);
 		PerBoneSampleData.AddZeroed(NumPoses);
@@ -146,10 +159,21 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				if(i == ChildIndex)
 				{
 					Blend.SetValueRange(BlendWeights[i], 1.0f);
+
+					if (BlendProfile)
+					{
+						Blend.ResetAlpha();
+						BlendStartAlphas[i] = Blend.GetAlpha();
+					}
 				}
 				else
 				{
 					Blend.SetValueRange(BlendWeights[i], 0.0f);
+				}
+
+				if (BlendProfile)
+				{
+					BlendStartAlphas[i] = Blend.GetAlpha();
 				}
 			}
 
@@ -201,27 +225,13 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 		}
 
 		// If we're using a blend profile, extract the scales and build blend sample data
-		if(BlendProfile)
+		if (BlendProfile)
 		{
 			for(int32 i = 0; i < BlendPose.Num(); ++i)
 			{
-				// Update Per-Bone Info
-				const float BlendWeight = BlendWeights[i];
 				FBlendSampleData& PoseSampleData = PerBoneSampleData[i];
-				PoseSampleData.TotalWeight = BlendWeight;
-
-				for(int32 j = 0; j < PoseSampleData.PerBoneBlendData.Num(); ++j)
-				{
-					float& BoneBlend = PoseSampleData.PerBoneBlendData[j];
-					float WeightScale = BlendProfile->GetEntryBlendScale(j);
-
-					if(ChildIndex != i)
-					{
-						WeightScale = 1.0f / WeightScale;
-					}
-
-					BoneBlend = BlendWeight * WeightScale;
-				}
+				PoseSampleData.TotalWeight = BlendWeights[i];
+				BlendProfile->UpdateBoneWeights(PoseSampleData, Blends[i], BlendStartAlphas[i], BlendWeights[i]);
 			}
 
 			FBlendSampleData::NormalizeDataWeight(PerBoneSampleData);

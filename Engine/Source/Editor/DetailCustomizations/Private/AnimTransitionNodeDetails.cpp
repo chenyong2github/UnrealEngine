@@ -229,25 +229,6 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode)).DisplayName(LOCTEXT("ModeLabel", "Mode")).IsEnabled(BlendSettingsEnabledAttribute);
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve)).DisplayName(LOCTEXT("CurveLabel", "Custom Blend Curve")).IsEnabled(BlendSettingsEnabledAttribute);
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile)).DisplayName(LOCTEXT("BlendProfileLabel", "Blend Profile")).IsEnabled(BlendSettingsEnabledAttribute);
-		
-		{// Blend Profile Mode
-			TSharedPtr<IPropertyHandle> BlendProfileHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile));
-			auto BlendProfileEnabled = [BlendProfileHandle, BlendSettingsEnabledAttribute]()
-			{
-				if (BlendProfileHandle->IsValidHandle())
-				{
-					UObject* BlendProfilePropertyValueInternal = nullptr;
-					BlendProfileHandle->GetValue(BlendProfilePropertyValueInternal);
-					UBlendProfile* SelectedProfile = Cast<UBlendProfile>(BlendProfilePropertyValueInternal);
-					return (SelectedProfile != nullptr) && BlendSettingsEnabledAttribute.Get(false);
-				}
-				return false;
-			};
-			auto BlendProfileEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(BlendProfileEnabled));
-			CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfileMode))
-				.DisplayName(LOCTEXT("BlendProfileModeLabel", "Blend Profile Mode"))
-				.IsEnabled(BlendProfileEnabledAttribute);
-		}
 
 		//////////////////////////////////////////////////////////////////////////
 

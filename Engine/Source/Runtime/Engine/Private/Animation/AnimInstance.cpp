@@ -3178,7 +3178,18 @@ void UAnimInstance::UpdateMontageEvaluationData()
 		{
 			UE_LOG(LogAnimMontage, Verbose, TEXT("UpdateMontageEvaluationData : AnimMontage: %s,  (DesiredWeight:%0.2f, Weight:%0.2f)"),
 						*MontageInstance->Montage->GetName(), MontageInstance->GetDesiredWeight(), MontageInstance->GetWeight());
-			Proxy.GetMontageEvaluationData().Add(FMontageEvaluationState(MontageInstance->Montage, MontageInstance->GetWeight(), MontageInstance->GetDesiredWeight(), MontageInstance->GetPosition(), MontageInstance->bPlaying, MontageInstance->IsActive()));
+
+			Proxy.GetMontageEvaluationData().Add(
+				FMontageEvaluationState
+				(
+					MontageInstance->Montage,
+					MontageInstance->GetPosition(),
+					MontageInstance->bPlaying,
+					MontageInstance->IsActive(),
+					MontageInstance->GetBlend(),
+					MontageInstance->GetActiveBlendProfile(),
+					MontageInstance->GetBlendStartAlpha()
+				));
 		}
 	}
 }
