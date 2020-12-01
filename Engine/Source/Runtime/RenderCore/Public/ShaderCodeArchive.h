@@ -78,7 +78,7 @@ public:
 
 	enum class EAssetInfoVersion : uint8
 	{
-		CurrentVersion = 1
+		CurrentVersion = 2
 	};
 #endif
 
