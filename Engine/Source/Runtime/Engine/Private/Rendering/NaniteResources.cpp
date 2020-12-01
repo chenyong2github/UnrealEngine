@@ -68,7 +68,7 @@ FAutoConsoleVariableRef CVarRayTracingNaniteProxyMeshes(
 namespace Nanite
 {
 
-static_assert(sizeof(FPackedTriCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedTriCluster)");
+static_assert(sizeof(FPackedCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedCluster)");
 
 FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 {

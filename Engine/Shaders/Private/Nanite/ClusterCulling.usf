@@ -530,7 +530,7 @@ void CandidateCullInner(
 	const float MaxObjectScale = InstanceData.NonUniformScale.w;	// Max Uniform Scale
 	const float ZNear = NaniteView.NearPlane;
 
-	FTriCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
+	FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
 
 	bool bWasOccluded = false;
 	bool bUseHWRaster = false;

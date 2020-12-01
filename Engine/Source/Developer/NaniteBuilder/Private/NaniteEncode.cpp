@@ -557,7 +557,7 @@ static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>
 	return PackedMaterialInfo;
 }
 
-static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::FCluster& InCluster, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords)
+static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FCluster& InCluster, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords)
 {
 	FMemory::Memzero(OutCluster);
 	// 0
@@ -1057,7 +1057,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	const uint32 BitsPerTriangle = BitsPerIndex + 2 * 5;	// Base index + two 5-bit offsets
 
 	FPageSections& GpuSizes	= Info.GpuSizes;
-	GpuSizes.Cluster		= sizeof(FPackedTriCluster);
+	GpuSizes.Cluster		= sizeof(FPackedCluster);
 	GpuSizes.MaterialTable	= CalcMaterialTableSize(Cluster) * sizeof(uint32);
 	GpuSizes.DecodeInfo		= NumTexCoords * sizeof(FUVRange);
 	GpuSizes.Index			= (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
@@ -1302,7 +1302,7 @@ static void SortGroupClusters(TArray<FClusterGroup>& ClusterGroups, const TArray
 	Build streaming pages
 	Page layout:
 		Fixup Chunk (Only loaded to CPU memory)
-		FPackedTriCluster
+		FPackedCluster
 		MaterialRangeTable
 		GeometryData
 */
@@ -1604,12 +1604,12 @@ static void WritePages(	FResources& Resources,
 		TArray<uint8>				CombinedAttributeData;
 		TArray<uint32>				MaterialRangeData;
 		TArray<uint16>				CodedVerticesPerCluster;
-		TArray<FPackedTriCluster>	PackedClusters;
+		TArray<FPackedCluster>		PackedClusters;
 
 		PackedClusters.SetNumUninitialized(Page.NumClusters);
 		CodedVerticesPerCluster.SetNumUninitialized(Page.NumClusters);
 		
-		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedTriCluster) / sizeof(uint32);
+		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedCluster) / sizeof(uint32);
 
 		FPageSections GpuSectionOffsets = Page.GpuSizes.GetOffsets();
 		TMap<FVariableVertex, uint32> UniqueVertices;
@@ -1624,8 +1624,8 @@ static void WritePages(	FResources& Resources,
 				const FEncodingInfo& EncodingInfo = EncodingInfos[ClusterIndex];
 
 				const uint32 LocalClusterIndex = Part.PageClusterOffset + j;
-				FPackedTriCluster& PackedCluster = PackedClusters[LocalClusterIndex];
-				PackTriCluster(PackedCluster, Cluster, EncodingInfos[ClusterIndex], NumTexCoords);
+				FPackedCluster& PackedCluster = PackedClusters[LocalClusterIndex];
+				PackCluster(PackedCluster, Cluster, EncodingInfos[ClusterIndex], NumTexCoords);
 
 				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, MaterialRangeData, NumPackedClusterDwords);
 				check((GpuSectionOffsets.Index & 3) == 0);
@@ -1693,10 +1693,10 @@ static void WritePages(	FResources& Resources,
 		MaterialRangeData.SetNum(Align(MaterialRangeData.Num(), 4));
 
 		static_assert(sizeof(FUVRange) % 16 == 0, "sizeof(FUVRange) must be a multiple of 16");
-		static_assert(sizeof(FPackedTriCluster) % 16 == 0, "sizeof(FPackedTriCluster) must be a multiple of 16");
+		static_assert(sizeof(FPackedCluster) % 16 == 0, "sizeof(FPackedCluster) must be a multiple of 16");
 		PageDiskHeader->NumClusters = Page.NumClusters;
 		PageDiskHeader->GpuSize = Page.GpuSizes.GetTotal();
-		PageDiskHeader->NumRawFloat4s = Page.NumClusters * (sizeof(FPackedTriCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
+		PageDiskHeader->NumRawFloat4s = Page.NumClusters * (sizeof(FPackedCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
 		PageDiskHeader->NumTexCoords = NumTexCoords;
 
 		// Cluster headers
@@ -1704,10 +1704,10 @@ static void WritePages(	FResources& Resources,
 
 		// Write clusters in SOA layout
 		{
-			const uint32 NumClusterFloat4Propeties = sizeof(FPackedTriCluster) / 16;
+			const uint32 NumClusterFloat4Propeties = sizeof(FPackedCluster) / 16;
 			for (uint32 float4Index = 0; float4Index < NumClusterFloat4Propeties; float4Index++)
 			{
-				for (const FPackedTriCluster& PackedCluster : PackedClusters)
+				for (const FPackedCluster& PackedCluster : PackedClusters)
 				{
 					uint8* Dst = PagePointer.Advance<uint8>(16);
 					FMemory::Memcpy(Dst, (uint8*)&PackedCluster + float4Index * 16, 16);

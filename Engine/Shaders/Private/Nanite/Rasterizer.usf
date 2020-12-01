@@ -273,7 +273,7 @@ groupshared float3 GroupVerts[256];
 groupshared float3 GroupVerts[384];
 #endif
 
-uint GetPackedPosition(uint VertIndex, FTriCluster Cluster)
+uint GetPackedPosition(uint VertIndex, FCluster Cluster)
 {
 	const uint CompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
 	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
@@ -282,7 +282,7 @@ uint GetPackedPosition(uint VertIndex, FTriCluster Cluster)
 	return BitStreamReader_Read(BitStream, BitsPerVertex, CompileTimeBitsPerVertex);
 }
 
-float3 DecodePosition(uint VertIndex, FTriCluster Cluster)
+float3 DecodePosition(uint VertIndex, FCluster Cluster)
 {
 	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
 	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
@@ -352,7 +352,7 @@ void MicropolyRasterize(
 	GroupMemoryBarrierWithGroupSync();
 	LocalToSubpixel = LocalToSubpixelLDS;
 
-	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	UNROLL
 	for( uint i = 0; i < 2; i++ )
@@ -429,7 +429,7 @@ struct VSOut
 	float4 Position							: SV_Position;
 };
 
-VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FTriCluster Cluster, uint VertIndex, out float4 PointClipNoScaling)
+VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, out float4 PointClipNoScaling)
 {
 	VSOut Out;
 
@@ -692,7 +692,7 @@ uint GetCompactedTriangle(uint Position, uint Counts[4], uint References[4])
 	return PrefixSum;
 }
 
-float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FTriCluster Cluster)
+float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
 {
 	const float3 PointLocal = UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
 
@@ -705,7 +705,7 @@ float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FI
 }
 
 
-float4 GetClusterPointClip(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FTriCluster Cluster)
+float4 GetClusterPointClip(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
 {
 	const float3 PointTranslatedWorld = GetClusterPointTranslatedWorld(PackedPos, NaniteView, InstanceData, Cluster);
 	return mul(float4(PointTranslatedWorld, 1), NaniteView.TranslatedWorldToClip);
@@ -762,7 +762,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	FInstanceSceneData InstanceData	= GetInstanceData(VisibleCluster.InstanceId);
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 #if CACHE_VERTEX_TRANSLATED_WORLD_POS || CACHE_VERTEX_CLIP_POS || CACHE_VERTEX_PACK_POS
 	if (GroupThreadID < Cluster.NumVerts)
@@ -1147,7 +1147,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 #if VERTEX_TO_TRIANGLE_MASKS
 	if (GroupThreadID < Cluster.NumVerts)
@@ -1233,7 +1233,7 @@ VSOut HWRasterizeVS(
 	FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster.InstanceId );
 
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
-	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	if( TriIndex < Cluster.NumTris )
 	{

@@ -683,7 +683,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		if(TargetGPUPageIndex != INVALID_PAGE_INDEX)
 		{
 			uint32 ClusterIndex = Fixup.GetClusterIndex();
-			uint32 FlagsOffset = offsetof( FPackedTriCluster, Flags );
+			uint32 FlagsOffset = offsetof( FPackedCluster, Flags );
 			uint32 Offset = ( TargetGPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS ) + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
 			ClusterFixupUploadBuffer.Add( Offset / sizeof( uint32 ), &Flags, 1 );
 		}

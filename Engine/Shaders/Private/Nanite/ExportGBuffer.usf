@@ -70,7 +70,7 @@ void EmitMaterialDepthPS(
 		// Export material depth ID as SV_Depth.
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster );
-		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
 	}
@@ -270,7 +270,7 @@ void EmitHitProxyIdPS(
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
-		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		float4 HitProxyId = float4(
 			float((MaterialHitProxyId >> 16) & 0xFF) / 255.0f,
@@ -332,7 +332,7 @@ void EmitEditorLevelInstanceDepthPS(
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
-		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorVisualizeLevelInstanceIds, EDITOR_LEVELINSTANCE_BUFFER_COUNT, MaterialHitProxyId))
 		{
@@ -369,7 +369,7 @@ void EmitEditorSelectionDepthPS(
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
-		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, MaterialHitProxyId))
 		{

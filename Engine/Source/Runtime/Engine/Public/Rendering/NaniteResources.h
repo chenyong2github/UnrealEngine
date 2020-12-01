@@ -153,8 +153,8 @@ FORCEINLINE void SetBits(uint32& Value, uint32 Bits, uint32 NumBits, uint32 Offs
 }
 
 
-// Packed TriCluster as it is used by the GPU
-struct FPackedTriCluster
+// Packed Cluster as it is used by the GPU
+struct FPackedCluster
 {
 	// Members needed for rasterization
 	FUIntVector	QuantizedPosStart;

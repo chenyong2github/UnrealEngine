@@ -9,7 +9,7 @@
 #define VIRTUAL_TEXTURE_TARGET 0
 #endif
 
-uint PackedTriClusterSize;
+uint PackedClusterSize;
 
 StructuredBuffer<FPersistentState>	MainAndPostPassPersistentStates;
 Buffer<uint>						MainPassCandidateClustersArgs;
@@ -365,7 +365,7 @@ void CalculateStats(
 	{
 		FVisibleCluster VisCluster = GetVisibleCluster((DispatchThreadIndex < NumClustersSW) ? DispatchThreadIndex : ( (MaxClusters - 1) - (DispatchThreadIndex - NumClustersSW) ), VIRTUAL_TEXTURE_TARGET != 0);
 		
-		FTriCluster Cluster = GetCluster(VisCluster.PageIndex, VisCluster.ClusterIndex);
+		FCluster Cluster = GetCluster(VisCluster.PageIndex, VisCluster.ClusterIndex);
 
 		InterlockedAdd(GroupNumTris,  Cluster.NumTris);
 		InterlockedAdd(GroupNumVerts, Cluster.NumVerts);

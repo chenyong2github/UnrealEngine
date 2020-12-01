@@ -85,7 +85,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
-		FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		const uint VisualizeMode = GetVisualizeMode();
 		if (VisualizeMode == VISUALIZE_TRIANGLES)

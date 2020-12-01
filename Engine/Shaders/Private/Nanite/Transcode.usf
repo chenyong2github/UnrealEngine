@@ -185,8 +185,8 @@ uint3 UnpackStripIndices(uint SrcPageBaseOffset, FPageDiskHeader PageDiskHeader,
 #define TRANSCODE_THREADS_PER_GROUP			(1u << TRANSCODE_THREADS_PER_GROUP_BITS)
 #define TRANSCODE_THREADS_PER_PAGE			(MAX_TRANSCODE_GROUPS_PER_PAGE << TRANSCODE_THREADS_PER_GROUP_BITS)
 
-void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FTriCluster Cluster, uint DstPageBaseOffset, uint LocalClusterIndex, uint VertexIndex,
-								FTriCluster SrcCluster, FClusterDiskHeader SrcClusterDiskHeader, uint SrcPageBaseOffset, uint SrcLocalClusterIndex, uint SrcCodedVertexIndex,
+void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster, uint DstPageBaseOffset, uint LocalClusterIndex, uint VertexIndex,
+								FCluster SrcCluster, FClusterDiskHeader SrcClusterDiskHeader, uint SrcPageBaseOffset, uint SrcLocalClusterIndex, uint SrcCodedVertexIndex,
 								uint CompileTimeNumTexCoords
 )
 {
@@ -291,7 +291,7 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 	uint NumRawFloat4s = PageDiskHeader.NumRawFloat4s;
 	uint PageThread = (GroupID.x << TRANSCODE_THREADS_PER_GROUP_BITS) | GroupIndex;
 
-	// Raw copy: FPackedTriClusters, Material Dwords and DecodeInfo.
+	// Raw copy: FPackedClusters, Material Dwords and DecodeInfo.
 	for(uint i = PageThread; i < NumRawFloat4s; i += TRANSCODE_THREADS_PER_PAGE)
 	{
 		uint4 Data = SrcPageBuffer.Load4(SrcPackedClusterOffset + i * 16);
@@ -301,7 +301,7 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 	for(uint LocalClusterIndex = GroupID.x; LocalClusterIndex < PageDiskHeader.NumClusters; LocalClusterIndex += MAX_TRANSCODE_GROUPS_PER_PAGE)
 	{
 		FClusterDiskHeader ClusterDiskHeader = GetClusterDiskHeader(SrcPageBaseOffset, LocalClusterIndex);
-		FTriCluster Cluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, LocalClusterIndex, PageDiskHeader.NumClusters);
+		FCluster Cluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, LocalClusterIndex, PageDiskHeader.NumClusters);
 		
 		// Decode indices
 		if (GroupIndex < Cluster.NumTris)
@@ -366,7 +366,7 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 			}
 
 			FClusterDiskHeader SrcClusterDiskHeader = GetClusterDiskHeader(SrcPageBaseOffset, SrcLocalClusterIndex);
-			FTriCluster SrcCluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, SrcLocalClusterIndex, PageDiskHeader.NumClusters);
+			FCluster SrcCluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, SrcLocalClusterIndex, PageDiskHeader.NumClusters);
 		
 			// Transcode position
 			{

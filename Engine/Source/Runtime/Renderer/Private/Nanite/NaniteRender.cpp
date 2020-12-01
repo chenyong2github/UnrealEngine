@@ -1672,7 +1672,7 @@ class FPrintStatsCS : public FNaniteShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER(uint32, PackedTriClusterSize)
+		SHADER_PARAMETER(uint32, PackedClusterSize)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, DebugFlags)
 
@@ -3506,7 +3506,7 @@ void PrintStats(
 			FPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrintStatsCS::FParameters>();
 
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
-			PassParameters->PackedTriClusterSize = sizeof(Nanite::FPackedTriCluster);
+			PassParameters->PackedClusterSize = sizeof(Nanite::FPackedCluster);
 
 			PassParameters->RenderFlags = Nanite::GGlobalResources.StatsRenderFlags;
 			PassParameters->DebugFlags = GNaniteDebugFlags == 0 ? 0 : Nanite::GGlobalResources.StatsDebugFlags;

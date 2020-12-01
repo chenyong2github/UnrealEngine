@@ -174,7 +174,7 @@ struct FUVRange
 	uint2	GapLength;
 };
 
-struct FTriCluster
+struct FCluster
 {
 	uint	PageBaseAddress;
 
@@ -793,7 +793,7 @@ FInstanceSceneData GetInstanceData( uint InstanceId )
 	return GetInstanceData( InstanceId, SOAStrides.x );
 }
 
-FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
+FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
 	uint ClusterSOAStride = ( NumPageClusters << 4 );
 
@@ -809,7 +809,7 @@ FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint C
 	ClusterData[6] = InputBuffer.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
 	ClusterData[7] = InputBuffer.Load4( ClusterBaseAddress + 7 * ClusterSOAStride );
 
-	FTriCluster Cluster;
+	FCluster Cluster;
 	Cluster.PageBaseAddress		= 0;
 
 	Cluster.QuantizedPosStart	= ClusterData[0].xyz;
@@ -896,12 +896,12 @@ FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint C
 	return Cluster;
 }
 
-FTriCluster GetCluster(uint PageIndex, uint ClusterIndex)
+FCluster GetCluster(uint PageIndex, uint ClusterIndex)
 {
 	uint NumClusters = ClusterPageHeaders.Load(PageIndex * 4);
 	uint PageBaseAddress = (PageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
 	
-	FTriCluster Cluster = GetCluster(ClusterPageData, PageBaseAddress, ClusterIndex, NumClusters);
+	FCluster Cluster = GetCluster(ClusterPageData, PageBaseAddress, ClusterIndex, NumClusters);
 	Cluster.PageBaseAddress = PageBaseAddress;
 	return Cluster;
 }
@@ -922,7 +922,7 @@ FUVRange GetUVRange(ByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
 }
 
 // Decode triangle that is represented by one base index and two 5-bit offsets.
-uint3 ReadTriangleIndices(FTriCluster Cluster, uint TriIndex)
+uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 {
 	const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
 
@@ -1004,7 +1004,7 @@ void UnpackDbgPixel(
 	DepthInt = Unpacked.y;
 }
 
-float3 UnpackPosition(uint Packed, FTriCluster Cluster, uint Bits)
+float3 UnpackPosition(uint Packed, FCluster Cluster, uint Bits)
 {
 	return (uint3(BitFieldExtractU32(Packed, Bits, 0), BitFieldExtractU32(Packed, Bits, Bits), BitFieldExtractU32(Packed, Bits, 2*Bits)) + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
 }
@@ -1025,12 +1025,12 @@ float3 UnpackNormal(uint Packed, uint Bits)
 	return N;
 }
 
-bool IsMaterialFastPath(FTriCluster InCluster)
+bool IsMaterialFastPath(FCluster InCluster)
 {
 	return (InCluster.Material0Length > 0);
 }
 
-uint GetRelativeMaterialIndex(FTriCluster InCluster, uint InTriIndex)
+uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 {
 	uint MaterialIndex = 0xFFFFFFFF;
 
@@ -1086,7 +1086,7 @@ uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAdd
 }
 
 uint GetMaterialDepthId(
-	FTriCluster InCluster,
+	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
 	ByteAddressBuffer InMaterialDepthTable)
@@ -1097,7 +1097,7 @@ uint GetMaterialDepthId(
 }
 
 uint GetMaterialHitProxyId(
-	FTriCluster InCluster,
+	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
 	ByteAddressBuffer InMaterialHitProxyTable)

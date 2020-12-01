@@ -144,7 +144,7 @@ private:
 		}
 	};
 
-	FHeapBuffer				ClusterPageData;	// FPackedTriCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
+	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FHeapBuffer				ClusterPageHeaders;
 	FScatterUploadBuffer	ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
