@@ -135,12 +135,20 @@ FAutoConsoleVariableRef CVarUseObjectKeyInChunkKeyComparisons(
 	TEXT("1: (default) Compare object keys.  0: Do not compare object keys."),
 	ECVF_Default);
 
-static int32 StreamCacheDebugViewCVar = 2;
-FAutoConsoleVariableRef CVarStreamCacheDebugView(
-	TEXT("au.streamcaching.StreamCacheDebugView"),
-	StreamCacheDebugViewCVar,
+static int32 DebugViewCVar = 2;
+FAutoConsoleVariableRef CVarDebugView(
+	TEXT("au.streamcaching.DebugView"),
+	DebugViewCVar,
 	TEXT("Enables the comparison of FObjectKeys when comparing Stream Cache Chunk Keys.  Without this FName collisions could occur if 2 SoundWaves have the same name.\n")
 	TEXT("0: Legacy, 1: Default, 2: Averaged View, 3: High Detail View"),
+	ECVF_Default);
+
+static int32 SearchUsingChunkArrayCVar = 1;
+FAutoConsoleVariableRef CVarSearchUsingChunkArray(
+	TEXT("au.streamcaching.SearchUsingChunkArray"),
+	SearchUsingChunkArrayCVar,
+	TEXT("If performing an exhaustive search of the cache, use the chunk array instead of the LRU (we give up knowing how far down the cache an element was).\n")
+	TEXT("0: Search using LRU (linked list). 1: Search using Chunk Pool (TArray)"),
 	ECVF_Default);
 
 static FAutoConsoleCommand GFlushAudioCacheCommand(
@@ -1183,16 +1191,21 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		}
 		else
 		{
-			UE_LOG(LogAudioStreamCaching, Display, TEXT("Falling back to linear search. Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s")
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("Falling back to linear search. Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s)")
 			, CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString(), *InKey.SoundWaveName.ToString());
 		}
 	}
 
 	// Otherwise, linearly search the cache.
-	return LinearSearchForElement(InKey);
+	if (SearchUsingChunkArrayCVar)
+	{
+		return LinearSearchChunkArrayForElement(InKey);
+	}
+
+	return LinearSearchCacheForElement(InKey);
 }
 
-FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchForElement(const FChunkKey& InKey)
+FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchCacheForElement(const FChunkKey& InKey)
 {
 	static bool bHasLogged = false;
 	if (!bHasLogged)
@@ -1216,7 +1229,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchForElement(const 
 			float& CMA = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 			CMA += ((ElementPosition - CMA) / (CurrentElement->DebugInfo.NumTimesTouched + 1));
 #endif
-			UE_LOG(LogAudioStreamCaching, Display, TEXT("Found element in cache using linear search"));
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("Found element in cache using linear search (LRU)"));
 			return CurrentElement;
 		}
 		else
@@ -1234,6 +1247,27 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchForElement(const 
 	}
 
 	return CurrentElement;
+}
+
+FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchChunkArrayForElement(const FChunkKey& InKey)
+{
+	static bool bHasLogged = false;
+	if (!bHasLogged)
+	{
+		UE_LOG(LogAudioStreamCaching, Display, TEXT("Linear searching cache on cache offset lookup failure"));
+		bHasLogged = true;
+	}
+
+	for (int i = 0; i < ChunksInUse; ++i)
+	{
+		if (InKey == CachePool[i].Key)
+		{
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("Found element in cache using linear search (Chunk Array)"));
+			return &CachePool[i];
+		}
+	}
+
+	return nullptr;
 }
 
 void FAudioChunkCache::TouchElement(FCacheElement* InElement)
@@ -2126,7 +2160,6 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	Y += 10;
 
 	// First pass: We run through and get a snap shot of the amount of memory currently in use.
-	FCacheElement* CurrentElement = MostRecentElement;
 	uint32 NumBytesCounter = 0;
 
 	int32 NumRetainedAndPlaying = 0;
@@ -2144,8 +2177,10 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	int32 NumOther = 0;
 
 
-	while (CurrentElement != nullptr)
+	for(int i = 0; i < ChunksInUse; ++i)
 	{
+		const FAudioChunkCache::FCacheElement* CurrentElement = &CachePool[i];
+
 		NumBytesCounter += CurrentElement->ChunkDataSize;
 
 		ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
@@ -2222,8 +2257,6 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 				break;
 			}
 		}
-
-		CurrentElement = CurrentElement->LessRecentElement;
 	}
 
 	// Convert to megabytes and print the total size:
@@ -2290,7 +2323,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	const int32 BarWidthOther						= PercentageOther * BarWidth;
 
 
-	// TODO: Draw color key
+	// Draw color key
 	Canvas->DrawShadowedString(X, Y, TEXT("Cache Composition:"), UEngine::GetSmallFont(), FLinearColor::White);
 	Y += 15;
 
@@ -2389,19 +2422,19 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 
 	// Draw the body of our display depending on the CVAR
 	TPair<int, int> Size(X,Y);
-	if (StreamCacheDebugViewCVar == 0)
+	if (DebugViewCVar == 0)
 	{
 		Size = DebugDisplayLegacy(World, Viewport, Canvas, X, Y + 2 * BarPad, ViewLocation, ViewRotation);
 	}
-	else if (StreamCacheDebugViewCVar == 1)
+	else if (DebugViewCVar == 1)
 	{
 		// do nothing else (default)
 	}
-	else if (StreamCacheDebugViewCVar == 2)
+	else if (DebugViewCVar == 2)
 	{
 		DebugBirdsEyeDisplay(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 	}
-	else if (StreamCacheDebugViewCVar == 3)
+	else if (DebugViewCVar == 3)
 	{
 		Size = DebugVisualDisplay(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 	}
