@@ -13,13 +13,15 @@ class IDetailsView;
 class IPropertyHandle;
 class SScrollBox;
 class UFractureTool;
-struct FFractureContext;
+struct FFractureToolContext;
 class FGeometryCollection;
 class SGeometryCollectionOutliner;
 class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 class UGeometryCollection;
 class FFractureEditorModeToolkit;
+class UFractureActionTool;
+class UFractureModalTool;
 
 namespace GeometryCollection
 {
@@ -57,15 +59,15 @@ public:
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	void SetActiveTool(UFractureTool* InActiveTool);
-	UFractureTool* GetActiveTool() const;
-	bool IsActiveTool(UFractureTool* InActiveTool);
+	void ExecuteAction(UFractureActionTool* InActionTool);
+	bool CanExecuteAction(UFractureActionTool* InActionTool) const;
+
+	void SetActiveTool(UFractureModalTool* InActiveTool);
+	UFractureModalTool* GetActiveTool() const;
+	bool IsActiveTool(UFractureModalTool* InActiveTool);
 
 	void SetOutlinerComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents);
 	void SetBoneSelection(UGeometryCollectionComponent* InRootComponent, const TArray<int32>& InSelectedBones, bool bClearCurrentSelection);
-
-	// Selection Command Callbacks;
-	void OnSelectByMode(GeometryCollection::ESelectionMode);
 
 	// View Settings
 	float GetExplodedViewValue() const;
@@ -85,41 +87,15 @@ public:
 	TSharedRef<SWidget> GetLevelViewMenuContent(TSharedRef<IPropertyHandle> PropertyHandle);
 	TSharedRef<SWidget> GetViewMenuContent();
 
-
-	// Cluster Command Callbacks
-	void OnCluster();
-	void OnUncluster();
-	void OnFlatten();
-	void OnFlattenToLevel(){}
-	void OnMerge(){}
-	void OnMoveUp();
-	void GenerateAsset();
-	void ResetAsset();
-
 	void ViewUpOneLevel();
 	void ViewDownOneLevel();
 
-	// Fracture Command Callback
-	FReply OnFractureClicked();
-	bool CanExecuteFracture() const;
-
-	static bool IsLeafBoneSelected();
-
-	static ULevel* GetSelectedLevel();
- 	static AActor* AddActor(ULevel* InLevel, UClass* Class);
-	class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, bool AddMaterials /*= false*/);
-
- 	void OpenGenerateAssetDialog(TArray<AActor*>& Actors);
- 	void OnGenerateAssetPathChosen(const FString& InAssetPath, TArray<AActor*> Actors);
-
-	static void GetFractureContexts(TArray<FFractureContext>& FractureContexts);
-	void ExecuteFracture(FFractureContext& FractureContext);
+	// Modal Command Callback
+	FReply OnModalClicked();
+	bool CanExecuteModal() const;
 
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 
-	AGeometryCollectionActor* ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, TArray<AActor*>& Actors);
-
-	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
 	int32 GetLevelCount();
 
@@ -129,6 +105,8 @@ public:
 	const static TArray<FName> PaletteNames;
 	virtual void GetToolPaletteNames( TArray<FName>& InPaletteName ) const { InPaletteName = PaletteNames; }
 	virtual FText GetToolPaletteDisplayName(FName PaletteName) const; 
+
+	void SetInitialPalette();
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
@@ -136,22 +114,22 @@ public:
 	virtual FText GetActiveToolDisplayName() const;
 	virtual FText GetActiveToolMessage() const;
 
+	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
+
 	TSharedPtr<SWidget> ExplodedViewWidget;
 	TSharedPtr<SWidget> LevelViewWidget;
 	TSharedPtr<SWidget> ShowBoneColorsWidget;
 
 protected:
 	static bool IsGeometryCollectionSelected();
-	static bool IsStaticMeshSelected();
-	static bool IsSelectedActorsInEditorWorld();
-	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
+	static bool IsSelectedActorsInEditorWorld();	
 
 private:
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void BindCommands();
 
 private:
-	UFractureTool* ActiveTool;
+	UFractureModalTool* ActiveTool;
 
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<IDetailsView> ViewSettingsDetailsView;

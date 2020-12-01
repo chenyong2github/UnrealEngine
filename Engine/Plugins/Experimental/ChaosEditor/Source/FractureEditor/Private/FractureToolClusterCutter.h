@@ -2,32 +2,28 @@
 
 #pragma once
 
-#include "FractureToolVoronoiBase.h"
+#include "FractureTool.h"
+#include "FractureToolCutter.h"
 
-#include "FractureToolCluster.generated.h"
+#include "FractureToolClusterCutter.generated.h"
 
 
 UCLASS(config = EditorPerProjectUserSettings)
-class UFractureClusterSettings
-	: public UObject
+class UFractureClusterCutterSettings : public UFractureToolSettings
 {
-	GENERATED_BODY()
 public:
+	GENERATED_BODY()
 
-	UFractureClusterSettings()
-	: NumberClustersMin(8)
-	, NumberClustersMax(8)
-	, SitesPerClusterMin(2)
-	, SitesPerClusterMax(30)
-	, ClusterRadiusPercentageMin(0.1)
-	, ClusterRadiusPercentageMax(0.2)
-	, ClusterRadius(0.0f)
+	UFractureClusterCutterSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+		, NumberClustersMin(8)
+		, NumberClustersMax(8)
+		, SitesPerClusterMin(2)
+		, SitesPerClusterMax(30)
+		, ClusterRadiusPercentageMin(0.1)
+		, ClusterRadiusPercentageMax(0.2)
+		, ClusterRadius(0.0f)
 	{}
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
 
 	/** Number of Clusters - Cluster Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Minimum Cluster Sites", UIMin = "1", UIMax = "200", ClampMin = "1"))
@@ -55,35 +51,30 @@ public:
 	/** Cluster's Radius - Cluster Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = ClusterVoronoi)
 	float ClusterRadius;
-
-	UPROPERTY()
-	UFractureTool *OwnerTool;
 };
 
+
 UCLASS(DisplayName="Cluster Voronoi", Category="FractureTools")
-class UFractureToolCluster: public UFractureToolVoronoiBase
+class UFractureToolClusterCutter : public UFractureToolVoronoiCutterBase
 {
 public:
 	GENERATED_BODY()
 
-	UFractureToolCluster(const FObjectInitializer& ObjInit);//  : Super(ObjInit) {}
+	UFractureToolClusterCutter(const FObjectInitializer& ObjInit);
 
 	// UFractureTool Interface
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FSlateIcon GetToolIcon() const override;
-	virtual TArray<UObject*> GetSettingsObjects() const override;// { return TArray<UObject*>(); }
+	virtual TArray<UObject*> GetSettingsObjects() const override;
 
-	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext );
+	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext ) override;
 
-	// virtual void ExecuteFracture() {}
-	// virtual bool CanExecuteFracture() { return true; }
-
+	
 	UPROPERTY(EditAnywhere, Category = Cluster)
-	UFractureClusterSettings* Settings;
+	UFractureClusterCutterSettings* ClusterSettings;
 
 protected:
-
-	void GenerateVoronoiSites(const FFractureContext &Context, TArray<FVector>& Sites) override;
+	void GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites) override;
 
 };

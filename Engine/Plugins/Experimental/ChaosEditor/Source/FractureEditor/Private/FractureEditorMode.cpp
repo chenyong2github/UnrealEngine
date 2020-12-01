@@ -60,6 +60,11 @@ void FFractureEditorMode::Enter()
 	TArray<UObject*> SelectedObjects;
 	SelectedActors->GetSelectedObjects(SelectedObjects);
 
+	if (FFractureEditorModeToolkit* FractureToolkit = static_cast<FFractureEditorModeToolkit*>(Toolkit.Get()))
+	{
+		FractureToolkit->SetInitialPalette();
+	}
+	
 	OnActorSelectionChanged(SelectedObjects, false);
 
 }
@@ -120,7 +125,7 @@ void FFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 	FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
  
-	if (UFractureTool* FractureTool = FractureToolkit->GetActiveTool())
+	if (UFractureModalTool* FractureTool = FractureToolkit->GetActiveTool())
 	{
 		auto Settings = FractureTool->GetSettingsObjects();
 		FractureTool->Render(View, Viewport, PDI);

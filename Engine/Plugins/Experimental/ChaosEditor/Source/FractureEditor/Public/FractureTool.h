@@ -8,126 +8,142 @@
 
 #include "Framework/Commands/UICommandInfo.h"
 #include "FractureEditorCommands.h"
+#include "FractureEditorModeToolkit.h"
 
 #include "FractureTool.generated.h"
 
 class UGeometryCollection;
-class UFractureTool;
+class UFractureModalTool;
 
-struct FFractureContext
-{
-	AActor* OriginalActor;
-	UPrimitiveComponent* OriginalPrimitiveComponent;
+template <typename T>
+class TManagedArray;
 
-	UGeometryCollection* FracturedGeometryCollection;
-	FString ParentName;
-	FTransform Transform;
-	FBox Bounds;
-// 	FVector InBoundsOffset;
-// 	int32 FracturedChunkIndex;
-	int32 RandomSeed;
-	TArray<int32> SelectedBones;
-};
+DECLARE_LOG_CATEGORY_EXTERN(LogFractureTool, Log, All);
 
-/** Settings specifically related to the one-time destructive fracturing of a mesh **/
-UCLASS(config = EditorPerProjectUserSettings)
-class UFractureCommonSettings: public UObject
+UCLASS(Abstract, config = EditorPerProjectUserSettings)
+class UFractureToolSettings : public UObject
 {
 	GENERATED_BODY()
 public:
-	UFractureCommonSettings(const FObjectInitializer& ObjInit);
-
-#if WITH_EDITOR
+	UFractureToolSettings(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
 
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
-#endif
-	/** Random number generator seed for repeatability */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1"))
-	int32 RandomSeed;
-
-	/** Chance to shatter each mesh.  Useful when shattering multiple selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Chance To Fracture Per Mesh", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float ChanceToFracture;
-
-	/** Generate a fracture pattern across all selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Group Fracture"))
-	bool bGroupFracture;
-
-	/** Generate a fracture pattern across all selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Sites"))
-	bool bDrawSites;
-
-	/** Generate a fracture pattern across all selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Diagram"))
-	bool bDrawDiagram;
-
-	/** Size of the noise displacement in centimeters */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.0"))
-	float Amplitude;
-
-	/** Period of the Perlin noise.  Smaller values will create noise faces that are smoother */
-	UPROPERTY(EditAnywhere, Category = Noise)
-	float Frequency;
-
-	/** Number of fractal layers of Perlin noise to apply.  Smaller values (1 or 2) will create noise that looks like gentle rolling hills, while larger values (> 4) will tend to look more like craggy mountains */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1"))
-	int32 OctaveNumber;
-
-	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1", ClampMin = "0.1"))
-	float SurfaceResolution;
-
 	UPROPERTY()
-	UFractureTool *OwnerTool;
+	UFractureModalTool* OwnerTool;
 };
 
-UCLASS(Abstract, Blueprintable, BlueprintType)
-class UFractureTool : public UObject
+
+struct FFractureToolContext
+{
+	AActor* OriginalActor;
+	UPrimitiveComponent* OriginalPrimitiveComponent;
+	UGeometryCollection* FracturedGeometryCollection;
+	FString ParentName;
+	FTransform Transform;
+	FBox Bounds;
+	int32 RandomSeed;
+	TArray<int32> SelectedBones;
+};
+
+
+/** Tools derived from this class should require parameter inputs from the user, only the bone selection. */
+UCLASS(Abstract)
+class UFractureActionTool : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UFractureTool(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+	UFractureActionTool(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
 
-	/** This is the Text that will appear on the tool button to execute the fracture **/
-	virtual FText GetDisplayText() const  { return FText(); }
+	/** This is the Text that will appear on the tool button to execute the tool **/
+	virtual FText GetDisplayText() const { return FText(); }
 	virtual FText GetTooltipText() const { return FText(); }
 
-	/** This is the Text that will appear on the button to execute the fracture **/
-	virtual FText GetApplyText() const { return FText(NSLOCTEXT("Fracture", "ExecuteFracture", "Fracture")); }
-
-	// TODO: What's the correct thing to return here?
 	virtual FSlateIcon GetToolIcon() const { return FSlateIcon(); }
 
-	virtual TArray<UObject*> GetSettingsObjects() const { return TArray<UObject*>(); }
-
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) {}
-
-	/** Draw callback from edmode*/
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {}
-
-	/** Executes the fracture command.  Derived types need to be implemented in a thread safe way*/
-	virtual void FractureContextChanged() {}
-	virtual void ExecuteFracture(const FFractureContext& FractureContext) {}
-	virtual bool CanExecuteFracture() const { return true; }
-
-
-	// Fracture Settings
-	UPROPERTY(EditAnywhere, Category = Slicing)
-	UFractureCommonSettings* CommonSettings;
-
+	/** Executes the command.  Derived types need to be implemented in a thread safe way*/
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) {}
+	virtual bool CanExecute() const;
 
 	/** Gets the UI command info for this command */
 	const TSharedPtr<FUICommandInfo>& GetUICommandInfo() const;
 
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) {}
 
-	// virtual FUIAction MakeUIAction( class IMeshEditorModeUIContract& MeshEditorMode ) PURE_VIRTUAL(,return FUIAction(););
+	virtual void GetFractureToolContexts(TArray<FFractureToolContext>& FractureToolContexts) const {}
+
+	
+protected:
+	static bool IsStaticMeshSelected();
+	static bool IsGeometryCollectionSelected();
+	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
+	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
+	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 
 protected:
-
 	TSharedPtr<FUICommandInfo> UICommandInfo;
 
 };
+
+
+/** Tools derived from this class provide parameter details and operate modally. */
+UCLASS(Abstract)
+class UFractureModalTool : public UFractureActionTool
+{
+public:
+	GENERATED_BODY()
+
+	UFractureModalTool(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	virtual TArray<UObject*> GetSettingsObjects() const { return TArray<UObject*>(); }
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) {}
+
+	/** This is the Text that will appear on the button to execute the fracture **/
+	virtual FText GetApplyText() const { return FText(); }
+
+	/** Executes the command.  Derived types need to be implemented in a thread safe way*/
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+	virtual bool CanExecute() const override;
+
+	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) {}
+
+	/** Draw callback from edmode*/
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {}
+
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void FractureContextChanged() {}
+
+protected:
+
+	virtual void GetFractureContexts(TArray<FFractureToolContext>& FractureContexts) const;
+	virtual TArray<int32> FilterBones(const TArray<int32>& SelectedBonesOriginal, const FGeometryCollection* const GeometryCollection) const;
+
+	void GenerateFractureToolContext(
+		AActor* InActor,
+		UGeometryCollectionComponent* InComponent,
+		UGeometryCollection* InGeometryCollection,
+		const TArray<int32>& InSelectedBones,
+		TMap<int32, FBox>& InBoundsToBone,
+		const TManagedArray<int32>& TransformToGeometryIndex,
+		int32 RandomSeed,
+		TArray<FFractureToolContext>& OutFractureContexts
+	) const;
+
+};
+
+
+/** Tools derived from this class provide parameter details, operate modally and use a viewport manipulator to set certain parameters. */
+UCLASS(Abstract)
+class UFractureInteractiveTool : public UFractureModalTool
+{
+public:
+	GENERATED_BODY()
+
+	UFractureInteractiveTool(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// #todo (bmiller) implement interactive widgets
+
+};
+

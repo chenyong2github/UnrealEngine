@@ -2,23 +2,20 @@
 
 #pragma once
 
-#include "FractureTool.h"
+#include "FractureToolCutter.h"
 
 #include "FractureToolPlaneCut.generated.h"
 
-UCLASS(config = EditorPerProjectUserSettings)
-class UFracturePlaneCutSettings
-	: public UObject
-{
-	GENERATED_BODY()
-public:
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
 
-	UFracturePlaneCutSettings()
-	: NumberPlanarCuts(3) {}
+UCLASS(config = EditorPerProjectUserSettings)
+class UFracturePlaneCutSettings : public UFractureToolSettings
+{
+public:
+	GENERATED_BODY()
+
+	UFracturePlaneCutSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+		, NumberPlanarCuts(3) {}
 
 	/** Number of Clusters - Cluster Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1"))
@@ -28,18 +25,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Reference Actor"))
 	TLazyObjectPtr<AActor> ReferenceActor;
 
-	UPROPERTY()
-	UFractureTool *OwnerTool;
-
 };
 
-UCLASS(DisplayName="Plane Cut Tool", Category="FractureTools")
-class UFractureToolPlaneCut : public UFractureTool
+
+UCLASS(DisplayName = "Plane Cut Tool", Category = "FractureTools")
+class UFractureToolPlaneCut : public UFractureToolCutterBase
 {
 public:
 	GENERATED_BODY()
 
-	UFractureToolPlaneCut(const FObjectInitializer& ObjInit);//  : Super(ObjInit) {}
+	UFractureToolPlaneCut(const FObjectInitializer& ObjInit);
 
 	// UFractureTool Interface
 	virtual FText GetDisplayText() const override;
@@ -48,25 +43,22 @@ public:
 
 	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
-	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext );
-	
-	virtual TArray<UObject*> GetSettingsObjects() const;// { return TArray<UObject*>(); }
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+
+	virtual TArray<UObject*> GetSettingsObjects() const override;
 
 	virtual void FractureContextChanged() override;
-	virtual void ExecuteFracture(const FFractureContext& FractureContext) override;
-	virtual bool CanExecuteFracture() const override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
+	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 private:
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	UFracturePlaneCutSettings* PlaneCutSettings;
 
-	void GenerateSliceTransforms(const FFractureContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
+	void GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 
 	float RenderCuttingPlaneSize;
 	TArray<FTransform> RenderCuttingPlanesTransforms;
 };
+
+

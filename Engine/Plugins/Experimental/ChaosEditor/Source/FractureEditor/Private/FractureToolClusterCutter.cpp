@@ -1,74 +1,52 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "FractureToolCluster.h"
+#include "FractureToolClusterCutter.h"
 
 #include "FractureEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "FractureClustered"
 
-void UFractureClusterSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (OwnerTool != nullptr)
-	{
-		OwnerTool->PostEditChangeProperty(PropertyChangedEvent);
-	}
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
 
-void UFractureClusterSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (OwnerTool != nullptr)
-	{
-		OwnerTool->PostEditChangeChainProperty(PropertyChangedEvent);
-	}
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-
-
-
-UFractureToolCluster::UFractureToolCluster(const FObjectInitializer& ObjInit)
+UFractureToolClusterCutter::UFractureToolClusterCutter(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	Settings = NewObject<UFractureClusterSettings>(GetTransientPackage(), UFractureClusterSettings::StaticClass());
-	Settings->OwnerTool = this;
+	ClusterSettings = NewObject<UFractureClusterCutterSettings>(GetTransientPackage(), UFractureClusterCutterSettings::StaticClass());
+	ClusterSettings->OwnerTool = this;
 }
 
-FText UFractureToolCluster::GetDisplayText() const
+FText UFractureToolClusterCutter::GetDisplayText() const
 {
 	return FText(NSLOCTEXT("Fracture", "FractureToolCluster", "Cluster Voronoi Fracture"));
 }
 
-FText UFractureToolCluster::GetTooltipText() const
+FText UFractureToolClusterCutter::GetTooltipText() const
 {
 	return FText(NSLOCTEXT("Fracture", "FractureToolClusterTooltip", "Cluster Voronoi Fracture creates additional points around a base Voronoi pattern, creating more variation.  Click the Fracture Button to commit the fracture to the geometry collection."));
 }
 
-FSlateIcon UFractureToolCluster::GetToolIcon() const
+FSlateIcon UFractureToolClusterCutter::GetToolIcon() const
 {
 	return FSlateIcon("FractureEditorStyle", "FractureEditor.Clustered");
 }
 
-void UFractureToolCluster::RegisterUICommand( FFractureEditorCommands* BindingContext )
+void UFractureToolClusterCutter::RegisterUICommand( FFractureEditorCommands* BindingContext )
 {
 	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Clustered", "Clustered", "Clustered Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Clustered = UICommandInfo;
 }
 
-TArray<UObject*> UFractureToolCluster::GetSettingsObjects() const
+TArray<UObject*> UFractureToolClusterCutter::GetSettingsObjects() const
 {
 	TArray<UObject*> ReturnSettings;
-	ReturnSettings.Add(GetMutableDefault<UFractureCommonSettings>());
-	ReturnSettings.Add(GetMutableDefault<UFractureClusterSettings>());
+	ReturnSettings.Add(CutterSettings);
+	ReturnSettings.Add(ClusterSettings);
 	return ReturnSettings;
 }
 
-void UFractureToolCluster::GenerateVoronoiSites(const FFractureContext &Context, TArray<FVector>& Sites)
+void UFractureToolClusterCutter::GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites)
 {
- 	const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
-	const UFractureClusterSettings* ClusterSettings = GetDefault<UFractureClusterSettings>();
-
-	FRandomStream RandStream(Context.RandomSeed);
+ 	FRandomStream RandStream(Context.RandomSeed);
 	const int32 SiteCount = RandStream.RandRange(ClusterSettings->NumberClustersMin, ClusterSettings->NumberClustersMax);
 
 	const FVector Extent(Context.Bounds.Max - Context.Bounds.Min);

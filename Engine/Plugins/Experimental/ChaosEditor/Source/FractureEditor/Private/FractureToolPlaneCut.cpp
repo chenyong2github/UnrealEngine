@@ -9,26 +9,6 @@
 
 #define LOCTEXT_NAMESPACE "FracturePlanar"
 
-void UFracturePlaneCutSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (OwnerTool != nullptr)
-	{
-		OwnerTool->PostEditChangeProperty(PropertyChangedEvent);
-	}
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-void UFracturePlaneCutSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (OwnerTool != nullptr)
-	{
-		OwnerTool->PostEditChangeChainProperty(PropertyChangedEvent);
-	}
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-
-
-
 
 UFractureToolPlaneCut::UFractureToolPlaneCut(const FObjectInitializer& ObjInit) 
 	: Super(ObjInit) 
@@ -89,24 +69,22 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 }
 
 TArray<UObject*> UFractureToolPlaneCut::GetSettingsObjects() const
-{
+ {
 	TArray<UObject*> Settings;
-	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
-	Settings.Add(GetMutableDefault<UFracturePlaneCutSettings>());
+	Settings.Add(CutterSettings);
+	Settings.Add(PlaneCutSettings);
 	return Settings;
 }
 
 void UFractureToolPlaneCut::FractureContextChanged()
 {
-	const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
-
-	TArray<FFractureContext> FractureContexts;
-	FFractureEditorModeToolkit::GetFractureContexts(FractureContexts);
+	TArray<FFractureToolContext> FractureContexts;
+	GetFractureContexts(FractureContexts);
 
 	RenderCuttingPlanesTransforms.Empty();
 
 	RenderCuttingPlaneSize = FLT_MAX;
-	for (FFractureContext& FractureContext : FractureContexts)
+	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
 		// Move the local bounds to the actor so we weill draw in the correct location
 		FractureContext.Bounds = FractureContext.Bounds.TransformBy(FractureContext.Transform);
@@ -119,10 +97,8 @@ void UFractureToolPlaneCut::FractureContextChanged()
 	}
 }
 
-void UFractureToolPlaneCut::ExecuteFracture(const FFractureContext& FractureContext)
+void UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
-	const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
-
 	if (FractureContext.FracturedGeometryCollection != nullptr)
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
@@ -148,12 +124,12 @@ void UFractureToolPlaneCut::ExecuteFracture(const FFractureContext& FractureCont
 
 			FInternalSurfaceMaterials InternalSurfaceMaterials;
 			FNoiseSettings NoiseSettings;
-			if (LocalCommonSettings->Amplitude > 0.0f)
+			if (CutterSettings->Amplitude > 0.0f)
 			{
-				NoiseSettings.Amplitude = LocalCommonSettings->Amplitude;
-				NoiseSettings.Frequency = LocalCommonSettings->Frequency;
-				NoiseSettings.Octaves = LocalCommonSettings->OctaveNumber;
-				NoiseSettings.PointSpacing = LocalCommonSettings->SurfaceResolution;
+				NoiseSettings.Amplitude = CutterSettings->Amplitude;
+				NoiseSettings.Frequency = CutterSettings->Frequency;
+				NoiseSettings.Octaves = CutterSettings->OctaveNumber;
+				NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
 				InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 			}
 
@@ -162,29 +138,14 @@ void UFractureToolPlaneCut::ExecuteFracture(const FFractureContext& FractureCont
 	}
 }
 
-bool UFractureToolPlaneCut::CanExecuteFracture() const
+void UFractureToolPlaneCut::GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms)
 {
-	return FFractureEditorModeToolkit::IsLeafBoneSelected();
-}
-
-#if WITH_EDITOR
-void UFractureToolPlaneCut::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	FractureContextChanged();
-}
-#endif
-
-
-void UFractureToolPlaneCut::GenerateSliceTransforms(const FFractureContext& Context, TArray<FTransform>& CuttingPlaneTransforms)
-{
-	const UFracturePlaneCutSettings* LocalCutSettings = GetMutableDefault<UFracturePlaneCutSettings>();
-
 	FRandomStream RandStream(Context.RandomSeed);
 
 	const FVector Extent(Context.Bounds.Max - Context.Bounds.Min);
 
-	CuttingPlaneTransforms.Reserve(CuttingPlaneTransforms.Num() + LocalCutSettings->NumberPlanarCuts);
-	for (int32 ii = 0; ii < LocalCutSettings->NumberPlanarCuts; ++ii)
+	CuttingPlaneTransforms.Reserve(CuttingPlaneTransforms.Num() + PlaneCutSettings->NumberPlanarCuts);
+	for (int32 ii = 0; ii < PlaneCutSettings->NumberPlanarCuts; ++ii)
 	{
 		FVector Position(Context.Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
 		CuttingPlaneTransforms.Emplace(FTransform(FRotator(RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f, 0.0f), Position));
