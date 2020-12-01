@@ -15,7 +15,7 @@ SHADER_PARAMETER(int, Dimensions)
 SHADER_PARAMETER(int, SequenceRowCount)
 SHADER_PARAMETER(int, SequenceColumnCount)
 SHADER_PARAMETER(int, IterationCount)
-SHADER_PARAMETER_SRV(StructuredBuffer<float3>, SequenceIteration)
+SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SequenceIteration)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -92,7 +92,7 @@ inline void InitializeHaltonSequenceIteration(const FHaltonSequenceIteration& Ha
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHaltonPrimes, )
 SHADER_PARAMETER(int, Dimensions)
-SHADER_PARAMETER_SRV(StructuredBuffer<uint3>, Primes)
+SHADER_PARAMETER_SRV(StructuredBuffer<uint4>, Primes)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**

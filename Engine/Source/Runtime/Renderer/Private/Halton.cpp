@@ -47,6 +47,7 @@ void FHaltonSequenceIteration::InitRHI()
 	struct FSequenceIterationData
 	{
 		float Sequence[3];
+		float Padding;
 	};
 
 	SCOPED_GPU_STAT(FRHICommandListExecutor::GetImmediateCommandList(), HaltonSequence);
@@ -158,6 +159,7 @@ void FHaltonPrimesResource::InitRHI()
 		struct FPrimeData
 		{
 			int Primes[3];
+			int Padding;
 		};
 
 		CreateInfo.DebugName = TEXT("HaltonPrimes");

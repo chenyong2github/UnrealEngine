@@ -8,7 +8,7 @@ Halton.ush: Halton sampling interface and utilities
 
 uint3 HaltonPrime3(uint DimensionDividedByThree)
 {
-	return HaltonPrimes.Primes[DimensionDividedByThree % HaltonPrimes.Dimensions];
+	return HaltonPrimes.Primes[DimensionDividedByThree % HaltonPrimes.Dimensions].xyz;
 }
 
 uint HaltonPrime(uint Dimension)
@@ -47,6 +47,6 @@ float3 HaltonSequence3(uint SequenceIndex, int IterationIndex, int DimensionInde
 	int SequenceOffset = SequenceIndex * HaltonIteration.IterationCount * HaltonIteration.Dimensions;
 	int IterationOffset = IterationIndex * HaltonIteration.Dimensions;
 	int SampleOffset = SequenceOffset + IterationOffset + DimensionIndex;
-	float3 RandSample = HaltonIteration.SequenceIteration[SampleOffset];
+	float3 RandSample = HaltonIteration.SequenceIteration[SampleOffset].xyz;
 	return RandSample;
 }
