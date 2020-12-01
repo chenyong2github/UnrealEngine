@@ -41,6 +41,9 @@ public:
 	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
 	// End of IK2Node_AddPinInterface interface
 
+	/** Gets the additional pin that was created at this index */
+	UEdGraphPin* GetAdditionalPin(int32 PinIndex) const;
+
 	// UK2Node_CallFunction interface
 	virtual void SetFromFunction(const UFunction* Function);
 	// End of UK2Node_CallFunction interface
@@ -55,9 +58,6 @@ private:
 
 	/** Returns true if this pin was added via the IK2Node_AddPinInterface interface */
 	bool IsAdditionalPin(const UEdGraphPin* Pin) const;
-		
-	/** Gets the additional pin that was created at this index */
-	UEdGraphPin* GetAdditionalPin(int32 PinIndex) const;
 		
 	/** Returns true if the given pin is a tolerance pin for a comparison operator */
 	bool IsTolerancePin(const UEdGraphPin* Pin) const;
