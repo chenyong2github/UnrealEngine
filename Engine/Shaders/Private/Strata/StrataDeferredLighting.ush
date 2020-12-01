@@ -170,7 +170,7 @@ float4 StrataDeferredLighting(
 			const float3 SpecularRadiance = (BSDFEvaluate.PathType & STRATA_PATH_TYPE_SPECULAR) != 0 ? BSDF.Weight * BSDFEvaluate.Value : 0;
 
 			float3 CommonFactor = IntegrationContext.IncidentIrradiance;
-			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.PathType & STRATA_PATH_TYPE_SCATTER != 0;
+			const bool bNeedsSeparateSubsurfaceLightAccumulation = (BSDFEvaluate.PathType & STRATA_PATH_TYPE_SCATTER) != 0;
 			LightAccumulator_AddSplit(Out, DiffuseRadiance, SpecularRadiance, DiffuseRadiance, CommonFactor, bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 		else

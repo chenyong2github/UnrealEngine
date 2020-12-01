@@ -358,10 +358,9 @@ void ReflectionEnvironmentSkyLighting(
 	const bool bStrataMaterial = false;
 #endif
 
-	float3 SkyLighting = 0;
+	float4 SkyLighting = 0;
 	BRANCH
-#if STRATA_ENABLED
-#if ENABLE_SKY_LIGHT
+#if STRATA_ENABLED && ENABLE_SKY_LIGHT
 	if (bStrataMaterial)
 	{
 		// We use WorldNormal, Roughness and BaseColor (representing EnvBRDF) written by the strata top layer.
@@ -386,10 +385,9 @@ void ReflectionEnvironmentSkyLighting(
 	}
 	else
 #endif
-#endif
 	if (!bUnlitMaterial) // Only light pixels marked as lit
 	{
-		SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+		SkyLighting.rgb = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
 	}
 	
 	BRANCH 
@@ -402,17 +400,21 @@ void ReflectionEnvironmentSkyLighting(
 		if (CloudSkyAOEnabled)
 		{
 			float OutOpticalDepth = 0.0f;
-			SkyLighting *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
+			SkyLighting.rgb *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
 		}
 #endif
 	}
 
 	// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
+#if STRATA_ENABLED
+	OutColor = SkyLighting;
+#else
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 	const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(ShadingModelID);
 
-	LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
+	LightAccumulator_Add(LightAccumulator, SkyLighting.rgb, SkyLighting.rgb, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
 	OutColor = LightAccumulator_GetResult(LightAccumulator);
+#endif
 
 #endif // ENABLE_DYNAMIC_SKY_LIGHT
 

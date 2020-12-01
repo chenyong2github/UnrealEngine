@@ -4,7 +4,7 @@
 
 // Env. lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
-float3 StrataEnvironmentLighting(
+float4 StrataEnvironmentLighting(
 	float2 BufferUV,
 	FGBufferData GBuffer,
 	float3 WorldPosition,
@@ -17,7 +17,13 @@ float3 StrataEnvironmentLighting(
 {
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 
-	float3 SkyLighting = 0;
+	FLightAccumulator Out = (FLightAccumulator)0;
+
+	float3 CommonFactor = 1;
+#if USE_PREEXPOSURE
+	CommonFactor *= View.PreExposure;
+#endif
+
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 	{
 		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
@@ -32,6 +38,7 @@ float3 StrataEnvironmentLighting(
 		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
 
 		// Diffuse component
+		float3 DiffuseSkyLighting = 0;
 		if (any(StrataEnvLight.DiffuseAlbedo > 0.0f))
 		{
 			// Apply bent normal if needed
@@ -47,25 +54,25 @@ float3 StrataEnvironmentLighting(
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
 			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
 			// And accumulate
-			SkyLighting += BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseAlbedo;
+			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseAlbedo;
 		}
 
 		// Specular component
+		float3 SpecularSkyLighting = 0;
 		if (any(StrataEnvLight.SpecularWeight > 0.0f))
 		{
 			float SkyAverageBrightness = 1.0f;
 			const float3 SpecularLuminance = GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness);
 
-			SkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb
+			SpecularSkyLighting = BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb
 				* AmbientOcclusion * (BSDF_GETISTOPLAYER(BSDF) ? TopLayerSpecularContributionFactor : 1.0f);
 		}
 
-		// STRATA_TODO: Missing probe reflection here
+		const bool bNeedsSeparateSubsurfaceLightAccumulation = (StrataEnvLight.PathType & STRATA_PATH_TYPE_SCATTER) != 0;
+		LightAccumulator_AddSplit(Out, DiffuseSkyLighting, SpecularSkyLighting, DiffuseSkyLighting, CommonFactor, bNeedsSeparateSubsurfaceLightAccumulation);
 
+		// STRATA_TODO: Missing probe reflection here
 	}
-#if USE_PREEXPOSURE
-	SkyLighting *= View.PreExposure;
-#endif
-	return SkyLighting;
+	return LightAccumulator_GetResult(Out);
 }
 

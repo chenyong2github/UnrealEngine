@@ -759,6 +759,8 @@ struct FStrataEnvLightResult
 	float3 SpecularDirection;
 	float3 SpecularWeight;
 	float  SpecularSafeRoughness;
+
+	uint PathType;
 };
 
 FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, bool bEnableSpecular)
@@ -772,6 +774,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 		{
 			StrataEnvLightResult.DiffuseAlbedo = DIFFUSE_ALBEDO(BSDFContext.BSDF);
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
+			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE | (BSDF_GETHASSCATTERING(BSDFContext.BSDF) ? STRATA_PATH_TYPE_SCATTER : 0);
 			break;
 		}
 		case STRATA_BSDF_TYPE_DIELECTRIC:
@@ -805,6 +808,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughness0);
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
 				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness0;
+				StrataEnvLightResult.PathType = STRATA_PATH_TYPE_SPECULAR;
 			}
 			break;
 		}
@@ -826,12 +830,14 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 			StrataEnvLightResult.DiffuseAlbedo = NormLuminanceSingleScattering;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
+			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE;
 			break;
 		}
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
 			StrataEnvLightResult.DiffuseAlbedo = SHEEN_ALBEDO(BSDFContext.BSDF);;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
+			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE;
 			break;
 		}
 	}
