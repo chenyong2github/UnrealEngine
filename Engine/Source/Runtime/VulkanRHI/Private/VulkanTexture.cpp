@@ -2832,11 +2832,16 @@ static VkMemoryRequirements FindOrCalculateTexturePlatformSize(FVulkanDevice* De
 	return MemReq;
 }
 
-
-
 uint64 FVulkanDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	const VkMemoryRequirements MemReq = FindOrCalculateTexturePlatformSize(Device, VK_IMAGE_VIEW_TYPE_2D, SizeX, SizeY, 1, Format, NumMips, NumSamples, Flags);
+	OutAlign = MemReq.alignment;
+	return MemReq.size;
+}
+
+uint64 FVulkanDynamicRHI::RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+{
+	const VkMemoryRequirements MemReq = FindOrCalculateTexturePlatformSize(Device, VK_IMAGE_VIEW_TYPE_2D_ARRAY, SizeX, SizeY, ArraySize, Format, NumMips, NumSamples, Flags);
 	OutAlign = MemReq.alignment;
 	return MemReq.size;
 }
@@ -2888,6 +2893,7 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 	check(InCmdBuffer->IsOutsideRenderPass());
 	VkCommandBuffer CmdBuffer = InCmdBuffer->GetHandle();
 
+	const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[DestTexture->GetFormat()];
 
 	check((SrcSurface.UEFlags & TexCreate_CPUReadback) == 0);
 	if((DstSurface.UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback)
@@ -2899,7 +2905,8 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 			ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
 			Size.X = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
 			Size.Y = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
-		}		
+			Size.Z = FMath::Max(1u, SrcSurface.Depth >> CopyInfo.SourceMipIndex);
+		}
 		VkBufferImageCopy CopyRegion[MAX_TEXTURE_MIP_COUNT];
 		FMemory::Memzero(CopyRegion);
 
@@ -2918,12 +2925,12 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 			CopyRegion[Index].imageSubresource.layerCount = 1;
 			CopyRegion[Index].imageExtent.width = Size.X;
 			CopyRegion[Index].imageExtent.height = Size.Y;
-			CopyRegion[Index].imageExtent.depth = 1;
+			CopyRegion[Index].imageExtent.depth = Size.Z;
 
 			Size.X = FMath::Max(1, Size.X / 2);
 			Size.Y = FMath::Max(1, Size.Y / 2);
+			Size.Z = FMath::Max(1, Size.Z / 2);
 		}
-
 
 		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer, SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CpuReadbackBuffer->Buffer, CopyInfo.NumMips, &CopyRegion[0]);
 
@@ -2942,35 +2949,37 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 		VkImageLayout DstLayout = LayoutManager.FindLayoutChecked(DstSurface.Image);
 		ensureMsgf(DstLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, TEXT("Expected destination texture to be in VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, actual layout is %d"), DstLayout);
 
-
 		VkImageCopy Region;
 		FMemory::Memzero(Region);
 		if (CopyInfo.Size == FIntVector::ZeroValue)
 		{
 			// Copy whole texture when zero vector is specified for region size
 			ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
-			Region.extent.width = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
-			Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+			Region.extent.width = FMath::Max<uint32>(PixelFormatInfo.BlockSizeX, SrcSurface.Width >> CopyInfo.SourceMipIndex);
+			Region.extent.height = FMath::Max<uint32>(PixelFormatInfo.BlockSizeY, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+			Region.extent.depth = FMath::Max<uint32>(PixelFormatInfo.BlockSizeZ, SrcSurface.Depth >> CopyInfo.SourceMipIndex);
 		}
 		else
 		{
 			ensure(CopyInfo.Size.X > 0 && (uint32)CopyInfo.Size.X <= DstSurface.Width && CopyInfo.Size.Y > 0 && (uint32)CopyInfo.Size.Y <= DstSurface.Height);
 			Region.extent.width = CopyInfo.Size.X;
 			Region.extent.height = CopyInfo.Size.Y;
+			Region.extent.depth = CopyInfo.Size.Z;
 		}
-		Region.extent.depth = 1;
 		Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
 		Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
 		Region.srcSubresource.layerCount = CopyInfo.NumSlices;
 		Region.srcSubresource.mipLevel = CopyInfo.SourceMipIndex;
 		Region.srcOffset.x = CopyInfo.SourcePosition.X;
 		Region.srcOffset.y = CopyInfo.SourcePosition.Y;
+		Region.srcOffset.z = CopyInfo.SourcePosition.Z;
 		Region.dstSubresource.aspectMask = DstSurface.GetFullAspectMask();
 		Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
 		Region.dstSubresource.layerCount = CopyInfo.NumSlices;
 		Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
 		Region.dstOffset.x = CopyInfo.DestPosition.X;
 		Region.dstOffset.y = CopyInfo.DestPosition.Y;
+		Region.dstOffset.z = CopyInfo.DestPosition.Z;
 
 		for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
 		{
@@ -2978,10 +2987,30 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 				SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				DstSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				1, &Region);
-			Region.extent.width = FMath::Max(1u, Region.extent.width / 2);
-			Region.extent.height = FMath::Max(1u, Region.extent.height / 2);
+
 			++Region.srcSubresource.mipLevel;
 			++Region.dstSubresource.mipLevel;
+
+			// Scale down the copy region if there is another mip to proceed.
+			if (Index != CopyInfo.NumMips - 1)
+			{
+				Region.srcOffset.x /= 2;
+				Region.srcOffset.y /= 2;
+				Region.srcOffset.z /= 2;
+
+				Region.dstOffset.x /= 2;
+				Region.dstOffset.y /= 2;
+				Region.dstOffset.z /= 2;
+
+				Region.extent.width  = FMath::Max<uint32>(Region.extent.width / 2, 1);
+				Region.extent.height = FMath::Max<uint32>(Region.extent.height / 2, 1);
+				Region.extent.depth  = FMath::Max<uint32>(Region.extent.depth / 2, 1);
+
+				// RHICopyTexture is allowed to copy mip regions only if are aligned on the block size to prevent unexpected / inconsistent results.
+				ensure(Region.srcOffset.x % PixelFormatInfo.BlockSizeX == 0 && Region.srcOffset.y % PixelFormatInfo.BlockSizeY == 0 && Region.srcOffset.z % PixelFormatInfo.BlockSizeZ == 0);
+				ensure(Region.dstOffset.x % PixelFormatInfo.BlockSizeX == 0 && Region.dstOffset.y % PixelFormatInfo.BlockSizeY == 0 && Region.dstOffset.z % PixelFormatInfo.BlockSizeZ == 0);
+				// For extent, the condition is harder to verify since on Vulkan, the extent must not be aligned on block size if it would exceed the surface limit.
+			}
 		}
 	}
 }

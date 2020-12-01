@@ -612,6 +612,21 @@ public:
 	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) = 0;
 
 	/**
+	* Computes the total size of a 2D array texture with the specified parameters.
+	*
+	* @param SizeX - width of the texture to compute
+	* @param SizeY - height of the texture to compute
+	* @param ArraySize - number of textures in the array.
+	* @param Format - EPixelFormat texture format
+	* @param NumMips - number of mips to compute or 0 for full mip pyramid
+	* @param NumSamples - number of MSAA samples, usually 1
+	* @param Flags - ETextureCreateFlags creation flags
+	* @param OutAlign - Alignment required for this texture.  Output parameter.
+	*/
+	// FlushType: Thread safe
+	virtual uint64 RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign);
+	
+	/**
 	* Computes the total size of a virtual memory (VM) based 2D texture with the specified parameters.
 	*
 	* @param Mip0Width - width of the top mip
@@ -1479,6 +1494,11 @@ FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, con
 FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	return GDynamicRHI->RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
+}
+
+FORCEINLINE uint64 RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+{
+	return GDynamicRHI->RHICalcTexture2DArrayPlatformSize(SizeX, SizeY, ArraySize, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
 }
 
 FORCEINLINE uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, ETextureCreateFlags Flags, uint32& OutAlign)

@@ -252,6 +252,12 @@ uint64 FD3D11DynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY
 	return CalcTextureSize(SizeX, SizeY, (EPixelFormat)Format, NumMips);
 }
 
+uint64 FD3D11DynamicRHI::RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+{
+	OutAlign = 0;
+	return CalcTextureSize(SizeX, SizeY, (EPixelFormat)Format, NumMips) * ArraySize;
+}
+
 uint64 FD3D11DynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	OutAlign = 0;
@@ -2683,6 +2689,8 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 
 	if (CopyInfo.Size != FIntVector::ZeroValue)
 	{
+		const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[DestTextureRHI->GetFormat()];
+
 		D3D11_BOX SrcBox;
 		SrcBox.left = CopyInfo.SourcePosition.X;
 		SrcBox.top = CopyInfo.SourcePosition.Y;
@@ -2701,9 +2709,9 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 				const uint32 SourceSubresource = D3D11CalcSubresource(SourceMipIndex, SourceSliceIndex, SourceTextureRHI->GetNumMips());
 				const uint32 DestSubresource = D3D11CalcSubresource(DestMipIndex, DestSliceIndex, DestTextureRHI->GetNumMips());
 
-				SrcBox.right = CopyInfo.SourcePosition.X + FMath::Max(CopyInfo.Size.X >> MipIndex, 1);
-				SrcBox.bottom = CopyInfo.SourcePosition.Y + FMath::Max(CopyInfo.Size.Y >> MipIndex, 1);
-				SrcBox.back = CopyInfo.SourcePosition.Z + FMath::Max(CopyInfo.Size.Z >> MipIndex, 1);
+				SrcBox.right = CopyInfo.SourcePosition.X  + AlignArbitrary<uint32>(FMath::Max(CopyInfo.Size.X >> MipIndex, 1), PixelFormatInfo.BlockSizeX);
+				SrcBox.bottom = CopyInfo.SourcePosition.Y + AlignArbitrary<uint32>(FMath::Max(CopyInfo.Size.Y >> MipIndex, 1), PixelFormatInfo.BlockSizeY);
+				SrcBox.back = CopyInfo.SourcePosition.Z   + AlignArbitrary<uint32>(FMath::Max(CopyInfo.Size.Z >> MipIndex, 1), PixelFormatInfo.BlockSizeZ);
 
 				Direct3DDeviceIMContext->CopySubresourceRegion(DestTexture->GetResource(), DestSubresource, CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, CopyInfo.DestPosition.Z, SourceTexture->GetResource(), SourceSubresource, &SrcBox);
 			}

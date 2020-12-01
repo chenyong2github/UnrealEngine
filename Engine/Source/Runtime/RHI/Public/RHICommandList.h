@@ -3236,6 +3236,7 @@ public:
 				++PerMipInfo.DestMipIndex;
 				PerMipInfo.Size.X = FMath::Max(1, PerMipInfo.Size.X / 2);
 				PerMipInfo.Size.Y = FMath::Max(1, PerMipInfo.Size.Y / 2);
+				PerMipInfo.Size.Z = FMath::Max(1, PerMipInfo.Size.Z / 2);
 			}
 		}
 	}

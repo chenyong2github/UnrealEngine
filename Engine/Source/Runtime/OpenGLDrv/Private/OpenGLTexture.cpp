@@ -250,6 +250,12 @@ uint64 FOpenGLDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 Size
 	return CalcTextureSize(SizeX, SizeY, (EPixelFormat)Format, NumMips);
 }
 
+uint64 FOpenGLDynamicRHI::RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+{
+	OutAlign = 0;
+	return CalcTextureSize(SizeX, SizeY, (EPixelFormat)Format, NumMips) * ArraySize;
+}
+
 uint64 FOpenGLDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	OutAlign = 0;
@@ -1600,6 +1606,12 @@ FTexture2DArrayRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArray(uint32 SizeX,ui
 		UE_LOG(LogRHI, Fatal,TEXT("Texture format '%s' not supported."), FormatInfo.Name);
 	}
 
+	if (GLFormat.bBGRA && !(Flags & TexCreate_RenderTargetable))
+	{
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);
+	}
+
 	// Make sure PBO is disabled
 	CachedBindPixelUnpackBuffer(ContextState, 0);
 
@@ -1725,11 +1737,17 @@ FTexture3DRHIRef FOpenGLDynamicRHI::RHICreateTexture3D(uint32 SizeX,uint32 SizeY
 	const bool bSRGB = (Flags&TexCreate_SRGB) != 0;
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[Format];
-
 	if (GLFormat.InternalFormat[bSRGB] == GL_NONE)
 	{
-		UE_LOG(LogRHI, Fatal,TEXT("Texture format '%s' not supported."), FormatInfo.Name);
+		UE_LOG(LogRHI, Fatal, TEXT("Texture format '%s' not supported."), FormatInfo.Name);
 	}
+
+	if (GLFormat.bBGRA && !(Flags & TexCreate_RenderTargetable))
+	{
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);
+	}
+
 
 	// Make sure PBO is disabled
 	CachedBindPixelUnpackBuffer(ContextState,0);
