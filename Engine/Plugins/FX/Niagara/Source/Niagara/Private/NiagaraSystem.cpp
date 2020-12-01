@@ -1054,7 +1054,11 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 	TArray<UNiagaraEmitter*> EmitterDependencies;
 	EmitterDependencies.Reserve(3 * NumEmitters);
 
+	RendererPostTickOrder.Reset();
+	RendererCompletionOrder.Reset();
+
 	bool bHasEmitterDependencies = false;
+	uint32 SystemRendererIndex = 0;
 	for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
 	{
 		const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
@@ -1063,8 +1067,14 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 		EmitterExecutionOrder[EmitterIdx].EmitterIndex = EmitterIdx;
 		EmitterPriorities[EmitterIdx] = -1;
 
-		if (Emitter == nullptr || !EmitterHandle.GetIsEnabled())
+		if (Emitter == nullptr)
 		{
+			continue;
+		}
+
+		if (!EmitterHandle.GetIsEnabled())
+		{
+			Emitter->ForEachEnabledRenderer([&] (const UNiagaraRendererProperties*) { ++SystemRendererIndex; });
 			continue;
 		}
 
@@ -1113,6 +1123,29 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 					}
 					break;
 				}
+			}
+		}
+
+		// Determine renderer execution order for PostTick and Completion for any renderers that opt into it
+		for (int32 RendererIndex = 0; RendererIndex < Emitter->GetRenderers().Num(); ++RendererIndex)
+		{
+			const UNiagaraRendererProperties* Renderer = Emitter->GetRenderers()[RendererIndex];
+			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(Emitter->SimTarget))
+			{
+				FNiagaraRendererExecutionIndex ExecutionIndex;
+				ExecutionIndex.EmitterIndex = EmitterIdx;
+				ExecutionIndex.EmitterRendererIndex = RendererIndex;
+				ExecutionIndex.SystemRendererIndex = SystemRendererIndex;
+
+				if (Renderer->NeedsSystemPostTick())
+				{
+					RendererPostTickOrder.Add(ExecutionIndex);
+				}
+				if (Renderer->NeedsSystemCompletion())
+				{
+					RendererCompletionOrder.Add(ExecutionIndex);
+				}
+				++SystemRendererIndex;
 			}
 		}
 	}

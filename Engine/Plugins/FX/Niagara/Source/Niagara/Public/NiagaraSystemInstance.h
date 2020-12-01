@@ -330,13 +330,6 @@ public:
 	/** Calculates which tick group the instance should be in. */
 	ETickingGroup CalculateTickGroup() const;
 
-	bool EnqueueComponentUpdateTask(const FNiagaraComponentUpdateTask& Task)
-	{
-		return ComponentTasks.Enqueue(Task);
-	}
-
-	TSet<int32> GetParticlesWithActiveComponents(USceneComponent* const Component);
-
 	/** Gets the current world transform of the system */
 	FORCEINLINE const FTransform& GetWorldTransform() const { return WorldTransform; }
 	/** Sets the world transform */
@@ -376,12 +369,7 @@ private:
 	void ResetParameters();
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
-	void InitDataInterfaces();	
-	
-	void ProcessComponentRendererTasks();
-
-	/** Callback for whenever any blueprint components are reinstanced */
-	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+	void InitDataInterfaces();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
@@ -530,12 +518,6 @@ private:
 
 	/** The feature level of for this component instance. */
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
-
-	/** The component renderer can queue update tasks that are executed on the game thread on finalization. */
-	TQueue<FNiagaraComponentUpdateTask, EQueueMode::Mpsc> ComponentTasks;
-	FNiagaraComponentRenderPool ComponentRenderPool;
-	mutable FRWLock ComponentPoolLock;
-	void ResetComponentRenderPool();
 
 public:
 

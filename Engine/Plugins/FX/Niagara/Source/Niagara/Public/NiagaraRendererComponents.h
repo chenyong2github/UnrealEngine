@@ -8,6 +8,9 @@ NiagaraRendererComponents.h: Renderer for rendering Niagara particles as scene c
 #include "NiagaraRenderer.h"
 #include "CoreMinimal.h"
 
+class UNiagaraComponentRendererProperties;
+class FNiagaraDataSet;
+
 /**
 * NiagaraRendererComponents renders an FNiagaraEmitterInstance as scene components
 */
@@ -16,17 +19,59 @@ class NIAGARA_API FNiagaraRendererComponents : public FNiagaraRenderer
 public:
 
 	FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	virtual ~FNiagaraRendererComponents();
 
 	//FNiagaraRenderer interface
-	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
+	virtual void DestroyRenderState_Concurrent() override;
+	virtual void PostSystemTick_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
+	virtual void OnSystemComplete_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
 	//FNiagaraRenderer interface END
 
-	static TArray<FString> SetterPrefixes;
-
 private:
+
+	struct FComponentPropertyAddress
+	{
+		TWeakFieldPtr<FProperty> Property;
+		void* Address;
+
+		FProperty* GetProperty() const
+		{
+			FProperty* PropertyPtr = Property.Get();
+			if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+			{
+				return PropertyPtr;
+			}
+			return nullptr;
+		}
+
+		FComponentPropertyAddress() : Property(nullptr), Address(nullptr) {}
+	};
+
+	struct FComponentPoolEntry
+	{
+		TWeakObjectPtr<USceneComponent> Component;
+		float LastActiveTime = 0.0f;
+		TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
+		int32 LastAssignedToParticleID = -1;
+	};
+
+	void ResetComponentPool(bool bResetOwner);
+#if WITH_EDITORONLY_DATA
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+#endif
+	
+	static void TickPropertyBindings(
+		const UNiagaraComponentRendererProperties* Properties,
+		USceneComponent* Component,
+		FNiagaraDataSet& Data,
+		int32 ParticleIndex,
+		FComponentPoolEntry& PoolEntry);
+
 	// These property accessor methods are largely copied over from MovieSceneCommonHelpers.h
 	static FComponentPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
 	static FComponentPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
+
+	TObjectKey<USceneComponent> TemplateKey;
+	TWeakObjectPtr<AActor> SpawnedOwner;
+	TArray<FComponentPoolEntry> ComponentPool;
 };
-
-

@@ -5,23 +5,28 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "Async/Async.h"
 
-DECLARE_CYCLE_STAT(TEXT("Component renderer bind data"), STAT_NiagaraComponentRendererBind, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Component renderer update data"), STAT_NiagaraComponentRendererUpdate, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Component renderer update bindings"), STAT_NiagaraComponentRendererUpdateBindings, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Component renderer spawning [GT]"), STAT_NiagaraComponentRendererSpawning, STATGROUP_Niagara);
+
+static int32 GNiagaraWarnComponentRenderCount = 50;
+static FAutoConsoleVariableRef CVarNiagaraWarnComponentRenderCount(
+	TEXT("fx.Niagara.WarnComponentRenderCount"),
+	GNiagaraWarnComponentRenderCount,
+	TEXT("The max number of components that a single system can spawn before a log warning is shown."),
+	ECVF_Default
+);
+
+static float GNiagaraComponentRenderPoolInactiveTimeLimit = 5;
+static FAutoConsoleVariableRef CVarNiagaraComponentRenderPoolInactiveTimeLimit(
+	TEXT("fx.Niagara.ComponentRenderPoolInactiveTimeLimit"),
+	GNiagaraComponentRenderPoolInactiveTimeLimit,
+	TEXT("The time in seconds an inactive component can linger in the pool before being destroyed."),
+	ECVF_Default
+);
 
 //////////////////////////////////////////////////////////////////////////
-
-TArray<FString> FNiagaraRendererComponents::SetterPrefixes;
-
-FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
-	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
-{
-	if (SetterPrefixes.Num() == 0)
-	{
-		SetterPrefixes.Add(FString("Set"));
-		SetterPrefixes.Add(FString("K2_Set"));
-	}
-}
 
 template<typename T>
 void SetValueWithAccessor(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, int ParticleIndex)
@@ -35,9 +40,9 @@ void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, in
 	if (VarType == FNiagaraTypeDefinition::GetFloatDef()) { SetValueWithAccessor<float>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetIntDef()) { SetValueWithAccessor<int32>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetBoolDef()) { SetValueWithAccessor<FNiagaraBool>(DataVariable, Data, ParticleIndex); }
-	else if (VarType == FNiagaraTypeDefinition::GetVec2Def()) {	SetValueWithAccessor<FVector2D>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetVec2Def()) { SetValueWithAccessor<FVector2D>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetVec3Def()) { SetValueWithAccessor<FVector>(DataVariable, Data, ParticleIndex); }
-	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) {	SetValueWithAccessor<FVector4>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) { SetValueWithAccessor<FVector4>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetColorDef()) { SetValueWithAccessor<FLinearColor>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat>(DataVariable, Data, ParticleIndex); }
 }
@@ -46,8 +51,8 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 {
 	FNiagaraTypeDefinition SourceType = SourceVariable.GetType();
 	FNiagaraTypeDefinition TargetType = TargetVariable.GetType();
-	
-	if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFColorDef()) 
+
+	if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFColorDef())
 	{
 		FVector Data = SourceVariable.GetValue<FVector>();
 		FColor ColorData((uint8)FMath::Clamp<int32>(FMath::TruncToInt(Data.X * 255.f), 0, 255),
@@ -124,10 +129,67 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 	InRuntimeObject->ProcessEvent(Setter, Params);
 }
 
-/** Update render data buffer from attributes */
-FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
+	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererBind);
+	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProps);
+	TemplateKey = TObjectKey<USceneComponent>(Properties->TemplateComponent);
+
+	ComponentPool.Reserve(Properties->ComponentCountLimit);
+
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
+		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponents::OnObjectsReplacedCallback);
+	}
+#endif
+}
+
+FNiagaraRendererComponents::~FNiagaraRendererComponents()
+{
+	// These should have been freed in DestroyRenderState_Concurrent
+	check(ComponentPool.Num() == 0);
+}
+
+void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
+{
+	// Rendering resources are being destroyed, but the component pool and their owner actor must be destroyed on the game thread
+	AsyncTask(
+		ENamedThreads::GameThread,
+		[this, Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
+		{
+			for (auto& PoolEntry : Pool_GT)
+			{
+				if (PoolEntry.Component.IsValid())
+				{
+					PoolEntry.Component->DestroyComponent();
+				}
+			}
+
+			if (AActor* OwnerActor = Owner_GT.Get())
+			{
+				SpawnedOwner.Reset();
+				OwnerActor->Destroy();
+			}
+
+#if WITH_EDITORONLY_DATA
+			// TODO: This has the potential to race, as renderers are destroyed on the render thread, but it should be a rarity
+			if (GEditor)
+			{
+				GEditor->OnObjectsReplaced().RemoveAll(this);
+			}
+#endif
+		}
+	);
+}
+
+/** Update render data buffer from attributes */
+void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererUpdateBindings);
 
 	FNiagaraSystemInstance* SystemInstance = Emitter->GetParentSystemInstance();
 
@@ -135,125 +197,325 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
 	if (!SystemInstance || !Properties || !Properties->TemplateComponent || SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		return nullptr;
+		return;
 	}
+
+	USceneComponent* AttachComponent = SystemInstance->GetAttachComponent();
+	if (!AttachComponent)
+	{
+		// we can't attach the components anywhere, so just bail
+		return;
+	}
+
+	const float CurrentTime = AttachComponent->GetWorld()->GetRealTimeSeconds();
 	FNiagaraDataSet& Data = Emitter->GetData();
 	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
 	FNiagaraDataSetReaderInt32<FNiagaraBool> EnabledAccessor = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->EnabledBinding.GetDataSetBindableVariable().GetName());
 	FNiagaraDataSetReaderInt32<int32> UniqueIDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
-	TSet<int32> ParticlesWithComponents = Properties->bOnlyCreateComponentsOnParticleSpawn ? SystemInstance->GetParticlesWithActiveComponents(Properties->TemplateComponent) : TSet<int32>();
 
-	int32 SmallestID = INT_MAX;
-	if (Properties->bAssignComponentsOnParticleID)
+	TMap<int32, int32> ParticlesWithComponents;
+	TArray<int32> FreeList;
+	if (Properties->bAssignComponentsOnParticleID && ComponentPool.Num() > 0)
 	{
+		FreeList.Reserve(ComponentPool.Num());
+
+		// Determine the slots that were assigned to particles last frame
+		TMap<int32, int32> UsedSlots;
+		UsedSlots.Reserve(ComponentPool.Num());
+		for (int32 EntryIndex = 0; EntryIndex < ComponentPool.Num(); ++EntryIndex)
+		{
+			FComponentPoolEntry& Entry = ComponentPool[EntryIndex];
+			if (Entry.LastAssignedToParticleID >= 0)
+			{
+				UsedSlots.Emplace(Entry.LastAssignedToParticleID, EntryIndex);
+			}
+			else
+			{
+				FreeList.Add(EntryIndex);
+			}
+		}
+
+		// Ensure the final list only contains particles that are alive and enabled
+		ParticlesWithComponents.Reserve(UsedSlots.Num());
 		for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
 		{
-			// we need to read this for all particles instead of just the first few because in the case of parallel vm execution,
-			// the particles can shuffle around, which can result in a wrong SmallestID and a lot of flickering
-			// and component shuffling
 			int32 ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
-			SmallestID = FMath::Min<int32>(ParticleID, SmallestID);
-		}
-	}
-
-	int32 TaskLimitLeft = Properties->ComponentCountLimit;
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
-	{
-		if (TaskLimitLeft <= 0 || !EnabledAccessor.GetSafe(ParticleIndex, true))
-		{
-			continue;
-		}
-		
-		int32 ParticleID = Properties->bAssignComponentsOnParticleID ? UniqueIDAccessor.GetSafe(ParticleIndex, -1) : -1;
-		if (Properties->bAssignComponentsOnParticleID && Properties->bOnlyCreateComponentsOnParticleSpawn)
-		{
-			bool bIsNewlySpawnedParticle = ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
-			if (!bIsNewlySpawnedParticle && !ParticlesWithComponents.Contains(ParticleID))
+			int32 PoolIndex;
+			if (UsedSlots.RemoveAndCopyValue(ParticleID, PoolIndex))
 			{
-				continue;
-			}
-		}
-
-		TArray<FNiagaraComponentPropertyBinding> BindingsCopy = Properties->PropertyBindings;
-		for (FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
-		{
-			const FNiagaraPropertySetter* PropertySetter = Properties->SetterFunctionMapping.Find(PropertyBinding.PropertyName);
-			if (!PropertySetter)
-			{
-				// it's possible that Initialize wasn't called or the bindings changed in the meantime
-				continue;
-			}
-			PropertyBinding.SetterFunction = PropertySetter->Function;
-
-			FNiagaraVariable& DataVariable = PropertyBinding.WritableValue;
-			const FNiagaraVariableBase& FoundVar = PropertyBinding.AttributeBinding.GetDataSetBindableVariable();
-			DataVariable.SetType(FoundVar.GetType());
-			DataVariable.SetName(FoundVar.GetName());
-			DataVariable.ClearData();
-			if (!DataVariable.IsValid() || !Data.HasVariable(DataVariable))
-			{
-				continue;
-			}
-			
-			SetVariableByType(DataVariable, Data, ParticleIndex);
-			if (PropertyBinding.PropertyType.IsValid() && DataVariable.GetType() != PropertyBinding.PropertyType && !PropertySetter->bIgnoreConversion)
-			{
-				FNiagaraVariable TargetVariable(PropertyBinding.PropertyType, DataVariable.GetName());
-				ConvertVariableToType(DataVariable, TargetVariable);
-				DataVariable = TargetVariable;
-			}
-		}
-		FNiagaraComponentUpdateTask UpdateTask;
-		UpdateTask.TemplateObject = Properties->TemplateComponent;
-#if WITH_EDITORONLY_DATA
-		UpdateTask.bVisualizeComponents = Properties->bVisualizeComponents;
-#endif
-		UpdateTask.ParticleID = ParticleID;
-		UpdateTask.SmallestID = SmallestID;
-		UpdateTask.UpdateCallback = [BindingsCopy](USceneComponent* SceneComponent, FNiagaraComponentRenderPoolEntry& PoolEntry)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererUpdate);
-
-			for (const FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
-			{
-				const FNiagaraVariable& DataVariable = PropertyBinding.WritableValue;
-				if (!DataVariable.IsDataAllocated())
+				if (EnabledAccessor.GetSafe(ParticleIndex, true))
 				{
-					continue;
-				}
-				
-				UFunction* SetterFunction = PropertyBinding.SetterFunction;
-				if (SetterFunction && SetterFunction->NumParms >= 1)
-				{
-					// if we have a setter function we invoke it instead of setting the property directly, because then the object gets a chance to react to the new value
-					InvokeSetterFunction(SceneComponent, SetterFunction, DataVariable.GetData(), DataVariable.GetSizeInBytes());
+					ParticlesWithComponents.Emplace(ParticleID, PoolIndex);
 				}
 				else
 				{
-					// no setter found, just slam the value in the object memory and hope for the best
-					if (!PoolEntry.PropertyAddressMapping.Contains(PropertyBinding.PropertyName))
+					// Particle has disabled components since last tick, ensure the component for this entry gets deactivated before re-use
+					USceneComponent* Component = ComponentPool[PoolIndex].Component.Get();
+					if (Component && Component->IsActive())
 					{
-						PoolEntry.PropertyAddressMapping.Add(PropertyBinding.PropertyName, FNiagaraRendererComponents::FindProperty(*SceneComponent, PropertyBinding.PropertyName.ToString()));
+						Component->Deactivate();
 					}
-					FComponentPropertyAddress PropertyAddress = PoolEntry.PropertyAddressMapping[PropertyBinding.PropertyName];
-					if (!PropertyAddress.GetProperty())
-					{
-						continue;
-					}
-					uint8* Dest = (uint8*)SceneComponent + PropertyAddress.GetProperty()->GetOffset_ForInternal();
-					DataVariable.CopyTo(Dest);
+					FreeList.Add(PoolIndex);
 				}
 			}
-		};
+		}
 
-		SystemInstance->EnqueueComponentUpdateTask(UpdateTask);
-		TaskLimitLeft--;
+		// Any remaining in the used slots are now free to be reclaimed, due to their particles either dying or having their component disabled
+		for (TPair<int32, int32> UsedSlot : UsedSlots)
+		{
+			// Particle has died since last tick, ensure the component for this entry gets deactivated before re-use
+			USceneComponent* Component = ComponentPool[UsedSlot.Value].Component.Get();
+			if (Component && Component->IsActive())
+			{
+				Component->Deactivate();
+			}
+			FreeList.Add(UsedSlot.Value);
+			ComponentPool[UsedSlot.Value].LastAssignedToParticleID = -1;
+		}
 	}
 
-	return nullptr;
+	const int32 MaxComponents = Properties->ComponentCountLimit;
+	int32 ComponentCount = 0;
+	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
+	{
+		if (!EnabledAccessor.GetSafe(ParticleIndex, true))
+		{
+			// Skip particles that don't want a component
+			continue;
+		}
+
+		int32 ParticleID = -1;
+		int32 PoolIndex = -1;
+		if (Properties->bAssignComponentsOnParticleID)
+		{
+			// Get the particle ID and see if we have any components already assigned to the particle
+			ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
+			ParticlesWithComponents.RemoveAndCopyValue(ParticleID, PoolIndex);
+			
+			if (PoolIndex == -1 && Properties->bOnlyCreateComponentsOnParticleSpawn)
+			{
+				// Don't allow this particle to acquire a component unless it was just spawned
+				bool bIsNewlySpawnedParticle = ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
+				if (!bIsNewlySpawnedParticle)
+				{
+					continue;
+				}
+			}
+		}
+
+		if (PoolIndex == -1 && ComponentCount + ParticlesWithComponents.Num() >= MaxComponents)
+		{
+			// The pool is full and there aren't any unused slots to claim
+			continue;
+		}
+
+		// Acquire a component for this particle
+		USceneComponent* SceneComponent = nullptr;
+		if (PoolIndex == -1)
+		{
+			// Start by trying to pull from the pool
+			if (!Properties->bAssignComponentsOnParticleID)
+			{
+				// We can just take the next slot
+				PoolIndex = ComponentCount < ComponentPool.Num() ? ComponentCount : -1;
+			}
+			else if (FreeList.Num())
+			{
+				PoolIndex = FreeList.Pop(false);
+			}
+		}
+
+		if (PoolIndex >= 0)
+		{
+			SceneComponent = ComponentPool[PoolIndex].Component.Get();
+		}
+
+		if (!SceneComponent || SceneComponent->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererSpawning);
+
+			// Determine the owner actor or spawn one
+			AActor* OwnerActor = SpawnedOwner.Get();
+			if (OwnerActor == nullptr)
+			{
+				OwnerActor = AttachComponent->GetOwner();
+				if (OwnerActor == nullptr)
+				{
+					// NOTE: This can happen with spawned systems
+					OwnerActor = AttachComponent->GetWorld()->SpawnActor<AActor>();
+					OwnerActor->SetFlags(RF_Transient);
+					SpawnedOwner = OwnerActor;
+				}
+			}
+
+			// if we don't have a pooled component we create a new one from the template
+			SceneComponent = DuplicateObject<USceneComponent>(Properties->TemplateComponent, OwnerActor);
+			SceneComponent->ClearFlags(RF_ArchetypeObject);
+			SceneComponent->SetFlags(RF_Transient);
+#if WITH_EDITORONLY_DATA
+			SceneComponent->bVisualizeComponent = Properties->bVisualizeComponents;
+#endif
+			SceneComponent->SetupAttachment(AttachComponent);
+			SceneComponent->RegisterComponent();
+			SceneComponent->AddTickPrerequisiteComponent(AttachComponent);
+
+			if (PoolIndex >= 0)
+			{
+				// This should only happen if the component was destroyed externally
+				ComponentPool[PoolIndex].Component = SceneComponent;
+			}
+			else
+			{
+				// Add a new pool entry
+				PoolIndex = ComponentPool.Num();
+				ComponentPool.AddDefaulted_GetRef().Component = SceneComponent;
+			}
+		}
+
+		FComponentPoolEntry& PoolEntry = ComponentPool[PoolIndex];
+		TickPropertyBindings(Properties, SceneComponent, Data, ParticleIndex, PoolEntry);
+
+		// activate the component
+		if (!SceneComponent->IsActive())
+		{
+			SceneComponent->SetVisibility(true, true);
+			SceneComponent->Activate(false);
+		}
+
+		PoolEntry.LastAssignedToParticleID = ParticleID;
+		PoolEntry.LastActiveTime = CurrentTime;
+		
+		++ComponentCount;
+		if (ComponentCount > GNiagaraWarnComponentRenderCount)
+		{
+			// This warning logspam can be pretty hindering to performance if left to it's own devices. We'll let it warn a bunch at first,
+			// then suppress it. That way it's noticeable, but not crippling.
+			static int32 MaxWarnings = 50;
+			if (MaxWarnings > 0)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("System %s has over %i active components spawned from the effect. Either adjust the effect's component renderer or change the warning limit with fx.Niagara.WarnComponentRenderCount."),
+					*SystemInstance->GetSystem()->GetName(), GNiagaraWarnComponentRenderCount);
+				--MaxWarnings;
+			}
+		}
+
+		if (ComponentCount >= MaxComponents)
+		{
+			// We've hit our prescribed limit
+			break;
+		}
+	}
+		
+	if (ComponentCount < ComponentPool.Num())
+	{
+		// go over the pooled components we didn't need this tick to see if we can destroy some and deactivate the rest
+		for (int32 PoolIndex = 0; PoolIndex < ComponentPool.Num(); ++PoolIndex)
+		{
+			FComponentPoolEntry& PoolEntry = ComponentPool[PoolIndex];
+			if (Properties->bAssignComponentsOnParticleID)
+			{
+				if (PoolEntry.LastAssignedToParticleID >= 0)
+				{
+					// This one's in use
+					continue;
+				}
+			}
+			else if (PoolIndex < ComponentCount)
+			{
+				continue;
+			}
+		
+			USceneComponent* Component = PoolEntry.Component.Get();		
+			if (!Component || (CurrentTime - PoolEntry.LastActiveTime) >= GNiagaraComponentRenderPoolInactiveTimeLimit)
+			{
+				if (Component)
+				{
+					Component->DestroyComponent();
+				}
+
+				// destroy the component pool slot
+				ComponentPool.RemoveAtSwap(PoolIndex, 1, false);
+				--PoolIndex;
+				continue;
+			}
+			else if (Component->IsActive())
+			{
+				Component->Deactivate();
+				Component->SetVisibility(false, true);
+			}
+		}
+	}
 }
 
-FComponentPropertyAddress FNiagaraRendererComponents::FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index)
+void FNiagaraRendererComponents::OnSystemComplete_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter)
+{
+	ResetComponentPool(true);
+}
+
+void FNiagaraRendererComponents::TickPropertyBindings(
+	const UNiagaraComponentRendererProperties* Properties,
+	USceneComponent* Component,
+	FNiagaraDataSet& Data,
+	int32 ParticleIndex,
+	FComponentPoolEntry& PoolEntry)
+{
+	for (const FNiagaraComponentPropertyBinding& PropertyBinding : Properties->PropertyBindings)
+	{
+		const FNiagaraPropertySetter* PropertySetter = Properties->SetterFunctionMapping.Find(PropertyBinding.PropertyName);
+		if (!PropertySetter)
+		{
+			// it's possible that Initialize wasn't called or the bindings changed in the meantime
+			continue;
+		}
+
+		FNiagaraVariable DataVariable = PropertyBinding.WritableValue;
+		const FNiagaraVariableBase& FoundVar = PropertyBinding.AttributeBinding.GetDataSetBindableVariable();
+		DataVariable.SetType(FoundVar.GetType());
+		DataVariable.SetName(FoundVar.GetName());
+		DataVariable.ClearData();
+		if (!DataVariable.IsValid() || !Data.HasVariable(DataVariable))
+		{
+			continue;
+		}
+
+		SetVariableByType(DataVariable, Data, ParticleIndex);
+		if (PropertyBinding.PropertyType.IsValid() && DataVariable.GetType() != PropertyBinding.PropertyType && !PropertySetter->bIgnoreConversion)
+		{
+			FNiagaraVariable TargetVariable(PropertyBinding.PropertyType, DataVariable.GetName());
+			ConvertVariableToType(DataVariable, TargetVariable);
+			DataVariable = TargetVariable;
+		}
+
+		if (!DataVariable.IsDataAllocated())
+		{
+			continue;
+		}
+
+		// set the values from the particle bindings
+		if (PropertySetter->Function && PropertySetter->Function->NumParms >= 1)
+		{
+			// if we have a setter function we invoke it instead of setting the property directly, because then the object gets a chance to react to the new value
+			InvokeSetterFunction(Component, PropertySetter->Function, DataVariable.GetData(), DataVariable.GetSizeInBytes());
+		}
+		else
+		{
+			// no setter found, just slam the value in the object memory and hope for the best
+			if (!PoolEntry.PropertyAddressMapping.Contains(PropertyBinding.PropertyName))
+			{
+				PoolEntry.PropertyAddressMapping.Add(PropertyBinding.PropertyName, FNiagaraRendererComponents::FindProperty(*Component, PropertyBinding.PropertyName.ToString()));
+			}
+			FComponentPropertyAddress PropertyAddress = PoolEntry.PropertyAddressMapping[PropertyBinding.PropertyName];
+			if (!PropertyAddress.GetProperty())
+			{
+				continue;
+			}
+			uint8* Dest = (uint8*)Component + PropertyAddress.GetProperty()->GetOffset_ForInternal();
+			DataVariable.CopyTo(Dest);
+		}
+	}
+}
+
+FNiagaraRendererComponents::FComponentPropertyAddress FNiagaraRendererComponents::FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index)
 {
 	FComponentPropertyAddress NewAddress;
 	FProperty* Property = FindFProperty<FProperty>(InStruct, *InPropertyNames[Index]);
@@ -282,7 +544,7 @@ FComponentPropertyAddress FNiagaraRendererComponents::FindPropertyRecursive(void
 	return NewAddress;
 }
 
-FComponentPropertyAddress FNiagaraRendererComponents::FindProperty(const UObject& InObject, const FString& InPropertyPath)
+FNiagaraRendererComponents::FComponentPropertyAddress FNiagaraRendererComponents::FindProperty(const UObject& InObject, const FString& InPropertyPath)
 {
 	TArray<FString> PropertyNames;
 	InPropertyPath.ParseIntoArray(PropertyNames, TEXT("."), true);
@@ -292,4 +554,45 @@ FComponentPropertyAddress FNiagaraRendererComponents::FindProperty(const UObject
 		return FindPropertyRecursive((void*)&InObject, InObject.GetClass(), PropertyNames, 0);
 	}
 	return FComponentPropertyAddress();
+}
+
+#if WITH_EDITORONLY_DATA
+
+void FNiagaraRendererComponents::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
+{
+	TArray<UObject*> Keys;
+	ReplacementsMap.GetKeys(Keys);
+
+	for (UObject* OldObject : Keys)
+	{
+		TObjectKey<USceneComponent> OldObjectKey(Cast<USceneComponent>(OldObject));
+		if (OldObjectKey == TemplateKey)
+		{
+			ResetComponentPool(false);
+			break;
+		}		
+	}
+}
+
+#endif
+
+void FNiagaraRendererComponents::ResetComponentPool(bool bResetOwner)
+{
+	for (FComponentPoolEntry& PoolEntry : ComponentPool)
+	{
+		if (PoolEntry.Component.IsValid())
+		{
+			PoolEntry.Component->DestroyComponent();
+		}
+	}
+	ComponentPool.SetNum(0, false);
+
+	if (bResetOwner)
+	{
+		if (AActor* OwnerActor = SpawnedOwner.Get())
+		{
+			SpawnedOwner.Reset();
+			OwnerActor->Destroy();
+		}
+	}
 }

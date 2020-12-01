@@ -179,22 +179,44 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 {
 	if (EmitterRenderers.Num() > 0)
 	{
-		//Renderers must be freed on the render thread.
+		// Give the renderers an opportunity to free resources that must be freed on the game thread (or task)
+		for (FNiagaraRenderer* EmitterRenderer : EmitterRenderers)
+		{
+			if (EmitterRenderer)
+			{
+				EmitterRenderer->DestroyRenderState_Concurrent();
+			}
+		}
+
+		// Renderers must be freed on the render thread.
 		ENQUEUE_RENDER_COMMAND(ReleaseRenderersCommand)(
 			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers)](FRHICommandListImmediate& RHICmdList)
-		{
-			for (FNiagaraRenderer* EmitterRenderer : ToDeleteEmitterRenderers)
 			{
-				if (EmitterRenderer)
+				for (FNiagaraRenderer* EmitterRenderer : ToDeleteEmitterRenderers)
 				{
-					EmitterRenderer->ReleaseRenderThreadResources();
-					delete EmitterRenderer;
+					if (EmitterRenderer)
+					{
+						EmitterRenderer->ReleaseRenderThreadResources();
+						delete EmitterRenderer;
+					}
 				}
 			}
-		});
+		);
 		EmitterRenderers.Empty();
 	}
 	RendererDrawOrder.Empty();
+}
+
+void FNiagaraSceneProxy::DestroyRenderState_Concurrent()
+{
+	// Give the renderers an opportunity to free resources that must be freed on the game thread
+	for (FNiagaraRenderer* EmitterRenderer : EmitterRenderers)
+	{
+		if (EmitterRenderer)
+		{
+			EmitterRenderer->DestroyRenderState_Concurrent();
+		}
+	}
 }
 
 void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
@@ -1275,6 +1297,29 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 		ForceUpdateTransformTime = 0.0f;
 		UpdateComponentToWorld();
 	}
+
+	// Give renderers a chance to do some processing PostTick
+	if (FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
+	{
+		const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
+		if (EmitterRenderers.Num() > 0)
+		{
+			for (const FNiagaraRendererExecutionIndex& ExecIdx : Asset->GetRendererPostTickOrder())
+			{
+				if (EmitterRenderers.IsValidIndex(ExecIdx.SystemRendererIndex))
+				{
+					FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[ExecIdx.EmitterIndex].Get();
+					UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
+
+					if (Emitter)
+					{
+						UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
+						EmitterRenderers[ExecIdx.SystemRendererIndex]->PostSystemTick_GameThread(RendererProperties, EmitterInst);
+					}
+				}
+			}
+		}
+	}
 }
 
 void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
@@ -1336,6 +1381,29 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 			}
 			//We've completed naturally so unregister with the scalability manager.
 			UnregisterWithScalabilityManager();
+		}
+	}
+
+	// Give renderers a chance to handle completion
+	if (FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
+	{
+		const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
+		if (EmitterRenderers.Num() > 0)
+		{
+			for (const FNiagaraRendererExecutionIndex& ExecIdx : Asset->GetRendererCompletionOrder())
+			{
+				if (EmitterRenderers.IsValidIndex(ExecIdx.SystemRendererIndex))
+				{
+					FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[ExecIdx.EmitterIndex].Get();
+					UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
+
+					if (Emitter)
+					{
+						UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
+						EmitterRenderers[ExecIdx.SystemRendererIndex]->OnSystemComplete_GameThread(RendererProperties, EmitterInst);
+					}
+				}
+			}
 		}
 	}
 }
@@ -1576,6 +1644,16 @@ void UNiagaraComponent::CreateRenderState_Concurrent(FRegisterComponentContext* 
 	// The emitter instance may not tick again next frame so we send the dynamic data here so that the current state
 	// renders.  This can happen when while editing, or any time the age update mode is set to desired age.
 	SendRenderDynamicData_Concurrent();
+}
+
+void UNiagaraComponent::DestroyRenderState_Concurrent()
+{
+	if (SceneProxy)
+	{
+		static_cast<FNiagaraSceneProxy*>(SceneProxy)->DestroyRenderState_Concurrent();
+	}
+
+	Super::DestroyRenderState_Concurrent();
 }
 
 void UNiagaraComponent::SendRenderDynamicData_Concurrent()
