@@ -15,7 +15,7 @@
 #include "RenderDocPluginStyle.h"
 #include "RenderDocPluginCommands.h"
 #include "SRenderDocPluginEditorExtension.h"
-#endif
+#endif // WITH_EDITOR
 
 #include "Templates/SharedPointer.h"
 
@@ -36,13 +36,16 @@ public:
 	void Tick(float DeltaTime);
 	void CaptureFrame(FViewport* Viewport, const FString& DestPath, ELaunchAfterCapture LaunchOption);
 	void CaptureFrame() { CaptureFrame(nullptr, FString(), ELaunchAfterCapture::Yes); }
-	void CapturePIE(const TArray<FString>& Args);
 	void StartRenderDoc(FString CapturePath);
 	FString GetNewestCapture();
 
 	// IRenderCaptureProvider interface
 	virtual void StartCapturing() override { BeginCapture(); }
 	virtual void StopCapturing(const FString* DestPath = nullptr) override;
+
+#if WITH_EDITOR
+	void CapturePIE(const TArray<FString>& Args);
+#endif // WITH_EDITOR
 
 private:
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
@@ -79,5 +82,5 @@ private:
 #if WITH_EDITOR
 	FRenderDocPluginEditorExtension* EditorExtensions;
 	int StartPIEDelayFrames = -1;
-#endif
+#endif // WITH_EDITOR
 };
