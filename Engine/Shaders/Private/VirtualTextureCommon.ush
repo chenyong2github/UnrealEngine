@@ -26,10 +26,8 @@ struct FVirtualTextureFeedbackParams
 void InitializeVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Params, uint2 SvPosition, uint FrameNumber)
 {
 #if (NUM_VIRTUALTEXTURE_SAMPLES + LIGHTMAP_VT_ENABLED) > 1
-	uint2 PixelPos = SvPosition;
-	PixelPos /= VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
 	uint NumVTSamplesInShader = NUM_VIRTUALTEXTURE_SAMPLES + LIGHTMAP_VT_ENABLED;
-	Params.RequestId = (PixelPos.x + PixelPos.y * VIRTUAL_TEXTURE_FEEDBACK_FACTOR + FrameNumber) % NumVTSamplesInShader;
+	Params.RequestId = View.VirtualTextureFeedbackSampleOffset % NumVTSamplesInShader;
 	Params.Request = 0xFFFFFFFF;
 #else
 	Params.Request = 0xFFFFFFFF;	
@@ -49,14 +47,15 @@ void StoreVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Params, ui
 /** This should be called at the end of the pixel shader to write out the gathered VT feedback info to the OutputBuffer. */
 void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWBuffer<uint> OutputBuffer)
 {
-	uint2 PixelPos = SvPosition.xy;	
-	uint FeedbackPos = 0;
+	uint2 PixelTilePos = (uint2)SvPosition.xy % VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
+	uint PixelTileIndex = PixelTilePos.y * VIRTUAL_TEXTURE_FEEDBACK_FACTOR + PixelTilePos.x;
+
 	// This code will only run every few pixels...
-	[branch] if (((PixelPos.x | PixelPos.y) & (VIRTUAL_TEXTURE_FEEDBACK_FACTOR-1)) == 0)
+	[branch] if (PixelTileIndex == View.VirtualTextureFeedbackJitterOffset)
 	{
 		// TODO use append buffer ?
-		PixelPos /= VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
-		FeedbackPos = PixelPos.y*View.VirtualTextureFeedbackStride + PixelPos.x;
+		uint2 PixelPos = (uint2)SvPosition.xy / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
+		uint FeedbackPos = PixelPos.y * View.VirtualTextureFeedbackStride + PixelPos.x;
 
 		// When using DBuffer, feedback buffer is blending using decal opacity for opaque objects
 		// This way we avoid overwriting values already written to feedback buffer while rendering dbuffer decals
