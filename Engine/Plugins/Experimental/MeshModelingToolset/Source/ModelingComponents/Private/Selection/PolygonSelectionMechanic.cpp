@@ -583,6 +583,7 @@ void UPolygonSelectionMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn
 void UPolygonSelectionMechanic::OnDragRectangleStarted()
 {
 	PreDragPersistentSelection = PersistentSelection;
+	PersistentSelection.Clear();
 }
 
 void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
