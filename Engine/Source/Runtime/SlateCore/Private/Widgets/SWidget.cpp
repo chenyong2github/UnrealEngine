@@ -873,7 +873,7 @@ void SWidget::UpdateFastPathVolatility(bool bParentVolatile)
 
 void SWidget::CacheDesiredSize(float InLayoutScaleMultiplier)
 {
-#if SLATE_VERBOSE_NAMED_EVENTS
+#if WITH_VERY_VERBOSE_SLATE_STATS
 	SCOPED_NAMED_EVENT(SWidget_CacheDesiredSize, FColor::Red);
 #endif
 
