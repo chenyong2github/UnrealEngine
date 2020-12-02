@@ -214,7 +214,7 @@ private:
 		FString Entry;
 		if( GConfig->GetString( TEXT("PlatformPaths"), TEXT("UnrealBuildTool"), Entry, GEngineIni ))
 		{
-			Executable = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / Entry);
+			Executable = FPaths::ConvertRelativePathToFull(FPaths::RootDir() / Entry);
 		}
 		else
 		{
