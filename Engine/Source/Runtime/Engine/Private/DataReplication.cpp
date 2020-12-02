@@ -1213,9 +1213,20 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 		uint8* Parms = new(FMemStack::Get(), MEM_Zeroed, Function->ParmsSize)uint8;
 
 		// Use the replication layout to receive the rpc parameter values
-		TSharedPtr<FRepLayout> FuncRepLayout = Connection->Driver->GetFunctionRepLayout(Function);
+		UFunction* LayoutFunction = Function;
+		while (LayoutFunction->GetSuperFunction())
+		{
+			LayoutFunction = LayoutFunction->GetSuperFunction();
+		}
 
-		FuncRepLayout->ReceivePropertiesForRPC(Object, Function, OwningChannel, Reader, Parms, UnmappedGuids);
+		TSharedPtr<FRepLayout> FuncRepLayout = Connection->Driver->GetFunctionRepLayout(LayoutFunction);
+		if (!FuncRepLayout.IsValid())
+		{
+			UE_LOG(LogRep, Error, TEXT("ReceivedRPC: GetFunctionRepLayout returned an invalid layout."));
+			return false;
+		}
+
+		FuncRepLayout->ReceivePropertiesForRPC(Object, LayoutFunction, OwningChannel, Reader, Parms, UnmappedGuids);
 
 		if (Reader.IsError())
 		{
