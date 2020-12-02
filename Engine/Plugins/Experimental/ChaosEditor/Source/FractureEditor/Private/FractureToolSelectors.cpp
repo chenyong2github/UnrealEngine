@@ -214,3 +214,5 @@ void UFractureToolSelectInvert::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 		SelectByMode(InToolkit.Pin().Get(), GeometryCollection::ESelectionMode::InverseGeometry);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
