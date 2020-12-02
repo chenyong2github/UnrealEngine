@@ -160,6 +160,10 @@ bool GIsReinstancing = false;
  */
 bool GIsRunningUnattendedScript = false;
 
+#if WITH_EDITOR
+bool					PRIVATE_GIsRunningCookCommandlet	= false;				/** Whether this executable is running the cook commandlet */
+#endif
+
 #if WITH_ENGINE
 bool					PRIVATE_GIsRunningCommandlet		= false;				/** Whether this executable is running a commandlet (custom command-line processing code) */
 bool					PRIVATE_GAllowCommandletRendering	= false;				/** If true, initialise RHI and set up scene for rendering even when running a commandlet. */
@@ -421,13 +425,6 @@ void CORE_API EnableEmitDrawEventsOnlyOnCommandlist()
 {
 	GCommandListOnlyDrawEvents = !GEmitDrawEvents;
 	GEmitDrawEvents = true;
-}
-
-bool CORE_API IsRunningCookCommandlet()
-{
-	FString Commandline = FCommandLine::Get();
-	const bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
-	return bIsCookCommandlet;
 }
 
 void ToggleGDebugPUCrashedFlag(const TArray<FString>& Args)

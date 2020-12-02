@@ -281,9 +281,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	InitState = EWorldPartitionInitState::Initialized;
 
-#if WITH_EDITOR
 	if (!IsRunningCookCommandlet())
-#endif
 	{
 		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 		WorldPartitionSubsystem->RegisterWorldPartition(this);
@@ -348,9 +346,7 @@ void UWorldPartition::Uninitialize()
 		EditorHash = nullptr;
 #endif		
 
-#if WITH_EDITOR
 		if (!IsRunningCookCommandlet())
-#endif
 		{
 			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 			WorldPartitionSubsystem->UnregisterWorldPartition(this);

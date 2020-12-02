@@ -25,9 +25,7 @@ const AWorldDataLayers* AWorldDataLayers::Get(UWorld* World)
 		// Prepare flags for actor iterator. Don't use default Flags because it uses EActorIteratorFlags::OnlyActiveLevels 
 		// which will make this code return no actor when cooking (because world is not initialized)
 		EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
-#if WITH_EDITOR
 		if (!IsRunningCookCommandlet())
-#endif
 		{
 			Flags |= EActorIteratorFlags::OnlyActiveLevels;
 		}

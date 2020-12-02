@@ -195,6 +195,9 @@ extern CORE_API bool GFirstFrameIntraFrameDebugging;
 
 #endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
+extern CORE_API bool PRIVATE_GIsRunningCookCommandlet;
+#endif
 
 /**
 * Check to see if this executable is running a commandlet (custom command-line processing code in an editor-like environment)
@@ -211,7 +214,14 @@ FORCEINLINE bool IsRunningCommandlet()
 /**
 * Check to see if this executable is running the cookcommandlet
 */
-CORE_API bool IsRunningCookCommandlet();
+FORCEINLINE bool IsRunningCookCommandlet()
+{
+#if WITH_EDITOR
+	return PRIVATE_GIsRunningCookCommandlet;
+#else
+	return false;
+#endif
+}
 
 /**
  * Check to see if we should initialise RHI and set up scene for rendering even when running a commandlet.
