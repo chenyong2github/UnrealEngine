@@ -18,10 +18,9 @@ class FLevelSnapshotsEditorToolkit
 	: public ILevelSnapshotsEditorToolkit
 {
 public:
-	FLevelSnapshotsEditorToolkit();
 
 	/** Virtual destructor */
-	virtual ~FLevelSnapshotsEditorToolkit();
+	virtual ~FLevelSnapshotsEditorToolkit() = default;
 
 	/**
 	 * Initialize this asset editor.

@@ -2,33 +2,27 @@
 
 #include "Toolkits/LevelSnapshotsEditorToolkit.h"
 
+
+#include "DisjunctiveNormalFormFilter.h"
+#include "Misc/LevelSnapshotsEditorContext.h"
+#include "LevelSnapshot.h"
 #include "LevelSnapshotsEditorCommands.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsFunctionLibrary.h"
-#include "Misc/LevelSnapshotsEditorContext.h"
-#include "Views/Input/LevelSnapshotsEditorInput.h"
-#include "Views/Filter/LevelSnapshotsEditorFilters.h"
-#include "Views/Results/LevelSnapshotsEditorResults.h"
+#include "LevelSnapshotsEditorInput.h"
+#include "LevelSnapshotsEditorFilters.h"
+#include "LevelSnapshotsEditorResults.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
 
-#include "LevelSnapshot.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsToolkit"
 
 const FName FLevelSnapshotsEditorToolkit::InputTabID(TEXT("BaseAssetToolkit_Input"));
 const FName FLevelSnapshotsEditorToolkit::FilterTabID(TEXT("BaseAssetToolkit_Filter"));
 const FName FLevelSnapshotsEditorToolkit::ResultsTabID(TEXT("BaseAssetToolkit_Results"));
-
-FLevelSnapshotsEditorToolkit::FLevelSnapshotsEditorToolkit()
-{
-}
-
-FLevelSnapshotsEditorToolkit::~FLevelSnapshotsEditorToolkit()
-{
-}
 
 void FLevelSnapshotsEditorToolkit::Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, ULevelSnapshotsEditorData* InEditorData)
 {
@@ -201,17 +195,14 @@ void FLevelSnapshotsEditorToolkit::SetupCommands()
 		FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorToolkit::ApplyToWorld));
 }
 
-#pragma optimize("", off)
 void FLevelSnapshotsEditorToolkit::ApplyToWorld()
 {
 	if (ULevelSnapshot* ActiveLevelSnapshot = ActiveLevelSnapshotPtr.Get())
 	{
 		UWorld* World = GEditor->GetEditorWorldContext().World();
-		ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(World, ActiveLevelSnapshot, nullptr);
+		ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(World, ActiveLevelSnapshot, EditorData->GetUserDefinedFilters());
 	}
 }
-
-#pragma optimize("", on)
 
 void FLevelSnapshotsEditorToolkit::SnapshotSelected(ULevelSnapshot* InLevelSnapshot)
 {
