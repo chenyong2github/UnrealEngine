@@ -110,7 +110,7 @@ namespace Chaos
 	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
 	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
-	CHAOS_API float AsyncInterpolationMultiplier = 3.f;
+	CHAOS_API float AsyncInterpolationMultiplier = 4.f;
 	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
 
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)

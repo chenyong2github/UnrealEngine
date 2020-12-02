@@ -262,6 +262,23 @@ public:
 	}
 
 	/**
+	* Pop up to the latest output, even if it is in the future.
+	* NOTE: It's up to the user to check the internal time of the outputs
+	* that this produces. See GetSolver()->GetPhysicsResultsTime_External()
+	* for the interpolation time.
+	* 
+	* A typical example is to pop all of these into a queue, and to
+	* interpolate them manually.
+	*/
+	TSimCallbackOutputHandle<TOutputType> PopFutureOutputData_External()
+	{
+		OutputQueue.Dequeue(CurrentOutput_External);
+		TOutputType* Output = CurrentOutput_External;
+		CurrentOutput_External = nullptr;
+		return TSimCallbackOutputHandle<TOutputType>(Output, this);
+	}
+
+	/**
 	* Gets the current producer output data. This is what the callback generates. If multiple callbacks are triggered in one step, the same output is used
 	*/
 
