@@ -1297,9 +1297,9 @@ public:
 	 * Copy selected actors to the clipboard.
 	 *
 	 * @param	InWorld					World context
-	 * @param	DestinationData			If != NULL, additionally copy data to string
+	 * @param	DestinationData			If != NULL, fill instead of clipboard data
 	 */
-	virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = NULL) {}
+	virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = nullptr) {}
 
 	/**
 	 * Paste selected actors from the clipboard.
@@ -1310,13 +1310,13 @@ public:
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, FString* SourceData = NULL) {}
+	virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr) {}
 
 	/**
 	 * Duplicates selected actors.
 	 *
-	 * @param	InLevel			Level to place duplicate
-	 * @param	bUseOffset		Should the actor locations be offset after they are created?
+	 * @param	InLevel				Level to place duplicate
+	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
 	 */
 	virtual void edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocations ) {}
 

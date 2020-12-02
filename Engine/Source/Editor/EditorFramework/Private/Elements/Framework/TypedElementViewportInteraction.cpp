@@ -3,6 +3,7 @@
 #include "Elements/Framework/TypedElementViewportInteraction.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementUtil.h"
 
 void FTypedElementAssetEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
@@ -154,7 +155,7 @@ void UTypedElementViewportInteraction::BeginGizmoManipulation(const UTypedElemen
 {
 	{
 		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToMoveByType;
-		BatchElementsByType(InElementsToMove, ElementsToMoveByType);
+		TypedElementUtil::BatchElementsByType(InElementsToMove, ElementsToMoveByType);
 
 		for (const auto& ElementsByTypePair : ElementsToMoveByType)
 		{
@@ -204,7 +205,7 @@ void UTypedElementViewportInteraction::EndGizmoManipulation(const UTypedElementL
 	
 	{
 		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToMoveByType;
-		BatchElementsByType(InElementsToMove, ElementsToMoveByType);
+		TypedElementUtil::BatchElementsByType(InElementsToMove, ElementsToMoveByType);
 
 		for (const auto& ElementsByTypePair : ElementsToMoveByType)
 		{
@@ -242,15 +243,4 @@ FTypedElementViewportInteractionElement UTypedElementViewportInteraction::Resolv
 	return InElementHandle
 		? FTypedElementViewportInteractionElement(UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(InElementHandle), GetAssetEditorCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
 		: FTypedElementViewportInteractionElement();
-}
-
-void UTypedElementViewportInteraction::BatchElementsByType(const UTypedElementList* InElementsToMove, TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>>& OutElementsByType)
-{
-	OutElementsByType.Reset();
-	InElementsToMove->ForEachElementHandle([&OutElementsByType](const FTypedElementHandle& InElementHandle)
-	{
-		TArray<FTypedElementHandle>& ElementsForType = OutElementsByType.FindOrAdd(InElementHandle.GetId().GetTypeId());
-		ElementsForType.Add(InElementHandle);
-		return true;
-	});
 }

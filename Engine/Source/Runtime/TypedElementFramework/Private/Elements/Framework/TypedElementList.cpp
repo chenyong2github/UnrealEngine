@@ -73,7 +73,7 @@ void FTypedElementListLegacySync::ForceBatchOperationDirty()
 }
 
 
-FTypedElementListLegacySyncScopedBatch::FTypedElementListLegacySyncScopedBatch(UTypedElementList* InElementList, const bool InNotify)
+FTypedElementListLegacySyncScopedBatch::FTypedElementListLegacySyncScopedBatch(const UTypedElementList* InElementList, const bool InNotify)
 	: ElementListLegacySync(InElementList->Legacy_GetSyncPtr())
 	, bNotify(InNotify)
 {
@@ -291,7 +291,7 @@ FTypedElementListLegacySync& UTypedElementList::Legacy_GetSync()
 	return *LegacySync;
 }
 
-FTypedElementListLegacySync* UTypedElementList::Legacy_GetSyncPtr()
+FTypedElementListLegacySync* UTypedElementList::Legacy_GetSyncPtr() const
 {
 	return LegacySync.Get();
 }

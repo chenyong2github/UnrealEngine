@@ -20,6 +20,7 @@
 #include "Exporters/Exporter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Brush.h"
+#include "UnrealEdGlobals.h"
 #include "Editor/EditorEngine.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Factories/LevelFactory.h"
@@ -59,6 +60,8 @@
 #include "Settings/EditorProjectSettings.h"
 #include "ActorGroupingUtils.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Serialization/ObjectWriter.h"
+#include "Serialization/ObjectReader.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
@@ -90,69 +93,79 @@ void UUnrealEdEngine::edactCopySelected( UWorld* InWorld, FString* DestinationDa
 	{
 		// Copy selected components
 		TArray<UActorComponent*> SelectedComponents;
-		for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
-		{
-			SelectedComponents.Add(CastChecked<UActorComponent>(*It));
-		}
-
-		FComponentEditorUtils::CopyComponents(SelectedComponents);
+		GetSelectedComponents()->GetSelectedObjects<UActorComponent>(SelectedComponents);
+		CopyComponents(SelectedComponents, DestinationData);
 	}
 	else
 	{
-		// Copy Actors
-		// Before copying, deselect:
-		//		- Actors belonging to prefabs unless all actors in the prefab are selected.
-		//		- Builder brushes.
-		//      - World Settings.
-		TArray<AActor*> ActorsToDeselect;
+		// Copy selected actors
+		TArray<AActor*> SelectedActors;
+		GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
+		CopyActors(SelectedActors, InWorld, DestinationData);
+	}
+}
 
+void UUnrealEdEngine::CopyComponents(const TArray<UActorComponent*>& InComponentsToCopy, FString* DestinationData) const
+{
+	// Remove:
+	// - Components that cannot be copied.
+	TArray<UActorComponent*> ComponentsToCopy = InComponentsToCopy;
+	ComponentsToCopy.RemoveAll([](UActorComponent* InComponent)
+	{
+		return !FComponentEditorUtils::CanCopyComponent(InComponent);
+	});
+
+	FComponentEditorUtils::CopyComponents(ComponentsToCopy, DestinationData);
+}
+
+void UUnrealEdEngine::CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* InWorld, FString* DestinationData) const
+{
+	// Remove:
+	// - Actors belonging to prefabs unless all actors in the prefab are selected.
+	// - Builder brushes.
+	// - World Settings.
+	TArray<AActor*> ActorsToCopy = InActorsToCopy;
+	{
 		bool bSomeSelectedActorsNotInCurrentLevel = false;
-		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		ActorsToCopy.RemoveAll([&bSomeSelectedActorsNotInCurrentLevel](AActor* InActor)
 		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
-
-			// Deselect any selected builder brushes.
-			ABrush* Brush = Cast< ABrush >(Actor);
-			const bool bActorIsBuilderBrush = ( Brush && FActorEditorUtils::IsABuilderBrush(Brush) );
-			if (bActorIsBuilderBrush)
+			// Remove any selected builder brushes.
+			ABrush* Brush = Cast<ABrush>(InActor);
+			if (Brush && FActorEditorUtils::IsABuilderBrush(Brush))
 			{
-				ActorsToDeselect.Add(Actor);
+				return true;
 			}
 
-			// Deselect world settings
-			if (Actor->IsA( AWorldSettings::StaticClass() ))
+			// Remove world settings
+			if (InActor->IsA<AWorldSettings>())
 			{
-				ActorsToDeselect.Add(Actor);
+				return true;
 			}
 
 			// If any selected actors are not in the current level, warn the user that some actors will not be copied.
-			if (!bSomeSelectedActorsNotInCurrentLevel && !Actor->GetLevel()->IsCurrentLevel())
+			if (!bSomeSelectedActorsNotInCurrentLevel && !InActor->GetLevel()->IsCurrentLevel())
 			{
 				bSomeSelectedActorsNotInCurrentLevel = true;
 				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "CopySelectedActorsInNonCurrentLevel", "Some selected actors are not in the current level and will not be copied."));
 			}
-		}
 
-		const FScopedBusyCursor BusyCursor;
-		for (int32 ActorIndex = 0; ActorIndex < ActorsToDeselect.Num(); ++ActorIndex)
-		{
-			AActor* Actor = ActorsToDeselect[ActorIndex];
-			GetSelectedActors()->Deselect(Actor);
-		}
+			return false;
+		});
+	}
 
-		// Export the actors.
-		FStringOutputDevice Ar;
-		const FSelectedActorExportObjectInnerContext Context;
-		UExporter::ExportToOutputDevice(&Context, InWorld, NULL, Ar, TEXT("copy"), 0, PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified);
+	// Export the actors.
+	FStringOutputDevice Ar;
+	const FSelectedActorExportObjectInnerContext Context(ActorsToCopy);
+	UExporter::ExportToOutputDevice(&Context, InWorld, NULL, Ar, TEXT("copy"), 0, PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified);
+	if (DestinationData)
+	{
+		*DestinationData = MoveTemp(Ar);
+	}
+	else
+	{
 		FPlatformApplicationMisc::ClipboardCopy(*Ar);
-		if (DestinationData)
-		{
-			*DestinationData = MoveTemp(Ar);
-		}
 	}
 }
-
 
 
 /**
@@ -181,7 +194,7 @@ static FVector CreateLocationOffset(bool bDuplicate, bool bOffsetLocations)
 }
 
 
-bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
+bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld ) const
 {
 	bool bShouldLoadHiddenLevels = true;
 	bool bShowPasteHiddenWarning = true;
@@ -245,36 +258,26 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 	return !bShouldLoadHiddenLevels;
 }
 
-void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, FString* SourceData)
+void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData)
 {
-	//check and warn if the user is trying to paste to a hidden level. This will return if he wishes to abort the process
-	if( bWarnIfHidden && WarnIfDestinationLevelIsHidden( InWorld ) == true )
-	{
-		return;
-	}
-	
 	if (GetSelectedComponentCount() > 0)
 	{
 		AActor* SelectedActor = CastChecked<AActor>(*GetSelectedActorIterator());
 
 		TArray<UActorComponent*> PastedComponents;
-		FComponentEditorUtils::PasteComponents(PastedComponents, SelectedActor, SelectedActor->GetRootComponent());
+		PasteComponents(PastedComponents, SelectedActor, bWarnIfHidden, SourceData);
 
 		if (PastedComponents.Num() > 0)
 		{
-			// Make sure all the SCS trees have a chance to update
-			FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-			LevelEditor.BroadcastComponentsEdited();
-
 			// Select the new clones
 			USelection* ComponentSelection = GetSelectedComponents();
-			ComponentSelection->Modify(false);
+			ComponentSelection->Modify();
 			ComponentSelection->BeginBatchSelectOperation();
 			ComponentSelection->DeselectAll();
 
-			for (UActorComponent* PastedComp : PastedComponents)
+			for (UActorComponent* PastedComponent : PastedComponents)
 			{
-				GEditor->SelectComponent(PastedComp, true, false);
+				GEditor->SelectComponent(PastedComponent, true, false);
 			}
 
 			ComponentSelection->EndBatchSelectOperation(true);
@@ -282,85 +285,139 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 	}
 	else
 	{
-		const FScopedBusyCursor BusyCursor;
+		TArray<AActor*> PastedActors;
+		PasteActors(PastedActors, InWorld, bDuplicate, bOffsetLocations, bWarnIfHidden, SourceData);
 
-		// Create a location offset.
-		const FVector LocationOffset = CreateLocationOffset(bDuplicate, bOffsetLocations);
-
-		FCachedActorLabels ActorLabels(InWorld);
-
-		// Transact the current selection set.
-		USelection* SelectedActors = GetSelectedActors();
-		SelectedActors->Modify();
-
-		// Get pasted text.
-		FString PasteString;
-		if (SourceData)
+		if (PastedActors.Num() > 0)
 		{
-			PasteString = *SourceData;
-		}
-		else
-		{
-			FPlatformApplicationMisc::ClipboardPaste(PasteString);
-		}
-		const TCHAR* Paste = *PasteString;
+			// Select the new clones
+			USelection* ActorSelection = GetSelectedActors();
+			ActorSelection->Modify();
+			ActorSelection->BeginBatchSelectOperation();
+			ActorSelection->DeselectAll();
 
-		// Turn off automatic BSP update while pasting to save rebuilding geometry potentially multiple times
-		const bool bBSPAutoUpdate = GetDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate;
-		GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = false;
-
-		// Import the actors.
-		ULevelFactory* Factory = NewObject<ULevelFactory>();
-		Factory->FactoryCreateText(ULevel::StaticClass(), InWorld->GetCurrentLevel(), InWorld->GetCurrentLevel()->GetFName(), RF_Transactional, NULL, bDuplicate ? TEXT("move") : TEXT("paste"), Paste, Paste + FCString::Strlen(Paste), GWarn);
-
-		// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
-		GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
-		RebuildAlteredBSP();
-
-		// Fire ULevel::LevelDirtiedEvent when falling out of scope.
-		FScopedLevelDirtied			LevelDirtyCallback;
-
-		// Update the actors' locations and update the global list of visible layers.
-		ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
-		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
-
-			// We only want to offset the location if this actor is the root of a selected attachment hierarchy
-			// Offsetting children of an attachment hierarchy would cause them to drift away from the node they're attached to
-			// as the offset would effectively get applied twice
-			const AActor* const ParentActor = Actor->GetAttachParentActor();
-			const FVector& ActorLocationOffset = ( ParentActor && ParentActor->IsSelected() ) ? FVector::ZeroVector : LocationOffset;
-
-			// Offset the actor's location.
-			Actor->TeleportTo(Actor->GetActorLocation() + ActorLocationOffset, Actor->GetActorRotation(), false, true);
-
-			if (!GetDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected)
+			for (AActor* PastedActor : PastedActors)
 			{
-				// Re-label duplicated actors so that labels become unique
-				FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetActorLabel(), &ActorLabels);
-				ActorLabels.Add(Actor->GetActorLabel());
+				GEditor->SelectActor(PastedActor, true, false);
 			}
 
-			LayersSubsystem->InitializeNewActorLayers(Actor);
+			ActorSelection->EndBatchSelectOperation(true);
 
-			// Ensure any layers this actor belongs to are visible
-			LayersSubsystem->SetLayersVisibility(Actor->Layers, true);
-
-			Actor->CheckDefaultSubobjects();
-			Actor->InvalidateLightingCache();
-			// Call PostEditMove to update components, etc.
-			Actor->PostEditMove(true);
-			Actor->PostDuplicate(EDuplicateMode::Normal);
-			Actor->CheckDefaultSubobjects();
-
-			// Request saves/refreshes.
-			Actor->MarkPackageDirty();
-			LevelDirtyCallback.Request();
+			// Note the selection change.  This will also redraw level viewports and update the pivot.
+			NoteSelectionChange();
 		}
-		// Note the selection change.  This will also redraw level viewports and update the pivot.
-		NoteSelectionChange();
+	}
+}
+
+void UUnrealEdEngine::PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, const bool bWarnIfHidden, const FString* SourceData)
+{
+	OutPastedComponents.Reset();
+
+	// Check and warn if the user is trying to paste to a hidden level. This will return if they wish to abort the process...
+	if (bWarnIfHidden && WarnIfDestinationLevelIsHidden(TargetActor->GetWorld()))
+	{
+		return;
+	}
+
+	FComponentEditorUtils::PasteComponents(OutPastedComponents, TargetActor, TargetActor->GetRootComponent(), SourceData);
+
+	if (OutPastedComponents.Num() > 0)
+	{
+		// Make sure all the SCS trees have a chance to update
+		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.BroadcastComponentsEdited();
+	}
+}
+
+void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData)
+{
+	OutPastedActors.Reset();
+
+	// Check and warn if the user is trying to paste to a hidden level. This will return if they wish to abort the process...
+	if (bWarnIfHidden && WarnIfDestinationLevelIsHidden(InWorld))
+	{
+		return;
+	}
+
+	const FScopedBusyCursor BusyCursor;
+
+	// Create a location offset.
+	const FVector LocationOffset = CreateLocationOffset(bDuplicate, bOffsetLocations);
+
+	FCachedActorLabels ActorLabels(InWorld);
+
+	// Get pasted text.
+	FString PasteString;
+	if (SourceData)
+	{
+		PasteString = *SourceData;
+	}
+	else
+	{
+		FPlatformApplicationMisc::ClipboardPaste(PasteString);
+	}
+	const TCHAR* Paste = *PasteString;
+
+	USelection* ActorSelection = GetSelectedActors();
+
+	// FactoryCreateText will mutate the selection, so cache it here so we can restore it later
+	TArray<uint8> OriginalSelectionState;
+	FObjectWriter(ActorSelection, OriginalSelectionState);
+
+	// Turn off automatic BSP update while pasting to save rebuilding geometry potentially multiple times
+	const bool bBSPAutoUpdate = GetDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate;
+	GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = false;
+
+	// Import the actors.
+	ULevelFactory* Factory = NewObject<ULevelFactory>();
+	Factory->FactoryCreateText(ULevel::StaticClass(), InWorld->GetCurrentLevel(), InWorld->GetCurrentLevel()->GetFName(), RF_Transactional, NULL, bDuplicate ? TEXT("move") : TEXT("paste"), Paste, Paste + FCString::Strlen(Paste), GWarn);
+
+	// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
+	GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
+	RebuildAlteredBSP();
+
+	// FactoryCreateText set the selection to the new actors, so copy that into OutPastedActors and restore the original selection
+	ActorSelection->GetSelectedObjects<AActor>(OutPastedActors);
+	FObjectReader(ActorSelection, OriginalSelectionState);
+
+	// Fire ULevel::LevelDirtiedEvent when falling out of scope.
+	FScopedLevelDirtied			LevelDirtyCallback;
+
+	// Update the actors' locations and update the global list of visible layers.
+	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	for (AActor* Actor : OutPastedActors)
+	{
+		// We only want to offset the location if this actor is the root of a selected attachment hierarchy
+		// Offsetting children of an attachment hierarchy would cause them to drift away from the node they're attached to
+		// as the offset would effectively get applied twice
+		const AActor* const ParentActor = Actor->GetAttachParentActor();
+		const FVector& ActorLocationOffset = (ParentActor && ParentActor->IsSelected()) ? FVector::ZeroVector : LocationOffset;
+
+		// Offset the actor's location.
+		Actor->TeleportTo(Actor->GetActorLocation() + ActorLocationOffset, Actor->GetActorRotation(), false, true);
+
+		if (!GetDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected)
+		{
+			// Re-label duplicated actors so that labels become unique
+			FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetActorLabel(), &ActorLabels);
+			ActorLabels.Add(Actor->GetActorLabel());
+		}
+
+		LayersSubsystem->InitializeNewActorLayers(Actor);
+
+		// Ensure any layers this actor belongs to are visible
+		LayersSubsystem->SetLayersVisibility(Actor->Layers, true);
+
+		Actor->CheckDefaultSubobjects();
+		Actor->InvalidateLightingCache();
+		// Call PostEditMove to update components, etc.
+		Actor->PostEditMove(true);
+		Actor->PostDuplicate(EDuplicateMode::Normal);
+		Actor->CheckDefaultSubobjects();
+
+		// Request saves/refreshes.
+		Actor->MarkPackageDirty();
+		LevelDirtyCallback.Request();
 	}
 }
 
@@ -388,7 +445,7 @@ public:
 	void DuplicateActorsToLevel(TArray<AActor*>& OutNewActors, ULevel* DestLevel, bool bOffsetLocations)
 	{
 		// Check neither level is locked
-		if ( FLevelUtils::IsLevelLocked(SrcLevel) )
+		if (FLevelUtils::IsLevelLocked(SrcLevel))
 		{
 			UE_LOG(LogEditorActor, Warning, TEXT("DuplicateActorsToLevel: The requested operation could not be completed because the level is locked."));
 			return;
@@ -405,39 +462,35 @@ public:
 			return;
 		}
 
-		// Cache the current source level
-		ULevel* OldLevel = SrcLevel->OwningWorld->GetCurrentLevel();
-		// Set the selection set to be precisely the actors belonging to this job.
-		SrcLevel->OwningWorld->SetCurrentLevel( SrcLevel );
-		GEditor->SelectNone( false, true );
-		for ( int32 ActorIndex = 0 ; ActorIndex < Actors.Num() ; ++ActorIndex )
+		FString ScratchData;
+
+		// Copy actors from src level
 		{
-			AActor* Actor = Actors[ ActorIndex ];
-			GEditor->SelectActor( Actor, true, false, true );
+			// Cache the current source level
+			ULevel* CurrentSrcLevel = SrcLevel->OwningWorld->GetCurrentLevel();
+			GUnrealEd->CopyActors(Actors, SrcLevel->OwningWorld, &ScratchData);
+			SrcLevel->OwningWorld->SetCurrentLevel(CurrentSrcLevel);
 		}
 
-		FString ScratchData;
-		// Copy actors from src level.
-		GEditor->edactCopySelected( SrcLevel->OwningWorld, &ScratchData );
-		// Restore source level
-		SrcLevel->OwningWorld->SetCurrentLevel( OldLevel );
-
-		// Cache the current dest level
-		OldLevel = DestLevel->OwningWorld->GetCurrentLevel();
-		// Paste to the dest level.
+		// Paste to the dest level
 		{
+			ULevel* CurrentDestLevel = DestLevel->OwningWorld->GetCurrentLevel();
+
 			FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
 			DestLevel->OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
-			GEditor->edactPasteSelected(DestLevel->OwningWorld, true, bOffsetLocations, true, &ScratchData);
-			// Restore dest level
-			DestLevel->OwningWorld->SetCurrentLevel(OldLevel);
-		}
-		// The selection set will be the newly created actors; copy them over to the output array.
-		for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
-		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow( Actor->IsA(AActor::StaticClass()) );
-			OutNewActors.Add( Actor );
+
+			TArray<AActor*> PastedActors;
+			GUnrealEd->PasteActors(PastedActors, DestLevel->OwningWorld, /*bDuplicate*/true, bOffsetLocations, /*bWarnIfHidden*/true, &ScratchData);
+			
+			DestLevel->OwningWorld->SetCurrentLevel(CurrentDestLevel);
+
+			// We generate new seeds when we duplicate
+			for (AActor* Actor : PastedActors)
+			{
+				Actor->SeedAllRandomStreams();
+			}
+
+			OutNewActors.Append(MoveTemp(PastedActors));
 		}
 	}
 };
@@ -446,41 +499,26 @@ public:
 
 void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocations )
 {
-	int32 NumSelectedComponents = GetSelectedComponentCount();
-	if (NumSelectedComponents > 0)
+	if (GetSelectedComponentCount() > 0)
 	{
-		TArray<UActorComponent*> NewComponentClones;
-		NewComponentClones.Reserve(NumSelectedComponents);
+		USelection* ComponentSelection = GetSelectedComponents();
 
-		// Duplicate selected components
-		for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+		TArray<UActorComponent*> SelectedComponents;
+		ComponentSelection->GetSelectedObjects<UActorComponent>(SelectedComponents);
+
+		TArray<UActorComponent*> NewComponents;
+		DuplicateComponents(SelectedComponents, NewComponents);
+
+		if (NewComponents.Num() > 0)
 		{
-			UActorComponent* Component = CastChecked<UActorComponent>(*It);
-
-			if (FComponentEditorUtils::CanCopyComponent(Component))
-			{
-				if (UActorComponent* Clone = FComponentEditorUtils::DuplicateComponent(Component))
-				{
-					NewComponentClones.Add(Clone);
-				}
-			}
-		}
-
-		if (NewComponentClones.Num() > 0)
-		{
-			// Make sure all the SCS trees have a chance to update
-			FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-			LevelEditor.BroadcastComponentsEdited();
-
 			// Select the new clones
-			USelection* ComponentSelection = GetSelectedComponents();
-			ComponentSelection->Modify(false);
+			ComponentSelection->Modify();
 			ComponentSelection->BeginBatchSelectOperation();
 			ComponentSelection->DeselectAll();
 
-			for (UActorComponent* Clone : NewComponentClones)
+			for (UActorComponent* NewComponent : NewComponents)
 			{
-				GEditor->SelectComponent(Clone, true, false);
+				GEditor->SelectComponent(NewComponent, true, false);
 			}
 
 			ComponentSelection->EndBatchSelectOperation(true);
@@ -488,96 +526,89 @@ void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocat
 	}
 	else
 	{
-		const FScopedBusyCursor BusyCursor;
-		GetSelectedActors()->Modify();
+		USelection* ActorSelection = GetSelectedActors();
 
-		// Create per-level job lists.
-		typedef TMap<ULevel*, FDuplicateJob*>	DuplicateJobMap;
-		DuplicateJobMap							DuplicateJobs;
+		TArray<AActor*> SelectedActors;
+		ActorSelection->GetSelectedObjects<AActor>(SelectedActors);
 
-		// Build set of selected actors before duplication
-		TArray<AActor*> PreDuplicateSelection;
+		TArray<AActor*> NewActors;
+		DuplicateActors(SelectedActors, NewActors, InLevel, bOffsetLocations);
 
-		// Add selected actors to the per-level job lists.
-		bool bHaveActorLocation = false;
-		FVector AnyActorLocation = FVector::ZeroVector;
-		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		if (NewActors.Num() > 0)
 		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
+			// Select the new clones
+			ActorSelection->Modify();
+			ActorSelection->BeginBatchSelectOperation();
+			ActorSelection->DeselectAll();
 
-			if (!bHaveActorLocation)
+			for (AActor* Actor : NewActors)
 			{
-				bHaveActorLocation = true;
-				AnyActorLocation = Actor->GetActorLocation();
+				GEditor->SelectActor(Actor, true, false);
 			}
 
-			PreDuplicateSelection.Add(Actor);
+			ActorSelection->EndBatchSelectOperation(true);
 
-			ULevel* OldLevel = Actor->GetLevel();
-			FDuplicateJob** Job = DuplicateJobs.Find(OldLevel);
-			if (Job)
-			{
-				( *Job )->Actors.Add(Actor);
-			}
-			else
-			{
-				// Allocate a new job for the level.
-				FDuplicateJob* NewJob = new FDuplicateJob;
-				NewJob->SrcLevel = OldLevel;
-				NewJob->Actors.Add(Actor);
-				DuplicateJobs.Add(OldLevel, NewJob);
-			}
+			// Note the selection change.  This will also redraw level viewports and update the pivot.
+			NoteSelectionChange();
+
+			GLevelEditorModeTools().ActorsDuplicatedNotify(SelectedActors, NewActors, bOffsetLocations);
 		}
-
-		UWorld* World = InLevel->OwningWorld;
-		ULevel* DesiredLevel = InLevel;
-
-		USelection* SelectedActors = GetSelectedActors();
-		SelectedActors->BeginBatchSelectOperation();
-		SelectedActors->Modify();
-
-		// For each level, select the actors in that level and copy-paste into the destination level.
-		TArray<AActor*>	NewActors;
-		for (DuplicateJobMap::TIterator It(DuplicateJobs); It; ++It)
-		{
-			FDuplicateJob* Job = It.Value();
-			check(Job);
-			Job->DuplicateActorsToLevel(NewActors, InLevel, bOffsetLocations);
-		}
-
-		// Select any newly created actors and prefabs.
-		SelectNone(false, true);
-		for (int32 ActorIndex = 0; ActorIndex < NewActors.Num(); ++ActorIndex)
-		{
-			AActor* Actor = NewActors[ActorIndex];
-			SelectActor(Actor, true, false);
-		}
-		SelectedActors->EndBatchSelectOperation();
-		NoteSelectionChange();
-
-		// Finally, cleanup.
-		for (DuplicateJobMap::TIterator It(DuplicateJobs); It; ++It)
-		{
-			FDuplicateJob* Job = It.Value();
-			delete Job;
-		}
-
-		// Build set of selected actors after duplication
-		TArray<AActor*> PostDuplicateSelection;
-		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
-		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
-
-			// We generate new seeds when we duplicate
-			Actor->SeedAllRandomStreams();
-
-			PostDuplicateSelection.Add(Actor);
-		}
-
-		GLevelEditorModeTools().ActorsDuplicatedNotify(PreDuplicateSelection, PostDuplicateSelection, bOffsetLocations);
 	}
+}
+
+void UUnrealEdEngine::DuplicateComponents(const TArray<UActorComponent*>& InComponentsToDuplicate, TArray<UActorComponent*>& OutNewComponents)
+{
+	OutNewComponents.Reset(InComponentsToDuplicate.Num());
+
+	for (UActorComponent* Component : InComponentsToDuplicate)
+	{
+		if (FComponentEditorUtils::CanCopyComponent(Component))
+		{
+			if (UActorComponent* NewComponent = FComponentEditorUtils::DuplicateComponent(Component))
+			{
+				OutNewComponents.Add(NewComponent);
+			}
+		}
+	}
+
+	if (OutNewComponents.Num() > 0)
+	{
+		// Make sure all the SCS trees have a chance to update
+		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.BroadcastComponentsEdited();
+	}
+}
+
+void UUnrealEdEngine::DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, bool bOffsetLocations)
+{
+	OutNewActors.Reset(InActorsToDuplicate.Num());
+
+	const FScopedBusyCursor BusyCursor;
+
+	// Create per-level job lists.
+	TMap<ULevel*, TSharedPtr<FDuplicateJob>> DuplicateJobs;
+	for (AActor* Actor : InActorsToDuplicate)
+	{
+		ULevel* SrcLevel = Actor->GetLevel();
+		TSharedPtr<FDuplicateJob> Job = DuplicateJobs.FindRef(SrcLevel);
+		if (!Job)
+		{
+			// Allocate a new job for the level.
+			Job = DuplicateJobs.Add(SrcLevel, MakeShared<FDuplicateJob>());
+			Job->SrcLevel = SrcLevel;
+		}
+		Job->Actors.Add(Actor);
+	}
+
+	// For each level, select the actors in that level and copy-paste into the destination level.
+	for (const auto& DuplicateJobPair : DuplicateJobs)
+	{
+		FDuplicateJob& Job = *DuplicateJobPair.Value;
+		Job.DuplicateActorsToLevel(OutNewActors, InLevel, bOffsetLocations);
+	}
+
+	// Finally, cleanup.
+	DuplicateJobs.Reset();
 }
 
 bool UUnrealEdEngine::CanDeleteSelectedActors( const UWorld* InWorld, const bool bStopAtFirst, const bool bLogUndeletable, TArray<AActor*>* OutDeletableActors ) const

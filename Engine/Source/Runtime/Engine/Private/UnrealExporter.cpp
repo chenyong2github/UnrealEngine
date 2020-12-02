@@ -901,31 +901,44 @@ FString DumpObjectToString(UObject* Object)
 
 #if WITH_EDITOR
 FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
-	//call the empty version of the base class
-	: FExportObjectInnerContext(false)
+	: FExportObjectInnerContext(false) //call the empty version of the base class
 {
 	// For each selected actor...
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 	{
 		AActor* Actor = (AActor*)*It;
 		checkSlow(Actor->IsA(AActor::StaticClass()));
-
-		ForEachObjectWithOuter(Actor, [this](UObject* InnerObj)
-		{
-			UObject* OuterObj = InnerObj->GetOuter();
-			InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
-			if (Inners)
-			{
-				// Add object to existing inner list.
-				Inners->Add( InnerObj );
-			}
-			else
-			{
-				// Create a new inner list for the outer object.
-				InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
-				InnersForOuterObject.Add(InnerObj);
-			}
-		}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+		AddActorInner(Actor);
 	}
+}
+
+FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext(const TArray<AActor*> InSelectedActors)
+	: FExportObjectInnerContext(false) //call the empty version of the base class
+{
+	// For each selected actor...
+	for (AActor* Actor : InSelectedActors)
+	{
+		AddActorInner(Actor);
+	}
+}
+
+void FSelectedActorExportObjectInnerContext::AddActorInner(const AActor* InActor)
+{
+	ForEachObjectWithOuter(InActor, [this](UObject* InnerObj)
+	{
+		UObject* OuterObj = InnerObj->GetOuter();
+		InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
+		if (Inners)
+		{
+			// Add object to existing inner list.
+			Inners->Add(InnerObj);
+		}
+		else
+		{
+			// Create a new inner list for the outer object.
+			InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
+			InnersForOuterObject.Add(InnerObj);
+		}
+	}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 }
 #endif

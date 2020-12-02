@@ -451,7 +451,7 @@ bool FComponentEditorUtils::CanCopyComponents(const TArray<UActorComponent*>& Co
 	return bCanCopy;
 }
 
-void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy)
+void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy, FString* DestinationData)
 {
 	FStringOutputDevice Archive;
 
@@ -523,27 +523,47 @@ void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& Compo
 	}
 
 	// Copy text to clipboard
-	FString ExportedText = Archive;
-	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+	if (DestinationData)
+	{
+		*DestinationData = MoveTemp(Archive);
+	}
+	else
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Archive);
+	}
 }
 
-bool FComponentEditorUtils::CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach, bool bPasteAsArchetypes)
+bool FComponentEditorUtils::CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach, bool bPasteAsArchetypes, const FString* SourceData)
 {
 	FString ClipboardContent;
-	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+	if (SourceData)
+	{
+		ClipboardContent = *SourceData;
+	}
+	else
+	{
+		FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+	}
 
 	// Obtain the component object text factory for the clipboard content and return whether or not we can use it
 	TSharedRef<FComponentObjectTextFactory> Factory = FComponentObjectTextFactory::Get(ClipboardContent, bPasteAsArchetypes);
 	return Factory->NewObjectMap.Num() > 0 && ( bOverrideCanAttach || Factory->CanAttachComponentsTo(RootComponent) );
 }
 
-void FComponentEditorUtils::PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent)
+void FComponentEditorUtils::PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent, const FString* SourceData)
 {
 	check(TargetActor);
 
 	// Get the text from the clipboard
 	FString TextToImport;
-	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	if (SourceData)
+	{
+		TextToImport = *SourceData;
+	}
+	else
+	{
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	}
 
 	// Get a new component object factory for the clipboard content
 	TSharedRef<FComponentObjectTextFactory> Factory = FComponentObjectTextFactory::Get(TextToImport);

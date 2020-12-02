@@ -15,6 +15,9 @@ struct FActorElementData;
 class UActorComponent;
 struct FComponentElementData;
 
+class UWorld;
+class UTypedElementList;
+
 UCLASS()
 class ENGINE_API UEngineElementsLibrary : public UBlueprintFunctionLibrary
 {
@@ -49,6 +52,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Component", meta=(ScriptMethod="AcquireEditorElementHandle"))
 	static FTypedElementHandle AcquireEditorComponentElementHandle(const UActorComponent* Component, const bool bAllowCreate = true);
 #endif
+
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Util")
+	static TArray<FTypedElementHandle> DuplicateElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, bool bOffsetLocations);
+	static TArray<FTypedElementHandle> DuplicateElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, bool bOffsetLocations);
+	static TArray<FTypedElementHandle> DuplicateElements(const UTypedElementList* ElementList, UWorld* World, bool bOffsetLocations);
 
 private:
 #if WITH_EDITOR

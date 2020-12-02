@@ -2571,13 +2571,30 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 						// Only duplicate if we're translating or rotating.
 						if ( !Drag.IsNearlyZero() || !Rot.IsZero() )
 						{
-							// Widget hasn't been dragged since ALT+LMB went down.
 							bDuplicateOnNextDrag = false;
-							UUnrealEdEngine* UnrealEdEngine = Cast<UUnrealEdEngine>(GEditor);
-							if (UnrealEdEngine)
+							
+							if (!ModeTools->ProcessEditDuplicate())
 							{
-								UnrealEdEngine->DuplicateSelectedActors(GetWorld());
+								CacheElementsToManipulate();
+								TArray<FTypedElementHandle> DuplicatedElements = UEngineElementsLibrary::DuplicateElements(ElementsToManipulate, GetWorld(), /*bOffsetLocations*/false);
+								ElementsToManipulate->Reset();
+
+								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
+								if (DuplicatedElements.Num() > 0)
+								{
+									UTypedElementSelectionSet* SelectionSet = GetMutableSelectionSet();
+
+									const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+										.SetAllowLegacyNotifications(false); // Old drag duplicate code didn't used to notify about this selection change
+
+									FTypedElementListLegacySyncScopedBatch LegacySyncBatch(SelectionSet->GetElementList(), SelectionOptions.AllowLegacyNotifications());
+
+									SelectionSet->ClearSelection(SelectionOptions);
+									SelectionSet->SelectElements(DuplicatedElements, SelectionOptions);
+								}
 							}
+
+							RedrawAllViewportsIntoThisScene();
 						}
 					}
 				}

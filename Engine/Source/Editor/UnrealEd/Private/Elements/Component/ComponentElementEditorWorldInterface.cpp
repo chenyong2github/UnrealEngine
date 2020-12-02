@@ -4,7 +4,11 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 
+#include "Elements/Framework/EngineElementsLibrary.h"
+
 #include "Editor.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 
 void UComponentElementEditorWorldInterface::NotifyMovementStarted(const FTypedElementHandle& InElementHandle)
 {
@@ -37,5 +41,22 @@ void UComponentElementEditorWorldInterface::NotifyMovementEnded(const FTypedElem
 		}
 
 		Component->MarkPackageDirty();
+	}
+}
+
+void UComponentElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+{
+	const TArray<UActorComponent*> ComponentsToDuplicate = ComponentElementDataUtil::GetComponentsFromHandles(InElementHandles);
+
+	if (ComponentsToDuplicate.Num() > 0)
+	{
+		TArray<UActorComponent*> NewComponents;
+		GUnrealEd->DuplicateComponents(ComponentsToDuplicate, NewComponents);
+
+		OutNewElements.Reserve(OutNewElements.Num() + NewComponents.Num());
+		for (UActorComponent* NewComponent : NewComponents)
+		{
+			OutNewElements.Add(UEngineElementsLibrary::AcquireEditorComponentElementHandle(NewComponent));
+		}
 	}
 }

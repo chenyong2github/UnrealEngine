@@ -422,7 +422,7 @@ public:
 	 * @return								true unless the delete operation was aborted.
 	 */
 	virtual bool edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletionCanHappen=true, bool bWarnAboutReferences = true, bool bWarnAboutSoftReferences = true) override;
-
+
 	/**
 	 * Creates a new group from the current selection removing any existing groups.
 	 */
@@ -464,28 +464,85 @@ public:
 	 * Copy selected actors to the clipboard.  Does not copy PrefabInstance actors or parts of Prefabs.
 	 *
 	 * @param	InWorld					World context
-	 * @param	DestinationData			If != NULL, additionally copy data to string
+	 * @param	DestinationData			If != NULL, fill instead of clipboard data
 	 */
-	virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = NULL) override;
+	virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = nullptr) override;
+
+	/**
+	 * Copy the given components to the clipboard.
+	 *
+	 * @param	InComponentsToCopy		Array of components to copy
+	 * @param	DestinationData			If != NULL, fill instead of clipboard data
+	 */
+	void CopyComponents(const TArray<UActorComponent*>& InComponentsToCopy, FString* DestinationData = nullptr) const;
+
+	/**
+	 * Copy the given actors to the clipboard.  Does not copy PrefabInstance actors or parts of Prefabs.
+	 *
+	 * @param	InActorsToCopy			Array of actors to copy
+	 * @param	InWorld					World context
+	 * @param	DestinationData			If != NULL, fill instead of clipboard data
+	 */
+	void CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* InWorld, FString* DestinationData = nullptr) const;
 
 	/**
 	 * Paste selected actors from the clipboard.
 	 *
-	 * @param	InWorld					World context
+	 * @param	InWorld				World context
 	 * @param	bDuplicate			Is this a duplicate operation (as opposed to a real paste)?
 	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, FString* SourceData = NULL) override;
+	virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr) override;
+
+	/**
+	 * Paste the components from the clipboard.
+	 *
+	 * @param	OutPastedComponents List of all the components that were pasted
+	 * @param	TargetActor			The actor to attach the pasted components to
+	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
+	 * @param	SourceData			If != NULL, use instead of clipboard data
+	 */
+	void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, const bool bWarnIfHidden, const FString* SourceData = nullptr);
+
+	/**
+	 * Paste the actors from the clipboard.
+	 *
+	 * @param	OutPastedActors		List of all the actors that were pasted
+	 * @param	InWorld				World context
+	 * @param	bDuplicate			Is this a duplicate operation (as opposed to a real paste)?
+	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
+	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
+	 * @param	SourceData			If != NULL, use instead of clipboard data
+	 */
+	void PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr);
 
 	/**
 	 * Duplicates selected actors.  Handles the case where you are trying to duplicate PrefabInstance actors.
 	 *
 	 * @param	InLevel				Level to place duplicate
+	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
+	 */
+	virtual void edactDuplicateSelected(ULevel* InLevel, bool bOffsetLocations) override;
+
+	/**
+	 * Duplicate the given components.
+	 * 
+	 * @param	InComponentsToDuplicate		Array of components to duplicate
+	 * @param	OutNewComponents			List of all the components that were duplicated
+	 */
+	void DuplicateComponents(const TArray<UActorComponent*>& InComponentsToDuplicate, TArray<UActorComponent*>& OutNewComponents);
+
+	/**
+	 * Duplicates the given actors.  Handles the case where you are trying to duplicate PrefabInstance actors.
+	 *
+	 * @param	InActorsToDuplicate	Array of actors to duplicate
+	 * @param	OutNewActors		List of all the actors that were duplicated
+	 * @param	InLevel				Level to place duplicate
 	 * @param	bUseOffset			Should the actor locations be offset after they are created?
 	 */
-	virtual void edactDuplicateSelected(ULevel* InLevel, bool bUseOffset) override;
+	void DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, bool bOffsetLocations);
 
 	/**
 	 * Replace all selected brushes with the default brush.
@@ -756,7 +813,7 @@ public:
 	 * 
 	 * @param InWorld			World context
 	 */
-	bool WarnIfDestinationLevelIsHidden( UWorld* InWorld );
+	bool WarnIfDestinationLevelIsHidden( UWorld* InWorld ) const;
 
 	/**
 	 * Generate the package thumbails if they are needed. 

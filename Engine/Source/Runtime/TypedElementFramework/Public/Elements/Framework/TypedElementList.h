@@ -107,7 +107,7 @@ private:
 class TYPEDELEMENTFRAMEWORK_API FTypedElementListLegacySyncScopedBatch
 {
 public:
-	explicit FTypedElementListLegacySyncScopedBatch(UTypedElementList* InElementList, const bool InNotify = true);
+	explicit FTypedElementListLegacySyncScopedBatch(const UTypedElementList* InElementList, const bool InNotify = true);
 	~FTypedElementListLegacySyncScopedBatch();
 
 	FTypedElementListLegacySyncScopedBatch(const FTypedElementListLegacySyncScopedBatch&) = delete;
@@ -568,7 +568,7 @@ public:
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. This will return null if no legacy sync has been created for this instance.
 	 */
-	FTypedElementListLegacySync* Legacy_GetSyncPtr();
+	FTypedElementListLegacySync* Legacy_GetSyncPtr() const;
 
 private:
 	enum class EChangeType : uint8

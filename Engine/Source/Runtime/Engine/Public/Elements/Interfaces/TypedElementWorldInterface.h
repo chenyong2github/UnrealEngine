@@ -90,6 +90,26 @@ public:
 	{
 		return false;
 	}
+
+	/**
+	 * Duplicate the given element.
+	 * @note Default version calls DuplicateElements with a single element.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual FTypedElementHandle DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, bool bOffsetLocations)
+	{
+		TArray<FTypedElementHandle> NewElements;
+		DuplicateElements(MakeArrayView(&InElementHandle, 1), InWorld, bOffsetLocations, NewElements);
+		return NewElements.Num() > 0 ? MoveTemp(NewElements[0]) : FTypedElementHandle();
+	}
+
+	/**
+	 * Duplicate the given set of elements.
+	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UEngineElementsLibrary::DuplicateElements function instead.
+	 */
+	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+	{
+	}
 };
 
 template <>
@@ -107,4 +127,5 @@ struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTy
 	void NotifyMovementEnded() const { InterfacePtr->NotifyMovementEnded(*this); }
 	bool FindSuitableTransformAtPoint(const FTransform& InPotentialTransform, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAtPoint(*this, InPotentialTransform, OutSuitableTransform); }
 	bool FindSuitableTransformAlongPath(const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAlongPath(*this, InPathStart, InPathEnd, InTestShape, InElementsToIgnore, OutSuitableTransform); }
+	FTypedElementHandle DuplicateElement(UWorld* InWorld, bool bOffsetLocations) const { return InterfacePtr->DuplicateElement(*this, InWorld, bOffsetLocations); }
 };

@@ -58,24 +58,27 @@ public:
 	/**
 	 * Copies the selected components to the clipboard
 	 * @param ComponentsToCopy The list of components to copy
+	 * @param DestinationData Buffer to fill with the copied data, or null to use the clipboard
 	 */
-	static void CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy);
+	static void CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy, FString* DestinationData = nullptr);
 
 	/**
 	 * Determines whether the current contents of the clipboard contain paste-able component information
 	 * @param RootComponent The root component of the actor being pasted on
 	 * @param bOverrideCanAttach Optional override declaring that components can be attached and a check is not needed
+	 * @param SourceData Component data to paste, or null to use the clipboard
 	 * @return Whether components can be pasted
 	 */
-	static bool CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false);
+	static bool CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false, const FString* SourceData = nullptr);
 
 	/**
 	 * Attempts to paste components from the clipboard as siblings of the target component
 	 * @param OutPastedComponents List of all the components that were pasted
 	 * @param TargetActor The actor to attach the pasted components to
 	 * @param TargetComponent The component the paste is targeting (will attempt to paste components as siblings). If null, will attach pasted components to the root.
+	 * @param SourceData Component data to paste, or null to use the clipboard
 	 */
-	static void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent = nullptr);
+	static void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent = nullptr, const FString* SourceData = nullptr);
 
 	/**
 	 * Gets the copied components from the clipboard without attempting to paste/apply them in any way

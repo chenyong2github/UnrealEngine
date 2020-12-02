@@ -3,6 +3,8 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementOwnerStore.h"
+#include "Elements/Framework/TypedElementUtil.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 
 #include "Elements/Object/ObjectElementData.h"
 #include "UObject/Object.h"
@@ -214,3 +216,48 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorComponentElementHandle(
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UActorComponent, FComponentElementData>(Component, GComponentElementOwnerStore, &UEngineElementsLibrary::CreateComponentElement, bAllowCreate);
 }
 #endif
+
+TArray<FTypedElementHandle> UEngineElementsLibrary::DuplicateElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, bool bOffsetLocations)
+{
+	return DuplicateElements(MakeArrayView(ElementHandles), World, bOffsetLocations);
+}
+
+TArray<FTypedElementHandle> UEngineElementsLibrary::DuplicateElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, bool bOffsetLocations)
+{
+	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
+	TypedElementUtil::BatchElementsByType(ElementHandles, ElementsToDuplicateByType);
+
+	TArray<FTypedElementHandle> NewElements;
+	NewElements.Reserve(ElementHandles.Num());
+
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
+	{
+		if (UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key))
+		{
+			WorldInterface->DuplicateElements(ElementsByTypePair.Value, World, bOffsetLocations, NewElements);
+		}
+	}
+
+	return NewElements;
+}
+
+TArray<FTypedElementHandle> UEngineElementsLibrary::DuplicateElements(const UTypedElementList* ElementList, UWorld* World, bool bOffsetLocations)
+{
+	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
+	TypedElementUtil::BatchElementsByType(ElementList, ElementsToDuplicateByType);
+
+	TArray<FTypedElementHandle> NewElements;
+	NewElements.Reserve(ElementList->Num());
+
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
+	{
+		if (UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key))
+		{
+			WorldInterface->DuplicateElements(ElementsByTypePair.Value, World, bOffsetLocations, NewElements);
+		}
+	}
+
+	return NewElements;
+}

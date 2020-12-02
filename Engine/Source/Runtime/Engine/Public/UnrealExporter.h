@@ -61,6 +61,10 @@ class ENGINE_API FSelectedActorExportObjectInnerContext : public FExportObjectIn
 {
 public:
 	FSelectedActorExportObjectInnerContext();
+	explicit FSelectedActorExportObjectInnerContext(const TArray<class AActor*> InSelectedActors);
+
+private:
+	void AddActorInner(const class AActor* InActor);
 };
 #endif
 
