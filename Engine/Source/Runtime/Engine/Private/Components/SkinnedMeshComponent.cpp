@@ -4085,10 +4085,12 @@ void GetTypedSkinnedTangentBasis(
 	const int32 VertIndex,
 	const TArray<FMatrix> & RefToLocals,
 	FVector& OutTangentX,
+	FVector& OutTangentY,
 	FVector& OutTangentZ
 )
 {
 	OutTangentX = FVector::ZeroVector;
+	OutTangentY = FVector::ZeroVector;
 	OutTangentZ = FVector::ZeroVector;
 
 	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
@@ -4099,6 +4101,7 @@ void GetTypedSkinnedTangentBasis(
 	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
 	const FVector VertexTangentX = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector VertexTangentY = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentY(BufferVertIndex);
 	const FVector VertexTangentZ = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(BufferVertIndex);
 
 #if !PLATFORM_LITTLE_ENDIAN
@@ -4112,6 +4115,7 @@ void GetTypedSkinnedTangentBasis(
 		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
 		const FMatrix& RefToLocal = RefToLocals[MeshBoneIndex];
 		OutTangentX += RefToLocal.TransformVector(VertexTangentX) * Weight;
+		OutTangentY += RefToLocal.TransformVector(VertexTangentY) * Weight;
 		OutTangentZ += RefToLocal.TransformVector(VertexTangentZ) * Weight;
 	}
 }
