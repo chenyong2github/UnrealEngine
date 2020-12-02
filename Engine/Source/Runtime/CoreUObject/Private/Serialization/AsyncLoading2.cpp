@@ -5762,8 +5762,11 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	{
 		if (!Desc.StoreEntry)
 		{
-			UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("LoadPackage: SkipPackage"),
-				TEXT("The package to load does not exist on disk or in the loader"));
+			if (!FLinkerLoad::IsKnownMissingPackage(Desc.DiskPackageName))
+			{
+				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("LoadPackage: SkipPackage"),
+					TEXT("The package to load does not exist on disk or in the loader"));
+			}
 		}
 		else
 		{
