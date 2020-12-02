@@ -52,12 +52,7 @@ namespace AutomationTool
 			try
 			{
 				// Set the working directory to the UE4 root
-#if NET_CORE
-				// net core projects our output to a subfolder in the binaries path e.g. Engine/Binaries/Dotnet/AutomationTool
 				Environment.CurrentDirectory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
-#else
-				Environment.CurrentDirectory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", ".."));
-#endif
 
 
 				// Ensure we can resolve any external assemblies as necessary.
@@ -65,13 +60,6 @@ namespace AutomationTool
 				AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);
 				AssemblyUtils.InstallRecursiveAssemblyResolver(PathToBinariesDotNET);
 
-				// Ensure that any third-party libraries marked as CopyLocal=false have their folders added as well (if the resolver can't be done locally where the class is used)
-#if !NET_CORE
-				// for net core we just copy the dependent assemblies to their output location
-				string PathToBinariesThirdParty = Path.Combine(PathToBinariesDotNET, "..", "ThirdParty");
-				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToBinariesThirdParty, "Google"));
-				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToBinariesThirdParty, "AWSSDK"));
-#endif
 				// Initialize the host platform layer
 				HostPlatform.Initialize();
 

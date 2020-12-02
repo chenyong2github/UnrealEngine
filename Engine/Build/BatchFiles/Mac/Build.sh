@@ -5,44 +5,28 @@
 cd "`dirname "$0"`/../../../.."
 
 # Setup Environment and Mono
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-  source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
-else
-  source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
-fi
+source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
 
 # Skip UBT and SWC compile step if we're coming in on an SSH connection (ie remote toolchain)
 if [ -z "$SSH_CONNECTION" ]; then
 	# First make sure that the UnrealBuildTool is up-to-date
-	if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-		if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildToolCore.csproj -c Development; then
-			echo "Failed to build to build tool (UnrealBuildTool)"
-			exit 1
-		else
-			if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
-				echo "Failed to build to build tool (UnrealBuildTool)"
-				exit 1
-			fi
-		fi
+	if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
+		echo "Failed to build to build tool (UnrealBuildTool)"
+		exit 1
 	fi
 
 	# build SCW if specified
 	for i in "$@" ; do
 		if [[ $i == "-buildscw" ]] ; then
 			echo Building ShaderCompileWorker...
-			mono Engine/Binaries/DotNET/UnrealBuildTool.exe ShaderCompileWorker Mac Development
+			Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development
 			break
 		fi
 	done
 fi
 
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-  echo Running Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
-  Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
-else
-  echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
-  mono Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
-fi
+echo Running Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
+Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then

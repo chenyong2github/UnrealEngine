@@ -150,6 +150,8 @@ namespace AutomationTool
 		{
 			TargetPlatformType = PlatformType;
 			TargetIniPlatformType = PlatformType;
+
+			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 		}
 
 		/// <summary>

@@ -5,21 +5,13 @@
 # Values for $ACTION: "" = building, "clean" = cleaning
 
 # Setup Environment
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-  # remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
-  unset TARGETNAME
-  source  Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
-else
-  source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
-fi
+source  Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
 
+# remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
+unset TARGETNAME
 
 # First make sure that the UnrealBuildTool is up-to-date
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildToolCore.csproj -c Development
-else
-xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj;
-fi
+dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
 
 if [ $? -ne 0 ]; then
 echo "Failed to build the build tool (UnrealBuildTool)"
@@ -102,24 +94,15 @@ if [ "$ACTION" == "build" ]; then
 
 	# Build SCW if this is an editor target
 	if [[ "$TARGET" == *"Editor" ]]; then
-		if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-			Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development
-		else
-			mono Engine/Binaries/DotNET/UnrealBuildTool.exe ShaderCompileWorker Mac Development
-		fi
+		Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development
 	fi
 
 elif [ $ACTION == "clean" ]; then
 	AdditionalFlags="-clean"
 fi
 
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
 echo Running Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
 Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
-else
-echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
-mono Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
-fi
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then

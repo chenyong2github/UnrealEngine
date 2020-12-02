@@ -258,10 +258,7 @@ namespace AutomationTool.Tasks
 					// Add any files which are only referenced
 					foreach (KeyValuePair<FileReference, bool> Reference in ProjectInfo.References)
 					{
-						if(!Reference.Value)
-						{
-							CsProjectInfo.AddReferencedAssemblyAndSupportFiles(Reference.Key, OutReferences);
-						}
+						CsProjectInfo.AddReferencedAssemblyAndSupportFiles(Reference.Key, OutReferences);
 					}
 				}
 			}

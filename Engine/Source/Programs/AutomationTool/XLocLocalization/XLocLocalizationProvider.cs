@@ -317,10 +317,6 @@ namespace EpicGames.XLocLocalization
 			Binding.SendTimeout = new TimeSpan(0, 1, 0);
 			Binding.AllowCookies = false;
 			Binding.BypassProxyOnLocal = false;
-#if !NET_CORE
-			Binding.HostNameComparisonMode = HostNameComparisonMode.StrongWildcard;
-			Binding.MessageEncoding = WSMessageEncoding.Text;
-#endif
 			Binding.MaxBufferSize = 2147483647;
 			Binding.MaxBufferPoolSize = 5242880;
 			Binding.MaxReceivedMessageSize = 2147483647;

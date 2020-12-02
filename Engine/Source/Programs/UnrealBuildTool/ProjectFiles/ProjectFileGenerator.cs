@@ -285,12 +285,6 @@ namespace UnrealBuildTool
 		bool bIncludeTempTargets = false;
 
 		/// <summary>
-		/// True if we should include .NET Core projects in the generated solution.
-		/// </summary>
-		[XmlConfigFile]
-		bool bIncludeDotNETCoreProjects = false;
-
-        /// <summary>
         /// True if we should reflect "Source" sub-directories on disk in the master project as master project directories.
         /// This (arguably) adds some visual clutter to the master project but it is truer to the on-disk file organization.
         /// </summary>
@@ -344,11 +338,6 @@ namespace UnrealBuildTool
 		bool bGatherThirdPartySource = false;
 
 		/// <summary>
-		/// Indicates whether we should process dot net core based C# projects
-		/// </summary>
-		bool AllowDotNetCoreProjects = false;
-
-		/// <summary>
 		/// Name of the master project file -- for example, the base file name for the Visual Studio solution file, or the Xcode project file on Mac.
 		/// </summary>
 		[XmlConfigFile]
@@ -392,7 +381,6 @@ namespace UnrealBuildTool
 		/// <param name="InOnlyGameProject">The project file passed in on the command line</param>
 		public ProjectFileGenerator(FileReference InOnlyGameProject)
 		{
-			AllowDotNetCoreProjects = Environment.CommandLine.Contains("-dotnetcore");
 			OnlyGameProject = InOnlyGameProject;
 			XmlConfig.ApplyTo(this);
 		}
@@ -482,14 +470,11 @@ namespace UnrealBuildTool
 						{
 							VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
 
-							if (AllowDotNetCoreProjects || !Project.IsDotNETCoreProject())
-							{
-								Project.ShouldBuildForAllSolutionTargets = true;
-								Project.ShouldBuildByDefaultForSolutionTargets = true;
+							Project.ShouldBuildForAllSolutionTargets = true;
+							Project.ShouldBuildByDefaultForSolutionTargets = true;
 
-								AddExistingProjectFile(Project, bForceDevelopmentConfiguration: false);
-								ProgramsFolder.ChildProjects.Add(Project);
-							}
+							AddExistingProjectFile(Project, bForceDevelopmentConfiguration: false);
+							ProgramsFolder.ChildProjects.Add(Project);
 						}
 						break;
 					}
@@ -1140,10 +1125,6 @@ namespace UnrealBuildTool
 							bUsePrecompiled = true;
 							break;
 
-						case "-VSCODE":
-							bIncludeDotNETCoreProjects = true;
-							break;
-
 						case "-INCLUDETEMPTARGETS":
 							bIncludeTempTargets = true;
 							break;
@@ -1599,21 +1580,12 @@ namespace UnrealBuildTool
 			List<string> ProjectDirectoryNames = new List<string>();
 			ProjectDirectoryNames.Add("UnrealBuildTool");
 
-			if (AllowDotNetCoreProjects)
-			{
-				ProjectDirectoryNames.Add("UnrealBuildTool_NETCore");
-			}
-
 			foreach (string ProjectDirectoryName in ProjectDirectoryNames)
 			{
 				DirectoryReference ProjectDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectDirectoryName);
 				if (DirectoryReference.Exists(ProjectDirectory))
 				{
 					string ProjectName = "UnrealBuildTool.csproj";
-					if (AllowDotNetCoreProjects)
-					{
-						ProjectName = "UnrealBuildToolCore.csproj";
-					}
 
 					FileReference ProjectFileName = FileReference.Combine(ProjectDirectory, ProjectName);
 
@@ -1622,17 +1594,14 @@ namespace UnrealBuildTool
 						VCSharpProjectFile UnrealBuildToolProject = new VCSharpProjectFile(ProjectFileName);
 						UnrealBuildToolProject.ShouldBuildForAllSolutionTargets = true;
 
-						if (bIncludeDotNETCoreProjects || !UnrealBuildToolProject.IsDotNETCoreProject())
-						{
-							// Store it off as we need it when generating target projects.
-							UBTProject = UnrealBuildToolProject;
+						// Store it off as we need it when generating target projects.
+						UBTProject = UnrealBuildToolProject;
 
-							// Add the project
-							AddExistingProjectFile(UnrealBuildToolProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
+						// Add the project
+						AddExistingProjectFile(UnrealBuildToolProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
 
-							// Put this in a solution folder
-							ProgramsFolder.ChildProjects.Add(UnrealBuildToolProject);
-						}
+						// Put this in a solution folder
+						ProgramsFolder.ChildProjects.Add(UnrealBuildToolProject);
 					}
 				}
 			}
@@ -1651,12 +1620,7 @@ namespace UnrealBuildTool
 			VCSharpProjectFile Project = null;
 
 			FileReference ProjectFileName = FileReference.Combine( UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName( ProjectName ) + ".csproj" );
-			FileReference ProjectFileNameDotnet = FileReference.Combine( UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName( ProjectName ) + "Core.csproj" );
-	
-			// if we are using the dotnet flag and there is a dotnet version of the project available use that instead
-			if (File.Exists(ProjectFileNameDotnet.FullName) && AllowDotNetCoreProjects && bIncludeDotNETCoreProjects)
-				ProjectFileName = ProjectFileNameDotnet;
-
+			
 			FileInfo Info = new FileInfo( ProjectFileName.FullName );
 			if( Info.Exists )
 			{

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Tools.DotNETCommon;
@@ -125,7 +124,6 @@ namespace UnrealBuildTool
 		{
 			PackageRelativeDllPath = InPackageRelativeDllPath;
 			ResolveSearchPaths.Add(InWindMDSourcePath.Directory.FullName);
-#if NET_CORE			
 			List<string> WinMDAssemblies = ExpandWinMDReferences(SdkVersion, new string[] {
 				"Windows.Foundation.FoundationContract",
 				"Windows.Foundation.UniversalApiContract"
@@ -141,16 +139,9 @@ namespace UnrealBuildTool
 			MetadataLoadContext Mlc = new MetadataLoadContext(PathAssemblyResolver);
 
 			using (Mlc)
-#else
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-#endif
 			{
 				ActivatableTypesList = new List<ActivatableType>();
-#if NET_CORE
 				Assembly DependsOn = Mlc.LoadFromAssemblyPath(InWindMDSourcePath.FullName);
-#else
-				Assembly DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
-#endif
 				foreach (Type WinMDType in DependsOn.GetExportedTypes())
 				{
 					bool IsActivatable = false;
@@ -192,25 +183,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-#if !NET_CORE
-		static WinMDRegistrationInfo()
-		{
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-			{
-				AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (Sender, EventArgs) => Assembly.ReflectionOnlyLoad(EventArgs.Name);
-
-				WindowsRuntimeMetadata.ReflectionOnlyNamespaceResolve += (Sender, EventArgs) =>
-				{
-					string Path = WindowsRuntimeMetadata.ResolveNamespace(EventArgs.NamespaceName, ResolveSearchPaths).FirstOrDefault();
-					if (Path == null)
-					{
-						return;
-					}
-					EventArgs.ResolvedAssemblies.Add(Assembly.ReflectionOnlyLoadFrom(Path));
-				};
-			}
-		}
-#endif
 		private static List<string> ResolveSearchPaths = new List<string>();
 		private List<ActivatableType> ActivatableTypesList;
 	}

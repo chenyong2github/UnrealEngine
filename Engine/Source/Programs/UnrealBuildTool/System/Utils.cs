@@ -23,7 +23,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether we are currently running on Mono platform.  We cache this statically because it is a bit slow to check.
 		/// </summary>
-#if NET_CORE
 		public static readonly bool IsRunningOnMono = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows); // TODO: This check seems to mainly be used to determine if this is running on windows or not. Should be refactored.
 
 		/// <summary>
@@ -39,9 +38,6 @@ namespace UnrealBuildTool
 		/// Whether we are currently running a Windows platform.
 		/// </summary>
 		public static readonly bool IsRunningOnWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-#else
-		public static readonly bool IsRunningOnMono = Type.GetType("Mono.Runtime") != null;
-#endif
 
 		/// <summary>
 		/// Searches for a flag in a set of command-line arguments.
@@ -437,12 +433,13 @@ namespace UnrealBuildTool
 		/// <param name="LogOutput">Whether to also log standard output and standard error</param>
 		public static string RunLocalProcessAndReturnStdOut(string Command, string Args, out int ExitCode, bool LogOutput = false)
 		{
-#if NET_CORE
 			// Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
 			// see https://github.com/dotnet/runtime/issues/29857
-			Args = Args.Replace('\'', '\"');
-#endif
+			// also see UE-102580
+			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+			Args = Args?.Replace('\'', '\"');
+
 			ProcessStartInfo StartInfo = new ProcessStartInfo(Command, Args);
 			StartInfo.UseShellExecute = false;
 			StartInfo.RedirectStandardOutput = true;

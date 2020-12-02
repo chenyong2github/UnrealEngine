@@ -52,11 +52,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// 
 		/// </summary>
-#if NET_CORE
-		const string FrameworkAssemblyExtension = "_NetCore.dll";
-#else
 		const string FrameworkAssemblyExtension = ".dll";
-#endif
 
 		/// <summary>
 		/// 
@@ -278,16 +274,6 @@ namespace UnrealBuildTool
 						Cache.TargetRules.Add(File.Location);
 					}
 				}
-#if NET_CORE
-				else if (File.HasExtension(".automation.core.csproj"))
-				{
-					lock(Cache.AutomationModules)
-					{
-						Cache.AutomationModules.Add(File.Location);
-					}
-					bSearchSubFolders = false;
-				}
-#else
 				else if (File.HasExtension(".automation.csproj"))
 				{
 					lock(Cache.AutomationModules)
@@ -296,7 +282,6 @@ namespace UnrealBuildTool
 					}
 					bSearchSubFolders = false;
 				}
-#endif
 			}
 
 			// If we didn't find anything to stop the search, search all the subdirectories too

@@ -2245,13 +2245,9 @@ namespace AutomationTool
 
 			if (EditorTargetsList == null)
 			{
-				if (!GlobalCommandLine.NoCompileEditor && !IsProgramTarget && !String.IsNullOrEmpty(EditorTarget))
+				if (!IsProgramTarget && !String.IsNullOrEmpty(EditorTarget))
 				{
 					EditorTargetsList = new ParamList<string>(EditorTarget);
-				}
-				else
-				{
-					EditorTargetsList = new ParamList<string>();
 				}
 			}
 

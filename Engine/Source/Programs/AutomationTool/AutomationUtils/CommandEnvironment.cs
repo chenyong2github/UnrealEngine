@@ -71,12 +71,9 @@ namespace AutomationTool
 		internal CommandEnvironment()
 		{
 			// Get the path to the UAT executable
-#if NET_CORE
 			// the entry assembly is the .dll but it is easier to use apphost so change extension to the executable
 			UATExe = Path.ChangeExtension(Assembly.GetEntryAssembly().GetOriginalLocation(), Utils.IsRunningOnWindows ? "exe" : null);
-#else
-			UATExe = Assembly.GetEntryAssembly().GetOriginalLocation();
-#endif
+
 			if (!CommandUtils.FileExists(UATExe))
 			{
 				throw new AutomationException("Could not find AutomationTool.exe. Reflection indicated it was here: {0}", UATExe);
@@ -86,11 +83,7 @@ namespace AutomationTool
 			LocalRoot = CommandUtils.GetEnvVar(EnvVarNames.LocalRoot);
 			if(String.IsNullOrEmpty(LocalRoot))
 			{
-#if NET_CORE
 				LocalRoot = CommandUtils.ConvertSeparators(PathSeparator.Slash, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(UATExe), "..", "..", "..", "..")));
-#else
-				LocalRoot = CommandUtils.ConvertSeparators(PathSeparator.Slash, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(UATExe), "..", "..", "..")));
-#endif
 				CommandUtils.ConditionallySetEnvVar(EnvVarNames.LocalRoot, LocalRoot);
 			}
 

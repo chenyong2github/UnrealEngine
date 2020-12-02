@@ -177,8 +177,7 @@ namespace AutomationTool
 			else
 			{
 				// Get the path to UBT
-				FileReference InstalledUBT = FileReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool.exe");
-
+				FileReference InstalledUBT = FileReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
 				UnrealTargetPlatform PlatformToBuild = PlatformList.First();
 				UnrealTargetConfiguration ConfigToBuild = ConfigurationList.First();
 				string TargetToBuild = BuildTargets.First();

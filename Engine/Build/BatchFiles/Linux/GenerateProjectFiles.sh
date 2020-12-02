@@ -20,29 +20,15 @@ if [ ! -d "$BASE_PATH/../../../Source" ]; then
  exit 1
 fi
 
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-  source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
-else
-  source "$BASE_PATH/SetupEnvironment.sh" -mono "$BASE_PATH"
-fi
+source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
 
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
-  if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-    dotnet build $BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildToolCore.csproj -c Development
-  else
-    xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591
-  fi
-	
+  dotnet build $BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
   if [ $? -ne 0 ]; then
     echo GenerateProjectFiles ERROR: Failed to build UnrealBuildTool
     exit 1
   fi
 fi
 
-
 # pass all parameters to UBT
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-  "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" -projectfiles "$@"
-else
-  mono "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool.exe" -projectfiles "$@"
-fi
+"$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" -projectfiles "$@"

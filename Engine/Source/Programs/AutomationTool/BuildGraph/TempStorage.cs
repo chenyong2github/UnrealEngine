@@ -914,8 +914,7 @@ namespace AutomationTool
 
 			DirectoryReference ZipDir = StagingDir ?? OutputDir;
 			// Disabled for net core as using ionic seems to crash when run on build machines (causes a process panic)
-#if !NET_CORE
-			if (Utils.IsRunningOnMono)
+			/*if (Utils.IsRunningOnMono)
 			{
 				ZipThreads = (
 					from CoreNum in Enumerable.Range(0, bZipInParallel ? Environment.ProcessorCount : 1)
@@ -955,8 +954,8 @@ namespace AutomationTool
 						}
 					})).ToList();
 			}
-			else
-#endif
+			else*/
+
 			{
 				ZipThreads = (
 					from CoreNum in Enumerable.Range(0, bZipInParallel ? Environment.ProcessorCount : 1)

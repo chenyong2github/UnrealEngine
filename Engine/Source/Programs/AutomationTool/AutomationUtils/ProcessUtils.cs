@@ -854,7 +854,13 @@ namespace AutomationTool
 
 				bool bRedirectStdOut = (Options & ERunOptions.NoStdOutRedirect) != ERunOptions.NoStdOutRedirect;
 				Proc.StartInfo.FileName = App;
-				Proc.StartInfo.Arguments = String.IsNullOrEmpty(CommandLine) ? "" : CommandLine;
+				
+				// Process Arguments follow windows conventions in .NET Core
+				// Which means single quotes ' are not considered quotes.
+				// see https://github.com/dotnet/runtime/issues/29857
+				// also see UE-102580
+				Proc.StartInfo.Arguments = String.IsNullOrEmpty(CommandLine) ? "" : CommandLine.Replace('\'', '\"');
+				
 				Proc.StartInfo.UseShellExecute = false;
 				if (bRedirectStdOut)
 				{

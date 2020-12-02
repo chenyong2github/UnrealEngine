@@ -13,6 +13,7 @@ using UnrealBuildTool;
 using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Reflection;
+using System.Security.Permissions;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 using System.Xml;
@@ -92,6 +93,9 @@ namespace AutomationTool
 		static internal void InitCommandEnvironment()
 		{
 			CmdEnvironment = new CommandEnvironment();
+
+			// Initializing a type in system.Security.Permissions to make sure it is present as Ionic.Zip requires this assembly
+			EnvironmentPermission _ = new EnvironmentPermission(PermissionState.None);
 		}
 
 		/// <summary>
@@ -1553,11 +1557,8 @@ namespace AutomationTool
 				// Get the xml data stream to read from
 				XmlStream = XmlReader.Create( ManifestFile.FullName, ReaderSettings );
 
-				// Creates an instance of the XmlSerializer class so we can read the settings object
-				XmlSerializer ObjectReader = new XmlSerializer( typeof( UnrealBuildTool.BuildManifest ) );
-
 				// Create an object from the xml data
-				Instance = ( BuildManifest )ObjectReader.Deserialize( XmlStream );
+				Instance = ( BuildManifest )BuildManifestSerializer.Deserialize( XmlStream );
 			}
 			catch( Exception Ex )
 			{
@@ -1574,6 +1575,9 @@ namespace AutomationTool
 
 			return Instance;
 		}
+
+		// statically create this to avoid exceptions while not leaking to much memory
+		private static readonly XmlSerializer BuildManifestSerializer = XmlSerializer.FromTypes(new[] { typeof( UnrealBuildTool.BuildManifest ) })[0];
 
 		private static void CloneDirectoryRecursiveWorker(string SourcePathBase, string TargetPathBase, List<string> ClonedFiles, bool bIncremental = false)
 		{
@@ -1971,11 +1975,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Path to the root directory
 		/// </summary>
-#if NET_CORE
 		public static readonly DirectoryReference RootDirectory = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
-#else
-		public static readonly DirectoryReference RootDirectory = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", ".."));
-#endif
 
 		/// <summary>
 		/// Path to the engine directory
@@ -2147,8 +2147,8 @@ namespace AutomationTool
 		/// <param name="Files">Files to include in the archive</param>
 		public static void ZipFiles(FileReference ZipFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
 		{
-				using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
-				{
+			using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
+			{
 				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
 					foreach(FileReference File in Files)
 					{

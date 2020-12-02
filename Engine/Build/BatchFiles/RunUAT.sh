@@ -55,11 +55,8 @@ if [ -f Build/InstalledBuild.txt ]; then
 	UATCompileArg=
 fi
 
-EnvironmentType=-mono
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
 EnvironmentType=-dotnet
 UATDirectory=Binaries/DotNET/AutomationTool
-fi
 
 if [ "$(uname)" = "Darwin" ]; then
 	# Setup Environment
@@ -78,35 +75,17 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
 		echo Building AutomationTool...
-			dotnet msbuild -restore Source/Programs/AutomationTool/AutomationToolCore.csproj /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:quiet
+		dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.csproj /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:quiet /nodeReuse:false /p:UseSharedCompilation=false
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool failed to compile.
 			exit 1
 		fi
 		echo Building AutomationTool Plugins...
-			dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.proj /property:Configuration=Development /verbosity:quiet
+		dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.proj /property:Configuration=Development /verbosity:quiet  /nodeReuse:false /p:UseSharedCompilation=false
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool plugins failed to compile.
 			exit 1
-			fi
-		else
-			# mono 5.0 and up include msbuild
-			if [ "$IS_MS_BUILD_AVAILABLE" == "1" ]; then
-				BUILD_TOOL=msbuild
-			else
-				BUILD_TOOL=xbuild
-			fi
-			ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591 /property:AutomationToolProjectOnly=true"
-			ARGS="${ARGS} /p:TargetFrameworkProfile="
-			echo "$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
-			$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS
-			# make sure it succeeded
-			if [ $? -ne 0 ]; then
-				echo RunUAT ERROR: AutomationTool failed to compile.
-				exit 1
-			fi
 		fi
 	fi
 fi
@@ -121,27 +100,23 @@ else
 	LogDir="$uebp_LogFolder"
 fi
 
-if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-echo Start UAT: AutomationTool "${Args[@]}"
-	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}"
+
+# if we are running under UE, we need to run this with the term handler (otherwise canceling a UAT job from the editor
+# can leave mono, etc running in the background, which means we need the PID so we 
+# run it in the background
+if [ "$UE_DesktopUnrealProcess" = "1" ]; then
+	# you can't set a dotted env var nicely in sh, but env will run a command with
+	# a list of env vars set, including dotted ones
+	echo Start UAT Non-Interactively: ./AutomationTool "${Args[@]}"
+	trap TermHandler SIGTERM SIGINT
+	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}" &
+	UATPid=$!
+	wait $UATPid
 else
-	# if we are running under UE, we need to run this with the term handler (otherwise canceling a UAT job from the editor
-	# can leave mono, etc running in the background, which means we need the PID so we 
-	# run it in the background
-	if [ "$UE_DesktopUnrealProcess" = "1" ]; then
-		# you can't set a dotted env var nicely in sh, but env will run a command with
-		# a list of env vars set, including dotted ones
-		echo Start UAT Non-Interactively: mono AutomationTool.exe "${Args[@]}"
-		trap TermHandler SIGTERM SIGINT
-		env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg &
-		UATPid=$!
-		wait $UATPid
-	else
-		# you can't set a dotted env var nicely in sh, but env will run a command with
-		# a list of env vars set, including dotted ones
-		echo Start UAT Interactively: mono AutomationTool.exe "${Args[@]}"
-		env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg
-	fi
+	# you can't set a dotted env var nicely in sh, but env will run a command with
+	# a list of env vars set, including dotted ones
+	echo Start UAT Interactively: ./AutomationTool "${Args[@]}"
+	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}"
 fi
 
 UATReturn=$?
@@ -152,6 +127,6 @@ UATReturn=$?
 #cp log*.txt /var/log
 
 if [ $UATReturn -ne 0 ]; then
-	echo RunUAT ERROR: AutomationTool was unable to run successfully.
+	echo RunUAT ERROR: AutomationTool was unable to run successfully. Exited with code: $UATReturn
 	exit $UATReturn
 fi

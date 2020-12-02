@@ -48,7 +48,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The path to UBT
 		/// </summary>
-#if NET_CORE
 		// In net core the actual running entrypoint is the dll, but its easier to run the apphost executable instead to avoid having to run via the dotnet command
 #if WINDOWS
 		// For windows a executable has a .exe extension
@@ -57,18 +56,10 @@ namespace UnrealBuildTool
 		// For linux and mac executables have no extension
 		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Path.ChangeExtension(Assembly.GetExecutingAssembly().GetOriginalLocation(), null)));
 #endif
-#else
-		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation()));
-#endif
 		/// <summary>
 		/// The full name of the Root UE4 directory
 		/// </summary>
-#if NET_CORE
-		// net core builds are in a subdirectory of DotNet binaries
 		public static readonly DirectoryReference RootDirectory = DirectoryReference.Combine(UnrealBuildToolPath.Directory, "..", "..", "..", "..");
-#else
-		public static readonly DirectoryReference RootDirectory = DirectoryReference.Combine(UnrealBuildToolPath.Directory, "..", "..", "..");
-#endif
 		/// <summary>
 		/// The full name of the Engine directory
 		/// </summary>
@@ -442,6 +433,9 @@ namespace UnrealBuildTool
 				// Change the working directory to be the Engine/Source folder. We are likely running from Engine/Binaries/DotNET
 				// This is critical to be done early so any code that relies on the current directory being Engine/Source will work.
 				DirectoryReference.SetCurrentDirectory(UnrealBuildTool.EngineSourceDirectory);
+
+				// Register encodings from Net FW as this is required when using Ionic as we do in multiple toolchains
+				Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 				// Get the type of the mode to execute, using a fast-path for the build mode.
 				Type ModeType = typeof(BuildMode);

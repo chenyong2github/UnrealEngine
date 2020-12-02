@@ -9,18 +9,10 @@ rem ## if you copy it to a different location and run it.
 setlocal 
 echo Running AutomationTool...
 
-set UATExecutable=AutomationToolLauncher.exe
-set UATDirectory=Binaries\DotNET\
-set UATCompileArg=-compile
-
-if "%UE_USE_DOTNET%" == "1" (
-	REM We do not use the automaton tool launcher for dotnet builds
-	set UATExecutable=AutomationTool.exe
-	set UATDirectory=Binaries\DotNET\AutomationTool
-	REM -compile is not supported with netcore
-	set UATCompileArg=
-)
-
+set UATExecutable=AutomationTool.exe
+set UATDirectory=Binaries\DotNET\AutomationTool
+REM -compile is not supported with netcore instead we will compile as part of this batch file
+set UATCompileArg=
 
 rem ## Change the CWD to /Engine. 
 pushd "%~dp0..\..\"
@@ -43,46 +35,23 @@ rem ## check if the UAT projects are present. if not, we'll just use the precomp
 if not exist Source\Programs\AutomationTool\AutomationTool.csproj goto RunPrecompiled
 if not exist Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj goto RunPrecompiled
 
-rem ## Get the path to MSBuild
-if "%UE_USE_DOTNET%" == "1" (
-	goto BuildNetCore
-)
-
-:BuildNetFW
-call "%~dp0GetMSBuildPath.bat"
-if errorlevel 1 goto RunPrecompiled
-%MSBUILD_EXE% /nologo /verbosity:quiet Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj /property:Configuration=Development /property:Platform=AnyCPU
-if errorlevel 1 goto Error_UATCompileFailed
-%MSBUILD_EXE% /nologo /verbosity:quiet Source\Programs\AutomationTool\AutomationTool.csproj /property:Configuration=Development /property:Platform=AnyCPU /property:AutomationToolProjectOnly=true
-if errorlevel 1 goto Error_UATCompileFailed
-goto DoRunUAT
-
-:BuildNetCore
 rem ## Verify that dotnet is present
 call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building AutomationTool...
-dotnet msbuild /restore /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationToolCore.csproj
+dotnet msbuild /restore /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationTool.csproj
 if errorlevel 1 goto Error_UATCompileFailed
 echo Building AutomationTool Plugins...
 dotnet msbuild /restore /property:Configuration=Development /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationTool.proj
 if errorlevel 1 goto Error_UATCompileFailed
 goto DoRunUAT
 
-rem ## ok, well it doesn't look like visual studio is installed, let's try running the precompiled one.
 :RunPrecompiled
 
 set UATCompileArg=
-if "%UE_USE_DOTNET%" == "1" (
-	if not exist Binaries\DotNET\AutomationTool\AutomationTool.exe goto Error_NoFallbackExecutable
-) else (
-	if not exist Binaries\DotNET\AutomationTool.exe goto Error_NoFallbackExecutable
-	if not exist Binaries\DotNET\AutomationToolLauncher.exe set UATExecutable=AutomationTool.exe
-)
+if not exist Binaries\DotNET\AutomationTool\AutomationTool.exe goto Error_NoFallbackExecutable
 goto DoRunUAT
-
-
 
 
 rem ## Run AutomationTool
@@ -116,18 +85,13 @@ echo RunUAT.bat ERROR: The batch file does not appear to be located in the /Engi
 set RUNUAT_EXITCODE=1
 goto Exit_Failure
 
-:Error_NoVisualStudioEnvironment
-echo RunUAT.bat ERROR: A valid version of Visual Studio 2015 does not appear to be installed.
-set RUNUAT_EXITCODE=1
-goto Exit_Failure
-
 :Error_NoDotnetSDK
 echo RunUAT.bat ERROR: Unable to find a install of Dotnet SDK.  Please make sure you have it installed and that `dotnet` is a globally available command.
 set RUNUAT_EXITCODE=1
 goto Exit_Failure
 
 :Error_NoFallbackExecutable
-echo RunUAT.bat ERROR: Visual studio and/or AutomationTool.csproj was not found, nor was Engine\Binaries\DotNET\AutomationTool.exe. Can't run the automation tool.
+echo RunUAT.bat ERROR: Visual studio and/or AutomationTool.csproj was not found, nor was Engine\Binaries\DotNET\AutomationTool\AutomationTool.exe. Can't run the automation tool.
 set RUNUAT_EXITCODE=1
 goto Exit_Failure
 

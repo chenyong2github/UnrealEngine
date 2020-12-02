@@ -726,14 +726,12 @@ namespace AutomationTool
 			var LocationHash = EntryAssemblyLocation.GetHashCode();
 
 			string Prefix = "Global/";
-#if NET_CORE
 			// / is a reservered character for mutexes and thus should be omited when not running on windows
 			// as Global/ and Local/ only has meaning there. Will throw a DirectoryNotFoundException otherwise.
 			if (!Utils.IsRunningOnWindows)
 			{
 				Prefix = "";
 			}
-#endif
 			var MutexName = Prefix + Path.GetFileNameWithoutExtension(EntryAssemblyLocation) + "_" + LocationHash.ToString() + "_Mutex";
 			using (Mutex SingleInstanceMutex = new Mutex(true, MutexName, out bCreatedMutex))
 			{
@@ -753,7 +751,7 @@ namespace AutomationTool
 					}
 					else
 					{
-						throw new AutomationException("A conflicting instance of AutomationTool is already running. Curent location: {0}. A process manager may be used to determine the conflicting process and what tool may have launched it", EntryAssemblyLocation);
+						throw new AutomationException("A conflicting instance of AutomationTool is already running. Current location: {0}. A process manager may be used to determine the conflicting process and what tool may have launched it", EntryAssemblyLocation);
 					}
 				}
 

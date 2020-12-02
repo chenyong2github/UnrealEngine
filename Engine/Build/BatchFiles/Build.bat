@@ -10,14 +10,14 @@ if "%UE_USE_DOTNET%" == "1" (
 	call "%~dp0GetDotnetPath.bat"
 )
 
+rem ## Verify that dotnet is present
+call "%~dp0GetDotnetPath.bat"
+
 REM %1 is the game name
 REM %2 is the platform name
 REM %3 is the configuration name
 
-set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool.exe"
-if "%UE_USE_DOTNET%" == "1" (
-	set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe"
-)
+set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe"
 
 IF EXIST %UBTPath% (
 		%UBTPath% %*

@@ -26,9 +26,7 @@ public class AndroidPlatform : Platform
 	public AndroidPlatform()
 		: base(UnrealTargetPlatform.Android)
 	{
-#if NET_CORE
-		Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-#endif
+
 	}
 
 	private static string GetSONameWithoutArchitecture(ProjectParams Params, string DecoratedExeName)

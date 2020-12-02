@@ -1261,18 +1261,10 @@ namespace AutomationTool
 		/// </summary>
 		public void AddUBTFilesToBuildProducts()
 		{
-#if !NET_CORE
-			if (!GlobalCommandLine.Compile)
-			{
-				CommandUtils.LogVerbose("We are being asked to copy the UBT build products, but we are running precompiled, so this does not make much sense.");
-			}
-#endif
-
 			var UBTLocation = Path.GetDirectoryName(GetUBTExecutable());
 			var UBTFiles = new List<string>(new string[] 
 					{
 						"UnrealBuildTool.exe",
-						"UnrealBuildTool.exe.config"
 					});
 
 			foreach (var UBTFile in UBTFiles)
@@ -1289,41 +1281,15 @@ namespace AutomationTool
 		/// <summary>
 		/// Copy the UAT files to their precompiled location, and add them as build products
 		/// </summary>
-		public void AddUATLauncherFilesToBuildProducts()
-		{
-            var DotNetOutputLocation = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET");
-
-			var UATFiles = new List<string>(new string[] 
-					{
-						"AutomationToolLauncher.exe",
-						"AutomationToolLauncher.exe.config",
-					});
-
-			foreach (var UATFile in UATFiles)
-			{
-				var OutputFile = CommandUtils.CombinePaths(DotNetOutputLocation, UATFile);
-				if (!CommandUtils.FileExists_NoExceptions(OutputFile))
-				{
-					throw new UE4BuildException("Cannot add UAT to the build products because {0} does not exist.", OutputFile);
-				}
-				AddBuildProduct(OutputFile);
-			}
-		}
-
-		/// <summary>
-		/// Copy the UAT files to their precompiled location, and add them as build products
-		/// </summary>
 		public void AddUATFilesToBuildProducts()
 		{
 			// Find all DLLs (scripts and their dependencies)
-            var DotNetOutputLocation = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET");
+            var DotNetOutputLocation = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET", "AutomationTool");
 
 			var UATFiles = new List<string>(new string[] 
 					{
 						"AutomationTool.exe",
-						"AutomationTool.exe.config",
 						"UnrealBuildTool.exe",
-						"UnrealBuildTool.exe.config",
 						"AutomationUtils.Automation.dll",
 						"DotNETUtilities.dll",
 						"BuildUtilities.dll",
@@ -1366,11 +1332,7 @@ namespace AutomationTool
 
 		public static string GetUBTExecutable()
 		{
-#if NET_CORE
-			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe");
-#else
-			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/UnrealBuildTool.exe");
-#endif
+			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" + (Utils.IsRunningOnWindows ? ".exe" : ""));
 		}
 
 		public string UBTExecutable

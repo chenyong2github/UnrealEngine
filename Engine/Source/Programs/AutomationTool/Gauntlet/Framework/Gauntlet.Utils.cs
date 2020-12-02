@@ -116,7 +116,7 @@ namespace Gauntlet
 			{
 				if (String.IsNullOrEmpty(InnerUE4RootDir))
 				{
-					InnerUE4RootDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()), "..", "..", ".."));
+					InnerUE4RootDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
 				}
 
 				return InnerUE4RootDir;

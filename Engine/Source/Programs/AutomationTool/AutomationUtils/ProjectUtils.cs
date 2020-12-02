@@ -745,12 +745,6 @@ namespace AutomationTool
 
 			List<string> ReferencedAssemblies = new List<string>() 
 					{ 
-#if !NET_CORE 
-// for net core we already define the system references for DynamicCompilation
-						"System.dll", 
-						"System.Core.dll", 
-						"System.Xml.dll", 
-#endif
 						typeof(UnrealBuildTool.PlatformExports).Assembly.Location
 					};
 			List<string> PreprocessorDefinitions = RulesAssembly.GetPreprocessorDefinitions();

@@ -90,25 +90,13 @@ namespace AutomationTool
 		/// </summary>
 		public static Dictionary<string, CommandLineArg> RegisteredArgs = new Dictionary<string, CommandLineArg>(StringComparer.InvariantCultureIgnoreCase);
 
-		public static CommandLineArg CompileOnly = new CommandLineArg("-CompileOnly");
 		public static CommandLineArg Verbose = new CommandLineArg("-Verbose");
 		public static CommandLineArg TimeStamps = new CommandLineArg("-TimeStamps");
 		public static CommandLineArg Submit = new CommandLineArg("-Submit");
 		public static CommandLineArg NoSubmit = new CommandLineArg("-NoSubmit");
 		public static CommandLineArg NoP4 = new CommandLineArg("-NoP4");
 		public static CommandLineArg P4 = new CommandLineArg("-P4");
-#if !NET_CORE
-        public static CommandLineArg Compile = new CommandLineArg("-Compile");
-#endif
 		public static CommandLineArg IgnoreDependencies = new CommandLineArg("-IgnoreDependencies");
-		/// <summary>
-		/// This command is LEGACY because we used to run UAT.exe to compile scripts by default.
-		/// Now we only compile by default when run via RunUAT.bat, which still understands -nocompile.
-		/// However, the batch file simply passes on all arguments, so UAT will choke when encountering -nocompile.
-		/// Keep this CommandLineArg around so that doesn't happen.
-		/// </summary>
-		public static CommandLineArg NoCompileLegacyDontUse = new CommandLineArg("-NoCompile");
-        public static CommandLineArg NoCompileEditor = new CommandLineArg("-NoCompileEditor");
 		public static CommandLineArg Help = new CommandLineArg("-Help");
 		public static CommandLineArg List = new CommandLineArg("-List");
 		public static CommandLineArg NoKill = new CommandLineArg("-NoKill");
@@ -387,7 +375,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			}
 
 			// Validate
-			var Result = OutCommandsToExecute.Count > 0 || GlobalCommandLine.Help || GlobalCommandLine.CompileOnly || GlobalCommandLine.List;
+			var Result = OutCommandsToExecute.Count > 0 || GlobalCommandLine.Help || GlobalCommandLine.List;
 			if (OutCommandsToExecute.Count > 0)
 			{
 				Log.TraceVerbose("Found {0} scripts to execute:", OutCommandsToExecute.Count);
@@ -478,12 +466,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			using(TelemetryStopwatch ScriptCompileStopwatch = new TelemetryStopwatch("ScriptCompile"))
 			{
 				ScriptCompiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);
-			}
-
-			if (GlobalCommandLine.CompileOnly)
-			{
-				Log.TraceInformation("Compilation successful, exiting (CompileOnly)");
-				return ExitCode.Success;
 			}
 
 			if (GlobalCommandLine.List)

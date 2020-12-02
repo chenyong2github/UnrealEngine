@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -172,17 +173,14 @@ namespace Tools.DotNETCommon
 			string OutputType, AssemblyName;
 			if (Properties.TryGetValue("OutputType", out OutputType) && Properties.TryGetValue("AssemblyName", out AssemblyName))
 			{
-				// DotNET Core framework doesn't produce .exe files, it produces DLLs in all cases
-				if (IsDotNETCoreProject())
-				{
-					OutputType = "Library";
-				}
-
 				switch (OutputType)
 				{
 					case "Exe":
 					case "WinExe":
-						BuildProducts.Add(FileReference.Combine(OutputDir, AssemblyName + ".exe"));
+						string ExecutableExtension = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "";
+						BuildProducts.Add(FileReference.Combine(OutputDir, AssemblyName + ExecutableExtension));
+						// dotnet outputs a apphost executable and a dll with the actual assembly
+						AddOptionalBuildProduct(FileReference.Combine(OutputDir, AssemblyName + ".dll"), BuildProducts);
 						AddOptionalBuildProduct(FileReference.Combine(OutputDir, AssemblyName + ".pdb"), BuildProducts);
 						AddOptionalBuildProduct(FileReference.Combine(OutputDir, AssemblyName + ".exe.config"), BuildProducts);
 						AddOptionalBuildProduct(FileReference.Combine(OutputDir, AssemblyName + ".exe.mdb"), BuildProducts);
@@ -440,7 +438,7 @@ namespace Tools.DotNETCommon
 				if(!bEmbedInteropTypes)
 				{
 					FileReference AssemblyFile = FileReference.Combine(BaseDirectory, HintPath);
-					bool bPrivate = GetChildElementBoolean(ParentElement, "Private", !bEmbedInteropTypes);
+					bool bPrivate = GetChildElementBoolean(ParentElement, "Private", true);
 					References.Add(AssemblyFile, bPrivate);
 				}
 			}

@@ -69,12 +69,13 @@ namespace UnrealBuildTool
 		private void ThreadFunc()
 		{
 			string Args = Action.CommandArguments;
-#if NET_CORE
-			// Process Arguments follow windows conventions in .NET Core
+			// TODO: Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
 			// see https://github.com/dotnet/runtime/issues/29857
-			Args = Args.Replace('\'', '\"');
-#endif
+			// also see UE-102580
+			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+			Args = Args?.Replace('\'', '\"');
+
 			// Create the action's process.
 			ProcessStartInfo ActionStartInfo = new ProcessStartInfo();
 			ActionStartInfo.WorkingDirectory = Action.WorkingDirectory.FullName;
@@ -275,18 +276,6 @@ namespace UnrealBuildTool
 			{
 				MaxActionsToExecuteInParallel = NumPhysicalCores;
 			}
-
-#if !NET_CORE
-			if (Utils.IsRunningOnMono)
-			{
-				long PhysicalRAMAvailableMB = (new PerformanceCounter("Mono Memory", "Total Physical Memory").RawValue) / (1024 * 1024);
-				// heuristic: give each action at least 1.5GB of RAM (some clang instances will need more) if the total RAM is low, or 1GB on 16+GB machines
-				long MinMemoryPerActionMB = (PhysicalRAMAvailableMB < 16384) ? 3 * 1024 / 2 : 1024;
-				int MaxActionsAffordedByMemory = (int)(Math.Max(1, (PhysicalRAMAvailableMB) / MinMemoryPerActionMB));
-
-				MaxActionsToExecuteInParallel = Math.Min(MaxActionsToExecuteInParallel, MaxActionsAffordedByMemory);
-			}
-#endif
 
 			MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
 			return MaxActionsToExecuteInParallel;

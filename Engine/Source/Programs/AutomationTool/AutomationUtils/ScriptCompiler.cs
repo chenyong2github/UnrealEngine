@@ -68,20 +68,6 @@ namespace AutomationTool
 			Parallel.For(0, ProjectFiles.Count, Idx => Projects[Idx] = CsProjectInfo.Read(ProjectFiles[Idx], MsBuildProperties));
 			Log.TraceLog("Parsed project files in {0:0.000}s", ParsingTimer.Elapsed.TotalSeconds);
 
-			// net core does not support shadow copying, as such we expect the compile to happen before running UAT via dotnet build
-#if !NET_CORE
-			// Compile only if not disallowed.
-			if (GlobalCommandLine.Compile && !String.IsNullOrEmpty(CommandUtils.CmdEnv.MsBuildExe))
-			{
-				List<CsProjectInfo> CompileProjects = new List<CsProjectInfo>(Projects);
-				if (CommandUtils.IsEngineInstalled())
-				{
-					CompileProjects.RemoveAll(x => x.ProjectPath.IsUnderDirectory(CommandUtils.EngineDirectory));
-				}
-				CompileAutomationProjects(CompileProjects, MsBuildProperties);
-			}
-#endif
-
 			// Get all the build artifacts
 			BuildProducts = new HashSet<FileReference>();
 
@@ -474,12 +460,8 @@ namespace AutomationTool
 				CommandUtils.LogLog("Loading script DLL: {0}", AssemblyLocation);
 				try
 				{
-#if NET_CORE
 					AssemblyUtils.AddFileToAssemblyCache(AssemblyLocation.FullName);
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
-#else
-					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
-#endif
 					Assemblies.Add(Assembly);
 				}
 				catch (Exception Ex)

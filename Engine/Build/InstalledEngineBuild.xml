@@ -441,7 +441,7 @@
 	
 	<Agent Name="BuildRules" Type="Win64_Licensee">
 		<Node Name="Compile Rules Assemblies" Produces="#Rules Assemblies">
-			<Spawn Exe="Engine/Binaries/DotNET/UnrealBuildTool.exe" Arguments="-Mode=QueryTargets"/>
+			<Spawn Exe="Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe" Arguments="-Mode=QueryTargets"/>
 			<Tag Files="Engine/Intermediate/Build/BuildRules/..." With="#Rules Assemblies"/>
 		</Node>
 	</Agent>
@@ -481,7 +481,7 @@
 			<Delete Files="$(CsToolsDir)/..."/>
 
 			<!-- Copy Source and referenced libraries to a new location with Confidential folders removed-->
-			<Tag Files="$(AutomationToolPaths)" Filter="*.csproj" Except="$(ConfidentialExceptions);*Core.csproj"  With="#UAT Projects"/>
+			<Tag Files="$(AutomationToolPaths)" Filter="*.csproj" Except="$(ConfidentialExceptions)"  With="#UAT Projects"/>
 			<CsCompile Project="#UAT Projects" Configuration="Development" Platform="AnyCPU" TagReferences="#UATReferences" EnumerateOnly="true"/>
 			<Tag Files="Engine/Binaries/DotNET/...;Engine/Binaries/ThirdParty/Newtonsoft/...;Engine/Binaries/ThirdParty/VisualStudio/...;Engine/Source/Programs/...;Engine/Platforms/*/Source/Programs/...;Engine/Source/Editor/SwarmInterface/...;#UATReferences" Except="$(ConfidentialExceptions);AutomationTool.csproj.References" With="#RedistUATSource"/>
 			<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
@@ -493,7 +493,7 @@
 			<ForEach Name="AutomationToolPath" Values="$(AutomationToolPaths)">
 				<Property Name="RedistAutomationToolPaths" Value="$(RedistAutomationToolPaths)$(CsToolsDir)/$(AutomationToolPath);"/>
 			</ForEach>
-			<Tag Files="$(RedistAutomationToolPaths)" Filter="*.csproj" Except="*Core.csproj" With="#RedistUATProjects"/>
+			<Tag Files="$(RedistAutomationToolPaths)" Filter="*.csproj" With="#RedistUATProjects"/>
 
 			<!-- Compile all the tools -->
 			<CsCompile Project="#RedistUATProjects" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>

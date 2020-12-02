@@ -371,7 +371,7 @@ namespace UnrealBuildTool
 				Result += " -F \"" + Path.GetDirectoryName(Path.GetFullPath(FrameworkName)) + "\"";
 				FrameworkName = Path.GetFileNameWithoutExtension(FrameworkName);
 			}
-			Result += " " + Arg + " \"" + FrameworkName + "\"";
+			Result += " " + Arg + " \"\"" + FrameworkName + "\"\"";
 			return Result;
 		}
 

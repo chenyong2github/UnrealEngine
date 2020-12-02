@@ -57,7 +57,6 @@ namespace Turnkey
 			return Match.Groups[1].Value;
 		}
 
-#if NET_CORE
 #if WINDOWS
 		private string ShowFormsDialogs(string Prompt, string Default)
 		{
@@ -105,14 +104,12 @@ namespace Turnkey
 			}
 		}
 #endif
-#endif
 
 		private string ShowDialog(string Prompt, string Default, bool bIsList)
 		{
 // disable unreachable code warning as this fails on linux builds due to this method not being implemented
 #pragma warning disable 0162
 			string Result;
-#if NET_CORE
 #if WINDOWS
 			Result = ShowFormsDialogs(Prompt, Default);
 #elif OSX
@@ -120,22 +117,6 @@ namespace Turnkey
 #else
 			throw new NotImplementedException("Linux dialog not implemented");
 #endif
-
-#else // !NET_CORE
-			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac)
-			{
-				Result = ShowMacDialog(Prompt, Default);
-			}
-			else if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Win64)
-			{
-				Result = Microsoft.VisualBasic.Interaction.InputBox(Prompt, "Turnkey Input", Default);
-			}
-			else
-			{
-				throw new NotImplementedException("Linux dialog not implemented");
-			}
-#endif
-
 			if (string.IsNullOrEmpty(Result) && bIsList)
 			{
 				return "0";
