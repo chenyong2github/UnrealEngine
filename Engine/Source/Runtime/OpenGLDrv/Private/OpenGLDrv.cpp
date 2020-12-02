@@ -567,7 +567,7 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 	// Setup CVars that require the RHI initialized
 }
 
-void PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
+void FOpenGLBase::PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
 {
 	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Unknown;
 }
