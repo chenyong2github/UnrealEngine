@@ -19258,7 +19258,19 @@ bool UMaterialExpressionStrataDiffuseBSDF::IsResultStrataMaterial(int32 OutputIn
 
 void UMaterialExpressionStrataDiffuseBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
-	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+	const bool bIsScaleInputConnected = true; // STRATA_TODO
+	if (SubsurfaceProfile || bIsScaleInputConnected)
+	{
+		StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
+		if (SubsurfaceProfile)
+		{
+			StrataMaterialInfo.AddSubsurfaceProfile(SubsurfaceProfile);
+		}
+	}
+	else
+	{
+		StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+	}
 }
 #endif // WITH_EDITOR
 

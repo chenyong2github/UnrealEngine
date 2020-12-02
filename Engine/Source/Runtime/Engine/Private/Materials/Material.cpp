@@ -4493,11 +4493,20 @@ void UMaterial::RebuildShadingModelField()
 		}
 		if (StrataMaterialInfo.CountShadingModels() > 1)
 		{
-			bSanitizeMaterial = true;
-			UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single material represented."), *GetName());
+			if (StrataMaterialInfo.CountShadingModels() == 2 && StrataMaterialInfo.HasShadingModel(EStrataShadingModel::SSM_DefaultLit) && StrataMaterialInfo.HasShadingModel(EStrataShadingModel::SSM_SubsurfaceLit))
+			{
+				StrataMaterialInfo = FStrataMaterialInfo();
+				StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
+			}
+			else
+			{
+				bSanitizeMaterial = true;
+				UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single material represented."), *GetName());
+			}
 		}
 		if (bSanitizeMaterial)
 		{
+			StrataMaterialInfo = FStrataMaterialInfo();
 			StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 		}
 		
@@ -4510,6 +4519,16 @@ void UMaterial::RebuildShadingModelField()
 			if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
 			{
 				BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
+			}
+		}
+		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit))
+		{
+			MaterialDomain = EMaterialDomain::MD_Surface;
+			ShadingModel = MSM_SubsurfaceProfile;
+			if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
+			{
+				UE_LOG(LogMaterial, Error, TEXT("%s: Material has subsurface data, and its blending mode is not set to Opaque or Masked. Forcing blend mode to Opaque."), *GetName());
+				BlendMode = EBlendMode::BLEND_Opaque;
 			}
 		}
 		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_DefaultLit))
@@ -4530,6 +4549,16 @@ void UMaterial::RebuildShadingModelField()
 
 		// Also update the ShadingModels for remaining pipeline operation
 		ShadingModels.AddShadingModel(ShadingModel);
+
+		// Subsurface profil
+		if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
+		{
+			if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
+			{
+				UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single sub-surface profile used."), *GetName());
+			}
+			SubsurfaceProfile = StrataMaterialInfo.GetSubsurfaceProfile();
+		}
 	}
 	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
 	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.

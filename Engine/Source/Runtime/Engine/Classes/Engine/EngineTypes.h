@@ -21,6 +21,7 @@ class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class UPrimitiveComponent;
 class USceneComponent;
+class USubsurfaceProfile;
 
 /**
  * Default number of components to expect in TInlineAllocators used with AActor component arrays.
@@ -539,6 +540,7 @@ enum EStrataShadingModel
 {
 	SSM_Unlit					UMETA(DisplayName = "Unlit"),
 	SSM_DefaultLit				UMETA(DisplayName = "DefaultLit"),
+	SSM_SubsurfaceLit			UMETA(DisplayName = "SubsurfaceLit"),
 	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
@@ -562,7 +564,10 @@ public:
 	uint8 GetShadingModelField() const { return ShadingModelField; }
 	int32 CountShadingModels() const { return FMath::CountBits(ShadingModelField); }
 
-	// STRATA_TODO SSS LUT
+	// Subsurface profiles
+	void AddSubsurfaceProfile(USubsurfaceProfile* InProfile) { if (InProfile) SubsurfaceProfiles.Add(InProfile); }
+	int32 CountSubsurfaceProfiles() const { return SubsurfaceProfiles.Num(); }
+	USubsurfaceProfile* GetSubsurfaceProfile() const { return SubsurfaceProfiles.Num() > 0 ? SubsurfaceProfiles[0] : nullptr; }
 
 	bool IsValid() const { return (ShadingModelField > 0) && (ShadingModelField < (1 << SSM_NUM)); }
 
@@ -572,6 +577,9 @@ public:
 private:
 	UPROPERTY()
 	uint8 ShadingModelField = 0;
+
+	UPROPERTY()
+	TArray<USubsurfaceProfile*> SubsurfaceProfiles;
 };
 
 /** This is used by the drawing passes to determine tessellation policy, so changes here need to be supported in native code. */
