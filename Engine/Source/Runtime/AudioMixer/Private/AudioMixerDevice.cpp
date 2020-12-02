@@ -100,6 +100,14 @@ namespace Audio
 		}
 	}
 
+	void FMixerDevice::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		{
+			Collector.AddReferencedObject(Pair.Key);
+		}
+	}
+
 	void FMixerDevice::CheckAudioThread() const
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
