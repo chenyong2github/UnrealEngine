@@ -145,6 +145,31 @@ TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString> & Se
 	return MenuBuilder.MakeWidget();
 }
 
+void SPathPicker::ExecuteRenameFolder()
+{
+	if (PathViewPtr.IsValid())
+	{
+		const TArray<FContentBrowserItem> SelectedItems = PathViewPtr->GetSelectedFolderItems();
+		if (SelectedItems.Num() == 1)
+		{
+			PathViewPtr->RenameFolderItem(SelectedItems[0]);
+		}
+	}
+}
+
+void SPathPicker::ExecuteAddFolder()
+{
+	if (PathViewPtr.IsValid())
+	{
+		const TArray<FString> SelectedItems = PathViewPtr->GetSelectedPaths();
+		if (SelectedItems.Num() == 1)
+		{
+			FOnCreateNewFolder OnCreateNewFolder = FOnCreateNewFolder::CreateSP(PathViewPtr.Get(), &SPathView::NewFolderItemRequested);
+			CreateNewFolder(SelectedItems[0], OnCreateNewFolder);
+		}
+	}
+}
+
 void SPathPicker::CreateNewFolder(FString FolderPath, FOnCreateNewFolder InOnCreateNewFolder)
 {
 	const FText DefaultFolderBaseName = LOCTEXT("DefaultFolderName", "NewFolder");

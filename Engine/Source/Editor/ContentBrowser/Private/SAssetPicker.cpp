@@ -672,6 +672,14 @@ bool SAssetPicker::CanExecuteRenameRequested()
 	return ContentBrowserUtils::CanRenameFromAssetView(AssetViewPtr);
 }
 
+void SAssetPicker::ExecuteRenameCommand()
+{
+	if (Commands.IsValid())
+	{
+		Commands->TryExecuteAction(FGenericCommands::Get().Rename.ToSharedRef());
+	}
+}
+
 void SAssetPicker::BindCommands()
 {
 	Commands = MakeShareable(new FUICommandList);

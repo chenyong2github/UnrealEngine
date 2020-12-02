@@ -37,6 +37,12 @@ public:
 	/** Handler for creating a new folder in the path picker */
 	void CreateNewFolder(FString FolderPath, FOnCreateNewFolder InOnCreateNewFolder);
 
+	/** Rename the selected, will just use the first folder selected*/
+	void ExecuteRenameFolder();
+
+	/** Add a folder to the first selected folder*/
+	void ExecuteAddFolder();
+
 private:
 
 	/** Handle for when selection changes */

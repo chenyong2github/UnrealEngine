@@ -861,6 +861,37 @@ void FContentBrowserSingleton::SaveContentBrowserSettings(TSharedPtr<SWidget> Co
 	}
 }
 
+
+void FContentBrowserSingleton::ExecuteRename(TSharedPtr<SWidget> PickerWidget)
+{
+	if (PickerWidget.IsValid())
+	{
+		if (PickerWidget->GetType() == FName(TEXT("SAssetPicker")))
+		{
+			TSharedPtr<SAssetPicker> AssetPicker = StaticCastSharedPtr<SAssetPicker>(PickerWidget);
+			AssetPicker->ExecuteRenameCommand();
+		}
+		else if (PickerWidget->GetType() == FName(TEXT("SPathPicker")))
+		{
+			TSharedPtr<SPathPicker> PathPicker = StaticCastSharedPtr<SPathPicker>(PickerWidget);
+			PathPicker->ExecuteRenameFolder();
+		}
+	}
+}
+
+
+void FContentBrowserSingleton::ExecuteAddFolder(TSharedPtr<SWidget> Widget)
+{
+	if (Widget.IsValid())
+	{
+		if (Widget->GetType() == FName(TEXT("SPathPicker")))
+		{
+			TSharedPtr<SPathPicker> PathPicker = StaticCastSharedPtr<SPathPicker>(Widget);
+			PathPicker->ExecuteAddFolder();
+		}
+	}
+}
+
 void FContentBrowserSingleton::PopulateConfigValues()
 {
 	const FString ContentBrowserSection = TEXT("ContentBrowser");

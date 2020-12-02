@@ -71,6 +71,8 @@ public:
 	virtual void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false) override;
 	virtual void ForceShowPluginContent(bool bEnginePlugin) override;
 	virtual void SaveContentBrowserSettings(TSharedPtr<SWidget> ContentBrowserWidget) override;
+	virtual void ExecuteRename(TSharedPtr<SWidget> PickerWidget) override;
+	virtual void ExecuteAddFolder(TSharedPtr<SWidget> PathPickerWidget) override;
 
 	/** Gets the content browser singleton as a FContentBrowserSingleton */
 	static FContentBrowserSingleton& Get();

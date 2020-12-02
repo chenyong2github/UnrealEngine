@@ -46,6 +46,9 @@ public:
 	/** Return the associated AssetView */
 	const TSharedPtr<SAssetView>& GetAssetView() const { return AssetViewPtr; }
 
+	/** Function that's called when someone wants to execute a Rename Command*/
+	void ExecuteRenameCommand();
+
 private:
 	/** Focuses the search box post-construct */
 	EActiveTimerReturnType SetFocusPostConstruct( double InCurrentTime, float InDeltaTime );

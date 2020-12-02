@@ -646,4 +646,18 @@ public:
 	 * @param ContentBrowserWidget The content browser widget to save
 	 */
 	virtual void SaveContentBrowserSettings(TSharedPtr<SWidget> ContentBrowserWidget) = 0;
+
+	/**
+	 * Rename current first selected content item on the passed in widget.
+	 *
+	 * @param PickerWidget The picker widget whose asset we want to rename, should be a asset or path picker widget.
+	 */
+	virtual void ExecuteRename(TSharedPtr<SWidget> PickerWidget) = 0;
+
+	/**
+	 * Add a folder to the path picker widget under the current selected path.
+	 *
+	 * @param PathPickerWidget The path picker widget where we want to add an folder
+	 */
+	virtual void ExecuteAddFolder(TSharedPtr<SWidget> PathPickerWidget) = 0;
 };
