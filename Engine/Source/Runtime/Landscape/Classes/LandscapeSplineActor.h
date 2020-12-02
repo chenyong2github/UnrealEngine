@@ -26,6 +26,7 @@ public:
 		
 #if WITH_EDITOR
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Bounds; }
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	void GetSharedProperties(ULandscapeInfo* InLandscapeInfo);
 

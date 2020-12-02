@@ -6,6 +6,11 @@
 #include "Landscape.h"
 #include "LandscapeSplinesComponent.h"
 
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
+#endif
+
 ALandscapeSplineActor::ALandscapeSplineActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -31,6 +36,11 @@ ULandscapeInfo* ALandscapeSplineActor::GetLandscapeInfo() const
 }
 
 #if WITH_EDITOR
+TUniquePtr<FWorldPartitionActorDesc> ALandscapeSplineActor::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FLandscapeSplineActorDesc());
+}
+
 void ALandscapeSplineActor::GetSharedProperties(ULandscapeInfo* InLandscapeInfo)
 {
 	Modify();

@@ -55,6 +55,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Nanite data is now transient in Geometry Collection similar to how RenderData is transient in StaticMesh.
 		GeometryCollectionNaniteTransient,
 
+		// Added FLandscapeSplineActorDesc
+		AddedLandscapeSplineActorDesc,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
