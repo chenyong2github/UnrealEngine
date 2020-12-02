@@ -530,6 +530,13 @@ public:
 	 */
 	static void CORE_API SetTagNone();
 
+	/**
+	 * Restore the ETaskTag::StaticInit tag so that the destructors of global
+	 * (or local static) C++ objects function properly when checking thread
+	 * state (from functions like IsInGameThread()).
+	 */
+	static void CORE_API SetTagStaticInit();
+
 protected:
 	CORE_API FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
 

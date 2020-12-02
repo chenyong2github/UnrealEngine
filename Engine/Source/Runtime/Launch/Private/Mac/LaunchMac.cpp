@@ -201,6 +201,11 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 	}
 }
 
+- (void) applicationWillTerminate:(NSNotification*)notification
+{
+	FTaskTagScope::SetTagStaticInit();
+}
+
 - (void) runGameThread:(id)Arg
 {
 	bool bIsBuildMachine = false;

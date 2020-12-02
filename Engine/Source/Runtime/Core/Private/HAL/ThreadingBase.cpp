@@ -57,6 +57,11 @@ void FTaskTagScope::SetTagNone()
 	ActiveTaskTag = ETaskTag::ENone;
 }
 
+void FTaskTagScope::SetTagStaticInit()
+{
+	ActiveTaskTag = ETaskTag::EStaticInit;
+}
+
 FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag), TagOnlyIfNone(InTagOnlyIfNone)
 {
 	checkf(Tag != ETaskTag::ENone, TEXT("None cannot be used as a Tag"));
