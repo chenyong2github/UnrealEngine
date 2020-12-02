@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Camera/CameraShakeBase.h"
 #include "Evaluation/MovieSceneCameraShakeTemplate.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "MatineeCameraShake.generated.h"
 
 class AActor;
