@@ -104,7 +104,8 @@ protected:
 
 public:	
 	FAnimNode_LayeredBoneBlend()
-		: bMeshSpaceRotationBlend(false)
+		: BlendMode(ELayeredBoneBlendMode::BranchFilter)
+		, bMeshSpaceRotationBlend(false)
 		, bMeshSpaceScaleBlend(false)
 		, CurveBlendOption(ECurveBlendOption::Override)
 		, bBlendRootMotionBasedOnRootBone(true)
