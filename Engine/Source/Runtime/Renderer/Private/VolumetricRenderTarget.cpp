@@ -59,7 +59,11 @@ bool IsVolumetricRenderTargetEnabled()
 
 bool IsVolumetricRenderTargetAsyncCompute()
 {
-	return GSupportsEfficientAsyncCompute && CVarVolumetricRenderTargetPreferAsyncCompute.GetValueOnRenderThread() > 0;
+	// TODO remove that when we remove the pixel shading path in 5.0
+	static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VolumetricCloud.DisableCompute"));
+	const bool bCloudComputePathDisabled = CVar && CVar->GetInt() > 1;
+
+	return GSupportsEfficientAsyncCompute && CVarVolumetricRenderTargetPreferAsyncCompute.GetValueOnRenderThread() > 0 && !bCloudComputePathDisabled;
 }
 
 static bool ShouldViewComposeVolumetricRenderTarget(const FViewInfo& ViewInfo)
