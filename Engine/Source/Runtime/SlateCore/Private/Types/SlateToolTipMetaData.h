@@ -13,5 +13,5 @@ class FSlateToolTipMetaData : public ISlateMetaData
 public:
 	SLATE_METADATA_TYPE(FSlateToolTipMetaData, ISlateMetaData)
 	
-	TSharedPtr<IToolTip> ToolTip;
+	TAttribute<TSharedPtr<IToolTip>> ToolTip;
 };

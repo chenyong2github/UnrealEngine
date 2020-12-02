@@ -292,6 +292,7 @@ SWidget::~SWidget()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SWidget::Construct(
 	const TAttribute<FText>& InToolTipText,
 	const TSharedPtr<IToolTip>& InToolTip,
@@ -309,47 +310,81 @@ void SWidget::Construct(
 	const TArray<TSharedRef<ISlateMetaData>>& InMetaData
 )
 {
-	EnabledState = InEnabledState;
-	Visibility = InVisibility;
-	RenderOpacity = InRenderOpacity;
-	RenderTransform = InTransform;
-	RenderTransformPivot = InTransformPivot;
-	Tag = InTag;
-	bForceVolatile = InForceVolatile;
-	Clipping = InClipping;
-	FlowDirectionPreference = InFlowPreference;
-	MetaData.Append(InMetaData);
-
-	if (InToolTip.IsValid())
-	{
-		// If someone specified a fancy widget tooltip, use it.
-		SetToolTip(InToolTip);
-	}
-	else if (InToolTipText.IsSet())
-	{
-		// If someone specified a text binding, make a tooltip out of it
-		SetToolTipText(InToolTipText);
-	}
-
-	SetCursor(InCursor);
-
-#if WITH_ACCESSIBILITY
-	if (InAccessibleData.IsSet())
-	{
-		SetCanChildrenBeAccessible(InAccessibleData->bCanChildrenBeAccessible);
-		// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
-		SetAccessibleBehavior(InAccessibleData->AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleBehavior, InAccessibleData->AccessibleText, EAccessibleType::Main);
-		SetAccessibleBehavior(InAccessibleData->AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleSummaryBehavior, InAccessibleData->AccessibleSummaryText, EAccessibleType::Summary);
-	}
-#endif
+	FSlateBaseNamedArgs Args;
+	Args._ToolTipText = InToolTipText;
+	Args._ToolTip = InToolTip;
+	Args._Cursor = InCursor;
+	Args._IsEnabled = InEnabledState;
+	Args._Visibility = InVisibility;
+	Args._RenderOpacity = InRenderOpacity;
+	Args._ForceVolatile = InForceVolatile;
+	Args._Clipping = InClipping;
+	Args._FlowDirectionPreference = InFlowPreference;
+	Args._RenderTransform = InTransform;
+	Args._RenderTransformPivot = InTransformPivot;
+	Args._Tag = InTag;
+	Args._AccessibleParams = InAccessibleData;
+	Args.MetaData = InMetaData;
+	SWidgetConstruct(Args);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState,
 							   const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot,
 							   const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TOptional<FAccessibleWidgetData>& InAccessibleData,
 							   const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
 {
 	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InAccessibleData, InMetaData);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void SWidget::SWidgetConstruct(const FSlateBaseNamedArgs& Args)
+{
+	EnabledState = Args._IsEnabled;
+	Visibility = Args._Visibility;
+	RenderOpacity = Args._RenderOpacity;
+	RenderTransform = Args._RenderTransform;
+	RenderTransformPivot = Args._RenderTransformPivot;
+	Tag = Args._Tag;
+	bForceVolatile = Args._ForceVolatile;
+	Clipping = Args._Clipping;
+	FlowDirectionPreference = Args._FlowDirectionPreference;
+	MetaData.Append(Args.MetaData);
+
+	if (Args._ToolTip.IsSet())
+	{
+		// If someone specified a fancy widget tooltip, use it.
+		SetToolTip(Args._ToolTip);
+	}
+	else if (Args._ToolTipText.IsSet())
+	{
+		// If someone specified a text binding, make a tooltip out of it
+		SetToolTipText(Args._ToolTipText);
+	}
+
+	SetCursor(Args._Cursor);
+
+#if WITH_ACCESSIBILITY
+	// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
+	if (Args._AccessibleText.IsSet() || Args._AccessibleParams.IsSet())
+	{
+		auto SetAccessibleWidgetData = [this](const FAccessibleWidgetData& AccessibleParams)
+		{
+			SetCanChildrenBeAccessible(AccessibleParams.bCanChildrenBeAccessible);
+			SetAccessibleBehavior(AccessibleParams.AccessibleText.IsSet() ? EAccessibleBehavior::Custom : AccessibleParams.AccessibleBehavior, AccessibleParams.AccessibleText, EAccessibleType::Main);
+		SetAccessibleBehavior(AccessibleParams.AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : AccessibleParams.AccessibleSummaryBehavior, AccessibleParams.AccessibleSummaryText, EAccessibleType::Summary);
+		};
+		if (Args._AccessibleText.IsSet())
+		{
+			SetAccessibleWidgetData(FAccessibleWidgetData{ Args._AccessibleText });
+		}
+		else
+		{
+			SetAccessibleWidgetData(Args._AccessibleParams.GetValue());
+		}
+	}
+#endif
 }
 
 FReply SWidget::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
@@ -1074,9 +1109,9 @@ void SWidget::SetToolTipText( const FText& ToolTipText )
 	}
 }
 
-void SWidget::SetToolTip( const TSharedPtr<IToolTip> & InToolTip )
+void SWidget::SetToolTip(const TAttribute<TSharedPtr<IToolTip>>& InToolTip)
 {
-	if (InToolTip)
+	if (InToolTip.IsSet())
 	{
 		Private::FindOrAddToolTipMetaData(this)->ToolTip = InToolTip;
 	}
@@ -1090,7 +1125,7 @@ TSharedPtr<IToolTip> SWidget::GetToolTip()
 {
 	if (TSharedPtr<FSlateToolTipMetaData> Data = GetMetaData<FSlateToolTipMetaData>())
 	{
-		return Data->ToolTip;
+		return Data->ToolTip.Get();
 	}
 	return TSharedPtr<IToolTip>();
 }
@@ -1748,9 +1783,12 @@ FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
 		//TODO should use GetToolTip
 		if (TSharedPtr<FSlateToolTipMetaData> Data = GetMetaData<FSlateToolTipMetaData>())
 		{
-			if (Data->ToolTip && !Data->ToolTip->IsEmpty())
+			if (TSharedPtr<IToolTip> ToolTip = Data->ToolTip.Get())
 			{
-				return Data->ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
+				if (ToolTip && !ToolTip->IsEmpty())
+				{
+					return ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
+				}
 			}
 		}
 		break;

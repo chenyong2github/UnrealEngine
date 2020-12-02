@@ -41,7 +41,7 @@ public:
 	{
 	public:
 
-		HACK_SLATE_SLOT_ARGS(FWizardPage)
+		SLATE_BEGIN_ARGS(FWizardPage)
 			: _ButtonContent()
 			, _CanShow(true)
 			, _PageContent()
