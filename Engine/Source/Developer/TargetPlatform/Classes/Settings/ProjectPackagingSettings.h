@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 #include "ProjectPackagingSettings.generated.h"
 
 struct FTargetInfo;
@@ -96,12 +95,23 @@ enum class EProjectPackagingBlueprintNativizationMethod : uint8
  * Implements the Editor's user settings.
  */
 UCLASS(config=Game, defaultconfig)
-class UNREALED_API UProjectPackagingSettings
+class TARGETPLATFORM_API UProjectPackagingSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	/**
+	 * This class was moved from UnrealEd module, but to allow it to be used by developer tools, like UFE, it has moved to this module.
+	 * However, for back-compat, we want to use the old name in the ini files, so that everything works without needing to touch every
+	 * Game.ini file
+	 */
+	virtual void OverrideConfigSection(FString& InOutSectionName) override
+	{
+		InOutSectionName = TEXT("/Script/UnrealEd.ProjectPackagingSettings");
+	}
+
 public:
+
 	/**
 	 * Information about each packaging configuration
 	 */
@@ -479,6 +489,7 @@ public:
 	// UObject Interface
 
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual bool CanEditChange( const FProperty* InProperty ) const override;
 
@@ -490,6 +501,7 @@ public:
 
 	/** Determines if the specified Blueprint is already saved for exclusive nativization. */
 	bool IsBlueprintAssetInNativizationList(const class UBlueprint* InBlueprint) const { return FindBlueprintInNativizationList(InBlueprint) >= 0; }
+#endif
 
 	/** Gets a list of all valid packaging configurations for the current project */
 	static TArray<EProjectPackagingBuildConfigurations> GetValidPackageConfigurations();

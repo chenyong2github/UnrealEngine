@@ -3875,32 +3875,6 @@ struct FComponentSocketDescription
 /** Dynamic delegate to use by components that want to route the broken-event into blueprints */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FConstraintBrokenSignature, int32, ConstraintIndex);
 
-/** Structure for file paths that are displayed in the editor with a picker UI. */
-USTRUCT(BlueprintType)
-struct FFilePath
-{
-	GENERATED_BODY()
-
-	/**
-	 * The path to the file.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FilePath)
-	FString FilePath;
-};
-
-/** Structure for directory paths that are displayed in the editor with a picker UI. */
-USTRUCT(BlueprintType)
-struct FDirectoryPath
-{
-	GENERATED_BODY()
-
-	/**
-	 * The path to the directory.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Path)
-	FString Path;
-};
-
 
 /**
  * Reference to an editor collection of assets. This allows an editor-only picker UI

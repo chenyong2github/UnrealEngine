@@ -37,6 +37,8 @@ void UCookerSettings::PostInitProperties()
 	}
 }
 
+#if WITH_EDITOR
+
 void UCookerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static FName NAME_ClassesExcludedOnDedicatedServer = GET_MEMBER_NAME_CHECKED(UCookerSettings, ClassesExcludedOnDedicatedServer);
@@ -81,3 +83,5 @@ void UCookerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		}
 	}
 }
+
+#endif

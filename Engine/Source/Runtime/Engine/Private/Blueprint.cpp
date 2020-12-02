@@ -21,7 +21,7 @@
 
 #if WITH_EDITOR
 #include "BlueprintCompilationManager.h"
-#include "Editor/UnrealEd/Classes/Settings/ProjectPackagingSettings.h"
+#include "TargetPlatform/Classes/Settings/ProjectPackagingSettings.h"
 #include "Editor/UnrealEd/Classes/Settings/EditorExperimentalSettings.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"

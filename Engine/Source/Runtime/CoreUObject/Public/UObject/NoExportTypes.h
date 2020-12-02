@@ -1657,6 +1657,34 @@ public:
 	void ExecuteUbergraph(int32 EntryPoint);
 };
 
+/** Structure for file paths that are displayed in the editor with a picker UI. */
+USTRUCT(noexport, BlueprintType)
+struct FFilePath
+{
+	GENERATED_BODY()
+
+	/**
+		* The path to the file.
+		*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FilePath)
+	FString FilePath;
+};
+
+/** Structure for directory paths that are displayed in the editor with a picker UI. */
+USTRUCT(noexport, BlueprintType)
+struct FDirectoryPath
+{
+	GENERATED_BODY()
+
+	/**
+		* The path to the directory.
+		*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Path)
+	FString Path;
+};
+
+
+
 /// @endcond
 
 #endif

@@ -49,12 +49,24 @@ enum class EBlueprintComponentDataCookingMethod
  * Various cooker settings.
  */
 UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Cooker"))
-class UNREALED_API UCookerSettings : public UDeveloperSettings
+class TARGETPLATFORM_API UCookerSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+	/**
+	 * This class was moved from UnrealEd module, but to allow it to be used by developer tools, like UFE, it has moved to this module.
+	 * However, for back-compat, we want to use the old name in the ini files, so that everything works without needing to touch every
+	 * Game.ini file
+	 */
+	virtual void OverrideConfigSection(FString& InOutSectionName) override
+	{
+		InOutSectionName = TEXT("/Script/UnrealEd.CookerSettings");
+	}
 
 public:
 

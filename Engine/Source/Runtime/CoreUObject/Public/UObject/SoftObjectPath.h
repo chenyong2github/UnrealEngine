@@ -426,3 +426,21 @@ struct FSoftObjectPathSerializationScope
 		FSoftObjectPathThreadContext::Get().OptionStack.Pop();
 	}
 };
+
+/** Structure for file paths that are displayed in the editor with a picker UI. */
+struct FFilePath
+{
+	/**
+	 * The path to the file.
+	 */
+	FString FilePath;
+};
+
+/** Structure for directory paths that are displayed in the editor with a picker UI. */
+struct FDirectoryPath
+{
+	/**
+	 * The path to the directory.
+	 */
+	FString Path;
+};
