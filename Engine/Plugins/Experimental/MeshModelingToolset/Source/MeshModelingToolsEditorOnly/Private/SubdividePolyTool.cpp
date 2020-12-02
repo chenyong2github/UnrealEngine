@@ -70,7 +70,56 @@ UInteractiveTool* USubdividePolyToolBuilder::BuildTool(const FToolBuilderState& 
 }
 
 
-// Tool actual
+bool USubdividePolyTool::CheckGroupTopology(FText& Message)
+{
+	FGroupTopology Topo(OriginalMesh.Get(), true);
+
+	if (Topo.Groups.Num() == 0)
+	{
+		Message = LOCTEXT("NoGroupsWarning",
+						  "This object has no PolyGroups.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+		return false;
+	}
+
+	if (Topo.Groups.Num() < 2)
+	{
+		// TODO: for an open surface, use the surface boundary as a group boundary?
+		Message = LOCTEXT("SingleGroupsWarning",
+						  "This object has only one PolyGroup.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+		return false;
+	}
+
+	for (const FGroupTopology::FGroup& Group : Topo.Groups)
+	{
+		if (Group.Boundaries.Num() == 0)
+		{
+			// Error: Group has no boundaries, e.g. closed surface component with only one group
+			Message = LOCTEXT("NoGroupBoundaryWarning",
+							  "Found a PolyGroup with no boundaries.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+			return false;
+		}
+
+		if (Group.Boundaries.Num() > 1)
+		{
+			// Error: Group has multiple boundaries, e.g. nested polygon
+			Message = LOCTEXT("MultipleGroupBoundaryWarning",
+							  "Found a PolyGroup with multiple boundaries, which is not supported.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+			return false;
+		}
+
+		for (const FGroupTopology::FGroupBoundary& Boundary : Group.Boundaries)
+		{
+			if (Boundary.GroupEdges.Num() < 3)
+			{
+				Message = LOCTEXT("DegenerateGroupPolygon",
+								  "One PolyGroup has fewer than three boundary edges.\nUse the PolyGroups or Select Tool to assign/fix PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
 
 void USubdividePolyTool::Setup()
 {
@@ -86,71 +135,29 @@ void USubdividePolyTool::Setup()
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 
-	//
-	// Error checking
-	//
+	FText ErrorMessage;
+	bool bCatmullClarkOK = CheckGroupTopology(ErrorMessage);
 
-	FGroupTopology Topo(OriginalMesh.Get(), true);
-	if (Topo.Groups.Num() == 0)
+	if (bCatmullClarkOK)
 	{
-		GetToolManager()->DisplayMessage(LOCTEXT("NoGroupsWarning",
-												 "This object has no PolyGroups. Use the PolyGroups or Select Tool to assign PolyGroups."),
-										 EToolMessageLevel::UserWarning);
-		return;
+		GetToolManager()->DisplayMessage(LOCTEXT("SubdividePolyToolMessage",
+												 "Set the subdivision level and hit Accept to create a new subdivided mesh"),
+										 EToolMessageLevel::UserNotification);
 	}
-
-	if (Topo.Groups.Num() < 2)
+	else
 	{
-		// TODO: for an open surface, use the surface boundary as a group boundary?
-
-		GetToolManager()->DisplayMessage(LOCTEXT("SingleGroupsWarning",
-												 "This object has only one PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."),
-										 EToolMessageLevel::UserWarning);
-		return;
+		GetToolManager()->DisplayMessage(ErrorMessage, EToolMessageLevel::UserWarning);
 	}
-
-	for (const FGroupTopology::FGroup& Group : Topo.Groups)
-	{
-		if (Group.Boundaries.Num() == 0)
-		{
-			// Error: Group has no boundaries, e.g. closed surface component with only one group
-			GetToolManager()->DisplayMessage(LOCTEXT("NoGroupBoundaryWarning",
-													 "Found a PolyGroup with no boundaries. Use the PolyGroups or Select Tool to assign PolyGroups."),
-											 EToolMessageLevel::UserWarning);
-			return;
-		}
-
-		if (Group.Boundaries.Num() > 1)
-		{
-			// Error: Group has multiple boundaries, e.g. nested polygon
-			GetToolManager()->DisplayMessage(LOCTEXT("MultipleGroupBoundaryWarning",
-													 "Found a PolyGroup with multiple boundaries, which is not supported. Use the PolyGroups or Select Tool to assign PolyGroups."),
-											 EToolMessageLevel::UserWarning);
-			return;
-		}
-
-		for ( const FGroupTopology::FGroupBoundary& Boundary : Group.Boundaries )
-		{
-			if (Boundary.GroupEdges.Num() < 3)
-			{
-				GetToolManager()->DisplayMessage(LOCTEXT("DegenerateGroupPolygon",
-														 "One PolyGroup has fewer than three boundary edges. Use the PolyGroups or Select Tool to assign/fix PolyGroups."),
-												 EToolMessageLevel::UserWarning);
-				return;
-			}
-		}
-	}
-
-	//
-	// Finished error checking
-	//
-
-	GetToolManager()->DisplayMessage(LOCTEXT("SubdividePolyToolMessage",
-											 "Set the subdivision level and hit Accept to create a new subdivided mesh"),
-									 EToolMessageLevel::UserNotification);
 
 	Properties = NewObject<USubdividePolyToolProperties>(this, TEXT("Subdivide Mesh Tool Settings"));
 	Properties->RestoreProperties(this);
+
+	Properties->bCatmullClarkOK = bCatmullClarkOK;
+	if (!bCatmullClarkOK)
+	{
+		Properties->SubdivisionScheme = ESubdivisionScheme::Loop;
+	}
+
 	AddToolPropertySource(Properties);
 	SetToolPropertySourceEnabled(Properties, true);
 

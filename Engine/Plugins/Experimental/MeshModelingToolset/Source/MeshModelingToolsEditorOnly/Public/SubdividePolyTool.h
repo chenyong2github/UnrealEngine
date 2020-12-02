@@ -43,7 +43,11 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1"))
 	int SubdivisionLevel = 3;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	// Controls whether the user can select Catmull-Clark or is forced to use Loop
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bCatmullClarkOK = true;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "bCatmullClarkOK", HideEditConditionToggle))
 	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
 
 	UPROPERTY(EditAnywhere, Category=Settings)
@@ -102,5 +106,9 @@ protected:
 
 	bool bPreviewGeometryNeedsUpdate;
 	void CreateOrUpdatePreviewGeometry();
+
+	// Determine if the mesh group topology can be used for Catmull-Clark or Bilinear subdivision. If not, we can only 
+	// Loop subdivision on the original triangle mesh.
+	bool CheckGroupTopology(FText& Message);
 };
 
