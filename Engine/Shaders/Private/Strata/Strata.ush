@@ -1507,18 +1507,20 @@ void PackStrataOut(
 			GBuffer.Metallic = 1;
 		}
 
-		if (bHasSubsurfaceScattering)
-		{
-			GBuffer.BaseColor      = SubsurfaceBaseColor;
-			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
-			GBuffer.CustomData.a   = SubsurfaceRadiusScale;
-		}
-
 		// Take into account the non covered part for this layer and update throughput accordingly
 		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;
 
 		// And combine this layer throughtput with he material throughput
 		Throughput *= LayerThroughput;
+	}
+
+	// Patch Gbuffer data with SSS data if enabled
+	GBuffer.CustomData = 0;
+	if (bHasSubsurfaceScattering)
+	{
+		GBuffer.BaseColor		= SubsurfaceBaseColor;
+		GBuffer.CustomData.rgb	= EncodeSubsurfaceProfile(SubsurfaceProfile);
+		GBuffer.CustomData.a	= SubsurfaceRadiusScale;
 	}
 
 	// Now write out Strata data

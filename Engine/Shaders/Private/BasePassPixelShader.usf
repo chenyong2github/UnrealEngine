@@ -1457,7 +1457,7 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 
-
+	bool bSubsurfaceEnable = true;
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
 
 	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
@@ -1493,6 +1493,9 @@ void FPixelShaderInOut_MainPS(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
 		StrataPixelHeader, Strata,
 		VertexNormal, MaterialParameters.CameraVector, GBuffer);
+
+	// Since we don't carry SSS on/off through the ShadingModel value (DefaultLit/SubSurfaceProfile), we update subsurface toggle, based on the MFP radius value
+	bSubsurfaceEnable = GBuffer.CustomData.a > 0;
 #endif // STRATA_OPAQUE_ENABLED
 
 #if STRATA_TRANSLUCENT_ENABLED
@@ -1594,7 +1597,7 @@ void FPixelShaderInOut_MainPS(
 			// Apply vertex fog
 			Color = Color * Fogging.a + Fogging.rgb;
 
-#if POST_PROCESS_SUBSURFACE
+		#if POST_PROCESS_SUBSURFACE
 			// Apply vertex fog to diffuse color
 			DiffuseColor = DiffuseColor * Fogging.a + Fogging.rgb;
 
@@ -1605,10 +1608,10 @@ void FPixelShaderInOut_MainPS(
 				// to the specular component, otherwise lighting is applied twice
 				Color *= !bChecker;
 			}
-			LightAccumulator_Add(LightAccumulator, Color + DiffuseColor, DiffuseColor, 1.0f, UseSubsurfaceProfile(GBuffer.ShadingModelID));
-#else
+			LightAccumulator_Add(LightAccumulator, Color + DiffuseColor, DiffuseColor, 1.0f, UseSubsurfaceProfile(GBuffer.ShadingModelID) && bSubsurfaceEnable);
+		#else
 			LightAccumulator_Add(LightAccumulator, Color, 0, 1.0f, false);
-#endif
+		#endif
 			Out.MRT[0] = RETURN_COLOR(LightAccumulator_GetResult(LightAccumulator));
 
 			#if !USES_GBUFFER
