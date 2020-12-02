@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/SHeadingBlock.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SSeparator.h"
 
 
 /**
@@ -51,8 +53,25 @@ void SHeadingBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 	ChildSlot
 	.Padding(StyleSet->GetMargin(StyleName, ".Heading.Padding"))
 	[
-		SNew( STextBlock )
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew( STextBlock )
 			.Text( HeadingBlock->HeadingText.ToUpper() )
 			.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Heading" ) )
+		]
+
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(14.f, 0.f, 0.f, 0.f))
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SSeparator)
+			.Orientation(Orient_Horizontal)
+			.Thickness(1.0f)
+			.SeparatorImage(StyleSet->GetBrush(StyleName, ".Separator") )
+		]
 	];
 }

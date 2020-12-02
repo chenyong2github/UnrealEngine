@@ -46,16 +46,15 @@ void SMenuSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	ChildSlot
 	[
 		SNew( SVerticalBox )
-			+SVerticalBox::Slot()
-				.AutoHeight()
 
-				// Add some empty space before the line, and a tiny bit after it
-				.Padding( 0.0f, 4.0f, 0.0f, 2.0f )
-				[
-					SNew( SSeparator )
-					.SeparatorImage(StyleSet->GetBrush(StyleName, ".Separator"))
-					.Thickness(2.0f)
-				]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(StyleSet->GetMargin(StyleName, ".Separator.Padding"))
+		[
+			SNew( SSeparator )
+			.SeparatorImage(StyleSet->GetBrush(StyleName, ".Separator"))
+			.Thickness(1.0f)
+		]
 	];
 
 	// Add this widget to the search list of the multibox and hide it

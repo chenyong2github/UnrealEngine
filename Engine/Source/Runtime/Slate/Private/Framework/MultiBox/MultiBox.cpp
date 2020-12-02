@@ -1021,7 +1021,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	{
 	case EMultiBoxType::Menu:
 		{
-			BorderPadding = FMargin(0, 0, 0, 7);
+			BorderPadding = FMargin(0, 8, 0, 8);
 		}
 		break;
 	default:

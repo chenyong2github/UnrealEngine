@@ -1669,6 +1669,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 {
 	const FEditableTextBoxStyle& NormalEditableTextBoxStyle = Style->GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
 	const FTextBlockStyle& NormalText = Style->GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle& SmallButtonText = Style->GetWidgetStyle<FTextBlockStyle>("SmallButtonText");
 
 	const FSlateColor SelectionColor = Style->GetSlateColor("SelectionColor");
 	const FSlateColor SelectionColor_Pressed = Style->GetSlateColor("SelectionColor_Pressed");
@@ -1812,12 +1813,12 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		Style->Set("Menu.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground);
 		Style->Set("Menu.MenuIconSize", 14.f);
 
-		const FMargin MenuBlockPadding(10.0f, 1.0f, 5.0f, 1.0f);
+		const FMargin MenuBlockPadding(12.0f, 1.0f, 5.0f, 1.0f);
 		Style->Set("Menu.Block.IndentedPadding", MenuBlockPadding + FMargin(18.0f, 0, 0, 0));
 		Style->Set("Menu.Block.Padding", MenuBlockPadding);
 
-		Style->Set("Menu.Separator", new FSlateColorBrush(FStyleColors::Header));
-		Style->Set("Menu.Separator.Padding", FMargin(0.5f));
+		Style->Set("Menu.Separator", new FSlateColorBrush(FStyleColors::White25));
+		Style->Set("Menu.Separator.Padding", FMargin(0.0f, 6.f, 0.0f, 6.f));
 
 		Style->Set("Menu.Label", NormalText);
 
@@ -1825,10 +1826,9 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		Style->Set("Menu.Keybinding", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().Small));
 
 		Style->Set("Menu.Heading",
-			FTextBlockStyle(NormalText)
-			.SetFont(FStyleFonts::Get().SmallBold)
-			.SetColorAndOpacity(FStyleColors::Foreground));
-		Style->Set("Menu.Heading.Padding", MenuBlockPadding + FMargin(0, 10, 0, 0));
+			FTextBlockStyle(SmallButtonText)
+			.SetColorAndOpacity(FStyleColors::White25));
+		Style->Set("Menu.Heading.Padding", FMargin(12.0f, 6.f, 0.f, 6.f));
 
 		/* Set images for various SCheckBox states associated with menu check box items... */
 		FLinearColor Transparent20 = FLinearColor(1.0, 1.0, 1.0, 0.2);

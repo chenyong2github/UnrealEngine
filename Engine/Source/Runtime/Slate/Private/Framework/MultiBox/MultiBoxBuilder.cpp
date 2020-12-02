@@ -331,13 +331,6 @@ void FMenuBuilder::ApplySectionBeginning()
 {
 	if (bSectionNeedsToBeApplied)
 	{
-		const int32 NumBlocksBeforeSeparator = MultiBox->bHasSearchWidget ? 2 : 1;
-
-		// Do not count search block, which starts as invisible
-		if( MultiBox->GetBlocks().Num() >= NumBlocksBeforeSeparator || FMultiBoxSettings::DisplayMultiboxHooks.Get() )
-		{
-			MultiBox->AddMultiBlock( MakeShareable( new FMenuSeparatorBlock(CurrentSectionExtensionHook, /* bInIsPartOfHeading=*/ true) ) );
-		}
 		if (!CurrentSectionHeadingText.IsEmpty())
 		{
 			MultiBox->AddMultiBlock( MakeShareable( new FHeadingBlock(CurrentSectionExtensionHook, CurrentSectionHeadingText) ) );
