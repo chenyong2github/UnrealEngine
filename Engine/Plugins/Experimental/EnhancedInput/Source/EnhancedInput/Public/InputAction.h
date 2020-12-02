@@ -78,6 +78,7 @@ private:
 	ETriggerState LastTriggerState = ETriggerState::None;
 	ETriggerState MappingTriggerState = ETriggerState::None;
 	ETriggerEventInternal TriggerEventInternal = ETriggerEventInternal(0);	// TODO: Expose access to ETriggerEventInternal?
+	bool bMappingTriggerApplied = false;
 
 protected:
 	// TODO: Just hold a duplicate of the UInputAction in here?

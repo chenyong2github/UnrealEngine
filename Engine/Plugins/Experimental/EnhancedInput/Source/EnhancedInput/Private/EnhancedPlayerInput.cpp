@@ -114,7 +114,7 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action,
 	{
 		if (bResetActionData)
 		{
-			ActionsWithEventsThisTick.Add(Action);
+			ActionsWithEventsThisTick.Add(Action);			
 			ActionData.Value.Reset();	// TODO: what if default value isn't 0 (e.g. bool value with negate modifier). Move reset out to a pre-pass? This may be confusing as triggering requires key interaction for value processing for performance reasons.
 		}
 
@@ -125,6 +125,7 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action,
 
 		// Derive a trigger state for this mapping using all applicable triggers
 		TriggerState = CalcTriggerState(Triggers, ModifiedValue, DeltaTime);
+		ActionData.bMappingTriggerApplied |= Triggers.Num() > 0;
 
 		// Combine values for active events only, selecting the input with the greatest magnitude for each component in each tick.
 		if (TriggerState != ETriggerState::None)
@@ -267,8 +268,8 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			// Evaluate triggers
 			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, DeltaTime);
 
-			// Mapping triggers limit the final state.
-			TriggerState = FMath::Min(TriggerState, ActionData.MappingTriggerState);
+			// Any mapping triggers applied should limit the final state.
+			TriggerState = ActionData.bMappingTriggerApplied ? FMath::Min(TriggerState, ActionData.MappingTriggerState) : TriggerState;
 
 			// However, if the game is paused invalidate trigger unless the action allows it. We must always call CalcTriggerState to update any internal state, even when paused.
 			// TODO: Potential issues with e.g. hold event that's canceled due to pausing, but jumps straight back to its "triggered" state on unpause if the user continues to hold the key.
@@ -404,6 +405,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 
 		// Delay MappingTriggerState reset until here to allow dependent triggers (e.g. chords) access to this tick's values.
 		ActionData.MappingTriggerState = ETriggerState::None;
+		ActionData.bMappingTriggerApplied = false;
 	}
 }
 
