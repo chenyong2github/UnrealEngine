@@ -271,16 +271,16 @@ public:
 	/**
 	 * Get the YUV to RGB conversion matrix.
 	 *
-	 * Equivalent to MediaShaders::YuvToSrgbDefault Matrix.
+	 * Equivalent to MediaShaders::YuvToRgbRec709Scaled Matrix. NOTE: previously in UE4 this was YuvToRgbRec601Scaled
 	 *
 	 * @return Conversion Matrix
 	 */
 	virtual const FMatrix& GetYUVToRGBMatrix() const
 	{
 		static const FMatrix DefaultMatrix(
-			FPlane(1.164383f, 0.000000f, 1.596027f, 0.000000f),
-			FPlane(1.164383f, -0.391762f, -0.812968f, 0.000000f),
-			FPlane(1.164383f, 2.017232f, 0.000000f, 0.000000f),
+			FPlane(1.16438356164f, 0.000000000000f, 1.792652263418f, 0.000000f),
+			FPlane(1.16438356164f, -0.213237021569f, -0.533004040142f, 0.000000f),
+			FPlane(1.16438356164f, 2.112419281991f, 0.000000000000f, 0.000000f),
 			FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
 		);
 

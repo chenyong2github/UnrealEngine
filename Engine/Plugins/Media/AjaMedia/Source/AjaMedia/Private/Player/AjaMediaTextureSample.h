@@ -72,7 +72,7 @@ public:
 	 */
 	virtual const FMatrix& GetYUVToRGBMatrix() const override
 	{
-		return MediaShaders::YuvToRgbRec709Full;
+		return MediaShaders::YuvToRgbRec709Scaled;
 	}
 
 };

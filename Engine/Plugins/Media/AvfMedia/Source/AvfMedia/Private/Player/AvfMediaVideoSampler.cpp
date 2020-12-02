@@ -173,11 +173,11 @@ void FAvfMediaVideoSampler::SetOutput(AVPlayerItemVideoOutput* InOutput, float I
 	
 	if(bFullRange)
 	{
-		ColorTransform = &MediaShaders::YuvToRgbRec709Full;
+		ColorTransform = &MediaShaders::YuvToRgbRec709Scaled;
 	}
 	else
 	{
-		ColorTransform = &MediaShaders::YuvToRgbRec709;
+		ColorTransform = &MediaShaders::YuvToRgbRec709Unscaled;
 	}
 }
 

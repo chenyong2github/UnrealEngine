@@ -13,20 +13,55 @@ TGlobalResource<FMediaVertexDeclaration> GMediaVertexDeclaration;
 
 namespace MediaShaders
 {
-	const FMatrix YuvToSrgbJpeg = FMatrix(
-		FPlane(1.000000f,  0.000000f,  1.402000f, 0.000000f),
-		FPlane(1.000000f, -0.344140f, -0.714140f, 0.000000f),
-		FPlane(1.000000f,  1.772000f,  0.000000f, 0.000000f),
+	/**
+	 * YUV to RGB matrices for Rec601, Rec709, and Rec2020. Each are provided with a Scaled and Unscaled version.
+	 *
+	 * The scaling is according to SMPTE EG36, resulting in (255/219.0, 255/224.0, 255/224.0) being multiplied by the Unscaled matrix.
+	 */
+
+	const FMatrix YuvToRgbRec601Unscaled = FMatrix(
+		FPlane(1.000000f,  0.00000000000f,  1.4020000000f, 0.000000f),
+		FPlane(1.000000f, -0.34414362862f, -0.7141362862f, 0.000000f),
+		FPlane(1.000000f,  1.77200000000f,  0.0000000000f, 0.000000f),
 		FPlane(0.000000f,  0.000000f,  0.000000f, 0.000000f)
 	);
 
-	const FMatrix YuvToSrgbDefault = FMatrix(
-		FPlane(1.164383f,  0.000000f,  1.596027f, 0.000000f),
-		FPlane(1.164383f, -0.391762f, -0.812968f, 0.000000f),
-		FPlane(1.164383f,  2.017232f,  0.000000f, 0.000000f),
+	const FMatrix YuvToRgbRec601Scaled = FMatrix(
+		FPlane(1.16438356164f,  0.000000000000f,  1.596026785714f, 0.000000f),
+		FPlane(1.16438356164f, -0.391762290095f, -0.812967647238f, 0.000000f),
+		FPlane(1.16438356164f,  2.017232142857f,  0.000000000000f, 0.000000f),
 		FPlane(0.000000f,  0.000000f,  0.000000f, 0.000000f)
 	);
 
+	const FMatrix YuvToRgbRec709Unscaled = FMatrix(
+		FPlane(1.000000f,  0.000000000000f,  1.574721988260f, 0.000000f),
+		FPlane(1.000000f, -0.187314089535f, -0.468207470556f, 0.000000f),
+		FPlane(1.000000f,  1.855615369279f,  0.000000000000f, 0.000000f),
+		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
+	);
+
+	const FMatrix YuvToRgbRec709Scaled = FMatrix(
+		FPlane(1.16438356164f,  0.000000000000f,  1.792652263418f, 0.000000f),
+		FPlane(1.16438356164f, -0.213237021569f, -0.533004040142f, 0.000000f),
+		FPlane(1.16438356164f,  2.112419281991f,  0.000000000000f, 0.000000f),
+		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
+	);
+
+	const FMatrix YuvToRgbRec2020Unscaled = FMatrix(
+		FPlane(1.000000f,  0.000000000000f,  1.474599575977f, 0.000000f),
+		FPlane(1.000000f, -0.164558057720f, -0.571355048803f, 0.000000f),
+		FPlane(1.000000f,  1.881396567060f,  0.000000000000f, 0.000000f),
+		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
+	);
+
+	const FMatrix YuvToRgbRec2020Scaled = FMatrix(
+		FPlane(1.16438356164f,  0.000000000000f,  1.678673624439f, 0.000000f),
+		FPlane(1.16438356164f, -0.187331717494f, -0.650426506450f, 0.000000f),
+		FPlane(1.16438356164f,  2.141768413395f,  0.000000000000f, 0.000000f),
+		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
+	);
+
+	// YuvToSrgbPs4 is legacy. It is apparently a YuvToRgbRec709Scaled that was rounded to four digits after radix. 
 	const FMatrix YuvToSrgbPs4 = FMatrix(
 		FPlane(1.164400f,  0.000000f,  1.792700f, 0.000000f),
 		FPlane(1.164400f, -0.213300f, -0.532900f, 0.000000f),
@@ -34,31 +69,11 @@ namespace MediaShaders
 		FPlane(0.000000f,  0.000000f,  0.000000f, 0.000000f)
 	);
 
-	const FMatrix YuvToSrgbRec601 = FMatrix(
-		FPlane(1.000000f, 0.000000f, 1.139830f, 0.000000f),
-		FPlane(1.000000f, -0.394650f, -0.580600f, 0.000000f),
-		FPlane(1.000000f, 2.032110, 0.000000, 0.000000f),
-		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
-	);
-
-	const FMatrix YuvToRgbRec709 = FMatrix(
-		FPlane(1.000000f, 0.000000f, 1.280330f, 0.000000f),
-		FPlane(1.000000f, -0.214820f, -0.380590f, 0.000000f),
-		FPlane(1.000000f, 2.127980f, 0.000000f, 0.000000f),
-		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
-	);
-
-	const FMatrix YuvToRgbRec709Full = FMatrix(
-		FPlane(1.164400f, 0.000000f, 1.792700f, 0.000000f),
-		FPlane(1.164400f, -0.213300f, -0.532900f, 0.000000f),
-		FPlane(1.164400f, 2.112400f, 0.000000f, 0.000000f),
-		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
-	);
-
-	const FMatrix RgbToYuvRec709Full = FMatrix(
-		FPlane(0.182581f, 0.614210f, 0.062020f, 0.000000f),
-		FPlane(-0.100642f, -0.338566f, 0.439208f, 0.000000f),
-		FPlane(0.439227f, -0.398944f, -0.040283f, 0.000000f),
+	// Inverse of YuvToRgbRec709Scaled
+	const FMatrix RgbToYuvRec709Scaled = FMatrix(
+		FPlane( 0.18261938151317932966f,  0.61420368882407283539f,  0.062000459074512487279f, 0.000000f),
+		FPlane(-0.10066136381366230790f, -0.33855432246084737891f,  0.439215686274509797830f, 0.000000f),
+		FPlane( 0.43921568627450979783f, -0.39894445418228852152f, -0.040271232092221290189f, 0.000000f),
 		FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
 	);
 

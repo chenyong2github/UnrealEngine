@@ -12,26 +12,29 @@
 
 namespace MediaShaders
 {
-	/** Color transform from YUV to sRGB (using values from MSDN). */
-	RENDERCORE_API extern const FMatrix YuvToSrgbDefault;
+	/** Color transform from YUV to Rec601 without range scaling. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec601Unscaled;
 
-	/** Color transform from YUV to sRGB (in JPEG color space). */
-	RENDERCORE_API extern const FMatrix YuvToSrgbJpeg;
+	/** Color transform from YUV Video Range to Rec601 Full Range. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec601Scaled;
 
-	/** Color transform from YUV to sRGB (using values from PS4 AvPlayer codec). */
+	/** Color transform from YUV to Rec709 without range scaling. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec709Unscaled;
+
+	/** Color transform from YUV Video Range to Rec709 Full Range. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec709Scaled;
+
+	/** Color transform from YUV to Rec2020 without range scaling. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec2020Unscaled;
+
+	/** Color transform from YUV Video Range to Rec2020 Full Range. */
+	RENDERCORE_API extern const FMatrix YuvToRgbRec2020Scaled;
+
+	/** Color transform from YUV to sRGB (using rounded values from PS4 AvPlayer codec). */
 	RENDERCORE_API extern const FMatrix YuvToSrgbPs4;
 
-	/** Color transform from YUV to sRGB (in Rec. 601 color space). */
-	RENDERCORE_API extern const FMatrix YuvToSrgbRec601;
-
-	/** Color transform from YUV to sRGB (in Rec. 709 color space). */
-	RENDERCORE_API extern const FMatrix YuvToRgbRec709;
-
-	/** Color transform from YUV to RGB (in Rec. 709 color space, RGB full range) */
-	RENDERCORE_API extern const FMatrix YuvToRgbRec709Full;
-
-	/** Color transform from RGB to YUV (in Rec. 709 color space, RGB full range) */
-	RENDERCORE_API extern const FMatrix RgbToYuvRec709Full;
+	/** Color transform from RGB to YUV (in Rec. 709 color space, including inversion of range scaling) */
+	RENDERCORE_API extern const FMatrix RgbToYuvRec709Scaled;
 
 	/** YUV Offset for 8 bit conversion (Computed as 16/255, 128/255, 128/255) */
 	RENDERCORE_API extern const FVector YUVOffset8bits;
