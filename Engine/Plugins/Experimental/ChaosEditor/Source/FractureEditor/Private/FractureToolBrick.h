@@ -3,6 +3,7 @@
 #pragma once
 
 #include "FractureTool.h"
+#include "FractureToolCutter.h"
 
 #include "FractureToolBrick.generated.h"
 
@@ -34,25 +35,20 @@ enum class EFractureBrickBond : uint8
 };
 
 
-UCLASS()
-class UFractureBrickSettings
-	: public UObject
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureBrickSettings : public UFractureToolSettings
 {
+public:
 	GENERATED_BODY()
 
-public:
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
-
-	UFractureBrickSettings() 
-	: Bond(EFractureBrickBond::Stretcher)
-	, Forward(EFractureBrickProjection::X)
-	, Up(EFractureBrickProjection::Z)
-	, BrickLength(194.f)
-	, BrickHeight(57.f)
-	, BrickDepth(92.f)
+	UFractureBrickSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+		, Bond(EFractureBrickBond::Stretcher)
+		, Forward(EFractureBrickProjection::X)
+		, Up(EFractureBrickProjection::Z)
+		, BrickLength(194.f)
+		, BrickHeight(57.f)
+		, BrickDepth(92.f)
 	{}
 
 	/** Forward Direction to project brick pattern. */
@@ -68,50 +64,39 @@ public:
 	EFractureBrickProjection Up;
 
 	/** Brick length */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickLength;
 
 	/** Brick Height */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickHeight;
 
 	/** Brick Height */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickDepth;
-
-	UPROPERTY()
-	UFractureTool *OwnerTool;
-
 };
 
 
 UCLASS(DisplayName="Brick", Category="FractureTools")
-class UFractureToolBrick : public UFractureTool
+class UFractureToolBrick : public UFractureToolCutterBase
 {
 public:
 	GENERATED_BODY()
 
-	UFractureToolBrick(const FObjectInitializer& ObjInit);//  : Super(ObjInit) {}
+	UFractureToolBrick(const FObjectInitializer& ObjInit);
 
 	// UFractureTool Interface
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FSlateIcon GetToolIcon() const override;
-
-	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext );
-	
-	virtual TArray<UObject*> GetSettingsObjects() const override;// { return TArray<UObject*>(); }
+	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext ) override;
+	virtual TArray<UObject*> GetSettingsObjects() const override;
+	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 	void GenerateBrickTransforms(const FBox& Bounds);
-#if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
 
-
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-
-	virtual void ExecuteFracture(const FFractureContext& FractureContext) override;
-	virtual bool CanExecuteFracture() const override;
 
 private:
 	UPROPERTY()

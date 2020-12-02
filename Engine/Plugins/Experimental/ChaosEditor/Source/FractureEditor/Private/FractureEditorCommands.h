@@ -11,7 +11,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		virtual void RegisterCommands() override;
 
 	public:
-
+		
 		// Selection Commands
 		TSharedPtr< FUICommandInfo > SelectAll;
 		TSharedPtr< FUICommandInfo > SelectNone;
@@ -29,15 +29,16 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 
 		// Cluster Commands
 		TSharedPtr< FUICommandInfo > AutoCluster;
+		TSharedPtr< FUICommandInfo > ClusterMagnet;
 		TSharedPtr< FUICommandInfo > Cluster;
 		TSharedPtr< FUICommandInfo > Uncluster;
 		TSharedPtr< FUICommandInfo > Flatten;
-		TSharedPtr< FUICommandInfo > FlattenToLevel;
-		TSharedPtr< FUICommandInfo > Merge;
 		TSharedPtr< FUICommandInfo > MoveUp;
+		
+		// Generate Commands
 		TSharedPtr< FUICommandInfo > GenerateAsset;
 		TSharedPtr< FUICommandInfo > ResetAsset;
-
+		
 		// Fracture Commands
 		TSharedPtr< FUICommandInfo > Uniform;
 		TSharedPtr< FUICommandInfo > Radial;
@@ -46,6 +47,6 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > Slice;
 		TSharedPtr< FUICommandInfo > Brick;
 		TSharedPtr< FUICommandInfo > Texture;
-
+		
 };
 
