@@ -223,14 +223,14 @@ public:
 	 * which some BP logic often uses directly to set oscillator/anim properties.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	static UMatineeCameraShake* StartMatineeCameraShake(APlayerCameraManager* self, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	static UMatineeCameraShake* StartMatineeCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/**
 	 * Backwards compatible method used by core BP redirectors. This is needed because the return value is specifically a Matinee camera shake,
 	 * which some BP logic often uses directly to set oscillator/anim properties.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	static UMatineeCameraShake* StartMatineeCameraShakeFromSource(APlayerCameraManager* self, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	static UMatineeCameraShake* StartMatineeCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 public:
 

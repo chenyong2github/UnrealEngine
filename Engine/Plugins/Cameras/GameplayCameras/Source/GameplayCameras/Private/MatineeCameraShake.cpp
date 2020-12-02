@@ -439,14 +439,14 @@ void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalVie
 	ScrubAndApplyCameraShake(NewTime, 1.f, POV);
 }
 
-UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShake(APlayerCameraManager* self, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
-	return Cast<UMatineeCameraShake>(self->StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
+	return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
 }
 
-UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShakeFromSource(APlayerCameraManager* self, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
-	return Cast<UMatineeCameraShake>(self->StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
+	return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
 }
 
 void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
