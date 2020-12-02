@@ -2,6 +2,7 @@
 
 #include "WaterWavesEditorToolkit.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "WaterUIStyle.h"
 #include "EditorViewportTabContent.h"

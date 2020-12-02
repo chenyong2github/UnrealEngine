@@ -18,6 +18,7 @@
 #include "LevelEditorViewport.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "WaterModule.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "WaterEditorSubsystem"
 

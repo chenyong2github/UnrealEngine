@@ -25,6 +25,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
+#include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"

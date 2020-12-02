@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Toolkits/SimpleAssetEditor.h"
+#include "Misc/NotifyHook.h"
 #include "WaterWaves.h"
 
 class FEditorViewportTabContent;

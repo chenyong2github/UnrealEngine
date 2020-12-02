@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 #include "Components/BillboardComponent.h"
+#include "Modules/ModuleManager.h"
 #include "WaterIconHelper.h"
 #include "WaterSubsystem.h"
 #include "WaterModule.h"

@@ -16,6 +16,7 @@
 #include "Components/SplineMeshComponent.h"
 #include "Components/BoxComponent.h"
 #include "BuoyancyComponent.h"
+#include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 #include "WaterSubsystem.h"
 #include "WaterMeshActor.h"
