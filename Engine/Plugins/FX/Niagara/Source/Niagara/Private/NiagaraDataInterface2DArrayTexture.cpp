@@ -124,7 +124,7 @@ void UNiagaraDataInterface2DArrayTexture::GetTextureDimensions(FVectorVMContext&
 	{
 		TextureDimensions.X = Texture->GetSizeX();
 		TextureDimensions.Y = Texture->GetSizeY();
-		TextureDimensions.Z = Texture->GetNumSlices();
+		TextureDimensions.Z = Texture->GetArraySize();
 	}
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -237,7 +237,7 @@ void UNiagaraDataInterface2DArrayTexture::PushToRenderThreadImpl()
 	{
 		RT_TexDims.X = Texture->GetSizeX();
 		RT_TexDims.Y = Texture->GetSizeY();
-		RT_TexDims.Z = Texture->GetNumSlices();
+		RT_TexDims.Z = Texture->GetArraySize();
 	}
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)

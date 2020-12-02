@@ -6,9 +6,10 @@ Texture2DMipDataProvider_DDC.cpp : Implementation of FTextureMipDataProvider usi
 
 #include "Texture2DMipDataProvider_DDC.h"
 #include "DerivedDataCacheInterface.h"
-#include "Engine/Texture2D.h"
+#include "Engine/Texture.h"
 #include "TextureResource.h"
 #include "Streaming/Texture2DStreamIn_DDC.h" // for FAbandonedDDCHandleManager
+#include "Streaming/TextureStreamingHelpers.h"
 
 #if WITH_EDITORONLY_DATA
 
@@ -76,13 +77,38 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 				int32 MipSize = 0;
 				Ar << MipSize;
 
+				const uint32 DepthOrArraySize = FMath::Max<uint32>(MipInfo.ArraySize, MipInfo.SizeZ);
 				if (MipSize == MipInfo.DataSize)
 				{
 					Ar.Serialize(MipInfo.DestData, MipSize);
 					bSuccess = true;
 				}
+				else if (MipSize < MipInfo.DataSize && DepthOrArraySize > 1 && MipInfo.DataSize % DepthOrArraySize == 0 && MipSize % DepthOrArraySize == 0)
+				{
+					UE_LOG(LogTexture, Verbose, TEXT("DDC mip size smaller than streaming buffer size. (%s, Mip %d): %d KB / %d KB."), *Context.Resource->GetTextureName().ToString(), ResourceState.MaxNumLODs - MipIndex, MipInfo.DataSize / 1024, MipSize / 1024);
+
+					const uint64 SourceSubSize = MipSize / DepthOrArraySize;
+					const uint64 DestSubSize = MipInfo.DataSize / DepthOrArraySize;
+					const uint64 PaddingSubSize = DestSubSize - SourceSubSize;
+
+					uint8* DestData = (uint8*)MipInfo.DestData;
+					for (uint32 SubIdx = 0; SubIdx < DepthOrArraySize; ++SubIdx)
+					{
+						Ar.Serialize(DestData, SourceSubSize);
+						DestData += SourceSubSize;
+						FMemory::Memzero(DestData, PaddingSubSize);
+						DestData += PaddingSubSize;
+					}
+					bSuccess = true;
+				}
+				else
+				{
+					UE_LOG(LogTexture, Warning, TEXT("Mismatch between DDC mip size and streaming buffer size. (%s, Mip %d): %d KB / %d KB."), *Context.Resource->GetTextureName().ToString(), ResourceState.MaxNumLODs - MipIndex, MipInfo.DataSize / 1024, MipSize / 1024);
+					FMemory::Memzero(MipInfo.DestData, MipInfo.DataSize);
+				}
 			}
 		}
+
 		if (!bSuccess)
 		{
 			AdvanceTo(ETickState::CleanUp, ETickThread::Async);

@@ -270,8 +270,6 @@ private:
 	 */
 	void	SetRenderAssetsRemovedTimestamp(const FRemovedRenderAssetArray& RemovedRenderAssets);
 
-	void	DumpTextureGroupStats( bool bDetailedStats );
-
 	void	SetLastUpdateTime();
 	void	UpdateStats();
 	void	UpdateCSVOnlyStats();
@@ -305,12 +303,6 @@ private:
 	 * When asset streamign status is updated on an async task, we need to tick their callabcks later.
 	 */
 	void TickDeferredMipLevelChangeCallbacks();
-
-	/** Next sync, dump texture group stats. */
-	bool	bTriggerDumpTextureGroupStats;
-
-	/** Whether to the dumped texture group stats should contain extra information. */
-	bool	bDetailedDumpTextureGroupStats;
 
 	/** Cached from the system settings. */
 	int32 NumStreamedMips_Texture[TEXTUREGROUP_MAX];

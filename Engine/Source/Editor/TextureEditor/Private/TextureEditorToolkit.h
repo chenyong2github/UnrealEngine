@@ -60,7 +60,7 @@ public:
 	virtual bool UsesCustomToolbarPlacement() const { return false; }
 
 	// ITextureEditorToolkit interface
-	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height ) const override;
+	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const override;
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode( ) const override;
 	virtual int32 GetMipLevel( ) const override;
 	virtual int32 GetLayer() const override;
@@ -80,11 +80,6 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
 	virtual const FRotator& GetVolumeOrientation( ) const override;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
-	virtual bool IsVolumeTexture() const override
-	{
-		return bIsVolumeTexture;
-	}
-
 	virtual int32 GetExposureBias() const override
 	{
 		return ExposureBias;
@@ -141,6 +136,16 @@ protected:
 	 * Checks whether the texture being edited is a cube map texture.
 	 */
 	bool IsCubeTexture( ) const;
+
+	/**
+	 * Checks whether the texture being edited is a volume texture.
+	 */
+	bool IsVolumeTexture() const;
+
+	/**
+	 * Checks whether the texture being edited is a texture 2D array.
+	 */
+	bool Is2DArrayTexture() const;
 
 	TSharedRef<SWidget> OnGenerateMipMapLevelMenu();
 	TSharedRef<SWidget> OnGenerateSettingsMenu();

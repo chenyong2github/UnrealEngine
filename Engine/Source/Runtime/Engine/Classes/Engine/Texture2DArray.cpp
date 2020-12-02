@@ -12,9 +12,13 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
 #include "Rendering/Texture2DArrayResource.h"
+#include "Streaming/Texture2DArrayStreaming.h"
+#include "Streaming/TextureStreamIn.h"
+#include "Streaming/TextureStreamOut.h"
+#include "Engine/TextureMipDataProviderFactory.h"
 
 // Master switch to control whether streaming is enabled for texture2darray. 
-bool GSupportsTexture2DArrayStreaming = false;
+bool GSupportsTexture2DArrayStreaming = true;
 
 static TAutoConsoleVariable<int32> CVarAllowTexture2DArrayAssetCreation(
 	TEXT("r.AllowTexture2DArrayCreation"),
@@ -76,7 +80,7 @@ uint32 UTexture2DArray::CalcTextureMemorySize(int32 MipCount) const
 			// Must be consistent with the logic in FTexture2DResource::InitRHI
 			const FIntPoint MipExtents = CalcMipMapExtent(GetSizeX(), GetSizeY(), Format, FirstMip);
 			uint32 TextureAlign = 0;
-			Size = (uint32)(GetNumSlices() * RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, FMath::Max(1, MipCount), 1, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign));
+			Size = (uint32)RHICalcTexture2DArrayPlatformSize(MipExtents.X, MipExtents.Y, GetArraySize(), Format, FMath::Max(1, MipCount), 1, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		}
 	}
 	return Size;
@@ -106,9 +110,9 @@ ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 			return false;
 		}
 
-		FTextureSource& TextureSource = SourceTextures[TextureIndex]->Source;
+		const FTextureSource& TextureSource = SourceTextures[TextureIndex]->Source;
 		// const int32 FormatDataSize = TextureSource.GetBytesPerPixel();
-		const EPixelFormat PixelFormat = SourceTextures[TextureIndex]->GetPixelFormat();
+		const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 		const int32 SizeX = TextureSource.GetSizeX();
 		const int32 SizeY = TextureSource.GetSizeY();
 
@@ -120,10 +124,10 @@ ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 				return false;
 			}
 
-			FTextureSource& TextureSourceCmp = SourceTextures[TextureCmpIndex]->Source;
-			FString TextureName = SourceTextures[TextureIndex]->GetFName().ToString();
-			FString TextureNameCmp = SourceTextures[TextureCmpIndex]->GetFName().ToString();
-			const EPixelFormat PixelFormatCmp = SourceTextures[TextureCmpIndex]->GetPixelFormat();
+			const FTextureSource& TextureSourceCmp = SourceTextures[TextureCmpIndex]->Source;
+			const FString TextureName = SourceTextures[TextureIndex]->GetFName().ToString();
+			const FString TextureNameCmp = SourceTextures[TextureCmpIndex]->GetFName().ToString();
+			const ETextureSourceFormat SourceFormatCmp = TextureSourceCmp.GetFormat();
 
 			if (TextureSourceCmp.GetSizeX() != SizeX || TextureSourceCmp.GetSizeY() != SizeY)
 			{
@@ -131,17 +135,11 @@ ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 				bError = true;
 			}
 
-			if (PixelFormatCmp != PixelFormat)
+			if (SourceFormatCmp != SourceFormat)
 			{
 				UE_LOG(LogTexture, Warning, TEXT("Texture2DArray creation failed. Textures %s and %s have incompatible pixel formats."), *TextureName, *TextureNameCmp);
 				bError = true;
 			}
-
-			//if (TextureSourceCmp.GetBytesPerPixel() != FormatDataSize)
-			//{
-			//	UE_LOG(LogTexture, Warning, TEXT("Texture2DArray creation failed. Textures %s and %s have incompatible pixel formats."), *TextureName, *TextureNameCmp);
-			//	bError = true;
-			//}
 		}
 	}
 
@@ -166,7 +164,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 		// X,Y,Z size of the array.
 		int32 SizeX = SourceTextures[0]->GetSizeX();
 		int32 SizeY = SourceTextures[0]->GetSizeY();
-		uint32 NumSlices = SourceTextures.Num();
+		uint32 ArraySize = SourceTextures.Num();
 		// Only copy the first mip from the source textures to array texture.
 		uint32 NumMips = 1;
 
@@ -182,16 +180,18 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 		}
 
 		// Create the source texture for this UTexture.
-		Source.Init(SizeX, SizeY, NumSlices, NumMips, Format);
+		Source.Init(SizeX, SizeY, ArraySize, NumMips, Format);
 
 		// We only copy the top level Mip map.
-		uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = { 0 };
-		int32 MipSizeBytes[MAX_TEXTURE_MIP_COUNT] = { 0 };
+		TArray<uint8*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DestMipData;
+		TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipSizeBytes;
+		DestMipData.AddZeroed(NumMips);
+		MipSizeBytes.AddZeroed(NumMips);
 			
 		for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 		{
 			DestMipData[MipIndex] =  Source.LockMip(MipIndex);
-			MipSizeBytes[MipIndex] = Source.CalcMipSize(MipIndex) / NumSlices;
+			MipSizeBytes[MipIndex] = Source.CalcMipSize(MipIndex) / ArraySize;
 		}
 
 		for (int32 SourceTexIndex = 0; SourceTexIndex < SourceTextures.Num(); ++SourceTexIndex)
@@ -268,13 +268,13 @@ void UTexture2DArray::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 #if WITH_EDITOR
 	int32 SizeX = Source.GetSizeX();
 	int32 SizeY = Source.GetSizeY();
-	int32 SizeZ = Source.GetNumSlices(); //GetSizeZ()
+	int32 ArraySize = Source.GetNumSlices();
 #else
 	int32 SizeX = 0;
 	int32 SizeY = 0;
-	int32 SizeZ = 0;
+	int32 ArraySize = 0;
 #endif
-	const FString Dimensions = FString::Printf(TEXT("%dx%dx%d"), SizeX, SizeY, SizeZ);
+	const FString Dimensions = FString::Printf(TEXT("%dx%d*%d"), SizeX, SizeY, ArraySize);
 	OutTags.Add(FAssetRegistryTag("Dimensions", Dimensions, FAssetRegistryTag::TT_Dimensional));
 	OutTags.Add(FAssetRegistryTag("Format", GPixelFormats[GetPixelFormat()].Name, FAssetRegistryTag::TT_Alphabetical));
 
@@ -283,10 +283,10 @@ void UTexture2DArray::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 
 FString UTexture2DArray::GetDesc() 
 {
-	return FString::Printf(TEXT("Array: %dx%dx%d [%s]"),
+	return FString::Printf(TEXT("Array: %dx%d*%d [%s]"),
 		GetSizeX(),
 		GetSizeY(),
-		GetNumSlices(),
+		GetArraySize(),
 		GPixelFormats[GetPixelFormat()].Name
 	);
 }
@@ -370,10 +370,51 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 
 bool UTexture2DArray::StreamOut(int32 NewMipCount)
 {
+	FTexture2DArrayResource* Texture2DArrayResource = Resource ? Resource->GetTexture2DArrayResource() : nullptr;
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount) && ensure(Texture2DArrayResource))
+	{
+		FTextureMipAllocator* MipAllocator = new FTexture2DArrayMipAllocator_Reallocate(this);
+		PendingUpdate = new FTextureStreamOut(this, MipAllocator);
+		return !PendingUpdate->IsCancelled();
+	}
 	return false;
 }
 
 bool UTexture2DArray::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
+	FTexture2DArrayResource* Texture2DArrayResource = Resource ? Resource->GetTexture2DArrayResource() : nullptr;
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount) && ensure(Texture2DArrayResource))
+	{
+		FTextureMipDataProvider* CustomMipDataProvider = nullptr;
+		for (UAssetUserData* UserData : AssetUserData)
+		{
+			UTextureMipDataProviderFactory* CustomMipDataProviderFactory = Cast<UTextureMipDataProviderFactory>(UserData);
+			if (CustomMipDataProviderFactory)
+			{
+				CustomMipDataProvider = CustomMipDataProviderFactory->AllocateMipDataProvider(this);
+				if (CustomMipDataProvider)
+				{
+					break;
+				}
+			}
+		}
+
+		FTextureMipAllocator* MipAllocator = new FTexture2DArrayMipAllocator_Reallocate(this);
+		FTextureMipDataProvider* DefaultMipDataProvider = nullptr;
+
+#if WITH_EDITORONLY_DATA
+		if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor)
+		{
+			DefaultMipDataProvider = new FTexture2DArrayMipDataProvider_DDC(this);
+		}
+		else
+#endif
+		{
+			DefaultMipDataProvider = new FTexture2DArrayMipDataProvider_IO(this, bHighPrio);
+		}
+
+		PendingUpdate = new FTextureStreamIn(this, MipAllocator, CustomMipDataProvider, DefaultMipDataProvider);
+		return !PendingUpdate->IsCancelled();
+	}
 	return false;
 }

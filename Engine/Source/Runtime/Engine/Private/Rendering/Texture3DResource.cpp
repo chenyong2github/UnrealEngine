@@ -42,7 +42,7 @@ void FVolumeTextureBulkData::MergeMips(int32 NumMips)
 	// Don't do anything if there is nothing to merge
 	if (MergedSize > MipSize[FirstMipIdx])
 	{
-		uint8* MergedAlloc = (uint8*)FMemory::Malloc(MergedSize);
+		uint8* MergedAlloc = (uint8*)FMemory::Malloc(MergedSize, MALLOC_ALIGNMENT);
 		uint8* CurrPos = MergedAlloc;
 		for (int32 MipIndex = FirstMipIdx; MipIndex < NumMips; ++MipIndex)
 		{
@@ -78,8 +78,17 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 			{
 				const FTexture2DMipMap& MipMap = PlatformData->Mips[MipIndex];
 				
+				uint32 MipExtentX = 0;
+				uint32 MipExtentY = 0;
+				uint32 MipExtentZ = 0;
+				CalcMipMapExtent3D(SizeX, SizeY, SizeZ, PixelFormat, State.RequestedFirstLODIdx(), MipExtentX, MipExtentY, MipExtentZ);
+
+
+				uint32 TextureAlign = 0;
+				uint64 PlatformMipSize = RHICalcTexture3DPlatformSize(MipExtentX, MipExtentY, MipExtentZ, (EPixelFormat)PixelFormat, State.NumRequestedLODs, CreationFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+
 				// The bulk data can be bigger because of memory alignment constraints on each slice and mips.
-				InitialData.GetMipSize()[MipIndex] = FMath::Max<int32>(
+				InitialData.GetMipSize()[MipIndex] = FMath::Max<uint64>(
 					MipMap.BulkData.GetBulkDataSize(), 
 					CalcTextureMipMapSize3D(SizeX, SizeY, SizeZ, (EPixelFormat)PixelFormat, MipIndex)
 				);
@@ -144,22 +153,20 @@ void FTexture3DResource::CreatePartiallyResidentTexture()
 	TextureRHI.SafeRelease();
 }
 
-#if STATS
-void FTexture3DResource::CalcRequestedMipsSize()
+uint64 FTexture3DResource::GetPlatformMipsSize(uint32 NumMips) const
 {
-	if (PlatformData && State.NumRequestedLODs > 0)
+	if (PlatformData && NumMips > 0)
 	{
 		uint32 MipExtentX = 0;
 		uint32 MipExtentY = 0;
 		uint32 MipExtentZ = 0;
-		CalcMipMapExtent3D(SizeX, SizeY, SizeZ, PixelFormat, State.RequestedFirstLODIdx(), MipExtentX, MipExtentY, MipExtentZ);
+		CalcMipMapExtent3D(SizeX, SizeY, SizeZ, PixelFormat, State.LODCountToFirstLODIdx(NumMips), MipExtentX, MipExtentY, MipExtentZ);
 
 		uint32 TextureAlign = 0;
-		TextureSize = (uint32)RHICalcTexture3DPlatformSize(MipExtentX, MipExtentY, MipExtentZ, PixelFormat, State.NumRequestedLODs, CreationFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		return RHICalcTexture3DPlatformSize(MipExtentX, MipExtentY, MipExtentZ, PixelFormat, NumMips, CreationFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 	}
 	else
 	{
-		TextureSize = 0;
+		return 0;
 	}
 }
-#endif

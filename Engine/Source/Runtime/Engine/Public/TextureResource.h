@@ -29,6 +29,8 @@ class IVirtualTexture;
 struct FTexturePlatformData;
 class FStreamableTextureResource;
 class FTexture2DResource;
+class FTexture3DResource;
+class FTexture2DArrayResource;
 
 /** Maximum number of slices in texture source art. */
 #define MAX_TEXTURE_SOURCE_SLICES 6
@@ -91,9 +93,13 @@ public:
 
 	// Dynamic cast methods.
 	ENGINE_API virtual FTexture2DResource* GetTexture2DResource() { return nullptr; }
+	ENGINE_API virtual FTexture3DResource* GetTexture3DResource() { return nullptr; }
+	ENGINE_API virtual FTexture2DArrayResource* GetTexture2DArrayResource() { return nullptr; }
 	ENGINE_API virtual FStreamableTextureResource* GetStreamableTextureResource() { return nullptr; }
 	// Dynamic cast methods (const).
 	ENGINE_API virtual const FTexture2DResource* GetTexture2DResource() const { return nullptr; }
+	ENGINE_API virtual const FTexture3DResource* GetTexture3DResource() const { return nullptr; }
+	ENGINE_API virtual const FTexture2DArrayResource* GetTexture2DArrayResource() const { return nullptr; }
 	ENGINE_API virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return nullptr; }
 
 	// Current mip count. We use "current" to specify that it is not computed from SizeX() which is the size when fully streamed in.
@@ -110,6 +116,16 @@ public:
 	FORCEINLINE FRHITexture2D* GetTexture2DRHI() const
 	{
 		return TextureRHI.IsValid() ? TextureRHI->GetTexture2D() : nullptr;
+	}
+
+	FORCEINLINE FRHITexture3D* GetTexture3DRHI() const
+	{
+		return TextureRHI.IsValid() ? TextureRHI->GetTexture3D() : nullptr;
+	}
+
+	FORCEINLINE FRHITexture2DArray* GetTexture2DArrayRHI() const
+	{
+		return TextureRHI.IsValid() ? TextureRHI->GetTexture2DArray() : nullptr;
 	}
 
 	void SetTextureReference(FRHITextureReference* TextureReference)

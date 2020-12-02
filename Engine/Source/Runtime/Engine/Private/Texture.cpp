@@ -686,6 +686,17 @@ bool UTexture::ShouldMipLevelsBeForcedResident() const
 	return false;
 }
 
+void UTexture::CancelPendingTextureStreaming()
+{
+	for( TObjectIterator<UTexture> It; It; ++It )
+	{
+		UTexture* CurrentTexture = *It;
+		CurrentTexture->CancelPendingStreamingRequest();
+	}
+
+	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
+}
+
 float UTexture::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale)
 {
 	// Indicate the action was not performed...

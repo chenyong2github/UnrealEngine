@@ -22,17 +22,6 @@ class UTexture2D : public UTexture
 
 public:
 
-	/*
-	 * Level scope index of this texture. It is used to reduce the amount of lookup to map a texture to its level index.
-	 * Useful when building texture streaming data, as well as when filling the texture streamer with precomputed data.
-     * It relates to FStreamingTextureBuildInfo::TextureLevelIndex and also the index in ULevel::StreamingTextureGuids. 
-	 * Default value of -1, indicates that the texture has an unknown index (not yet processed). At level load time, 
-	 * -2 is also used to indicate that the texture has been processed but no entry were found in the level table.
-	 * After any of these processes, the LevelIndex is reset to INDEX_NONE. Making it ready for the next level task.
-	 */
-	UPROPERTY(transient, duplicatetransient, NonTransactional)
-	int32 LevelIndex;
-
 	/** keep track of first mip level used for ResourceMem creation */
 	UPROPERTY()
 	int32 FirstResourceMemMip;
@@ -127,6 +116,8 @@ public:
 	//~ Begin UTexture Interface.
 	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
 	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override;
 	virtual void UpdateResource() override;
@@ -227,13 +218,6 @@ public:
 	 * @return size of resource as to be displayed to artists/ LDs in the Editor.
 	 */
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-
-	/**
-	 * Cancels any pending texture streaming actions if possible.
-	 * Returns when no more async loading requests are in flight.
-	 */
-	ENGINE_API static void CancelPendingTextureStreaming();
-
 
 	/**
 	 * Returns the global mip map bias applied as an offset for 2d textures.

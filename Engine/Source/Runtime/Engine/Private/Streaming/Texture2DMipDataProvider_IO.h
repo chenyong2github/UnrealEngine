@@ -8,7 +8,6 @@ Texture2DMipDataProvider_IO.h : Implementation of FTextureMipDataProvider using 
 
 #include "CoreMinimal.h"
 #include "Streaming/TextureMipDataProvider.h"
-#include "Misc/PackagePath.h"
 #include "Async/AsyncFileHandle.h"
 
 /**
@@ -37,28 +36,26 @@ public:
 protected:
 
 	// A structured with information about which file contains which mips.
-	struct FFileInfo
+	struct FIORequest
 	{
-		FPackagePath PackagePath;
-		EPackageSegment PackageSegment;
-		TUniquePtr<IAsyncReadFileHandle> IOFileHandle;
-		int64 IOFileOffset = 0;
-		int32 FirstMipIndex = INDEX_NONE;
-		int32 LastMipIndex = INDEX_NONE;
+		FIoFilenameHash FilenameHash = INVALID_IO_FILENAME_HASH;
+		TUniquePtr<IBulkDataIORequest> BulkDataIORequest;
 	};
 
 	// Pending async requests created in GetMips().
-	TArray<TUniquePtr<IAsyncReadRequest>, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> IORequests;
-	// The list of relevant files used for reading texture mips.
-	TArray<FFileInfo, TInlineAllocator<2>> FileInfos;
+	TArray<FIORequest, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> IORequests;
 
+	// The asset name, used to log IO errors.
+	FName TextureName;
 	// Whether async read requests must be created with high priority (executes faster). 
 	bool bPrioritizedIORequest = false;
 	// Whether async read requests where cancelled for any reasons.
 	bool bIORequestCancelled = false;
+	// Whether async read requests were required to abort through AbortPollMips().
+	bool bIORequestAborted = false;
 
 	// A callback to be executed once all IO pending requests are completed.
-	FAsyncFileCallBack AsyncFileCallBack;
+	FBulkDataIORequestCallBack AsyncFileCallBack;
 
 	// Helper to configure the AsyncFileCallBack.
 	void SetAsyncFileCallback(const FTextureUpdateSyncOptions& SyncOptions);

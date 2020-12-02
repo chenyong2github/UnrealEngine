@@ -115,10 +115,6 @@ namespace Lightmass
 		uint32 GetSizeX() const { return SizeX; }
 		uint32 GetSizeY() const { return SizeY; }
 
-		// USurface interface
-		virtual float GetSurfaceWidth() const { return SizeX; }
-		virtual float GetSurfaceHeight() const { return SizeY; }
-
 		void Quantize(int32 DebugSampleIndex);
 
 		const FShadowSample* GetData() { return Data.GetData(); }
@@ -178,10 +174,6 @@ namespace Lightmass
 		FSignedDistanceFieldShadowSample& operator()(uint32 X,uint32 Y) { return Data[SizeX * Y + X]; }
 		uint32 GetSizeX() const { return SizeX; }
 		uint32 GetSizeY() const { return SizeY; }
-
-		// USurface interface
-		virtual float GetSurfaceWidth() const { return SizeX; }
-		virtual float GetSurfaceHeight() const { return SizeY; }
 
 		void Quantize(int32 DebugSampleIndex);
 

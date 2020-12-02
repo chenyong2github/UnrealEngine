@@ -10,6 +10,9 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/Texture2D.h"
+#include "Engine/VolumeTexture.h"
+#include "Engine/Texture2DArray.h"
 #include "LandscapeComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
@@ -81,8 +84,6 @@ FORCEINLINE float ClampMeshToCameraDistanceSquared(float MeshToCameraDistanceSqu
 /** Constructor, initializing all members and  */
 FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 :	CurrentUpdateStreamingRenderAssetIndex(0)
-,	bTriggerDumpTextureGroupStats( false )
-,	bDetailedDumpTextureGroupStats( false )
 ,	AsyncWork( nullptr )
 ,	CurrentPendingMipCopyRequestIdx(0)
 ,	ProcessingStage( 0 )
@@ -255,7 +256,7 @@ void FRenderAssetStreamingManager::CancelForcedResources()
 		}
 	}
 
-	// Reset the streaming system, so it picks up any changes to UTexture2D right away.
+	// Reset the streaming system, so it picks up any changes to the asset right away.
 	ProcessingStage = 0;
 }
 
@@ -886,7 +887,7 @@ void FRenderAssetStreamingManager::RemoveStaticReferences(const UPrimitiveCompon
 
 /**
  * Called when a primitive is detached from an actor or another component.
- * Note: We should not be accessing the primitive or the UTexture2D after this call!
+ * Note: We should not be accessing the primitive or the UTexture after this call!
  */
 void FRenderAssetStreamingManager::NotifyPrimitiveDetached( const UPrimitiveComponent* Primitive )
 {
@@ -2010,27 +2011,46 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 		const int32 WantedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.GetPerfectWantedMips());
 		const int32 MaxAllowedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.MaxAllowedMips);
 
-		if (AssetType == EStreamableRenderAssetType::Texture)
+		FTexturePlatformData** TexturePlatformData = Cast<UTexture>(RenderAsset) ? const_cast<UTexture*>(Cast<UTexture>(RenderAsset))->GetRunningPlatformData() : nullptr;
+		if (AssetType == EStreamableRenderAssetType::Texture && TexturePlatformData)
 		{
-			const UTexture2D* Texture = CastChecked<UTexture2D>(RenderAsset);
-			const TIndirectArray<struct FTexture2DMipMap>& Mips = Texture->PlatformData->Mips;
+			const UTexture2D* Texture2D = CastChecked<UTexture2D>(RenderAsset);
+			const UVolumeTexture* VolumeTexture = CastChecked<UVolumeTexture>(RenderAsset);
+			const UTexture2DArray* Texture2DArray = CastChecked<UTexture2DArray>(RenderAsset);
+			const TIndirectArray<struct FTexture2DMipMap>& TextureMips = (*TexturePlatformData)->Mips;
+
+			auto OutputMipsString = [&](int32 OutputIndex)->FString
+			{
+				const FTexture2DMipMap& OutputMips = TextureMips[OutputIndex];
+				if (Texture2D)
+				{
+					return FString::Printf(TEXT("%dx%d"), OutputMips.SizeX, OutputMips.SizeY);
+				}
+				else if (VolumeTexture)
+				{
+					return FString::Printf(TEXT("%dx%dx%d"), OutputMips.SizeX, OutputMips.SizeY, OutputMips.SizeZ);
+				}
+				else if (Texture2DArray)
+				{
+					return FString::Printf(TEXT("%dx%d*%d"), OutputMips.SizeX, OutputMips.SizeY, OutputMips.SizeZ);
+				}
+				else // Unkown type fallback
+				{
+					return FString::Printf(TEXT("%d?%d?%d"), OutputMips.SizeX, OutputMips.SizeY, OutputMips.SizeZ);
+				}
+			};
 
 			if (StreamingRenderAsset.LastRenderTime != MAX_FLT)
 			{
-				UE_LOG(LogContentStreaming, Log, TEXT("    Current=%dx%d Wanted=%dx%d MaxAllowed=%dx%d LastRenderTime=%.3f BudgetBias=%d Group=%s"),
-					Mips[CurrentMipIndex].SizeX, Mips[CurrentMipIndex].SizeY,
-					Mips[WantedMipIndex].SizeX, Mips[WantedMipIndex].SizeY,
-					Mips[MaxAllowedMipIndex].SizeX, Mips[MaxAllowedMipIndex].SizeY,
-					StreamingRenderAsset.LastRenderTime,
-					StreamingRenderAsset.BudgetMipBias,
+				UE_LOG(LogContentStreaming, Log, TEXT("    Current=%s  Wanted=%s MaxAllowed=%s LastRenderTime=%.3f BudgetBias=%d Group=%s"),
+					*OutputMipsString(CurrentMipIndex), *OutputMipsString(WantedMipIndex), *OutputMipsString(MaxAllowedMipIndex),
+					StreamingRenderAsset.LastRenderTime, StreamingRenderAsset.BudgetMipBias,
 					UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup)));
 			}
 			else
 			{
-				UE_LOG(LogContentStreaming, Log, TEXT("    Current=%dx%d Wanted=%dx%d MaxAllowed=%dx%d BudgetBias=%d Group=%s"),
-					Mips[CurrentMipIndex].SizeX, Mips[CurrentMipIndex].SizeY,
-					Mips[WantedMipIndex].SizeX, Mips[WantedMipIndex].SizeY,
-					Mips[MaxAllowedMipIndex].SizeX, Mips[MaxAllowedMipIndex].SizeY,
+				UE_LOG(LogContentStreaming, Log, TEXT("    Current=%s Wanted=%s MaxAllowed=%s BudgetBias=%d Group=%s"),
+					*OutputMipsString(CurrentMipIndex), *OutputMipsString(WantedMipIndex), *OutputMipsString(MaxAllowedMipIndex),
 					StreamingRenderAsset.BudgetMipBias,
 					UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup)));
 			}
@@ -2087,7 +2107,7 @@ bool FRenderAssetStreamingManager::HandleCancelRenderAssetStreamingCommand( cons
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	UTexture2D::CancelPendingTextureStreaming();
+	UTexture::CancelPendingTextureStreaming();
 	UStaticMesh::CancelAllPendingStreamingActions();
 	USkeletalMesh::CancelAllPendingStreamingActions();
 	ULandscapeLODStreamingProxy::CancelAllPendingStreamingActions();
@@ -2344,16 +2364,115 @@ bool FRenderAssetStreamingManager::HandleStreamingManagerMemoryCommand( const TC
 
 bool FRenderAssetStreamingManager::HandleLODGroupsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
-	bDetailedDumpTextureGroupStats = FParse::Param(Cmd, TEXT("Detailed"));
-	bTriggerDumpTextureGroupStats = true;
-	// TODO: mesh LOD groups
+	FScopeLock ScopeLock(&CriticalSection);
+	SyncStates(true);
+
+	struct FTextureGroupStats
+	{
+		// Streaming texture stats
+		int32 NumStreamingTextures = 0;
+		uint64 CurrentTextureSize = 0;
+		uint64 WantedTextureSize = 0;
+		uint64 MaxTextureSize = 0;
+		// Non Streaming texture stats
+		int32 NumNonStreamingTextures = 0;
+		uint64 NonStreamingSize = 0;
+		// No resource texture
+		int32 NumNoResourceTextures = 0;
+	};
+	FTextureGroupStats TextureGroupStats[TEXTUREGROUP_MAX];
+
+	// Gather stats.
+	for (TObjectIterator<UTexture> It; It; ++It)
+	{
+		UTexture* Texture = *It;
+		check(Texture);
+
+		FTextureGroupStats& LODStats = TextureGroupStats[Texture->LODGroup];
+
+		const EPixelFormat PixelFormat = [&]()->EPixelFormat
+		{
+			if (Texture->GetRunningPlatformData())
+			{
+				return (*Texture->GetRunningPlatformData())->PixelFormat;
+			}
+			else if (Texture->Resource && Texture->Resource->TextureRHI)
+			{
+				return Texture->Resource->TextureRHI->GetFormat();
+			}
+			else
+			{
+				return PF_Unknown;
+			}
+		}();
+
+		// No resource no size taken
+		if (!Texture->Resource)
+		{
+			LODStats.NumNoResourceTextures++;
+		}
+		else if (Texture->IsStreamable())
+		{
+			FStreamingRenderAsset* StreamingTexture = GetStreamingRenderAsset(Texture);
+			if (ensure(StreamingTexture))
+			{
+				LODStats.NumStreamingTextures++;
+				LODStats.CurrentTextureSize += StreamingTexture->GetSize(StreamingTexture->ResidentMips);;
+				LODStats.WantedTextureSize += StreamingTexture->GetSize(StreamingTexture->WantedMips);
+				LODStats.MaxTextureSize += StreamingTexture->GetSize(StreamingTexture->MaxAllowedMips);
+			}
+		}
+		else
+		{
+			LODStats.NumNonStreamingTextures++;
+			LODStats.NonStreamingSize += Texture->CalcTextureMemorySizeEnum(TMC_ResidentMips);
+		}
+	}
+
+	// Output stats.
+	{
+		UE_LOG(LogContentStreaming, Log, TEXT("Texture memory usage:"));
+		FTextureGroupStats TotalStats;
+		for (int32 GroupIndex = 0; GroupIndex < TEXTUREGROUP_MAX; ++GroupIndex)
+		{
+			FTextureGroupStats& Stat = TextureGroupStats[GroupIndex];
+			if (Stat.NumStreamingTextures || Stat.NumNonStreamingTextures || Stat.NumNoResourceTextures)
+			{
+				TotalStats.NumStreamingTextures += Stat.NumStreamingTextures;
+				TotalStats.NumNonStreamingTextures += Stat.NumNonStreamingTextures;
+				TotalStats.CurrentTextureSize += Stat.CurrentTextureSize;
+				TotalStats.WantedTextureSize += Stat.WantedTextureSize;
+				TotalStats.MaxTextureSize += Stat.MaxTextureSize;
+				TotalStats.NonStreamingSize += Stat.NonStreamingSize;
+				TotalStats.NumNoResourceTextures += Stat.NumNoResourceTextures;
+				UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumStreamingTextures=%4d { Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB }, NumNonStreaming=%4d { Size=%8.1f KB }, NumWithNoResource=%4d"),
+					UTexture::GetTextureGroupString((TextureGroup)GroupIndex),
+					Stat.NumStreamingTextures,
+					Stat.CurrentTextureSize / 1024.0f,
+					Stat.WantedTextureSize / 1024.0f,
+					Stat.MaxTextureSize / 1024.0f,
+					Stat.NumNonStreamingTextures,
+					Stat.NonStreamingSize / 1024.0f,
+					Stat.NumNoResourceTextures);
+			}
+		}
+		UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumStreamingTextures=%4d { Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB }, NumNonStreaming=%4d { Size=%8.1f KB }, NumWithNoResource=%4d"),
+			TEXT("Total"),
+			TotalStats.NumStreamingTextures,
+			TotalStats.CurrentTextureSize / 1024.0f,
+			TotalStats.WantedTextureSize / 1024.0f,
+			TotalStats.MaxTextureSize / 1024.0f,
+			TotalStats.NumNonStreamingTextures,
+			TotalStats.NonStreamingSize / 1024.0f,
+			TotalStats.NumNoResourceTextures);
+	}
 	return true;
 }
 
 bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
 {
-	FScopeLock ScopeLock(&CriticalSection);
 
+	FScopeLock ScopeLock(&CriticalSection);
 	SyncStates(true);
 
 	FString InvestigateAssetName(FParse::Token(Cmd, 0));
@@ -2374,14 +2493,14 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 				if (!RenderAsset) continue;
 				const EStreamableRenderAssetType AssetType = StreamingRenderAsset.RenderAssetType;
 				const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
-				UTexture2D* Texture2D = Cast<UTexture2D>(RenderAsset);
+				UTexture* Texture = Cast<UTexture>(RenderAsset);
 				UStaticMesh* StaticMesh = Cast<UStaticMesh>(RenderAsset);
 				int32 CurrentMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.ResidentMips);
 				int32 WantedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.GetPerfectWantedMips());
 				int32 MaxMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.MaxAllowedMips);
 
 				UE_LOG(LogContentStreaming, Log, TEXT("%s: %s"), FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType), *AssetName);
-				FString LODGroupName = Texture2D ? UTexture::GetTextureGroupString((TextureGroup)StreamingRenderAsset.LODGroup) : TEXT("Unknown");
+				FString LODGroupName = Texture ? UTexture::GetTextureGroupString((TextureGroup)StreamingRenderAsset.LODGroup) : TEXT("Unknown");
 #if WITH_EDITORONLY_DATA
 				if (StaticMesh)
 				{
@@ -2392,13 +2511,16 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 				const TCHAR* BucketNames[] = { TEXT("Largest"), TEXT("Larger"), TEXT("Default"), TEXT("Smaller"), TEXT("Smallest"), TEXT("Tiniest") };
 				if ((int32)FPlatformMemory::GetMemorySizeBucket() < UE_ARRAY_COUNT(BucketNames))
 				{
-					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:   %s [Bucket=%s]"), *LODGroupName, BucketNames[(int32)FPlatformMemory::GetMemorySizeBucket()]);
+					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:       %s [Bucket=%s]"), *LODGroupName, BucketNames[(int32)FPlatformMemory::GetMemorySizeBucket()]);
 				}
 				else
 				{
-					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:   %s [Unkown Bucket]"), *LODGroupName);
+					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:       %s [Unkown Bucket]"), *LODGroupName);
 				}
-
+				if (Texture && Texture->GetRunningPlatformData())
+				{
+					UE_LOG(LogContentStreaming, Log, TEXT("  Format:          %s"), GPixelFormats[(*Texture->GetRunningPlatformData())->PixelFormat].Name);
+				}
 				if (RenderAsset->bGlobalForceMipLevelsToBeResident)
 				{
 					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips:  bGlobalForceMipLevelsToBeResident"));
@@ -2414,17 +2536,34 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 				}
 				else if (StreamingRenderAsset.bForceFullyLoadHeuristic)
 				{
-					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips: bForceFullyLoad"));
+					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips:  bForceFullyLoad"));
 				}
 				else if (ResourceState.MaxNumLODs == 1)
 				{
 					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips:  No mip-maps"));
 				}
 				
-				if (Texture2D)
+				if (Texture && Texture->GetRunningPlatformData())
 				{
-					UE_LOG(LogContentStreaming, Log, TEXT("  Current size [Mips]: %dx%d [%d]"), Texture2D->PlatformData->Mips[CurrentMipIndex].SizeX, Texture2D->PlatformData->Mips[CurrentMipIndex].SizeY, StreamingRenderAsset.ResidentMips);
-					UE_LOG(LogContentStreaming, Log, TEXT("  Wanted size [Mips]:  %dx%d [%d]"), Texture2D->PlatformData->Mips[WantedMipIndex].SizeX, Texture2D->PlatformData->Mips[WantedMipIndex].SizeY, StreamingRenderAsset.GetPerfectWantedMips());
+					const TIndirectArray<struct FTexture2DMipMap>& TextureMips = (*Texture->GetRunningPlatformData())->Mips;
+					UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+					UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
+					UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
+					if (Texture2D)
+					{
+						UE_LOG(LogContentStreaming, Log, TEXT("  Current size [2D Mips]: %dx%d [%d]"), TextureMips[CurrentMipIndex].SizeX, TextureMips[CurrentMipIndex].SizeY, StreamingRenderAsset.ResidentMips);
+						UE_LOG(LogContentStreaming, Log, TEXT("  Wanted size [2D Mips]:  %dx%d [%d]"), TextureMips[WantedMipIndex].SizeX, TextureMips[WantedMipIndex].SizeY, StreamingRenderAsset.GetPerfectWantedMips());
+					}
+					else if (VolumeTexture)
+					{
+						UE_LOG(LogContentStreaming, Log, TEXT("  Current size [3D Mips]: %dx%dx%d [%d]"), TextureMips[CurrentMipIndex].SizeX, TextureMips[CurrentMipIndex].SizeY, TextureMips[CurrentMipIndex].SizeZ, StreamingRenderAsset.ResidentMips);
+						UE_LOG(LogContentStreaming, Log, TEXT("  Wanted size [3D Mips]:  %dx%dx%d [%d]"), TextureMips[WantedMipIndex].SizeX, TextureMips[WantedMipIndex].SizeY, TextureMips[CurrentMipIndex].SizeZ, StreamingRenderAsset.GetPerfectWantedMips());
+					}
+					else if (Texture2DArray)
+					{
+						UE_LOG(LogContentStreaming, Log, TEXT("  Current size [2D Array Mips]: %dx%d*%d [%d]"), TextureMips[CurrentMipIndex].SizeX, TextureMips[CurrentMipIndex].SizeY, TextureMips[CurrentMipIndex].SizeZ, StreamingRenderAsset.ResidentMips);
+						UE_LOG(LogContentStreaming, Log, TEXT("  Wanted size [2D Array Mips]:  %dx%d*%d [%d]"), TextureMips[WantedMipIndex].SizeX, TextureMips[WantedMipIndex].SizeY, TextureMips[CurrentMipIndex].SizeZ, StreamingRenderAsset.GetPerfectWantedMips());
+					}
 				}
 				else
 				{
@@ -2467,7 +2606,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						// LOD group MaxResolution clamp : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
 						const int32 MipCountBeforeMaxRes = ResourceState.MaxNumLODs - RenderAsset->NumCinematicMipLevels -
 							(StreamingRenderAsset.LODGroup == TEXTUREGROUP_UI ? GUITextureLODBias : 0) - 
-							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + (Texture2D ? Texture2D->LODBias : 0)));
+							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + (Texture ? Texture->LODBias : 0)));
 						const int32 MaxResBias = MipCountBeforeMaxRes - (LODGroupInfo.MaxLODMipCount + 1);
 						if (MaxResBias > 0)
 						{
@@ -2476,16 +2615,16 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						}
 
 						// Asset LODBias : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
-						if (Texture2D && Texture2D->LODBias)
+						if (Texture && Texture->LODBias)
 						{
 							if (FPlatformProperties::RequiresCookedData())
 							{
-								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:0(%d)]"), Texture2D->LODBias);
+								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:0(%d)]"), Texture->LODBias);
 							}
 							else
 							{
-								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:%d]"), Texture2D->LODBias);
-								CumuBias += Texture2D->LODBias;
+								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:%d]"), Texture->LODBias);
+								CumuBias += Texture->LODBias;
 							}
 						}
 
@@ -2658,205 +2797,4 @@ bool FRenderAssetStreamingManager::Exec( UWorld* InWorld, const TCHAR* Cmd, FOut
 #endif // !UE_BUILD_SHIPPING
 
 	return false;
-}
-
-void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
-{
-	FScopeLock ScopeLock(&CriticalSection);
-
-	bTriggerDumpTextureGroupStats = false;
-#if !UE_BUILD_SHIPPING
-	struct FTextureGroupStats
-	{
-		FTextureGroupStats()
-		{
-			FMemory::Memzero( this, sizeof(FTextureGroupStats) );
-		}
-		int32 NumTextures;
-		int32 NumNonStreamingTextures;
-		int64 CurrentTextureSize;
-		int64 WantedTextureSize;
-		int64 MaxTextureSize;
-		int64 NonStreamingSize;
-	};
-	FTextureGroupStats TextureGroupStats[TEXTUREGROUP_MAX];
-	FTextureGroupStats TextureGroupWaste[TEXTUREGROUP_MAX];
-	int64 NumNonStreamingTextures = 0;
-	int64 NonStreamingSize = 0;
-	int32 NumNonStreamingPoolTextures = 0;
-	int64 NonStreamingPoolSize = 0;
-	int64 TotalSavings = 0;
-//	int32 UITexels = 0;
-	int32 NumDXT[PF_MAX];
-	int32 NumNonSaved[PF_MAX];
-	int32 NumOneMip[PF_MAX];
-	int32 NumBadAspect[PF_MAX];
-	int32 NumTooSmall[PF_MAX];
-	int32 NumNonPow2[PF_MAX];
-	int32 NumNULLResource[PF_MAX];
-	FMemory::Memzero( &NumDXT, sizeof(NumDXT) );
-	FMemory::Memzero( &NumNonSaved, sizeof(NumNonSaved) );
-	FMemory::Memzero( &NumOneMip, sizeof(NumOneMip) );
-	FMemory::Memzero( &NumBadAspect, sizeof(NumBadAspect) );
-	FMemory::Memzero( &NumTooSmall, sizeof(NumTooSmall) );
-	FMemory::Memzero( &NumNonPow2, sizeof(NumNonPow2) );
-	FMemory::Memzero( &NumNULLResource, sizeof(NumNULLResource) );
-
-	// Gather stats.
-	for( TObjectIterator<UTexture> It; It; ++It )
-	{
-		UTexture* Texture = *It;
-		UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-		FTextureGroupStats& Stat = TextureGroupStats[Texture->LODGroup];
-		FTextureGroupStats& Waste = TextureGroupWaste[Texture->LODGroup];
-		FStreamingRenderAsset* StreamingTexture = GetStreamingRenderAsset(Texture2D);
-		uint32 TextureAlign = 0;
-		FRHIResourceCreateInfo CreateInfo(Texture2D ? Texture2D->GetExtData() : 0);
-		if ( StreamingTexture )
-		{
-			Stat.NumTextures++;
-			Stat.CurrentTextureSize += StreamingTexture->GetSize( StreamingTexture->ResidentMips );
-			Stat.WantedTextureSize += StreamingTexture->GetSize( StreamingTexture->WantedMips );
-			Stat.MaxTextureSize += StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips );
-			
-			int64 WasteCurrent = StreamingTexture->GetSize( StreamingTexture->ResidentMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->ResidentMips, 1, TexCreate_None, CreateInfo, TextureAlign);
-
-			int64 WasteWanted = StreamingTexture->GetSize( StreamingTexture->WantedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->WantedMips, 1, TexCreate_None, CreateInfo, TextureAlign);
-
-			int64 WasteMaxSize = StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->MaxAllowedMips, 1, TexCreate_None, CreateInfo, TextureAlign);
-
-			Waste.NumTextures++;
-			Waste.CurrentTextureSize += FMath::Max<int64>(WasteCurrent,0);
-			Waste.WantedTextureSize += FMath::Max<int64>(WasteWanted,0);
-			Waste.MaxTextureSize += FMath::Max<int64>(WasteMaxSize,0);
-		}
-		else
-		{
-
-			bool bIsPooledTexture = Texture->Resource && IsValidRef(Texture->Resource->TextureRHI) && appIsPoolTexture( Texture->Resource->TextureRHI );
-			int64 TextureSize = Texture->CalcTextureMemorySizeEnum(TMC_ResidentMips);
-			Stat.NumNonStreamingTextures++;
-			Stat.NonStreamingSize += TextureSize;
-			if ( Texture2D && Texture2D->Resource )
-			{				
-				int64 WastedSize = TextureSize - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), Texture2D->GetNumMips(), 1, TexCreate_None, CreateInfo, TextureAlign);
-
-				Waste.NumNonStreamingTextures++;
-				Waste.NonStreamingSize += FMath::Max<int64>(WastedSize, 0);
-			}
-			if ( bIsPooledTexture )
-			{
-				NumNonStreamingPoolTextures++;
-				NonStreamingPoolSize += TextureSize;
-			}
-			else
-			{
-				NumNonStreamingTextures++;
-				NonStreamingSize += TextureSize;
-			}
-		}
-
-		if ( Texture2D && (Texture2D->GetPixelFormat() == PF_DXT1 || Texture2D->GetPixelFormat() == PF_DXT5) )
-		{
-			NumDXT[Texture2D->GetPixelFormat()]++;
-			if ( Texture2D->Resource )
-			{
-				// Track the reasons we couldn't save any memory from the mip-tail.
-				NumNonSaved[Texture2D->GetPixelFormat()]++;
-				if ( Texture2D->GetNumMips() < 2 )
-				{
-					NumOneMip[Texture2D->GetPixelFormat()]++;
-				}
-				else if ( Texture2D->GetSizeX() > Texture2D->GetSizeY() * 2 || Texture2D->GetSizeY() > Texture2D->GetSizeX() * 2 )
-				{
-					NumBadAspect[Texture2D->GetPixelFormat()]++;
-				}
-				else if ( Texture2D->GetSizeX() < 16 || Texture2D->GetSizeY() < 16 || Texture2D->GetNumMips() < 5 )
-				{
-					NumTooSmall[Texture2D->GetPixelFormat()]++;
-				}
-				else if ( (Texture2D->GetSizeX() & (Texture2D->GetSizeX() - 1)) != 0 || (Texture2D->GetSizeY() & (Texture2D->GetSizeY() - 1)) != 0 )
-				{
-					NumNonPow2[Texture2D->GetPixelFormat()]++;
-				}
-				else
-				{
-					// Unknown reason
-					int32 Q=0;
-				}
-			}
-			else
-			{
-				NumNULLResource[Texture2D->GetPixelFormat()]++;
-			}
-		}
-	}
-
-	// Output stats.
-	{
-		UE_LOG(LogContentStreaming, Log, TEXT("Texture memory usage:"));
-		FTextureGroupStats TotalStats;
-		for ( int32 GroupIndex=0; GroupIndex < TEXTUREGROUP_MAX; ++GroupIndex )
-		{
-			FTextureGroupStats& Stat = TextureGroupStats[GroupIndex];
-			TotalStats.NumTextures				+= Stat.NumTextures;
-			TotalStats.NumNonStreamingTextures	+= Stat.NumNonStreamingTextures;
-			TotalStats.CurrentTextureSize		+= Stat.CurrentTextureSize;
-			TotalStats.WantedTextureSize		+= Stat.WantedTextureSize;
-			TotalStats.MaxTextureSize			+= Stat.MaxTextureSize;
-			TotalStats.NonStreamingSize			+= Stat.NonStreamingSize;
-			UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumTextures=%4d, Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB, NumNonStreaming=%4d, NonStreaming=%8.1f KB"),
-				UTexture::GetTextureGroupString((TextureGroup)GroupIndex),
-				Stat.NumTextures,
-				Stat.CurrentTextureSize / 1024.0f,
-				Stat.WantedTextureSize / 1024.0f,
-				Stat.MaxTextureSize / 1024.0f,
-				Stat.NumNonStreamingTextures,
-				Stat.NonStreamingSize / 1024.0f );
-		}
-		UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumTextures=%4d, Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB, NumNonStreaming=%4d, NonStreaming=%8.1f KB"),
-			TEXT("Total"),
-			TotalStats.NumTextures,
-			TotalStats.CurrentTextureSize / 1024.0f,
-			TotalStats.WantedTextureSize / 1024.0f,
-			TotalStats.MaxTextureSize / 1024.0f,
-			TotalStats.NumNonStreamingTextures,
-			TotalStats.NonStreamingSize / 1024.0f );
-	}
-	if ( bDetailedStats )
-	{
-		UE_LOG(LogContentStreaming, Log, TEXT("Wasted memory due to inefficient texture storage:"));
-		FTextureGroupStats TotalStats;
-		for ( int32 GroupIndex=0; GroupIndex < TEXTUREGROUP_MAX; ++GroupIndex )
-		{
-			FTextureGroupStats& Stat = TextureGroupWaste[GroupIndex];
-			TotalStats.NumTextures				+= Stat.NumTextures;
-			TotalStats.NumNonStreamingTextures	+= Stat.NumNonStreamingTextures;
-			TotalStats.CurrentTextureSize		+= Stat.CurrentTextureSize;
-			TotalStats.WantedTextureSize		+= Stat.WantedTextureSize;
-			TotalStats.MaxTextureSize			+= Stat.MaxTextureSize;
-			TotalStats.NonStreamingSize			+= Stat.NonStreamingSize;
-			UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumTextures=%4d, Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB, NumNonStreaming=%4d, NonStreaming=%8.1f KB"),
-				UTexture::GetTextureGroupString((TextureGroup)GroupIndex),
-				Stat.NumTextures,
-				Stat.CurrentTextureSize / 1024.0f,
-				Stat.WantedTextureSize / 1024.0f,
-				Stat.MaxTextureSize / 1024.0f,
-				Stat.NumNonStreamingTextures,
-				Stat.NonStreamingSize / 1024.0f );
-		}
-		UE_LOG(LogContentStreaming, Log, TEXT("%34s: NumTextures=%4d, Current=%8.1f KB, Wanted=%8.1f KB, OnDisk=%8.1f KB, NumNonStreaming=%4d, NonStreaming=%8.1f KB"),
-			TEXT("Total Wasted"),
-			TotalStats.NumTextures,
-			TotalStats.CurrentTextureSize / 1024.0f,
-			TotalStats.WantedTextureSize / 1024.0f,
-			TotalStats.MaxTextureSize / 1024.0f,
-			TotalStats.NumNonStreamingTextures,
-			TotalStats.NonStreamingSize / 1024.0f );
-	}
-
-	//@TODO: Calculate memory usage for non-pool textures properly!
-//	UE_LOG(LogContentStreaming, Log,  TEXT("%34s: NumTextures=%4d, Current=%7.1f KB"), TEXT("Non-streaming pool textures"), NumNonStreamingPoolTextures, NonStreamingPoolSize/1024.0f );
-//	UE_LOG(LogContentStreaming, Log,  TEXT("%34s: NumTextures=%4d, Current=%7.1f KB"), TEXT("Non-streaming non-pool textures"), NumNonStreamingTextures, NonStreamingSize/1024.0f );
-#endif // !UE_BUILD_SHIPPING
 }

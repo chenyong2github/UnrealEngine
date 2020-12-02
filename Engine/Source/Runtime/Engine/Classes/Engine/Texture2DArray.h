@@ -34,7 +34,7 @@ public:
 	{
 		return PlatformData ? PlatformData->SizeY : 0;
 	}
-	FORCEINLINE int32 GetNumSlices() const
+	FORCEINLINE int32 GetArraySize() const
 	{
 		return PlatformData ? PlatformData->GetNumSlices() : 0;
 	}
@@ -55,6 +55,8 @@ public:
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
 	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return GetArraySize(); }
 	virtual FTextureResource* CreateResource() override;
 #if WITH_EDITOR
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

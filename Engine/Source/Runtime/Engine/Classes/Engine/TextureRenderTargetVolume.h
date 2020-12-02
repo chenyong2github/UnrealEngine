@@ -76,9 +76,9 @@ class UTextureRenderTargetVolume : public UTextureRenderTarget
 
 	//~ Begin UTexture Interface.
 	virtual float GetSurfaceWidth() const  override { return SizeX; }
-	// PVS-Studio notices that the implementation of GetSurfaceWidth is identical to this one
-	// and warns us. In this case, it is intentional, so we disable the warning:
-	virtual float GetSurfaceHeight()const  override { return SizeX; }	 //-V524
+	virtual float GetSurfaceHeight()const  override { return SizeY; }
+	virtual float GetSurfaceDepth()const  override { return SizeZ; }
+	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override;
 	//~ End UTexture Interface.

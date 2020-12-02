@@ -15,7 +15,7 @@
 class ULevel;
 class UMaterialInterface;
 class UPrimitiveComponent;
-class UTexture2D;
+class UTexture;
 struct FMaterialTextureInfo;
 struct FMeshUVChannelInfo;
 struct FSlowTask;
@@ -24,7 +24,6 @@ struct FStreamingTextureBuildInfo;
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(TextureStreamingBuild, Log, All);
 
 class UTexture;
-class UTexture2D;
 class UStreamableRenderAsset;
 struct FStreamingTextureBuildInfo;
 struct FMaterialTextureInfo;
@@ -142,7 +141,7 @@ struct FStreamingTextureBuildInfo
 	/**
 	 *	Set this struct to match the unpacked params.
 	 *
-	 *	@param	LevelTextures	[in,out]	The list of textures referred by all component of a level. The array index maps to UTexture2D::LevelIndex.
+	 *	@param	LevelTextures	[in,out]	The list of textures referred by all component of a level. The array index maps to UTexture::LevelIndex.
 	 *	@param	RefBounds		[in]		The reference bounds used to compute the packed relative box.
 	 *	@param	Info			[in]		The unpacked params.
 	 */
@@ -211,14 +210,14 @@ class FStreamingTextureLevelContext
 	{
 		FTextureBoundState() {}
 
-		FTextureBoundState(UTexture2D* InTexture) : BuildDataTimestamp(0), BuildDataIndex(0), Texture(InTexture) {}
+		FTextureBoundState(UTexture* InTexture) : BuildDataTimestamp(0), BuildDataIndex(0), Texture(InTexture) {}
 
 		/** The timestamp of the build data to indentify whether BuildDataIndex is valid or not. */
 		int32 BuildDataTimestamp;
 		/** The ComponentBuildData Index referring this texture. */
 		int32 BuildDataIndex;
 		/**  The texture relative to this entry. */
-		UTexture2D* Texture;
+		UTexture* Texture;
 	};
 
 	/*
@@ -230,7 +229,7 @@ class FStreamingTextureLevelContext
 	EMaterialQualityLevel::Type QualityLevel;
 	ERHIFeatureLevel::Type FeatureLevel;
 
-	int32* GetBuildDataIndexRef(UTexture2D* Texture2D);
+	int32* GetBuildDataIndexRef(UTexture* Texture);
 
 public:
 

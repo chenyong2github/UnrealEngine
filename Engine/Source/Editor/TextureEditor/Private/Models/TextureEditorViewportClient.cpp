@@ -89,17 +89,14 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	UTextureRenderTargetVolume* RTTextureVolume = Cast<UTextureRenderTargetVolume>(Texture);
 
 	// Fully stream in the texture before drawing it.
-	if (Texture2D)
-	{
-		Texture2D->SetForceMipLevelsToBeResident(30.0f);
-		Texture2D->WaitForStreaming();
-	}
+	Texture->SetForceMipLevelsToBeResident(30.0f);
+	Texture->WaitForStreaming();
 
 	TextureEditorPinned->PopulateQuickInfo();
 
 	// Figure out the size we need
-	uint32 Width, Height;
-	TextureEditorPinned->CalculateTextureDimensions(Width, Height);
+	uint32 Width, Height, Depth, ArraySize;;
+	TextureEditorPinned->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
 	const float MipLevel = (float)TextureEditorPinned->GetMipLevel();
 	const float LayerIndex = (float)TextureEditorPinned->GetLayer();
 
@@ -314,9 +311,8 @@ bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, int32 Controll
 		{
 			TSharedPtr<STextureEditorViewport> EditorViewport = TextureEditorViewportPtr.Pin();
 
-			uint32 Height = 1;
-			uint32 Width = 1;
-			TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
+			uint32 Width, Height, Depth, ArraySize;
+			TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
 
 			if (Key == EKeys::MouseY)
 			{
@@ -388,10 +384,21 @@ void FTextureEditorViewportClient::ModifyCheckerboardTextureColors()
 
 FText FTextureEditorViewportClient::GetDisplayedResolution() const
 {
-	uint32 Height = 1;
-	uint32 Width = 1;
-	TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
-	return FText::Format( NSLOCTEXT("TextureEditor", "DisplayedResolution", "Displayed: {0}x{1}"), FText::AsNumber( FMath::Max((uint32)1, Width) ), FText::AsNumber( FMath::Max((uint32)1, Height)) );
+	// Zero is the default size 
+	uint32 Height, Width, Depth, ArraySize;
+	TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
+	if (Depth > 0)
+	{
+		return FText::Format(NSLOCTEXT("TextureEditor", "DisplayedResolution", "Displayed: {0}x{1}x{2}"), FText::AsNumber(FMath::Max((uint32)1, Width)), FText::AsNumber(FMath::Max((uint32)1, Height)), FText::AsNumber(Depth));
+	}
+	else if (ArraySize > 0)
+	{
+		return FText::Format(NSLOCTEXT("TextureEditor", "DisplayedResolution", "Displayed: {0}x{1}*{2}"), FText::AsNumber(FMath::Max((uint32)1, Width)), FText::AsNumber(FMath::Max((uint32)1, Height)), FText::AsNumber(ArraySize));
+	}
+	else
+	{
+		return FText::Format(NSLOCTEXT("TextureEditor", "DisplayedResolution", "Displayed: {0}x{1}"), FText::AsNumber(FMath::Max((uint32)1, Width)), FText::AsNumber(FMath::Max((uint32)1, Height)));
+	}
 }
 
 
@@ -402,7 +409,8 @@ float FTextureEditorViewportClient::GetViewportVerticalScrollBarRatio() const
 	float WidgetHeight = 1.0f;
 	if (TextureEditorViewportPtr.Pin()->GetVerticalScrollBar().IsValid())
 	{
-		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
+		uint32 Depth, ArraySize;
+		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
 
 		WidgetHeight = TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().Y;
 	}
@@ -418,7 +426,8 @@ float FTextureEditorViewportClient::GetViewportHorizontalScrollBarRatio() const
 	float WidgetWidth = 1.0f;
 	if (TextureEditorViewportPtr.Pin()->GetHorizontalScrollBar().IsValid())
 	{
-		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
+		uint32 Depth, ArraySize;
+		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
 
 		WidgetWidth = TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().X;
 	}
@@ -472,14 +481,14 @@ FVector2D FTextureEditorViewportClient::GetViewportScrollBarPositions() const
 	FVector2D Positions = FVector2D::ZeroVector;
 	if (TextureEditorViewportPtr.Pin()->GetVerticalScrollBar().IsValid() && TextureEditorViewportPtr.Pin()->GetHorizontalScrollBar().IsValid())
 	{
-		uint32 Width, Height;
+		uint32 Width, Height, Depth, ArraySize;
 		UTexture* Texture = TextureEditorPtr.Pin()->GetTexture();
 		float VRatio = GetViewportVerticalScrollBarRatio();
 		float HRatio = GetViewportHorizontalScrollBarRatio();
 		float VDistFromBottom = TextureEditorViewportPtr.Pin()->GetVerticalScrollBar()->DistanceFromBottom();
 		float HDistFromBottom = TextureEditorViewportPtr.Pin()->GetHorizontalScrollBar()->DistanceFromBottom();
 	
-		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
+		TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize);
 
 		if ((TextureEditorViewportPtr.Pin()->GetVerticalScrollBar()->GetVisibility() == EVisibility::Visible) && VDistFromBottom < 1.0f)
 		{

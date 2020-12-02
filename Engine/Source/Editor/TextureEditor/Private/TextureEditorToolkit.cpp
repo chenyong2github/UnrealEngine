@@ -236,28 +236,28 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 /* ITextureEditorToolkit interface
  *****************************************************************************/
 
-void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& Height ) const
+void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const
 {
-	uint32 ImportedWidth = Texture->Source.GetSizeX();
-	uint32 ImportedHeight = Texture->Source.GetSizeY();
+	Width = Texture->Source.GetSizeX();
+	Height = Texture->Source.GetSizeY();
+	Depth = IsVolumeTexture() ? Texture->Source.GetNumLayers() : 0;
+	ArraySize = (Is2DArrayTexture() || IsCubeTexture()) ? Texture->Source.GetNumLayers() : 0;
 
-	// if Original Width and Height are 0, use the saved current width and height
-	if ((ImportedWidth == 0) && (ImportedHeight == 0))
+	if (!Width && !Height)
 	{
-		ImportedWidth = Texture->GetSurfaceWidth();
-		ImportedHeight = Texture->GetSurfaceHeight();
+		Width = (uint32)Texture->GetSurfaceWidth();
+		Height = (uint32)Texture->GetSurfaceHeight();
+		Depth = (uint32)Texture->GetSurfaceDepth();
+		ArraySize = Texture->GetSurfaceArraySize();
 	}
-
-	Width = ImportedWidth;
-	Height = ImportedHeight;
-
 
 	// catch if the Width and Height are still zero for some reason
 	if ((Width == 0) || (Height == 0))
 	{
 		Width = 0;
 		Height= 0;
-
+		Depth = 0;
+		ArraySize = 0;
 		return;
 	}
 
@@ -446,25 +446,18 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
 
+	const bool bIsVolume = VolumeTexture || VolumeTextureRT;
+	const bool bIsArray2D = Texture2DArray || Texture2DArrayRT;
+	const bool bIsCube = !!TextureCube;
+
 	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
 	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
-	const uint32 SurfaceDepth =
-		[&]() -> uint32
-		{
-			if (VolumeTexture)
-			{
-				return (uint32)VolumeTexture->GetSizeZ();
-			}
-			else if (VolumeTextureRT)
-			{
-				return (uint32)VolumeTextureRT->SizeZ;
-			}
-			return 1;
-		}();
+	const uint32 SurfaceDepth = (uint32)Texture->GetSurfaceDepth();
+	const uint32 ArraySize = (uint32)Texture->GetSurfaceArraySize();
 
 	const uint32 ImportedWidth = FMath::Max<uint32>(SurfaceWidth, Texture->Source.GetSizeX());
 	const uint32 ImportedHeight =  FMath::Max<uint32>(SurfaceHeight, Texture->Source.GetSizeY());
-	const uint32 ImportedDepth = FMath::Max<uint32>(SurfaceDepth, VolumeTexture || VolumeTextureRT ? Texture->Source.GetNumSlices() : 1);
+	const uint32 ImportedDepth = FMath::Max<uint32>(SurfaceDepth, bIsVolume ? Texture->Source.GetNumSlices() : 0);
 
 	const FStreamableRenderResourceState SRRState = Texture->GetStreamableResourceState();
 	const int32 ActualMipBias = SRRState.IsValid() ? (SRRState.ResidentFirstLODIdx() + SRRState.AssetLODBias) : Texture->GetCachedLODBias();
@@ -499,7 +492,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	Options.UseGrouping = false;
 
 
-	if (VolumeTexture || VolumeTextureRT)
+	if (bIsVolume)
 	{
 		ImportedText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Imported_3x", "Imported: {0}x{1}x{2}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options), FText::AsNumber(ImportedDepth, &Options)));
 		CurrentText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}x{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options ), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(PreviewEffectiveTextureDepth, &Options)));
@@ -519,12 +512,18 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 			PreviewEffectiveTextureHeight *= (uint32)NumTilesY;
 		}
 	}
+	else if (bIsArray2D)
+	{
+		ImportedText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Imported_3x", "Imported: {0}x{1}*{2}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options), FText::AsNumber(ArraySize, &Options)));
+		CurrentText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}*{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(ArraySize, &Options)));
+		MaxInGameText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_3x", "Max In-Game: {0}x{1}*{2}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), FText::AsNumber(ArraySize, &Options)));
+	}
 	else
 	{
 	    FText CubemapAdd;
-	    if(TextureCube)
+	    if(bIsCube)
 	    {
-		    CubemapAdd = NSLOCTEXT("TextureEditor", "QuickInfo_PerCubeSide", "x6 (CubeMap)");
+		    CubemapAdd = NSLOCTEXT("TextureEditor", "QuickInfo_PerCubeSide", "*6 (CubeMap)");
 	    }
     
 	    ImportedText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Imported_2x", "Imported: {0}x{1}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options)));
@@ -652,8 +651,8 @@ double FTextureEditorToolkit::CalculateDisplayedZoomLevel() const
 		return Zoom;
 	}
 
-	uint32 DisplayWidth, DisplayHeight;
-	CalculateTextureDimensions(DisplayWidth, DisplayHeight);
+	uint32 DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize;
+	CalculateTextureDimensions(DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize);
 	if (PreviewEffectiveTextureHeight != 0)
 	{
 		return (double)DisplayHeight / PreviewEffectiveTextureHeight;
@@ -1145,6 +1144,15 @@ bool FTextureEditorToolkit::IsCubeTexture( ) const
 	return (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()));
 }
 
+bool FTextureEditorToolkit::IsVolumeTexture() const
+{
+	return (Texture->IsA(UVolumeTexture::StaticClass()) || Texture->IsA(UTextureRenderTargetVolume::StaticClass()));
+}
+
+bool FTextureEditorToolkit::Is2DArrayTexture() const
+{
+	return (Texture->IsA(UTexture2DArray::StaticClass()) || Texture->IsA(UTextureRenderTarget2DArray::StaticClass()));
+}
 
 TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateMipMapLevelMenu()
 {

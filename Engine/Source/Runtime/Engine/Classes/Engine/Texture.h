@@ -795,6 +795,17 @@ public:
 		Properties needed at runtime below.
 	--------------------------------------------------------------------------*/
 
+	/*
+	 * Level scope index of this texture. It is used to reduce the amount of lookup to map a texture to its level index.
+	 * Useful when building texture streaming data, as well as when filling the texture streamer with precomputed data.
+     * It relates to FStreamingTextureBuildInfo::TextureLevelIndex and also the index in ULevel::StreamingTextureGuids. 
+	 * Default value of -1, indicates that the texture has an unknown index (not yet processed). At level load time, 
+	 * -2 is also used to indicate that the texture has been processed but no entry were found in the level table.
+	 * After any of these processes, the LevelIndex is reset to INDEX_NONE. Making it ready for the next level task.
+	 */
+	UPROPERTY(transient, duplicatetransient, NonTransactional)
+	int32 LevelIndex = INDEX_NONE;
+
 	/** A bias to the index of the top mip level to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="LOD Bias"), AssetRegistrySearchable)
 	int32 LODBias;
@@ -1046,6 +1057,12 @@ public:
 	/** @return the height of the surface represented by the texture. */
 	virtual float GetSurfaceHeight() const PURE_VIRTUAL(UTexture::GetSurfaceHeight,return 0;);
 
+	/** @return the depth of the surface represented by the texture. */
+	virtual float GetSurfaceDepth() const PURE_VIRTUAL(UTexture::GetSurfaceDepth, return 0;);
+
+	/** @return the array size of the surface represented by the texture. */
+	virtual uint32 GetSurfaceArraySize() const PURE_VIRTUAL(UTexture::GetSurfaceArraySize, return 0;);
+
 	/**
 	 * Access the GUID which defines this texture's resources externally through FExternalTextureRegistry
 	 */
@@ -1089,6 +1106,12 @@ public:
 	ENGINE_API virtual float GetLastRenderTimeForStreaming() const final override;
 	ENGINE_API virtual bool ShouldMipLevelsBeForcedResident() const final override;
 	//~ End UStreamableRenderAsset Interface
+
+	/**
+	 * Cancels any pending texture streaming actions if possible.
+	 * Returns when no more async loading requests are in flight.
+	 */
+	ENGINE_API static void CancelPendingTextureStreaming();
 
 	/**
 	 *	Gets the average brightness of the texture (in linear space)

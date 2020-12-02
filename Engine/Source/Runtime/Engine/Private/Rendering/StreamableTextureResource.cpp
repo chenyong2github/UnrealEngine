@@ -107,7 +107,12 @@ FStreamableTextureResource::FStreamableTextureResource(UTexture* InOwner, const 
 	SizeZ = Mip0.SizeZ;
 
 	MipFadeSetting = (LODGroup == TEXTUREGROUP_Lightmap || LODGroup == TEXTUREGROUP_Shadowmap) ? MipFade_Slow : MipFade_Normal;
-	CreationFlags = (InOwner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (InOwner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed) | TexCreate_ShaderResource | TexCreate_Streamable | (InOwner->bNoTiling ? TexCreate_NoTiling : TexCreate_None);
+	CreationFlags = (InOwner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (InOwner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed) | TexCreate_ShaderResource | (InOwner->bNoTiling ? TexCreate_NoTiling : TexCreate_None);
+
+	if (InPostInitState.MaxNumLODs > 1)
+	{
+		CreationFlags |= TexCreate_Streamable;
+	}
 
 	// Whether the virtual update path is enabled for this texture. This allows to map / unmap top mip memory in an out.
 	// Whether the texture will be created with TexCreate_Virtual depends on the requested mip count and "r.VirtualTextureReducedMemory"
@@ -118,6 +123,12 @@ FStreamableTextureResource::FStreamableTextureResource(UTexture* InOwner, const 
 }
 
 #if STATS
+
+void FStreamableTextureResource::CalcRequestedMipsSize() 
+{ 
+	TextureSize = GetPlatformMipsSize(State.NumRequestedLODs); 
+}
+
 void FStreamableTextureResource::IncrementTextureStats() const
 {
 	INC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );

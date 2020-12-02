@@ -37,6 +37,9 @@ public:
 	/** Set the value of Filter, AddressU, AddressV, AddressW and MipBias from FStreamableTextureResource on the gamethread. */
 	void CacheSamplerStateInitializer(const UTexture2D* InOwner);
 
+	/** Returns the platform mip size for the given mip count. */
+	virtual uint64 GetPlatformMipsSize(uint32 NumMips) const override;
+
 	virtual void InitRHI() override;
 	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
 private:
@@ -50,9 +53,6 @@ private:
 
 	virtual void CreateTexture() final override;
 	virtual void CreatePartiallyResidentTexture() final override;
-#if STATS
-	virtual void CalcRequestedMipsSize() final override;
-#endif
 
 	/** Texture streaming command classes that need to be friends in order to call Update/FinalizeMipCount.	*/
 	friend class UTexture2D;

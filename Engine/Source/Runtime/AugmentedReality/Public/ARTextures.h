@@ -46,6 +46,8 @@ public:
 	// UTexture interface implementation
 	virtual float GetSurfaceWidth() const override { return Size.X; }
 	virtual float GetSurfaceHeight() const override { return Size.Y; }
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
 	// End UTexture interface
 	
@@ -129,6 +131,8 @@ public:
 	// UTexture interface implementation
 	virtual float GetSurfaceWidth() const override { return Size.X; }
 	virtual float GetSurfaceHeight() const override { return Size.Y; }
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return 6; }
 	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
 	// End UTexture interface
 	

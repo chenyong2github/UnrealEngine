@@ -14,7 +14,7 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/FeedbackContext.h"
-#include "Engine/Texture2D.h"
+#include "Engine/Texture.h"
 #include "ShaderCompiler.h"
 #include "Engine/StaticMesh.h"
 #include "Streaming/TextureStreamingHelpers.h"
@@ -45,13 +45,13 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 	const float OneOverNumActorsInWorld = 1.f / (float)FMath::Max<int32>(NumActorsInWorld, 1); // Prevent div by 0
 
 	// Used to reset per level index for textures.
-	TArray<UTexture2D*> AllTextures;
-	for (FObjectIterator Iter(UTexture2D::StaticClass()); Iter && bFullRebuild; ++Iter)
+	TArray<UTexture*> AllTextures;
+	for (FObjectIterator Iter(UTexture::StaticClass()); Iter && bFullRebuild; ++Iter)
 	{
-		UTexture2D* Texture2D = Cast<UTexture2D>(*Iter);
-		if (Texture2D)
+		UTexture* Texture = Cast<UTexture>(*Iter);
+		if (Texture)
 		{
-			AllTextures.Add(Texture2D);
+			AllTextures.Add(Texture);
 		}
 	}
 
@@ -123,10 +123,10 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 		if (bFullRebuild)
 		{
 			// Reset LevelIndex to default for next use and build the level Guid array.
-			for (UTexture2D* Texture2D : AllTextures)
+			for (UTexture* Texture : AllTextures)
 			{
-				checkSlow(Texture2D);
-				Texture2D->LevelIndex = INDEX_NONE;
+				checkSlow(Texture);
+				Texture->LevelIndex = INDEX_NONE;
 			}
 
 			// Cleanup the asset references.
@@ -241,14 +241,14 @@ void FStreamingTextureBuildInfo::PackFrom(ULevel* Level, const FBoxSphereBounds&
 
 	PackedRelativeBox = PackRelativeBox(RefBounds.Origin, RefBounds.BoxExtent, Info.Bounds.Origin, Info.Bounds.BoxExtent);
 
-	UTexture2D* Texture2D = Cast<UTexture2D>(Info.RenderAsset);
-	check(Texture2D);
-	if (Texture2D->LevelIndex == INDEX_NONE)
+	UTexture* Texture = Cast<UTexture>(Info.RenderAsset);
+	check(Texture);
+	if (Texture->LevelIndex == INDEX_NONE)
 	{
 		// If this is the first time this texture gets processed in the packing process, encode it.
-		Texture2D->LevelIndex = Level->StreamingTextureGuids.Add(Texture2D->GetLightingGuid());
+		Texture->LevelIndex = Level->StreamingTextureGuids.Add(Texture->GetLightingGuid());
 	}
-	TextureLevelIndex = (uint16)Texture2D->LevelIndex;
+	TextureLevelIndex = (uint16)Texture->LevelIndex;
 
 	TexelFactor = Info.TexelFactor;
 }
@@ -350,14 +350,14 @@ void FStreamingTextureLevelContext::BindBuildData(const TArray<FStreamingTexture
 	}
 }
 
-int32* FStreamingTextureLevelContext::GetBuildDataIndexRef(UTexture2D* Texture2D)
+int32* FStreamingTextureLevelContext::GetBuildDataIndexRef(UTexture* Texture)
 {
 	if (ComponentBuildData) // If there is some build data to map to.
 	{
-		if (Texture2D->LevelIndex == INDEX_NONE)
+		if (Texture->LevelIndex == INDEX_NONE)
 		{
 			check(TextureGuidToLevelIndex); // Can't bind ComponentData without the remapping.
-			const int32* LevelIndex = TextureGuidToLevelIndex->Find(Texture2D->GetLightingGuid());
+			const int32* LevelIndex = TextureGuidToLevelIndex->Find(Texture->GetLightingGuid());
 			if (LevelIndex) // If the index is found in the map, the index is valid in BoundStates
 			{
 				// Here we need to support the invalid case where 2 textures have the same GUID.
@@ -365,14 +365,14 @@ int32* FStreamingTextureLevelContext::GetBuildDataIndexRef(UTexture2D* Texture2D
 				FTextureBoundState& BoundState = BoundStates[*LevelIndex];
 				if (!BoundState.Texture)
 				{
-					Texture2D->LevelIndex = *LevelIndex;
-					BoundState.Texture = Texture2D; // Update the mapping now!
+					Texture->LevelIndex = *LevelIndex;
+					BoundState.Texture = Texture; // Update the mapping now!
 				}
-				else // Don't allow 2 textures to be using the same level index otherwise UTexture2D::LevelIndex won't be reset properly in the destructor.
+				else // Don't allow 2 textures to be using the same level index otherwise UTexturD::LevelIndex won't be reset properly in the destructor.
 				{
 					FMessageLog("AssetCheck").Error()
 						->AddToken(FUObjectToken::Create(BoundState.Texture))
-						->AddToken(FUObjectToken::Create(Texture2D))
+						->AddToken(FUObjectToken::Create(Texture))
 						->AddToken(FTextToken::Create( NSLOCTEXT("AssetCheck", "TextureError_NonUniqueLightingGuid", "Same lighting guid, modify or touch any property in the texture editor to generate a new guid and fix the issue.") ) );
 
 					// This will fallback not using the precomputed data. Note also that the other texture might be using the wrong precomputed data.
@@ -381,12 +381,12 @@ int32* FStreamingTextureLevelContext::GetBuildDataIndexRef(UTexture2D* Texture2D
 			}
 			else // Otherwise add a dummy entry to prevent having to search in the map multiple times.
 			{
-				Texture2D->LevelIndex = BoundStates.Add(FTextureBoundState(Texture2D));
+				Texture->LevelIndex = BoundStates.Add(FTextureBoundState(Texture));
 			}
 		}
 
-		FTextureBoundState& BoundState = BoundStates[Texture2D->LevelIndex];
-		check(BoundState.Texture == Texture2D);
+		FTextureBoundState& BoundState = BoundStates[Texture->LevelIndex];
+		check(BoundState.Texture == Texture);
 
 		if (BoundState.BuildDataTimestamp == BuildDataTimestamp)
 		{
@@ -405,13 +405,12 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 
 	for (UTexture* Texture : Textures)
 	{
-		UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-		if (!Texture2D || !Texture2D->IsStreamable())
+		if (!Texture->IsStreamable())
 		{
 			continue;
 		}
 
-		int32* BuildDataIndex = GetBuildDataIndexRef(Texture2D);
+		int32* BuildDataIndex = GetBuildDataIndexRef(Texture);
 		if (BuildDataIndex)
 		{
 			if (*BuildDataIndex != INDEX_NONE)
@@ -419,7 +418,7 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 				FStreamingRenderAssetPrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingRenderAssetPrimitiveInfo();
 				const FStreamingTextureBuildInfo& BuildInfo = (*ComponentBuildData)[*BuildDataIndex];
 
-				Info.RenderAsset = Texture2D;
+				Info.RenderAsset = Texture;
 				Info.TexelFactor = BuildInfo.TexelFactor * ComponentScaling;
 				Info.PackedRelativeBox = bUseRelativeBoxes ? BuildInfo.PackedRelativeBox : PackedRelativeBox_Identity;
 				UnpackRelativeBox(ComponentBounds, Info.PackedRelativeBox, Info.Bounds);
@@ -443,7 +442,7 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 			{
 				FStreamingRenderAssetPrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingRenderAssetPrimitiveInfo();
 
-				Info.RenderAsset = Texture2D;
+				Info.RenderAsset = Texture;
 				Info.TexelFactor = TextureDensity * ComponentScaling;
 				Info.PackedRelativeBox = bUseRelativeBoxes ? MaterialData.PackedRelativeBox : PackedRelativeBox_Identity;
 				UnpackRelativeBox(ComponentBounds, Info.PackedRelativeBox, Info.Bounds);

@@ -62,8 +62,6 @@ UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 	PendingUpdate = nullptr;
-	StreamingIndex = INDEX_NONE;
-	LevelIndex = INDEX_NONE;
 	SRGB = true;
 }
 
@@ -583,17 +581,6 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 	}
 #endif // #if WITH_EDITOR
 	return AvgBrightness;
-}
-
-void UTexture2D::CancelPendingTextureStreaming()
-{
-	for( TObjectIterator<UTexture2D> It; It; ++It )
-	{
-		UTexture2D* CurrentTexture = *It;
-		CurrentTexture->CancelPendingStreamingRequest();
-	}
-
-	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
 }
 
 bool UTexture2D::IsReadyForAsyncPostLoad() const

@@ -12,11 +12,15 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
 #include "Rendering/Texture3DResource.h"
+#include "Streaming/VolumeTextureStreaming.h"
+#include "Streaming/TextureStreamIn.h"
+#include "Streaming/TextureStreamOut.h"
+#include "Engine/TextureMipDataProviderFactory.h"
 
 //*****************************************************************************
 
 // Master switch to control whether streaming is enabled for volume texture. 
-bool GSupportsVolumeTextureStreaming = false;
+bool GSupportsVolumeTextureStreaming = true;
 
 // Limit the possible depth of volume texture otherwise when the user converts 2D textures, he can crash the engine.
 const int32 MAX_VOLUME_TEXTURE_DEPTH = 512;
@@ -392,10 +396,58 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform Sha
 
 bool UVolumeTexture::StreamOut(int32 NewMipCount)
 {
+	FTexture3DResource* Texture3DResource = Resource ? Resource->GetTexture3DResource() : nullptr;
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount) && ensure(Texture3DResource))
+	{
+		FTextureMipAllocator* MipAllocator = nullptr;
+
+		// FVolumeTextureMipAllocator_Virtual?
+		MipAllocator = new FVolumeTextureMipAllocator_Reallocate(this);
+
+		PendingUpdate = new FTextureStreamOut(this, MipAllocator);
+		return !PendingUpdate->IsCancelled();
+	}
 	return false;
 }
 
 bool UVolumeTexture::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
+	FTexture3DResource* Texture3DResource = Resource ? Resource->GetTexture3DResource() : nullptr;
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount) && ensure(Texture3DResource))
+	{
+		FTextureMipDataProvider* CustomMipDataProvider = nullptr;
+		for (UAssetUserData* UserData : AssetUserData)
+		{
+			UTextureMipDataProviderFactory* CustomMipDataProviderFactory = Cast<UTextureMipDataProviderFactory>(UserData);
+			if (CustomMipDataProviderFactory)
+			{
+				CustomMipDataProvider = CustomMipDataProviderFactory->AllocateMipDataProvider(this);
+				if (CustomMipDataProvider)
+				{
+					break;
+				}
+			}
+		}
+
+		FTextureMipAllocator* MipAllocator = nullptr;
+		FTextureMipDataProvider* DefaultMipDataProvider = nullptr;
+
+#if WITH_EDITORONLY_DATA
+		if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor)
+		{
+			DefaultMipDataProvider = new FVolumeTextureMipDataProvider_DDC(this);
+		}
+		else 
+#endif
+		{
+			DefaultMipDataProvider = new FVolumeTextureMipDataProvider_IO(this, bHighPrio);
+		}
+
+		// FVolumeTextureMipAllocator_Virtual?
+		MipAllocator = new FVolumeTextureMipAllocator_Reallocate(this);
+
+		PendingUpdate = new FTextureStreamIn(this, MipAllocator, CustomMipDataProvider, DefaultMipDataProvider);
+		return !PendingUpdate->IsCancelled();
+	}
 	return false;
 }

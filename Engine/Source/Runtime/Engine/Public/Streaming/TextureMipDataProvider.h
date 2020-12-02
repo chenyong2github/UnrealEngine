@@ -22,11 +22,12 @@ struct FTexture2DMipMap;
 struct FTextureMipInfo
 {
 	void* DestData = nullptr; // The mip data where the content must be copied too.
-	uint32 DataSize = 0; // Optional, might be 0 in cooked. Mostly for safeguard.
+	uint64 DataSize = 0; // Optional, might be 0 in cooked. Mostly for safeguard.
 	EPixelFormat Format = PF_Unknown;
 	uint32 SizeX = 0;
 	uint32 SizeY = 0;
-	uint32 SizeZ = 0;
+	uint32 SizeZ = 0; // For 3d textures
+	uint32 ArraySize = 0; // For texture arrays / cubemaps
 	uint32 RowPitch = 0;
 	uint32 DepthPitch = 0;	// For volume texture, texture array only.
 	ECubeFace CubeFace = CubeFace_MAX; // Cubemap only.

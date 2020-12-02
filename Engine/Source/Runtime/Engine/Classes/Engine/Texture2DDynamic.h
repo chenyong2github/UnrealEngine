@@ -58,6 +58,8 @@ public:
 	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
 	ENGINE_API virtual float GetSurfaceWidth() const override;
 	ENGINE_API virtual float GetSurfaceHeight() const override;
+	ENGINE_API virtual float GetSurfaceDepth() const override { return 0; }
+	ENGINE_API virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	//~ End UTexture Interface.
 	
 	/**

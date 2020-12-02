@@ -7,13 +7,14 @@ StreamingTexture.h: Definitions of classes used for texture streaming.
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/Texture2D.h"
+#include "Engine/StreamableRenderAsset.h"
+#include "Engine/TextureDefines.h"
 
 struct FRenderAssetStreamingManager;
 struct FRenderAssetStreamingSettings;
 
 /*-----------------------------------------------------------------------------
-	FStreamingRenderAsset, the streaming system's version of UTexture2D.
+	FStreamingRenderAsset, the streaming system's version of UStreamableRenderAsset.
 -----------------------------------------------------------------------------*/
 
 /** Self-contained structure to manage a streaming texture/mesh, possibly on a separate thread. */
