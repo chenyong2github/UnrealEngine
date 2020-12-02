@@ -3,16 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 
 class AActor;
 
 /**
  * The module holding all of the UI related pieces for DataLayers
  */
-class FDataLayerEditorModule : public IModuleInterface
+class FDataLayerEditorModule : public IDataLayerEditorModule
 {
 public:
 

@@ -146,10 +146,6 @@ void FDataLayersBroadcast::OnLevelViewportClientListChanged()
 
 UDataLayerEditorSubsystem* UDataLayerEditorSubsystem::Get()
 {
-	if (!FModuleManager::Get().IsModuleLoaded("DataLayerEditor"))
-	{
-		FModuleManager::LoadModuleChecked<FDataLayerEditorModule>("DataLayerEditor");
-	}
 	return GEditor ? GEditor->GetEditorSubsystem<UDataLayerEditorSubsystem>() : nullptr;
 }
 

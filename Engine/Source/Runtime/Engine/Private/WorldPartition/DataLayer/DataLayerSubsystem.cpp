@@ -5,6 +5,10 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
+#endif
 
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
@@ -22,6 +26,18 @@ bool UDataLayerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	}
 
 	return false;
+}
+
+void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
+	}
+#endif
 }
 
 UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
