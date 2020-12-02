@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/TagTrace.h"
 
+#include "Containers/Set.h"
 #include "CoreTypes.h"
 #include "MemoryTrace.h"
+#include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Trace/Trace.inl"
 
