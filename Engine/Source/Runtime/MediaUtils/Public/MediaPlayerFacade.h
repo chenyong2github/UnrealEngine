@@ -780,10 +780,12 @@ private:
 	friend class FMediaPlayerLifecycleManagerDelegateControl;
 
 	// Internal
-	bool NotifyLifetimeManagerDelegate_PlayerOpen(const FString& InUrl, const IMediaOptions* Options, const FMediaPlayerOptions* InPlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bWillCreatePlayer);
+	bool NotifyLifetimeManagerDelegate_PlayerOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef& NewLifecycleManagerDelegateControl, const FString& InUrl, const IMediaOptions* Options, const FMediaPlayerOptions* InPlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bWillCreatePlayer, uint32 WillUseNewResources, uint64 NewPlayerInstanceID);
 	bool NotifyLifetimeManagerDelegate_PlayerCreated();
+	bool NotifyLifetimeManagerDelegate_PlayerCreateFailed();
 	bool NotifyLifetimeManagerDelegate_PlayerClosed();
 	bool NotifyLifetimeManagerDelegate_PlayerDestroyed();
+	bool NotifyLifetimeManagerDelegate_PlayerResourcesReleased(uint32 ResourceFlags);
 
 	void ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp> & TimeRange);
 	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
@@ -793,7 +795,7 @@ private:
 
 	void DestroyPlayer();
 
-	bool ContinueOpen(const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bCreateNewPlayer);
+	bool ContinueOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef NewLifecycleManagerDelegateControl, const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bCreateNewPlayer, uint64 NewPlayerInstanceID);
 
 	/** Audio sample sinks. */
 	TWeakPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> PrimaryAudioSink;
@@ -846,6 +848,9 @@ private:
 
 	/** Low level player instance ID */
 	uint64 PlayerInstanceID = ~0;
+	
+	/** Low level player will use callback to notify of resource release */
+	bool PlayerUsesResourceReleaseNotification = false;
 
 	/** Media player Guid */
 	FGuid PlayerGuid;

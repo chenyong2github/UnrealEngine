@@ -318,18 +318,31 @@ public:
 		return false;
 	}
 
-	class IAsyncDestructNotification
+	class IAsyncResourceReleaseNotification
 	{
 	public:
-		virtual ~IAsyncDestructNotification() {}
-		virtual void Signal() = 0;
+		virtual ~IAsyncResourceReleaseNotification() {}
+		virtual void Signal(uint32 ResourceFlags) = 0;
 	};
-	typedef TSharedRef<IAsyncDestructNotification, ESPMode::ThreadSafe> IAsyncDestructNotificationRef;
+	typedef TSharedRef<IAsyncResourceReleaseNotification, ESPMode::ThreadSafe> IAsyncResourceReleaseNotificationRef;
 
-	virtual bool SetAsyncDestructionNotification(IAsyncDestructNotificationRef AsyncDestructNotification)
+	/**
+	 * Set async resource release notification for use with IMediaPlayerLifecycleManagerDelegate
+	 */
+	virtual bool SetAsyncResourceReleaseNotification(IAsyncResourceReleaseNotificationRef AsyncDestructNotification)
 	{
 		// Override in child class if needed.
 		return false;
+	}
+
+	/*
+	* Return IMediaPlayerLifecycleManagerDelegate::ResourceFlags bitmask to indicate resource types recreated on a open call
+	*/
+	virtual uint32 GetNewResourcesOnOpen() const
+	{
+		// Override in child class if needed. Default assumes resources carry over (to a large degree) and are created per instance only
+		// (as a simplified model for older players)
+		return 0;
 	}
 
 public:
