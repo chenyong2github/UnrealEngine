@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RigVMGraph.h"
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
@@ -82,16 +82,16 @@ public:
 	// on the metadata of the USTRUCT - which is only available in the editor.
 
 	// Adds a Function / Struct Node to the edited Graph.
-	// StructNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMStructNode* AddStructNode(UScriptStruct* InScriptStruct, const FName& InMethodName, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMUnitNode* AddUnitNode(UScriptStruct* InScriptStruct, const FName& InMethodName, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
 	// Adds a Function / Struct Node to the edited Graph given its struct object path name.
-	// StructNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMStructNode* AddStructNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMUnitNode* AddUnitNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
 	// Adds a Variable Node to the edited Graph.
 	// Variables represent local work state for the function and
@@ -193,13 +193,13 @@ public:
 	URigVMPrototypeNode* AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
 	// Adds a Function / Struct Node to the edited Graph as an injected node
-	// StructNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMInjectionInfo* AddInjectedNode(const FString& InPinPath, bool bAsInput, UScriptStruct* InScriptStruct, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
 	// Adds a Function / Struct Node to the edited Graph as an injected node
-	// StructNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMInjectionInfo* AddInjectedNodeFromStructPath(const FString& InPinPath, bool bAsInput, const FString& InScriptStructPath, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
@@ -478,12 +478,12 @@ public:
 	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true);
 #endif
 
-	FRigVMStructNodeCreatedContext& GetStructNodeCreatedContext() { return StructNodeCreatedContext; }
+	FRigVMUnitNodeCreatedContext& GetUnitNodeCreatedContext() { return UnitNodeCreatedContext; }
 
-	// Wires the struct node delegates to the default controller delegates.
+	// Wires the unit node delegates to the default controller delegates.
 	// this is used only within the Control Rig Editor currently.
-	void SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate);
-	void ResetStructNodeDelegates();
+	void SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate);
+	void ResetUnitNodeDelegates();
 
 private:
 
@@ -628,7 +628,7 @@ private:
 	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
 	FCriticalSection PinPathCoreRedirectorsLock;
 
-	FRigVMStructNodeCreatedContext StructNodeCreatedContext;
+	FRigVMUnitNodeCreatedContext UnitNodeCreatedContext;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;

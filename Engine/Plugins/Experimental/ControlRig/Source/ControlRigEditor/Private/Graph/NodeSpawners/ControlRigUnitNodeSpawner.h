@@ -15,7 +15,7 @@
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "ControlRigUnitNodeSpawner.generated.h"
 
 class UControlRigGraphNode;

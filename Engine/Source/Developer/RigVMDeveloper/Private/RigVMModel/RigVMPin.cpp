@@ -140,7 +140,7 @@ FName URigVMPin::GetDisplayName() const
 
 		for (URigVMInjectionInfo* Injection : InjectionInfos)
 		{
-			if (TSharedPtr<FStructOnScope> DefaultStructScope = Injection->StructNode->ConstructStructInstance())
+			if (TSharedPtr<FStructOnScope> DefaultStructScope = Injection->UnitNode->ConstructStructInstance())
 			{
 				FRigVMStruct* DefaultStruct = (FRigVMStruct*)DefaultStructScope->GetStructMemory();
 				ProcessedDisplayName = DefaultStruct->ProcessPinLabelForInjection(ProcessedDisplayName);
@@ -492,11 +492,11 @@ int32 URigVMPin::GetNumSlices(const FRigVMUserDataArray& InUserData)
 bool URigVMPin::ShowInDetailsPanelOnly() const
 {
 #if WITH_EDITOR
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(GetNode()))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
 	{
 		if (GetParentPin() == nullptr)
 		{
-			if (UScriptStruct* ScriptStruct = StructNode->GetScriptStruct())
+			if (UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct())
 			{
 				if (FProperty* Property = ScriptStruct->FindPropertyByName(GetFName()))
 				{
@@ -1001,11 +1001,11 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			bool bNodeCanLinkAnywhere = SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>();
 			if (!bNodeCanLinkAnywhere)
 			{
-				if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(SourceNodes[SourceNodeIndex]))
+				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(SourceNodes[SourceNodeIndex]))
 				{
 					// pure / immutable nodes can be connected to any input in any order.
 					// since a new link is going to change the abstract syntax tree 
-					if (!StructNode->IsMutable())
+					if (!UnitNode->IsMutable())
 					{
 						bNodeCanLinkAnywhere = true;
 					}

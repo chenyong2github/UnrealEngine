@@ -115,7 +115,7 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 		// c) create external variable (mapped to the passed in tfunction)
 		// the last one is defined within the blueprint since the controller
 		// doesn't own the variables and can't create one itself.
-		Controller->SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
+		Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
 			[WeakThis](FRigVMExternalVariable InVariableToCreate) -> FName {
 				if (WeakThis.IsValid())
 				{
@@ -648,9 +648,9 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FRigElementKey SpaceKey;
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(InPin->GetPinForLink()->GetNode()))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetPinForLink()->GetNode()))
 	{
-		if (TSharedPtr<FStructOnScope> DefaultStructScope = StructNode->ConstructStructInstance())
+		if (TSharedPtr<FStructOnScope> DefaultStructScope = UnitNode->ConstructStructInstance())
 		{
 			FRigUnit* DefaultStruct = (FRigUnit*)DefaultStructScope->GetStructMemory();
 
@@ -912,7 +912,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 				UScriptStruct* UnitStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(StructPath);
 				if (UnitStruct && UnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
 				{ 
-					ModelNode = Controller->AddStructNode(UnitStruct, TEXT("Execute"), NodePosition, PropertyName.ToString(), false);
+					ModelNode = Controller->AddUnitNode(UnitStruct, TEXT("Execute"), NodePosition, PropertyName.ToString(), false);
 				}
 				else if (PropertyName != NAME_None) // check if this is a variable
 				{
@@ -1003,9 +1003,9 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 						FString PinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
 
 						// check the material + mesh pins for deprecated control nodes
-						if (URigVMStructNode* ModelStructNode = Cast<URigVMStructNode>(ModelNode))
+						if (URigVMUnitNode* ModelUnitNode = Cast<URigVMUnitNode>(ModelNode))
 						{
-							if (ModelStructNode->GetScriptStruct()->IsChildOf(FRigUnit_Control::StaticStruct()))
+							if (ModelUnitNode->GetScriptStruct()->IsChildOf(FRigUnit_Control::StaticStruct()))
 							{
 								if (Pin->GetName().EndsWith(TEXT(".StaticMesh")) || Pin->GetName().EndsWith(TEXT(".Materials")))
 								{
@@ -1084,13 +1084,13 @@ void UControlRigBlueprint::SetupPinRedirectorsForBackwardsCompatibility()
 {
 	for (URigVMNode* Node : Model->GetNodes())
 	{
-		if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node))
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 		{
-			UScriptStruct* Struct = StructNode->GetScriptStruct();
+			UScriptStruct* Struct = UnitNode->GetScriptStruct();
 			if (Struct == FRigUnit_SetBoneTransform::StaticStruct())
 			{
-				URigVMPin* TransformPin = StructNode->FindPin(TEXT("Transform"));
-				URigVMPin* ResultPin = StructNode->FindPin(TEXT("Result"));
+				URigVMPin* TransformPin = UnitNode->FindPin(TEXT("Transform"));
+				URigVMPin* ResultPin = UnitNode->FindPin(TEXT("Result"));
 				Controller->AddPinRedirector(false, true, TransformPin->GetPinPath(), ResultPin->GetPinPath());
 			}
 		}

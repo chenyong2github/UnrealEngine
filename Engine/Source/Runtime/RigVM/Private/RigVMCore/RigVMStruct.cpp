@@ -5,7 +5,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FRigVMStructNodeCreatedContext::IsValid() const
+bool FRigVMUnitNodeCreatedContext::IsValid() const
 {
 	return Reason != ERigVMNodeCreatedReason::Unknown &&
 		AllExternalVariablesDelegate.IsBound() &&
@@ -13,7 +13,7 @@ bool FRigVMStructNodeCreatedContext::IsValid() const
 		BindPinToExternalVariableDelegate.IsBound();
 }
 
-TArray<FRigVMExternalVariable> FRigVMStructNodeCreatedContext::GetExternalVariables() const
+TArray<FRigVMExternalVariable> FRigVMUnitNodeCreatedContext::GetExternalVariables() const
 {
 	TArray<FRigVMExternalVariable> ExternalVariables;
 
@@ -25,7 +25,7 @@ TArray<FRigVMExternalVariable> FRigVMStructNodeCreatedContext::GetExternalVariab
 	return ExternalVariables;
 }
 
-FName FRigVMStructNodeCreatedContext::AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate)
+FName FRigVMUnitNodeCreatedContext::AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate)
 {
 	if (CreateExternalVariableDelegate.IsBound())
 	{
@@ -34,7 +34,7 @@ FName FRigVMStructNodeCreatedContext::AddExternalVariable(const FRigVMExternalVa
 	return NAME_None;
 }
 
-bool FRigVMStructNodeCreatedContext::BindPinToExternalVariable(FString InPinPath, FString InVariablePath)
+bool FRigVMUnitNodeCreatedContext::BindPinToExternalVariable(FString InPinPath, FString InVariablePath)
 {
 	if (BindPinToExternalVariableDelegate.IsBound())
 	{
@@ -44,7 +44,7 @@ bool FRigVMStructNodeCreatedContext::BindPinToExternalVariable(FString InPinPath
 	return false;
 }
 
-FRigVMExternalVariable FRigVMStructNodeCreatedContext::FindVariable(FName InVariableName) const
+FRigVMExternalVariable FRigVMUnitNodeCreatedContext::FindVariable(FName InVariableName) const
 {
 	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
 	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
@@ -57,7 +57,7 @@ FRigVMExternalVariable FRigVMStructNodeCreatedContext::FindVariable(FName InVari
 	return FRigVMExternalVariable();
 }
 
-FName FRigVMStructNodeCreatedContext::FindFirstVariableOfType(FName InCPPTypeName) const
+FName FRigVMUnitNodeCreatedContext::FindFirstVariableOfType(FName InCPPTypeName) const
 {
 	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
 	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
@@ -70,7 +70,7 @@ FName FRigVMStructNodeCreatedContext::FindFirstVariableOfType(FName InCPPTypeNam
 	return NAME_None;
 }
 
-FName FRigVMStructNodeCreatedContext::FindFirstVariableOfType(UObject* InCPPTypeObject) const
+FName FRigVMUnitNodeCreatedContext::FindFirstVariableOfType(UObject* InCPPTypeObject) const
 {
 	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
 	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)

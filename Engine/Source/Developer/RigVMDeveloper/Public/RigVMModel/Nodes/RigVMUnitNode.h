@@ -5,7 +5,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "UObject/StructOnScope.h"
-#include "RigVMStructNode.generated.h"
+#include "RigVMUnitNode.generated.h"
 
 /**
  * The Struct Node represents a Function Invocation of a RIGVM_METHOD
@@ -13,7 +13,7 @@
  * struct UPROPERTY members.
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMStructNode : public URigVMNode
+class RIGVMDEVELOPER_API URigVMUnitNode : public URigVMNode
 {
 	GENERATED_BODY()
 
@@ -31,20 +31,20 @@ public:
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
 
-	// Returns the UStruct for this struct node
+	// Returns the UStruct for this unit node
 	// (the struct declaring the RIGVM_METHOD)
-	UFUNCTION(BlueprintCallable, Category = RigVMStructNode)
+	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
 	UScriptStruct* GetScriptStruct() const;
 
 	// return true if this node is a loop node
 	bool IsLoopNode() const;
 
 	// Returns the name of the declared RIGVM_METHOD
-	UFUNCTION(BlueprintCallable, Category = RigVMStructNode)
+	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
 	FName GetMethodName() const;
 
 	// Returns the default value for the struct as text
-	UFUNCTION(BlueprintCallable, Category = RigVMStructNode)
+	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
 	FString GetStructDefaultValue() const;
 
 	// Returns an instance of the struct with the current values.

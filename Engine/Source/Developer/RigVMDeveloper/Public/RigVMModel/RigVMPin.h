@@ -9,7 +9,7 @@
 
 class URigVMGraph;
 class URigVMNode;
-class URigVMStructNode;
+class URigVMUnitNode;
 class URigVMPin;
 class URigVMLink;
 
@@ -31,7 +31,7 @@ public:
 	}
 
 	UPROPERTY()
-	URigVMStructNode* StructNode;
+	URigVMUnitNode* UnitNode;
 
 	UPROPERTY()
 	bool bInjectedAsInput;

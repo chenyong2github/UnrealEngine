@@ -24,16 +24,16 @@ enum class ERigVMNodeCreatedReason : uint8
 };
 
 /**
- * A context struct passed to FRigVMStruct::OnStructNodeCreated
+ * A context struct passed to FRigVMStruct::OnUnitNodeCreated
  */
-struct RIGVM_API FRigVMStructNodeCreatedContext
+struct RIGVM_API FRigVMUnitNodeCreatedContext
 {
 public:
 
 	struct FScope
 	{
 	public:
-		FScope(FRigVMStructNodeCreatedContext& InContext, ERigVMNodeCreatedReason InReason)
+		FScope(FRigVMUnitNodeCreatedContext& InContext, ERigVMNodeCreatedReason InReason)
 			: Context(InContext)
 			, PreviousReason(InContext.GetReason())
 		{
@@ -46,7 +46,7 @@ public:
 		}
 
 	private:
-		FRigVMStructNodeCreatedContext& Context;
+		FRigVMUnitNodeCreatedContext& Context;
 		ERigVMNodeCreatedReason PreviousReason;
 	};
 
@@ -153,7 +153,7 @@ public:
 	FORCEINLINE virtual int32 GetNumSlices() const { return 1; }
 
 	// node creation
-	FORCEINLINE virtual void OnStructNodeCreated(FRigVMStructNodeCreatedContext& InContext) const {}
+	FORCEINLINE virtual void OnUnitNodeCreated(FRigVMUnitNodeCreatedContext& InContext) const {}
 
 #if WITH_EDITOR
 

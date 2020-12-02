@@ -11,7 +11,7 @@
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
 #include "PropertyPathHelpers.h"
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/RigVMController.h"
 
 #include "IControlRigEditorModule.h"
@@ -109,7 +109,7 @@ bool SControlRigGraphPinCurveFloat::IsValidCurve(FRichCurveEditInfo CurveInfo)
 	{
 		if (UControlRigGraphNode* Node = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
 		{
-			if (URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(Node->GetModelNode()))
+			if (URigVMUnitNode* StructModelNode = Cast<URigVMUnitNode>(Node->GetModelNode()))
 			{
 				FString NodeName, PropertyName;
 				Pin->PinName.ToString().Split(TEXT("."), &NodeName, &PropertyName);

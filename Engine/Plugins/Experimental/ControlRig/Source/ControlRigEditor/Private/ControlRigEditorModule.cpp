@@ -1176,7 +1176,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						}
 					}
 
-					if(Cast<URigVMStructNode>(ModelPin->GetNode()))
+					if(Cast<URigVMUnitNode>(ModelPin->GetNode()))
 					{
 						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
 							!ModelPin->IsExecuteContext() &&
@@ -1224,7 +1224,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
-					if (ModelPin->GetRootPin() == ModelPin && Cast<URigVMStructNode>(ModelPin->GetNode()) != nullptr)
+					if (ModelPin->GetRootPin() == ModelPin && Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr)
 					{
 						if (ModelPin->HasInjectedNodes())
 						{
@@ -1249,11 +1249,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
 								FString PrototypeName;
-								if (Injection->StructNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								if (Injection->UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
 								{
 									if (PrototypeName == TEXT("AlphaInterp"))
 									{
-										InterpNode = Injection->StructNode;
+										InterpNode = Injection->UnitNode;
 										break;
 									}
 								}
@@ -1286,7 +1286,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
-											NodeNames.Add(Injection->StructNode->GetFName());
+											NodeNames.Add(Injection->UnitNode->GetFName());
 											RigBlueprint->Controller->SetNodeSelection(NodeNames);
 										}
 									})
@@ -1327,11 +1327,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
 								FString PrototypeName;
-								if (Injection->StructNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								if (Injection->UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
 								{
 									if (PrototypeName == TEXT("VisualDebug"))
 									{
-										VisualDebugNode = Injection->StructNode;
+										VisualDebugNode = Injection->UnitNode;
 										break;
 									}
 								}
@@ -1368,12 +1368,12 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
-											NodeNames.Add(Injection->StructNode->GetFName());
+											NodeNames.Add(Injection->UnitNode->GetFName());
 											RigBlueprint->Controller->SetNodeSelection(NodeNames);
 
-											if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(ModelPin->GetNode()))
+											if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
 											{
-												if (TSharedPtr<FStructOnScope> DefaultStructScope = StructNode->ConstructStructInstance())
+												if (TSharedPtr<FStructOnScope> DefaultStructScope = UnitNode->ConstructStructInstance())
 												{
 													FRigUnit* DefaultStruct = (FRigUnit*)DefaultStructScope->GetStructMemory();
 
@@ -1388,7 +1388,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 													if (SpaceKey.IsValid())
 													{
-														if (URigVMPin* SpacePin = Injection->StructNode->FindPin(TEXT("Space")))
+														if (URigVMPin* SpacePin = Injection->UnitNode->FindPin(TEXT("Space")))
 														{
 															if(URigVMPin* SpaceTypePin = SpacePin->FindSubPin(TEXT("Type")))
 															{
@@ -1463,10 +1463,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FRigHierarchyContainer TemporaryHierarchy = RigBlueprint->HierarchyContainer;
 						FRigUnit* StructMemory = nullptr;
 						UScriptStruct* ScriptStruct = nullptr;
-						if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(ModelNode))
+						if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 						{
-							ScriptStruct = StructNode->GetScriptStruct();
-							StructOnScope = StructNode->ConstructStructInstance(false /* default */);
+							ScriptStruct = UnitNode->GetScriptStruct();
+							StructOnScope = UnitNode->ConstructStructInstance(false /* default */);
 							StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
 
 							FRigUnitContext RigUnitContext;
@@ -1622,7 +1622,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 				if (const UControlRigGraphNode* RigNode = Cast<const UControlRigGraphNode>(Context->Node))
 				{
-					if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(RigNode->GetModelNode()))
+					if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(RigNode->GetModelNode()))
 					{
 						FToolMenuSection& SettingsSection = Menu->AddSection("EdGraphSchemaSettings", LOCTEXT("SettingsHeader", "Settings"));
 						SettingsSection.AddMenuEntry(
@@ -1630,17 +1630,17 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("SaveDefaultExpansionState", "Save Default Expansion State"),
 							LOCTEXT("SaveDefaultExpansionState_Tooltip", "Saves the expansion state of all pins of the node as the default."),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([StructNode]() {
+							FUIAction(FExecuteAction::CreateLambda([UnitNode]() {
 
 #if WITH_EDITORONLY_DATA
 
 								FScopedTransaction Transaction(LOCTEXT("RigUnitDefaultExpansionStateChanged", "Changed Rig Unit Default Expansion State"));
 								UControlRigSettings::Get()->Modify();
 
-								FControlRigSettingsPerPinBool& ExpansionMap = UControlRigSettings::Get()->RigUnitPinExpansion.FindOrAdd(StructNode->GetScriptStruct()->GetName());
+								FControlRigSettingsPerPinBool& ExpansionMap = UControlRigSettings::Get()->RigUnitPinExpansion.FindOrAdd(UnitNode->GetScriptStruct()->GetName());
 								ExpansionMap.Values.Empty();
 
-								TArray<URigVMPin*> Pins = StructNode->GetAllPinsRecursively();
+								TArray<URigVMPin*> Pins = UnitNode->GetAllPinsRecursively();
 								for (URigVMPin* Pin : Pins)
 								{
 									if (Pin->GetSubPins().Num() == 0)

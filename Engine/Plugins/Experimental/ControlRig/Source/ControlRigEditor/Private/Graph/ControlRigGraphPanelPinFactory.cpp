@@ -14,7 +14,7 @@
 #include "NodeFactory.h"
 #include "EdGraphSchema_K2.h"
 #include "Curves/CurveFloat.h"
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "IPropertyAccessEditor.h"
 

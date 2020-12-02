@@ -161,7 +161,7 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 #if WITH_EDITOR
 
-URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct, const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
+URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
 {
 	if(!IsValidGraph())
 	{
@@ -194,7 +194,7 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? InScriptStruct->GetName() : InNodeName);
-	URigVMStructNode* Node = NewObject<URigVMStructNode>(Graph, *Name);
+	URigVMUnitNode* Node = NewObject<URigVMUnitNode>(Graph, *Name);
 	Node->ScriptStruct = InScriptStruct;
 	Node->MethodName = InMethodName;
 	Node->Position = InPosition;
@@ -217,23 +217,23 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 		Graph->MarkPackageDirty();
 	}
 
-	FRigVMAddStructNodeAction Action;
+	FRigVMAddUnitNodeAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMAddStructNodeAction(Node);
+		Action = FRigVMAddUnitNodeAction(Node);
 		Action.Title = FString::Printf(TEXT("Add %s Node"), *Node->GetNodeTitle());
 		ActionStack->BeginAction(Action);
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
-	if (StructNodeCreatedContext.IsValid())
+	if (UnitNodeCreatedContext.IsValid())
 	{
 		if (TSharedPtr<FStructOnScope> StructScope = Node->ConstructStructInstance())
 		{
-			TGuardValue<FName> NodeNameScope(StructNodeCreatedContext.NodeName, Node->GetFName());
+			TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, Node->GetFName());
 			FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
-			StructInstance->OnStructNodeCreated(StructNodeCreatedContext);
+			StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
 		}
 	}
 
@@ -245,7 +245,7 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 	return Node;
 }
 
-URigVMStructNode* URigVMController::AddStructNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
+URigVMUnitNode* URigVMController::AddUnitNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
 {
 	if(!IsValidGraph())
 	{
@@ -259,7 +259,7 @@ URigVMStructNode* URigVMController::AddStructNodeFromStructPath(const FString& I
 		return nullptr;
 	}
 
-	return AddStructNode(ScriptStruct, InMethodName, InPosition, InNodeName, bSetupUndoRedo);
+	return AddUnitNode(ScriptStruct, InMethodName, InPosition, InNodeName, bSetupUndoRedo);
 }
 
 URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
@@ -1078,12 +1078,12 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		ActionStack->BeginAction(Action);
 	}
 
-	URigVMStructNode* StructNode = nullptr;
+	URigVMUnitNode* UnitNode = nullptr;
 	{
 		TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
-		StructNode = AddStructNode(InScriptStruct, InMethodName, FVector2D::ZeroVector, InNodeName, false);
+		UnitNode = AddUnitNode(InScriptStruct, InMethodName, FVector2D::ZeroVector, InNodeName, false);
 	}
-	if (StructNode == nullptr)
+	if (UnitNode == nullptr)
 	{
 		if (bSetupUndoRedo)
 		{
@@ -1091,10 +1091,10 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		}
 		return nullptr;
 	}
-	else if (StructNode->IsMutable())
+	else if (UnitNode->IsMutable())
 	{
 		ReportErrorf(TEXT("Injected node %s is mutable."), *InScriptStruct->GetName());
-		RemoveNode(StructNode, false);
+		RemoveNode(UnitNode, false);
 		if (bSetupUndoRedo)
 		{
 			ActionStack->CancelAction(Action);
@@ -1102,16 +1102,16 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		return nullptr;
 	}
 
-	URigVMPin* InputPin = StructNode->FindPin(InInputPinName.ToString());
+	URigVMPin* InputPin = UnitNode->FindPin(InInputPinName.ToString());
 	check(InputPin);
-	URigVMPin* OutputPin = StructNode->FindPin(InOutputPinName.ToString());
+	URigVMPin* OutputPin = UnitNode->FindPin(InOutputPinName.ToString());
 	check(OutputPin);
 
 	if (InputPin->GetCPPType() != OutputPin->GetCPPType() ||
 		InputPin->IsArray() != OutputPin->IsArray())
 	{
 		ReportErrorf(TEXT("Injected node %s is using incompatible input and output pins."), *InScriptStruct->GetName());
-		RemoveNode(StructNode, false);
+		RemoveNode(UnitNode, false);
 		if (bSetupUndoRedo)
 		{
 			ActionStack->CancelAction(Action);
@@ -1123,7 +1123,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		InputPin->IsArray() != Pin->IsArray())
 	{
 		ReportErrorf(TEXT("Injected node %s is using incompatible pin."), *InScriptStruct->GetName());
-		RemoveNode(StructNode, false);
+		RemoveNode(UnitNode, false);
 		if (bSetupUndoRedo)
 		{
 			ActionStack->CancelAction(Action);
@@ -1133,10 +1133,10 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 
 	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(Pin);
 
-	// re-parent the struct node to be under the injection info
-	StructNode->Rename(nullptr, InjectionInfo);
+	// re-parent the unit node to be under the injection info
+	UnitNode->Rename(nullptr, InjectionInfo);
 
-	InjectionInfo->StructNode = StructNode;
+	InjectionInfo->UnitNode = UnitNode;
 	InjectionInfo->bInjectedAsInput = bAsInput;
 	InjectionInfo->InputPin = InputPin;
 	InjectionInfo->OutputPin = OutputPin;
@@ -1155,7 +1155,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 	}
 	Pin->InjectionInfos.Add(InjectionInfo);
 
-	Notify(ERigVMGraphNotifType::NodeAdded, StructNode);
+	Notify(ERigVMGraphNotifType::NodeAdded, UnitNode);
 
 	// now update all of the links
 	if (bAsInput)
@@ -1232,14 +1232,14 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 
 	URigVMInjectionInfo* Injection = Pin->InjectionInfos.Last();
 
-	UScriptStruct* ScriptStruct = Injection->StructNode->GetScriptStruct();
-	FName StructNodeName = Injection->StructNode->GetFName();
-	FName MethodName = Injection->StructNode->GetMethodName();
+	UScriptStruct* ScriptStruct = Injection->UnitNode->GetScriptStruct();
+	FName UnitNodeName = Injection->UnitNode->GetFName();
+	FName MethodName = Injection->UnitNode->GetMethodName();
 	FName InputPinName = Injection->InputPin->GetFName();
 	FName OutputPinName = Injection->OutputPin->GetFName();
 
 	TMap<FName, FString> DefaultValues;
-	for (URigVMPin* PinOnNode : Injection->StructNode->GetPins())
+	for (URigVMPin* PinOnNode : Injection->UnitNode->GetPins())
 	{
 		if (PinOnNode->GetDirection() == ERigVMPinDirection::Input ||
 			PinOnNode->GetDirection() == ERigVMPinDirection::Visible ||
@@ -1268,7 +1268,7 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		Position -= FVector2D(250.f, 0.f);
 	}
 
-	URigVMNode* EjectedNode = AddStructNode(ScriptStruct, MethodName, Position, FString(), bSetupUndoRedo);
+	URigVMNode* EjectedNode = AddUnitNode(ScriptStruct, MethodName, Position, FString(), bSetupUndoRedo);
 
 	for (const TPair<FName, FString>& Pair : DefaultValues)
 	{
@@ -1290,9 +1290,9 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		PreviousLink->SourcePin = PreviousLink->TargetPin = nullptr;
 	}
 
-	RemoveNode(Injection->StructNode, bSetupUndoRedo);
+	RemoveNode(Injection->UnitNode, bSetupUndoRedo);
 
-	FString OldNodeNamePrefix = StructNodeName.ToString() + TEXT(".");
+	FString OldNodeNamePrefix = UnitNodeName.ToString() + TEXT(".");
 	FString NewNodeNamePrefix = EjectedNode->GetName() + TEXT(".");
 
 	for (URigVMLink* PreviousLink : PreviousLinks)
@@ -1396,7 +1396,7 @@ FString URigVMController::ExportNodesToText(const TArray<FName>& InNodeNames)
 			{
 				for (URigVMInjectionInfo* Injection : Pin->GetInjectedNodes())
 				{
-					AllNodeNames.AddUnique(Injection->StructNode->GetFName());
+					AllNodeNames.AddUnique(Injection->UnitNode->GetFName());
 				}
 			}
 		}
@@ -1492,13 +1492,13 @@ protected:
 			{
 				for (URigVMInjectionInfo* Injection : Pin->GetInjectedNodes())
 				{
-					ProcessConstructedObject(Injection->StructNode);
+					ProcessConstructedObject(Injection->UnitNode);
 
-					FName NewName = Injection->StructNode->GetFName();
+					FName NewName = Injection->UnitNode->GetFName();
 					UpdateObjectName(URigVMNode::StaticClass(), NewName);
-					Injection->StructNode->Rename(*NewName.ToString(), nullptr);
-					Injection->InputPin = Injection->StructNode->FindPin(Injection->InputPin->GetName());
-					Injection->OutputPin = Injection->StructNode->FindPin(Injection->OutputPin->GetName());
+					Injection->UnitNode->Rename(*NewName.ToString(), nullptr);
+					Injection->InputPin = Injection->UnitNode->FindPin(Injection->InputPin->GetName());
+					Injection->OutputPin = Injection->UnitNode->FindPin(Injection->OutputPin->GetName());
 				}
 			}
 		}
@@ -1546,7 +1546,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 		ActionStack->BeginAction(AddNodesAction);
 	}
 
-	FRigVMStructNodeCreatedContext::FScope StructNodeCreatedScope(StructNodeCreatedContext, ERigVMNodeCreatedReason::Paste);
+	FRigVMUnitNodeCreatedContext::FScope UnitNodeCreatedScope(UnitNodeCreatedContext, ERigVMNodeCreatedReason::Paste);
 	for (URigVMNode* CreatedNode : Factory.CreatedNodes)
 	{
 		Graph->Nodes.Add(CreatedNode);
@@ -1556,15 +1556,15 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			ActionStack->AddAction(FRigVMRemoveNodeAction(CreatedNode, this));
 		}
 
-		if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(CreatedNode))
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CreatedNode))
 		{
-			if (StructNodeCreatedContext.IsValid())
+			if (UnitNodeCreatedContext.IsValid())
 			{
-				if (TSharedPtr<FStructOnScope> StructScope = StructNode->ConstructStructInstance())
+				if (TSharedPtr<FStructOnScope> StructScope = UnitNode->ConstructStructInstance())
 				{
-					TGuardValue<FName> NodeNameScope(StructNodeCreatedContext.NodeName, StructNode->GetFName());
+					TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, UnitNode->GetFName());
 					FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
-					StructInstance->OnStructNodeCreated(StructNodeCreatedContext);
+					StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
 				}
 			}
 		}
@@ -2400,7 +2400,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 			TArray<URigVMInjectionInfo*> InjectedNodes = Pin->GetInjectedNodes();
 			for (URigVMInjectionInfo* InjectedNode : InjectedNodes)
 			{
-				RemoveNode(InjectedNode->StructNode, bSetupUndoRedo);
+				RemoveNode(InjectedNode->UnitNode, bSetupUndoRedo);
 			}
 
 			BreakAllLinks(Pin, true, bSetupUndoRedo);
@@ -3242,9 +3242,9 @@ bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetu
 		return false;
 	}
 
-	if (Cast<URigVMStructNode>(Pin->GetNode()) == nullptr)
+	if (Cast<URigVMUnitNode>(Pin->GetNode()) == nullptr)
 	{
-		ReportErrorf(TEXT("Pin '%s' is not on a struct node."), *InPinPath);
+		ReportErrorf(TEXT("Pin '%s' is not on a unit node."), *InPinPath);
 		return false;
 	}
 
@@ -3255,9 +3255,9 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 {
 	check(InPin);
 
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(InPin->GetNode()))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetNode()))
 	{
-		TSharedPtr<FStructOnScope> StructOnScope = StructNode->ConstructStructInstance(true /* use default */);
+		TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance(true /* use default */);
 
 		TArray<FString> Parts;
 		if (!URigVMPin::SplitPinPath(InPin->GetPinPath(), Parts))
@@ -3267,7 +3267,7 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 
 		int32 PartIndex = 1; // cut off the first one since it's the node
 
-		UStruct* Struct = StructNode->ScriptStruct;
+		UStruct* Struct = UnitNode->ScriptStruct;
 		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 		check(Property);
 
@@ -3935,13 +3935,13 @@ bool URigVMController::PromotePinToVariable(URigVMPin* InPin, bool bCreateVariab
 	}
 	else
 	{
-		if (!StructNodeCreatedContext.GetCreateExternalVariableDelegate().IsBound())
+		if (!UnitNodeCreatedContext.GetCreateExternalVariableDelegate().IsBound())
 		{
 			return false;
 		}
 
 		VariableForPin = InPin->ToExternalVariable();
-		FName VariableName = StructNodeCreatedContext.GetCreateExternalVariableDelegate().Execute(VariableForPin);
+		FName VariableName = UnitNodeCreatedContext.GetCreateExternalVariableDelegate().Execute(VariableForPin);
 		if (VariableName.IsNone())
 		{
 			return false;
@@ -5241,12 +5241,12 @@ FProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
 
 	URigVMNode* Node = Pin->GetNode();
 
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node);
-	if (StructNode)
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node);
+	if (UnitNode)
 	{
 		int32 PartIndex = 1; // cut off the first one since it's the node
 
-		UStruct* Struct = StructNode->ScriptStruct;
+		UStruct* Struct = UnitNode->ScriptStruct;
 		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 
 		while (PartIndex < Parts.Num() && Property != nullptr)
@@ -5558,10 +5558,10 @@ bool URigVMController::ShouldRedirectPin(const FString& InOldPinPath, FString& I
 	URigVMPin::SplitPinPathAtStart(InOldPinPath, NodeName, PinPathInNode);
 
 	URigVMNode* Node = Graph->FindNode(NodeName);
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 	{
 		FString NewPinPathInNode;
-		if (ShouldRedirectPin(StructNode->GetScriptStruct(), PinPathInNode, NewPinPathInNode))
+		if (ShouldRedirectPin(UnitNode->GetScriptStruct(), PinPathInNode, NewPinPathInNode))
 		{
 			InOutNewPinPath = URigVMPin::JoinPinPath(NodeName, NewPinPathInNode);
 			return true;
@@ -5605,7 +5605,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		return;
 	}
 
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode);
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode);
 	URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode);
 	URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(InNode);
 	URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(InNode);
@@ -5633,7 +5633,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	}
 
 	// step 2/3: clear pins on the node and repopulate the node with new pins
-	if (StructNode != nullptr)
+	if (UnitNode != nullptr)
 	{
 		TArray<URigVMPin*> Pins = InNode->GetPins();
 		for (URigVMPin* Pin : Pins)
@@ -5643,16 +5643,16 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		InNode->Pins.Reset();
 		Pins.Reset();
 
-		UScriptStruct* ScriptStruct = StructNode->GetScriptStruct();
+		UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
 		if (ScriptStruct == nullptr)
 		{
 			ReportWarningf(
 				TEXT("Control Rig '%s', Node '%s' has no struct assigned. Do you have a broken redirect?"),
-				*StructNode->GetOutermost()->GetPathName(),
-				*StructNode->GetName()
+				*UnitNode->GetOutermost()->GetPathName(),
+				*UnitNode->GetName()
 				);
 
-			RemoveNode(StructNode, false, true);
+			RemoveNode(UnitNode, false, true);
 			return;
 		}
 
@@ -5660,12 +5660,12 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		ScriptStruct->GetStringMetaDataHierarchical(*URigVMNode::NodeColorName, &NodeColorMetadata);
 		if (!NodeColorMetadata.IsEmpty())
 		{
-			StructNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
+			UnitNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
 		}
 
 		FString ExportedDefaultValue;
 		CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
-		AddPinsForStruct(ScriptStruct, StructNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
+		AddPinsForStruct(ScriptStruct, UnitNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
 	}
 	else if (RerouteNode != nullptr)
 	{
@@ -5783,11 +5783,11 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 
 #endif
 
-void URigVMController::SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate)
+void URigVMController::SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate)
 {
 	TWeakObjectPtr<URigVMController> WeakThis(this);
 
-	StructNodeCreatedContext.GetAllExternalVariablesDelegate().BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
+	UnitNodeCreatedContext.GetAllExternalVariablesDelegate().BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
 		if (WeakThis.IsValid())
 		{
 			return WeakThis->GetExternalVariables();
@@ -5795,7 +5795,7 @@ void URigVMController::SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExt
 		return TArray<FRigVMExternalVariable>();
 	});
 
-	StructNodeCreatedContext.GetBindPinToExternalVariableDelegate().BindLambda([WeakThis](FString InPinPath, FString InVariablePath) -> bool {
+	UnitNodeCreatedContext.GetBindPinToExternalVariableDelegate().BindLambda([WeakThis](FString InPinPath, FString InVariablePath) -> bool {
 		if (WeakThis.IsValid())
 		{
 			return WeakThis->BindPinToVariable(InPinPath, InVariablePath, true);
@@ -5803,14 +5803,14 @@ void URigVMController::SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExt
 		return false;
 	});
 
-	StructNodeCreatedContext.GetCreateExternalVariableDelegate() = InCreateExternalVariableDelegate;
+	UnitNodeCreatedContext.GetCreateExternalVariableDelegate() = InCreateExternalVariableDelegate;
 }
 
-void URigVMController::ResetStructNodeDelegates()
+void URigVMController::ResetUnitNodeDelegates()
 {
-	StructNodeCreatedContext.GetAllExternalVariablesDelegate().Unbind();
-	StructNodeCreatedContext.GetBindPinToExternalVariableDelegate().Unbind();
-	StructNodeCreatedContext.GetCreateExternalVariableDelegate().Unbind();
+	UnitNodeCreatedContext.GetAllExternalVariablesDelegate().Unbind();
+	UnitNodeCreatedContext.GetBindPinToExternalVariableDelegate().Unbind();
+	UnitNodeCreatedContext.GetCreateExternalVariableDelegate().Unbind();
 }
 
 FLinearColor URigVMController::GetColorFromMetadata(const FString& InMetadata)
@@ -5843,13 +5843,13 @@ FLinearColor URigVMController::GetColorFromMetadata(const FString& InMetadata)
 TMap<FString, FString> URigVMController::GetRedirectedPinPaths(URigVMNode* InNode) const
 {
 	TMap<FString, FString> RedirectedPinPaths;
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode);
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode);
 	URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode);
 
 	UScriptStruct* OwningStruct = nullptr;
-	if (StructNode)
+	if (UnitNode)
 	{
-		OwningStruct = StructNode->GetScriptStruct();
+		OwningStruct = UnitNode->GetScriptStruct();
 	}
 	else if (RerouteNode)
 	{
@@ -5926,8 +5926,8 @@ void URigVMController::ApplyPinState(URigVMPin* InPin, const FPinState& InPinSta
 	for (URigVMInjectionInfo* InjectionInfo : InPinState.InjectionInfos)
 	{
 		InjectionInfo->Rename(nullptr, InPin);
-		InjectionInfo->InputPin = InjectionInfo->StructNode->FindPin(InjectionInfo->InputPin->GetName());
-		InjectionInfo->OutputPin = InjectionInfo->StructNode->FindPin(InjectionInfo->OutputPin->GetName());
+		InjectionInfo->InputPin = InjectionInfo->UnitNode->FindPin(InjectionInfo->InputPin->GetName());
+		InjectionInfo->OutputPin = InjectionInfo->UnitNode->FindPin(InjectionInfo->OutputPin->GetName());
 		InPin->InjectionInfos.Add(InjectionInfo);
 	}
 
@@ -5960,7 +5960,7 @@ void URigVMController::ApplyPinStates(URigVMNode* InNode, const TMap<FString, UR
 		{
 			for (URigVMInjectionInfo* InjectionInfo : PinState.InjectionInfos)
 			{
-				InjectionInfo->StructNode->Rename(nullptr, InNode->GetGraph());
+				InjectionInfo->UnitNode->Rename(nullptr, InNode->GetGraph());
 				DestroyObject(InjectionInfo);
 			}
 		}
@@ -6111,7 +6111,7 @@ void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNo
 
 		RemoveNode(InNode, bSetupUndoRedo);
 
-		if (URigVMNode* NewNode = AddStructNode(Function.Struct, Function.GetMethodName(), NodePosition, NodeName, bSetupUndoRedo))
+		if (URigVMNode* NewNode = AddUnitNode(Function.Struct, Function.GetMethodName(), NodePosition, NodeName, bSetupUndoRedo))
 		{
 			// set default values again
 			for (TPair<FString, FString> Pair : DefaultValues)

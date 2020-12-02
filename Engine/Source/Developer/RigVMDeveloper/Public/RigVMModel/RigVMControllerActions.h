@@ -295,18 +295,18 @@ struct FRigVMInverseAction : public FRigVMBaseAction
 };
 
 /**
- * An action adding a struct node to the graph.
+ * An action adding a unit node to the graph.
  */
 USTRUCT()
-struct FRigVMAddStructNodeAction : public FRigVMBaseAction
+struct FRigVMAddUnitNodeAction : public FRigVMBaseAction
 {
 	GENERATED_BODY()
 
 public:
 
-	FRigVMAddStructNodeAction();
-	FRigVMAddStructNodeAction(URigVMStructNode* InNode);
-	virtual ~FRigVMAddStructNodeAction() {};
+	FRigVMAddUnitNodeAction();
+	FRigVMAddUnitNodeAction(URigVMUnitNode* InNode);
+	virtual ~FRigVMAddUnitNodeAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 

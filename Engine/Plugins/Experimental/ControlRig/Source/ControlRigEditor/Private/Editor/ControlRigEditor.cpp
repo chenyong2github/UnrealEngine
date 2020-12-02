@@ -290,7 +290,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		{
 			if (Model->GetNodes().Num() == 0)
 			{
-				URigVMNode* Node = InControlRigBlueprint->Controller->AddStructNode(FRigUnit_BeginExecution::StaticStruct(), TEXT("Execute"), FVector2D::ZeroVector, FString(), false);
+				URigVMNode* Node = InControlRigBlueprint->Controller->AddUnitNode(FRigUnit_BeginExecution::StaticStruct(), TEXT("Execute"), FVector2D::ZeroVector, FString(), false);
 				if (Node)
 				{
 					TArray<FName> NodeNames;
@@ -987,18 +987,18 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 
 void FControlRigEditor::SetDetailObject(UObject* Obj)
 {
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Obj))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Obj))
 	{
 		ClearDetailObject();
-		NodeDetailStruct = StructNode->GetScriptStruct();
-		NodeDetailName = StructNode->GetFName();
+		NodeDetailStruct = UnitNode->GetScriptStruct();
+		NodeDetailName = UnitNode->GetFName();
 
 		if (NodeDetailStruct)
 		{
 			NodeDetailBuffer.AddUninitialized(NodeDetailStruct->GetStructureSize());
 			NodeDetailStruct->InitializeDefaultValue(NodeDetailBuffer.GetData());
 
-			FString StructDefaultValue = StructNode->GetStructDefaultValue();
+			FString StructDefaultValue = UnitNode->GetStructDefaultValue();
 			NodeDetailStruct->ImportText(*StructDefaultValue, NodeDetailBuffer.GetData(), nullptr, PPF_None, nullptr, NodeDetailStruct->GetName());
 
 			StructToDisplay = MakeShareable(new FStructOnScope(NodeDetailStruct, (uint8*)NodeDetailBuffer.GetData()));
@@ -1026,7 +1026,7 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 				}
 
 				bool bEditable = true;
-				if (URigVMPin* Pin = StructNode->FindPin(Property->GetName()))
+				if (URigVMPin* Pin = UnitNode->FindPin(Property->GetName()))
 				{
 					Pin = Pin->GetPinForLink();
 					if (Pin->GetDirection() == ERigVMPinDirection::Output)
@@ -3497,7 +3497,7 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 								{
 									Controller->OpenUndoBracket(TEXT("Create Collection from Items"));
 
-									if (URigVMNode* ItemsNode = Controller->AddStructNode(FRigUnit_CollectionItems::StaticStruct(), TEXT("Execute"), NodePosition))
+									if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_CollectionItems::StaticStruct(), TEXT("Execute"), NodePosition))
 									{
 										if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Items")))
 										{
@@ -3804,7 +3804,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		}
 
 		FName Name = FControlRigBlueprintUtils::ValidateName(Blueprint, StructTemplate->GetName());
-		if (URigVMStructNode* ModelNode = Blueprint->Controller->AddStructNode(StructTemplate, TEXT("Execute"), NodePosition))
+		if (URigVMUnitNode* ModelNode = Blueprint->Controller->AddUnitNode(StructTemplate, TEXT("Execute"), NodePosition))
 		{
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();
 			NewNode.Name = ModelNode->GetFName();

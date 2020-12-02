@@ -313,17 +313,17 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		{
 			URigVMNode* Node = Nodes[NodeIndex];
 			// only struct nodes among all nodes has StaticExecute() that generates actual instructions
-			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node))
+			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 			{
-				int32 InstructionIndex = StructNode->GetInstructionIndex();
+				int32 InstructionIndex = UnitNode->GetInstructionIndex();
 				// only active nodes are assigned a valid instruction index, hence the check here
 				if (InstructionIndex >= 0 && InstructionIndex < InstructionIndexToNodeIndex.Num())
 				{
 					InstructionIndexToNodeIndex[InstructionIndex] = NodeIndex;
 				}
-				FString DisplayName = StructNode->GetNodeTitle();
+				FString DisplayName = UnitNode->GetNodeTitle();
 #if WITH_EDITOR
-				UScriptStruct* Struct = StructNode->GetScriptStruct();
+				UScriptStruct* Struct = UnitNode->GetScriptStruct();
 				FString MenuDescSuffixMetadata;
 				if (Struct)
 				{
@@ -331,11 +331,11 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 				}
 				if (!MenuDescSuffixMetadata.IsEmpty())
 				{
-					DisplayName = FString::Printf(TEXT("%s %s"), *StructNode->GetNodeTitle(), *MenuDescSuffixMetadata);
+					DisplayName = FString::Printf(TEXT("%s %s"), *UnitNode->GetNodeTitle(), *MenuDescSuffixMetadata);
 				}
 #endif
 				// this is needed for name replacement later
-				NodeNameToDisplayName.Add(StructNode->GetName(), DisplayName);
+				NodeNameToDisplayName.Add(UnitNode->GetName(), DisplayName);
 			}
 		}
 

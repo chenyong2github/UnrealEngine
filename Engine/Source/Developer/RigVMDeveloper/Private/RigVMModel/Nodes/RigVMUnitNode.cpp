@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMCore/RigVMStruct.h"
 
-const FName URigVMStructNode::LoopSliceContextName = TEXT("LoopContext");
+const FName URigVMUnitNode::LoopSliceContextName = TEXT("LoopContext");
 
-FString URigVMStructNode::GetNodeTitle() const
+FString URigVMUnitNode::GetNodeTitle() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -14,7 +14,7 @@ FString URigVMStructNode::GetNodeTitle() const
 	return Super::GetNodeTitle();
 }
 
-FText URigVMStructNode::GetToolTipText() const
+FText URigVMUnitNode::GetToolTipText() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -23,7 +23,7 @@ FText URigVMStructNode::GetToolTipText() const
 	return URigVMNode::GetToolTipText();
 }
 
-bool URigVMStructNode::IsDefinedAsConstant() const
+bool URigVMUnitNode::IsDefinedAsConstant() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -32,7 +32,7 @@ bool URigVMStructNode::IsDefinedAsConstant() const
 	return false;
 }
 
-bool URigVMStructNode::IsDefinedAsVarying() const
+bool URigVMUnitNode::IsDefinedAsVarying() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -41,7 +41,7 @@ bool URigVMStructNode::IsDefinedAsVarying() const
 	return false;
 }
 
-FName URigVMStructNode::GetEventName() const
+FName URigVMUnitNode::GetEventName() const
 {
 	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
 	if (StructOnScope.IsValid())
@@ -52,7 +52,7 @@ FName URigVMStructNode::GetEventName() const
 	return NAME_None;
 }
 
-FName URigVMStructNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
+FName URigVMUnitNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
 {
 	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
 	if (StructOnScope.IsValid())
@@ -90,7 +90,7 @@ FName URigVMStructNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVM
 	return Super::GetSliceContextForPin(InRootPin, InUserData);
 }
 
-int32 URigVMStructNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
+int32 URigVMUnitNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
 {
 	int32 NumSlices = Super::GetNumSlicesForContext(InContextName, InUserData);
 
@@ -110,7 +110,7 @@ int32 URigVMStructNode::GetNumSlicesForContext(const FName& InContextName, const
 	return NumSlices;
 }
 
-FText URigVMStructNode::GetToolTipTextForPin(const URigVMPin* InPin) const
+FText URigVMUnitNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 {
 	if(UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -149,12 +149,12 @@ FText URigVMStructNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 	return URigVMNode::GetToolTipTextForPin(InPin);
 }
 
-bool URigVMStructNode::IsDeprecated() const
+bool URigVMUnitNode::IsDeprecated() const
 {
 	return !GetDeprecatedMetadata().IsEmpty();
 }
 
-FString URigVMStructNode::GetDeprecatedMetadata() const
+FString URigVMUnitNode::GetDeprecatedMetadata() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -167,12 +167,12 @@ FString URigVMStructNode::GetDeprecatedMetadata() const
 	return FString();
 }
 
-UScriptStruct* URigVMStructNode::GetScriptStruct() const
+UScriptStruct* URigVMUnitNode::GetScriptStruct() const
 {
 	return ScriptStruct;
 }
 
-bool URigVMStructNode::IsLoopNode() const
+bool URigVMUnitNode::IsLoopNode() const
 {
 	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
 	if (StructOnScope.IsValid())
@@ -183,12 +183,12 @@ bool URigVMStructNode::IsLoopNode() const
 	return false;
 }
 
-FName URigVMStructNode::GetMethodName() const
+FName URigVMUnitNode::GetMethodName() const
 {
 	return MethodName;
 }
 
-FString URigVMStructNode::GetStructDefaultValue() const
+FString URigVMUnitNode::GetStructDefaultValue() const
 {
 	TArray<FString> PinDefaultValues;
 	for (URigVMPin* Pin : GetPins())
@@ -216,7 +216,7 @@ FString URigVMStructNode::GetStructDefaultValue() const
 
 }
 
-TSharedPtr<FStructOnScope> URigVMStructNode::ConstructStructInstance(bool bUseDefault) const
+TSharedPtr<FStructOnScope> URigVMUnitNode::ConstructStructInstance(bool bUseDefault) const
 {
 	if (ScriptStruct)
 	{

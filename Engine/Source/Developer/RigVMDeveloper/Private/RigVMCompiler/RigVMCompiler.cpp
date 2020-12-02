@@ -322,9 +322,9 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 		case FRigVMExprAST::EType::CallExtern:
 		{
 			const FRigVMCallExternExprAST* CallExternExpr = InExpr->To<FRigVMCallExternExprAST>();
-			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(CallExternExpr->GetNode()))
+			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CallExternExpr->GetNode()))
 			{
-				if (StructNode->IsLoopNode())
+				if (UnitNode->IsLoopNode())
 				{
 					TraverseForLoop(CallExternExpr, WorkData);
 					break;
@@ -416,11 +416,11 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 
 void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InExpr->GetNode());
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
 
 	if (WorkData.bSetupMemory)
 	{
-		TSharedPtr<FStructOnScope> DefaultStruct = StructNode->ConstructStructInstance();
+		TSharedPtr<FStructOnScope> DefaultStruct = UnitNode->ConstructStructInstance();
 		WorkData.DefaultStructs.Add(DefaultStruct);
 		TraverseChildren(InExpr, WorkData);
 		WorkData.DefaultStructs.Pop();
@@ -442,11 +442,11 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 		}
 
 		// setup the instruction
-		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(StructNode->GetScriptStruct(), StructNode->GetMethodName());
+		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(UnitNode->GetScriptStruct(), UnitNode->GetMethodName());
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
 		
 		int32 EntryInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-		FName Entryname = StructNode->GetEventName();
+		FName Entryname = UnitNode->GetEventName();
 
 		if (WorkData.VM->GetByteCode().FindEntryIndex(Entryname) == INDEX_NONE)
 		{
@@ -458,7 +458,7 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			StructNode->InstructionIndex = EntryInstructionIndex;
+			UnitNode->InstructionIndex = EntryInstructionIndex;
 		}
 
 		TraverseChildren(InExpr, WorkData);
@@ -467,20 +467,20 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InExpr->GetNode());
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
 
 	int32 InstructionIndex = INDEX_NONE;
 
 	if (WorkData.bSetupMemory)
 	{
-		TSharedPtr<FStructOnScope> DefaultStruct = StructNode->ConstructStructInstance();
+		TSharedPtr<FStructOnScope> DefaultStruct = UnitNode->ConstructStructInstance();
 		WorkData.DefaultStructs.Add(DefaultStruct);
 		TraverseChildren(InExpr, WorkData);
 		WorkData.DefaultStructs.Pop();
 
 		if (Settings.EnablePinWatches)
 		{
-			for (URigVMPin* Pin : StructNode->Pins)
+			for (URigVMPin* Pin : UnitNode->Pins)
 			{
 				if (Pin->RequiresWatch())
 				{
@@ -535,18 +535,18 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		TraverseChildren(InExpr, WorkData);
 
 		// setup the instruction
-		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(StructNode->GetScriptStruct(), StructNode->GetMethodName());
+		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(UnitNode->GetScriptStruct(), UnitNode->GetMethodName());
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			StructNode->InstructionIndex = InstructionIndex;
+			UnitNode->InstructionIndex = InstructionIndex;
 		}
 
-		ensure(InExpr->NumChildren() == StructNode->Pins.Num());
-		for (int32 PinIndex = 0; PinIndex < StructNode->Pins.Num(); PinIndex++)
+		ensure(InExpr->NumChildren() == UnitNode->Pins.Num());
+		for (int32 PinIndex = 0; PinIndex < UnitNode->Pins.Num(); PinIndex++)
 		{
-			URigVMPin* Pin = StructNode->Pins[PinIndex];
+			URigVMPin* Pin = UnitNode->Pins[PinIndex];
 
 			// ensure to copy the debug values
 			if (Pin->RequiresWatch() && Settings.EnablePinWatches)
@@ -578,7 +578,7 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 		return;
 	}
 
-	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InExpr->GetNode());
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
 
 	const FRigVMVarExprAST* CompletedExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCompletedPinName);
 	check(CompletedExpr);
@@ -1387,9 +1387,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		if (bRegisterIsMultiUse)
 		{
-			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Pin->GetNode()))
+			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Pin->GetNode()))
 			{
-				if (StructNode->IsLoopNode())
+				if (UnitNode->IsLoopNode())
 				{
 					bRegisterIsMultiUse = false;
 				}

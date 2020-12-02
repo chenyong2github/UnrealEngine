@@ -947,7 +947,7 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 				{
 					for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 					{
-						URigVMStructNode* VisualDebugNode = Injection->StructNode;
+						URigVMUnitNode* VisualDebugNode = Injection->UnitNode;
 
 						FString PrototypeName;
 						if (VisualDebugNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))

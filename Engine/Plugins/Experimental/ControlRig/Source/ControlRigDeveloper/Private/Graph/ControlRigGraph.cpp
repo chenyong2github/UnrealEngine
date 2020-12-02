@@ -464,7 +464,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 							RigNode->ReconstructNode_Internal(true);
 						}
 					}
-					else if (Cast<URigVMStructNode>(ModelPin->GetNode()))
+					else if (Cast<URigVMUnitNode>(ModelPin->GetNode()))
 					{
 						RigNode->InvalidateNodeTitle();
 					}

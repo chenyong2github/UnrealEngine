@@ -201,7 +201,7 @@ bool FRigVMInverseAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Undo(InController);
 }
 
-FRigVMAddStructNodeAction::FRigVMAddStructNodeAction()
+FRigVMAddUnitNodeAction::FRigVMAddUnitNodeAction()
 	: ScriptStructPath()
 	, MethodName(NAME_None)
 	, Position(FVector2D::ZeroVector)
@@ -209,7 +209,7 @@ FRigVMAddStructNodeAction::FRigVMAddStructNodeAction()
 {
 }
 
-FRigVMAddStructNodeAction::FRigVMAddStructNodeAction(URigVMStructNode* InNode)
+FRigVMAddUnitNodeAction::FRigVMAddUnitNodeAction(URigVMUnitNode* InNode)
 	: ScriptStructPath(InNode->GetScriptStruct()->GetPathName())
 	, MethodName(InNode->GetMethodName())
 	, Position(InNode->GetPosition())
@@ -217,7 +217,7 @@ FRigVMAddStructNodeAction::FRigVMAddStructNodeAction(URigVMStructNode* InNode)
 {
 }
 
-bool FRigVMAddStructNodeAction::Undo(URigVMController* InController)
+bool FRigVMAddUnitNodeAction::Undo(URigVMController* InController)
 {
 	if (!FRigVMBaseAction::Undo(InController))
 	{
@@ -226,10 +226,10 @@ bool FRigVMAddStructNodeAction::Undo(URigVMController* InController)
 	return InController->RemoveNodeByName(*NodePath, false);
 }
 
-bool FRigVMAddStructNodeAction::Redo(URigVMController* InController)
+bool FRigVMAddUnitNodeAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
-	if (URigVMStructNode* Node = InController->AddStructNodeFromStructPath(ScriptStructPath, MethodName, Position, NodePath, false))
+	if (URigVMUnitNode* Node = InController->AddUnitNodeFromStructPath(ScriptStructPath, MethodName, Position, NodePath, false))
 	{
 		return FRigVMBaseAction::Redo(InController);
 	}
@@ -618,11 +618,11 @@ FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction()
 FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction(URigVMInjectionInfo* InInjectionInfo)
 	: PinPath(InInjectionInfo->GetPin()->GetPinPath())
 	, bAsInput(InInjectionInfo->bInjectedAsInput)
-	, ScriptStructPath(InInjectionInfo->StructNode->GetScriptStruct()->GetPathName())
-	, MethodName(InInjectionInfo->StructNode->GetMethodName())
+	, ScriptStructPath(InInjectionInfo->UnitNode->GetScriptStruct()->GetPathName())
+	, MethodName(InInjectionInfo->UnitNode->GetMethodName())
 	, InputPinName(InInjectionInfo->InputPin->GetFName())
 	, OutputPinName(InInjectionInfo->OutputPin->GetFName())
-	, NodePath(InInjectionInfo->StructNode->GetName())
+	, NodePath(InInjectionInfo->UnitNode->GetName())
 {
 }
 
@@ -662,10 +662,10 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 			}
 		}
 	}
-	else if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode))
+	else if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddStructNodeAction(StructNode));
-		for (URigVMPin* Pin : StructNode->GetPins())
+		InverseAction.AddAction(FRigVMAddUnitNodeAction(UnitNode));
+		for (URigVMPin* Pin : UnitNode->GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
 				Pin->GetDirection() == ERigVMPinDirection::Visible)

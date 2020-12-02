@@ -46,11 +46,11 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	{
 		if(URigVMNode* ModelNode = GetModelNode())
 		{
-			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(ModelNode))
+			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 			{
-				if (StructNode->GetScriptStruct()->IsChildOf(FRigUnit::StaticStruct()))
+				if (UnitNode->GetScriptStruct()->IsChildOf(FRigUnit::StaticStruct()))
 				{
-					if (TSharedPtr<FStructOnScope> StructOnScope = StructNode->ConstructStructInstance())
+					if (TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance())
 					{
 						FRigUnit* RigUnit = (FRigUnit*)StructOnScope->GetStructMemory();
 						NodeTitle = FText::FromString(RigUnit->GetUnitLabel());
@@ -124,7 +124,7 @@ bool UControlRigGraphNode::IsDeprecated() const
 {
 	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
+		if(URigVMUnitNode* StructModelNode = Cast<URigVMUnitNode>(ModelNode))
 		{
 			return StructModelNode->IsDeprecated();
 		}
@@ -138,7 +138,7 @@ FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEd
 
 	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
+		if(URigVMUnitNode* StructModelNode = Cast<URigVMUnitNode>(ModelNode))
 		{
 			FString DeprecatedMetadata = StructModelNode->GetDeprecatedMetadata();
 			if (!DeprecatedMetadata.IsEmpty())

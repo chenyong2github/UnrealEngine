@@ -2,7 +2,7 @@
 
 #include "RigVMCompiler/RigVMAST.h"
 #include "RigVMCompiler/RigVMCompiler.h"
-#include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
@@ -402,7 +402,7 @@ FString FRigVMExprAST::DumpDot(TArray<bool>& OutExpressionDefined, const FString
 			}
 			case EType::CallExtern:
 			{
-				if (URigVMStructNode* Node = Cast<URigVMStructNode>(To<FRigVMCallExternExprAST>()->GetNode()))
+				if (URigVMUnitNode* Node = Cast<URigVMUnitNode>(To<FRigVMCallExternExprAST>()->GetNode()))
 				{
 					Label = Node->GetScriptStruct()->GetName();
 				}
@@ -680,9 +680,9 @@ bool FRigVMVarExprAST::IsEnumValue() const
 
 bool FRigVMVarExprAST::SupportsSoftLinks() const
 {
-	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Pin->GetNode()))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Pin->GetNode()))
 	{
-		if (StructNode->IsLoopNode())
+		if (UnitNode->IsLoopNode())
 		{
 			if (Pin->GetFName() != FRigVMStruct::ExecuteContextName &&
 				Pin->GetFName() != FRigVMStruct::ForLoopCompletedPinName)
@@ -966,9 +966,9 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(URigVMNode* InNode, FRigVMEx
 				if (SourcePin->IsExecuteContext())
 				{
 					bool bIsForLoop = false;
-					if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode))
+					if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 					{
-						bIsForLoop = StructNode->IsLoopNode();
+						bIsForLoop = UnitNode->IsLoopNode();
 					}
 
 					FRigVMExprAST* ParentExpr = InParentExpr;
@@ -1592,9 +1592,9 @@ void FRigVMParserAST::FoldAssignments()
 		}
 
 		// if this node is a loop node - let's skip the folding
-		if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(AssignExpr->GetTargetPin()->GetNode()))
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(AssignExpr->GetTargetPin()->GetNode()))
 		{
-			if (StructNode->IsLoopNode())
+			if (UnitNode->IsLoopNode())
 			{
 				continue;
 			}
