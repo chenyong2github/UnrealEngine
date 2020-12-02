@@ -66,6 +66,8 @@ struct FNiagaraTranslateResults
 	uint32 NumErrors;
 	uint32 NumWarnings;
 
+	TArray<FNiagaraCompileDependency> CompileDependencies;
+
 	/** A string representation of the compilation output. */
 	FString OutputHLSL;
 
@@ -541,6 +543,8 @@ public:
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
+	void RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker);
+	FString NodePinToMessage(FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 
 	virtual bool GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const;
 	int32 GetUniqueCallerID();
@@ -589,7 +593,7 @@ private:
 	bool GetUsesOldShaderStages() const;
 
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);
-	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap = false);
+	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap = false, bool bIgnoreDefaultSetFirst = false);
 	bool ShouldConsiderTargetParameterMap(ENiagaraScriptUsage InUsage) const;
 	FString BuildParameterMapHlslDefinitions(TArray<FNiagaraVariable>& PrimaryDataSetOutputEntries);
 	void BuildMissingDefaults();
@@ -666,6 +670,9 @@ private:
 
 	// Keep track of all the paths that the parameter maps can take through the graph.
 	TArray<FNiagaraParameterMapHistory> ParamMapHistories;
+
+	// Keep track of which parameter map history this came from.
+	TArray<int32> ParamMapHistoriesSourceInOtherHistories;
 
 	// Keep track of the other output nodes in the graph's histories so that we can make sure to 
 	// create any variables that are needed downstream.

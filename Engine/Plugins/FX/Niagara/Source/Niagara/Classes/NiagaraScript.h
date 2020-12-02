@@ -268,6 +268,10 @@ public:
 	/** All the data for using external constants in the script, laid out in the order they are expected in the uniform table.*/
 	UPROPERTY()
 	FNiagaraParameters InternalParameters;
+
+	/** List of all external dependencies of this script. If not met, linking should result in an error.*/
+	UPROPERTY()
+	TArray<FNiagaraCompileDependency> ExternalDependencies;
 #endif
 
 	UPROPERTY()
@@ -342,6 +346,10 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	bool bReadsAttributeData;
+
+	/** List of all attributes explicitly written by this VM script graph. Used to verify external dependencies.*/
+	UPROPERTY()
+	TArray<FNiagaraVariableBase> AttributesWritten;
 
 	UPROPERTY()
 	FString ErrorMsg;

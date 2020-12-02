@@ -28,12 +28,21 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraConstants.h"
+#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptMergeManager"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - DiffEmitters"), STAT_NiagaraEditor_ScriptMergeManager_DiffEmitters, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - MergeEmitter"), STAT_NiagaraEditor_ScriptMergeManager_MergeEmitter, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - IsModuleInputDifferentFromBase"), STAT_NiagaraEditor_ScriptMergeManager_IsModuleInputDifferentFromBase, STATGROUP_NiagaraEditor);
+
+int32 GNiagaraForceFailIfPreviouslyNotSetOnMerge = 0;
+static FAutoConsoleVariableRef CVarForceErrorIfMissingDefaultOnMergeh(
+	TEXT("fx.ForceFailIfPreviouslyNotSetOnMerge"),
+	GNiagaraForceFailIfPreviouslyNotSetOnMerge,
+	TEXT("If > 0, when merging in from parent emitters swap linked variables in the stack to be \"Fail If Previously Not Set\" for their default type. \n"),
+	ECVF_Default
+);
 
 FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverrideMergeAdapter(
 	const UNiagaraEmitter& InOwningEmitter,
@@ -2422,7 +2431,14 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 			}
 			else if (OverrideToAdd->GetLinkedValueHandle().IsSet())
 			{
-				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), OverrideToAdd->GetOverrideNodeId());
+				check(OverrideToAdd->GetOverrideNode() && OverrideToAdd->GetOverrideNode()->GetNiagaraGraph());
+				UNiagaraScriptVariable* ScriptVar = OverrideToAdd->GetOverrideNode()->GetNiagaraGraph()->GetScriptVariable(FNiagaraVariable(InputType, OverrideToAdd->GetLinkedValueHandle().GetValue().GetParameterHandleString()));
+				ENiagaraDefaultMode DesiredMode = ENiagaraDefaultMode::Value;
+				if (ScriptVar)
+					DesiredMode = ScriptVar->DefaultMode;
+				if (GNiagaraForceFailIfPreviouslyNotSetOnMerge > 0)
+					DesiredMode = ENiagaraDefaultMode::FailIfPreviouslyNotSet;
+				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), DesiredMode, OverrideToAdd->GetOverrideNodeId());
 				Results.bSucceeded = true;
 			}
 			else if (OverrideToAdd->GetDataValueInputName().IsSet() && OverrideToAdd->GetDataValueObject() != nullptr)

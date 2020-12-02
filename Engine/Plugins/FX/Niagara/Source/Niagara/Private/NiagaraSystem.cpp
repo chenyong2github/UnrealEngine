@@ -1665,6 +1665,55 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 		}
 	}
 
+	// Now iterate over all dependencies and verify that they are met. If not, emit an error.
+	for (FEmitterCompiledScriptPair& CompilePair : CompileRequest.EmitterCompiledScriptPairs)
+	{
+		bool bValid = CompilePair.CompileResults.IsValid()
+			&& CompilePair.CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
+
+		if (CompilePair.CompileResults.IsValid() && CompilePair.CompileResults->ExternalDependencies.Num() != 0)
+		{
+			for (const FNiagaraCompileDependency& Dependency : CompilePair.CompileResults->ExternalDependencies)
+			{
+				FNiagaraVariable TestVar = Dependency.DependentVariable;
+				ensure(TestVar.GetName() != NAME_None);
+				if (CompilePair.Emitter)
+				{
+					FName NewName = GetEmitterVariableAliasName(TestVar, CompilePair.Emitter);
+					TestVar.SetName(NewName);
+				}
+
+				bool bDependencyMet = false;
+				int32 TestIdx = CompilePair.ParentIndex;
+				while (TestIdx != INDEX_NONE && bDependencyMet == false)
+				{
+					if (CompileRequest.EmitterCompiledScriptPairs.IsValidIndex(TestIdx))
+					{
+						const FEmitterCompiledScriptPair& TestPair = CompileRequest.EmitterCompiledScriptPairs[TestIdx];
+						if (TestPair.CompileResults.IsValid() && TestPair.CompileResults->AttributesWritten.Num() > 0)
+						{
+							if (TestPair.CompileResults->AttributesWritten.Contains(TestVar))
+							{
+								bDependencyMet = true;
+								break;
+							}
+						}
+						TestIdx = TestPair.ParentIndex;
+					}
+				}
+				if (!bDependencyMet)
+				{
+					FNiagaraCompileEvent LinkerErrorEvent(
+						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
+					CompilePair.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
+					CompilePair.CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
+				}
+			}
+		}
+	}
+	
+	
+
 	return true;
 }
 
@@ -2032,6 +2081,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					TArray<UNiagaraScript*> EmitterScripts;
 					Handle.GetInstance()->GetScripts(EmitterScripts, false);
 					check(EmitterScripts.Num() > 0);
+					int32 Parent = INDEX_NONE;
 					for (UNiagaraScript* EmitterScript : EmitterScripts)
 					{
 
@@ -2039,12 +2089,13 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 						Pair.bResultsReady = false;
 						Pair.Emitter = Handle.GetInstance();
 						Pair.CompiledScript = EmitterScript;
+						Pair.ParentIndex = Parent;
 						if (!GetFromDDC(Pair) && EmitterScript->IsCompilable() && !EmitterScript->AreScriptAndSourceSynchronized())
 						{
 							ScriptsNeedingCompile.Add(EmitterScript);
 							bAnyUnsynchronized = true;
 						}
-						ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
+						Parent = ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
 					}
 
 				}
@@ -2054,6 +2105,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			bAnyCompiled = bAnyUnsynchronized || bForce;
 
 			// Now add the system scripts for compilation...
+			int32 Parent = INDEX_NONE;
 			{
 				FEmitterCompiledScriptPair Pair;
 				Pair.bResultsReady = false;
@@ -2064,7 +2116,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					ScriptsNeedingCompile.Add(SystemSpawnScript);
 					bAnyCompiled = true;
 				}
-				ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
+				Parent = ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
 			}
 
 			{
@@ -2072,12 +2124,22 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				Pair.bResultsReady = false;
 				Pair.Emitter = nullptr;
 				Pair.CompiledScript = SystemUpdateScript;
+				Pair.ParentIndex = Parent;
 				if (!GetFromDDC(Pair) && !SystemUpdateScript->AreScriptAndSourceSynchronized())
 				{
 					ScriptsNeedingCompile.Add(SystemUpdateScript);
 					bAnyCompiled = true;
 				}
-				ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
+				Parent = ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
+			}
+
+			// Need to set the EmitterParent on the emitter spawn scripts
+			for (FEmitterCompiledScriptPair & Pair: ActiveCompilation.EmitterCompiledScriptPairs)
+			{
+				if (Pair.Emitter != nullptr && Pair.ParentIndex == INDEX_NONE)
+				{
+					Pair.ParentIndex = Parent;
+				}
 			}
 		}
 

@@ -427,8 +427,8 @@ void UNiagaraGraph::ValidateDefaultPins()
 	for (auto& MetaData : GetAllMetaData()) {
 		FNiagaraVariable Variable = MetaData.Key;
 		UNiagaraScriptVariable* ScriptVariable = MetaData.Value;
-		if (!ScriptVariable || ScriptVariable->DefaultMode == ENiagaraDefaultMode::Custom) {
-			// If the user selected custom mode they can basically do whatever they want
+		if (!ScriptVariable || ScriptVariable->DefaultMode == ENiagaraDefaultMode::Custom || ScriptVariable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet) {
+			// If the user selected custom mode or if previously unset they can basically do whatever they want
 			continue;
 		}
 		if (ScriptVariable->Metadata.GetIsStaticSwitch()) {
@@ -472,7 +472,7 @@ void UNiagaraGraph::ValidateDefaultPins()
 			for (UEdGraphPin* Pin : Pins) {
 				Pin->bNotConnectable = true;
 				Pin->bDefaultValueIsReadOnly = true;
-				if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding) {
+				if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding || ScriptVariable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet) {
 					Pin->bHidden = true;
 				}
 
@@ -1314,8 +1314,12 @@ const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& UNiagar
 	return ParameterToReferencesMap;
 }
 
-UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FNiagaraVariable Parameter) const
+UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FNiagaraVariable Parameter, bool bUpdateIfPending) const
 {
+	if (bUpdateIfPending && bParameterReferenceRefreshPending)
+	{
+		RefreshParameterReferences();
+	}
 	if (UNiagaraScriptVariable** FoundScriptVariable = VariableToScriptVariable.Find(Parameter))
 	{
 		return *FoundScriptVariable;
@@ -1323,8 +1327,12 @@ UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FNiagaraVariable Parame
 	return nullptr;
 }
 
-UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FName ParameterName) const
+UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FName ParameterName, bool bUpdateIfPending) const
 {
+	if (bUpdateIfPending && bParameterReferenceRefreshPending)
+	{
+		RefreshParameterReferences();
+	}
 	for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
 	{
 		if (VariableToScriptVariableItem.Key.GetName() == ParameterName)
@@ -1767,7 +1775,7 @@ void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 
 	TArray<UEdGraphPin*> Pins = FindParameterMapDefaultValuePins(Variable.GetName());
 	for (UEdGraphPin* Pin : Pins) {
-		Pin->bHidden = (*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Binding;
+		Pin->bHidden = ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Binding) || ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet);
 		if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Custom) {
 			Pin->bNotConnectable = false;
 			Pin->bDefaultValueIsReadOnly = false;
@@ -1927,7 +1935,7 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	ENiagaraScriptUsage TraversalUsage = InTraversal.Num() > 0 && InTraversal.Last() && Cast<UNiagaraNodeOutput>(InTraversal.Last()) ? Cast<UNiagaraNodeOutput>(InTraversal.Last())->GetUsage() : ENiagaraScriptUsage::Module;
 
 	// Since we are using the parameter references below, make sure that they are up to date.
-	if (bParameterReferenceRefreshPending && TraversalUsage >= ENiagaraScriptUsage::EmitterSpawnScript)
+	if (bParameterReferenceRefreshPending)
 	{
 		RefreshParameterReferences();
 	}
