@@ -2127,6 +2127,42 @@ UClothingSimulationFactory* USkeletalMeshComponent::GetClothingSimFactory() cons
 	return nullptr;
 }
 
+void USkeletalMeshComponent::DoInstancePreEvaluation()
+{
+	if (AnimScriptInstance)
+	{
+		AnimScriptInstance->PreEvaluateAnimation();
+
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
+		{
+			LinkedInstance->PreEvaluateAnimation();
+		}
+	}
+
+	if (ShouldEvaluatePostProcessInstance())
+	{
+		PostProcessAnimInstance->PreEvaluateAnimation();
+	}
+}
+
+void USkeletalMeshComponent::DoInstancePostEvaluation()
+{
+	if (AnimScriptInstance)
+	{
+		AnimScriptInstance->PostEvaluateAnimation();
+
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
+		{
+			LinkedInstance->PostEvaluateAnimation();
+		}
+	}
+
+	if (PostProcessAnimInstance)
+	{
+		PostProcessAnimInstance->PostEvaluateAnimation();
+	}
+}
+
 void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* TickFunction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AnimGameThreadTime);
@@ -2255,20 +2291,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 
 		// If we're going to evaluate animation, call PreEvaluateAnimation()
 		{
-			if (AnimScriptInstance)
-			{
-				AnimScriptInstance->PreEvaluateAnimation();
-
-				for (UAnimInstance* LinkedInstance : LinkedInstances)
-				{
-					LinkedInstance->PreEvaluateAnimation();
-				}
-			}
-
-			if (ShouldEvaluatePostProcessInstance())
-			{
-				PostProcessAnimInstance->PreEvaluateAnimation();
-			}
+			DoInstancePreEvaluation();
 		}
 	}
 
@@ -2579,20 +2602,7 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 		// If we have actually evaluated animations, we need to call PostEvaluateAnimation now.
 		if (EvaluationContext.bDoEvaluation)
 		{
-			if (AnimScriptInstance)
-			{
-				AnimScriptInstance->PostEvaluateAnimation();
-
-				for (UAnimInstance* LinkedInstance : LinkedInstances)
-				{
-					LinkedInstance->PostEvaluateAnimation();
-				}
-			}
-
-			if (PostProcessAnimInstance)
-			{
-				PostProcessAnimInstance->PostEvaluateAnimation();
-			}
+			DoInstancePostEvaluation();
 		}
 
 		bNeedToFlipSpaceBaseBuffers = true;
