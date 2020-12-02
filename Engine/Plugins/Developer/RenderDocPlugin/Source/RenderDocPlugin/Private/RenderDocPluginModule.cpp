@@ -12,6 +12,7 @@
 #include "Async/Async.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "RenderCaptureInterface.h"
 #include "Misc/AutomationTest.h"
