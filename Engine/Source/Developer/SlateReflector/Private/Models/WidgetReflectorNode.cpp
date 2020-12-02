@@ -71,9 +71,10 @@ void FWidgetReflectorNodeBase::SetTint(const FLinearColor& InTint)
 	Tint = InTint;
 }
 
-void FWidgetReflectorNodeBase::AddChildNode(TSharedRef<FWidgetReflectorNodeBase> InChildNode)
+void FWidgetReflectorNodeBase::AddChildNode(TSharedRef<FWidgetReflectorNodeBase> InParentNode, TSharedRef<FWidgetReflectorNodeBase> InChildNode)
 {
-	ChildNodes.Add(MoveTemp(InChildNode));
+	InParentNode->ChildNodes.Add(MoveTemp(InChildNode));
+	InChildNode->ParentNode = InParentNode;
 }
 
 const TArray<TSharedRef<FWidgetReflectorNodeBase>>& FWidgetReflectorNodeBase::GetChildNodes() const
@@ -81,6 +82,10 @@ const TArray<TSharedRef<FWidgetReflectorNodeBase>>& FWidgetReflectorNodeBase::Ge
 	return ChildNodes;
 }
 
+const TSharedPtr<FWidgetReflectorNodeBase> FWidgetReflectorNodeBase::GetParentNode() const
+{
+	 return ParentNode.Pin();
+}
 
 /**
  * -----------------------------------------------------------------------------
@@ -642,7 +647,7 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	const TArray<TSharedPtr<FJsonValue>>& ChildNodesJsonArray = RootJsonObject->GetArrayField(TEXT("ChildNodes"));
 	for (const TSharedPtr<FJsonValue>& ChildNodeJsonValue : ChildNodesJsonArray)
 	{
-		RootSnapshotNode->AddChildNode(FSnapshotWidgetReflectorNode::FromJson(ChildNodeJsonValue.ToSharedRef()));
+		FSnapshotWidgetReflectorNode::AddChildNode(RootSnapshotNode, FSnapshotWidgetReflectorNode::FromJson(ChildNodeJsonValue.ToSharedRef()));
 	}
 
 	return RootSnapshotNode;
@@ -712,7 +717,7 @@ TSharedRef<FWidgetReflectorNodeBase> FWidgetReflectorNodeUtils::NewNodeTreeFrom(
 			}
 
 			// Note that we include both visible and invisible children!
-			NewNodeInstance->AddChildNode(NewNodeTreeFrom(InNodeType, FArrangedWidget(ChildWidget, ChildGeometry)));
+			FSnapshotWidgetReflectorNode::AddChildNode(NewNodeInstance, NewNodeTreeFrom(InNodeType, FArrangedWidget(ChildWidget, ChildGeometry)));
 		}
 	}
 

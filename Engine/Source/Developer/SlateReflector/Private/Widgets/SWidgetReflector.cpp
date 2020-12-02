@@ -228,7 +228,7 @@ private:
 	 * @param InReflectorNode The node to generate the tool tip for.
 	 * @return The tool tip widget.
 	 */
-	TSharedRef<SToolTip> GenerateToolTipForReflectorNode( TSharedRef<FWidgetReflectorNodeBase> InReflectorNode );
+	TSharedPtr<IToolTip> GenerateToolTipForReflectorNode( TWeakPtr<FWidgetReflectorNodeBase> InReflectorNode ) const;
 
 	/**
 	 * Mark the provided reflector nodes such that they stand out in the tree and are visible.
@@ -1237,13 +1237,17 @@ void SWidgetReflector::SetSelectedAsReflectorTreeRoot()
 	}
 }
 
-TSharedRef<SToolTip> SWidgetReflector::GenerateToolTipForReflectorNode( TSharedRef<FWidgetReflectorNodeBase> InReflectorNode )
+TSharedPtr<IToolTip> SWidgetReflector::GenerateToolTipForReflectorNode( TWeakPtr<FWidgetReflectorNodeBase> InReflectorNode ) const
 {
-	return SNew(SToolTip)
-		[
-			SNew(SReflectorToolTipWidget)
-				.WidgetInfoToVisualize(InReflectorNode)
-		];
+	if (TSharedPtr<FWidgetReflectorNodeBase> ReflectorNode = InReflectorNode.Pin())
+	{
+		return SNew(SToolTip)
+			[
+				SNew(SReflectorToolTipWidget)
+				.WidgetInfoToVisualize(ReflectorNode)
+			];
+	}
+	return FSlateApplication::Get().MakeToolTip(LOCTEXT("MissingNode", "The node is invalid."));
 }
 
 void SWidgetReflector::VisualizeAsTree( const TArray<TSharedRef<FWidgetReflectorNodeBase>>& WidgetPathToVisualize )
