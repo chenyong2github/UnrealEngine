@@ -228,6 +228,11 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 		OutActorsToDelete.Add(ProxyToDelete);
 	}
 
+	if (InLandscapeInfo->CanHaveLayersContent())
+	{
+		InLandscapeInfo->ForceLayersFullUpdate();
+	}
+
 	return true;
 }
 
@@ -549,15 +554,10 @@ ULandscapeInfo* FLandscapeConfigHelper::ChangeConfiguration(ULandscapeInfo* InLa
 			NewComponent->RegisterComponent();
 		}
 	}
-		
-	// @todo_ow: This is probably not the final solution
-	MoveSplinesToLandscape(InLandscapeInfo, NewLandscape, NewScaleFactor);
-		
+
 	if (NewLandscapeInfo->CanHaveLayersContent())
 	{
-		NewLandscape->RequestLayersContentUpdateForceAll();
-		NewLandscape->RequestSplineLayerUpdate();
-		NewLandscape->ForceUpdateLayersContent();
+		NewLandscapeInfo->ForceLayersFullUpdate();
 	}
 	else
 	{

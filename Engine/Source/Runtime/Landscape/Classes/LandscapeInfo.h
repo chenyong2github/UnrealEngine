@@ -325,6 +325,7 @@ public:
 	LANDSCAPE_API void UnregisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor);
 
 	LANDSCAPE_API void RequestSplineLayerUpdate();
+	LANDSCAPE_API void ForceLayersFullUpdate();
 #endif
 
 #if WITH_EDITOR

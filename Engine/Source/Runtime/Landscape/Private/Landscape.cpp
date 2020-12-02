@@ -3338,6 +3338,14 @@ void ULandscapeInfo::RequestSplineLayerUpdate()
 		LandscapeActor->RequestSplineLayerUpdate();
 	}
 }
+
+void ULandscapeInfo::ForceLayersFullUpdate()
+{
+	if (LandscapeActor)
+	{
+		LandscapeActor->ForceLayersFullUpdate();
+	}
+}
 #endif
 
 void ULandscapeInfo::RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)

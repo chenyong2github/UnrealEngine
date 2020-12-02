@@ -5201,6 +5201,13 @@ void ALandscape::ForceUpdateLayersContent(bool bInIntermediateRender)
 	bInIntermediateRender = false;
 }
 
+void ALandscape::ForceLayersFullUpdate()
+{
+	RequestSplineLayerUpdate();
+	RequestLayersContentUpdateForceAll();
+	ForceUpdateLayersContent(/* bIntermediateRender */ false);
+}
+
 void ALandscape::TickLayers(float DeltaTime)
 {
 	check(GIsEditor);
