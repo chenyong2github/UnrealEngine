@@ -42,6 +42,24 @@ public:
 };
 
 
+/**
+ * Properties of the trim mode
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API UTrimMeshesToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Which object to trim */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ETrimOperation WhichMesh = ETrimOperation::TrimA;
+
+	/** Whether to remove the surface inside or outside of the trimming geometry */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ETrimSide TrimSide = ETrimSide::RemoveInside;
+};
+
+
 
 /**
  * Simple Mesh Plane Cutting Tool
@@ -54,6 +72,8 @@ class MESHMODELINGTOOLS_API UCSGMeshesTool : public UBaseCreateFromSelectedTool
 public:
 
 	UCSGMeshesTool() {}
+
+	void EnableTrimMode();
 
 protected:
 
@@ -78,6 +98,9 @@ protected:
 	UPROPERTY()
 	UCSGMeshesToolProperties* CSGProperties;
 
+	UPROPERTY()
+	UTrimMeshesToolProperties* TrimProperties;
+
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
 	UPROPERTY()
@@ -85,6 +108,8 @@ protected:
 
 	// for visualization of any errors in the currently-previewed CSG operation
 	TArray<int> CreatedBoundaryEdges;
+
+	bool bTrimMode = false;
 };
 
 
@@ -97,11 +122,12 @@ class MESHMODELINGTOOLS_API UCSGMeshesToolBuilder : public UBaseCreateFromSelect
 
 public:
 
+	bool bTrimMode = false;
+
 	virtual TOptional<int32> MaxComponentsSupported() const override
 	{
 		return TOptional<int32>(2);
 	}
-
 
 	virtual int32 MinComponentsSupported() const override
 	{
@@ -110,7 +136,12 @@ public:
 
 	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
 	{
-		return NewObject<UCSGMeshesTool>(Outer);
+		UCSGMeshesTool* Tool = NewObject<UCSGMeshesTool>(Outer);
+		if (bTrimMode)
+		{
+			Tool->EnableTrimMode();
+		}
+		return Tool;
 	}
 };
 

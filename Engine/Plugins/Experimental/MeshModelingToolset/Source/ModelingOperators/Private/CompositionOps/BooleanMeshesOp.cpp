@@ -20,7 +20,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	check(Meshes.Num() == 2 && Transforms.Num() == 2);
 	
 	int FirstIdx = 0;
-	if (Operation == ECSGOperation::DifferenceBA || Operation == ECSGOperation::TrimB)
+	if ((!bTrimMode && CSGOperation == ECSGOperation::DifferenceBA) || (bTrimMode && TrimOperation == ETrimOperation::TrimB))
 	{
 		FirstIdx = 1;
 	}
@@ -28,25 +28,39 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	FMeshBoolean::EBooleanOp Op;
 	// convert UI enum to algorithm enum
-	switch (Operation)
+	if (bTrimMode)
 	{
-	case ECSGOperation::DifferenceAB:
-	case ECSGOperation::DifferenceBA:
-		Op = FMeshBoolean::EBooleanOp::Difference;
-		break;
-	case ECSGOperation::TrimA:
-	case ECSGOperation::TrimB:
-		Op = FMeshBoolean::EBooleanOp::Trim;
-		break;
-	case ECSGOperation::Union:
-		Op = FMeshBoolean::EBooleanOp::Union;
-		break;
-	case ECSGOperation::Intersect:
-		Op = FMeshBoolean::EBooleanOp::Intersect;
-		break;
-	default:
-		check(false); // all conversion cases should be implemented
-		Op = FMeshBoolean::EBooleanOp::Union;
+		switch (TrimSide)
+		{
+		case ETrimSide::RemoveInside:
+			Op = FMeshBoolean::EBooleanOp::TrimInside;
+			break;
+		case ETrimSide::RemoveOutside:
+			Op = FMeshBoolean::EBooleanOp::TrimOutside;
+			break;
+		default:
+			check(false);
+			Op = FMeshBoolean::EBooleanOp::TrimInside;
+		}
+	}
+	else
+	{
+		switch (CSGOperation)
+		{
+		case ECSGOperation::DifferenceAB:
+		case ECSGOperation::DifferenceBA:
+			Op = FMeshBoolean::EBooleanOp::Difference;
+			break;
+		case ECSGOperation::Union:
+			Op = FMeshBoolean::EBooleanOp::Union;
+			break;
+		case ECSGOperation::Intersect:
+			Op = FMeshBoolean::EBooleanOp::Intersect;
+			break;
+		default:
+			check(false); // all conversion cases should be implemented
+			Op = FMeshBoolean::EBooleanOp::Union;
+		}
 	}
 
 	FMeshBoolean MeshBoolean(Meshes[FirstIdx].Get(), (FTransform3d)Transforms[FirstIdx], Meshes[OtherIdx].Get(), (FTransform3d)Transforms[OtherIdx], ResultMesh.Get(), Op);

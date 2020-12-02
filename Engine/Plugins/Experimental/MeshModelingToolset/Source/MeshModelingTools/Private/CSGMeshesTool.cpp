@@ -12,26 +12,51 @@
 
 #define LOCTEXT_NAMESPACE "UCSGMeshesTool"
 
-
+void UCSGMeshesTool::EnableTrimMode()
+{
+	check(OriginalDynamicMeshes.Num() == 0);		// must not have been initialized!
+	bTrimMode = true;
+}
 
 void UCSGMeshesTool::SetupProperties()
 {
 	Super::SetupProperties();
 
-	CSGProperties = NewObject<UCSGMeshesToolProperties>(this);
-	CSGProperties->RestoreProperties(this);
-	AddToolPropertySource(CSGProperties);
+	if (bTrimMode)
+	{
+		TrimProperties = NewObject<UTrimMeshesToolProperties>(this);
+		TrimProperties->RestoreProperties(this);
+		AddToolPropertySource(TrimProperties);
 
-	SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Mesh Boolean Tool"));
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
-		EToolMessageLevel::UserNotification);
+		SetToolDisplayName(LOCTEXT("TrimMeshesToolName", "Trim Meshes Tool"));
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartTrimTool", "Trim one mesh with another. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		CSGProperties = NewObject<UCSGMeshesToolProperties>(this);
+		CSGProperties->RestoreProperties(this);
+		AddToolPropertySource(CSGProperties);
+
+		SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Mesh Boolean Tool"));
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
+			EToolMessageLevel::UserNotification);
+	}
 }
 
 void UCSGMeshesTool::SaveProperties()
 {
 	Super::SaveProperties();
-	CSGProperties->SaveProperties(this);
+	if (bTrimMode)
+	{
+		TrimProperties->SaveProperties(this);
+	}
+	else
+	{
+		CSGProperties->SaveProperties(this);
+	}
 }
 
 
@@ -42,7 +67,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	TMap<UMaterialInterface*, int> KnownMaterials;
 	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(ComponentTargets.Num());
 
-	if (!CSGProperties->bOnlyUseFirstMeshMaterials)
+	if (bTrimMode || !CSGProperties->bOnlyUseFirstMeshMaterials)
 	{
 		for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 		{
@@ -131,7 +156,7 @@ void UCSGMeshesTool::UpdateVisualization()
 	FVector3d A, B;
 
 	DrawnLineSet->Clear();
-	if (CSGProperties->bShowNewBoundaryEdges)
+	if (!bTrimMode && CSGProperties->bShowNewBoundaryEdges)
 	{
 		for (int EID : CreatedBoundaryEdges)
 		{
@@ -146,8 +171,18 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 {
 	TUniquePtr<FBooleanMeshesOp> BooleanOp = MakeUnique<FBooleanMeshesOp>();
 	
-	BooleanOp->Operation = CSGProperties->Operation;
-	BooleanOp->bAttemptFixHoles = CSGProperties->bAttemptFixHoles;
+	BooleanOp->bTrimMode = bTrimMode;
+	if (bTrimMode)
+	{
+		BooleanOp->TrimOperation = TrimProperties->WhichMesh;
+		BooleanOp->TrimSide = TrimProperties->TrimSide;
+		BooleanOp->bAttemptFixHoles = false;
+	}
+	else
+	{
+		BooleanOp->CSGOperation = CSGProperties->Operation;
+		BooleanOp->bAttemptFixHoles = CSGProperties->bAttemptFixHoles;
+	}
 
 	check(OriginalDynamicMeshes.Num() == 2);
 	check(ComponentTargets.Num() == 2);
@@ -192,13 +227,27 @@ void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Propert
 
 FString UCSGMeshesTool::GetCreatedAssetName() const
 {
-	return TEXT("Boolean");
+	if (bTrimMode)
+	{
+		return TEXT("Trim");
+	}
+	else
+	{
+		return TEXT("Boolean");
+	}
 }
 
 
 FText UCSGMeshesTool::GetActionName() const
 {
-	return LOCTEXT("CSGMeshes", "Boolean Meshes");
+	if (bTrimMode)
+	{
+		return LOCTEXT("CSGMeshes", "Trim Meshes");
+	}
+	else
+	{
+		return LOCTEXT("CSGMeshes", "Boolean Meshes");
+	}
 }
 
 

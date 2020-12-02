@@ -476,6 +476,11 @@ void UModelingToolsEditorMode::Enter()
 	CSGMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterTool(ToolManagerCommands.BeginMeshBooleanTool, TEXT("CSGMeshesTool"), CSGMeshesToolBuilder);
 
+	auto TrimMeshesToolBuilder = NewObject<UCSGMeshesToolBuilder>();
+	TrimMeshesToolBuilder->bTrimMode = true;
+	TrimMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterTool(ToolManagerCommands.BeginMeshTrimTool, TEXT("TrimMeshesTool"), TrimMeshesToolBuilder);
+
 	auto BspConversionToolBuilder = NewObject<UBspConversionToolBuilder>();
 	BspConversionToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterTool(ToolManagerCommands.BeginBspConversionTool, TEXT("BspConversionTool"), BspConversionToolBuilder);

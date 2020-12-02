@@ -25,15 +25,25 @@ enum class ECSGOperation : uint8
 
 	/** union of two objects */
 	Union = 3 UMETA(DisplayName = "Union"),
-
-	/** Trim the first object using the second */
-	TrimA = 4 UMETA(DisplayName = "Trim A"),
-
-	/** Trim the second object using the first */
-	TrimB = 5 UMETA(DisplayName = "Trim B"),
-
 };
 
+UENUM()
+enum class ETrimOperation : uint8
+{
+	/** Remove geometry from the first object using the second */
+	TrimA = 0 UMETA(DisplayName = "Trim A"),
+
+	/** Remove geometry from the second object using the first */
+	TrimB = 1 UMETA(DisplayName = "Trim B"),
+};
+
+
+UENUM()
+enum class ETrimSide : uint8
+{
+	RemoveInside = 0,
+	RemoveOutside = 1,
+};
 
 
 class MODELINGOPERATORS_API FBooleanMeshesOp : public FDynamicMeshOperator
@@ -42,7 +52,10 @@ public:
 	virtual ~FBooleanMeshesOp() {}
 
 	// inputs
-	ECSGOperation Operation;
+	ECSGOperation CSGOperation;
+	ETrimOperation TrimOperation;
+	ETrimSide TrimSide;
+	bool bTrimMode = false; // if true, do a trim operation instead of a boolean
 	TArray<TSharedPtr<const FDynamicMesh3>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
 	bool bAttemptFixHoles;

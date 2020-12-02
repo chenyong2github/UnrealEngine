@@ -256,10 +256,12 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
+	bool bOpIsATrim = Operation == EBooleanOp::TrimInside || Operation == EBooleanOp::TrimOutside;
+
 	// cut the meshes
 	FMeshMeshCut Cut(CutMesh[0], CutMesh[1]);
 	Cut.bTrackInsertedVertices = bCollapseDegenerateEdgesOnCut; // to collect candidates to collapse
-	Cut.bMutuallyCut = Operation != EBooleanOp::Trim;
+	Cut.bMutuallyCut = !bOpIsATrim;
 	Cut.SnapTolerance = SnapTolerance;
 	Cut.Cut(Intersections);
 
@@ -268,7 +270,7 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
-	int NumMeshesToProcess = Operation == EBooleanOp::Trim ? 1 : 2;
+	int NumMeshesToProcess = bOpIsATrim ? 1 : 2;
 
 	// collapse tiny edges along cut boundary
 	if (bCollapseDegenerateEdgesOnCut)
@@ -361,9 +363,9 @@ bool FMeshBoolean::Compute()
 			FDynamicMesh3& ProcessMesh = *CutMesh[MeshIdx];
 			int MaxTriID = ProcessMesh.MaxTriangleID();
 			KeepTri[MeshIdx].SetNumUninitialized(MaxTriID);
-			bool bCoplanarKeepSameDir = Operation != EBooleanOp::Difference;
+			bool bCoplanarKeepSameDir = (Operation != EBooleanOp::Difference && Operation != EBooleanOp::TrimInside);
 			bool bRemoveInside = 1; // whether to remove the inside triangles (e.g. for union) or the outside ones (e.g. for intersection)
-			if (Operation == EBooleanOp::Trim || Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
+			if (Operation == EBooleanOp::TrimOutside || Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
 			{
 				bRemoveInside = 0;
 			}
