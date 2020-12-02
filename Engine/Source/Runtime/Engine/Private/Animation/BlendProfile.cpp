@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/BlendProfile.h"
+#include "AlphaBlend.h"
 
 UBlendProfile::UBlendProfile()
 	: OwningSkeleton(nullptr)

@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "TextureResource.h"
 #include "Streaming/StreamableRenderResourceState.h"
+#include "Engine/Texture.h"
 
 bool CanCreateWithPartiallyResidentMips(uint32 TexCreateFlags);
 

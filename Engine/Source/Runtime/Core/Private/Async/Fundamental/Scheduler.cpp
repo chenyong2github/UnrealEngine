@@ -3,6 +3,7 @@
 #include "Async/Fundamental/Scheduler.h"
 #include "Async/Fundamental/Task.h"
 #include "Logging/LogMacros.h"
+#include "Misc/ScopeLock.h" 
 
 namespace LowLevelTasks
 {

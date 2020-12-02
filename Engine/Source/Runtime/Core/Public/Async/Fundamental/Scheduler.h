@@ -3,6 +3,8 @@
 #pragma once 
 #include "Async/Fundamental/Task.h"
 #include "HAL/Thread.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformProcess.h"
 #include "LocalQueue.h"
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"

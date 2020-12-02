@@ -5,6 +5,7 @@ Texture2DArrayStreaming.cpp: Helpers to stream in and out texture 2D array LODs.
 =============================================================================*/
 
 #include "Streaming/Texture2DArrayStreaming.h"
+#include "RenderUtils.h"
 
 //*****************************************************************************
 //***************************** Global Definitions ****************************
