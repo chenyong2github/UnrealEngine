@@ -178,7 +178,7 @@ struct FPropertyEditorTestInstancedStruct
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Instanced, Category=Default)
-	UPropertyEditorTestInstancedObject* Object;
+	UPropertyEditorTestInstancedObject* Object { nullptr };
 };
 
 UCLASS(transient)
