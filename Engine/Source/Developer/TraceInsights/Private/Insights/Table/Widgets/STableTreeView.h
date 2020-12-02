@@ -201,8 +201,8 @@ protected:
 
 	void CreateGroupings();
 
-	void CreateGroups();
-	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth);
+	void CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
+	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 
 	void ResetAggregatedValuesRec(FTableTreeNode& GroupNode);
 	void UpdateInt64SumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
@@ -294,9 +294,11 @@ protected:
 	FGraphEventRef StartCreateGroupsTask(FGraphEventRef Prerequisite = nullptr);
 	FGraphEventRef StartApplyFiltersTask(FGraphEventRef Prerequisite = nullptr);
 
-	void AddPendingAsyncOperation(EAsyncOperationType InType) { EnumAddFlags(PendingAsyncOperations, InType); }
-	bool HasPendingAsyncOperation(EAsyncOperationType InType) const { return EnumHasAnyFlags(PendingAsyncOperations, InType); }
-	void ClearPendingAsyncOperations() { PendingAsyncOperations = static_cast<EAsyncOperationType>(0); }
+	void AddInProgressAsyncOperation(EAsyncOperationType InType) { EnumAddFlags(InProgressAsyncOperations, InType); }
+	bool HasInProgressAsyncOperation(EAsyncOperationType InType) const { return EnumHasAnyFlags(InProgressAsyncOperations, InType); }
+	void ClearInProgressAsyncOperations() { InProgressAsyncOperations = static_cast<EAsyncOperationType>(0); }
+
+	void StartPendingAsyncOperations();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -395,10 +397,12 @@ protected:
 	bool bIsCloseScheduled = false;
 
 	TArray<FTableTreeNodePtr> DummyGroupNodes;
-	FGraphEventRef PendingAsyncOperationEvent;;
-	EAsyncOperationType PendingAsyncOperations = static_cast<EAsyncOperationType>(0);
+	FGraphEventRef InProgressAsyncOperationEvent;;
+	EAsyncOperationType InProgressAsyncOperations = static_cast<EAsyncOperationType>(0);
 	TSharedPtr<class SAsyncOperationStatus> AsyncOperationStatus;
 	FStopwatch AsyncUpdateStopwatch;
+
+	TArray<TSharedPtr<FTreeNodeGrouping>> CurrentAsyncOpGroupings;
 
 	//////////////////////////////////////////////////
 
@@ -463,9 +467,10 @@ private:
 class FTableTreeViewGroupAsyncTask
 {
 public:
-	FTableTreeViewGroupAsyncTask(STableTreeView* InPtr)
+	FTableTreeViewGroupAsyncTask(STableTreeView* InPtr, TArray<TSharedPtr<FTreeNodeGrouping>>* InGroupings)
 	{
 		TableTreeViewPtr = InPtr;
+		Groupings = InGroupings;
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewGroupAsyncTask, STATGROUP_TaskGraphTasks); }
@@ -476,12 +481,13 @@ public:
 	{
 		if (TableTreeViewPtr)
 		{
-			TableTreeViewPtr->CreateGroups();
+			TableTreeViewPtr->CreateGroups(*Groupings);
 		}
 	}
 
 private:
 	STableTreeView* TableTreeViewPtr = nullptr;
+	TArray<TSharedPtr<FTreeNodeGrouping>>* Groupings;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
