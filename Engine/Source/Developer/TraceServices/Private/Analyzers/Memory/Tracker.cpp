@@ -303,7 +303,7 @@ void FTracker::FinalizeWork(FLaneJobData* Data)
 	*/
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+//PRAGMA_DISABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////
 void FTracker::RetireAllocs(
