@@ -39,6 +39,9 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 	FConfigCacheIni::FConfigNamesForAllPlatforms FinalConfigFilenames;
 	Config.InitializePlatformConfigSystem(*PlatformName, FinalConfigFilenames);
 
+	// removing for now, because this causes issues with some plugins not getting ini files merged in
+//	IPluginManager::Get().IntegratePluginsIntoConfig(Config, *FinalConfigFilenames.EngineIni, *PlatformName, *StagedPluginsFile);
+
 	// pull out black list entries
 
 	TArray<FString> BlacklistKeyStrings;
@@ -77,9 +80,7 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 	// check the blacklist removed itself
 	BlacklistKeyStrings.Empty();
 	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), BlacklistKeyStrings, GGameIni);
-	check(BlacklistKeyStrings.Num() == 0)
-
-	IPluginManager::Get().IntegratePluginsIntoConfig(Config, *FinalConfigFilenames.EngineIni, *PlatformName, *StagedPluginsFile);
+	check(BlacklistKeyStrings.Num() == 0);
 
 	// allow delegates to modify the config data with some tagged binary data
 	FCoreDelegates::FExtraBinaryConfigData ExtraData(Config, true);
