@@ -42,13 +42,7 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
-
 #if WITH_EDITOR
-	HLODActorDescFactory.Reset(new FHLODActorDescFactory());
-
-	RegisterActorDescFactories(WorldPartitionSubsystem);
-
 	if (!IsRunningCommandlet())
 	{
 		GetWorld()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorLoaded);
@@ -105,11 +99,6 @@ void UHLODSubsystem::OnActorUnloaded(AActor& Actor)
 			check(NumRemoved == 1);
 		}
 	}
-}
-
-void UHLODSubsystem::RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem)
-{
-	WorldPartitionSubsystem->RegisterActorDescFactory(AWorldPartitionHLOD::StaticClass(), HLODActorDescFactory.Get());
 }
 #endif
 

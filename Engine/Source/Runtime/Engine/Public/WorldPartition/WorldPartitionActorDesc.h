@@ -8,7 +8,6 @@
 #include "GameFramework/Actor.h"
 #include "Containers/Set.h"
 #include "Misc/Guid.h"
-#include "WorldPartition/WorldPartitionActorDescFactory.h"
 
 #if WITH_EDITOR
 // Struct used to create actor descriptor
@@ -27,7 +26,7 @@ struct FWorldPartitionActorDescInitData
 class ENGINE_API FWorldPartitionActorDesc 
 {
 #if WITH_EDITOR
-	friend class FWorldPartitionActorDescFactory;
+	friend class AActor;
 	friend class UWorldPartition;
 
 public:

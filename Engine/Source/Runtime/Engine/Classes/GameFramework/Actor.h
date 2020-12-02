@@ -787,6 +787,24 @@ public:
 
 	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
+
+private:
+	friend class UWorldPartition;
+
+	/**
+	 * Creates an uninitialized actor descriptor. Can be overriden.
+	 */
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const;
+
+	/**
+	 * Creates an initialized actor descriptor.
+	 */
+	TUniquePtr<class FWorldPartitionActorDesc> CreateActorDesc() const;
+
+	/**
+	 * Creates an uninitialized actor descriptor.
+	 */
+	static TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
 #endif // WITH_EDITOR
 
 public:

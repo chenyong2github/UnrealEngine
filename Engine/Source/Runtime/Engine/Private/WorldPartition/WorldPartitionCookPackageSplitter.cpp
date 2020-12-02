@@ -10,22 +10,9 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODActorDescFactory.h"
-#include "WorldPartition/LevelInstance/LevelInstanceActorDescFactory.h"
-#include "WorldPartition/Landscape/LandscapeActorDescFactory.h"
-#include "WorldPartition/ActorPartition/PartitionActorDescFactory.h"
-#include "LevelInstance/LevelInstanceActor.h"
-#include "LandscapeProxy.h"
-#include "ActorPartition/PartitionActor.h"
 
 // Register FWorldPartitionCookPackageSplitter for UWorld class
 REGISTER_COOKPACKAGE_SPLITTER(FWorldPartitionCookPackageSplitter, UWorld);
-
-static FHLODActorDescFactory GHLODActorDescFactory;
-static FLevelInstanceActorDescFactory GLevelInstanceActorDescFactory;
-static FLandscapeActorDescFactory GLandscapeActorDescFactory;
-static FPartitionActorDescFactory GPartitionActorDescFactory;
 
 bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 {
@@ -45,13 +32,6 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 {
 	// World is not initialized
 	ensure(!PartitionedWorld->bIsWorldInitialized);
-
-	// Manually register ActorDesc factories.
-	// @todo_ow: Revisit how these factories are declared. This could be automatic.
-	UWorldPartition::RegisterActorDescFactory(AWorldPartitionHLOD::StaticClass(), &GHLODActorDescFactory);
-	UWorldPartition::RegisterActorDescFactory(ALevelInstance::StaticClass(), &GLevelInstanceActorDescFactory);
-	UWorldPartition::RegisterActorDescFactory(ALandscapeProxy::StaticClass(), &GLandscapeActorDescFactory);
-	UWorldPartition::RegisterActorDescFactory(APartitionActor::StaticClass(), &GPartitionActorDescFactory);
 
 	// Manually initialize WorldPartition
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();

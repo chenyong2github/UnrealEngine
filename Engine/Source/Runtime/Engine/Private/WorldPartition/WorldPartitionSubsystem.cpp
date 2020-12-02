@@ -3,7 +3,6 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
-#include "WorldPartition/WorldPartitionActorDescFactory.h"
 #include "Engine/Canvas.h"
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
@@ -205,10 +204,5 @@ void UWorldPartitionSubsystem::ForEachActorDesc(TSubclassOf<AActor> ActorClass, 
 	{
 		MainPartition->ForEachActorDesc(ActorClass, Predicate);
 	}
-}
-
-void UWorldPartitionSubsystem::RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory)
-{
-	UWorldPartition::RegisterActorDescFactory(Class, Factory);
 }
 #endif // WITH_EDITOR

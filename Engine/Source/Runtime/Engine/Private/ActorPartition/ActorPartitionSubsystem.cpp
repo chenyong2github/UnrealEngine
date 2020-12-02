@@ -303,12 +303,8 @@ bool UActorPartitionSubsystem::IsLevelPartition() const
 #if WITH_EDITOR
 void UActorPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
-	if (WorldPartitionSubsystem)
-	{
-		WorldPartitionSubsystem->RegisterActorDescFactory(APartitionActor::StaticClass(), &PartitionActorDescFactory);
-	}
-
+	Collection.InitializeDependency<UWorldPartitionSubsystem>();
+	
 	// Will need to register to WorldPartition setup changes events here...
 	InitializeActorPartition();
 }

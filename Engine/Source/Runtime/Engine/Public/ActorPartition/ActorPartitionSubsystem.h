@@ -6,7 +6,6 @@
 #include "Templates/SubclassOf.h"
 #include "Misc/HashBuilder.h"
 #include "Misc/Guid.h"
-#include "WorldPartition/ActorPartition/PartitionActorDescFactory.h"
 #include "ActorPartitionSubsystem.generated.h"
 
 class FBaseActorPartition;
@@ -150,8 +149,6 @@ private:
 	TMap<FCellCoord, TMap<UClass*, TMap<FGuid, TWeakObjectPtr<APartitionActor>>>> PartitionedActors;
 	TUniquePtr<FBaseActorPartition> ActorPartition;
 	
-	FPartitionActorDescFactory PartitionActorDescFactory;
-
 	FDelegateHandle ActorPartitionHashInvalidatedHandle;
 #endif
 };

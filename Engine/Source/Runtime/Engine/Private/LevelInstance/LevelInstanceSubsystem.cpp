@@ -16,7 +16,6 @@
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
-#include "WorldPartition/LevelInstance/LevelInstanceActorDescFactory.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ITransaction.h"
 #include "AssetRegistryModule.h"
@@ -58,14 +57,6 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
-	LevelInstanceActorDescFactory.Reset(new FLevelInstanceActorDescFactory());
-
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
-	if (WorldPartitionSubsystem)
-	{
-		RegisterActorDescFactories(WorldPartitionSubsystem);
-	}
-
 	if (GEditor)
 	{
 		FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
@@ -955,11 +946,6 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 			LevelInstanceActor->RemoveFromRoot();
 		}
 	}
-}
-
-void ULevelInstanceSubsystem::RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem)
-{
-	WorldPartitionSubsystem->RegisterActorDescFactory(ALevelInstance::StaticClass(), LevelInstanceActorDescFactory.Get());
 }
 
 bool ULevelInstanceSubsystem::ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld)

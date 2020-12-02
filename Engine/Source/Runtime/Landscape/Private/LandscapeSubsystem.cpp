@@ -50,14 +50,6 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
-	if (WorldPartitionSubsystem)
-	{
-		WorldPartitionSubsystem->RegisterActorDescFactory(ALandscapeProxy::StaticClass(), &LandscapeActorDescFactory);
-	}
-#endif
-
-#if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	BakedGITextureBuilder = new FLandscapeBakedGITextureBuilder(GetWorld());
 #endif

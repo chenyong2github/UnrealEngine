@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Tickable.h"
-#include "WorldPartition/Landscape/LandscapeActorDescFactory.h"
 #include "LandscapeSubsystem.generated.h"
 
 class ALandscapeProxy;
@@ -54,6 +53,5 @@ private:
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
 	class FLandscapeBakedGITextureBuilder* BakedGITextureBuilder;
-	FLandscapeActorDescFactory LandscapeActorDescFactory;
 #endif
 };

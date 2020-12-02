@@ -58,6 +58,8 @@ LandscapeEdit.cpp: Landscape editing
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/Landscape/LandscapeActorDesc.h"
 #endif
 #include "Algo/Count.h"
 #include "Serialization/MemoryWriter.h"
@@ -630,6 +632,11 @@ void ULandscapeComponent::PostEditUndo()
 		Components.Add(this);
 		GetLandscapeProxy()->FlushGrassComponents(&Components);
 	}
+}
+
+TUniquePtr<FWorldPartitionActorDesc> ALandscapeProxy::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FLandscapeActorDesc());
 }
 
 void ALandscapeProxy::FixupWeightmaps()

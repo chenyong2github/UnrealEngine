@@ -27,6 +27,7 @@
 #if WITH_EDITOR
 
 #include "Editor.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -882,6 +883,27 @@ EActorGridPlacement AActor::GetDefaultGridPlacement() const
 		return EActorGridPlacement::AlwaysLoaded;
 	}
 	return EActorGridPlacement::None;
+}
+
+TUniquePtr<FWorldPartitionActorDesc> AActor::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FWorldPartitionActorDesc());
+}
+
+TUniquePtr<FWorldPartitionActorDesc> AActor::CreateActorDesc() const
+{
+	check(!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject));
+	
+	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateClassActorDesc());
+		
+	ActorDesc->Init(this);
+	
+	return ActorDesc;
+}
+
+TUniquePtr<class FWorldPartitionActorDesc> AActor::CreateClassActorDesc(const TSubclassOf<AActor>& ActorClass)
+{
+	return CastChecked<AActor>(ActorClass->GetDefaultObject())->CreateClassActorDesc();
 }
 
 const FString& AActor::GetActorLabel() const

@@ -420,7 +420,7 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	{
 		if (UWorldPartition* WorldPartition = GetWorldSettings()->GetWorldPartition())
 		{
-			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(UWorldPartition::CreateActorDesc(this));
+			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
 			
 			const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
 			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));

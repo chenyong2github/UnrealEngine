@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Containers/Map.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 
 /**
@@ -13,8 +12,6 @@
 class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
 {
 #if WITH_EDITOR
-	friend class FLandscapeActorDescFactory;
-
 protected:
 	virtual void Init(const AActor* InActor) override;
 #endif

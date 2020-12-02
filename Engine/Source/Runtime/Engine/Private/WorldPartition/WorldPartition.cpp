@@ -31,7 +31,6 @@
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
 #include "AssetRegistryModule.h"
-#include "WorldPartition/WorldPartitionActorDescFactory.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
@@ -339,7 +338,6 @@ void UWorldPartition::Uninitialize()
 				UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false);
 			});
 			UnregisterDelegates();
-			ActorDescFactories.Empty();
 		}
 
 		EditorHash = nullptr;
@@ -406,53 +404,6 @@ void UWorldPartition::ApplyActorTransform(AActor* InActor, const FTransform& InT
 		TransformParams.bDoPostEditMove = true;
 		FLevelUtils::ApplyLevelTransform(TransformParams);
 	}
-}
-
-TUniquePtr<FWorldPartitionActorDescFactory> UWorldPartition::DefaultActorDescFactory;
-TMap<FName, FWorldPartitionActorDescFactory*> UWorldPartition::ActorDescFactories;
-
-void UWorldPartition::RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory)
-{
-	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-	{
-		if (ClassIt->IsChildOf(Class))
-		{
-			const FName ClassName = ClassIt->GetFName();
-			if (!ActorDescFactories.Contains(ClassName))
-			{
-				ActorDescFactories.Add(ClassName, Factory);
-			}
-		}
-	}
-}
-
-FWorldPartitionActorDescFactory* UWorldPartition::GetActorDescFactory(TSubclassOf<AActor> Class)
-{
-	Class = GetParentNativeClass(Class);
-
-	FName ClassName = Class->GetFName();
-	if (FWorldPartitionActorDescFactory** Factory = ActorDescFactories.Find(ClassName))
-	{
-		return *Factory;
-	}
-
-	if (!DefaultActorDescFactory)
-	{
-		DefaultActorDescFactory.Reset(new FWorldPartitionActorDescFactory());
-	}
-	return DefaultActorDescFactory.Get();
-}
-
-FWorldPartitionActorDescFactory* UWorldPartition::GetActorDescFactory(const AActor* Actor)
-{
-	return GetActorDescFactory(Actor->GetClass());
-}
-
-TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::CreateActorDesc(const AActor* Actor)
-{
-	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(GetActorDescFactory(Actor)->Create());
-	ActorDesc->Init(Actor);
-	return ActorDesc;
 }
 
 void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
@@ -933,10 +884,9 @@ TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const F
 			ActorDescInitData.ActorPath = InAssetData.ObjectPath;
 			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
-			FWorldPartitionActorDesc* NewActorDesc(GetActorDescFactory(ActorDescInitData.NativeClass)->Create());
+			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
 			NewActorDesc->Init(ActorDescInitData);
-
-			return TUniquePtr<FWorldPartitionActorDesc>(NewActorDesc);
+			return NewActorDesc;
 		}
 	}
 

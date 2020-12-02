@@ -48,6 +48,7 @@ public:
 	// AActor overrides
 	virtual void CheckForErrors() override;
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Bounds; }
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
 	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) override;

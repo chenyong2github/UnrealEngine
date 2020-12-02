@@ -13,6 +13,8 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LevelInstanceActor"
@@ -174,6 +176,11 @@ const FGuid& ALevelInstance::GetLevelInstanceActorGuid() const
 }
 
 #if WITH_EDITOR
+
+TUniquePtr<FWorldPartitionActorDesc> ALevelInstance::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FLevelInstanceActorDesc());
+}
 
 AActor* ALevelInstance::FindEditorInstanceActor() const
 {

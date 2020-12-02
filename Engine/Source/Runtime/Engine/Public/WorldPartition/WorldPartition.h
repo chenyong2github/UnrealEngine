@@ -7,7 +7,6 @@
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/WorldPartitionActorDescFactory.h"
 
 #if WITH_EDITOR
 #include "PackageSourceControlHelper.h"
@@ -90,9 +89,6 @@ private:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
 	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
 
-	static FWorldPartitionActorDescFactory* GetActorDescFactory(TSubclassOf<AActor> Class);
-	static FWorldPartitionActorDescFactory* GetActorDescFactory(const AActor* Actor);
-
 	void FlushStreaming();
 
 	// PIE Methods
@@ -121,15 +117,11 @@ private:
 	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	// UActorPartitionSubsystem interface-
 public:
-	static void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
-
 	FName GetWorldPartitionEditorName();
 	bool IsSimulating() const;
 
 	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
 	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
-
-	static TUniquePtr<FWorldPartitionActorDesc> CreateActorDesc(const AActor* Actor);
 
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);
@@ -186,9 +178,6 @@ public:
 #if WITH_EDITOR
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>> Actors;
 	
-	static TUniquePtr<FWorldPartitionActorDescFactory> DefaultActorDescFactory;
-	static TMap<FName, FWorldPartitionActorDescFactory*> ActorDescFactories;
-
 	DECLARE_EVENT_TwoParams(UWorldPartition, FWorldPartitionActorRegisteredEvent, AActor&, bool);
 	FWorldPartitionActorRegisteredEvent OnActorRegisteredEvent;
 

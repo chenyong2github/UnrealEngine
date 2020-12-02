@@ -7,10 +7,6 @@
 #include "UObject/NameTypes.h"
 #include "LevelInstance/LevelInstanceTypes.h"
 
-#if WITH_EDITOR
-#include "WorldPartition/LevelInstance/LevelInstanceActorDescFactory.h"
-#endif
-
 #include "LevelInstanceSubsystem.generated.h"
 
 class ALevelInstance;
@@ -70,7 +66,6 @@ public:
 	bool IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const;
 	bool IsEditingLevelInstance(const ALevelInstance* LevelInstanceActor) const { return GetLevelInstanceEdit(LevelInstanceActor) != nullptr; }
 	
-	FLevelInstanceActorDescFactory* GetActorDescFactory() const { return LevelInstanceActorDescFactory.Get(); }
 	bool GetLevelInstanceBounds(const ALevelInstance* LevelInstanceActor, FBox& OutBounds) const;
 	
 	void ForEachActorInLevelInstance(const ALevelInstance* LevelInstanceActor, TFunctionRef<bool(AActor * LevelActor)> Operation) const;
@@ -110,7 +105,6 @@ private:
 #if WITH_EDITOR
 	void CommitChildrenLevelInstances(ALevelInstance* LevelInstanceActor);
 
-	void RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem);
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
 
 	struct FLevelInstanceEdit
@@ -141,8 +135,6 @@ private:
 	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
 	
 	TMap<FName, FLevelInstanceEdit> LevelInstanceEdits;
-
-	TUniquePtr<FLevelInstanceActorDescFactory> LevelInstanceActorDescFactory;
 #endif
 
 	struct FLevelInstance

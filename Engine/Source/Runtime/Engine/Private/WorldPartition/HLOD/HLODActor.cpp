@@ -7,6 +7,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/HLOD/HLODActorDesc.h"
 #endif
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
@@ -152,6 +153,11 @@ bool AWorldPartitionHLOD::HasLoadedSubActors() const
 EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
 {
 	return EActorGridPlacement::Location;
+}
+
+TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FHLODActorDesc());
 }
 
 void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives)

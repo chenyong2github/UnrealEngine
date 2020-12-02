@@ -4,6 +4,8 @@
 
 #if WITH_EDITOR
 #include "Components/BoxComponent.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #endif
 
 APartitionActor::APartitionActor(const FObjectInitializer& ObjectInitializer)
@@ -16,3 +18,10 @@ APartitionActor::APartitionActor(const FObjectInitializer& ObjectInitializer)
 	RootComponent = SceneComponent;
 	RootComponent->Mobility = EComponentMobility::Static;
 }
+
+#if WITH_EDITOR
+TUniquePtr<FWorldPartitionActorDesc> APartitionActor::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FPartitionActorDesc());
+}
+#endif

@@ -9,7 +9,6 @@
 
 class UWorldPartition;
 class UWorldPartitionEditorCell;
-class FWorldPartitionActorDescFactory;
 class FWorldPartitionActorDesc;
 
 /**
@@ -45,7 +44,6 @@ public:
 #if WITH_EDITOR
 	void ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
-	void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
 #endif
 	void ToggleDrawRuntimeHash2D();
 

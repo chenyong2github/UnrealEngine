@@ -6,10 +6,6 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 
-#if WITH_EDITOR
-#include "WorldPartition/HLOD/HLODActorDescFactory.h"
-#endif
-
 #include "HLODSubsystem.generated.h"
 
 class UWorldPartitionSubsystem;
@@ -39,23 +35,13 @@ public:
 	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
 	
-#if WITH_EDITOR
-	FHLODActorDescFactory* GetActorDescFactory() const { return HLODActorDescFactory.Get(); }
-#endif
-
 private:
 #if WITH_EDITOR
 	void OnActorLoaded(AActor& Actor);
 	void OnActorUnloaded(AActor& Actor);
-	
-	void RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem);
 #endif
 
 private:
-#if WITH_EDITORONLY_DATA
-	TUniquePtr<FHLODActorDescFactory> HLODActorDescFactory;
-#endif
-
 	// Mapping between an HLOD GUID & the loaded actor.
 	TMap<FGuid, AWorldPartitionHLOD*> RegisteredHLODActors;
 
