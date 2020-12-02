@@ -41,6 +41,7 @@ struct FNotificationInfo;
 class IPinnedCommandList;
 class FPackageReloadedEvent;
 enum class EPackageReloadPhase : uint8;
+enum class EBlendProfileMode : uint8;
 
 //////////////////////////////////////////////////////////////////////////
 // SSkeletonTree
@@ -324,7 +325,7 @@ private:
 	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
 	/** Creates a new Blend Profile */
-	void OnCreateBlendProfile();
+	void OnCreateBlendProfile(const EBlendProfileMode InMode);
 
 	/** Removes the active Blend Profile */
 	void OnDeleteCurrentBlendProfile();
@@ -373,6 +374,9 @@ private:
 
 	/** Commands that are bound to delegates*/
 	TSharedPtr<FUICommandList_Pinnable> UICommandList;
+
+	/** Current type of blend profile no create. We shouldn't need to hold state for this, but blend profile creation is tied to its header text committed*/
+	EBlendProfileMode NewBlendProfileMode;
 
 	/** Current type of bones to show */
 	EBoneFilter BoneFilter;

@@ -99,8 +99,14 @@ public:
 	/** Focus the camera on the current selection */
 	TSharedPtr< FUICommandInfo > FocusCamera;
 
-	/** Create a new blend profile */
-	TSharedPtr< FUICommandInfo > CreateBlendProfile;
+	/** Create a new blend profile with time mode*/
+	TSharedPtr< FUICommandInfo > CreateTimeBlendProfile;
+
+	/** Create a new blend profile with weight mode*/
+	TSharedPtr< FUICommandInfo > CreateWeightBlendProfile;
+
+	/** Create a new blend mask */
+	TSharedPtr< FUICommandInfo > CreateBlendMask;
 
 	/** Remove the currently active blend profile */
 	TSharedPtr< FUICommandInfo > DeleteCurrentBlendProfile;

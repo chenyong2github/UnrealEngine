@@ -36,7 +36,9 @@ void FSkeletonTreeCommands::RegisterCommands()
 
 	UI_COMMAND( FocusCamera, "Focus Camera", "Focus the camera on the current selection", EUserInterfaceActionType::Button, FInputChord(EKeys::F) );
 
-	UI_COMMAND( CreateBlendProfile, "Add Blend Profile", "Add a new blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( CreateTimeBlendProfile, "Add Time Blend Profile", "Add a new time blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( CreateWeightBlendProfile, "Add Weight Blend Profile", "Add a new weight blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( CreateBlendMask, "Add Blend Mask", "Add a new blend mask for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( DeleteCurrentBlendProfile, "Delete the Current Blend Profile", "Delete the active blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
 
 }

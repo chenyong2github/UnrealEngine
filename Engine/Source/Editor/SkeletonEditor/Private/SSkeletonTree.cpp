@@ -480,8 +480,16 @@ void SSkeletonTree::BindCommands()
 		FExecuteAction::CreateSP(this, &SSkeletonTree::HandleFocusCamera));
 
 	CommandList.MapAction(
-		MenuActions.CreateBlendProfile,
-		FExecuteAction::CreateSP( this, &SSkeletonTree::OnCreateBlendProfile));
+		MenuActions.CreateTimeBlendProfile,
+		FExecuteAction::CreateSP( this, &SSkeletonTree::OnCreateBlendProfile, EBlendProfileMode::TimeFactor));
+
+	CommandList.MapAction(
+		MenuActions.CreateWeightBlendProfile,
+		FExecuteAction::CreateSP(this, &SSkeletonTree::OnCreateBlendProfile, EBlendProfileMode::WeightFactor));
+
+	CommandList.MapAction(
+		MenuActions.CreateBlendMask,
+		FExecuteAction::CreateSP(this, &SSkeletonTree::OnCreateBlendProfile, EBlendProfileMode::BlendMask));
 
 	CommandList.MapAction(
 		MenuActions.DeleteCurrentBlendProfile,
@@ -606,7 +614,10 @@ void SSkeletonTree::CreateTreeColumns()
 				FName CurrentProfile = BlendProfilePicker->GetSelectedBlendProfileName();
 				return CurrentProfile != NAME_None ? FText::FromName(CurrentProfile) : LOCTEXT("NoBlendProfile", "No Blend");
 			})
-			.OnTextCommitted(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnCreateNewProfileComitted, EBlendProfileMode::TimeFactor)
+			.OnTextCommitted_Lambda([this](const FText& InText, ETextCommit::Type InCommitType)
+			{
+				BlendProfilePicker->OnCreateNewProfileComitted(InText, InCommitType, NewBlendProfileMode);
+			})
 			.IsReadOnly(true)
 		]
 	];
@@ -1620,7 +1631,9 @@ void SSkeletonTree::GetBlendProfileMenu(FMenuBuilder& MenuBuilder)
 		FUIAction(FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnClearSelection)));
 
 		MenuBuilder.AddSeparator();
-		MenuBuilder.AddMenuEntry(Actions.CreateBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateTimeBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateWeightBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateBlendMask);
 		if (BlendProfilePicker->GetSelectedBlendProfileName() != NAME_None)
 		{
 			MenuBuilder.AddSeparator();
@@ -1632,11 +1645,14 @@ void SSkeletonTree::GetBlendProfileMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 } 
 
-void SSkeletonTree::OnCreateBlendProfile()
+void SSkeletonTree::OnCreateBlendProfile(const EBlendProfileMode InMode)
 {
 	// Ensure the Blend Profile Column is Visible
 	BlendProfilePicker->OnClearSelection();
 	SkeletonTreeView->GetHeaderRow()->SetShowGeneratedColumn(ISkeletonTree::Columns::BlendProfile);
+
+	// Set our NewBlendProfileMode for our BlendProfileHeader to use when the text is commited.
+	NewBlendProfileMode = InMode;
 
 	// Activate the Header Entry Box
 	BlendProfileHeader->SetReadOnly(false);
@@ -1764,7 +1780,9 @@ TSharedRef< SWidget > SSkeletonTree::CreateNewMenu()
 
 	MenuBuilder.BeginSection("Blend");
 	{
-		MenuBuilder.AddMenuEntry(Actions.CreateBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateTimeBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateWeightBlendProfile);
+		MenuBuilder.AddMenuEntry(Actions.CreateBlendMask);
 	}
 	MenuBuilder.EndSection();
 
