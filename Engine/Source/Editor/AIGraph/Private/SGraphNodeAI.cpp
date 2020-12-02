@@ -89,6 +89,11 @@ void SGraphNodeAI::AddSubNode(TSharedPtr<SGraphNode> SubNodeWidget)
 	SubNodes.Add(SubNodeWidget);
 }
 
+FText SGraphNodeAI::GetTitle() const
+{
+	return GraphNode ? GraphNode->GetNodeTitle(ENodeTitleType::FullTitle) : FText::GetEmpty();
+}
+
 FText SGraphNodeAI::GetDescription() const
 {
 	UAIGraphNode* MyNode = CastChecked<UAIGraphNode>(GraphNode);
