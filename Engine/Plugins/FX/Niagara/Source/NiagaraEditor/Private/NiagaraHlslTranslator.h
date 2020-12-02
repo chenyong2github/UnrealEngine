@@ -21,28 +21,6 @@ class UNiagaraScriptSource;
 class UNiagaraNodeEmitter;
 class UNiagaraScriptVariable;
 
-
-// handles finished shader compile jobs, applying of the shaders to their scripts, and some error handling
-//
-class FNiagaraShaderProcessorTickable : FTickableEditorObject
-{
-	virtual ETickableTickType GetTickableTickType() const override
-	{
-		return ETickableTickType::Always;
-	}
-
-	virtual void Tick(float DeltaSeconds) override
-	{
-		GNiagaraShaderCompilationManager.ProcessAsyncResults();
-	}
-
-	virtual TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraShaderQueueTickable, STATGROUP_Tickables);
-	}
-};
-
-
 UENUM()
 enum class ENiagaraDataSetAccessMode : uint8
 {

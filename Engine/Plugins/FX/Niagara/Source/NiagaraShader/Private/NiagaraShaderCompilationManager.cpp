@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShaderCompilationManager.h"
-#include "NiagaraShared.h"
+
+#include "GlobalShader.h"
+#include "HAL/FileManager.h"
 #if WITH_EDITOR
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
-#include "ShaderCompiler.h"
-#include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "NiagaraShared.h"
+#include "ShaderCompiler.h"
+#include "Tickable.h"
 #include "UObject/UObjectThreadContext.h"
-#include "GlobalShader.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraShaderCompiler, All, All);
 
@@ -309,5 +311,32 @@ void FNiagaraShaderCompilationManager::FinishCompilation(const TCHAR* ScriptName
 	GShaderCompilingManager->FinishCompilation(NULL, ShaderMapIdsToFinishCompiling);
 	ProcessAsyncResults();
 }
+
+// Handles prodding the GNiagaraShaderCompilationManager to finish shader compile jobs
+// Only necessary for WITH_EDITOR builds, but can't be an FTickableEditorObject because -game requires this as well
+class FNiagaraShaderProcessorTickable : FTickableGameObject
+{
+	virtual ETickableTickType GetTickableTickType() const override
+	{
+		return ETickableTickType::Always;
+	}
+
+	virtual bool IsTickableInEditor() const override
+	{
+		return true;
+	}
+
+	virtual void Tick(float DeltaSeconds) override
+	{
+		GNiagaraShaderCompilationManager.ProcessAsyncResults();
+	}
+
+	virtual TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraShaderQueueTickable, STATGROUP_Tickables);
+	}
+};
+
+static FNiagaraShaderProcessorTickable NiagaraShaderProcessor;
 
 #endif // WITH_EDITOR

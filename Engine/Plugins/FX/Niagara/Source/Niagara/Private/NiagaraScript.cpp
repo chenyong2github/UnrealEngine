@@ -1899,7 +1899,11 @@ void UNiagaraScript::BeginDestroy()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
 	{
-		ScriptResource->QueueForRelease(ReleasedByRT);
+		if (!ScriptResource->QueueForRelease(ReleasedByRT))
+		{
+			// if there was nothing to release, then we don't need to wait for anything
+			ReleasedByRT = true;
+		}
 	}
 	else
 	{
@@ -2472,6 +2476,7 @@ void UNiagaraScript::ProcessSerializedShaderMaps()
 		{
 			HasScriptResource = true;
 			ScriptResource = MakeUnique<FNiagaraShaderScript>(LoadedResource);
+			ScriptResource->OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 			ERHIFeatureLevel::Type LoadedFeatureLevel = LoadedShaderMap->GetShaderMapId().FeatureLevel;
 			if (!ScriptResourcesByFeatureLevel[LoadedFeatureLevel])

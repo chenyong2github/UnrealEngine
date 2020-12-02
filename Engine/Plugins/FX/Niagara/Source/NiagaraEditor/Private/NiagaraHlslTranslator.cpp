@@ -81,7 +81,6 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GenerateFunctionSignature_In
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GenerateFunctionSignature_FindInputNodes"), STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionSignature_FindInputNodes, STATGROUP_NiagaraEditor);
 
 static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
-FNiagaraShaderProcessorTickable NiagaraShaderProcessor;
 
 // not pretty. TODO: refactor
 // this will be called via a delegate from UNiagaraScript's cache for cook function,
@@ -119,13 +118,13 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 		FNiagaraComputeShaderCompilationOutput NewCompilationOutput;
 
 		ShaderScript->SetDataInterfaceParamInfo(CompilableScript->GetVMExecutableData().DIParamInfo);
-		ShaderScript->SourceName = TEXT("NiagaraComputeShader");
+		ShaderScript->SetSourceName(TEXT("NiagaraComputeShader"));
 		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(CompilableScript->GetOuter());
 		if (Emitter && Emitter->GetUniqueEmitterName().Len() > 0)
 		{
-			ShaderScript->SourceName = Emitter->GetUniqueEmitterName();
+			ShaderScript->SetSourceName(Emitter->GetUniqueEmitterName());
 		}
-		ShaderScript->HlslOutput = CompilableScript->GetVMExecutableData().LastHlslTranslationGPU;
+		ShaderScript->SetHlslOutput(CompilableScript->GetVMExecutableData().LastHlslTranslationGPU);
 
 		{
 			// Create a shader compiler environment for the script that will be shared by all jobs from this script

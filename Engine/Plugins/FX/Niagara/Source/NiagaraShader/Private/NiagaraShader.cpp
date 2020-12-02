@@ -334,6 +334,8 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 
 TMap<const FShaderCompileJob*, TArray<FNiagaraDataInterfaceGPUParamInfo> > FNiagaraShaderType::ExtraParamInfo;
 
+#if WITH_EDITOR
+
 /**
  * Enqueues a compilation for a new shader of this type.
  * @param script - The script to link the shader with.
@@ -364,7 +366,7 @@ void FNiagaraShaderType::BeginCompileShader(
 	NewJob->Input.EntryPointName = TEXT("SimulateMainComputeCS");
 	NewJob->Input.Environment.SetDefine(TEXT("GPU_SIMULATION"), 1);
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_MAX_GPU_SPAWN_INFOS"), NIAGARA_MAX_GPU_SPAWN_INFOS);
-	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
+	Script->GetScriptHLSLSource(NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush")));
 	NewJob->Input.Environment.SetDefine(TEXT("SHADER_STAGE_PERMUTATION"), PermutationId);
 
 	const bool bUsesSimulationStages = Script->GetUsesSimulationStages();
@@ -415,6 +417,7 @@ void FNiagaraShaderType::BeginCompileShader(
 	ExtraParamInfo.Add(NewJob, InDIParamInfo);
 	NewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
 }
+#endif
 
 void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform) const
 {
