@@ -483,7 +483,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Math/GenericOctreePublic.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "Materials/Material.h"
 #include "MaterialExpressionIO.h"

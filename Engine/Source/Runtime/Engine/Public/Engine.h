@@ -211,7 +211,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
 #include "Camera/CameraModifier.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "GameFramework/CheatManager.h"
 #include "Curves/CurveLinearColor.h"

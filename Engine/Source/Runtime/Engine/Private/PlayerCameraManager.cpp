@@ -18,7 +18,7 @@
 #include "Camera/CameraModifier.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraPhotography.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "GameFramework/PlayerState.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 #include "GameFramework/GameNetworkManager.h"
@@ -1349,11 +1349,6 @@ UCameraShakeBase* APlayerCameraManager::StartCameraShake(TSubclassOf<UCameraShak
 	return nullptr;
 }
 
-UMatineeCameraShake* APlayerCameraManager::StartMatineeCameraShake(TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
-{
-	return Cast<UMatineeCameraShake>(StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
-}
-
 UCameraShakeBase* APlayerCameraManager::StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (ShakeClass && CachedCameraShakeMod)
@@ -1362,11 +1357,6 @@ UCameraShakeBase* APlayerCameraManager::StartCameraShakeFromSource(TSubclassOf<U
 	}
 
 	return nullptr;
-}
-
-UMatineeCameraShake* APlayerCameraManager::StartMatineeCameraShakeFromSource(TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
-{
-	return Cast<UMatineeCameraShake>(StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
 }
 
 void APlayerCameraManager::StopCameraShake(UCameraShakeBase* ShakeInst, bool bImmediately)

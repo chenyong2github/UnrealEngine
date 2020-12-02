@@ -11,6 +11,7 @@ public class GameplayCameras : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"HeadMountedDisplay",
 				"MovieSceneTracks"
 			}
 		);
