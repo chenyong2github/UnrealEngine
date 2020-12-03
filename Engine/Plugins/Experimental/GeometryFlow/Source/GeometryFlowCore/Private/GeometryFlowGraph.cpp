@@ -7,7 +7,7 @@ using namespace UE::GeometryFlow;
 
 TSafeSharedPtr<FNode> FGraph::FindNode(FHandle NodeHandle) const
 {
-	const FNodeInfo* Found = AllNodes.Find(NodeHandle.Identifier);
+	const FNodeInfo* Found = AllNodes.Find(NodeHandle);
 	if (!ensure(Found != nullptr))
 	{
 		return nullptr;
@@ -17,7 +17,7 @@ TSafeSharedPtr<FNode> FGraph::FindNode(FHandle NodeHandle) const
 
 EGeometryFlowResult FGraph::GetInputTypeForNode(FHandle NodeHandle, FString InputName, int32& Type) const
 {
-	const FNodeInfo* Found = AllNodes.Find(NodeHandle.Identifier);
+	const FNodeInfo* Found = AllNodes.Find(NodeHandle);
 	if (!ensure(Found != nullptr))
 	{
 		return EGeometryFlowResult::NodeDoesNotExist;
@@ -28,7 +28,7 @@ EGeometryFlowResult FGraph::GetInputTypeForNode(FHandle NodeHandle, FString Inpu
 
 EGeometryFlowResult FGraph::GetOutputTypeForNode(FHandle NodeHandle, FString OutputName, int32& Type) const
 {
-	const FNodeInfo* Found = AllNodes.Find(NodeHandle.Identifier);
+	const FNodeInfo* Found = AllNodes.Find(NodeHandle);
 	if (!ensure(Found != nullptr))
 	{
 		return EGeometryFlowResult::NodeDoesNotExist;
@@ -40,7 +40,7 @@ EGeometryFlowResult FGraph::GetOutputTypeForNode(FHandle NodeHandle, FString Out
 
 ENodeCachingStrategy FGraph::GetCachingStrategyForNode(FHandle NodeHandle) const
 {
-	const FNodeInfo* Found = AllNodes.Find(NodeHandle.Identifier);
+	const FNodeInfo* Found = AllNodes.Find(NodeHandle);
 	if (!ensure(Found != nullptr))
 	{
 		return ENodeCachingStrategy::AlwaysCache;
@@ -234,7 +234,7 @@ void FGraph::ConfigureCachingStrategy(ENodeCachingStrategy NewStrategy)
 
 EGeometryFlowResult FGraph::SetNodeCachingStrategy(FHandle NodeHandle, ENodeCachingStrategy Strategy)
 {
-	FNodeInfo* Found = AllNodes.Find(NodeHandle.Identifier);
+	FNodeInfo* Found = AllNodes.Find(NodeHandle);
 	if (!ensure(Found != nullptr))
 	{
 		return EGeometryFlowResult::NodeDoesNotExist;

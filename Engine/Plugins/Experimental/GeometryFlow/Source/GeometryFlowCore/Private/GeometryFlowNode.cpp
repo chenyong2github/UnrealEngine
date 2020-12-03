@@ -129,6 +129,15 @@ void FNode::CollectRequirements(const TArray<FString>& Outputs, TArray<FEvalRequ
 }
 
 
+void FNode::CollectAllRequirements(TArray<FEvalRequirement>& RequiredInputsOut)
+{
+	RequiredInputsOut.Reset();
+	for (const FNodeInputInfo& InputInfo : NodeInputs)
+	{
+		FEvalRequirement Requirement(InputInfo.Name, InputInfo.Input->GetInputFlags());
+		RequiredInputsOut.Add(Requirement);
+	}
+}
 
 
 void FNode::ConfigureInputFlags(const FString& InputName, FNodeInputFlags Flags)

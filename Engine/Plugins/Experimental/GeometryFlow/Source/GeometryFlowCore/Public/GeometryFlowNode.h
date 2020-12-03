@@ -305,6 +305,8 @@ public:
 
 	virtual TSafeSharedPtr<IData> StealOutput(FString OutputName);
 
+	TSafeSharedPtr<IData> GetOutput(const FString& OutputName) const;
+
 	/**
 	 * Find the list of named inputs that must be available to compute the named Outputs.
 	 * By default will return all Inputs if any of the listed Outputs exists on this Node.
@@ -313,6 +315,7 @@ public:
 		const TArray<FString>& Outputs, 
 		TArray<FEvalRequirement>& RequiredInputsOut);
 
+	virtual void CollectAllRequirements(TArray<FEvalRequirement>& RequiredInputsOut);
 
 	virtual void Evaluate(
 		const FNamedDataMap& DatasIn,
@@ -320,6 +323,10 @@ public:
 		TUniquePtr<FEvaluationInfo>& EvaluationInfo) = 0;
 
 protected:
+
+	friend class FGraph;
+	friend class FGeometryFlowExecutor;
+
 	FString Identifier;
 
 	struct FNodeInputInfo
@@ -353,7 +360,6 @@ protected:
 		const FString& OutputName,
 		TSafeSharedPtr<IData> NewData
 	);
-	TSafeSharedPtr<IData> GetOutput(const FString& OutputName) const;
 
 	TArray<FNodeInputInfo> NodeInputs;
 	TArray<FNodeOutputInfo> NodeOutputs;

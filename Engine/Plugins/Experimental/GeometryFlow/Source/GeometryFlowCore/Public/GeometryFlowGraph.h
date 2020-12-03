@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GeometryFlowNode.h"
-
+#include "Templates/TypeHash.h"
 
 namespace UE
 {
@@ -42,6 +42,16 @@ public:
 		bool operator==(const FHandle& OtherHandle) const { return Identifier == OtherHandle.Identifier; }
 	};
 
+	friend uint32 GetTypeHash(FHandle Handle);
+
+	struct FConnection
+	{
+		FHandle FromNode;
+		FString FromOutput;
+		FHandle ToNode;
+		FString ToInput;
+	};
+
 	template<typename NodeType>
 	FHandle AddNodeOfType(
 		const FString& Identifier = FString(""),
@@ -52,13 +62,26 @@ public:
 		NewNodeInfo.Node->SetIdentifier(Identifier);
 		NewNodeInfo.CachingStrategy = CachingStrategy;
 		FHandle Handle = { NodeCounter++ };
-		AllNodes.Add(Handle.Identifier, NewNodeInfo);
+		AllNodes.Add(Handle, NewNodeInfo);
 		return Handle;
 	}
 
 	EGeometryFlowResult AddConnection(FHandle FromNode, FString FromOutput, FHandle ToNode, FString ToInput);
 
 	EGeometryFlowResult InferConnection(FHandle FromNode, FHandle ToNode);
+
+	inline TSet<FHandle> GetSourceNodes() const
+	{
+		TSet<FHandle> SourceNodes;
+		for (const TMap<FHandle, FNodeInfo>::ElementType& IdNodePair : AllNodes)
+		{
+			if (IdNodePair.Value.Node->NodeInputs.Num() == 0)
+			{
+				SourceNodes.Add(FHandle{ IdNodePair.Key });
+			}
+		}
+		return SourceNodes;
+	}
 
 
 	template<typename T>
@@ -123,6 +146,9 @@ public:
 
 	
 protected:
+
+	friend class FGeometryFlowExecutor;
+
 	int32 NodeCounter = 0;
 
 	ENodeCachingStrategy DefaultCachingStrategy = ENodeCachingStrategy::AlwaysCache;
@@ -133,21 +159,13 @@ protected:
 		ENodeCachingStrategy CachingStrategy = ENodeCachingStrategy::Default;
 	};
 
-	TMap<int32, FNodeInfo> AllNodes;
+	TMap<FHandle, FNodeInfo> AllNodes;
 
 	TSafeSharedPtr<FNode> FindNode(FHandle Handle) const;
 	EGeometryFlowResult GetInputTypeForNode(FHandle NodeHandle, FString InputName, int32& Type) const;
 	EGeometryFlowResult GetOutputTypeForNode(FHandle NodeHandle, FString OutputName, int32& Type) const;
 	ENodeCachingStrategy GetCachingStrategyForNode(FHandle NodeHandle) const;
 
-	struct FConnection
-	{
-		FHandle FromNode;
-		FString FromOutput;
-
-		FHandle ToNode;
-		FString ToInput;
-	};
 	TArray<FConnection> Connections;
 
 	EGeometryFlowResult FindConnectionForInput(FHandle ToNode, FString ToInput, FConnection& ConnectionOut) const;
@@ -162,6 +180,10 @@ protected:
 };
 
 
+inline uint32 GetTypeHash(FGraph::FHandle Handle)
+{
+	return ::GetTypeHash(Handle.Identifier);
+}
 
 
 

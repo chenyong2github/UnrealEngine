@@ -31,8 +31,28 @@ TUniquePtr<TBasicNodeOutput<DataType, DataType::DataTypeIdentifier>> MakeBasicOu
 	return MakeUnique<TBasicNodeOutput<DataType, DataType::DataTypeIdentifier>>();
 }
 
+template<typename T>
+EGeometryFlowResult ExtractData(TSafeSharedPtr<IData> Data,
+								T& Storage,
+								int32 StorageTypeIdentifier,
+								bool bTryTakeResult)
+{
+	if (Data->GetPayloadType() != StorageTypeIdentifier)
+	{
+		return EGeometryFlowResult::UnmatchedTypes;
+	}
+	if (bTryTakeResult)
+	{
+		Data->GiveTo(Storage, StorageTypeIdentifier);
+	}
+	else
+	{
+		Data->GetDataCopy(Storage, StorageTypeIdentifier);
+	}
 
+	return EGeometryFlowResult::Ok;
 
+}
 
 
 

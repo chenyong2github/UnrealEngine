@@ -48,6 +48,11 @@ public:
 		return;
 	}
 
+	virtual void CollectAllRequirements(TArray<FEvalRequirement>& RequiredInputsOut) override
+	{
+		return;
+	}
+
 	virtual void Evaluate(
 		const FNamedDataMap& DatasIn,
 		FNamedDataMap& DatasOut,

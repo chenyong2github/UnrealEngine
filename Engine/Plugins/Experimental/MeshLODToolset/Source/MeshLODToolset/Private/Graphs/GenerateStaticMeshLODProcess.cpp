@@ -198,12 +198,24 @@ bool FGenerateStaticMeshLODProcess::InitializeGenerator()
 
 bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 {
-	Generator->EvaluateResult(
-		this->DerivedLODMesh, 
-		this->DerivedLODMeshTangents,
-		this->DerivedCollision, 
-		this->DerivedNormalMapImage, 
-		this->DerivedTextureImages);
+	if (bUseParallelExecutor)
+	{
+		Generator->EvaluateResultParallel(
+			this->DerivedLODMesh,
+			this->DerivedLODMeshTangents,
+			this->DerivedCollision,
+			this->DerivedNormalMapImage,
+			this->DerivedTextureImages);
+	}
+	else
+	{
+		Generator->EvaluateResult(
+			this->DerivedLODMesh,
+			this->DerivedLODMeshTangents,
+			this->DerivedCollision,
+			this->DerivedNormalMapImage,
+			this->DerivedTextureImages);
+	}
 
 	// copy all materials for now...we are going to replace all the images though, and
 	// should not copy those?

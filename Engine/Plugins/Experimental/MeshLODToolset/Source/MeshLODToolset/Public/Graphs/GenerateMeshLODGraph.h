@@ -27,6 +27,11 @@ public:
 		UE::GeometryFlow::FNormalMapImage& NormalMap,
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages);
 
+	void EvaluateResultParallel(FDynamicMesh3& ResultMesh,
+						   FMeshTangentsd& ResultTangents,
+						   FSimpleShapeSet3d& ResultCollision,
+						   UE::GeometryFlow::FNormalMapImage& NormalMap,
+						   TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages);
 
 protected:
 	TUniquePtr<UE::GeometryFlow::FGraph> Graph;

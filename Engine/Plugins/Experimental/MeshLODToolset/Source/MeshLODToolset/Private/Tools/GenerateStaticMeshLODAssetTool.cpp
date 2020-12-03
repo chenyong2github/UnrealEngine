@@ -129,6 +129,26 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	PreviewMesh->SetVisible(true);
 	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
 
+	// Recompute if we switch between parallel and serial
+	int32 WatcherIndex = BasicProperties->WatchProperty(BasicProperties->bParallelExecution, [this](bool bNewParallelExec)
+	{
+		// TODO: We crash if we don't recreate the Process and reinitialize it. Why?
+
+		GenerateProcess = MakePimpl<FGenerateStaticMeshLODProcess>();
+
+		TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
+		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
+		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+		if (StaticMesh)
+		{
+			GenerateProcess->Initialize(StaticMesh);
+		}
+
+		bPreviewValid = false;
+		ValidatePreview();
+	});
+	BasicProperties->SilentUpdateWatcherAtIndex(WatcherIndex);
+
 	bPreviewValid = false;
 	ValidatePreview();
 }
@@ -175,6 +195,8 @@ bool UGenerateStaticMeshLODAssetTool::CanAccept() const
 void UGenerateStaticMeshLODAssetTool::ValidatePreview()
 {
 	if (bPreviewValid) return;
+
+	GenerateProcess->bUseParallelExecutor = BasicProperties->bParallelExecution;
 
 	GenerateProcess->ComputeDerivedSourceData();
 	const FDynamicMesh3& ResultMesh = GenerateProcess->GetDerivedLOD0Mesh();

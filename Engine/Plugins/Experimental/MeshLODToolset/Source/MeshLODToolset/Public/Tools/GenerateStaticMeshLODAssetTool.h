@@ -64,6 +64,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = Previews)
 	TArray<UTexture2D*> PreviewTextures;
+
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bParallelExecution = false;
+
 };
 
 
