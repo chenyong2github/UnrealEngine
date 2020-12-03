@@ -477,8 +477,8 @@ namespace Chaos
 
 		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
 		{
-			//int32 ExternalTimestamp = GetMarshallingManager().GetExternalTimestamp_External();
-			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(/*ExternalTimestamp*/);
+			int32 ExternalTimestamp = GetMarshallingManager().GetExternalTimestamp_External();
+			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
 			if (!PendingMap.Contains(GTParticle))
 			{
 				PendingMap.Add(GTParticle);
