@@ -391,7 +391,6 @@ namespace DatasmithRuntime
 
 		FAssetData& MeshData = AssetDataList[ElementId];
 
-		// #ueent_datasmithruntime: TODO - Stop processing if reset has set
 		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
 		if (StaticMesh == nullptr)
 		{
@@ -411,9 +410,14 @@ namespace DatasmithRuntime
 
 			if (!NativeTranslator.LoadStaticMesh(MeshElement, MeshPayload))
 			{
+				// #ueent_datasmithruntime: Update FAssetFactory
 				ActionCounter.Add(MeshData.Referencers.Num());
-				UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: Cannot load mesh for %"), MeshElement->GetLabel());
-				return false;
+				MeshData.Object.Reset();
+				MeshData.AddState(EAssetState::Completed);
+
+				UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: Loading file %s failed. Mesh element %s has not been imported"), MeshElement->GetFile(), MeshElement->GetLabel());
+				
+				return true;
 			}
 		}
 
