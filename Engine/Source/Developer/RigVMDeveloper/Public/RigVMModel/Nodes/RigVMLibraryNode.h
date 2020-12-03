@@ -28,15 +28,17 @@ public:
 
 	// Library node interface
 	virtual URigVMGraph* GetContainedGraph() const { return nullptr; }
-	virtual TArray<URigVMNode*> GetContainedNodes() const;
-	virtual TArray<URigVMLink*> GetContainedLinks() const;
+	virtual const TArray<URigVMNode*>& GetContainedNodes() const;
+	virtual const TArray<URigVMLink*>& GetContainedLinks() const;
 	virtual URigVMFunctionEntryNode* GetEntryNode() const;
 	virtual URigVMFunctionReturnNode* GetReturnNode() const;
 
-private:
+protected:
 
-	UPROPERTY()
-	bool bDefinedAsVarying = false;
+	const static TArray<URigVMNode*> EmptyNodes;
+	const static TArray<URigVMLink*> EmptyLinks;
+
+private:
 
 	friend class URigVMController;
 };

@@ -5,32 +5,46 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/RigVMGraph.h"
 
+const TArray<URigVMNode*> URigVMLibraryNode::EmptyNodes;
+const TArray<URigVMLink*> URigVMLibraryNode::EmptyLinks;
+
 bool URigVMLibraryNode::IsDefinedAsConstant() const
 {
-	return !bDefinedAsVarying;
+	return !IsDefinedAsVarying();
 }
 
 bool URigVMLibraryNode::IsDefinedAsVarying() const
 {
-	return bDefinedAsVarying;
+	if (URigVMGraph* Graph = GetContainedGraph())
+	{
+		const TArray<URigVMNode*>& Nodes = Graph->GetNodes();
+		for(URigVMNode* Node : Nodes)
+		{
+			if (Node->IsDefinedAsVarying())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
-TArray<URigVMNode*> URigVMLibraryNode::GetContainedNodes() const
+const TArray<URigVMNode*>& URigVMLibraryNode::GetContainedNodes() const
 {
 	if(URigVMGraph* Graph = GetContainedGraph())
 	{
 		return Graph->GetNodes();
 	}
-	return TArray<URigVMNode*>();
+	return EmptyNodes;
 }
 
-TArray<URigVMLink*> URigVMLibraryNode::GetContainedLinks() const
+const TArray<URigVMLink*>& URigVMLibraryNode::GetContainedLinks() const
 {
 	if (URigVMGraph* Graph = GetContainedGraph())
 	{
 		return Graph->GetLinks();
 	}
-	return TArray<URigVMLink*>();
+	return EmptyLinks;
 
 }
 

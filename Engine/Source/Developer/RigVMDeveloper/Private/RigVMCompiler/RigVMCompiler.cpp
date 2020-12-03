@@ -1127,6 +1127,10 @@ FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InV
 		{
 			Suffix = TEXT("::IO");
 		}
+		else if (bIsLiteral)
+		{
+			Suffix = TEXT("::Const");
+		}
 	}
 
 	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))

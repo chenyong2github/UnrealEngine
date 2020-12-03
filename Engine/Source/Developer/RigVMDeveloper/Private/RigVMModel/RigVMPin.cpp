@@ -84,7 +84,7 @@ URigVMPin::URigVMPin()
 	, DefaultValue(FString())
 	, BoundVariablePath()
 {
-#if WITH_EDITORONLY_DATA
+#if UE_BUILD_DEBUG
 	CachedPinPath = GetPinPath();
 #endif
 }
@@ -106,7 +106,7 @@ FString URigVMPin::GetPinPath() const
 			PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(), *GetName());
 		}
 	}
-#if WITH_EDITORONLY_DATA
+#if UE_BUILD_DEBUG
 	CachedPinPath = PinPath;
 #endif
 	return PinPath;
@@ -591,6 +591,11 @@ URigVMPin* URigVMPin::GetRootPin() const
 		return const_cast<URigVMPin*>(this);
 	}
 	return ParentPin->GetRootPin();
+}
+
+bool URigVMPin::IsRootPin() const
+{
+	return GetParentPin() == nullptr;
 }
 
 URigVMPin* URigVMPin::GetPinForLink() const

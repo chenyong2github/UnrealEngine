@@ -222,6 +222,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	URigVMPin* GetRootPin() const;
 
+	// Returns true if this pin is a root pin
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsRootPin() const;
+
 	// Returns the pin to be used for a link.
 	// This might differ from this actual pin, since
 	// the pin might contain injected nodes.
@@ -328,9 +332,14 @@ private:
 	UPROPERTY()
 	FName DisplayName;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(transient)
+#if UE_BUILD_DEBUG
+	
+	// A cache for the pin path for debugging purposes.
+	// When looking at a debug symbol of a pin it is difficult
+	// To grasp where the pin is stored etc.
+	// With this member you can see the full pin path during a debugging session
 	mutable FString CachedPinPath;
+
 #endif
 
 	UPROPERTY()
