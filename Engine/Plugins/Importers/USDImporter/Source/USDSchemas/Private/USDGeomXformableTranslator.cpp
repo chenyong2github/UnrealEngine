@@ -15,11 +15,10 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -252,7 +251,9 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( SpawnedActor )
 		{
+#if WITH_EDITOR
 			SpawnedActor->SetActorLabel( Prim.GetName().ToString() );
+#endif // WITH_EDITOR
 
 			// Hack to show transient actors in world outliner
 			if (SpawnedActor->HasAnyFlags(EObjectFlags::RF_Transient))
@@ -430,13 +431,11 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		}
 		else
 		{
+			const bool bUsesRaytracing = GetDefault<URendererSettings>()->bEnableRayTracing;
+
 			const int32 MaxVertices = 500000;
-			int32 NumVertices = 0;
-
 			int32 NumMaxExpectedMaterialSlots = 0;
-			ITargetPlatform* Platform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-			const bool bUsesRaytracing = Platform && Platform->UsesRayTracing();
-
+			int32 NumVertices = 0;
 			for ( const TUsdStore< pxr::UsdPrim >& ChildPrim : ChildGeomMeshes )
 			{
 				pxr::UsdGeomMesh ChildGeomMesh( ChildPrim.Get() );
@@ -479,7 +478,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 						break;
 					}
 				}
-
 			}
 		}
 	}

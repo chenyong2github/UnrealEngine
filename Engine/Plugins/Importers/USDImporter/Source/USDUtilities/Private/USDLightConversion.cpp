@@ -12,7 +12,6 @@
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Engine/TextureCube.h"
-#include "Factories/TextureFactory.h"
 
 #if USE_USD_SDK
 

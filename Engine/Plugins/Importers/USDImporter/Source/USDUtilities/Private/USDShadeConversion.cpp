@@ -6,6 +6,7 @@
 
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
@@ -14,20 +15,25 @@
 #include "UsdWrappers/SdfLayer.h"
 
 #include "Engine/Texture2D.h"
-#include "Factories/TextureFactory.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "IMaterialBakingModule.h"
-#include "MaterialBakingStructures.h"
-#include "MaterialEditingLibrary.h"
-#include "MaterialOptions.h"
+#include "ImageUtils.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant4Vector.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
+
+#if WITH_EDITOR
+	#include "Factories/TextureFactory.h"
+	#include "IMaterialBakingModule.h"
+	#include "MaterialBakingStructures.h"
+	#include "MaterialEditingLibrary.h"
+	#include "MaterialOptions.h"
+#endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/ar/asset.h"
@@ -37,6 +43,11 @@
 	#include "pxr/usd/sdf/layerUtils.h"
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
+
+// Required for packaging
+class UTextureFactory;
+
+#define LOCTEXT_NAMESPACE "USDShadeConversion"
 
 namespace UsdShadeConversionImpl
 {
@@ -93,46 +104,134 @@ namespace UsdShadeConversionImpl
 		return false;
 	}
 
-	/** If ResolvedTexturePath points at a texture inside an usdz file, this will use USD to pull the asset from the file, and TextureFactory to import it directly from the binary buffer */
-	UTexture* ReadTextureFromUsdzArchive(const FString& ResolvedTexturePath, UTextureFactory* TextureFactory )
+	std::shared_ptr<const char> ReadTextureBufferFromUsdzArchive( const FString& ResolvedTexturePath, uint64& OutBufferSize )
 	{
 		FString TextureExtension;
-		if ( !IsInsideUsdzArchive( ResolvedTexturePath, TextureExtension ) )
-		{
-			return nullptr;
-		}
 
 		pxr::ArResolver& Resolver = pxr::ArGetResolver();
 		std::shared_ptr<pxr::ArAsset> Asset = Resolver.OpenAsset( UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() );
 
+		std::shared_ptr<const char> Buffer = nullptr;
+
 		if ( Asset )
 		{
-			std::shared_ptr<const char> Buffer;
-			uint64 BufferSize = static_cast< uint64 >( Asset->GetSize() );
-			const uint8* BufferStart;
+			OutBufferSize = static_cast< uint64 >( Asset->GetSize() );
 			{
 				FScopedUsdAllocs Allocs;
-
 				Buffer = Asset->GetBuffer();
-				BufferStart = reinterpret_cast<const uint8*>( Buffer.get() );
-			}
-
-			if ( BufferStart && BufferSize > 0 )
-			{
-				return Cast<UTexture>(TextureFactory->FactoryCreateBinary(
-					UTexture::StaticClass(),
-					GetTransientPackage(),
-					NAME_None,
-					RF_Transient,
-					nullptr,
-					*TextureExtension,
-					BufferStart,
-					BufferStart + BufferSize,
-					nullptr));
 			}
 		}
 
+		return Buffer;
+	}
+
+	/** If ResolvedTexturePath points at a texture inside an usdz file, this will use USD to pull the asset from the file, and TextureFactory to import it directly from the binary buffer */
+	UTexture* ReadTextureFromUsdzArchiveEditor(const FString& ResolvedTexturePath, const FString& TextureExtension, UTextureFactory* TextureFactory )
+	{
+#if WITH_EDITOR
+		uint64 BufferSize = 0;
+		std::shared_ptr<const char> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
+		const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.get() );
+
+		if ( BufferSize == 0 || BufferStart == nullptr )
+		{
+			return nullptr;
+		}
+
+		FScopedUnrealAllocs UEAllocs;
+
+		return Cast<UTexture>(TextureFactory->FactoryCreateBinary(
+			UTexture::StaticClass(),
+			GetTransientPackage(),
+			NAME_None,
+			RF_Transient,
+			nullptr,
+			*TextureExtension,
+			BufferStart,
+			BufferStart + BufferSize,
+			nullptr));
+#endif // WITH_EDITOR
 		return nullptr;
+	}
+
+	UTexture* ReadTextureFromUsdzArchiveRuntime( const FString& ResolvedTexturePath )
+	{
+		uint64 BufferSize = 0;
+		std::shared_ptr<const char> Buffer = ReadTextureBufferFromUsdzArchive( ResolvedTexturePath, BufferSize );
+		const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.get() );
+
+		if ( BufferSize == 0 || BufferStart == nullptr )
+		{
+			return nullptr;
+		}
+
+		FScopedUnrealAllocs UEAllocs;
+
+		// Copied from FImageUtils::ImportBufferAsTexture2D( Buffer ) so that we can avoid a copy into the TArray<uint8> that it takes as parameter
+		IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>( TEXT( "ImageWrapper" ) );
+		EImageFormat Format = ImageWrapperModule.DetectImageFormat( BufferStart, BufferSize );
+
+		UTexture2D* NewTexture = nullptr;
+		EPixelFormat PixelFormat = PF_Unknown;
+		if ( Format != EImageFormat::Invalid )
+		{
+			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( Format );
+
+			int32 BitDepth = 0;
+			int32 Width = 0;
+			int32 Height = 0;
+
+			if ( ImageWrapper->SetCompressed( ( void* ) BufferStart, BufferSize ) )
+			{
+				PixelFormat = PF_Unknown;
+
+				ERGBFormat RGBFormat = ERGBFormat::Invalid;
+
+				BitDepth = ImageWrapper->GetBitDepth();
+
+				Width = ImageWrapper->GetWidth();
+				Height = ImageWrapper->GetHeight();
+
+				if ( BitDepth == 16 )
+				{
+					PixelFormat = PF_FloatRGBA;
+					RGBFormat = ERGBFormat::BGRA;
+				}
+				else if ( BitDepth == 8 )
+				{
+					PixelFormat = PF_B8G8R8A8;
+					RGBFormat = ERGBFormat::BGRA;
+				}
+				else
+				{
+					UE_LOG( LogUsd, Warning, TEXT( "Error creating texture. Bit depth is unsupported. (%d)" ), BitDepth );
+					return nullptr;
+				}
+
+				TArray64<uint8> UncompressedData;
+				ImageWrapper->GetRaw( RGBFormat, BitDepth, UncompressedData );
+
+				NewTexture = UTexture2D::CreateTransient( Width, Height, PixelFormat );
+				if ( NewTexture )
+				{
+					NewTexture->bNotOfflineProcessed = true;
+					uint8* MipData = static_cast< uint8* >( NewTexture->PlatformData->Mips[ 0 ].BulkData.Lock( LOCK_READ_WRITE ) );
+
+					// Bulk data was already allocated for the correct size when we called CreateTransient above
+					FMemory::Memcpy( MipData, UncompressedData.GetData(), NewTexture->PlatformData->Mips[ 0 ].BulkData.GetBulkDataSize() );
+
+					NewTexture->PlatformData->Mips[ 0 ].BulkData.Unlock();
+
+					NewTexture->UpdateResource();
+				}
+			}
+		}
+		else
+		{
+			UE_LOG( LogUsd, Warning, TEXT( "Error creating texture. Couldn't determine the file format" ) );
+		}
+
+		return NewTexture;
 	}
 
 	// Will traverse the shade material graph backwards looking for a string/token value and return it.
@@ -229,10 +328,23 @@ namespace UsdShadeConversionImpl
 		}
 	}
 
-	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex, TextureGroup LODGroup )
+	enum class EParameterValueType
 	{
-		UMaterialExpression* Result = nullptr;
+		None = 0,
+		Float,
+		Vector,
+		Texture,
+	};
 
+	struct FTextureParameterValue
+	{
+		UTexture* Texture;
+		int32 UVIndex;
+	};
+	using FParameterValue = TVariant<float, FVector, FTextureParameterValue>;
+
+	bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
+	{
 		FScopedUsdAllocs UsdAllocs;
 
 		const bool bIsNormalInput = ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3f || ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3fArray );
@@ -241,6 +353,8 @@ namespace UsdShadeConversionImpl
 		pxr::TfToken SourceName;
 		pxr::UsdShadeAttributeType AttributeType;
 
+		// Clear it, as we'll signal that it has a valid texture bound by setting it with an FTextureParameterValue
+		OutValue.Set<float>(0.0f);
 		if ( ShadeInput.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
 			pxr::UsdShadeInput FileInput = Source.GetInput( UnrealIdentifiers::File );
@@ -248,65 +362,97 @@ namespace UsdShadeConversionImpl
 			if ( FileInput )
 			{
 				const FString TexturePath = UsdUtils::GetResolvedTexturePath( FileInput.GetAttr() );
-				UTexture* Texture = Cast< UTexture >( TexturesCache.FindRef( TexturePath ) );
-
-				if ( !Texture )
+				// We will assume the texture is valid, and show a warning if we fail to parse this later.
+				// Note that we don't even check that the file exists: If we have a texture bound to opacity then we
+				// assume this material is meant to be translucent, even if the texture path is invalid (or points inside an USDZ archive)
+				if ( !TexturePath.IsEmpty() )
 				{
-					// Give the same prim path to the texture, so that it ends up imported right next to the material
-					FString MaterialPrimPath;
-					UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(Material.AssetImportData);
-					if ( ImportData )
-					{
-						MaterialPrimPath = ImportData->PrimPath;
-					}
-
-					Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup );
+					OutValue.Set<FTextureParameterValue>( FTextureParameterValue{} );
 				}
 
-				if ( Texture )
+				// We only actually want to retrieve the textures if we have a cache to put them in
+				if ( TexturesCache )
 				{
-					if ( bIsNormalInput )
+					UTexture* Texture = Cast< UTexture >( TexturesCache->FindRef( TexturePath ) );
+					if ( !Texture )
 					{
-						Texture->SRGB = false;
-						Texture->CompressionSettings = TextureCompressionSettings::TC_Normalmap;
+						// Give the same prim path to the texture, so that it ends up imported right next to the material
+						FString MaterialPrimPath;
+#if WITH_EDITOR
+						if ( Material )
+						{
+							if ( UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>( Material->AssetImportData ) )
+							{
+								MaterialPrimPath = ImportData->PrimPath;
+							}
+						}
+#endif // WITH_EDITOR
+
+						Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup );
 					}
 
-					FString PrimvarName = GetPrimvarUsedAsST(Source);
-					int32 UVIndex = 0;
-					if ( !PrimvarName.IsEmpty() )
+					if ( Texture )
 					{
-						UVIndex = UsdUtils::GetPrimvarUVIndex(PrimvarName);
-						PrimvarToUVIndex.Add(PrimvarName, UVIndex);
+						if ( bIsNormalInput )
+						{
+							Texture->SRGB = false;
+							Texture->CompressionSettings = TextureCompressionSettings::TC_Normalmap;
+						}
+
+						FString PrimvarName = GetPrimvarUsedAsST(Source);
+						int32 UVIndex = 0;
+						if ( !PrimvarName.IsEmpty() && PrimvarToUVIndex )
+						{
+							UVIndex = UsdUtils::GetPrimvarUVIndex(PrimvarName);
+							PrimvarToUVIndex->Add(PrimvarName, UVIndex);
+						}
+						else if ( PrimvarToUVIndex )
+						{
+							FUsdLogManager::LogMessage(
+								EMessageSeverity::Warning,
+								FText::Format( LOCTEXT( "FailedToParsePrimVar", "Failed to find primvar used as st input for texture '{0}' in material '{1}'. Will use UV index 0 instead" ),
+									FText::FromString( TexturePath ),
+									FText::FromString( Material ? *Material->GetName() : TEXT( "nullptr" ) )
+								)
+							);
+						}
+
+						TexturesCache->Add( TexturePath, Texture );
+
+						FTextureParameterValue OutTextureValue;
+						OutTextureValue.Texture = Texture;
+						OutTextureValue.UVIndex = UVIndex;
+
+						OutValue.Set<FTextureParameterValue>( OutTextureValue );
 					}
 					else
 					{
-						UE_LOG(LogUsd, Warning, TEXT("Failed to find primvar used as st input for texture '%s' in material '%s'. Will use UV index 0 instead"), *TexturePath, *Material.GetName());
+						FUsdLogManager::LogMessage(
+							EMessageSeverity::Warning,
+							FText::Format( LOCTEXT( "FailedToParseTexture", "Failed to parse texture at path '{0}'" ),
+								FText::FromString( TexturePath )
+							)
+						);
 					}
-
-					UMaterialExpressionTextureSample* TextureSample = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
-					TextureSample->Texture = Texture;
-					TextureSample->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
-					TextureSample->ConstCoordinate = UVIndex;
-
-					Result = TextureSample;
-					TexturesCache.Add( TexturePath, Texture );
 				}
 			}
 		}
 
-		return Result;
+		// We may be calling this from IsMaterialTranslucent, when we have no TexturesCache: We wouldn't be able to import textures without the
+		// cache as we may repeatedly parse the same texture.
+		// Because of this, and how we clear OutValue to float before we begin, we can say that if we have a FTextureParameterValue at all, then there
+		// is a valid texture that *can* be parsed, and so we return true.
+		return OutValue.IsType<FTextureParameterValue>();
 	}
 
-	UMaterialExpression* ParseFloatInput( const pxr::TfToken& InputName, float DefaultValue, UMaterial& Material, pxr::UsdShadeConnectableAPI& Connectable, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
+	bool GetFloatParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, float DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
 	{
 		FScopedUsdAllocs Allocs;
-
-		UMaterialExpression* InputExpression = nullptr;
 
 		pxr::UsdShadeInput Input = Connectable.GetInput( InputName );
 		if ( !Input )
 		{
-			return InputExpression;
+			return false;
 		}
 
 		// If we have another shader/node connected
@@ -315,12 +461,11 @@ namespace UsdShadeConversionImpl
 		pxr::UsdShadeAttributeType AttributeType;
 		if ( Input.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
-			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex, TEXTUREGROUP_WorldSpecular );
-			if ( !InputExpression )
+			if ( !GetTextureParameterValue( Input, TEXTUREGROUP_WorldSpecular, OutValue, Material, TexturesCache, PrimvarToUVIndex ) )
 			{
 				// Recurse because the attribute may just be pointing at some other attribute that has the data
 				// (e.g. when shader input is just "hoisted" and connected to the parent material input)
-				InputExpression = ParseFloatInput( SourceName, DefaultValue, Material, Source, TexturesCache, PrimvarToUVIndex );
+				return GetFloatParameterValue( Source, SourceName, DefaultValue, OutValue, Material, TexturesCache, PrimvarToUVIndex );
 			}
 		}
 		// No other node connected, so we must have some value
@@ -329,29 +474,20 @@ namespace UsdShadeConversionImpl
 			float InputValue = DefaultValue;
 			Input.Get< float >( &InputValue );
 
-			if ( !FMath::IsNearlyEqual( InputValue, DefaultValue ) )
-			{
-				UMaterialExpressionConstant* ExpressionConstant = Cast< UMaterialExpressionConstant >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant::StaticClass() ) );
-				ExpressionConstant->R = InputValue;
-
-				InputExpression = ExpressionConstant;
-			}
+			OutValue.Set<float>( InputValue );
 		}
 
-		return InputExpression;
+		return true;
 	}
 
-	UMaterialExpression* ParseVec3Input( const pxr::TfToken& InputName, const FLinearColor& DefaultValue, UMaterial& Material, pxr::UsdShadeConnectableAPI& Connectable, TMap< FString, UObject* >& TexturesCache,
-		TMap<FString, int32>& PrimvarToUVIndex, bool bIsNormalMap )
+	bool GetVec3ParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, const FLinearColor& DefaultValue, FParameterValue& OutValue, bool bIsNormalMap = false, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 	{
 		FScopedUsdAllocs Allocs;
-
-		UMaterialExpression* InputExpression = nullptr;
 
 		pxr::UsdShadeInput Input = Connectable.GetInput( InputName );
 		if ( !Input )
 		{
-			return InputExpression;
+			return false;
 		}
 
 		// If we have another shader/node connected
@@ -360,10 +496,9 @@ namespace UsdShadeConversionImpl
 		pxr::UsdShadeAttributeType AttributeType;
 		if ( Input.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
-			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex, bIsNormalMap ? TEXTUREGROUP_WorldNormalMap : TEXTUREGROUP_World );
-			if ( !InputExpression )
+			if ( !GetTextureParameterValue( Input, bIsNormalMap ? TEXTUREGROUP_WorldNormalMap : TEXTUREGROUP_World, OutValue, Material, TexturesCache, PrimvarToUVIndex ) )
 			{
-				InputExpression = ParseVec3Input( SourceName, DefaultValue, Material, Source, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
+				return GetVec3ParameterValue( Source, SourceName, DefaultValue, OutValue, bIsNormalMap, Material, TexturesCache, PrimvarToUVIndex );
 			}
 		}
 		// No other node connected, so we must have some value
@@ -374,18 +509,259 @@ namespace UsdShadeConversionImpl
 			if ( Input.Get< pxr::GfVec3f >( &UsdDiffuseColor ) )
 			{
 				DiffuseColor = UsdToUnreal::ConvertColor( UsdDiffuseColor );
+			}
 
-				// Always create a constant expression, even if the color is default (black). This way we end up with a black material, and not WorldGrid
-				UMaterialExpressionConstant4Vector* Constant4VectorExpression = Cast< UMaterialExpressionConstant4Vector >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant4Vector::StaticClass() ) );
-				Constant4VectorExpression->Constant = DiffuseColor;
+			OutValue.Set<FVector>( FVector(DiffuseColor) );
+		}
 
-				InputExpression = Constant4VectorExpression;
+		return true;
+	}
+
+#if WITH_EDITOR
+	/**
+	 * Intended to be used with Visit(), this will create a UMaterialExpression in InMaterial, set it with the
+	 * value stored in the current variant of an FParameterValue, and return it.
+	 */
+	struct FGetExpressionForValueVisitor
+	{
+		FGetExpressionForValueVisitor(UMaterial& InMaterial)
+			: Material(InMaterial)
+		{}
+
+		UMaterialExpression* operator()( const float FloatValue ) const
+		{
+			UMaterialExpressionConstant* Expression = Cast< UMaterialExpressionConstant >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant::StaticClass() ) );
+			Expression->R = FloatValue;
+
+			return Expression;
+		}
+
+		UMaterialExpression* operator()( const FVector& VectorValue ) const
+		{
+			UMaterialExpressionConstant4Vector* Expression = Cast< UMaterialExpressionConstant4Vector >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant4Vector::StaticClass() ) );
+			Expression->Constant = FLinearColor( VectorValue );
+
+			return Expression;
+		}
+
+		UMaterialExpression* operator()( const FTextureParameterValue& TextureValue ) const
+		{
+			UMaterialExpressionTextureSample* Expression = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
+			Expression->Texture = TextureValue.Texture;
+			Expression->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( TextureValue.Texture );
+			Expression->ConstCoordinate = TextureValue.UVIndex;
+
+			return Expression;
+		}
+
+	private:
+		UMaterial& Material;
+	};
+#endif // WITH_EDITOR
+
+	UMaterialExpression* GetExpressionForValue( UMaterial& Material, const FParameterValue& ParameterValue )
+	{
+#if WITH_EDITOR
+		FGetExpressionForValueVisitor Visitor{ Material };
+		Visit( Visitor, ParameterValue );
+#endif // WITH_EDITOR
+		return nullptr;
+	}
+
+	void SetScalarParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, float ParameterValue )
+	{
+		FMaterialParameterInfo Info;
+		Info.Name = ParameterName;
+
+		if ( UMaterialInstanceDynamic* Dynamic = Cast<UMaterialInstanceDynamic>( &Material ) )
+		{
+			Dynamic->SetScalarParameterValueByInfo( Info, ParameterValue );
+		}
+#if WITH_EDITOR
+		else if ( UMaterialInstanceConstant* Constant = Cast<UMaterialInstanceConstant>( &Material ) )
+		{
+			Constant->SetScalarParameterValueEditorOnly( Info, ParameterValue );
+		}
+#endif // WITH_EDITOR
+	}
+
+	void SetVectorParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, FVector ParameterValue )
+	{
+		FMaterialParameterInfo Info;
+		Info.Name = ParameterName;
+
+		if ( UMaterialInstanceDynamic* Dynamic = Cast<UMaterialInstanceDynamic>( &Material ) )
+		{
+			Dynamic->SetVectorParameterValueByInfo( Info, ParameterValue );
+		}
+#if WITH_EDITOR
+		else if ( UMaterialInstanceConstant* Constant = Cast<UMaterialInstanceConstant>( &Material ) )
+		{
+			Constant->SetVectorParameterValueEditorOnly( Info, ParameterValue );
+		}
+#endif // WITH_EDITOR
+	}
+
+	void SetTextureParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, UTexture* ParameterValue )
+	{
+		FMaterialParameterInfo Info;
+		Info.Name = ParameterName;
+
+		if ( UMaterialInstanceDynamic* Dynamic = Cast<UMaterialInstanceDynamic>( &Material ) )
+		{
+			Dynamic->SetTextureParameterValueByInfo( Info, ParameterValue );
+		}
+#if WITH_EDITOR
+		else if ( UMaterialInstanceConstant* Constant = Cast<UMaterialInstanceConstant>( &Material ) )
+		{
+			Constant->SetTextureParameterValueEditorOnly( Info, ParameterValue );
+		}
+#endif // WITH_EDITOR
+	}
+
+	/**
+	 * Intended to be used with Visit(), this will set an FParameterValue into InMaterial using InParameterName,
+	 * depending on the variant active in FParameterValue
+	 */
+	struct FSetParameterValueVisitor
+	{
+		FSetParameterValueVisitor( UMaterialInstance& InMaterial, const TCHAR* InParameterName )
+			: Material(InMaterial)
+			, ParameterName(InParameterName)
+		{}
+
+		void operator()( const float FloatValue ) const
+		{
+			SetScalarParameterValue( Material, ParameterName, FloatValue );
+			SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
+		}
+
+		void operator()( const FVector& VectorValue ) const
+		{
+			SetVectorParameterValue( Material, ParameterName, VectorValue );
+			SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
+		}
+
+		void operator()( const FTextureParameterValue& TextureValue ) const
+		{
+			SetTextureParameterValue( Material, *FString::Printf( TEXT( "%sTexture" ), ParameterName ), TextureValue.Texture );
+			SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 1.0f );
+		}
+
+	private:
+		UMaterialInstance& Material;
+		const TCHAR* ParameterName;
+	};
+
+	void SetParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, const FParameterValue& ParameterValue )
+	{
+		FSetParameterValueVisitor Visitor{ Material, ParameterName };
+		Visit( Visitor, ParameterValue );
+	}
+
+	UTexture* CreateTextureWithEditor( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
+	{
+		UTexture* Texture = nullptr;
+#if WITH_EDITOR
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::SdfAssetPath TextureAssetPath;
+		TextureAssetPathAttr.Get< pxr::SdfAssetPath >( &TextureAssetPath );
+
+		FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+		const bool bIsSupportedUdimTexture = TexturePath.Contains( TEXT( "<UDIM>" ) );
+		FPaths::NormalizeFilename( TexturePath );
+
+		FScopedUnrealAllocs UnrealAllocs;
+
+		if ( !TexturePath.IsEmpty() )
+		{
+			bool bOutCancelled = false;
+			UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
+			TextureFactory->SuppressImportOverwriteDialog();
+			TextureFactory->bUseHashAsGuid = true;
+			TextureFactory->LODGroup = LODGroup;
+
+			if ( bIsSupportedUdimTexture )
+			{
+				FString BaseFileName = FPaths::GetBaseFilename( TexturePath );
+
+				FString BaseFileNameBeforeUdim;
+				FString BaseFileNameAfterUdim;
+				BaseFileName.Split( TEXT( "<UDIM>" ), &BaseFileNameBeforeUdim, &BaseFileNameAfterUdim );
+
+				FString UdimRegexPattern = FString::Printf( TEXT( R"((%s)(\d{4})(%s))" ), *BaseFileNameBeforeUdim, *BaseFileNameAfterUdim );
+				TextureFactory->UdimRegexPattern = MoveTemp( UdimRegexPattern );
+			}
+
+			const FString ResolvedTexturePath = UsdUtils::GetResolvedTexturePath( TextureAssetPathAttr );
+			if ( !ResolvedTexturePath.IsEmpty() )
+			{
+				// Try checking if the texture is inside an USDZ archive first, or else TextureFactory throws an error
+				FString TextureExtension;
+				if ( UsdShadeConversionImpl::IsInsideUsdzArchive( ResolvedTexturePath, TextureExtension ) )
+				{
+					// Always prefer using the TextureFactory if we can, as it may provide compression, which the runtime version never will
+					Texture = UsdShadeConversionImpl::ReadTextureFromUsdzArchiveEditor( ResolvedTexturePath, TextureExtension, TextureFactory );
+				}
+
+				// Not inside an USDZ archive, just a regular texture
+				if ( !Texture )
+				{
+					Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
+
+					if ( Texture )
+					{
+						UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT( "USDAssetImportData" ) );
+						ImportData->PrimPath = PrimPath;
+						ImportData->UpdateFilenameOnly( TexturePath );
+						Texture->AssetImportData = ImportData;
+					}
+				}
+			}
+		}
+#endif // WITH_EDITOR
+		return Texture;
+	}
+
+	UTexture* CreateTextureAtRuntime( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::SdfAssetPath TextureAssetPath;
+		TextureAssetPathAttr.Get< pxr::SdfAssetPath >( &TextureAssetPath );
+
+		FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+		FPaths::NormalizeFilename( TexturePath );
+
+		FScopedUnrealAllocs UnrealAllocs;
+
+		UTexture* Texture = nullptr;
+
+		if ( !TexturePath.IsEmpty() )
+		{
+			const FString ResolvedTexturePath = UsdUtils::GetResolvedTexturePath( TextureAssetPathAttr );
+			if ( !ResolvedTexturePath.IsEmpty() )
+			{
+				// Try checking if the texture is inside an USDZ archive first, or else TextureFactory throws an error
+				FString TextureExtension;
+				if ( UsdShadeConversionImpl::IsInsideUsdzArchive( ResolvedTexturePath, TextureExtension ) )
+				{
+					Texture = UsdShadeConversionImpl::ReadTextureFromUsdzArchiveRuntime( ResolvedTexturePath );
+				}
+
+				// Not inside an USDZ archive, just a regular texture
+				if ( !Texture )
+				{
+					Texture = FImageUtils::ImportFileAsTexture2D( ResolvedTexturePath );
+				}
 			}
 		}
 
-		return InputExpression;
+		return Texture;
 	}
 
+#if WITH_EDITOR
 	// Note that we will bake things that aren't supported on the default USD surface shader schema. These could be useful in case the user has a custom
 	// renderer though, and he can pick which properties he wants anyway
 	bool BakeMaterial( const UMaterialInterface& Material, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, FBakeOutput& OutBakedData )
@@ -807,6 +1183,80 @@ namespace UsdShadeConversionImpl
 
 		return true;
 	}
+#endif // WITH_EDITOR
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material )
+{
+	TMap< FString, UObject* > TexturesCache;
+	TMap<FString, int32> PrimvarToUVIndex;
+	return ConvertMaterial( UsdShadeMaterial, Material, TexturesCache, PrimvarToUVIndex );
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+{
+	bool bHasMaterialInfo = false;
+
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+	if ( !SurfaceShader )
+	{
+		return false;
+	}
+	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
+
+	UsdShadeConversionImpl::FParameterValue ParameterValue;
+
+	// Base color
+	{
+		const bool bIsNormalMap = false;
+		if( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex ))
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "BaseColor" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Metallic
+	{
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Metallic" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Roughness
+	{
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Roughness" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Opacity
+	{
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Opacity" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Normal
+	{
+		const bool bIsNormalMap = true;
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Normal" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	FString ShadeMaterialPath = UsdToUnreal::ConvertPath( UsdShadeMaterial.GetPrim().GetPath() );
+	UsdShadeConversionImpl::CheckForUVIndexConflicts( PrimvarToUVIndex, ShadeMaterialPath );
+
+	return bHasMaterialInfo;
 }
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material )
@@ -818,6 +1268,9 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
 {
+	bool bHasMaterialInfo = false;
+
+#if WITH_EDITOR
 	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
 	if ( !SurfaceShader )
 	{
@@ -825,49 +1278,45 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	}
 	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
 
-	bool bHasMaterialInfo = false;
+	UsdShadeConversionImpl::FParameterValue ParameterValue;
 
 	// Base color
 	{
 		const bool bIsNormalMap = false;
-		UMaterialExpression* BaseColorExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), Material, Connectable, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
-
-		if ( BaseColorExpression )
+		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.BaseColor.Expression = BaseColorExpression;
+			Material.BaseColor.Expression = Expression;
 			bHasMaterialInfo = true;
 		}
 	}
 
 	// Metallic
 	{
-		UMaterialExpression* MetallicExpression = UsdShadeConversionImpl::ParseFloatInput( UnrealIdentifiers::Metallic, 0.f, Material, Connectable, TexturesCache, PrimvarToUVIndex );
-
-		if ( MetallicExpression )
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Metallic.Expression = MetallicExpression;
+			Material.Metallic.Expression = Expression;
 			bHasMaterialInfo = true;
 		}
 	}
 
 	// Roughness
 	{
-		UMaterialExpression* RoughnessExpression = UsdShadeConversionImpl::ParseFloatInput( UnrealIdentifiers::Roughness, 1.f, Material, Connectable, TexturesCache, PrimvarToUVIndex );
-
-		if ( RoughnessExpression )
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Roughness.Expression = RoughnessExpression;
+			Material.Roughness.Expression = Expression;
 			bHasMaterialInfo = true;
 		}
 	}
 
 	// Opacity
 	{
-		UMaterialExpression* OpacityExpression = UsdShadeConversionImpl::ParseFloatInput( UnrealIdentifiers::Opacity, 1.f, Material, Connectable, TexturesCache, PrimvarToUVIndex );
-
-		if ( OpacityExpression )
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Opacity.Expression = OpacityExpression;
+			Material.Opacity.Expression = Expression;
 			Material.BlendMode = BLEND_Translucent;
 			bHasMaterialInfo = true;
 		}
@@ -876,11 +1325,10 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Normal
 	{
 		const bool bIsNormalMap = true;
-		UMaterialExpression* NormalExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), Material, Connectable, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
-
-		if ( NormalExpression )
+		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Normal.Expression = NormalExpression;
+			Material.Normal.Expression = Expression;
 			bHasMaterialInfo = true;
 		}
 	}
@@ -888,10 +1336,11 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	FString ShadeMaterialPath = UsdToUnreal::ConvertPath( UsdShadeMaterial.GetPrim().GetPath() );
 	UsdShadeConversionImpl::CheckForUVIndexConflicts( PrimvarToUVIndex, ShadeMaterialPath );
 
+#endif // WITH_EDITOR
 	return bHasMaterialInfo;
 }
 
-
+#if WITH_EDITOR
 bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMaterial, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, const FDirectoryPath& InTexturesDir, pxr::UsdPrim& OutUsdShadeMaterialPrim )
 {
 	pxr::UsdShadeMaterial OutUsdShadeMaterial{ OutUsdShadeMaterialPrim };
@@ -920,6 +1369,7 @@ bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMat
 
 	return UsdShadeConversionImpl::ConfigureShadePrim( BakedData, WrittenTextures, UserConstantValues, OutUsdShadeMaterial );
 }
+#endif // WITH_EDITOR
 
 FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetPathAttr )
 {
@@ -945,62 +1395,15 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 
 UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
 {
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::SdfAssetPath TextureAssetPath;
-	TextureAssetPathAttr.Get< pxr::SdfAssetPath >( &TextureAssetPath );
-
-	FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
-	const bool bIsSupportedUdimTexture = TexturePath.Contains( TEXT("<UDIM>") );
-	FPaths::NormalizeFilename( TexturePath );
-
-	FScopedUnrealAllocs UnrealAllocs;
-
-	UTexture* Texture = nullptr;
-
-	if ( !TexturePath.IsEmpty() )
+	// Standalone game does have WITH_EDITOR defined, but it can't use the texture factories, so we need to check this instead
+	if ( GIsEditor )
 	{
-		bool bOutCancelled = false;
-		UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
-		TextureFactory->SuppressImportOverwriteDialog();
-		TextureFactory->bUseHashAsGuid = true;
-		TextureFactory->LODGroup = LODGroup;
-
-		if ( bIsSupportedUdimTexture )
-		{
-			FString BaseFileName = FPaths::GetBaseFilename( TexturePath );
-
-			FString BaseFileNameBeforeUdim;
-			FString BaseFileNameAfterUdim;
-			BaseFileName.Split( TEXT("<UDIM>"), &BaseFileNameBeforeUdim, &BaseFileNameAfterUdim );
-
-			FString UdimRegexPattern = FString::Printf( TEXT(R"((%s)(\d{4})(%s))"), *BaseFileNameBeforeUdim, *BaseFileNameAfterUdim );
-			TextureFactory->UdimRegexPattern = MoveTemp( UdimRegexPattern );
-		}
-
-		const FString ResolvedTexturePath = GetResolvedTexturePath( TextureAssetPathAttr );
-
-		if ( !ResolvedTexturePath.IsEmpty() )
-		{
-			// Try checking if the texture is inside an usdz package first, or else TextureFactory throws an error
-			Texture = UsdShadeConversionImpl::ReadTextureFromUsdzArchive(ResolvedTexturePath, TextureFactory);
-
-			if ( !Texture )
-			{
-				Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT(""), bOutCancelled ) );
-			}
-
-			if ( Texture )
-			{
-				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT("USDAssetImportData") );
-				ImportData->PrimPath = PrimPath;
-				ImportData->UpdateFilenameOnly( TexturePath );
-				Texture->AssetImportData = ImportData;
-			}
-		}
+		return UsdShadeConversionImpl::CreateTextureWithEditor( TextureAssetPathAttr, PrimPath, LODGroup );
 	}
-
-	return Texture;
+	else
+	{
+		return UsdShadeConversionImpl::CreateTextureAtRuntime( TextureAssetPathAttr, PrimPath, LODGroup );
+	}
 }
 
 namespace UsdShadeConversionImpl
@@ -1042,6 +1445,25 @@ namespace UsdShadeConversionImpl
 	}
 }
 
+bool UsdUtils::IsMaterialTranslucent( const pxr::UsdShadeMaterial& UsdShadeMaterial )
+{
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+	if ( !SurfaceShader )
+	{
+		return false;
+	}
+	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
+
+	UsdShadeConversionImpl::FParameterValue ParameterValue;
+	bool bHasOpacityConnection = UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue );
+
+	// Don't check if the texture is nullptr here as we won't actually parse it yet. If the variant has this type we know it's meant to be bound to a texture
+	const bool bHasBoundTexture = ParameterValue.IsType<UsdShadeConversionImpl::FTextureParameterValue>();
+	const bool bIsTranslucentFloat = ( ParameterValue.IsType<float>() && !FMath::IsNearlyEqual( ParameterValue.Get<float>(), 1.0f ) );
+
+	return bHasOpacityConnection && ( bIsTranslucentFloat || bHasBoundTexture );
+}
+
 FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial )
 {
 	FScopedUsdAllocs UsdAllocs;
@@ -1066,5 +1488,7 @@ FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMater
 
 	return OutHash;
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

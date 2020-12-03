@@ -11,6 +11,7 @@
 #include "Components/MeshComponent.h"
 #include "CoreMinimal.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
 #if USE_USD_SDK
@@ -47,7 +48,7 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 				// Try reusing an already created DisplayColor material
 				if ( UObject** FoundAsset = AssetsCache.Find( Slot.MaterialSource ) )
 				{
-					if ( UMaterialInstanceConstant* ExistingMaterial = Cast<UMaterialInstanceConstant>( *FoundAsset ) )
+					if ( UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>( *FoundAsset ) )
 					{
 						Material = ExistingMaterial;
 					}
@@ -56,21 +57,27 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 				// Need to create a new DisplayColor material
 				if ( Material == nullptr )
 				{
-					UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >( GetTransientPackage(), NAME_None, Flags );
-
-					// Leave PrimPath as empty as it likely will be reused by many prims
-					UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MaterialInstance, TEXT( "USDAssetImportData" ) );
-					MaterialInstance->AssetImportData = ImportData;
-
-					AssetsCache.Add( Slot.MaterialSource, MaterialInstance );
-
-					// Move the displayColor data to the material
 					if ( TOptional< UsdUtils::FDisplayColorMaterial > DisplayColorDesc = UsdUtils::FDisplayColorMaterial::FromString( Slot.MaterialSource ) )
 					{
-						UsdToUnreal::ConvertDisplayColor( DisplayColorDesc.GetValue(), *MaterialInstance );
-					}
+						UMaterialInstance* MaterialInstance = nullptr;
 
-					Material = MaterialInstance;
+						if ( GIsEditor )  // Editor, PIE => true; Standlone, packaged => false
+						{
+							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceConstant( DisplayColorDesc.GetValue() );
+#if WITH_EDITOR
+							// Leave PrimPath as empty as it likely will be reused by many prims
+							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MaterialInstance, TEXT( "USDAssetImportData" ) );
+							MaterialInstance->AssetImportData = ImportData;
+#endif // WITH_EDITOR
+						}
+						else
+						{
+							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic( DisplayColorDesc.GetValue() );
+						}
+
+						AssetsCache.Add( Slot.MaterialSource, MaterialInstance );
+						Material = MaterialInstance;
+					}
 				}
 
 				break;
@@ -108,18 +115,18 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 				// Assuming that we own the material instance and that we can change it as we wish, reuse it
 				if ( ExistingMaterialInstance && ExistingMaterialInstance->GetOuter() == GetTransientPackage() )
 				{
-					if ( UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>( ExistingMaterialInstance->AssetImportData ) )
+#if WITH_EDITOR
+					UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>( ExistingMaterialInstance->AssetImportData );
+					if ( AssetImportData && AssetImportData->PrimPath == UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() ) )
+#endif // WITH_EDITOR
 					{
-						if ( AssetImportData->PrimPath == UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() ) )
+						// If we have displayColor data on our prim, repurpose this material to show it
+						if ( TOptional<UsdUtils::FDisplayColorMaterial> DisplayColorDescription = UsdUtils::ExtractDisplayColorMaterial( pxr::UsdGeomMesh( UsdPrim ) ) )
 						{
-							// If we have displayColor data on our prim, repurpose this material to show it
-							if ( TOptional<UsdUtils::FDisplayColorMaterial> DisplayColorDescription = UsdUtils::ExtractDisplayColorMaterial( pxr::UsdGeomMesh( UsdPrim ) ) )
-							{
-								UsdToUnreal::ConvertDisplayColor( DisplayColorDescription.GetValue(), *ExistingMaterialInstance );
-							}
-
-							Material = ExistingMaterialInstance;
+							UsdToUnreal::ConvertDisplayColor( DisplayColorDescription.GetValue(), *ExistingMaterialInstance );
 						}
+
+						Material = ExistingMaterialInstance;
 					}
 				}
 				break;

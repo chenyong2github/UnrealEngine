@@ -2,6 +2,7 @@
 
 #include "USDSchemaTranslator.h"
 
+#include "USDErrorUtils.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
@@ -40,7 +41,7 @@ TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslato
 		pxr::TfToken RegisteredSchemaToken( UnrealToUsd::ConvertString( *RegisteredSchemasStack.Key ).Get() );
 		pxr::TfType RegisteredSchemaType = pxr::UsdSchemaRegistry::GetTypeFromName( RegisteredSchemaToken );
 
-		if ( Prim.Get().IsA( RegisteredSchemaType ) && RegisteredSchemasStack.Value.Num() > 0 )
+		if ( !RegisteredSchemaType.IsUnknown() &&  Prim.Get().IsA( RegisteredSchemaType ) && RegisteredSchemasStack.Value.Num() > 0 )
 		{
 			return RegisteredSchemasStack.Value.Top().CreateFunction( InTranslationContext, InSchema );
 		}
@@ -153,6 +154,7 @@ void FUsdSchemaTranslationContext::CompleteTasks()
 			for ( TArray< TSharedPtr< FUsdSchemaTranslatorTaskChain > >::TIterator TaskChainIterator = TranslatorTasks.CreateIterator(); TaskChainIterator; ++TaskChainIterator )
 			{
 				TSharedPtr< FUsdSchemaTranslatorTaskChain >& TaskChain = *TaskChainIterator;
+
 				ESchemaTranslationStatus TaskChainStatus = TaskChain->Execute( bExclusiveSyncTasks );
 
 				if ( TaskChainStatus == ESchemaTranslationStatus::Done )
@@ -211,7 +213,12 @@ void FSchemaTranslatorTask::Start()
 {
 	if ( LaunchPolicy == ESchemaTranslationLaunchPolicy::Async && IsInGameThread() )
 	{
-		Result = Async( EAsyncExecution::LargeThreadPool,
+		Result = Async(
+#if WITH_EDITOR
+			EAsyncExecution::LargeThreadPool,
+#else
+			EAsyncExecution::ThreadPool,
+#endif // WITH_EDITOR
 			[ this ]() -> bool
 			{
 				return DoWork();

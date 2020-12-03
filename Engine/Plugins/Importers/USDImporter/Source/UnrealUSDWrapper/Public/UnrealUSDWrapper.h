@@ -72,7 +72,7 @@ enum class EUsdSubdivisionScheme
 
 };
 
-enum class EUsdUpAxis
+enum class EUsdUpAxis : uint8
 {
 	YAxis,
 	ZAxis,
@@ -158,7 +158,7 @@ struct FUsdQuatData
 };
 
 UENUM()
-enum class EUsdInitialLoadSet
+enum class EUsdInitialLoadSet : uint8
 {
 	LoadAll,
 	LoadNone

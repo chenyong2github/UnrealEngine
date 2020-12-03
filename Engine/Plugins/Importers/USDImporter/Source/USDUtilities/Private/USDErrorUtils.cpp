@@ -2,13 +2,16 @@
 
 #include "USDErrorUtils.h"
 
-#include "IMessageLogListing.h"
 #include "Math/NumericLimits.h"
-#include "MessageLogModule.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 
 #include "USDLog.h"
+
+#if WITH_EDITOR
+#include "IMessageLogListing.h"
+#include "MessageLogModule.h"
+#endif // WITH_EDITOR
 
 #if USE_USD_SDK
 
@@ -134,22 +137,29 @@ namespace UE
 			Dump();
 		}
 
+#if WITH_EDITOR
 		void FUsdMessageLog::Push( const TSharedRef< FTokenizedMessage >& Message )
 		{
 			TokenizedMessages.Add( Message );
 		}
+#endif // WITH_EDITOR
 
 		void FUsdMessageLog::Dump()
 		{
+#if WITH_EDITOR
 			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked< FMessageLogModule >( "MessageLog" );
 			TSharedRef< IMessageLogListing > LogListing = MessageLogModule.GetLogListing( TEXT("USD") );
 
 			if ( TokenizedMessages.Num() > 0 )
 			{
+				// This crashes internally at runtime due to Slate not finding the correct brush...
+				// I think MessageLog is not supposed to be used at runtime, even though it technically can.
+				// At runtime we shouldn't ever push, but just in case
 				LogListing->AddMessages( TokenizedMessages );
 				LogListing->NotifyIfAnyMessages( LOCTEXT("Log", "There were some issues loading the USD Stage."), EMessageSeverity::Info );
 				TokenizedMessages.Empty();
 			}
+#endif // WITH_EDITOR
 		}
 	}
 }
@@ -167,6 +177,7 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 {
 	bool bMessageProcessed = false;
 
+#if WITH_EDITOR
 	if ( MessageLog )
 	{
 		FScopeLock Lock( &MessageLogLock );
@@ -176,6 +187,7 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 			bMessageProcessed = true;
 		}
 	}
+#endif
 
 	if ( !bMessageProcessed )
 	{

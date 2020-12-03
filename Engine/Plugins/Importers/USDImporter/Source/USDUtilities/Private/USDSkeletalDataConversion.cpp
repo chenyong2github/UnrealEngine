@@ -14,17 +14,19 @@
 #include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
-#include "Factories/FbxSkeletalMeshImportData.h"
-#include "MeshUtilities.h"
 #include "Modules/ModuleManager.h"
-#include "ObjectTools.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-#if USE_USD_SDK
+#if WITH_EDITOR
+#include "Factories/FbxSkeletalMeshImportData.h"
+#include "MeshUtilities.h"
+#endif // WITH_EDITOR
+
+#if USE_USD_SDK && WITH_EDITOR
 #include "USDIncludesStart.h"
 	#include "pxr/usd/sdf/types.h"
 	#include "pxr/usd/usd/editContext.h"
@@ -48,6 +50,20 @@
 
 namespace SkelDataConversionImpl
 {
+	// Adapted from ObjectTools as it is within an Editor-only module
+	FString SanitizeObjectName( const FString& InObjectName )
+	{
+		FString SanitizedText = InObjectName;
+		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+		while ( *InvalidChar )
+		{
+			SanitizedText.ReplaceCharInline( *InvalidChar, TCHAR( '_' ), ESearchCase::CaseSensitive );
+			++InvalidChar;
+		}
+
+		return SanitizedText;
+	}
+
 	// Adapted from LODUtilities.cpp
 	struct FMeshDataBundle
 	{
@@ -993,13 +1009,13 @@ namespace UnrealToUsdImpl
 
 		// The first bone is the root, and has ParentIndex == -1, so do it separately here to void checking the indices for all bones
 		// Sanitize because ExportName can have spaces, which USD doesn't like
-		OutFullPaths[0] = ObjectTools::SanitizeObjectName(BoneNamesInOrder[0].ExportName);
+		OutFullPaths[0] = SkelDataConversionImpl::SanitizeObjectName(BoneNamesInOrder[0].ExportName);
 
 		// Bones are always stored in an increasing order, so we can do all paths in a single pass
 		for ( int32 BoneIndex = 1; BoneIndex < NumBones; ++BoneIndex )
 		{
 			const FMeshBoneInfo& BoneInfo = BoneNamesInOrder[ BoneIndex ];
-			FString SanitizedBoneName = ObjectTools::SanitizeObjectName(BoneInfo.ExportName);
+			FString SanitizedBoneName = SkelDataConversionImpl::SanitizeObjectName(BoneInfo.ExportName);
 
 			OutFullPaths[BoneIndex] = FString::Printf(TEXT("%s/%s"), *OutFullPaths[ BoneInfo.ParentIndex ], *SanitizedBoneName );
 		}
@@ -1938,7 +1954,7 @@ bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape
 	// because although the path is usually unique, USD has case sensitive paths and the FNames of the
 	// UMorphTargets are case insensitive
 	FString PrimaryName = SkelDataConversionImpl::GetUniqueName(
-		ObjectTools::SanitizeObjectName( UsdToUnreal::ConvertString( UsdBlendShape.GetPrim().GetName() ) ),
+		SkelDataConversionImpl::SanitizeObjectName( UsdToUnreal::ConvertString( UsdBlendShape.GetPrim().GetName() ) ),
 		UsedMorphTargetNames );
 	FString PrimaryPath = UsdToUnreal::ConvertPath( UsdBlendShape.GetPrim().GetPath() );
 	if ( UsdUtils::FUsdBlendShape* ExistingBlendShape = OutBlendShapes.Find( PrimaryPath ) )
@@ -1971,7 +1987,7 @@ bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape
 		FString OrigInbetweenName = UsdToUnreal::ConvertString( Inbetween.GetAttr().GetName() );
 		FString InbetweenPath = FString::Printf(TEXT("%s_%s"), *PrimaryPath, *OrigInbetweenName );
 		FString InbetweenName = SkelDataConversionImpl::GetUniqueName(
-			ObjectTools::SanitizeObjectName( FPaths::GetCleanFilename( InbetweenPath ) ),
+			SkelDataConversionImpl::SanitizeObjectName( FPaths::GetCleanFilename( InbetweenPath ) ),
 			UsedMorphTargetNames );
 
 		if ( Weight > 1.0f || Weight < 0.0f || FMath::IsNearlyZero(Weight) || FMath::IsNearlyEqual(Weight, 1.0f) )
@@ -2070,7 +2086,9 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		return nullptr;
 	}
 
+#if WITH_EDITOR
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>( "MeshUtilities" );
+#endif // WITH_EDITOR
 
 	FSkeletalMeshModel* ImportedResource = SkeletalMesh->GetImportedModel();
 	ImportedResource->LODModels.Empty();
@@ -2109,6 +2127,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		TArray<int32> LODPointToRawMap;
 		LODImportData.CopyLODImportData( LODPoints, LODWedges, LODFaces, LODInfluences, LODPointToRawMap );
 
+#if WITH_EDITOR
 		IMeshUtilities::MeshBuildOptions BuildOptions;
 		// #ueent_todo: Normals and tangents shouldn't need to be recomputed when they are retrieved from USD
 		//BuildOptions.bComputeNormals = !SkelMeshImportData.bHasNormals;
@@ -2127,6 +2146,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		// This is important because it will fill in the LODModel's RawSkeletalMeshBulkDataID,
 		// which is the part of the skeletal mesh's DDC key that is affected by the actual mesh data
 		SkeletalMesh->SaveLODImportedData( LODIndex, LODImportData );
+#endif // WITH_EDITOR
 	}
 
 	SkeletalMesh->SetImportedBounds( FBoxSphereBounds( BoundingBox ) );
@@ -2216,7 +2236,7 @@ void UsdUtils::ResolveWeightsForBlendShape( const UsdUtils::FUsdBlendShape& InBl
 	}
 }
 
-#if USE_USD_SDK
+#if USE_USD_SDK && WITH_EDITOR
 
 // Adapted from UsdSkel_CacheImpl::ReadScope::_FindOrCreateSkinningQuery because we need to manually create these on UsdGeomMeshes we already have
 pxr::UsdSkelSkinningQuery UsdUtils::CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery )
@@ -2492,4 +2512,4 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 
 #undef LOCTEXT_NAMESPACE
 
-#endif // #if USE_USD_SDK
+#endif // #if USE_USD_SDK && WITH_EDITOR

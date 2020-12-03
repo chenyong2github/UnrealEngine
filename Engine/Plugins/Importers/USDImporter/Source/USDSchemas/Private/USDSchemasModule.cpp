@@ -4,6 +4,8 @@
 
 #include "USDSchemaTranslator.h"
 
+#include "Modules/ModuleManager.h"
+
 #if USE_USD_SDK
 #include "USDGeomCameraTranslator.h"
 #include "USDGeomMeshTranslator.h"
@@ -25,7 +27,14 @@ public:
 		UsdGeomCameraTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomCameraTranslator >( TEXT("UsdGeomCamera") );
 		UsdGeomMeshTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomMeshTranslator >( TEXT("UsdGeomMesh") );
 		UsdGeomPointInstancerTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomPointInstancerTranslator >( TEXT("UsdGeomPointInstancer") );
-		UsdSkelRootTranslatorHandle = GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
+#if WITH_EDITOR
+		// Creating skeletal meshes technically works in Standalone mode, but by checking for this we artificially block it
+		// to not confuse users as to why it doesn't work at runtime. Not registering the actual translators lets the inner meshes get parsed as static meshes, at least.
+		if ( GIsEditor )
+		{
+			UsdSkelRootTranslatorHandle = GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
+		}
+#endif // WITH_EDITOR
 		UsdGeomXformableTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomXformableTranslator >( TEXT("UsdGeomXformable") );
 		UsdShadeMaterialTranslatorHandle = GetTranslatorRegistry().Register< FUsdShadeMaterialTranslator >( TEXT("UsdShadeMaterial") );
 		UsdLuxLightTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxLight") );
@@ -38,7 +47,12 @@ public:
 		GetTranslatorRegistry().Unregister( UsdGeomCameraTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdGeomMeshTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdGeomPointInstancerTranslatorHandle );
-		GetTranslatorRegistry().Unregister( UsdSkelRootTranslatorHandle );
+#if WITH_EDITOR
+		if ( GIsEditor )
+		{
+			GetTranslatorRegistry().Unregister( UsdSkelRootTranslatorHandle );
+		}
+#endif // WITH_EDITOR
 		GetTranslatorRegistry().Unregister( UsdGeomXformableTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdShadeMaterialTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdLuxLightTranslatorHandle );

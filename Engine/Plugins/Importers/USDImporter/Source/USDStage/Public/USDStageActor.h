@@ -38,15 +38,25 @@ class AUsdStageActor : public AActor
 	friend class FUsdLevelSequenceHelperImpl;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	FFilePath RootLayer;
 
-	UPROPERTY(EditAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
 
 	/* Only load prims with these specific purposes from the USD file */
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	void SetRootLayer(const FString& RootFilePath );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	void SetPurposesToLoad( int32 NewPurposesToLoad );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	float GetTime() const { return Time; }
@@ -103,7 +113,9 @@ public:
 	TMap< FString, UObject* > GetPrimPathsToAssets() { return PrimPathsToAssets; }
 
 public:
+#if WITH_EDITOR
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+#endif // WITH_EDITOR
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
@@ -133,7 +145,7 @@ private:
 
 	void OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 	void HandlePropertyChangedEvent( FPropertyChangedEvent& PropertyChangedEvent );
-	bool HasAutorithyOverStage() const;
+	bool HasAuthorityOverStage() const;
 
 private:
 	UPROPERTY(Transient)

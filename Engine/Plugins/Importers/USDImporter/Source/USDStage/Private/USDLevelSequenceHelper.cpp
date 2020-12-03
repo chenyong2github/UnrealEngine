@@ -22,16 +22,11 @@
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Components/SceneComponent.h"
 #include "CoreMinimal.h"
-#include "Editor.h"
-#include "ILevelSequenceEditorToolkit.h"
-#include "ISequencer.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
-#include "ObjectTools.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Sections/MovieSceneSubSection.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 #include "Templates/SharedPointer.h"
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Tracks/MovieSceneSubTrack.h"
@@ -39,14 +34,36 @@
 #include "Tracks/MovieSceneVectorTrack.h"
 #include "UObject/UObjectGlobals.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#include "ILevelSequenceEditorToolkit.h"
+#include "ISequencer.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#endif // WITH_EDITOR
+
 #if USE_USD_SDK
 
 namespace UsdLevelSequenceHelperImpl
 {
+	// Adapted from ObjectTools as it is within an Editor-only module
+	FString SanitizeObjectName( const FString& InObjectName )
+	{
+		FString SanitizedText = InObjectName;
+		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+		while ( *InvalidChar )
+		{
+			SanitizedText.ReplaceCharInline( *InvalidChar, TCHAR( '_' ), ESearchCase::CaseSensitive );
+			++InvalidChar;
+		}
+
+		return SanitizedText;
+	}
+
 	/** Sets the readonly value of the scene on construction and reverts it on destruction */
 	class FMovieSceneReadonlyGuard
 	{
 	public:
+#if WITH_EDITOR
 		explicit FMovieSceneReadonlyGuard( UMovieScene& InMovieScene, const bool bNewReadonlyValue )
 			: MovieScene( InMovieScene )
 			, bWasReadonly( InMovieScene.IsReadOnly() )
@@ -58,6 +75,13 @@ namespace UsdLevelSequenceHelperImpl
 		{
 			MovieScene.SetReadOnly( bWasReadonly );
 		}
+#else
+		explicit FMovieSceneReadonlyGuard( UMovieScene& InMovieScene, const bool bNewReadonlyValue )
+			: MovieScene( InMovieScene )
+			, bWasReadonly( true )
+		{
+		}
+#endif // WITH_EDITOR
 
 	private:
 		UMovieScene& MovieScene;
@@ -223,7 +247,9 @@ FUsdLevelSequenceHelperImpl::FUsdLevelSequenceHelperImpl(TWeakObjectPtr<AUsdStag
 	: bMonitorChanges( true )
 	, StageActor(InStageActor)
 {
+#if WITH_EDITOR
 	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddRaw(this, &FUsdLevelSequenceHelperImpl::OnObjectTransacted);
+#endif // WITH_EDITOR
 
 	if ( StageActor.IsValid() )
 	{
@@ -244,8 +270,10 @@ FUsdLevelSequenceHelperImpl::~FUsdLevelSequenceHelperImpl()
 		OnStageEditTargetChangedHandle.Reset();
 	}
 
+#if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
 	OnObjectTransactedHandle.Reset();
+#endif // WITH_EDITOR
 }
 
 void FUsdLevelSequenceHelperImpl::CreateLocalLayersSequences()
@@ -294,7 +322,14 @@ void FUsdLevelSequenceHelperImpl::CreateLocalLayersSequences()
 	LocalLayersSequences.Add( ValidStageActor->LevelSequence->GetFName() );
 
 	// Bind stage actor
-	StageActorBinding = MovieScene->AddPossessable( ValidStageActor->GetActorLabel(), ValidStageActor->GetClass() );
+	StageActorBinding = MovieScene->AddPossessable(
+#if WITH_EDITOR
+		ValidStageActor->GetActorLabel(),
+#else
+		ValidStageActor->GetName(),
+#endif // WITH_EDITOR
+		ValidStageActor->GetClass()
+	);
 	ValidStageActor->LevelSequence->BindPossessableObject( StageActorBinding, *ValidStageActor, ValidStageActor->GetWorld() );
 
 	TFunction< void( const FLayerTimeInfo* LayerTimeInfo, ULevelSequence& ParentSequence ) > RecursivelyCreateSequencesForLayer;
@@ -423,7 +458,7 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForLayer( const UE
 		// This needs to be unique, or else when we reload the stage we will end up with a new ULevelSequence with the same class, outer and name as the
 		// previous one. Also note that the previous level sequence, even though unreferenced by the stage actor, is likely still alive and valid due to references
 		// from the transaction buffer, so we would basically end up creating a identical new object on top of an existing one (the new object has the same address as the existing one)
-		FName UniqueSequenceName = MakeUniqueObjectName( GetTransientPackage(), ULevelSequence::StaticClass(), *ObjectTools::SanitizeObjectName( SequenceDisplayName ) );
+		FName UniqueSequenceName = MakeUniqueObjectName( GetTransientPackage(), ULevelSequence::StaticClass(), *UsdLevelSequenceHelperImpl::SanitizeObjectName( SequenceDisplayName ) );
 
 		Sequence = NewObject< ULevelSequence >( GetTransientPackage(), UniqueSequenceName, FUsdLevelSequenceHelperImpl::DefaultObjFlags );
 		Sequence->Initialize();
@@ -857,7 +892,7 @@ void FUsdLevelSequenceHelperImpl::RemovePrim( const UUsdPrimTwin& PrimTwin )
 			}
 		}
 	}
-	
+
 	if ( ULevelSequence* TransformSequence = SceneComponentsBindings.FindRef( &PrimTwin ).Key )
 	{
 		RemoveXformTrack( *TransformSequence, PrimTwin );
@@ -940,8 +975,9 @@ void FUsdLevelSequenceHelperImpl::RemoveXformTrack( ULevelSequence& Sequence, co
 
 void FUsdLevelSequenceHelperImpl::RefreshSequencer()
 {
+#if WITH_EDITOR
 	AUsdStageActor* ValidStageActor = StageActor.Get();
-	if ( !ValidStageActor || !ValidStageActor->LevelSequence )
+	if ( !ValidStageActor || !ValidStageActor->LevelSequence || !GIsEditor )
 	{
 		return;
 	}
@@ -956,6 +992,7 @@ void FUsdLevelSequenceHelperImpl::RefreshSequencer()
 		Sequencer->RefreshTree();
 		Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
 	}
+#endif // WITH_EDITOR
 }
 
 void FUsdLevelSequenceHelperImpl::UpdateUsdLayerOffsetFromSection(const UMovieSceneSequence* Sequence, const UMovieSceneSubSection* Section)
@@ -1081,6 +1118,7 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneReadonlyFlags()
 
 void FUsdLevelSequenceHelperImpl::UpdateMovieSceneReadonlyFlag( UMovieScene& MovieScene, const FString& LayerIdentifier )
 {
+#if WITH_EDITOR
 	if ( !StageActor.IsValid() )
 	{
 		return;
@@ -1089,6 +1127,7 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneReadonlyFlag( UMovieScene& Mov
 	UE::FSdfLayer Layer = UE::FSdfLayer::FindOrOpen( *LayerIdentifier );
 	const bool bIsReadOnly = ( Layer != StageActor->GetUsdStage().GetEditTarget() );
 	MovieScene.SetReadOnly( bIsReadOnly );
+#endif // WITH_EDITOR
 }
 
 void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& MovieScene, const FLayerTimeInfo& LayerTimeInfo )

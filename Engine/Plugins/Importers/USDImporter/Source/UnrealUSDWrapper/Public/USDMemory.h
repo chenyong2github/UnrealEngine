@@ -13,7 +13,7 @@
  *
  * Modules looking to use the USD SDK and the memory tools provided here need to use IMPLEMENT_MODULE_USD instead of the regular IMPLEMENT_MODULE.
  * The USD memory tools are only supported in non monolithic builds at this time, since it requires overriding new and delete per module.
- * 
+ *
  * The USD SDK uses the shared C runtime allocator. This means that objects returned by the USD SDK might try to delete objects that were allocated through the CRT.
  * Since UE overrides new and delete per module, USD objects that try to call delete will end up freeing memory with the UE allocator but the malloc was made using the CRT, leading in a crash.
  *
@@ -23,7 +23,7 @@
  * To simplify the workflow, TScopedAllocs is provided to make sure a certain block of code is bound to the right allocator.
  * FScopedUsdAllocs is a TScopedAllocs that activates the CRT allocator, while FScopedUnrealAllocs is the one that activates the UE allocator.
  * Since the UE allocator is the default one, FScopedUnrealAllocs is only needed inside a scope where the CRT allocator is active.
- * 
+ *
  * Usage example:
  * {
  *		FScopedUsdAllocs UsdAllocs;
@@ -209,6 +209,8 @@ TSharedRef< ObjectType > MakeSharedUnreal( ArgTypes&&... Args )
 	return MakeShared< ObjectType >( Forward< ArgTypes >( Args )... );
 }
 
+// See comment on UnrealUSDWrapper.Build.cs to understand why we disable these for monolithic builds (everything will still work,
+// they're just unnecessary)
 #if !FORCE_ANSI_ALLOCATOR && !IS_MONOLITHIC
 	#define REPLACEMENT_OPERATOR_NEW_AND_DELETE_USD \
 		OPERATOR_NEW_MSVC_PRAGMA void* operator new  ( size_t Size                        ) OPERATOR_NEW_THROW_SPEC      { return FUsdMemoryManager::Malloc( Size ); } \

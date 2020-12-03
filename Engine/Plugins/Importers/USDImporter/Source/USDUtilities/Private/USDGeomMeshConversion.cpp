@@ -14,13 +14,17 @@
 
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
-#include "MaterialEditingLibrary.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
+
+#if WITH_EDITOR
+#include "MaterialEditingLibrary.h"
+#endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/ar/resolver.h"
@@ -568,6 +572,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			OpacityInterpolation = OpacityPrimvar.GetInterpolation();
 		}
 
+		TPolygonGroupAttributesRef<FName> MaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 		for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
 		{
 			int32 PolygonVertexCount = FaceCounts[PolygonIndex];
@@ -676,6 +681,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			{
 				FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
 				PolygonGroupMapping.Add( CombinedMaterialIndex, NewPolygonGroup );
+
+				// This is important for runtime, where the material slots are matched to LOD sections based on their material slot name
+				MaterialSlotNames[ NewPolygonGroup ] = *LexToString( NewPolygonGroup.GetValue() );
 			}
 
 			// Insert a polygon into the mesh
@@ -694,6 +702,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription, UMaterialInstanceConstant& Material )
 {
+	FUsdLogManager::LogMessage( EMessageSeverity::Warning, LOCTEXT( "DeprecatedConvertDisplayColor", "Converting existing instances with UsdToUnreal::ConvertDisplayColor is deprecated in favor of just calling UsdUtils::CreateDisplayColorMaterialInstanceConstant instead, and may be removed in a future release." ) );
+
+#if WITH_EDITOR
 	FString ParentPath = DisplayColorDescription.bHasOpacity
 		? TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'")
 		: TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'");
@@ -709,8 +720,85 @@ bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& Di
 		Material.BasePropertyOverrides.TwoSided = DisplayColorDescription.bIsDoubleSided;
 		Material.PostEditChange();
 	}
+#endif // WITH_EDITOR
 
 	return true;
+}
+
+UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription )
+{
+	FString ParentPath;
+	if ( DisplayColorDescription.bHasOpacity )
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+		}
+	}
+	else
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+		}
+	}
+
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	{
+		if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( ParentMaterial, GetTransientPackage() ) )
+		{
+			return NewMaterial;
+		}
+	}
+
+	return nullptr;
+}
+
+UMaterialInstanceConstant* UsdUtils::CreateDisplayColorMaterialInstanceConstant( const FDisplayColorMaterial& DisplayColorDescription )
+{
+#if WITH_EDITOR
+	FString ParentPath;
+	if ( DisplayColorDescription.bHasOpacity )
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+		}
+	}
+	else
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+		}
+	}
+
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	{
+		if ( UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >( GetTransientPackage(), NAME_None, RF_NoFlags ) )
+		{
+			UMaterialEditingLibrary::SetMaterialInstanceParent( MaterialInstance, ParentMaterial );
+			return MaterialInstance;
+		}
+	}
+#endif // WITH_EDITOR
+	return nullptr;
 }
 
 UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, bool bProvideMaterialIndices )

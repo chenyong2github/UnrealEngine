@@ -29,17 +29,21 @@ struct FPropertyEntry;
 namespace UsdToUnreal
 {
 	/**
-	 * Extracts material data from UsdShadeMaterial and places the results in Material.
+	 * Extracts material data from UsdShadeMaterial and places the results in Material. Note that since this is used for UMaterialInstanceDynamics at runtime as well,
+	 * it will not set base property overrides (e.g. BlendMode) or the parent material, and will just assume that the caller handles that.
 	 * @param UsdShadeMaterial - Shade material with the data to convert
-	 * @param Material - Output parameter that will be filled with the converted data
+	 * @param Material - Output parameter that will be filled with the converted data. Only the versions that receive a dynamic material instance will work at runtime
 	 * @param TexturesCache - Cache to prevent importing a texture more than once
 	 * @param PrimvarToUVIndex - Output parameter that will be filled the name of a primvar the material wants to use as UV set name, and the corresponding UV index it will sample texture coordinates from
 	 * @return Whether the conversion was successful or not.
 	 */
+	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material );
+	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 }
 
+#if WITH_EDITOR
 namespace UnrealToUsd
 {
 	/**
@@ -53,9 +57,16 @@ namespace UnrealToUsd
 	 */
 	USDUTILITIES_API bool ConvertMaterialToBakedSurface( const UMaterialInterface& InMaterial, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, const FDirectoryPath& InTexturesDir, pxr::UsdPrim& OutUsdShadeMaterialPrim );
 }
+#endif // WITH_EDITOR
 
 namespace UsdUtils
 {
+	/**
+	 * Returns whether the material needs to be rendered with the Translucent rendering mode.
+	 * This function exists because we need this information *before* we pick the right parent for a material instance and properly convert it.
+	 */
+	USDUTILITIES_API bool IsMaterialTranslucent( const pxr::UsdShadeMaterial& UsdShadeMaterial );
+
 	USDUTILITIES_API FSHAHash HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial );
 
 	/** Returns the resolved path from a pxr::SdfAssetPath attribute. For UDIMs path, returns the path to the 1001 tile. */

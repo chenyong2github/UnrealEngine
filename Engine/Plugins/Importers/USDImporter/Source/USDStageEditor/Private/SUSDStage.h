@@ -17,7 +17,7 @@ class AUsdStageActor;
 class FLevelCollectionModel;
 class FMenuBuilder;
 enum class EMapChangeType : uint8;
-enum class EUsdInitialLoadSet;
+enum class EUsdInitialLoadSet : uint8;
 struct FSlateBrush;
 
 #if USE_USD_SDK

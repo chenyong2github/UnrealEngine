@@ -9,10 +9,13 @@
 
 #include "UsdWrappers/SdfLayer.h"
 
-#include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/Paths.h"
 #include "Widgets/SWidget.h"
+
+#if WITH_EDITOR
+	#include "DesktopPlatformModule.h"
+#endif // WITH_EDITOR
 
 #if USE_USD_SDK
 
@@ -49,6 +52,7 @@ bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLay
 	return true;
 }
 
+#if WITH_EDITOR
 TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget )
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -98,6 +102,7 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 	return {};
 }
+#endif // WITH_EDITOR
 
 TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore<pxr::SdfLayerRefPtr>& ParentLayer, const TCHAR* LayerFilePath )
 {
@@ -220,7 +225,7 @@ bool UsdUtils::SetRefOrPayloadLayerOffset( pxr::UsdPrim& Prim, const UE::FSdfLay
 		{
 			pxr::SdfPayloadEditorProxy PayloadEditor;
 			pxr::SdfPayload OldPayload;
-			
+
 			if ( CompositionArc.GetIntroducingListEditor( &PayloadEditor, &OldPayload ) )
 			{
 				pxr::SdfPayload NewPayload = OldPayload;
@@ -245,8 +250,19 @@ UE::FSdfLayerOffset UsdUtils::GetLayerToStageOffset( const pxr::UsdAttribute& At
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdResolveInfo ResolveInfo = Attribute.GetResolveInfo( pxr::UsdTimeCode::EarliestTime() );
+	pxr::PcpNodeRef Node = ResolveInfo.GetNode();
+	if ( !Node )
+	{
+		return UE::FSdfLayerOffset();
+	}
 
-	pxr::SdfLayerOffset NodeToRootNodeOffset = ResolveInfo.GetNode().GetMapToRoot().GetTimeOffset();
+	const pxr::PcpMapExpression& MapToRoot = Node.GetMapToRoot();
+	if ( MapToRoot.IsNull() )
+	{
+		return UE::FSdfLayerOffset();
+	}
+
+	pxr::SdfLayerOffset NodeToRootNodeOffset = MapToRoot.GetTimeOffset();
 
 	pxr::SdfLayerOffset LocalOffset = NodeToRootNodeOffset;
 

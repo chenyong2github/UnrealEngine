@@ -1194,7 +1194,7 @@ public:
 	ENGINE_API bool BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, const FBuildMeshDescriptionsParams& Params = FBuildMeshDescriptionsParams());
 	
 	/** Builds a LOD resource from a MeshDescription */
-	void BuildFromMeshDescription(const FMeshDescription& MeshDescription, FStaticMeshLODResources& LODResources);
+	ENGINE_API void BuildFromMeshDescription(const FMeshDescription& MeshDescription, FStaticMeshLODResources& LODResources);
 
 	/**
 	 * Returns the number of UV channels for the given LOD of a StaticMesh.

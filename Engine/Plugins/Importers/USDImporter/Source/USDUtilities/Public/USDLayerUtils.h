@@ -41,8 +41,10 @@ namespace UsdUtils
 	/** Inserts the SubLayerFile path into ParentLayer as a sublayer */
 	USDUTILITIES_API bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile );
 
+#if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file */
 	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
+#endif // #if WITH_EDITOR
 
 	/** Creates a new layer with a default prim */
 	USDUTILITIES_API TUsdStore< pxr::SdfLayerRefPtr > CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* LayerFilePath );

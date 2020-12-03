@@ -23,12 +23,14 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
-#include "MaterialEditingLibrary.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "ObjectTools.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Serialization/BufferArchive.h"
+
+#if WITH_EDITOR
+	#include "MaterialEditingLibrary.h"
+#endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usdGeom/mesh.h"
@@ -46,6 +48,7 @@
 
 namespace UsdSkelRootTranslatorImpl
 {
+#if WITH_EDITOR
 	bool ProcessMaterials(
 		const pxr::UsdPrim& UsdPrim,
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
@@ -884,14 +887,19 @@ namespace UsdSkelRootTranslatorImpl
 				return true;
 			});
 	}
+#endif // WITH_EDITOR
 }
 
 void FUsdSkelRootTranslator::CreateAssets()
 {
+#if WITH_EDITOR
+	// Importing skeletal meshes actually works in Standalone mode, but we intentionally block it here
+	// to not confuse users as to why it doesn't work at runtime
 	TSharedRef< UsdSkelRootTranslatorImpl::FSkelRootCreateAssetsTaskChain > AssetsTaskChain =
 		MakeShared< UsdSkelRootTranslatorImpl::FSkelRootCreateAssetsTaskChain >( Context, PrimPath );
 
 	Context->TranslatorTasks.Add( MoveTemp( AssetsTaskChain ) );
+#endif // WITH_EDITOR
 }
 
 USceneComponent* FUsdSkelRootTranslator::CreateComponents()
@@ -913,6 +921,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 	Super::UpdateComponents( SceneComponent );
 
+#if WITH_EDITOR
 	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
 	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
 	if ( PoseableMeshComponent->SkeletalMesh != TargetSkeletalMesh )
@@ -1090,9 +1099,9 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 					PoseableMeshComponent->MarkRenderDynamicDataDirty();
 				}
 			}
-
 		}
 	}
+#endif // WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

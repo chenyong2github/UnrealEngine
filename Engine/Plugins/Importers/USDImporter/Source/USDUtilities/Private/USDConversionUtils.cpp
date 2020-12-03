@@ -28,7 +28,10 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "GeometryCache.h"
+
+#if WITH_EDITOR
 #include "ObjectTools.h"
+#endif // WITH_EDITOR
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -63,6 +66,20 @@
 
 namespace USDConversionUtilsImpl
 {
+	// Adapted from ObjectTools as it is within an Editor-only module
+	FString SanitizeObjectName( const FString& InObjectName )
+	{
+		FString SanitizedText = InObjectName;
+		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+		while ( *InvalidChar )
+		{
+			SanitizedText.ReplaceCharInline( *InvalidChar, TCHAR( '_' ), ESearchCase::CaseSensitive );
+			++InvalidChar;
+		}
+
+		return SanitizedText;
+	}
+
 	/** Show some warnings if the UVSet primvars show some unsupported/problematic behavior */
 	void CheckUVSetPrimvars( TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvars, TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsedPrimvars, const FString& MeshPath )
 	{
@@ -583,7 +600,7 @@ FString UsdUtils::GetAssetPathFromPrimPath( const FString& RootContentPath, cons
 	ModelApi.GetAssetName( &RawAssetName );
 
 	FString AssetName = UsdToUnreal::ConvertString( RawAssetName );
-	FString MeshName = ObjectTools::SanitizeObjectName( RawPrimName );
+	FString MeshName = USDConversionUtilsImpl::SanitizeObjectName( RawPrimName );
 
 	FString USDPath = UsdToUnreal::ConvertString( Prim.GetPrimPath().GetString().c_str() );
 
