@@ -4,6 +4,7 @@
 
 #include "Particles/ParticlePerfStats.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "UObject/WeakObjectPtr.h"
 #include "RenderingThread.h"
 
 #if WITH_PARTICLE_PERF_STATS
