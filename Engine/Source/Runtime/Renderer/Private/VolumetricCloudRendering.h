@@ -118,6 +118,8 @@ struct FCloudRenderContext
 	bool bSkipAtmosphericLightShadowmap;
 	bool bSecondAtmosphereLightEnabled;
 
+	bool bAsyncCompute;
+
 	FUintVector4 TracingCoordToZbufferCoordScaleBias;
 	uint32 NoiseFrameIndexModPattern;
 

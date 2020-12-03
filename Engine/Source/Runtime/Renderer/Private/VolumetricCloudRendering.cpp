@@ -1687,6 +1687,8 @@ FCloudRenderContext::FCloudRenderContext()
 	bSkipAtmosphericLightShadowmap = false;
 
 	bSkipAerialPerspective = false;
+
+	bAsyncCompute = false;
 }
 
 static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudPassUniformBuffer(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC)
@@ -1830,8 +1832,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CloudView (CS) %dx%d", Desc.Extent.X, Desc.Extent.Y),
 			PassParameters,
-			ERDGPassFlags::Compute,
-			[LocalScene = Scene, MaterialRenderProxy, MaterialResource, ViewUniformBuffer, PassParameters, ComputeShader, GroupCount](FRHICommandList& RHICmdList)
+			CloudRC.bAsyncCompute ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
+			[LocalScene = Scene, MaterialRenderProxy, MaterialResource, ViewUniformBuffer, PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
 			{
 				if (MaterialResource->GetMaterialDomain() != MD_Volume)
 				{
@@ -1899,13 +1901,14 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	}
 }
 
-void FSceneRenderer::RenderVolumetricCloud(
+bool FSceneRenderer::RenderVolumetricCloud(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureShaderParameters& SceneTextures,
 	bool bSkipVolumetricRenderTarget,
 	bool bSkipPerPixelTracing,
 	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture)
+	FRDGTextureMSAA SceneDepthTexture,
+	bool bAsyncCompute)
 {
 	check(ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
@@ -1915,6 +1918,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 	FLightSceneInfo* AtmosphericLight0Info = Scene->AtmosphereLights[0];
 	FLightSceneProxy* AtmosphericLight0 = AtmosphericLight0Info ? AtmosphericLight0Info->Proxy : nullptr;
 	FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
+	bool bAsyncComputeUsed = false;
 
 	if (CloudSceneProxy.GetCloudVolumeMaterial())
 	{
@@ -1936,22 +1940,72 @@ void FSceneRenderer::RenderVolumetricCloud(
 			CloudRC.bSkipAtmosphericLightShadowmap = !GetVolumetricCloudReceiveAtmosphericLightShadowmap(AtmosphericLight0);
 			CloudRC.bSecondAtmosphereLightEnabled = Scene->IsSecondAtmosphereLightEnabled();
 
+			const bool DebugCloudShadowMap = CVarVolumetricCloudShadowMapDebug.GetValueOnRenderThread() && ShouldRenderCloudShadowmap(AtmosphericLight0);
+			const bool DebugCloudSkyAO = CVarVolumetricCloudSkyAODebug.GetValueOnRenderThread() && ShouldRenderCloudSkyAO(SkyLight);
+
+			struct FLocalCloudView
+			{
+				FViewInfo* ViewInfo;
+				bool bShouldViewRenderVolumetricCloudRenderTarget;
+				bool bEnableAerialPerspectiveSampling;
+				bool bShouldUseHighQualityAerialPerspective;
+			};
+			TArray<FLocalCloudView, TInlineAllocator<2>> ViewsToProcess;
+			
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& ViewInfo = Views[ViewIndex];
-
-				CloudRC.MainView = &ViewInfo;
 
 				bool bShouldViewRenderVolumetricCloudRenderTarget = ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo); // not used by reflection captures for instance
 				if ((bShouldViewRenderVolumetricCloudRenderTarget && bSkipVolumetricRenderTarget) || (!bShouldViewRenderVolumetricCloudRenderTarget && bSkipPerPixelTracing))
 				{
 					continue;
 				}
+
+				const bool bEnableAerialPerspectiveSampling = CVarVolumetricCloudEnableAerialPerspectiveSampling.GetValueOnAnyThread() > 0;
+				const bool bShouldUseHighQualityAerialPerspective =
+					bEnableAerialPerspectiveSampling
+					&& Scene->HasSkyAtmosphere()
+					&& CVarVolumetricCloudHighQualityAerialPerspective.GetValueOnAnyThread() > 0
+					&& !ViewInfo.bIsReflectionCapture;
+
+				if (bAsyncCompute
+					&& bShouldViewRenderVolumetricCloudRenderTarget
+					&& !bShouldUseHighQualityAerialPerspective
+					&& !DebugCloudShadowMap
+					&& !DebugCloudSkyAO)
+				{
+					// TODO: see whether high quality AP rendering can use async compute
+					bAsyncComputeUsed = true;
+				}
+				else if (bAsyncCompute)
+				{
+					// Skip if async compute is requested but cannot fulfill
+					continue;
+				}
+
+				FLocalCloudView& ViewToProcess = ViewsToProcess[ViewsToProcess.AddUninitialized()];
+				ViewToProcess.ViewInfo = &ViewInfo;
+				ViewToProcess.bShouldViewRenderVolumetricCloudRenderTarget = bShouldViewRenderVolumetricCloudRenderTarget;
+				ViewToProcess.bEnableAerialPerspectiveSampling = bEnableAerialPerspectiveSampling;
+				ViewToProcess.bShouldUseHighQualityAerialPerspective = bShouldUseHighQualityAerialPerspective;
+			}
+
+			for (int32 ViewIndex = 0; ViewIndex < ViewsToProcess.Num(); ViewIndex++)
+			{
+				FLocalCloudView& ViewToProcess = ViewsToProcess[ViewIndex];
+				FViewInfo& ViewInfo = *ViewToProcess.ViewInfo;
+
+				CloudRC.MainView = ViewToProcess.ViewInfo;
+				CloudRC.bAsyncCompute = bAsyncCompute;
+
+				const bool bShouldViewRenderVolumetricCloudRenderTarget = ViewToProcess.bShouldViewRenderVolumetricCloudRenderTarget;
+				const bool bEnableAerialPerspectiveSampling = ViewToProcess.bEnableAerialPerspectiveSampling;
+				const bool bShouldUseHighQualityAerialPerspective = ViewToProcess.bShouldUseHighQualityAerialPerspective;
+
 				CloudRC.bShouldViewRenderVolumetricRenderTarget = bShouldViewRenderVolumetricCloudRenderTarget;
 				CloudRC.ViewUniformBuffer = bShouldViewRenderVolumetricCloudRenderTarget ? ViewInfo.VolumetricRenderTargetViewUniformBuffer : ViewInfo.ViewUniformBuffer;
 
-				const bool bEnableAerialPerspectiveSampling = CVarVolumetricCloudEnableAerialPerspectiveSampling.GetValueOnAnyThread() > 0;
-				const bool bShouldUseHighQualityAerialPerspective = bEnableAerialPerspectiveSampling && Scene->HasSkyAtmosphere() && CVarVolumetricCloudHighQualityAerialPerspective.GetValueOnAnyThread() > 0 && !CloudRC.bIsReflectionRendering;
 				CloudRC.bSkipAerialPerspective = !bEnableAerialPerspectiveSampling || bShouldUseHighQualityAerialPerspective; // Skip AP on clouds if we are going to trace it separately in a second pass
 				CloudRC.bIsReflectionRendering = ViewInfo.bIsReflectionCapture;
 
@@ -1960,6 +2014,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 				FRDGTextureRef DestinationRTDepth = nullptr;
 				CloudRC.TracingCoordToZbufferCoordScaleBias = FUintVector4(1, 1, 0, 0);
 				CloudRC.NoiseFrameIndexModPattern = ViewInfo.CachedViewUniformShaderParameters->StateFrameIndexMod8;
+
 				if (bShouldViewRenderVolumetricCloudRenderTarget)
 				{
 					FVolumetricRenderTargetViewStateData& VRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
@@ -2093,10 +2148,6 @@ void FSceneRenderer::RenderVolumetricCloud(
 					RenderSkyAtmosphereInternal(GraphBuilder, SceneTextures, SkyRC);
 				}
 
-
-
-				const bool DebugCloudShadowMap = CVarVolumetricCloudShadowMapDebug.GetValueOnRenderThread() && ShouldRenderCloudShadowmap(AtmosphericLight0);
-				const bool DebugCloudSkyAO = CVarVolumetricCloudSkyAODebug.GetValueOnRenderThread() && ShouldRenderCloudSkyAO(SkyLight);
 				if (DebugCloudShadowMap || DebugCloudSkyAO)
 				{
 					FViewElementPDI ShadowFrustumPDI(&ViewInfo, nullptr, nullptr);
@@ -2161,6 +2212,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 		}
 	}
 
+	return bAsyncComputeUsed;
 }
 
 
