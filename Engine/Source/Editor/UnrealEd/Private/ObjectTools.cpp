@@ -311,6 +311,27 @@ namespace ObjectTools
 		OutObjectsAndSubObjects = InObjects;
 		if (InObjects.Num() > 0)
 		{
+			TArray<UObject*> AdditionalObjectsToExclude;
+			for (UObject* ObjectToExclude : ObjectsToExclude)
+			{
+				if (UBlueprint* BlueprintObject = Cast<UBlueprint>(ObjectToExclude))
+				{
+					TArray<UObject*> ClassSubObjects;
+					GetObjectsWithOuter(BlueprintObject->GeneratedClass, ClassSubObjects, false);
+					for (UObject* ClassSubObject : ClassSubObjects)
+					{
+						if (ClassSubObject->HasAnyFlags(RF_ArchetypeObject))
+						{
+							AdditionalObjectsToExclude.Add(ClassSubObject);
+						}
+					}
+				}
+			}
+			for (UObject* AdditionalObjectToExclude : AdditionalObjectsToExclude)
+			{
+				ObjectsToExclude.Add(AdditionalObjectToExclude);
+			}
+
 			for (UObject* InObject : InObjects)
 			{
 				TArray<UObject*> AdditionalObjects;
@@ -1036,12 +1057,15 @@ namespace ObjectTools
 		{
 			for (UObject* CurObject : ObjectsToReplaceWithin)
 			{
-				UBlueprint* BPObjectToUpdate = Cast<UBlueprint>(CurObject);
-				if (BPObjectToUpdate)
+				if (CurObject && CurObject->IsValidLowLevel())
 				{
-					FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, false, true, false);
+					UBlueprint* BPObjectToUpdate = Cast<UBlueprint>(CurObject);
+					if (BPObjectToUpdate)
+					{
+						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, false, true, false);
+					}
+					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, false, true, false);
 				}
-				FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, false, true, false);
 			}
 		}
 		else
@@ -1352,8 +1376,14 @@ namespace ObjectTools
 						UClass* OldClass = BlueprintToConsolidate->GeneratedClass;
 						UClass* OldSkeletonClass = BlueprintToConsolidate->SkeletonGeneratedClass;
 
+						FReplaceInstancesOfClassParameters ReplaceInstanceParams = FReplaceInstancesOfClassParameters(OldClass, BlueprintToConsolidateTo->GeneratedClass);
+						ReplaceInstanceParams.OriginalCDO = nullptr;
+						ReplaceInstanceParams.ObjectsThatShouldUseOldStuff = &ObjectsToNotConsolidateWithin;
+						ReplaceInstanceParams.bClassObjectReplaced = true;
+						ReplaceInstanceParams.bPreserveRootComponent = true;
+						ReplaceInstanceParams.InstancesThatShouldUseOldClass = &ObjectsToNotConsolidateWithin;
 
-						FBlueprintCompileReinstancer::ReplaceInstancesOfClass(OldClass, BlueprintToConsolidateTo->GeneratedClass, nullptr, &ObjectsToNotConsolidateWithin, true);
+						FBlueprintCompileReinstancer::ReplaceInstancesOfClassEx(ReplaceInstanceParams);
 						BlueprintToConsolidate->GeneratedClass = OldClass;
 						BlueprintToConsolidate->SkeletonGeneratedClass = OldSkeletonClass;
 					}
