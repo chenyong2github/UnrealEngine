@@ -7,6 +7,10 @@
 #include "NiagaraComponentRendererProperties.h"
 #include "Async/Async.h"
 
+#if WITH_EDITOR
+	#include "Editor.h"
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Component renderer update bindings"), STAT_NiagaraComponentRendererUpdateBindings, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component renderer spawning [GT]"), STAT_NiagaraComponentRendererSpawning, STATGROUP_Niagara);
 
