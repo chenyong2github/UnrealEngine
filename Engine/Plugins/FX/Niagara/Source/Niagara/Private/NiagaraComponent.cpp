@@ -1310,11 +1310,11 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 				{
 					FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[ExecIdx.EmitterIndex].Get();
 					UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
-
-					if (Emitter)
+					FNiagaraRenderer* EmitterRenderer = EmitterRenderers[ExecIdx.SystemRendererIndex];
+					if (Emitter && EmitterRenderer)
 					{
 						UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
-						EmitterRenderers[ExecIdx.SystemRendererIndex]->PostSystemTick_GameThread(RendererProperties, EmitterInst);
+						EmitterRenderer->PostSystemTick_GameThread(RendererProperties, EmitterInst);
 					}
 				}
 			}
@@ -1396,11 +1396,11 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 				{
 					FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[ExecIdx.EmitterIndex].Get();
 					UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
-
-					if (Emitter)
+					FNiagaraRenderer* EmitterRenderer = EmitterRenderers[ExecIdx.SystemRendererIndex];
+					if (Emitter && EmitterRenderer)
 					{
 						UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
-						EmitterRenderers[ExecIdx.SystemRendererIndex]->OnSystemComplete_GameThread(RendererProperties, EmitterInst);
+						EmitterRenderer->OnSystemComplete_GameThread(RendererProperties, EmitterInst);
 					}
 				}
 			}
