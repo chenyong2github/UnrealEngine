@@ -239,15 +239,19 @@ void AWaterLandscapeBrush::PostInitProperties()
 	{
 		OnWorldPostInitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
 		{
-			const bool bTriggerEvents = false;
-			UpdateActors(bTriggerEvents);
+			if (World == GetWorld())
+			{
+				const bool bTriggerEvents = false;
+				UpdateActors(bTriggerEvents);
+			}
 		});
 
 		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddLambda([this](ULevel* Level, UWorld* World)
 		{
-			if (World->IsEditorWorld()
+			if ((World == GetWorld())
+				&& (World->IsEditorWorld()
 				&& (Level != nullptr)
-				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); }))
+				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); })))
 			{
 				UpdateActors(!GIsEditorLoadingPackage);
 			}
@@ -255,9 +259,10 @@ void AWaterLandscapeBrush::PostInitProperties()
 
 		OnLevelRemovedFromWorldHandle = FWorldDelegates::LevelRemovedFromWorld.AddLambda([this](ULevel* Level, UWorld* World)
 		{
-			if (World->IsEditorWorld()
+			if ((World == GetWorld())
+				&& (World->IsEditorWorld()
 				&& (Level != nullptr)
-				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); }))
+				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); })))
 			{
 				UpdateActors(!GIsEditorLoadingPackage);
 			}
