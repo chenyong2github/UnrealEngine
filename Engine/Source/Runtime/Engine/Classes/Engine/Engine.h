@@ -3295,7 +3295,16 @@ public:
 	 */
 	void RenderEngineStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 LHSX, int32& InOutLHSY, int32 RHSX, int32& InOutRHSY, const FVector* ViewLocation, const FRotator* ViewRotation);
 
-private:
+	/**
+	 * Function definition for those stats which have their own toggle functions (or toggle other stats).
+	 *
+	 * @param World	The world being drawn to.
+	 * @param ViewportClient The viewport being drawn to.
+	 * @param Stream The remaining characters from the Exec call.
+	 */
+	 //typedef bool (UEngine::* EngineStatToggle)(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FEngineStatToggle, UWorld* /*World*/, FCommonViewportClient* /*ViewportClient*/, const TCHAR* /*Stream*/)
+
 	/**
 	 * Function definition for those stats which have their own render functions (or affect another render functions).
 	 *
@@ -3307,16 +3316,15 @@ private:
 	 * @param ViewLocation The world space view location.
 	 * @param ViewRotation The world space view rotation.
 	 */
-	typedef int32 (UEngine::*EngineStatRender)(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	//typedef int32(UEngine::* EngineStatRender)(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	DECLARE_DELEGATE_RetVal_SevenParams(int32, FEngineStatRender, UWorld* /*World*/, FViewport* /*Viewport*/, FCanvas* /*Canvas*/, int32 /*X*/, int32 /*Y*/, const FVector* /*ViewLocation*/, const FRotator* /*ViewRotation*/)
 
-	/**
-	 * Function definition for those stats which have their own toggle functions (or toggle other stats).
-	 *
-	 * @param World	The world being drawn to.
-	 * @param ViewportClient The viewport being drawn to.
-	 * @param Stream The remaining characters from the Exec call.
-	 */
-	typedef bool (UEngine::*EngineStatToggle)(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+	/** Allows external systems to add a new simple engine stat function. 
+	*/
+	void AddEngineStat(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, FEngineStatRender InRenderFunc = nullptr, FEngineStatToggle InToggleFunc = nullptr, const bool bInIsRHS = false);
+
+	void RemoveEngineStat(const FName& InCommandName);
+private:
 
 	/** Struct for keeping track off all the info regarding a specific simple stat exec */
 	struct FEngineStatFuncs
@@ -3335,17 +3343,17 @@ private:
 
 		/** The function needed to render the stat when it's enabled 
 		 *  Note: This is only called when it should be rendered */
-		EngineStatRender RenderFunc;
+		FEngineStatRender RenderFunc;
 
 		/** The function we call after the stat has been toggled 
 		 *  Note: This is only needed if you need to do something else depending on the state of the stat */
-		EngineStatToggle ToggleFunc;
+		FEngineStatToggle ToggleFunc;
 
 		/** If true, this stat should render on the right side of the viewport, otherwise left */
 		bool bIsRHS;
 
 		/** Constructor */
-		FEngineStatFuncs(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, EngineStatRender InRenderFunc = nullptr, EngineStatToggle InToggleFunc = nullptr, const bool bInIsRHS = false)
+		FEngineStatFuncs(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, FEngineStatRender InRenderFunc, FEngineStatToggle InToggleFunc, const bool bInIsRHS = false)
 			: CommandName(InCommandName)
 			, CommandNameString(InCommandName.ToString())
 			, CategoryName(InCategoryName)
@@ -3404,6 +3412,7 @@ private:
 	bool ToggleStatAudioStreaming(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSoundMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSoundModulators(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	bool ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 #endif
 
 	/**
@@ -3437,6 +3446,7 @@ private:
 	int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	int32 RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif // !UE_BUILD_SHIPPING
 	int32 RenderStatAI(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
@@ -3444,7 +3454,6 @@ private:
 #if STATS
 	int32 RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
-	int32 RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 
 	FDelegateHandle HandleScreenshotCapturedDelegateHandle;
 };

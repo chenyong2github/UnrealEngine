@@ -143,7 +143,10 @@
 
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 #include "NiagaraPlatformSet.h"
+#include "NiagaraEffectType.h"
+#include "SNiagaraSystemViewport.h"
 
+#include "NiagaraPerfBaseline.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -1074,8 +1077,11 @@ void FNiagaraEditorModule::StartupModule()
 	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
 	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::CompilerTopicName);
 	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::ObjectTopicName);
-}
 
+#if NIAGARA_PERF_BASELINES
+	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &FNiagaraEditorModule::GeneratePerfBaselines);
+#endif
+}
 
 void FNiagaraEditorModule::ShutdownModule()
 {
@@ -1185,6 +1191,10 @@ void FNiagaraEditorModule::ShutdownModule()
 		}
 	}
 	StackIssueGenerators.Empty();
+
+#if NIAGARA_PERF_BASELINES
+	UNiagaraEffectType::OnGeneratePerfBaselines().Unbind();
+#endif
 }
 
 void FNiagaraEditorModule::OnPostEngineInit()
@@ -1541,5 +1551,53 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
 }
+
+#if NIAGARA_PERF_BASELINES
+void FNiagaraEditorModule::GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate)
+{
+	if (BaselinesToGenerate.Num() == 0)
+	{
+		return;
+	}
+
+	if (!BaselineViewport.IsValid())
+	{
+		//Spawn a new window and preview scene to run the baseline inside.
+		TSharedRef<SWindow> NewWindow = SNew(SWindow)
+			.Title(LOCTEXT("NiagaraBaselineWindow", "Gathering Niagara Performance Baselines...."))
+			.SizingRule(ESizingRule::FixedSize)
+			.ClientSize(FVector2D(1920, 1080))
+			//.IsTopmostWindow(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false);
+
+		TSharedPtr<SWindow> WindowPtr;
+		WindowPtr = NewWindow;
+
+		BaselineViewport = SNew(SNiagaraBaselineViewport);
+		BaselineViewport->Init(WindowPtr);
+
+		NewWindow->SetContent(BaselineViewport.ToSharedRef());
+		FSlateApplication::Get().AddWindow(NewWindow);
+
+		NewWindow->GetOnWindowClosedEvent().AddRaw(this, &FNiagaraEditorModule::OnPerfBaselineWindowClosed);
+	}
+	
+	for (UNiagaraEffectType* EffectType : BaselinesToGenerate)
+	{
+		if (EffectType->IsPerfBaselineValid() == false && EffectType->GetPerfBaselineController())
+		{
+			BaselineViewport->AddBaseline(EffectType);
+		}
+	}
+}
+
+void FNiagaraEditorModule::OnPerfBaselineWindowClosed(const TSharedRef<SWindow>& ClosedWindow)
+{
+	ClosedWindow->SetContent(SNullWidget::NullWidget);
+	BaselineViewport.Reset();
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE

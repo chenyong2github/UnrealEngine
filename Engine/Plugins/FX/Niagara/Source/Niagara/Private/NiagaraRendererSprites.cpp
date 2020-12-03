@@ -767,7 +767,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
-	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
+	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfAsset, GetDynamicMeshElements);
 	check(SceneProxy);
 
 	//check(DynamicDataRender)
@@ -837,8 +837,12 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 						RefPosition = SceneProxy->GetLocalToWorld().TransformPosition(RefPosition);
 					}
 				}
-
+				
+				#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+				float DistSquared = SceneProxy->PreviewLODDistance >= 0.0f ? SceneProxy->PreviewLODDistance * SceneProxy->PreviewLODDistance : FVector::DistSquared(RefPosition, ViewOrigin);
+				#else
 				float DistSquared = FVector::DistSquared(RefPosition, ViewOrigin);
+				#endif
 				if (DistSquared < DistanceCullRange.X * DistanceCullRange.X || DistSquared > DistanceCullRange.Y * DistanceCullRange.Y)
 				{
 					// Distance cull the whole emitter

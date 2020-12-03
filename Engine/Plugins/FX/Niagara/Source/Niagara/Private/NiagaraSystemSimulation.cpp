@@ -278,7 +278,7 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES(Context.System, TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(Context.System, TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Tick_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -306,7 +306,7 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES(Context.System, TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(Context.System, TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Spawn_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -342,7 +342,7 @@ public:
 		check(CurrentThread == ENamedThreads::GameThread);
 		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, false);
 
-		PARTICLE_PERF_STAT_CYCLES(SystemSim->GetSystem(), Finalize);
+		PARTICLE_PERF_STAT_CYCLES_GT(SystemSim->GetSystem(), Finalize);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if(Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched)
@@ -407,7 +407,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		PARTICLE_PERF_STAT_CYCLES(Batch[0]->GetSystem(), TickConcurrent);
+		PARTICLE_PERF_STAT_CYCLES_GT(Batch[0]->GetSystem(), TickConcurrent);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if (Mode == ENiagaraGPUTickHandlingMode::ConcurrentBatched)
@@ -842,8 +842,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 
 	UNiagaraSystem* System = WeakSystem.Get();
 	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
-	PARTICLE_PERF_STAT_INSTANCE_COUNT(System, SystemInstances.Num());
-	PARTICLE_PERF_STAT_CYCLES(System, TickGameThread);
+	PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(System, SystemInstances.Num());
+	PARTICLE_PERF_STAT_CYCLES_GT(System, TickGameThread);
 
 	SystemTickGraphEvent = nullptr;
 

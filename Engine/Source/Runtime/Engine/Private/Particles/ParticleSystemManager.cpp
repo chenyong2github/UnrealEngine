@@ -8,6 +8,7 @@
 #include "Distributions/Distribution.h"
 #include "Async/ParallelFor.h"
 #include "Particles/ParticleEmitter.h"
+#include "Particles/ParticlePerfStatsManager.h"
 
 DECLARE_STATS_GROUP(TEXT("Particle World Manager"), STATGROUP_PSCWorldMan, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("PSC Manager Tick [GT]"), STAT_PSCMan_Tick, STATGROUP_PSCWorldMan);
@@ -146,7 +147,7 @@ void FParticleSystemWorldManager::OnStartup()
 	FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&OnPreWorldFinishDestroy);
 	FWorldDelegates::OnWorldBeginTearDown.AddStatic(&OnWorldBeginTearDown);
 #if WITH_PARTICLE_PERF_STATS
-	FParticlePerfStats::OnStartup();
+	FParticlePerfStatsManager::OnStartup();
 #endif
 }
 
@@ -161,7 +162,7 @@ void FParticleSystemWorldManager::OnShutdown()
 	}
 	WorldManagers.Empty();
 #if WITH_PARTICLE_PERF_STATS
-	FParticlePerfStats::OnShutdown();
+	FParticlePerfStatsManager::OnShutdown();
 #endif
 }
 

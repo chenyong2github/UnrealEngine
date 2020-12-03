@@ -12,13 +12,16 @@
 #include "EditorViewportClient.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
+#include "Particles/ParticlePerfStatsManager.h"
+#include "NiagaraPerfBaseline.h"
 
 class UNiagaraComponent;
 class FNiagaraSystemEditorViewportClient;
 class FNiagaraSystemInstance;
+class UNiagaraEffectType;
 
 /**
- * Material Editor Preview viewport widget
+ * Niagara Editor Preview viewport widget
  */
 class SNiagaraSystemViewport : public SEditorViewport, public FGCObject, public ICommonEditorViewportToolbarInfoProvider
 {
@@ -120,3 +123,51 @@ private:
 
 	FOnThumbnailCaptured OnThumbnailCaptured;
 };
+
+#if NIAGARA_PERF_BASELINES
+
+/** Niagara Baseline Display Viewport */
+class SNiagaraBaselineViewport : public SEditorViewport, public FGCObject
+{
+public:
+	SLATE_BEGIN_ARGS(SNiagaraBaselineViewport) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	virtual ~SNiagaraBaselineViewport();
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	void RefreshViewport();
+
+	TSharedRef<class FAdvancedPreviewScene> GetPreviewScene() { return AdvancedPreviewScene.ToSharedRef(); }
+
+	void Init(TSharedPtr<SWindow>& InOwnerWindow);
+
+	void AddBaseline(UNiagaraEffectType* EffectType);
+
+protected:
+	/** SEditorViewport interface */
+	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+	virtual EVisibility OnGetViewportContentVisibility() const override;
+	virtual void BindCommands() override;
+	virtual void OnFocusViewportToSelection() override;
+	virtual void PopulateViewportOverlays(TSharedRef<class SOverlay> Overlay) override;
+	EVisibility OnGetViewportCompileTextVisibility() const;
+
+private:
+	bool IsVisible() const override;
+
+	/** Preview Scene - uses advanced preview settings */
+	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;
+
+	/** Level viewport client */
+	TSharedPtr<class FNiagaraBaselineViewportClient> SystemViewportClient;
+
+	TSharedPtr<SWindow> OwnerWindow;
+};
+
+#endif

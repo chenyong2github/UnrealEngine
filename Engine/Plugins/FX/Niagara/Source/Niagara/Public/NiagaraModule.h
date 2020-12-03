@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
+#include "NiagaraPerfBaseline.h"
 
 class FNiagaraWorldManager;
 class UNiagaraEmitter;
@@ -39,6 +40,12 @@ public:
 	virtual void StartupModule()override;
 	virtual void ShutdownModule()override;
 	void ShutdownRenderingResources();
+	
+	void OnPostEngineInit();
+	void OnPreExit();
+
+	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds);
+	void OnWorldBeginTearDown(UWorld* World);
 
 	FDelegateHandle SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue);
 	void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
@@ -70,6 +77,13 @@ public:
 	FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
 	void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
 
+#endif
+
+#if NIAGARA_PERF_BASELINES
+	void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
+
+	bool ToggleStatPerfBaselines(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	int32 RenderStatPerfBaselines(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
 
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
@@ -284,5 +298,9 @@ private:
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
 	static FNiagaraVariable Translator_CallID;
+
+#if NIAGARA_PERF_BASELINES
+	TUniquePtr<FNiagaraPerfBaselineHandler> BaselineHandler;
+#endif
 };
 

@@ -288,6 +288,58 @@ void INiagaraModule::StartupModule()
 
 	// Needed for NiagaraDataInterfaceAudioSpectrum
 	FModuleManager::Get().LoadModule(TEXT("SignalProcessing"));
+
+#if NIAGARA_PERF_BASELINES
+#if !WITH_EDITOR
+	//The editor has it's own path for generating baselines. This is used in non editor builds only.
+	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &INiagaraModule::GeneratePerfBaselines);
+#endif
+#endif
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &INiagaraModule::OnPostEngineInit);
+	FCoreDelegates::OnPreExit.AddRaw(this, &INiagaraModule::OnPreExit);
+	FWorldDelegates::OnWorldBeginTearDown.AddRaw(this, &INiagaraModule::OnWorldBeginTearDown);
+	FWorldDelegates::OnWorldTickStart.AddRaw(this, &INiagaraModule::OnWorldTickStart);
+}
+
+void INiagaraModule::OnPostEngineInit()
+{
+#if NIAGARA_PERF_BASELINES
+	if (BaselineHandler.IsValid() == false)
+	{
+		BaselineHandler = MakeUnique<FNiagaraPerfBaselineHandler>();
+	}
+#endif
+}
+
+void INiagaraModule::OnPreExit()
+{
+#if NIAGARA_PERF_BASELINES
+	if (BaselineHandler.IsValid())
+	{
+		BaselineHandler.Reset();
+	}
+#endif
+}
+
+void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds)
+{
+#if NIAGARA_PERF_BASELINES
+	if (BaselineHandler.IsValid())
+	{
+		BaselineHandler->Tick(World, DeltaSeconds);
+	}
+#endif
+}
+
+void INiagaraModule::OnWorldBeginTearDown(UWorld* World)
+{
+#if NIAGARA_PERF_BASELINES
+	if (BaselineHandler.IsValid())
+	{
+		BaselineHandler->OnWorldBeginTearDown(World);
+	}
+#endif
 }
 
 void INiagaraModule::ShutdownRenderingResources()
@@ -299,6 +351,9 @@ void INiagaraModule::ShutdownRenderingResources()
 
 void INiagaraModule::ShutdownModule()
 {
+	FWorldDelegates::OnWorldBeginTearDown.RemoveAll(this);
+	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
+
 	FNiagaraWorldManager::OnShutdown();
 
 	// Clear out the handler when shutting down..
@@ -308,6 +363,10 @@ void INiagaraModule::ShutdownModule()
 	ShutdownRenderingResources();
 
 	FNiagaraTypeRegistry::TearDown();
+
+#if NIAGARA_PERF_BASELINES
+	UNiagaraEffectType::OnGeneratePerfBaselines().Unbind();
+#endif
 }
 
 #if WITH_EDITOR
@@ -1231,6 +1290,23 @@ const TArray<FNiagaraVariable>& FNiagaraEmitterParameters::GetVariables()
 
 	return Variables;
 }
+#endif
+
+#if NIAGARA_PERF_BASELINES
+
+void INiagaraModule::GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate)
+{	
+	if (BaselinesToGenerate.Num() == 0)
+	{
+		return;
+	}
+
+	if (BaselineHandler.IsValid())
+	{
+		BaselineHandler->GenerateBaselines(BaselinesToGenerate);
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE
