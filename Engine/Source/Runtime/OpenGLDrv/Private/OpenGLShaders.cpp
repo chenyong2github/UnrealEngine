@@ -782,6 +782,13 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 		}
 	}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (RHIShader)
+	{
+		RHIShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+	}
+#endif
+
 #if DEBUG_GL_SHADERS
 	Shader->GlslCode = GlslCode;
 	Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();

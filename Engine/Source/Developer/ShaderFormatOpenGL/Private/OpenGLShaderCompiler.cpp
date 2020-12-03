@@ -975,17 +975,17 @@ void FOpenGLFrontend::BuildShaderOutput(
 			ShaderOutput.bSucceeded = true;
 		}
 
-		// store data we can pickup later with ShaderCode.FindOptionalData('n'), could be removed for shipping
-		// Daniel L: This GenerateShaderName does not generate a deterministic output among shaders as the shader code can be shared.
-		//			uncommenting this will cause the project to have non deterministic materials and will hurt patch sizes
-		//ShaderOutput.ShaderCode.AddOptionalData('n', TCHAR_TO_UTF8(*ShaderInput.GenerateShaderName()));
-
 		// extract final source code as requested by the Material Editor
 		if (ShaderInput.ExtraSettings.bExtractShaderSource)
 		{
 			TArray<ANSICHAR> GlslCodeOriginal;
 			GlslCodeOriginal.Append(USFSource, FCStringAnsi::Strlen(USFSource) + 1);
 			ShaderOutput.OptionalFinalShaderSource = FString(GlslCodeOriginal.GetData());
+		}
+
+		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+		{
+			ShaderOutput.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*ShaderInput.GenerateShaderName()));
 		}
 
 		// if available, attempt run an offline compilation and extract statistics
