@@ -2,6 +2,7 @@
 
 #include "MatineeConverter.h"
 #include "Animation/SkeletalMeshActor.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Camera/CameraActor.h"
 #include "Engine/Light.h"
 #include "Engine/StaticMeshActor.h"
