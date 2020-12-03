@@ -902,6 +902,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				pxr::UsdShadeMaterial UsdShadeMaterial{ MaterialPrim };
 				if ( !UsdShadeMaterial )
 				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "IgnoringMaterialInvalid", "Ignoring material '{0}' bound to prim '{1}' as it does not possess the UsdShadeMaterial schema" ),
+							FText::FromString( UsdToUnreal::ConvertPath( TargetMaterialPrimPath ) ),
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) )
+						)
+					);
 					return {};
 				}
 
@@ -909,6 +916,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
 				if ( !SurfaceShader )
 				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "IgnoringMaterialSurface", "Ignoring material '{0}' bound to prim '{1}' as it contains no valid surface shader source" ),
+							FText::FromString( UsdToUnreal::ConvertPath( TargetMaterialPrimPath ) ),
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) )
+						)
+					);
 					return {};
 				}
 
@@ -918,7 +932,9 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 					FUsdLogManager::LogMessage(
 						EMessageSeverity::Warning,
 						FText::Format( LOCTEXT( "MoreThanOneMaterialBinding", "Found more than on material:binding targets on prim '{0}'. The first material ('{1}') will be used, and the rest ignored." ),
-						FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ), FText::FromString( MaterialPrimPath ) )
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ),
+							FText::FromString( MaterialPrimPath )
+						)
 					);
 				}
 

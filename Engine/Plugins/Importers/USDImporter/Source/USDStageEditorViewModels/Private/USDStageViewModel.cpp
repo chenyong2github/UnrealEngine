@@ -184,6 +184,7 @@ void FUsdStageViewModel::ImportStage()
 			// This allows a different setting for asset/component collapsing, and doesn't require modifying the PrimTwins
 			ImportContext.AssetsCache = StageActor->GetAssetsCache();
 			ImportContext.PrimPathsToAssets = StageActor->GetPrimPathsToAssets();
+			ImportContext.MaterialToPrimvarToUVIndex = StageActor->GetMaterialToPrimvarToUVIndex();
 
 			UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 			USDImporter->ImportFromFile(ImportContext);

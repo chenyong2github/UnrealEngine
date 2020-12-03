@@ -111,6 +111,7 @@ public:
 	float GetTime() { return Time; }
 	TMap< FString, UObject* > GetAssetsCache() { return AssetsCache; } // Intentional copies
 	TMap< FString, UObject* > GetPrimPathsToAssets() { return PrimPathsToAssets; }
+	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
 #if WITH_EDITOR

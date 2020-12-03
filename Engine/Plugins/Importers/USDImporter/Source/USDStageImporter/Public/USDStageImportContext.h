@@ -50,6 +50,12 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	UPROPERTY()
 	UPackage* ImportedPackage;
 
+	/**
+	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
+	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
+	 */
+	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
+
 	UE::FUsdStage Stage;
 
 	/** Object flags to apply to newly imported objects */
