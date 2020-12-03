@@ -996,6 +996,17 @@ protected:
 
 	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const FToken* OuterPropertyType);
 
+	// Cache of ScriptStructs that have been validated for Net Replication and RPC
+	TSet<UScriptStruct*> ScriptStructsValidForNet;
+
+	/**
+	 * Validate that a ScriptStruct is ok to be Replicated or Sent in an RPC.
+	 * 
+	 * @param OriginStructName  The Name of the ScriptStruct to check
+	 * @param InStruct          The ScriptStruct to check 
+	 */
+	bool ValidateScriptStructOkForNet(const FString& OriginStructName, UScriptStruct* InStruct);
+
 private:
 	// Source file currently parsed by UHT.
 	FUnrealSourceFile* CurrentSourceFile;
