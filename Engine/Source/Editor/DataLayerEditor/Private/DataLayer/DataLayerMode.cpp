@@ -90,7 +90,7 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 {
 	if (const FDataLayerTreeItem* DataLayerItem = Item->CastTo<FDataLayerTreeItem>())
 	{
-		if (const UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+		if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
 		{
 			const FScopedTransaction Transaction(LOCTEXT("SelectActorsInDataLayer", "Select Actors in DataLayer"));
 			GEditor->SelectNone(/*bNoteSelectionChange*/false, true);
@@ -113,14 +113,14 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 
 void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>& Items)
 {
-	TArray<const UDataLayer*> DataLayersToDelete;
-	TMap<const UDataLayer*, TArray<AActor*>> ActorsToRemoveFromDataLayer;
+	TArray<UDataLayer*> DataLayersToDelete;
+	TMap<UDataLayer*, TArray<AActor*>> ActorsToRemoveFromDataLayer;
 
 	for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : Items)
 	{
 		if (FDataLayerActorTreeItem* DataLayerActorItem = Item.Pin()->CastTo<FDataLayerActorTreeItem>())
 		{
-			const UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
+			UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
 			AActor* Actor = DataLayerActorItem->GetActor();
 			if (DataLayer && Actor)
 			{
@@ -293,11 +293,11 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 
 	if (const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>())
 	{
-		if (const UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+		if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
 		{
 			if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
 			{
-				TArray<const UDataLayer*> AllSelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
+				TArray<UDataLayer*> AllSelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 				if (AllSelectedDataLayers.Num() > 1)
 				{
 					const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayers", "Add Actors to DataLayers"));
@@ -316,7 +316,7 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 		{
 			// Only allow actors not coming from the DataLayerBrowser
 			const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Actors to New DataLayer"));
-			if (const UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
+			if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
 			{
 				DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, NewDataLayer);
 			}
@@ -397,12 +397,12 @@ TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const TAr
 static const FName DefaultContextBaseMenuName("DataLayerOutliner.DefaultContextMenuBase");
 static const FName DefaultContextMenuName("DataLayerOutliner.DefaultContextMenu");
 
-TArray<const UDataLayer*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const
+TArray<UDataLayer*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const
 {
 	FSceneOutlinerItemSelection ItemSelection(InSceneOutliner->GetSelection());
 	TArray<FDataLayerTreeItem*> SelectedDataLayerItems;
 	ItemSelection.Get<FDataLayerTreeItem>(SelectedDataLayerItems);
-	TArray<const UDataLayer*> ValidSelectedDataLayers;
+	TArray<UDataLayer*> ValidSelectedDataLayers;
 	Algo::TransformIf(SelectedDataLayerItems, ValidSelectedDataLayers, [](const auto Item) { return Item && Item->GetDataLayer(); }, [](const auto Item) { return Item->GetDataLayer(); });
 	return MoveTemp(ValidSelectedDataLayers);
 }
@@ -424,7 +424,7 @@ void FDataLayerMode::RegisterContextMenu()
 			}
 
 			SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
-			TArray<const UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
+			TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 
 			TArray<const UDataLayer*> AllDataLayers;
 			if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(RepresentingWorld.Get()))
@@ -455,7 +455,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->AddSelectedActorsToDataLayer(NewDataLayer);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return GEditor->GetSelectedActorCount() > 0; })
-								));
+					));
 
 				Section.AddMenuEntry("AddSelectedActorsToSelectedDataLayers", LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected DataLayers"), FText(), FSlateIcon(),
 					FUIAction(
@@ -466,7 +466,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->AddSelectedActorsToDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty() && GEditor->GetSelectedActorCount() > 0; })
-								));
+					));
 
 				Section.AddSeparator("SectionsSeparator");
 
@@ -479,7 +479,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->RemoveSelectedActorsFromDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty() && GEditor->GetSelectedActorCount() > 0; })
-								));
+					));
 
 				Section.AddMenuEntry("DeleteSelectedDataLayers", LOCTEXT("DeleteSelectedDataLayers", "Delete Selected DataLayers"), FText(), FSlateIcon(),
 					FUIAction(
@@ -490,7 +490,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->DeleteDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
-								));
+					));
 
 				Section.AddMenuEntry("RenameSelectedDataLayer", LOCTEXT("RenameSelectedDataLayer", "Rename Selected DataLayer"), FText(), FSlateIcon(),
 					FUIAction(
@@ -505,7 +505,7 @@ void FDataLayerMode::RegisterContextMenu()
 								}
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return SelectedDataLayers.Num() == 1; })
-								));
+					));
 
 				Section.AddSeparator("SectionsSeparator");
 			}
@@ -523,7 +523,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
-								));
+					));
 
 				Section.AddMenuEntry("AppendActorsToSelection", LOCTEXT("AppendActorsToSelection", "Append Actors in DataLayer to Selection"), FText(), FSlateIcon(),
 					FUIAction(
@@ -534,7 +534,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
-								));
+					));
 
 				Section.AddMenuEntry("DeselectActors", LOCTEXT("DeselectActors", "Deselect Actors in DataLayer"), FText(), FSlateIcon(),
 					FUIAction(
@@ -545,7 +545,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/false, /*bNotifySelectActors*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
-								));
+					));
 			}
 
 			{
@@ -560,9 +560,7 @@ void FDataLayerMode::RegisterContextMenu()
 								DataLayerEditorSubsystem->MakeAllDataLayersVisible();
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !AllDataLayers.IsEmpty(); })
-								));
-
-
+					));
 			}
 		}));
 	}

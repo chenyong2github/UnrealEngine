@@ -11,8 +11,7 @@
 struct FDataLayerTreeItem : ISceneOutlinerTreeItem
 {
 	FDataLayerTreeItem(UDataLayer* InDataLayer);
-	const UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
-	UDataLayer* GetDataLayer() { return DataLayer.Get(); }
+	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return DataLayer.IsValid(); }

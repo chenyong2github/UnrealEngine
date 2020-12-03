@@ -104,7 +104,7 @@ UDataLayer* AWorldDataLayers::CreateDataLayer()
 	return NewDataLayer;
 }
 
-bool AWorldDataLayers::RemoveDataLayers(const TArray<const UDataLayer*>& InDataLayers)
+bool AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers)
 {
 	bool bIsModified = false;
 	for (const UDataLayer* DataLayer : InDataLayers)
@@ -119,7 +119,7 @@ bool AWorldDataLayers::RemoveDataLayers(const TArray<const UDataLayer*>& InDataL
 	return bIsModified;
 }
 
-bool AWorldDataLayers::RemoveDataLayer(const UDataLayer* InDataLayer)
+bool AWorldDataLayers::RemoveDataLayer(UDataLayer* InDataLayer)
 {
 	if (ContainsDataLayer(InDataLayer))
 	{

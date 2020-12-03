@@ -96,13 +96,12 @@ FText FDataLayerPropertyTypeCustomization::GetDataLayerDescription(const UDataLa
 	return FText::FromName(InDataLayer->GetDataLayerLabel());
 }
 
-const UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle() const
+UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle() const
 {
 	FName DataLayerName;
 	if (PropertyHandle->GetValue(DataLayerName) == FPropertyAccess::Success)
 	{
-		UDataLayerEditorSubsystem* DataLayerSubsystem = UDataLayerEditorSubsystem::Get();
-		const UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayerFromName(DataLayerName);
+		UDataLayer* DataLayer = UDataLayerEditorSubsystem::Get()->GetDataLayerFromName(DataLayerName);
 		return DataLayer;
 	}
 	return nullptr;
@@ -130,8 +129,7 @@ TSharedRef<SWidget> FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu()
 	MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingDataLayers", "Existing DataLayers"));
 	{
 		TArray<TWeakObjectPtr<UDataLayer>> AllDataLayers;
-		UDataLayerEditorSubsystem* DataLayerSubsystem = UDataLayerEditorSubsystem::Get();
-		DataLayerSubsystem->AddAllDataLayersTo(AllDataLayers);
+		UDataLayerEditorSubsystem::Get()->AddAllDataLayersTo(AllDataLayers);
 
 		for (const TWeakObjectPtr<UDataLayer>& WeakDataLayer : AllDataLayers)
 		{
@@ -161,7 +159,7 @@ EVisibility FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility() 
 
 FReply FDataLayerPropertyTypeCustomization::OnSelectDataLayer()
 {
-	if (const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle())
+	if (UDataLayer* DataLayer = GetDataLayerFromPropertyHandle())
 	{
 		GEditor->SelectNone(true, true);
 		UDataLayerEditorSubsystem::Get()->SelectActorsInDataLayer(DataLayer, true, true);

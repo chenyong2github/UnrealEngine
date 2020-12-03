@@ -21,7 +21,7 @@ private:
 	void AssignDataLayer(const UDataLayer* InDataLayer);
 	void OpenDataLayerBrowser();
 
-	const UDataLayer* GetDataLayerFromPropertyHandle() const;
+	UDataLayer* GetDataLayerFromPropertyHandle() const;
 	FText GetDataLayerDescription(const UDataLayer* InDataLayer) const;
 	FText GetDataLayerText() const;
 	EVisibility GetSelectDataLayerVisibility() const;

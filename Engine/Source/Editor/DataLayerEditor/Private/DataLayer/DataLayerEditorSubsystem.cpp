@@ -255,7 +255,7 @@ UWorld* UDataLayerEditorSubsystem::GetWorld() const
 	return GWorld;
 }
 
-bool UDataLayerEditorSubsystem::AddActorToDataLayer(AActor* Actor, const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::AddActorToDataLayer(AActor* Actor, UDataLayer* DataLayer)
 {
 	TArray<AActor*> Actors;
 	Actors.Add(Actor);
@@ -263,7 +263,7 @@ bool UDataLayerEditorSubsystem::AddActorToDataLayer(AActor* Actor, const UDataLa
 	return AddActorsToDataLayers(Actors, {DataLayer});
 }
 
-bool UDataLayerEditorSubsystem::AddActorToDataLayers(AActor* Actor, const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::AddActorToDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers)
 {
 	TArray<AActor*> Actors;
 	Actors.Add(Actor);
@@ -271,17 +271,12 @@ bool UDataLayerEditorSubsystem::AddActorToDataLayers(AActor* Actor, const TArray
 	return AddActorsToDataLayers(Actors, DataLayers);
 }
 
-bool UDataLayerEditorSubsystem::AddActorsToDataLayer(const TArray<AActor*>& Actors, const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::AddActorsToDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer)
 {
 	return AddActorsToDataLayers(Actors, {DataLayer});
 }
 
-bool UDataLayerEditorSubsystem::AddActorsToDataLayer(const TArray<TWeakObjectPtr<AActor>>& Actors, const UDataLayer* DataLayer)
-{
-	return AddActorsToDataLayers(Actors, {DataLayer});
-}
-
-bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Actors, const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Actors, const TArray<UDataLayer*>& DataLayers)
 {
 	bool bChangesOccurred = false;
 
@@ -326,15 +321,7 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 	return bChangesOccurred;
 }
 
-bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<TWeakObjectPtr<AActor>>& Actors, const TArray<const UDataLayer*>& DataLayers)
-{
-	TArray<AActor*> ActorsRawPtr;
-	Algo::TransformIf(Actors, ActorsRawPtr, [](const TWeakObjectPtr<AActor>& Actor) { return Actor.IsValid(); }, [](const TWeakObjectPtr<AActor>& Actor) { return Actor.Get(); });
-
-	return AddActorsToDataLayers(ActorsRawPtr, DataLayers);
-}
-
-bool UDataLayerEditorSubsystem::RemoveActorFromDataLayer(AActor* Actor, const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::RemoveActorFromDataLayer(AActor* Actor, UDataLayer* DataLayer)
 {
 	TArray<AActor*> Actors;
 	Actors.Add(Actor);
@@ -342,7 +329,7 @@ bool UDataLayerEditorSubsystem::RemoveActorFromDataLayer(AActor* Actor, const UD
 	return RemoveActorsFromDataLayers(Actors, {DataLayer});
 }
 
-bool UDataLayerEditorSubsystem::RemoveActorFromDataLayers(AActor* Actor, const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::RemoveActorFromDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers)
 {
 	TArray<AActor*> Actors;
 	Actors.Add(Actor);
@@ -350,17 +337,12 @@ bool UDataLayerEditorSubsystem::RemoveActorFromDataLayers(AActor* Actor, const T
 	return RemoveActorsFromDataLayers(Actors, DataLayers);
 }
 
-bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayer(const TArray<AActor*>& Actors, const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer)
 {
 	return RemoveActorsFromDataLayers(Actors, {DataLayer});
 }
 
-bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayer(const TArray<TWeakObjectPtr<AActor>>& Actors, const UDataLayer* DataLayer)
-{
-	return RemoveActorsFromDataLayers(Actors, {DataLayer});
-}
-
-bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<AActor*>& Actors, const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<AActor*>& Actors, const TArray<UDataLayer*>& DataLayers)
 {
 	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
@@ -402,14 +384,6 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<AActor*>
 	return bChangesOccurred;
 }
 
-bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<TWeakObjectPtr<AActor>>& Actors, const TArray<const UDataLayer*>& DataLayers)
-{
-	TArray<AActor*> ActorsRawPtr;
-	Algo::TransformIf(Actors, ActorsRawPtr, [](const TWeakObjectPtr<AActor>& Actor) { return Actor.IsValid(); }, [](const TWeakObjectPtr<AActor>& Actor) { return Actor.Get(); });
-
-	return RemoveActorsFromDataLayers(ActorsRawPtr, DataLayers);
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -423,22 +397,22 @@ TArray<AActor*> UDataLayerEditorSubsystem::GetSelectedActors() const
 	return CurrentlySelectedActors;
 }
 
-bool UDataLayerEditorSubsystem::AddSelectedActorsToDataLayer(const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::AddSelectedActorsToDataLayer(UDataLayer* DataLayer)
 {
 	return AddActorsToDataLayer(GetSelectedActors(), DataLayer);
 }
 
-bool UDataLayerEditorSubsystem::RemoveSelectedActorsFromDataLayer(const UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::RemoveSelectedActorsFromDataLayer(UDataLayer* DataLayer)
 {
 	return RemoveActorsFromDataLayer(GetSelectedActors(), DataLayer);
 }
 
-bool UDataLayerEditorSubsystem::AddSelectedActorsToDataLayers(const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::AddSelectedActorsToDataLayers(const TArray<UDataLayer*>& DataLayers)
 {
 	return AddActorsToDataLayers(GetSelectedActors(), DataLayers);
 }
 
-bool UDataLayerEditorSubsystem::RemoveSelectedActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::RemoveSelectedActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers)
 {
 	return RemoveActorsFromDataLayers(GetSelectedActors(), DataLayers);
 }
@@ -449,12 +423,12 @@ bool UDataLayerEditorSubsystem::RemoveSelectedActorsFromDataLayers(const TArray<
 // Operations on actors in DataLayers
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(const UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
+bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
 {
 	return SelectActorsInDataLayer(DataLayer, bSelect, bNotify, bSelectEvenIfHidden, nullptr);
 }
 
-bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(const UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter)
+bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter)
 {
 	bool bChangesOccurred = false;
 
@@ -493,12 +467,12 @@ bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(const UDataLayer* DataLa
 	return bChangesOccurred;
 }
 
-bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<const UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
+bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
 {
 	return SelectActorsInDataLayers(DataLayers, bSelect, bNotify, bSelectEvenIfHidden, nullptr);
 }
 
-bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<const UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter)
+bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter)
 {
 	if (DataLayers.Num() == 0)
 	{
@@ -550,7 +524,7 @@ bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<const UDat
 // Operations on actor viewport visibility regarding DataLayers
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void UDataLayerEditorSubsystem::UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, const UDataLayer* DataLayerThatChanged)
+void UDataLayerEditorSubsystem::UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged)
 {
 	if (!ViewportClient->GetWorld())
 	{
@@ -588,7 +562,7 @@ void UDataLayerEditorSubsystem::UpdatePerViewVisibility(FLevelEditorViewportClie
 	ViewportClient->Invalidate();
 }
 
-void UDataLayerEditorSubsystem::UpdateAllViewVisibility(const UDataLayer* DataLayerThatChanged)
+void UDataLayerEditorSubsystem::UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged)
 {
 	// Update all view's hidden DataLayers if they had this one
 	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
@@ -861,12 +835,12 @@ bool UDataLayerEditorSubsystem::UpdateAllActorsVisibility(const bool bNotifySele
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(const UDataLayer* DataLayer, TArray<AActor*>& InOutActors) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors) const
 {
 	AppendActorsFromDataLayer(DataLayer, InOutActors, nullptr);
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(const UDataLayer* DataLayer, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
 {
 	for (AActor* Actor : FActorRange(GetWorld()))
 	{
@@ -881,27 +855,12 @@ void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(const UDataLayer* Data
 	}
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(const UDataLayer* DataLayer, TArray<TWeakObjectPtr<AActor>>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
-{
-	for (AActor* Actor : FActorRange(GetWorld()))
-	{
-		if (Filter.IsValid() && !Filter->PassesFilter(Actor))
-		{
-			continue;
-		}
-		if (Actor->ContainsDataLayer(DataLayer))
-		{
-			InOutActors.Add(Actor);
-		}
-	}
-}
-
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors) const
 {
 	AppendActorsFromDataLayers(DataLayers, InOutActors, nullptr);
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
 {
 	for (AActor* Actor : FActorRange(GetWorld()))
 	{
@@ -920,47 +879,28 @@ void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<const UD
 	}
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers, TArray<TWeakObjectPtr<AActor>>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
-{
-	for (AActor* Actor : FActorRange(GetWorld()))
-	{
-		if (Filter.IsValid() && !Filter->PassesFilter(Actor))
-		{
-			continue;
-		}
-		for (const UDataLayer* DataLayer : DataLayers)
-		{
-			if (Actor->ContainsDataLayer(DataLayer))
-			{
-				InOutActors.Add(Actor);
-				break;
-			}
-		}
-	}
-}
-
-TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayer(const UDataLayer* DataLayer) const
+TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayer(UDataLayer* DataLayer) const
 {
 	TArray<AActor*> OutActors;
 	AppendActorsFromDataLayer(DataLayer, OutActors);
 	return OutActors;
 }
 
-TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayer(const UDataLayer* DataLayer, const TSharedPtr<FActorFilter>& Filter) const
+TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayer(UDataLayer* DataLayer, const TSharedPtr<FActorFilter>& Filter) const
 {
 	TArray<AActor*> OutActors;
 	AppendActorsFromDataLayer(DataLayer, OutActors, Filter);
 	return OutActors;
 }
 
-TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers) const
+TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers) const
 {
 	TArray<AActor*> OutActors;
 	AppendActorsFromDataLayers(DataLayers, OutActors);
 	return OutActors;
 }
 
-TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayers(const TArray<const UDataLayer*>& DataLayers, const TSharedPtr<FActorFilter>& Filter) const
+TArray<AActor*> UDataLayerEditorSubsystem::GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, const TSharedPtr<FActorFilter>& Filter) const
 {
 	TArray<AActor*> OutActors;
 	AppendActorsFromDataLayers(DataLayers, OutActors, Filter);
@@ -1126,19 +1066,24 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(cons
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
 
-const UDataLayer* UDataLayerEditorSubsystem::GetDataLayerFromName(const FName& DataLayerName) const
+UDataLayer* UDataLayerEditorSubsystem::GetDataLayer(const FActorDataLayer& ActorDataLayer) const
 {
-	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
-	return WorldDataLayers ? WorldDataLayers->GetDataLayerFromName(DataLayerName) : nullptr;
+	return GetDataLayerFromName(ActorDataLayer.Name);
 }
 
-const UDataLayer* UDataLayerEditorSubsystem::GetDataLayerFromLabel(const FName& DataLayerLabel) const
+UDataLayer* UDataLayerEditorSubsystem::GetDataLayerFromName(const FName& DataLayerName) const
 {
 	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
-	return WorldDataLayers ? WorldDataLayers->GetDataLayerFromLabel(DataLayerLabel) : nullptr;
+	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromName(DataLayerName)) : nullptr;
 }
 
-bool UDataLayerEditorSubsystem::TryGetDataLayerFromLabel(const FName& DataLayerLabel, const UDataLayer*& OutDataLayer)
+UDataLayer* UDataLayerEditorSubsystem::GetDataLayerFromLabel(const FName& DataLayerLabel) const
+{
+	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromLabel(DataLayerLabel)) : nullptr;
+}
+
+bool UDataLayerEditorSubsystem::TryGetDataLayerFromLabel(const FName& DataLayerLabel, UDataLayer*& OutDataLayer)
 {
 	OutDataLayer = GetDataLayerFromLabel(DataLayerLabel);
 	return (OutDataLayer != nullptr);
@@ -1174,7 +1119,7 @@ UDataLayer* UDataLayerEditorSubsystem::CreateDataLayer()
 	return NewDataLayer;
 }
 
-void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<const UDataLayer*>& DataLayersToDelete)
+void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayer*>& DataLayersToDelete)
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
@@ -1185,7 +1130,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<const UDataLayer*>
 	}
 }
 
-void UDataLayerEditorSubsystem::DeleteDataLayer(const UDataLayer* DataLayerToDelete)
+void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayer* DataLayerToDelete)
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{

@@ -67,7 +67,7 @@ private:
 	void RegisterContextMenu();
 	void ChooseRepresentingWorld();
 	TArray<AActor*> GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
-	TArray<const UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
+	TArray<UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
 
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;

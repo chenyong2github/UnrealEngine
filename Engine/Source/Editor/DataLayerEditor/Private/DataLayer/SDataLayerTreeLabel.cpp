@@ -155,7 +155,7 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 		return false;
 	}
 
-	const UDataLayer* FoundDataLayer;
+	UDataLayer* FoundDataLayer;
 	if (UDataLayerEditorSubsystem::Get()->TryGetDataLayerFromLabel(*InLabel.ToString(), FoundDataLayer) && FoundDataLayer != DataLayerPtr.Get())
 	{
 		OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This DataLayer already exists");

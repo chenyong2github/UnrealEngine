@@ -2074,7 +2074,6 @@ bool SLevelViewport::IsLayerVisible( FName LayerName ) const
 /** Called when a user selects show or hide all from the DataLayers visibility menu. **/
 void SLevelViewport::OnToggleAllDataLayers(bool bVisible)
 {
-	UDataLayerEditorSubsystem* DataLayerSubsystem = UDataLayerEditorSubsystem::Get();
 	if (bVisible)
 	{
 		// Clear all hidden DataLayers
@@ -2096,7 +2095,7 @@ void SLevelViewport::OnToggleAllDataLayers(bool bVisible)
 	}
 
 	// Update actor visibility for this view
-	DataLayerSubsystem->UpdatePerViewVisibility(LevelViewportClient.Get());
+	UDataLayerEditorSubsystem::Get()->UpdatePerViewVisibility(LevelViewportClient.Get());
 	LevelViewportClient->Invalidate();
 }
 
@@ -2115,7 +2114,7 @@ void SLevelViewport::ToggleShowDataLayer(FName DataLayerName)
 
 	// Update actor visibility for this view
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();
-	if (const UDataLayer* DataLayer = DataLayerEditorSubsystem->GetDataLayerFromName(DataLayerName))
+	if (UDataLayer* DataLayer = DataLayerEditorSubsystem->GetDataLayerFromName(DataLayerName))
 	{
 		DataLayerEditorSubsystem->UpdatePerViewVisibility(LevelViewportClient.Get(), DataLayer);
 		LevelViewportClient->Invalidate();
