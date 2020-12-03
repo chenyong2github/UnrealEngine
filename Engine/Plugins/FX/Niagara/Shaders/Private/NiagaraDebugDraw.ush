@@ -32,7 +32,7 @@ void PackLine(inout RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosi
 	PackLine(OutBuffer, InstanceIndex, InPosition0, InPosition1, PackedColor);
 }
 
-void UnpackLine(inout Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
+void UnpackLine(in Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
 {
 	uint FloatOffset = InstanceIndex * 7;
 
