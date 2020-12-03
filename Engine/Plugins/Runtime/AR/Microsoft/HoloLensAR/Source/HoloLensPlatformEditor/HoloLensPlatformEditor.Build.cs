@@ -11,7 +11,7 @@ public class HoloLensPlatformEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Settings",
-				"TargetPlatform",
+				"DeveloperToolSettings",
 				"DesktopPlatform",
 				"Slate",
 				"SlateCore",
