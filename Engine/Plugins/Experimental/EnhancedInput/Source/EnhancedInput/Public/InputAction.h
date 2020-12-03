@@ -66,6 +66,7 @@ USTRUCT(BlueprintType)
 struct ENHANCEDINPUT_API FInputActionInstance
 {
 	friend class UEnhancedPlayerInput;
+	friend class UInputTriggerChordAction;
 
 	GENERATED_BODY()
 
@@ -74,23 +75,23 @@ private:
 	const UInputAction* SourceAction = nullptr;
 
 	// Internal trigger states
-	ETriggerState LastActionTriggerState = ETriggerState::None;
+	ETriggerState LastTriggerState = ETriggerState::None;
+	ETriggerState MappingTriggerState = ETriggerState::None;
 	ETriggerEventInternal TriggerEventInternal = ETriggerEventInternal(0);	// TODO: Expose access to ETriggerEventInternal?
 
 protected:
-	// TODO: These triggers/modifiers will get ticked NumMappingsAffectingThisAction times per tick, which could cause issues with their internal state tracking if they aren't aware of this. Provide an action/mapping level indicator to the ticker functions? Duplicate triggers at mapping level?
 	// TODO: Just hold a duplicate of the UInputAction in here?
 	// TODO: Restrict blueprint access to triggers and modifiers?
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
 	TArray<UInputTrigger*> Triggers;
 
-	// Per Input modifiers are applied at the mapping level for each input and can be added to mappings directly or to actions (auto-applied to all mappings bound to the action).
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
-	TArray<UInputModifier*> PerInputModifiers;
-
-	// Final Value modifiers are only applied at the action level, once all inputs have been processed.
-	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
-	TArray<UInputModifier*> FinalValueModifiers;
+	TArray<UInputModifier*> Modifiers;
+	
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
+	TArray<UInputModifier*> PerInputModifiers_DEPRECATED;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
+	TArray<UInputModifier*> FinalValueModifiers_DEPRECATED;
 
 	// Combined value of all inputs mapped to this action
 	FInputActionValue Value;
@@ -106,9 +107,6 @@ protected:
 	// Trigger state
 	UPROPERTY(BlueprintReadOnly, Category = Action)
 	ETriggerEvent TriggerEvent = ETriggerEvent::None;
-
-	// Did the value get modified due to an active input
-	bool bInputModifiedValueThisTick = false;
 
 public:
 	FInputActionInstance() = default;
@@ -126,7 +124,9 @@ public:
 	// Time the action has been actively triggered (Triggered only)
 	float GetTriggeredTime() const { return ElapsedTriggeredTime; }
 
-
 	const TArray<UInputTrigger*>& GetTriggers() const { return Triggers; }
-	const TArray<UInputModifier*>& GetModifiers(EModifierExecutionPhase ForPhase) const;
+	const TArray<UInputModifier*>& GetModifiers() const { return Modifiers; }
+
+	UE_DEPRECATED(4.26, "GetModifiers(EModifierExecutionPhase) is deprecated. Use GetModifiers()")
+	const TArray<UInputModifier*>& GetModifiers(EModifierExecutionPhase ForPhase) const { return Modifiers; }
 };

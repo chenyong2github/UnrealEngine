@@ -107,7 +107,7 @@ UInputModifier* AModifierIsAppliedToAnAction(UControllablePlayer& PlayerData, cl
 		// Control mapping rebuild required to recalculate modifier default values
 		// TODO: This will be an issue for run time modification of modifiers
 		ControlMappingsAreRebuilt(PlayerData);
-		return  FInputTestHelper::HasActionData(PlayerData, ActionName) ? FInputTestHelper::GetActionData(PlayerData, ActionName).GetModifiers(Modifier->GetExecutionPhase()).Last() : nullptr;	// If the action hasn't been mapped to yet we can't get a valid instance. TODO: assert?
+		return  FInputTestHelper::HasActionData(PlayerData, ActionName) ? FInputTestHelper::GetActionData(PlayerData, ActionName).GetModifiers().Last() : nullptr;	// If the action hasn't been mapped to yet we can't get a valid instance. TODO: assert?
 	}
 	return nullptr;
 }

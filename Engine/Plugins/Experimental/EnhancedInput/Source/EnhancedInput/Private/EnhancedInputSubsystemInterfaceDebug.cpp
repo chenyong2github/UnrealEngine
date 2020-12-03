@@ -86,7 +86,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 		//DisplayDebugManager.DrawString(FString::Printf(TEXT("Input stack: %s"), *InputStackStr.LeftChop(3)));
 	}
 
-	if (PlayerInput->EnhancedActionMappings.Num() + PlayerInput->LastInjectedActionState.Num() == 0)
+	if (PlayerInput->EnhancedActionMappings.Num() + PlayerInput->LastInjectedActions.Num() == 0)
 	{
 		DisplayDebugManager.SetDrawColor(FColor::Orange);
 		DisplayDebugManager.DrawString(TEXT("No enhanced player input action mappings have been applied to this player."));
@@ -170,7 +170,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					FInputActionValue RawValue(FInputActionValue::GetValueTypeFromKey(Mapping.Key), KeyState ? KeyState->RawValue : FVector::ZeroVector);
 
 					// Show raw key value if non-zero
-					Output += Mapping.Key.GetDisplayName().ToString() + (!KeyOwner && RawValue.GetMagnitudeSq() ? " - (" + RawValue.ToString() + ") - " : " - ");
+					Output += Mapping.Key.GetDisplayName().ToString() + (!KeyOwner && RawValue.GetMagnitudeSq() ? " - ( " + RawValue.ToString() + " ) - " : " - ");
 
 					auto AnyChords = [](const UInputTrigger* Trigger) { return Cast<const UInputTriggerChordAction>(Trigger) != nullptr; };
 					bool bHasChords = IEnhancedInputSubsystemInterface::HasTriggerWith(AnyChords, Mapping.Triggers) || IEnhancedInputSubsystemInterface::HasTriggerWith(AnyChords, Mapping.Action->Triggers);
@@ -208,9 +208,6 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					{
 						const FEnhancedActionKeyMapping& InstancedMapping = PlayerInput->EnhancedActionMappings[Idx];
 
-						ETriggerState TriggerState = InstancedMapping.LastTickTriggerState;
-						// TODO: Calculate current trigger state + event and display that? May need to store LastEvent on the mapping.
-						Output += *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerState"), TriggerState);
 						// TODO: Show state breakdown for all (Active?) triggers?
 
 						FString TriggerOutput;
@@ -225,11 +222,6 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 						{
 							Output += "  ( " + TriggerOutput + " )";
 						}
-
-						if (DrawColor == FColor::White)
-						{
-							DrawColor = ColorFromTriggerState(TriggerState);
-						}
 					}
 
 					MappingDisplayLine.Add(FDisplayLine(DrawColor, Output));
@@ -242,7 +234,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 				ActionStr += Action->GetFName().ToString();
 				if (ActionData/* && ActionData->GetTriggerEvent() != ETriggerEvent::None*/)
 				{
-					ActionStr += FString::Printf(TEXT(" - %s - %.3fs (%s)"), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerEvent"), ActionData->GetTriggerEvent()), ActionData->GetTriggeredTime(), *ActionData->GetValue().ToString());
+					ActionStr += FString::Printf(TEXT(" - %s - %.3fs (%s)"), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerEvent"), ActionData->GetTriggerEvent()), ActionData->GetTriggerEvent() == ETriggerEvent::Triggered ? ActionData->GetTriggeredTime() : ActionData->GetElapsedTime(), *ActionData->GetValue().ToString());
 				}
 				DisplayDebugManager.DrawString(ActionStr);
 
@@ -273,13 +265,8 @@ void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas,
 	// TODO: Display colored dots to show current sampling locations of valid mappings?
 	// TODO: Invalidate and recalculate textures if sample hash changes? (Rebuild sample data every frame)
 
-	int32 NumModifiers = 0;
-	for (int32 Phase = 0; Phase < (int32)EModifierExecutionPhase::NumPhases; ++Phase)
-	{
-		NumModifiers += ActionData->GetModifiers(EModifierExecutionPhase(Phase)).Num();
-	}
-
-	if (NumModifiers > 0)
+	const TArray<UInputModifier*>& Modifiers = ActionData->GetModifiers();
+	if (Modifiers.Num() > 0)
 	{
 		const bool bIs1D = ActionData->GetValue().GetValueType() == EInputActionValueType::Axis1D || ActionData->GetValue().GetValueType() == EInputActionValueType::Boolean;
 
@@ -372,47 +359,43 @@ void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas,
 		bool bDrawnAtLeastOneModifier = false;
 		bool bBuiltAtLeastOneModifier = false;
 
-		for (int32 Phase = 0; Phase < (int32)EModifierExecutionPhase::NumPhases; ++Phase)
+		for (UInputModifier* Modifier : Modifiers)
 		{
-			const TArray<UInputModifier*>& Modifiers = ActionData->GetModifiers(EModifierExecutionPhase(Phase));
-			for (UInputModifier* Modifier : Modifiers)
+			FVisualizationTexture* FoundVis = CachedModifierVisualizations.Find((uint64)Modifier);
+			UTexture2D* Visualization = FoundVis ? FoundVis->Texture : nullptr;
+			if (!Visualization)	// TODO: Running sample calculation requires we always step into this unless all visualizations are already valid
 			{
-				FVisualizationTexture* FoundVis = CachedModifierVisualizations.Find((uint64)Modifier);
-				UTexture2D* Visualization = FoundVis ? FoundVis->Texture : nullptr;
-				if (!Visualization)	// TODO: Running sample calculation requires we always step into this unless all visualizations are already valid
+				static TArray<FVector> SampleData;
+				SampleData.Reserve(VisSize.X * VisSize.Y);
+				SampleData.Reset();
+				// Take copies of each modifier to do the sampling, so as not to corrupt internal state.
+				UInputModifier* SampleModifier = DuplicateObject<UInputModifier>(Modifier, GetTransientPackage());
+				UInputModifier* RunningSampleModifier = DuplicateObject<UInputModifier>(Modifier, GetTransientPackage());
+				for (int32 y = 0; y < VisSize.Y; ++y)
 				{
-					static TArray<FVector> SampleData;
-					SampleData.Reserve(VisSize.X * VisSize.Y);
-					SampleData.Reset();
-					// Take copies of each modifier to do the sampling, so as not to corrupt internal state.
-					UInputModifier* SampleModifier = DuplicateObject<UInputModifier>(Modifier, GetTransientPackage());
-					UInputModifier* RunningSampleModifier = DuplicateObject<UInputModifier>(Modifier, GetTransientPackage());
-					for (int32 y = 0; y < VisSize.Y; ++y)
+					// TODO: How to handle Axis3D? 3D texture and show slice on ActionData->GetValue().Z? Full 3D render?
+					for (int32 x = 0; x < VisSize.X; ++x)
 					{
-						// TODO: How to handle Axis3D? 3D texture and show slice on ActionData->GetValue().Z? Full 3D render?
-						for (int32 x = 0; x < VisSize.X; ++x)
-						{
-							const float DeltaTime = 0.f;// 1.f / 60.f;	// TODO: If we want to sample the whole space at a given time step we need to reset the modifier state each sample and rebuild every frame.
+						const float DeltaTime = 0.f;// 1.f / 60.f;	// TODO: If we want to sample the whole space at a given time step we need to reset the modifier state each sample and rebuild every frame.
 
-							// Update local result
-							FVector Result = SampleModifier->ModifyRaw(PlayerInput, FInputActionValue(Action->ValueType, BuildSampleOffset(x, y)), DeltaTime).Get<FVector>();
-							SampleData.Add(Result);
+						// Update local result
+						FVector Result = SampleModifier->ModifyRaw(PlayerInput, FInputActionValue(Action->ValueType, BuildSampleOffset(x, y)), DeltaTime).Get<FVector>();
+						SampleData.Add(Result);
 
-							// Update running result
-							FVector& RunningResult = RunningSampleData[x + y * VisSize.X];
-							RunningResult = RunningSampleModifier->ModifyRaw(PlayerInput, FInputActionValue(Action->ValueType, RunningResult), DeltaTime).Get<FVector>();
+						// Update running result
+						FVector& RunningResult = RunningSampleData[x + y * VisSize.X];
+						RunningResult = RunningSampleModifier->ModifyRaw(PlayerInput, FInputActionValue(Action->ValueType, RunningResult), DeltaTime).Get<FVector>();
 
-						}
 					}
-
-					UE_LOG(LogTemp, Warning, TEXT("Building visualization for %s:%s (of %d)"), *PlayerInput->GetName(), *Modifier->GetName(), CachedModifierVisualizations.Num());
-					Visualization = CachedModifierVisualizations.Add((uint64)Modifier, FVisualizationTexture(BuildVisualizationTexture(Modifier, SampleData))).Texture;
-					bBuiltAtLeastOneModifier = true;
 				}
 
-				DrawVisualization(Modifier, Visualization, bDrawnAtLeastOneModifier ? TEXT("+") : TEXT(""));
-				bDrawnAtLeastOneModifier = true;
+				UE_LOG(LogTemp, Warning, TEXT("Building visualization for %s:%s (of %d)"), *PlayerInput->GetName(), *Modifier->GetName(), CachedModifierVisualizations.Num());
+				Visualization = CachedModifierVisualizations.Add((uint64)Modifier, FVisualizationTexture(BuildVisualizationTexture(Modifier, SampleData))).Texture;
+				bBuiltAtLeastOneModifier = true;
 			}
+
+			DrawVisualization(Modifier, Visualization, bDrawnAtLeastOneModifier ? TEXT("+") : TEXT(""));
+			bDrawnAtLeastOneModifier = true;
 		}
 
 		// Show final running total version

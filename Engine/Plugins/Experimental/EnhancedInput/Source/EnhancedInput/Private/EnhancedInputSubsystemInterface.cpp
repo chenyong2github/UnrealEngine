@@ -257,7 +257,7 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 
 		// Maintain old input system modification order.
 
-		if (AxisProperties.DeadZone != FInputAxisProperties().DeadZone &&
+		if (AxisProperties.DeadZone > 0.f &&
 			!HasExistingModifier(UInputModifierDeadZone::StaticClass()))
 		{
 			UInputModifierDeadZone* DeadZone = NewObject<UInputModifierDeadZone>();
@@ -266,7 +266,7 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 			Modifiers.Add(DeadZone);
 		}
 
-		if (AxisProperties.Exponent != FInputAxisProperties().Exponent &&
+		if (AxisProperties.Exponent != 1.f &&
 			!HasExistingModifier(UInputModifierResponseCurveExponential::StaticClass()))
 		{
 			UInputModifierResponseCurveExponential* Exponent = NewObject<UInputModifierResponseCurveExponential>();
@@ -275,8 +275,8 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 		}
 
 		// Sensitivity stacks with user defined.
-		// TODO: Unexpected behaviour but makes sense for most use cases. E.g. Mouse sensitivity, which is scaled by 0.07 in BaseInput.ini, would be broken by adding a Look action sensitivity.
-		if (AxisProperties.Sensitivity != FInputAxisProperties().Sensitivity /* &&
+		// TODO: Unexpected behavior but makes sense for most use cases. E.g. Mouse sensitivity, which is scaled by 0.07 in BaseInput.ini, would be broken by adding a Look action sensitivity.
+		if (AxisProperties.Sensitivity != 1.f /* &&
 			!HasExistingModifier(UInputModifierScalar::StaticClass())*/)
 		{
 			UInputModifierScalar* Sensitivity = NewObject<UInputModifierScalar>();
@@ -351,7 +351,8 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			if (Mapping.Action && !AppliedKeys.Contains(Mapping.Key))
 			{
 				auto AnyChords = [](const UInputTrigger* Trigger) { return Cast<const UInputTriggerChordAction>(Trigger) != nullptr; };
-				bool bHasChords = HasTriggerWith(AnyChords, Mapping.Triggers) || HasTriggerWith(AnyChords, Mapping.Action->Triggers);
+				bool bHasActionChords = HasTriggerWith(AnyChords, Mapping.Action->Triggers);
+				bool bHasChords = HasTriggerWith(AnyChords, Mapping.Triggers) || bHasActionChords;
 
 				// Chorded actions can't consume input or they could hide the action they are chording.
 				if (!bHasChords && Mapping.Action->bConsumeInput)
@@ -377,6 +378,19 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 					// TODO: Re-prioritize chorded mappings (within same context only?) by number of chorded actions, so Ctrl + Alt + [key] > Ctrl + [key] > [key].
 					// TODO: Above example shouldn't block [key] if only Alt is down, as there is no direct Alt + [key] mapping.y
 					ChordedMappings.Emplace(&NewMapping, PlayerInput->EnhancedActionMappings.Num());
+
+					// Action level chording triggers need to be evaluated at the mapping level to ensure they block early enough.
+					// TODO: Continuing to evaluate these at the action level is redundant.
+					if (bHasActionChords)
+					{
+						for (const UInputTrigger* Trigger : Mapping.Action->Triggers)
+						{
+							if (AnyChords(Trigger))
+							{
+								NewMapping.Triggers.Add(DuplicateObject(Trigger, nullptr));
+							}
+						}
+					}
 				}
 			}
 		}
