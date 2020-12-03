@@ -2903,9 +2903,6 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 
 void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
 {
-	// Make sure cached data is saved in cooked builds
-	bSavedCachedData = true;
-
 	if (bHasStaticPermutationResource)
 	{
 		UMaterial* BaseMaterial = GetMaterial();
@@ -3336,6 +3333,20 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_Serialize);
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+
+	if (Ar.IsCooking())
+	{
+		if (CachedData)
+		{
+			bSavedCachedData = true;
+		}
+		else
+		{
+			// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
+			checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material instance %s, missing CachedExpressionData"), *GetName());
+		}
+	}
+
 	Super::Serialize(Ar);
 		
 #if WITH_EDITOR
@@ -3370,6 +3381,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		{
 			CachedData = new FMaterialInstanceCachedData();
 		}
+		check(CachedData);
 		UScriptStruct* Struct = FMaterialInstanceCachedData::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedData, Struct, nullptr);
 	}

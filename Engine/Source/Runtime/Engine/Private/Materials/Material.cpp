@@ -3198,9 +3198,6 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 
 	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
 
-	// Make sure cached data is saved in cooked builds
-	bSavedCachedExpressionData = true;
-
 	OutCachedMaterialResources.Append(NewResourcesToCache);
 }
 
@@ -3301,6 +3298,19 @@ void UMaterial::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
+	if (Ar.IsCooking())
+	{
+		if (CachedExpressionData)
+		{
+			bSavedCachedExpressionData = true;
+		}
+		else
+		{
+			// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
+			checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material %s, missing CachedExpressionData"), *GetName());
+		}
+	}
+
 	Super::Serialize(Ar);
 
 	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
@@ -3338,6 +3348,7 @@ void UMaterial::Serialize(FArchive& Ar)
 		{
 			CachedExpressionData = new FMaterialCachedExpressionData();
 		}
+		check(CachedExpressionData);
 		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData, Struct, nullptr);
 	}
