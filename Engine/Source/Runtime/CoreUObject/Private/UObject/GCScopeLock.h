@@ -28,7 +28,7 @@ class FGCCSyncObject
 	/** Non zero if GC wants to run but is blocked by some other thread \
 	    This flag is not automatically enforced on the async threads, instead
 			threads have to manually implement support for it. */
-	FThreadSafeCounter GCWantsToRunCounter;
+	TAtomic<int32> GCWantsToRunCounter {0};
 	/** Critical section for thread safe operations */
 	FCriticalSection Critical;
 	/** Event used to block non-game threads when GC is running */
@@ -141,18 +141,18 @@ public:
 	/** Manually mark GC state as 'waiting to run' */
 	void SetGCIsWaiting()
 	{
-		GCWantsToRunCounter.Increment();
+		GCWantsToRunCounter++;
 	}
 
 	/** Manually reset GC 'waiting to run' state*/
 	void ResetGCIsWaiting()
 	{
-		GCWantsToRunCounter.Set(0);
+		GCWantsToRunCounter.Store(0);
 	}
 
 	/** True if GC wants to run on the game thread but is maybe blocked by some other thread */
 	FORCEINLINE bool IsGCWaiting() const
 	{
-		return !!GCWantsToRunCounter.GetValue();
+		return !!GCWantsToRunCounter.Load(EMemoryOrder::Relaxed);
 	}
 };
