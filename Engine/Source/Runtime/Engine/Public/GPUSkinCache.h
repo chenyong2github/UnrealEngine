@@ -367,17 +367,14 @@ public:
 	ENGINE_API void TransitionAllToReadable(FRHICommandList& RHICmdList);
 
 #if RHI_RAYTRACING
-	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* RayTracingGeometry)
-	{
-		RayTracingGeometriesToUpdate.Add(RayTracingGeometry);
-	}
-
-	void CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList);
-
+	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, EAccelerationStructureBuildMode InBuildMode);
+	ENGINE_API void CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList);
 	void RemoveRayTracingGeometryUpdate(FRayTracingGeometry* RayTracingGeometry)
 	{
 		if (RayTracingGeometriesToUpdate.Find(RayTracingGeometry) != nullptr)
+		{
 			RayTracingGeometriesToUpdate.Remove(RayTracingGeometry);
+		}
 	}
 
 	void ProcessRayTracingGeometryToUpdate(
@@ -399,7 +396,7 @@ protected:
 
 	TSet<FRHIUnorderedAccessView*> BuffersToTransition;
 #if RHI_RAYTRACING
-	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
+	TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode> RayTracingGeometriesToUpdate;
 	uint64 RayTracingGeometryMemoryPendingRelease = 0;
 #endif // RHI_RAYTRACING
 

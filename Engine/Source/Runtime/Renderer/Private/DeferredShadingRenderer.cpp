@@ -1147,6 +1147,18 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates);
 
+	// Make sure there are no pending skin cache builds and updates anymore:
+	// FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread could have enqueued build operations which might not have
+	// been processed by CommitRayTracingGeometryUpdates. All pending builds should be done before adding them to the 
+	// top level BVH
+	if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
+	{
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+			{
+				Scene->GetGPUSkinCache()->CommitRayTracingGeometryUpdates(RHICmdList);
+			});
+	}
+
 	FViewInfo& ReferenceView = Views[0];
 	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
 	{
