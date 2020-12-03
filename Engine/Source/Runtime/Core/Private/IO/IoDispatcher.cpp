@@ -208,16 +208,16 @@ public:
 
 	void Cancel(FIoRequestImpl* Request)
 	{
-		FScopeLock _(&UpdateLock);
+		/*FScopeLock _(&UpdateLock);
 		RequestsToCancel.Add(Request);
-		WakeUpDispatcherThread();
+		WakeUpDispatcherThread();*/
 	}
 
 	void Reprioritize(FIoRequestImpl* Request)
 	{
-		FScopeLock _(&UpdateLock);
+		/*FScopeLock _(&UpdateLock);
 		RequestsToReprioritize.Add(Request);
-		WakeUpDispatcherThread();
+		WakeUpDispatcherThread();*/
 	}
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
