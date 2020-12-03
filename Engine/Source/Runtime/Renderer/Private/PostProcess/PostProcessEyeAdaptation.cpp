@@ -226,6 +226,7 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 		EngineShowFlags.VisualizeDistanceFieldAO ||
 		EngineShowFlags.VisualizeMeshDistanceFields ||
 		EngineShowFlags.VisualizeGlobalDistanceField ||
+		EngineShowFlags.VisualizeVolumetricCloudConservativeDensity ||
 		EngineShowFlags.CollisionVisibility ||
 		EngineShowFlags.CollisionPawn ||
 		!EngineShowFlags.PostProcessing;

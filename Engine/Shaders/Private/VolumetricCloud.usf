@@ -576,6 +576,7 @@ bool TraceClouds(
 	uint DebugShadowMaterialSampleCount = 0;
 	uint DebugGroundShadowSampleCount = 0;
 	uint DebugGroundShadowMaterialSampleCount = 0;
+	uint DebugZeroConservativeDensitySampleCount = 0;
 
 	const float3 wi0 = Light0Direction;
 	const float3 wi1 = Light1Direction;
@@ -618,7 +619,6 @@ bool TraceClouds(
 		t = TMin + (float(Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).x) * rcp(65536.0)) * StepT;
 	}
 
-
 	float3 S0 = 0.0f;
 	for (uint i = 0; i < IStepCount; ++i)
 	{
@@ -634,8 +634,13 @@ bool TraceClouds(
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
+		#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+			++DebugZeroConservativeDensitySampleCount;
+			t += StepT;
+		#else
 			i += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity - 1;
 			t += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity * StepT;
+		#endif
 			continue; // Conservative density is 0 so skip and go to the next sample
 		}
 	#endif
@@ -1003,13 +1008,47 @@ bool TraceClouds(
 		}
 
 		// This is helpful for performance. Can result in less light pucnhing through clouds. Should be a setting.
-		if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold))
+		if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold)
+			&& (!CLOUD_SAMPLE_COUNT_DEBUG_MODE || RenderVolumetricCloudParameters.SampleCountDebugMode < 6))
 		{
 			break;
 		}
 
 		t += StepT;
 	}
+
+#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+	if (RenderVolumetricCloudParameters.SampleCountDebugMode == 6)
+	{
+		OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
+	}
+	else if (RenderVolumetricCloudParameters.SampleCountDebugMode > 0)
+	{
+		uint CountToDebug = 0;
+		switch (RenderVolumetricCloudParameters.SampleCountDebugMode)
+		{
+		case 1:
+			CountToDebug = DebugPrimaryMaterialSampleCount;
+			break;
+		case 2:
+			CountToDebug = DebugShadowSampleCount;
+			break;
+		case 3:
+			CountToDebug = DebugShadowMaterialSampleCount;
+			break;
+		case 4:
+			CountToDebug = DebugGroundShadowSampleCount;
+			break;
+		case 5:
+			CountToDebug = DebugGroundShadowMaterialSampleCount;
+			break;
+		}
+
+		const bool bMediumHit = CountToDebug > 0;
+		OutColor0 = float4(bMediumHit ? GetColorCode(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f); 
+		OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
+	}
+#endif
 
 	return true;
 }
@@ -1149,42 +1188,17 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	//
 
 	float GrayScaleTransmittance = MeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : MeanTransmittance;
+#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+	OutColor0 = float4(OutColor0.r * OutputPreExposure, Luminance.gb * OutputPreExposure, GrayScaleTransmittance);
+#else
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
+#endif
 
 	OutColor1.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
 		OutColor1.x = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
-
-#if 0
-	if (RenderVolumetricCloudParameters.SampleCountDebugMode > 0)
-	{
-		uint CountToDebug = 0;
-		switch (RenderVolumetricCloudParameters.SampleCountDebugMode)
-		{
-		case 1:
-			CountToDebug = DebugPrimaryMaterialSampleCount;
-			break;
-		case 2:
-			CountToDebug = DebugShadowSampleCount;
-			break;
-		case 3:
-			CountToDebug = DebugShadowMaterialSampleCount;
-			break;
-		case 4:
-			CountToDebug = DebugGroundShadowSampleCount;
-			break;
-		case 5:
-			CountToDebug = DebugGroundShadowMaterialSampleCount;
-			break;
-		}
-
-		const bool bMediumHit = CountToDebug > 0;
-		OutColor0 = float4(bMediumHit ? GetColorCode(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f); 
-		OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
-	}
-#endif
 }
 
 #endif // SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS

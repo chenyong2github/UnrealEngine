@@ -1850,17 +1850,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End early Shadow depth rendering
 
 	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	const bool bShouldRenderVolumetricCloud = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
+	const bool bShouldRenderVolumetricCloudBase = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
+	const bool bShouldRenderVolumetricCloud = bShouldRenderVolumetricCloudBase && !ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
+	const bool bShouldVisualizeVolumetricCloud = bShouldRenderVolumetricCloudBase && !!ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
 	bool bAsyncComputeVolumetricCloud = IsVolumetricRenderTargetEnabled() && IsVolumetricRenderTargetAsyncCompute();
 	bool bHasHalfResCheckerboardMinMaxDepth = false;
 	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud;
 
-	if (bVolumetricRenderTargetRequired)
+	if (bShouldRenderVolumetricCloudBase)
 	{
 		InitVolumetricRenderTargetForViews(GraphBuilder);
 	}
 
-	if (bShouldRenderVolumetricCloud)
+	if (bShouldRenderVolumetricCloudBase)
 	{
 		InitVolumetricCloudsForViews(GraphBuilder);
 	}
@@ -2572,6 +2574,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
 	{
 		RenderStationaryLightOverlap(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, LightingChannelsTexture, SceneTextures);
+		AddServiceLocalQueuePass(GraphBuilder);
+	}
+
+	if (bShouldVisualizeVolumetricCloud)
+	{
+		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), false, true, SceneColorTexture, SceneDepthTexture, false);
+		ReconstructVolumetricRenderTarget(GraphBuilder, false);
+		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, SceneColorTexture.Target);
+		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), true, false, SceneColorTexture, SceneDepthTexture, false);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 
