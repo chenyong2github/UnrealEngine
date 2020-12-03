@@ -627,6 +627,13 @@ void SUsdStageTreeView::OnAddReference()
 		return;
 	}
 
+	// This transaction is important as adding a reference may trigger the creation of new unreal assets, which need to be
+	// destroyed if we spam undo afterwards. Undoing won't remove the actual reference from the stage yet though, sadly...
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "AddReferenceTransaction", "Add reference to file '{0}'" ),
+		FText::FromString( PickedFile.GetValue() )
+	) );
+
 	const FString AbsoluteFilePath = FPaths::ConvertRelativePathToFull( PickedFile.GetValue() );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
@@ -643,6 +650,8 @@ void SUsdStageTreeView::OnClearReferences()
 	{
 		return;
 	}
+
+	FScopedTransaction Transaction( LOCTEXT( "ClearReferenceTransaction", "Clear references to USD layers" ) );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 

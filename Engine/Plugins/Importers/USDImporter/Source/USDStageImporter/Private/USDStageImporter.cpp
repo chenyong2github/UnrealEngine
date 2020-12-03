@@ -615,15 +615,15 @@ namespace UsdStageImporterImpl
 		if (ExistingAsset != nullptr && ExistingAsset != Asset && ReplacePolicy == EReplaceAssetPolicy::Replace)
 		{
 			// Release render state of existing meshes because we'll replace them
-			TUniquePtr<FSkinnedMeshComponentRecreateRenderStateContext> SkinnedRecreateRenderStateContext;
-			TUniquePtr<FStaticMeshComponentRecreateRenderStateContext> StaticRecreateRenderStateContext;
+			TOptional<FSkinnedMeshComponentRecreateRenderStateContext> SkinnedRecreateRenderStateContext;
+			TOptional<FStaticMeshComponentRecreateRenderStateContext> StaticRecreateRenderStateContext;
 			if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ExistingAsset))
 			{
-				SkinnedRecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(SkeletalMesh);
+				SkinnedRecreateRenderStateContext.Emplace(SkeletalMesh);
 			}
 			else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ExistingAsset))
 			{
-				StaticRecreateRenderStateContext = MakeUnique<FStaticMeshComponentRecreateRenderStateContext>(StaticMesh);
+				StaticRecreateRenderStateContext.Emplace(StaticMesh);
 			}
 
 			OldAssetPathName = ExistingAsset->GetPathName();

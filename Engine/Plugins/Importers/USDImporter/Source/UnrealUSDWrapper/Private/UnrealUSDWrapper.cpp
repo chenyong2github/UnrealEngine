@@ -8,6 +8,7 @@
 
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/SdfLayer.h"
 
 #include "Internationalization/Regex.h"
 #include "Misc/Paths.h"
@@ -958,7 +959,7 @@ TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 	return Result;
 }
 
-UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
+UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
@@ -966,16 +967,28 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoa
 	pxr::SdfLayerHandleSet LoadedLayers = pxr::SdfLayer::GetLoadedLayers();
 	pxr::UsdStageRefPtr Stage;
 
+	TOptional<pxr::UsdStageCacheContext> StageCacheContext;
 	if ( bUseStageCache )
 	{
-		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
-
-		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+		StageCacheContext.Emplace( pxr::UsdUtilsStageCache::Get() );
 	}
-	else
-	{
-		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
 
+	FString IdentifierStr = FString(Identifier);
+	if ( FPaths::FileExists( IdentifierStr ) )
+	{
+		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( Identifier ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+	}
+	else if ( IdentifierStr.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+	{
+		pxr::SdfLayerRefPtr RootLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *IdentifierStr ) );
+		if ( RootLayer )
+		{
+			Stage = pxr::UsdStage::Open( RootLayer, pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+		}
+	}
+
+	if ( !bUseStageCache )
+	{
 		// Layers are cached in the layer registry independently of the stage cache. If the layer is already in the registry by the time
 		// we try to open a stage, even if we're not using a stage cache at all the layer will be reused and the file will *not* be re-read.
 		// Here we keep track of these loaded layers and manually reload the ones that were reused, because if we're passing false for
@@ -1003,13 +1016,27 @@ UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )
 	FScopedUsdAllocs UsdAllocs;
 
 	UE::FUsdStage UsdStage( pxr::UsdStage::CreateNew( TCHAR_TO_ANSI( FilePath ) ) );
-
-	if ( !UsdStage )
+	if ( UsdStage )
 	{
-		return UsdStage;
+		pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
 	}
 
-	pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
+	return UsdStage;
+#else
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+UE::FUsdStage UnrealUSDWrapper::NewStage()
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	UE::FUsdStage UsdStage( pxr::UsdStage::CreateInMemory() );
+	if ( UsdStage )
+	{
+		pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
+	}
 
 	return UsdStage;
 #else

@@ -23,7 +23,7 @@ namespace UE
 		{
 		public:
 			FSdfLayerImpl() = default;
-			
+
 #if USE_USD_SDK
 			explicit FSdfLayerImpl( const pxr::SdfLayerRefPtr& InSdfLayer )
 				: PxrSdfLayer( InSdfLayer )
@@ -383,6 +383,15 @@ namespace UE
 	{
 #if USE_USD_SDK
 		return Impl->PxrSdfLayer.Get()->EraseTimeSample( Path, Time );
+#endif // #if USE_USD_SDK
+	}
+
+	bool FSdfLayer::IsAnonymous() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->IsAnonymous();
+#else
+		return false;
 #endif // #if USE_USD_SDK
 	}
 

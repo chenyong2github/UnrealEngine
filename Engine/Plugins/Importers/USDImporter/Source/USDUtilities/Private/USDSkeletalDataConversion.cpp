@@ -2426,7 +2426,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 		}
 
 		// Enable the variant edit context, if we are creating variant LODs
-		TUniquePtr< pxr::UsdEditContext > EditContext;
+		TOptional< pxr::UsdEditContext > EditContext;
 		if ( bExportMultipleLODs )
 		{
 			pxr::UsdVariantSet VariantSet = VariantSets.GetVariantSet( UnrealIdentifiers::LOD );
@@ -2437,7 +2437,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			}
 
 			VariantSet.SetVariantSelection( VariantName );
-			EditContext = MakeUnique< pxr::UsdEditContext>( VariantSet.GetVariantEditContext() );
+			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
 		pxr::SdfPath MeshPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( bExportMultipleLODs ? VariantName : UnrealToUsd::ConvertString( *SkeletalMesh->GetName() ).Get() ) );
@@ -2494,7 +2494,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			// Restore the edit target to the current LOD variant so that the relationship itself ends up inside the mesh, inside the variant
 			if ( bExportMultipleLODs )
 			{
-				EditContext = MakeUnique< pxr::UsdEditContext>( VariantSets.GetVariantSet( UnrealIdentifiers::LOD ).GetVariantEditContext() );
+				EditContext.Emplace( VariantSets.GetVariantSet( UnrealIdentifiers::LOD ).GetVariantEditContext() );
 			}
 
 			pxr::UsdSkelBindingAPI LODMeshBindingAPI{ UsdLODPrimGeomMesh };

@@ -145,6 +145,25 @@ struct FUsdStageActorImpl
 		}
 #endif // WITH_EDITOR
 	}
+
+	static void DiscardStage( const UE::FUsdStage& Stage )
+	{
+		if ( Stage )
+		{
+			UE::FSdfLayer RootLayer = Stage.GetRootLayer();
+			if ( RootLayer && RootLayer.IsAnonymous() )
+			{
+				// Erasing an anonymous stage would fully delete it. If we later undo/redo into a path that referenced
+				// one of those anonymous layers, we wouldn't be able to load it back again.
+				// To prevent that, for now we don't actually erase anonymous stages when discarding them. This shouldn't be
+				// so bad as these stages are likely to be pretty small anyway... in the future we may have some better way of
+				// undo/redoing USD operations that could eliminate this issue
+				return;
+			}
+		}
+
+		UnrealUSDWrapper::EraseStageFromCache( Stage );
+	}
 };
 
 AUsdStageActor::AUsdStageActor()
@@ -253,10 +272,10 @@ AUsdStageActor::AUsdStageActor()
 		UsdListener.GetOnLayersChanged().AddLambda(
 			[&]( const TArray< FString >& ChangeVec )
 			{
-				TUniquePtr< TGuardValue< ITransaction* > > SuppressTransaction = nullptr;
+				TOptional< TGuardValue< ITransaction* > > SuppressTransaction;
 				if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
 				{
-					SuppressTransaction = MakeUnique< TGuardValue< ITransaction* > >( GUndo, nullptr );
+					SuppressTransaction.Emplace( GUndo, nullptr );
 				}
 
 				// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
@@ -283,10 +302,10 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 	// We need to keep the transaction, or else we may end up with actors outside of the transaction
 	// system that want to use assets that will be destroyed by it on an undo.
 	// Note that we can't just make the spawned components/assets nontransactional because the PIE world will transact too
-	TUniquePtr<TGuardValue<ITransaction*>> SuppressTransaction = nullptr;
+	TOptional<TGuardValue<ITransaction*>> SuppressTransaction;
 	if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
 	{
-		SuppressTransaction = MakeUnique<TGuardValue<ITransaction*>>(GUndo, nullptr);
+		SuppressTransaction.Emplace(GUndo, nullptr);
 	}
 
 	FScopedSlowTask RefreshStageTask( SortedPrimsChangedList.Num(), LOCTEXT( "RefreshingUSDStage", "Refreshing USD Stage" ) );
@@ -447,7 +466,7 @@ AUsdStageActor::~AUsdStageActor()
 		// (e.g. when changing to a level that also uses this level as sublevel) the engine will reuse the level and this
 		// same actor, so we can't reset our properties and cache, as they will be reused on the new level.
 		OnActorDestroyed.Broadcast();
-		UnrealUSDWrapper::EraseStageFromCache( UsdStage );
+		FUsdStageActorImpl::DiscardStage( UsdStage );
 	}
 #endif // WITH_EDITOR
 }
@@ -484,7 +503,7 @@ USDSTAGE_API void AUsdStageActor::Reset()
 
 	RootLayer.FilePath.Empty();
 
-	UnrealUSDWrapper::EraseStageFromCache( UsdStage );
+	FUsdStageActorImpl::DiscardStage( UsdStage );
 	UsdStage = UE::FUsdStage();
 
 	OnStageChanged.Broadcast();
@@ -725,10 +744,7 @@ void AUsdStageActor::OpenUsdStage()
 
 	UsdUtils::StartMonitoringErrors();
 
-	if ( FPaths::FileExists( RootLayer.FilePath ) )
-	{
-		UsdStage = UnrealUSDWrapper::OpenStage( *RootLayer.FilePath, InitialLoadSet );
-	}
+	UsdStage = UnrealUSDWrapper::OpenStage( *RootLayer.FilePath, InitialLoadSet );
 
 	if ( UsdStage )
 	{
@@ -903,7 +919,7 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(AUsdStageActor, RootLayer)))
 		{
 			// Changed the path, so we need to reopen to the correct stage
-			UnrealUSDWrapper::EraseStageFromCache( UsdStage );
+			FUsdStageActorImpl::DiscardStage( UsdStage );
 			UsdStage = UE::FUsdStage();
 			OnStageChanged.Broadcast();
 
@@ -1204,7 +1220,7 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 
 	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
 	{
-		UnrealUSDWrapper::EraseStageFromCache( UsdStage );
+		FUsdStageActorImpl::DiscardStage( UsdStage );
 		UsdStage = UE::FUsdStage();
 
 		FUsdStageActorImpl::CloseEditorsForAssets( AssetsCache );

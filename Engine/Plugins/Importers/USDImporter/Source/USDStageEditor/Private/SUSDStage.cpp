@@ -486,12 +486,7 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 
 void SUsdStage::OnNew()
 {
-	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
-
-	if ( UsdFilePath )
-	{
-		ViewModel.NewStage( *UsdFilePath.GetValue() );
-	}
+	ViewModel.NewStage( nullptr );
 }
 
 void SUsdStage::OnOpen()
@@ -506,7 +501,31 @@ void SUsdStage::OnOpen()
 
 void SUsdStage::OnSave()
 {
-	ViewModel.SaveStage();
+	UE::FUsdStage UsdStage;
+	if ( ViewModel.UsdStageActor.IsValid() )
+	{
+		UsdStage = ViewModel.UsdStageActor->GetUsdStage();
+	}
+
+	if ( UsdStage )
+	{
+		if ( UE::FSdfLayer RootLayer = UsdStage.GetRootLayer() )
+		{
+			FString RealPath = RootLayer.GetRealPath();
+			if ( FPaths::FileExists( RealPath ) )
+			{
+				ViewModel.SaveStage();
+			}
+			else
+			{
+				TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+				if ( UsdFilePath )
+				{
+					ViewModel.SaveStageAs( *UsdFilePath.GetValue() );
+				}
+			}
+		}
+	}
 }
 
 void SUsdStage::OnReloadStage()

@@ -1200,7 +1200,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		pxr::SdfPath LODPrimPath = ParentPrimPath.AppendPath(pxr::SdfPath(VariantName));
 
 		// Enable the variant edit context, if we are creating variant LODs
-		TUniquePtr< pxr::UsdEditContext > EditContext;
+		TOptional< pxr::UsdEditContext > EditContext;
 		if ( bExportMultipleLODs )
 		{
 			pxr::UsdVariantSet VariantSet = VariantSets.GetVariantSet( UnrealIdentifiers::LOD );
@@ -1211,7 +1211,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			}
 
 			VariantSet.SetVariantSelection( VariantName );
-			EditContext = MakeUnique< pxr::UsdEditContext>( VariantSet.GetVariantEditContext() );
+			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
 		pxr::UsdGeomMesh TargetMesh;
