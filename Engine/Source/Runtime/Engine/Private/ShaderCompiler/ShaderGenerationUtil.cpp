@@ -253,7 +253,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 
 
 // if we change the logic, increment this number to force a DDC key change
-static const int32 GBufferGeneratorVersion = 2;
+static const int32 GBufferGeneratorVersion = 3;
 
 static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform)
 {
@@ -1097,6 +1097,7 @@ static FString CreateGBufferDecodeFunctionDirect(const FGBufferInfo& BufferInfo)
 		}
 	}
 	FullStr += TEXT(",\n\tfloat CustomNativeDepth");
+	FullStr += TEXT(",\n\tfloat4 AnisotropicData");
 	FullStr += TEXT(",\n\tuint CustomStencil");
 	FullStr += TEXT(",\n\tfloat SceneDepth");
 	FullStr += TEXT(",\n\tbool bGetNormalizedNormal");
@@ -1275,6 +1276,8 @@ static FString CreateGBufferDecodeFunctionDirect(const FGBufferInfo& BufferInfo)
 		}
 	}
 
+	FullStr += TEXT("\tRet.WorldTangent = AnisotropicData.xyz;\n");
+	FullStr += TEXT("\tRet.Anisotropy = AnisotropicData.w;\n");
 
 	FullStr += TEXT("\n");
 	FullStr += TEXT("\tGBufferPostDecode(Ret,bChecker,bGetNormalizedNormal);\n");
@@ -1340,7 +1343,6 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 
 	FullStr += TEXT("{\n");
 
-
 	if (DecodeType == CoordUV)
 	{
 		FullStr += FString::Printf(TEXT("\tfloat CustomNativeDepth = Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_CustomDepthTextureSampler, %s, 0).r;\n"), CoordName.GetCharArray().GetData());
@@ -1356,12 +1358,14 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 		}
 
 		FullStr += FString::Printf(TEXT("\tfloat SceneDepth = CalcSceneDepth(%s);\n"), CoordName.GetCharArray().GetData());
+		FullStr += TEXT("\tfloat4 AnisotropicData = Texture2DSampleLevel(SceneTexturesStruct.GBufferFTexture, SceneTexturesStruct_GBufferFTextureSampler, UV, 0).xyzw;\n");
 	}
 	else if (DecodeType == CoordUInt)
 	{
 		FullStr += FString::Printf(TEXT("\tfloat CustomNativeDepth = SceneTexturesStruct.CustomDepthTexture.Load(int3(%s, 0)).r;\n"), CoordName.GetCharArray().GetData());
 		FullStr += FString::Printf(TEXT("\tuint CustomStencil = SceneTexturesStruct.CustomStencilTexture.Load(int3(%s, 0)) STENCIL_COMPONENT_SWIZZLE;\n"), CoordName.GetCharArray().GetData());
 		FullStr += FString::Printf(TEXT("\tfloat SceneDepth = CalcSceneDepth(%s);\n"), CoordName.GetCharArray().GetData());
+		FullStr += TEXT("\tfloat4 AnisotropicData = SceneTexturesStruct.GBufferFTexture.Load(int3(PixelPos, 0)).xyzw;\n");
 	}
 	else if (DecodeType == SceneTextures)
 	{
@@ -1369,6 +1373,7 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 		FullStr += TEXT("\tfloat CustomNativeDepth = 0;\n");
 		FullStr += FString::Printf(TEXT("\tfloat DeviceZ = SampleDeviceZFromSceneTexturesTempCopy(%s);\n"), CoordName.GetCharArray().GetData());
 		FullStr += TEXT("\tfloat SceneDepth = ConvertFromDeviceZ(DeviceZ);\n");
+		FullStr += TEXT("\tfloat4 AnisotropicData = GBufferFTexture.SampleLevel(GBufferFTextureSampler, UV, 0).xyzw;\n");
 	}
 	else if (DecodeType == SceneTexturesLoad)
 	{
@@ -1376,6 +1381,7 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 		FullStr += TEXT("\tfloat CustomNativeDepth = 0;\n");
 		FullStr += FString::Printf(TEXT("\tfloat DeviceZ = SceneDepthTexture.Load(int3(%s, 0)).r;\n"), CoordName.GetCharArray().GetData());
 		FullStr += TEXT("\tfloat SceneDepth = ConvertFromDeviceZ(DeviceZ);\n");
+		FullStr += TEXT("\tfloat4 AnisotropicData = GBufferFTexture.Load(int3(PixelCoord, 0)).xyzw;\n");
 	}
 	else
 	{
@@ -1490,6 +1496,7 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 		}
 	}
 	FullStr += TEXT(",\n\t\tCustomNativeDepth");
+	FullStr += TEXT(",\n\t\tAnisotropicData");
 	FullStr += TEXT(",\n\t\tCustomStencil");
 	FullStr += TEXT(",\n\t\tSceneDepth");
 	FullStr += TEXT(",\n\t\tbGetNormalizedNormal");

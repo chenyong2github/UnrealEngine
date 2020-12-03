@@ -725,7 +725,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextures& SceneTextures,
+	FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	FRDGTextureRef ForwardShadowMaskTexture)
@@ -927,7 +927,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	if (ShouldRenderAnisotropyPass())
 	{
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AnisotropyPass));
-		RenderAnisotropyPass(GraphBuilder, SceneTextures.Depth.Target, bEnableParallelBasePasses);
+		RenderAnisotropyPass(GraphBuilder, SceneTextures, bEnableParallelBasePasses);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
 }

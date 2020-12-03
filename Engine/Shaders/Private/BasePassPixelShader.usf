@@ -1021,7 +1021,9 @@ void FPixelShaderInOut_MainPS(
 		);
 
 #if USES_GBUFFER
-	GBuffer.SelectiveOutputMask = GetSelectiveOutputMask();
+	// This requires cleanup. Shader code that uses GBuffer.SelectiveOutputMask expects the outputmask to be in
+	// bits [4:7], but it gets packed as bits [0:3] in the flexible gbuffer since we might move it around.
+	GBuffer.SelectiveOutputMask = GetSelectiveOutputMask() >> 4;
 	GBuffer.Velocity = 0;
 #endif
 

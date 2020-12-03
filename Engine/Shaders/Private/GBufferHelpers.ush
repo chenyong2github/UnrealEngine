@@ -429,7 +429,6 @@ void GBufferPostDecode(inout FGBufferData Ret, bool bChecker, bool bGetNormalize
 		#endif //USE_DEVELOPMENT_SHADERS
 	}
 	
-#if GBUFFER_HAS_TANGENT
 	{
 		Ret.WorldTangent = DecodeNormal(Ret.WorldTangent);
 		Ret.Anisotropy = Ret.Anisotropy * 2.0f - 1.0f;
@@ -439,10 +438,8 @@ void GBufferPostDecode(inout FGBufferData Ret, bool bChecker, bool bGetNormalize
 			Ret.WorldTangent = normalize(Ret.WorldTangent);
 		}
 	}
-#else
-	{
-		Ret.WorldTangent = 0;
-		Ret.Anisotropy = 0;
-	}
-#endif
+
+	// This requires cleanup. Shader code that uses GBuffer.SelectiveOutputMask expects the outputmask to be in
+	// bits [4:7], but it gets packed as bits [0:3] in the flexible gbuffer since we might move it around.
+	Ret.SelectiveOutputMask = Ret.SelectiveOutputMask << 4;
 }

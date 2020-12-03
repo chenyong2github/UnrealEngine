@@ -291,7 +291,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 	FRDGBuilder& GraphBuilder, 
-	FRDGTextureRef SceneDepthTexture,
+	FSceneTextures& SceneTextures,
 	bool bDoParallelPass
 	)
 {
@@ -300,13 +300,16 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 	SCOPE_CYCLE_COUNTER(STAT_AnisotropyPassDrawTime);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderAnisotropyPass);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	if (!SceneContext.GBufferF)
+	// allocate if necessary, and register new GBufferF to SceneTexures
 	{
-		SceneContext.AllocateAnisotropyTarget(GraphBuilder.RHICmdList);
-		check(SceneContext.GBufferF);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+		if (!SceneContext.GBufferF)
+		{
+			SceneContext.AllocateAnisotropyTarget(GraphBuilder.RHICmdList);
+			check(SceneContext.GBufferF);
+		}
+		SceneTextures.GBufferF = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferF);
 	}
-	FRDGTextureRef GBufferFTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferF);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -322,13 +325,13 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 			}
 
 			auto* PassParameters = GraphBuilder.AllocParameters<FAnisotropyPassParameters>();
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 			if (bDoParallelPass)
 			{
-				AddClearRenderTargetPass(GraphBuilder, GBufferFTexture);
+				AddClearRenderTargetPass(GraphBuilder, SceneTextures.GBufferF);
 
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(GBufferFTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.GBufferF, ERenderTargetLoadAction::ELoad);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("AnisotropyPassParallel"),
@@ -344,7 +347,7 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 			}
 			else
 			{
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(GBufferFTexture, ERenderTargetLoadAction::EClear);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.GBufferF, ERenderTargetLoadAction::EClear);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("AnisotropyPass"),

@@ -198,7 +198,7 @@ public:
 
 	void RenderBasePass(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures,
+		FSceneTextures& SceneTextures,
 		const FDBufferTextures& DBufferTextures,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		FRDGTextureRef ForwardShadowMaskTexture);
@@ -216,7 +216,7 @@ public:
 
 	void RenderAnisotropyPass(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
+		FSceneTextures& SceneTextures,
 		bool bDoParallelPass);
 
 	void RenderSingleLayerWater(
