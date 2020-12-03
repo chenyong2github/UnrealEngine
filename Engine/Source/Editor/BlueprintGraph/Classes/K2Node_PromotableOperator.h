@@ -128,7 +128,7 @@ private:
 	*
 	* @param OutArray	Array to populate with the considered pins
 	*/
-	void GetPinsToConsider(TArray<UEdGraphPin*>& OutArray);
+	void GetPinsToConsider(TArray<UEdGraphPin*>& OutArray) const;
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;

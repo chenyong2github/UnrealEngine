@@ -815,7 +815,7 @@ TArray<UEdGraphPin*> UK2Node_PromotableOperator::GetInputPins(bool bIncludeLinks
 	return InputPins;
 }
 
-void UK2Node_PromotableOperator::GetPinsToConsider(TArray<UEdGraphPin*>& OutArray)
+void UK2Node_PromotableOperator::GetPinsToConsider(TArray<UEdGraphPin*>& OutArray) const
 {
 	for (UEdGraphPin* Pin : Pins)
 	{
