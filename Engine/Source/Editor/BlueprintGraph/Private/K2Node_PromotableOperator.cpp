@@ -179,6 +179,18 @@ void UK2Node_PromotableOperator::NodeConnectionListChanged()
 	}
 }
 
+void UK2Node_PromotableOperator::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	// If we have copied a node with additional pins then we need to make sure 
+	// they get reset to wildcard as well, otherwise their type will persist
+	if (!HasAnyConnectionsOrDefaults())
+	{
+		ResetNodeToWildcard();
+	}
+}
+
 ///////////////////////////////////////////////////////////
 // UK2Node interface
 

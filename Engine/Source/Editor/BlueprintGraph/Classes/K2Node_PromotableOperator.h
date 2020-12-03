@@ -23,6 +23,7 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual void NodeConnectionListChanged() override;
+	virtual void PostPasteNode() override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
