@@ -24,7 +24,6 @@
 
 #include "ToolContextInterfaces.h"
 #include "Tools/EditorToolAssetAPI.h"
-#include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
 #include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
@@ -176,6 +175,7 @@ public:
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const override
 	{
 		StateOut.ToolManager = ToolsContext->ToolManager;
+		StateOut.TargetManager = ToolsContext->TargetManager;
 		StateOut.GizmoManager = ToolsContext->GizmoManager;
 		StateOut.World = EditorModeManager->GetWorld();
 		EditorModeManager->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);

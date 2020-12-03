@@ -14,6 +14,7 @@ public:
 	TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
 };
 
+/** @deprecated Use UProceduralMeshComponentToolTarget instead. */
 class PROCEDURALMESHCOMPONENT_API FProceduralMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:

@@ -2,12 +2,13 @@
 
 
 #include "InteractiveToolsContext.h"
-
+#include "ToolTargetManager.h"
 
 UInteractiveToolsContext::UInteractiveToolsContext()
 {
 	InputRouter = nullptr;
 	ToolManager = nullptr;
+	TargetManager = nullptr;
 	ToolManagerClass = UInteractiveToolManager::StaticClass();
 }
 
@@ -17,8 +18,10 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 	InputRouter->Initialize(TransactionsAPI);
 
 	ToolManager = NewObject<UInteractiveToolManager>(this, ToolManagerClass.Get());
-
 	ToolManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
+
+	TargetManager = NewObject<UToolTargetManager>(this);
+	TargetManager->Initialize();
 
 	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
 	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);

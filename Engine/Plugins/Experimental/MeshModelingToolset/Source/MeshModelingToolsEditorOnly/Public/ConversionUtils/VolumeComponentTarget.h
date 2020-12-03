@@ -15,6 +15,7 @@ public:
 	TUniquePtr<FPrimitiveComponentTarget> Build(UPrimitiveComponent* PrimitiveComponent) override;
 };
 
+/** Deprecated. Use the tool target instead. */
 class MESHMODELINGTOOLSEDITORONLY_API FVolumeComponentTarget : public FPrimitiveComponentTarget
 {
 public:

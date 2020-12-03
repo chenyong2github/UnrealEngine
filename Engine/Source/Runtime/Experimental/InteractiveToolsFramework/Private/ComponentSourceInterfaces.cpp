@@ -42,25 +42,6 @@ TUniquePtr<FPrimitiveComponentTarget> MakeComponentTarget(UPrimitiveComponent* C
 
 
 
-
-bool FComponentMaterialSet::operator!=(const FComponentMaterialSet& Other) const
-{
-	int32 Num = Materials.Num();
-	if (Other.Materials.Num() != Num)
-	{
-		return true;
-	}
-	for (int32 j = 0; j < Num; ++j)
-	{
-		if (Other.Materials[j] != Materials[j])
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-
 bool FPrimitiveComponentTarget::IsValid() const
 {
 	return (Component->IsPendingKillOrUnreachable() == false) && Component->IsValidLowLevel();

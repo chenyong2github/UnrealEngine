@@ -7,6 +7,8 @@
 #include "InteractiveGizmoManager.h"
 #include "InteractiveToolsContext.generated.h"
 
+class UToolTargetManager;
+
 /**
  * InteractiveToolsContext owns a ToolManager and an InputRouter. This is just a top-level 
  * UObject container, however implementations like UEdModeInteractiveToolsContext extend
@@ -57,6 +59,10 @@ public:
 	/** current UInputRouter for this Context */
 	UPROPERTY()
 	UInputRouter* InputRouter;	
+
+	/** current UToolTargetManager for this Context */
+	UPROPERTY()
+	UToolTargetManager* TargetManager;
 
 	/** current UInteractiveToolManager for this Context */
 	UPROPERTY()

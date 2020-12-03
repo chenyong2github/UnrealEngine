@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Interface.h"
 #include "InteractiveTool.h"
+#include "ToolTargets/ToolTarget.h"
+
 #include "InteractiveToolBuilder.generated.h"
 
 
@@ -42,5 +43,16 @@ public:
 	{
 		check(false);
 		return nullptr;
+	}
+
+protected:
+	/**
+	 * Gives the target requirements of the associated tool. Usually, it is the tool builder
+	 * will use this function in CanBuildTool and BuildTool to find and create any necessary targets.
+	 */
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const
+	{
+		static FToolTargetTypeRequirements TypeRequirements; // Default initialized to no requirements.
+		return TypeRequirements;
 	}
 };

@@ -18,6 +18,7 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
+class UToolTargetManager;
 struct FMeshDescription;
 class UTexture2D;
 class UInteractiveToolStorableSelection;
@@ -37,6 +38,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	UWorld* World = nullptr;
 	/** The current ToolManager */
 	UInteractiveToolManager* ToolManager = nullptr;
+	/** The current TargetManager */
+	UToolTargetManager* TargetManager = nullptr;
 	/** The current GizmoManager */
 	UInteractiveGizmoManager* GizmoManager = nullptr;
 

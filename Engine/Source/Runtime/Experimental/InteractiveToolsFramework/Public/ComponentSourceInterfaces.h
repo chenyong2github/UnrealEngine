@@ -6,6 +6,7 @@
 #include "Math/UnrealMath.h"
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h" // FComponentMaterialSet
 #include "Engine/EngineTypes.h"    // FHitResult
 
 // predeclarations
@@ -16,16 +17,8 @@ struct FMeshDescription;
 class UMaterialInterface;
 
 /**
- * FComponentMaterialSet is the set of materials assigned to a component (ie Material Slots on a StaticMesh)
- */
-struct INTERACTIVETOOLSFRAMEWORK_API FComponentMaterialSet
-{
-	TArray<UMaterialInterface*> Materials;
-	bool operator!=(const FComponentMaterialSet& Other) const;
-};
-
-
-/**
+ * @deprecated Use tool targets instead, such as UPrimitiveComponentToolTarget
+ *
  * Wrapper around a UObject Component that can provide a MeshDescription, and
  * (optionally) bake a modified MeshDescription back to this Component.
  * An example of a Source might be a StaticMeshComponent. How a modified
@@ -116,6 +109,7 @@ public:
 	UPrimitiveComponent* Component{};
 };
 
+/** @deprecated Use tool target factories instead. */
 class INTERACTIVETOOLSFRAMEWORK_API FComponentTargetFactory
 {
 public:
@@ -125,6 +119,8 @@ public:
 };
 
 /**
+ * @deprecated Add tool target factories to the tool target manager instead.
+ *
  * Add a factory method to make ComponentTarget from UPrimitiveComponent*
  * @param Factory The ComponentTargetFactory
  * @return void
@@ -133,6 +129,8 @@ INTERACTIVETOOLSFRAMEWORK_API void AddComponentTargetFactory( TUniquePtr<FCompon
 
 
 /**
+ * @deprecated Ask your tool target manager to build a target for you instead.
+ *
  * Create a TargetComponent for the given Component
  * @param Component A UObject that we would like to use as tool target. This must presently descend from
  * UPrimitiveComponent
@@ -143,6 +141,8 @@ INTERACTIVETOOLSFRAMEWORK_API TUniquePtr<FPrimitiveComponentTarget> MakeComponen
 
 
 /**
+ * @deprecated Ask your tool target manager instead.
+ *
  * Determine whether a TargetComponent can be created for the given Component
  * @param Component A UObject that we would like to use as tool target.
  * @return bool signifying whether or not a ComponentTarget can be built

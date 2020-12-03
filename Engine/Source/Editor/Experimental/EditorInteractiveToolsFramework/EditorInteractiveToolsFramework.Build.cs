@@ -37,7 +37,8 @@ public class EditorInteractiveToolsFramework : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-                "Slate",
+				"RenderCore",
+				"Slate",
                 "SlateCore",
                 "InputCore",
 				"EditorFramework",
