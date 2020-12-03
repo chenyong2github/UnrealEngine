@@ -188,6 +188,9 @@ public:
 		}
 	}
 
+	/** Get the actual delegate bound to this reset to default handler. */
+	FResetToDefaultHandler GetPropertyResetToDefaultDelegate() const { return OnClickedPropertyDelegate; }
+
 	/** Called by properties to determine whether this override should set on their children */
 	bool PropagatesToChildren() const
 	{

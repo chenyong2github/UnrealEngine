@@ -7,7 +7,7 @@
 
 SResetToDefaultPropertyEditor::~SResetToDefaultPropertyEditor()
 {
-	if (PropertyHandle.IsValid())
+	if (PropertyHandle.IsValid() && OptionalCustomResetToDefault.IsSet())
 	{
 		PropertyHandle->ClearResetToDefaultCustomized();
 	}

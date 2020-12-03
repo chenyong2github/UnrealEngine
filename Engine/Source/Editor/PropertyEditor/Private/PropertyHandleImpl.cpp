@@ -2502,7 +2502,9 @@ void FPropertyHandleBase::OnCustomResetToDefault(const FResetToDefaultOverride& 
 		{
 			Implementation->GetPropertyNode()->NotifyPreChange(Implementation->GetPropertyNode()->GetProperty(), Implementation->GetPropertyUtilities()->GetNotifyHook());
 		}
-		CustomResetToDefault.OnResetToDefaultClicked(SharedThis(this));
+
+		FResetToDefaultHandler Delegate = CustomResetToDefault.GetPropertyResetToDefaultDelegate();
+		Delegate.ExecuteIfBound(SharedThis(this));
 
 		// Call PostEditchange on all the objects
 		FPropertyChangedEvent ChangeEvent(Implementation->GetPropertyNode()->GetProperty());

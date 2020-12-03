@@ -3,9 +3,5 @@
 #include "DetailWidgetRow.h"
 #include "PropertyEditorHelpers.h"
 
-FDetailWidgetRow& FDetailWidgetRow::EditCondition(TAttribute<bool> InEditConditionValue, FOnBooleanValueChanged InOnEditConditionValueChanged)
-{
-	EditConditionValue = InEditConditionValue;
-	OnEditConditionValueChanged = InOnEditConditionValueChanged;
-	return *this;
-}
+const float FDetailWidgetRow::DefaultValueMinWidth = 125.0f;
+const float FDetailWidgetRow::DefaultValueMaxWidth = 125.0f;

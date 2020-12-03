@@ -249,7 +249,12 @@ public:
 	/** 
 	 * Override the edit condition.
 	 */ 
-	FDetailWidgetRow& EditCondition(TAttribute<bool> EditConditionValue, FOnBooleanValueChanged OnEditConditionValueChanged);
+	FDetailWidgetRow& EditCondition(TAttribute<bool> InEditConditionValue, FOnBooleanValueChanged InOnEditConditionValueChanged)
+	{
+		EditConditionValue = InEditConditionValue;
+		OnEditConditionValueChanged = InOnEditConditionValueChanged;
+		return *this;
+	}
 	
 	/**
 	* Used to provide all the property handles this WidgetRow represent

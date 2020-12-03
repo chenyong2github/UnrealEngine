@@ -15,9 +15,6 @@
 #include "CategoryPropertyNode.h"
 #include "Widgets/Layout/SSpacer.h"
 
-const float FDetailWidgetRow::DefaultValueMinWidth = 125.0f;
-const float FDetailWidgetRow::DefaultValueMaxWidth = 125.0f;
-
 #define LOCTEXT_NAMESPACE	"DetailPropertyRow"
 
 FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory, TSharedPtr<FComplexPropertyNode> InExternalRootNode)
@@ -221,6 +218,7 @@ FDetailWidgetRow FDetailPropertyRow::GetWidgetRow()
 			Row.CopyMenuAction = CustomPropertyWidget->CopyMenuAction;
 			Row.PasteMenuAction = CustomPropertyWidget->PasteMenuAction;
 			Row.CustomMenuItems = CustomPropertyWidget->CustomMenuItems;
+			Row.CustomResetToDefault = CustomPropertyWidget->CustomResetToDefault;
 		}
 		
 		return Row;
