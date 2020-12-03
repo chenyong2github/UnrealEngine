@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30517.126
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildToolCore", "UnrealBuildToolCore.csproj", "{241BABD5-53D3-4238-9E8E-5F649C10FB90}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildTool", "UnrealBuildTool.csproj", "{241BABD5-53D3-4238-9E8E-5F649C10FB90}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildUtilitiesCore", "..\DotNETCommon\BuildUtilities\BuildUtilitiesCore.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildUtilities", "..\DotNETCommon\BuildUtilities\BuildUtilities.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNETUtilitiesCore", "..\DotNETCommon\DotNETUtilities\DotNETUtilitiesCore.csproj", "{6165C311-AEEB-402A-89E1-69AF64AE5035}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNETUtilities", "..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj", "{6165C311-AEEB-402A-89E1-69AF64AE5035}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealBuildToolTests", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealBuildTool", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
