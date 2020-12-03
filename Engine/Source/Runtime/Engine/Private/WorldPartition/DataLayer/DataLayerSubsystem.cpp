@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Modules/ModuleManager.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #endif
 
