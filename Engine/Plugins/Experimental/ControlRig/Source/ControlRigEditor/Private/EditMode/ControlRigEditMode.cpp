@@ -251,27 +251,36 @@ void FControlRigEditMode::SetObjects_Internal()
 		DelegateHelper->AddDelegates(MeshComponent);
 	}
 
-	if (UControlRig* RuntimeControlRig = GetControlRig(false))
+	UControlRig* RuntimeControlRig = GetControlRig(false);
+	
+	UControlRig* InteractionControlRig = GetControlRig(true);
+
+	if (UsesToolkits() && Toolkit.IsValid())
 	{
-		UControlRig* InteractionControlRig = GetControlRig(true);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetControlRig(RuntimeControlRig);
+	}
 
-		if (UsesToolkits() && Toolkit.IsValid())
-		{
-			StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetControlRig(RuntimeControlRig);
-		}
-
+	if (InteractionControlRig)
+	{
 		InteractionControlRig->Hierarchy.OnElementSelected.RemoveAll(this);
 		InteractionControlRig->ControlModified().RemoveAll(this);
-
+			
 		InteractionControlRig->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
 		InteractionControlRig->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
+	}
 
+	if (!RuntimeControlRig)
+	{
+		DestroyGizmosActors();
+	}
+	else
+	{
 		// create default manipulation layer
 		RecreateGizmoActors();
 		HandleSelectionChanged();
 	}
-	SetUpDetailPanel();
 
+	SetUpDetailPanel();
 }
 
 bool FControlRigEditMode::UsesToolkits() const
