@@ -512,7 +512,7 @@ bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry&
 
 bool UMovieSceneCompiledDataManager::IsDirty(FMovieSceneCompiledDataID CompiledDataID) const
 {
-	check(CompiledDataID.IsValid());
+	check(CompiledDataID.IsValid() && CompiledDataEntries.IsValidIndex(CompiledDataID.Value));
 	return IsDirty(CompiledDataEntries[CompiledDataID.Value]);
 }
 
@@ -521,6 +521,7 @@ bool UMovieSceneCompiledDataManager::IsDirty(UMovieSceneSequence* Sequence) cons
 	FMovieSceneCompiledDataID ExistingDataID = SequenceToDataIDs.FindRef(Sequence);
 	if (ExistingDataID.IsValid())
 	{
+		check(CompiledDataEntries.IsValidIndex(ExistingDataID.Value));
 		FMovieSceneCompiledDataEntry Entry = CompiledDataEntries[ExistingDataID.Value];
 		return IsDirty(Entry);
 	}
@@ -531,8 +532,7 @@ bool UMovieSceneCompiledDataManager::IsDirty(UMovieSceneSequence* Sequence) cons
 
 void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID)
 {
-	check(DataID.IsValid());
-
+	check(DataID.IsValid() && CompiledDataEntries.IsValidIndex(DataID.Value));
 	UMovieSceneSequence* Sequence = CompiledDataEntries[DataID.Value].GetSequence();
 	check(Sequence);
 	Compile(DataID, Sequence);
@@ -547,6 +547,7 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::Compile(UMovieSceneSeq
 
 void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID, UMovieSceneSequence* Sequence)
 {
+	check(DataID.IsValid() && CompiledDataEntries.IsValidIndex(DataID.Value));
 	FMovieSceneCompiledDataEntry Entry = CompiledDataEntries[DataID.Value];
 	if (!IsDirty(Entry))
 	{

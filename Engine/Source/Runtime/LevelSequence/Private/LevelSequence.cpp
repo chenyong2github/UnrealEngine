@@ -488,9 +488,6 @@ void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
 	}
 
 	MarkAsChanged();
-
-	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(this);
-	UMovieSceneCompiledDataManager::GetPrecompiledData()->DestroyTemplate(DataID);
 }
 
 void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
@@ -499,9 +496,6 @@ void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
 	DirectorClass = DirectorBlueprint->GeneratedClass.Get();
 
 	MarkAsChanged();
-
-	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(this);
-	UMovieSceneCompiledDataManager::GetPrecompiledData()->DestroyTemplate(DataID);
 }
 
 FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)
