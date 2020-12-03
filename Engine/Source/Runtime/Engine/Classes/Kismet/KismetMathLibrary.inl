@@ -582,6 +582,12 @@ bool UKismetMathLibrary::NotEqual_FloatFloat(float A, float B)
 }
 
 KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::NotEqual_DoubleDouble(double A, double B)
+{
+	return A != B;
+}
+
+KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::GridSnap_Float(float Location, float GridSize)
 {
 	return FMath::GridSnap(Location, GridSize);
