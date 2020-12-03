@@ -523,41 +523,7 @@ void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TS
 
 FPlatformRect FWindowsApplication::GetWorkArea(const FPlatformRect& CurrentWindow) const
 {
-	// If we do not have any monitor, it means we are in remote desktop. Ask windows to give us the right Workarea
-	if (InitialDisplayMetrics.MonitorInfo.Num() == 0)
-	{
-		return GetWorkAreaFromOS(CurrentWindow);
-	}
-
-	// This function was changed to address the problem where Windows API MonitorFromRect 
-	// do not return the correct screen if the rect is on secondary screen and more than half 
-	// of it is outside the Virtual screen space.
-	// This implementation will return the screen that has the biggest area covered by the rect specified.
-
-	int32 BigestAreaCovered = 0;
-	FPlatformRect WorkArea;
-
-	for (const FMonitorInfo& Info : InitialDisplayMetrics.MonitorInfo)
-	{
-		// Default to Primary Screen if we there is no area covered by the screen yet
-		if (BigestAreaCovered == 0 && Info.bIsPrimary)
-		{
-			WorkArea = Info.WorkArea;
-		}
-
-		// Get the intersection rect.
-		FPlatformRect IntersectionRect(FMath::Max(Info.WorkArea.Left, CurrentWindow.Left), FMath::Max(Info.WorkArea.Top, CurrentWindow.Top), FMath::Min(Info.WorkArea.Right, CurrentWindow.Right), FMath::Min(Info.WorkArea.Bottom, CurrentWindow.Bottom));
-
-		// If the rectangle is invalid (size <= 0) the area is considered 0. Can happens if rects are not intersecting or badly created.
-		int32 Area = (IntersectionRect.Top < IntersectionRect.Bottom && IntersectionRect.Left < IntersectionRect.Right) ? (IntersectionRect.Right - IntersectionRect.Left) * (IntersectionRect.Bottom - IntersectionRect.Top) : 0;
-
-		if (Area > BigestAreaCovered)
-		{
-			BigestAreaCovered = Area;
-			WorkArea = Info.WorkArea;
-		}
-	}
-	return WorkArea;
+	return GetWorkAreaFromOS(CurrentWindow);
 }
 
 FPlatformRect FWindowsApplication::GetWorkAreaFromOS( const FPlatformRect& CurrentWindow ) const
