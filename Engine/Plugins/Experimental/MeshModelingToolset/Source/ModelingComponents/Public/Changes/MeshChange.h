@@ -37,6 +37,15 @@ public:
 
 	/** Describes this change (for debugging) */
 	virtual FString ToString() const override;
+
+
+	/** 
+	 * Apply embedded DynamicMeshChange to given Mesh. This function is for 
+	 * change-targets to call, when passed a FMeshChange to apply to a Mesh they own. 
+	 * This allows FMeshChange subclasses to customize the change behavior if necessary.
+	 * The default behavior just forwards the call to DynamicMeshChange->Apply(Mesh, bRevert).
+	 */
+	virtual void ApplyChangeToMesh(FDynamicMesh3* Mesh, bool bRevert) const;
 };
 
 

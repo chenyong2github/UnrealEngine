@@ -40,3 +40,10 @@ FString FMeshChange::ToString() const
 	return FString(TEXT("Mesh Change"));
 }
 
+
+void FMeshChange::ApplyChangeToMesh(FDynamicMesh3* Mesh, bool bRevert) const
+{
+	DynamicMeshChange->Apply(Mesh, bRevert);
+}
+
+
