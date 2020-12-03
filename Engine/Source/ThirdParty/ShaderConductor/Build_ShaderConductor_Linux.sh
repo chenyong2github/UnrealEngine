@@ -80,7 +80,7 @@ BuildShaderConductor()
   include_directories("${THIRD_PARTY}/Linux/LibCxx/include")
   include_directories("${THIRD_PARTY}/Linux/LibCxx/include/c++/v1")
 
-  set(CMAKE_LINKER_FLAGS "-stdlib=libc++ -L${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/ ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++.a ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++abi.a")
+  set(CMAKE_LINKER_FLAGS "-stdlib=libc++ -L${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/ ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++.a ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++abi.a -lpthread")
   set(CMAKE_EXE_LINKER_FLAGS      "\${CMAKE_LINKER_FLAGS}")
   set(CMAKE_MODULE_LINKER_FLAGS   "\${CMAKE_LINKER_FLAGS}")
   set(CMAKE_SHARED_LINKER_FLAGS   "\${CMAKE_LINKER_FLAGS}")
