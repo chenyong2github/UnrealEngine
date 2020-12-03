@@ -16,6 +16,9 @@ class UDeviceProfile;
 // Delegate used to refresh the UI when the profiles change
 DECLARE_MULTICAST_DELEGATE( FOnDeviceProfileManagerUpdated );
 
+// Delegate used to notify systems when the active device profile changes
+DECLARE_MULTICAST_DELEGATE( FOnActiveDeviceProfileChanged );
+
 /**
  * Implements a helper class that manages all profiles in the Device
  */
@@ -93,6 +96,13 @@ public:
 	 * @return The delegate.
 	 */
 	FOnDeviceProfileManagerUpdated& OnManagerUpdated();
+
+	/**
+	 * Returns a delegate that is invoked when the active device profile changes
+	 *
+	 * @return The delegate.
+	 */
+	FOnActiveDeviceProfileChanged& OnActiveDeviceProfileChanged();
 
 	/**
 	 * Save the device profiles.
@@ -179,6 +189,9 @@ private:
 
 	// Holds a delegate to be invoked profiles are updated.
 	FOnDeviceProfileManagerUpdated ManagerUpdatedDelegate;
+
+	// Holds a delegate to be invoked when the active deviceprofile changes
+	FOnActiveDeviceProfileChanged ActiveDeviceProfileChangedDelegate;
 
 	// Holds the selected device profile
 	UDeviceProfile* ActiveDeviceProfile;
