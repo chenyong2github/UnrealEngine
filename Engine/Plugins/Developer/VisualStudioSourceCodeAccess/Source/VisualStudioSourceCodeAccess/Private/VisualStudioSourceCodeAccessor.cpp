@@ -930,13 +930,14 @@ bool FVisualStudioSourceCodeAccessor::OpenSourceFiles(const TArray<FString>& Abs
 
 bool FVisualStudioSourceCodeAccessor::AddSourceFiles(const TArray<FString>& AbsoluteSourcePaths, const TArray<FString>& AvailableModules)
 {
+	bool bSuccess = false;
+
 	// This code is temporarily disabled because it doesn't account for UBT setting per-file properties for C++ source files,
 	// adding include paths, force-included headers, and so on. Intellisense does not work correctly without these properties being set.
 #if 0
 	// This requires DTE - there is no fallback for this operation when DTE is not available
 #if WITH_VISUALSTUDIO_DTE
-	bool bSuccess = true;
-
+	bSuccess = true;
 	struct FModuleNameAndPath
 	{
 		FString ModuleBuildFilePath;
@@ -1117,12 +1118,14 @@ bool FVisualStudioSourceCodeAccessor::AddSourceFiles(const TArray<FString>& Abso
 		UE_LOG(LogVSAccessor, Verbose, TEXT("Cannot add source files as Visual Studio is either not open or not responding"));
 		bSuccess = false;
 	}
+#endif
+#else
+	// if we add new source files but do not add them directly and rely on project generation instead, if we have an opened instance, request for the files to be opened now
+	// this is because project generation will trigger a modal on our opened instance and prevent file open request to be handled.
+	OpenSourceFiles(AbsoluteSourcePaths);
+#endif
 
 	return bSuccess;
-#endif
-#endif
-
-	return false;
 }
 
 bool FVisualStudioSourceCodeAccessor::OpenFileAtLine(const FString& FullPath, int32 LineNumber, int32 ColumnNumber)
