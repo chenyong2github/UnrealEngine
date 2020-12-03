@@ -207,6 +207,11 @@ bool FNiagaraEmitterInstance::IsReadyToRun() const
 
 void FNiagaraEmitterInstance::Dump()const
 {
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	UE_LOG(LogNiagara, Log, TEXT("==  %s ========"), *CachedEmitter->GetUniqueEmitterName());
 	UE_LOG(LogNiagara, Log, TEXT(".................Spawn................."));
 	SpawnExecContext.Parameters.DumpParameters(true);
