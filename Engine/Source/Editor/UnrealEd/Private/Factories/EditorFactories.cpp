@@ -3089,6 +3089,8 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	bEditorImport = true;
 
 	UdimRegexPattern = TEXT(R"((.+?)[._](\d{4})$)");
+
+	ColorSpaceMode = ETextureSourceColorSpace::Auto;
 }
 
 bool UTextureFactory::FactoryCanImport(const FString& Filename)
@@ -3919,7 +3921,19 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 	UTexture2D* Texture = CreateTexture2D(InParent, Name, Flags);
 	Texture->Source.InitBlocked(&Format, SourceBlocks.GetData(), 1, SourceBlocks.Num(), SourceImageData.GetData());
 	Texture->CompressionSettings = TCSettings;
-	Texture->SRGB = bSRGB;
+
+	if (ColorSpaceMode == ETextureSourceColorSpace::Auto)
+	{
+		Texture->SRGB = bSRGB;
+	}
+	else if (ColorSpaceMode == ETextureSourceColorSpace::Linear)
+	{
+		Texture->SRGB = false;
+	}
+	else if (ColorSpaceMode == ETextureSourceColorSpace::SRGB)
+	{
+		Texture->SRGB = true;
+	}
 
 	for (int32 FileIndex = 0; FileIndex < SourceFileNames.Num(); ++FileIndex)
 	{
@@ -3955,7 +3969,19 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 				Image.RawData.GetData()
 			);
 			Texture->CompressionSettings = Image.CompressionSettings;
-			Texture->SRGB = Image.SRGB;
+
+			if (ColorSpaceMode == ETextureSourceColorSpace::Auto)
+			{
+				Texture->SRGB = Image.SRGB;
+			}
+			else if (ColorSpaceMode == ETextureSourceColorSpace::Linear)
+			{
+				Texture->SRGB = false;
+			}
+			else if (ColorSpaceMode == ETextureSourceColorSpace::SRGB)
+			{
+				Texture->SRGB = true;
+			}
 		}
 		return Texture;
 	}

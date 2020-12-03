@@ -234,6 +234,20 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 		break;
 	}
 
+	const EDatasmithColorSpace DatasmithColorSpace = TextureElement->GetSRGB();
+	ETextureSourceColorSpace FactoryColorSpace = ETextureSourceColorSpace::Auto;
+
+	if (DatasmithColorSpace == EDatasmithColorSpace::sRGB)
+	{
+		FactoryColorSpace = ETextureSourceColorSpace::SRGB;
+	}
+	else if (DatasmithColorSpace == EDatasmithColorSpace::Linear)
+	{
+		FactoryColorSpace = ETextureSourceColorSpace::Linear;
+	}
+
+	TextureFact->ColorSpaceMode = FactoryColorSpace;
+
 	const float RGBCurve = TextureElement->GetRGBCurve();
 
 	const uint8* PtrTextureData    = TextureData.GetData();
@@ -289,6 +303,7 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 			bUpdateResource = true;
 		}
 
+		// Double check that the texture color space matches what we requested
 		EDatasmithColorSpace ColorSpace = TextureElement->GetSRGB();
 		if (!Texture->SRGB && ColorSpace == EDatasmithColorSpace::sRGB)
 		{

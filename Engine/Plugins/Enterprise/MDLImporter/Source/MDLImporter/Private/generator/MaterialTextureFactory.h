@@ -32,7 +32,8 @@ namespace Generator
 		UTexture2D* CreateTexture(UObject* ParentPackage, const FString& FilePath, EObjectFlags Flags,
 		                          TArray<MDLImporterLogging::FLogMessage>* InLogMessages = nullptr);
 
-		void UpdateTextureSettings(UTexture2D* Texture, const Common::FTextureProperty &Property, TArray<MDLImporterLogging::FLogMessage>* LogMessages = nullptr);
+		void UpdateTextureFactorySettings(UTextureFactory* TextureFactory, const Common::FTextureProperty& Property);
+		void UpdateTextureSettings(UTexture2D* Texture, const Common::FTextureProperty& Property, TArray<MDLImporterLogging::FLogMessage>* LogMessages = nullptr);
 
 	private:
 		UTextureFactory*         Factory;

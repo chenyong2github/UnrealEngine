@@ -26,6 +26,7 @@ namespace Generator
 
 		// save texture settings if texture exists
 		Factory->SuppressImportOverwriteDialog();
+		UpdateTextureFactorySettings(Factory, Property);
 
 		UTexture2D* Texture = nullptr;
 		const FString Extension = FPaths::GetExtension(Property.Path);
@@ -76,7 +77,18 @@ namespace Generator
 		return Texture;
 	}
 
-	void FMaterialTextureFactory::UpdateTextureSettings(UTexture2D* Texture, const Common::FTextureProperty &Property, TArray<MDLImporterLogging::FLogMessage>* LogMessages /*= nullptr*/)
+	void FMaterialTextureFactory::UpdateTextureFactorySettings(UTextureFactory* TextureFactory, const Common::FTextureProperty& Property)
+	{
+		// Set the settings on the factory so that the texture gets built with the correct settings when the factory builds it
+		TextureFactory->MipGenSettings = Property.MipGenSettings;
+		TextureFactory->NoAlpha = Property.bCompressionNoAlpha;
+		TextureFactory->CompressionSettings = Property.CompressionSettings;
+		TextureFactory->LODGroup = Property.LODGroup;
+		TextureFactory->bFlipNormalMapGreenChannel = Property.bFlipGreenChannel;
+		TextureFactory->ColorSpaceMode = Property.bIsSRGB ? ETextureSourceColorSpace::SRGB : ETextureSourceColorSpace::Linear;
+	}
+
+	void FMaterialTextureFactory::UpdateTextureSettings(UTexture2D* Texture, const Common::FTextureProperty& Property, TArray<MDLImporterLogging::FLogMessage>* LogMessages /*= nullptr*/)
 	{
 		TextureMipGenSettings MipGenSettings = Property.MipGenSettings;
 
@@ -95,17 +107,28 @@ namespace Generator
 			}
 		}
 
-		Texture->MipGenSettings = MipGenSettings;
-		Texture->CompressionNoAlpha = Property.bCompressionNoAlpha;
-		Texture->CompressionSettings = Property.CompressionSettings;
-		Texture->Filter = Property.Filter;
-		Texture->AddressY = Property.Address;
-		Texture->AddressX = Property.Address;
-		Texture->LODGroup = Property.LODGroup;
-		Texture->SRGB = Texture->IsNormalMap() ? false : Property.bIsSRGB;
-		Texture->bFlipGreenChannel = Property.bFlipGreenChannel;
-		Texture->UpdateResource();
-		Texture->PostEditChange();
+		const bool bIsSRGB = Texture->IsNormalMap() ? false : Property.bIsSRGB;
+
+		const bool bSettingsChanged =
+			(Texture->MipGenSettings != MipGenSettings || Texture->CompressionNoAlpha != Property.bCompressionNoAlpha ||
+				Texture->CompressionSettings != Property.CompressionSettings || Texture->Filter != Property.Filter ||
+				Texture->AddressY != Property.Address || Texture->AddressX != Property.Address ||
+				Texture->SRGB != bIsSRGB || Texture->bFlipGreenChannel != Property.bFlipGreenChannel);
+
+		if (bSettingsChanged)
+		{
+			Texture->MipGenSettings = MipGenSettings;
+			Texture->CompressionNoAlpha = Property.bCompressionNoAlpha;
+			Texture->CompressionSettings = Property.CompressionSettings;
+			Texture->Filter = Property.Filter;
+			Texture->AddressY = Property.Address;
+			Texture->AddressX = Property.Address;
+			Texture->LODGroup = Property.LODGroup;
+			Texture->SRGB = bIsSRGB;
+			Texture->bFlipGreenChannel = Property.bFlipGreenChannel;
+			Texture->UpdateResource();
+			Texture->PostEditChange();
+		}
 	}
 
 }  // namespace Generator

@@ -33,6 +33,15 @@ class UTexture2D;
 class UTextureCube;
 class UTexture2DArray;
 
+UENUM()
+enum class ETextureSourceColorSpace
+{
+	/** Auto lets the texture factory figure out in what color space the source image is in. */
+	Auto,
+	Linear,
+	SRGB
+};
+
 UCLASS(customconstructor, collapsecategories, hidecategories=Object)
 class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsParser
 {
@@ -132,6 +141,10 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	 */
 	UPROPERTY(Transient)
 	FString UdimRegexPattern;
+
+	/** Mode for how to determine the color space of the source image. Auto will let the factory decide based on header metadata or bit depth. Linear or SRGB will force the color space on the resulting texture. */
+	UPROPERTY(Transient)
+	ETextureSourceColorSpace ColorSpaceMode;
 
 public:
 	UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
