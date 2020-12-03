@@ -73,7 +73,7 @@ void UMovieSceneStringTrack::RemoveSectionAt(int32 SectionIndex)
 
 FText UMovieSceneStringTrack::GetDefaultDisplayName() const
 { 
-	return LOCTEXT("TrackName", "Strings"); 
+	return Super::GetDefaultDisplayName();
 }
 
 #endif
