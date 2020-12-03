@@ -4,7 +4,7 @@
 
 Texture2D<float> SourceBuffer;
 float4 SourceScaleOffset;
-float4 DestInvTargetExtent;
+int4 SourceMinMax;
 
 void CopyToCompleteShadowMapPS(
 	in float4 SvPosition	: SV_Position,
@@ -12,7 +12,8 @@ void CopyToCompleteShadowMapPS(
 )
 {
 	float2 DestPos = SvPosition.xy;
-	float2 SourcePos = (DestPos * SourceScaleOffset.xy + SourceScaleOffset.zw);
+	int2 SourcePos = int2(floor(DestPos * SourceScaleOffset.xy + SourceScaleOffset.zw));
+	SourcePos = clamp(SourcePos, SourceMinMax.xy, SourceMinMax.zw - 1);
 	float Depth = SourceBuffer.Load(int3(SourcePos, 0));
 	OutDepth = Depth;
 }

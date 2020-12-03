@@ -1492,6 +1492,7 @@ class FCopyToCompleteShadowMapPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4, SourceScaleOffset)
+		SHADER_PARAMETER(FIntVector4, SourceMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -1507,20 +1508,23 @@ static void CopyToCompleteShadowMap(
 	FRDGBuilder& GraphBuilder,
 	const FRDGTextureRef SourceBuffer,
 	const FRDGTextureRef DestBuffer,
-	const FIntRect& SourceRect,
-	const FIntRect& DestRect,
+	const FIntRect& SourceInnerRect,
+	const FIntRect& SourceOuterRect,
+	const FIntRect& DestInnerRect,
+	const FIntRect& DestOuterRect,
 	ERenderTargetLoadAction LoadAction
 	)
 {
 	FVector4 SourceScaleOffset;
-	SourceScaleOffset.X = static_cast<float>(SourceRect.Width() ) / DestRect.Width();
-	SourceScaleOffset.Y = static_cast<float>(SourceRect.Height()) / DestRect.Height();
-	SourceScaleOffset.Z = SourceRect.Min.X - (SourceScaleOffset.X * DestRect.Min.X);
-	SourceScaleOffset.W = SourceRect.Min.Y - (SourceScaleOffset.Y * DestRect.Min.Y);
+	SourceScaleOffset.X = static_cast<float>(SourceInnerRect.Width() ) / DestInnerRect.Width();
+	SourceScaleOffset.Y = static_cast<float>(SourceInnerRect.Height()) / DestInnerRect.Height();
+	SourceScaleOffset.Z = SourceInnerRect.Min.X - (SourceScaleOffset.X * DestInnerRect.Min.X);
+	SourceScaleOffset.W = SourceInnerRect.Min.Y - (SourceScaleOffset.Y * DestInnerRect.Min.Y);
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FCopyToCompleteShadowMapPS::FParameters>();
 	PassParameters->SourceBuffer = SourceBuffer;
 	PassParameters->SourceScaleOffset = SourceScaleOffset;
+	PassParameters->SourceMinMax = FIntVector4(SourceOuterRect.Min.X, SourceOuterRect.Min.Y, SourceOuterRect.Max.X, SourceOuterRect.Max.Y);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DestBuffer, LoadAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -1532,7 +1536,7 @@ static void CopyToCompleteShadowMap(
 		RDG_EVENT_NAME("CopyToCompleteShadowMap"),
 		PixelShader,
 		PassParameters,
-		DestRect,
+		DestOuterRect,
 		nullptr,
 		nullptr,
 		TStaticDepthStencilState<true, CF_Always>::GetRHI()
@@ -1679,9 +1683,14 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 				if (SourceShadowInfo && SourceShadowInfo->RenderTargets.DepthTarget != nullptr)
 				{
 					FRDGTextureRef SourceShadowMap = GraphBuilder.RegisterExternalTexture(SourceShadowInfo->RenderTargets.DepthTarget, TEXT("SourceDepthBuffer"));
-					const FIntRect SourceRect = SourceShadowInfo->GetOuterViewRect();
-					const FIntRect DestRect = ProjectedShadowInfo->GetOuterViewRect();
-					CopyToCompleteShadowMap(GraphBuilder, SourceShadowMap, DestShadowMap, SourceRect, DestRect, bCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
+					CopyToCompleteShadowMap(GraphBuilder,
+						SourceShadowMap,
+						DestShadowMap,
+						SourceShadowInfo->GetInnerViewRect(),
+						SourceShadowInfo->GetOuterViewRect(),
+						ProjectedShadowInfo->GetInnerViewRect(),
+						ProjectedShadowInfo->GetOuterViewRect(),
+						bCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
 					bCleared = true;
 				}
 			}
