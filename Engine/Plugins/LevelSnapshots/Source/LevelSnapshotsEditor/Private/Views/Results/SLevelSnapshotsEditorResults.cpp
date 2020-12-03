@@ -8,109 +8,26 @@
 #include "ILevelSnapshotsEditorView.h"
 #include "LevelSnapshotsLog.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
-#include "Widgets/SLevelSnapshotsEditorResultsGroup.h"
 #include "LevelSnapshotsEditorData.h"
-#include "LevelSnapshotsFunctionLibrary.h"
+#include "PropertyWidgetGenerator.h"
 
+#include "DiffUtils.h"
+#include "EditorStyleSet.h"
+#include "EngineUtils.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditor/Private/PropertyEditorHelpers.h"
+#include "Types/ISlateMetaData.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Input/SComboButton.h"
-
-#include "Types/ISlateMetaData.h"
-#include "IPropertyRowGenerator.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
-#include "IDetailTreeNode.h"
-#include "PropertyHandle.h"
-#include "PropertyCustomizationHelpers.h"
-#include "PropertyEditor/Private/PropertyEditorHelpers.h"
-#include "EditorStyleSet.h"
-#include "Components/SlateWrapperTypes.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-
-#include "DiffUtils.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
-namespace LevelSnapshotsEditorResultsUtil
-{
-	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		if (PropertyHandle && PropertyHandle->IsValidHandle())
-		{
-			uint32 ChildrenCount = 0;
-			PropertyHandle->GetNumChildren(ChildrenCount);
-			for (uint32 Index = 0; Index < ChildrenCount; ++Index)
-			{
-				TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(Index);
-				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName, bRequiresMatchingPath))
-				{
-					return true;
-				}
-			}
-
-			if (PropertyHandle->GetProperty())
-			{
-				if (bRequiresMatchingPath)
-				{
-					if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
-					{
-						return true;
-					}
-				}
-				else if (PropertyHandle->GetProperty()->GetName() == QualifiedPropertyName)
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		TArray<TSharedRef<IDetailTreeNode>> Children;
-		RootNode->GetChildren(Children);
-		for (TSharedRef<IDetailTreeNode>& Child : Children)
-		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName, bRequiresMatchingPath);
-			if (FoundNode.IsValid())
-			{
-				return FoundNode;
-			}
-		}
-
-		TSharedPtr<IPropertyHandle> Handle = RootNode->CreatePropertyHandle();
-		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName, bRequiresMatchingPath))
-		{
-			return RootNode;
-		}
-
-		return nullptr;
-	}
-
-	/** Find a node by its name in a detail tree node hierarchy. */
-	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
-		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, bRequiresMatchingPath);
-			if (FoundNode.IsValid())
-			{
-				return FoundNode;
-			}
-		}
-
-		return nullptr;
-	}
-}
-
 SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 {
-	ActorObjects.Empty();
 }
 
 void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorResults>& InEditorResults, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
@@ -210,7 +127,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 					.Padding(2.f, 0.f)
 					.AutoWidth()
 					[
-						SNew(SCheckBox)
+						SAssignNew(ShowUnchangedCheckboxPtr, SCheckBox)
 						.IsChecked(false)
 						.OnCheckStateChanged(this, &SLevelSnapshotsEditorResults::OnCheckedStateChange_ShowUnchangedSnapshotActors)
 					]
@@ -233,236 +150,345 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 
 			+ SVerticalBox::Slot()
 			[
-				SAssignNew(ResultList, STreeView<TSharedPtr<FLevelSnapshotsEditorResultsRow>>)
-				.TreeItemsSource(reinterpret_cast<TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>*>(&FieldGroups))
-				.ItemHeight(24.0f)
-				.OnGenerateRow(this, &SLevelSnapshotsEditorResults::OnGenerateRow)
-				.OnGetChildren(this, &SLevelSnapshotsEditorResults::OnGetGroupChildren)
-				.OnSelectionChanged(this, &SLevelSnapshotsEditorResults::OnSelectionChanged)
-				.ClearSelectionOnClick(false)
+				SAssignNew(ResultsBoxPtr, SBox)
 			]
 		];
-
-	Refresh();
 }
 
-TSharedRef<ITableRow> SLevelSnapshotsEditorResults::OnGenerateRow(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, const TSharedRef<STableViewBase>& OwnerTable)
+void SLevelSnapshotsEditorResults::OnColumnResized(const float InWidth, const int32 SlotIndex) const
 {
-	if (InResultsRow->GetType() == FLevelSnapshotsEditorResultsRow::Group)
-	{
-		if (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> RowGroup = StaticCastSharedPtr<FLevelSnapshotsEditorResultsRowGroup>(InResultsRow))
-		{
-			return SNew(SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
-		}
-	}
-	else if (InResultsRow->GetType() == FLevelSnapshotsEditorResultsRow::Field)
-	{
-		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			[
-				InResultsRow->AsField().ToSharedRef()
-			];
-	}
-
-	return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-		.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
-		.ShowSelection(false)
-		[
-			SNew(STextBlock).Text(LOCTEXT("Results", "Results"))
-		];
-}
-
-void SLevelSnapshotsEditorResults::OnGetGroupChildren(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutRows)
-{
-	if (InResultsRow.IsValid())
-	{
-		InResultsRow->GetNodeChildren(OutRows);
-	}
-}
-
-void SLevelSnapshotsEditorResults::OnSelectionChanged(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, ESelectInfo::Type SelectInfo)
-{
-}
-
-void SLevelSnapshotsEditorResults::Refresh()
-{
-	RefreshGroups();
-}
-
-void SLevelSnapshotsEditorResults::RefreshGroups()
-{
-	ResultList->RequestListRefresh();
-}
-
-#pragma optimize("", off)
-
-/** Recursively create a property widget. */
-static TSharedRef<SWidget> CreatePropertyWidget(TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> InRowGroup, const TSharedPtr<IDetailTreeNode>& Node, bool bGenerateChildren = false)
-{
-	FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
-
-	NodeWidgets.ValueWidget->SetEnabled(false);
-
-	TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-	InRowGroup->FieldWidgetHBoxes.Add(FieldWidget);
-
-	if (NodeWidgets.NameWidget && NodeWidgets.ValueWidget)
-	{
-		FieldWidget->AddSlot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.AutoWidth()
-			[
-				NodeWidgets.NameWidget.ToSharedRef()
-			];
-
-		FieldWidget->AddSlot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				NodeWidgets.ValueWidget.ToSharedRef()
-			];
-	}
-	else if (NodeWidgets.WholeRowWidget)
-	{
-		FieldWidget->AddSlot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.AutoWidth()
-			[
-				NodeWidgets.WholeRowWidget.ToSharedRef()
-			];
-	}
-
-	InRowGroup->Fields.Add(SNew(SLevelSnapshotsEditorResultsField, FieldWidget));
-
-	if (bGenerateChildren)
-	{
-		TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-		Node->GetChildren(ChildNodes);
-
-		for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
-		{
-			CreatePropertyWidget(InRowGroup, ChildNode);
-		}
-	}
-
-	return FieldWidget;
+	SyncLevelSnapshotsResultsSplittersDelegate.Broadcast(InWidth, SlotIndex);
 }
 
 void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot)
 {
-	FieldGroups.Empty();
-	ActorSnapshotCounterpartMap.Empty();
-
 	if (InLevelSnapshot != nullptr)
 	{
 		// Saving a reference to the selected LevelSnapshot for diffing
 		SelectedLevelSnapshotPtr = InLevelSnapshot;
 
-		// TODO: Get World from world selection combobox
-		ULevelSnapshot* CurrentLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
-		ProvisionSnapshotActors(CurrentLevelSnapshot, true);
-		FieldGroups.Empty();
-		ProvisionSnapshotActors(InLevelSnapshot, false);
+		// Clear out all events broadcasted to for splitter sync
+		SyncLevelSnapshotsResultsSplittersDelegate.Clear();
 
-		RefreshGroups();
+		if (ResultsBoxPtr.IsValid())
+		{
+			ResultsBoxPtr->SetContent(LoopSnapshotActors(InLevelSnapshot));
+		}
 
-		// TODO: Mark the CurrentLevelSnapshot for destruction
+		if (ShowUnchangedCheckboxPtr.IsValid())
+		{
+			SetShowUnchangedSnapshotGroups(ShowUnchangedCheckboxPtr.Get()->IsChecked());
+		}
 	}
 }
 
-void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, bool bFromCurrentLevel)
+TSharedRef<SWidget> SLevelSnapshotsEditorResults::LoopSnapshotActors(ULevelSnapshot* InLevelSnapshot)
 {
-	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
+	TSharedRef<SScrollBox> EncapsulatingWidget = SNew(SScrollBox);
+
+	ActorGroups.Empty();
+
 	for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
 	{
 		FString ActorPath = ActorSnapshotPair.Key;
-		FSoftObjectPath ActorSoftPath = ActorSnapshotPair.Value.Base.SoftObjectPath;
-		
-		TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorPath, ActorSnapshotPair.Value);
+		FSoftObjectPath ActorSoftPath = FSoftObjectPath(ActorPath);
+
+		TStrongObjectPtr<AActor> ActorObjectPtr = TStrongObjectPtr<AActor>(ActorSnapshotPair.Value.GetDeserializedActor());
+
+		if (!ActorObjectPtr.IsValid())
 		{
-			AActor* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor();
+			continue; // Skip this line if ActorObject is not available
+		}
 
-			if (!ActorObject)
-			{
-				UE_LOG(LogLevelSnapshots, Error, TEXT("Couldn't deserialize actor from %s"), *ActorPath);
-				continue; // Skip this line if ActorObject is not available
-			}
+		AActor* WorldCounterpartActor = nullptr;
+
+		if (ActorSoftPath.IsValid())
+		{
+			WorldCounterpartActor = Cast<AActor>(ActorSoftPath.ResolveObject());
+		}
+
+		// Create group widget
+		TSharedRef<SLevelSnapshotsEditorResultsActorGroup> Group = 
+			SNew(SLevelSnapshotsEditorResultsActorGroup)
+			.ActorPath(ActorSoftPath)
+			.ActorName(ActorSnapshotPair.Value.Base.ObjectName);
+
+		ActorGroups.Add(Group);
+
+		for (const TPair<FName, FLevelSnapshot_Property>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
+		{
+			const FName PropertyName = PropertyPair.Key;
 			
-			TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
-			ActorObjects.Add(ActorObjectPtr);
+			FProperty* Property = FindFProperty<FProperty>(ActorObjectPtr.Get()->GetClass(), PropertyName);
 
-			FPropertyRowGeneratorArgs GeneratorArgs;
-			TSharedPtr<IPropertyRowGenerator> RowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(GeneratorArgs);
-			Generators.Add(RowGenerator);
-
-			TArray<UObject*> Objects;
-			Objects.Add(ActorObjectPtr.Get());
-			RowGenerator->SetObjects(Objects);
-
-			for (const TPair<FName, FLevelSnapshot_Property>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
+			// Skip inaccessible properties
+			if (!Property)
 			{
-				FString PropertyString = PropertyPair.Key.ToString();
+				continue;
+			}
 
-				// Check should we expose this property from filtered list
-				if (TSharedPtr<IDetailTreeNode> Node = LevelSnapshotsEditorResultsUtil::FindNode(RowGenerator->GetRootTreeNodes(), PropertyString, true))
+			// Skip deprecated properties
+			const bool bIsDeprecated = (Property->PropertyFlags & CPF_Deprecated) == 1;
+			if (bIsDeprecated)
+			{
+				continue;
+			}
+
+			TSharedPtr<SWidget> PropertyWidget;
+
+			if (FPropertyWidgetGenerator::IsPropertyContainer(Property))
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> ContainerWidget =
+					GenerateResultsContainerGroupWidget(
+						ActorObjectPtr.Get(), WorldCounterpartActor, Property);
+
+				Group->DirectGroupProperties.Add(ContainerWidget);
+
+				PropertyWidget = ContainerWidget;
+			}
+			else
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> SinglePropertyWidget =
+					GenerateResultsSinglePropertyWidget(
+						ActorObjectPtr.Get(), WorldCounterpartActor, Property);
+
+				Group->DirectSingleProperties.Add(SinglePropertyWidget);
+
+				PropertyWidget = SinglePropertyWidget;
+			}
+
+			if (PropertyWidget.IsValid())
+			{
+				Group.Get().AddToContents(PropertyWidget.ToSharedRef());
+			}
+		}
+
+		EncapsulatingWidget.Get().AddSlot()
+		[
+			Group
+		];
+	}
+
+	return EncapsulatingWidget;
+}
+
+TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> SLevelSnapshotsEditorResults::GenerateResultsContainerGroupWidget(
+	UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const uint8 ParentIndentationDepth,
+	void* SpecifiedSnapshotOuter, void* SpecifiedCounterpartOuter)
+{
+	if (!ensure(SnapshotObject) || !ensure(SnapshotProperty))
+	{
+		return nullptr;
+	}
+
+	const uint8 NewIndentationDepth = ParentIndentationDepth + 1;
+
+	TSharedRef<SLevelSnapshotsEditorResultsContainerPropertyGroup> ContainerGroup =
+		SNew(SLevelSnapshotsEditorResultsContainerPropertyGroup)
+		.IndentationDepth(NewIndentationDepth)
+		.ContainerName(FText::FromName(SnapshotProperty->GetFName()));
+
+
+	// This is the actual struct instance data. This is for a struct within a UObject or another struct.
+	void* SnapshotContainerPtr =
+		SnapshotProperty->ContainerPtrToValuePtr<void>(SpecifiedSnapshotOuter ? SpecifiedSnapshotOuter : SnapshotObject);
+
+	// Declare struct value ptr for Counterpart object, but we'll only define it if the object exists
+	void* CounterpartContainerPtr =
+		SnapshotProperty->ContainerPtrToValuePtr<void>(SpecifiedCounterpartOuter ? SpecifiedCounterpartOuter : LevelCounterpartObject);
+	
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(SnapshotProperty))
+	{
+
+		for (TFieldIterator<FProperty> FieldItr(StructProperty->Struct); FieldItr; ++FieldItr)
+		{
+			FProperty* InnerStructProperty = *FieldItr;
+
+			TSharedPtr<SWidget> PropertyWidget = nullptr;
+			
+			if (FPropertyWidgetGenerator::IsPropertyContainer(InnerStructProperty))
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> ContainerWidget =
+					GenerateResultsContainerGroupWidget(
+						SnapshotObject, LevelCounterpartObject, InnerStructProperty, NewIndentationDepth,
+						SnapshotContainerPtr, CounterpartContainerPtr);
+
+				if (ContainerWidget.IsValid())
 				{
-					/*ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
-							.EditMode_Raw(this, &SRemoteControlTarget::GetPanelEditMode));*/
+					ContainerGroup->DirectGroupProperties.Add(ContainerWidget);
 
-					TSharedRef<SWidget> PropertyWidget = CreatePropertyWidget(NewGroup, Node, true);
+					PropertyWidget = ContainerWidget;
+				}
+			}
+			else
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> SinglePropertyWidget =
+					GenerateResultsSinglePropertyWidget(
+						SnapshotObject, LevelCounterpartObject, InnerStructProperty, 0, NewIndentationDepth,
+						SnapshotContainerPtr, CounterpartContainerPtr);
 
-					TArray<FSoftObjectPath> ActorSnapshotCounterpartKeys;
-					ActorSnapshotCounterpartMap.GetKeys(ActorSnapshotCounterpartKeys);
-					
-					if (bFromCurrentLevel && Node.Get()->GetRow().IsValid() && Node.Get()->GetRow()->GetPropertyHandle().IsValid())
-					{
-						// If we already have this actor in the TMap
-						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(ActorSoftPath))
-						{
-							ActorSnapshotCounterpartMap[ActorSoftPath].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
-						}
-						else // Otherwise add a new entry entirely
-						{
-							ActorSnapshotCounterpartMap.Add(ActorSoftPath, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
-						}
-					}
-					else
-					{
-						if (ActorSnapshotCounterpartKeys.Contains(ActorSoftPath))
-						{
-							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[ActorSoftPath].CurrentLevelProperties[PropertyString]);
-						}
-						else
-						{
-							UE_LOG(LogLevelSnapshots, Warning, TEXT("Actor's UniqueID from path '%s' not in ActorSnapshotCounterpartKeys and therefore not in current level"), *ActorPath);
-						}
-					}
+				if (SinglePropertyWidget.IsValid())
+				{					
+					ContainerGroup->DirectSingleProperties.Add(SinglePropertyWidget);
+
+					PropertyWidget = SinglePropertyWidget;
+				}
+			}
+
+			if (PropertyWidget.IsValid())
+			{
+				ContainerGroup->AddToContents(PropertyWidget.ToSharedRef());
+			}
+		}
+
+		return ContainerGroup;
+	}
+	else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(SnapshotProperty))
+	{
+		FProperty* ArrayInnerProperty = ArrayProperty->Inner;
+
+		const int32 NumberOfArrayMembers = ArrayProperty->ArrayDim;
+		for (int32 ArrayIndex = 0; ArrayIndex < NumberOfArrayMembers; ArrayIndex++)
+		{
+			TSharedPtr<SWidget> PropertyWidget = nullptr;
+			
+			if (FPropertyWidgetGenerator::IsPropertyContainer(ArrayInnerProperty))
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> ContainerWidget =
+					GenerateResultsContainerGroupWidget(
+						SnapshotObject, LevelCounterpartObject, ArrayInnerProperty, NewIndentationDepth,
+						SnapshotContainerPtr, CounterpartContainerPtr);
+
+				if (ContainerWidget.IsValid())
+				{
+					ContainerGroup->DirectGroupProperties.Add(ContainerWidget);
+
+					PropertyWidget = ContainerWidget;
+				}
+			}
+			else
+			{
+				TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> SinglePropertyWidget =
+					GenerateResultsSinglePropertyWidget(SnapshotObject, LevelCounterpartObject, ArrayInnerProperty, ArrayIndex,
+						NewIndentationDepth, SnapshotContainerPtr, CounterpartContainerPtr);
+
+				if (SinglePropertyWidget.IsValid())
+				{
+					ContainerGroup->DirectSingleProperties.Add(SinglePropertyWidget);
+
+					PropertyWidget = SinglePropertyWidget;
+				}
+			}
+
+			if (PropertyWidget.IsValid())
+			{
+				ContainerGroup->AddToContents(PropertyWidget.ToSharedRef());
+			}
+		}
+
+		return ContainerGroup;
+	}
+	else if (FSetProperty* SetProperty = CastField<FSetProperty>(SnapshotProperty))
+	{
+		return  nullptr;
+	}
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(SnapshotProperty))
+	{
+		return nullptr;
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> SLevelSnapshotsEditorResults::GenerateResultsSinglePropertyWidget(
+	UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const int32 ArrayDimIndex, 
+	const uint8 ParentIndentationDepth, void* SpecifiedSnapshotOuter, void* SpecifiedCounterpartOuter)
+{
+	if (!ensure(SnapshotObject) || !ensure(SnapshotProperty))
+	{
+		return nullptr;
+	}
+
+	// If this property is within a struct, map, array, set, etc.
+	bool bIsPropertyInContainer = SpecifiedSnapshotOuter != nullptr;
+	
+	TSharedPtr<SWidget> SnapshotActorWidget = nullptr;
+
+	if (bIsPropertyInContainer)
+	{
+		SnapshotActorWidget = FPropertyWidgetGenerator::GenerateWidgetForPropertyInContainer(
+			SnapshotProperty, SnapshotObject, SpecifiedSnapshotOuter, ArrayDimIndex);
+	}
+	else
+	{
+		SnapshotActorWidget = FPropertyWidgetGenerator::GenerateWidgetForUClassProperty(SnapshotProperty, SnapshotObject);
+	}
+
+	if (SnapshotActorWidget.IsValid())
+	{
+		const uint8 NewIndentationDepth = ParentIndentationDepth + 1;
+		
+		// Set disabled to avoid user changes
+		SnapshotActorWidget.Get()->SetEnabled(false);
+
+		// Declare a widget container for the counterpart actor and a bool that describes whether or not the values are different
+		// between the snapshot actor and the counterpart actor
+		TSharedPtr<SWidget> CounterpartActorWidget = nullptr;
+		bool bIsPropertyDifferentInLevel = false;
+
+		if (LevelCounterpartObject)
+		{
+			bIsPropertyInContainer = SpecifiedCounterpartOuter != nullptr;
+			// We don't need to create this widget if the SnapshotActorWidget isn't valid
+			if (bIsPropertyInContainer)
+			{
+				CounterpartActorWidget = FPropertyWidgetGenerator::GenerateWidgetForPropertyInContainer(
+					SnapshotProperty, LevelCounterpartObject, SpecifiedCounterpartOuter, ArrayDimIndex);
+			}
+			else
+			{
+				CounterpartActorWidget = FPropertyWidgetGenerator::GenerateWidgetForUClassProperty(SnapshotProperty, LevelCounterpartObject);					
+			}
+
+			if (CounterpartActorWidget.IsValid())
+			{
+				// Set disabled to avoid user changes
+				CounterpartActorWidget.Get()->SetEnabled(false);
+
+				// We collected the values as string to be able to compare them here
+				// If the strings don't match up, we know the values are different
+				if (bIsPropertyInContainer)
+				{
+					bIsPropertyDifferentInLevel =
+						!FPropertyWidgetGenerator::ArePropertyValuesInContainerEqual(
+							SnapshotProperty, SpecifiedSnapshotOuter, SpecifiedCounterpartOuter, ArrayDimIndex);
 				}
 				else
 				{
-					UE_LOG(LogLevelSnapshots, Warning, TEXT("Node not in the list; PropertyString is %s"), *PropertyString);
+					bIsPropertyDifferentInLevel =
+						!FPropertyWidgetGenerator::AreUClassPropertyValuesEqual(
+							SnapshotProperty, SnapshotObject,LevelCounterpartObject);
 				}
 			}
 		}
 
-		FieldGroups.Add(NewGroup);
+		return SNew(SLevelSnapshotsEditorResultsSingleProperty,
+			SharedThis(this), SnapshotProperty, SnapshotActorWidget, CounterpartActorWidget)
+			.bIsPropertyDifferentInLevel(bIsPropertyDifferentInLevel)
+			.IndentationDepth(NewIndentationDepth);
+		
 	}
+
+	return nullptr;
 }
 
 FReply SLevelSnapshotsEditorResults::SetAllGroupsSelected()
 {
-	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	for (TSharedPtr<SLevelSnapshotsEditorResultsActorGroup>& Group : ActorGroups)
 	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
+		if (Group.IsValid())
 		{
-			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
-				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
-			if (GroupWidget->CheckboxPtr.IsValid())
-			{
-				GroupWidget->CheckboxPtr->SetIsChecked(false);
-			}
+			Group.Get()->SetIsNodeChecked(true);
 		}
 	}
 
@@ -471,16 +497,11 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsSelected()
 
 FReply SLevelSnapshotsEditorResults::SetAllGroupsUnselected()
 {
-	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	for (TSharedPtr<SLevelSnapshotsEditorResultsActorGroup>& Group : ActorGroups)
 	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
+		if (Group.IsValid())
 		{
-			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
-				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
-			if (GroupWidget->CheckboxPtr.IsValid())
-			{
-				GroupWidget->CheckboxPtr->SetIsChecked(false);
-			}
+			Group.Get()->SetIsNodeChecked(false);
 		}
 	}
 
@@ -489,14 +510,19 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsUnselected()
 
 FReply SLevelSnapshotsEditorResults::SetAllGroupsCollapsed()
 {
-	ResultList->ClearExpandedItems();
+	for (TSharedPtr<SLevelSnapshotsEditorResultsActorGroup>& Group : ActorGroups)
+	{
+		if (Group.IsValid())
+		{
+			Group.Get()->SetIsItemExpanded(false);
+		}
+	}
 
 	return FReply::Handled();
 }
 
 void SLevelSnapshotsEditorResults::OnCheckedStateChange_ShowUnchangedSnapshotActors(ECheckBoxState NewState)
 {
-
 	if (NewState == ECheckBoxState::Checked)
 	{
 		SetShowUnchangedSnapshotGroups(true);
@@ -509,93 +535,30 @@ void SLevelSnapshotsEditorResults::OnCheckedStateChange_ShowUnchangedSnapshotAct
 
 void SLevelSnapshotsEditorResults::SetShowUnchangedSnapshotGroups(const bool bShowGroups)
 {
-	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
-
-	if (!bShowGroups)
-	{
-		// If we want to hide unchanged groups we first have to determine what they are
-		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshotPtr.Get());
-	}
+	const EVisibility NewVisibility = bShowGroups ? EVisibility::Visible : EVisibility::Collapsed;
 	
-	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	for (TSharedPtr<SLevelSnapshotsEditorResultsActorGroup>& ActorGroup : ActorGroups)
 	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
+		if (ActorGroup.IsValid())
 		{
-			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
-				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
+			// Get all single property widgets for this actor group
+			TArray<TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty>> SingleProperties;
+			ActorGroup.Get()->GetAllSinglePropertyChildrenRecursively(SingleProperties);
 
-			EVisibility NewGroupVisibility = EVisibility::SelfHitTestInvisible;
-
-			if (!bShowGroups)
+			for (TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty>& Row : SingleProperties)
 			{
-				if (UnchangedGroups.Num() > 0 && UnchangedGroups.ContainsByPredicate(
-					[Group](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
-					{
-						return G->ObjectPath.Equals(Group->ObjectPath);
-				}))
+				if (Row.IsValid())
 				{
-					NewGroupVisibility = EVisibility::Collapsed;
+					if (!Row.Get()->GetIsPropertyChangedInLevel())
+					{
+						Row.Get()->SetVisibility(NewVisibility);
+					}
 				}
 			}
-			
-			GroupWidget->SetVisibility(NewGroupVisibility);
+
+			ActorGroup.Get()->SetAllChildContainerGroupsVisibilityBasedOnTheirChildren();
 		}
 	}
-}
-
-TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
-	ULevelSnapshot* InLevelSnapshot)
-{
-	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
-
-	// Create transient ULevelSnapshot to compare against InLevelSnapshot
-	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
-
-	if (!TempLevelSnapshot || !InLevelSnapshot)
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
-		return UnchangedGroups;
-	}
-
-	for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : TempLevelSnapshot->ActorSnapshots)
-	{
-		const FString& FirstSnapshotPathName = SnapshotPair.Key;
-		const FLevelSnapshot_Actor& FirstActorSnapshot = SnapshotPair.Value;
-
-		if (const FLevelSnapshot_Actor* SecondActorSnapshot = InLevelSnapshot->ActorSnapshots.Find(FirstSnapshotPathName))
-		{
-			// Actor paths match, so let's compare properties
-
-			AActor* FirstActor = FirstActorSnapshot.GetDeserializedActor();
-			AActor* SecondActor = SecondActorSnapshot->GetDeserializedActor();
-
-			if (FirstActor && SecondActor)
-			{
-				TArray<FSingleObjectDiffEntry> DifferingProperties;
-				DiffUtils::CompareUnrelatedObjects(FirstActor, SecondActor, DifferingProperties);
-
-				if (DifferingProperties.Num() < 1)
-				{
-					// This means there is no difference between the matching actors. It's unchanged since the last snapshot.
-					// We add it to the TArray by finding a candidate from FieldGroups whose ObjectPath matches the path of this ActorSnapshot
-
-					TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[FieldGroups.IndexOfByPredicate(
-						[FirstSnapshotPathName] (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
-					{
-							return G->ObjectPath.Equals(FirstSnapshotPathName);
-					})];
-
-					UnchangedGroups.Add(Group);
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogLevelSnapshots, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
-		}
-	}
-	
-	return UnchangedGroups;
 }
 
 TSharedRef<SWidget> SLevelSnapshotsEditorResults::MakeAddFilterMenu()
@@ -623,126 +586,525 @@ TSharedRef<SWidget> SLevelSnapshotsEditorResults::MakeAddFilterMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SLevelSnapshotsEditorResultsRowGroup::Tick(const FGeometry&, const double, const float)
+void SLevelSnapshotsEditorResultsExpanderArrow::Construct(const FArguments& InArgs)
 {
+	OnArrowClickedDelegate = InArgs._OnArrowClickedDelegate;
+	
+	ChildSlot
+	[
+		SAssignNew(ExpanderArrowPtr, SButton)
+		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ClickMethod(EButtonClickMethod::MouseDown)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsFocusable(false)
+		.OnClicked_Lambda([this]()
+		{
+			ToggleItemExpanded();
+			
+			OnArrowClickedDelegate.ExecuteIfBound(IsItemExpanded());
+
+			return FReply::Handled();
+		})
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image_Lambda([this]()
+			{
+				// Copied from SExpanderArrow::GetExpanderImage
+				// Recreated SExpanderArrow because there is no exposed delegate for clicking the arrow button on SExpanderArrow
+				FName ResourceName;
+				if (bIsItemExpanded)
+				{
+					if (this->IsHovered())
+					{
+						ResourceName = "TreeArrow_Expanded_Hovered";
+					}
+					else
+					{
+						ResourceName = "TreeArrow_Expanded";
+					}
+				}
+				else
+				{
+					if (this->IsHovered())
+					{
+						ResourceName = "TreeArrow_Collapsed_Hovered";
+					}
+					else
+					{
+						ResourceName = "TreeArrow_Collapsed";
+					}
+				}
+
+				return FCoreStyle::Get().GetBrush(ResourceName);
+			})
+		]
+	];
 }
 
-void SLevelSnapshotsEditorResultsRowGroup::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>& FieldGroup, const TSharedPtr<SLevelSnapshotsEditorResults>& OwnerPanel)
+bool SLevelSnapshotsEditorResultsExpanderArrow::IsItemExpanded() const
 {
+	return bIsItemExpanded;
+}
+
+void SLevelSnapshotsEditorResultsExpanderArrow::SetItemExpanded(bool bNewExpanded)
+{
+	bIsItemExpanded = bNewExpanded;
+
+	OnArrowClickedDelegate.ExecuteIfBound(bNewExpanded);
+}
+
+void SLevelSnapshotsEditorResultsExpanderArrow::ToggleItemExpanded()
+{
+	SetItemExpanded(!IsItemExpanded());
+}
+
+FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType FLevelSnapshotsEditorResultsRow::GetType() const
+{
+	return NodeType;
+}
+
+ECheckBoxState FLevelSnapshotsEditorResultsRow::GetIsNodeChecked()
+{
+	ECheckBoxState State = ECheckBoxState::Undetermined;
+
+	if (CheckboxPtr.IsValid())
+	{
+		State = CheckboxPtr.Get()->GetCheckedState();
+	}
+
+	return State;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetIsNodeChecked(bool bNewChecked)
+{
+	if (CheckboxPtr.IsValid())
+	{
+		CheckboxPtr.Get()->SetIsChecked(bNewChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+	}
+}
+
+bool FLevelSnapshotsEditorResultsRow::GetIsItemExpanded()
+{
+	bool bIsExpanded = false;
+
+	if (ExpanderArrowPtr.IsValid())
+	{
+		bIsExpanded = ExpanderArrowPtr.Get()->IsItemExpanded();
+	}
+
+	return bIsExpanded;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetIsItemExpanded(bool bNewExpanded)
+{
+	if (ExpanderArrowPtr.IsValid())
+	{
+		ExpanderArrowPtr.Get()->SetItemExpanded(bNewExpanded);
+	}
+}
+
+uint8 FLevelSnapshotsEditorResultsRow::GetIndentationDepth()
+{
+	return IndentationDepth;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetIndentationDepth(const uint8 InDepth)
+{
+	IndentationDepth = InDepth;
+}
+
+float FLevelSnapshotsEditorResultsRow::GetNodeIndentationWidth() const
+{
+	return ChildIndentationWidth * IndentationDepth;
+}
+
+bool FLevelSnapshotsEditorResultsRow::HasVisibleChildren()
+{
+	TArray<TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty>> OutSinglePropertyNodeArray;
+	GetAllSinglePropertyChildrenRecursively(OutSinglePropertyNodeArray);
+
+	for (TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty>& Child : OutSinglePropertyNodeArray)
+	{
+		if (Child.IsValid() && Child.Get()->GetVisibility() != EVisibility::Collapsed && Child.Get()->GetVisibility() != EVisibility::Hidden)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetAllChildContainerGroupsVisibilityBasedOnTheirChildren()
+{
+	TArray<TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup>> Containers;
+	GetAllContainerGroupChildrenRecursively(Containers);
+
+	// Set visibility for each struct, iterating in reverse
+	for (int32 ContainerCount = Containers.Num() - 1; ContainerCount >= 0; ContainerCount--)
+	{
+		TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> Container = Containers[ContainerCount];
+
+		if (Container.IsValid())
+		{
+			Container.Get()->SetVisibility(
+				Container.Get()->HasVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed);
+		}
+	}
+}
+
+void FLevelSnapshotsEditorResultsRow::GetAllSinglePropertyChildrenRecursively(
+	TArray<TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty>>& OutSinglePropertyNodeArray)
+{
+	OutSinglePropertyNodeArray.Append(DirectSingleProperties);
+
+	for (TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup>& Group : DirectGroupProperties)
+	{
+		if (!Group.IsValid())
+		{
+			continue;
+		}
+
+		Group.Get()->GetAllSinglePropertyChildrenRecursively(OutSinglePropertyNodeArray);
+	}
+}
+
+void FLevelSnapshotsEditorResultsRow::GetAllContainerGroupChildrenRecursively(
+	TArray<TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup>>& OutContainerGroupNodeArray)
+{
+	for (TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup>& Group : DirectGroupProperties)
+	{
+		if (!Group.IsValid())
+		{
+			continue;
+		}
+
+		OutContainerGroupNodeArray.Add(Group);
+
+		Group.Get()->GetAllContainerGroupChildrenRecursively(OutContainerGroupNodeArray);
+	}
+}
+
+void FLevelSnapshotsEditorResultsRow::GetAllChildRowsRecursively(
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutRowNodeArray)
+{
+	OutRowNodeArray.Append(DirectSingleProperties);
+
+	for (TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup>& Group : DirectGroupProperties)
+	{
+		if (!Group.IsValid())
+		{
+			continue;
+		}
+
+		OutRowNodeArray.Add(Group);
+
+		Group.Get()->GetAllChildRowsRecursively(OutRowNodeArray);
+	}
+}
+
+void SLevelSnapshotsEditorResultsActorGroup::Construct(const FArguments& InArgs)
+{
+	ActorPath = InArgs._ActorPath;
+	ActorName = InArgs._ActorName;
+
+	check(ActorPath.IsSet());
+	check(ActorName.IsSet());
+
+	NodeType = ELevelSnapshotsEditorResultsRowType::ActorGroup;
+	
 	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f))
+		.VAlign(VAlign_Top)
+		.AutoHeight()
 		[
-			SNew(SBox)
-			.Padding(FMargin(0.0f, 2.0f))
+			SNew(SBorder)
+			.Padding(FMargin(5.0f, 8.0f))
+			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
 			[
-				SNew(SBorder)
-				.Padding(FMargin(5.0f, 8.0f))
-				.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Center)
+				.Padding(FMargin(4.0f, 0.0f))
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
+					SAssignNew(ExpanderArrowPtr, SLevelSnapshotsEditorResultsExpanderArrow)
+					.OnArrowClickedDelegate_Lambda([this](bool bIsExpanded)
+					{
+						if (ScrollBoxPtr.IsValid())
+						{
+							const EVisibility Visibility = bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+							ScrollBoxPtr.Get()->SetVisibility(Visibility);
+						}
+					})
+				]
 
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Center)
-					.Padding(FMargin(4.0f, 0.0f))
-					.AutoWidth()
-					[
-						SAssignNew(ExpanderArrowPtr, SExpanderArrow, SharedThis(this))
-					]
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(4.0f, 0.0f))
+				.AutoWidth()
+				[
+					SAssignNew(CheckboxPtr, SCheckBox)
+					.IsChecked(true)
+					.OnCheckStateChanged_Raw(this, &SLevelSnapshotsEditorResultsActorGroup::OnNodeCheckStateChanged)
+				]
 
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(4.0f, 0.0f))
-					.AutoWidth()
-					[
-						SAssignNew(CheckboxPtr, SCheckBox)
-						.IsChecked(true)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(10.0f, 0.0f))
-					[
-						SNew(SLevelSnapshotsEditorResultsGroup, FieldGroup->ActorSnapshot.Base.ObjectName.ToString(), FieldGroup->ActorSnapshot)
-					]
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(10.0f, 0.0f))
+				[
+					SNew(STextBlock).Text(FText::FromName(ActorName.Get()))
 				]
 			]
-		];
+		]
 
-
-	STableRow<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>>::ConstructInternal(
-		STableRow::FArguments()
-		.ShowSelection(false),
-		InOwnerTableView
-	);
+		+SVerticalBox::Slot()
+		.Padding(FMargin(15.0f, 2.0f))
+		.VAlign(VAlign_Top)
+		.MaxHeight(500.0f)
+		[
+			SAssignNew(ScrollBoxPtr,SScrollBox)
+			.Visibility(EVisibility::Collapsed)
+		]
+	];
 }
 
-void FLevelSnapshotsEditorResultsRowGroup::GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren)
+void SLevelSnapshotsEditorResultsActorGroup::AddToContents(TSharedRef<SWidget> InContent) const
 {
-	OutChildren.Append(Fields);
-}
-
-void FLevelSnapshotsEditorResultsRowGroup::AddCurrentPropertyWidget(const TSharedPtr<IPropertyHandle> InPropertyHandle)
-{
-	const int32 FieldWidgetIndex = FieldWidgetHBoxes.Num() - 1;
-	
-	if (FieldWidgetIndex < 0)
+	if (ensure(ScrollBoxPtr.IsValid()))
 	{
-		UE_LOG(LogLevelSnapshots, Error, TEXT("SLevelSnapshotsEditorResults::AddCurrentPropertyWidget: Length of FieldWidgetHBoxes is 0."))
-		return;
+		ScrollBoxPtr.Get()->AddSlot()
+			[
+				InContent
+			];
 	}
-	
-	TSharedRef<SHorizontalBox> FieldWidget = FieldWidgetHBoxes[FieldWidgetIndex];
-	TSharedPtr<SProperty> CurrentPropertyWidget;
-
-	// Add separation between snapshot value and current value
-	FieldWidget->AddSlot()
-		.Padding(FMargin(3.0f, 2.0f))
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.Text(INVTEXT("| "))
-		];
-	FieldWidget->AddSlot()
-		.Padding(FMargin(3.0f, 2.0f))
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("CurrentValue", "Current: "))
-		];
-	FieldWidget->AddSlot()
-		.Padding(FMargin(3.0f, 2.0f))
-		.AutoWidth()
-		[
-			SAssignNew(CurrentPropertyWidget, SProperty, InPropertyHandle)
-			.ShouldDisplayName(false)
-			.IsEnabled(false)
-		];
 }
 
-void SLevelSnapshotsEditorResultsField::Construct(const FArguments& InArgs, const TSharedRef<SWidget>& InContent)
+void SLevelSnapshotsEditorResultsContainerPropertyGroup::Construct(const FArguments& InArgs)
 {
+	ContainerName = InArgs._ContainerName;
+	IndentationDepth = InArgs._IndentationDepth;
+
+	NodeType = ELevelSnapshotsEditorResultsRowType::ContainerGroup;
+	
 	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f))
+		.VAlign(VAlign_Top)
+		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SSpacer).Size(FVector2D(GetNodeIndentationWidth(), 1.0f)) // For indenting
+			]
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SAssignNew(CheckboxPtr, SCheckBox)
 				.IsChecked(true)
+				.OnCheckStateChanged_Raw(this, &SLevelSnapshotsEditorResultsContainerPropertyGroup::OnNodeCheckStateChanged)
 			]
 
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
 			[
-				InContent
+				SAssignNew(ExpanderArrowPtr, SLevelSnapshotsEditorResultsExpanderArrow)
+				.OnArrowClickedDelegate_Lambda([this](bool bIsExpanded)
+				{
+					if (ContentVBoxPtr.IsValid())
+					{
+						const EVisibility Visibility = bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+						ContentVBoxPtr.Get()->SetVisibility(Visibility);
+					}
+				})
 			]
-		];
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 5.0f)
+			[
+				SNew(STextBlock).Text(ContainerName)
+			]
+		]
+
+		+SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f))
+		.VAlign(VAlign_Top)
+		.AutoHeight()
+		[
+			SAssignNew(ContentVBoxPtr,SVerticalBox)
+			.Visibility(EVisibility::Collapsed)
+		]
+	];
 }
 
-TSharedPtr<SLevelSnapshotsEditorResultsField> SLevelSnapshotsEditorResultsField::AsField()
+void SLevelSnapshotsEditorResultsContainerPropertyGroup::AddToContents(TSharedRef<SWidget> InContent) const
 {
-	return SharedThis(this);
+	if (ensure(ContentVBoxPtr.IsValid()))
+	{
+		ContentVBoxPtr.Get()->AddSlot().AutoHeight()
+		[
+			InContent
+		];
+	}
 }
 
-#pragma optimize("", on)
+void SLevelSnapshotsEditorResultsContainerPropertyGroup::OnNodeCheckStateChanged(const ECheckBoxState NewCheckState)
+{
+	bool bIsChecked = false;
+
+	if (NewCheckState == ECheckBoxState::Checked)
+	{
+		bIsChecked = true;
+	}
+	
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>> ChildProperties;
+	GetAllChildRowsRecursively(ChildProperties);
+
+	for (TSharedPtr<FLevelSnapshotsEditorResultsRow>& Child : ChildProperties)
+	{
+		if (Child.IsValid())
+		{
+			Child.Get()->SetIsNodeChecked(bIsChecked);
+		}
+	}
+	
+}
+
+void SLevelSnapshotsEditorResultsSingleProperty::Construct(const FArguments& InArgs, TSharedRef<SLevelSnapshotsEditorResults> ResultsWidget,
+                                                           const FProperty* InProperty, const TSharedPtr<SWidget>& SnapshotActorWidget, const TSharedPtr<SWidget>& CurrentLevelActorWidget)
+{
+	bIsPropertyChangedInLevel = InArgs._bIsPropertyDifferentInLevel;
+	IndentationDepth = InArgs._IndentationDepth;
+	
+	PropertyName = InProperty->GetFName();
+
+	ChildSlot
+	[
+		SAssignNew(SplitterPtr, SSplitter)
+		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+		.PhysicalSplitterHandleSize(1.0f)
+		.HitDetectionSplitterHandleSize(5.0f)
+
+		+SSplitter::Slot()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SSpacer).Size(FVector2D(GetNodeIndentationWidth(), 1.0f)) // For indenting
+			]
+			
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SAssignNew(CheckboxPtr, SCheckBox)
+				.IsChecked(true)
+				.OnCheckStateChanged_Raw(this, &SLevelSnapshotsEditorResultsSingleProperty::OnNodeCheckStateChanged)
+				.ToolTipText(FText::Format(INVTEXT("Is property different in current level: {0}"), bIsPropertyChangedInLevel))
+			]
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 5.0f)
+			[
+				SNew(STextBlock)
+				.Text(InProperty->GetDisplayNameText())
+				.ToolTipText(FText::Format(INVTEXT("Is property different in current level: {0}"), bIsPropertyChangedInLevel))
+			]
+		]
+	];
+
+	if (SnapshotActorWidget.IsValid())
+	{
+		SplitterPtr.Get()->AddSlot()
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.0f, 5.0f))
+				[
+					SnapshotActorWidget.Get()->AsShared()
+				]
+			];
+	}
+	else
+	{
+		SplitterPtr.Get()->AddSlot()
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.0f, 5.0f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SLevelSnapshotsEditorResultsSingleProperty_NoValidSnapshotActor", "No valid snapshot actor given"))
+				]			
+			];
+	}
+
+	if (CurrentLevelActorWidget.IsValid())
+	{
+		SplitterPtr.Get()->AddSlot()
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.0f, 5.0f))
+				[
+					CurrentLevelActorWidget.Get()->AsShared()
+				]
+			];
+	}
+	else
+	{
+		SplitterPtr.Get()->AddSlot()
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.0f, 5.0f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SLevelSnapshotsEditorResultsSingleProperty_NoCounterpartFound", "No level property found"))
+				]
+			];
+	}
+	
+	// Bind event to the splitter being resized first
+	for (int32 SplitterSlotCount = 0; SplitterSlotCount < SplitterPtr.Get()->GetChildren()->Num(); SplitterSlotCount++)
+	{
+		if (ensure(SplitterPtr.IsValid()))
+		{
+			SplitterPtr.Get()->SlotAt(SplitterSlotCount)
+				.OnSlotResized_Handler.BindSP(ResultsWidget, &SLevelSnapshotsEditorResults::OnColumnResized, SplitterSlotCount);
+		}
+	}
+
+	// Then that event broadcasts this event
+	ResultsWidget.Get().SyncLevelSnapshotsResultsSplittersDelegate.AddRaw(this, &SLevelSnapshotsEditorResultsSingleProperty::SyncSplitter);
+}
+
+void SLevelSnapshotsEditorResultsSingleProperty::SyncSplitter(const float InWidth, const int32 SlotIndex) const
+{
+	if (ensure(SplitterPtr.IsValid()))
+	{
+		SplitterPtr.Get()->SlotAt(SlotIndex).SizeValue = InWidth;
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

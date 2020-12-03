@@ -35,14 +35,15 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 bool ULevelSnapshot::DoesActorHaveSupportedClass(const AActor* Actor)
 {
-	UClass* ActorClass = Actor->GetClass();
-	// An array of classes we don't support
-	TArray<UClass*> ClassFilter = 
+	const UClass* ActorClass = Actor->GetClass();
+
+	const TArray<UClass*> UnsupportedClasses = 
 	{
-		ALevelScriptActor::StaticClass() // THe level blueprint. Filtered out to avoid external map errors when saving a snapshot.
+		ALevelScriptActor::StaticClass(), // The level blueprint. Filtered out to avoid external map errors when saving a snapshot.
+		ABrush::StaticClass() // Brush Actors
 	};
 
-	for (UClass* Class : ClassFilter)
+	for (UClass* Class : UnsupportedClasses)
 	{
 		if (Actor->IsA(Class))
 		{
