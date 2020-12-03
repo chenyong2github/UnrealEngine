@@ -16,7 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 class FShaderPipeline;
 class FShaderMapResource;
 class FShaderMapResourceCode;
-using FShaderMapAssetPaths = TSet<FString>;
+using FShaderMapAssetPaths = TSet<FName>;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {

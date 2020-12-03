@@ -1600,25 +1600,24 @@ void FMaterialResource::NotifyCompilationFinished()
 	UMaterial::NotifyCompilationFinished(MaterialInstance ? (UMaterialInterface*)MaterialInstance : (UMaterialInterface*)Material);
 }
 
-FString FMaterialResource::GetAssetPath() const
+FName FMaterialResource::GetAssetPath() const
 {
-	FString OutermostName;
+	FName OutermostName;
 	if (MaterialInstance)
 	{
-		OutermostName = MaterialInstance->GetOutermost()->GetName();
+		OutermostName = MaterialInstance->GetOutermost()->GetFName();
 	}
 	else if (Material)
 	{
-		OutermostName = Material->GetOutermost()->GetName();
+		OutermostName = Material->GetOutermost()->GetFName();
 	}
 	else
 	{
 		// neither is known
-		return FString();
+		return NAME_None;
 	}
 
-	FString Result = FPackageName::LongPackageNameToFilename(OutermostName, TEXT(".uasset"));
-	return Result;
+	return OutermostName;
 }
 
 bool FMaterialResource::ShouldInlineShaderCode() const

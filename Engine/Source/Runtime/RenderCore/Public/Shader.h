@@ -2012,7 +2012,7 @@ public:
 	/** Associates a shadermap with an asset (note: one shadermap can be used by several assets, e.g. MIs). 
 	 * This helps cooker lay out the shadermaps (and shaders) in the file open order, if provided. Maps not associated with any assets
 	 * may be placed after all maps associated with known assets. Global shadermaps need to be associated with a "Global" asset */
-	void AssociateWithAsset(const FString& AssetPath)
+	void AssociateWithAsset(const FName& AssetPath)
 	{
 		AssociatedAssets.Add(AssetPath);
 	}

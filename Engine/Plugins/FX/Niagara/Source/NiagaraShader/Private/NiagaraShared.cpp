@@ -330,8 +330,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 				// associate right here
 				if (BaseVMScript)
 				{
-					FString AssetFile = FPackageName::LongPackageNameToFilename(BaseVMScript->GetOutermost()->GetName(), TEXT(".uasset"));
-					GameThreadShaderMap->AssociateWithAsset(AssetFile);
+					GameThreadShaderMap->AssociateWithAsset(BaseVMScript->GetOutermost()->GetFName());
 				}
 				GameThreadShaderMap->Serialize(Ar);
 			}

@@ -1962,7 +1962,7 @@ public:
 	/** Recreates FShaders in editor loaded materials from the passed in memory, handling shader key changes. */
 	static void RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
 	/** Allows to associate the shader resources with the asset for load order. */
-	virtual FString GetAssetPath() const { return TEXT(""); };
+	virtual FName GetAssetPath() const { return NAME_None; };
 
 	/** Some materials may be loaded early - before the shader library - and need their code inlined */
 	virtual bool ShouldInlineShaderCode() const { return false; }
@@ -2608,7 +2608,7 @@ public:
 #if WITH_EDITOR
 	ENGINE_API virtual void NotifyCompilationFinished() override;
 	/** Allows to associate the shader resources with the asset for load order. */
-	ENGINE_API virtual FString GetAssetPath() const override;
+	ENGINE_API virtual FName GetAssetPath() const override;
 	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
 #endif // WITH_EDITOR
 

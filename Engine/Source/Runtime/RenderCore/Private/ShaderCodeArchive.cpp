@@ -249,7 +249,7 @@ void FSerializedShaderArchive::SaveAssetInfo(FArchive& Ar)
 				Writer->WriteArrayStart(TEXT("Assets"));
 				for (FShaderMapAssetPaths::TConstIterator AssetIter(Assets); AssetIter; ++AssetIter)
 				{
-					Writer->WriteValue((*AssetIter));
+					Writer->WriteValue((*AssetIter).ToString());
 				}
 				Writer->WriteArrayEnd();
 				Writer->WriteObjectEnd();
@@ -352,7 +352,7 @@ bool FSerializedShaderArchive::LoadAssetInfo(const FString& Filename)
 		TArray<TSharedPtr<FJsonValue>> AssetPathsArray = AssetPathsArrayValue->AsArray();
 		for (int32 IdxAsset = 0, NumAssets = AssetPathsArray.Num(); IdxAsset < NumAssets; ++IdxAsset)
 		{
-			Paths.Add(AssetPathsArray[IdxAsset]->AsString());
+			Paths.Add(FName(*AssetPathsArray[IdxAsset]->AsString()));
 		}
 
 		ShaderCodeToAssets.Add(ShaderMapHash, Paths);

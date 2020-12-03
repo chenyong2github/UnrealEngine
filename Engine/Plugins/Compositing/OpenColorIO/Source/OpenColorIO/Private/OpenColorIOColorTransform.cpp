@@ -145,11 +145,11 @@ void UOpenColorIOColorTransform::CacheResourceShadersForCooking(EShaderPlatform 
 
 	FOpenColorIOTransformResource* NewResource = AllocateResource();
 #if WITH_EDITOR
-	FString AssetFilePath = FPackageName::LongPackageNameToFilename(GetOutermost()->GetName(), TEXT(".uasset"));
+	FName AssetPath = GetOutermost()->GetFName();
 #else
-	FString AssetFilePath;
+	FName AssetPath;
 #endif
-	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, GetTransformFriendlyName(), AssetFilePath);
+	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, GetTransformFriendlyName(), AssetPath);
 
 	const bool bApplyCompletedShaderMap = false;
 	const bool bIsCooking = true;
@@ -277,11 +277,11 @@ void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenera
 				}
 
 #if WITH_EDITOR
-				FString AssetFilePath = FPackageName::LongPackageNameToFilename(GetOutermost()->GetName(), TEXT(".uasset"));
+				FName AssetPath = GetOutermost()->GetFName();
 #else
-				FString AssetFilePath;
+				FName AssetPath;
 #endif
-				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, GetTransformFriendlyName(), AssetFilePath);
+				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, GetTransformFriendlyName(), AssetPath);
 
 				const bool bApplyCompletedShaderMap = true;
 				const bool bIsCooking = false;

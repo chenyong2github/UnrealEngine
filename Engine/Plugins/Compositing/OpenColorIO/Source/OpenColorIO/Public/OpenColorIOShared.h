@@ -422,7 +422,8 @@ public:
 
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
-	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FString& InAssetPath);
+
+	OPENCOLORIO_API void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FName& InAssetPath);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
@@ -532,7 +533,7 @@ private:
 
 #if WITH_EDITOR
 	/** Asset using this resource */
-	FString AssetPath;
+	FName AssetPath;
 #endif // WITH_EDITOR
 
 	friend class FOpenColorIOShaderMap;
