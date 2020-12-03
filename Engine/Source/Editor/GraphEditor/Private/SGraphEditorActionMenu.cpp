@@ -36,6 +36,7 @@ void SGraphEditorActionMenu::Construct( const FArguments& InArgs )
 				.OnActionSelected(this, &SGraphEditorActionMenu::OnActionSelected)
 				.OnCollectAllActions(this, &SGraphEditorActionMenu::CollectAllActions)
 				.AutoExpandActionMenu(AutoExpandActionMenu)
+				.DraggedFromPins(DraggedFromPins)
 			]
 		]
 	);
