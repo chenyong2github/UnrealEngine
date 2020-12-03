@@ -72,6 +72,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	const TArray<FName>& GetSelectNodes() const;
 
+	// Returns true if this graph is the top level graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	bool IsTopLevelGraph() const;
+
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.
 	FRigVMGraphModifiedEvent& OnModified();

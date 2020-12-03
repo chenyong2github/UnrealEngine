@@ -109,6 +109,16 @@ const TArray<FName>& URigVMGraph::GetSelectNodes() const
 	return SelectedNodes;
 }
 
+bool URigVMGraph::IsTopLevelGraph() const
+{
+	if (GetOuter()->IsA<URigVMLibraryNode>())
+	{
+		return false;
+	}
+	// todo: implement this for function libraries
+	return true;
+}
+
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()
 {
 	return ModifiedEvent;

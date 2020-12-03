@@ -193,6 +193,23 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		return nullptr;
 	}
 
+	// don't allow event nodes in anything but top level graphs
+	if (bSetupUndoRedo)
+	{
+		if (!Graph->IsTopLevelGraph())
+		{
+			FStructOnScope StructOnScope(InScriptStruct);
+			FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope.GetStructMemory();
+			InScriptStruct->InitializeDefaultValue((uint8*)StructMemory);
+
+			if (!StructMemory->GetEventName().IsNone())
+			{
+				ReportError(TEXT("Event nodes can only be added to top level graphs."));
+				return nullptr;
+			}
+		}
+	}
+
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? InScriptStruct->GetName() : InNodeName);
 	URigVMUnitNode* Node = NewObject<URigVMUnitNode>(Graph, *Name);
 	Node->ScriptStruct = InScriptStruct;
