@@ -59,7 +59,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.           
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("8F78669B2FE0424C896F19E21E6DA038")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("AF49A227EE4D48CAAD4E80EDB50A42A6")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -220,6 +220,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 					{
 						Ar << LODModel->Sections[SectionIndex];
 					}
+					Ar << LODModel->MeshToImportVertexMap;
 					LODModel->SyncronizeUserSectionsDataArray();
 				}
 			}
@@ -326,6 +327,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 					{
 						Ar << LODModel->Sections[SectionIndex];
 					}
+					Ar << LODModel->MeshToImportVertexMap;
 				}
 			}
 
