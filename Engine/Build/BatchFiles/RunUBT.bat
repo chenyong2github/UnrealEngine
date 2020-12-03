@@ -40,10 +40,11 @@ fc /b ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\Unrea
 if not errorlevel 1 goto SkipClean
 copy /y ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul
 
-dotnet clean Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet --nologo 1>nul
+dotnet msbuild /target:clean /property:Configuration=Development /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
+
 :SkipClean
 echo Building UnrealBuildTool...
-dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet --nologo 1>nul
+dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
 if errorlevel 1 goto Error_UBTCompileFailed
 
 rem ## Run UnrealBuildTool to generate Visual Studio solution and project files

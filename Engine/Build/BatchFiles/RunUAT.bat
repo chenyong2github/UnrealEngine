@@ -40,7 +40,7 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building UnrealBuildTool...
-dotnet build Source\Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v %MSBUILD_LOGLEVEL% --nologo 1>nul
+dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Source\Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:%MSBUILD_LOGLEVEL%
 if errorlevel 1 goto Error_UATCompileFailed
 echo Building AutomationTool...
 dotnet msbuild /restore /property:Configuration=Development /nologo /property:AutomationToolProjectOnly=true /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationTool.csproj

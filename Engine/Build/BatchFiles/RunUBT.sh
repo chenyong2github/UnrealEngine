@@ -27,7 +27,8 @@ if [ "$(uname)" = "Linux" ]; then
 fi
 
 if [ -f "$BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then 
-  dotnet build $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
+  dotnet msbuild /restore /target:build /property:Configuration=Development /nologo $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj /verbosity:quiet
+
   if [ $? -ne 0 ]; then
     echo RunUBT ERROR: Failed to build UnrealBuildTool
     exit 1
