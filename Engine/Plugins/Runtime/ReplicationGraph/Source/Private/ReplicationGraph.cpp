@@ -5647,8 +5647,8 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::GatherActorListsForConn
 
 		check(LastData != nullptr);
 
-		UpdateActor(CurViewer.InViewer, LastData->LastViewer);
-		UpdateActor(CurViewer.ViewTarget, LastData->LastViewTarget);
+		UpdateActor(CurViewer.InViewer, static_cast<AActor*&>(LastData->LastViewer));
+		UpdateActor(CurViewer.ViewTarget, static_cast<AActor*&>(LastData->LastViewTarget));
 	}
 
 	// Remove excess

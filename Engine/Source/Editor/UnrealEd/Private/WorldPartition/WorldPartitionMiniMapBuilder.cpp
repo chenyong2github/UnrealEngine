@@ -25,7 +25,7 @@ bool UWorldPartitionMiniMapBuilder::Run(UWorld* World, FPackageSourceControlHelp
 	}
 
 	WorldMiniMap->MiniMapSize = this->MiniMapSize;
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, WorldMiniMap->MiniMapTexture, WorldMiniMap->MiniMapWorldBounds);
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), WorldMiniMap->MiniMapWorldBounds);
 
 	// Save MiniMap Package
 	auto WorldMiniMapExternalPackage = WorldMiniMap->GetExternalPackage();

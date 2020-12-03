@@ -68,7 +68,7 @@ FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 	}
 
 	WorldMiniMap->Modify();
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, WorldMiniMap->MiniMapTexture, WorldMiniMap->MiniMapWorldBounds);
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), WorldMiniMap->MiniMapWorldBounds);
 
 	UpdateWorldMiniMapDetails();
 

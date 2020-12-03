@@ -30,8 +30,8 @@ void USphereComponent::CalcBoundingCylinder(float& CylinderRadius, float& Cylind
 	CylinderHalfHeight = CylinderRadius;
 }
 
-template <EShapeBodySetupHelper UpdateBodySetupAction>
-bool InvalidateOrUpdateSphereBodySetup(UBodySetup*& ShapeBodySetup, bool bUseArchetypeBodySetup, float SphereRadius)
+template <EShapeBodySetupHelper UpdateBodySetupAction, typename BodySetupType>
+bool InvalidateOrUpdateSphereBodySetup(BodySetupType& ShapeBodySetup, bool bUseArchetypeBodySetup, float SphereRadius)
 {
 	check((bUseArchetypeBodySetup && UpdateBodySetupAction == EShapeBodySetupHelper::InvalidateSharingIfStale) || (!bUseArchetypeBodySetup && UpdateBodySetupAction == EShapeBodySetupHelper::UpdateBodySetup) );
 	check(ShapeBodySetup->AggGeom.SphereElems.Num() == 1);

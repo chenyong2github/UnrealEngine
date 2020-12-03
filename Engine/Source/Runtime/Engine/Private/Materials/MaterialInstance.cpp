@@ -587,7 +587,7 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 	ShadingModels = MSM_Unlit;
 
 	PhysMaterial = nullptr;
-	for (UPhysicalMaterial*& PhysMat : PhysicalMaterialMap)
+	for (UE_TRANSITIONAL_OBJECT_PTR(UPhysicalMaterial)& PhysMat : PhysicalMaterialMap)
 	{
 		PhysMat = nullptr;
 	}
@@ -5015,7 +5015,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 							{
 								FTextureParameterValue* ParameterValue = new(TextureParameterValues) FTextureParameterValue;
 								ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
-								Parameter.GetGameThreadTextureValue(AsMaterial, *MaterialResource, ParameterValue->ParameterValue);
+								Parameter.GetGameThreadTextureValue(AsMaterial, *MaterialResource, static_cast<UTexture *&>(ParameterValue->ParameterValue));
 							}
 						}
 					}

@@ -5522,7 +5522,7 @@ EReimportResult::Type UReimportTextureFactory::Reimport( UObject* Obj )
 
 	UTexture* pTex = Cast<UTexture>(Obj);
 	
-	TGuardValue<UTexture*> OriginalTexGuardValue(pOriginalTex, pTex);
+	TGuardValue<decltype(pOriginalTex)> OriginalTexGuardValue(pOriginalTex, pTex);
 
 	const FString ResolvedSourceFilePath = pTex->AssetImportData->GetFirstFilename();
 	if (!ResolvedSourceFilePath.Len())

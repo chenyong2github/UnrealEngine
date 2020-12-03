@@ -142,7 +142,7 @@ void FPlatformMediaSourceCustomization::SetPlatformMediaSourcesValue(FString Pla
 
 	for (auto Object : OuterObjects)
 	{
-		UMediaSource*& OldMediaSource = Cast<UPlatformMediaSource>(Object)->PlatformMediaSources.FindOrAdd(PlatformName);;
+		UE_TRANSITIONAL_OBJECT_PTR(UMediaSource)& OldMediaSource = Cast<UPlatformMediaSource>(Object)->PlatformMediaSources.FindOrAdd(PlatformName);;
 
 		if (OldMediaSource != MediaSource)
 		{
@@ -165,7 +165,7 @@ void FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxChanged(const F
 
 	for (auto Object : OuterObjects)
 	{
-		UMediaSource*& OldMediaSource = Cast<UPlatformMediaSource>(Object)->PlatformMediaSources.FindOrAdd(PlatformName);;
+		UE_TRANSITIONAL_OBJECT_PTR(UMediaSource)& OldMediaSource = Cast<UPlatformMediaSource>(Object)->PlatformMediaSources.FindOrAdd(PlatformName);;
 
 		if (OldMediaSource != AssetData.GetAsset())
 		{

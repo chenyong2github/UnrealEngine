@@ -2446,7 +2446,8 @@ void UEngine::ParseCommandline()
 * @param Material Reference to a material object pointer that will be filled out
 * @param bCheckUsage Check if the material has been marked to be used as a special engine material
 */
-void LoadSpecialMaterial(const FString& MaterialName, const FString& MaterialNamePath, UMaterial*& Material, bool bCheckUsage)
+template <typename T>
+void LoadSpecialMaterial(const FString& MaterialName, const FString& MaterialNamePath, T& Material, bool bCheckUsage)
 {
 	// only bother with materials that aren't already loaded
 	if (Material == NULL)
@@ -2784,11 +2785,11 @@ void UEngine::InitializeObjectReferences()
 		};
 
 		// Standard fonts.
-		ConditionalLoadEngineFont(TinyFont, TinyFontName.ToString(), GetDefaultTinyFont);
-		ConditionalLoadEngineFont(SmallFont, SmallFontName.ToString(), GetDefaultRegularFont);
-		ConditionalLoadEngineFont(MediumFont, MediumFontName.ToString(), GetDefaultRegularFont);
-		ConditionalLoadEngineFont(LargeFont, LargeFontName.ToString(), GetDefaultRegularFont);
-		ConditionalLoadEngineFont(SubtitleFont, SubtitleFontName.ToString(), GetDefaultRegularFont);
+		ConditionalLoadEngineFont(static_cast<UFont*&>(TinyFont), TinyFontName.ToString(), GetDefaultTinyFont);
+		ConditionalLoadEngineFont(static_cast<UFont*&>(SmallFont), SmallFontName.ToString(), GetDefaultRegularFont);
+		ConditionalLoadEngineFont(static_cast<UFont*&>(MediumFont), MediumFontName.ToString(), GetDefaultRegularFont);
+		ConditionalLoadEngineFont(static_cast<UFont*&>(LargeFont), LargeFontName.ToString(), GetDefaultRegularFont);
+		ConditionalLoadEngineFont(static_cast<UFont*&>(SubtitleFont), SubtitleFontName.ToString(), GetDefaultRegularFont);
 
 		// Additional fonts.
 		AdditionalFonts.Empty(AdditionalFontNames.Num());

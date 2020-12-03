@@ -535,7 +535,7 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class, AActor*
 			DestroyChildActor();
 
 			// If an actor template was supplied, temporarily set ChildActorTemplate to create the new Actor with ActorTemplate used as the template
-			TGuardValue<AActor*> ChildActorTemplateGuard(ChildActorTemplate, (ActorTemplate ? ActorTemplate : ToRawPtr(ChildActorTemplate)));
+			TGuardValue<decltype(ChildActorTemplate)> ChildActorTemplateGuard(ChildActorTemplate, (ActorTemplate ? ActorTemplate : ToRawPtr(ChildActorTemplate)));
 
 			CreateChildActor();
 		}

@@ -16,6 +16,14 @@
 	#define UE_OBJPTR_DEPRECATED(Version, Message) 
 #endif
 
+/** 
+ * Wrapper macro for use in places where code needs to allow for a pointer type that could be a TObjectPtr<T> or a raw object pointer during a transitional period.
+ * The coding standard disallows general use of the auto keyword, but in wrapping it in this macro, we have a record
+ * of the explicit type meant to be used, and an avenue to go back and change these instances to an explicit
+ * TObjectPtr<T> after the transition is complete and the type won't be toggling back and forth anymore.
+ */
+#define UE_TRANSITIONAL_OBJECT_PTR(Type) auto 
+
 template <typename T>
 struct TObjectPtr;
 

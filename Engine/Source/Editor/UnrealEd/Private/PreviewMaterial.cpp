@@ -1041,7 +1041,7 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 			ParameterValue.ExpressionId = Guids[ParameterIdx];
 
 			ParameterValue.ParameterValue = nullptr;
-			SourceInstance->GetTextureParameterValue(ParameterInfo, ParameterValue.ParameterValue);
+			SourceInstance->GetTextureParameterValue(ParameterInfo, static_cast<UTexture*&>(ParameterValue.ParameterValue));
 			SourceInstance->GetTextureParameterChannelNames(ParameterInfo, ParameterValue.ChannelNames);
 
 			// @todo: This is kind of slow, maybe store these in a map for lookup?
@@ -1073,7 +1073,7 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 			ParameterValue.ExpressionId = Guids[ParameterIdx];
 
 			ParameterValue.ParameterValue = nullptr;
-			SourceInstance->GetRuntimeVirtualTextureParameterValue(ParameterInfo, ParameterValue.ParameterValue);
+			SourceInstance->GetRuntimeVirtualTextureParameterValue(ParameterInfo, static_cast<URuntimeVirtualTexture*&>(ParameterValue.ParameterValue));
 
 			// @todo: This is kind of slow, maybe store these in a map for lookup?
 			// See if this keyname exists in the source instance.
@@ -1110,7 +1110,7 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 
 			ParameterValue.ParameterValue.FontValue = nullptr;
 			ParameterValue.ParameterValue.FontPage = 0;
-			SourceInstance->GetFontParameterValue(ParameterInfo, ParameterValue.ParameterValue.FontValue, ParameterValue.ParameterValue.FontPage);
+			SourceInstance->GetFontParameterValue(ParameterInfo, static_cast<UFont*&>(ParameterValue.ParameterValue.FontValue), ParameterValue.ParameterValue.FontPage);
 
 			// @todo: This is kind of slow, maybe store these in a map for lookup?
 			// See if this keyname exists in the source instance.

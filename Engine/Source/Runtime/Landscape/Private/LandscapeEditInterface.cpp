@@ -4564,7 +4564,7 @@ void FLandscapeEditDataInterface::SetSelectData(int32 X1, int32 Y1, int32 X2, in
 	auto ReturnComponentTexture = [&](ULandscapeComponent* Component) -> UTexture2D*&
 	{
 		check(Component);
-		return Component->EditToolRenderData.DataTexture;
+		return static_cast<UTexture2D*&>(Component->EditToolRenderData.DataTexture);
 	};
 	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture);
 }
@@ -4602,7 +4602,7 @@ void FLandscapeEditDataInterface::SetLayerContributionData(int32 X1, int32 Y1, i
 	auto ReturnComponentTexture = [](ULandscapeComponent* Component) -> UTexture2D*&
 	{
 		check(Component);
-		return Component->EditToolRenderData.LayerContributionTexture;
+		return static_cast<UTexture2D*&>(Component->EditToolRenderData.LayerContributionTexture);
 	};
 	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture);
 }
@@ -4640,7 +4640,7 @@ void FLandscapeEditDataInterface::SetDirtyData(int32 X1, int32 Y1, int32 X2, int
 	auto ReturnComponentTexture = [](ULandscapeComponent* Component) -> UTexture2D*&
 	{
 		check(Component);
-		return Component->EditToolRenderData.DirtyTexture;
+		return static_cast<UTexture2D*&>(Component->EditToolRenderData.DirtyTexture);
 	};
 	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture, TEXTUREGROUP_8BitData);
 }
