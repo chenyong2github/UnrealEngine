@@ -278,6 +278,21 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
 }
 
 
+bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut) const
+{
+	bIsUVSeamOut = false;
+	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		if (UVLayer.IsSeamEdge(EdgeID))
+		{
+			bIsUVSeamOut = true;
+		}
+	}
+	bIsNormalSeamOut = Normals0.IsSeamEdge(EdgeID);
+	return (bIsUVSeamOut || bIsNormalSeamOut);
+}
+
+
 bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
 {
 	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)

@@ -24,6 +24,18 @@ bool FGroupTopology::FGroupEdge::IsConnectedToVertices(const TSet<int>& Vertices
 FGroupTopology::FGroupTopology(const FDynamicMesh3* MeshIn, bool bAutoBuild)
 {
 	this->Mesh = MeshIn;
+	this->GroupLayer = nullptr;
+	if (bAutoBuild)
+	{
+		RebuildTopology();
+	}
+}
+
+
+FGroupTopology::FGroupTopology(const FDynamicMesh3* MeshIn, const FDynamicMeshPolygroupAttribute* GroupLayerIn, bool bAutoBuild)
+{
+	this->Mesh = MeshIn;
+	this->GroupLayer = GroupLayerIn;
 	if (bAutoBuild)
 	{
 		RebuildTopology();

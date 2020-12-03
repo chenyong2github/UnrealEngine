@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "DynamicMeshAttributeSet.h"
 #include "EdgeSpan.h"
 #include "Util/IndexUtil.h"
 #include "Containers/BitArray.h"
@@ -132,6 +133,8 @@ class DYNAMICMESH_API FGroupTopology
 public:
 	FGroupTopology() {}
 	FGroupTopology(const FDynamicMesh3* Mesh, bool bAutoBuild);
+	FGroupTopology(const FDynamicMesh3* Mesh, const FDynamicMeshPolygroupAttribute* GroupLayer, bool bAutoBuild);
+	
 
 	virtual ~FGroupTopology() {}
 
@@ -160,7 +163,7 @@ public:
 	 */
 	virtual int GetGroupID(int TriangleID) const
 	{
-		return Mesh->GetTriangleGroup(TriangleID);
+		return (GroupLayer != nullptr) ? GroupLayer->GetValue(TriangleID) : Mesh->GetTriangleGroup(TriangleID);
 	}
 
 
@@ -372,6 +375,7 @@ public:
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
+	const FDynamicMeshPolygroupAttribute* GroupLayer = nullptr;
 
 	TArray<int> GroupIDToGroupIndexMap;		// allow fast lookup of index in .Groups, given GroupID
 	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges  (redundant w/ VertexIDToCornerIDMap?)

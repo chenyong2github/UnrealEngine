@@ -77,6 +77,10 @@ public:
 		return Selected.Contains(tid);
 	}
 
+	bool Contains(int tid) const
+	{
+		return Selected.Contains(tid);
+	}
 
 	void Select(int tid)
 	{
@@ -198,6 +202,36 @@ public:
 			if (Mesh->IsTriangle(tid) && Mesh->GetTriangleGroup(tid) == gid)
 			{
 				remove(tid);
+			}
+		}
+	}
+
+	/**
+	 * Find the elements in current selection that are not in SubtractSet, and store in DifferenceStorage
+	 */
+	template<typename EnumerableType, typename StorageType>
+	void SetDifference(const EnumerableType& SubtractSet, StorageType& DifferenceStorage) const
+	{
+		for ( int32 tid : Selected )
+		{
+			if (SubtractSet.Contains(tid) == false)
+			{
+				DifferenceStorage.Add(tid);
+			}
+		}
+	}
+
+	/**
+	 * Find the elements in current selection that are also in IntersectSet, and store in IntersectionStorage
+	 */
+	template<typename EnumerableType, typename StorageType>
+	void SetIntersection(const EnumerableType& IntersectSet, StorageType& IntersectionStorage) const
+	{
+		for (int32 tid : Selected)
+		{
+			if (IntersectSet.Contains(tid))
+			{
+				IntersectionStorage.Add(tid);
 			}
 		}
 	}
