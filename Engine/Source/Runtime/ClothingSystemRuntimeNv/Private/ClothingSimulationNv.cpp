@@ -291,7 +291,7 @@ void FClothingSimulationNv::ExtractActorCollisions(UClothingAssetCommon* Asset, 
 		bool bAddedBodies = false;
 		for(const USkeletalBodySetup* BodySetup : PhysAsset->SkeletalBodySetups)
 		{
-			int32 MeshBoneIndex = TargetMesh->RefSkeleton.FindBoneIndex(BodySetup->BoneName);
+			int32 MeshBoneIndex = TargetMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName);
 			int32 MappedBoneIndex = INDEX_NONE;
 
 			if(MeshBoneIndex != INDEX_NONE)
