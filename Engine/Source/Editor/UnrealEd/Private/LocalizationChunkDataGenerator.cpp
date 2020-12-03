@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "IPlatformFileSandboxWrapper.h"
+#include "Interfaces/ITargetPlatform.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalizationChunkDataGenerator, Log, All);
 
