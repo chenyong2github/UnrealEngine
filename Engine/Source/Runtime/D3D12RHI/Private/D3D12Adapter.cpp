@@ -511,7 +511,10 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				// OMSETRENDERTARGETS_INVALIDVIEW - d3d will complain if depth and color targets don't have the exact same dimensions, but actually
 				//	if the color target is smaller then things are ok.  So turn off this error.  There is a manual check in FD3D12DynamicRHI::SetRenderTarget
 				//	that tests for depth smaller than color and MSAA settings to match.
-				D3D12_MESSAGE_ID_OMSETRENDERTARGETS_INVALIDVIEW,
+				// This messageID was removed in windows 10 sdk 10.0.19041.0.  Presumably the message was also removed.
+				// Microsoft maintains backward compatibility in this enum, so this value will simply be ignored when necessary.
+				//D3D12_MESSAGE_ID_OMSETRENDERTARGETS_INVALIDVIEW,
+				(D3D12_MESSAGE_ID)242,
 #endif
 
 				// QUERY_BEGIN_ABANDONING_PREVIOUS_RESULTS - The RHI exposes the interface to make and issue queries and a separate interface to use that data.
