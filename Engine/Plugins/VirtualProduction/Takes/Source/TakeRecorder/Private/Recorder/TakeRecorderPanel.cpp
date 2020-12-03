@@ -4,6 +4,9 @@
 #include "Widgets/STakeRecorderTabContent.h"
 #include "TakePresetToolkit.h"
 
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+
 bool UTakeRecorderPanel::IsPanelOpen() const
 {
 	return WeakTabContent.Pin().IsValid();
@@ -59,8 +62,9 @@ void UTakeRecorderPanel::SetupForEditing(UTakePreset* TakePreset)
 {
 	if (ValidateTabContent())
 	{
+		TSharedPtr<ILevelEditor> OpenedFromLevelEditor = FModuleManager::LoadModuleChecked< FLevelEditorModule >("LevelEditor").GetFirstLevelEditor();
 		TSharedPtr<FTakePresetToolkit> Toolkit = MakeShared<FTakePresetToolkit>();
-		Toolkit->Initialize(EToolkitMode::WorldCentric, nullptr, TakePreset);
+		Toolkit->Initialize(EToolkitMode::WorldCentric, OpenedFromLevelEditor, TakePreset);
 		WeakTabContent.Pin()->SetupForEditing(Toolkit);
 	}
 }
