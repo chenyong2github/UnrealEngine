@@ -63,10 +63,6 @@ void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorStyleSettings, bEnableWindowAnimations))
-	{
-		FSlateApplication::Get().EnableMenuAnimations(bEnableWindowAnimations);
-	}
 
 	// This property is intentionally not per project so it must be manually written to the correct config file
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorStyleSettings, bEnableHighDPIAwareness))

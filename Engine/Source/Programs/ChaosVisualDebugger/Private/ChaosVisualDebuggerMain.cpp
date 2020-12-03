@@ -19,8 +19,6 @@ void InitializedSlateApplication()
 	// crank up a normal Slate application using the platform's standalone renderer
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
-	FSlateApplication::Get().EnableMenuAnimations(false);
-
 	// Set the application name.
 	const FText ApplicationTitle = NSLOCTEXT("ChaosVisualDebugger", "AppTitle", "ChaosVisualDebugger");
 	FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);

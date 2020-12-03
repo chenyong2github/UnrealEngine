@@ -830,6 +830,7 @@ public:
 	 *
 	 * @param	bEnableAnimations	True if animations should be used, otherwise false.
 	 */
+	UE_DEPRECATED(5.0, "Enable Window Animations is no longer used and is a no-op so calling this function is no longer necessary.")
 	void EnableMenuAnimations( const bool bEnableAnimations );
 
 	void SetPlatformApplication(const TSharedRef<class GenericApplication>& InPlatformApplication);

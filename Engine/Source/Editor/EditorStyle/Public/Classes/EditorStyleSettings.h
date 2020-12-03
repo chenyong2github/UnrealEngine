@@ -109,10 +109,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Graphs, meta = (DisplayName = "Background Brush"))
 	FSlateBrush GraphBackgroundBrush;
 
-	/** Enables animated transitions for certain menus and pop-up windows.  Note that animations may be automatically disabled at low frame rates in order to improve responsiveness. */
-	UPROPERTY(EditAnywhere, config, Category=UserInterface)
-	uint32 bEnableWindowAnimations:1;
-
 	/** When enabled, the C++ names for properties and functions will be displayed in a format that is easier to read */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Show Friendly Variable Names"))
 	uint32 bShowFriendlyNames:1;

@@ -42,7 +42,6 @@ int RunSlateViewer( const TCHAR* CommandLine )
 
 	// crank up a normal Slate application using the platform's standalone renderer
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
-	FSlateApplication::Get().EnableMenuAnimations(false);
 
 	FSlateApplication::InitHighDPI(true);
 
