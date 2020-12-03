@@ -190,7 +190,7 @@ public:
 		return Batch;
 	}
 
-	void OnNewWaitingRequestsAdded()
+	void WakeUpDispatcherThread()
 	{
 		if (bIsMultithreaded)
 		{
@@ -204,6 +204,20 @@ public:
 				ProcessCompletedRequests();
 			}
 		}
+	}
+
+	void Cancel(FIoRequestImpl* Request)
+	{
+		FScopeLock _(&UpdateLock);
+		RequestsToCancel.Add(Request);
+		WakeUpDispatcherThread();
+	}
+
+	void Reprioritize(FIoRequestImpl* Request)
+	{
+		FScopeLock _(&UpdateLock);
+		RequestsToReprioritize.Add(Request);
+		WakeUpDispatcherThread();
 	}
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
@@ -309,7 +323,7 @@ public:
 			WaitingRequestsTail = Batch.TailRequest;
 		}
 		Batch.HeadRequest = Batch.TailRequest = nullptr;
-		OnNewWaitingRequestsAdded();
+		WakeUpDispatcherThread();
 	}
 
 	void IssueBatch(FIoBatch& Batch)
@@ -355,7 +369,11 @@ private:
 		while (CompletedRequestsHead)
 		{
 			FIoRequestImpl* NextRequest = CompletedRequestsHead->NextRequest;
-			if (CompletedRequestsHead->bFailed)
+			if (CompletedRequestsHead->bCancelled)
+			{
+				CompleteRequest(CompletedRequestsHead, EIoErrorCode::Cancelled);
+			}
+			else if (CompletedRequestsHead->bFailed)
 			{
 				CompleteRequest(CompletedRequestsHead, EIoErrorCode::ReadError);
 			}
@@ -448,6 +466,28 @@ private:
 					WaitingRequestsHead = WaitingRequestsTail = nullptr;
 				}
 			}
+			TArray<FIoRequestImpl*> LocalRequestsToCancel;
+			TArray<FIoRequestImpl*> LocalRequestsToReprioritize;
+			{
+				FScopeLock _(&UpdateLock);
+				Swap(LocalRequestsToCancel, RequestsToCancel);
+				Swap(LocalRequestsToReprioritize, RequestsToReprioritize);
+			}
+			for (FIoRequestImpl* RequestToCancel : LocalRequestsToCancel)
+			{
+				RequestToCancel->bCancelled = true;
+				if (RequestToCancel->bSubmitted)
+				{
+					FileIoStore.CancelIoRequest(RequestToCancel);
+				}
+			}
+			for (FIoRequestImpl* RequestToRePrioritize : LocalRequestsToReprioritize)
+			{
+				if (RequestToRePrioritize->bSubmitted)
+				{
+					FileIoStore.UpdatePriorityForIoRequest(RequestToRePrioritize);
+				}
+			}
 			if (!RequestsToSubmitHead)
 			{
 				return;
@@ -455,16 +495,25 @@ private:
 
 			FIoRequestImpl* Request = RequestsToSubmitHead;
 			RequestsToSubmitHead = RequestsToSubmitHead->NextRequest;
+			Request->NextRequest = nullptr;
 			if (!RequestsToSubmitHead)
 			{
 				RequestsToSubmitTail = nullptr;
 			}
 
+			if (Request->bCancelled)
+			{
+				CompleteRequest(Request, EIoErrorCode::Cancelled);
+				Request->ReleaseRef();
+				continue;
+			}
+			
 			// Make sure that the FIoChunkId in the request is valid before we try to do anything with it.
 			if (Request->ChunkId.IsValid())
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
 				EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
+				Request->bSubmitted = true;
 				if (Result != IoStoreResolveResult_OK)
 				{
 					CompleteRequest(Request, EIoErrorCode::NotFound);
@@ -481,7 +530,6 @@ private:
 			
 			++PendingIoRequestsCount;
 			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
-			Request->NextRequest = nullptr;
 			
 			ProcessCompletedRequests();
 		}
@@ -532,6 +580,9 @@ private:
 	FCriticalSection WaitingLock;
 	FIoRequestImpl* WaitingRequestsHead = nullptr;
 	FIoRequestImpl* WaitingRequestsTail = nullptr;
+	FCriticalSection UpdateLock;
+	TArray<FIoRequestImpl*> RequestsToCancel;
+	TArray<FIoRequestImpl*> RequestsToReprioritize;
 	TAtomic<bool> bStopRequested { false };
 	mutable FCriticalSection MountedContainersCritical;
 	TArray<FIoDispatcherMountedContainer> MountedContainers;
@@ -864,5 +915,28 @@ FIoRequest::GetResult()
 	{
 		return Status;
 	}
+}
+
+void
+FIoRequest::Cancel()
+{
+	if (!Impl || Impl->bCancelled)
+	{
+		return;
+	}
+	//TRACE_BOOKMARK(TEXT("FIoRequest::Cancel()"));
+	Impl->bCancelled = true;
+	Impl->Dispatcher.Cancel(Impl);
+}
+
+void
+FIoRequest::UpdatePriority(uint32 NewPriority)
+{
+	if (!Impl || Impl->Priority == NewPriority)
+	{
+		return;
+	}
+	Impl->Priority = NewPriority;
+	Impl->Dispatcher.Reprioritize(Impl);
 }
 

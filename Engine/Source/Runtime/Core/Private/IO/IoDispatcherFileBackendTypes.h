@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IO/IoStore.h"
+#include "IO/IoDispatcherBackend.h"
 
 struct FFileIoStoreCompressionContext;
 
@@ -53,7 +54,7 @@ struct FFileIoStoreBlockKey
 
 struct FFileIoStoreBlockScatter
 {
-	FIoRequestImpl* Request = nullptr;
+	struct FFileIoStoreResolvedRequest* Request = nullptr;
 	uint64 DstOffset = 0;
 	uint64 SrcOffset = 0;
 	uint64 Size = 0;
@@ -76,6 +77,7 @@ struct FFileIoStoreCompressedBlock
 	FAES::FAESKey EncryptionKey;
 	const FSHAHash* SignatureHash = nullptr;
 	bool bFailed = false;
+	bool bCancelled = false;
 };
 
 struct FFileIoStoreReadRequest
@@ -94,12 +96,14 @@ struct FFileIoStoreReadRequest
 	FFileIoStoreBuffer* Buffer = nullptr;
 	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<4>> CompressedBlocks;
 	uint32 CompressedBlocksRefCount = 0;
-	uint32 Sequence = 0;
+	const uint32 Sequence;
 	int32 Priority = 0;
 	FFileIoStoreBlockScatter ImmediateScatter;
 	bool bIsCacheable = false;
 	bool bFailed = false;
+	bool bCancelled = false;
 
+private:
 	static uint32 NextSequence;
 };
 
@@ -169,13 +173,6 @@ private:
 	FFileIoStoreReadRequest* Tail = nullptr;
 };
 
-struct FFileIoStoreResolvedRequest
-{
-	FIoRequestImpl* Request;
-	uint64 ResolvedOffset;
-	uint64 ResolvedSize;
-};
-
 class FFileIoStoreBufferAllocator
 {
 public:
@@ -238,4 +235,175 @@ private:
 	
 	TArray<FFileIoStoreReadRequest*> Heap;
 	FCriticalSection CriticalSection;
+};
+
+template <typename T, uint16 SlabSize = 4096>
+class TIoDispatcherSingleThreadedSlabAllocator
+{
+public:
+	TIoDispatcherSingleThreadedSlabAllocator()
+	{
+		CurrentSlab = new FSlab();
+	}
+
+	~TIoDispatcherSingleThreadedSlabAllocator()
+	{
+		check(CurrentSlab->Allocated == CurrentSlab->Freed);
+		delete CurrentSlab;
+	}
+
+	template <typename... ArgsType>
+	T* Construct(ArgsType&&... Args)
+	{
+		return new(Alloc()) T(Forward<ArgsType>(Args)...);
+	}
+
+	void Destroy(T* Ptr)
+	{
+		Ptr->~T();
+		Free(Ptr);
+	}
+
+private:
+	struct FSlab;
+
+	struct FElement
+	{
+		TTypeCompatibleBytes<T> Data;
+		FSlab* Slab = nullptr;
+	};
+
+	struct FSlab
+	{
+		uint16 Allocated = 0;
+		uint16 Freed = 0;
+		FElement Elements[SlabSize];
+	};
+
+	T* Alloc()
+	{
+		uint16 ElementIndex = CurrentSlab->Allocated++;
+		check(ElementIndex < SlabSize);
+		FElement* Element = CurrentSlab->Elements + ElementIndex;
+		Element->Slab = CurrentSlab;
+		if (CurrentSlab->Allocated == SlabSize)
+		{
+			//TRACE_CPUPROFILER_EVENT_SCOPE(AllocSlab);
+			CurrentSlab = new FSlab();
+		}
+		return Element->Data.GetTypedPtr();
+	}
+
+	void Free(T* Ptr)
+	{
+		FElement* Element = reinterpret_cast<FElement*>(Ptr);
+		FSlab* Slab = Element->Slab;
+		if (++Slab->Freed == SlabSize)
+		{
+			//TRACE_CPUPROFILER_EVENT_SCOPE(FreeSlab);
+			check(Slab->Freed == Slab->Allocated);
+			delete Slab;
+		}
+	}
+
+	FSlab* CurrentSlab = nullptr;
+};
+
+class FFileIoStoreRequestAllocator
+{
+public:
+	FFileIoStoreReadRequest* AllocReadRequest()
+	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocReadRequest);
+		return ReadRequestAllocator.Construct();
+	}
+
+	void Free(FFileIoStoreReadRequest* ReadRequest)
+	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(FreeReadRequest);
+		ReadRequestAllocator.Destroy(ReadRequest);
+	}
+
+	FFileIoStoreCompressedBlock* AllocCompressedBlock()
+	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocCompressedBlock);
+		return CompressedBlockAllocator.Construct();
+	}
+
+	void Free(FFileIoStoreCompressedBlock* CompressedBlock)
+	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(FreeCompressedBlock);
+		CompressedBlockAllocator.Destroy(CompressedBlock);
+	}
+
+private:
+	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreReadRequest> ReadRequestAllocator;
+	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreCompressedBlock> CompressedBlockAllocator;
+};
+
+struct FFileIoStoreResolvedRequest
+{
+public:
+	struct FRequestLink
+	{
+		FRequestLink* Next = nullptr;
+		FFileIoStoreReadRequest* ReadRequest = nullptr;
+	};
+
+	FFileIoStoreResolvedRequest(
+		TIoDispatcherSingleThreadedSlabAllocator<FRequestLink>& InLinkAllocator,
+		FIoRequestImpl& InDispatcherRequest,
+		const FFileIoStoreContainerFile& InContainerFile,
+		uint32 InContainerFileIndex,
+		uint64 InResolvedOffset,
+		uint64 InResolvedSize);
+
+	~FFileIoStoreResolvedRequest();
+
+	const FFileIoStoreContainerFile& GetContainerFile() const
+	{
+		return ContainerFile;
+	}
+
+	uint32 GetContainerFileIndex() const
+	{
+		return ContainerFileIndex;
+	}
+
+	uint64 GetResolvedOffset() const
+	{
+		return ResolvedOffset;
+	}
+
+	uint64 GetResolvedSize() const
+	{
+		return ResolvedSize;
+	}
+
+	int32 GetPriority() const
+	{
+		return DispatcherRequest.Priority;
+	}
+
+	FIoBuffer& GetIoBuffer()
+	{
+		return DispatcherRequest.IoBuffer;
+	}
+
+	void AddReadRequest(FFileIoStoreReadRequest* ReadRequest);
+
+private:
+	TIoDispatcherSingleThreadedSlabAllocator<FRequestLink>& LinkAllocator;
+	FIoRequestImpl& DispatcherRequest;
+	const FFileIoStoreContainerFile& ContainerFile;
+	FRequestLink* ReadRequestsHead = nullptr;
+	FRequestLink* ReadRequestsTail = nullptr;
+	const uint64 ResolvedOffset;
+	const uint64 ResolvedSize;
+	const uint32 ContainerFileIndex;
+	uint32 UnfinishedReadsCount = 0;
+	bool bFailed = false;
+
+	friend class FFileIoStore;
+	friend class FFileIoStoreRequestTracker;
 };

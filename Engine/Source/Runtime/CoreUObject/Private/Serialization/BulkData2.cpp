@@ -372,17 +372,7 @@ protected:
 	{
 		bCanceled = true;
 
-		{
-			FScopeLock Lock(&FReadChunkIdRequestEvent);
-			bRequestOutstanding = false;
-
-			if (DoneEvent != nullptr)
-			{
-				DoneEvent->Trigger();
-			}
-
-			SetComplete();
-		}
+		IoRequest.Cancel();
 	}
 
 	/** The ChunkId that is being read. */
@@ -611,7 +601,10 @@ public:
 		{
 			bIsCanceled = true;
 			FPlatformMisc::MemoryBarrier();
-			// TODO: Send to IoDispatcher
+			for (Request& Request : RequestArray)
+			{
+				Request.IoRequest.Cancel();
+			}
 		}
 	}
 
