@@ -2,10 +2,12 @@
 
 #include "VirtualCamera.h"
 
-
+#include "AdvancedWidgetsModule.h"
 #include "ConcertVirtualCamera.h"
 
+
 DEFINE_LOG_CATEGORY(LogVirtualCamera);
+
 
 const IVirtualCameraModule& IVirtualCameraModule::Get()
 {
@@ -29,6 +31,9 @@ private:
 	virtual void StartupModule() override
 	{
 		ConcertManager = MakeUnique<FConcertVirtualCameraManager>();
+
+		// Loads widgets (ex. RadialSlider) that are potentially referenced by assets
+		FModuleManager::Get().GetModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
 	}
 
 	virtual void ShutdownModule() override

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/Input/SRadialSlider.h"
+#include "Slate/SRadialSlider.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
@@ -484,10 +484,7 @@ FReply SRadialSlider::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEv
 
 void SRadialSlider::CommitValue(float NewValue)
 {
-	if (!ValueAttribute.IsBound())
-	{
-		ValueAttribute.Set(NewValue);
-	}
+	ValueAttribute.Set(NewValue);
 
 	Invalidate(EInvalidateWidgetReason::Paint);
 

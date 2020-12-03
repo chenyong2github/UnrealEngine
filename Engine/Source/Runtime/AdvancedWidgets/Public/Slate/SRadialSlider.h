@@ -20,7 +20,7 @@ class FPaintArgs;
 class FSlateWindowElementList;
 class UCurveFloat;
 
-class VIRTUALCAMERA_API SRadialSlider
+class ADVANCEDWIDGETS_API SRadialSlider
 	: public SLeafWidget
 {
 public:

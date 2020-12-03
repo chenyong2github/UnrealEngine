@@ -1,21 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWidget.h"
+
+#include "Components/Slider.h"
 #include "Components/Widget.h"
+#include "Styling/SlateTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "Widgets/SWidget.h"
+
 #include "RadialSlider.generated.h"
 
+
+// Forward Declarations
 class SRadialSlider;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMouseCaptureBeginEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMouseCaptureEndEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerCaptureBeginEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerCaptureEndEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Value);
 
 /**
  * A simple widget that shows a sliding bar with a handle that allows you to control the value between 0..1.
@@ -24,13 +23,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Va
  */
 
 UCLASS()
-class VIRTUALCAMERA_API URadialSlider : public UWidget
+class ADVANCEDWIDGETS_API URadialSlider : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** The slider value to display. */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(UIMin="0", UIMax="1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance, BlueprintSetter = SetValue,  meta = (UIMin="0", UIMax="1"))
 	float Value;
 
 	/** A bindable delegate to allow logic to drive the value of the widget */

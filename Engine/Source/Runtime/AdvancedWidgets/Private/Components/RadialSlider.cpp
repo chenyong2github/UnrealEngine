@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/RadialSlider.h"
+#include "Slate/SRadialSlider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SRadialSlider.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
