@@ -86,6 +86,7 @@
 #include "ILauncherServicesModule.h"
 #include "HAL/PlatformTime.h"
 #include "StudioAnalytics.h"
+#include "DeveloperToolSettingsDelegates.h"
 
 #define USE_UNIT_TESTS 0
 
@@ -263,6 +264,8 @@ void FUnrealEdMisc::OnInit()
 	FEditorDelegates::ChangeEditorMode.AddRaw(this, &FUnrealEdMisc::OnEditorChangeMode);
 	FCoreDelegates::PreModal.AddRaw(this, &FUnrealEdMisc::OnEditorPreModal);
 	FCoreDelegates::PostModal.AddRaw(this, &FUnrealEdMisc::OnEditorPostModal);
+
+	FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.AddRaw(this, &FUnrealEdMisc::OnNativizeBlueprintsSettingChanged);
 
 	// Register the play world commands
 	FPlayWorldCommands::Register();
@@ -1218,6 +1221,26 @@ void FUnrealEdMisc::OnEditorPostModal()
 	if( FSlateApplication::IsInitialized() )
 	{
 		FSlateApplication::Get().ExternalModalStop();
+	}
+}
+
+void FUnrealEdMisc::OnNativizeBlueprintsSettingChanged(const FString& PackageName, bool bSelect)
+{
+	if (!PackageName.IsEmpty())
+	{
+		// This should only apply to loaded packages. Any unloaded packages defer setting the transient flag to when they're loaded.
+		if (UPackage* Package = FindPackage(nullptr, *PackageName))
+		{
+			// Find the Blueprint asset within the package.
+			if (UBlueprint* Blueprint = FindObject<UBlueprint>(Package, *FPaths::GetBaseFilename(PackageName)))
+			{
+				// We're toggling the transient flag on or off.
+				if ((Blueprint->NativizationFlag == EBlueprintNativizationFlag::ExplicitlyEnabled) != bSelect)
+				{
+					Blueprint->NativizationFlag = bSelect ? EBlueprintNativizationFlag::ExplicitlyEnabled : EBlueprintNativizationFlag::Disabled;
+				}
+			}
+		}
 	}
 }
 

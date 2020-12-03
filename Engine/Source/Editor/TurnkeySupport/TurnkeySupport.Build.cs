@@ -12,7 +12,7 @@ public class TurnkeySupport : ModuleRules
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
-//				"Engine",
+				"DeveloperToolSettings",
 				"EngineSettings",
 				"InputCore",
 				"RHI",
@@ -50,6 +50,7 @@ public class TurnkeySupport : ModuleRules
 					"Settings",
 					"SourceCodeAccess",
 					"LocalizationDashboard",
+	 				"MainFrame",
 				}
 			);
 		}

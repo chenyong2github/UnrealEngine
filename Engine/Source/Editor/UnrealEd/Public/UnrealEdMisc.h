@@ -247,6 +247,9 @@ public:
 	void OnEditorPreModal();
 	void OnEditorPostModal();
 
+	/** BP nativization settings */
+	void OnNativizeBlueprintsSettingChanged(const FString& PackageName, bool bSelect);
+
 	/** Called from tab manager when the tab changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 	void OnTabForegrounded(TSharedPtr<SDockTab> ForegroundTab, TSharedPtr<SDockTab> BackgroundTab);

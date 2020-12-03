@@ -27,7 +27,7 @@ public class CryptoKeys : ModuleRules
 				"Slate",
 				"SlateCore",
 				"GameProjectGeneration",
-				"TargetPlatform"
+				"DeveloperToolSettings"
 		});
 	}
 }

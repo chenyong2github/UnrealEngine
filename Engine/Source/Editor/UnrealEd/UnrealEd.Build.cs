@@ -103,10 +103,10 @@ public class UnrealEd : ModuleRules
 				"UMG",
 				"NavigationSystem",
 				"MeshDescription",
-                "StaticMeshDescription",
-                "MeshBuilder",
-                "MaterialShaderQualitySettings",
-                "EditorSubsystem",
+				"StaticMeshDescription",
+				"MeshBuilder",
+				"MaterialShaderQualitySettings",
+				"EditorSubsystem",
 				"InteractiveToolsFramework",
 				"TypedElementFramework",
 				"TypedElementInterfaces",
@@ -114,6 +114,7 @@ public class UnrealEd : ModuleRules
 				"StatusBar",
 				"InterchangeCore",
 				"InterchangeEngine",
+				"DeveloperToolSettings",
 			}
 		);
 

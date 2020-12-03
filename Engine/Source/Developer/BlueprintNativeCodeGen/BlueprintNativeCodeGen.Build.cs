@@ -31,7 +31,7 @@ public class BlueprintNativeCodeGen : ModuleRules
                 "Projects",
                 "Kismet",
                 "DesktopWidgets",
-                "TargetPlatform"
+                "DeveloperToolSettings"
             }
 		);
 

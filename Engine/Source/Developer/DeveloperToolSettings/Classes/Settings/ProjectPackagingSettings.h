@@ -95,7 +95,7 @@ enum class EProjectPackagingBlueprintNativizationMethod : uint8
  * Implements the Editor's user settings.
  */
 UCLASS(config=Game, defaultconfig)
-class TARGETPLATFORM_API UProjectPackagingSettings
+class DEVELOPERTOOLSETTINGS_API UProjectPackagingSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

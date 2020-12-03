@@ -317,12 +317,12 @@ public class Engine : ModuleRules
 
 		if (!Target.bBuildRequiresCookedData && Target.bCompileAgainstEngine)
 		{
-			PublicDependencyModuleNames.Add("TargetPlatform");
+			PrivateDependencyModuleNames.Add("DeveloperToolSettings");
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"DerivedDataCache",
-					"DesktopPlatform"
+					"DesktopPlatform",
 				}
 			);
 		}

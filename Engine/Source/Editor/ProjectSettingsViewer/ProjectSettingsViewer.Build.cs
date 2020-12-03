@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
 					"AIModule",
 					"ProjectTargetPlatformEditor",
 					"EditorStyle",
-					"TargetPlatform",
+					"DeveloperToolSettings",
 				}
 			);
 

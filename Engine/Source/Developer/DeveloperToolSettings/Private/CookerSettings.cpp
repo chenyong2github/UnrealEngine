@@ -2,7 +2,8 @@
 
 #include "CookerSettings.h"
 #include "UObject/UnrealType.h"
-#include "EngineLogs.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCookerSettings, Log, All);
 
 UCookerSettings::UCookerSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -65,7 +66,7 @@ void UCookerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		else if (bCookBlueprintComponentTemplateData
 			&& PropertyChangedEvent.Property->GetFName() == NAME_BlueprintComponentDataCookingMethod)
 		{
-			UE_LOG(LogBlueprint, Warning, TEXT("\'%s\' has been deprecated in favor of \'%s\', please remove \'%s\' from %s"),
+			UE_LOG(LogCookerSettings, Warning, TEXT("\'%s\' has been deprecated in favor of \'%s\', please remove \'%s\' from %s"),
 				*NAME_bCookBlueprintComponentTemplateData.ToString(),
 				*NAME_BlueprintComponentDataCookingMethod.ToString(),
 				*NAME_bCookBlueprintComponentTemplateData.ToString(),

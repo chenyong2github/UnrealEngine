@@ -49,7 +49,7 @@ enum class EBlueprintComponentDataCookingMethod
  * Various cooker settings.
  */
 UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Cooker"))
-class TARGETPLATFORM_API UCookerSettings : public UDeveloperSettings
+class DEVELOPERTOOLSETTINGS_API UCookerSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
