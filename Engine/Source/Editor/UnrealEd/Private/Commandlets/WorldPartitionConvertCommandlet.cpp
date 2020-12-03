@@ -316,8 +316,8 @@ bool UWorldPartitionConvertCommandlet::GetAdditionalLevelsToConvert(ULevel* Leve
 
 bool UWorldPartitionConvertCommandlet::ShouldDeleteActor(AActor* Actor, bool bMainLevel) const
 {
-	if (Actor->HasAllFlags(RF_Transient) ||
-		Actor->IsA<ALODActor>() ||
+	// We need to migrate transient actors as Fortnite uses a transient actor(AFortTimeOfDayManager) to handle lighting in maps and is required during the generation of MiniMap. 
+	if (Actor->IsA<ALODActor>() ||
 		Actor->IsA<ALevelBounds>() ||
 		Actor->IsA<ALandscapeGizmoActor>())
 	{
