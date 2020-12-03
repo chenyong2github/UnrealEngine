@@ -411,7 +411,7 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 	}
 
 	// Update bone map for mesh section
-	for (uint32 BoneIndex = 0; BoneIndex < (uint32)SkeletalMesh->RefSkeleton.GetNum(); BoneIndex++)
+	for (uint32 BoneIndex = 0; BoneIndex < (uint32)SkeletalMesh->GetRefSkeleton().GetNum(); BoneIndex++)
 	{
 		MeshSection.BoneMap.Add(BoneIndex);
 	}
