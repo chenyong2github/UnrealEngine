@@ -82,6 +82,10 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+		protected override bool DoesHookRequireAdmin(SDKHookType Hook)
+		{
+			return false;
+		}
 
 
 
