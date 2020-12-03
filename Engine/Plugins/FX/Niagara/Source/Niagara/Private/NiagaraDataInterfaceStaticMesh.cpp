@@ -260,6 +260,8 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	Transform = FMatrix::Identity;
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
+	Rotation = FQuat::Identity;
+	PrevRotation = FQuat::Identity;
 	DeltaSeconds = 0.0f;
 	ChangeId = Interface->ChangeId;
 	bUsePhysicsVelocity = Interface->bUsePhysicsBodyVelocity;
@@ -274,9 +276,14 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	UStaticMesh* Mesh = Interface->GetStaticMesh(SceneComponent, SystemInstance);	
 	bComponentValid = SceneComponent.IsValid();
 
-	Transform = (bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
+	const FTransform& ComponentTransform = bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+
+	Transform = ComponentTransform.ToMatrixWithScale();
 	PrevTransform = Transform;
 	TransformInverseTransposed = Transform.Inverse().GetTransposed();
+
+	Rotation = ComponentTransform.GetRotation();
+	PrevRotation = Rotation;
 
 	if (bUsePhysicsVelocity)
 	{
@@ -451,10 +458,15 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 	{
 		DeltaSeconds = InDeltaSeconds;
 		
+		const FTransform& ComponentTransform = SceneComponent.IsValid() ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+
 		PrevTransform = Transform;
-		Transform = (SceneComponent.IsValid() ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
+		Transform = ComponentTransform.ToMatrixWithScale();
 		TransformInverseTransposed = Transform.Inverse().GetTransposed();
-			
+
+		PrevRotation = Rotation;
+		Rotation = ComponentTransform.GetRotation();
+
 		if (bUsePhysicsVelocity)
 		{
 			if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
@@ -639,8 +651,8 @@ public:
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, Data->Transform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, Data->Transform.Inverse().GetTransposed());
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, Data->PrevTransform);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, Data->Transform.ToQuat());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, Data->PrevTransform.ToQuat());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, Data->Rotation);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, Data->PrevRotation);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, InvDeltaTime);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocity, DeltaPosition * InvDeltaTime);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, AreaWeightedSampling, Data->bIsGpuUniformlyDistributedSampling ? 1 : 0);
@@ -783,6 +795,8 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 		Data->DeltaSeconds = SourceData->DeltaSeconds;
 		Data->Transform = SourceData->Transform;
 		Data->PrevTransform = SourceData->PrevTransform;
+		Data->Rotation = SourceData->Rotation;
+		Data->PrevRotation = SourceData->PrevRotation;
 	}
 	else
 	{
