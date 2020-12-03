@@ -4700,7 +4700,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 	{
 		ResetAnimation();
 
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 		SequenceLength = MINIMUM_ANIMATION_LENGTH;
 		NumFrames = 1;
 
@@ -4742,7 +4742,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 
 		ResetAnimation();
 
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 		SequenceLength = MINIMUM_ANIMATION_LENGTH;
 		NumFrames = 1;
 

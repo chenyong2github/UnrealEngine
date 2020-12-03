@@ -998,7 +998,7 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshCompon
 		TArray<FName> TrackNames;
 		// note this ignores root motion
 		TArray<FTransform> BoneTransform = MeshComponent->GetComponentSpaceTransforms();
-		const FReferenceSkeleton& RefSkeleton = MeshComponent->SkeletalMesh->RefSkeleton;
+		const FReferenceSkeleton& RefSkeleton = MeshComponent->SkeletalMesh->GetRefSkeleton();
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
 			TrackNames.Add(RefSkeleton.GetBoneName(BoneIndex));
@@ -1014,7 +1014,7 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshCompon
 			}
 		}
 
-		const USkeleton* MeshSkeleton = MeshComponent->SkeletalMesh->Skeleton;
+		const USkeleton* MeshSkeleton = MeshComponent->SkeletalMesh->GetSkeleton();
 		const FSmartNameMapping* Mapping = MeshSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 		
 		TArray<float> NewCurveValues;

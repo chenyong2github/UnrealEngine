@@ -32,18 +32,18 @@ UFbxSkeletalMeshImportData* UFbxSkeletalMeshImportData::GetImportDataForSkeletal
 {
 	check(SkeletalMesh);
 	
-	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
+	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData());
 	if ( !ImportData )
 	{
 		ImportData = NewObject<UFbxSkeletalMeshImportData>(SkeletalMesh, NAME_None, RF_NoFlags, TemplateForCreation);
 
 		// Try to preserve the source file data if possible
-		if ( SkeletalMesh->AssetImportData != NULL )
+		if ( SkeletalMesh->GetAssetImportData() != NULL )
 		{
-			ImportData->SourceData = SkeletalMesh->AssetImportData->SourceData;
+			ImportData->SourceData = SkeletalMesh->GetAssetImportData()->SourceData;
 		}
 
-		SkeletalMesh->AssetImportData = ImportData;
+		SkeletalMesh->SetAssetImportData(ImportData);
 	}
 
 	return ImportData;

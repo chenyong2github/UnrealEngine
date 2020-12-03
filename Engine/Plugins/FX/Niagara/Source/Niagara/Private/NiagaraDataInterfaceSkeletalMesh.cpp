@@ -274,10 +274,10 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 		if (NumBones == 0)
 		{
 			// This case indicates an invalid master pose component (e.g. no skeletal mesh)
-			CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
-			CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
-			CurrTransforms.Empty(SkelMesh->RefSkeleton.GetNum());
-			CurrTransforms.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+			CurrBones.Empty(SkelMesh->GetRefSkeleton().GetNum());
+			CurrBones.AddDefaulted(SkelMesh->GetRefSkeleton().GetNum());
+			CurrTransforms.Empty(SkelMesh->GetRefSkeleton().GetNum());
+			CurrTransforms.AddDefaulted(SkelMesh->GetRefSkeleton().GetNum());
 		}
 		else
 		{
@@ -295,22 +295,22 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
 					{
 						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
-						CurrBones[BoneIndex] = SkelMesh->RefBasesInvMatrix[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
+						CurrBones[BoneIndex] = SkelMesh->GetRefBasesInvMatrix()[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
 						bFoundMaster = true;
 					}
 				}
 
 				if (!bFoundMaster)
 				{
-					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 
 					if (CurrTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex)
 					{
-						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 					}
 					else
 					{
-						CurrTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+						CurrTransforms[BoneIndex] = SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 					}
 
 					CurrBones[BoneIndex] = CurrTransforms[BoneIndex].ToMatrixWithScale();
@@ -905,7 +905,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 				{
 					const int32 BoneIndex = Section.BoneMap[m];
 					const FTransform& BoneTransform = BoneTransforms[BoneIndex];
-					const FMatrix BoneMatrix = SkelMesh->RefBasesInvMatrix.IsValidIndex(BoneIndex) ? SkelMesh->RefBasesInvMatrix[BoneIndex] * BoneTransform.ToMatrixWithScale() : BoneTransform.ToMatrixWithScale();
+					const FMatrix BoneMatrix = SkelMesh->GetRefBasesInvMatrix().IsValidIndex(BoneIndex) ? SkelMesh->GetRefBasesInvMatrix()[BoneIndex] * BoneTransform.ToMatrixWithScale() : BoneTransform.ToMatrixWithScale();
 					BoneMatrix.To3x4MatrixTranspose(&AllSectionsRefToLocalMatrices[Float4Count].X);
 					Float4Count += 3;
 				}
@@ -962,8 +962,8 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 						}
 					}
 
-					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-					FTransform BoneTransform =SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
+					FTransform BoneTransform =SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 					if (TempBoneTransforms.IsValidIndex(ParentIndex))
 					{
 						BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
@@ -985,11 +985,11 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		TArray<FTransform> TempBoneTransforms;
 		TempBoneTransforms.Reserve(SamplingBoneCount);
 
-		const TArray<FTransform>& RefTransforms = SkelMesh->RefSkeleton.GetRefBonePose();
+		const TArray<FTransform>& RefTransforms = SkelMesh->GetRefSkeleton().GetRefBonePose();
 		for (int32 i=0; i < RefTransforms.Num(); ++i)
 		{
 			FTransform BoneTransform = RefTransforms[i];
-			const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(i);
+			const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(i);
 			if (TempBoneTransforms.IsValidIndex(ParentIndex))
 			{
 				BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
@@ -1609,7 +1609,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
 		{
 			Mesh->GetOnMeshChanged().AddUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem);
-			if (USkeleton* Skeleton = Mesh->Skeleton)
+			if (USkeleton* Skeleton = Mesh->GetSkeleton())
 			{
 				Skeleton->RegisterOnSkeletonHierarchyChanged(USkeleton::FOnSkeletonHierarchyChanged::CreateUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem));
 			}
@@ -1635,7 +1635,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			return false;
 		}
 
-		MinLODIdx = Mesh->MinLod.GetValue();
+		MinLODIdx = Mesh->GetMinLod().GetValue();
 		const int32 PendingFirstLODIndex = RenderData->GetPendingFirstLODIdx(MinLODIdx);
 		if (PendingFirstLODIndex == INDEX_NONE)
 		{
@@ -1729,7 +1729,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		}
 
 		// Generate excluded root bone index (if any)
-		FReferenceSkeleton& RefSkel = Mesh->RefSkeleton;
+		FReferenceSkeleton& RefSkel = Mesh->GetRefSkeleton();
 		ExcludedBoneIndex = INDEX_NONE;
 		if (Interface->bExcludeBone && !Interface->ExcludeBoneName.IsNone())
 		{
@@ -1832,7 +1832,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				}
 			}
 
-			FilteredSocketBoneOffset = Mesh->RefSkeleton.GetNum();
+			FilteredSocketBoneOffset = Mesh->GetRefSkeleton().GetNum();
 
 			FilteredSocketTransformsIndex = 0;
 			FilteredSocketTransforms[0].Reset(FilteredSockets.Num());
@@ -2269,7 +2269,7 @@ void UNiagaraDataInterfaceSkeletalMesh::DestroyPerInstanceData(void* PerInstance
 		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
 		{
 			SkeletalMesh->GetOnMeshChanged().RemoveAll(NiagaraComponent);
-			if (USkeleton* Skeleton = SkeletalMesh->Skeleton)
+			if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
 				Skeleton->UnregisterOnSkeletonHierarchyChanged(NiagaraComponent);
 			}

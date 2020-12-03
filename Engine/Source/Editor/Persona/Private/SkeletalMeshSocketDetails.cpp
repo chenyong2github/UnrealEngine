@@ -119,7 +119,7 @@ void FSkeletalMeshSocketDetails::OnParentBoneNameCommitted(const FText& InSearch
 	{
 		if( SkeletalMesh )
 		{
-			Skeleton = SkeletalMesh->Skeleton;
+			Skeleton = SkeletalMesh->GetSkeleton();
 		}
 	}
 	if( Skeleton )
@@ -145,7 +145,7 @@ void FSkeletalMeshSocketDetails::OnSocketNameChanged(const FText& InSearchText)
 	{
 		if (SkeletalMesh)
 		{
-			Skeleton = SkeletalMesh->Skeleton;
+			Skeleton = SkeletalMesh->GetSkeleton();
 		}
 	}
 	if (Skeleton)
@@ -174,7 +174,7 @@ void FSkeletalMeshSocketDetails::OnSocketNameCommitted(const FText& InSearchText
 	{
 		if (SkeletalMesh)
 		{
-			Skeleton = SkeletalMesh->Skeleton;
+			Skeleton = SkeletalMesh->GetSkeleton();
 		}
 	}
 	if (Skeleton)

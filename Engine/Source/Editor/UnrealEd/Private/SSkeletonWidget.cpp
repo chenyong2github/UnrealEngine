@@ -309,9 +309,9 @@ void SSkeletonSelectorWindow::ConstructWindowFromMesh(USkeletalMesh* InSkeletalM
 {
 	TArray<FName>  BoneNames;
 
-	for (int32 I=0; I<InSkeletalMesh->RefSkeleton.GetRawBoneNum(); ++I)
+	for (int32 I=0; I<InSkeletalMesh->GetRefSkeleton().GetRawBoneNum(); ++I)
 	{
-		BoneNames.Add(InSkeletalMesh->RefSkeleton.GetBoneName(I));
+		BoneNames.Add(InSkeletalMesh->GetRefSkeleton().GetBoneName(I));
 	}
 
 	TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox)

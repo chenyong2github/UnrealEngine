@@ -135,7 +135,7 @@ void UpdateWorldBoneTM(TAssetWorldBoneTMArray& WorldBoneTMs, const TArray<FTrans
 	else
 	{
 		// If not root, use our cached world-space bone transforms.
-		int32 ParentIndex = SkelComp->SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+		int32 ParentIndex = SkelComp->SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 		UpdateWorldBoneTM(WorldBoneTMs, InBoneSpaceTransforms, ParentIndex, SkelComp, LocalToWorldTM, Scale3D);
 		ParentTM = WorldBoneTMs[ParentIndex].TM;
 	}
@@ -204,7 +204,7 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 			int32 BoneIndex = InRequiredBones[i];
 
 			// See if this is a physics bone..
-			int32 BodyIndex = PhysicsAsset->FindBodyIndex(SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex));
+			int32 BodyIndex = PhysicsAsset->FindBodyIndex(SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex));
 			// need to update back to physX so that physX knows where it was after blending
 			FBodyInstance* PhysicsAssetBodyInstance = nullptr;
 
@@ -253,7 +253,7 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 						else
 						{
 							// If not root, get parent TM from cache (making sure its up-to-date).
-							int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+							int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 							UpdateWorldBoneTM(WorldBoneTMs, InOutBoneSpaceTransforms, ParentIndex, this, LocalToWorldTM, TotalScale3D);
 							ParentWorldTM = WorldBoneTMs[ParentIndex].TM;
 						}
@@ -303,7 +303,7 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 					{
 						continue;
 					}
-					const int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+					const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 					InOutComponentSpaceTransforms[BoneIndex] = InOutBoneSpaceTransforms[BoneIndex] * InOutComponentSpaceTransforms[ParentIndex];
 
 					/**
@@ -524,13 +524,13 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// If desired, draw the skeleton at the point where we pass it to the physics.
-	if (bShowPrePhysBones && SkeletalMesh && InSpaceBases.Num() == SkeletalMesh->RefSkeleton.GetNum())
+	if (bShowPrePhysBones && SkeletalMesh && InSpaceBases.Num() == SkeletalMesh->GetRefSkeleton().GetNum())
 	{
 		for (int32 i = 1; i<InSpaceBases.Num(); i++)
 		{
 			FVector ThisPos = CurrentLocalToWorld.TransformPosition(InSpaceBases[i].GetLocation());
 
-			int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(i);
+			int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(i);
 			FVector ParentPos = CurrentLocalToWorld.TransformPosition(InSpaceBases[ParentIndex].GetLocation());
 
 			World->LineBatcher->DrawLine(ThisPos, ParentPos, AnimSkelDrawColor, SDPG_Foreground);
@@ -737,7 +737,7 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 			FConstraintInstance* CI = Constraints[i];
 
 			FName JointName = CS->DefaultInstance.JointName;
-			int32 BoneIndex = SkeletalMesh->RefSkeleton.FindBoneIndex(JointName);
+			int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(JointName);
 
 			// If we found this bone, and a visible bone that is not the root, and its joint is motorised in some way..
 			if( (BoneIndex != INDEX_NONE) && (BoneIndex != 0) &&
@@ -756,8 +756,8 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 				// We need this to compensate for welding, where graphics and physics parents may not be the same.
 				FMatrix ControlBodyToParentBoneTM = FMatrix::Identity;
 
-				int32 TestBoneIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex); // This give the 'graphics' parent of this bone
-				bool bFoundControlBody = (SkeletalMesh->RefSkeleton.GetBoneName(TestBoneIndex) == CS->DefaultInstance.ConstraintBone2); // ConstraintBone2 is the 'physics' parent of this joint.
+				int32 TestBoneIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex); // This give the 'graphics' parent of this bone
+				bool bFoundControlBody = (SkeletalMesh->GetRefSkeleton().GetBoneName(TestBoneIndex) == CS->DefaultInstance.ConstraintBone2); // ConstraintBone2 is the 'physics' parent of this joint.
 
 				while(!bFoundControlBody)
 				{
@@ -779,7 +779,7 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 					ControlBodyToParentBoneTM = ControlBodyToParentBoneTM * RelTM;
 
 					// Move on to parent
-					TestBoneIndex = SkeletalMesh->RefSkeleton.GetParentIndex(TestBoneIndex);
+					TestBoneIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(TestBoneIndex);
 
 					// If we are at the root - bail out.
 					if(TestBoneIndex == 0)
@@ -788,7 +788,7 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 					}
 
 					// See if this is the controlling body
-					bFoundControlBody = (SkeletalMesh->RefSkeleton.GetBoneName(TestBoneIndex) == CS->DefaultInstance.ConstraintBone2);
+					bFoundControlBody = (SkeletalMesh->GetRefSkeleton().GetBoneName(TestBoneIndex) == CS->DefaultInstance.ConstraintBone2);
 				}
 
 				// If after that we didn't find a parent body, we can' do this, so skip.

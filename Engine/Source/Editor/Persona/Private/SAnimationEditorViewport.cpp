@@ -2145,9 +2145,9 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 	{
 		if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 		{
-			if(PreviewComponent->SkeletalMesh && PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint && PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint->ClassGeneratedBy)
+			if(PreviewComponent->SkeletalMesh && PreviewComponent->SkeletalMesh->GetPostProcessAnimBlueprint() && PreviewComponent->SkeletalMesh->GetPostProcessAnimBlueprint()->ClassGeneratedBy)
 			{
-				return FText::FromString(PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint->ClassGeneratedBy->GetName());
+				return FText::FromString(PreviewComponent->SkeletalMesh->GetPostProcessAnimBlueprint()->ClassGeneratedBy->GetName());
 			}
 		}
 
@@ -2196,9 +2196,9 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 	{
 		if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 		{
-			if(PreviewComponent->SkeletalMesh && PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint)
+			if(PreviewComponent->SkeletalMesh && PreviewComponent->SkeletalMesh->GetPostProcessAnimBlueprint())
 			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint->ClassGeneratedBy }));
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->SkeletalMesh->GetPostProcessAnimBlueprint()->ClassGeneratedBy }));
 			}
 		}
 
@@ -2308,7 +2308,7 @@ void SAnimationEditorViewportTabBody::AddMinLODNotification()
 
 	auto GetMinLODNotificationVisibility = [this]()
 	{
-		if (GetPreviewScene()->GetPreviewMesh() && GetPreviewScene()->GetPreviewMesh()->MinLod.Default != 0)
+		if (GetPreviewScene()->GetPreviewMesh() && GetPreviewScene()->GetPreviewMesh()->GetMinLod().Default != 0)
 		{
 			return EVisibility::Visible;
 		}

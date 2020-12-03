@@ -54,19 +54,19 @@ FString FSkeletalMeshComponentAdapter::GetBaseName() const
 
 FName FSkeletalMeshComponentAdapter::GetMaterialSlotName(int32 MaterialIndex) const
 {
-	return SkeletalMesh->Materials[MaterialIndex].MaterialSlotName;
+	return SkeletalMesh->GetMaterials()[MaterialIndex].MaterialSlotName;
 }
 
 FName FSkeletalMeshComponentAdapter::GetImportedMaterialSlotName(int32 MaterialIndex) const
 {
-	return SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName;
+	return SkeletalMesh->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
 }
 
 void FSkeletalMeshComponentAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Material)
 {
 	//We need to preserve the original material slot data
-	const FSkeletalMaterial& OriginalMaterialSlot = SkeletalMesh->Materials[MaterialIndex];
-	SkeletalMesh->Materials[MaterialIndex] = FSkeletalMaterial(Material, true, false, OriginalMaterialSlot.MaterialSlotName, OriginalMaterialSlot.ImportedMaterialSlotName);
+	const FSkeletalMaterial& OriginalMaterialSlot = SkeletalMesh->GetMaterials()[MaterialIndex];
+	SkeletalMesh->GetMaterials()[MaterialIndex] = FSkeletalMaterial(Material, true, false, OriginalMaterialSlot.MaterialSlotName, OriginalMaterialSlot.ImportedMaterialSlotName);
 }
 
 void FSkeletalMeshComponentAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex)
@@ -90,7 +90,7 @@ void FSkeletalMeshComponentAdapter::RemapMaterialIndex(int32 LODIndex, int32 Sec
 
 int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material)
 {
-	const int32 Index = SkeletalMesh->Materials.Emplace(Material);
+	const int32 Index = SkeletalMesh->GetMaterials().Emplace(Material);
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	MeshUtilities.FixupMaterialSlotNames(SkeletalMesh);
 	return Index;
@@ -98,7 +98,7 @@ int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material)
 
 int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material, const FName& SlotName, const FName& ImportedSlotName)
 {
-	const int32 Index = SkeletalMesh->Materials.Emplace(Material, true, false, SlotName, ImportedSlotName);
+	const int32 Index = SkeletalMesh->GetMaterials().Emplace(Material, true, false, SlotName, ImportedSlotName);
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	MeshUtilities.FixupMaterialSlotNames(SkeletalMesh);
 	return Index;

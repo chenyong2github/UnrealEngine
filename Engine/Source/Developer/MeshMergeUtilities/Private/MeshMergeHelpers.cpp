@@ -326,10 +326,10 @@ void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshCompone
 			// use the remapping of material indices if there is a valid value
 			if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 			{
-				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->SkeletalMesh->Materials.Num());
+				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->SkeletalMesh->GetMaterials().Num());
 			}
 
-			FName ImportedMaterialSlotName = SkeletalMeshComponent->SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName;
+			FName ImportedMaterialSlotName = SkeletalMeshComponent->SkeletalMesh->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
 			const FPolygonGroupID SectionPolygonGroupID(SectionIndex);
 			if (!RawMesh.IsPolygonGroupValid(SectionPolygonGroupID))
 			{

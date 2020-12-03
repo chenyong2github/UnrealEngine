@@ -532,6 +532,7 @@ public:
 	 * There is only one editor data asset possible per skeletalmesh.
 	 * The reason we store the editor data in a separate asset is because the size of it can be very big and affect the editor performance. (undo/redo transactions)
 	 */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use the public ImportData API.")
 	UPROPERTY()
 	mutable USkeletalMeshEditorData* MeshEditorDataObject;
 
@@ -540,6 +541,13 @@ private:
 	 * Return a valid USkeletalMeshEditorData, if the MeshEditorDataPath is invalid it will create the USkeletalMeshEditorData and set the MeshEditorDataPath to point on it.
 	 */
 	USkeletalMeshEditorData& GetMeshEditorData() const;
+
+	bool IsMeshEditorDataValid() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MeshEditorDataObject != nullptr;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 #endif //WITH_EDITORONLY_DATA
 
@@ -615,8 +623,38 @@ public:
 	FORCEINLINE FSkeletalMeshRenderData* GetResourceForRendering() const { return SkeletalMeshRenderData.Get(); }
 
 	/** Skeleton of this skeletal mesh **/
-	UPROPERTY(Category=Mesh, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkeleton() or USkeletalMesh::SetSkeleton().")
+	UPROPERTY(Category=Mesh, AssetRegistrySearchable, VisibleAnywhere, BlueprintGetter = GetSkeleton)
 	USkeleton* Skeleton;
+
+	static FName GetSkeletonMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, Skeleton);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	USkeleton* GetSkeleton()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Skeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const USkeleton* GetSkeleton() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Skeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSkeleton(USkeleton* InSkeleton)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Skeleton = InSkeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 	/** Original imported mesh bounds */
@@ -697,12 +735,72 @@ public:
 #endif
 
 	/** List of materials applied to this mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, transient, duplicatetransient, Category=SkeletalMesh)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMaterials() or USkeletalMesh::SetMaterials().")
+	UPROPERTY(EditAnywhere, BlueprintGetter = GetMaterials, BlueprintSetter = SetMaterials, transient, duplicatetransient, Category=SkeletalMesh)
 	TArray<FSkeletalMaterial> Materials;
+	
+	static FName GetMaterialsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, Materials);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<FSkeletalMaterial>& GetMaterials()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Materials;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const TArray<FSkeletalMaterial>& GetMaterials() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Materials;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintSetter)
+	void SetMaterials(const TArray<FSkeletalMaterial>& InMaterials)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Materials = InMaterials;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** List of bones that should be mirrored. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorTable() or USkeletalMesh::SetSkelMirrorTable().")
 	UPROPERTY(EditAnywhere, editfixedsize, Category=Mirroring)
 	TArray<struct FBoneMirrorInfo> SkelMirrorTable;
+
+	static FName GetSkelMirrorTableMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, SkelMirrorTable);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<struct FBoneMirrorInfo>& GetSkelMirrorTable()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SkelMirrorTable;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const TArray<struct FBoneMirrorInfo>& GetSkelMirrorTable() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SkelMirrorTable;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSkelMirrorTable(const TArray<struct FBoneMirrorInfo>& InSkelMirrorTable)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SkelMirrorTable = InSkelMirrorTable;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 	/** Struct containing information for each LOD level, such as materials to use, and when use the LOD. */
@@ -727,38 +825,210 @@ private:
 
 public:
 	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMinLod() or USkeletalMesh::SetMinLod().")
 	UPROPERTY(EditAnywhere, Category = LODSettings, meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLod;
 
+	static FName GetMinLodMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MinLod);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPerPlatformInt& GetMinLod() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MinLod;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetMinLod(FPerPlatformInt InMinLod)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MinLod = MoveTemp(InMinLod);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** when true all lods below minlod will still be cooked */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDisableBelowMinLodStripping() or USkeletalMesh::SetDisableBelowMinLodStripping().")
 	UPROPERTY(EditAnywhere, Category = LODSettings)
 	FPerPlatformBool DisableBelowMinLodStripping;
 
+	static FName GetDisableBelowMinLodStrippingMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DisableBelowMinLodStripping);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPerPlatformBool& GetDisableBelowMinLodStripping() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DisableBelowMinLodStripping;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetDisableBelowMinLodStripping(FPerPlatformBool InDisableBelowMinLodStripping)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DisableBelowMinLodStripping = MoveTemp(InDisableBelowMinLodStripping);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 #if WITH_EDITORONLY_DATA
 	/** Whether this skeletal mesh overrides default LOD streaming settings. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetOverrideLODStreamingSettings() or USkeletalMesh::SetOverrideLODStreamingSettings().")
 	UPROPERTY(EditAnywhere, Category=LODSettings)
 	bool bOverrideLODStreamingSettings;
+	static FName GetOverrideLODStreamingSettingsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bOverrideLODStreamingSettings);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetOverrideLODStreamingSettings() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bOverrideLODStreamingSettings;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetOverrideLODStreamingSettings(bool bInOverrideLODStreamingSettings)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bOverrideLODStreamingSettings = bInOverrideLODStreamingSettings;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Whether we can stream the LODs of this mesh */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSupportLODStreaming() or USkeletalMesh::SetSupportLODStreaming().")
 	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(DisplayName="Stream LODs", EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformBool bSupportLODStreaming;
+	static FName GetSupportLODStreamingMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bSupportLODStreaming);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPerPlatformBool& GetSupportLODStreaming() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bSupportLODStreaming;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSupportLODStreaming(FPerPlatformBool bInSupportLODStreaming)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bSupportLODStreaming = MoveTemp(bInSupportLODStreaming);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Maximum number of LODs that can be streamed */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMaxNumStreamedLODs() or USkeletalMesh::SetMaxNumStreamedLODs().")
 	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformInt MaxNumStreamedLODs;
+	static FName GetMaxNumStreamedLODsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumStreamedLODs);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPerPlatformInt& GetMaxNumStreamedLODs() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MaxNumStreamedLODs;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetMaxNumStreamedLODs(FPerPlatformInt InMaxNumStreamedLODs)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MaxNumStreamedLODs = MoveTemp(InMaxNumStreamedLODs);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Maximum number of LODs below min LOD level that can be saved to optional pak (currently, need to be either 0 or > num of LODs below MinLod) */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMaxNumOptionalLODs() or USkeletalMesh::SetMaxNumOptionalLODs().")
 	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformInt MaxNumOptionalLODs;
+	static FName GetMaxNumOptionalLODsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumOptionalLODs);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
+	const FPerPlatformInt& GetMaxNumOptionalLODs() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MaxNumOptionalLODs;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetMaxNumOptionalLODs(FPerPlatformInt InMaxNumOptionalLODs)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MaxNumOptionalLODs = MoveTemp(InMaxNumOptionalLODs);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetLODSettings() or USkeletalMesh::SetLODSettings().")
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetLODSettings, BlueprintSetter = SetLODSettings, Category = LODSettings)
 	USkeletalMeshLODSettings* LODSettings;
+	static FName GetLODSettingsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, LODSettings);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** The Default Control Rig To Animate with when used in Sequnecer. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDefaultAnimatingRig() or USkeletalMesh::SetDefaultAnimatingRig().")
 	UPROPERTY(EditAnywhere, Category = AnimationRig, BlueprintGetter = GetDefaultAnimatingRig, BlueprintSetter = SetDefaultAnimatingRig, meta = (AllowedClasses = "ControlRigBlueprint"))
 	TSoftObjectPtr<UObject> DefaultAnimatingRig;
-
+	static FName GetDefaultAnimatingRigMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DefaultAnimatingRig);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
 #endif // WITH_EDITORONLY_DATA
+
+	USkeletalMeshLODSettings* GetLODSettings()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+		return LODSettings;
+#else
+		const bool bCallOutsideOf_WithEditorOnlyData = false;
+		ensure(bCallOutsideOf_WithEditorOnlyData);
+		return nullptr;
+#endif // WITH_EDITORONLY_DATA
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const USkeletalMeshLODSettings* GetLODSettings() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+		return LODSettings;
+#else
+		const bool bCallOutsideOf_WithEditorOnlyData = false;
+		ensure(bCallOutsideOf_WithEditorOnlyData);
+		return nullptr;
+#endif // WITH_EDITORONLY_DATA
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintSetter)
+	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
 
 #if WITH_EDITOR
 	/** Get whether this mesh use LOD streaming. Do not use bSupportLODStreaming directly. Call this method instead. */
@@ -771,20 +1041,61 @@ public:
 	int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const;
 #endif
 
-	UFUNCTION(BlueprintSetter)
-	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
+
 
 	UFUNCTION(BlueprintSetter)
 	void SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig);
 
 	UFUNCTION(BlueprintGetter)
-	TSoftObjectPtr<UObject> GetDefaultAnimatingRig();
-
+	TSoftObjectPtr<UObject> GetDefaultAnimatingRig() const;
+	
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorAxis() or USkeletalMesh::SetSkelMirrorAxis().")
 	UPROPERTY(EditAnywhere, Category=Mirroring)
 	TEnumAsByte<EAxis::Type> SkelMirrorAxis;
+	static FName GetSkelMirrorAxisMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, SkelMirrorAxis);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
+	TEnumAsByte<EAxis::Type> GetSkelMirrorAxis() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SkelMirrorAxis;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSkelMirrorAxis(TEnumAsByte<EAxis::Type> InSkelMirrorAxis)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SkelMirrorAxis = InSkelMirrorAxis;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorFlipAxis() or USkeletalMesh::SetSkelMirrorFlipAxis().")
 	UPROPERTY(EditAnywhere, Category=Mirroring)
 	TEnumAsByte<EAxis::Type> SkelMirrorFlipAxis;
+	static FName GetSkelMirrorFlipAxisMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, SkelMirrorFlipAxis);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TEnumAsByte<EAxis::Type> GetSkelMirrorFlipAxis() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SkelMirrorFlipAxis;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSkelMirrorFlipAxis(TEnumAsByte<EAxis::Type> InSkelMirrorFlipAxis)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SkelMirrorFlipAxis = InSkelMirrorFlipAxis;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** If true, use 32 bit UVs. If false, use 16 bit UVs to save memory */
 	UPROPERTY()
@@ -795,47 +1106,255 @@ public:
 	uint8 bUseHighPrecisionTangentBasis_DEPRECATED : 1;
 
 	/** true if this mesh has ever been simplified with Simplygon. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetHasBeenSimplified() or USkeletalMesh::SetHasBeenSimplified().")
 	UPROPERTY()
 	uint8 bHasBeenSimplified:1;
+	static FName GetHasBeenSimplifiedMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bHasBeenSimplified);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetHasBeenSimplified() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bHasBeenSimplified;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetHasBeenSimplified(bool bInHasBeenSimplified)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bHasBeenSimplified = bInHasBeenSimplified;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Whether or not the mesh has vertex colors */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetHasVertexColors() or USkeletalMesh::SetHasVertexColors().")
 	UPROPERTY()
 	uint8 bHasVertexColors:1;
 
+	static FName GetbHasVertexColorsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bHasVertexColors);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetHasVertexColors() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bHasVertexColors != 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetHasVertexColors(bool InbHasVertexColors)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bHasVertexColors = InbHasVertexColors;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	//caching optimization to avoid recalculating in non-editor builds
-	uint8 bHasActiveClothingAssets:1;
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::HasActiveClothingAssets() or USkeletalMesh::SetHasActiveClothingAssets().")
+	uint8 bHasActiveClothingAssets : 1;
+
+	static FName GetHasActiveClothingAssetsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bHasActiveClothingAssets);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetHasActiveClothingAssets(const bool InbHasActiveClothingAssets)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bHasActiveClothingAssets = InbHasActiveClothingAssets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Uses skinned data for collision data. Per poly collision cannot be used for simulation, in most cases you are better off using the physics asset */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetEnablePerPolyCollision() or USkeletalMesh::SetEnablePerPolyCollision().")
 	UPROPERTY(EditAnywhere, Category = Physics)
 	uint8 bEnablePerPolyCollision : 1;
+
+	static FName GetEnablePerPolyCollisionMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bEnablePerPolyCollision);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetEnablePerPolyCollision() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bEnablePerPolyCollision != 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetEnablePerPolyCollision(bool bInEnablePerPolyCollision)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bEnablePerPolyCollision = bInEnablePerPolyCollision;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 	
 #if WITH_EDITORONLY_DATA
 	/** The guid to compute the ddc key, it must be dirty when we change the vertex color. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetVertexColorGuid() or USkeletalMesh::SetVertexColorGuid().")
 	UPROPERTY()
 	FGuid VertexColorGuid;
+
+	static FName GetVertexColorGuidMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, VertexColorGuid);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
+	FGuid GetVertexColorGuid() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return VertexColorGuid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetVertexColorGuid(FGuid InVertexColorGuid)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		VertexColorGuid = InVertexColorGuid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 #endif
 
 	// Physics data for the per poly collision case. In 99% of cases you will not need this and are better off using simple ragdoll collision (physics asset)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetBodySetup() or USkeletalMesh::SetBodySetup().")
 	UPROPERTY(transient)
 	class UBodySetup* BodySetup;
+	static FName GetBodySetupMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, BodySetup);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	class UBodySetup* GetBodySetup() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return BodySetup;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.27, "Please do not use this non const function; use the combination of USkeletalMesh::CreateBodySetup() and USkeletalMesh::GetBodySetup() const. Cast the skeletal mesh caller to const to force the compiler to use the USkeletalMesh::GetBodySetup() const function and avoid the deprecation warning")
+	class UBodySetup* GetBodySetup()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CreateBodySetup();
+		return BodySetup;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetBodySetup(class UBodySetup* InBodySetup)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		BodySetup = InBodySetup;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 *	Physics and collision information used for this USkeletalMesh, set up in Physics Asset Editor.
 	 *	This is used for per-bone hit detection, accurate bounding box calculation and ragdoll physics for example.
 	 */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintReadOnly, Category=Physics)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetPhysicsAsset() or USkeletalMesh::SetPhysicsAsset().")
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetPhysicsAsset, Category=Physics)
 	class UPhysicsAsset* PhysicsAsset;
+	
+	static FName GetPhysicsAssetMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, PhysicsAsset);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	class UPhysicsAsset* GetPhysicsAsset() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return PhysicsAsset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetPhysicsAsset(class UPhysicsAsset* InPhysicsAsset)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PhysicsAsset = InPhysicsAsset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Physics asset whose shapes will be used for shadowing when components have bCastCharacterCapsuleDirectShadow or bCastCharacterCapsuleIndirectShadow enabled.
 	 * Only spheres and sphyl shapes in the physics asset can be supported.  The more shapes used, the higher the cost of the capsule shadows will be.
 	 */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintReadOnly, Category=Lighting)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetShadowPhysicsAsset() or USkeletalMesh::SetShadowPhysicsAsset().")
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetShadowPhysicsAsset, Category=Lighting)
 	class UPhysicsAsset* ShadowPhysicsAsset;
 
+	static FName GetShadowPhysicsAssetMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, ShadowPhysicsAsset);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	class UPhysicsAsset* GetShadowPhysicsAsset() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ShadowPhysicsAsset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetShadowPhysicsAsset(class UPhysicsAsset* InShadowPhysicsAsset)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		ShadowPhysicsAsset = InShadowPhysicsAsset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Mapping data that is saved */
-	UPROPERTY(EditAnywhere, editfixedsize, BlueprintReadOnly, Category=Animation)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetNodeMappingData() or USkeletalMesh::SetNodeMappingData().")
+	UPROPERTY(EditAnywhere, editfixedsize, BlueprintGetter = GetNodeMappingData, Category=Animation)
 	TArray<class UNodeMappingContainer*> NodeMappingData;
+	static FName GetNodeMappingDataMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, NodeMappingData);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<class UNodeMappingContainer*>& GetNodeMappingData()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return NodeMappingData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const TArray<class UNodeMappingContainer*>& GetNodeMappingData() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return NodeMappingData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetNodeMappingData(const TArray<class UNodeMappingContainer*>& InNodeMappingData)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NodeMappingData = InNodeMappingData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	class UNodeMappingContainer* GetNodeMappingContainer(class UBlueprint* SourceAsset) const;
@@ -843,8 +1362,30 @@ public:
 #if WITH_EDITORONLY_DATA
 
 	/** Importing data and options used for this mesh */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetAssetImportData() or USkeletalMesh::SetAssetImportData().")
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)
 	class UAssetImportData* AssetImportData;
+
+	static FName GetAssetImportDataMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	class UAssetImportData* GetAssetImportData() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return AssetImportData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetAssetImportData(class UAssetImportData* InAssetImportData)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		AssetImportData = InAssetImportData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	static FText GetSourceFileLabelFromIndex(int32 SourceFileIndex);
 
@@ -857,46 +1398,265 @@ public:
 	FString SourceFileTimestamp_DEPRECATED;
 
 	/** Information for thumbnail rendering */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetThumbnailInfo() or USkeletalMesh::SetThumbnailInfo().")
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = Thumbnail)
 	class UThumbnailInfo* ThumbnailInfo;
+	
+	static FName GetThumbnailInfoMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, ThumbnailInfo);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	class UThumbnailInfo* GetThumbnailInfo() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ThumbnailInfo;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetThumbnailInfo(class UThumbnailInfo* InThumbnailInfo)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		ThumbnailInfo = InThumbnailInfo;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Should we use a custom camera transform when viewing this mesh in the tools */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetHasCustomDefaultEditorCamera() or USkeletalMesh::SetHasCustomDefaultEditorCamera().")
 	UPROPERTY()
 	bool bHasCustomDefaultEditorCamera;
+
+	static FName GetHasCustomDefaultEditorCameraMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, bHasCustomDefaultEditorCamera);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetHasCustomDefaultEditorCamera() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bHasCustomDefaultEditorCamera;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetHasCustomDefaultEditorCamera(bool bInHasCustomDefaultEditorCamera)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bHasCustomDefaultEditorCamera = bInHasCustomDefaultEditorCamera;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Default camera location */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDefaultEditorCameraLocation() or USkeletalMesh::SetDefaultEditorCameraLocation().")
 	UPROPERTY()
 	FVector DefaultEditorCameraLocation;
+
+	static FName GetDefaultEditorCameraLocationMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DefaultEditorCameraLocation);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FVector& GetDefaultEditorCameraLocation() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultEditorCameraLocation;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetDefaultEditorCameraLocation(FVector InDefaultEditorCameraLocation)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DefaultEditorCameraLocation = InDefaultEditorCameraLocation;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Default camera rotation */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDefaultEditorCameraRotation() or USkeletalMesh::SetDefaultEditorCameraRotation().")
 	UPROPERTY()
 	FRotator DefaultEditorCameraRotation;
+
+	static FName GetDefaultEditorCameraRotationMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DefaultEditorCameraRotation);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FRotator& GetDefaultEditorCameraRotation() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultEditorCameraRotation;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetDefaultEditorCameraRotation(FRotator InDefaultEditorCameraRotation)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DefaultEditorCameraRotation = InDefaultEditorCameraRotation;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Default camera look at */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDefaultEditorCameraLookAt() or USkeletalMesh::SetDefaultEditorCameraLookAt().")
 	UPROPERTY()
 	FVector DefaultEditorCameraLookAt;
+
+	static FName GetDefaultEditorCameraLookAtMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DefaultEditorCameraLookAt);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FVector& GetDefaultEditorCameraLookAt() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultEditorCameraLookAt;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetDefaultEditorCameraLookAt(FVector InDefaultEditorCameraLookAt)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DefaultEditorCameraLookAt = InDefaultEditorCameraLookAt;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Default camera ortho zoom */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetDefaultEditorCameraOrthoZoom() or USkeletalMesh::SetDefaultEditorCameraOrthoZoom().")
 	UPROPERTY()
 	float DefaultEditorCameraOrthoZoom;
 
+	static FName GetDefaultEditorCameraOrthoZoomMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, DefaultEditorCameraOrthoZoom);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	float GetDefaultEditorCameraOrthoZoom() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultEditorCameraOrthoZoom;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetDefaultEditorCameraOrthoZoom(float InDefaultEditorCameraOrthoZoom)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DefaultEditorCameraOrthoZoom = InDefaultEditorCameraOrthoZoom;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
  
 	/* Attached assets component for this mesh */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetPreviewAttachedAssetContainer() or USkeletalMesh::SetPreviewAttachedAssetContainer().")
 	UPROPERTY()
 	FPreviewAssetAttachContainer PreviewAttachedAssetContainer;
+
+	FPreviewAssetAttachContainer& GetPreviewAttachedAssetContainer()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return PreviewAttachedAssetContainer;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPreviewAssetAttachContainer& GetPreviewAttachedAssetContainer() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return PreviewAttachedAssetContainer;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetPreviewAttachedAssetContainer(const FPreviewAssetAttachContainer& InPreviewAttachedAssetContainer)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PreviewAttachedAssetContainer = InPreviewAttachedAssetContainer;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * If true on post load we need to calculate resolution independent Display Factors from the
 	 * loaded LOD screen sizes.
 	 */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetRequiresLODScreenSizeConversion() or USkeletalMesh::SetRequiresLODScreenSizeConversion().")
 	uint32 bRequiresLODScreenSizeConversion : 1;
+
+	bool GetRequiresLODScreenSizeConversion() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bRequiresLODScreenSizeConversion;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRequiresLODScreenSizeConversion(bool bInRequiresLODScreenSizeConversion)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bRequiresLODScreenSizeConversion = bInRequiresLODScreenSizeConversion;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * If true on post load we need to calculate resolution independent LOD hysteresis from the
 	 * loaded LOD hysteresis.
 	 */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetRequiresLODHysteresisConversion() or USkeletalMesh::SetRequiresLODHysteresisConversion().")
 	uint32 bRequiresLODHysteresisConversion : 1;
+
+	bool GetRequiresLODHysteresisConversion() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bRequiresLODHysteresisConversion;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRequiresLODHysteresisConversion(bool bInRequiresLODHysteresisConversion)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bRequiresLODHysteresisConversion = bInRequiresLODHysteresisConversion;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 #endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY(Category=Mesh, BlueprintReadWrite)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargets() or USkeletalMesh::SetMorphTargets().")
+	UPROPERTY(BlueprintGetter = GetMorphTargets, BlueprintSetter = SetMorphTargets, Category = Mesh)
 	TArray<UMorphTarget*> MorphTargets;
+
+	static FName GetMorphTargetsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MorphTargets);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<UMorphTarget*>& GetMorphTargets()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MorphTargets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const TArray<UMorphTarget*>& GetMorphTargets() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MorphTargets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintSetter)
+	void SetMorphTargets(const TArray<UMorphTarget*>& InMorphTargets)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MorphTargets = InMorphTargets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 *	Returns the list of all morph targets of this skeletal mesh
@@ -909,23 +1669,161 @@ public:
 	FRenderCommandFence ReleaseResourcesFence;
 
 	/** New Reference skeleton type **/
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetRefSkeleton() or USkeletalMesh::SetRefSkeleton().")
 	FReferenceSkeleton RefSkeleton;
 
+	static FName GetRefSkeletonMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, RefSkeleton);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	FReferenceSkeleton& GetRefSkeleton()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RefSkeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FReferenceSkeleton& GetRefSkeleton() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RefSkeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRefSkeleton(const FReferenceSkeleton& InRefSkeleton)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RefSkeleton = InRefSkeleton;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Map of morph target name to index into USkeletalMesh::MorphTargets**/
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargetIndexMap() or USkeletalMesh::SetMorphTargetIndexMap().")
 	TMap<FName, int32> MorphTargetIndexMap;
 
+	static FName GetMorphTargetIndexMapMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MorphTargetIndexMap);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TMap<FName, int32>& GetMorphTargetIndexMap()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MorphTargetIndexMap;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const TMap<FName, int32>& GetMorphTargetIndexMap() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MorphTargetIndexMap;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetMorphTargetIndexMap(const TMap<FName, int32>& InMorphTargetIndexMap)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MorphTargetIndexMap = InMorphTargetIndexMap;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Reference skeleton precomputed bases. */
-	TArray<FMatrix> RefBasesInvMatrix;    
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetRefBasesInvMatrix() or USkeletalMesh::SetRefBasesInvMatrix().")
+	TArray<FMatrix> RefBasesInvMatrix;
+
+	static FName GetRefBasesInvMatrixMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, RefBasesInvMatrix);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<FMatrix>& GetRefBasesInvMatrix()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return RefBasesInvMatrix;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const TArray<FMatrix>& GetRefBasesInvMatrix() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RefBasesInvMatrix;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRefBasesInvMatrix(const TArray<FMatrix>& InRefBasesInvMatrix)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RefBasesInvMatrix = InRefBasesInvMatrix;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 #if WITH_EDITORONLY_DATA
 
 	/** Height offset for the floor mesh in the editor */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetFloorOffset() or USkeletalMesh::SetFloorOffset().")
 	UPROPERTY()
 	float FloorOffset;
 
+	static FName GetFloorOffsetMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, FloorOffset);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	float GetFloorOffset() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return FloorOffset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetFloorOffset(float InFloorOffset)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FloorOffset = InFloorOffset;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** This is buffer that saves pose that is used by retargeting*/
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetRetargetBasePose() or USkeletalMesh::SetRetargetBasePose().")
 	UPROPERTY()
 	TArray<FTransform> RetargetBasePose;
+
+	static FName GetRetargetBasePoseMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, RetargetBasePose);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<FTransform>& GetRetargetBasePose()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RetargetBasePose;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const TArray<FTransform>& GetRetargetBasePose() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RetargetBasePose;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRetargetBasePose(const TArray<FTransform>& InRetargetBasePose)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RetargetBasePose = InRetargetBasePose;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Legacy clothing asset data, will be converted to new assets after loading */
 	UPROPERTY()
@@ -936,8 +1834,30 @@ public:
 	 *  This blueprint will be ran before physics, but after the main
 	 *  anim instance for any skeletal mesh component using this mesh.
 	 */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetPostProcessAnimBlueprint() or USkeletalMesh::SetPostProcessAnimBlueprint().")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
 	TSubclassOf<UAnimInstance> PostProcessAnimBlueprint;
+
+	static FName GetPostProcessAnimBlueprintMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TSubclassOf<UAnimInstance> GetPostProcessAnimBlueprint() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return PostProcessAnimBlueprint;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetPostProcessAnimBlueprint(TSubclassOf<UAnimInstance> InPostProcessAnimBlueprint)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PostProcessAnimBlueprint = InPostProcessAnimBlueprint;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 #if WITH_EDITOR && WITH_APEX_CLOTHING
 	/** 
@@ -969,13 +1889,46 @@ public:
 	UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex);
 	const UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex) const;
 
-	/** 
+	/**
 	 * Clothing assets imported to this mesh. May or may not be in use currently on the mesh.
 	 * Ordering not guaranteed, use the provided getters to access elements in this array
 	 * whenever possible
 	 */
-	UPROPERTY(EditAnywhere, editfixedsize, BlueprintReadOnly, Category = Clothing)
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMeshClothingAssets() or USkeletalMesh::SetMeshClothingAssets().")
+	UPROPERTY(EditAnywhere, editfixedsize, BlueprintGetter = GetMeshClothingAssets, BlueprintSetter = SetMeshClothingAssets, Category = Clothing)
 	TArray<UClothingAssetBase*> MeshClothingAssets;
+
+	static FName GetMeshClothingAssetsMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MeshClothingAssets);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArray<UClothingAssetBase*>& GetMeshClothingAssets()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MeshClothingAssets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintGetter)
+	const TArray<UClothingAssetBase*>& GetMeshClothingAssets() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MeshClothingAssets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintSetter)
+	void SetMeshClothingAssets(const TArray<UClothingAssetBase*>& InMeshClothingAssets)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MeshClothingAssets = InMeshClothingAssets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+
 
 	/** Get a clothing asset from its associated GUID (returns nullptr if no match is found) */
 	UClothingAssetBase* GetClothingAsset(const FGuid& InAssetGuid) const;
@@ -1326,7 +2279,6 @@ public:
 	bool IsSectionUsingCloth(int32 InSectionIndex, bool bCheckCorrespondingSections = true) const;
 
 	void CreateBodySetup();
-	UBodySetup* GetBodySetup();
 
 #if WITH_EDITOR
 	/** Trigger a physics build to ensure per poly collision is created */
@@ -1519,7 +2471,30 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/*Transient data use when we postload an old asset to use legacy ddc key, it is turn off so if the user change the asset it go back to the latest ddc code*/
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetUseLegacyMeshDerivedDataKey() or USkeletalMesh::SetUseLegacyMeshDerivedDataKey().")
 	bool UseLegacyMeshDerivedDataKey = false;
+
+	static FName GetUseLegacyMeshDerivedDataKeyMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, UseLegacyMeshDerivedDataKey);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	bool GetUseLegacyMeshDerivedDataKey() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return UseLegacyMeshDerivedDataKey;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetUseLegacyMeshDerivedDataKey(const bool InUseLegacyMeshDerivedDataKey)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UseLegacyMeshDerivedDataKey = InUseLegacyMeshDerivedDataKey;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 #endif
 
 protected:

@@ -44,7 +44,7 @@ void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class U
 				PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion((*SocketIt)->SocketName.ToString()));
 			}
 		}
-		Skeleton = SkeletalMesh->Skeleton;
+		Skeleton = SkeletalMesh->GetSkeleton();
 	}
 	else
 	{

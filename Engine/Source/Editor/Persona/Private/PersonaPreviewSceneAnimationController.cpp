@@ -22,7 +22,7 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 {
 	TArray<UObject*> ListOfPreviewController{ this };
 
-	const USkeleton* Skeleton = PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh ? PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh->Skeleton : nullptr;
+	const USkeleton* Skeleton = PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh ? PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh->GetSkeleton() : nullptr;
 	if (Skeleton)
 	{
 		FString SkeletonName = FAssetData(Skeleton).GetExportTextName();

@@ -65,7 +65,7 @@ void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshCom
 			if (SkeletalMesh)
 			{
 				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
-				NumBones = SkeletalMesh->RefSkeleton.GetNum();
+				NumBones = SkeletalMesh->GetRefSkeleton().GetNum();
 
 				BoneTransforms.Empty(NumBones);
 				BoneTransforms.AddDefaulted(NumBones);
@@ -92,12 +92,12 @@ void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshCom
 
 				if (!bFoundMaster && SkeletalMesh)
 				{
-					const int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+					const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 
 					BoneTransforms[BoneIndex] =
 						BoneTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex ?
-						BoneTransforms[ParentIndex] * SkeletalMesh->RefSkeleton.GetRefBonePose()[BoneIndex] :
-						SkeletalMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+						BoneTransforms[ParentIndex] * SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex] :
+						SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 				}
 			}
 		}

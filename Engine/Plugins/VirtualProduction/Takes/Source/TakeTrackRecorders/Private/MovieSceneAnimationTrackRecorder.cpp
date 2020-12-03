@@ -66,7 +66,7 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 			FAssetRegistryModule::AssetCreated(AnimSequence.Get());
 
 			// Assign the skeleton we're recording to the newly created Animation Sequence.
-			AnimSequence->SetSkeleton(SkeletalMeshComponent->SkeletalMesh->Skeleton);
+			AnimSequence->SetSkeleton(SkeletalMeshComponent->SkeletalMesh->GetSkeleton());
 		}
 	}
 

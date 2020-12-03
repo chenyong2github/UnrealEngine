@@ -212,7 +212,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			SNew(SObjectPropertyEntryBox)
 			.AllowedClass(USkeletalMesh::StaticClass())
 			.PropertyHandle(SkeletalMeshProperty)
-			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, FName("Skeleton"), PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
+			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, USkeletalMesh::GetSkeletonMemberName(), PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
 			.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandleMeshChanged)
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
 			.CustomResetToDefault(FResetToDefaultOverride::Create(
@@ -511,7 +511,7 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAdditionalMesh(con
 		return true;
 	}
 
-	return HandleShouldFilterAsset(InAssetData, FName("Skeleton"), bCanUseDifferentSkeleton);
+	return HandleShouldFilterAsset(InAssetData, USkeletalMesh::GetSkeletonMemberName(), bCanUseDifferentSkeleton);
 }
 
 bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAssetData& InAssetData, FName InTag, bool bCanUseDifferentSkeleton)

@@ -28,7 +28,7 @@ public:
 		, Spacing()
 		, bDirty(true)
 	{
-		CachedAnimSequence->SetSkeleton(InSkeletalMeshComponent->SkeletalMesh->Skeleton);
+		CachedAnimSequence->SetSkeleton(InSkeletalMeshComponent->SkeletalMesh->GetSkeleton());
 	}
 
 	void Evaluate(FTrajectoryCache* ParentTrajectoryCache);

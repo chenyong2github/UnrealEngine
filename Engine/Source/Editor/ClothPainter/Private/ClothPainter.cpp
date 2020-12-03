@@ -177,7 +177,7 @@ void FClothPainter::RefreshClothingAssets()
 
 	if(USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh)
 	{
-		for(UClothingAssetBase* BaseClothingAsset : Mesh->MeshClothingAssets)
+		for(UClothingAssetBase* BaseClothingAsset : Mesh->GetMeshClothingAssets())
 		{
 			if(UClothingAssetCommon* ActualAsset = Cast<UClothingAssetCommon>(BaseClothingAsset))
 			{

@@ -405,9 +405,10 @@ void FAnimationEditorPreviewScene::AddPreviewAttachedObjects()
 
 	if ( Mesh )
 	{
-		for(int32 i = 0; i < Mesh->PreviewAttachedAssetContainer.Num(); i++)
+		FPreviewAssetAttachContainer& PreviewAssetAttachContainer = Mesh->GetPreviewAttachedAssetContainer();
+		for(int32 Index = 0; Index < PreviewAssetAttachContainer.Num(); Index++)
 		{
-			FPreviewAttachedObjectPair& PreviewAttachedObject = Mesh->PreviewAttachedAssetContainer[i];
+			FPreviewAttachedObjectPair& PreviewAttachedObject = PreviewAssetAttachContainer[Index];
 
 			AttachObjectToPreviewComponent(PreviewAttachedObject.GetAttachedObject(), PreviewAttachedObject.AttachedTo);
 		}
@@ -521,7 +522,7 @@ void FAnimationEditorPreviewScene::RemoveAttachedComponent( bool bRemovePreviewA
 
 		if ( USkeletalMesh* PreviewMesh = PersonaToolkit.Pin()->GetMesh() )
 		{
-			for(auto Iter = PreviewMesh->PreviewAttachedAssetContainer.CreateConstIterator(); Iter; ++Iter)
+			for(auto Iter = PreviewMesh->GetPreviewAttachedAssetContainer().CreateConstIterator(); Iter; ++Iter)
 			{
 				PreviewAttachedObjects.FindOrAdd(Iter->GetAttachedObject()).Add(Iter->AttachedTo);
 			}
@@ -655,10 +656,10 @@ void FAnimationEditorPreviewScene::ShowReferencePose(bool bShowRefPose, bool bRe
 			bool bModified = false;
 			FScopedTransaction Transaction(LOCTEXT("ResetBoneTransforms", "Reset Bone Transforms"));
 
-			int32 NumBones = SkeletalMeshComponent->SkeletalMesh->RefSkeleton.GetNum();
+			int32 NumBones = SkeletalMeshComponent->SkeletalMesh->GetRefSkeleton().GetNum();
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
-				FName BoneName = SkeletalMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+				FName BoneName = SkeletalMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 				const FAnimNode_ModifyBone* ModifiedBone = SkeletalMeshComponent->PreviewInstance->FindModifiedBone(BoneName);
 				if (ModifiedBone != nullptr)
 				{

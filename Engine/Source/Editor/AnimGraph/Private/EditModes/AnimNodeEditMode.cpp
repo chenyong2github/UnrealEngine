@@ -357,7 +357,7 @@ void FAnimNodeEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaT
 
 void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->Skeleton;
+	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 
 	switch (Space)
 	{
@@ -427,7 +427,7 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 
 void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InCSTransform, FTransform & OutBSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->Skeleton;
+	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 
 	switch(Space)
 	{
@@ -691,7 +691,7 @@ FVector FAnimNodeEditMode::ConvertWidgetLocation(const USkeletalMeshComponent* S
 	{
 		if (InMeshBases.GetPose().IsValid())
 		{
-			USkeleton* Skeleton = InSkelComp->SkeletalMesh->Skeleton;
+			USkeleton* Skeleton = InSkelComp->SkeletalMesh->GetSkeleton();
 			const int32 MeshBoneIndex = InSkelComp->GetBoneIndex(InBoneName);
 			if (MeshBoneIndex != INDEX_NONE)
 			{

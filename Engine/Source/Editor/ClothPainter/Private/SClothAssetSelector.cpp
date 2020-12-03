@@ -210,14 +210,14 @@ private:
 			{
 				FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 				int32 AssetIndex;
-				if(SkelMesh->MeshClothingAssets.Find(Asset, AssetIndex))
+				if(SkelMesh->GetMeshClothingAssets().Find(Asset, AssetIndex))
 				{
 					// Need to unregister our components so they shut down their current clothing simulation
 					FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
 					SkelMesh->PreEditChange(nullptr);
 
 					Asset->UnbindFromSkeletalMesh(SkelMesh);
-					SkelMesh->MeshClothingAssets.RemoveAt(AssetIndex);
+					SkelMesh->GetMeshClothingAssets().RemoveAt(AssetIndex);
 
 					// Need to fix up asset indices on sections.
 					if(FSkeletalMeshModel* Model = SkelMesh->GetImportedModel())
@@ -1179,7 +1179,7 @@ void SClothAssetSelector::OnCopyClothingAssetSelected(const FAssetData& AssetDat
 		FClothingSystemEditorInterfaceModule& ClothingEditorModule = FModuleManager::LoadModuleChecked<FClothingSystemEditorInterfaceModule>("ClothingSystemEditorInterface");
 		UClothingAssetFactoryBase* AssetFactory = ClothingEditorModule.GetClothingAssetFactory();
 
-		for (UClothingAssetBase* ClothingAsset : SourceSkelMesh->MeshClothingAssets)
+		for (UClothingAssetBase* ClothingAsset : SourceSkelMesh->GetMeshClothingAssets())
 		{
 			UClothingAssetCommon* NewAsset = Cast<UClothingAssetCommon>(AssetFactory->CreateFromExistingCloth(Mesh, SourceSkelMesh, ClothingAsset));
 			Mesh->AddClothingAsset(NewAsset);
@@ -1369,7 +1369,7 @@ void SClothAssetSelector::RefreshAssetList()
 
 	AssetListItems.Empty();
 
-	for(UClothingAssetBase* Asset : Mesh->MeshClothingAssets)
+	for(UClothingAssetBase* Asset : Mesh->GetMeshClothingAssets())
 	{
 		UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(Asset);
 

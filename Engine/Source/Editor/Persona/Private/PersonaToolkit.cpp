@@ -191,7 +191,7 @@ void FPersonaToolkit::SetMesh(class USkeletalMesh* InSkeletalMesh)
 {
 	if (InSkeletalMesh != nullptr && Skeleton.IsValid())
 	{
-		check(InSkeletalMesh->Skeleton == Skeleton);
+		check(InSkeletalMesh->GetSkeleton() == Skeleton);
 	}
 
 	Mesh = InSkeletalMesh;
@@ -264,7 +264,7 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 	{
 		// If the skeleton itself is changing, then we need to re-open the asset editor
 		bool bReOpenEditor = false;
-		if(InSkeletalMesh != nullptr && EditableSkeleton.IsValid() && InSkeletalMesh->Skeleton != &EditableSkeleton->GetSkeleton())
+		if(InSkeletalMesh != nullptr && EditableSkeleton.IsValid() && InSkeletalMesh->GetSkeleton() != &EditableSkeleton->GetSkeleton())
 		{
 			bReOpenEditor = true;
 			bSetPreviewMeshInAsset = true;

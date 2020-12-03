@@ -541,7 +541,7 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 
 		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Outer))
 		{
-			TargetSkeleton = SkeletalMesh->Skeleton;
+			TargetSkeleton = SkeletalMesh->GetSkeleton();
 			break;
 		}
 
@@ -549,7 +549,7 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 		{
 			USkeletalMesh* SkeletalMesh = LODInfoUILayout->GetPersonaToolkit()->GetPreviewMesh();
 			check(SkeletalMesh);
-			TargetSkeleton = SkeletalMesh->Skeleton;
+			TargetSkeleton = SkeletalMesh->GetSkeleton();
 			break;
 		}
 

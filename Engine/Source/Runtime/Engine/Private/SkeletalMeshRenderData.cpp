@@ -41,15 +41,15 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 		check(LODInfos.IsValidIndex(LODIndex));
 		FSkeletalMeshLODInfo& LODInfo = LODInfos[LODIndex];
 		bool bValidLODSettings = false;
-		if (SkeletalMesh->LODSettings != nullptr)
+		if (SkeletalMesh->GetLODSettings() != nullptr)
 		{
-			const int32 NumSettings = FMath::Min(SkeletalMesh->LODSettings->GetNumberOfSettings(), SkeletalMesh->GetLODNum());
+			const int32 NumSettings = FMath::Min(SkeletalMesh->GetLODSettings()->GetNumberOfSettings(), SkeletalMesh->GetLODNum());
 			if (LODIndex < NumSettings)
 			{
 				bValidLODSettings = true;
 			}
 		}
-		const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings = bValidLODSettings ? &SkeletalMesh->LODSettings->GetSettingsForLODLevel(LODIndex) : nullptr;
+		const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings = bValidLODSettings ? &SkeletalMesh->GetLODSettings()->GetSettingsForLODLevel(LODIndex) : nullptr;
 		LODInfo.BuildGUID = LODInfo.ComputeDeriveDataCacheKey(SkeletalMeshLODGroupSettings);
 		KeySuffix += LODInfo.BuildGUID.ToString(EGuidFormats::Digits);
 	}
@@ -71,7 +71,7 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 {
 	FString KeySuffix(TEXT(""));
 
-	if (SkelMesh->UseLegacyMeshDerivedDataKey )
+	if (SkelMesh->GetUseLegacyMeshDerivedDataKey() )
 	{
 		//Old asset will have the same LOD settings for bUseFullPrecisionUVs. We can use the LOD 0
 		const FSkeletalMeshLODInfo* BaseLODInfo = SkelMesh->GetLODInfo(0);
@@ -98,8 +98,8 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 		KeySuffix += tmpDebugString;
 	}
 
-	KeySuffix += SkelMesh->bHasVertexColors ? "1" : "0";
-	KeySuffix += SkelMesh->VertexColorGuid.ToString(EGuidFormats::Digits);
+	KeySuffix += SkelMesh->GetHasVertexColors() ? "1" : "0";
+	KeySuffix += SkelMesh->GetVertexColorGuid().ToString(EGuidFormats::Digits);
 
 	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
 	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
@@ -160,7 +160,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			//We need to store those so we do not have to rerun the reduction to make them up to date
 			//with the serialize renderdata. This allow to use DDC when changing the reduction settings.
 			//The old workflow has to reduce the LODModel before getting the render data DDC.
-			if (!Owner->UseLegacyMeshDerivedDataKey)
+			if (!Owner->GetUseLegacyMeshDerivedDataKey())
 			{
 				FSkeletalMeshModel* SkelMeshModel = Owner->GetImportedModel();
 				check(SkelMeshModel);
@@ -168,8 +168,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				int32 MorphTargetNumber = 0;
 				Ar << MorphTargetNumber;
 				TArray<UMorphTarget*> ToDeleteMorphTargets;
-				ToDeleteMorphTargets.Append(Owner->MorphTargets);
-				Owner->MorphTargets.Empty();
+				ToDeleteMorphTargets.Append(Owner->GetMorphTargets());
+				Owner->GetMorphTargets().Empty();
 				//Rebuild the MorphTarget object
 				//We cannot serialize directly the UMorphTarget with a FMemoryArchive. This is not supported.
 				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
@@ -187,8 +187,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 						ToDeleteMorphTargets.Remove(MorphTarget);
 					}
 					MorphTarget->MorphLODModels.Empty();
-					Owner->MorphTargets.Add(MorphTarget);
-					check(MorphTargetIndex == Owner->MorphTargets.Num() - 1);
+					Owner->GetMorphTargets().Add(MorphTarget);
+					check(MorphTargetIndex == Owner->GetMorphTargets().Num() - 1);
 					int32 MorphLODModelNumber = 0;
 					Ar << MorphLODModelNumber;
 					MorphTarget->MorphLODModels.AddDefaulted(MorphLODModelNumber);
@@ -300,19 +300,19 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			
 			//If we load an old asset we want to be sure the serialize ddc will be the same has before the skeletalmesh build refactor
 			//So we do not serialize the LODModel sections.
-			if (!Owner->UseLegacyMeshDerivedDataKey)
+			if (!Owner->GetUseLegacyMeshDerivedDataKey())
 			{
-				int32 MorphTargetNumber = Owner->MorphTargets.Num();
+				int32 MorphTargetNumber = Owner->GetMorphTargets().Num();
 				Ar << MorphTargetNumber;
 				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
 				{
-					FName MorphTargetName = Owner->MorphTargets[MorphTargetIndex]->GetFName();
+					FName MorphTargetName = Owner->GetMorphTargets()[MorphTargetIndex]->GetFName();
 					Ar << MorphTargetName;
-					int32 MorphLODModelNumber = Owner->MorphTargets[MorphTargetIndex]->MorphLODModels.Num();
+					int32 MorphLODModelNumber = Owner->GetMorphTargets()[MorphTargetIndex]->MorphLODModels.Num();
 					Ar << MorphLODModelNumber;
 					for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
 					{
-						Ar << Owner->MorphTargets[MorphTargetIndex]->MorphLODModels[MorphIndex];
+						Ar << Owner->GetMorphTargets()[MorphTargetIndex]->MorphLODModels[MorphIndex];
 					}
 				}
 				//No need to serialize the morph target mapping since we will rebuild the mapping when loading a ddc

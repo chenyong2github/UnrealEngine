@@ -273,12 +273,12 @@ UObject* UAlembicImportFactory::ImportSkeletalMesh(FAbcImporter& Importer, UObje
 		if (SkeletalMesh)
 		{
 		// Setup asset import data
-		if (!SkeletalMesh->AssetImportData || !SkeletalMesh->AssetImportData->IsA<UAbcAssetImportData>())
+		if (!SkeletalMesh->GetAssetImportData() || !SkeletalMesh->GetAssetImportData()->IsA<UAbcAssetImportData>())
 		{
-			SkeletalMesh->AssetImportData = NewObject<UAbcAssetImportData>(SkeletalMesh);
+			SkeletalMesh->SetAssetImportData(NewObject<UAbcAssetImportData>(SkeletalMesh));
 		}
-		SkeletalMesh->AssetImportData->Update(UFactory::CurrentFilename);
-		UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(SkeletalMesh->AssetImportData);
+		SkeletalMesh->GetAssetImportData()->Update(UFactory::CurrentFilename);
+		UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(SkeletalMesh->GetAssetImportData());
 		if (AssetImportData)
 		{
 			Importer.UpdateAssetImportData(AssetImportData);
@@ -333,7 +333,7 @@ bool UAlembicImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilena
 	else if (Obj->GetClass() == USkeletalMesh::StaticClass())
 	{
 		USkeletalMesh* Cache = Cast<USkeletalMesh>(Obj);
-		ImportData = Cache->AssetImportData;
+		ImportData = Cache->GetAssetImportData();
 	}
 	else if (Obj->GetClass() == UAnimSequence::StaticClass())
 	{
@@ -361,9 +361,9 @@ void UAlembicImportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>
 	}
 
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
-	if (SkeletalMesh && SkeletalMesh->AssetImportData && ensure(NewReimportPaths.Num() == 1))
+	if (SkeletalMesh && SkeletalMesh->GetAssetImportData() && ensure(NewReimportPaths.Num() == 1))
 	{
-		SkeletalMesh->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+		SkeletalMesh->GetAssetImportData()->UpdateFilenameOnly(NewReimportPaths[0]);
 	}
 
 	UAnimSequence* Sequence = Cast<UAnimSequence>(Obj);
@@ -436,7 +436,7 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 			return EReimportResult::Failed;
 		}
 
-		CurrentFilename = SkeletalMesh->AssetImportData->GetFirstFilename();
+		CurrentFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
 
 		EReimportResult::Type Result = ReimportSkeletalMesh(SkeletalMesh);
 
@@ -468,7 +468,7 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 		for (TObjectIterator<USkeletalMesh> It; It; ++It)
 		{
 			// This works because the skeleton is unique for every imported alembic cache
-			if (It->Skeleton == AnimSequence->GetSkeleton())
+			if (It->GetSkeleton() == AnimSequence->GetSkeleton())
 			{
 				SkeletalMesh = *It;
 				break;
@@ -626,9 +626,9 @@ EReimportResult::Type UAlembicImportFactory::ReimportSkeletalMesh(USkeletalMesh*
 		return EReimportResult::Failed;
 	}
 
-	if (SkeletalMesh->AssetImportData && SkeletalMesh->AssetImportData->IsA<UAbcAssetImportData>())
+	if (SkeletalMesh->GetAssetImportData() && SkeletalMesh->GetAssetImportData()->IsA<UAbcAssetImportData>())
 	{
-		UAbcAssetImportData* ImportData = Cast<UAbcAssetImportData>(SkeletalMesh->AssetImportData);
+		UAbcAssetImportData* ImportData = Cast<UAbcAssetImportData>(SkeletalMesh->GetAssetImportData());
 		PopulateOptionsWithImportData(ImportData);
 		Importer.RetrieveAssetImportData(ImportData);
 	}
@@ -677,13 +677,13 @@ EReimportResult::Type UAlembicImportFactory::ReimportSkeletalMesh(USkeletalMesh*
 	else
 	{
 		// Update file path/timestamp (Path could change if user has to browse for it manually)
-		if (!NewSkeletalMesh->AssetImportData || !NewSkeletalMesh->AssetImportData->IsA<UAbcAssetImportData>())
+		if (!NewSkeletalMesh->GetAssetImportData() || !NewSkeletalMesh->GetAssetImportData()->IsA<UAbcAssetImportData>())
 		{
-			NewSkeletalMesh->AssetImportData = NewObject<UAbcAssetImportData>(NewSkeletalMesh);
+			NewSkeletalMesh->SetAssetImportData(NewObject<UAbcAssetImportData>(NewSkeletalMesh));
 		}
 
-		NewSkeletalMesh->AssetImportData->Update(CurrentFilename);
-		UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(NewSkeletalMesh->AssetImportData);
+		NewSkeletalMesh->GetAssetImportData()->Update(CurrentFilename);
+		UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(NewSkeletalMesh->GetAssetImportData());
 		if (AssetImportData)
 		{
 			Importer.UpdateAssetImportData(AssetImportData);

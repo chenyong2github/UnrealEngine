@@ -148,26 +148,23 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 					continue;
 				}
 
-				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
-				if (RefSkeleton != nullptr)
+				const FReferenceSkeleton& RefSkeleton = SkelMesh->GetRefSkeleton();
+				if (RefSkeleton.GetNum() > 0)
 				{
-					if (RefSkeleton->GetNum() > 0)
-					{
 
-						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+					{
+						const FName BoneName = BodySetup->BoneName;
+						const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+						if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton.GetNum())
 						{
-							const FName BoneName = BodySetup->BoneName;
-							const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-							if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton->GetNum())
-							{
-								NumBoxes += BodySetup->AggGeom.BoxElems.Num();
-								NumSpheres += BodySetup->AggGeom.SphereElems.Num();
-								NumCapsules += BodySetup->AggGeom.SphylElems.Num();
-							}
+							NumBoxes += BodySetup->AggGeom.BoxElems.Num();
+							NumSpheres += BodySetup->AggGeom.SphereElems.Num();
+							NumCapsules += BodySetup->AggGeom.SphylElems.Num();
 						}
-						//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
-						//				NumCapsules, NumSpheres, NumBoxes);
 					}
+					//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
+					//				NumCapsules, NumSpheres, NumBoxes);
 				}
 			}
 		}
@@ -199,55 +196,52 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 					{
 						continue;
 					}
-					const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
-					if (RefSkeleton != nullptr)
+					const FReferenceSkeleton& RefSkeleton = SkelMesh->GetRefSkeleton();
+					TArray<FTransform> RestTransforms;
+					FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, RefSkeleton.GetRefBonePose(), RestTransforms);
+
+					if (RefSkeleton.GetNum() > 0)
 					{
-						TArray<FTransform> RestTransforms;
-						FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
-
-						if (RefSkeleton->GetNum() > 0)
+						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 						{
-							for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+							const FName BoneName = BodySetup->BoneName;
+							const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+							if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 							{
-								const FName BoneName = BodySetup->BoneName;
-								const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-								if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
+								const FTransform RestTransform = RestTransforms[BoneIndex];
+								const FTransform BoneTransform = IsSkelMeshValid ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransform * WorldTransform;
+
+								for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 								{
-									const FTransform RestTransform = RestTransforms[BoneIndex];
-									const FTransform BoneTransform = IsSkelMeshValid ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransform * WorldTransform;
+									const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, BoxCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--BoxCount;
 
-									for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
-									{
-										const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
-										FillCurrentTransforms(RestElement, BoxCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-										--BoxCount;
+									const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[BoxCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
+									FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								}
 
-										const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-										OutAssetArrays->ElementExtent[BoxCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
-										FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-									}
+								for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
+								{
+									const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, SphereCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--SphereCount;
 
-									for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
-									{
-										const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
-										FillCurrentTransforms(RestElement, SphereCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-										--SphereCount;
+									const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[SphereCount] = FVector4(SphereElem.Radius, 0, 0, 0);
+									FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								}
 
-										const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-										OutAssetArrays->ElementExtent[SphereCount] = FVector4(SphereElem.Radius, 0, 0, 0);
-										FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-									}
+								for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
+								{
+									const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, CapsuleCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--CapsuleCount;
 
-									for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
-									{
-										const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
-										FillCurrentTransforms(RestElement, CapsuleCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-										--CapsuleCount;
-
-										const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-										OutAssetArrays->ElementExtent[CapsuleCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
-										FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-									}
+									const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[CapsuleCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
+									FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 								}
 							}
 						}
@@ -290,17 +284,16 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				{
 					continue;
 				}
-				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
+				const FReferenceSkeleton& RefSkeleton = SkelMesh->GetRefSkeleton();
 
-				if (RefSkeleton != nullptr)
 				{
 					TArray<FTransform> RestTransforms;
-					FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
+					FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, RefSkeleton.GetRefBonePose(), RestTransforms);
 					
 					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 					{
 						const FName BoneName = BodySetup->BoneName;
-						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+						const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
 						if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 						{
 							const FTransform BoneTransform = IsSkelMeshValid ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransforms[BoneIndex] * WorldTransform;

@@ -320,7 +320,7 @@ namespace FbxMeshUtils
 		//Set the skeletal mesh import data from the base mesh, this make sure the import rotation transform is use when importing a LOD
 		UFbxSkeletalMeshImportData* TempAssetImportData = NULL;
 
-		UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(SelectedSkelMesh->AssetImportData);
+		UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(SelectedSkelMesh->GetAssetImportData());
 		if (FbxAssetImportData != nullptr)
 		{
 			UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(FbxAssetImportData);
@@ -331,8 +331,8 @@ namespace FbxMeshUtils
 				// Prepare the import options
 				UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
 				ReimportUI->MeshTypeToImport = FBXIT_SkeletalMesh;
-				ReimportUI->Skeleton = SelectedSkelMesh->Skeleton;
-				ReimportUI->PhysicsAsset = SelectedSkelMesh->PhysicsAsset;
+				ReimportUI->Skeleton = SelectedSkelMesh->GetSkeleton();
+				ReimportUI->PhysicsAsset = SelectedSkelMesh->GetPhysicsAsset();
 				// Import data already exists, apply it to the fbx import options
 				ReimportUI->SkeletalMeshImportData = ImportData;
 				//Some options not supported with skeletal mesh
@@ -471,7 +471,7 @@ namespace FbxMeshUtils
 				TArray<FName> OrderedMaterialNames;
 				{
 					int32 NoneNameCount = 0;
-					for (const FSkeletalMaterial &Material : SelectedSkelMesh->Materials)
+					for (const FSkeletalMaterial &Material : SelectedSkelMesh->GetMaterials())
 					{
 						if (Material.ImportedMaterialSlotName == NAME_None)
 							NoneNameCount++;

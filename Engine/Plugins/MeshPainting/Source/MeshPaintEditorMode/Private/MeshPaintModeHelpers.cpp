@@ -302,9 +302,9 @@ void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Skel
 	}
 
 	//Make sure we change the import data so the re-import do not replace the new data
-	if (SkeletalMesh->AssetImportData)
+	if (SkeletalMesh->GetAssetImportData())
 	{
-		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
+		UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData());
 		if (ImportData && ImportData->VertexColorImportOption != EVertexColorImportOption::Ignore)
 		{
 			ImportData->SetFlags(RF_Transactional);

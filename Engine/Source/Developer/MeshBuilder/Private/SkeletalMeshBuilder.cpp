@@ -65,7 +65,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 	//We want to backup in case the LODModel is regenerated, this data is use to validate in the UI if the ddc must be rebuild
 	const FString BackupBuildStringID = SkeletalMesh->GetImportedModel()->LODModels[LODIndex].BuildStringID;
 
-	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 
 	FScopedSlowTask SlowTask(6.01f, NSLOCTEXT("SkeltalMeshBuilder", "BuildingSkeletalMeshLOD", "Building skeletal mesh LOD"));
 	SlowTask.MakeDialog();
@@ -97,7 +97,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		NumTextCoord = FMath::Max<int32>(NumTextCoord, SkeletalMeshImportData.NumTexCoords);
 		
 		//BaseLOD need to make sure the source data fit with the skeletalmesh materials array before using meshutilities.BuildSkeletalMesh
-		FLODUtilities::AdjustImportDataFaceMaterialIndex(SkeletalMesh->Materials, SkeletalMeshImportData.Materials, LODFaces, LODIndex);
+		FLODUtilities::AdjustImportDataFaceMaterialIndex(SkeletalMesh->GetMaterials(), SkeletalMeshImportData.Materials, LODFaces, LODIndex);
 
 		//Build the skeletalmesh using mesh utilities module
 		IMeshUtilities::MeshBuildOptions Options;
@@ -156,8 +156,8 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 				//Make the copy of the data only once until the ImportedModel change (re-imported)
 				SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->EmptyBulkData();
 				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-				BaseLODMorphTargetData.Empty(SkeletalMesh->MorphTargets.Num());
-				for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
+				BaseLODMorphTargetData.Empty(SkeletalMesh->GetMorphTargets().Num());
+				for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
 				{
 					if (!MorphTarget->HasDataForLOD(LODIndex))
 					{
@@ -176,7 +176,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 
 				if (LODIndex == 0)
 				{
-					SkeletalMesh->GetLODInfo(LODIndex)->SourceImportFilename = SkeletalMesh->AssetImportData->GetFirstFilename();
+					SkeletalMesh->GetLODInfo(LODIndex)->SourceImportFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
 				}
 			}
 			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, false);

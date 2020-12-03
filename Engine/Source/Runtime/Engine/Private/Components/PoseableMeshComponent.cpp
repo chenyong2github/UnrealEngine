@@ -21,9 +21,9 @@ bool UPoseableMeshComponent::AllocateTransformData()
 	// Allocate transforms if not present.
 	if ( Super::AllocateTransformData() )
 	{
-		if(BoneSpaceTransforms.Num() != SkeletalMesh->RefSkeleton.GetNum() )
+		if(BoneSpaceTransforms.Num() != SkeletalMesh->GetRefSkeleton().GetNum() )
 		{
-			BoneSpaceTransforms = SkeletalMesh->RefSkeleton.GetRefBonePose();
+			BoneSpaceTransforms = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
 
 			TArray<FBoneIndexType> RequiredBoneIndexArray;
 			RequiredBoneIndexArray.AddUninitialized(BoneSpaceTransforms.Num());
@@ -84,9 +84,9 @@ void UPoseableMeshComponent::FillComponentSpaceTransforms()
 	}
 
 	// right now all this does is to convert to SpaceBases
-	check( SkeletalMesh->RefSkeleton.GetNum() == BoneSpaceTransforms.Num() );
-	check( SkeletalMesh->RefSkeleton.GetNum() == GetNumComponentSpaceTransforms());
-	check( SkeletalMesh->RefSkeleton.GetNum() == GetBoneVisibilityStates().Num() );
+	check( SkeletalMesh->GetRefSkeleton().GetNum() == BoneSpaceTransforms.Num() );
+	check( SkeletalMesh->GetRefSkeleton().GetNum() == GetNumComponentSpaceTransforms());
+	check( SkeletalMesh->GetRefSkeleton().GetNum() == GetBoneVisibilityStates().Num() );
 
 	const int32 NumBones = BoneSpaceTransforms.Num();
 
@@ -113,7 +113,7 @@ void UPoseableMeshComponent::FillComponentSpaceTransforms()
 		BoneProcessed[BoneIndex] = 1;
 #endif
 		// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
-		const int32 ParentIndex = SkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+		const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 		FPlatformMisc::Prefetch(SpaceBasesData + ParentIndex);
 
 #if DO_GUARD_SLOW
@@ -269,7 +269,7 @@ void UPoseableMeshComponent::ResetBoneTransformByName(FName BoneName)
 	const int32 BoneIndex = GetBoneIndex(BoneName);
 	if( BoneIndex != INDEX_NONE )
 	{
-		BoneSpaceTransforms[BoneIndex] = SkeletalMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+		BoneSpaceTransforms[BoneIndex] = SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 	}
 	else
 	{
@@ -294,10 +294,10 @@ void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(USkeletalMeshComponen
 			// The meshes don't match, search bone-by-bone (slow path)
 
 			// first set the localatoms to ref pose from our current mesh
-			BoneSpaceTransforms = SkeletalMesh->RefSkeleton.GetRefBonePose();
+			BoneSpaceTransforms = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
 
 			// Now overwrite any matching bones
-			const int32 NumSourceBones = InComponentToCopy->SkeletalMesh->RefSkeleton.GetNum();
+			const int32 NumSourceBones = InComponentToCopy->SkeletalMesh->GetRefSkeleton().GetNum();
 
 			for(int32 SourceBoneIndex = 0 ; SourceBoneIndex < NumSourceBones ; ++SourceBoneIndex)
 			{

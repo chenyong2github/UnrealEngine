@@ -310,13 +310,13 @@ void UpdateRefToLocalMatrices( TArray<FMatrix>& ReferenceToLocal, const USkinned
 	const USkinnedMeshComponent* const MasterComp = InMeshComponent->MasterPoseComponent.Get();
 	const FSkeletalMeshLODRenderData& LOD = InSkeletalMeshRenderData->LODRenderData[LODIndex];
 
-	const FReferenceSkeleton& RefSkeleton = ThisMesh->RefSkeleton;
+	const FReferenceSkeleton& RefSkeleton = ThisMesh->GetRefSkeleton();
 	const TArray<int32>& MasterBoneMap = InMeshComponent->GetMasterBoneMap();
-	const bool bIsMasterCompValid = MasterComp && MasterBoneMap.Num() == ThisMesh->RefSkeleton.GetNum();
+	const bool bIsMasterCompValid = MasterComp && MasterBoneMap.Num() == ThisMesh->GetRefSkeleton().GetNum();
 	const TArray<FTransform>& ComponentTransform = (bIsMasterCompValid)? MasterComp->GetComponentSpaceTransforms() : InMeshComponent->GetComponentSpaceTransforms();
 	const TArray<uint8>& BoneVisibilityStates = (bIsMasterCompValid) ? MasterComp->GetBoneVisibilityStates() : InMeshComponent->GetBoneVisibilityStates();
 	// Get inv ref pose matrices
-	const TArray<FMatrix>* RefBasesInvMatrix = &ThisMesh->RefBasesInvMatrix;
+	const TArray<FMatrix>* RefBasesInvMatrix = &ThisMesh->GetRefBasesInvMatrix();
 
 	// Check if there is an override (and it's the right size)
 	if( InMeshComponent->GetRefPoseOverride() && 
@@ -359,13 +359,13 @@ void UpdatePreviousRefToLocalMatrices(TArray<FMatrix>& ReferenceToLocal, const U
 	const USkinnedMeshComponent* const MasterComp = InMeshComponent->MasterPoseComponent.Get();
 	const FSkeletalMeshLODRenderData& LOD = InSkeletalMeshRenderData->LODRenderData[LODIndex];
 
-	const FReferenceSkeleton& RefSkeleton = ThisMesh->RefSkeleton;
+	const FReferenceSkeleton& RefSkeleton = ThisMesh->GetRefSkeleton();
 	const TArray<int32>& MasterBoneMap = InMeshComponent->GetMasterBoneMap();
-	const bool bIsMasterCompValid = MasterComp && MasterBoneMap.Num() == ThisMesh->RefSkeleton.GetNum();
+	const bool bIsMasterCompValid = MasterComp && MasterBoneMap.Num() == ThisMesh->GetRefSkeleton().GetNum();
 	const TArray<FTransform>& ComponentTransform = (bIsMasterCompValid) ? MasterComp->GetPreviousComponentTransformsArray() : InMeshComponent->GetPreviousComponentTransformsArray();
 	const TArray<uint8>& BoneVisibilityStates = (bIsMasterCompValid) ? MasterComp->GetPreviousBoneVisibilityStates() : InMeshComponent->GetPreviousBoneVisibilityStates();
 	// Get inv ref pose matrices
-	const TArray<FMatrix>* RefBasesInvMatrix = &ThisMesh->RefBasesInvMatrix;
+	const TArray<FMatrix>* RefBasesInvMatrix = &ThisMesh->GetRefBasesInvMatrix();
 	// Check if there is an override (and it's the right size)
 	if (InMeshComponent->GetRefPoseOverride() &&
 		InMeshComponent->GetRefPoseOverride()->RefBasesInvMatrix.Num() == RefBasesInvMatrix->Num())

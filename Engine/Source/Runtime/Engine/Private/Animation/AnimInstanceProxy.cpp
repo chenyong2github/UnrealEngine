@@ -560,7 +560,7 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 
 	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 	{
-		Skeleton = SkeletalMeshComponent->SkeletalMesh->Skeleton;
+		Skeleton = SkeletalMeshComponent->SkeletalMesh->GetSkeleton();
 	}
 	else
 	{

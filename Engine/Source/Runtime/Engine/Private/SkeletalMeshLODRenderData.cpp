@@ -479,7 +479,7 @@ int32 FSkeletalMeshLODRenderData::GetPlatformMinLODIdx(const ITargetPlatform* Ta
 	check(TargetPlatform && SkeletalMesh);
 	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
 	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
-	return  SkeletalMesh->MinLod.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	return  SkeletalMesh->GetMinLod().GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
 #else
 	return 0;
 #endif
@@ -498,8 +498,8 @@ uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const US
 	bool bMeshDisablesMinLodStrip = false;
 	if (bIsCook)
 	{
-		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : 0;
-		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : false;
+		MinMeshLod = OwnerMesh ? OwnerMesh->GetMinLod().GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : 0;
+		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->GetDisableBelowMinLodStripping().GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : false;
 	}
 	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > LODIdx && !bMeshDisablesMinLodStrip;
 
@@ -641,7 +641,7 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 	StaticVertexBuffers.StaticMeshVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
 	Ar << SkinWeightVertexBuffer;
 
-	if (Owner && Owner->bHasVertexColors)
+	if (Owner && Owner->GetHasVertexColors())
 	{
 		StaticVertexBuffers.ColorVertexBuffer.Serialize(Ar, bForceKeepCPUResources);
 	}

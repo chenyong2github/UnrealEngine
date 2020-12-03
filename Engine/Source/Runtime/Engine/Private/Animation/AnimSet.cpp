@@ -58,7 +58,7 @@ float UAnimSet::GetSkeletalMeshMatchRatio(USkeletalMesh* SkelMesh) const
 	int32 TracksMatched = 0;
 	for(int32 i=0; i<TrackBoneNames.Num() ; i++)
 	{
-		const int32 BoneIndex = SkelMesh->RefSkeleton.FindBoneIndex( TrackBoneNames[i] );
+		const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex( TrackBoneNames[i] );
 		if( BoneIndex != INDEX_NONE )
 		{
 			++TracksMatched;
@@ -216,7 +216,7 @@ void UAnimSet::ClearAllAnimSetLinkupCaches()
 
 void FAnimSetMeshLinkup::BuildLinkup(USkeletalMesh* InSkelMesh, UAnimSet* InAnimSet)
 {
-	int32 const NumBones = InSkelMesh->RefSkeleton.GetNum();
+	int32 const NumBones = InSkelMesh->GetRefSkeleton().GetNum();
 
 	// Bone to Track mapping.
 	BoneToTrackTable.Empty(NumBones);
@@ -225,7 +225,7 @@ void FAnimSetMeshLinkup::BuildLinkup(USkeletalMesh* InSkelMesh, UAnimSet* InAnim
 	// For each bone in skeletal mesh, find which track to pull from in the AnimSet.
 	for (int32 i=0; i<NumBones; i++)
 	{
-		FName const BoneName = InSkelMesh->RefSkeleton.GetBoneName(i);
+		FName const BoneName = InSkelMesh->GetRefSkeleton().GetBoneName(i);
 
 		// FindTrackWithName will return INDEX_NONE if no track exists.
 		BoneToTrackTable[i] = InAnimSet->FindTrackWithName(BoneName);
@@ -274,7 +274,7 @@ void FAnimSetMeshLinkup::BuildLinkup(USkeletalMesh* InSkelMesh, UAnimSet* InAnim
 				const int32 DupeTrackIndex = AnimLinkup.BoneToTrackTable[DupeBoneIndex];
 				if( DupeTrackIndex == TrackIndex )
 				{
-					UE_LOG(LogAnimation, Warning, TEXT(" BoneIndex: %i, BoneName: %s, TrackIndex: %i, TrackBoneName: %s"), DupeBoneIndex, *InSkelMesh->RefSkeleton.GetBoneName(DupeBoneIndex).ToString(), DupeTrackIndex, *InAnimSet->TrackBoneNames[DupeTrackIndex].ToString());	
+					UE_LOG(LogAnimation, Warning, TEXT(" BoneIndex: %i, BoneName: %s, TrackIndex: %i, TrackBoneName: %s"), DupeBoneIndex, *InSkelMesh->GetRefSkeleton().GetBoneName(DupeBoneIndex).ToString(), DupeTrackIndex, *InAnimSet->TrackBoneNames[DupeTrackIndex].ToString());
 				}
 			}
 		}

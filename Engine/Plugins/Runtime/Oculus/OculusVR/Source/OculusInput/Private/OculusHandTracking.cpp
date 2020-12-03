@@ -224,13 +224,13 @@ bool FOculusHandTracking::GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, c
 		// Add default material as backup
 		LodInfo.LODMaterialMap.Add(0);
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-		HandSkeletalMesh->Materials.Add(DefaultMaterial);
-		HandSkeletalMesh->Materials[0].UVChannelData.bInitialized = true;
+		HandSkeletalMesh->GetMaterials().Add(DefaultMaterial);
+		HandSkeletalMesh->GetMaterials()[0].UVChannelData.bInitialized = true;
 
 		// Set skeletal mesh properties
-		HandSkeletalMesh->bHasVertexColors = true;
-		HandSkeletalMesh->bHasBeenSimplified = false;
-		HandSkeletalMesh->bEnablePerPolyCollision = false;
+		HandSkeletalMesh->SetHasVertexColors(true);
+		HandSkeletalMesh->SetHasBeenSimplified(false);
+		HandSkeletalMesh->SetEnablePerPolyCollision(false);
 
 		InitializeHandMesh(HandSkeletalMesh, OvrMesh, WorldToMeters);
 
@@ -240,8 +240,8 @@ bool FOculusHandTracking::GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, c
 #endif
 
 		// Create Skeleton object and merge all bones
-		HandSkeletalMesh->Skeleton = NewObject<USkeleton>();
-		HandSkeletalMesh->Skeleton->MergeAllBonesToBoneTree(HandSkeletalMesh);
+		HandSkeletalMesh->SetSkeleton(NewObject<USkeleton>());
+		HandSkeletalMesh->GetSkeleton()->MergeAllBonesToBoneTree(HandSkeletalMesh);
 		HandSkeletalMesh->PostLoad();
 
 		delete OvrMesh;
@@ -313,7 +313,7 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 	}
 
 	// Update bone map
-	for (uint32 BoneIndex = 0; BoneIndex < (uint32)SkeletalMesh->RefSkeleton.GetNum(); BoneIndex++)
+	for (uint32 BoneIndex = 0; BoneIndex < (uint32)SkeletalMesh->GetRefSkeleton().GetNum(); BoneIndex++)
 	{
 		MeshSection.BoneMap.Add(BoneIndex);
 	}
@@ -439,15 +439,15 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 
 void FOculusHandTracking::InitializeHandSkeleton(USkeletalMesh* SkeletalMesh, const ovrpSkeleton* OvrSkeleton, const float WorldToMeters)
 {
-	SkeletalMesh->RefSkeleton.Empty(OvrSkeleton->NumBones);
+	SkeletalMesh->GetRefSkeleton().Empty(OvrSkeleton->NumBones);
 
 #if WITH_EDITOR
 	FSkeletalMeshLODModel* LodRenderData = &SkeletalMesh->GetImportedModel()->LODModels[0];
 #else
 	FSkeletalMeshLODRenderData* LodRenderData = &SkeletalMesh->GetResourceForRendering()->LODRenderData[0];
 #endif
-	SkeletalMesh->bHasBeenSimplified = false;
-	SkeletalMesh->bHasVertexColors = true;
+	SkeletalMesh->SetHasBeenSimplified(false);
+	SkeletalMesh->SetHasVertexColors(true);
 
 	for (uint32 BoneIndex = 0; BoneIndex < OvrSkeleton->NumBones; BoneIndex++)
 	{
@@ -463,7 +463,7 @@ void FOculusHandTracking::InitializeHandSkeleton(USkeletalMesh* SkeletalMesh, co
 		Transform.SetLocation(BonePosition);
 		Transform.SetRotation(BoneRotation);
 
-		FReferenceSkeletonModifier Modifier = FReferenceSkeletonModifier(SkeletalMesh->RefSkeleton, nullptr);
+		FReferenceSkeletonModifier Modifier = FReferenceSkeletonModifier(SkeletalMesh->GetRefSkeleton(), nullptr);
 		int32 ParentIndex = -1;
 		if (BoneIndex > 0)
 		{
@@ -510,7 +510,7 @@ TArray<FOculusCapsuleCollider> FOculusHandTracking::InitializeHandPhysics(const 
 		FVector CapsulePointOne = OvrBoneVectorToFVector(OvrBoneCapsule.Points[1], WorldToMeters);
 		FVector Delta = (CapsulePointOne - CapsulePointZero);
 
-		FName BoneName = HandComponent->SkeletalMesh->RefSkeleton.GetBoneName(OvrBoneCapsule.BoneIndex);
+		FName BoneName = HandComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(OvrBoneCapsule.BoneIndex);
 
 		float CapsuleHeight = Delta.Size();
 		float CapsuleRadius = OvrBoneCapsule.Radius * WorldToMeters;

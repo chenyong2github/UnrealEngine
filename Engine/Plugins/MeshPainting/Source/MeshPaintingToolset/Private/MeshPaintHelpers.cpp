@@ -781,8 +781,8 @@ void UMeshPaintingToolset::FillSkeletalMeshVertexColors(USkeletalMeshComponent* 
 		// Dirty the mesh
 		Mesh->SetFlags(RF_Transactional);
 		Mesh->Modify();
-		Mesh->bHasVertexColors = true;
-		Mesh->VertexColorGuid = FGuid::NewGuid();
+		Mesh->SetHasVertexColors(true);
+		Mesh->SetVertexColorGuid(FGuid::NewGuid());
 
 		// Release the static mesh's resources.
 		Mesh->ReleaseResources();
