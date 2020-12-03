@@ -714,8 +714,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	BookmarkTools.RegisterBookmarkTypeActions(MakeShared<FBookMarkTypeActions>());
 	
 	{
-		FAssetData NoAssetData;
-
 		TArray<UClass*> VolumeClasses;
 		TArray<UClass*> VolumeFactoryClasses;
 
@@ -1020,7 +1018,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("TimeManagementEditor"),
 			TEXT("EditorInteractiveToolsFramework"),
 			TEXT("TraceInsights"),
-			TEXT("StaticMeshEditor")
+			TEXT("StaticMeshEditor"),
+			TEXT("EditorFramework")
 		};
 
 		FScopedSlowTask ModuleSlowTask(UE_ARRAY_COUNT(ModuleNames));
@@ -6380,7 +6379,7 @@ UActorFactory* UEditorEngine::FindActorFactoryByClassForActorClass( const UClass
 		if ( Factory != NULL && Factory->GetClass() == InFactoryClass )
 		{
 			// force NewActorClass update
-			const UObject* const ActorCDO = Factory->GetDefaultActor( FAssetData() );
+			const UObject* const ActorCDO = Factory->GetDefaultActor( FAssetData(InActorClass) );
 			if ( ActorCDO != NULL && ActorCDO->GetClass() == InActorClass )
 			{
 				return Factory;

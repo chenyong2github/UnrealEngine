@@ -31,6 +31,7 @@ public class EditorFramework : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"EditorSubsystem",
 				"InteractiveToolsFramework",
 				"TypedElementFramework",
 				"TypedElementInterfaces",

@@ -6,10 +6,27 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
+#include "GameFramework/Volume.h"
 #include "ActorFactoryVolume.generated.h"
 
-UCLASS(Abstract, MinimalAPI, config=Editor, collapsecategories, hidecategories=Object)
+UCLASS(Abstract, MinimalAPI, config=Editor, collapsecategories, hidecategories=Object, Abstract)
 class UActorFactoryVolume : public UActorFactory
 {
 	GENERATED_BODY()
+
+public:
+	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override
+	{
+		if (UActorFactory::CanCreateActorFrom(AssetData, OutErrorMsg))
+		{
+			return true;
+		}
+
+		if (AssetData.IsValid() && !AssetData.GetClass()->IsChildOf(AVolume::StaticClass()))
+		{
+			return false;
+		}
+
+		return true;
+	}
 };

@@ -7,6 +7,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
+#include "Factories/AssetFactoryInterface.h"
+
 #include "ActorFactory.generated.h"
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogActorFactory, Log, All);
@@ -17,7 +19,7 @@ class UBlueprint;
 class ULevel;
 
 UCLASS(collapsecategories, hidecategories=Object, editinlinenew, config=Editor, abstract, transient)
-class UNREALED_API UActorFactory : public UObject
+class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -35,7 +37,7 @@ class UNREALED_API UActorFactory : public UObject
 
 	/**  AActor  subclass this ActorFactory creates. */
 	UPROPERTY()
-	TSubclassOf<class AActor>  NewActorClass;
+	TSubclassOf<AActor>  NewActorClass;
 
 	/** Whether to appear in the editor add actor quick menu */
 	UPROPERTY()
@@ -52,6 +54,7 @@ class UNREALED_API UActorFactory : public UObject
 	AActor* CreateActor( UObject* Asset, ULevel* InLevel, FTransform Transform, EObjectFlags InObjectFlags = RF_Transactional, const FName InName = NAME_None );
 
 	/** Called to create a blueprint class that can be used to spawn an actor from this factory */
+	UE_DEPRECATED(5.0, "This function is no longer used. See FKismetEditorUtilities::CreateBlueprint.")
 	UBlueprint* CreateBlueprint( UObject* Instance, UObject* Outer, const FName Name, const FName CallingContext = NAME_None );
 
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg );
@@ -63,13 +66,25 @@ class UNREALED_API UActorFactory : public UObject
 	virtual AActor* GetDefaultActor( const FAssetData& AssetData );
 
 	/** Initialize NewActorClass if necessary, and return that class. */
-	UClass* GetDefaultActorClass( const FAssetData& AssetData );
+	virtual UClass* GetDefaultActorClass( const FAssetData& AssetData );
 
-	/** Given an instance of an actor pertaining to this factory, find the asset that should be used to create a new actor */
+	/** Given an instance of an actor, find the wrapped asset object which can be used to create a valid FAssetData.
+	 *  Returns nullptr if the given ActorInstance is not valid for this factory.
+	 *  Override this function if the factory actor is a different class than the asset data's class which this factory operates on.
+	 *  For example, if this is the static mesh actor factory, the class of the asset data is UStaticMesh, but the actor factory's class is AStaticMeshActor
+	 */
 	virtual UObject* GetAssetFromActorInstance(AActor* ActorInstance);
 
 	/** Return a quaternion which aligns this actor type to the specified surface normal */
 	virtual FQuat AlignObjectToSurfaceNormal(const FVector& InSurfaceNormal, const FQuat& ActorRotation = FQuat::Identity) const;
+
+	// Begin IAssetFactoryInterface Interface
+	virtual bool CanPlaceElementsFromAssetData(const FAssetData& InAssetData) override;
+	virtual bool PrePlaceAsset(FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions) override;
+	virtual TArray<FTypedElementHandle> PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions) override;
+	virtual void PostPlaceAsset(TArrayView<const FTypedElementHandle> InHandle, const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions) override;
+	virtual FAssetData GetAssetDataFromElementHandle(const FTypedElementHandle& InHandle) override;
+	// End IAssetFactoryInterface Interface
 
 protected:
 

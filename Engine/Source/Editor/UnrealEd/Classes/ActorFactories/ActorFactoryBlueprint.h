@@ -20,6 +20,7 @@ class UNREALED_API UActorFactoryBlueprint : public UActorFactory
 	virtual bool PreSpawnActor( UObject* Asset, FTransform& InOutLocation ) override;
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 	virtual AActor* GetDefaultActor( const FAssetData& AssetData ) override;
+	virtual UClass* GetDefaultActorClass( const FAssetData& AssetData ) override;
 	//~ End UActorFactory Interface	
 };
 

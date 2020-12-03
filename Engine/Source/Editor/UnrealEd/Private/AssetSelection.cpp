@@ -51,7 +51,8 @@
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
 #include "Misc/MessageDialog.h"
-
+#include "Subsystems/PlacementSubsystem.h"
+#include "Elements/Actor/ActorElementData.h"
 
 namespace AssetSelectionUtils
 {
@@ -604,10 +605,32 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 	if(bSpawnActor)
 	{
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "CreateActor", "Create Actor"), (ObjectFlags & RF_Transactional) != 0 );
-
+		
 		// Create the actor.
-		Actor = Factory->CreateActor( Asset, DesiredLevel, ActorTransform, ObjectFlags, Name );
-		if(Actor)
+		UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
+		if (PlacementSubsystem)
+		{
+			FAssetPlacementInfo PlacementInfo;
+			PlacementInfo.AssetToPlace = FAssetData(Asset);
+			PlacementInfo.PreferredLevel = DesiredLevel;
+			PlacementInfo.NameOverride = Name;
+			PlacementInfo.FinalizedTransform = ActorTransform;
+			PlacementInfo.FactoryOverride = Factory;
+
+			TArray<FTypedElementHandle> PlacedElements = PlacementSubsystem->PlaceAsset(PlacementInfo, FPlacementOptions());
+			if (PlacedElements.Num())
+			{
+				const FActorElementData* ActorElementData = PlacedElements[0].GetData<FActorElementData>();
+				Actor = ActorElementData ? ActorElementData->Actor : nullptr;
+			}
+		}
+		
+		if (!Actor)
+		{
+			Actor = Factory->CreateActor(Asset, DesiredLevel, ActorTransform, ObjectFlags, Name);
+		}
+
+		if (Actor)
 		{
 			if ( SelectActor )
 			{
