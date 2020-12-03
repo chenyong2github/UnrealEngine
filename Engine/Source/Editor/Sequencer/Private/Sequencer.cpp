@@ -2491,6 +2491,9 @@ void FSequencer::RefreshTree()
 	SequencerWidget->UpdateLayoutTree();
 	bNeedTreeRefresh = false;
 	OnTreeViewChangedDelegate.Broadcast();
+
+	// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
+	Selection.Tick();
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
@@ -6823,7 +6826,7 @@ void FSequencer::SelectNodesByPath(const TSet<FString>& NodePaths)
 		}
 
 		Selection.ResumeBroadcast();
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7101,18 +7104,12 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 		{
 			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				if (Node->IsVisible())
-				{
-					NodesToSelect.Add(Node);
-				}
+				NodesToSelect.Add(Node);
 				if (bSelect == false) //make sure all children not selected
 				{
 					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
 					{
-						if (ChildNode->IsVisible())
-						{
-							NodesToSelect.Add(ChildNode);
-						}
+						NodesToSelect.Add(ChildNode);
 					}
 				}
 			}
@@ -7134,7 +7131,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
 
 			Selection.AddToSelection(NodesToSelect);
-			Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 		}
 	}
 	else if (NodesToSelect.Num() > 0)
@@ -7144,7 +7141,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7195,7 +7192,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			NodesToSelect.Add(DisplayNode);
 		}
 		Selection.AddToSelection(NodesToSelect);
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7204,7 +7201,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7258,7 +7255,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			NodesToSelect.Add(DisplayNode);
 		}
 		Selection.AddToSelection(NodesToSelect);
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7267,7 +7264,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
