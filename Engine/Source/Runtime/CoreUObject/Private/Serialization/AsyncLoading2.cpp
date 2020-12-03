@@ -58,6 +58,7 @@
 #include "UObject/LinkerInstancingContext.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Async/Async.h"
+#include "Async/ParallelFor.h"
 #include "HAL/LowLevelMemStats.h"
 #include "HAL/IPlatformFileOpenLogWrapper.h"
 
@@ -551,6 +552,13 @@ struct FPublicExport
 	FPackageId PackageId; // for fast clear of package load status during GC
 };
 
+// Note: RemoveUnreachableObjects could move from GT to ALT by removing the debug raw pointers here,
+// the tradeoff would be increased complexity and more restricted debug and log possibilities.
+using FUnreachablePackage = TPair<FName, UPackage*>;
+using FUnreachablePublicExport = TPair<int32, UObject*>;
+using FUnreachablePackages = TArray<FUnreachablePackage>;
+using FUnreachablePublicExports = TArray<FUnreachablePublicExport>;
+
 struct FGlobalImportStore
 {
 	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
@@ -566,20 +574,41 @@ struct FGlobalImportStore
 		ObjectIndexToPublicExport.Reserve(32768);
 	}
 
-	FPackageId RemovePublicExport(UObject* InObject)
+	TArray<FPackageId> RemovePublicExports(const FUnreachablePublicExports& PublicExports)
 	{
-		FPackageId PackageId;
-		int32 ObjectIndex = GUObjectArray.ObjectToIndex(InObject);
-		FPackageObjectIndex GlobalIndex;
-		if (ObjectIndexToPublicExport.RemoveAndCopyValue(ObjectIndex, GlobalIndex))
+		TArray<FPackageId> PackageIds;
+		TArray<FPackageObjectIndex> GlobalIndices;
+		GlobalIndices.Reserve(PublicExports.Num());
+		PackageIds.Reserve(PublicExports.Num());
+
+		for (const FUnreachablePublicExport& Item : PublicExports)
+		{
+			int32 ObjectIndex = Item.Key;
+			FPackageObjectIndex GlobalIndex;
+			if (ObjectIndexToPublicExport.RemoveAndCopyValue(ObjectIndex, GlobalIndex))
+			{
+				GlobalIndices.Emplace(GlobalIndex);
+#if DO_CHECK
+				FPublicExport* PublicExport = PublicExportObjects.Find(GlobalIndex);
+				checkf(PublicExport, TEXT("Missing entry in ImportStore for object %s with id 0x%llX"), *Item.Value->GetPathName(), GlobalIndex.Value());
+				int32 ObjectIndex2 = GUObjectArray.ObjectToIndex(PublicExport->Object);
+				checkf(ObjectIndex2 == ObjectIndex, TEXT("Mismatch in ImportStore for %s with id 0x%llX"), *Item.Value->GetPathName(), GlobalIndex.Value());
+#endif
+			}
+		}
+
+		FPackageId LastPackageId;
+		for (const FPackageObjectIndex& GlobalIndex : GlobalIndices)
 		{
 			FPublicExport PublicExport;
-			bool bSuccess = PublicExportObjects.RemoveAndCopyValue(GlobalIndex, PublicExport);
-			checkf(bSuccess, TEXT("Missing entry in ImportStore for object %s with id 0x%llX"), *InObject->GetPathName(), GlobalIndex.Value());
-			checkf(PublicExport.Object == InObject, TEXT("Mismatch in ImportStore for %s with id 0x%llX"), *InObject->GetPathName(), GlobalIndex.Value());
-			PackageId = PublicExport.PackageId;
+			PublicExportObjects.RemoveAndCopyValue(GlobalIndex, PublicExport);
+			if (PublicExport.PackageId != LastPackageId) // fast approximation of Contains()
+			{
+				LastPackageId = PublicExport.PackageId;
+				PackageIds.Emplace(LastPackageId);
+			}
 		}
-		return PackageId;
+		return PackageIds;
 	}
 
 	inline UObject* GetPublicExportObject(FPackageObjectIndex GlobalIndex)
@@ -779,18 +808,11 @@ public:
 		return Packages.FindOrAdd(PackageId);
 	}
 
-	inline bool RemovePackage(FPackageId PackageId, UPackage* Package)
+	inline int32 RemovePackage(FPackageId PackageId)
 	{
 		FLoadedPackageRef Ref;
 		bool bRemoved = Packages.RemoveAndCopyValue(PackageId, Ref);
-		if (bRemoved && Ref.GetRefCount() > 0)
-		{
-			UE_LOG(LogStreaming, Error,
-				TEXT("Package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed while having RefCount %d > 0"),
-				*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), Ref.GetRefCount());
-			check(false);
-		}
-		return bRemoved;
+		return bRemoved ? Ref.GetRefCount() : -1;
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
@@ -1100,56 +1122,77 @@ public:
 		return ImportStore;
 	}
 
-	void RemovePackage(UPackage* Package)
+	void RemovePackage(FPackageId PackageId, UPackage* Package)
 	{
+		UE_ASYNC_UPACKAGE_DEBUG(Package);
 		check(IsGarbageCollecting());
+
 		if (!Package->CanBeImported())
 		{
 			return;
 		}
 
-		FPackageId PackageId = Package->GetPackageId();
-		bool bRemoved = LoadedPackageStore.RemovePackage(PackageId, Package);
-		if (!bRemoved)
+		int32 RefCount = LoadedPackageStore.RemovePackage(PackageId);
+		if (RefCount < 0) // not found
 		{
 			FPackageId* RedirectedId = RedirectsPackageMap.Find(PackageId);
 			if (RedirectedId)
 			{
-				bRemoved = LoadedPackageStore.RemovePackage(*RedirectedId, Package);
+				RefCount = LoadedPackageStore.RemovePackage(*RedirectedId);
 			}
-
-			if (!bRemoved)
-			{
-				if (RedirectedId)
-				{
-					UE_LOG(LogStreaming, Error,
-						TEXT("Redirected package '%s' (flags=0x%x) with disk package id '0x%llX' and source package id '0x%llX') is being destroyed, ")
-						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), RedirectedId->Value());
-				}
-				else
-				{
-					UE_LOG(LogStreaming, Error,
-						TEXT("Normal package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed, ")
-						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value());
-				}
-				check(false);
-			}
+		}
+		if (RefCount > 0)
+		{
+			UE_LOG(LogStreaming, Error,
+				TEXT("RemovePackage: %s (0x%llX) %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
+				TEXT("Package destroyed while still being referenced, RefCount %d > 0."),
+				*Package->GetName(), PackageId.Value(),
+				*Package->FileName.ToString(), Package->GetPackageId().Value(),
+				Package->GetFlags(), Package->GetInternalFlags(), RefCount);
+			checkf(false, TEXT("Package %s destroyed with RefCount"), *Package->GetName());
+		}
+		else if (RefCount < 0)
+		{
+			UE_LOG(LogStreaming, Error,
+				TEXT("RemovePackage: %s (0x%llX) %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
+				TEXT("Package not found!"),
+				*Package->GetName(), PackageId.Value(),
+				*Package->FileName.ToString(), Package->GetPackageId().Value(),
+				Package->GetFlags(), Package->GetInternalFlags());
+			checkf(false, TEXT("Package %s not found"), *Package->GetName());
 		}
 	}
 
-	void RemovePublicExport(UObject* Object)
+	void RemovePackages(const FUnreachablePackages& Packages)
 	{
-		FPackageId PackageId = ImportStore.RemovePublicExport(Object);
-		if (PackageId.IsValid())
+		int32 PackageCount = Packages.Num();
+		TArray<FPackageId> PackageIds;
+		PackageIds.AddUninitialized(PackageCount);
+		bool bForceSingleThreaded = PackageCount < 64;
 		{
-			FLoadedPackageRef* PackageRef = LoadedPackageStore.FindPackageRef(PackageId);
-			if (PackageRef)
+			// TRACE_CPUPROFILER_EVENT_SCOPE(FPackageId::FromName);
+			ParallelFor(PackageCount, [&Packages, &PackageIds](int32 Index)
+			{
+				PackageIds[Index] = FPackageId::FromName(Packages[Index].Key);
+			}, bForceSingleThreaded);
+		}
+		for (int32 Index = 0; Index < PackageCount; ++Index)
+		{
+			RemovePackage(PackageIds[Index], Packages[Index].Value);
+		}
+	}
+
+	void ClearAllPublicExportsLoaded(const TArray<FPackageId>& PackageIds)
+	{
+		int32 PackageCount = PackageIds.Num();
+		bool bForceSingleThreaded = PackageCount < 1024;
+		ParallelFor(PackageCount, [this, &PackageIds](int32 Index)
+		{
+			if (FLoadedPackageRef* PackageRef = LoadedPackageStore.FindPackageRef(PackageIds[Index]))
 			{
 				PackageRef->ClearAllPublicExportsLoaded();
 			}
-		}
+		}, bForceSingleThreaded);
 	}
 
 	inline const FPackageStoreEntry* FindStoreEntry(FPackageId PackageId)
@@ -2477,6 +2520,8 @@ private:
 
 	void LazyInitializeFromLoadPackage();
 	void FinalizeInitialLoad();
+
+	void RemoveUnreachableObjects(const FUnreachablePublicExports& PublicExports, const FUnreachablePackages& Packages);
 
 	bool ProcessPendingCDOs()
 	{
@@ -5063,6 +5108,56 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 }
 #endif
 
+FORCENOINLINE static void FilterUnreachableObjects(
+	const TArrayView<FUObjectItem*>& UnreachableObjects,
+	FUnreachablePublicExports& PublicExports,
+	FUnreachablePackages& Packages)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FilterUnreachableObjects);
+
+	PublicExports.Reserve(UnreachableObjects.Num());
+	Packages.Reserve(UnreachableObjects.Num());
+
+	for (FUObjectItem* ObjectItem : UnreachableObjects)
+	{
+		UObject* Object = static_cast<UObject*>(ObjectItem->Object);
+		if (Object->HasAllFlags(RF_WasLoaded | RF_Public))
+		{
+			if (Object->GetOuter())
+			{
+				PublicExports.Emplace(GUObjectArray.ObjectToIndex(Object), Object);
+			}
+			else
+			{
+				UPackage* Package = static_cast<UPackage*>(Object);
+				Packages.Emplace(Package->FileName, Package);
+			}
+		}
+	}
+}
+
+void FAsyncLoadingThread2::RemoveUnreachableObjects(const FUnreachablePublicExports& PublicExports, const FUnreachablePackages& Packages)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveUnreachableObjects);
+
+	TArray<FPackageId> PublicExportPackages;
+	if (PublicExports.Num() > 0)
+	{
+		// TRACE_CPUPROFILER_EVENT_SCOPE(RemovePublicExports);
+		PublicExportPackages = GlobalPackageStore.ImportStore.RemovePublicExports(PublicExports);
+	}
+	if (Packages.Num() > 0)
+	{
+		// TRACE_CPUPROFILER_EVENT_SCOPE(RemovePackages);
+		GlobalPackageStore.RemovePackages(Packages);
+	}
+	if (PublicExportPackages.Num() > 0)
+	{
+		// TRACE_CPUPROFILER_EVENT_SCOPE(ClearAllPublicExportsLoaded);
+		GlobalPackageStore.ClearAllPublicExportsLoaded(PublicExportPackages);
+	}
+}
+
 void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(NotifyUnreachableObjects);
@@ -5073,49 +5168,33 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	}
 
 	const double StartTime = FPlatformTime::Seconds();
-	const int32 OldLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
-	const int32 OldPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
-	int32 PublicExportCount = 0;
-	int32 PackageCount = 0;
 
-	for (FUObjectItem* ObjectItem : UnreachableObjects)
+	FUnreachablePackages Packages;
+	FUnreachablePublicExports PublicExports;
+	FilterUnreachableObjects(UnreachableObjects, PublicExports, Packages);
+
+	const int32 PackageCount = Packages.Num();
+	const int32 PublicExportCount = PublicExports.Num();
+	if (PackageCount > 0 || PublicExportCount > 0)
 	{
-		UObject* Object = static_cast<UObject*>(ObjectItem->Object);
-		check(Object);
-		if (Object->HasAllFlags(RF_WasLoaded | RF_Public))
-		{
-			ensureMsgf(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async),
-				TEXT("%s (flags=0x%X, internalflags=0x%X) is still referenced by loader and should not have been marked unreachable."),
-				*Object->GetFullName(), Object->GetFlags(), Object->GetInternalFlags());
-			if (Object->GetOuter())
-			{
-				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
-				// UE_ASYNC_UPACKAGE_DEBUG(Object->GetOutermost());
-				GlobalPackageStore.RemovePublicExport(Object);
-				++PublicExportCount;
-			}
-			else
-			{
-				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePackage);
-				UPackage* Package = static_cast<UPackage*>(Object);
-				UE_ASYNC_UPACKAGE_DEBUG(Package);
-				GlobalPackageStore.RemovePackage(Package);
-				++PackageCount;
-			}
-		}
-	}
+		const int32 OldLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
+		const int32 OldPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
 
-	const int32 NewLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
-	const int32 NewPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
-	const int32 RemovedLoadedPackageCount = OldLoadedPackageCount - NewLoadedPackageCount;
-	const int32 RemovedPublicExportCount = OldPublicExportCount - NewPublicExportCount;
+		const double RemoveStartTime = FPlatformTime::Seconds();
+		RemoveUnreachableObjects(PublicExports, Packages);
 
-	if (RemovedLoadedPackageCount > 0 || RemovedPublicExportCount > 0)
-	{
+		const int32 NewLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
+		const int32 NewPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
+		const int32 RemovedLoadedPackageCount = OldLoadedPackageCount - NewLoadedPackageCount;
+		const int32 RemovedPublicExportCount = OldPublicExportCount - NewPublicExportCount;
+
+		const double StopTime = FPlatformTime::Seconds();
 		UE_LOG(LogStreaming, Display,
-			TEXT("%f ms for processing %d/%d objects in NotifyUnreachableObjects(Queued=%d,Async=%d). ")
+			TEXT("%.3f ms (%.3f+%.3f) ms for processing %d/%d objects in NotifyUnreachableObjects( Queued=%d, Async=%d). ")
 			TEXT("Removed %d/%d (%d->%d tracked) packages and %d/%d (%d->%d tracked) public exports."),
-			(FPlatformTime::Seconds() - StartTime) * 1000,
+			(StopTime - StartTime) * 1000,
+			(RemoveStartTime - StartTime) * 1000,
+			(StopTime - RemoveStartTime) * 1000,
 			PublicExportCount + PackageCount, UnreachableObjects.Num(),
 			GetNumQueuedPackages(), GetNumAsyncPackages(),
 			RemovedLoadedPackageCount, PackageCount, OldLoadedPackageCount, NewLoadedPackageCount,
@@ -5123,9 +5202,9 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	}
 	else
 	{
-		UE_LOG(LogStreaming, Display, TEXT("%f ms for skipping %d/%d objects in NotifyUnreachableObjects."),
+		UE_LOG(LogStreaming, Display, TEXT("%.3f ms for skipping %d objects in NotifyUnreachableObjects (Queued=%d, Async=%d)."),
 			(FPlatformTime::Seconds() - StartTime) * 1000,
-			PublicExportCount + PackageCount, UnreachableObjects.Num(),
+			UnreachableObjects.Num(),
 			GetNumQueuedPackages(), GetNumAsyncPackages());
 	}
 
