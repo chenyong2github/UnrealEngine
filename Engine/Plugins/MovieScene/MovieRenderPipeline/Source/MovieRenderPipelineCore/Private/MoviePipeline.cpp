@@ -958,7 +958,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 		ModifiedSegment.ShotSection = ShotSection;
 
 		// For non-active shots, this is where we stop
-		if (!Shot->bEnabled)
+		if (!Shot->ShouldRender())
 		{
 			continue;
 		}
