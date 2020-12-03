@@ -238,16 +238,13 @@ void USubdividePolyTool::Setup()
 			PreviewMesh->SetTriangleColorFunction([](const FDynamicMesh3* Mesh, int TriangleID)
 			{
 				return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
-			});
+			}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
 		}
 		else
 		{
 			PreviewMesh->SetOverrideRenderMaterial(nullptr);
-			PreviewMesh->SetTriangleColorFunction(nullptr);
+			PreviewMesh->SetTriangleColorFunction(nullptr, UPreviewMesh::ERenderUpdateMode::FullUpdate);
 		}
-
-		USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
-		PreviewDynamicMeshComponent->FastNotifyColorsUpdated();
 	};
 
 	Properties->WatchProperty(Properties->bRenderGroups, RenderGroupsChanged);

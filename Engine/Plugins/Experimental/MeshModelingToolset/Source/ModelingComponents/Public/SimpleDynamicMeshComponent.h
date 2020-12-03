@@ -288,7 +288,16 @@ protected:
 
 private:
 
-	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FSimpleDynamicMeshSceneProxy*)SceneProxy; }
+	/**
+	 * If the render proxy is invalidated (eg by MarkRenderStateDirty()), it will be destroyed at the end of
+	 * the frame, but the base SceneProxy pointer is not nulled out immediately. As a result if we call various
+	 * partial-update functions after invalidating the proxy, they may be operating on an invalid proxy.
+	 * So we have to keep track of proxy-valid state ourselves.
+	 */
+	bool bProxyValid = false;
+
+	/** @return current render proxy, if valid, otherwise nullptr */
+	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (bProxyValid) ? (FSimpleDynamicMeshSceneProxy*)SceneProxy : nullptr; }
 
 	// Called from NotifyMeshUpdated, as well as the FastNotify functions if needed
 	void ResetProxy();
