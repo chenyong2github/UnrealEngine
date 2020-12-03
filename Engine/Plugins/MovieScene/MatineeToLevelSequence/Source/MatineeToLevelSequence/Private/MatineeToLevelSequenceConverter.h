@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "UObject/WeakObjectPtr.h"
 
 class ALevelSequenceActor;
 class FMatineeConverter;

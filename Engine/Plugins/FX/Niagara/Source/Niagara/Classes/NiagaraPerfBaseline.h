@@ -4,6 +4,7 @@
 
 #include "Particles/ParticlePerfStats.h"
 #include "Particles/ParticlePerfStatsManager.h"
+#include "GameFramework/Actor.h"
 
 #include "NiagaraPerfBaseline.generated.h"
 
