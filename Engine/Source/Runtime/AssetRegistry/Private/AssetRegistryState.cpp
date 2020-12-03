@@ -1038,7 +1038,7 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 	}
 #endif // ALLOW_NAME_BATCH_SAVING
 
-	return OriginalAr.IsError();
+	return !OriginalAr.IsError();
 }
 
 bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOptions& Options)
@@ -1066,7 +1066,7 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 		Load(Reader, Version, Options);
 	}
 
-	return OriginalAr.IsError();
+	return !OriginalAr.IsError();
 }
 
 template<class Archive>
