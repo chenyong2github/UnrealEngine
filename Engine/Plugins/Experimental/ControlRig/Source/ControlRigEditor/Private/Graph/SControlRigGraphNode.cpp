@@ -240,6 +240,20 @@ void SControlRigGraphNode::EndUserInteraction() const
 	SGraphNode::EndUserInteraction();
 }
 
+void SControlRigGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+{
+	if (!NodeFilter.Find(SharedThis(this)))
+	{
+		if (GraphNode && !RequiresSecondPassLayout())
+		{
+			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+			{
+				RigSchema->SetNodePosition(GraphNode, NewPosition);
+			}
+		}
+	}
+}
+
 void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd) 
 {
 	// We show our own label

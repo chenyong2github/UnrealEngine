@@ -82,12 +82,33 @@ struct FAlignmentHelper
 	{
 		if (AlignmentData.Num() > 1)
 		{
-			float Target = DetermineAlignmentTarget();
+			UEdGraph* Graph = AlignmentData[0].Node->GetGraph();
 
-			for (FAlignmentData& Entry : AlignmentData)
+			if (Graph)
 			{
-				Entry.Node->Modify();
-				Entry.TargetProperty = Target - Entry.TargetOffset;
+				const UEdGraphSchema* Schema = Graph->GetSchema();
+
+				if (Schema)
+				{ 
+					float Target = DetermineAlignmentTarget();
+					
+					for (FAlignmentData& Entry : AlignmentData)
+					{
+						int32 TargetProperty = Target - Entry.TargetOffset; 
+						FVector2D TargetPosition(Entry.Node->NodePosX, Entry.Node->NodePosY);
+
+						if (Orientation == EOrientation::Orient_Horizontal)
+						{
+							TargetPosition.X = TargetProperty;
+						}
+						else
+						{ 
+							TargetPosition.Y = TargetProperty;
+						}
+
+						Schema->SetNodePosition(Entry.Node, TargetPosition);
+					}
+				}
 			}
 		}
 	}
