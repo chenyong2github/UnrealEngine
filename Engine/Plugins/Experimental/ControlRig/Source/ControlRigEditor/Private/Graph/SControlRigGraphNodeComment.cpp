@@ -23,9 +23,16 @@ SControlRigGraphNodeComment::SControlRigGraphNodeComment()
 
 FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply Reply = SGraphNodeComment::OnMouseButtonUp(MyGeometry, MouseEvent);
-	if (Reply.IsEventHandled())
-	{
+	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && bUserIsDragging)
+	{ 
+		// bUserIsDragging is set to false in the base function
+
+		// Resize the node	
+		UserSize.X = FMath::RoundToFloat(UserSize.X);
+		UserSize.Y = FMath::RoundToFloat(UserSize.Y);
+
+		GetNodeObj()->ResizeNode(UserSize);
+
 		if (GraphNode)
 		{
 			UEdGraphNode_Comment* CommentNode = CastChecked<UEdGraphNode_Comment>(GraphNode);
@@ -41,9 +48,12 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 					Blueprint->Controller->CloseUndoBracket();
 				}
 			}
-		}
-	}
-	return Reply;
+		} 
+	} 
+	
+	// Calling the base function at the end such that above actions are included in the undo system transaction scope.
+	// When undo is triggered, FBlueprintEditor::HandleUndoTransaction() will be called to make sure the undone changes are reflected in UI.
+	return SGraphNodeComment::OnMouseButtonUp(MyGeometry, MouseEvent);
 }
 
 void SControlRigGraphNodeComment::EndUserInteraction() const

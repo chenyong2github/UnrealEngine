@@ -304,7 +304,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			{
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName());
 				if (EdNode)
-					{
+				{
+					// No need to call Node->Modify(), since control rig has its own undo/redo system see RigVMControllerActions.cpp
 					EdNode->NodePosX = (int32)ModelNode->GetPosition().X;
 					EdNode->NodePosY = (int32)ModelNode->GetPosition().Y;
 				}
@@ -318,6 +319,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
 				if (EdNode)
 				{
+					// No need to call Node->Modify(), since control rig has its own undo/redo system see RigVMControllerActions.cpp
 					EdNode->NodeWidth = (int32)ModelNode->GetSize().X;
 					EdNode->NodeHeight = (int32)ModelNode->GetSize().Y;
 				}
