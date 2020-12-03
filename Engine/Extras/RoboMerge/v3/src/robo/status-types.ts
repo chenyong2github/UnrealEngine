@@ -60,12 +60,12 @@ export interface BlockagePauseInfo extends BlockagePauseInfoMinimal {
 export type PauseStatusFields = {
 	available: AvailableInfo
 	blockage: BlockagePauseInfo
-	manual_pause: ManualPauseInfo // careful, startedAt gets written out as string
+	manual_pause: ManualPauseInfo // careful	, startedAt gets written out as string
 }
 
 export type AnyStateInfo = ManualPauseInfo | BlockagePauseInfo | AvailableInfo
 
-type BotStatusFields = Partial<PauseStatusFields> & {
+export type BotStatusFields = Partial<PauseStatusFields> & {
 	display_name: string
 	last_cl: number
 
@@ -108,7 +108,13 @@ type NodeStatusFields = BotStatusFields & {
 	edges: { [key: string]: EdgeStatusFields }
 }
 
-export type BranchDefForStatus = { [key: string]: any } & {
+// only includes stuff directly used by web code
+export type BranchDefForStatus = {
+	// BranchBase
+	name: string
+
+	// Branch
+	upperName: string
 	visibility: string
 }
 
@@ -127,6 +133,21 @@ export type ConflictStatusFields = {
 	kind: FailureKind
 	author: string
 	owner: string
+}
+
+export interface GraphBotState {
+	isRunningBots: boolean
+	lastBranchspecCl?: number
+	lastError?: Object
+}
+
+export type UserStatusData = {
+	started: Date
+	version: string
+	user: {userName: string, displayName: string, privileges?: string[]}
+	branches: BranchStatus[]
+	botStates: [string, GraphBotState][]
+	insufficientPrivelege?: boolean
 }
 
 
