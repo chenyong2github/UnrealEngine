@@ -1532,6 +1532,8 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.				
 				if (Interface->PerInstanceTickPostSimulate(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds))
 				{
+					// Destroy per instance data in order to not cause any errors on check(...) inside DIs when initializing
+					Interface->DestroyPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 				}
 			}
@@ -1547,6 +1549,8 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
 				if (Interface->PerInstanceTick(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds))
 				{
+					// Destroy per instance data in order to not cause any errors on check(...) inside DIs when initializing
+					Interface->DestroyPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 				}
 			}
