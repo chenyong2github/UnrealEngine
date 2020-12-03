@@ -185,6 +185,16 @@ struct FNiagaraEmitterExecutionIndex
 	uint32 EmitterIndex : 31;
 };
 
+struct FNiagaraRendererExecutionIndex
+{
+	/** The index of the emitter */
+	uint32 EmitterIndex = INDEX_NONE;
+	/** The index of the renderer in the emitter's list */
+	uint32 EmitterRendererIndex = INDEX_NONE;
+	/** The index of the renderer in the entire system */
+	uint32 SystemRendererIndex = INDEX_NONE;
+};
+
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
@@ -422,6 +432,8 @@ public:
 	void CacheFromCompiledData();
 
 	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraRendererExecutionIndex> GetRendererPostTickOrder() const { return MakeArrayView(RendererPostTickOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraRendererExecutionIndex> GetRendererCompletionOrder() const { return MakeArrayView(RendererCompletionOrder); }
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
@@ -623,6 +635,11 @@ protected:
 	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.
 	*/
 	TArray<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder;
+
+	/** Array of renderer indices to notify system PostTick, in order of execution */
+	TArray<FNiagaraRendererExecutionIndex> RendererPostTickOrder;
+	/** Array of renderer indices to notify system Completion, in order of execution */
+	TArray<FNiagaraRendererExecutionIndex> RendererCompletionOrder;
 
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
 	TArray<int32> RendererDrawOrder;

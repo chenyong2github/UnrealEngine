@@ -671,49 +671,6 @@ private:
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
-struct FComponentPropertyAddress
-{
-	TWeakFieldPtr<FProperty> Property;
-	void* Address;
-
-	FProperty* GetProperty() const
-	{
-		FProperty* PropertyPtr = Property.Get();
-		if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
-		{
-			return PropertyPtr;
-		}
-		return nullptr;
-	}
-
-	FComponentPropertyAddress() : Property(nullptr), Address(nullptr) {}
-};
-
-struct FNiagaraComponentRenderPoolEntry
-{
-	TWeakObjectPtr<USceneComponent> Component;
-	float InactiveTimeLeft = 0;
-	TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
-	int32 LastAssignedToParticleID = -1;
-};
-
-struct FNiagaraComponentUpdateTask
-{
-	TWeakObjectPtr<USceneComponent> TemplateObject;
-	TFunction<void(USceneComponent*, FNiagaraComponentRenderPoolEntry&)> UpdateCallback;
-	int32 ParticleID = -1;
-	int32 SmallestID = -1;
-#if WITH_EDITORONLY_DATA
-	bool bVisualizeComponents = true;
-#endif
-};
-
-struct FNiagaraComponentRenderPool
-{
-	TWeakObjectPtr<AActor> OwnerActor;
-	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
-};
-
 /** Defines different usages for a niagara script. */
 UENUM()
 enum class ENiagaraScriptUsage : uint8

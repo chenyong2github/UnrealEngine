@@ -158,6 +158,7 @@ protected:
 	virtual void OnUnregister() override;
 	virtual void OnEndOfFrameUpdateDuringTick() override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	virtual void DestroyRenderState_Concurrent() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
@@ -684,6 +685,9 @@ public:
 
 	void CreateRenderers(const UNiagaraComponent* InComponent);
 	void ReleaseRenderers();
+
+	/** Called to allow renderers to free render state */
+	void DestroyRenderState_Concurrent();
 
 	/** Gets whether or not this scene proxy should be rendered. */
 	bool GetRenderingEnabled() const;
