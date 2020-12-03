@@ -19,6 +19,7 @@ class FNiagaraCompileRequestDataBase;
 class INiagaraMergeManager;
 class INiagaraEditorOnlyDataUtilities;
 struct FNiagaraParameterStore;
+class FCommonViewportClient;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 

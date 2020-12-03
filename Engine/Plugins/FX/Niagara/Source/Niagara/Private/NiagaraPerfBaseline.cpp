@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "Slate/SceneViewport.h"
 #include "HighResScreenshot.h"
+#include "CanvasTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraPerformanceBaselines"
 
