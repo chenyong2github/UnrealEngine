@@ -158,7 +158,7 @@ bool FInternationalization::SetCurrentAssetGroupCulture(const FName& InAssetGrou
 
 FCultureRef FInternationalization::GetCurrentAssetGroupCulture(const FName& InAssetGroupName) const
 {
-	for (const auto& CurrentAssetGroupCulturePair : CurrentAssetGroupCultures)
+	for (const TTuple<FName, FCulturePtr>& CurrentAssetGroupCulturePair : CurrentAssetGroupCultures)
 	{
 		if (CurrentAssetGroupCulturePair.Key == InAssetGroupName)
 		{
@@ -176,13 +176,38 @@ void FInternationalization::ClearCurrentAssetGroupCulture(const FName& InAssetGr
 	});
 }
 
+TArray<FCultureRef> FInternationalization::GetCurrentCultures(const bool bIncludeLanguage, const bool bIncludeLocale, const bool bIncludeAssetGroups) const
+{
+	TArray<FCultureRef> CurrentCultures;
+
+	if (bIncludeLanguage)
+	{
+		CurrentCultures.AddUnique(CurrentLanguage.ToSharedRef());
+	}
+
+	if (bIncludeLocale)
+	{
+		CurrentCultures.AddUnique(CurrentLocale.ToSharedRef());
+	}
+
+	if (bIncludeAssetGroups)
+	{
+		for (const TTuple<FName, FCulturePtr>& CurrentAssetGroupCulturePair : CurrentAssetGroupCultures)
+		{
+			CurrentCultures.AddUnique(CurrentAssetGroupCulturePair.Value.ToSharedRef());
+		}
+	}
+
+	return CurrentCultures;
+}
+
 void FInternationalization::BackupCultureState(FCultureStateSnapshot& OutSnapshot) const
 {
 	OutSnapshot.Language = CurrentLanguage->GetName();
 	OutSnapshot.Locale = CurrentLocale->GetName();
 
 	OutSnapshot.AssetGroups.Reset(CurrentAssetGroupCultures.Num());
-	for (const auto& CurrentAssetGroupCulturePair : CurrentAssetGroupCultures)
+	for (const TTuple<FName, FCulturePtr>& CurrentAssetGroupCulturePair : CurrentAssetGroupCultures)
 	{
 		OutSnapshot.AssetGroups.Add(MakeTuple(CurrentAssetGroupCulturePair.Key, CurrentAssetGroupCulturePair.Value->GetName()));
 	}

@@ -359,11 +359,15 @@ void FPackageLocalizationCache::HandleCultureChanged()
 	const FString CurrentCultureName = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	CurrentCultureCache = FindOrAddCacheForCulture_NoLock(CurrentCultureName);
 
-	if (CurrentCultureCache.IsValid())
+	// We expect culture changes to happen on the game thread, so update the cache now while it is likely safe to do so
+	// (ConditionalUpdateCache will internally check that this is currently the game thread before allowing the update)
+	const TArray<FCultureRef> CurrentCultures = FInternationalization::Get().GetCurrentCultures(/*bIncludeLanguage*/true, /*bIncludeLocale*/false, /*bIncludeAssetGroups*/true);
+	for (const FCultureRef& CurrentCulture : CurrentCultures)
 	{
-		// We expect culture changes to happen on the game thread, so update the cache now while it is likely safe to do so
-		// (ConditionalUpdateCache will internally check that this is currently the game thread before allowing the update)
-		CurrentCultureCache->ConditionalUpdateCache();
+		if (TSharedPtr<FPackageLocalizationCultureCache> CultureCache = FindOrAddCacheForCulture_NoLock(CurrentCulture->GetName()))
+		{
+			CultureCache->ConditionalUpdateCache();
+		}
 	}
 
 	ConditionalUpdatePackageNameToAssetGroupCache_NoLock();
