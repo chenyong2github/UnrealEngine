@@ -46,6 +46,7 @@ private:
 
 		TSharedRef<SWidget> NameWidget;
 		TSharedPtr<SWidget> ValueWidget;
+		TSharedPtr<SWidget> EditConditionWidget;
 	};
 
 	void SynchronizeTreeExpansion();

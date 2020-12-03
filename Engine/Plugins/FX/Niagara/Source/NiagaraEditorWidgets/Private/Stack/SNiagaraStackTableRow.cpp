@@ -130,7 +130,7 @@ bool HasVisibleChildren(UNiagaraStackEntry* Entry)
 	return Children.Num() > 0;
 }
 
-void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget)
+void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget, TSharedPtr<SWidget> InEditConditionWidget)
 {
 	FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 	if (bIsCategoryIconHighlighted)
@@ -152,21 +152,17 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	.VAlign(VAlign_Center)
 	.Padding(0, 0, 1, 0)
 	[
-		SNew(SBox)
-		.WidthOverride(14)
+		SNew(SButton)
+		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+		.Visibility(this, &SNiagaraStackTableRow::GetExpanderVisibility)
+		.OnClicked(this, &SNiagaraStackTableRow::ExpandButtonClicked)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ContentPadding(2)
+		.HAlign(HAlign_Center)
 		[
-			SNew(SButton)
-			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.Visibility(this, &SNiagaraStackTableRow::GetExpanderVisibility)
-			.OnClicked(this, &SNiagaraStackTableRow::ExpandButtonClicked)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ContentPadding(2)
-			.HAlign(HAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SNiagaraStackTableRow::GetExpandButtonImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+			SNew(SImage)
+			.Image(this, &SNiagaraStackTableRow::GetExpandButtonImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	]
 	// Execution sub-category icon
@@ -190,8 +186,17 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 			.ColorAndOpacity(IconColor)
 		]
 	]
+	// Edit condition
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.Padding(0, 0, 3, 0)
+	[
+		InEditConditionWidget.IsValid() ? InEditConditionWidget.ToSharedRef() : SNullWidget::NullWidget
+	]
 	// Name content
 	+ SHorizontalBox::Slot()
+	.HAlign(NameHorizontalAlignment)
+	.VAlign(NameVerticalAlignment)
 	[
 		InNameWidget
 	];
@@ -239,8 +244,6 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
             [
 				SNew(SBox)
 				.Padding(FMargin(0, ContentPadding.Top, 5, ContentPadding.Bottom))
-				.HAlign(NameHorizontalAlignment)
-				.VAlign(NameVerticalAlignment)
 				.MinDesiredWidth(NameMinWidth.IsSet() ? NameMinWidth.GetValue() : FOptionalSize())
 				.MaxDesiredWidth(NameMaxWidth.IsSet() ? NameMaxWidth.GetValue() : FOptionalSize())
 				[

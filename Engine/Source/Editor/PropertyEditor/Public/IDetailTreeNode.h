@@ -68,6 +68,9 @@ struct FNodeWidgets
 
 	/** Layout data for the whole row widget. */
 	FNodeWidgetLayoutData WholeRowWidgetLayoutData;
+
+	/** Edit condition widget. */
+	TSharedPtr<SWidget> EditConditionWidget;
 };
 
 class IDetailTreeNode

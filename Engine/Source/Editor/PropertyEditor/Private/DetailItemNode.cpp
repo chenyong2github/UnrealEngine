@@ -276,7 +276,7 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 
 		bResult = true;
 	}
-	else if(Customization.IsValidCustomization())
+	else if (Customization.IsValidCustomization())
 	{
 		FDetailWidgetRow Row = Customization.GetWidgetRow();
 
@@ -322,6 +322,14 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 				Row.WholeRowWidget.Widget
 			];
 		}
+
+		if (Row.CustomResetToDefault.IsSet())
+		{
+			OutRow.OverrideResetToDefault(Row.CustomResetToDefault.GetValue());
+		}
+
+		OutRow.EditConditionValue = Row.EditConditionValue;
+		OutRow.OnEditConditionValueChanged = Row.OnEditConditionValueChanged;
 
 		bResult = true;
 	}

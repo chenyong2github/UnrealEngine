@@ -2,6 +2,7 @@
 
 #include "DetailTreeNode.h"
 #include "DetailWidgetRow.h"
+#include "PropertyEditorHelpers.h"
 
 FNodeWidgets FDetailTreeNode::CreateNodeWidgets() const
 {
@@ -10,7 +11,7 @@ FNodeWidgets FDetailTreeNode::CreateNodeWidgets() const
 
 	FNodeWidgets Widgets;
 
-	if(Row.HasAnyContent())
+	if (Row.HasAnyContent())
 	{
 		if (Row.HasColumns())
 		{
@@ -27,6 +28,10 @@ FNodeWidgets FDetailTreeNode::CreateNodeWidgets() const
 			Widgets.WholeRowWidgetLayoutData = FNodeWidgetLayoutData(
 				Row.WholeRowWidget.HorizontalAlignment, Row.WholeRowWidget.VerticalAlignment, Row.WholeRowWidget.MinWidth, Row.WholeRowWidget.MaxWidth);
 		}
+
+		Widgets.EditConditionWidget = SNew(SEditConditionWidget)
+			.EditConditionValue(Row.EditConditionValue)
+			.OnEditConditionValueChanged(Row.OnEditConditionValueChanged);
 	}
 
 	return Widgets;
