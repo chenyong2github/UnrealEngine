@@ -76,8 +76,24 @@ public:
 		}
 		else
 		{
-			World->DestroyActor(HLODActor);
-			HLODActor = nullptr;
+			if (HLODActorGuid.IsValid())
+			{
+				FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
+				check(HLODActorDesc);
+
+				check(HLODActorDesc->GetLoadedRefCount() == 1);
+				HLODActorDesc->RemoveLoadedRefCount();
+
+				HLODActor->GetLevel()->RemoveLoadedActor(HLODActor);
+				HLODActorDesc->Unload();
+
+				Context->HLODActorDescs.Add(CellHash, HLODActorGuid);
+			}
+			else
+			{
+				World->DestroyActor(HLODActor);
+				HLODActor = nullptr;
+			}
 		}
 
 		if (HLODActor)

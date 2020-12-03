@@ -164,21 +164,5 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	WorldContext.SetCurrentWorld(nullptr);
 	GWorld = nullptr;
 
-    FPlatformMemoryStats PlatformMemoryStats = FPlatformMemory::GetStats();
-    
-    UE_LOG(LogWorldPartitionBuilderCommandlet, Warning, TEXT("MemoryStats:")\
-           TEXT("\n\tAvailablePhysical %llu")\
-           TEXT("\n\t AvailableVirtual %llu")\
-           TEXT("\n\t     UsedPhysical %llu")\
-           TEXT("\n\t PeakUsedPhysical %llu")\
-           TEXT("\n\t      UsedVirtual %llu")\
-           TEXT("\n\t  PeakUsedVirtual %llu"),
-           (uint64)PlatformMemoryStats.AvailablePhysical,
-           (uint64)PlatformMemoryStats.AvailableVirtual,
-           (uint64)PlatformMemoryStats.UsedPhysical,
-           (uint64)PlatformMemoryStats.PeakUsedPhysical,
-           (uint64)PlatformMemoryStats.UsedVirtual,
-           (uint64)PlatformMemoryStats.PeakUsedVirtual);
-
 	return 0;
 }
