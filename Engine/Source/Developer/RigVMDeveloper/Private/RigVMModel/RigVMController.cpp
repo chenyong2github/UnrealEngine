@@ -2393,7 +2393,8 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 		FString SourcePinPath;
 		FString TargetPinPath;
 
-		if (LibraryPin->GetDirection() == ERigVMPinDirection::Input)
+		if (LibraryPin->GetDirection() == ERigVMPinDirection::Input ||
+			LibraryPin->GetDirection() == ERigVMPinDirection::IO)
 		{
 			if (const TArray<FString>* LibraryPinLinksPtr = ToLibraryNode.Find(LibraryPinPath))
 			{
