@@ -123,6 +123,13 @@ public:
 	TPBDRigidsSOAs(const TPBDRigidsSOAs<T,d>&) = delete;
 	TPBDRigidsSOAs(TPBDRigidsSOAs<T, d>&& Other) = delete;
 
+	~TPBDRigidsSOAs()
+	{
+		// Abandonning the particles, don't worry about ordering anymore.
+		ClusteredParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::RemoveAtSwap;
+		GeometryCollectionParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::RemoveAtSwap;
+	}
+
 	void Reset()
 	{
 		check(0);
