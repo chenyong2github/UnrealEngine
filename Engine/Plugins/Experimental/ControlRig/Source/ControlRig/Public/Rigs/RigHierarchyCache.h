@@ -13,7 +13,7 @@ struct FRigControlHierarchy;
 struct FRigCurveContainer;
 
 USTRUCT(BlueprintType)
-struct FCachedRigElement
+struct CONTROLRIG_API FCachedRigElement
 {
 	GENERATED_BODY()
 
