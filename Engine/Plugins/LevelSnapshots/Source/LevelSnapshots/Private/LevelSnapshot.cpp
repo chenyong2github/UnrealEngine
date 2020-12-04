@@ -12,7 +12,7 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		UE_LOG(LogTemp, Warning, TEXT("Unable To Snapshot World as World was invalid"));
 	}
 
-	MapName = TargetWorld->GetMapName();
+	MapPath = FSoftObjectPath(TargetWorld);
 	ActorSnapshots.Empty(); // If we keep calling this method on the same asset it will add the same actors over and over unless we empty
 
 	UE_LOG(LogTemp, Warning, TEXT("Attempting to Snapshot World - %s"), *TargetWorld->GetMapName());

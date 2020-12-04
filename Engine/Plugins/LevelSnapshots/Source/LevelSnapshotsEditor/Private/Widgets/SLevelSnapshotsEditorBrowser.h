@@ -24,7 +24,7 @@ public:
 
 private:
 	void OnAssetSelected(const FAssetData& InAssetData);
-	bool OnShouldFilterAsset(const FAssetData& InAssetData);
+	bool OnShouldFilterAsset(const FAssetData& InAssetData) const;
 
 	TAttribute<FSoftObjectPath> OwningWorldPathAttribute;
 

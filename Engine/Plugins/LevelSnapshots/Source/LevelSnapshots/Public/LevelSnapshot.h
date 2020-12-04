@@ -28,6 +28,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	TMap<FString, FLevelSnapshot_Actor> ActorSnapshots;
 
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FString MapName;
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Snapshot")
+	FSoftObjectPath MapPath;
 };
