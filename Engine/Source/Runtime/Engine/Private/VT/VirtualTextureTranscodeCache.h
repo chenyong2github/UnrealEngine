@@ -16,6 +16,7 @@ struct FVTTranscodeParams
 	IMemoryReadStreamRef Data;
 	const FVirtualTextureCodec* Codec;
 	const FVirtualTextureBuiltData* VTData;
+	FName Name;
 	uint32 ChunkIndex;
 	uint32 vAddress;
 	uint8 vLevel;

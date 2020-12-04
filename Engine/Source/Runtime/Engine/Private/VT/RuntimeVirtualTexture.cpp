@@ -619,7 +619,7 @@ namespace RuntimeVirtualTexture
 					const int32 AdjustedTransitionLevel = TransitionLevel + FirstStreamingMip;
 					OutTransitionLevel = TransitionLevel;
 
-					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, FirstStreamingMip);
+					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(InStreamingTexture->GetFName(), VTData, FirstStreamingMip);
 					return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, AdjustedTransitionLevel);
 				}
 			}

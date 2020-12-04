@@ -63,6 +63,11 @@ struct FTranscodeTask
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		DoTask(true);
+	}
+
+	void DoTask(bool bAsync)
+	{
 		SCOPED_NAMED_EVENT(VirtualTextureTranscodeTask_DoTask, FColor::Cyan);
 
 		static uint8 Black[4] = { 0,0,0,0 };
@@ -210,6 +215,7 @@ struct FTranscodeTask
 
 			if (!bDecodeResult && GShowDecodeErrors)
 			{
+				UE_LOG(LogVirtualTexturing, Error, TEXT("Failed to decode VT tile (vAddress %08X, vLevel %d) for '%s'"), Params.vAddress, Params.vLevel, *Params.Name.ToString());
 				UniformColorPixels(StagingBufferForLayer, TilePixelSize, TilePixelSize, LayerFormat, ErrorColor);
 			}
 
@@ -415,31 +421,8 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 			// If there aren't any prerequisites, it's not worth launching a task for a raw memcpy, just do the work now
 			if (!Prerequisites && Chunk.CodecType[LayerIndex] == EVirtualTextureCodec::RawGPU)
 			{
-				const uint32 DataOffset = TileLayerOffset - TileBaseOffset;
-				const uint32 TileLayerSize = NextTileLayerOffset - TileLayerOffset;
-
-				const uint32 TileWidthInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeX);
-				const uint32 TileHeightInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeY);
-				const uint32 PackedStride = TileWidthInBlocks * GPixelFormats[LayerFormat].BlockBytes;
-				const size_t PackedOutputSize = PackedStride * TileHeightInBlocks;
-
-				if (StagingBufferForLayer.Stride == PackedStride)
-				{
-					check(TileLayerSize <= StagingBufferForLayer.MemorySize);
-					InParams.Data->CopyTo(StagingBufferForLayer.Memory, DataOffset, TileLayerSize);
-				}
-				else
-				{
-					check(PackedStride <= StagingBufferForLayer.Stride);
-					check(TileLayerSize <= PackedOutputSize);
-					check(TileHeightInBlocks * StagingBufferForLayer.Stride <= StagingBufferForLayer.MemorySize);
-					TempBuffer.SetNumUninitialized(PackedOutputSize, false);
-					InParams.Data->CopyTo(TempBuffer.GetData(), DataOffset, TileLayerSize);
-					for (uint32 y = 0; y < TileHeightInBlocks; ++y)
-					{
-						FMemory::Memcpy((uint8*)StagingBufferForLayer.Memory + y * StagingBufferForLayer.Stride, TempBuffer.GetData() + y * PackedStride, PackedStride);
-					}
-				}
+				FTranscodeTask LocalTask(StagingBuffer, InParams);
+				LocalTask.DoTask(false);
 			}
 			else
 			{

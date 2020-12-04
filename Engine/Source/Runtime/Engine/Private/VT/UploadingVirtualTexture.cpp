@@ -59,8 +59,9 @@ FVirtualTextureCodec* FVirtualTextureCodec::ListHead = nullptr;
 FVirtualTextureCodec FVirtualTextureCodec::ListTail;
 uint32 FVirtualTextureCodec::NumCodecs = 0u;
 
-FUploadingVirtualTexture::FUploadingVirtualTexture(FVirtualTextureBuiltData* InData, int32 InFirstMipToUse)
-	: Data(InData)
+FUploadingVirtualTexture::FUploadingVirtualTexture(const FName& InName, FVirtualTextureBuiltData* InData, int32 InFirstMipToUse)
+	: Name(InName)
+	, Data(InData)
 	, FirstMipOffset(InFirstMipToUse)
 {
 	HandlePerChunk.AddDefaulted(InData->Chunks.Num());

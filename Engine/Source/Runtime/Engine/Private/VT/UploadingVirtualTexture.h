@@ -56,7 +56,7 @@ struct FVTDataAndStatus
 class FUploadingVirtualTexture : public IVirtualTexture
 {
 public:
-	FUploadingVirtualTexture(FVirtualTextureBuiltData* InData, int32 FirstMipToUse);
+	FUploadingVirtualTexture(const FName& InName, FVirtualTextureBuiltData* InData, int32 FirstMipToUse);
 	virtual ~FUploadingVirtualTexture();
 
 	// IVirtualTexture interface
@@ -72,6 +72,7 @@ public:
 	virtual void DumpToConsole(bool verbose) override;
 	// End IVirtualTexture interface
 
+	inline const FName& GetName() const { return Name; }
 	inline const FVirtualTextureBuiltData* GetVTData() const { return Data; }
 
 	// gets the codec for the given chunk, data is not valid until returned OutCompletionEvents are complete
@@ -83,6 +84,7 @@ public:
 private:
 	friend class FVirtualTextureCodec;
 
+	FName Name;
 	FVirtualTextureBuiltData* Data;
 	TArray< TUniquePtr<IFileCacheHandle> > HandlePerChunk;
 	TArray< TUniquePtr<FVirtualTextureCodec> > CodecPerChunk;
