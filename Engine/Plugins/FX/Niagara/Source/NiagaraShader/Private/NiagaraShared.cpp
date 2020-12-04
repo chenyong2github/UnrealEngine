@@ -57,6 +57,14 @@ bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platform, const FShaderTy
 	return true;
 }
 
+void FNiagaraShaderScript::ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const
+{
+	if ( BaseVMScript )
+	{
+		BaseVMScript->ModifyCompilationEnvironment(OutEnvironment);
+	}
+}
+
 bool FNiagaraShaderScript::GetUsesSimulationStages() const
 {
 	return AdditionalDefines.Contains(TEXT("Emitter.UseSimulationStages"));
