@@ -42,7 +42,7 @@ namespace RenderCaptureInterface
 		: bCapture(bEnable)
 		, RHICmdList(nullptr)
 	{
-		check(!IsInRenderingThread());
+		check(!GUseThreadedRendering || !IsInRenderingThread());
 
 		if (bCapture)
 		{
@@ -57,7 +57,7 @@ namespace RenderCaptureInterface
 		: bCapture(bEnable)
 		, RHICmdList(RHICommandList)
 	{
-		check(IsInRenderingThread());
+		check(!GUseThreadedRendering || IsInRenderingThread());
 
 		if (bCapture)
 		{
@@ -71,13 +71,13 @@ namespace RenderCaptureInterface
 		{
 			if (RHICmdList != nullptr)
 			{
-				check(IsInRenderingThread());
+				check(!GUseThreadedRendering || IsInRenderingThread());
 				
 				EndCapture(RHICmdList);
 			}
 			else
 			{
-				check(!IsInRenderingThread());
+				check(!GUseThreadedRendering || !IsInRenderingThread());
 
 				ENQUEUE_RENDER_COMMAND(CaptureCommand)([](FRHICommandListImmediate& RHICommandListLocal)
 				{
