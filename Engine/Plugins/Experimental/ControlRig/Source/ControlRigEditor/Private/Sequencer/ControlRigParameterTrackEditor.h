@@ -68,6 +68,9 @@ private:
 	void ToggleFilterAssetBySkeleton();
 	bool IsToggleFilterAssetBySkeleton();
 
+	void ToggleFilterAssetByAnimatibleControls();
+	bool IsToggleFilterAssetByAnimatibleControls();
+
 	/** Control Rig Picked */
 	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding);
 	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding, UControlRig* InExistingControlRig);
@@ -168,6 +171,9 @@ private:
 
 	/** Whether or not we should check Skeleton when filtering*/
 	bool bFilterAssetBySkeleton;
+
+	/** Whether or not we should check for Animatible Controls when filtering*/
+	bool bFilterAssetByAnimatibleControls;
 };
 
 
