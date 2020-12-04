@@ -4,6 +4,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Engine/Engine.h"
+#include "MaterialShaderType.h"
 #include "Materials/Material.h"
 #include "RenderCore/Public/CommonRenderResources.h"
 #include "Rendering/NaniteResources.h"
@@ -1062,7 +1063,6 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 
 	if (!IsRenderable)
 	{
-		UE_LOG(LogStaticMesh, Warning, TEXT("Nanite rendering was chosen for rendering mesh with materials that are not supported. Using default instead."));
 		bHasMaterialErrors = true;
 	}
 
@@ -1096,6 +1096,17 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		if (bInvalidMaterial)
 		{
 			bHasMaterialErrors = true;
+			if (Section.Material)
+			{
+				UE_LOG
+				(
+					LogStaticMesh, Warning,
+					TEXT("Invalid material [%s] used on Nanite geometry collection [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
+					*Section.Material->GetName(),
+					*GeometryCollection->GetName(),
+					*GetBlendModeString(Section.Material->GetBlendMode())
+				);
+			}
 		}
 
 		const bool bForceDefaultMaterial = /*!!FORCE_NANITE_DEFAULT_MATERIAL ||*/ bHasMaterialErrors;

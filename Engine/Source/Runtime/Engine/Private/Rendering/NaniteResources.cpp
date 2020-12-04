@@ -377,7 +377,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	if (!IsRenderable)
 	{
-		UE_LOG(LogStaticMesh, Warning, TEXT("Nanite rendering was chosen for rendering mesh with materials that are not supported. Using default instead."));
 		bHasMaterialErrors = true;
 	}
 
@@ -409,6 +408,17 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		if (bInvalidMaterial)
 		{
 			bHasMaterialErrors = true;
+			if (Section.Material)
+			{
+				UE_LOG
+				(
+					LogStaticMesh, Warning,
+					TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
+					*Section.Material->GetName(),
+					*StaticMesh->GetName(),
+					*GetBlendModeString(Section.Material->GetBlendMode())
+				);
+			}
 		}
 
 		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors;
