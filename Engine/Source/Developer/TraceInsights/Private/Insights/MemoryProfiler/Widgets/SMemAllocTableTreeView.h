@@ -7,6 +7,7 @@
 #include "TraceServices/Model/AllocationsProvider.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
 
@@ -70,6 +71,16 @@ public:
 	int32 GetTabIndex() const { return TabIndex; }
 	void SetTabIndex(int32 InTabIndex) { TabIndex = InTabIndex; }
 
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// IAsyncOperationStatusProvider implementation
+
+	virtual bool IsRunning() const override;
+	virtual double GetAllOperationsDuration() override;
+	virtual FText GetCurrentOperationName() const override;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
 protected:
 	virtual void OnPreAsyncUpdate() override;
 	virtual void OnPostAsyncUpdate() override;
@@ -77,7 +88,7 @@ protected:
 private:
 	void OnQueryInvalidated();
 	void StartQuery();
-	void UpdateQuery();
+	void UpdateQuery(TraceServices::IAllocationsProvider::EQueryStatus& OutStatus);
 	void CancelQuery();
 
 	TSharedRef<class ITableCellValueFormatter> CreateCachedLlmTagValueFormatter();
@@ -89,6 +100,8 @@ private:
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
 
 	TSharedPtr<class ITableCellValueFormatter> OriginalLlmTagValueFormatter;
+
+	FStopwatch QueryStopwatch;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
