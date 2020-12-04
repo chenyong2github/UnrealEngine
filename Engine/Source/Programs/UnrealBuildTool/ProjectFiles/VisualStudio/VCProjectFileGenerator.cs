@@ -257,6 +257,25 @@ namespace UnrealBuildTool
 			return string.Empty;
 		}
 
+		protected override bool SupportsDotnetCoreProjects()
+		{
+			// we use dotnet 3 which requires visual studio 2019 or newer
+			switch (Settings.ProjectFileFormat)
+			{
+				case VCProjectFileFormat.VisualStudio2019:
+					return true;
+				case VCProjectFileFormat.Default:
+				case VCProjectFileFormat.VisualStudio2012:
+				case VCProjectFileFormat.VisualStudio2013:
+				case VCProjectFileFormat.VisualStudio2015:
+				case VCProjectFileFormat.VisualStudio2017:
+					return false;
+				default:
+					throw new ArgumentOutOfRangeException(nameof(ProjectFileFormat), Settings.ProjectFileFormat, null);
+			}
+		}
+
+
 		static public void AppendPlatformToolsetProperty(StringBuilder VCProjectFileContent, VCProjectFileFormat ProjectFileFormat)
 		{
 			VCProjectFileContent.AppendLine("    <PlatformToolset>{0}</PlatformToolset>", GetProjectFilePlatformToolsetVersionString(ProjectFileFormat));

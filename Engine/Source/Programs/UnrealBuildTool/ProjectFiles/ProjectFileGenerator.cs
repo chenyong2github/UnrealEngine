@@ -408,6 +408,9 @@ namespace UnrealBuildTool
 				if (FileReference.Exists(ProjectFile))
 				{
 					VCSharpProjectFile Project = new VCSharpProjectFile(ProjectFile);
+					if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
+						continue;
+
 					Project.ShouldBuildForAllSolutionTargets = false;//true;
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
 					AutomationProjectFiles.Add( Project );
@@ -420,6 +423,11 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+		}
+
+		protected virtual bool SupportsDotnetCoreProjects()
+		{
+			return true;
 		}
 
 		/// <summary>
@@ -469,6 +477,9 @@ namespace UnrealBuildTool
 						if (!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, EngineDir))
 						{
 							VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
+
+							if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
+								continue;
 
 							Project.ShouldBuildForAllSolutionTargets = true;
 							Project.ShouldBuildByDefaultForSolutionTargets = true;
@@ -895,7 +906,9 @@ namespace UnrealBuildTool
 					AddUnrealBuildToolProject( ProgramsFolder );
 
 					// Add AutomationTool to the master project
-					ProgramsFolder.ChildProjects.Add(AddSimpleCSharpProject("AutomationTool", bShouldBuildForAllSolutionTargets: true, bForceDevelopmentConfiguration: true));
+					VCSharpProjectFile AutomationToolProject = AddSimpleCSharpProject("AutomationTool", bShouldBuildForAllSolutionTargets: true, bForceDevelopmentConfiguration: true);
+					if (AutomationToolProject != null)
+						ProgramsFolder.ChildProjects.Add(AutomationToolProject);
 
 					// Add automation.csproj files to the master project
 					AddAutomationModules(AllGameProjects, ProgramsFolder);
@@ -1577,6 +1590,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void AddUnrealBuildToolProject(MasterProjectFolder ProgramsFolder)
 		{
+			// UBT is a dotnet core project so we can not add it if the project generator does not support dotnet core projects
+			if (!SupportsDotnetCoreProjects())
+				return;
+
 			List<string> ProjectDirectoryNames = new List<string>();
 			ProjectDirectoryNames.Add("UnrealBuildTool");
 
@@ -1625,6 +1642,10 @@ namespace UnrealBuildTool
 			if( Info.Exists )
 			{
 				Project = new VCSharpProjectFile(ProjectFileName);
+
+				if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
+					return null;
+
 				Project.ShouldBuildForAllSolutionTargets = bShouldBuildForAllSolutionTargets;
 				Project.ShouldBuildByDefaultForSolutionTargets = bShouldBuildByDefaultForSolutionTargets;
 				AddExistingProjectFile(Project, bForceDevelopmentConfiguration: bForceDevelopmentConfiguration);
