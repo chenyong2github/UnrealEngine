@@ -257,9 +257,9 @@ public class AndroidPlatform : Platform
 		return TargetAndroidLocation + PackageName + "/" + Path.GetFileName(OverflowName);
 	}
 
-	public static string GetStorageQueryCommand()
+	public static string GetStorageQueryCommand(bool bForcePC = false)
     {
-		if (Utils.IsRunningOnMono)
+		if (!bForcePC && Utils.IsRunningOnMono)
 		{
 			return "shell 'echo $EXTERNAL_STORAGE'";
 		}
@@ -971,7 +971,7 @@ public class AndroidPlatform : Platform
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
 						"set DEVICE=",
                         "if not \"%1\"==\"\" set DEVICE=-s %1",
-                        "for /f \"delims=\" %%A in ('%ADB% %DEVICE% " + GetStorageQueryCommand() +"') do @set STORAGE=%%A",
+                        "for /f \"delims=\" %%A in ('%ADB% %DEVICE% " + GetStorageQueryCommand(true) +"') do @set STORAGE=%%A",
 						"@echo.",
 						"@echo Uninstalling existing application. Failures here can almost always be ignored.",
 						"%ADB% %DEVICE% uninstall " + PackageName,
@@ -1058,7 +1058,7 @@ public class AndroidPlatform : Platform
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
 						"set DEVICE=",
 						"if not \"%1\"==\"\" set DEVICE=-s %1",
-						"for /f \"delims=\" %%A in ('%ADB% %DEVICE% " + GetStorageQueryCommand() +"') do @set STORAGE=%%A",
+						"for /f \"delims=\" %%A in ('%ADB% %DEVICE% " + GetStorageQueryCommand(true) +"') do @set STORAGE=%%A",
 						"@echo.",
 						"@echo Uninstalling existing application. Failures here can almost always be ignored.",
 						"%ADB% %DEVICE% uninstall " + PackageName,
