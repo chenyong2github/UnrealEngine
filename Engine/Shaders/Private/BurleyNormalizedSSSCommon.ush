@@ -45,10 +45,15 @@ bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
 
 bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
 {
+#if STRATA_ENABLED
+	// STRATA_TODO: For now force Burley to be used by default
+	return true;
+#else
 	// 0..255, which SubSurface profile to pick
 	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
+#endif
 }
 
 bool GetSubsurfaceProfileUseBurley(float2 BufferUV)
@@ -60,10 +65,15 @@ bool GetSubsurfaceProfileUseBurley(float2 BufferUV)
 
 bool GetSubsurfaceProfileUseSeparable(uint SubsurfaceProfileInt)
 {
+#if STRATA_ENABLED
+	// STRATA_TODO: For now force Burley to be used by default
+	return false;
+#else
 	// 0..255, which SubSurface profile to pick
 	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_SSSS) < 0.01f;
+#endif
 }
 
 bool GetSubsurfaceProfileUseSeparable(float2 BufferUV)

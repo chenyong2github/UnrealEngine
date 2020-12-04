@@ -45,6 +45,7 @@ struct FStrataBSDF
 #define STATE_BITS_ANISOTROPY			1
 #define STATE_BITS_TOPLAYER				1
 #define STATE_BITS_HASSCATTERING		1
+#define STATE_BITS_HASSSSPROFILE		1
 #define STATE_BITS_GREYWEIGHT			1
 #define STATE_BITS___UNUSED___			13
 #define STATE_BITS_WEIGHT10F			10
@@ -55,7 +56,8 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDNORMALID	+ STATE_BITS_SHAREDNORMALID)
 #define STATE_BIT_OFFSET_TOPLAYER		(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BITS_ANISOTROPY)
 #define STATE_BIT_OFFSET_HASSCATTERING	(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BITS_TOPLAYER)
-#define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSCATTERING		+ STATE_BITS_HASSCATTERING)
+#define STATE_BIT_OFFSET_HASSSSPROFILE	(STATE_BIT_OFFSET_HASSCATTERING		+ STATE_BITS_HASSCATTERING)
+#define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BITS_HASSSSPROFILE)
 #define STATE_BIT_OFFSET_WEIGHT10F		22
 
 #define TO_BITMASK(BitCount)							((1<<BitCount)-1)
@@ -80,9 +82,13 @@ struct FStrataBSDF
 #define BSDF_GETISTOPLAYER(X)			BSDF_GETSTATE(X, STATE_BITS_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER)
 #define BSDF_SETISTOPLAYER(X, IsTop)	BSDF_SETSTATE(X, STATE_BITS_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER, IsTop)
 
-// Indicates if the BSDF is part of the top layer
+// Indicates if the BSDF has scattering component
 #define BSDF_GETHASSCATTERING(X)		BSDF_GETSTATE(X, STATE_BITS_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING)
 #define BSDF_SETHASSCATTERING(X, Scatt)	BSDF_SETSTATE(X, STATE_BITS_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING, Scatt)
+
+// Indicates if the BSDF has a SSS profile
+#define BSDF_GETHASSSSPROFILE(X)		BSDF_GETSTATE(X, STATE_BITS_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)
+#define BSDF_SETHASSSSPROFILE(X, Profi)	BSDF_SETSTATE(X, STATE_BITS_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE, Profi)
 
 // Indicates if the BSDF weight is grey scale so that it can be stored in a single float (e.g. top layer BSDFs)
 #define BSDF_GETGREYWEIGHT(X)			BSDF_GETSTATE(X, STATE_BITS_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT)
@@ -102,8 +108,12 @@ struct FStrataBSDF
 
 #define DIFFUSE_ALBEDO(X)				X.VGPRs[0].xyz
 #define DIFFUSE_ROUGHNESS(X)			X.VGPRs[0].w
+// Either with SSS profile
 #define DIFFUSE_SSSPROFILEID(X)			X.VGPRs[1].x
 #define DIFFUSE_SSSPROFILERADIUS(X)		X.VGPRs[1].y
+// Or explicit DMFP
+#define DIFFUSE_SSSDMFPALBEDO(X)		X.VGPRs[1].xyz
+#define DIFFUSE_SSSDMFPRADIUS(X)		X.VGPRs[1].w
 
 #define DIELECTRIC_TINT(X)				X.VGPRs[0].xyz
 #define DIELECTRIC_IOR(X)				X.VGPRs[0].w
@@ -182,7 +192,7 @@ FStrataData GetInitialisedStrataData()
 	return StrataData;
 }
 
-FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, float SSSProfileID, float SSSRadiusScale, uint SharedNormalIndex)
+FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, float SSSProfileID, float SSSDMFPScale, float3 SSSDMFPAlbedo, float SSSDMFPRadius, uint SharedNormalIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
@@ -191,11 +201,24 @@ FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, float SSSProfil
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_DIFFUSE);
 	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
-	BSDF_SETHASSCATTERING	(StrataData.Layers[0].BSDFs[0],		SSSRadiusScale > 0 ? 1 : 0);
+	BSDF_SETHASSCATTERING	(StrataData.Layers[0].BSDFs[0],		SSSDMFPScale > 0 ? 1 : 0);
+
+	const bool bHasSSSProfile = SSSProfileID > 0;
+	BSDF_SETHASSSSPROFILE	(StrataData.Layers[0].BSDFs[0],		bHasSSSProfile ? 1 : 0);
+
 	DIFFUSE_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
 	DIFFUSE_ROUGHNESS		(StrataData.Layers[0].BSDFs[0])		= Roughness;
-	DIFFUSE_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
-	DIFFUSE_SSSPROFILERADIUS(StrataData.Layers[0].BSDFs[0])		= SSSRadiusScale;
+
+	if (bHasSSSProfile)
+	{
+		DIFFUSE_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])	= SSSProfileID;
+		DIFFUSE_SSSPROFILERADIUS(StrataData.Layers[0].BSDFs[0])	= SSSDMFPScale;
+	}
+	else
+	{
+		DIFFUSE_SSSDMFPALBEDO	(StrataData.Layers[0].BSDFs[0])	= saturate(SSSDMFPAlbedo);
+		DIFFUSE_SSSDMFPRADIUS	(StrataData.Layers[0].BSDFs[0])	= clamp(SSSDMFPRadius * SSSDMFPScale, 0.f, SSS_PROFILE_PERPIXEL_MAXRADIUS);
+	}
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
 
@@ -1337,10 +1360,13 @@ void PackStrataOut(
 	Strata.LayerCount = STRATA_CLAMPED_LAYER_COUNT;
 
 	// Subsurface scattering parameters
-	bool bHasSubsurfaceScattering = false;
-	float SubsurfaceProfile = 0;
-	float SubsurfaceRadiusScale = 0;
+	bool   bHasSubsurfaceScattering = false;
+	bool   bHasSubsurfaceProfile = false;
+	float  SubsurfaceProfile = 0;
+	float  SubsurfaceRadiusScale = 0;
 	float3 SubsurfaceBaseColor = 0;
+	float3 SubsurfaceDMFPAlbedo = 0;
+	float  SubsurfaceDMFPRadius = 0;
 
 	// For each of the BSDF, we evaluated their combined weight/throughput according to the material operation performed (layering, mixing, etc.).
 	int l;
@@ -1392,9 +1418,12 @@ void PackStrataOut(
 				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !bHasSubsurfaceScattering)
 				{
 					bHasSubsurfaceScattering = true;
-					SubsurfaceProfile = DIFFUSE_SSSPROFILEID(BSDF);
-					SubsurfaceRadiusScale = DIFFUSE_SSSPROFILERADIUS(BSDF);
-					SubsurfaceBaseColor = DIFFUSE_ALBEDO(BSDF);
+					bHasSubsurfaceProfile	= BSDF_GETHASSSSPROFILE(BSDF);
+					SubsurfaceProfile		= DIFFUSE_SSSPROFILEID(BSDF);
+					SubsurfaceRadiusScale	= DIFFUSE_SSSPROFILERADIUS(BSDF);
+					SubsurfaceBaseColor		= DIFFUSE_ALBEDO(BSDF);
+					SubsurfaceDMFPAlbedo	= DIFFUSE_SSSDMFPALBEDO(BSDF);
+					SubsurfaceDMFPRadius	= DIFFUSE_SSSDMFPRADIUS(BSDF);
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1518,9 +1547,18 @@ void PackStrataOut(
 	GBuffer.CustomData = 0;
 	if (bHasSubsurfaceScattering)
 	{
-		GBuffer.BaseColor		= SubsurfaceBaseColor;
-		GBuffer.CustomData.rgb	= EncodeSubsurfaceProfile(SubsurfaceProfile);
-		GBuffer.CustomData.a	= SubsurfaceRadiusScale;
+		if (bHasSubsurfaceProfile)
+		{
+			GBuffer.BaseColor      = SubsurfaceBaseColor;
+			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
+			GBuffer.CustomData.a   = SubsurfaceRadiusScale;
+		}
+		else
+		{
+			GBuffer.BaseColor      = SubsurfaceBaseColor;
+			GBuffer.CustomData.rgb = sqrt(SubsurfaceDMFPAlbedo);
+			GBuffer.CustomData.a   = saturate(SubsurfaceDMFPRadius / SSS_PROFILE_PERPIXEL_MAXRADIUS);
+		}
 	}
 
 	// Now write out Strata data
@@ -1576,7 +1614,14 @@ void PackStrataOut(
 				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(DIFFUSE_ALBEDO(BSDF), DIFFUSE_ROUGHNESS(BSDF))));
 				if (BSDF_GETHASSCATTERING(BSDF))
 				{
-					STRATA_STORE_UINT1(PackRGBA8(float4(DIFFUSE_SSSPROFILEID(BSDF), DIFFUSE_SSSPROFILERADIUS(BSDF), 0, 0)))
+					if (BSDF_GETHASSSSPROFILE(BSDF))
+					{
+						STRATA_STORE_UINT1(PackRGBA8(float4(DIFFUSE_SSSPROFILEID(BSDF), DIFFUSE_SSSPROFILERADIUS(BSDF), 0, 0)));
+					}
+					else
+					{
+						STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(DIFFUSE_SSSDMFPALBEDO(BSDF), DIFFUSE_SSSDMFPRADIUS(BSDF) / SSS_PROFILE_PERPIXEL_MAXRADIUS)));
+					}
 				}
 				// 8 bytes
 			}
@@ -1687,9 +1732,17 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, DIFFUSE_ALBEDO(OutBSDF), DIFFUSE_ROUGHNESS(OutBSDF));
 		if (BSDF_GETHASSCATTERING(OutBSDF))
 		{
-			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
-			DIFFUSE_SSSPROFILEID(OutBSDF) = Data.r;
-			DIFFUSE_SSSPROFILERADIUS(OutBSDF) = Data.g;
+			if (BSDF_GETHASSSSPROFILE(OutBSDF))
+			{
+				float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
+				DIFFUSE_SSSPROFILEID(OutBSDF)	  = Data.r;
+				DIFFUSE_SSSPROFILERADIUS(OutBSDF) = Data.g;
+			}
+			else
+			{
+				StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, DIFFUSE_SSSDMFPALBEDO(OutBSDF), DIFFUSE_SSSDMFPRADIUS(OutBSDF));
+				DIFFUSE_SSSDMFPRADIUS(OutBSDF) *= SSS_PROFILE_PERPIXEL_MAXRADIUS;
+			}
 		}
 	}
 	break;

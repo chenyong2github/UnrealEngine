@@ -163,27 +163,18 @@ struct FBurleyParameter
 };
 
 //Surface albedo and mean free path length
-float4 GetSubsurfaceProfileSurfaceAlbedo(FGBufferData GBufferData)
+float4 GetSubsurfaceProfileSurfaceAlbedo(uint SubsurfaceProfileInt)
 {
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
 	return ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
 }
 
-float4 GetSubsurfaceProfileDiffuseMeanFreePath(FGBufferData GBufferData)
+float4 GetSubsurfaceProfileDiffuseMeanFreePath(uint SubsurfaceProfileInt)
 {
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
 	return ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
 }
 
-float GetSubsurfaceProfileWorldUnitScale(FGBufferData GBufferData)
+float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
 {
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
 	return ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
 }
 
@@ -199,26 +190,47 @@ float SampleDepthTexture(float2 ScreenUV)
 	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
 }
 
-
 // fetch surface albedo and diffuse mean free path
 // The diffuse mean free path is modulated by world scale and a custom term passed in
 // which is the opacity texture.
 FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 {
-	FBurleyParameter BurleyParameter;
+	FBurleyParameter Out = (FBurleyParameter)0;
+#if STRATA_ENABLED
+	const bool bUseProfileData = GBuffer.CustomData.y == 0 && GBuffer.CustomData.z == 0;
+	if (GBuffer.ShadingModelID == SHADINGMODELID_STRATA && !bUseProfileData)
+	{
+		// Special data encoding from strata packing
+		const float3 MFPAlebdo			= Pow2(GBuffer.CustomData.xyz);
+		const float  MFPRadius			= GBuffer.CustomData.a * SSS_PROFILE_PERPIXEL_MAXRADIUS;
+		const float3 MFPChromaticRadius = MFPAlebdo * MFPRadius;
 
-	BurleyParameter.SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(GBuffer);
-	float4 DiffuseMeanFreePath = GetSubsurfaceProfileDiffuseMeanFreePath(GBuffer);
-	BurleyParameter.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(DiffuseMeanFreePath);
-	float WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(GBuffer))*BURLEY_CM_2_MM;
-	BurleyParameter.WorldUnitScale = WorldUnitScale;
+		const float MaxAlbedo			= max3(MFPAlebdo.x, MFPAlebdo.y, MFPAlebdo.z);
+		const uint MaxAlbedoComponent	= MFPAlebdo.x == MaxAlbedo ? 0 : (MFPAlebdo.y == MaxAlbedo ? 1 : 2);
 
-	// Mask should always be true, we can probably ignore it?
-	float Mask = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? 1.0f : 0.0f;
-	BurleyParameter.SurfaceOpacity = Mask * GBuffer.CustomData.a;
-	BurleyParameter.DiffuseMeanFreePath *= BurleyParameter.SurfaceOpacity;
+		Out.SurfaceAlbedo		= float4(GBuffer.BaseColor, MaxAlbedoComponent);
+		Out.DiffuseMeanFreePath	= float4(MFPChromaticRadius, max3(MFPChromaticRadius.x, MFPChromaticRadius.y, MFPChromaticRadius.z));
+		Out.WorldUnitScale		= BURLEY_CM_2_MM;
 
-	return BurleyParameter;
+		// Mask should always be true, we can probably ignore it?
+		// STRATA_TODO smooth transistion based on pixel footprint
+		Out.SurfaceOpacity		= MFPRadius > 0 ? 1.f : 0.f;
+	}
+	else
+#endif
+	{
+		uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
+
+		Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+		Out.DiffuseMeanFreePath	= DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
+		Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
+
+		// Mask should always be true, we can probably ignore it?
+		Out.SurfaceOpacity		= UseSubsurfaceProfile(GBuffer.ShadingModelID) ? GBuffer.CustomData.a : 0.0f;
+		Out.DiffuseMeanFreePath*= Out.SurfaceOpacity;
+	}
+
+	return Out;
 }
 
 float2 Generate2DRandomNumber(int3 Seed)
@@ -449,12 +461,11 @@ int GetNumOfSamplesBasedOnQuality(float2 UV)
 	return NumOfSamples;
 }
 
-#define INVALID_PROFILE_ID 256
-// If the shading model is valid, return the profile. Otherwise, return INVALID_PROFILE_ID.
+// If the shading model is valid, return the profile. Otherwise, return SSS_PROFILE_ID_INVALID.
 // That way if we have a valid profile, we can check of the other profile is valid with a single boolean expression.
 uint ExtractSubsurfaceProfileIntWithInvalid(FGBufferData BufferData)
 {
-	uint ProfileID = INVALID_PROFILE_ID;
+	uint ProfileID = SSS_PROFILE_ID_INVALID;
 	if (UseSubsurfaceProfile(BufferData.ShadingModelID))
 	{
 		ProfileID = ExtractSubsurfaceProfileInt(BufferData);
@@ -470,7 +481,7 @@ uint2 ConvertUVPos2Input0GridPos(float2 BufferUV)
 
 uint ExtractSubsurfaceProfileIntWithInvalid(float2 UV,float Depth)
 {
-	uint ProfileID = INVALID_PROFILE_ID;
+	uint ProfileID = SSS_PROFILE_ID_INVALID;
 
 	// the invalid status be determined by the scene depth.
 	if (Depth > 0)
@@ -1011,7 +1022,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 			// Determine the tint color, if the sampling pixel is not subsurface, we use tint color
 			// to mask out the sampling. Unless we specifically want the shadowing region.
 			float3 TintColor = (LocalProfile == SubsurfaceProfileInt) ? 1.0f : BoundaryColorBleed;
-			Mask = (LocalProfile != INVALID_PROFILE_ID) ? 1 : 0;
+			Mask = (LocalProfile != SSS_PROFILE_ID_INVALID) ? 1 : 0;
 
 			// Step 4: accumulate radiance from the diffusion profile rR(r)
 			// make sure the DiffuseMeanFreePath is not zero and in mm.

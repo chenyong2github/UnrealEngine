@@ -37,6 +37,13 @@
 #define HAIR_COMPONENT_MULTISCATTER	0x20u
 #define HAIR_COMPONENT_TT_MODEL  	0x40u
 
+#define SSS_PROFILE_ID_INVALID  256
+#define SSS_PROFILE_ID_PERPIXEL 512
+
+// Max radius for per-pixel sub-surface scattering (non-profile version) in cm
+// Default value give a precision of 0.1mm
+#define SSS_PROFILE_PERPIXEL_MAXRADIUS 25.5f
+
 // for debugging and to visualize
 float3 GetShadingModelColor(uint ShadingModelID)
 {

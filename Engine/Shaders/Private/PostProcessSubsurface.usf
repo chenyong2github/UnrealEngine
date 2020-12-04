@@ -5,6 +5,11 @@
 =============================================================================*/
 
 #include "Common.ush"
+
+#ifndef STRATA_ENABLED
+#define STRATA_ENABLED PROJECT_STRATA
+#endif
+
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "SubsurfaceProfileCommon.ush"
@@ -109,6 +114,9 @@ float GetSubsurfaceStrength(float2 UV)
 // @return .rgb is the weight for color channel, .a is the sample location
 float4 GetSubsurfaceProfileKernel(uint SampleIndex, uint SubsurfaceProfileInt)
 {
+#if STRATA_ENABLED
+	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return float4(1, 1, 1, 1);
+#endif
 	const float4 TableMax = float4(1, 1, 1, SUBSURFACE_KERNEL_SIZE);
 
 	return ActualSSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0)) * TableMax;
@@ -118,7 +126,9 @@ float GetSubsurfaceProfileRadiusScale(FGBufferData GBufferData)
 {
 	// 0..255, which SubSurface profile to pick
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
+#if STRATA_ENABLED
+	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return 1.f;
+#endif
 	return GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, SubsurfaceProfileInt).a;
 }
 
@@ -126,7 +136,9 @@ float3 GetSubsurfaceProfileColor(FGBufferData GBufferData)
 {
 	// 0..255, which SubSurface profile to pick
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
+#if STRATA_ENABLED
+	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return GBufferData.BaseColor;
+#endif
 	return GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt).rgb;
 }
 
@@ -152,7 +164,9 @@ float3 GetSubsurfaceProfileBoundaryColorBleed(FGBufferData GBufferData)
 {
 	// 0..255, which SubSurface profile to pick
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-
+#if STRATA_ENABLED
+	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return float3(1.f, 1.f, 1.f);
+#endif
 	return GetSubsurfaceProfileKernel(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt).rgb;
 }
 
@@ -738,7 +752,16 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 	// combine potentially half res with full res
 	float3 SubsurfaceLighting = lerp(DiffuseAndSpecular.Diffuse, SSSColor, FadedSubsurfaceColor);
 
-	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 0);
+#if STRATA_ENABLED
+	if (ProfileId == SSS_PROFILE_ID_PERPIXEL)
+	{
+		OutColor = float4(SubsurfaceLighting + ExtractedNonSubsurface, 0);
+	}
+	else
+#endif
+	{
+		OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 0);
+	}
 }
 
 void SubsurfaceViewportCopyPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)

@@ -59,10 +59,22 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	FExpressionInput Normal;
 
 	/**
+	 * Mean free path albedo. Only used when no sub-surface profile is provided. (type = float3, unit = unitless)
+	 */
+	UPROPERTY(meta = (DisplayName = "DMFP Albedo"))
+	FExpressionInput DiffuseMeanFreePathAlbedo;
+
+	/**
+	 * Mean free path radius. Only used when no sub-surface profile is provided. (type = float, unit = cm)
+	 */
+	UPROPERTY(meta = (DisplayName = "DMFP Radius"))
+	FExpressionInput DiffuseMeanFreePathRadius;
+
+	/**
 	 * SSS radius scale (type = float, unit = unitless)
 	 */
-	UPROPERTY()
-	FExpressionInput SubsurfaceProfileScale;
+	UPROPERTY(meta = (DisplayName = "DMFP Scale"))
+	FExpressionInput DiffuseMeanFreePathRadiusScale;
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
@@ -76,6 +88,7 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FName GetInputName(int32 InputIndex) const override;
 #endif
 	//~ End UMaterialExpression Interface
 };

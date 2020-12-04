@@ -7483,14 +7483,16 @@ int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 	return OutputCodeChunk;
 }
 
-int32 FHLSLMaterialTranslator::StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 SSSProfileId, int32 SSSProfileRadiusScale, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 SSSProfileId, int32 SSSDMFPScale, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDiffuseBSDF(%s, %s, %s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataDiffuseBSDF(%s, %s, %s, %s, %s, %s, %u) /* %s */"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(SSSProfileId),
-		*GetParameterCode(SSSProfileRadiusScale),
+		*GetParameterCode(SSSDMFPScale),
+		*GetParameterCode(SSSDMFPAlbedo),
+		*GetParameterCode(SSSDMFPRadius),
 		SharedNormalIndex,
 		*GetParameterCode(Normal)
 	);

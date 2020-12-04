@@ -716,7 +716,12 @@ float3 ExtractSubsurfaceColor(FGBufferData BufferData)
 uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 {
 	// can be optimized
+#if STRATA_ENABLED
+	const bool bUseProfileData = BufferData.CustomData.y == 0 && BufferData.CustomData.z == 0;
+	return bUseProfileData ? uint(BufferData.CustomData.r * 255.0f + 0.5f) : SSS_PROFILE_ID_PERPIXEL;
+#else
 	return uint(BufferData.CustomData.r * 255.0f + 0.5f);
+#endif
 }
 
 #if SHADING_PATH_DEFERRED
