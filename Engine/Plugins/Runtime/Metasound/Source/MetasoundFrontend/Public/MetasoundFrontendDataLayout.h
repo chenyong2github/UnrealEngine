@@ -6,7 +6,6 @@
 #include "MetasoundGraph.h"
 #include "MetasoundFrontendDataLayout.generated.h"
 
-
 UENUM()
 enum class EMetasoundClassType : uint8
 {
@@ -173,7 +172,7 @@ struct FMetasoundNodeConnectionDescription
 {
 	GENERATED_BODY()
 
-	static const uint32 DisconnectedNodeID = INDEX_NONE;
+	static constexpr int32 DisconnectedNodeID = INDEX_NONE;
 
 	// Name of the input this connection is for. Should match an input name in the Inputs array of this node's FMetasoundClassDescription.
 	UPROPERTY()
@@ -181,7 +180,7 @@ struct FMetasoundNodeConnectionDescription
 
 	// Unique ID for the node this connection is from.
 	UPROPERTY()
-	uint32 NodeID;
+	int32 NodeID;
 
 	// FMetasoundOutputDescription::Name of the output this connection is from if NodeID is valid,
 	// if FMetasoundNodeConnectionDescription::DisconnectedNodeID.
@@ -200,10 +199,14 @@ struct FMetasoundNodeDescription
 {
 	GENERATED_BODY()
 
+	static constexpr int32 InvalidID = INDEX_NONE;
 
 	// Unique integer given to this node. Only has to be unique within the Nodes array.
 	UPROPERTY()
-	uint32 UniqueID;
+	int32 UniqueID;
+
+	UPROPERTY()
+	int32 DependencyID;
 
 	// This will either match a FMetasoundObjectDescription::Metadata::Name in the Dependencies list of the owning FMetasoundObjectDescription,
 	// Or it will match a FMetasoundInputDescription::Name or FMetasoundOutputDescription::Name, depending on the value of ObjectTypeOfNode.
@@ -271,12 +274,13 @@ struct FMetasoundClassDescription
 {
 	GENERATED_BODY()
 
-	static const uint32 RootClassID = 0;
+	static constexpr int32 RootClassID = 0;
+	static constexpr int32 InvalidID = INDEX_NONE;
 
 	// Unique ID for this FMetasoundClassDescription in FMetasoundDocument::Dependencies.
 	// this will be set to FMetasoundClassDescription::RootClassID for FMetasoundDocument::RootClass.
 	UPROPERTY()
-	uint32 UniqueID;
+	int32 UniqueID;
 
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundClassMetadata Metadata;
@@ -293,7 +297,7 @@ struct FMetasoundClassDescription
 	// If this object is itself of the Metasound type, here we list the unique IDs of other objects it depends on to be built.
 	// These unique IDs are then found in FMetasoundDocument::Dependencies.
 	UPROPERTY()
-	TArray<uint32> DependencyIDs;
+	TArray<int32> DependencyIDs;
 
 	// If this object is itself of the Metasound type, We can fully describe that metasound's graph here.
 	// If this object is a Metasound and this Graph is empty,

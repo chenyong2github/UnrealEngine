@@ -209,8 +209,12 @@ namespace Metasound
 			// for the FNodeHandle, FInputHandle and FOutputHandle, this is a path to the individual node within a Graph description.
 			const FDescPath& InPath;
 
-			// Class name for the graph or node to get a handle for.
-			const FString& InClassName;
+			// Name for the vertex to get a handle for.
+			//const FString& InName;
+
+			// ID for node or class.
+			int32 NodeID;
+			int32 DependencyID;
 
 			// The asset that owns the FMetasoundDocument this handle is associated with.
 			TWeakObjectPtr<UObject> InOwningAsset;
@@ -232,10 +236,13 @@ namespace Metasound
 		public:
 			FOutputHandle() = delete;
 
-			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams, const FString& InOutputName);
+			enum EInputNodeTag { InputNode };
+			enum EDefaultTag { Default };
+
+			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams, const FString& InOutputName, EDefaultTag InTag);
 
 			// Constructor used for the outgoing connection from an input node.
-			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams);
+			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams, const FString& InOutputName, EInputNodeTag InTag);
 
 			~FOutputHandle() = default;
 
@@ -250,7 +257,7 @@ namespace Metasound
 			FName GetOutputType() const;
 			FString GetOutputName() const;
 			FText GetOutputTooltip() const;
-			uint32 GetOwningNodeID() const;
+			int32 GetOwningNodeID() const;
 
 			// @todo: with the current spec, we'd have to scan all nodes in the graph for this output to solve this.
 			// Is this worth it, or should we just require folks to use FInputHandle::GetCurrentlyConnectedOutput()?
@@ -279,11 +286,14 @@ namespace Metasound
 			FInputHandle() = delete;
 			~FInputHandle() = default;
 
+			enum EOutputNodeTag { OutputNode };
+			enum EDefaultTag { Default };
+
 			// Sole constructor for FInputHandle. Can only be used by friend classes for FHandleInitParams.
-			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName);
+			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName, EDefaultTag InTag);
 
 			// constructor used exclusively by output nodes.
-			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams);
+			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName, EOutputNodeTag InTag);
 
 			static FInputHandle InvalidHandle();
 
@@ -356,8 +366,8 @@ namespace Metasound
 			// Otherwise it will return an invalid FGraphHandle.
 			void GetContainedGraph(FGraphHandle& OutGraph);
 
-			uint32 GetNodeID() const;
-			static uint32 GetNodeID(const FDescPath& InNodePath);
+			int32 GetNodeID() const;
+			static int32 GetNodeID(const FDescPath& InNodePath);
 
 			const FString& GetNodeName() const;
 
@@ -372,7 +382,7 @@ namespace Metasound
 			// an externally implemented node, or a metasound graph itself.
 			EMetasoundClassType NodeClassType;
 
-			uint32 NodeID;
+			int32 NodeID;
 		};
 
 		class METASOUNDFRONTEND_API FGraphHandle : protected ITransactable
@@ -389,7 +399,7 @@ namespace Metasound
 				using namespace Path;
 
 				FDescPath PathToGraph = FDescPath()[EFromDocument::ToRootClass][EFromClass::ToGraph];
-				FHandleInitParams InitParams = { InAccessPoint, PathToGraph, InRootMetasoundDocument.RootClass.Metadata.NodeName, MakeWeakObjectPtr(InOwner) };
+				FHandleInitParams InitParams = { InAccessPoint, PathToGraph, INDEX_NONE, InRootMetasoundDocument.RootClass.UniqueID, MakeWeakObjectPtr(InOwner) };
 				return FGraphHandle(FHandleInitParams::PrivateToken, InitParams);
 			}
 
@@ -409,7 +419,7 @@ namespace Metasound
 			void SetEditorData(const FMetasoundEditorData& InEditorData);
 
 			TArray<FNodeHandle> GetAllNodes();
-			FNodeHandle GetNodeWithId(uint32 InNodeId) const;
+			FNodeHandle GetNodeWithId(int32 InNodeId) const;
 			TArray<FNodeHandle> GetOutputNodes();
 			TArray<FNodeHandle> GetInputNodes();
 
@@ -525,10 +535,10 @@ namespace Metasound
 			bool RemoveNodeInternal(const FNodeHandle& InNode);
 
 			// Scans all existing node ids to guarantee a new unique ID.
-			uint32 FindNewUniqueNodeId();
+			int32 FindNewUniqueNodeId();
 
 			// Scans all existing dependency IDs in the root dependency list to guarantee a new unique ID when adding a dependency.
-			uint32 FindNewUniqueDependencyId();
+			int32 FindNewUniqueDependencyId();
 
 			FMetasoundLiteralDescription* GetLiteralDescriptionForInput(const FString& InInputName, FName& OutDataType) const;
 

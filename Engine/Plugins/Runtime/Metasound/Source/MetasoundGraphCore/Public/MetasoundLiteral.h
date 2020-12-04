@@ -143,9 +143,6 @@ namespace Metasound
 		const FString& InNodeName;
 		const FString& InVertexName;
 
-		// the operator settings that we will compile with
-		const FOperatorSettings& InSettings;
-
 		FDataTypeLiteralParam InitParam;
 	};
 

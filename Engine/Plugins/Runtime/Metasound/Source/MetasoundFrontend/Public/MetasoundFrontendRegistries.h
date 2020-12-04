@@ -56,7 +56,6 @@ namespace Metasound
 			FName NodeName;
 
 			// A hash generated from the input types and output types for this node.
-			// TODO: Write up some tests to ensure this is deterministic.
 			uint32 NodeHash = 0;
 
 			FORCEINLINE bool operator==(const FNodeRegistryKey& Other) const

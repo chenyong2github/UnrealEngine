@@ -679,19 +679,194 @@ namespace Metasound
 			}
 		}
 
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext)
+		{
+			switch (InNext.CurrentDescType)
+			{
+				case Path::EDescType::Document:
+				{
+					FDescriptionUnwindStep UnwindStep;
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundDocument*>(&InDocument);
+					UnwindStep.Type = Path::EDescType::Document;
+					return UnwindStep;
+				}
+				case Path::EDescType::Class:
+				{
+					FDescriptionUnwindStep UnwindStep;
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(InDocument.RootClass));
+					UnwindStep.Type = Path::EDescType::Class;
+					return UnwindStep;
+				}
+				case Path::EDescType::DocDependencies:
+				{
+					// The next element in a path after Dependencies will always be the name of the dependency.
+					Path::FElement DependencyElement = InPath.Path[0];
+					InPath.Path.RemoveAt(0);
+					if (!ensureAlwaysMsgf(DependencyElement.CurrentDescType == Path::EDescType::Class, TEXT("Invalid path set up.")))
+					{
+						return FDescriptionUnwindStep::CreateInvalid();
+					}
+
+					FString& DependencyName = DependencyElement.LookupName;
+
+					int32 DependencyID = DependencyElement.LookupID;
+					
+					if (!ensureAlwaysMsgf(DependencyID != INDEX_NONE || DependencyName.Len() > 0, TEXT("Path to a dependency did not include a valid ID or dependency name.")))
+					{
+						return FDescriptionUnwindStep::CreateInvalid();
+					}
+
+					if (DependencyID == FMetasoundClassDescription::RootClassID)
+					{
+						FDescriptionUnwindStep UnwindStep;
+						UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(InDocument.RootClass));
+						UnwindStep.Type = Path::EDescType::Class;
+						return UnwindStep;
+					}
+
+					TArray<FMetasoundClassDescription>& DependenciesList = InDocument.Dependencies;
+
+					// Dependencies can be looked up by ID or by name.
+					if (DependencyID != INDEX_NONE)
+					{
+						// Scan the dependencies list for the matching lookup ID.
+						for (FMetasoundClassDescription& Dependency : DependenciesList)
+						{
+							if (Dependency.UniqueID == DependencyID)
+							{
+								FDescriptionUnwindStep UnwindStep;
+								UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
+								UnwindStep.Type = Path::EDescType::Class;
+								return UnwindStep;
+							}
+						}
+					}
+					else
+					{
+						// TODO: remove this chunk of code in the "else{}" block. Not sure if it has to be here. 
+						checkNoEntry();
+						// fall back to scanning the dependencies list for the matching lookup name.
+						for (FMetasoundClassDescription& Dependency : DependenciesList)
+						{
+							if (Dependency.Metadata.NodeName == DependencyName)
+							{
+								FDescriptionUnwindStep UnwindStep;
+								UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
+								UnwindStep.Type = Path::EDescType::Class;
+								return UnwindStep;
+							}
+						}
+					}
+					
+
+					// If we reached the end of the Dependencies list and didn't find a match, ensure.
+					ensureAlwaysMsgf(false, TEXT("Couldn't find dependency %s in path."), *DependencyName);
+					return FDescriptionUnwindStep::CreateInvalid();
+				}
+			}
+
+			checkNoEntry();
+			return FDescriptionUnwindStep::CreateInvalid();
+		}
+
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromClass(FMetasoundClassDescription& InClassDescription, FDescPath& InPath, const Path::FElement& InNext)
+		{
+			switch (InNext.CurrentDescType)
+			{
+				case Path::EDescType::Graph:
+				{
+					FDescriptionUnwindStep UnwindStep;
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundGraphDescription*>(&(InClassDescription.Graph));
+					UnwindStep.Type = Path::EDescType::Graph;
+					return UnwindStep;
+				}
+				case Path::EDescType::ClassDependencies:
+				{
+					FDescriptionUnwindStep UnwindStep;
+					UnwindStep.DescriptionStructPtr.Set<FClassDependencyIDs*>(&(InClassDescription.DependencyIDs));
+					UnwindStep.Type = Path::EDescType::ClassDependencies;
+					return UnwindStep;
+				}
+				case Path::EDescType::Inputs:
+				{
+					// The next element after an Inputs element should always be the name of an input.
+					Path::FElement InputElement = InPath.Path[0];
+					InPath.Path.RemoveAt(0);
+					if (!ensureAlwaysMsgf(InputElement.CurrentDescType == Path::EDescType::Input, TEXT("Invalid path set up.")))
+					{
+						return FDescriptionUnwindStep::CreateInvalid();
+					}
+
+					FString& InputName = InputElement.LookupName;
+
+					// Scan the inputs list for the lookup name.
+					TArray<FMetasoundInputDescription>& InputsList = InClassDescription.Inputs;
+					for (FMetasoundInputDescription& Input : InputsList)
+					{
+						if (Input.Name == InputName)
+						{
+							FDescriptionUnwindStep UnwindStep;
+							UnwindStep.DescriptionStructPtr.Set<FMetasoundInputDescription*>(&Input);
+							UnwindStep.Type = Path::EDescType::Input;
+							return UnwindStep;
+						}
+					}
+
+					// If we reached the end of the Inputs list and didn't find a match, ensure.
+					ensureAlwaysMsgf(false, TEXT("Couldn't find input %s in path."), *InputName);
+					return FDescriptionUnwindStep::CreateInvalid();
+				}
+				case Path::EDescType::Outputs:
+				{
+					// The next element after an Outputs element should always be the name of an output.
+					Path::FElement OutputElement = InPath.Path[0];
+					InPath.Path.RemoveAt(0);
+					if (!ensureAlwaysMsgf(OutputElement.CurrentDescType == Path::EDescType::Output, TEXT("Invalid path set up.")))
+					{
+						return FDescriptionUnwindStep::CreateInvalid();
+					}
+				
+					FString& OutputName = OutputElement.LookupName;
+
+					// Scan the outputs list for the lookup name.
+					TArray<FMetasoundOutputDescription>& OutputsList = InClassDescription.Outputs;
+					for (FMetasoundOutputDescription& Output : OutputsList)
+					{
+						if (Output.Name == OutputElement.LookupName)
+						{
+							FDescriptionUnwindStep UnwindStep;
+							UnwindStep.DescriptionStructPtr.Set<FMetasoundOutputDescription*>(&Output);
+							UnwindStep.Type = Path::EDescType::Output;
+							return UnwindStep;
+						}
+					}
+
+					// If we reached the end of the Inputs list and didn't find a match, ensure.
+					ensureAlwaysMsgf(false, TEXT("Couldn't find output %s in path."), *InNext.LookupName);
+					return FDescriptionUnwindStep::CreateInvalid();
+				}
+				case Path::EDescType::Metadata:
+				{
+					FDescriptionUnwindStep UnwindStep;
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundClassMetadata*>(&(InClassDescription.Metadata));
+					UnwindStep.Type = Path::EDescType::Metadata;
+
+					return UnwindStep;
+				}
+				default:
+				{
+					ensureAlwaysMsgf(false, TEXT("Invalid path- Tried to path directly from a Class Description to a type that wasn't a direct memember of the Class"));
+					return FDescriptionUnwindStep::CreateInvalid();
+				}
+			}
+		}
+
+
 		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement)
 		{
-			auto InvalidUnwindStep = []() -> FDescriptionUnwindStep
-			{
-				FDescriptionUnwindStep InvalidStep;
-				InvalidStep.DescriptionStructPtr.Set<void*>(nullptr);
-				InvalidStep.Type = Path::EDescType::Invalid;
-				return InvalidStep;
-			};
-
 			if (!ensureMsgf(InPath.Path.Num() != 0, TEXT("Attempted to unwind an empty path.")))
 			{
-				return InvalidUnwindStep();
+				return FDescriptionUnwindStep::CreateInvalid();
 			}
 
 			Path::FElement NextStep = InPath.Path[0];
@@ -703,195 +878,27 @@ namespace Metasound
 				case Path::EDescType::Document:
 				{
 					FMetasoundDocument* Document = InElement.DescriptionStructPtr.Get<FMetasoundDocument*>();
-					switch (NextStep.CurrentDescType)
-					{
-						case Path::EDescType::Document:
-						{
-							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundDocument*>(Document);
-							UnwindStep.Type = Path::EDescType::Document;
-							return UnwindStep;
-						}
-						case Path::EDescType::Class:
-						{
-							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(Document->RootClass));
-							UnwindStep.Type = Path::EDescType::Class;
-							return UnwindStep;
-						}
-						case Path::EDescType::DocDependencies:
-						{
-							// The next element in a path after Dependencies will always be the name of the dependency.
-							Path::FElement DependencyElement = InPath.Path[0];
-							InPath.Path.RemoveAt(0);
-							if (!ensureAlwaysMsgf(DependencyElement.CurrentDescType == Path::EDescType::Class, TEXT("Invalid path set up.")))
-							{
-								return InvalidUnwindStep();
-							}
-
-							FString& DependencyName = DependencyElement.LookupName;
-
-							uint32 DependencyID = DependencyElement.LookupID;
-							
-							if (!ensureAlwaysMsgf(DependencyID != INDEX_NONE || DependencyName.Len() > 0, TEXT("Path to a dependency did not include a valid ID or dependency name.")))
-							{
-								return InvalidUnwindStep();
-							}
-
-							if (DependencyID == FMetasoundClassDescription::RootClassID)
-							{
-								FDescriptionUnwindStep UnwindStep;
-								UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(Document->RootClass));
-								UnwindStep.Type = Path::EDescType::Class;
-								return UnwindStep;
-							}
-
-							TArray<FMetasoundClassDescription>& DependenciesList = Document->Dependencies;
-
-							// Dependencies can be looked up by ID or by name.
-							if (DependencyID != INDEX_NONE)
-							{
-								// Scan the dependencies list for the matching lookup ID.
-								for (FMetasoundClassDescription& Dependency : DependenciesList)
-								{
-									if (Dependency.UniqueID == DependencyID)
-									{
-										FDescriptionUnwindStep UnwindStep;
-										UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
-										UnwindStep.Type = Path::EDescType::Class;
-										return UnwindStep;
-									}
-								}
-							}
-							else
-							{
-								// fall back to scanning the dependencies list for the matching lookup name.
-								for (FMetasoundClassDescription& Dependency : DependenciesList)
-								{
-									if (Dependency.Metadata.NodeName == DependencyName)
-									{
-										FDescriptionUnwindStep UnwindStep;
-										UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
-										UnwindStep.Type = Path::EDescType::Class;
-										return UnwindStep;
-									}
-								}
-							}
-							
-
-							// If we reached the end of the Dependencies list and didn't find a match, ensure.
-							ensureAlwaysMsgf(false, TEXT("Couldn't find dependency %s in path."), *DependencyName);
-							return InvalidUnwindStep();
-						}
-					}
+					return GoToNextFromDocument(*Document, InPath, NextStep);
 					break;
 				}
 				case Path::EDescType::Class:
 				{
 					FMetasoundClassDescription* ClassDescription = InElement.DescriptionStructPtr.Get<FMetasoundClassDescription*>();
-					switch (NextStep.CurrentDescType)
-					{
-						case Path::EDescType::Graph:
-						{
-							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundGraphDescription*>(&(ClassDescription->Graph));
-							UnwindStep.Type = Path::EDescType::Graph;
-							return UnwindStep;
-						}
-						case Path::EDescType::ClassDependencies:
-						{
-							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FClassDependencyIDs*>(&(ClassDescription->DependencyIDs));
-							UnwindStep.Type = Path::EDescType::ClassDependencies;
-							return UnwindStep;
-						}
-						case Path::EDescType::Inputs:
-						{
-							// The next element after an Inputs element should always be the name of an input.
-							Path::FElement InputElement = InPath.Path[0];
-							InPath.Path.RemoveAt(0);
-							if (!ensureAlwaysMsgf(InputElement.CurrentDescType == Path::EDescType::Input, TEXT("Invalid path set up.")))
-							{
-								return InvalidUnwindStep();
-							}
-
-							FString& InputName = InputElement.LookupName;
-
-							// Scan the inputs list for the lookup name.
-							TArray<FMetasoundInputDescription>& InputsList = ClassDescription->Inputs;
-							for (FMetasoundInputDescription& Input : InputsList)
-							{
-								if (Input.Name == InputName)
-								{
-									FDescriptionUnwindStep UnwindStep;
-									UnwindStep.DescriptionStructPtr.Set<FMetasoundInputDescription*>(&Input);
-									UnwindStep.Type = Path::EDescType::Input;
-									return UnwindStep;
-								}
-							}
-
-							// If we reached the end of the Inputs list and didn't find a match, ensure.
-							ensureAlwaysMsgf(false, TEXT("Couldn't find input %s in path."), *InputName);
-							return InvalidUnwindStep();
-						}
-						case Path::EDescType::Outputs:
-						{
-							// The next element after an Outputs element should always be the name of an output.
-							Path::FElement OutputElement = InPath.Path[0];
-							InPath.Path.RemoveAt(0);
-							if (!ensureAlwaysMsgf(OutputElement.CurrentDescType == Path::EDescType::Output, TEXT("Invalid path set up.")))
-							{
-								return InvalidUnwindStep();
-							}
-						
-							FString& OutputName = OutputElement.LookupName;
-
-							// Scan the outputs list for the lookup name.
-							TArray<FMetasoundOutputDescription>& OutputsList = ClassDescription->Outputs;
-							for (FMetasoundOutputDescription& Output : OutputsList)
-							{
-								if (Output.Name == OutputElement.LookupName)
-								{
-									FDescriptionUnwindStep UnwindStep;
-									UnwindStep.DescriptionStructPtr.Set<FMetasoundOutputDescription*>(&Output);
-									UnwindStep.Type = Path::EDescType::Output;
-									return UnwindStep;
-								}
-							}
-
-							// If we reached the end of the Inputs list and didn't find a match, ensure.
-							ensureAlwaysMsgf(false, TEXT("Couldn't find output %s in path."), *NextStep.LookupName);
-							return InvalidUnwindStep();
-						}
-						case Path::EDescType::Metadata:
-						{
-							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundClassMetadata*>(&(ClassDescription->Metadata));
-							UnwindStep.Type = Path::EDescType::Metadata;
-
-							return UnwindStep;
-						}
-						default:
-						{
-							ensureAlwaysMsgf(false, TEXT("Invalid path- Tried to path directly from a Class Description to a type that wasn't a direct memember of the Class"));
-							return InvalidUnwindStep();
-						}
-					}
-
+					return GoToNextFromClass(*ClassDescription, InPath, NextStep);
 					break;
 				}
 				case Path::EDescType::Graph:
 				{
 					if (!ensureAlwaysMsgf(NextStep.CurrentDescType == Path::EDescType::Nodes, TEXT("Invalid path. the Graph description only contains the Nodes list.")))
 					{
-						return InvalidUnwindStep();
+						return FDescriptionUnwindStep::CreateInvalid();
 					}
 
 					FMetasoundGraphDescription* GraphDescription = InElement.DescriptionStructPtr.Get<FMetasoundGraphDescription*>();
 				
 					if (!ensureAlwaysMsgf(InPath.Path.Num() != 0, TEXT("Incomplete path! path stopped at Nodes list without specifying a node ID.")))
 					{
-						return InvalidUnwindStep();
+						return FDescriptionUnwindStep::CreateInvalid();
 					}
 
 					Path::FElement NodeElement = InPath.Path[0];
@@ -899,10 +906,10 @@ namespace Metasound
 
 					if (!ensureAlwaysMsgf(NodeElement.CurrentDescType == Path::EDescType::Node, TEXT("Invalid path! a Nodes element must always be followed by a Node ID.")))
 					{
-						return InvalidUnwindStep();
+						return FDescriptionUnwindStep::CreateInvalid();
 					}
 				
-					uint32 NodeID = NodeElement.LookupID;
+					int32 NodeID = NodeElement.LookupID;
 
 					TArray<FMetasoundNodeDescription>& NodeList = GraphDescription->Nodes;
 					for (FMetasoundNodeDescription& Node : NodeList)
@@ -920,12 +927,12 @@ namespace Metasound
 				case Path::EDescType::Inputs:
 				{
 					ensureAlwaysMsgf(false, TEXT("Invalid path. Inputs will always be pathed directly after a Class."));
-					return InvalidUnwindStep();
+					return FDescriptionUnwindStep::CreateInvalid();
 				}
 				case Path::EDescType::DocDependencies:
 				{
 					ensureAlwaysMsgf(false, TEXT("Invalid path. Document dependencies should always follow after a Document and should always list a specific dependency by ID or name."));
-					return InvalidUnwindStep();
+					return FDescriptionUnwindStep::CreateInvalid();
 				}
 				case Path::EDescType::Input:
 				case Path::EDescType::Output:
@@ -934,13 +941,13 @@ namespace Metasound
 				default:
 				{
 					ensureAlwaysMsgf(false, TEXT("Invalid path. Input, Output, Node, and Metadata don't have any child elements."));
-					return InvalidUnwindStep();
+					return FDescriptionUnwindStep::CreateInvalid();
 				}
 			}
 
 			// if we ever hit this, we likely missed a return on one of these branches.
 			checkNoEntry();
-			return InvalidUnwindStep();
+			return FDescriptionUnwindStep::CreateInvalid();
 		}
 
 		FDescPath Path::GetPathToClassForNode(FDescPath InPathForNode, FString& InNodeName)
@@ -967,17 +974,7 @@ namespace Metasound
 			return InPathForGraph;
 		}
 
-		Metasound::Frontend::FDescPath Path::GetClassDescription(const FString& InClassName)
-		{
-			return FDescPath()[Path::EFromDocument::ToDependencies][*InClassName];
-		}
-
-		FDescPath Path::GetDependencyPath(const FString& InDependencyName)
-		{
-			return FDescPath()[Path::EFromDocument::ToDependencies][*InDependencyName];
-		}
-
-		FDescPath Path::GetDependencyPath(uint32 InDependencyID)
+		FDescPath Path::GetDependencyPath(int32 InDependencyID)
 		{
 			return FDescPath()[Path::EFromDocument::ToDependencies][InDependencyID];
 		}

@@ -60,7 +60,7 @@ Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle() cons
 	using EFromClass = Metasound::Frontend::Path::EFromClass;
 
 	FDescPath PathToGraph = FDescPath()[EFromDocument::ToRootClass][EFromClass::ToGraph];
-	FHandleInitParams InitParams = { GetGraphAccessPoint(), PathToGraph, GetDocument().RootClass.Metadata.NodeName, MakeWeakObjectPtr(GetOwningAsset()) };
+	FHandleInitParams InitParams = { GetGraphAccessPoint(), PathToGraph, INDEX_NONE, GetDocument().RootClass.UniqueID, MakeWeakObjectPtr(GetOwningAsset()) };
 	return FGraphHandle(GetPrivateToken(), InitParams);
 }
 
@@ -83,7 +83,7 @@ TArray<Metasound::Frontend::FGraphHandle> FMetasoundAssetBase::GetAllSubgraphHan
 		if (bIsSubgraph)
 		{
 			FDescPath SubgraphPath = RootPathForDependencyGraphs[Dependency.UniqueID][EFromClass::ToGraph];
-			FHandleInitParams InitParams = { GetGraphAccessPoint(), SubgraphPath, Dependency.Metadata.NodeName, MakeWeakObjectPtr(GetOwningAsset()) };
+			FHandleInitParams InitParams = { GetGraphAccessPoint(), SubgraphPath, INDEX_NONE, Dependency.UniqueID, MakeWeakObjectPtr(GetOwningAsset()) };
 			OutArray.Emplace(GetPrivateToken(), InitParams);
 		}
 	}

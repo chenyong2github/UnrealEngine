@@ -193,15 +193,15 @@ namespace Metasound
 			{
 				EDescType CurrentDescType;
 				
-				// This is only used if EDescType is Inputs, Outputs, or Dependencies.
+				// This is only used if EDescType is Inputs or Outputs
 				FString LookupName;
 
-				// This is only used if EDescType == Node.
-				uint32 LookupID;
+				// This is only used if EDescType == Node or Dependencies
+				int32 LookupID;
 
 				FElement()
 					: CurrentDescType(EDescType::Invalid)
-					, LookupID(INDEX_NONE)
+					, LookupID(FMetasoundNodeDescription::InvalidID)
 				{}
 			};
 		}
@@ -365,7 +365,7 @@ namespace Metasound
 				return NewPath;
 			}
 
-			FDescPath operator[](uint32 InElement) const
+			FDescPath operator[](int32 InElement) const
 			{
 				if (!ensureAlwaysMsgf(Path.Num() > 0, TEXT("Tried to append to a path that had no root.")))
 				{
@@ -383,16 +383,19 @@ namespace Metasound
 				}
 
 				Path::FElement NewElement = Path::FElement();
+				NewElement.LookupID = InElement;
 
 				if (LastElementInPath.CurrentDescType == Path::EDescType::Nodes)
 				{
 					NewElement.CurrentDescType = Path::EDescType::Node;
-					NewElement.LookupID = InElement;
 				}
 				else if (LastElementInPath.CurrentDescType == Path::EDescType::ClassDependencies)
 				{
 					NewElement.CurrentDescType = Path::EDescType::DocDependencies;
-					NewElement.LookupID = InElement;
+				}
+				else if (LastElementInPath.CurrentDescType == Path::EDescType::DocDependencies)
+				{
+					NewElement.CurrentDescType = Path::EDescType::Class;
 				}
 
 				NewPath.Path.Add(NewElement);
@@ -416,8 +419,8 @@ namespace Metasound
 				{
 					case Path::EDescType::DocDependencies:
 					{
-						NewElement.CurrentDescType = Path::EDescType::Class;
-						NewElement.LookupName = FString(InElementName);
+						ensureAlwaysMsgf(false, TEXT("Invalid path set up. DocDependencies for are accessed by using a int32."));
+						return FDescPath();
 						break;
 					}
 					case Path::EDescType::Inputs:
@@ -440,17 +443,17 @@ namespace Metasound
 						return FDescPath();
 						break;
 					}
-					/** Dependencies for individual classes are navigated to via a uint32. */
+					/** Dependencies for individual classes are navigated to via a int32. */
 					case Path::EDescType::ClassDependencies:
 					{
-						ensureAlwaysMsgf(false, TEXT("Invalid path set up. Dependencies for individual classes are accessed by using a uint32."));
+						ensureAlwaysMsgf(false, TEXT("Invalid path set up. Dependencies for individual classes are accessed by using a int32."));
 						return FDescPath();
 						break;;
 					}
-					/** Node list descriptions are navigated via a uint32. */
+					/** Node list descriptions are navigated via a int32. */
 					case Path::EDescType::Nodes:
 					{
-						ensureAlwaysMsgf(false, TEXT("Invalid path set up. Node lists are accessed by using a uint32."));
+						ensureAlwaysMsgf(false, TEXT("Invalid path set up. Node lists are accessed by using a int32."));
 						return FDescPath();
 						break;
 					}
@@ -497,11 +500,7 @@ namespace Metasound
 			// Returns a path for whatever class description encapsulates the given graph.
 			FDescPath GetOwningClassDescription(FDescPath InPathForGraph);
 			
-			FDescPath GetClassDescription(const FString& InClassName);
-
-			FDescPath GetDependencyPath(const FString& InDependencyName);
-
-			FDescPath GetDependencyPath(uint32 InDependencyID);
+			FDescPath GetDependencyPath(int32 InDependencyID);
 
 			// Given the path to an input node, returns the path to the corresponding  input description.
 			FDescPath GetInputDescriptionPath(FDescPath InPathForInputNode, const FString& InputName);
@@ -514,7 +513,7 @@ namespace Metasound
 			FString GetPrintableString(FDescPath InPath);
 		}
 
-		using FClassDependencyIDs = TArray<uint32>;
+		using FClassDependencyIDs = TArray<int32>;
 
 		/**
 		 * Utility class that lives alongside a FMetasoundClassDescription to allow it's individual elements to be safely read and edited.
@@ -602,7 +601,21 @@ namespace Metasound
 			{
 				FMetasoundDescriptionPtr DescriptionStructPtr;
 				Path::EDescType Type;
+
+				// TODO: make some simple constructors for this so we don't have
+				// to manually fill out info each time. 
+
+				static FDescriptionUnwindStep CreateInvalid()
+				{
+					FDescriptionUnwindStep InvalidStep;
+					InvalidStep.DescriptionStructPtr.Set<void*>(nullptr);
+					InvalidStep.Type = Path::EDescType::Invalid;
+					return InvalidStep;
+				}
 			};
+
+			FDescriptionUnwindStep GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext);
+			FDescriptionUnwindStep GoToNextFromClass(FMetasoundClassDescription& InClass, FDescPath& InPath, const Path::FElement& InNext);
 
 			// This function pops off elements of InPath to go to the next level down in a Metasound description.
 			FDescriptionUnwindStep GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement);
