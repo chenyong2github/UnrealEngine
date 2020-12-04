@@ -1414,8 +1414,9 @@ public:
 		ActiveFPLB->EndFastPathLoadBuffer = AllExportDataPtr + AllExportDataSize;
 	}
 
-	void ExportBufferBegin(uint64 InExportCookedFileSerialOffset, uint64 InExportSerialSize)
+	void ExportBufferBegin(UObject* Object, uint64 InExportCookedFileSerialOffset, uint64 InExportSerialSize)
 	{
+		CurrentExport = Object;
 		CookedSerialOffset = InExportCookedFileSerialOffset;
 		BufferSerialOffset = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
 		CookedSerialSize = InExportSerialSize;
@@ -1423,6 +1424,7 @@ public:
 
 	void ExportBufferEnd()
 	{
+		CurrentExport = nullptr;
 		CookedSerialOffset = 0;
 		BufferSerialOffset = 0;
 		CookedSerialSize = 0;
@@ -1503,17 +1505,18 @@ public:
 
 	FORCENOINLINE void HandleBadExportIndex(int32 ExportIndex, UObject*& Object)
 	{
-		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadExportIndex"),
-			TEXT("Index: %d/%d"), ExportIndex, Exports.Num());
+		UE_ASYNC_PACKAGE_LOG(Fatal, *PackageDesc, TEXT("ObjectSerializationError"),
+			TEXT("%s: Bad export index %d/%d."),
+			CurrentExport ? *CurrentExport->GetFullName() : TEXT("null"), ExportIndex, Exports.Num());
 
 		Object = nullptr;
 	}
 
 	FORCENOINLINE void HandleBadImportIndex(int32 ImportIndex, UObject*& Object)
 	{
-		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadImportIndex"),
-			TEXT("ImportIndex: %d/%d"), ImportIndex, ImportStore->ImportMap.Num());
-
+		UE_ASYNC_PACKAGE_LOG(Fatal, *PackageDesc, TEXT("ObjectSerializationError"),
+			TEXT("%s: Bad import index %d/%d."),
+			CurrentExport ? *CurrentExport->GetFullName() : TEXT("null"), ImportIndex, ImportStore->ImportMap.Num());
 		Object = nullptr;
 	}
 
@@ -1586,9 +1589,9 @@ public:
 
 	FORCENOINLINE void HandleBadNameIndex(int32 NameIndex, FName& Name)
 	{
-		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadNameIndex"),
-			TEXT("Index: %d/%d"), NameIndex, NameMap->Num());
-
+		UE_ASYNC_PACKAGE_LOG(Fatal, *PackageDesc, TEXT("ObjectSerializationError"),
+			TEXT("%s: Bad name index %d/%d."),
+			CurrentExport ? *CurrentExport->GetFullName() : TEXT("null"), NameIndex, NameMap->Num());
 		Name = FName();
 		SetCriticalError();
 	}
@@ -1621,6 +1624,7 @@ private:
 	const FNameMap* NameMap = nullptr;
 	TArrayView<const FExportObject> Exports;
 	const FExportMapEntry* ExportMap = nullptr;
+	UObject* CurrentExport;
 	uint32 CookedHeaderSize = 0;
 	uint64 CookedSerialOffset = 0;
 	uint64 CookedSerialSize = 0;
@@ -3593,21 +3597,23 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 				check(Package->CurrentExportDataPtr + CookedSerialSize <= Package->IoBuffer.Data() + Package->IoBuffer.DataSize());
 				check(Object || Export.bFiltered || Export.bExportLoadFailed);
 
-				Ar.ExportBufferBegin(ExportMapEntry.CookedSerialOffset, ExportMapEntry.CookedSerialSize);
+				Ar.ExportBufferBegin(Object, ExportMapEntry.CookedSerialOffset, ExportMapEntry.CookedSerialSize);
 
 				const int64 Pos = Ar.Tell();
-				checkf(CookedSerialSize <= uint64(Ar.TotalSize() - Pos),
-					TEXT("Package %s: Expected read size: %llu - Remaining archive size: %llu"),
-					*Package->Desc.DiskPackageName.ToString(), CookedSerialSize, uint64(Ar.TotalSize() - Pos));
+				UE_ASYNC_PACKAGE_CLOG(
+					CookedSerialSize > uint64(Ar.TotalSize() - Pos), Fatal, Package->Desc, TEXT("ObjectSerializationError"),
+					TEXT("%s: Serial size mismatch: Expected read size %d, Remaining archive size: %d"),
+					Object ? *Object->GetFullName() : TEXT("null"), CookedSerialSize, uint64(Ar.TotalSize() - Pos));
 
 				const bool bSerialized = Package->EventDrivenSerializeExport(BundleEntry->LocalExportIndex, Ar);
 				if (!bSerialized)
 				{
 					Ar.Skip(CookedSerialSize);
 				}
-				checkf(CookedSerialSize == uint64(Ar.Tell() - Pos),
-					TEXT("Package %s: Expected read size: %llu - Actual read size: %llu"),
-					*Package->Desc.DiskPackageName.ToString(), CookedSerialSize, uint64(Ar.Tell() - Pos));
+				UE_ASYNC_PACKAGE_CLOG(
+					CookedSerialSize != uint64(Ar.Tell() - Pos), Fatal, Package->Desc, TEXT("ObjectSerializationError"),
+					TEXT("%s: Serial size mismatch: Expected read size %d, Actual read size %d"),
+					Object ? *Object->GetFullName() : TEXT("null"), CookedSerialSize, uint64(Ar.Tell() - Pos));
 
 				Ar.ExportBufferEnd();
 
