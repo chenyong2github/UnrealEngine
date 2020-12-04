@@ -228,8 +228,6 @@ struct FShaderMaterialDerivedDefines
 	bool WRITES_PRECSHADOWFACTOR_ZERO;
 	bool WRITES_PRECSHADOWFACTOR_TO_GBUFFER;
 
-	bool MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT;
-
 	// If a primitive has static lighting, we assume it is not moving. If it is, it will be rerendered in an extra renderpass.
 	bool SUPPORTS_WRITING_VELOCITY_TO_BASE_PASS;
 	bool WRITES_VELOCITY_TO_GBUFFER;
