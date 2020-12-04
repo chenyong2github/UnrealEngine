@@ -693,6 +693,13 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 		{
 			continue;
 		}
+
+		// ignore those that are rapid iteration parameters as those will be read in directly from the cbuffer
+		if (FNiagaraParameterMapHistory::IsRapidIterationParameter(Var))
+		{
+			continue;
+		}
+
 		UniqueVariables.AddUnique(Var);
 	}
 
@@ -5072,7 +5079,8 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 		bool bIsDataInterface = InVariable.GetType().IsDataInterface();
 		const FString* EmitterAlias = ActiveHistoryForFunctionCalls.GetEmitterAlias();
 		bool bIsPerInstanceBulkSystemParam = IsBulkSystemScript() && !bIsDataInterface && (FNiagaraParameterMapHistory::IsUserParameter(InVariable) || FNiagaraParameterMapHistory::IsPerInstanceEngineParameter(InVariable, EmitterAlias != nullptr ? *EmitterAlias : TEXT("Emitter")));
-
+		const bool bIsExternalConstantParameter = FNiagaraParameterMapHistory::IsRapidIterationParameter(InVariable);
+		
 		if (!bIsPerInstanceBulkSystemParam)
 		{
 			int32 UniformChunk = 0;
@@ -5138,12 +5146,20 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 				UniformChunk = SystemVar.ChunkIndex;
 			}
 			
-			bool bUseSimulationStages = (GetUsesOldShaderStages() || GetUsesSimulationStages());
-			// Avoid overriding the register indices
-			if ((bUseSimulationStages && !FNiagaraParameterMapHistory::IsInNamespace(InVariable, PARAM_MAP_INDICES_STR)) || !bUseSimulationStages)
+			if (bIsExternalConstantParameter)
 			{
-				//Add this separately as the same uniform can appear in the pre sim chunks more than once in different param maps.
-				PerStageMainPreSimulateChunks[ActiveStageIdx].AddUnique(FString::Printf(TEXT("%s.%s = %s;"), *ParameterMapInstanceName, *GetSanitizedSymbolName(VarName), *GetCodeAsSource(UniformChunk)));
+				Output = UniformChunk;
+				return true;
+			}
+			else
+			{
+				bool bUseSimulationStages = (GetUsesOldShaderStages() || GetUsesSimulationStages());
+				// Avoid overriding the register indices
+				if ((bUseSimulationStages && !FNiagaraParameterMapHistory::IsInNamespace(InVariable, PARAM_MAP_INDICES_STR)) || !bUseSimulationStages)
+				{
+					//Add this separately as the same uniform can appear in the pre sim chunks more than once in different param maps.
+					PerStageMainPreSimulateChunks[ActiveStageIdx].AddUnique(FString::Printf(TEXT("%s.%s = %s;"), *ParameterMapInstanceName, *GetSanitizedSymbolName(VarName), *GetCodeAsSource(UniformChunk)));
+				}
 			}
 		}
 		else if (bIsPerInstanceBulkSystemParam && !ExternalVariablesForBulkUsage.Contains(InVariable))
@@ -6870,8 +6886,6 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 			bool bStageMaxFilter = false;
 			FString MinParam;
 			FString MaxParam;
-			FString MinParamSpawn;
-			FString MaxParamSpawn;
 
 			const bool UseSimulationStages = ((GetUsesOldShaderStages() || GetUsesSimulationStages())) && CompilationTarget == ENiagaraSimTarget::GPUComputeSim;
 			const bool UseOldShaderStages = GetUsesOldShaderStages() && CompilationTarget == ENiagaraSimTarget::GPUComputeSim;
@@ -6928,14 +6942,14 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 								{
 									if (Var.GetName().ToString().Contains(TEXT("MinStage")))
 									{
-										MinParam = TEXT("Context.MapUpdate.Constants.Emitter.") + Var.GetName().ToString();
-										MinParamSpawn = TEXT("Context.MapSpawn.Constants.Emitter.") + Var.GetName().ToString();
+										MinParam = TEXT("Constants_Emitter_") + Var.GetName().ToString();
+										MinParam.ReplaceInline(TEXT("."), TEXT("_"));
 										bStageMinFilter = true;
 									}
 									if (Var.GetName().ToString().Contains(TEXT("MaxStage")))
 									{
-										MaxParam = TEXT("Context.MapUpdate.Constants.Emitter.") + Var.GetName().ToString();
-										MaxParamSpawn = TEXT("Context.MapSpawn.Constants.Emitter.") + Var.GetName().ToString();
+										MaxParam = TEXT("Constants_Emitter_") + Var.GetName().ToString();
+										MaxParam.ReplaceInline(TEXT("."), TEXT("_"));
 										bStageMaxFilter = true;
 									}
 								}
@@ -7002,9 +7016,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 					{
 						if (bStageMinFilter && bStageMaxFilter)
 						{
-							FunctionBody.Body += TEXT("if ((GCurrentPhase == GUpdatePhase && SimulationStageIndex >= ") + MinParam + TEXT(" && SimulationStageIndex <= ") + MaxParam + TEXT(") || ") +
-								TEXT("(GCurrentPhase == GSpawnPhase && SimulationStageIndex >= ") + MinParamSpawn + TEXT(" && SimulationStageIndex <= ") + MaxParamSpawn + TEXT(")") +
-								TEXT(")\n{\n");
+							FunctionBody.Body += TEXT("if (SimulationStageIndex >= ") + MinParam + TEXT(" && SimulationStageIndex <= ") + MaxParam + TEXT(")\n{\n");
 						}
 						else
 						{
