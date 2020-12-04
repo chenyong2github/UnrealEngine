@@ -323,7 +323,7 @@ void InstanceCullVSM(
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 					{
-						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+						FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
 						bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, TargetMipLevel, PrevRect );
 					}
 				}

@@ -3355,6 +3355,7 @@ void CullRasterize(
 
 			MipView.ViewSizeAndInvSize = FVector4(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
 			MipView.ViewRect = FIntVector4(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y);
+			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM
 
 			float RcpExtXY = 1.0f / FVirtualShadowMap::VirtualMaxResolutionXY;
 			if( GNaniteClusterPerPage )

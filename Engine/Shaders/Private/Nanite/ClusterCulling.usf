@@ -351,7 +351,7 @@ void PersistentHierarchicalCull(
 				if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 				{
 					#if VIRTUAL_TEXTURE_TARGET
-						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+						FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
 						bVisible = bSkipSphereCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
 					#else
 						// TODO Add prev view size to NaniteView
@@ -602,7 +602,7 @@ void CandidateCullInner(
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 		{
 			#if VIRTUAL_TEXTURE_TARGET
-				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+				FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
 				bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
 			#else
 				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
