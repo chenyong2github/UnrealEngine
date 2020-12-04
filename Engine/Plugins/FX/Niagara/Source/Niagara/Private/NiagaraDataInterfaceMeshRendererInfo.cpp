@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceMeshRendererInfo.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
@@ -5,6 +6,7 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
+#include "Engine\StaticMesh.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceMeshRendererInfo"
 
