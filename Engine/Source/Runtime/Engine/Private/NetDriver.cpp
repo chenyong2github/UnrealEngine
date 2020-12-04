@@ -184,6 +184,80 @@ namespace NetEmulationHelper
 #endif //#if DO_ENABLE_NET_TEST
 }
 
+namespace NetDriverInternal
+{
+	struct FAutoDestructProperty
+	{
+		FProperty* Property = nullptr;
+		void* LocalParameters = nullptr;
+
+		FAutoDestructProperty(FProperty* InProp, void* InLocalParams) 
+			: Property(InProp)
+			, LocalParameters(InLocalParams)
+		{
+			check(Property->HasAnyPropertyFlags(CPF_OutParm));
+		}
+
+		FAutoDestructProperty(FAutoDestructProperty&& rhs)
+			: Property(rhs.Property)
+			, LocalParameters(rhs.LocalParameters)
+		{
+			rhs.Property = nullptr;
+			rhs.LocalParameters = nullptr;
+		}
+
+		~FAutoDestructProperty()
+		{
+			if (Property)
+			{
+				Property->DestroyValue_InContainer(LocalParameters);
+			}
+		}
+	};
+
+	TArray<NetDriverInternal::FAutoDestructProperty> CopyOutParametersToLocalParameters(UFunction* Function, FOutParmRec* OutParms, void* LocalParms, UObject* TargetObj)
+	{
+		TArray<NetDriverInternal::FAutoDestructProperty> CopiedProperties;
+
+		// Look for CPF_OutParm's, we'll need to copy these into the local parameter memory manually
+		// The receiving side will pull these back out when needed
+		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) == CPF_Parm; ++It)
+		{
+			if (It->HasAnyPropertyFlags(CPF_OutParm))
+			{
+				if (OutParms == nullptr)
+				{
+					UE_LOG(LogNet, Warning, TEXT("Missing OutParms. Property: %s, Function: %s, Actor: %s"), *It->GetName(), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
+					continue;
+				}
+
+				FOutParmRec* Out = OutParms;
+
+				checkSlow(Out);
+
+				while (Out->Property != *It)
+				{
+					Out = Out->NextOutParm;
+					checkSlow(Out);
+				}
+
+				void* Dest = It->ContainerPtrToValuePtr<void>(LocalParms);
+
+				const int32 CopySize = It->ElementSize * It->ArrayDim;
+
+				check(((uint8*)Dest - (uint8*)LocalParms) + CopySize <= Function->ParmsSize);
+
+				It->CopyCompleteValue(Dest, Out->PropAddr);
+
+				CopiedProperties.Emplace(*It, LocalParms);
+			}
+		}
+
+		return CopiedProperties;
+	}
+
+} //namespace NetDriverInternal
+
 #if UE_BUILD_SHIPPING
 #define DEBUG_REMOTEFUNCTION(Format, ...)
 #else
@@ -2147,43 +2221,10 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
 
-	TArray<FProperty*> LocalOutParms;
-
+	TArray<NetDriverInternal::FAutoDestructProperty> LocalOutParms;
 	if (Stack == nullptr)
 	{
-		// Look for CPF_OutParm's, we'll need to copy these into the local parameter memory manually
-		// The receiving side will pull these back out when needed
-		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm|CPF_ReturnParm))==CPF_Parm; ++It)
-		{
-			if (It->HasAnyPropertyFlags(CPF_OutParm))
-			{
-				if (OutParms == nullptr)
-				{
-					UE_LOG(LogNet, Warning, TEXT("Missing OutParms. Property: %s, Function: %s, Actor: %s"), *It->GetName(), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
-					continue;
-				}
-
-				FOutParmRec* Out = OutParms;
-
-				checkSlow(Out);
-
-				while (Out->Property != *It)
-				{
-					Out = Out->NextOutParm;
-					checkSlow(Out);
-				}
-
-				void* Dest = It->ContainerPtrToValuePtr<void>(Parms);
-
-				const int32 CopySize = It->ElementSize * It->ArrayDim;
-
-				check(((uint8*)Dest - (uint8*)Parms) + CopySize <= Function->ParmsSize);
-
-				It->CopyCompleteValue(Dest, Out->PropAddr);
-
-				LocalOutParms.Add(*It);
-			}
-		}
+		LocalOutParms = NetDriverInternal::CopyOutParametersToLocalParameters(Function, OutParms, Parms, TargetObj);
 	}
 
 	bool LogAsWarning = (GNetRPCDebug == 1);
@@ -2264,13 +2305,6 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			HeaderBits = Ch->WriteContentBlockPayload(TargetObj, Bunch, false, TempBlockWriter);
 
 			UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBlockWriter));
-		}
-
-		// Destroy the memory used for the copied out parameters
-		for (int32 i=0; i < LocalOutParms.Num(); i++)
-		{
-			check(LocalOutParms[i]->HasAnyPropertyFlags(CPF_OutParm));
-			LocalOutParms[i]->DestroyValue_InContainer(Parms);
 		}
 
 		// Send the bunch.
