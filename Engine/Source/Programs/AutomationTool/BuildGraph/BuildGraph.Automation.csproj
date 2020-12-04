@@ -81,6 +81,7 @@
     <Compile Include="Tasks\AgeStoreTask.cs" />
     <Compile Include="Tasks\CommandletTask.cs" />
     <Compile Include="Tasks\CsCompileTask.cs" />
+    <Compile Include="Tasks\ModifyJsonValue.cs" />
     <Compile Include="Tasks\MoveTask.cs" />
     <Compile Include="Tasks\MsBuildTask.cs" />
     <Compile Include="Tasks\SanitizeReceiptTask.cs" />
