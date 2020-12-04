@@ -208,7 +208,8 @@ void AActor::DestroyConstructedComponents()
 				FName const NewObjectName = MakeUniqueObjectName(this, GetClass(), NewBaseName);
 				Component->Rename(*NewObjectName.ToString(), this, REN_ForceNoResetLoaders|REN_DontCreateRedirectors|REN_NonTransactional|REN_DoNotDirty);
 
-				bMarkPackageDirty = true;
+				// Transient actors should never mark the package as dirty
+				bMarkPackageDirty = !HasAnyFlags(RF_Transient);
 			}
 		}
 	}
