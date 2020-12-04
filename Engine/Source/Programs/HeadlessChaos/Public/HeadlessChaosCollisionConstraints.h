@@ -27,7 +27,6 @@ class FPBDCollisionConstraintAccessor
 public:
 	using FCollisionConstraints = FPBDCollisionConstraints;
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;
-	using FMultiPointContactConstraint = FRigidBodyMultiPointContactConstraint;
 	using FPointContactConstraint = FRigidBodyPointContactConstraint;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDCollisionConstraints>;
 	using FConstraintHandleID = TPair<const TGeometryParticleHandle<FReal, 3>*, const TGeometryParticleHandle<FReal, 3>*>;
@@ -54,6 +53,9 @@ public:
 	void ComputeConstraints(FReal Dt)
 	{
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(&SpatialAcceleration);
+		CollisionDetector.GetNarrowPhase().GetContext().bFilteringEnabled = true;
+		CollisionDetector.GetNarrowPhase().GetContext().bDeferUpdate = false;
+		CollisionDetector.GetNarrowPhase().GetContext().bAllowManifolds = false;
 		CollisionDetector.DetectCollisions(Dt);
 	}
 
@@ -62,18 +64,6 @@ public:
 		if (Constraint.GetType() == FPointContactConstraint::StaticType())
 		{
 			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance, 1/30.0f);
-		}
-		else if(Constraint.GetType() == FMultiPointContactConstraint::StaticType())
-		{
-			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance, 1/30.0f);
-		}
-	}
-
-	void UpdateManifold(FCollisionConstraintBase& Constraint, FReal CullDistance = FReal(0))
-	{
-		if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
-		{
-			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance);
 		}
 	}
 

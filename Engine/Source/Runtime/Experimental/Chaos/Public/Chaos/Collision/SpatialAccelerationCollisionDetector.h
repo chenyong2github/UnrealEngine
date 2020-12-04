@@ -31,7 +31,6 @@ namespace Chaos
 				return;
 			}
 
-			CollisionContainer.UpdateManifolds(Dt);
 			CollisionContainer.UpdateConstraints(Dt);
 
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> Receiver -[serial]-> Container

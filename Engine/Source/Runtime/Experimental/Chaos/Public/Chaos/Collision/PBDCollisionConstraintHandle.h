@@ -56,9 +56,6 @@ namespace Chaos
 		const FRigidBodySweptPointContactConstraint& GetSweptPointContact() const;
 		FRigidBodySweptPointContactConstraint& GetSweptPointContact();
 
-		const FRigidBodyMultiPointContactConstraint& GetMultiPointContact() const;
-		FRigidBodyMultiPointContactConstraint& GetMultiPointContact();
-
 		typename FCollisionConstraintBase::FType GetType() const { return ConstraintType; }
 
 		void SetConstraintIndex(int32 IndexIn, typename FCollisionConstraintBase::FType InType)

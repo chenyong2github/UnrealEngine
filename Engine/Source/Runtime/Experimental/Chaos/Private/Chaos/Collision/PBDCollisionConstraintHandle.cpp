@@ -18,13 +18,11 @@ namespace Chaos
 		{
 			return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
 		}
-		else if (GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+		else
 		{
+			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
 			return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 		}
-
-		check(GetType() == FCollisionConstraintBase::FType::MultiPoint);
-		return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
 	}
 
 	FCollisionConstraintBase& FPBDCollisionConstraintHandle::GetContact()
@@ -33,13 +31,11 @@ namespace Chaos
 		{
 			return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
 		}
-		else if (GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+		else
 		{
+			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
 			return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 		}
-
-		check(GetType() == FCollisionConstraintBase::FType::MultiPoint);
-		return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
 	}
 
 	const FRigidBodyPointContactConstraint& FPBDCollisionConstraintHandle::GetPointContact() const
@@ -64,18 +60,6 @@ namespace Chaos
 	{
 		check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
 		return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
-	}
-
-	const FRigidBodyMultiPointContactConstraint& FPBDCollisionConstraintHandle::GetMultiPointContact() const
-	{
-		check(GetType() == FCollisionConstraintBase::FType::MultiPoint);
-		return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
-	}
-	
-	FRigidBodyMultiPointContactConstraint& FPBDCollisionConstraintHandle::GetMultiPointContact()
-	{
-		check(GetType() == FCollisionConstraintBase::FType::MultiPoint);
-		return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
 	}
 
 }

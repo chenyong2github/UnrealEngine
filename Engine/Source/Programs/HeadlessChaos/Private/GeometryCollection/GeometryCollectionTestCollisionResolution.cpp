@@ -527,25 +527,25 @@ namespace GeometryCollectionTest
 
 		UnitTest.Initialize();
 
-		for (int i = 0; i < 40; i++)
+		for (int i = 0; i < 10; i++)
 		{
 			UnitTest.Advance();
 		}
 		{
-			// Expected resting distance depends on the collision solver implementation. The current implementation uses PushOut
-			// to set distance to 0 (see CollisionSolver.cpp ApplyPushOutManifold()), but real PBD would leave the distance at G.dt.dt
-			// Note: This is set to the true PBD distance for now until zero restitution bouncing is fixed
-			const FReal ExpectedRestingDistance = 0.0f; // True for manifold solver
-			//const FReal ExpectedRestingDistance = UnitTest.Solver->GetEvolution()->GetGravityForces().GetAcceleration().Size() * UnitTest.Dt * UnitTest.Dt;	// Non-manifold version
+			// Expected resting distance depends on the collision solver implementation.
+			const FReal ExpectedRestingDistance = 0.0f;
+			//const FReal ExpectedRestingDistance = UnitTest.Solver->GetEvolution()->GetGravityForces().GetAcceleration().Size() * UnitTest.Dt * UnitTest.Dt;
 
+			// The error in the resting distance depends on the number of pushout iterations, which is very low by default
+			const FReal RestingDistanceTolerance = 1.0f;
 
 			// validate the tetahedron collides and moved away from the static floor
 			FVec3 RestTranslation = Collection->RestCollection->Transform[0].GetTranslation();
 			FVec3 DynamicTranslation = Collection->DynamicCollection->Transform[0].GetTranslation();
 			EXPECT_EQ(RestTranslation.Z, 0.f);
-			EXPECT_NEAR(FMath::Abs(DynamicTranslation.X), 0.f, 0.01f);
-			EXPECT_NEAR(FMath::Abs(DynamicTranslation.Y), 0.f, 0.01f);
-			EXPECT_NEAR(DynamicTranslation.Z, -10.f + ExpectedRestingDistance, 0.1f);
+			EXPECT_NEAR(FMath::Abs(DynamicTranslation.X), 0.f, RestingDistanceTolerance);
+			EXPECT_NEAR(FMath::Abs(DynamicTranslation.Y), 0.f, RestingDistanceTolerance);
+			EXPECT_NEAR(DynamicTranslation.Z, -10.f + ExpectedRestingDistance, RestingDistanceTolerance);
 		}
 	}
 

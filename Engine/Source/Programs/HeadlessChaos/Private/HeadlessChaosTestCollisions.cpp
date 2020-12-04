@@ -168,11 +168,15 @@ namespace ChaosTest {
 
 		{
 			INVARIANT_XR_START(Box);
-			Collisions.Apply(Dt, { Collisions.GetConstraintHandle(0) }, 0, 1);
+			const int32 NumIts = 1;
+			for (int32 It = 0; It < NumIts; ++It)
+			{
+				Collisions.Apply(Dt, { Collisions.GetConstraintHandle(0) }, It, NumIts);
+			}
 			INVARIANT_XR_END(Box);
 		}
 
-		// 0 restitution so expecting 0 velocity
+		// Velocity is below the restitution threshold, so expecting 0 velocity despite the fact that restitution is 1
 		EXPECT_TRUE(Box->V().Equals(TVector<T, 3>(0)));
 		EXPECT_TRUE(Box->W().Equals(TVector<T, 3>(0)));
 
@@ -181,13 +185,16 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
+				const int32 NumIts = 10;
+				for (int32 It = 0; It < NumIts; ++It)
+				{
+					Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), It, NumIts);
+				}
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
 		}
-		EXPECT_TRUE(Box->P().Equals(FVector(0.f, 1.f, 0.5f)));
-		EXPECT_TRUE(Box->Q().Equals(FQuat::Identity));
+		EXPECT_NEAR(Box->P().Z, 0.5f, 1.e-2f);
 	}
 	template void CollisionBoxPlane<float>();
 
@@ -226,10 +233,9 @@ namespace ChaosTest {
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		FRigidBodyMultiPointContactConstraint * Constraint = Collisions.GetConstraint(0).template As<FRigidBodyMultiPointContactConstraint>();
+		FRigidBodyPointContactConstraint * Constraint = Collisions.GetConstraint(0).template As<FRigidBodyPointContactConstraint>();
 		EXPECT_TRUE(Constraint != nullptr);
 
-		//Collisions.UpdateManifold(*Constraint);
 		Collisions.Update(*Constraint);
 
 		EXPECT_EQ(Constraint->Particle[0], Box);
@@ -253,7 +259,11 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
+				const int32 NumIts = 10;
+				for (int32 It = 0; It < NumIts; ++It)
+				{
+					Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), It, NumIts);
+				}
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -327,14 +337,17 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
+				const int32 NumIts = 10;
+				for (int32 It = 0; It < NumIts; ++It)
+				{
+					Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), It, NumIts);
+				}
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
 		}
 
-		EXPECT_TRUE(Box->P().Equals(FVector(0.f, 1.f, 0.5f)));
-		EXPECT_TRUE(Box->Q().Equals(FQuat::Identity));
+		EXPECT_TRUE(FVec3::IsNearlyEqual(Box->P(), FVector(0.f, 1.f, 0.5f), 1.e-2f));
 	}
 	template void CollisionBoxPlaneZeroResitution<float>();
 
@@ -399,13 +412,17 @@ namespace ChaosTest {
 			RESET_PQ(Box);
 			{
 				INVARIANT_XR_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
+				const int32 NumIts = 10;
+				for (int32 It = 0; It < NumIts; ++It)
+				{
+					Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), It, NumIts);
+				}
 				INVARIANT_XR_END(Box);
 			}
 		}
 
 		//for push out velocity is unimportant, so expecting simple pop out
-		EXPECT_TRUE(Box->P().Equals(FVector(0.f, 0.f, 0.5f)));
+		EXPECT_TRUE(FVec3::IsNearlyEqual(Box->P(), FVector(0.f, 0.f, 0.5f), 1.e-2f));
 		EXPECT_TRUE(Box->Q().Equals(FQuat::Identity));
 	}
 	template void CollisionBoxPlaneRestitution<float>();
@@ -546,13 +563,17 @@ namespace ChaosTest {
 
 		RESET_PQ(Box2);
 		{
-			INVARIANT_XR_START(Box2);
-			INVARIANT_XR_START(StaticBox);
-			INVARIANT_VW_START(Box2);
-			Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
-			INVARIANT_XR_END(Box2);
-			INVARIANT_XR_END(StaticBox);
-			INVARIANT_VW_END(Box2);
+			//INVARIANT_XR_START(Box2);
+			//INVARIANT_XR_START(StaticBox);
+			//INVARIANT_VW_START(Box2);
+			const int32 NumIts = 10;
+			for (int32 It = 0; It < NumIts; ++It)
+			{
+				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), It, NumIts);
+			}
+			//INVARIANT_XR_END(Box2);
+			//INVARIANT_XR_END(StaticBox);
+			//INVARIANT_VW_END(Box2);
 		}
 
 		EXPECT_FALSE(Box2->P().Equals(StartingPoint)); // moved

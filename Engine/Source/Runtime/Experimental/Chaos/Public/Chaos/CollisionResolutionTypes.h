@@ -53,6 +53,13 @@ namespace Chaos
 		NumShapesTypes
 	};
 
+	enum class CHAOS_API EContactManifoldType
+	{
+		None,			// No manifold - run collision detection whenever we need latest contact
+		OneShot,		// A manifold is created once and reused. The manifold consists of a plane attached to one shape and a set of points on the other
+		Incremental,	// Run collision detection whenever we need the latest contact point, but keep track of and match contact points
+	};
+
 	//
 	//
 	//
