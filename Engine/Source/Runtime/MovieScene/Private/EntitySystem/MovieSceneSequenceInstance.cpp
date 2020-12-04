@@ -33,6 +33,9 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 	, InstanceHandle(InInstanceHandle)
 	, RootInstanceHandle(InstanceHandle)
 {
+	// Root instances always start in a finished state in order to ensure that 'Start'
+	// is called correctly for the top level instance. This is subtly different from
+	// bHasEverUpdated since a sequence instance can be Finished and restarted multiple times
 	bFinished = true;
 	bHasEverUpdated = false;
 
@@ -52,7 +55,9 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 	, InstanceHandle(InInstanceHandle)
 	, RootInstanceHandle(InRootInstanceHandle)
 {
-	bFinished = true;
+	// Sub Sequence instances always start in a non-finished state because they will only ever
+	// be created if they are active, and the Start/Update/Finish loop does not apply to sub-instances
+	bFinished = false;
 	bHasEverUpdated = false;
 
 	FMovieSceneObjectCache& ObjectCache = Player->State.GetObjectCache(SequenceID);
@@ -194,18 +199,27 @@ void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 
 	Ledger = FEntityLedger();
 
+	IMovieScenePlayer* Player = IMovieScenePlayer::Get(PlayerIndex);
+	if (!ensure(Player))
+	{
+		return;
+	}
+
 	if (SequenceUpdater)
 	{
-		SequenceUpdater->Finish(Linker, InstanceHandle, GetPlayer());
+		SequenceUpdater->Finish(Linker, InstanceHandle, Player);
 	}
 
 	if (LegacyEvaluator)
 	{
-		IMovieScenePlayer* Player = IMovieScenePlayer::Get(PlayerIndex);
-		if (ensure(Player))
-		{
-			LegacyEvaluator->Finish(*Player);
-		}
+		LegacyEvaluator->Finish(*Player);
+	}
+
+	if (IsRootSequence())
+	{
+		FMovieSceneSpawnRegister& SpawnRegister = Player->GetSpawnRegister();
+		SpawnRegister.ForgetExternallyOwnedSpawnedObjects(Player->State, *Player);
+		SpawnRegister.CleanUp(*Player);
 	}
 }
 

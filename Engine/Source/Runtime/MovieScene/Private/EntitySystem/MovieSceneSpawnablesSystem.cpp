@@ -37,7 +37,13 @@ struct FSpawnTrackPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
 			{
-				Player.GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, Player);
+				if (!Player.GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, Player))
+				{
+					// This branch should only be taken for Externally owned spawnables that have been 'forgotten',
+					// but still had RestoreState tokens generated for them (ie, in FSequencer, or if bRestoreState is enabled)
+					// on a UMovieSceneSequencePlayer
+					Player.GetSpawnRegister().DestroyObjectDirectly(InObject);
+				}
 			}
 		};
 		
@@ -174,8 +180,20 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 		if (ensure(InstanceRegistry->IsHandleValid(InstanceHandle)))
 		{
 			const FSequenceInstance& Instance = InstanceRegistry->GetInstance(InstanceHandle);
-
 			IMovieScenePlayer* Player = Instance.GetPlayer();
+
+			// If the sequence instance has finished and it is a sub sequence, we do not destroy the spawnable
+			// if it is owned by the master sequence or externally. These will get destroyed or forgotten by the player when it ends
+			if (Instance.HasFinished() && Instance.IsSubSequence())
+			{
+				const UMovieSceneSequence* Sequence = Player->State.FindSequence(Instance.GetSequenceID());
+				FMovieSceneSpawnable* Spawnable = Sequence ? Sequence->GetMovieScene()->FindSpawnable(SpawnableObjectID) : nullptr;
+				if (!Spawnable || Spawnable->GetSpawnOwnership() != ESpawnOwnership::InnerSequence)
+				{
+					return;
+				}
+			}
+
 			Player->GetSpawnRegister().DestroySpawnedObject(SpawnableObjectID, Instance.GetSequenceID(), *Player);
 		}
 	};
