@@ -156,7 +156,8 @@ TSharedPtr<SWidget> FPropertyWidgetGenerator::GenerateWidgetForProperty_Internal
 	}
 	else if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
-		if (UObject* Object = ObjectProperty->GetObjectPropertyValue(ValuePtr))
+		UObject* Object = ObjectProperty->GetObjectPropertyValue(ValuePtr);
+		if (Object->IsValidLowLevel())
 		{
 			return MakeComboBoxWithSelection(Object->GetName(), ToolTipText);
 		}
@@ -239,26 +240,30 @@ bool FPropertyWidgetGenerator::ArePropertyValuesEqual_Internal(FProperty* Proper
 		UObject* ObjectA = ObjectProperty->GetObjectPropertyValue(ValuePtrA);
 		UObject* ObjectB = ObjectProperty->GetObjectPropertyValue(ValuePtrB);
 
-		if (!ObjectA)
+		if (ObjectA != nullptr && ObjectA->IsValidLowLevel())
 		{
-			if (!ObjectB)
+			if (ObjectB != nullptr && ObjectB->IsValidLowLevel())
 			{
-				return true;
+				// Both objects valid, verify names
+				return ObjectA->GetName() == ObjectB->GetName();
 			}
-			else
+			else 
 			{
+				// A valid, B invalid
 				return false;
 			}
 		}
 		else
 		{
-			if (!ObjectB)
+			if (ObjectB != nullptr && ObjectB->IsValidLowLevel())
 			{
+				// A invalid, B valid
 				return false;
 			}
-			else // Both are valid
+			else 
 			{
-				return ObjectA->GetName() == ObjectB->GetName();
+				// Both are invalid
+				return true;
 			}
 		}
 	}
