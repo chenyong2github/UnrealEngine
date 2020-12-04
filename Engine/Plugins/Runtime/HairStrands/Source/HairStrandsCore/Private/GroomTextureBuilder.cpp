@@ -102,7 +102,8 @@ static void RasterToTexture(int32 Resolution, int32 KernelExtent, uint32 Channel
 	const uint32 CurveCount = InStrandsData.GetNumCurves();
 	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
-		const FVector2D& RootUV = InStrandsData.StrandsCurves.CurvesRootUV[CurveIndex];
+		FVector2D RootUV = InStrandsData.StrandsCurves.CurvesRootUV[CurveIndex];
+		RootUV.Y = FMath::Clamp(1.f - RootUV.Y, 0.f, 1.f);
 
 		const FIntPoint RootCoord(
 			FMath::Clamp(int32(RootUV.X * Resolution), 0, Resolution - 1),
