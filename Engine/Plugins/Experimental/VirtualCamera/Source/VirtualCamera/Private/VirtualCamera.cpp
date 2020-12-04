@@ -33,7 +33,7 @@ private:
 		ConcertManager = MakeUnique<FConcertVirtualCameraManager>();
 
 		// Loads widgets (ex. RadialSlider) that are potentially referenced by assets
-		FModuleManager::Get().GetModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
+		FModuleManager::Get().LoadModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
 	}
 
 	virtual void ShutdownModule() override
