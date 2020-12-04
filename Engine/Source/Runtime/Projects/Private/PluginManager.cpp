@@ -958,7 +958,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			// Mount all the enabled plugins
 			ParallelFor(PluginsArray.Num(), [&PluginsArray, &ConfigCS, &PluginPakCS, this](int32 Index)
 			{
-				FString PlaformName = FPlatformProperties::PlatformName();
+				FString PlatformName = FPlatformProperties::PlatformName();
 				FPlugin& Plugin = *PluginsArray[Index];
 				UE_LOG(LogPluginManager, Log, TEXT("Mounting plugin %s"), *Plugin.GetName());
 
@@ -977,7 +977,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					SourceConfigDir = PluginConfigDir;
 				}
 
-				FString PluginConfigFilename = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), *Plugin.Name);
+				FString PluginConfigFilename = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), *PlatformName, *Plugin.Name);
 				FPaths::MakeStandardFilename(PluginConfigFilename); // This needs to match what we do in ConfigCacheIni.cpp's GetDestIniFilename method. Otherwise, the hash results will differ and the plugin's version will be overwritten later.
 				{
 					FScopeLock Locker(&ConfigCS);
@@ -1001,22 +1001,21 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					for (const FString& ConfigFile : PluginConfigs)
 					{
 						// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
-						PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlaformName, *FPaths::GeneratedConfigDir());
-						FConfigFile* FoundConfig;
+						PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlatformName, *FPaths::GeneratedConfigDir());
 						{
 							FScopeLock Locker(&ConfigCS);
-							FoundConfig = GConfig->Find(PluginConfigFilename, false);
-						}
-						if (FoundConfig != nullptr)
-						{
-							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
+							FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename, false);
+							if (FoundConfig != nullptr)
+							{
+								UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
 
-							FoundConfig->AddDynamicLayerToHeirarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
+								FoundConfig->AddDynamicLayerToHeirarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
-							// Don't allow plugins to stomp command line overrides
-							FConfigFile::OverrideFromCommandline(FoundConfig, PluginConfigFilename);
+								// Don't allow plugins to stomp command line overrides, so re-apply them
+								FConfigFile::OverrideFromCommandline(FoundConfig, PluginConfigFilename);
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+							}
 						}
 					}
 				}
