@@ -1223,7 +1223,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Calls p4 and returns the output.
 		/// </summary>
-		/// <param name="Output">Output of the comman.</param>
+		/// <param name="Output">Output of the command.</param>
 		/// <param name="CommandLine">Commandline for p4.</param>
 		/// <param name="Input">Stdin input.</param>
 		/// <param name="AllowSpew">Whether the command should spew.</param>
@@ -3571,17 +3571,18 @@ namespace AutomationTool
 		/// Gets the contents of a particular file in the depot and writes it to a local file without syncing it
 		/// </summary>
 		/// <param name="DepotPath">Depot path to the file (with revision/range if necessary)</param>
-		/// <param name="OutputFileName">Output file to write to</param>
+		/// <param name="FileName">Output file to write to</param>
+		/// <param name="AllowSpew">If true, any output from p4.exe will be logged.</param>
 		public void PrintToFile(string DepotPath, string FileName, bool AllowSpew = true)
 		{
 			string Output;
 			if(!P4Output(out Output, "print -q -o \"" + FileName + "\" " + DepotPath, AllowSpew: AllowSpew, WithClient: false))
 			{
-				throw new AutomationException("p4 print {0} failed", DepotPath);
+				throw new AutomationException("p4 print {0} failed{1}{2}", DepotPath, Environment.NewLine, Output);
 			}
 			if(!Output.Trim().Contains("\n") && Output.Contains("no such file(s)"))
 			{
-				throw new AutomationException("p4 print {0} failed", DepotPath);
+				throw new AutomationException("p4 print {0} failed{1}{2}", DepotPath, Environment.NewLine, Output);
 			}
 		}
 
