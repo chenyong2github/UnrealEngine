@@ -93,7 +93,8 @@ void UNiagaraDataInterfaceAudioPlayer::PostInitProperties()
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
+		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
 	}
 }
 

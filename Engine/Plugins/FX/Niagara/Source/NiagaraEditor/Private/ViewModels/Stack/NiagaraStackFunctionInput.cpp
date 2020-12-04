@@ -1759,9 +1759,45 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewReadParameters(TArray<FName>
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 
+	TArray<FName> Namespaces;
 	FNiagaraStackGraphUtilities::GetNamespacesForNewReadParameters(
 		bIsEditingSystem ? FNiagaraStackGraphUtilities::EStackEditContext::System : FNiagaraStackGraphUtilities::EStackEditContext::Emitter,
-		OutputNode->GetUsage(), OutNamespacesForNewParameters);
+		OutputNode->GetUsage(), Namespaces);
+
+	for (FName Namespace : Namespaces)
+	{
+		// Check the registry to make sure a new parameter of the type expected can be created in this namespace
+		if (Namespace == FNiagaraConstants::UserNamespace)
+		{
+			if (!FNiagaraTypeRegistry::GetRegisteredUserVariableTypes().Contains(InputType))
+			{
+				continue;
+			}
+		}
+		else if (Namespace == FNiagaraConstants::SystemNamespace)
+		{
+			if (!FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes().Contains(InputType))
+			{
+				continue;
+			}
+		}
+		else if (Namespace == FNiagaraConstants::EmitterNamespace)
+		{
+			if (!FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes().Contains(InputType))
+			{
+				continue;
+			}
+		}
+		else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+		{
+			if (!FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes().Contains(InputType))
+			{
+				continue;
+			}
+		}
+
+		OutNamespacesForNewParameters.Add(Namespace);
+	}
 }
 
 void UNiagaraStackFunctionInput::GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const

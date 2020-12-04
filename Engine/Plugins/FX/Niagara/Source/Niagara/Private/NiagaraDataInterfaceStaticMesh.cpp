@@ -829,10 +829,17 @@ void UNiagaraDataInterfaceStaticMesh::PostInitProperties()
 	//Can we register data interfaces as regular types and fold them into the FNiagaraVariable framework for UI and function calls etc?
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
+		ENiagaraTypeRegistryFlags DIFlags =
+			ENiagaraTypeRegistryFlags::AllowAnyVariable |
+			ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), DIFlags);
 
 		//Still some issues with using custom structs. Convert node for example throws a wobbler. TODO after GDC.
-		FNiagaraTypeRegistry::Register(FMeshTriCoordinate::StaticStruct(), true, true, false);
+		ENiagaraTypeRegistryFlags CoordFlags =
+			ENiagaraTypeRegistryFlags::AllowAnyVariable |
+			ENiagaraTypeRegistryFlags::AllowParameter |
+			ENiagaraTypeRegistryFlags::AllowPayload;
+		FNiagaraTypeRegistry::Register(FMeshTriCoordinate::StaticStruct(), CoordFlags);
 	}
 }
 

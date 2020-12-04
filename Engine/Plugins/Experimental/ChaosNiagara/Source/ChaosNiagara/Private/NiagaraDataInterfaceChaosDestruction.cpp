@@ -152,8 +152,16 @@ void UNiagaraDataInterfaceChaosDestruction::PostInitProperties()
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
-		FNiagaraTypeRegistry::Register(FChaosDestructionEvent::StaticStruct(), true, true, false);
+		ENiagaraTypeRegistryFlags DIFlags =
+			ENiagaraTypeRegistryFlags::AllowAnyVariable |
+			ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), DIFlags);
+
+		ENiagaraTypeRegistryFlags EventFlags =
+			ENiagaraTypeRegistryFlags::AllowAnyVariable |
+			ENiagaraTypeRegistryFlags::AllowParameter |
+			ENiagaraTypeRegistryFlags::AllowPayload;
+		FNiagaraTypeRegistry::Register(FChaosDestructionEvent::StaticStruct(), EventFlags);
 	}
 
 	LastSpawnedPointID = -1;

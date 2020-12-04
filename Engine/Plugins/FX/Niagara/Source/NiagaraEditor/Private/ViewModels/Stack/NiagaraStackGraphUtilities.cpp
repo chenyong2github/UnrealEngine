@@ -1697,7 +1697,29 @@ void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraE
 
 void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes, FName Namespace)
 {
-	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+	TConstArrayView<FNiagaraTypeDefinition> ParamTypes;
+	if (Namespace == FNiagaraConstants::UserNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredUserVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::SystemNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::EmitterNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes());
+	}
+	else
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParameterTypes());
+	}
+
+	for (const FNiagaraTypeDefinition& RegisteredParameterType : ParamTypes)
 	{
 		//Object types only allowed in user namespace at the moment.
 		if (RegisteredParameterType.IsUObject() && RegisteredParameterType.IsDataInterface() == false && Namespace != FNiagaraConstants::UserNamespace)
