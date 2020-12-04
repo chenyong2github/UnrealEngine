@@ -2878,48 +2878,87 @@ namespace AutomationTool
 		/// <summary>
 		/// Code signs the specified file or folder
 		/// </summary>
-		public static void SignMacFileOrFolder(string InPath, bool bIgnoreExtension = false)
+		public static void SignMacFileOrFolder(string InPath, bool bIgnoreExtension = false, string NotarizationEntitlements = null)
 		{
 			TimeSpan CodeSignTimeOut = new TimeSpan(0, 3, 0); // Keep trying to sign one file for up to 3 minutes
-
-			bool bExists = CommandUtils.FileExists(InPath) || CommandUtils.DirectoryExists(InPath);
+			bool bIsDirectory = CommandUtils.DirectoryExists(InPath);
+			bool bExists = CommandUtils.FileExists(InPath) || bIsDirectory;
 			if (!bExists)
 			{
 				throw new AutomationException("Can't sign '{0}', file or folder does not exist.", InPath);
 			}
 
+			if (string.IsNullOrEmpty(NotarizationEntitlements))
+			{
+				string EntitlementsPath = Path.Combine(Path.GetDirectoryName(InPath), "Notarization.entitlements");
+				if (File.Exists(EntitlementsPath))
+				{
+					NotarizationEntitlements = EntitlementsPath;
+				}
+			}
+
+			if (bIsDirectory && !InPath.EndsWith(".app/Contents/_CodeSignature"))
+			{
+				DirectoryReference PathRef = new DirectoryReference(InPath);
+				foreach (DirectoryReference DirRef in DirectoryReference.EnumerateDirectories(PathRef, "*", SearchOption.TopDirectoryOnly))
+				{
+					SignMacFileOrFolder(DirRef.FullName, bIgnoreExtension, NotarizationEntitlements);
+				}
+
+				foreach (FileReference FileRef in DirectoryReference.EnumerateFiles(PathRef, "*", SearchOption.TopDirectoryOnly))
+				{
+					if (FileRef.GetExtension() == ".dylib" || FileRef.GetExtension() == ".so")
+					{
+						SignMacFileOrFolder(FileRef.FullName, bIgnoreExtension, NotarizationEntitlements);
+					}
+				}
+			}
+
 			// Executable extensions
 			List<string> Extensions = new List<string>();
 			Extensions.Add(".dylib");
+			Extensions.Add(".so");
 			Extensions.Add(".app");
 			Extensions.Add(".framework");
 
-			bool IsExecutable = bIgnoreExtension || (Path.GetExtension(InPath) == "" && !InPath.EndsWith("PkgInfo"));
+			bool bIsExecutable = bIgnoreExtension || (!bIsDirectory && Path.GetExtension(InPath) == "" && !InPath.EndsWith("PkgInfo"));
 
 			foreach (var Ext in Extensions)
 			{
 				if (InPath.EndsWith(Ext, StringComparison.InvariantCultureIgnoreCase))
 				{
-					IsExecutable = true;
+					bIsExecutable = true;
 					break;
 				}
 			}
-			if (!IsExecutable)
+			if (!bIsExecutable)
 			{
-				CommandUtils.LogLog(String.Format("Won't sign '{0}', not an executable.", InPath));
+				if (!bIsDirectory)
+				{
+					CommandUtils.LogLog(String.Format("Won't sign '{0}', not an executable.", InPath));
+				}
 				return;
 			}
 
 			// Use the old codesigning tool after the upgrade due to segmentation fault on Sierra
 			string SignToolName = "/usr/local/bin/codesign_old";
-			
-			// unless it doesn't exist, then use the Sierra one.
-			if(!File.Exists(SignToolName))
+
+			// unless it doesn't exist or we're codesigning for notarization, then use the latest one.
+			if (!File.Exists(SignToolName) || !string.IsNullOrEmpty(NotarizationEntitlements))
 			{
 				SignToolName = "/usr/bin/codesign";
 			}
 
-			string CodeSignArgs = String.Format("-f --deep -s \"{0}\" -v \"{1}\" --no-strict", "Developer ID Application", InPath);
+
+			string CodeSignArgs;
+			if (string.IsNullOrEmpty(NotarizationEntitlements))
+			{
+				CodeSignArgs = String.Format("-f --deep -s \"{0}\" -v \"{1}\" --no-strict", "Developer ID Application", InPath);
+			}
+			else
+			{
+				CodeSignArgs = String.Format("-f --deep -s \"{0}\" -o runtime --entitlements \"{1}\" -v \"{2}\" --timestamp --no-strict", "Developer ID Application", NotarizationEntitlements, InPath);
+			}
 
 			DateTime StartTime = DateTime.Now;
 

@@ -97,6 +97,7 @@
     <Compile Include="Tasks\CookTask.cs" />
     <Compile Include="Tasks\CopyTask.cs" />
     <Compile Include="Tasks\DeleteTask.cs" />
+    <Compile Include="Tasks\NotarizeTask.cs" />
     <Compile Include="Tasks\SignTask.cs" />
     <Compile Include="Tasks\StageTask.cs" />
     <Compile Include="Tasks\StripTask.cs" />
