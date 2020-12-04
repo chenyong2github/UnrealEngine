@@ -67,7 +67,7 @@ static const FString& GetSkeletalMeshDerivedDataVersion()
 	return CachedVersionString;
 }
 
-static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh)
+FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh)
 {
 	FString KeySuffix(TEXT(""));
 
@@ -116,6 +116,7 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 		KeySuffix += TEXT("0zzzzzzzzzzzzzzzz");
 	}
 
+	IMeshBuilderModule::GetForPlatform(TargetPlatform).AppendToDDCKey(KeySuffix);
 	const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
 	KeySuffix += bUnlimitedBoneInfluences ? "1" : "0";
 
@@ -135,11 +136,6 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 {
 	check(Owner);
 
-	if (Owner->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
-	{
-		// Don't cache for cooked packages, source data will not be present
-		return;
-	}
 
 	check(LODRenderData.Num() == 0); // Should only be called on new, empty RenderData
 
@@ -147,7 +143,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 	{
 		COOK_STAT(auto Timer = SkeletalMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
-		FString DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
+		DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
@@ -330,6 +326,10 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 					Ar << LODModel->MeshToImportVertexMap;
 				}
 			}
+
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
+
+			MeshBuilderModule.PostBuildSkeletalMesh(this, Owner);
 
 			//Serialize the render data
 			Serialize(Ar, Owner);

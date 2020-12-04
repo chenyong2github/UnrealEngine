@@ -1504,6 +1504,12 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				}
 			}
 
+			if (LODModel.RayTracingData.Num())
+			{
+				Initializer.OfflineData = &LODModel.RayTracingData;
+				Initializer.bDiscardOfflineData = false; // The RayTracingData can be used for multiple SkeletalMeshObjects , so we need to keep it around
+			}
+
 			RayTracingGeometry.SetInitializer(Initializer);
 			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Immediate);
 		}
