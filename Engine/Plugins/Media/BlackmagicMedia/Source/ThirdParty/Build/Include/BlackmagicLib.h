@@ -98,6 +98,8 @@ namespace BlackmagicDesign
 
 		EFieldDominance FieldDominance;
 		FBlackmagicVideoFormat DisplayMode; // Unique identifier that represent all that combination for the device
+
+		bool operator==(FFormatInfo& Other) const;
 	};
 
 	/* FChannelInfo definition

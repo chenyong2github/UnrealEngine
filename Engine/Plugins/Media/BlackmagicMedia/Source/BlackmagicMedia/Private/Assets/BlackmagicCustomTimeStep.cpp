@@ -253,6 +253,23 @@ bool UBlackmagicCustomTimeStep::Initialize(class UEngine* InEngine)
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.CallbackPriority = 1;
 	ChannelOptions.FormatInfo.DisplayMode = MediaConfiguration.MediaMode.DeviceModeIdentifier;
+	ChannelOptions.FormatInfo.FrameRateNumerator = MediaConfiguration.MediaMode.FrameRate.Numerator;
+	ChannelOptions.FormatInfo.FrameRateDenominator = MediaConfiguration.MediaMode.FrameRate.Denominator;
+
+	switch (MediaConfiguration.MediaMode.Standard)
+	{
+	case EMediaIOStandardType::Interlaced:
+		ChannelOptions.FormatInfo.FieldDominance = BlackmagicDesign::EFieldDominance::Interlaced;
+		break;
+	case EMediaIOStandardType::ProgressiveSegmentedFrame:
+		ChannelOptions.FormatInfo.FieldDominance = BlackmagicDesign::EFieldDominance::ProgressiveSegmentedFrame;
+		break;
+	case EMediaIOStandardType::Progressive:
+	default:
+		ChannelOptions.FormatInfo.FieldDominance = BlackmagicDesign::EFieldDominance::Progressive;
+		break;
+	}
+
 	ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_None;
 
 	bool bResult = InputEventCallback->Initialize(ChannelOptions);
