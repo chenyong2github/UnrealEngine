@@ -8,6 +8,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticlePBDCollisionConstraint.h"
+#include "Chaos/PerParticlePBDCCDCollisionConstraint.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
 #include "Chaos/PerParticlePBDGroundConstraint.h"
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
@@ -32,6 +33,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Constraints Init"), STAT_ChaosXPBDConstraint
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionUseNestedParallelFor(TEXT("p.Chaos.PBDEvolution.UseNestedParallelFor"), true, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionFastPositionBasedFriction(TEXT("p.Chaos.PBDEvolution.FastPositionBasedFriction"), true, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<int32> CVarChaosPBDEvolutionMinParallelBatchSize(TEXT("p.Chaos.PBDEvolution.MinParallelBatchSize"), 300, TEXT(""), ECVF_Cheat);
+TAutoConsoleVariable<bool> CVarChaosPBDEvolutionWriteCCDContacts(TEXT("p.Chaos.PBDEvolution.WriteCCDContacts"), false, TEXT("Write CCD collision contacts and normals potentially causing the CCD collision threads to lock, allowing for debugging of these contacts."), ECVF_Cheat);
 
 using namespace Chaos;
 
@@ -50,6 +52,7 @@ void TPBDEvolution<T, d>::AddGroups(int32 NumGroups)
 		MGroupSelfCollisionThicknesses[GroupId] = MSelfCollisionThickness;
 		MGroupCoefficientOfFrictions[GroupId] = MCoefficientOfFriction;
 		MGroupDampings[GroupId] = MDamping;
+		MGroupUseCCDs[GroupId]  = false;
 	}
 }
 
@@ -86,10 +89,12 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 	TArrayCollection::AddArray(&MGroupSelfCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupCoefficientOfFrictions);
 	TArrayCollection::AddArray(&MGroupDampings);
+	TArrayCollection::AddArray(&MGroupUseCCDs);
 	AddGroups(1);  // Add default group
 
 	// Add particle arrays
 	MParticles.AddArray(&MParticleGroupIds);
+	MCollisionParticles.AddArray(&MCollisionTransforms);
 	MCollisionParticles.AddArray(&MCollided);
 	MCollisionParticles.AddArray(&MCollisionParticleGroupIds);
 }
@@ -263,6 +268,7 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	// Don't bother with threaded execution if we don't have enough work to make it worth while.
 	const bool bUseSingleThreadedRange = !CVarChaosPBDEvolutionUseNestedParallelFor.GetValueOnAnyThread();
 	const int32 MinParallelBatchSize = CVarChaosPBDEvolutionMinParallelBatchSize.GetValueOnAnyThread(); // TODO: 1000 is a guess, tune this!
+	const bool bWriteCCDContacts = CVarChaosPBDEvolutionWriteCCDContacts.GetValueOnAnyThread();
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDPreIterationUpdates);
@@ -334,6 +340,10 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 			MCollisionParticlesActiveView.SequentialFor(
 				[this, Dt](TKinematicGeometryClothParticles<T, d>& CollisionParticles, int32 Index)
 				{
+					// Store active collision particle frames prior to the kinematic update for CCD collisions
+					MCollisionTransforms[Index] = TRigidTransform<T, d>(CollisionParticles.X(Index), CollisionParticles.R(Index));
+
+					// Update collision transform and velocity
 					MCollisionKinematicUpdate(CollisionParticles, Dt, MTime, Index);
 				});
 		}
@@ -354,8 +364,31 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 			});
 	}
 
-	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticlesActiveView, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MGroupCollisionThicknesses, MGroupCoefficientOfFrictions);
+	// Collision rule initializations
+	MCollisionContacts.Reset();
+	MCollisionNormals.Reset();
 
+	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(
+		MCollisionParticlesActiveView,
+		MCollided,
+		MParticleGroupIds,
+		MCollisionParticleGroupIds,
+		MGroupCollisionThicknesses,
+		MGroupCoefficientOfFrictions);
+
+	TPerParticlePBDCCDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CCDCollisionRule(
+		MCollisionParticlesActiveView,
+		MCollisionTransforms,
+		MCollided,
+		MCollisionContacts,
+		MCollisionNormals,
+		MParticleGroupIds,
+		MCollisionParticleGroupIds,
+		MGroupCollisionThicknesses,
+		MGroupCoefficientOfFrictions,
+		bWriteCCDContacts);
+
+	// Iteration loop
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDIterationLoop);
 
@@ -374,9 +407,18 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
 				MParticlesActiveView.RangeFor(
-					[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Offset, int32 Range)
+					[this, &CollisionRule, &CCDCollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Offset, int32 Range)
 					{
-						CollisionRule.ApplyRange(Particles, Dt, Offset, Range);
+						const uint32 DynamicGroupId = MParticleGroupIds[Offset];  // Particle group Id, must be the same across the entire range
+						const bool bUseCCD = MGroupUseCCDs[DynamicGroupId];
+						if (!bUseCCD)
+						{
+							CollisionRule.ApplyRange(Particles, Dt, Offset, Range);
+						}
+						else
+						{
+							CCDCollisionRule.ApplyRange(Particles, Dt, Offset, Range);
+						}
 					}, bUseSingleThreadedRange);
 			}
 		}

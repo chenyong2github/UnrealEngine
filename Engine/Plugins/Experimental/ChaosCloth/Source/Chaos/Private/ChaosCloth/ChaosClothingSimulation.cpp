@@ -377,6 +377,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->DampingCoefficient,
 		ClothConfig->CollisionThickness,
 		ClothConfig->FrictionCoefficient,
+		ClothConfig->bUseCCD,
 		ClothConfig->bUseSelfCollisions,
 		ClothConfig->SelfCollisionThickness,
 		ClothConfig->bUseLegacyBackstop,
@@ -707,6 +708,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->DampingCoefficient,
 			ClothConfig->CollisionThickness,
 			ClothConfig->FrictionCoefficient,
+			ClothConfig->bUseCCD,
 			ClothConfig->bUseSelfCollisions,
 			ClothConfig->SelfCollisionThickness,
 			ClothConfig->bUseLegacyBackstop,
@@ -1292,10 +1294,11 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 		[this, PDI](const FClothingSimulationCollider* Collider, const FClothingSimulationCloth* Cloth, FClothingSimulationCollider::ECollisionDataType CollisionDataType)
 		{
 			static const FLinearColor GlobalColor(FColor::Cyan);
-			static const FLinearColor DynamicColor(FColor::Red);
+			static const FLinearColor DynamicColor(FColor::Orange);
 			static const FLinearColor LODsColor(FColor::Silver);
+			static const FLinearColor CollidedColor(FColor::Red);
 
-			const FLinearColor Color =
+			const FLinearColor TypeColor =
 				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::LODless) ? GlobalColor :
 				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::External) ? DynamicColor : LODsColor;
 
@@ -1304,6 +1307,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 			const TConstArrayView<TUniquePtr<FImplicitObject>> CollisionGeometries = Collider->GetCollisionGeometries(Solver.Get(), Cloth, CollisionDataType);
 			const TConstArrayView<TVector<float, 3>> Translations = Collider->GetCollisionTranslations(Solver.Get(), Cloth, CollisionDataType);
 			const TConstArrayView<TRotation<float, 3>> Rotations = Collider->GetCollisionRotations(Solver.Get(), Cloth, CollisionDataType);
+			const TConstArrayView<bool> CollisionStatus = Collider->GetCollisionStatus(Solver.Get(), Cloth, CollisionDataType);
 			check(CollisionGeometries.Num() == Translations.Num());
 			check(CollisionGeometries.Num() == Rotations.Num());
 
@@ -1311,6 +1315,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 			{
 				if (const FImplicitObject* const Object = CollisionGeometries[Index].Get())
 				{
+					const FLinearColor Color = CollisionStatus[Index] ? CollidedColor : TypeColor;
 					const TVector<float, 3> Position = LocalSpaceLocation + Translations[Index];
 					const TRotation<float, 3> & Rotation = Rotations[Index];
 
@@ -1371,6 +1376,29 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::External);
 			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::LODs);
 		}
+	}
+
+	// Draw contacts
+	check(Solver->GetCollisionContacts().Num() == Solver->GetCollisionNormals().Num());
+	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+	for (int32 i = 0; i < Solver->GetCollisionContacts().Num(); ++i)
+	{
+		const TVector<float, 3>& Pos0 = LocalSpaceLocation + Solver->GetCollisionContacts()[i];
+		const TVector<float, 3>& Normal = Solver->GetCollisionNormals()[i];
+
+		// Draw contact
+		TVector<float, 3> TangentU, TangentV;
+		Normal.FindBestAxisVectors(TangentU, TangentV);
+
+		DrawLine(PDI, Pos0 + TangentU, Pos0 + TangentV, FLinearColor::Black);
+		DrawLine(PDI, Pos0 + TangentU, Pos0 - TangentV, FLinearColor::Black);
+		DrawLine(PDI, Pos0 - TangentU, Pos0 - TangentV, FLinearColor::Black);
+		DrawLine(PDI, Pos0 - TangentU, Pos0 + TangentV, FLinearColor::Black);
+
+		// Draw normal
+		static const FLinearColor Brown(0.1f, 0.05f, 0.f);
+		const TVector<float, 3> Pos1 = Pos0 + 10.f * Normal;
+		DrawLine(PDI, Pos0, Pos1, Brown);
 	}
 }
 

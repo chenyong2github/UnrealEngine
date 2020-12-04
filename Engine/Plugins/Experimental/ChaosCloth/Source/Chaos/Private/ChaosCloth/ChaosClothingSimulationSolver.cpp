@@ -431,6 +431,21 @@ const TUniquePtr<FImplicitObject>* FClothingSimulationSolver::GetCollisionGeomet
 	return &Evolution->CollisionParticles().DynamicGeometry(Offset);
 }
 
+const bool* FClothingSimulationSolver::GetCollisionStatus(int32 Offset) const
+{
+	return Evolution->GetCollisionStatus().GetData() + Offset;
+}
+
+const TArray<TVector<float, 3>>& FClothingSimulationSolver::GetCollisionContacts() const
+{
+	return Evolution->GetCollisionContacts();
+}
+
+const TArray<TVector<float, 3>>& FClothingSimulationSolver::GetCollisionNormals() const
+{
+	return Evolution->GetCollisionNormals();
+}
+
 void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
@@ -577,6 +592,11 @@ void FClothingSimulationSolver::SetProperties(uint32 GroupId, float DampingCoeff
 	Evolution->SetCoefficientOfFriction(FrictionCoefficient, GroupId);
 }
 
+void FClothingSimulationSolver::SetUseCCD(uint32 GroupId, bool bUseCCD)
+{
+	Evolution->SetUseCCD(bUseCCD, GroupId);
+}
+
 void FClothingSimulationSolver::SetGravity(uint32 GroupId, const TVector<float, 3>& InGravity)
 {
 	Evolution->GetGravityForces(GroupId).SetAcceleration(InGravity);
@@ -676,7 +696,7 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 				const TRigidTransform<float, 3>& GroupSpaceTransform = PreSimulationTransforms[CollisionParticleGroupIds[Index]];
 
 				// Update initial state for collisions
-				OldCollisionTransforms[Index] = GroupSpaceTransform * OldCollisionTransforms[Index];
+				OldCollisionTransforms[Index] = OldCollisionTransforms[Index] * GroupSpaceTransform;
 				OldCollisionTransforms[Index].AddToTranslation(-DeltaLocalSpaceLocation);
 				CollisionParticles.X(Index) = OldCollisionTransforms[Index].GetTranslation();
 				CollisionParticles.R(Index) = OldCollisionTransforms[Index].GetRotation();
