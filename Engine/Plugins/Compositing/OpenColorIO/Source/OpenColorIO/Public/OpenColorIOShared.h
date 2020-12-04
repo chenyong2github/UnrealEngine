@@ -423,7 +423,7 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	OPENCOLORIO_API void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FName& InAssetPath);
+	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FName& InAssetPath);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
