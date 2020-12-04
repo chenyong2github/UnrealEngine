@@ -9,6 +9,7 @@
 #include "Components/BillboardComponent.h"
 #include "WaterIconHelper.h"
 #include "WaterSubsystem.h"
+#include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 #endif
 

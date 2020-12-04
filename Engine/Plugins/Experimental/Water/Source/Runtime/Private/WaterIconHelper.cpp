@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "WaterRuntimeSettings.h"
 #include "WaterSubsystem.h"
+#include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 
 UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName, const FText& InDisplayName)
