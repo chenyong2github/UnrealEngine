@@ -124,58 +124,54 @@ namespace Gauntlet.UnrealTest
 		/// Called after a test finishes to create an overall summary based on looking at the artifacts
 		/// </summary>
 		/// <param name="Result"></param>
-		/// <param name="Context"></param>
-		/// <param name="Build"></param>
-		/// <param name="Artifacts"></param>
-		/// <param name="InArtifactPath"></param>
-		public override void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string InArtifactPath)
+		public override ITestReport CreateReport(TestResult Result)
 		{
 			// only check for artifacts if the test passed
-			if (Result !=TestResult.Passed)
+			if (Result == TestResult.Passed)
 			{
-				return;
-			}
-
-			if (!DidDetectLaunch)
-			{
-				SetUnrealTestResult(TestResult.Failed);
-				Log.Error("Failed to detect completion of launch");
-				return;
-			}
-
-			bool MissingFiles = false;
-
-			foreach(var RoleArtifact in Artifacts)
-			{
-				DirectoryInfo RoleDir = new DirectoryInfo(RoleArtifact.ArtifactPath);
-
-				IEnumerable<FileInfo> ArtifactFiles = RoleDir.EnumerateFiles("*.*", SearchOption.AllDirectories);
-
-				// user may not have cleared paths between runs, so throw away anything that's older than 2m
-				ArtifactFiles = ArtifactFiles.Where(F => (DateTime.Now - F.LastWriteTime).TotalMinutes < 2);
-
-				if (ArtifactFiles.Any() == false)
+				if (!DidDetectLaunch)
 				{
-					MissingFiles = true;
-					Log.Error("No artifact files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+					SetUnrealTestResult(TestResult.Failed);
+					ReportError("Failed to detect completion of launch");
 				}
-
-				IEnumerable<FileInfo> LogFiles = ArtifactFiles.Where(F => F.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase));
-
-				if (LogFiles.Any() == false)
+				else
 				{
-					MissingFiles = true;
-					Log.Error("No log files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+					bool MissingFiles = false;
+
+					foreach (var RoleArtifact in SessionArtifacts)
+					{
+						DirectoryInfo RoleDir = new DirectoryInfo(RoleArtifact.ArtifactPath);
+
+						IEnumerable<FileInfo> ArtifactFiles = RoleDir.EnumerateFiles("*.*", SearchOption.AllDirectories);
+
+						// user may not have cleared paths between runs, so throw away anything that's older than 2m
+						ArtifactFiles = ArtifactFiles.Where(F => (DateTime.Now - F.LastWriteTime).TotalMinutes < 2);
+
+						if (ArtifactFiles.Any() == false)
+						{
+							MissingFiles = true;
+							ReportError("No artifact files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+						}
+
+						IEnumerable<FileInfo> LogFiles = ArtifactFiles.Where(F => F.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase));
+
+						if (LogFiles.Any() == false)
+						{
+							MissingFiles = true;
+							ReportError("No log files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+						}
+					}
+
+					if (MissingFiles)
+					{
+						SetUnrealTestResult(TestResult.Failed);
+						ReportError("One or more roles did not generated any artifacts");
+					}
+
+					Log.Info("Found valid artifacts for test");
 				}
 			}
-
-			if (MissingFiles)
-			{
-				SetUnrealTestResult(TestResult.Failed);
-				Log.Error("One or more roles did not generated any artifacts");
-			}
-
-			Log.Info("Found valid artifacts for test");
+			return base.CreateReport(Result);
 		}
 	}
 }

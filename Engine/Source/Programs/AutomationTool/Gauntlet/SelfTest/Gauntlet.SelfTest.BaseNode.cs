@@ -113,6 +113,10 @@ namespace Gauntlet.SelfTest
 		{
 		}
 
+		public virtual void SetCancellationReason(string Reason)
+		{
+		}
+
 		public virtual void StopTest(bool WasCancelled)
 		{
 		}

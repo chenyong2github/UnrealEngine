@@ -108,13 +108,13 @@ namespace Gauntlet
 		{
 			if (SessionArtifacts == null)
 			{
-				return new string[0];
+				return Warnings;
 			}
 
 			return SessionArtifacts.SelectMany(A =>
 			{
 				return A.LogSummary.Ensures.Select(E => E.Message);
-			}); 
+			}).Union(Warnings); 
 		}
 
 		/// <summary>
@@ -124,12 +124,77 @@ namespace Gauntlet
 		{
 			if (SessionArtifacts == null)
 			{
-				return new string[0];
+				return Errors;
 			}
 
 			var FailedArtifacts = GetArtifactsWithFailures();
 
-			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
+			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message).Union(Errors);
+		}
+
+		/// <summary>
+		/// Returns Errors found during tests. Including Abnornal Exit reasons
+		/// </summary>
+		public virtual IEnumerable<string> GetErrorsAndAbnornalExits()
+		{
+			IEnumerable<string>  Errors = GetErrors();
+
+			Dictionary<UnrealRoleArtifacts, Tuple<int, string>> ErrorCodesAndReasons = new Dictionary<UnrealRoleArtifacts, Tuple<int, string>>();
+
+			var FailedArtifacts = SessionArtifacts.Where(
+				A => {
+					if (A.AppInstance.WasKilled)
+					{
+						return false;
+					}
+					string ExitReason;
+					int ExitCode = GetExitCodeAndReason(A, out ExitReason);
+					ErrorCodesAndReasons.Add(A, new Tuple<int, string>(ExitCode, ExitReason));
+					return ExitCode != 0;
+				}
+			);
+
+			return Errors.Union(FailedArtifacts.Select(
+				A => {
+					int ExitCode = ErrorCodesAndReasons[A].Item1;
+					string ExitReason = ErrorCodesAndReasons[A].Item2;
+					return string.Format("Abnormal Exit: Reason={0}, ExitCode={1}, Log={2}", ExitReason, ExitCode, Path.GetFileName(A.LogPath));
+				}
+			));
+		}
+
+		/// <summary>
+		/// Returns the test URL Link
+		/// </summary>
+		public virtual string GetURLLink()
+		{
+			return "";
+		}
+
+		/// <summary>
+		/// Report an error
+		/// </summary>
+		/// <param name="Message"></param>
+		public virtual void ReportError(string Message, params object[] Args)
+		{
+			Message = string.Format(Message, Args);
+			Errors.Add(Message);
+			if (!LogWarningsAndErrorsAfterSummary) { Log.Error(Message); }
+			if (GetTestStatus() == TestStatus.Complete && GetTestResult() == TestResult.Passed)
+			{
+				SetUnrealTestResult(TestResult.Failed);
+			}
+		}
+
+		/// <summary>
+		/// Report a warning
+		/// </summary>
+		/// <param name="Message"></param>
+		public virtual void ReportWarning(string Message, params object[] Args)
+		{
+			Message = string.Format(Message, Args);
+			if (!LogWarningsAndErrorsAfterSummary) { Warnings.Add(Message); }
+			Log.Warning(Message);
 		}
 
 		// Begin UnrealTestNode properties and members
@@ -148,6 +213,16 @@ namespace Gauntlet
 		/// After the test completes holds artifacts for each process (clients, servers etc).
 		/// </summary>
 		public IEnumerable<UnrealRoleArtifacts> SessionArtifacts { get; private set; }
+
+		/// <summary>
+		/// Error collection.
+		/// </summary>
+		protected List<string> Errors { get; private set; } = new List<string>();
+
+		/// <summary>
+		/// Warning collection.
+		/// </summary>
+		protected List<string> Warnings { get; private set; } = new List<string>();
 
 		/// <summary>
 		/// Whether we submit to the dashboard
@@ -795,10 +870,20 @@ namespace Gauntlet
 			}
 
 			string Message = string.Empty;
+			ITestReport Report = null;
+
+			var DeprecatedSignature = new[] { typeof(TestResult), typeof(UnrealTestContext), typeof(UnrealBuildSource), typeof(IEnumerable<UnrealRoleArtifacts>), typeof(string) };
 
 			try
 			{
-				CreateReport(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, ArtifactPath);
+				// Check if the deprecated signature is overriden, call it anyway if that the case, and trigger a warning.
+				if (Utils.InterfaceHelpers.HasOverriddenMethod(this.GetType(), "CreateReport", DeprecatedSignature))
+				{
+					Log.Warning("This CreateReport signature is deprecated, please use the overloaded version.");
+					CreateReport(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, ArtifactPath);
+				}
+
+				Report = CreateReport(GetTestResult());
 			}
 			catch (Exception Ex)
 			{
@@ -821,10 +906,17 @@ namespace Gauntlet
 
 			try
 			{
-				SubmitToDashboard(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, ArtifactPath);
+				// Check if the deprecated signature is overriden, call it anyway if that the case, and trigger a warning.
+				if (Utils.InterfaceHelpers.HasOverriddenMethod(this.GetType(), "SubmitToDashboard", DeprecatedSignature))
+				{
+					Log.Warning("This SubmitToDashboard signature is deprecated, please use the overloaded version.");
+					SubmitToDashboard(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, ArtifactPath);
+				}
+
+				if (Report != null) { SubmitToDashboard(Report); }
 			}
 			catch (Exception Ex)
-			{				
+			{
 				Log.Warning("Failed to submit results to dashboard. {0}", Ex);
 			}
 		}
@@ -904,11 +996,14 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Optional function that is called on test completion and gives an opportunity to create a report
+		/// DEPRECATED Optional function that is called on test completion and gives an opportunity to create a report
 		/// </summary>
 		/// <param name="Result"></param>
 		/// <param name="Context"></param>
 		/// <param name="Build"></param>
+		/// <param name="Artifacts"></param>
+		/// <param name="ArtifactPath"></param>
+		/// <returns></returns>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{
 		}
@@ -917,10 +1012,93 @@ namespace Gauntlet
 		/// Optional function that is called on test completion and gives an opportunity to create a report
 		/// </summary>
 		/// <param name="Result"></param>
-		/// <param name="Contex"></param>
-		/// <param name="Build"></param>
-		public virtual void SubmitToDashboard(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
+		/// <returns>ITestReport</returns>
+		public virtual ITestReport CreateReport(TestResult Result)
 		{
+			if (GetConfiguration().WriteTestResultsForHorde)
+			{
+				// write test report for Horde
+				HordeReport.SimpleTestReport HordeTestReport = CreateSimpleReportForHorde(Result);
+				return HordeTestReport;
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Generate a Simple Test Report from the results of this test
+		/// </summary>
+		/// <param name="Result"></param>
+		protected virtual HordeReport.SimpleTestReport CreateSimpleReportForHorde(TestResult Result)
+		{
+			HordeReport.SimpleTestReport HordeTestReport = new HordeReport.SimpleTestReport();
+			HordeTestReport.ReportCreatedOn = DateTime.Now.ToString();
+			HordeTestReport.TotalDurationSeconds = (float) (DateTime.Now - SessionStartTime).TotalSeconds;
+			HordeTestReport.Description = Context.ToString();
+			HordeTestReport.Status = Result.ToString();
+			HordeTestReport.URLLink = GetURLLink();
+			HordeTestReport.Errors.AddRange(GetErrorsAndAbnornalExits());
+			if (!string.IsNullOrEmpty(CancellationReason))
+			{
+				HordeTestReport.Errors.Add(CancellationReason);
+			}
+			HordeTestReport.Warnings.AddRange(GetWarnings());
+			HordeTestReport.HasSucceeded = !(Result == TestResult.Failed || Result == TestResult.TimedOut || HordeTestReport.Errors.Count > 0);
+			string HordeArtifactPath = string.IsNullOrEmpty(GetConfiguration().HordeArtifactPath) ? HordeReport.DefaultArtifactsDir : GetConfiguration().HordeArtifactPath;
+			HordeTestReport.SetOutputArtifactPath(HordeArtifactPath);
+			if (SessionArtifacts != null)
+			{
+				foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
+				{
+					string LogName = Artifact.LogPath.Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
+					HordeTestReport.AttachArtifact(Artifact.LogPath, LogName);
+
+					UnrealLogParser.LogSummary LogSummary = Artifact.LogSummary;
+					if (LogSummary.Errors.Count() > 0)
+					{
+						HordeTestReport.Warnings.Add(
+							string.Format(
+								"Log Parsing: FatalErrors={0}, Ensures={1}, Errors={2}, Warnings={3}, Log={4}",
+								(LogSummary.FatalError != null ? 1 : 0), LogSummary.Ensures.Count(), LogSummary.Errors.Count(), LogSummary.Warnings.Count(), LogName
+							)
+						);
+					}
+				}
+			}
+			return HordeTestReport;
+		}
+
+		/// <summary>
+		/// DEPRECATED Optional function that is called on test completion and gives an opportunity to submit a report to a Dashboard
+		/// </summary>
+		/// <param name="Result"></param>
+		/// <param name="Context"></param>
+		/// <param name="Build"></param>
+		/// <param name="Artifacts"></param>
+		/// <param name="ArtifactPath"></param>
+		/// <returns></returns>
+		public virtual void SubmitToDashboard(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
+		{
+		}
+
+		/// <summary>
+		/// Optional function that is called on test completion and gives an opportunity to submit a report to a Dashboard
+		/// </summary>
+		/// <param name="Report"></param>
+		public virtual void SubmitToDashboard(ITestReport Report)
+		{
+			if (GetConfiguration().WriteTestResultsForHorde)
+			{
+				// write test data collection for Horde
+				string HordeTestDataKey = string.IsNullOrEmpty(GetConfiguration().HordeTestDataKey) ? Name + " " + Context.ToString() : GetConfiguration().HordeTestDataKey;
+				string HordeTestDataFilePath = Path.Combine(
+					string.IsNullOrEmpty(GetConfiguration().HordeTestDataPath) ? HordeReport.DefaultTestDataDir : GetConfiguration().HordeTestDataPath,
+					FileUtils.SanitizeFilename(Name) + ".TestData.json"
+				);
+				HordeReport.TestDataCollection HordeTestDataCollection = new HordeReport.TestDataCollection();
+				HordeTestDataCollection.AddNewTestReport(HordeTestDataKey, Report);
+				HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
+			}
 		}
 
 		/// <summary>
@@ -1287,8 +1465,6 @@ namespace Gauntlet
 				Log.Warning("SessionArtifacts was null, unable to check for failures");
 				return new UnrealRoleArtifacts[0] { };
 			}
-
-			bool DidKillClients = SessionArtifacts.Any(A => A.SessionRole.RoleType.IsClient() && A.AppInstance.WasKilled);
 
 			Dictionary<UnrealRoleArtifacts, int> ErrorCodes = new Dictionary<UnrealRoleArtifacts, int>();
 

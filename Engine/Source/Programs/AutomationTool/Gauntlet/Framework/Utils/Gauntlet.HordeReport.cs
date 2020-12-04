@@ -17,7 +17,7 @@ namespace Gauntlet
 		{
 			get
 			{
-				return Environment.GetEnvironmentVariable("UE_TESTDATA_DIR") ?? Path.Combine(CommandUtils.CmdEnv.EngineSavedFolder, "TestData");
+				return Path.GetFullPath(Environment.GetEnvironmentVariable("UE_TESTDATA_DIR") ?? Path.Combine(CommandUtils.CmdEnv.EngineSavedFolder, "TestData"));
 			}
 		}
 		/// <summary>
@@ -27,7 +27,68 @@ namespace Gauntlet
 		{
 			get
 			{
-				return Environment.GetEnvironmentVariable("UE_ARTIFACTS_DIR") ?? CommandUtils.CmdEnv.LogFolder;
+				return Path.GetFullPath(Environment.GetEnvironmentVariable("UE_ARTIFACTS_DIR") ?? CommandUtils.CmdEnv.LogFolder);
+			}
+		}
+		/// <summary>
+		/// Is Environement set by Horde Agent 
+		/// </summary>
+		public static bool IsUnderHordeAgent
+		{
+			get
+			{
+				return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("UE_TESTDATA_DIR"));
+			}
+		}
+
+		public class BaseHordeReport : BaseTestReport
+		{
+			protected string OutputArtifactPath;
+
+			/// <summary>
+			/// Attach Artifact to the Test Report
+			/// </summary>
+			/// <param name="ArtifactPath"></param>
+			/// <param name="Name"></param>
+			/// <returns>bool</returns>
+			public override bool AttachArtifact(string ArtifactPath, string Name = null)
+			{
+				if (string.IsNullOrEmpty(OutputArtifactPath))
+				{
+					throw new InvalidOperationException("OutputArtifactPath must be set before attaching any artifact");
+				}
+
+				if (File.Exists(ArtifactPath))
+				{
+					try
+					{
+						string TargetPath = Path.Combine(OutputArtifactPath, Name ?? Path.GetFileName(ArtifactPath));
+						string TargetDirectry = Path.GetDirectoryName(TargetPath);
+						if (!Directory.Exists(TargetDirectry)) { Directory.CreateDirectory(TargetDirectry); }
+						File.Copy(Globals.LongPathPrefix + ArtifactPath, TargetPath);
+						return true;
+					}
+					catch (Exception Ex)
+					{
+						Log.Error("Failed to copy artifact '{0}'. {1}", Path.GetFileName(ArtifactPath), Ex);
+					}
+				}
+				return false;
+			}
+
+			/// <summary>
+			/// Set Output Artifact Path and create the directory if missing
+			/// </summary>
+			/// <param name="ArtifactPath"></param>
+			/// <returns></returns>
+			public void SetOutputArtifactPath(string Path)
+			{
+				OutputArtifactPath = Path;
+
+				if (!Directory.Exists(OutputArtifactPath))
+				{
+					Directory.CreateDirectory(OutputArtifactPath);
+				}
 			}
 		}
 
@@ -169,9 +230,14 @@ namespace Gauntlet
 		/// <summary>
 		/// Contains information about an entire test pass 
 		/// </summary>
-		public class TestPassResults
+		public class UnrealEngineTestPassResults : BaseHordeReport
 		{
-			public TestPassResults()
+			public override string Type
+			{
+				get { return "Unreal Automated Tests"; }
+			}
+
+			public UnrealEngineTestPassResults()
 			{
 				Tests = new List<TestResult>();
 			}
@@ -203,9 +269,9 @@ namespace Gauntlet
 			/// <param name="InTestPassResults"></param>
 			/// <param name="ReportPath"></param>
 			/// <param name="ReportURL"></param>
-			public static TestPassResults FromUnrealAutomatedTests(UnrealAutomatedTestPassResults InTestPassResults, string ReportPath, string ReportURL)
+			public static UnrealEngineTestPassResults FromUnrealAutomatedTests(UnrealAutomatedTestPassResults InTestPassResults, string ReportPath, string ReportURL)
 			{
-				TestPassResults OutTestPassResults = new TestPassResults();
+				UnrealEngineTestPassResults OutTestPassResults = new UnrealEngineTestPassResults();
 				OutTestPassResults.ClientDescriptor = InTestPassResults.clientDescriptor;
 				OutTestPassResults.ReportCreatedOn = InTestPassResults.reportCreatedOn;
 				OutTestPassResults.ReportURL = ReportURL;
@@ -261,13 +327,9 @@ namespace Gauntlet
 			/// Copy Test Results Artifacts
 			/// </summary>
 			/// <param name="OutputArtifactPath"></param>
-			public void CopyTestResultsArtifacts(string OutputArtifactPath)
+			public void CopyTestResultsArtifacts(string InOutputArtifactPath)
 			{
-
-				if (!Directory.Exists(OutputArtifactPath))
-				{
-					Directory.CreateDirectory(OutputArtifactPath);
-				}
+				SetOutputArtifactPath(InOutputArtifactPath);
 				int ArtifactsCount = 0;
 				foreach (TestResult OutputTestResult in Tests)
 				{
@@ -278,18 +340,7 @@ namespace Gauntlet
 						string[] ArtifactPaths= { TestArtifact.Files.Difference, TestArtifact.Files.Approved, TestArtifact.Files.Unapproved };
 						foreach (string ArtifactPath in ArtifactPaths)
 						{
-							if (File.Exists(ArtifactPath))
-							{
-								try
-								{
-									File.Copy(ArtifactPath, Path.Combine(OutputArtifactPath, Path.GetFileName(ArtifactPath)));
-									ArtifactsCount++;
-								}
-								catch (Exception Ex)
-								{
-									Log.Error("Failed to copy artifact '{0}'. {1}", Path.GetFileName(ArtifactPath), Ex);
-								}
-							}
+							if (AttachArtifact(ArtifactPath)) { ArtifactsCount++; }
 						}
 						TestArtifact.Files.Difference = Path.GetFileName(TestArtifact.Files.Difference);
 						TestArtifact.Files.Approved = Path.GetFileName(TestArtifact.Files.Approved);
@@ -312,6 +363,56 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Contains Test success/failed status and a list of errors and warnings
+		/// </summary>
+		public class SimpleTestReport : BaseHordeReport
+		{
+			public override string Type
+			{
+				get { return "Simple Report"; }
+			}
+			public SimpleTestReport()
+			{
+				Logs = new List<String>();
+				Errors = new List<String>();
+				Warnings = new List<String>();
+			}
+
+			public string Description;
+			public string ReportCreatedOn;
+			public float TotalDurationSeconds;
+			public bool HasSucceeded;
+			public string Status;
+			public string URLLink;
+			public List<String> Logs;
+			public List<String> Errors;
+			public List<String> Warnings;
+
+			public override void AddEvent(string Type, string Message, object Context = null)
+			{
+				if (Type.ToLower() == "error")
+				{
+					Errors.Add(Message);
+				}
+				else if (Type.ToLower() == "warning")
+				{
+					Warnings.Add(Message);
+				}
+				// The rest is ignored with this report type.
+			}
+
+			public override bool AttachArtifact(string ArtifactPath, string Name = null)
+			{
+				if (base.AttachArtifact(ArtifactPath, Name))
+				{
+					Logs.Add(Name ?? Path.GetFileName(ArtifactPath));
+					return true;
+				}
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Container for Test Data items 
 		/// </summary>
 		public class TestDataCollection
@@ -326,10 +427,14 @@ namespace Gauntlet
 				Items = new List<DataItem>();
 			}
 
-			public DataItem AddNewItem(string InType, string InKey, object InData)
+			public DataItem AddNewTestReport(string InKey, ITestReport InData)
 			{
+				if (string.IsNullOrEmpty(InKey))
+				{
+					throw new System.ArgumentException("Test Data key can't be an empty string.");
+				}
 				DataItem NewDataItem = new DataItem();
-				NewDataItem.Key = InType +"::"+ InKey;
+				NewDataItem.Key = InData.Type +"::"+ InKey;
 				NewDataItem.Data = InData;
 				Items.Add(NewDataItem);
 				return NewDataItem;
@@ -341,12 +446,24 @@ namespace Gauntlet
 			/// Write Test Data Collection to json
 			/// </summary>
 			/// <param name="OutputTestDataFilePath"></param>
-			public void WriteToJson(string OutputTestDataFilePath)
+			public void WriteToJson(string OutputTestDataFilePath, bool bIncrementNameIfFileExists = false)
 			{
 				string OutputTestDataDir = Path.GetDirectoryName(OutputTestDataFilePath);
 				if (!Directory.Exists(OutputTestDataDir))
 				{
 					Directory.CreateDirectory(OutputTestDataDir);
+				}
+				if (File.Exists(OutputTestDataFilePath) && bIncrementNameIfFileExists)
+				{
+					// increment filename if file exists
+					string Ext = Path.GetExtension(OutputTestDataFilePath);
+					string Filename = OutputTestDataFilePath.Replace(Ext, "");
+					int Incr = 0;
+					do
+					{
+						Incr++;
+						OutputTestDataFilePath = string.Format("{0}{1}{2}", Filename, Incr, Ext);
+					} while (File.Exists(OutputTestDataFilePath));
 				}
 				// write test pass summary
 				Log.Verbose("Writing Test Data Collection for Horde at {0}", OutputTestDataFilePath);

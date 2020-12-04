@@ -140,6 +140,10 @@ namespace Gauntlet.SelfTest
 			return true;
 		}
 
+		public virtual void SetCancellationReason(string Reason)
+		{
+		}
+
 		public void StopTest(bool WasCancelled)
 		{
 			SetNewStage(TestStages.StopTest);

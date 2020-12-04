@@ -124,6 +124,15 @@ namespace Gauntlet
 
 		}
 
+		/// <summary>
+		/// Return @"\\?\"; adding the prefix to a path string tells the Windows APIs to disable all string parsing and to send the string that follows it straight to the file system.
+		/// Allowing for longer than 260 characters path.
+		/// </summary>
+		public static string LongPathPrefix
+		{
+			get { return Path.DirectorySeparatorChar == '\\'? @"\\?\" : ""; }
+		}
+
 
 		/// <summary>
 		/// Acquired and released during the main Tick of the Gauntlet systems. Use this before touchung anything global scope from a 
@@ -742,6 +751,24 @@ namespace Gauntlet
 				}
 				
 				return ConstructedTypes;
+			}
+
+			/// <summary>
+			/// Check if the method signature is overridden.
+			/// </summary>
+			/// <param name="ClassType"></param>
+			/// <param name="MethodName"></param>
+			/// <param name="Signature"></param>
+			/// <returns></returns>
+			public static bool HasOverriddenMethod(Type ClassType, string MethodName, Type[] Signature)
+			{
+				MethodInfo Method = ClassType.GetMethod(MethodName, Signature);
+				if (Method == null)
+				{
+					throw new Exception(string.Format("Unknown method {0} from {1} with signature {2}.", MethodName, ClassType.Name, Signature.ToString()));
+				}
+				bool IsOverridden = Method.GetBaseDefinition().DeclaringType != Method.DeclaringType;
+				return Method.GetBaseDefinition().DeclaringType != Method.DeclaringType;
 			}
 
 		}
@@ -1527,6 +1554,19 @@ namespace Gauntlet
 			Files = Files.Where(F => Pattern.IsMatch(F));
 
 			return Files.ToArray();
+		}
+	}
+
+	public static class FileUtils
+	{
+		/// <summary>
+		/// Sanitize filename
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		static public string SanitizeFilename(string Name)
+		{
+			return Regex.Replace(Name, @"[^a-z0-9_\-.]+", "_", RegexOptions.IgnoreCase);
 		}
 	}
 

@@ -650,6 +650,11 @@ namespace Gauntlet
 				Log.Info("{0}", TestInfo.CancellationReason);
 			}
 
+			if (!string.IsNullOrEmpty(TestInfo.CancellationReason))
+			{
+				TestInfo.TestNode.SetCancellationReason(TestInfo.CancellationReason);
+			}
+
 			// if the test is not running. or we've determined a result for it..
 			if (TestIsRunning == false || TestInfo.FinalResult != TestResult.Invalid)
 			{

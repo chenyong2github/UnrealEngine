@@ -507,6 +507,30 @@ namespace Gauntlet
 		public float MaxDuration { get; set; }
 
 		/// <summary>
+		/// Produce test artifacts for Horde build system
+		/// </summary>
+		[AutoParam]
+		public bool WriteTestResultsForHorde = false;
+
+		/// <summary>
+		/// Path to store test data for Horde build system
+		/// </summary>
+		[AutoParam]
+		public string HordeTestDataPath = "";
+
+		/// <summary>
+		/// Key to store Horde Test Data
+		/// </summary>
+		[AutoParam]
+		public string HordeTestDataKey = "";
+
+		/// <summary>
+		/// Path to store test artifacts for Horde build system
+		/// </summary>
+		[AutoParam]
+		public string HordeArtifactPath = "";
+
+		/// <summary>
 		/// What the test result should be treated as if we reach max duration.
 		/// </summary>
 		public EMaxDurationReachedResult MaxDurationReachedResult { get; set; }
@@ -722,6 +746,12 @@ namespace Gauntlet
 			if (HeartbeatPeriod > 0)
 			{
 				AppConfig.CommandLine += string.Format(" -gauntlet.heartbeatperiod={0}", HeartbeatPeriod);
+			}
+
+			// we write results to Horde test data if we run under Horde agent
+			if (HordeReport.IsUnderHordeAgent)
+			{
+				WriteTestResultsForHorde = true;
 			}
 		}
 	}

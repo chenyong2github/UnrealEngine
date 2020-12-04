@@ -40,6 +40,11 @@ namespace Gauntlet
 		public virtual bool HasWarnings { get; protected set; }
 
 		/// <summary>
+		/// Returns reason for the test cancellation
+		/// </summary>
+		public virtual string CancellationReason { get; protected set; }
+
+		/// <summary>
 		/// Returns true if the test was cancelled
 		/// </summary>
 		public virtual bool WasCancelled { get; protected set; }
@@ -157,6 +162,16 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual void TickTest()
 		{
+		}
+
+		/// <summary>
+		/// Sets Cancellation Reason.
+		/// </summary>
+		/// <param name="InReason"></param>
+		/// <returns></returns>
+		public virtual void SetCancellationReason(string InReason)
+		{
+			CancellationReason = InReason;
 		}
 
 		/// <summary>

@@ -110,6 +110,13 @@ namespace Gauntlet
 		void TickTest();
 
 		/// <summary>
+		/// Sets Cancellation Reason.
+		/// </summary>
+		/// <param name="Reason"></param>
+		/// <returns></returns>
+		void SetCancellationReason(string Reason);
+
+		/// <summary>
 		/// Called to request that the test stop, either because it's reported that its complete or due to external factors.
 		/// Tests should consider whether they passed or succeeded (even a terminated test may have gotten all the data it needs) 
 		/// and set their result appropriately.
