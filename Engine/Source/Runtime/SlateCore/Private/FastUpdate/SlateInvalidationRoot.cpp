@@ -366,7 +366,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 
 				FWidgetProxy& WidgetProxy = (*FastWidgetPathList)[MyIndex];
 				SWidget* WidgetPtr = WidgetProxy.GetWidget();
-				if (ensure(WidgetPtr))
+				if (WidgetPtr)
 				{
 					if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint))
 					{
@@ -404,7 +404,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 
 				// Check visibility, it may have been in the update list but a parent who was also in the update list already updated it.
 				SWidget* WidgetPtr = WidgetProxy.GetWidget();
-				if (!WidgetProxy.bUpdatedSinceLastInvalidate && ensure(WidgetPtr) && WidgetPtr->IsFastPathVisible())
+				if (!WidgetProxy.bUpdatedSinceLastInvalidate && WidgetPtr && WidgetPtr->IsFastPathVisible())
 				{
 					bWidgetsNeededRepaint = bWidgetsNeededRepaint || EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
 
