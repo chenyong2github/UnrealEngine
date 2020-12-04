@@ -109,6 +109,44 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 }
 
 
+void FGenerateMeshLODGraph::UpdateSolidifySettings(const FMeshSolidifySettings& SolidifySettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, SolidifySettingsNode, SolidifySettings);
+	CurrentSolidifySettings = SolidifySettings;
+}
+
+void FGenerateMeshLODGraph::UpdateMorphologySettings(const FVoxClosureSettings& MorphologySettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, MorphologySettingsNode, MorphologySettings);
+	CurrentMorphologySettings = MorphologySettings;
+}
+
+void FGenerateMeshLODGraph::UpdateSimplifySettings(const FMeshSimplifySettings& SimplifySettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, SimplifySettingsNode, SimplifySettings);
+	CurrentSimplifySettings = SimplifySettings;
+}
+
+void FGenerateMeshLODGraph::UpdateAutoUVSettings(const UE::GeometryFlow::FMeshAutoGenerateUVsSettings& AutoUVSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, AutoUVSettingsNode, AutoUVSettings);
+	CurrentAutoUVSettings = AutoUVSettings;
+}
+
+void FGenerateMeshLODGraph::UpdateBakeCacheSettings(const UE::GeometryFlow::FMeshMakeBakingCacheSettings& BakeCacheSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, BakeCacheSettingsNode, BakeCacheSettings);
+	CurrentBakeCacheSettings = BakeCacheSettings;
+}
+
+
+void FGenerateMeshLODGraph::UpdateGenerateConvexCollisionSettings(const FGenerateConvexHullsCollisionSettings& GenConvexesSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, GenerateConvexesSettingsNode, GenConvexesSettings);
+	CurrentGenerateConvexHullsSettings = GenConvexesSettings;
+}
+
+
 void FGenerateMeshLODGraph::EvaluateResult(
 	FDynamicMesh3& ResultMesh,
 	FMeshTangentsd& ResultTangents,
@@ -205,39 +243,39 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	SolidifyNode = Graph->AddNodeOfType<FSolidifyMeshNode>(TEXT("Solidify"));
 	Graph->InferConnection(MeshSourceNode, SolidifyNode);
-	FGraph::FHandle SolidifySettingsNode = Graph->AddNodeOfType<FSolidifySettingsSourceNode>(TEXT("SolidifySettings"));
+	SolidifySettingsNode = Graph->AddNodeOfType<FSolidifySettingsSourceNode>(TEXT("SolidifySettings"));
 	Graph->InferConnection(SolidifySettingsNode, SolidifyNode);
 
 	MorphologyNode = Graph->AddNodeOfType<FVoxClosureMeshNode>(TEXT("Closure"));
 	Graph->InferConnection(SolidifyNode, MorphologyNode);
-	FGraph::FHandle MorphologySettingsNode = Graph->AddNodeOfType<FVoxClosureSettingsSourceNode>(TEXT("ClosureSettings"));
+	MorphologySettingsNode = Graph->AddNodeOfType<FVoxClosureSettingsSourceNode>(TEXT("ClosureSettings"));
 	Graph->InferConnection(MorphologySettingsNode, MorphologyNode);
 
 	SimplifyNode = Graph->AddNodeOfType<FSimplifyMeshNode>(TEXT("Simplify"));
 	Graph->InferConnection(MorphologyNode, SimplifyNode);
-	FGraph::FHandle SimplifySettingsNode = Graph->AddNodeOfType<FSimplifySettingsSourceNode>(TEXT("SimplifySettings"));
+	SimplifySettingsNode = Graph->AddNodeOfType<FSimplifySettingsSourceNode>(TEXT("SimplifySettings"));
 	Graph->InferConnection(SimplifySettingsNode, SimplifyNode);
 
 	NormalsNode = Graph->AddNodeOfType<FComputeMeshNormalsNode>(TEXT("Normals"));
 	Graph->InferConnection(SimplifyNode, NormalsNode);
-	FGraph::FHandle NormalsSettingsNode = Graph->AddNodeOfType<FNormalsSettingsSourceNode>(TEXT("NormalsSettings"));
+	NormalsSettingsNode = Graph->AddNodeOfType<FNormalsSettingsSourceNode>(TEXT("NormalsSettings"));
 	Graph->InferConnection(NormalsSettingsNode, NormalsNode);
 
 	// computing UVs
 
 	AutoUVNode = Graph->AddNodeOfType<FMeshAutoGenerateUVsNode>(TEXT("AutoUV"));
 	Graph->InferConnection(NormalsNode, AutoUVNode);
-	FGraph::FHandle AutoUVSettingsNode = Graph->AddNodeOfType<FMeshAutoGenerateUVsSettingsSourceNode>(TEXT("AutoUVSettings"));
+	AutoUVSettingsNode = Graph->AddNodeOfType<FMeshAutoGenerateUVsSettingsSourceNode>(TEXT("AutoUVSettings"));
 	Graph->InferConnection(AutoUVSettingsNode, AutoUVNode);
 
 	RecomputeUVNode = Graph->AddNodeOfType<FMeshRecalculateUVsNode>(TEXT("RecalcUV"));
 	Graph->InferConnection(AutoUVNode, RecomputeUVNode);
-	FGraph::FHandle RecomputeUVSettingsNode = Graph->AddNodeOfType<FMeshRecalculateUVsSettingsSourceNode>(TEXT("RecalcUVSettings"));
+	RecomputeUVSettingsNode = Graph->AddNodeOfType<FMeshRecalculateUVsSettingsSourceNode>(TEXT("RecalcUVSettings"));
 	Graph->InferConnection(RecomputeUVSettingsNode, RecomputeUVNode);
 
 	RepackUVNode = Graph->AddNodeOfType<FMeshRepackUVsNode>(TEXT("RepackUV"));
 	Graph->InferConnection(RecomputeUVNode, RepackUVNode);
-	FGraph::FHandle RepackUVSettingsNode = Graph->AddNodeOfType<FMeshRepackUVsSettingsSourceNode>(TEXT("RepackUVSettings"));
+	RepackUVSettingsNode = Graph->AddNodeOfType<FMeshRepackUVsSettingsSourceNode>(TEXT("RepackUVSettings"));
 	Graph->InferConnection(RepackUVSettingsNode, RepackUVNode);
 
 
@@ -251,7 +289,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	TangentsNode = Graph->AddNodeOfType<FComputeMeshTangentsNode>(TEXT("Tangents"));
 	Graph->InferConnection(RepackUVNode, TangentsNode);
-	FGraph::FHandle TangentsSettingsNode = Graph->AddNodeOfType<FTangentsSettingsSourceNode>(TEXT("TangentsSettings"));
+	TangentsSettingsNode = Graph->AddNodeOfType<FTangentsSettingsSourceNode>(TEXT("TangentsSettings"));
 	Graph->InferConnection(TangentsSettingsNode, TangentsNode);
 
 	// tangents output
@@ -263,7 +301,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	BakeCacheNode = Graph->AddNodeOfType<FMakeMeshBakingCacheNode>(TEXT("MakeBakeCache"));
 	Graph->AddConnection(MeshSourceNode, FDynamicMeshSourceNode::OutParamValue(), BakeCacheNode, FMakeMeshBakingCacheNode::InParamDetailMesh());
 	Graph->AddConnection(MeshOutputNode, FDynamicMeshTransferNode::OutParamValue(), BakeCacheNode, FMakeMeshBakingCacheNode::InParamTargetMesh());
-	FGraph::FHandle BakeCacheSettingsNode = Graph->AddNodeOfType<FMeshMakeBakingCacheSettingsSourceNode>(TEXT("BakeCacheSettings"));
+	BakeCacheSettingsNode = Graph->AddNodeOfType<FMeshMakeBakingCacheSettingsSourceNode>(TEXT("BakeCacheSettings"));
 	Graph->InferConnection(BakeCacheSettingsNode, BakeCacheNode);
 
 	// normal map baker
@@ -271,7 +309,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	BakeNormalMapNode = Graph->AddNodeOfType<FBakeMeshNormalMapNode>(TEXT("BakeNormalMap"));
 	Graph->InferConnection(BakeCacheNode, BakeNormalMapNode);
 	Graph->InferConnection(TangentsNode, BakeNormalMapNode);
-	FGraph::FHandle BakeNormalMapSettingsNode = Graph->AddNodeOfType<FBakeMeshNormalMapSettingsSourceNode>(TEXT("BakeNormalMapSettings"));
+	BakeNormalMapSettingsNode = Graph->AddNodeOfType<FBakeMeshNormalMapSettingsSourceNode>(TEXT("BakeNormalMapSettings"));
 	Graph->InferConnection(BakeNormalMapSettingsNode, BakeNormalMapNode);
 
 
@@ -289,7 +327,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	GenerateConvexesNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionNode>(TEXT("GenerateConvexes"));
 	Graph->InferConnection(MeshSourceNode, GenerateConvexesNode);
 	Graph->InferConnection(DecomposeMeshForCollisionNode, GenerateConvexesNode);
-	FGraph::FHandle GenerateConvexesSettingsNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionSettingsSourceNode>(TEXT("GenerateConvexesSettings"));
+	GenerateConvexesSettingsNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionSettingsSourceNode>(TEXT("GenerateConvexesSettings"));
 	Graph->InferConnection(GenerateConvexesSettingsNode, GenerateConvexesNode);
 
 	// final collision output
@@ -304,18 +342,18 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 
 	FMeshSolidifySettings SolidifySettings;
-	UpdateSettingsSourceNodeValue(*Graph, SolidifySettingsNode, SolidifySettings);
+	UpdateSolidifySettings(SolidifySettings);
 
 	FVoxClosureSettings MorphologySettings;
 	MorphologySettings.Distance = 5.0;
-	UpdateSettingsSourceNodeValue(*Graph, MorphologySettingsNode, MorphologySettings);
+	UpdateMorphologySettings(MorphologySettings);
 
 	FMeshSimplifySettings SimplifySettings;
 	SimplifySettings.bDiscardAttributes = true;
 	SimplifySettings.SimplifyType = EMeshSimplifyType::VolumePreserving;
 	SimplifySettings.TargetType = EMeshSimplifyTargetType::TriangleCount;
 	SimplifySettings.TargetCount = 500;
-	UpdateSettingsSourceNodeValue(*Graph, SimplifySettingsNode, SimplifySettings);
+	UpdateSimplifySettings(SimplifySettings);
 
 	FMeshNormalsSettings NormalsSettings;
 	NormalsSettings.NormalsType = EComputeNormalsType::FromFaceAngleThreshold;
@@ -323,7 +361,9 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdateSettingsSourceNodeValue(*Graph, NormalsSettingsNode, NormalsSettings);
 
 	FMeshAutoGenerateUVsSettings AutoUVSettings;
-	UpdateSettingsSourceNodeValue(*Graph, AutoUVSettingsNode, AutoUVSettings);
+	AutoUVSettings.NumCharts = 20;
+	AutoUVSettings.Stretch = 0.1;
+	UpdateAutoUVSettings(AutoUVSettings);
 
 	FMeshRecalculateUVsSettings RecomputeUVSettings;
 	UpdateSettingsSourceNodeValue(*Graph, RecomputeUVSettingsNode, RecomputeUVSettings);
@@ -339,7 +379,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	FMeshMakeBakingCacheSettings BakeCacheSettings;
 	BakeCacheSettings.Dimensions = FImageDimensions(512, 512);
 	BakeCacheSettings.Thickness = 5.0;
-	UpdateSettingsSourceNodeValue(*Graph, BakeCacheSettingsNode, BakeCacheSettings);
+	UpdateBakeCacheSettings(BakeCacheSettings);
 
 
 	FBakeMeshNormalMapSettings NormalMapSettings;
@@ -350,8 +390,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdateSettingsSourceNodeValue(*Graph, IgnoreGroupsForCollisionNode, IgnoreGroupsForCollision);
 
 	FGenerateConvexHullsCollisionSettings GenConvexesSettings;
-	UpdateSettingsSourceNodeValue(*Graph, GenerateConvexesSettingsNode, GenConvexesSettings);
-
+	UpdateGenerateConvexCollisionSettings(GenConvexesSettings);
 }
 
 

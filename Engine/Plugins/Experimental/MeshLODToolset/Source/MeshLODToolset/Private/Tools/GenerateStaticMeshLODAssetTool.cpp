@@ -21,6 +21,9 @@
 #include "AssetGenerationUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 
+#include "Physics/PhysicsDataCollection.h"
+#include "Physics/CollisionGeometryVisualization.h"
+
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -110,7 +113,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		LOCTEXT("OnStartStaticMeshLODAssetTool", "This tool creates a new LOD asset"),
 		EToolMessageLevel::UserNotification);
 
-	GenerateProcess = MakePimpl<FGenerateStaticMeshLODProcess>();
+	GenerateProcess = MakeUnique<FGenerateStaticMeshLODProcess>();
 
 	TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
 	UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
@@ -120,21 +123,44 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		GenerateProcess->Initialize(StaticMesh);
 	}
 
+	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SolidifyVoxelResolution, [this](int) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.WindingThreshold, [this](float) { OnSettingsModified(); });
+	//BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.MorphologyVoxelResolution, [this](int) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ClosureDistance, [this](float) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SimplifyTriangleCount, [this](int) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.NumAutoUVCharts, [this](int) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.BakeResolution, [this](EGenerateStaticMeshLODBakeResolution) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.BakeThickness, [this](float) { OnSettingsModified(); });
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ConvexTriangleCount, [this](int) { OnSettingsModified(); });
+
+
+
 	FBoxSphereBounds Bounds = StaticMeshComponent->Bounds;
 	FTransform PreviewTransform = SourceComponent->GetWorldTransform();
-	PreviewTransform.AddToTranslation(FVector(0, 2.0f*Bounds.SphereRadius, 0));
+	PreviewTransform.AddToTranslation(FVector(0, 2.5f*Bounds.BoxExtent.Y, 0));
 
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, PreviewTransform);
 	PreviewMesh->SetVisible(true);
 	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
 
+	CollisionVizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
+	CollisionVizSettings->RestoreProperties(this);
+	AddToolPropertySource(CollisionVizSettings);
+	CollisionVizSettings->WatchProperty(CollisionVizSettings->LineThickness, [this](float NewValue) { bCollisionVisualizationDirty = true; });
+	CollisionVizSettings->WatchProperty(CollisionVizSettings->Color, [this](FColor NewValue) { bCollisionVisualizationDirty = true; });
+	CollisionVizSettings->WatchProperty(CollisionVizSettings->bShowHidden, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
+
+	CollisionPreview = NewObject<UPreviewGeometry>(this);
+	CollisionPreview->CreateInWorld(TargetWorld, PreviewTransform);
+
 	// Recompute if we switch between parallel and serial
 	int32 WatcherIndex = BasicProperties->WatchProperty(BasicProperties->bParallelExecution, [this](bool bNewParallelExec)
 	{
 		// TODO: We crash if we don't recreate the Process and reinitialize it. Why?
 
-		GenerateProcess = MakePimpl<FGenerateStaticMeshLODProcess>();
+		GenerateProcess = MakeUnique<FGenerateStaticMeshLODProcess>();
 
 		TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
@@ -145,23 +171,34 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		}
 
 		bPreviewValid = false;
-		ValidatePreview();
+		//ValidatePreview();
 	});
 	BasicProperties->SilentUpdateWatcherAtIndex(WatcherIndex);
 
 	bPreviewValid = false;
-	ValidatePreview();
 }
 
+
+void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
+{
+	UE_LOG(LogTemp, Warning, TEXT("SETTINGS MODIFIED!"));
+
+	GenerateProcess->UpdateSettings(BasicProperties->GeneratorSettings);
+	bPreviewValid = false;
+}
 
 
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
+	CollisionVizSettings->SaveProperties(this);
 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
+
+	CollisionPreview->Disconnect();
+	CollisionPreview = nullptr;
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -182,14 +219,22 @@ void UGenerateStaticMeshLODAssetTool::SetAssetAPI(IAssetGenerationAPI* AssetAPII
 	this->AssetAPI = AssetAPIIn;
 }
 
-bool UGenerateStaticMeshLODAssetTool::HasAccept() const
-{
-	return true;
-}
 
 bool UGenerateStaticMeshLODAssetTool::CanAccept() const
 {
 	return true;
+}
+
+
+void UGenerateStaticMeshLODAssetTool::OnTick(float DeltaTime)
+{
+	ValidatePreview();
+
+	if (bCollisionVisualizationDirty)
+	{
+		UpdateCollisionVisualization();
+		bCollisionVisualizationDirty = false;
+	}
 }
 
 void UGenerateStaticMeshLODAssetTool::ValidatePreview()
@@ -201,7 +246,8 @@ void UGenerateStaticMeshLODAssetTool::ValidatePreview()
 	GenerateProcess->ComputeDerivedSourceData();
 	const FDynamicMesh3& ResultMesh = GenerateProcess->GetDerivedLOD0Mesh();
 	const FMeshTangentsd& ResultTangents = GenerateProcess->GetDerivedLOD0MeshTangents();
-	
+	const FSimpleShapeSet3d& ResultCollision = GenerateProcess->GetDerivedCollision();
+
 	PreviewMesh->EditMesh([&](FDynamicMesh3& MeshToUpdate)
 	{
 		MeshToUpdate = GenerateProcess->GetDerivedLOD0Mesh();
@@ -219,7 +265,30 @@ void UGenerateStaticMeshLODAssetTool::ValidatePreview()
 		BasicProperties->PreviewTextures = PreviewTextures;
 	}
 
+
+	FPhysicsDataCollection PhysicsData;
+	PhysicsData.Geometry = ResultCollision;
+	PhysicsData.CopyGeometryToAggregate();
+	UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData, CollisionPreview,
+		CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16);
+
 	bPreviewValid = true;
+}
+
+
+
+void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
+{
+	float UseThickness = CollisionVizSettings->LineThickness;
+	FColor UseColor = CollisionVizSettings->Color;
+	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !CollisionVizSettings->bShowHidden);
+
+	CollisionPreview->UpdateAllLineSets([&](ULineSetComponent* LineSet)
+	{
+		LineSet->SetAllLinesThickness(UseThickness);
+		LineSet->SetAllLinesColor(UseColor);
+	});
+	CollisionPreview->SetAllLineSetsMaterial(LineMaterial);
 }
 
 

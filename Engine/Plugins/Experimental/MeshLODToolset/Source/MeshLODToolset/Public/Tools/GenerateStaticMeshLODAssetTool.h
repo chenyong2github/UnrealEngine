@@ -8,7 +8,9 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "PreviewMesh.h"
-#include "Templates/PimplPtr.h"
+#include "Drawing/PreviewGeometryActor.h"
+#include "Graphs/GenerateStaticMeshLODProcess.h"
+#include "Physics/CollisionPropertySets.h"
 #include "GenerateStaticMeshLODAssetTool.generated.h"
 
 
@@ -16,7 +18,6 @@
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class IAssetGenerationAPI;
-class FGenerateStaticMeshLODProcess;
 
 
 UENUM()
@@ -62,11 +63,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	FString GeneratedSuffix;
 
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bParallelExecution = false;
+
+	/** Base name for newly-generated asset */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
+
 	UPROPERTY(VisibleAnywhere, Category = Previews)
 	TArray<UTexture2D*> PreviewTextures;
-
-	UPROPERTY(EditAnywhere, Category = General)
-	bool bParallelExecution = false;
 
 };
 
@@ -90,8 +95,10 @@ public:
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
+	virtual void OnTick(float DeltaTime);
+
 	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
+	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 
 protected:
@@ -106,17 +113,41 @@ protected:
 	TArray<UTexture2D*> PreviewTextures;
 
 	UPROPERTY()
-	TArray<UMaterialInterface*> PreviewMaterials;;
+	TArray<UMaterialInterface*> PreviewMaterials;
+
+
+protected:
+
+	UPROPERTY()
+	UCollisionGeometryVisualizationProperties* CollisionVizSettings = nullptr;
+
+	UPROPERTY()
+	UPhysicsObjectToolPropertySet* ObjectData = nullptr;
+
+	UPROPERTY()
+	UMaterialInterface* LineMaterial = nullptr;
+
+	UPROPERTY()
+	UPreviewGeometry* CollisionPreview;
 
 protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
-	TPimplPtr<FGenerateStaticMeshLODProcess> GenerateProcess;
+	TUniquePtr<FGenerateStaticMeshLODProcess> GenerateProcess;
+
+	void OnSettingsModified();
 
 	bool bPreviewValid;
 	void ValidatePreview();
 
+	bool bCollisionVisualizationDirty = false;
+	void UpdateCollisionVisualization();
+
+
 	void CreateNewAsset();
 	void UpdateExistingAsset();
+
+
+
 };

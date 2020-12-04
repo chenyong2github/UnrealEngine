@@ -176,6 +176,7 @@ bool FGenerateStaticMeshLODProcess::InitializeGenerator()
 	Generator = MakeUnique<FGenerateMeshLODGraph>();
 	Generator->BuildGraph();
 
+	// initialize source textures
 	TextureToDerivedTexIndex.Reset();
 	for (const FMaterialInfo& MatInfo : SourceMaterials)
 	{
@@ -189,15 +190,96 @@ bool FGenerateStaticMeshLODProcess::InitializeGenerator()
 			}
 		}
 	}
+	
 
+	// initialize source mesh
 	Generator->SetSourceMesh(this->SourceMesh);
+
+
+	// read back default settings
+
+	CurrentSettings.SolidifyVoxelResolution = Generator->GetCurrentSolidifySettings().VoxelResolution;
+	CurrentSettings.WindingThreshold = Generator->GetCurrentSolidifySettings().WindingThreshold;
+
+	//CurrentSettings.MorphologyVoxelResolution = Generator->GetCurrentMorphologySettings().VoxelResolution;
+	CurrentSettings.ClosureDistance = Generator->GetCurrentMorphologySettings().Distance;
+
+	CurrentSettings.SimplifyTriangleCount = Generator->GetCurrentSimplifySettings().TargetCount;
+
+	CurrentSettings.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
+	CurrentSettings.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
+
+	CurrentSettings.ConvexTriangleCount = Generator->GetCurrentGenerateConvexCollisionSettings().SimplifyToTriangleCount;
+
 
 	return true;
 }
 
 
+void FGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewSettings)
+{
+	bool bSharedVoxelResolutionChanged = (NewSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
+	if ( bSharedVoxelResolutionChanged
+		|| (NewSettings.WindingThreshold != CurrentSettings.WindingThreshold))
+	{
+		UE::GeometryFlow::FMeshSolidifySettings NewSolidifySettings = Generator->GetCurrentSolidifySettings();
+		NewSolidifySettings.VoxelResolution = NewSettings.SolidifyVoxelResolution;
+		NewSolidifySettings.WindingThreshold = NewSettings.WindingThreshold;
+		Generator->UpdateSolidifySettings(NewSolidifySettings);
+	}
+
+
+	if ( bSharedVoxelResolutionChanged
+		|| (NewSettings.ClosureDistance != CurrentSettings.ClosureDistance))
+	{
+		UE::GeometryFlow::FVoxClosureSettings NewClosureSettings = Generator->GetCurrentMorphologySettings();
+		NewClosureSettings.VoxelResolution = NewSettings.SolidifyVoxelResolution;
+		NewClosureSettings.Distance = NewSettings.ClosureDistance;
+		Generator->UpdateMorphologySettings(NewClosureSettings);
+	}
+
+
+	if (NewSettings.SimplifyTriangleCount != CurrentSettings.SimplifyTriangleCount)
+	{
+		UE::GeometryFlow::FMeshSimplifySettings NewSimplifySettings = Generator->GetCurrentSimplifySettings();
+		NewSimplifySettings.TargetCount = NewSettings.SimplifyTriangleCount;
+		Generator->UpdateSimplifySettings(NewSimplifySettings);
+	}
+
+	if (NewSettings.NumAutoUVCharts != CurrentSettings.NumAutoUVCharts)
+	{
+		UE::GeometryFlow::FMeshAutoGenerateUVsSettings NewAutoUVSettings = Generator->GetCurrentAutoUVSettings();
+		NewAutoUVSettings.NumCharts = NewSettings.NumAutoUVCharts;
+		Generator->UpdateAutoUVSettings(NewAutoUVSettings);
+	}
+
+
+	if ( (NewSettings.BakeResolution != CurrentSettings.BakeResolution) ||
+		 (NewSettings.BakeThickness != CurrentSettings.BakeThickness))
+	{
+		UE::GeometryFlow::FMeshMakeBakingCacheSettings NewBakeSettings = Generator->GetCurrentBakeCacheSettings();
+		NewBakeSettings.Dimensions = FImageDimensions((int32)NewSettings.BakeResolution, (int32)NewSettings.BakeResolution);
+		NewBakeSettings.Thickness = NewSettings.BakeThickness;
+		Generator->UpdateBakeCacheSettings(NewBakeSettings);
+	}
+
+
+	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount)
+	{
+		UE::GeometryFlow::FGenerateConvexHullsCollisionSettings NewGenConvexSettings = Generator->GetCurrentGenerateConvexCollisionSettings();
+		NewGenConvexSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
+		Generator->UpdateGenerateConvexCollisionSettings(NewGenConvexSettings);
+	}
+
+	CurrentSettings = NewSettings;
+}
+
+
+
+
 bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 {
+	DerivedTextureImages.Reset();
 	if (bUseParallelExecutor)
 	{
 		Generator->EvaluateResultParallel(
@@ -216,6 +298,7 @@ bool FGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 			this->DerivedNormalMapImage,
 			this->DerivedTextureImages);
 	}
+
 
 	// copy all materials for now...we are going to replace all the images though, and
 	// should not copy those?
