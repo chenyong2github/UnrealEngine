@@ -141,10 +141,10 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		{
 			InstanceData->WriteBuffer.Release();
 			InstanceData->WriteBuffer.Initialize(sizeof(float), RequiredElements, PF_R32_UINT, BUF_SourceCopy);
-		}
 
-		//-OPT: We only need to reset the first 4 bytes for the count
-		RHICmdList.ClearUAVUint(InstanceData->WriteBuffer.UAV, FUintVector4(0, 0, 0, 0));
+			// Clear counter when we initialize the buffer
+			ClearCounter(RHICmdList, InstanceData);
+		}
 
 		RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
@@ -154,15 +154,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		FNDIExportInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(InstanceData);
 
-		// Transition so we are ready for the readback
-		RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-	}
-
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
-	{
-		FNDIExportInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-		check(InstanceData);
-
+		// If we bound the buffer as a UAV the stage may have written to it
 		if (InstanceData->bWriteBufferUsed)
 		{
 			InstanceData->bWriteBufferUsed = false;
@@ -202,7 +194,19 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 			);
 
 			RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::CopySrc, ERHIAccess::UAVCompute));
+
+			// Ensure counter is clear for the next user, they will perform the transition on the buffer
+			ClearCounter(RHICmdList, InstanceData);
 		}
+	}
+
+	void ClearCounter(FRHICommandList& RHICmdList, FNDIExportInstanceData_RenderThread* InstanceData)
+	{
+		check(InstanceData);
+		check(InstanceData->WriteBuffer.NumBytes > 0);
+
+		//-OPT: We only need to reset the first 4 bytes for the count
+		RHICmdList.ClearUAVUint(InstanceData->WriteBuffer.UAV, FUintVector4(0, 0, 0, 0));
 	}
 
 	TMap<FNiagaraSystemInstanceID, FNDIExportInstanceData_RenderThread> SystemInstancesToProxyData_RT;
