@@ -12,16 +12,7 @@
 
 struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 {
-	FPreAnimatedNiagaraComponentToken(
-		bool bInComponentIsActive,
-		bool bInComponentForceSolo,
-		bool bInComponentRenderingEnabled,
-		TOptional<ENiagaraExecutionState> InSystemInstanceExecutionState,
-		ENiagaraAgeUpdateMode InComponentAgeUpdateMode,
-		float InComponentSeekDelta,
-		float InComponentDesiredAge,
-		bool bInComponentLockDesiredAgeDeltaTimeToSeekDelta
-	)
+	FPreAnimatedNiagaraComponentToken(bool bInComponentIsActive, bool bInComponentForceSolo, bool bInComponentRenderingEnabled, TOptional<ENiagaraExecutionState> InSystemInstanceExecutionState, ENiagaraAgeUpdateMode InComponentAgeUpdateMode, float InComponentSeekDelta, float InComponentDesiredAge)
 		: bComponentIsActive(bInComponentIsActive)
 		, bComponentForceSolo(bInComponentForceSolo)
 		, bComponentRenderingEnabled(bInComponentRenderingEnabled)
@@ -29,7 +20,6 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		, ComponentAgeUpdateMode(InComponentAgeUpdateMode)
 		, ComponentSeekDelta(InComponentSeekDelta)
 		, ComponentDesiredAge(InComponentDesiredAge)
-		, bComponentLockDesiredAgeDeltaTimeToSeekDelta(bInComponentLockDesiredAgeDeltaTimeToSeekDelta)
 	{ }
 
 	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
@@ -57,7 +47,6 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		NiagaraComponent->SetAgeUpdateMode(ComponentAgeUpdateMode);
 		NiagaraComponent->SetSeekDelta(ComponentSeekDelta);
 		NiagaraComponent->SetDesiredAge(ComponentDesiredAge);
-		NiagaraComponent->SetLockDesiredAgeDeltaTimeToSeekDelta(bComponentLockDesiredAgeDeltaTimeToSeekDelta);
 	}
 
 	bool bComponentIsActive;
@@ -67,7 +56,6 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 	ENiagaraAgeUpdateMode ComponentAgeUpdateMode;
 	float ComponentSeekDelta;
 	float ComponentDesiredAge;
-	bool bComponentLockDesiredAgeDeltaTimeToSeekDelta;
 };
 
 struct FPreAnimatedNiagaraComponentTokenProducer : IMovieScenePreAnimatedTokenProducer
@@ -83,8 +71,7 @@ struct FPreAnimatedNiagaraComponentTokenProducer : IMovieScenePreAnimatedTokenPr
 			SystemInstance != nullptr ? SystemInstance->GetRequestedExecutionState() : TOptional<ENiagaraExecutionState>(),
 			NiagaraComponent->GetAgeUpdateMode(),
 			NiagaraComponent->GetSeekDelta(),
-			NiagaraComponent->GetDesiredAge(),
-			NiagaraComponent->GetLockDesiredAgeDeltaTimeToSeekDelta());
+			NiagaraComponent->GetDesiredAge());
 	}
 };
 
@@ -122,7 +109,6 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 				if (MovieScene != nullptr)
 				{
 					NiagaraComponent->SetSeekDelta((float)MovieScene->GetDisplayRate().Denominator / MovieScene->GetDisplayRate().Numerator);
-					NiagaraComponent->SetLockDesiredAgeDeltaTimeToSeekDelta(MovieScene->GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked);
 				}
 			}
 
