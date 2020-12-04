@@ -1645,7 +1645,23 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 			const FSceneView* View = Views[ViewIndex];
 			FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 
-			if (ControlRigComponent->bDrawBones && ControlRigComponent->ControlRig != nullptr)
+			bool bShouldDrawBones = ControlRigComponent->bDrawBones && ControlRigComponent->ControlRig != nullptr;
+
+			// make sure to check if we are within a preview / editor world
+			// or the console variable draw bones is turned on
+			if (bShouldDrawBones)
+			{
+				if (UWorld* World = ControlRigComponent->GetWorld())
+				{
+					if (!World->IsPreviewWorld())
+					{
+						const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
+						bShouldDrawBones = EngineShowFlags.Bones != 0;
+					}
+				}
+			}
+
+			if (bShouldDrawBones)
 			{
 				FTransform Transform = ControlRigComponent->GetComponentToWorld();
 				const float MaxDrawRadius = ControlRigComponent->Bounds.SphereRadius * 0.02f;
