@@ -2296,6 +2296,12 @@ public:
 
 protected:
 
+	// Prep anim instances for evaluation
+	void DoInstancePreEvaluation();
+
+	// Handle post evaluation on all anim instances
+	void DoInstancePostEvaluation();
+
 	// Returns whether we need to run the Cloth Tick or not
 	virtual bool ShouldRunClothTick() const;
 
