@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Rhino;
+using Rhino.PlugIns;
 using System;
 using System.Collections.Generic;
 
@@ -16,15 +17,95 @@ namespace DatasmithRhino
 	///</summary>
 	public class DatasmithRhino6 : Rhino.PlugIns.FileExportPlugIn
 	{
+		public override PlugInLoadTime LoadTime { get { return PlugInLoadTime.AtStartup; } }
+		public FDatasmithFacadeScene DatasmithScene = null;
+		public FDatasmithFacadeDirectLink DirectLink = null;
+
 		public DatasmithRhino6()
 		{
 			Instance = this;
+			InitializeDirectLink();
 
-			// If we are not on Windows, we need to manually call FDatasmithFacadeScene.Shutdown() when the process ends.
-			if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+			Rhino.RhinoDoc.EndOpenDocument += OnEndOpenDocument;
+			AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+		}
+
+		private void OnEndOpenDocument(object Sender, DocumentOpenEventArgs Args)
+		{
+			const bool bNewScene = true;
+			if (!Args.Merge && !Args.Reference)
 			{
-				AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+				SetupDirectLinkScene(Args.Document, Args.FileName, bNewScene);
 			}
+		}
+
+		private void InitializeDirectLink()
+		{
+			string RhinoEngineDir = Environment.OSVersion.Platform == PlatformID.Win32NT ? GetEngineDirWindows() : GetEngineDirMac();
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RhinoEngineDir);
+
+			System.Diagnostics.Debug.Assert(bDirectLinkInitOk);
+		}
+
+		private void SetupDirectLinkScene(RhinoDoc RhinoDocument, string FilePath, bool bNewScene)
+		{
+			try
+			{
+				string DocumentName = "Untitled";
+				if(!string.IsNullOrEmpty(RhinoDocument.Name))
+				{
+					DocumentName = System.IO.Path.Combine(System.IO.Path.GetTempPath(), RhinoDocument.Name);
+				}
+				else if(!string.IsNullOrEmpty(FilePath))
+				{
+					DocumentName = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.IO.Path.GetFileNameWithoutExtension(FilePath));
+				}
+
+				if (bNewScene || DatasmithScene == null)
+				{
+					DatasmithScene = DatasmithRhinoSceneExporter.SetUpSceneExport(DocumentName, RhinoDocument);
+				}
+
+				if (DirectLink == null)
+				{
+					DirectLink = new FDatasmithFacadeDirectLink();
+				}
+
+				DirectLink.InitializeForScene(DatasmithScene);
+			}
+			catch (Exception)
+			{
+			}
+		}
+
+		private string GetEngineDirWindows()
+		{
+			string RhinoEngineDir = null;
+
+			try
+			{
+				using (Microsoft.Win32.RegistryKey Key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"Software\Wow6432Node\EpicGames\Unreal Engine"))
+				{
+					RhinoEngineDir = Key?.GetValue("RhinoEngineDir") as string;
+				}
+			}
+			finally
+			{
+				if (RhinoEngineDir == null)
+				{
+					// If we could not read the registry, fallback to hardcoded engine dir
+					RhinoEngineDir = @"C:\ProgramData\Epic\Exporter\RhinoEngine\";
+				}
+			}
+
+			return RhinoEngineDir;
+		}
+
+		private string GetEngineDirMac()
+		{
+			string RhinoPluginFolder = System.IO.Path.GetDirectoryName(new Uri(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).LocalPath);
+
+			return System.IO.Path.Combine(RhinoPluginFolder, "Resources", "RhinoEngine");
 		}
 
 		///<summary>Gets the only instance of the DatasmithRhino6 plug-in.</summary>
@@ -53,13 +134,21 @@ namespace DatasmithRhino
 		/// <returns>A value that defines success or a specific failure.</returns>
 		protected override Rhino.PlugIns.WriteFileResult WriteFile(string filename, int index, RhinoDoc doc, Rhino.FileIO.FileWriteOptions options)
 		{
-			return DatasmithRhinoSceneExporter.Export(filename, doc, options);
+			FDatasmithRhinoExportOptions ExportOptions = new FDatasmithRhinoExportOptions(options, filename);
+			return DatasmithRhinoSceneExporter.Export(doc, ExportOptions);
 		}
 
 		public void OnProcessExit(object sender, EventArgs e)
 		{
 			AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
-			FDatasmithFacadeScene.Shutdown();
+
+			FDatasmithFacadeDirectLink.Shutdown();
+
+			// If we are not on Windows, we need to manually call FDatasmithFacadeScene.Shutdown() when the process ends.
+			if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+			{
+				FDatasmithFacadeScene.Shutdown();
+			}
 		}
 	}
 }

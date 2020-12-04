@@ -15,14 +15,14 @@ namespace DatasmithRhino
 
 	public static class DatasmithRhinoSceneExporter
 	{
-		public static Rhino.PlugIns.WriteFileResult Export(string Filename, RhinoDoc RhinoDocument, Rhino.FileIO.FileWriteOptions Options)
+		public static Rhino.PlugIns.WriteFileResult Export(RhinoDoc RhinoDocument, FDatasmithRhinoExportOptions Options)
 		{
 			try
 			{
-				RhinoApp.WriteLine(string.Format("Exporting to {0}.", System.IO.Path.GetFileName(Filename)));
+				RhinoApp.WriteLine(string.Format("Exporting to {0}.", System.IO.Path.GetFileName(Options.DestinationFileName)));
 				RhinoApp.WriteLine("Press Esc key to cancel...");
 
-				FDatasmithFacadeScene DatasmithScene = SetUpSceneExport(Filename, RhinoDocument);
+				FDatasmithFacadeScene DatasmithScene = SetUpSceneExport(Options.DestinationFileName, RhinoDocument);
 
 				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
 				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
@@ -50,6 +50,54 @@ namespace DatasmithRhino
 			}
 
 			return Rhino.PlugIns.WriteFileResult.Success;
+		}
+
+		public static Rhino.Commands.Result ExportDirectLink(ref FDatasmithFacadeScene DatasmithScene, ref FDatasmithFacadeDirectLink DirectLink, RhinoDoc RhinoDocument)
+		{
+			try
+			{
+				string DocumentName = System.IO.Path.Combine(System.IO.Path.GetTempPath(), RhinoDocument.Name);
+				RhinoApp.WriteLine(string.Format("Exporting to {0}.", System.IO.Path.GetFileName(DocumentName)));
+				RhinoApp.WriteLine("Press Esc key to cancel...");
+
+				if (DatasmithScene == null)
+				{
+					DatasmithScene = SetUpSceneExport(DocumentName, RhinoDocument);
+				}
+
+				if (DirectLink == null)
+				{
+					DirectLink = new FDatasmithFacadeDirectLink();
+					DirectLink.InitializeForScene(DatasmithScene);
+				}
+
+				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
+				FDatasmithRhinoExportOptions Options = new FDatasmithRhinoExportOptions(DocumentName);
+				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
+				SceneParser.ParseDocument();
+
+				if (ExportScene(SceneParser, DatasmithScene) == Rhino.Commands.Result.Success)
+				{
+					FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Broadcasting Datasmith Scene..", 1);
+					DirectLink.UpdateScene(DatasmithScene);
+				}
+			}
+			catch (DatasmithExportCancelledException)
+			{
+				return Rhino.Commands.Result.Cancel;
+			}
+			catch (Exception e)
+			{
+				RhinoApp.WriteLine("An unexpected error has occured:");
+				RhinoApp.WriteLine(e.ToString());
+				return Rhino.Commands.Result.Failure;
+			}
+			finally
+			{
+				FDatasmithRhinoProgressManager.Instance.StopProgress();
+			}
+
+			return Rhino.Commands.Result.Success;
 		}
 
 		public static FDatasmithFacadeScene SetUpSceneExport(string Filename, RhinoDoc RhinoDocument)

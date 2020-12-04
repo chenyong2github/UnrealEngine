@@ -95,7 +95,8 @@
   -->
   <PropertyGroup>
     <PostBuildEvent>
-      Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
+		Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
+		Copy "$(MSBuildProjectDirectory)\..\SharedResources\DatasmithRhino.rui" "$(TargetDir)$(TargetName).rui"
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

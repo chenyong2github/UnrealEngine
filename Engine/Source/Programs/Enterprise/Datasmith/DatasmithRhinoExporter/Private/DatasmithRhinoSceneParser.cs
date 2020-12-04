@@ -219,7 +219,7 @@ namespace DatasmithRhino
 	public class DatasmithRhinoSceneParser
 	{
 		public RhinoDoc RhinoDocument { get; private set; }
-		public Rhino.FileIO.FileWriteOptions ExportOptions { get; private set; }
+		public FDatasmithRhinoExportOptions ExportOptions { get; private set; }
 		public bool bIsInWorksession {
 			get {
 				//Only check for worksession on Windows, the feature is not implemented on Mac and calling the API throws exception.
@@ -245,7 +245,7 @@ namespace DatasmithRhino
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
 
-		public DatasmithRhinoSceneParser(RhinoDoc InDoc, Rhino.FileIO.FileWriteOptions InOptions)
+		public DatasmithRhinoSceneParser(RhinoDoc InDoc, FDatasmithRhinoExportOptions InOptions)
 		{
 			RhinoDocument = InDoc;
 			ExportOptions = InOptions;
