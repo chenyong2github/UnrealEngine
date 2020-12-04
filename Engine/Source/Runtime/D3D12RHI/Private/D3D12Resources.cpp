@@ -659,6 +659,9 @@ void FD3D12ResourceLocation::ReleaseResource()
 	{
 	case ResourceLocationType::eStandAlone:
 	{
+		bool bIncrement = false;
+		UpdateStandAloneStats(bIncrement);
+
 		// Multi-GPU support : because of references, several GPU nodes can refrence the same stand-alone resource.
 		check(UnderlyingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
 		
@@ -722,6 +725,73 @@ void FD3D12ResourceLocation::ReleaseResource()
 	}
 }
 
+void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
+{
+	if (UnderlyingResource->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
+	{
+		D3D12_RESOURCE_DESC Desc = UnderlyingResource->GetDesc();
+		bool bIsBuffer = (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER);
+		bool bIsRenderTarget = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET || Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		bool bIsUAV = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) > 0;
+
+		// Get the desired size and allocated size for stand alone resources - allocated are very slow anyway
+		D3D12_RESOURCE_ALLOCATION_INFO Info = UnderlyingResource->GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+
+		if (bIsBuffer)
+		{
+			if (bIncrement)
+			{
+				INC_DWORD_STAT(STAT_D3D12BufferStandAloneCount);
+				INC_MEMORY_STAT_BY(STAT_D3D12BufferStandAloneAllocated, Info.SizeInBytes);
+			}
+			else
+			{
+				DEC_DWORD_STAT(STAT_D3D12BufferStandAloneCount);
+				DEC_MEMORY_STAT_BY(STAT_D3D12BufferStandAloneAllocated, Info.SizeInBytes);
+			}
+		}
+		else if (bIsRenderTarget)
+		{
+			if (bIncrement)
+			{
+				INC_DWORD_STAT(STAT_D3D12RenderTargetStandAloneCount);
+				INC_MEMORY_STAT_BY(STAT_D3D12RenderTargetStandAloneAllocated, Info.SizeInBytes);
+			}
+			else
+			{
+				DEC_DWORD_STAT(STAT_D3D12RenderTargetStandAloneCount);
+				DEC_MEMORY_STAT_BY(STAT_D3D12RenderTargetStandAloneAllocated, Info.SizeInBytes);
+			}
+		}
+		else if (bIsUAV)
+		{
+			if (bIncrement)
+			{
+				INC_DWORD_STAT(STAT_D3D12UAVTextureStandAloneCount);
+				INC_MEMORY_STAT_BY(STAT_D3D12UAVTextureStandAloneAllocated, Info.SizeInBytes);
+			}
+			else
+			{
+				DEC_DWORD_STAT(STAT_D3D12UAVTextureStandAloneCount);
+				DEC_MEMORY_STAT_BY(STAT_D3D12UAVTextureStandAloneAllocated, Info.SizeInBytes);
+			}
+		}
+		else
+		{
+			if (bIncrement)
+			{
+				INC_DWORD_STAT(STAT_D3D12TextureStandAloneCount);
+				INC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, Info.SizeInBytes);
+			}
+			else
+			{
+				DEC_DWORD_STAT(STAT_D3D12TextureStandAloneCount);
+				DEC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, Info.SizeInBytes);
+			}
+		}
+	}
+}
+
 void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 {
 	check(UnderlyingResource == nullptr);
@@ -731,6 +801,25 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 
 	UnderlyingResource = Value;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
+}
+
+
+void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint32 BufferSize, bool bInIsTransient)
+{
+	SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
+	SetResource(Resource);
+	SetSize(BufferSize);
+
+	if (!IsCPUInaccessible(Resource->GetHeapType()))
+	{
+		D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType()) ? 0 : BufferSize };
+		SetMappedBaseAddress(Resource->Map(&range));
+	}
+	SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
+	SetTransient(bInIsTransient);
+
+	bool bIncrement = true;
+	UpdateStandAloneStats(bIncrement);
 }
 
 /////////////////////////////////////////////////////////////////////

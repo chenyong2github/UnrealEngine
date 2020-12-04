@@ -686,7 +686,8 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 		uint64 TotalUnused;
 		Device->GetTextureAllocator().GetMemoryStats(TotalAllocated, TotalUnused);
 		MaxTexAllocWastage = FMath::Max(MaxTexAllocWastage, TotalUnused);
-		SET_MEMORY_STAT(STAT_D3D12TextureAllocatorWastage, MaxTexAllocWastage);
+		SET_MEMORY_STAT(STAT_D3D12TextureAllocatorAllocated, TotalAllocated);
+		SET_MEMORY_STAT(STAT_D3D12TextureAllocatorUnused, TotalUnused);
 #endif
 
 		Device->GetDefaultBufferAllocator().UpdateMemoryStats();

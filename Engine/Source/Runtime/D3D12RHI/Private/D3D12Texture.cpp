@@ -350,8 +350,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>
 {
 	FD3D12Resource* D3D12Texture2D = Texture.GetResource();
 
-	// Ignore placed textures as their memory is already allocated and accounted for
-	if (D3D12Texture2D && D3D12Texture2D->IsPlacedResource() == false)
+	if (D3D12Texture2D)
 	{
 		if ((Texture.Flags & TexCreate_Virtual) != TexCreate_Virtual)
 		{
@@ -382,8 +381,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& 
 {
 	FD3D12Resource* D3D12Texture2D = Texture.GetResource();
 
-	// Ignore placed textures as their memory is already allocated and accounted for
-	if (D3D12Texture2D && D3D12Texture2D->IsPlacedResource() == false)
+	if (D3D12Texture2D)
 	{
 		const D3D12_RESOURCE_DESC& Desc = D3D12Texture2D->GetDesc();
 		const int64 TextureSize = Texture.GetMemorySize();
@@ -486,6 +484,9 @@ uint64 FD3D12DynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY
 	Desc.SampleDesc.Count = NumSamples;
 	Desc.Width = SizeX;
 
+	// Check if the 4K aligment is possible
+	Desc.Alignment = TextureCanBe4KAligned(Desc, Format) ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : 0;
+
 	const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = GetAdapter().GetD3DDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 	OutAlign = static_cast<uint32>(AllocationInfo.Alignment);
 
@@ -503,6 +504,9 @@ uint64 FD3D12DynamicRHI::RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 
 	Desc.MipLevels = NumMips;
 	Desc.SampleDesc.Count = NumSamples;
 	Desc.Width = SizeX;
+
+	// Check if the 4K aligment is possible
+	Desc.Alignment = TextureCanBe4KAligned(Desc, Format) ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : 0;
 
 	const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = GetAdapter().GetD3DDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 	OutAlign = static_cast<uint32>(AllocationInfo.Alignment);
@@ -522,6 +526,9 @@ uint64 FD3D12DynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY
 	Desc.SampleDesc.Count = 1;
 	Desc.Width = SizeX;
 
+	// Check if the 4K aligment is possible
+	Desc.Alignment = TextureCanBe4KAligned(Desc, Format) ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : 0;
+
 	const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = GetAdapter().GetD3DDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 	OutAlign = static_cast<uint32>(AllocationInfo.Alignment);
 
@@ -539,6 +546,9 @@ uint64 FD3D12DynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Forma
 	Desc.MipLevels = NumMips;
 	Desc.SampleDesc.Count = 1;
 	Desc.Width = Size;
+
+	// Check if the 4K aligment is possible
+	Desc.Alignment = TextureCanBe4KAligned(Desc, Format) ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : 0;
 
 	const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = GetAdapter().GetD3DDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 	OutAlign = static_cast<uint32>(AllocationInfo.Alignment);

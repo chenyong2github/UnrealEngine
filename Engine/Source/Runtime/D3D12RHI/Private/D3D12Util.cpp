@@ -1453,7 +1453,20 @@ DEFINE_STAT(STAT_D3D12WaitForFenceTime);
 DEFINE_STAT(STAT_D3D12UsedVideoMemory);
 DEFINE_STAT(STAT_D3D12AvailableVideoMemory);
 DEFINE_STAT(STAT_D3D12TotalVideoMemory);
-DEFINE_STAT(STAT_D3D12TextureAllocatorWastage);
+
+DEFINE_STAT(STAT_D3D12RenderTargetStandAloneAllocated);
+DEFINE_STAT(STAT_D3D12UAVTextureStandAloneAllocated);
+DEFINE_STAT(STAT_D3D12TextureStandAloneAllocated);
+DEFINE_STAT(STAT_D3D12BufferStandAloneAllocated);
+
+DEFINE_STAT(STAT_D3D12RenderTargetStandAloneCount);
+DEFINE_STAT(STAT_D3D12UAVTextureStandAloneCount);
+DEFINE_STAT(STAT_D3D12TextureStandAloneCount);
+DEFINE_STAT(STAT_D3D12BufferStandAloneCount);
+
+DEFINE_STAT(STAT_D3D12TextureAllocatorAllocated);
+DEFINE_STAT(STAT_D3D12TextureAllocatorUnused);
+DEFINE_STAT(STAT_D3D12TextureAllocatorCount);
 
 DEFINE_STAT(STAT_D3D12BufferPoolMemoryAllocated);
 DEFINE_STAT(STAT_D3D12BufferPoolMemoryUsed);
@@ -1461,7 +1474,6 @@ DEFINE_STAT(STAT_D3D12BufferPoolMemoryFree);
 DEFINE_STAT(STAT_D3D12BufferPoolAlignmentWaste);
 DEFINE_STAT(STAT_D3D12BufferPoolPageCount);
 DEFINE_STAT(STAT_D3D12BufferPoolFullPages);
-DEFINE_STAT(STAT_D3D12BufferStandAloneUsedMemory);
 
 DEFINE_STAT(STAT_UniqueSamplers);
 

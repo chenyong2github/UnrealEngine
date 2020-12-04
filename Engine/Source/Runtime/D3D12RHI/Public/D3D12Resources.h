@@ -534,20 +534,7 @@ public:
 
 	const inline bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
 
-	inline void AsStandAlone(FD3D12Resource* Resource, uint32 BufferSize = 0, bool bInIsTransient = false )
-	{
-		SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-		SetResource(Resource);
-		SetSize(BufferSize);
-
-		if (!IsCPUInaccessible(Resource->GetHeapType()))
-		{
-			D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType())? 0 : BufferSize };
-			SetMappedBaseAddress(Resource->Map(&range));
-		}
-		SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
-		SetTransient(bInIsTransient);
-	}
+	void AsStandAlone(FD3D12Resource* Resource, uint32 BufferSize = 0, bool bInIsTransient = false);
 
 	inline void AsHeapAliased(FD3D12Resource* Resource)
 	{
@@ -615,6 +602,7 @@ private:
 	void InternalClear();
 
 	void ReleaseResource();
+	void UpdateStandAloneStats(bool bIncrement);
 
 	ResourceLocationType Type;
 

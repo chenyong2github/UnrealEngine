@@ -1396,6 +1396,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 				TextureLocation.SetSize(Info.SizeInBytes);
 				TextureLocation.SetOffsetFromBaseOfResource(Offset);
 				TextureLocation.SetResource(NewResource);
+
+				INC_DWORD_STAT(STAT_D3D12TextureAllocatorCount);
 			}
 			return RetCode;
 		}
@@ -1405,8 +1407,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 	Desc.Alignment = 0;
 	VERIFYD3D12RESULT(RetCode = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &NewResource, Name, false));
 
-	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-	TextureLocation.SetResource(NewResource);
+	TextureLocation.AsStandAlone(NewResource);
 	return RetCode;
 }
 #else
@@ -1430,13 +1431,10 @@ FD3D12TextureAllocator::FD3D12TextureAllocator(FD3D12Device* Device,
 		HeapSize,
 		D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT)
 {
-	// Inform the texture streaming system of this heap so that it correctly accounts for placed textures
-	FD3D12DynamicRHI::GetD3DRHI()->UpdataTextureMemorySize((DefaultPoolSize / 1024));
 }
 
 FD3D12TextureAllocator::~FD3D12TextureAllocator()
 {
-	FD3D12DynamicRHI::GetD3DRHI()->UpdataTextureMemorySize(-int32(DefaultPoolSize / 1024));
 }
 
 HRESULT FD3D12TextureAllocator::AllocateTexture(D3D12_RESOURCE_DESC Desc, const D3D12_CLEAR_VALUE* ClearValue, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
@@ -1473,8 +1471,7 @@ HRESULT FD3D12TextureAllocator::AllocateTexture(D3D12_RESOURCE_DESC Desc, const 
 
 	hr = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &NewResource, Name, false);
 
-	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-	TextureLocation.SetResource(NewResource);
+	TextureLocation.AsStandAlone(NewResource, Info.SizeInBytes);
 
 	return hr;
 }
@@ -1851,6 +1848,8 @@ void FD3D12SegListAllocator::Deallocate(
 		}
 		new (DeferredDeletionQueue[LastIdx]) FRetiredBlock(PlacedResource, Offset, SizeInBytes);
 	}
+
+	DEC_DWORD_STAT(STAT_D3D12TextureAllocatorCount);
 }
 
 template <typename AllocX, typename AllocY>

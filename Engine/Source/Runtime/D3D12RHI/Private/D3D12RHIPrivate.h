@@ -526,8 +526,6 @@ public:
 	uint64 PresentCount;
 #endif
 
-	inline void UpdataTextureMemorySize(int64 TextureSizeInKiloBytes) { FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, TextureSizeInKiloBytes); }
-
 	/** Determine if an two views intersect */
 	template <class LeftT, class RightT>
 	static inline bool ResourceViewsIntersect(FD3D12View<LeftT>* pLeftView, FD3D12View<RightT>* pRightView)
