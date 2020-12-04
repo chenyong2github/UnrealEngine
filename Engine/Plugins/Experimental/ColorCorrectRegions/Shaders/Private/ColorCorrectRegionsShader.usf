@@ -748,12 +748,6 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, clamp(CustomStencil.r, 0., 1.));
 	}
 
-	// Pre Multiply color. The actual Alpha blending is done in a separate pass.
-#if SAMPLE_OPACITY_FROM_GBUFFER
-	FinalColor = FinalColor.rgb;
-#else
-	FinalColor = (FinalColor.rgb * (1.00000000 - ExternalExpressions.SceneTexture.a));
-#endif
 	return float4(FinalColor, FinalAlpha);
 }
 
