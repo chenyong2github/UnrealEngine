@@ -155,7 +155,7 @@ public:
 					Mesh.MaterialRenderProxy = MeshBatchData.MaterialProxy;
 
 					FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-					DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, false, DrawsVelocity(), false);
+					DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), GetLocalToWorld(), GetBounds(), GetLocalBounds(), false, false, DrawsVelocity(), false);
 					BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 					BatchElement.FirstIndex = MeshBatchData.StartIndex;
@@ -241,11 +241,17 @@ void ULineSetComponent::ReserveLines(const int32 MaxID)
 
 int32 ULineSetComponent::AddLine(const FRenderableLine& OverlayLine)
 {
-	const int32 ID(Lines.Add(OverlayLine));
 	MarkRenderStateDirty();
+	return AddLineInternal(OverlayLine);
+}
+
+int32 ULineSetComponent::AddLineInternal(const FRenderableLine& Line)
+{
+	const int32 ID(Lines.Add(Line));
 	bBoundsDirty = true;
 	return ID;
 }
+
 
 void ULineSetComponent::InsertLine(const int32 ID, const FRenderableLine& OverlayLine)
 {
@@ -370,7 +376,8 @@ FBoxSphereBounds ULineSetComponent::CalcBounds(const FTransform& LocalToWorld) c
 void ULineSetComponent::AddLines(
 	int32 NumIndices,
 	TFunctionRef<void(int32 Index, TArray<FRenderableLine>& LinesOut)> LineGenFunc,
-	int32 LinesPerIndexHint)
+	int32 LinesPerIndexHint,
+	bool bDeferRenderStateDirty)
 {
 	TArray<FRenderableLine> TempLines;
 	if (LinesPerIndexHint > 0)
@@ -385,7 +392,12 @@ void ULineSetComponent::AddLines(
 		LineGenFunc(k, TempLines);
 		for (const FRenderableLine& Line : TempLines)
 		{
-			AddLine(Line);
+			AddLineInternal(Line);
 		}
+	}
+
+	if (!bDeferRenderStateDirty)
+	{
+		MarkRenderStateDirty();
 	}
 }

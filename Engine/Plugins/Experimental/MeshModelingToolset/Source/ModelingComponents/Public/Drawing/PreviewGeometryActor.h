@@ -160,4 +160,14 @@ public:
 	UPROPERTY()
 	TMap<FString, ULineSetComponent*> LineSets;
 
+
+
+protected:
+
+	// called at the end of CreateInWorld() to allow subclasses to add additional setup
+	virtual void OnCreated() {}
+
+	// called at the beginning of Disconnect() to allow subclasses to perform additional cleanup
+	virtual void OnDisconnected() {}
+
 };

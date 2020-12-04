@@ -109,8 +109,8 @@ public:
 	void AddLines(
 		int32 NumIndices,
 		TFunctionRef<void(int32 Index, TArray<FRenderableLine>& LinesOut)> LineGenFunc,
-		int32 LinesPerIndexHint = -1);
-
+		int32 LinesPerIndexHint = -1,
+		bool bDeferRenderStateDirty = false);
 
 private:
 
@@ -136,6 +136,8 @@ private:
 	mutable bool bBoundsDirty;
 
 	TSparseArray<FRenderableLine> Lines;
+
+	int32 AddLineInternal(const FRenderableLine& Line);
 
 	friend class FLineSetSceneProxy;
 };

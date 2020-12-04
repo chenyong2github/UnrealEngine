@@ -29,11 +29,15 @@ void UPreviewGeometry::CreateInWorld(UWorld* World, const FTransform& WithTransf
 	SphereComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
 	ParentActor->SetActorTransform(WithTransform);
+
+	OnCreated();
 }
 
 
 void UPreviewGeometry::Disconnect()
 {
+	OnDisconnected();
+
 	if (ParentActor != nullptr)
 	{
 		ParentActor->Destroy();
