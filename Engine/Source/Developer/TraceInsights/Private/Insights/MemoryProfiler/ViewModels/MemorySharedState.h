@@ -129,7 +129,9 @@ private:
 	TSharedPtr<Insights::FMemoryTracker> DefaultTracker;
 	TSharedPtr<Insights::FMemoryTracker> CurrentTracker;
 
-	TSharedPtr<FMemoryGraphTrack> MainGraphTrack; // the Main Memory Graph track
+	TSharedPtr<FMemoryGraphTrack> MainGraphTrack; // the Main Memory Graph track; also hosts the Total Allocated Memory series
+	TSharedPtr<FMemoryGraphTrack> LiveAllocsGraphTrack; // the graph track for the Live Allocation Count series
+	TSharedPtr<FMemoryGraphTrack> AllocFreeGraphTrack; // the graph track for the Alloc Event Count and the Free Event Count series
 	TSet<TSharedPtr<FMemoryGraphTrack>> AllTracks;
 
 	EMemoryTrackHeightMode TrackHeightMode;

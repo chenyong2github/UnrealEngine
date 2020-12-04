@@ -27,13 +27,27 @@ enum class EGraphTrackLabelUnit
 	GiB, // 2^30 bytes (gibibyte)
 	TiB, // 2^40 bytes (tebibyte)
 	PiB, // 2^50 bytes (pebibyte)
-	EiB  // 2^60 bytes (exbibyte)
+	EiB, // 2^60 bytes (exbibyte)
+	AutoCount,
+	Count,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemoryGraphSeries : public FGraphSeries
 {
+public:
+	enum class ETimelineType
+	{
+		MemTag,
+		MinTotalMem,
+		MaxTotalMem,
+		MinLiveAllocs,
+		MaxLiveAllocs,
+		AllocEvents,
+		FreeEvents
+	};
+
 public:
 	virtual FString FormatValue(double Value) const override;
 
@@ -43,15 +57,19 @@ public:
 	Insights::FMemoryTagId GetTagId() const { return TagId; }
 	void SetTagId(Insights::FMemoryTagId InTagId) { TagId = InTagId; }
 
+	ETimelineType GetTimelineType() const { return TimelineType; }
+	void SetTimelineType(ETimelineType InTimelineType) { TimelineType = InTimelineType; }
+
 	double GetMinValue() const { return MinValue; }
 	double GetMaxValue() const { return MaxValue; }
 	void SetValueRange(double Min, double Max) { MinValue = Min; MaxValue = Max; }
 
 private:
-	Insights::FMemoryTrackerId TrackerId; // LLM tracker id
-	Insights::FMemoryTagId TagId; // LLM tag id
-	double MinValue;
-	double MaxValue;
+	Insights::FMemoryTrackerId TrackerId = Insights::FMemoryTracker::InvalidTrackerId; // LLM tracker id
+	Insights::FMemoryTagId TagId = Insights::FMemoryTag::InvalidTagId; // LLM tag id
+	double MinValue = 0.0;
+	double MaxValue = 0.0;
+	ETimelineType TimelineType = ETimelineType::MemTag;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,12 +117,21 @@ public:
 	int32 RemoveMemTagSeries(Insights::FMemoryTagId MemTagId);
 	int32 RemoveAllMemTagSeries();
 
+	TSharedPtr<FMemoryGraphSeries> GetTimelineSeries(FMemoryGraphSeries::ETimelineType InTimelineType);
+	TSharedPtr<FMemoryGraphSeries> AddTimelineSeries(FMemoryGraphSeries::ETimelineType InTimelineType);
+
 	void SetAvailableTrackHeight(EMemoryTrackHeightMode InMode, float InTrackHeight);
 	void SetCurrentTrackHeight(EMemoryTrackHeightMode InMode);
+
+	static void GetUnit(const EGraphTrackLabelUnit InLabelUnit, const double InPrecision, double& OutUnitValue, const TCHAR*& OutUnitText);
+	static FString FormatValue(const double InValue, const double InUnitValue, const TCHAR* InUnitText, const int32 InDecimalDigitCount);
 
 protected:
 	void PreUpdateMemTagSeries(FMemoryGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateMemTagSeries(FMemoryGraphSeries& Series, const FTimingTrackViewport& Viewport);
+
+	void PreUpdateAllocationsTimelineSeries(FMemoryGraphSeries& Series, const FTimingTrackViewport& Viewport);
+	void UpdateAllocationsTimelineSeries(FMemoryGraphSeries& Series, const FTimingTrackViewport& Viewport);
 
 	virtual void DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const override;
 
@@ -128,9 +155,6 @@ protected:
 		FString Prefix;
 	};
 	void DrawHorizontalAxisLabel(const TDrawHorizontalAxisLabelParams& Params) const;
-
-	static void GetUnit(const EGraphTrackLabelUnit InLabelUnit, const double InPrecision, double& OutUnitValue, const TCHAR*& OutUnitText);
-	static FString FormatValue(const double InValue, const double InUnitValue, const TCHAR* InUnitText, const int32 InDecimalDigitCount);
 
 protected:
 	FMemorySharedState& SharedState;

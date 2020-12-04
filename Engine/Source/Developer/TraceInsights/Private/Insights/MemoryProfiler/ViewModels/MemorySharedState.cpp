@@ -36,6 +36,8 @@ FMemorySharedState::FMemorySharedState()
 	, DefaultTracker(nullptr)
 	, CurrentTracker(nullptr)
 	, MainGraphTrack(nullptr)
+	, LiveAllocsGraphTrack(nullptr)
+	, AllocFreeGraphTrack(nullptr)
 	, TrackHeightMode(EMemoryTrackHeightMode::Medium)
 	, bShowHideAllMemoryTracks(false)
 	, CreatedDefaultTracks()
@@ -66,6 +68,8 @@ void FMemorySharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 	CurrentTracker = nullptr;
 
 	MainGraphTrack = nullptr;
+	LiveAllocsGraphTrack = nullptr;
+	AllocFreeGraphTrack = nullptr;
 	AllTracks.Reset();
 
 	bShowHideAllMemoryTracks = true;
@@ -91,6 +95,8 @@ void FMemorySharedState::OnEndSession(Insights::ITimingViewSession& InSession)
 	CurrentTracker = nullptr;
 
 	MainGraphTrack = nullptr;
+	LiveAllocsGraphTrack = nullptr;
+	AllocFreeGraphTrack = nullptr;
 	AllTracks.Reset();
 
 	bShowHideAllMemoryTracks = false;
@@ -112,15 +118,64 @@ void FMemorySharedState::Tick(Insights::ITimingViewSession& InSession, const Tra
 	if (!MainGraphTrack.IsValid())
 	{
 		MainGraphTrack = CreateMemoryGraphTrack();
+		check(MainGraphTrack);
 
 		MainGraphTrack->SetOrder(FTimingTrackOrder::First);
 		MainGraphTrack->SetName(TEXT("Main Memory Graph"));
+
+		MainGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::MaxTotalMem);
+		MainGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::MinTotalMem);
+
 		MainGraphTrack->SetVisibilityFlag(bShowHideAllMemoryTracks);
 
 		MainGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Small, 100.0f);
 		MainGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Medium, 200.0f);
 		MainGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Large, 400.0f);
 		MainGraphTrack->SetCurrentTrackHeight(TrackHeightMode);
+
+		TimingView->InvalidateScrollableTracksOrder();
+	}
+
+	if (!LiveAllocsGraphTrack.IsValid())
+	{
+		LiveAllocsGraphTrack = CreateMemoryGraphTrack();
+		check(LiveAllocsGraphTrack);
+
+		LiveAllocsGraphTrack->SetOrder(FTimingTrackOrder::First + 1);
+		LiveAllocsGraphTrack->SetName(TEXT("Live Allocation Count"));
+		LiveAllocsGraphTrack->SetLabelUnit(EGraphTrackLabelUnit::Count, 0);
+
+		LiveAllocsGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::MaxLiveAllocs);
+		LiveAllocsGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::MinLiveAllocs);
+
+		LiveAllocsGraphTrack->SetVisibilityFlag(bShowHideAllMemoryTracks);
+
+		LiveAllocsGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Small, 50.0f);
+		LiveAllocsGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Medium, 100.0f);
+		LiveAllocsGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Large, 200.0f);
+		LiveAllocsGraphTrack->SetCurrentTrackHeight(TrackHeightMode);
+
+		TimingView->InvalidateScrollableTracksOrder();
+	}
+
+	if (!AllocFreeGraphTrack.IsValid())
+	{
+		AllocFreeGraphTrack = CreateMemoryGraphTrack();
+		check(AllocFreeGraphTrack);
+
+		AllocFreeGraphTrack->SetOrder(FTimingTrackOrder::First + 2);
+		AllocFreeGraphTrack->SetName(TEXT("Alloc/Free Event Count"));
+		AllocFreeGraphTrack->SetLabelUnit(EGraphTrackLabelUnit::Count, 0);
+
+		AllocFreeGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::AllocEvents);
+		AllocFreeGraphTrack->AddTimelineSeries(FMemoryGraphSeries::ETimelineType::FreeEvents);
+
+		AllocFreeGraphTrack->SetVisibilityFlag(bShowHideAllMemoryTracks);
+
+		AllocFreeGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Small, 50.0f);
+		AllocFreeGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Medium, 100.0f);
+		AllocFreeGraphTrack->SetAvailableTrackHeight(EMemoryTrackHeightMode::Large, 200.0f);
+		AllocFreeGraphTrack->SetCurrentTrackHeight(TrackHeightMode);
 
 		TimingView->InvalidateScrollableTracksOrder();
 	}

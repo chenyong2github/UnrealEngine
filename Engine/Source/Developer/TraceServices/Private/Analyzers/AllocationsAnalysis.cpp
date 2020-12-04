@@ -27,20 +27,21 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
 
-	Builder.RouteEvent(RouteId_Init,       "Memory", "Init");
-	Builder.RouteEvent(RouteId_CoreAdd,    "Memory", "CoreAdd");
-	Builder.RouteEvent(RouteId_CoreRemove, "Memory", "CoreRemove");
-	Builder.RouteEvent(RouteId_Alloc,      "Memory", "Alloc");
-	Builder.RouteEvent(RouteId_Realloc,    "Memory", "Realloc");
-	Builder.RouteEvent(RouteId_Free,       "Memory", "Free");
-	Builder.RouteEvent(RouteId_Marker,	   "Memory", "Marker");
+	Builder.RouteEvent(RouteId_Init,         "Memory", "Init");
+	Builder.RouteEvent(RouteId_CoreAdd,      "Memory", "CoreAdd");
+	Builder.RouteEvent(RouteId_CoreRemove,   "Memory", "CoreRemove");
+	Builder.RouteEvent(RouteId_Alloc,        "Memory", "Alloc");
+	Builder.RouteEvent(RouteId_Free,         "Memory", "Free");
+	Builder.RouteEvent(RouteId_ReallocAlloc, "Memory", "ReallocAlloc");
+	Builder.RouteEvent(RouteId_Marker,	     "Memory", "Marker");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FAllocationsAnalyzer::OnAnalysisEnd()
 {
-	//AllocationsProvider.DebugPrint();
+	FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+	AllocationsProvider.EditOnAnalysisCompleted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,13 +57,12 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint8 MinAlignment = EventData.GetValue<uint8>("MinAlignment");
 			const uint8 SizeShift = EventData.GetValue<uint8>("SizeShift");
 			const uint8 SummarySizeShift = EventData.GetValue<uint8>("SummarySizeShift");
-			const uint8 Mode = EventData.GetValue<uint8>("Mode");
 
 			BaseCycle = EventData.GetValue<uint64>("BaseCycle");
 			MarkerPeriod = EventData.GetValue<uint32>("MarkerPeriod");
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditInit(Time, MinAlignment, SizeShift, SummarySizeShift, Mode);
+			AllocationsProvider.EditInit(Time, MinAlignment, SizeShift, SummarySizeShift);
 			break;
 		}
 		case RouteId_CoreAdd:
@@ -88,43 +88,29 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			break;
 		}
 		case RouteId_Alloc:
-		{
-			const double Time = GetCurrentTime();
-			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 Address = EventData.GetValue<uint64>("Address");
-			const uint32 Size = EventData.GetValue<uint32>("Size");
-			const uint8 Alignment = EventData.GetValue<uint8>("Alignment");
-			const uint8 Waste = EventData.GetValue<uint8>("Waste");
-			uint32 Tag = 0;//TODO
-
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment, Waste, Tag);
-			break;
-		}
-		case RouteId_Realloc:
+		case RouteId_ReallocAlloc:
 		{
 			// TODO: Can we have a struct mapping over the EventData?
-			//       something like: const auto& Ev = (const ReallocEvent&)EventData.Get();
+			//       something like: const auto& Ev = (const AllocEvent&)EventData.Get();
 			const double Time = GetCurrentTime();
 			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 FreeAddress = EventData.GetValue<uint64>("FreeAddress");
 			const uint64 Address = EventData.GetValue<uint64>("Address");
 			const uint32 Size = EventData.GetValue<uint32>("Size");
-			const uint8 Alignment = EventData.GetValue<uint8>("Alignment");
-			const uint8 Waste = EventData.GetValue<uint8>("Waste");
+			const uint8 Alignment_SizeLower = EventData.GetValue<uint8>("Alignment_SizeLower");
+			const uint32 Tag = 0; //TODO
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditRealloc(Time, Owner, FreeAddress, Address, Size, Alignment, Waste);
+			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment_SizeLower, Tag);
 			break;
 		}
 		case RouteId_Free:
+		case RouteId_ReallocFree:
 		{
 			const double Time = GetCurrentTime();
-			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 FreeAddress = EventData.GetValue<uint64>("FreeAddress");
+			const uint64 Address = EventData.GetValue<uint64>("Address");
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditFree(Time, Owner, FreeAddress);
+			AllocationsProvider.EditFree(Time, Address);
 			break;
 		}
 		case RouteId_Marker:

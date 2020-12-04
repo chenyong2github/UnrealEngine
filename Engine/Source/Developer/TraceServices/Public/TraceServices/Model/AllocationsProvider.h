@@ -16,6 +16,38 @@ namespace TraceServices
 class IAllocationsProvider : public IProvider
 {
 public:
+	struct TRACESERVICES_API FEditScopeLock
+	{
+		FEditScopeLock(const IAllocationsProvider& InAllocationsProvider)
+			: AllocationsProvider(InAllocationsProvider)
+		{
+			AllocationsProvider.BeginEdit();
+		}
+
+		~FEditScopeLock()
+		{
+			AllocationsProvider.EndEdit();
+		}
+
+		const IAllocationsProvider& AllocationsProvider;
+	};
+
+	struct TRACESERVICES_API FReadScopeLock
+	{
+		FReadScopeLock(const IAllocationsProvider& InAllocationsProvider)
+			: AllocationsProvider(InAllocationsProvider)
+		{
+			AllocationsProvider.BeginRead();
+		}
+
+		~FReadScopeLock()
+		{
+			AllocationsProvider.EndRead();
+		}
+
+		const IAllocationsProvider& AllocationsProvider;
+	};
+
 	// Allocation query rules.
 	// The enum uses the following naming convention:
 	//     A, B, C, D = time markers
@@ -54,9 +86,8 @@ public:
 		double GetStartTime() const;
 		double GetEndTime() const;
 		uint64 GetAddress() const;
-		uint32 GetSize() const;
-		uint8 GetAlignment() const;
-		uint8 GetWaste() const;
+		uint64 GetSize() const;
+		uint32 GetAlignment() const;
 		uint64 GetBacktraceId() const;
 		uint32 GetTag() const;
 	};
@@ -90,7 +121,37 @@ public:
 	typedef UPTRINT FQueryHandle;
 
 public:
+	virtual void BeginEdit() const = 0;
+	virtual void EndEdit() const = 0;
+	virtual void BeginRead() const = 0;
+	virtual void EndRead() const = 0;
+
 	virtual bool IsInitialized() const = 0;
+
+	// Returns the number of points in each timeline (Min/Max Total Allocated Memory, Min/Max Live Allocations, Total Alloc Events, Total Free Events).
+	virtual uint32 GetTimelineNumPoints() const = 0;
+
+	// Returns the inclusive index range [StartIndex, EndIndex] for a time range [StartTime, EndTime].
+	// Index values are in range { -1, 0, .. , N-1, N }, where N = GetTimelineNumPoints().
+	virtual void GetTimelineIndexRange(double StartTime, double EndTime, int32& StartIndex, int32& EndIndex) const = 0;
+
+	// Enumerates the Min Total Allocated Memory timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateMinTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const = 0;
+
+	// Enumerates the Max Total Allocated Memory timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateMaxTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const = 0;
+
+	// Enumerates the Min Live Allocations timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateMinLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const = 0;
+
+	// Enumerates the Max Live Allocations timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateMaxLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const = 0;
+
+	// Enumerates the Alloc Events timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateAllocEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const = 0;
+
+	// Enumerates the Free Events timeline points in the inclusive index interval [StartIndex, EndIndex].
+	virtual void EnumerateFreeEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const = 0;
 
 	virtual FQueryHandle StartQuery(const FQueryParams& Params) const = 0;
 	virtual void CancelQuery(FQueryHandle Query) const = 0;

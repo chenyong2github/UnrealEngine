@@ -20,8 +20,9 @@ private:
 		RouteId_CoreAdd,
 		RouteId_CoreRemove,
 		RouteId_Alloc,
-		RouteId_Realloc,
 		RouteId_Free,
+		RouteId_ReallocAlloc,
+		RouteId_ReallocFree,
 		RouteId_Marker,
 	};
 

@@ -213,10 +213,13 @@ void SMemAllocTableTreeView::StartQuery()
 		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
 		return;
 	}
-	const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
 
-	TraceServices::IAllocationsProvider::FQueryParams Params = { Rule->GetValue(), TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3] };
-	Query = Provider.StartQuery(Params);
+	{
+		const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
+		TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
+		TraceServices::IAllocationsProvider::FQueryParams Params = { Rule->GetValue(), TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3] };
+		Query = Provider.StartQuery(Params);
+	}
 
 	if (Query == 0)
 	{
@@ -246,6 +249,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 		return;
 	}
 	const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
+	TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
 
 	TraceServices::IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
 

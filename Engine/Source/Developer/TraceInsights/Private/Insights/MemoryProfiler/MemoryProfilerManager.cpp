@@ -256,6 +256,7 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 			const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 			if (AllocationsProvider)
 			{
+				TraceServices::IAllocationsProvider::FReadScopeLock _(*AllocationsProvider);
 				if (AllocationsProvider->IsInitialized())
 				{
 					bShouldBeAvailable = true;
