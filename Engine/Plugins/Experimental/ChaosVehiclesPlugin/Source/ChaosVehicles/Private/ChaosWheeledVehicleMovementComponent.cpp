@@ -1153,7 +1153,7 @@ float UChaosWheeledVehicleMovementComponent::GetEngineRotationSpeed() const
 {
 	float EngineRPM = 0.f;
 
-	if (PVehicle.IsValid())
+	if (PVehicle.IsValid() && PVehicle->HasEngine())
 	{
 		EngineRPM = PVehicle->GetEngine().GetEngineRPM();
 	}
@@ -1165,7 +1165,7 @@ float UChaosWheeledVehicleMovementComponent::GetEngineMaxRotationSpeed() const
 {
 	float MaxEngineRPM = 0.f;
 	
-	if (PVehicle.IsValid())
+	if (PVehicle.IsValid() && PVehicle->HasEngine())
 	{
 		MaxEngineRPM = PVehicle->GetEngine().Setup().MaxRPM;
 	}

@@ -59,6 +59,11 @@ public:
 		return Engine[0];
 	}
 
+	bool HasEngine() const
+	{
+		return (Engine.Num() > 0);
+	}
+
 	bool HasTransmission() const
 	{
 		return (Transmission.Num() > 0);
