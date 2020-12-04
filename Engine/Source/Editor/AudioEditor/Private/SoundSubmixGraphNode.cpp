@@ -7,8 +7,90 @@
 #include "SoundSubmixEditor.h"
 #include "SoundSubmixDefaultColorPalette.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "AudioDeviceManager.h"
+#include "AudioEditorSettings.h"
+#include "Widgets/Input/SSlider.h"
+#include "AudioEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SoundSubmixGraphNode"
+
+void SSubmixGraphNode::Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode)
+{
+	SubmixBase = InArgs._SubmixBase;
+	SubmixNodeUserWidget = InArgs._SubmixNodeUserWidget;
+
+	if (SubmixNodeUserWidget.IsValid())
+	{
+		ISubmixNodeWidgetInterface::Execute_OnSubmixNodeConstructed(SubmixNodeUserWidget.Get(), SubmixBase.Get());
+	}
+	GraphNode = InGraphNode;
+	UpdateGraphNode();
+}
+
+void SSubmixGraphNode::UpdateGraphNode()
+{
+	SGraphNode::UpdateGraphNode();
+}
+
+void SSubmixGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+}
+
+TSharedRef<SWidget> SSubmixGraphNode::CreateNodeContentArea()
+{	
+	if (SubmixNodeUserWidget.IsValid())
+	{
+		// NODE CONTENT AREA
+		return SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(0, 3))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.FillWidth(1.0f)
+					[
+						// LEFT
+						SAssignNew(LeftNodeBox, SVerticalBox)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					[
+						// RIGHT
+						SAssignNew(RightNodeBox, SVerticalBox)
+					]
+
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.FillWidth(1.0f)
+					[
+						SubmixNodeUserWidget->TakeWidget()
+					]
+				]
+			]
+		;
+	}
+	else
+	{
+		return SGraphNode::CreateNodeContentArea();
+	}
+
+}
+
+
 
 USoundSubmixGraphNode::USoundSubmixGraphNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -134,4 +216,30 @@ FText USoundSubmixGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		return Super::GetNodeTitle(TitleType);
 	}
 }
+
+TSharedPtr<SGraphNode> USoundSubmixGraphNode::CreateVisualWidget()
+{
+	if (USoundSubmixBase* SubmixBase = Cast<USoundSubmixBase>(SoundSubmix))
+	{
+		if (UAudioEditorSubsystem* AudioEditorSubsytem = GEditor->GetEditorSubsystem<UAudioEditorSubsystem>())
+		{
+			TArray<UUserWidget*> UserWidgets = AudioEditorSubsytem->CreateUserWidgets(USubmixNodeWidgetInterface::StaticClass());
+			if (!UserWidgets.IsEmpty())
+			{
+				SubmixNodeUserWidget = UserWidgets[0];
+			}
+		}
+
+		const UAudioSubmixEditorSettings* Settings = GetDefault<UAudioSubmixEditorSettings>();
+		check(Settings);
+
+		// Pass the owning submix and the user widgets to the graph node
+		return SNew(SSubmixGraphNode, this)
+			.SubmixBase(SubmixBase)
+			.SubmixNodeUserWidget(SubmixNodeUserWidget);
+	}
+	return nullptr;
+}
+
+
 #undef LOCTEXT_NAMESPACE
