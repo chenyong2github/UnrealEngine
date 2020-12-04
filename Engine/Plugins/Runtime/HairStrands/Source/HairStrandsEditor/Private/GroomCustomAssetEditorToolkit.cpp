@@ -388,22 +388,14 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	FProperty* P1 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsRendering));
 	FProperty* P2 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsPhysics));
 	FProperty* P3 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards));
+	FProperty* P4 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD));
 	FProperty* P5 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMeshes));
 	FProperty* P6 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMaterials));
-	FProperty* P4 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD));
-
 	FProperty* P7 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsInfo));
 	FProperty* P8 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, LODSelectionType));
-
-	FProperty* P0_0 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation));
-	FProperty* P0_1 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairInterpolationType));
+	FProperty* P9 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, AssetUserData));
 
 	P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
-	// Make the source file property hidden
-	FProperty* SourceFileProperty = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, AssetUserData));
-	SourceFileProperty->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
-
 	P0->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P1->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P2->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
@@ -413,124 +405,41 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	P6->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P7->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P8->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
+	P9->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 
 	// Set the asset we are editing in the details view
 	if (DetailView_InterpolationProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Interpolation"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Interpolation"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Interpolation"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		
 		DetailView_InterpolationProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_RenderingProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Rendering"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
 		DetailView_RenderingProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_PhysicsProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Physics"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
 		DetailView_PhysicsProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_CardsProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Cards"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
 		DetailView_CardsProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_MeshesProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Meshes"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
 		DetailView_MeshesProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_LODProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("LOD"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("LOD"));
-
 		DetailView_LODProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_MaterialProperties.IsValid())
 	{
-		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P6->SetMetaData(TEXT("Category"), TEXT("Hidden")); // Disabled as we have a custom widget displaying the properties
-		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
 		DetailView_MaterialProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
