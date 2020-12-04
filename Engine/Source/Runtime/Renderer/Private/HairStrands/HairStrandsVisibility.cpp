@@ -1176,7 +1176,14 @@ static FMaterialPassOutput AddHairMaterialPass(
 
 		{
 			RHICmdList.SetViewport(0, 0, 0.0f, Resolution.X, Resolution.Y, 1.0f);
-			DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
+			if (bOutputEmissive)
+			{
+				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_Zero>::GetRHI());
+			}
+			else
+			{
+				DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
+			}
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState <false, CF_Always> ::GetRHI());
 			
 			FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
