@@ -2609,20 +2609,16 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		if (InSettings.bGenerateLightMapUV)
 		{
 			const int32 TempChannel = DataTracker.GetAvailableLightMapUVChannel();
-			if (TempChannel != INDEX_NONE)
-			{
-				return TempChannel;
-			}
-			else
+			if (TempChannel == INDEX_NONE)
 			{
 				// Output warning message
-				UE_LOG(LogMeshMerging, Log, TEXT("Failed to find available lightmap uv channel"));
-				
+				UE_LOG(LogMeshMerging, Warning, TEXT("Failed to find an available channel for Lightmap UVs. Lightmap UVs will not be generated."));
 			}
+			return TempChannel;
 		}
 
-		return 0;
-	}();		
+		return INDEX_NONE;
+	}();
 
 	//
 	//Create merged mesh asset
@@ -2685,7 +2681,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 		// make sure it has a new lighting guid
 		StaticMesh->SetLightingGuid();
-		if (InSettings.bGenerateLightMapUV)
+		if (LightMapUVChannel != INDEX_NONE)
 		{
 			StaticMesh->SetLightMapResolution(InSettings.TargetLightMapResolution);
 			StaticMesh->SetLightMapCoordinateIndex(LightMapUVChannel);
@@ -2707,10 +2703,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				SrcModel.BuildSettings.bRemoveDegenerates = false;
 				SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
 				SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
-				SrcModel.BuildSettings.bGenerateLightmapUVs = InSettings.bGenerateLightMapUV;
+				SrcModel.BuildSettings.bGenerateLightmapUVs = LightMapUVChannel != INDEX_NONE;
 				SrcModel.BuildSettings.MinLightmapResolution = InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution;
 				SrcModel.BuildSettings.SrcLightmapIndex = 0;
-				SrcModel.BuildSettings.DstLightmapIndex = LightMapUVChannel;
+				SrcModel.BuildSettings.DstLightmapIndex = LightMapUVChannel != INDEX_NONE ? LightMapUVChannel : 0;
 				if(!InSettings.bAllowDistanceField)
 				{
 					SrcModel.BuildSettings.DistanceFieldResolutionScale = 0.0f;
