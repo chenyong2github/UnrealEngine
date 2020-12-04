@@ -151,6 +151,14 @@ FAutoConsoleVariableRef CVarSearchUsingChunkArray(
 	TEXT("0: Search using LRU (linked list). 1: Search using Chunk Pool (TArray)"),
 	ECVF_Default);
 
+static int32 EnableExhaustiveCacheSearchesCVar = 0;
+FAutoConsoleVariableRef CVarEnableExhaustiveCacheSearches(
+	TEXT("au.streamcaching.EnableExhaustiveCacheSearches"),
+	EnableExhaustiveCacheSearchesCVar,
+	TEXT("Enables an exhaustive search of the cache in FindElementForKey.\n")
+	TEXT("0: Rely on chunk offset. 1: Search using linear search"),
+	ECVF_Default);
+
 static FAutoConsoleCommand GFlushAudioCacheCommand(
 	TEXT("au.streamcaching.FlushAudioCache"),
 	TEXT("This will flush any non retained audio from the cache when Stream Caching is enabled."),
@@ -1184,36 +1192,33 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 	if (CacheOffset != InvalidAudioStreamCacheLookupID)
 	{
 		check(CacheOffset < CachePool.Num());
+
 		// Finally, sanity check that the key is still the same.
 		if (CachePool[CacheOffset].Key == InKey)
 		{
 			return &CachePool[CacheOffset];
 		}
-		else
-		{
-			UE_LOG(LogAudioStreamCaching, Display, TEXT("Falling back to linear search. Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s)")
+
+		UE_LOG(LogAudioStreamCaching, Display, TEXT("Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s)")
 			, CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString(), *InKey.SoundWaveName.ToString());
-		}
 	}
 
-	// Otherwise, linearly search the cache.
-	if (SearchUsingChunkArrayCVar)
+	if (EnableExhaustiveCacheSearchesCVar)
 	{
-		return LinearSearchChunkArrayForElement(InKey);
+		// Otherwise, linearly search the cache.
+		if (SearchUsingChunkArrayCVar)
+		{
+			return LinearSearchChunkArrayForElement(InKey);
+		}
+
+		return LinearSearchCacheForElement(InKey);
 	}
 
-	return LinearSearchCacheForElement(InKey);
+	return nullptr;
 }
 
 FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchCacheForElement(const FChunkKey& InKey)
 {
-	static bool bHasLogged = false;
-	if (!bHasLogged)
-	{
-		UE_LOG(LogAudioStreamCaching, Display, TEXT("Linear searching cache on cache offset lookup failure"));
-		bHasLogged = true;
-	}
-
 	//Otherwise, linearly search the cache.
 	FCacheElement* CurrentElement = MostRecentElement;
 
@@ -1251,13 +1256,6 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchCacheForElement(c
 
 FAudioChunkCache::FCacheElement* FAudioChunkCache::LinearSearchChunkArrayForElement(const FChunkKey& InKey)
 {
-	static bool bHasLogged = false;
-	if (!bHasLogged)
-	{
-		UE_LOG(LogAudioStreamCaching, Display, TEXT("Linear searching cache on cache offset lookup failure"));
-		bHasLogged = true;
-	}
-
 	for (int i = 0; i < ChunksInUse; ++i)
 	{
 		if (InKey == CachePool[i].Key)
