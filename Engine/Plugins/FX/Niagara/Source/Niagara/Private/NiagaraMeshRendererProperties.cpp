@@ -315,15 +315,26 @@ void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArr
 void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
-#if WITH_EDITOR
-	if (GIsEditor && (ParticleMesh != nullptr))
+	if (ParticleMesh != nullptr)
 	{
 		ParticleMesh->ConditionalPostLoad();
-		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
-		ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
-	}
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+			ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+		}
 #endif
+	}
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
+
+	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
+	{
+		if (OverrideMaterial.ExplicitMat )
+		{
+			OverrideMaterial.ExplicitMat->ConditionalPostLoad();
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA
