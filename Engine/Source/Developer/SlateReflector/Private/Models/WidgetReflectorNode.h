@@ -201,12 +201,17 @@ public:
 	/**
 	 * Add the given node to our list of children for this widget (this node will keep a strong reference to the instance)
 	 */
-	void AddChildNode(TSharedRef<FWidgetReflectorNodeBase> InChildNode);
+	static void AddChildNode(TSharedRef<FWidgetReflectorNodeBase> InParentNode, TSharedRef<FWidgetReflectorNodeBase> InChildNode);
 
 	/**
 	 * @return The node entries for the widget's children
 	 */
 	const TArray<TSharedRef<FWidgetReflectorNodeBase>>& GetChildNodes() const;
+
+	/**
+	 * @returns The node entry for the widget's parent, if it exists, 
+	 */
+	const TSharedPtr<FWidgetReflectorNodeBase> GetParentNode() const;
 
 protected:
 	/**
@@ -228,6 +233,9 @@ protected:
 
 	/** Node entries for the widget's children */
 	TArray<TSharedRef<FWidgetReflectorNodeBase>> ChildNodes;
+
+	/** Node entry for the widget's parent  */
+	TWeakPtr<FWidgetReflectorNodeBase> ParentNode;
 
 	/** A tint that is applied to text in order to provide visual hints (Transient) */
 	FLinearColor Tint;
