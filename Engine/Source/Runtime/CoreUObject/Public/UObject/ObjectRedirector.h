@@ -26,6 +26,10 @@ class UObjectRedirector : public UObject
 	void Serialize(FStructuredArchive::FRecord Record) override;
 	virtual bool NeedsLoadForEditorGame() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	virtual bool HasNonEditorOnlyReferences() const override
+	{
+		return true;
+	}
 
 	/**
 	 * Callback for retrieving a textual representation of natively serialized properties.  Child classes should implement this method if they wish

@@ -167,7 +167,7 @@ UObject* FPackageHarvester::PopExportToProcess()
 void FPackageHarvester::ProcessExport(UObject* InObject)
 {
 	check(SaveContext.IsExport(InObject));
-	bool bReferencerIsEditorOnly = IsEditorOnlyObject(InObject, true /* bCheckRecursive */, true /* bCheckMarks */) && !HasGameDependenciesEvenWhenEditorOnly(InObject);
+	bool bReferencerIsEditorOnly = IsEditorOnlyObject(InObject, true /* bCheckRecursive */, true /* bCheckMarks */) && InObject->HasNonEditorOnlyReferences();
 	FExportScope HarvesterScope(*this, InObject, bReferencerIsEditorOnly);
 
 	// Harvest its class 
