@@ -3,11 +3,13 @@
 #include "DataprepGeometryOperations.h"
 
 #include "DataprepOperationsLibraryUtil.h"
-#include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "DynamicMeshEditor.h"
 #include "Components/StaticMeshComponent.h"
+#include "CuttingOps/PlaneCutOp.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
 #include "IDataprepProgressReporter.h"
 #include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
@@ -16,6 +18,7 @@
 #include "MeshDescriptionAdapter.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/MergeCoincidentMeshEdges.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithEditingOperationsExperimental"
 
@@ -432,6 +435,307 @@ void UDataprepWeldEdgesOperation::OnExecution_Implementation(const FDataprepCont
 	{
 		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
 	}
+}
+
+void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepEditingOperationTime::FTimeLogger TimeLogger(TEXT("PlaneCutOperation"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	TArray<UObject*> ModifiedStaticMeshes;
+	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	TArray<AActor*> ComponentActors;
+
+	for (UObject* Object : InContext.Objects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			TInlineComponentArray<UStaticMeshComponent*> Components(Actor);
+			for (UStaticMeshComponent* Component : Components)
+			{
+				if (Component && Component->GetStaticMesh())
+				{
+					StaticMeshComponents.Add(Component);
+					ComponentActors.Add(Actor);
+				}
+			}
+		}
+	}
+
+	TArray<TUniquePtr<FDynamicMesh3>> Results;
+	
+	// For each mesh in MeshesToCut, the index of the attached generic triangle attribute tracking the object index
+	TArray<int> MeshSubObjectAttribIndices;
+
+	for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+	{
+		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+
+		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+
+		TSharedPtr<FDynamicMesh3> OriginalMesh = MakeShared<FDynamicMesh3>();
+		FMeshDescriptionToDynamicMesh MeshDescriptionToDynamicMesh;
+		MeshDescriptionToDynamicMesh.Convert(MeshDescription, *OriginalMesh);
+
+		OriginalMesh->EnableAttributes();
+		TDynamicMeshScalarTriangleAttribute<int>* SubObjectIDs = new TDynamicMeshScalarTriangleAttribute<int>(OriginalMesh.Get());
+		SubObjectIDs->Initialize(0);
+		const int AttribIndex = OriginalMesh->Attributes()->AttachAttribute(SubObjectIDs);
+
+		MeshSubObjectAttribIndices.Add(AttribIndex);
+
+		// store a UV scale based on the original mesh bounds (we don't want to recompute this between cuts b/c we want consistent UV scale)
+		const float MeshUVScaleFactor = 1.0 / OriginalMesh->GetBounds().MaxDim();
+
+		TUniquePtr<FDynamicMeshOperator> CutOp = MakeNewOperator(StaticMeshComponent, OriginalMesh, MeshUVScaleFactor, AttribIndex);
+
+		FProgressCancel Progress;
+		CutOp->CalculateResult(&Progress);
+
+		Results.Add(CutOp->ExtractResult());
+	}
+
+	// Currently in-place replaces the first half, and adds a new actor for the second half (if it was generated)
+	// Borrowed from UPlaneCutTool::GenerateAsset
+
+	ensure(Results.Num() > 0);
+	int32 NumSourceMeshes = StaticMeshComponents.Num();
+	TArray<TArray<FDynamicMesh3>> AllSplitMeshes;
+	AllSplitMeshes.SetNum(NumSourceMeshes);
+
+	for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
+	{
+		FDynamicMesh3* UseMesh = Results[OrigMeshIdx].Get();
+		check(UseMesh != nullptr);
+
+		// Check if mesh was entirely cut away
+		if (UseMesh->TriangleCount() == 0)
+		{
+			StaticMeshComponents[OrigMeshIdx]->SetStaticMesh(nullptr);
+			StaticMeshComponents[OrigMeshIdx]->MarkRenderStateDirty();
+			continue;
+		}
+
+		// Export separated pieces as new mesh assets
+		{
+			TDynamicMeshScalarTriangleAttribute<int>* SubMeshIDs =
+				static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(UseMesh->Attributes()->GetAttachedAttribute(
+					MeshSubObjectAttribIndices[OrigMeshIdx]));
+			TArray<FDynamicMesh3>& SplitMeshes = AllSplitMeshes[OrigMeshIdx];
+			bool bWasSplit = FDynamicMeshEditor::SplitMesh(UseMesh, SplitMeshes, [SubMeshIDs](int TID)
+			{
+				return SubMeshIDs->GetValue(TID);
+			});
+			if (bWasSplit)
+			{
+				// Split mesh did something but has no meshes in the output array??
+				if (!ensure(SplitMeshes.Num() > 0))
+				{
+					continue;
+				}
+
+				if (SplitMeshes.Num() > 1)
+				{
+					// Build array of materials from the original
+					TArray<UMaterialInterface*> Materials;
+					UStaticMeshComponent* ComponentTarget = StaticMeshComponents[OrigMeshIdx];
+					for (int MaterialIdx = 0, NumMaterials = ComponentTarget->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
+					{
+						Materials.Add(ComponentTarget->GetMaterial(MaterialIdx));
+					}
+
+					// Add all the additional meshes
+					for (int AddMeshIdx = 1; AddMeshIdx < SplitMeshes.Num(); AddMeshIdx++)
+					{
+						FTransform Transform = ComponentTarget->GetComponentTransform();
+
+						FDynamicMesh3* Mesh = &SplitMeshes[AddMeshIdx];
+
+						TUniquePtr<FMeshDescription> MeshDescription = MakeUnique<FMeshDescription>();
+						FStaticMeshAttributes Attributes(*MeshDescription);
+						Attributes.Register();
+
+						FDynamicMeshToMeshDescription Converter;
+						Converter.Convert(Mesh, *MeshDescription);
+
+						// Add new actor
+						AStaticMeshActor* NewActor = Cast<AStaticMeshActor>(CreateActor(AStaticMeshActor::StaticClass(), FString()));
+						check(NewActor);
+
+						const AActor* OriginalActor = ComponentTarget->GetOwner<AActor>();
+						check(OriginalActor);
+
+						NewActor->SetActorLabel(OriginalActor->GetActorLabel() + "_Below");
+
+						const UStaticMesh* OriginalMesh = StaticMeshComponents[OrigMeshIdx]->GetStaticMesh();
+						const FString NewMeshName = OriginalMesh->GetName() + "_Below";
+
+						// Create new mesh component and set as root of NewActor.
+						
+						UStaticMeshComponent* NewMeshComponent = FinalizeStaticMeshActor(NewActor, NewMeshName, MeshDescription.Get(), Materials.Num(), OriginalMesh);
+
+						// Configure transform and materials of new component
+						NewMeshComponent->SetWorldTransform((FTransform)Transform);
+						for (int MatIdx = 0, NumMats = Materials.Num(); MatIdx < NumMats; MatIdx++)
+						{
+							NewMeshComponent->SetMaterial(MatIdx, Materials[MatIdx]);
+						}
+					}
+				}
+				UseMesh = &SplitMeshes[0];
+			}
+		}
+
+		FMeshDescription* MeshDescription = StaticMeshComponents[OrigMeshIdx]->GetStaticMesh()->GetMeshDescription(0);
+
+		FDynamicMeshToMeshDescription DynamicMeshToMeshDescription;
+
+		// Full conversion if normal topology changed or faces were inverted
+		DynamicMeshToMeshDescription.Convert(UseMesh, *MeshDescription);
+
+		UStaticMesh::FCommitMeshDescriptionParams Params;
+		Params.bMarkPackageDirty = false;
+		Params.bUseHashAsGuid = true;
+		StaticMeshComponents[OrigMeshIdx]->GetStaticMesh()->CommitMeshDescription(0, Params);
+		StaticMeshComponents[OrigMeshIdx]->MarkRenderStateDirty();
+
+		ModifiedStaticMeshes.Add(StaticMeshComponents[OrigMeshIdx]->GetStaticMesh());
+	}
+
+	if (ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified(MoveTemp(ModifiedStaticMeshes));
+	}
+}
+
+TUniquePtr<FDynamicMeshOperator> UDataprepPlaneCutOperation::MakeNewOperator(
+	const UStaticMeshComponent* InStaticMeshComponent, 
+	TSharedPtr<FDynamicMesh3> InOriginalMesh, 
+	float InMeshUVScaleFactor, 
+	int InAttribIndex)
+{
+	TUniquePtr<FPlaneCutOp> CutOp = MakeUnique<FPlaneCutOp>();
+	CutOp->bFillCutHole = bFillCutHole;
+	CutOp->bFillSpans = false;
+
+	FTransform LocalToWorld = InStaticMeshComponent->GetComponentTransform();
+	CutOp->SetTransform(LocalToWorld);
+	// for all plane computation, change LocalToWorld to not have any zero scale dims
+	FVector LocalToWorldScale = LocalToWorld.GetScale3D();
+	for (int i = 0; i < 3; i++)
+	{
+		float DimScale = FMathf::Abs(LocalToWorldScale[i]);
+		float Tolerance = KINDA_SMALL_NUMBER;
+		if (DimScale < Tolerance)
+		{
+			LocalToWorldScale[i] = Tolerance * FMathf::SignNonZero(LocalToWorldScale[i]);
+		}
+	}
+
+	FVector WorldNormal = FRotator::MakeFromEuler(CutPlaneNormalAngles).Vector();
+
+	if (CutPlaneKeepSide == EPlaneCutKeepSide::Positive)
+	{
+		WorldNormal *= -1;
+	}
+
+	LocalToWorld.SetScale3D(LocalToWorldScale);
+	FTransform WorldToLocal = LocalToWorld.Inverse();
+	FVector LocalOrigin = WorldToLocal.TransformPosition(CutPlaneOrigin);
+	FTransform3d W2LForNormal(WorldToLocal);
+	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal(WorldNormal);
+	FVector BackTransformed = LocalToWorld.TransformVector(LocalNormal);
+	float NormalScaleFactor = FVector::DotProduct(BackTransformed, WorldNormal);
+	if (NormalScaleFactor >= FLT_MIN)
+	{
+		NormalScaleFactor = 1.0 / NormalScaleFactor;
+	}
+	CutOp->LocalPlaneOrigin = LocalOrigin;
+	CutOp->LocalPlaneNormal = LocalNormal;
+	CutOp->OriginalMesh = InOriginalMesh;
+	CutOp->bKeepBothHalves = (CutPlaneKeepSide == EPlaneCutKeepSide::Both);
+	CutOp->CutPlaneLocalThickness = SpacingBetweenHalves * NormalScaleFactor;
+	CutOp->UVScaleFactor = InMeshUVScaleFactor;
+	CutOp->SubObjectsAttribIndex = InAttribIndex;
+
+	return CutOp;
+}
+
+UStaticMeshComponent* UDataprepPlaneCutOperation::FinalizeStaticMeshActor(
+	AStaticMeshActor* InActor, 
+	const FString& InMeshName, 
+	const FMeshDescription* InMeshDescription, 
+	int InNumMaterialSlots,
+	const UStaticMesh* InOriginalMesh)
+{
+	check(InMeshDescription != nullptr);
+
+	// create new UStaticMesh object
+	EObjectFlags flags = EObjectFlags::RF_Public | EObjectFlags::RF_Standalone;
+	UStaticMesh* NewStaticMesh = Cast<UStaticMesh>(CreateAsset(UStaticMesh::StaticClass(), InMeshName));
+
+	// initialize the LOD 0 MeshDescription
+	NewStaticMesh->SetNumSourceModels(1);
+	NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeNormals = false;
+	NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeTangents = true;
+
+	NewStaticMesh->CreateMeshDescription(0, *InMeshDescription);
+
+	if (InOriginalMesh->GetBodySetup())
+	{
+		if (NewStaticMesh->GetBodySetup() == nullptr)
+		{
+			NewStaticMesh->CreateBodySetup();
+		}
+
+		NewStaticMesh->GetBodySetup()->CollisionTraceFlag = InOriginalMesh->GetBodySetup()->CollisionTraceFlag.GetValue();
+	}
+
+	// add a material slot. Must always have one material slot.
+	int AddMaterialCount = FMath::Max(1, InNumMaterialSlots);
+	for (int MatIdx = 0; MatIdx < AddMaterialCount; MatIdx++)
+	{
+		NewStaticMesh->GetStaticMaterials().Add(FStaticMaterial());
+	}
+
+	// assuming we have updated the LOD 0 MeshDescription, tell UStaticMesh about this
+	NewStaticMesh->CommitMeshDescription(0);
+
+	UStaticMeshComponent* NewMeshComponent = nullptr;
+
+	// if we have a StaticMeshActor we already have a StaticMeshComponent, otherwise we 
+	// need to make a new one. Note that if we make a new one it will not be editable in the 
+	// Editor because it is not a UPROPERTY...
+	AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(InActor);
+	if (StaticMeshActor != nullptr)
+	{
+		NewMeshComponent = StaticMeshActor->GetStaticMeshComponent();
+	}
+	else
+	{
+		// create component
+		NewMeshComponent = NewObject<UStaticMeshComponent>(InActor);
+		InActor->SetRootComponent(NewMeshComponent);
+	}
+
+	// this disconnects the component from various events
+	NewMeshComponent->UnregisterComponent();
+
+	// Configure flags of the component. Is this necessary?
+	NewMeshComponent->SetMobility(EComponentMobility::Movable);
+	NewMeshComponent->bSelectable = true;
+
+	// replace the UStaticMesh in the component
+	NewMeshComponent->SetStaticMesh(NewStaticMesh);
+
+	// re-connect the component (?)
+	NewMeshComponent->RegisterComponent();
+
+	// if we don't do this, world traces don't hit the mesh
+	NewMeshComponent->MarkRenderStateDirty();
+
+	return NewMeshComponent;
 }
 
 #undef LOCTEXT_NAMESPACE
