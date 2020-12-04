@@ -274,7 +274,6 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 	, bHasLights(false)
 	, bMotionBlurEnabled(InProps ? InProps->bMotionBlurEnabled : false)
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
-	, NumIndicesPerInstance(InProps ? InProps->GetNumIndicesPerInstance() : 0)
 	, FeatureLevel(InFeatureLevel)
 {
 #if STATS

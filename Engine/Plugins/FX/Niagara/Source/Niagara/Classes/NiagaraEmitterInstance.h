@@ -144,7 +144,7 @@ public:
 
 	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
 
-	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
+	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, UMaterialInterface*& OutMaterial) const;
 
 
 	bool HasTicked() const { return TickCount > 0;  }

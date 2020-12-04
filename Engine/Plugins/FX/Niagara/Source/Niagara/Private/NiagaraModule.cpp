@@ -144,6 +144,7 @@ FNiagaraVariable INiagaraModule::Particles_RibbonV0RangeOverride;
 FNiagaraVariable INiagaraModule::Particles_RibbonU1Override;
 FNiagaraVariable INiagaraModule::Particles_RibbonV1RangeOverride;
 FNiagaraVariable INiagaraModule::Particles_VisibilityTag;
+FNiagaraVariable INiagaraModule::Particles_MeshIndex;
 FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
 FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::ScriptContext;
@@ -257,6 +258,7 @@ void INiagaraModule::StartupModule()
 	Particles_RibbonU1Override = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonU1Override"));
 	Particles_RibbonV1RangeOverride = FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Particles.RibbonV1RangeOverride"));
 	Particles_VisibilityTag = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particles.VisibilityTag"));
+	Particles_MeshIndex = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particles.MeshIndex"));
 	Particles_ComponentsEnabled = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Particles.ComponentsEnabled"));
 
 	ScriptUsage = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage"));
@@ -758,34 +760,37 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::ClearUserDefinedRegistry();
 
-	FNiagaraTypeRegistry::Register(CollisionEventDef, false, true, false);
+	ENiagaraTypeRegistryFlags VarFlags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
+	ENiagaraTypeRegistryFlags ParamFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowParameter;
+	ENiagaraTypeRegistryFlags PayloadFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowPayload;
+	FNiagaraTypeRegistry::Register(CollisionEventDef, PayloadFlags);
 
-	FNiagaraTypeRegistry::Register(ParameterMapDef, true, false, false);
-	FNiagaraTypeRegistry::Register(IDDef, true, true, false);
-	FNiagaraTypeRegistry::Register(NumericDef, true, false, false);
-	FNiagaraTypeRegistry::Register(FloatDef, true, true, false);
-	FNiagaraTypeRegistry::Register(HalfDef, true, true, false);
-	FNiagaraTypeRegistry::Register(IntDef, true, true, false);
-	FNiagaraTypeRegistry::Register(BoolDef, true, true, false);
-	FNiagaraTypeRegistry::Register(Vec2Def, true, true, false);
-	FNiagaraTypeRegistry::Register(Vec3Def, true, true, false);
-	FNiagaraTypeRegistry::Register(Vec4Def, true, true, false);
-	FNiagaraTypeRegistry::Register(ColorDef, true, true, false);
-	FNiagaraTypeRegistry::Register(QuatDef, true, true, false);
-	FNiagaraTypeRegistry::Register(Matrix4Def, true, false, false);
+	FNiagaraTypeRegistry::Register(ParameterMapDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(IDDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(NumericDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(FloatDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(HalfDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(IntDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(BoolDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(Vec2Def, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(Vec3Def, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(Vec4Def, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
 
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), true, true, false);
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), true, true, false);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);
 
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), ParamFlags);
 
-	FNiagaraTypeRegistry::Register(UObjectDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UMaterialDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UTextureDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, false, false, false);
-	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
-	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
+	FNiagaraTypeRegistry::Register(UObjectDef, VarFlags);
+	FNiagaraTypeRegistry::Register(UMaterialDef, VarFlags);
+	FNiagaraTypeRegistry::Register(UTextureDef, VarFlags);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, VarFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
 
 	if (!IsRunningCommandlet())
 	{
@@ -819,7 +824,16 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
 				if (ScriptStruct != nullptr)
 				{
-					FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
+					if (ParamRefFound)
+					{
+						Flags |= ENiagaraTypeRegistryFlags::AllowParameter;
+					}
+					if (PayloadRefFound)
+					{
+						Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
+					}
+					FNiagaraTypeRegistry::Register(ScriptStruct, Flags);
 				}
 
 				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
@@ -853,7 +867,16 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				UEnum* Enum = Cast<UEnum>(Obj);
 				if (Enum != nullptr)
 				{
-					FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
+					if (ParamRefFound)
+					{
+						Flags |= ENiagaraTypeRegistryFlags::AllowParameter;
+					}
+					if (PayloadRefFound)
+					{
+						Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
+					}
+					FNiagaraTypeRegistry::Register(Enum, Flags);
 				}
 
 				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
