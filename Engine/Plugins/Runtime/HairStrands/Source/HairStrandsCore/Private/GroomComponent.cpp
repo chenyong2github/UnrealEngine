@@ -559,6 +559,15 @@ public:
 		StrandsVertexFactory.ReleaseResource();
 	}
 
+	virtual void OnTransformChanged() override
+	{
+		const FTransform HairLocalToWorld = FTransform(GetLocalToWorld());
+		for (FHairGroupInstance* Instance : HairGroupInstances)
+		{
+			Instance->LocalToWorld = HairLocalToWorld;
+		}
+	}
+
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const { return true; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
@@ -2310,10 +2319,9 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	}
 
 	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
-	const FTransform HairLocalToWorld = GetComponentTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		[Id, WorldType, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
@@ -2321,7 +2329,6 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
 		{
 			Instance->WorldType = WorldType;
-			Instance->LocalToWorld = HairLocalToWorld;
 			Instance->Debug.SkeletalLocalToWorld = SkinLocalToWorld;
 		}
 	});
