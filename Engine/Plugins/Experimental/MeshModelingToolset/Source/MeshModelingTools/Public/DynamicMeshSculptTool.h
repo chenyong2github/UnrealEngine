@@ -350,6 +350,7 @@ private:
 	FVector3d LastBrushPosWorld;
 	FVector3d LastBrushPosNormalWorld;
 	FVector3d LastSmoothBrushPosLocal;
+	int32 LastBrushTriangleID = -1;
 
 	TArray<int> VertexROI;
 	TSet<int> VertexSetBuffer;

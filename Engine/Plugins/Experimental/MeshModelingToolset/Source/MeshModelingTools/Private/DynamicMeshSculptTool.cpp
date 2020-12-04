@@ -1260,6 +1260,7 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRa
 
 		LastBrushPosNormalWorld = CurTargetTransform.TransformNormal(SculptMesh->GetTriNormal(HitTID));
 		LastBrushPosWorld = CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		LastBrushTriangleID = HitTID;
 		return true;
 	}
 
@@ -1270,6 +1271,7 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRa
 		BrushPlane.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 		LastBrushPosWorld = NewHitPosWorld;
 		LastBrushPosNormalWorld = ActiveDragPlane.Z();
+		LastBrushTriangleID = -1;
 		return true;
 	}
 
@@ -2239,6 +2241,9 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 				break;
 			case EMeshEditingMaterialModes::TangentNormal:
 				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::TangentNormalFromView);
+				break;
+			case EMeshEditingMaterialModes::VertexColor:
+				SculptMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager());
 				break;
 			}
 			if (SculptMaterial != nullptr)

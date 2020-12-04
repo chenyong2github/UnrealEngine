@@ -359,7 +359,17 @@ TUniquePtr<FMeshSculptBrushOp>& UMeshSculptToolBase::GetActiveBrushOp()
 	}
 }
 
-
+void UMeshSculptToolBase::SetBrushOpPropsVisibility(bool bVisible)
+{
+	if (PrimaryVisiblePropSet)
+	{
+		SetToolPropertySourceEnabled(PrimaryVisiblePropSet, bVisible);
+	}
+	if (SecondaryVisiblePropSet)
+	{
+		SetToolPropertySourceEnabled(SecondaryVisiblePropSet, bVisible);
+	}
+}
 
 
 void UMeshSculptToolBase::SetPrimaryFalloffType(EMeshSculptFalloffType FalloffType)
@@ -513,6 +523,8 @@ void UMeshSculptToolBase::UpdateBrushTargetPlaneFromHit(const FRay& WorldRay, co
 
 bool UMeshSculptToolBase::UpdateBrushPositionOnActivePlane(const FRay& WorldRay)
 {
+	LastBrushTriangleID = IndexConstants::InvalidID;
+
 	FVector3d NewHitPosWorld;
 	ActiveBrushTargetPlaneWorld.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 	UpdateBrushFrameWorld(NewHitPosWorld, ActiveBrushTargetPlaneWorld.Z());
@@ -521,6 +533,8 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnActivePlane(const FRay& WorldRay)
 
 bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, bool bFallbackToViewPlane)
 {
+	LastBrushTriangleID = IndexConstants::InvalidID;
+
 	FRay3d LocalRay = GetLocalRay(WorldRay);
 	int32 HitTID = FindHitTargetMeshTriangle(LocalRay);
 	if (HitTID != IndexConstants::InvalidID)
@@ -529,6 +543,7 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, 
 		FIntrRay3Triangle3d Query = TMeshQueries<FDynamicMesh3>::TriangleIntersection(*BaseMesh, HitTID, LocalRay);
 		FVector3d WorldNormal = CurTargetTransform.TransformNormal(BaseMesh->GetTriNormal(HitTID));
 		FVector3d WorldPos = CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		LastBrushTriangleID = HitTID;
 		UpdateBrushFrameWorld(WorldPos, WorldNormal);
 		return true;
 	}
@@ -547,6 +562,8 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, 
 
 bool UMeshSculptToolBase::UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane)
 {
+	LastBrushTriangleID = IndexConstants::InvalidID;
+
 	FRay3d LocalRay = GetLocalRay(WorldRay);
 	int32 HitTID = FindHitSculptMeshTriangle(LocalRay);
 	if (HitTID != IndexConstants::InvalidID)
@@ -555,6 +572,7 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, 
 		FIntrRay3Triangle3d Query = TMeshQueries<FDynamicMesh3>::TriangleIntersection(*SculptMesh, HitTID, LocalRay);
 		FVector3d WorldNormal = CurTargetTransform.TransformNormal(SculptMesh->GetTriNormal(HitTID));
 		FVector3d WorldPos = CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		LastBrushTriangleID = HitTID;
 		UpdateBrushFrameWorld(WorldPos, WorldNormal);
 		return true;
 	}
@@ -744,7 +762,13 @@ void UMeshSculptToolBase::DecreaseBrushRadiusSmallStepAction()
 
 
 
-
+void UMeshSculptToolBase::SetViewPropertiesEnabled(bool bNewValue)
+{
+	if (ViewProperties)
+	{
+		SetToolPropertySourceEnabled(ViewProperties, bNewValue);
+	}
+}
 
 void UMeshSculptToolBase::UpdateWireframeVisibility(bool bNewValue)
 {
@@ -795,6 +819,10 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 				ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), ViewProperties->Image);
 			}
 		}
+		else if (MaterialMode == EMeshEditingMaterialModes::VertexColor)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager());
+		}
 		else
 		{
 			UMaterialInterface* SculptMaterial = nullptr;
@@ -813,7 +841,7 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::TangentNormalFromView);
 				break;
 			}
-			if (SculptMaterial != nullptr)
+			if (SculptMaterial != nullptr )
 			{
 				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(SculptMaterial, this);
 			}
@@ -848,6 +876,28 @@ void UMeshSculptToolBase::InitializeIndicator()
 	BrushIndicator->bDrawIndicatorLines = true;
 	BrushIndicator->bDrawRadiusCircle = false;
 	BrushIndicator->LineColor = FLinearColor(0.9f, 0.4f, 0.4f);
+
+	bIsVolumetricIndicator = true;
+}
+
+bool UMeshSculptToolBase::GetIsVolumetricIndicator()
+{
+	return bIsVolumetricIndicator;
+}
+
+void UMeshSculptToolBase::ConfigureIndicator(bool bVolumetric)
+{
+	if (bIsVolumetricIndicator == bVolumetric) return;
+	bIsVolumetricIndicator = bVolumetric;
+	BrushIndicatorMesh->SetVisible(bVolumetric);
+	if (bVolumetric)
+	{
+		BrushIndicator->bDrawRadiusCircle = false;
+	}
+	else
+	{
+		BrushIndicator->bDrawRadiusCircle = true;
+	}
 }
 
 

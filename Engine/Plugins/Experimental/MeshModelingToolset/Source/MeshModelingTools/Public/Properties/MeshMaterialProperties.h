@@ -97,7 +97,8 @@ enum class EMeshEditingMaterialModes
 	Grey = 2,
 	Soft = 3,
 	TangentNormal = 4,
-	Custom = 5
+	VertexColor = 5,
+	Custom = 6
 };
 
 

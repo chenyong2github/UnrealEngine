@@ -242,7 +242,7 @@ protected:
 	void SetActivePrimaryBrushType(int32 Identifier);
 	void SetActiveSecondaryBrushType(int32 Identifier);
 	TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
-
+	void SetBrushOpPropsVisibility(bool bVisible);
 
 	//
 	// Falloff types
@@ -295,9 +295,11 @@ public:
 private:
 	FFrame3d LastBrushFrameWorld;
 	FFrame3d LastBrushFrameLocal;
+	int32 LastBrushTriangleID;
 protected:
 	const FFrame3d& GetBrushFrameWorld() const { return LastBrushFrameWorld; }
 	const FFrame3d& GetBrushFrameLocal() const { return LastBrushFrameLocal; }
+	int32 GetBrushTriangleID() const { return LastBrushTriangleID; }
 	void UpdateBrushFrameWorld(const FVector3d& NewPosition, const FVector3d& NewNormal);
 	void AlignBrushToView();
 
@@ -384,6 +386,7 @@ public:
 	UMaterialInstanceDynamic* ActiveOverrideMaterial;
 
 protected:
+	virtual void SetViewPropertiesEnabled(bool bNewValue);
 	virtual void UpdateWireframeVisibility(bool bNewValue);
 	virtual void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
 	virtual void UpdateFlatShadingSetting(bool bNewValue);
@@ -399,9 +402,17 @@ protected:
 	// subclasses should call this to create indicator in their ::Setup()
 	virtual void InitializeIndicator();
 
+	virtual bool GetIsVolumetricIndicator();
+
+	virtual void ConfigureIndicator(bool bVolumetric);
+
 protected:
 	UPROPERTY()
 	UBrushStampIndicator* BrushIndicator;
+
+	UPROPERTY()
+	bool bIsVolumetricIndicator;
+
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* BrushIndicatorMaterial;
