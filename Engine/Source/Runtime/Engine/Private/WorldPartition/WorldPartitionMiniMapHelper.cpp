@@ -117,6 +117,8 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 		CaptureComponent->OrthoWidth = ViewportWidth;
 		CaptureComponent->bUseCustomProjectionMatrix = true;
 		CaptureComponent->CustomProjectionMatrix = ProjectionMatrix;
+		CaptureComponent->bCaptureEveryFrame = false;
+		CaptureComponent->bCaptureOnMovement = false;
 		CaptureComponent->CaptureScene();
 
 		auto RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
