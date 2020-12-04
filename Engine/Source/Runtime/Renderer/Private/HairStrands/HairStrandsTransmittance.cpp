@@ -31,8 +31,8 @@ static FAutoConsoleVariableRef CVarDeepShadowKernelAperture(TEXT("r.HairStrands.
 static uint32 GetDeepShadowKernelType() { return uint32(FMath::Max(0, GDeepShadowKernelType)); }
 static float GetDeepShadowKernelAperture() { return GDeepShadowKernelAperture; }
 
-static int32 GStrandHairShadowMaskKernelType = 2;
-static FAutoConsoleVariableRef GVarDeepShadowShadowMaskKernelType(TEXT("r.HairStrands.DeepShadow.ShadowMaskKernelType"), GStrandHairShadowMaskKernelType, TEXT("Set the kernel type for filtering shadow cast by hair on opaque geometry (0:2x2, 1:4x4, 2:Gaussian8, 3:Gaussian16, 4:Gaussian8 with transmittance. Default is 0"));
+static int32 GStrandHairShadowMaskKernelType = 4;
+static FAutoConsoleVariableRef GVarDeepShadowShadowMaskKernelType(TEXT("r.HairStrands.DeepShadow.ShadowMaskKernelType"), GStrandHairShadowMaskKernelType, TEXT("Set the kernel type for filtering shadow cast by hair on opaque geometry (0:2x2, 1:4x4, 2:Gaussian8, 3:Gaussian16, 4:Gaussian8 with transmittance. Default is 4"));
 
 static float GDeepShadowDensityScale = 2;	// Default is arbitrary, based on Mike asset
 static float GDeepShadowDepthBiasScale = 0.05;
