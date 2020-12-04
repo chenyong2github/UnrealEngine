@@ -655,7 +655,6 @@ uint32 FCallstackProcWorker::Run()
 {
 	while (bRun)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE("ProfilerThreadWork")
 		while (!Queue.was_empty()) 
 		{
 			FBacktraceEntry Entry = Queue.pop();
