@@ -21,6 +21,9 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(RenderDocPlugin, Log, All);
 
+class FViewport;
+class FRHICommandListImmediate;
+
 class FRenderDocPluginModule : public IRenderDocPlugin
 {
 public:
