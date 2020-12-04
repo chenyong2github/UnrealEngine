@@ -44,9 +44,10 @@ private:
 	 * @param MousePosition		The current screen space position of the mouse
 	 * @param AllottedGeometry	The geometry of the mouse event
 	 * @param OutKeys			Array to populate with the keys that are under the mouse
+	 * @param KeyHeightFraction Optional key height fraction. Keys are by default offset and half height. Pass in 1 if checking full height of key track area.  
 	 * @return The key that is under the mouse.  Invalid if there is no key under the mouse
 	 */
-	void GetKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys ) const;
+	void GetKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys, float KeyHeightFraction=0.5f ) const;
 
 	/**
 	 * Creates a key at the mouse position
