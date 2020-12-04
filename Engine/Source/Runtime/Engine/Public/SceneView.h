@@ -943,12 +943,6 @@ public:
 	/** The uniform buffer for the view's parameters. This is only initialized in the rendering thread's copies of the FSceneView. */
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 
-	/** Mobile Directional Lighting uniform buffers, one for each lighting channel 
-	  * The first is used for primitives with no lighting channels set.
-	  * Only initialized in the rendering thread's copies of the FSceneView.
-	  */
-	TUniformBufferRef<FMobileDirectionalLightShaderParameters> MobileDirectionalLightUniformBuffers[NUM_LIGHTING_CHANNELS+1];
-
 private:
 	/** During GetDynamicMeshElements this will be the correct cull volume for shadow stuff */
 	const FConvexVolume* DynamicMeshElementsShadowCullFrustum;

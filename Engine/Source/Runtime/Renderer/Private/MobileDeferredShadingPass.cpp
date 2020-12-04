@@ -23,6 +23,11 @@ static FAutoConsoleVariableRef CVarMobileUseLightStencilCulling(
 	ECVF_RenderThreadSafe
 );
 
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileDeferredPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 class FMobileDeferredShadingPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FMobileDeferredShadingPS, Global);
@@ -321,30 +326,34 @@ static void RenderLocalLight(FRHICommandListImmediate& RHICmdList, const FScene&
 	}
 }
 
-void MobileDeferredShadingPass(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FSortedLightSetSceneInfo &SortedLightSet)
+void MobileDeferredShadingPass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures, const FScene& Scene, const FViewInfo& View, const FSortedLightSetSceneInfo &SortedLightSet)
 {
-	SCOPED_DRAW_EVENT(RHICmdList, MobileDeferredShading);
+	auto* PassParameters = GraphBuilder.AllocParameters<FMobileDeferredPassParameters>();
+	PassParameters->RenderTargets = BasePassRenderTargets;
+	PassParameters->MobileSceneTextures = MobileSceneTextures;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	FUniformBufferRHIRef PassUniformBuffer = CreateMobileSceneTextureUniformBuffer(RHICmdList);
-	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
-	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
-	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-	RenderDirectLight(RHICmdList, Scene, View);
-
-	// Render non-clustered local lights
-	int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
-	int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
-	if (GMobileUseClusteredDeferredShading != 0)
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("MobileDeferredShadingPass"), PassParameters, ERDGPassFlags::Raster,
+		[&Scene, &View, &SortedLightSet](FRHICommandListImmediate& RHICmdList)
 	{
-		StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
-	}
 
-	for (int32 LightIdx = StandardDeferredStart; LightIdx < AttenuationLightStart; ++LightIdx)
-	{
-		const FSortedLightSceneInfo& SortedLight = SortedLightSet.SortedLights[LightIdx];
-		const FLightSceneInfo& LightSceneInfo = *SortedLight.LightSceneInfo;
-		RenderLocalLight(RHICmdList, Scene, View, LightSceneInfo);
-	}
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+		RenderDirectLight(RHICmdList, Scene, View);
+
+		// Render non-clustered local lights
+		int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
+		int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+		if (GMobileUseClusteredDeferredShading != 0)
+		{
+			StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
+		}
+
+		for (int32 LightIdx = StandardDeferredStart; LightIdx < AttenuationLightStart; ++LightIdx)
+		{
+			const FSortedLightSceneInfo& SortedLight = SortedLightSet.SortedLights[LightIdx];
+			const FLightSceneInfo& LightSceneInfo = *SortedLight.LightSceneInfo;
+			RenderLocalLight(RHICmdList, Scene, View, LightSceneInfo);
+		}
+	});
 }

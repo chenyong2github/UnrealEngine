@@ -2037,7 +2037,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	}
 }
 
-void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures)
 {
 	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows)
 	{
@@ -2046,13 +2046,12 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderModulatedShadowProjections, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
-	SCOPED_DRAW_EVENT(RHICmdList, ShadowProjectionOnOpaque);
-	SCOPED_GPU_STAT(RHICmdList, ShadowProjection);
-
-	FRDGBuilder GraphBuilder(RHICmdList);
+	RDG_EVENT_SCOPE(GraphBuilder, "ShadowProjectionOnOpaque");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
 
 	FShadowProjectionPassParameters CommonPassParameters;
-	CommonPassParameters.SceneTextures.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::SceneColor);
+	CommonPassParameters.SceneTextures.MobileSceneTextures = MobileSceneTextures;
+	CommonPassParameters.RenderTargets = BasePassRenderTargets;
 
 	// render shadowmaps for relevant lights.
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -2080,8 +2079,6 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 			}
 		}
 	}
-
-	GraphBuilder.Execute();
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentSelfShadowUniformParameters, "TranslucentSelfShadow");

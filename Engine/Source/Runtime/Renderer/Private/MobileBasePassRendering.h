@@ -37,6 +37,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, AmbientOcclusionSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileBasePassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FMobileBasePassUniformParameters, MobileBasePass)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 extern void SetupMobileBasePassUniformParameters(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,

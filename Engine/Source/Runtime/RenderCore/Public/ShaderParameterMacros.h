@@ -440,6 +440,9 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 	FDepthStencilBinding DepthStencil;
 	FResolveRect ResolveRect;
 	uint32 NumOcclusionQueries = 0;
+	ESubpassHint SubpassHint = ESubpassHint::None;
+	uint8 MultiViewCount = 0;
+	FRDGTexture* FoveationTexture = nullptr;
 
 	/** Accessors for regular output to simplify the syntax to:
 	 *

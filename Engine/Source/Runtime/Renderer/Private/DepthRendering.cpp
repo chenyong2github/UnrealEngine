@@ -592,37 +592,52 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	}
 }
 
-void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TFunction<void(FRenderTargetBindingSlots&)> UpdateRenderTargetsLoadAction)
 {
-	check(!RHICmdList.IsOutsideRenderPass());
-
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
-	SCOPED_DRAW_EVENT(RHICmdList, MobileRenderPrePass);
+	RDG_EVENT_SCOPE(GraphBuilder, "MobileRenderPrePass");
 
 	SCOPE_CYCLE_COUNTER(STAT_DepthDrawTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPrePass);
-	SCOPED_GPU_STAT(RHICmdList, Prepass);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Prepass);
 
 	// Draw a depth pass to avoid overdraw in the other passes.
 	// Mobile only does MaskedOnly DepthPass for the moment
 	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
 	{
+		bool bAnyPassesAdded = false;
+
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
 
-			SCOPED_GPU_MASK(RHICmdList, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
 			if (!View.ShouldRenderView())
 			{
 				continue;
 			}
+			
+			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+			PassParameters->RenderTargets = BasePassRenderTargets;
 
-			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderPrePass"), PassParameters, ERDGPassFlags::Raster,
+				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
+			{
+				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
-			SetStereoViewport(RHICmdList, View);
+				SetStereoViewport(RHICmdList, View);
 
-			View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
+			});
+
+			bAnyPassesAdded = true;
+		}
+
+		if (bAnyPassesAdded)
+		{
+			UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 		}
 	}
 }

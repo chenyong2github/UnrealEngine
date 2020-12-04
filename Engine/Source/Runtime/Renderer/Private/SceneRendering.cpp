@@ -1868,16 +1868,6 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 	// we want these to start null without a reference count, since we clear a ref later
 	TUniformBufferRef<FViewUniformShaderParameters> NullViewUniformBuffer;
 	FMemory::Memcpy(Result->ViewUniformBuffer, NullViewUniformBuffer); 
-	TUniformBufferRef<FMobileDirectionalLightShaderParameters> NullMobileDirectionalLightUniformBuffer;
-	for (size_t i = 0; i < UE_ARRAY_COUNT(Result->MobileDirectionalLightUniformBuffers); i++)
-	{
-		// This memcpy is necessary to clear the reference from the memcpy of the whole of this -> Result without releasing the pointer
-		// But what we really want is the null buffer.
-		FMemory::Memcpy(
-			&Result->MobileDirectionalLightUniformBuffers[i],
-			&GetNullMobileDirectionalLightShaderParameters(),
-			sizeof(TUniformBufferRef<FMobileDirectionalLightShaderParameters>));
-	}
 
 	TUniquePtr<FViewUniformShaderParameters> NullViewParameters;
 	FMemory::Memcpy(Result->CachedViewUniformShaderParameters, NullViewParameters); 
@@ -4650,15 +4640,6 @@ FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBui
 	}
 
 	return SmallDepthTexture;
-}
-
-void FSceneRenderer::ResolveSceneDepth(FRHICommandListImmediate& RHICmdList)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-	AddResolveSceneDepthPass(GraphBuilder, Views, RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ));
-	GraphBuilder.Execute();
 }
 
 void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList)

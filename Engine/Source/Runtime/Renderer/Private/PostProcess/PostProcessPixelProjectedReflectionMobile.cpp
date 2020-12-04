@@ -201,26 +201,6 @@ void FMobileSceneRenderer::ReleasePixelProjectedReflectionOutputs()
 	GPixelProjectedReflectionMobileOutputs.Release();
 }
 
-void FMobileSceneRenderer::RenderPixelProjectedReflection(FRHICommandListImmediate& RHICmdList, const FSceneRenderTargets& SceneContext, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy)
-{
-	checkSlow(GPixelProjectedReflectionMobileOutputs.IsValid());
-
-	SCOPED_DRAW_EVENT(RHICmdList, PixelProjectedReflection);
-
-	FMemMark Mark(FMemStack::Get());
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColorTexture"));
-
-	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthTexture"));
-
-	FRDGTextureRef PixelProjectedReflectionTexture = GraphBuilder.RegisterExternalTexture(GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture, TEXT("PixelProjectedReflectionTexture"));
-
-	RenderPixelProjectedReflection(GraphBuilder, SceneColorTexture, SceneDepthTexture, PixelProjectedReflectionTexture, PlanarReflectionSceneProxy);
-
-	GraphBuilder.Execute();
-}
-
 void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy)
 {
 	const FIntPoint BufferSize = PlanarReflectionSceneProxy->RenderTarget->GetSizeXY();

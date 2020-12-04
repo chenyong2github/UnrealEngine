@@ -416,24 +416,6 @@ void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
 	GAmbientOcclusionMobileOutputs.Release();
 }
 
-void FMobileSceneRenderer::RenderAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
-{
-	checkSlow(GAmbientOcclusionMobileOutputs.IsValid() && SceneDepthZ.IsValid());
-
-	SCOPED_DRAW_EVENT(RHICmdList, AmbientOcclusion);
-
-	FMemMark Mark(FMemStack::Get());
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ, TEXT("SceneDepthTexture"));
-
-	FRDGTextureRef AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
-
-	RenderAmbientOcclusion(GraphBuilder, SceneDepthTexture, AmbientOcclusionTexture);
-
-	GraphBuilder.Execute();
-}
-
 void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture)
 {
 	static const auto GTAOThicknessBlendCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.ThicknessBlend"));

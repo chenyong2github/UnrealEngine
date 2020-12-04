@@ -28,6 +28,7 @@ MobileSceneCaptureRendering.cpp - Mobile specific scene capture code.
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
 #include "GenerateMips.h"
+#include "ScreenPass.h"
 
 /**
 * Shader set for the copy of scene color to capture target, alpha channel will contain opacity information. (Determined from depth buffer content)
@@ -46,149 +47,93 @@ static const TCHAR* GShaderSourceModeDefineName[] =
 	nullptr
 };
 
-template<ESceneCaptureSource CaptureSource>
 class FMobileSceneCaptureCopyPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FMobileSceneCaptureCopyPS, Global)
 public:
+	DECLARE_GLOBAL_SHADER(FMobileSceneCaptureCopyPS);
+	SHADER_USE_PARAMETER_STRUCT(FMobileSceneCaptureCopyPS, FGlobalShader);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsMobilePlatform(Parameters.Platform); }
+	class FCaptureSourceDim : SHADER_PERMUTATION_INT("CAPTURE_SOURCE", ESceneCaptureSource::SCS_MAX);
 
-	FMobileSceneCaptureCopyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
-	{
-		InTexture.Bind(Initializer.ParameterMap, TEXT("InTexture"), SPF_Mandatory);
-		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+	using FPermutationDomain = TShaderPermutationDomain<FCaptureSourceDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InTextureSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
+	{ 
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		auto CaptureSourceDim = PermutationVector.Get<FCaptureSourceDim>();
+		return IsMobilePlatform(Parameters.Platform) && 
+			(CaptureSourceDim == SCS_SceneColorHDR
+			|| CaptureSourceDim == SCS_FinalColorLDR
+			|| CaptureSourceDim == SCS_FinalColorHDR
+			|| CaptureSourceDim == SCS_SceneColorHDRNoAlpha
+			|| CaptureSourceDim == SCS_SceneColorSceneDepth
+			|| CaptureSourceDim == SCS_SceneDepth
+			|| CaptureSourceDim == SCS_DeviceDepth);
 	}
-	FMobileSceneCaptureCopyPS() {}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		auto CaptureSourceDim = PermutationVector.Get<FCaptureSourceDim>();
+
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1u); // this will force reading depth from a SceneColor.A
-		const TCHAR* DefineName = GShaderSourceModeDefineName[CaptureSource];
+		const TCHAR* DefineName = GShaderSourceModeDefineName[CaptureSourceDim];
 		if (DefineName)
 		{
 			OutEnvironment.SetDefine(DefineName, 1);
 		}
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	static FPermutationDomain BuildPermutationVector(ESceneCaptureSource CaptureSource)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+		FPermutationDomain PermutationVector;
+		return PermutationVector;
 	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
 };
+
+IMPLEMENT_GLOBAL_SHADER(FMobileSceneCaptureCopyPS, "/Engine/Private/MobileSceneCapture.usf", "MainCopyPS", SF_Pixel);
 
 /**
 * A vertex shader for rendering a textured screen element.
 */
 class FMobileSceneCaptureCopyVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FMobileSceneCaptureCopyVS, Global)
-public:
+	DECLARE_GLOBAL_SHADER(FMobileSceneCaptureCopyVS);
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FMobileSceneCaptureCopyVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER(FVector2D, InvTexSize)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsMobilePlatform(Parameters.Platform); }
-
-	FMobileSceneCaptureCopyVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
-	{
-		InvTexSizeParameter.Bind(Initializer.ParameterMap, TEXT("InvTexSize"));
-	}
-	FMobileSceneCaptureCopyVS() {}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FIntPoint& SourceTexSize)
-	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
-		if (InvTexSizeParameter.IsBound())
-		{
-			FVector2D InvTexSize(1.0f / SourceTexSize.X, 1.0f / SourceTexSize.Y);
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), InvTexSizeParameter, InvTexSize);
-		}
-	}
-
-	LAYOUT_FIELD(FShaderParameter, InvTexSizeParameter)
 };
 
-#define IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCENETYPE) \
-typedef FMobileSceneCaptureCopyPS<SCENETYPE> FMobileSceneCaptureCopyPS##SCENETYPE;\
-IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS##SCENETYPE, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyPS"), SF_Pixel); \
-
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDR);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorLDR);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorHDR);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDRNoAlpha);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorSceneDepth);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneDepth);
-IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_DeviceDepth);
-IMPLEMENT_SHADER_TYPE(, FMobileSceneCaptureCopyVS, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyVS"), SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FMobileSceneCaptureCopyVS, "/Engine/Private/MobileSceneCapture.usf", "MainCopyVS", SF_Vertex);
  
-
-template <ESceneCaptureSource CaptureSource>
-static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
-{
-	TShaderMapRef<FMobileSceneCaptureCopyVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FMobileSceneCaptureCopyPS<CaptureSource>> PixelShader(View.ShaderMap);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	VertexShader->SetParameters(RHICmdList, View, SourceTexSize);
-	PixelShader->SetParameters(RHICmdList, View, TStaticSamplerState<SF_Point>::GetRHI(), SourceTextureRHI);
-
-	return VertexShader;
-}
-
-static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ESceneCaptureSource CaptureSource, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
-{
-	switch (CaptureSource)
-	{
-		case SCS_SceneColorHDR:
-			return SetCaptureToTargetShaders<SCS_SceneColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_FinalColorLDR:
-			return SetCaptureToTargetShaders<SCS_FinalColorLDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_FinalColorHDR:
-			return SetCaptureToTargetShaders<SCS_FinalColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_SceneColorHDRNoAlpha:
-			return SetCaptureToTargetShaders<SCS_SceneColorHDRNoAlpha>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_SceneColorSceneDepth:
-			return SetCaptureToTargetShaders<SCS_SceneColorSceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_SceneDepth:
-			return SetCaptureToTargetShaders<SCS_SceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		case SCS_DeviceDepth:
-			return SetCaptureToTargetShaders<SCS_DeviceDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
-		default:
-			checkNoEntry();
-			return TShaderRef<FShader>();
-	}
-}
-
 // Copies into render target, optionally flipping it in the Y-axis
 static void CopyCaptureToTarget(
-	FRHICommandListImmediate& RHICmdList, 
-	const FRenderTarget* Target, 
+	FRDGBuilder& GraphBuilder,
+	const FRDGTextureRef Target, 
 	const FIntPoint& TargetSize, 
 	FViewInfo& View, 
 	const FIntRect& ViewRect, 
-	FRHITexture2D* SourceTextureRHI,
+	FRDGTextureRef SourceTexture,
 	bool bNeedsFlippedRenderTarget,
 	FSceneRenderer* SceneRenderer)
 {
-	check(SourceTextureRHI);
-	check(RHICmdList.IsOutsideRenderPass());
+	FIntPoint SourceTexSize = SourceTexture->Desc.Extent;
 
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	ESceneCaptureSource CaptureSource = View.Family->SceneCaptureSource;
-	ESceneCaptureCompositeMode CaptureCompositeMode = View.Family->SceneCaptureCompositeMode;
 
 	// Normal and BaseColor not supported on mobile, fall back to scene colour.
 	if (CaptureSource == SCS_Normal || CaptureSource == SCS_BaseColor)
@@ -196,68 +141,97 @@ static void CopyCaptureToTarget(
 		CaptureSource = SCS_SceneColorHDR;
 	}
 
-	ERenderTargetLoadAction RTLoadAction;
-	if (CaptureSource == SCS_SceneColorHDR && CaptureCompositeMode == SCCM_Composite)
+	ESceneCaptureCompositeMode CaptureCompositeMode = View.Family->SceneCaptureCompositeMode;
 	{
-		// Blend with existing render target color. Scene capture color is already pre-multiplied by alpha.
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
-		RTLoadAction = ERenderTargetLoadAction::ELoad;
-	}
-	else if (CaptureSource == SCS_SceneColorHDR && CaptureCompositeMode == SCCM_Additive)
-	{
-		// Add to existing render target color. Scene capture color is already pre-multiplied by alpha.
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
-		RTLoadAction = ERenderTargetLoadAction::ELoad;
-	}
-	else
-	{
-		RTLoadAction = ERenderTargetLoadAction::ENoAction;
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	}
-
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	FIntPoint SourceTexSize = SourceTextureRHI->GetSizeXY();
-	
-	{
-		RHICmdList.Transition(FRHITransitionInfo(Target->GetRenderTargetTexture(), ERHIAccess::Unknown,ERHIAccess::RTV));
-		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), MakeRenderTargetActions(RTLoadAction, ERenderTargetStoreAction::EStore));
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("CaptureToTarget"));
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-
-		TShaderRef<FShader> VertexShader = SetCaptureToTargetShaders(RHICmdList, GraphicsPSOInit, CaptureSource, View, SourceTexSize, SourceTextureRHI);
-
-		if (bNeedsFlippedRenderTarget)
+		ERenderTargetLoadAction RTLoadAction;
+		FRHIBlendState* BlendState;
+		if (CaptureSource == SCS_SceneColorHDR && CaptureCompositeMode == SCCM_Composite)
 		{
-			DrawRectangle(
-				RHICmdList,
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Height() - ViewRect.Min.Y,
-				ViewRect.Width(), -ViewRect.Height(),
-				TargetSize,
-				SourceTexSize,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
+			// Blend with existing render target color. Scene capture color is already pre-multiplied by alpha.
+			BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
+			RTLoadAction = ERenderTargetLoadAction::ELoad;
+		}
+		else if (CaptureSource == SCS_SceneColorHDR && CaptureCompositeMode == SCCM_Additive)
+		{
+			// Add to existing render target color. Scene capture color is already pre-multiplied by alpha.
+			BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
+			RTLoadAction = ERenderTargetLoadAction::ELoad;
 		}
 		else
 		{
-			DrawRectangle(
-				RHICmdList,
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
-				TargetSize,
-				SourceTexSize,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
+			RTLoadAction = ERenderTargetLoadAction::ENoAction;
+			BlendState = TStaticBlendState<>::GetRHI();
 		}
-		RHICmdList.EndRenderPass();
+
+		TShaderMapRef<FMobileSceneCaptureCopyVS> VertexShader(View.ShaderMap);
+
+		FMobileSceneCaptureCopyVS::FParameters VSShaderParameters;
+
+		VSShaderParameters.View = View.ViewUniformBuffer;
+		VSShaderParameters.InvTexSize = FVector2D(1.0f / SourceTexSize.X, 1.0f / SourceTexSize.Y);
+
+		auto ShaderPermutationVector = FMobileSceneCaptureCopyPS::BuildPermutationVector(CaptureSource);
+
+		TShaderMapRef<FMobileSceneCaptureCopyPS> PixelShader(View.ShaderMap, ShaderPermutationVector);
+
+		FMobileSceneCaptureCopyPS::FParameters* PSShaderParameters = GraphBuilder.AllocParameters<FMobileSceneCaptureCopyPS::FParameters>();
+		PSShaderParameters->View = View.ViewUniformBuffer;
+		PSShaderParameters->InTexture = SourceTexture;
+		PSShaderParameters->InTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PSShaderParameters->RenderTargets[0] = FRenderTargetBinding(Target, RTLoadAction);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("CaptureToTarget"),
+			PSShaderParameters,
+			ERDGPassFlags::Raster,
+			[VertexShader, VSShaderParameters, PixelShader, PSShaderParameters, BlendState, bNeedsFlippedRenderTarget, &ViewRect, &TargetSize, SourceTexSize](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.BlendState = BlendState;
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSShaderParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PSShaderParameters);
+
+			if (bNeedsFlippedRenderTarget)
+			{
+				DrawRectangle(
+					RHICmdList,
+					ViewRect.Min.X, ViewRect.Min.Y,
+					ViewRect.Width(), ViewRect.Height(),
+					ViewRect.Min.X, ViewRect.Height() - ViewRect.Min.Y,
+					ViewRect.Width(), -ViewRect.Height(),
+					TargetSize,
+					SourceTexSize,
+					VertexShader,
+					EDRF_UseTriangleOptimization);
+			}
+			else
+			{
+				DrawRectangle(
+					RHICmdList,
+					ViewRect.Min.X, ViewRect.Min.Y,
+					ViewRect.Width(), ViewRect.Height(),
+					ViewRect.Min.X, ViewRect.Min.Y,
+					ViewRect.Width(), ViewRect.Height(),
+					TargetSize,
+					SourceTexSize,
+					VertexShader,
+					EDRF_UseTriangleOptimization);
+			}
+		});
 	}
-	
 
 	// if opacity is needed.
 	if (CaptureSource == SCS_SceneColorHDR)
@@ -267,13 +241,22 @@ static void CopyCaptureToTarget(
 		FMobileSceneRenderer* MobileSceneRenderer = (FMobileSceneRenderer*)SceneRenderer;
 
 		{
-			MobileSceneRenderer->RenderInverseOpacity(RHICmdList, View);
-		}		
+			MobileSceneRenderer->RenderInverseOpacity(GraphBuilder, View);
+		}
 
 		// Set capture target.
-		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("OpacitySceneCapture"));
+		FCopyRectPS::FParameters* PSShaderParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+		PSShaderParameters->InputTexture = SourceTexture;
+		PSShaderParameters->InputSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PSShaderParameters->RenderTargets[0] = FRenderTargetBinding(Target, ERenderTargetLoadAction::ELoad);
+
+		TShaderMapRef<FScreenPassVS> ScreenVertexShader(View.ShaderMap);
+		TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+
+		GraphBuilder.AddPass(RDG_EVENT_NAME("OpacitySceneCapturePass"), PSShaderParameters, ERDGPassFlags::Raster,
+			[&View, ScreenVertexShader, PixelShader, bNeedsFlippedRenderTarget, PSShaderParameters, &ViewRect, &TargetSize, SourceTexSize](FRHICommandListImmediate& RHICmdList)
 		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -283,9 +266,6 @@ static void CopyCaptureToTarget(
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			// Combine translucent opacity pass to earlier opaque pass to build final inverse opacity.
-			TShaderMapRef<FScreenVS> ScreenVertexShader(View.ShaderMap);
-			TShaderMapRef<FScreenPS> PixelShader(View.ShaderMap);
-
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
@@ -293,8 +273,7 @@ static void CopyCaptureToTarget(
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			ScreenVertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
-			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceTextureRHI);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PSShaderParameters);
 
 			int32 TargetPosY = ViewRect.Min.Y;
 			int32 TargetHeight = ViewRect.Height();
@@ -315,8 +294,7 @@ static void CopyCaptureToTarget(
 				SourceTexSize,
 				ScreenVertexShader,
 				EDRF_UseTriangleOptimization);
-		}
-		RHICmdList.EndRenderPass();
+		});
 	}
 }
 
@@ -429,29 +407,24 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			}
 		}
 
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, SceneRenderer->ViewFamily);
+
 		const FIntPoint TargetSize(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height());
 		if (bNeedsFlippedFinalColor)
 		{
 			// We need to flip this texture upside down (since we depended on tonemapping to fix this on the hdr path)
-			SCOPED_DRAW_EVENT(RHICmdList, FlipCapture);
-			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FlippedRenderTarget.GetTextureParamRef(), bNeedsFlippedCopy, SceneRenderer);
+			RDG_EVENT_SCOPE(GraphBuilder, "FlipCapture");
+			CopyCaptureToTarget(GraphBuilder, ViewFamilyTexture, TargetSize, View, ViewRect, GraphBuilder.RegisterExternalTexture(FlippedPooledRenderTarget), bNeedsFlippedCopy, SceneRenderer);
 		}
 		else if(bUseSceneTextures)
 		{
 			// Copy the captured scene into the destination texture
-			SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneColor);
-			// If multiview is enabled, the SceneColorTexture will be an array texture.
-			if (View.bIsMobileMultiViewEnabled)
-			{
-				CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get().GetSceneColorTexture()->GetTexture2DArray(), bNeedsFlippedCopy, SceneRenderer);
-			}
-			else
-			{
-				CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get().GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
-			}
+			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
+			CopyCaptureToTarget(GraphBuilder, ViewFamilyTexture, TargetSize, View, ViewRect, GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get().GetSceneColor()), bNeedsFlippedCopy, SceneRenderer);
 		}
-
-		FRDGBuilder GraphBuilder(RHICmdList);
+		
 		{
 			FRDGTextureRef MipTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("MipGenerationInput")));
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTargetTexture->TextureRHI, TEXT("MipGenerationOutput")));

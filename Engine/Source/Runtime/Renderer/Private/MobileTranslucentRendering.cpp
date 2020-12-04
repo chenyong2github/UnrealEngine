@@ -31,19 +31,19 @@
 #include "MeshPassProcessor.inl"
 #include "ClearQuad.h"
 
-void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
+void FMobileSceneRenderer::RenderTranslucency(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews)
 {
 	ETranslucencyPass::Type TranslucencyPass = 
 		ViewFamily.AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
 		
 	if (ShouldRenderTranslucency(TranslucencyPass))
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, Translucency);
-		SCOPED_GPU_STAT(RHICmdList, Translucency);
+		RDG_EVENT_SCOPE(GraphBuilder, "Translucency");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
 
 		for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 		{
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 			const FViewInfo& View = *PassViews[ViewIndex];
 			if (!View.ShouldRenderView())
@@ -51,98 +51,71 @@ void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdLi
 				continue;
 			}
 
-			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+			auto* TranslucencyBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
+			TranslucencyBasePassParameters->RenderTargets = BasePassRenderTargets;
+			TranslucencyBasePassParameters->MobileBasePass = Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer;
 
-			if (!View.Family->UseDebugViewPS())
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderTranslucencyBasePass"), TranslucencyBasePassParameters, ERDGPassFlags::Raster,
+				[this, &View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
 			{
-				if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				if (!View.Family->UseDebugViewPS())
 				{
-					UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-					UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+					if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+					{
+						UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+						UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+					}
+
+					const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
+					View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList);
 				}
-		
-				const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
-				View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList);
-			}
+			});
 		}
 	}
 }
 
-bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	// Function MUST be self-contained wrt RenderPasses
-	check(RHICmdList.IsOutsideRenderPass());
-
-	bool bDirty = false;
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
-	SceneContext.AllocSceneColor(RHICmdList);
+	SceneContext.AllocSceneColor(GraphBuilder.RHICmdList);
 
-	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-	{
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-	}
+	FRDGTextureMSAA SceneColorMSAA = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
+	FRDGTextureMSAA SceneDepthMSAA = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
 
-	const bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
-	
-	FRHITexture* SceneColorResolve = bMobileMSAA ? SceneContext.GetSceneColorTexture() : nullptr;
-	ERenderTargetActions ColorTargetAction = bMobileMSAA ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
-	FRHIRenderPassInfo RPInfo(
-		SceneContext.GetSceneColorSurface(), 
-		ColorTargetAction,
-		SceneColorResolve,
-		SceneContext.GetSceneDepthSurface(),
-		EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil,
-		nullptr,
-		FExclusiveDepthStencil::DepthWrite_StencilWrite
-	);
+	auto* InverseOpacityParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
+	InverseOpacityParameters->MobileBasePass = Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer;
+	InverseOpacityParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorMSAA.Target, SceneColorMSAA.Resolve, ERenderTargetLoadAction::EClear);
+	InverseOpacityParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthMSAA.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	// Opacity could fetch depth as we use exactly the same shaders as in base pass
-	RPInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
+	InverseOpacityParameters->RenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
 
-	// make sure targets are writable
-	FRHITransitionInfo TransitionsBefore[3];
-	int32 NumTransitionsBefore = 0;
-	TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneContext.GetSceneColorSurface(), ERHIAccess::Unknown, ERHIAccess::RTV);
-	++NumTransitionsBefore;
-	TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneContext.GetSceneDepthSurface(), ERHIAccess::Unknown, ERHIAccess::DSVWrite);
-	++NumTransitionsBefore;
-	if (SceneColorResolve)
+	GraphBuilder.AddPass(RDG_EVENT_NAME("InverseOpacityPass"), InverseOpacityParameters, ERDGPassFlags::Raster,
+		[this, &View](FRHICommandListImmediate& RHICmdList)
 	{
-		TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneColorResolve, ERHIAccess::Unknown, ERHIAccess::RTV | ERHIAccess::ResolveDst);
-		++NumTransitionsBefore;
-	}
-	RHICmdList.Transition(MakeArrayView(TransitionsBefore, NumTransitionsBefore));
+		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+		{
+			UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+			UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+		}
 
-	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-	{
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-	}
-	
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("InverseOpacity"));
+		// Mobile multi-view is not side by side stereo
+		const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
+		RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
 
-	// Mobile multi-view is not side by side stereo
-	const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
-	RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
-		
-	// Default clear value for a SceneColor is (0,0,0,0), after this passs will blend inverse opacity into final render target with an 1-SrcAlpha op
-	// to make this blending work untouched pixels must have alpha = 1
-	DrawClearQuad(RHICmdList, FLinearColor(0,0,0,1));
+		// Default clear value for a SceneColor is (0,0,0,0), after this passs will blend inverse opacity into final render target with an 1-SrcAlpha op
+		// to make this blending work untouched pixels must have alpha = 1
+		DrawClearQuad(RHICmdList, FLinearColor(0, 0, 0, 1));
 
-	RHICmdList.NextSubpass();
-	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency) && View.ShouldRenderView())
-	{		
-		View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].DispatchDraw(nullptr, RHICmdList);
-		bDirty |= View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].HasAnyDraw();
-	}
-	
-	RHICmdList.EndRenderPass();
-	
-	ERHIAccess AccessBefore = bMobileMSAA ? ERHIAccess::RTV | ERHIAccess::ResolveDst : ERHIAccess::RTV;
-	RHICmdList.Transition(FRHITransitionInfo(SceneContext.GetSceneColorTexture(), AccessBefore, ERHIAccess::SRVMask));
-	
-	return bDirty;
+		RHICmdList.NextSubpass();
+		if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency) && View.ShouldRenderView())
+		{
+			View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].DispatchDraw(nullptr, RHICmdList);
+			View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].HasAnyDraw();
+		}
+	});
 }
 
 // This pass is registered only when we render to scene capture, see UpdateSceneCaptureContentMobile_RenderThread()

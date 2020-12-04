@@ -101,6 +101,9 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 	RenderPassInfo.ResolveParameters.DestAccessFinal = ERHIAccess::ResolveDst;
 	RenderPassInfo.NumOcclusionQueries = RenderTargets.NumOcclusionQueries;
 	RenderPassInfo.bOcclusionQueries = RenderTargets.NumOcclusionQueries > 0;
+	RenderPassInfo.SubpassHint = RenderTargets.SubpassHint;
+	RenderPassInfo.MultiViewCount = RenderTargets.MultiViewCount;
+	RenderPassInfo.FoveationTexture = RenderTargets.FoveationTexture ? RenderTargets.FoveationTexture->GetRHI() : nullptr;
 
 	return RenderPassInfo;
 }

@@ -302,39 +302,57 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }
 
-void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
+void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TFunction<void(FRenderTargetBindingSlots &)> UpdateRenderTargetsLoadAction, const TArrayView<const FViewInfo*> PassViews)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
-	SCOPED_DRAW_EVENT(RHICmdList, MobileBasePass);
+	RDG_EVENT_SCOPE(GraphBuilder, "MobileBasePass");
 	SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
-	SCOPED_GPU_STAT(RHICmdList, Basepass);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
+
+	bool bAnyPassesAdded = false;
 
 	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 	{
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 		const FViewInfo& View = *PassViews[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;
 		}
 
-		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-		{
-			UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
-			UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-		}
-		
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
+		auto* OpaqueBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
+		OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
+		OpaqueBasePassParameters->MobileBasePass = Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer;
 
-		// editor primitives
+		GraphBuilder.AddPass(RDG_EVENT_NAME("RenderOpaqueBasePass"), OpaqueBasePassParameters, ERDGPassFlags::Raster,
+			[this, &View, OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			FMeshPassProcessorRenderState DrawRenderState(View, Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer);
-			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
-			DrawRenderState.SetDepthStencilAccess(Scene->DefaultBasePassDepthStencilAccess);
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-			RenderMobileEditorPrimitives(RHICmdList, View, DrawRenderState);
-		}
+			if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+			{
+				UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
+				UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+			}
+
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+			View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
+		
+			// editor primitives
+			{
+				FMeshPassProcessorRenderState DrawRenderState(View, Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer);
+				DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
+				DrawRenderState.SetDepthStencilAccess(Scene->DefaultBasePassDepthStencilAccess);
+				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+				RenderMobileEditorPrimitives(RHICmdList, View, DrawRenderState);
+			}
+
+		});
+
+		bAnyPassesAdded = true;
+	}
+
+	if (bAnyPassesAdded)
+	{
+		UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 	}
 }
 
