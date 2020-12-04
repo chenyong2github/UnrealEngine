@@ -34,8 +34,8 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 			UE_LOG(LogHairImporter, Warning, TEXT("Failed to import hair: Could not allocate memory to create asset."));
 			return nullptr;
 		}
-		OutHairAsset->SetNumGroup(GroupCount);
 	}
+	OutHairAsset->SetNumGroup(GroupCount);
 
 	// Sanity check
 	check(OutHairAsset->AreGroupsValid());
