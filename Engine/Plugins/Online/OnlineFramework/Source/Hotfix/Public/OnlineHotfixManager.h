@@ -13,7 +13,7 @@
 #include "Interfaces/OnlineTitleFileInterface.h"
 #include "OnlineHotfixManager.generated.h"
 
-HOTFIX_API DECLARE_LOG_CATEGORY_EXTERN(LogHotfixManager, Verbose, All);
+HOTFIX_API DECLARE_LOG_CATEGORY_EXTERN(LogHotfixManager, Display, All);
 
 UENUM()
 enum class EHotfixResult : uint8
