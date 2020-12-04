@@ -12,9 +12,9 @@
 	"Modules" :
 	[
 		{
-			"Name" : "RenderDocPlugin",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "PostConfigInit",
+			"Name": "RenderDocPlugin",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win32",
 				"Win64"
