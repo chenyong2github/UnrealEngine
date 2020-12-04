@@ -762,7 +762,7 @@ void FShader::DumpDebugInfo(const FShaderMapPointerTable& InPtrTable)
 void FShader::SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, int32 PermutationId, const FStableShaderKeyAndValue& InSaveKeyVal)
 {
 	if ((TargetShaderPlatform == EShaderPlatform::SP_NumPlatforms || GetShaderPlatform() == TargetShaderPlatform) 
-		&& FShaderCodeLibrary::NeedsShaderStableKeys(TargetShaderPlatform))
+		&& FShaderLibraryCooker::NeedsShaderStableKeys(TargetShaderPlatform))
 	{
 		FShaderType* ShaderType = GetType(InPtrTable);
 		FVertexFactoryType* VertexFactoryType = GetVertexFactoryType(InPtrTable);
@@ -777,7 +777,7 @@ void FShader::SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, ESh
 		{
 			ShaderType->GetShaderStableKeyParts(SaveKeyVal);
 		}
-		FShaderCodeLibrary::AddShaderStableKeyValue(GetShaderPlatform(), SaveKeyVal);
+		FShaderLibraryCooker::AddShaderStableKeyValue(GetShaderPlatform(), SaveKeyVal);
 	}
 }
 #endif // WITH_EDITOR

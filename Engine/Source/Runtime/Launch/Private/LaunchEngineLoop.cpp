@@ -1687,6 +1687,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		BeginPreInitTextLocalization();
 	}
 
+#if WITH_ENGINE
+	{
+		SCOPED_BOOT_TIMING("PreInitShaderLibrary");
+		FShaderCodeLibrary::PreInit();
+	}
+#endif // WITH_ENGINE
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{

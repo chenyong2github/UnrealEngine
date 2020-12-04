@@ -9,6 +9,9 @@
 #include "Policies/PrettyJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
+#if WITH_EDITOR
+#include "Misc/StringBuilder.h"
+#endif
 
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
 static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
@@ -85,6 +88,17 @@ bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& O
 		}
 #endif
 	}
+
+#if WITH_EDITOR
+	// update the reverse mapping which doesn't depend on whether new code was added or not
+	if (AssociatedAssets)
+	{
+		for (FShaderMapAssetPaths::TConstIterator AssetNameIter(*AssociatedAssets); AssetNameIter; ++AssetNameIter)
+		{
+			AssetToShaderCode.Add(*AssetNameIter, Hash);
+		}
+	}
+#endif
 
 	OutIndex = Index;
 	return bAdded;
@@ -356,10 +370,319 @@ bool FSerializedShaderArchive::LoadAssetInfo(const FString& Filename)
 		}
 
 		ShaderCodeToAssets.Add(ShaderMapHash, Paths);
+		// build the reverse mapping, too
+		for (FShaderMapAssetPaths::TConstIterator AssetNameIter(Paths); AssetNameIter; ++AssetNameIter)
+		{
+			AssetToShaderCode.Add(*AssetNameIter, ShaderMapHash);
+		}
 	}
 
 	return true;
 }
+
+void FSerializedShaderArchive::CreateAsChunkFrom(const FSerializedShaderArchive& Parent, const TSet<FName>& PackagesInChunk, TArray<int32>& OutShaderCodeEntriesNeeded)
+{
+	// we should begin with a clean slate
+	checkf(ShaderMapHashes.Num() == 0 && ShaderHashes.Num() == 0 && ShaderMapEntries.Num() == 0 && ShaderEntries.Num() == 0 && PreloadEntries.Num() == 0 && ShaderIndices.Num() == 0,
+		TEXT("Expecting a new, uninitialized FSerializedShaderArchive instance for creating a chunk."));
+
+	for (TMap<FName, FSHAHash>::TConstIterator Iter(Parent.AssetToShaderCode); Iter; ++Iter)
+	{
+		const FName& AssetName = Iter.Key();
+
+		if (PackagesInChunk.Contains(AssetName))
+		{
+			const FSHAHash& ShaderMapHash = Iter.Value();
+
+			// add this shader map
+			int32 ShaderMapIndex = INDEX_NONE;
+			if (FindOrAddShaderMap(ShaderMapHash, ShaderMapIndex, Parent.ShaderCodeToAssets.Find(ShaderMapHash)))
+			{
+				// if we're in this scope, it means it's a new shadermap for the chunk and we need more information about it from the parent
+				int32 ParentShaderMapIndex = Parent.FindShaderMap(ShaderMapHash);
+				checkf(ParentShaderMapIndex != INDEX_NONE, TEXT("Inconsistent FSerializedShaderArchive: asset %s is associated with missing shader map %s"), *AssetName.ToString(), *ShaderMapHash.ToString());
+				const FShaderMapEntry& ParentShaderMapDescriptor = Parent.ShaderMapEntries[ParentShaderMapIndex];
+
+				const int32 NumShaders = ParentShaderMapDescriptor.NumShaders;
+
+				FShaderMapEntry& ShaderMapDescriptor = ShaderMapEntries[ShaderMapIndex];
+				ShaderMapDescriptor.NumShaders = NumShaders;
+				ShaderMapDescriptor.ShaderIndicesOffset = ShaderIndices.AddZeroed(NumShaders);
+
+				// add shader by shader
+				for (int32 ShaderIdx = 0; ShaderIdx < NumShaders; ++ShaderIdx)
+				{
+					int32 ParentShaderIndex = Parent.ShaderIndices[ParentShaderMapDescriptor.ShaderIndicesOffset + ShaderIdx];
+
+					int32 ShaderIndex = INDEX_NONE;
+					if (FindOrAddShader(Parent.ShaderHashes[ParentShaderIndex], ShaderIndex))
+					{
+						// new shader! add it to the mapping of parent shadercode entries to ours. and check the integrity of the mapping
+						checkf(OutShaderCodeEntriesNeeded.Num() == ShaderIndex, TEXT("Mapping between the shader indices in a chunk and the whole archive is inconsistent"));
+						OutShaderCodeEntriesNeeded.Add(ParentShaderIndex);
+
+						// copy the entry as is
+						ShaderEntries[ShaderIndex] = Parent.ShaderEntries[ParentShaderIndex];
+					}
+					ShaderIndices[ShaderMapDescriptor.ShaderIndicesOffset + ShaderIdx] = ShaderIndex;
+				}
+			}
+		}
+	}
+}
+
+void FSerializedShaderArchive::CollectStatsAndDebugInfo(FDebugStats& OutDebugStats, FExtendedDebugStats* OutExtendedDebugStats)
+{
+	// collect the light-weight stats first
+	FMemory::Memzero(OutDebugStats);
+	OutDebugStats.NumAssets = AssetToShaderCode.Num();
+	OutDebugStats.NumUniqueShaders = ShaderHashes.Num();
+	OutDebugStats.NumShaderMaps = ShaderMapHashes.Num();
+	int32 TotalShaders = 0;
+	int64 TotalShaderSize = 0;
+	uint32 MinSMSizeInShaders = UINT_MAX;
+	uint32 MaxSMSizeInShaders = 0;
+	for (const FShaderMapEntry& SMEntry : ShaderMapEntries)
+	{
+		MinSMSizeInShaders = FMath::Min(MinSMSizeInShaders, SMEntry.NumShaders);
+		MaxSMSizeInShaders = FMath::Max(MaxSMSizeInShaders, SMEntry.NumShaders);
+		TotalShaders += SMEntry.NumShaders;
+
+		const int32 ThisSMShaders = SMEntry.NumShaders;
+		for (int32 ShaderIdx = 0; ShaderIdx < ThisSMShaders; ++ShaderIdx)
+		{
+			TotalShaderSize += ShaderEntries[ShaderIndices[SMEntry.ShaderIndicesOffset + ShaderIdx]].Size;
+		}
+	}
+	OutDebugStats.NumShaders = TotalShaders;
+	OutDebugStats.ShadersSize = TotalShaderSize;
+
+	int64 ActuallySavedShaderSize = 0;
+	for (const FShaderCodeEntry& ShaderEntry : ShaderEntries)
+	{
+		ActuallySavedShaderSize += ShaderEntry.Size;
+	}
+	OutDebugStats.ShadersUniqueSize = ActuallySavedShaderSize;
+
+	// If OutExtendedDebugStats pointer is passed, we're asked to fill out a heavy-weight stats.
+	if (OutExtendedDebugStats)
+	{
+		// textual rep
+		DumpContentsInPlaintext(OutExtendedDebugStats->TextualRepresentation);
+
+		OutExtendedDebugStats->MinNumberOfShadersPerSM = MinSMSizeInShaders;
+		OutExtendedDebugStats->MaxNumberofShadersPerSM = MaxSMSizeInShaders;
+
+		// median SM size in shaders
+		TArray<int32> ShadersInSM;
+
+		// shader usage
+		TMap<int32, int32> ShaderToUsageMap;
+
+		for (const FShaderMapEntry& SMEntry : ShaderMapEntries)
+		{
+			const int32 ThisSMShaders = SMEntry.NumShaders;
+			ShadersInSM.Add(ThisSMShaders);
+
+			for (int32 ShaderIdx = 0; ShaderIdx < ThisSMShaders; ++ShaderIdx)
+			{
+				int ShaderIndex = ShaderIndices[SMEntry.ShaderIndicesOffset + ShaderIdx];
+				int32& Usage = ShaderToUsageMap.FindOrAdd(ShaderIndex, 0);
+				++Usage;
+			}
+		}
+
+		ShadersInSM.Sort();
+		OutExtendedDebugStats->MedianNumberOfShadersPerSM = ShadersInSM[ShadersInSM.Num() / 2];
+
+		ShaderToUsageMap.ValueSort(TGreater<int32>());
+		// add top 10 shaders
+		for (const TTuple<int32, int32>& UsagePair : ShaderToUsageMap)
+		{
+			OutExtendedDebugStats->TopShaderUsages.Add(UsagePair.Value);
+			if (OutExtendedDebugStats->TopShaderUsages.Num() >= 10)
+			{
+				break;
+			}
+		}
+	}
+
+#if 0 // graph visualization - maybe one day we'll return to this
+		// enumerate all shaders first (so they can be identified by people looking them up in other debug output)
+		int32 IdxShaderNum = 0;
+		for (const FSHAHash& ShaderHash : ShaderHashes)
+		{
+			FString Numeral = FString::Printf(TEXT("Shd_%d"), IdxShaderNum);
+			OutRelationshipGraph->Add(TTuple<FString, FString>(Numeral, FString("Hash_") + ShaderHash.ToString()));
+			++IdxShaderNum;
+		}
+
+		// add all assets if any
+		for (TMap<FName, FSHAHash>::TConstIterator Iter(AssetToShaderCode); Iter; ++Iter)
+		{
+			int32 SMIndex = FindShaderMap(Iter.Value());			
+			OutRelationshipGraph->Add(TTuple<FString, FString>(Iter.Key().ToString(), FString::Printf(TEXT("SM_%d"), SMIndex)));
+		}
+
+		// shadermaps to shaders
+		int NumSMs = ShaderMapHashes.Num();
+		for (int32 IdxSM = 0; IdxSM < NumSMs; ++IdxSM)
+		{
+			FString SMId = FString::Printf(TEXT("SM_%d"), IdxSM);
+			const FShaderMapEntry& SMEntry = ShaderMapEntries[IdxSM];
+
+			const int32 ThisSMShaders = SMEntry.NumShaders;
+			for (int32 ShaderIdx = 0; ShaderIdx < ThisSMShaders; ++ShaderIdx)
+			{
+				FString ReferencedShader = FString::Printf(TEXT("Shd_%d"), ShaderIndices[SMEntry.ShaderIndicesOffset + ShaderIdx]);
+				OutRelationshipGraph->Add(TTuple<FString, FString>(SMId, ReferencedShader));
+			}
+		}
+#endif // 0
+}
+
+void FSerializedShaderArchive::DumpContentsInPlaintext(FString& OutText) const
+{
+	TStringBuilder<256> Out;
+	Out << TEXT("FSerializedShaderArchive\n{\n");
+	{
+		Out << TEXT("\tShaderMapHashes\n\t{\n");
+		for (int32 IdxMapHash = 0, NumMapHashes = ShaderMapHashes.Num(); IdxMapHash < NumMapHashes; ++IdxMapHash)
+		{
+			Out << TEXT("\t\t");
+			Out << ShaderMapHashes[IdxMapHash].ToString();
+			Out << TEXT("\n");
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	{
+		Out << TEXT("\tShaderHashes\n\t{\n");
+		for (int32 IdxHash = 0, NumHashes = ShaderMapHashes.Num(); IdxHash < NumHashes; ++IdxHash)
+		{
+			Out << TEXT("\t\t");
+			Out << ShaderHashes[IdxHash].ToString();
+			Out << TEXT("\n");
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	{
+		Out << TEXT("\tShaderMapEntries\n\t{\n");
+		for (int32 IdxEntry = 0, NumEntries = ShaderMapEntries.Num(); IdxEntry < NumEntries; ++IdxEntry)
+		{
+			Out << TEXT("\t\tFShaderMapEntry\n\t\t{\n");
+
+			Out << TEXT("\t\t\tShaderIndicesOffset : ");
+			Out << ShaderMapEntries[IdxEntry].ShaderIndicesOffset;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tNumShaders : ");
+			Out << ShaderMapEntries[IdxEntry].NumShaders;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tFirstPreloadIndex : ");
+			Out << ShaderMapEntries[IdxEntry].FirstPreloadIndex;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tNumPreloadEntries : ");
+			Out << ShaderMapEntries[IdxEntry].NumPreloadEntries;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t}\n");
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	{
+		Out << TEXT("\tShaderEntries\n\t{\n");
+		for (int32 IdxEntry = 0, NumEntries = ShaderEntries.Num(); IdxEntry < NumEntries; ++IdxEntry)
+		{
+			Out << TEXT("\t\tFShaderCodeEntry\n\t\t{\n");
+
+			Out << TEXT("\t\t\tOffset : ");
+			Out << ShaderEntries[IdxEntry].Offset;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tSize : ");
+			Out << ShaderEntries[IdxEntry].Size;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tUncompressedSize : ");
+			Out << ShaderEntries[IdxEntry].UncompressedSize;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tFrequency : ");
+			Out << ShaderEntries[IdxEntry].Frequency;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t}\n");
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	{
+		Out << TEXT("\tPreloadEntries\n\t{\n");
+		for (int32 IdxEntry = 0, NumEntries = PreloadEntries.Num(); IdxEntry < NumEntries; ++IdxEntry)
+		{
+			Out << TEXT("\t\tFFileCachePreloadEntry\n\t\t{\n");
+
+			Out << TEXT("\t\t\tOffset : ");
+			Out << PreloadEntries[IdxEntry].Offset;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t\tSize : ");
+			Out << PreloadEntries[IdxEntry].Size;
+			Out << TEXT("\n");
+
+			Out << TEXT("\t\t}\n");
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	{
+		Out << TEXT("\tShaderIndices\n\t{\n");
+		// split it by shadermaps
+		int32 IdxSMEntry = 0;
+		int32 NumShadersLeftInSM = ShaderMapEntries[0].NumShaders;
+		bool bNewSM = true;
+		for (int32 IdxEntry = 0, NumEntries = ShaderIndices.Num(); IdxEntry < NumEntries; ++IdxEntry)
+		{
+			if (UNLIKELY(bNewSM))
+			{
+				Out << TEXT("\t\t");
+				bNewSM = false;
+			}
+			else
+			{
+				Out << TEXT(", ");
+			}
+			Out << ShaderIndices[IdxEntry];
+
+			--NumShadersLeftInSM;
+			while (NumShadersLeftInSM == 0)
+			{
+				bNewSM = true;
+				++IdxSMEntry;
+				if (IdxSMEntry >= ShaderMapEntries.Num())
+				{
+					break;
+				}
+				NumShadersLeftInSM = ShaderMapEntries[IdxSMEntry].NumShaders;
+			}
+
+			if (bNewSM)
+			{
+				Out << TEXT("\n");
+			}
+		}
+		Out << TEXT("\t}\n");
+	}
+
+	Out << TEXT("}\n");
+	OutText = FStringView(Out);
+}
+
 #endif // WITH_EDITOR
 
 FShaderCodeArchive* FShaderCodeArchive::Create(EShaderPlatform InPlatform, FArchive& Ar, const FString& InDestFilePath, const FString& InLibraryDir, const FString& InLibraryName)

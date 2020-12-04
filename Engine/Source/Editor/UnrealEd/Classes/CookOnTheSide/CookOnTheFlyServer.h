@@ -653,7 +653,7 @@ private:
 	/**
 	 * Saves Global shader library. Global shaderlib isn't split into chunks nor associated with the assets, so it a special case
 	 */
-	void SaveGlobalShaderLibrary();
+	void SaveAndCloseGlobalShaderLibrary();
 
 	/**
 	 * Invokes the necessary FShaderCodeLibrary functions to open a named code library.
@@ -663,7 +663,7 @@ private:
 	/**
 	 * Invokes the necessary FShaderCodeLibrary functions to save and close a named code library.
 	 */
-	void SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name, const TArray<TSet<FName>>* ChunkAssignments = nullptr);
+	void SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name);
 
 	/**
 	* Calls the ShaderPipelineCacheToolsCommandlet to build a upipelinecache file from the .stablepc.csv file, if any
