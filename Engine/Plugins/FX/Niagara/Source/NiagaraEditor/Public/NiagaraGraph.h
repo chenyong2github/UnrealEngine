@@ -302,8 +302,8 @@ class UNiagaraGraph : public UEdGraph
 
 	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
 
-	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter) const;
-	UNiagaraScriptVariable* GetScriptVariable(FName ParameterName) const;
+	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter, bool bUpdateIfPending = false) const;
+	UNiagaraScriptVariable* GetScriptVariable(FName ParameterName, bool bUpdateIfPending = false) const;
 
 	/** Adds parameter to parameters map setting it as created by the user.*/
 	UNiagaraScriptVariable* AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch = false);
@@ -392,7 +392,6 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Helper to get a map of variables to all input/output pins with the same name. */
 	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> NIAGARAEDITOR_API CollectVarsToInOutPinsMap() const;
-
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
