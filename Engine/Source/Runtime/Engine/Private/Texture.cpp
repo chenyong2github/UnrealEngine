@@ -613,6 +613,8 @@ void UTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		OutTags.Add( FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden) );
 	}
 
+	OutTags.Add(FAssetRegistryTag("SourceCompression", Source.IsPNGCompressed() ? TEXT("PNG") : LexToString(NAME_Zlib), FAssetRegistryTag::TT_Alphabetical));
+	
 	Super::GetAssetRegistryTags(OutTags);
 }
 #endif
