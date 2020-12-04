@@ -21,6 +21,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/LargeMemoryReader.h"
 
 #if WITH_EDITOR
 	#define INI_CACHE 1
@@ -3817,13 +3818,13 @@ void FConfigCacheIni::SaveCurrentStateForBootstrap(const TCHAR* Filename)
 	FFileHelper::SaveArrayToFile(FileContent, Filename);
 }
 
-FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni)
+void FConfigCacheIni::Serialize(FArchive& Ar)
 {
-	Ar << static_cast<FConfigCacheIni::Super&>(ConfigCacheIni);
-	Ar << ConfigCacheIni.bAreFileOperationsDisabled;
-	Ar << ConfigCacheIni.bIsReadyForUse;
-	Ar << ConfigCacheIni.Type;
-	return Ar;
+	FConfigCacheIni::Super* Parent = static_cast<FConfigCacheIni::Super*>(this);
+	Ar << *Parent;
+	Ar << bAreFileOperationsDisabled;
+	Ar << bIsReadyForUse;
+	Ar << Type;
 }
 
 void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
@@ -3834,7 +3835,7 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	// the same binary executable for both the parent and 
 	// children processes. It also takes care of saving/restoring
 	// global ini variables.
-	Ar << *this;
+	Serialize(Ar);
 	Ar << GEditorIni;
 	Ar << GEditorKeyBindingsIni;
 	Ar << GEditorLayoutIni;
@@ -3851,8 +3852,84 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	Ar << GEngineIni;
 }
 
+
+void FConfigCacheIni::InitializePlatformConfigSystem(const TCHAR* PlatformName, FConfigNamesForAllPlatforms& FinalConfigFilenames)
+{
+#if WITH_EDITOR
+	FString FinalConfigDir = FPaths::GeneratedConfigDir();
+
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.EngineIni, TEXT("Engine"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.GameIni, TEXT("Game"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.InputIni, TEXT("Input"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.ScalabilityIni, TEXT("Scalability"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.HardwareIni, TEXT("Hardware"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.RuntimeOptionsIni, TEXT("RuntimeOptions"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.InstallBundleIni, TEXT("InstallBundle"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.DeviceProfilesIni, TEXT("DeviceProfiles"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.GameUserSettingsIni, TEXT("GameUserSettings"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+	FConfigCacheIni::LoadGlobalIniFile(FinalConfigFilenames.GameplayTagsIni, TEXT("GameplayTags"), PlatformName, false, false, false, false, *FinalConfigDir, this);
+
+	bIsReadyForUse = true;
+#endif
+}
+
+
+bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
+{
+	SCOPED_BOOT_TIMING("FConfigCacheIni::CreateGConfigFromSaved");
+	// get the already loaded file
+	TArray<uint8> BinaryConfigData;
+	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
+	if (FFileHelper::LoadFileToArray(BinaryConfigData, *BinaryConfigFile) == false)
+	{
+		return false;
+	}
+
+	UE_LOG(LogInit, Display, TEXT("Loading binary GConfig...."));
+
+	// serialize right out of the preloaded data
+	FLargeMemoryReader MemoryReader((uint8*)BinaryConfigData.GetData(), BinaryConfigData.Num());
+	FConfigNamesForAllPlatforms Names;
+	GConfig = new FConfigCacheIni(EConfigCacheType::Temporary);
+
+	// make an object that we can use to pass to delegates for any extra binary data they want to write
+	FCoreDelegates::FExtraBinaryConfigData ExtraData(*GConfig, false);
+
+	GConfig->Serialize(MemoryReader);
+	MemoryReader << Names << ExtraData.Data;
+
+	GEngineIni = Names.EngineIni;
+	GGameIni = Names.GameIni;
+	GInputIni = Names.InputIni;
+	GScalabilityIni = Names.ScalabilityIni;
+	GHardwareIni = Names.HardwareIni;
+	GRuntimeOptionsIni = Names.RuntimeOptionsIni;
+	GInstallBundleIni = Names.InstallBundleIni;
+	GDeviceProfilesIni = Names.DeviceProfilesIni;
+	GGameUserSettingsIni = Names.GameUserSettingsIni;
+	GGameplayTagsIni = Names.GameplayTagsIni;
+
+	// now let the delegates pull their data out, after GConfig is set up
+	FCoreDelegates::AccessExtraBinaryConfigData.Broadcast(ExtraData);
+
+	FCoreDelegates::ConfigReadyForUse.Broadcast();
+
+	return true;
+}
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
+	// attempt to load from staged binary config data
+	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Looking for binary: %s\n"), *BinaryConfigFile);
+
+	if (!FParse::Param(FCommandLine::Get(), TEXT("textconfig")) &&
+		IFileManager::Get().FileExists(*BinaryConfigFile) &&
+		FConfigCacheIni::CreateGConfigFromSaved(*BinaryConfigFile))
+	{
+		return;
+	}
+
 	// Bootstrap the Ini config cache
 	FString IniBootstrapFilename;
 	if (FParse::Value( FCommandLine::Get(), TEXT("IniBootstrap="), IniBootstrapFilename))
@@ -3872,6 +3949,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 			UE_LOG(LogInit, Display, TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization"), *IniBootstrapFilename);
 		}
 	}
+
+	UE_LOG(LogInit, Display, TEXT("Loading text-based GConfig...."));
 
 	// Perform any upgrade we need before we load any configuration files
 	FConfigManifest::UpgradeFromPreviousVersions();
@@ -3918,9 +3997,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 	// Project agnostic editor ini files
 	const FString EditorSettingsDir = FPaths::EngineEditorSettingsDir();
-	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, true, *EditorSettingsDir);
 
 #endif
 #if PLATFORM_DESKTOP
@@ -3947,6 +4026,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
 	// Load device profiles for current platform
 	FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"));
+	// Load gameplay tags
+	FConfigCacheIni::LoadGlobalIniFile(GGameplayTagsIni, TEXT("GameplayTags"));
 
 
 
@@ -3958,7 +4039,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FCoreDelegates::ConfigReadyForUse.Broadcast();
 }
 
-bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform, bool bForceReload, bool bRequireDefaultIni, bool bAllowGeneratedIniWhenCooked, const TCHAR* GeneratedConfigDir)
+bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform, bool bForceReload, bool bRequireDefaultIni, bool bAllowGeneratedIniWhenCooked, bool bAllowRemoteConfig, const TCHAR* GeneratedConfigDir, FConfigCacheIni* ConfigSystem)
 {
 	// figure out where the end ini file is
 	FinalIniFilename = GetDestIniFilename(BaseIniName, Platform, GeneratedConfigDir);
@@ -3978,7 +4059,7 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 
 	// need to check to see if the file already exists in the GConfigManager's cache
 	// if it does exist then we are done, nothing else to do
-	if (!bForceReload && GConfig->FindConfigFile(*FinalIniFilename) != nullptr)
+	if (!bForceReload && ConfigSystem->FindConfigFile(*FinalIniFilename) != nullptr)
 	{
 		//UE_LOG(LogConfig, Log,  TEXT( "Request to load a config file that was already loaded: %s" ), GeneratedIniFile );
 		return true;
@@ -3990,7 +4071,7 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 	if (bForceReload) // If reloading we should preserve the existing config dirs
 	{
 		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
-		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(BaseIniName);
+		FConfigFile* BaseConfig = ConfigSystem->FindConfigFileWithBaseName(BaseIniName);
 		if (BaseConfig)
 		{
 			if (BaseConfig->SourceEngineConfigDir.Len())
@@ -4006,7 +4087,7 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 	}
 
 	// make a new entry in GConfig (overwriting what's already there)
-	FConfigFile& NewConfigFile = GConfig->Add(FinalIniFilename, FConfigFile());
+	FConfigFile& NewConfigFile = ConfigSystem->Add(FinalIniFilename, FConfigFile());
 
 	return LoadExternalIniFile(
 		NewConfigFile, 

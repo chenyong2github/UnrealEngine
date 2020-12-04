@@ -1967,6 +1967,7 @@ public:
 
 		bNotForLicensees = false;
 		bUseIoStore = false;
+		bMakeBinaryConfig = false;
 
 		Validate();
 	}
@@ -2446,6 +2447,16 @@ public:
 		return bUseIoStore;
 	}
 
+	virtual void SetMakeBinaryConfig(bool bInMakeBinaryConfig) override
+	{
+		bMakeBinaryConfig = bInMakeBinaryConfig;
+	}
+
+	virtual bool MakeBinaryConfig() const override
+	{
+		return bMakeBinaryConfig;
+	}
+
 	//~ End ILauncherProfile Interface
 
 protected:
@@ -2899,6 +2910,9 @@ private:
 
 	// Use I/O store.
 	bool bUseIoStore;
+
+	// Make binary config.
+	bool bMakeBinaryConfig;
 
 private:
 

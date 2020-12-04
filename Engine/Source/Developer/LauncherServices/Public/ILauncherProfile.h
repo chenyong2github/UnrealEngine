@@ -1303,6 +1303,18 @@ public:
 	 */
 	virtual bool IsUsingIoStore() const = 0;
 
+	/**
+	 * Sets whether to make a binary config file during packaging
+	 * @param bMakeBinaryConfig Whether to make a binary config file during staging
+	 */
+	virtual void SetMakeBinaryConfig(bool bMakeBinaryConfig) = 0;
+	/**
+	 * Make binary config file during staging or not.
+	 *
+	 * @return true to make binary config file
+	 */
+	virtual bool MakeBinaryConfig() const = 0;
+
 public:
 
 	/** Virtual destructor. */

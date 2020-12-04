@@ -224,6 +224,7 @@ FString				GGameUserSettingsIni;										/* User Game Settings ini filename */
 FString				GRuntimeOptionsIni;											/* Runtime Options ini filename */
 FString				GInstallBundleIni;											/* Install Bundle ini filename*/
 FString				GDeviceProfilesIni;											/* Runtime DeviceProfiles ini filename - use LoadLocalIni for other platforms' DPs */
+FString				GGameplayTagsIni;											/* Gameplay tags for the GameplayTagManager */
 
 float					GNearClippingPlane				= 10.0f;				/* Near clipping plane */
 

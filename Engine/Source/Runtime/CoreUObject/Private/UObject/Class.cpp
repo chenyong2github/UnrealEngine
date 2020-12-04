@@ -5294,7 +5294,9 @@ void UClass::AssembleReferenceTokenStreams()
 
 const FString UClass::GetConfigName() const
 {
-	if( ClassConfigName == NAME_Engine )
+	static FName NAME_GameplayTags("GameplayTags");
+
+	if (ClassConfigName == NAME_Engine)
 	{
 		return GEngineIni;
 	}
@@ -5330,6 +5332,10 @@ const FString UClass::GetConfigName() const
 	else if (ClassConfigName == NAME_GameUserSettings)
 	{
 		return GGameUserSettingsIni;
+	}
+	else if (ClassConfigName == NAME_GameplayTags)
+	{
+		return GGameplayTagsIni;
 	}
 	else
 	{

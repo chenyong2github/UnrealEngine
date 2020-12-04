@@ -1278,7 +1278,7 @@ const FString& USourceControlHelpers::GetSettingsIni()
 		if (SourceControlSettingsIni.Len() == 0)
 		{
 			const FString SourceControlSettingsDir = FPaths::GeneratedConfigDir();
-			FConfigCacheIni::LoadGlobalIniFile(SourceControlSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, *SourceControlSettingsDir);
+			FConfigCacheIni::LoadGlobalIniFile(SourceControlSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, true, *SourceControlSettingsDir);
 		}
 		return SourceControlSettingsIni;
 	}
@@ -1291,7 +1291,7 @@ const FString& USourceControlHelpers::GetGlobalSettingsIni()
 	if (SourceControlGlobalSettingsIni.Len() == 0)
 	{
 		const FString SourceControlSettingsDir = FPaths::EngineSavedDir() + TEXT("Config/");
-		FConfigCacheIni::LoadGlobalIniFile(SourceControlGlobalSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, *SourceControlSettingsDir);
+		FConfigCacheIni::LoadGlobalIniFile(SourceControlGlobalSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, true, *SourceControlSettingsDir);
 	}
 	return SourceControlGlobalSettingsIni;
 }

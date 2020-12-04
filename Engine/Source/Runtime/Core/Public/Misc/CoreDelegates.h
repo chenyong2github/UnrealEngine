@@ -593,6 +593,30 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FApplicationNetworkInitializationChanged, bool /*bIsNetworkInitialized*/);
 	static FApplicationNetworkInitializationChanged ApplicationNetworkInitializationChanged;
 
+	// Callback to let code read or write specialized binary data that is generated at Stage time, for optimizing data right before 
+	// final game data is being written to disk
+	// The TMap is a map of an identifier for owner of the data, and a boolean where true means the data is being generated (ie editor), and false 
+	// means the data is for use (ie runtime game)
+	struct FExtraBinaryConfigData
+	{
+		// the data that will be saved/loaded quickly
+		TMap<FString, TArray<uint8>> Data;
+
+		// Ini config data (not necessarily GConfig)
+		class FConfigCacheIni& Config;
+
+		// if true, the callback should fill out Data/Config
+		bool bIsGenerating;
+
+		FExtraBinaryConfigData(class FConfigCacheIni& InConfig, bool InIsGenerating)
+			: Config(InConfig)
+			, bIsGenerating(InIsGenerating)
+		{
+		}
+	};
+	DECLARE_MULTICAST_DELEGATE_OneParam(FAccesExtraBinaryConfigData, FExtraBinaryConfigData&);
+	static FAccesExtraBinaryConfigData AccessExtraBinaryConfigData;
+
 private:
 
 	// Callbacks for hotfixes

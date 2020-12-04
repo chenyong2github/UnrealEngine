@@ -177,7 +177,11 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	bool bUseIoStore;
 
-	/** 
+	/** If enabled, staging will make a binary config fie for faster loading. */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	bool bMakeBinaryConfig;
+
+	/**
 	 * If enabled, will generate pak file chunks.  Assets can be assigned to chunks in the editor or via a delegate (See ShooterGameDelegates.cpp). 
 	 * Can be used for streaming installs (PS4 Playgo, XboxOne Streaming Install, etc)
 	 */
