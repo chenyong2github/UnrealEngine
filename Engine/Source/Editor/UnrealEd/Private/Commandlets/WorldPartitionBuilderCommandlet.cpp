@@ -124,6 +124,8 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	// Create builder instance
 	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
 	check(Builder);
+
+	Builder->AddToRoot();
 	
 	// Validate builder settings
 	if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
