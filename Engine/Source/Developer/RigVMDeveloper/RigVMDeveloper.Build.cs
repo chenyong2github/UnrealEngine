@@ -22,8 +22,11 @@ public class RigVMDeveloper : ModuleRules
                 {
 					"EditorFramework",
                     "UnrealEd",
-                }
-            );
+					"Slate",
+					"SlateCore",
+					"EditorStyle",
+				}
+			);
         }
     }
 }

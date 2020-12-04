@@ -545,6 +545,7 @@ private:
 
 	void ReportWarning(const FString& InMessage);
 	void ReportError(const FString& InMessage);
+	void ReportAndNotifyError(const FString& InMessage);
 
 	template <typename FmtType, typename... Types>
 	void ReportWarningf(const FmtType& Fmt, Types... Args)
@@ -556,6 +557,12 @@ private:
 	void ReportErrorf(const FmtType& Fmt, Types... Args)
 	{
 		ReportError(FString::Printf(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void ReportAndNotifyErrorf(const FmtType& Fmt, Types... Args)
+	{
+		ReportAndNotifyError(FString::Printf(Fmt, Args...));
 	}
 
 	static FLinearColor GetColorFromMetadata(const FString& InMetadata);
