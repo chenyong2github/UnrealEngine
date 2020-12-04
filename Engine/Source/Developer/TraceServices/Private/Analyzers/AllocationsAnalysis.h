@@ -22,6 +22,7 @@ private:
 		RouteId_Alloc,
 		RouteId_Realloc,
 		RouteId_Free,
+		RouteId_Marker,
 	};
 
 public:
@@ -36,6 +37,9 @@ private:
 	IAnalysisSession& Session;
 	FAllocationsProvider& AllocationsProvider;
 	uint64 EventCount = 0; // debug
+	uint64 BaseCycle;
+	uint32 MarkerPeriod;
+	double LastMarkerSeconds;
 };
 
 } // namespace TraceServices
