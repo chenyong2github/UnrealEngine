@@ -159,6 +159,8 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		{
 			InstanceData->bWriteBufferUsed = false;
 
+			RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::CopySrc));
+
 			FNiagaraGpuReadbackManager* ReadbackManager = Context.Batcher->GetGpuReadbackManager();
 			ReadbackManager->EnqueueReadback(
 				RHICmdList,
@@ -190,6 +192,8 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 					}
 				}
 			);
+
+			RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::CopySrc, ERHIAccess::UAVCompute));
 
 			// Ensure counter is clear for the next user, they will perform the transition on the buffer
 			ClearCounter(RHICmdList, InstanceData);
