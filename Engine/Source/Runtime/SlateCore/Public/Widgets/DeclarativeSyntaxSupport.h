@@ -105,27 +105,14 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		typedef FArguments WidgetArgsType; \
 		FORCENOINLINE FArguments()
 
-
-// @todo UMG: Probably remove this?
-#define HACK_SLATE_SLOT_ARGS( WidgetType ) \
-	public: \
-	struct FArguments : public TSlateBaseNamedArgs<WidgetType> \
-	{ \
-		typedef FArguments WidgetArgsType; \
-		FORCENOINLINE FArguments()
-
-
-
 #define SLATE_END_ARGS() \
 	};
 
 
-/**
- * Use this macro to add a attribute to the declaration of your widget.
- * An attribute can be a value or a function.
- */
-#define SLATE_ATTRIBUTE( AttrType, AttrName ) \
-		TAttribute< AttrType > _##AttrName; \
+#define SLATE_PRIVATE_ATTRIBUTE_VARIABLE( AttrType, AttrName ) \
+		TAttribute< AttrType > _##AttrName
+
+#define SLATE_PRIVATE_ATTRIBUTE_FUNCTION( AttrType, AttrName ) \
 		WidgetArgsType& AttrName( const TAttribute< AttrType >& InAttribute ) \
 		{ \
 			_##AttrName = InAttribute; \
@@ -301,13 +288,11 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 			return this->Me(); \
 		}
 
+#define SLATE_PRIVATE_ARGUMENT_VARIABLE( ArgType, ArgName ) \
+		ArgType _##ArgName
+		
 
-/**
- * Use this macro to declare a slate argument.
- * Arguments differ from attributes in that they can only be values
- */
-#define SLATE_ARGUMENT( ArgType, ArgName ) \
-		ArgType _##ArgName; \
+#define SLATE_PRIVATE_ARGUMENT_FUNCTION( ArgType, ArgName ) \
 		WidgetArgsType& ArgName( ArgType InArg ) \
 		{ \
 			_##ArgName = InArg; \
@@ -315,17 +300,29 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		}
 
 /**
+ * Use this macro to add a attribute to the declaration of your widget.
+ * An attribute can be a value or a function.
+ */
+#define SLATE_ATTRIBUTE( AttrType, AttrName ) \
+		SLATE_PRIVATE_ATTRIBUTE_VARIABLE( AttrType, AttrName ); \
+		SLATE_PRIVATE_ATTRIBUTE_FUNCTION( AttrType, AttrName )
+
+/**
+ * Use this macro to declare a slate argument.
+ * Arguments differ from attributes in that they can only be values
+ */
+#define SLATE_ARGUMENT( ArgType, ArgName ) \
+		SLATE_PRIVATE_ARGUMENT_VARIABLE( ArgType, ArgName ); \
+		SLATE_PRIVATE_ARGUMENT_FUNCTION ( ArgType, ArgName )
+
+/**
  * Like SLATE_ARGUMENT, but support a default value. e.g.
  * 
  * SLATE_ARGUMENT_DEFAULT(float, WheelScrollMultiplier) { 1.0f };
  */
 #define SLATE_ARGUMENT_DEFAULT( ArgType, ArgName ) \
-		WidgetArgsType& ArgName( ArgType InArg ) \
-		{ \
-			_##ArgName = InArg; \
-			return this->Me(); \
-		}\
-		ArgType _##ArgName
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(ArgType, ArgName) \
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(ArgType, ArgName)
 
 /**
  * Use this macro to declare a slate argument.
@@ -778,27 +775,48 @@ struct NamedSlotProperty
 
 
 /** Base class for named arguments. Provides settings necessary for all widgets. */
+struct FSlateBaseNamedArgs
+{
+	FSlateBaseNamedArgs() = default;
+
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(FText, ToolTipText);
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TSharedPtr<IToolTip>, ToolTip);
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TOptional<EMouseCursor::Type>, Cursor);
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(bool, IsEnabled) = true;
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(EVisibility, Visibility) = EVisibility::Visible;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(float, RenderOpacity) = 1.f;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(bool, ForceVolatile) = false;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(EWidgetClipping, Clipping) = EWidgetClipping::Inherit;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(EFlowDirectionPreference, FlowDirectionPreference) = EFlowDirectionPreference::Inherit;
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TOptional<FSlateRenderTransform>, RenderTransform);
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(FVector2D, RenderTransformPivot) = FVector2D::ZeroVector;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(FName, Tag);
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(TOptional<FAccessibleWidgetData>, AccessibleParams);
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(FText, AccessibleText);
+	TArray<TSharedRef<ISlateMetaData>> MetaData;
+};
+
+
+/** Base class for named arguments. Provides settings necessary for all widgets. */
 template<typename WidgetType>
-struct TSlateBaseNamedArgs
+struct TSlateBaseNamedArgs : public FSlateBaseNamedArgs
 {
 	typedef typename WidgetType::FArguments WidgetArgsType;
-	
-	TSlateBaseNamedArgs()
-	: _ToolTipText()
-	, _ToolTip()
-	, _Cursor( TOptional<EMouseCursor::Type>() )
-	, _IsEnabled( true )
-	, _Visibility( EVisibility::Visible )
-	, _RenderOpacity(1.0f)
-	, _ForceVolatile( false )
-	, _Clipping( EWidgetClipping::Inherit )
-	, _FlowDirectionPreference( EFlowDirectionPreference::Inherit )
-	, _RenderTransform( )
-	, _RenderTransformPivot( FVector2D::ZeroVector )
-	, _AccessibleParams()
-	, _AccessibleText()
-	{
-	}
+
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(FText, ToolTipText)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(TSharedPtr<IToolTip>, ToolTip)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(TOptional<EMouseCursor::Type>, Cursor)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(bool, IsEnabled)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(EVisibility, Visibility)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(float, RenderOpacity)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(bool, ForceVolatile)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(EWidgetClipping, Clipping)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(EFlowDirectionPreference, FlowDirectionPreference)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(TOptional<FSlateRenderTransform>, RenderTransform)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(FVector2D, RenderTransformPivot)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(FName, Tag)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(TOptional<FAccessibleWidgetData>, AccessibleParams)
+	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(FText, AccessibleText)
 
 	/** Used by the named argument pattern as a safe way to 'return *this' for call-chaining purposes. */
 	WidgetArgsType& Me()
@@ -828,23 +846,6 @@ struct TSlateBaseNamedArgs
 		MetaData.Add(MakeShared<MetaDataType>(InArg0, InArg1));
 		return Me();
 	}
-
-	SLATE_ATTRIBUTE( FText, ToolTipText )
-	SLATE_ARGUMENT( TSharedPtr<IToolTip>, ToolTip )
-	SLATE_ATTRIBUTE( TOptional<EMouseCursor::Type>, Cursor )
-	SLATE_ATTRIBUTE( bool, IsEnabled )
-	SLATE_ATTRIBUTE( EVisibility, Visibility )
-	SLATE_ARGUMENT( float, RenderOpacity )
-	SLATE_ARGUMENT( bool, ForceVolatile )
-	SLATE_ARGUMENT( EWidgetClipping, Clipping )
-	SLATE_ARGUMENT( EFlowDirectionPreference, FlowDirectionPreference)
-	SLATE_ATTRIBUTE( TOptional<FSlateRenderTransform>, RenderTransform )
-	SLATE_ATTRIBUTE( FVector2D, RenderTransformPivot )
-	SLATE_ARGUMENT( FName, Tag )
-	SLATE_ARGUMENT(TOptional<FAccessibleWidgetData>, AccessibleParams)
-	SLATE_ATTRIBUTE(FText, AccessibleText)
-
-	TArray<TSharedRef<ISlateMetaData>> MetaData;
 };
 
 namespace RequiredArgs
@@ -860,7 +861,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT void Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs);
-			OnWidget->CacheVolatility();
 		}
 	};
 
@@ -877,7 +877,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT void Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs, Forward<Arg0Type>(Arg0));
-			OnWidget->CacheVolatility();
 		}
 
 		Arg0Type& Arg0;
@@ -897,7 +896,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs, Forward<Arg0Type>(Arg0), Forward<Arg1Type>(Arg1));
-			OnWidget->CacheVolatility();
 		}
 
 		Arg0Type& Arg0;
@@ -919,7 +917,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs, Forward<Arg0Type>(Arg0), Forward<Arg1Type>(Arg1), Forward<Arg2Type>(Arg2));
-			OnWidget->CacheVolatility();
 		}
 
 		Arg0Type& Arg0;
@@ -943,7 +940,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs, Forward<Arg0Type>(Arg0), Forward<Arg1Type>(Arg1), Forward<Arg2Type>(Arg2), Forward<Arg3Type>(Arg3));
-			OnWidget->CacheVolatility();
 		}
 
 		Arg0Type& Arg0;
@@ -969,7 +965,6 @@ namespace RequiredArgs
 		{
 			// YOUR WIDGET MUST IMPLEMENT Construct(const FArguments& InArgs)
 			OnWidget->Construct(WithNamedArgs, Forward<Arg0Type>(Arg0), Forward<Arg1Type>(Arg1), Forward<Arg2Type>(Arg2), Forward<Arg3Type>(Arg3), Forward<Arg4Type>(Arg4));
-			OnWidget->CacheVolatility();
 		}
 
 		Arg0Type& Arg0;
@@ -1015,7 +1010,8 @@ namespace RequiredArgs
 	}
 }
 
-/** Normal widgets are allocated directly by the TDecl. */
+
+/** Normal widgets are allocated directly by the TSlateDecl. */
 template<typename WidgetType, bool IsDerived>
 struct TWidgetAllocator
 {
@@ -1039,7 +1035,6 @@ struct TWidgetAllocator< WidgetType, true >
 	}
 };
 
-class SUserWidget;
 
 /**
  * Utility class used during widget instantiation.
@@ -1051,9 +1046,9 @@ class SUserWidget;
  * @see SAssignNew
  */
 template<class WidgetType, typename RequiredArgsPayloadType>
-struct TDecl
+struct TSlateDecl
 {
-	TDecl( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, RequiredArgsPayloadType&& InRequiredArgs )
+	TSlateDecl( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, RequiredArgsPayloadType&& InRequiredArgs )
 		: _Widget( TWidgetAllocator<WidgetType, TIsDerivedFrom<WidgetType, SUserWidget>::IsDerived >::PrivateAllocateWidget() )
 		, _RequiredArgs(InRequiredArgs)
 	{
@@ -1065,7 +1060,7 @@ struct TDecl
 	 * @see SAssignNew
 	 */
 	template<class ExposeAsWidgetType>
-	TDecl& Expose( TSharedPtr<ExposeAsWidgetType>& OutVarToInit )
+	TSlateDecl& Expose( TSharedPtr<ExposeAsWidgetType>& OutVarToInit )
 	{
 		OutVarToInit = _Widget;
 		return *this;
@@ -1076,7 +1071,7 @@ struct TDecl
 	 * @see SAssignNew
 	 */
 	template<class ExposeAsWidgetType>
-	TDecl& Expose( TSharedRef<ExposeAsWidgetType>& OutVarToInit )
+	TSlateDecl& Expose( TSharedRef<ExposeAsWidgetType>& OutVarToInit )
 	{
 		OutVarToInit = _Widget;
 		return *this;
@@ -1087,7 +1082,7 @@ struct TDecl
 	 * @see SAssignNew
 	 */
 	template<class ExposeAsWidgetType>
-	TDecl& Expose( TWeakPtr<ExposeAsWidgetType>& OutVarToInit )
+	TSlateDecl& Expose( TWeakPtr<ExposeAsWidgetType>& OutVarToInit )
 	{
 		OutVarToInit = _Widget;
 		return *this;
@@ -1102,24 +1097,9 @@ struct TDecl
 	 */
 	TSharedRef<WidgetType> operator<<=( const typename WidgetType::FArguments& InArgs ) const
 	{
-		//@todo UMG: This should be removed in favor of all widgets calling their superclass construct.
-		_Widget->SWidgetConstruct(
-			InArgs._ToolTipText,
-			InArgs._ToolTip,
-			InArgs._Cursor,
-			InArgs._IsEnabled,
-			InArgs._Visibility,
-			InArgs._RenderOpacity,
-			InArgs._RenderTransform,
-			InArgs._RenderTransformPivot,
-			InArgs._Tag,
-			InArgs._ForceVolatile,
-			InArgs._Clipping,
-			InArgs._FlowDirectionPreference,
-			InArgs._AccessibleText.IsSet() ? FAccessibleWidgetData(InArgs._AccessibleText) : InArgs._AccessibleParams,
-			InArgs.MetaData );
-
+		_Widget->SWidgetConstruct(InArgs);
 		_RequiredArgs.CallConstruct(_Widget, InArgs);
+		_Widget->CacheVolatility();
 
 		return _Widget;
 	}
@@ -1130,7 +1110,7 @@ struct TDecl
 
 
 template<typename WidgetType, typename RequiredArgsPayloadType>
-TDecl<WidgetType, RequiredArgsPayloadType> MakeTDecl( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, RequiredArgsPayloadType&& InRequiredArgs )
+TSlateDecl<WidgetType, RequiredArgsPayloadType> MakeTDecl( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, RequiredArgsPayloadType&& InRequiredArgs )
 {
-	return TDecl<WidgetType, RequiredArgsPayloadType>(InType, InFile, OnLine, Forward<RequiredArgsPayloadType>(InRequiredArgs));
+	return TSlateDecl<WidgetType, RequiredArgsPayloadType>(InType, InFile, OnLine, Forward<RequiredArgsPayloadType>(InRequiredArgs));
 }
