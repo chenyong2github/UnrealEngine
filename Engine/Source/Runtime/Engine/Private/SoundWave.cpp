@@ -244,6 +244,7 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
+	bLoadedFromCookedData = false;
 	RunningPlatformData = nullptr;
 
 	OwnedBulkDataPtr = nullptr;
@@ -381,6 +382,7 @@ void USoundWave::Serialize( FArchive& Ar )
 	bool bShouldStreamSound = false;
 
 #if WITH_EDITORONLY_DATA
+		bLoadedFromCookedData = Ar.IsLoading() && bCooked;
 		if (bVirtualizeWhenSilent_DEPRECATED)
 		{
 			bVirtualizeWhenSilent_DEPRECATED = 0;
@@ -1063,7 +1065,12 @@ void USoundWave::PostLoad()
 	// Compress to whatever formats the active target platforms want
 	// static here as an optimization
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
+#if WITH_EDITORONLY_DATA
+	const bool bShouldLoadCompressedData = !(bLoadedFromCookedData && IsRunningCommandlet());
+#else
+	const bool bShouldLoadCompressedData = true;
+#endif
+	if (TPM && bShouldLoadCompressedData)
 	{
 		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
 
