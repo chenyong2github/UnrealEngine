@@ -7,6 +7,7 @@
 #include "Widgets/Input/SComboBox.h"
 
 class IDetailLayoutBuilder;
+class IPropertyHandle;
 class SWidget;
 class UNiagaraDataInterfaceMeshRendererInfo;
 class UNiagaraMeshRendererProperties;
