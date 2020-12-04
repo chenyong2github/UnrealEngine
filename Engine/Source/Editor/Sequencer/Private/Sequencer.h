@@ -67,6 +67,7 @@ class UMovieSceneCopyableBinding;
 class UMovieSceneCompiledDataManager;
 class UMovieSceneCopyableTrack;
 struct FMovieSceneTimeController;
+struct FMovieSceneSequencePlaybackParams;
 struct FMovieScenePossessable;
 struct FTransformData;
 struct ISequencerHotspot;
@@ -732,6 +733,7 @@ public:
 	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
+	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) override;
 	virtual void RequestInvalidateCachedData() override { bNeedsInvalidateCachedData = true; }
 	virtual void RequestEvaluate() override { bNeedsEvaluate = true; }
 	virtual void ForceEvaluate() override;
@@ -1387,6 +1389,9 @@ private:
 	bool bGlobalMarkedFramesCached;
 	TArray<FMovieSceneMarkedFrame> GlobalMarkedFramesCache;
 
+	/** If set, pause playback on this frame */
+	TOptional<FFrameTime> PauseOnFrame;
+
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;
 
@@ -1441,7 +1446,6 @@ private:
 	float PreAnimatedViewportFOV;
 
 	TOptional<FMovieSceneSequenceID> ScrubPositionParent;
-
 	/** Cache of all bound cameras in the sequence hierarchy */
 	TSet<AActor*> CachedCameraActors;
 	uint32 LastKnownStateSerial = 0;
