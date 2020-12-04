@@ -45,6 +45,9 @@ public:
 	/** Gets the additional pin that was created at this index */
 	UEdGraphPin* GetAdditionalPin(int32 PinIndex) const;
 
+	/** Attempts to find the error tolerance pin on this node. Can return nullptr. */
+	UEdGraphPin* FindTolerancePin() const;
+
 	// UK2Node_CallFunction interface
 	virtual void SetFromFunction(const UFunction* Function);
 	// End of UK2Node_CallFunction interface

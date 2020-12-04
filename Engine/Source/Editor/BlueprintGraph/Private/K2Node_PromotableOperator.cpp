@@ -542,6 +542,11 @@ UEdGraphPin* UK2Node_PromotableOperator::GetAdditionalPin(int32 PinIndex) const
 	return nullptr;
 }
 
+UEdGraphPin* UK2Node_PromotableOperator::FindTolerancePin() const
+{
+	return FindPin(TolerancePin_Name, EGPD_Input);
+}
+
 ///////////////////////////////////////////////////////////
 // UK2Node_CallFunction interface
 void UK2Node_PromotableOperator::SetFromFunction(const UFunction* Function)
