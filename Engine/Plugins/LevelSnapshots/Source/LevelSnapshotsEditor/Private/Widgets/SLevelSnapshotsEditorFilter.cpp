@@ -1,26 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SLevelSnapshotsEditorFilter.h"
+#include "SLevelSnapshotsEditorFilter.h"
 
 #include "LevelSnapshotFilters.h"
-
-#include "Views/Filter/LevelSnapshotsEditorFilters.h"
+#include "LevelSnapshotsEditorStyle.h"
+#include "LevelSnapshotsEditorFilters.h"
 
 #include "EditorStyleSet.h"
 #include "NegatableFilter.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
+DECLARE_DELEGATE(FOnFocusLost);
+
+/* Handles visuals for negation. */
 class SFilterCheckBox : public SCheckBox
 {
 public:
-	void SetEditorFilter(const TSharedRef<SLevelSnapshotsEditorFilter>& InFilter)
-	{
-		SnapshotFilterPtr = InFilter;
-	}
 
 	void SetOnFilterCtrlClicked(const FOnClicked& NewFilterCtrlClicked)
 	{
@@ -32,63 +30,108 @@ public:
 		OnFilterAltClicked = NewFilteAltClicked;
 	}
 
-	void SetOnFilterDoubleClicked( const FOnClicked& NewFilterDoubleClicked )
-	{
-		OnFilterDoubleClicked = NewFilterDoubleClicked;
-	}
-
 	void SetOnFilterMiddleButtonClicked( const FOnClicked& NewFilterMiddleButtonClicked )
 	{
 		OnFilterMiddleButtonClicked = NewFilterMiddleButtonClicked;
 	}
 
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override
+	void SetOnFilterRightButtonClicked( const FOnClicked& NewOnFilterRightButtonClicked )
 	{
-		if ( InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && OnFilterDoubleClicked.IsBound() )
-		{
-			return OnFilterDoubleClicked.Execute();
-		}
-		else
-		{
-			return SCheckBox::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
-		}
+		OnFilterRightButtonClicked = NewOnFilterRightButtonClicked;
 	}
 
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	void SetOnFilterClickedOnce(const FOnClicked& NewOnFilterClickedOnce)
 	{
-		SnapshotFilterPtr.Pin()->OnClick();
-		return SCheckBox::OnMouseButtonUp(MyGeometry, MouseEvent);
+		OnFilterClickedOnce = NewOnFilterClickedOnce;
 	}
 
-	virtual FReply OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override
+	void SetOnFocusLost(const FOnFocusLost& NewOnFocusLostCallback)
 	{
-		if (InMouseEvent.IsControlDown() && OnFilterCtrlClicked.IsBound())
+		OnFocusLostCallback = NewOnFocusLostCallback;
+	}
+
+	void OnFocusLost(const FFocusEvent& InFocusEvent) override
+	{
+		OnFocusLostCallback.Execute();
+	}
+	
+	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		// Override check box behaviour
+		return FReply::Handled();
+	}
+	FReply OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override
+	{
+		if (InMouseEvent.IsControlDown())
 		{
-			return OnFilterCtrlClicked.Execute();
+			return OnFilterCtrlClicked.Execute().ReleaseMouseCapture();
 		}
-		else if (InMouseEvent.IsAltDown() && OnFilterAltClicked.IsBound())
+		else if (InMouseEvent.IsAltDown())
 		{
-			return OnFilterAltClicked.Execute();
+			return OnFilterAltClicked.Execute().ReleaseMouseCapture();
 		}
-		else if( InMouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton && OnFilterMiddleButtonClicked.IsBound() )
+		else if(InMouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton)
 		{
-			return OnFilterMiddleButtonClicked.Execute();
+			return OnFilterMiddleButtonClicked.Execute().ReleaseMouseCapture();
 		}
-		else
+		else if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 		{
-			SCheckBox::OnMouseButtonUp(InMyGeometry, InMouseEvent);
-			return FReply::Handled().ReleaseMouseCapture();
+			return OnFilterRightButtonClicked.Execute().ReleaseMouseCapture();
 		}
+		else if(OnFilterClickedOnce.IsBound())
+		{
+			return OnFilterClickedOnce.Execute().ReleaseMouseCapture();
+		}
+		
+		return FReply::Handled().ReleaseMouseCapture();
 	}
 
 private:
 	FOnClicked OnFilterCtrlClicked;
 	FOnClicked OnFilterAltClicked;
-	FOnClicked OnFilterDoubleClicked;
 	FOnClicked OnFilterMiddleButtonClicked;
+	FOnClicked OnFilterRightButtonClicked;
+	FOnClicked OnFilterClickedOnce;
 
-	TWeakPtr<SLevelSnapshotsEditorFilter> SnapshotFilterPtr;
+	FOnFocusLost OnFocusLostCallback;
 };
+
+/* Child of SFilterCheckBox. Like text but allows click events. */
+class SClickableText : public STextBlock
+{
+public:
+	
+	void SetOnClicked(const FOnClicked& Callback)
+	{
+		OnClicked = Callback;
+	}
+
+	FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override
+	{
+		return OnClicked.Execute();
+	}
+	FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+		{
+			return OnClicked.Execute();
+		}
+		// Allow SFilterCheckBox to respond to right-clicks, etc.
+		return FReply::Unhandled();
+	}
+
+private:
+	FOnClicked OnClicked;;
+};
+
+SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
+{
+	TSharedPtr<FLevelSnapshotsEditorFilters> FilterModel =  FiltersModelPtr.Pin();
+	if (ensure(FilterModel))
+	{
+		FilterModel->GetOnSetActiveFilter().Remove(ActiveFilterChangedDelegateHandle);
+	}
+}
 
 void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
@@ -97,9 +140,9 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 		return;
 	}
 	
-	OnClickRemoveFilter = InArgs._OnClickRemoveFilter;
 	SnapshotFilter = InFilter;
 	FiltersModelPtr = InFilters;
+	OnClickRemoveFilter = InArgs._OnClickRemoveFilter;
 
 	ChildSlot
 		[
@@ -108,24 +151,48 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 			.BorderBackgroundColor( FLinearColor(0.2f, 0.2f, 0.2f, 0.2f) )
 			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
 			[
-				SAssignNew( ToggleButtonPtr, SFilterCheckBox)
+				SAssignNew(ToggleButtonPtr, SFilterCheckBox)
+				.ToolTipText(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([this]()
+				{
+					if (SnapshotFilter.IsValid())
+					{
+						return SnapshotFilter->ShouldNegate() ? LOCTEXT("NegationTrue", "Click to not negate filter result.") : LOCTEXT("NegationFalse", "Click to negate filter result.");
+					}
+					return LOCTEXT("Invalid", "");
+				})))
 				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
 				.Padding(FMargin(3, 2, 4, 0))
-				.IsChecked(this, &SLevelSnapshotsEditorFilter::IsChecked)
-				.OnCheckStateChanged(this, &SLevelSnapshotsEditorFilter::FilterToggled)
-				.OnGetMenuContent(this, &SLevelSnapshotsEditorFilter::GetRightClickMenuContent)
-				.ForegroundColor(FLinearColor::Green)
+				.IsChecked(ECheckBoxState::Checked)
+				.ForegroundColor(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateLambda([this]() {return SnapshotFilter.IsValid() && SnapshotFilter->ShouldNegate() ? FLinearColor::Red : FLinearColor::Green; })))
 				[
-					SNew(STextBlock)
-					.ColorAndOpacity(FLinearColor::White)
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
-					.ShadowOffset(FVector2D(1.f, 1.f))
-					.Text(InFilter->GetDisplayName())
+					SAssignNew(FilterNamePtr, SClickableText)
+						.ToolTipText(LOCTEXT("RightClickToRemove", "Right-click to remove filter."))
+						.ColorAndOpacity(FLinearColor::White)
+						.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
+						.ShadowOffset(FVector2D(1.f, 1.f))
+						.Text(InFilter->GetDisplayName())
 				]
 			]
 		];
 
-	ToggleButtonPtr->SetEditorFilter(SharedThis(this));
+	ToggleButtonPtr->SetOnFilterClickedOnce(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnNegateFilter));
+	// Remove filter for alt, strg, middle and right-clicks
+	ToggleButtonPtr->SetOnFilterAltClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter));
+	ToggleButtonPtr->SetOnFilterCtrlClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter));
+	ToggleButtonPtr->SetOnFilterMiddleButtonClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter));
+	ToggleButtonPtr->SetOnFilterRightButtonClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter));
+	// Deselect when user clicks away
+	ToggleButtonPtr->SetOnFocusLost(FOnFocusLost::CreateLambda([this]()
+	{
+		if (TSharedPtr<FLevelSnapshotsEditorFilters> Model = FiltersModelPtr.Pin())
+		{
+			Model->SetActiveFilter(nullptr);
+		}
+	}));
+
+	// Hightlight & unhighlight filter when being edited
+	FilterNamePtr->SetOnClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnSelectFilterForEdit));
+	ActiveFilterChangedDelegateHandle = InFilters->GetOnSetActiveFilter().AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
 }
 
 const TWeakObjectPtr<UNegatableFilter>& SLevelSnapshotsEditorFilter::GetSnapshotFilter() const
@@ -133,59 +200,70 @@ const TWeakObjectPtr<UNegatableFilter>& SLevelSnapshotsEditorFilter::GetSnapshot
 	return SnapshotFilter;
 }
 
-ECheckBoxState SLevelSnapshotsEditorFilter::IsChecked() const
+int32 SLevelSnapshotsEditorFilter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
+	const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId,
+	const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+
+	if (bIsBeingEdited)
+	{
+		const FVector2D ShadowSize(14, 14);
+		const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush("Graph.CompactNode.ShadowSelected");
+	
+		// Draw a shadow	
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			LayerId,
+			AllottedGeometry.ToInflatedPaintGeometry(ShadowSize),
+			ShadowBrush
+		);
+	}
+	
+
+	return LayerId;
+}
+
+FReply SLevelSnapshotsEditorFilter::OnSelectFilterForEdit()
+{
+	TSharedPtr<FLevelSnapshotsEditorFilters> Model = FiltersModelPtr.Pin();
+	if (ensure(Model))
+	{
+		bIsBeingEdited = true;
+		Model->SetActiveFilter(SnapshotFilter->GetChildFilter());
+	}
+	return FReply::Handled();
+}
+
+void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(ULevelSnapshotFilter* NewFilter)
 {
 	if (ensure(SnapshotFilter.IsValid()))
 	{
-		return SnapshotFilter->ShouldNegate() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+		bIsBeingEdited = NewFilter == SnapshotFilter->GetChildFilter();
 	}
-	return ECheckBoxState::Undetermined;
+
+	// This ensures SFilterCheckBox::OnFocusLost gets called later on and unhighlights the widget when user clicks away. Needed for when this widget was just created by drag-drop. 
+	if (ensure(FiltersModelPtr.IsValid()) && FiltersModelPtr.Pin()->GetActiveFilter() == SnapshotFilter->GetChildFilter())
+	{
+		FSlateApplication::Get().SetAllUserFocus(ToggleButtonPtr, EFocusCause::SetDirectly);
+	}
 }
 
-void SLevelSnapshotsEditorFilter::FilterToggled(ECheckBoxState NewState)
+FReply SLevelSnapshotsEditorFilter::OnNegateFilter()
 {
 	if (ensure(SnapshotFilter.IsValid()))
 	{
-		SnapshotFilter->SetShouldNegate(NewState == ECheckBoxState::Unchecked);
+		const bool bNewShouldNegate = !SnapshotFilter->ShouldNegate();
+		SnapshotFilter->SetShouldNegate(bNewShouldNegate);
 	}
+	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SLevelSnapshotsEditorFilter::GetRightClickMenuContent()
+FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 {
-	FMenuBuilder MenuBuilder(true, NULL);
-	if (!ensure(SnapshotFilter.IsValid()))
-	{
-		return MenuBuilder.MakeWidget();
-	}
-	
-	MenuBuilder.BeginSection("FilterOptions", LOCTEXT("FilterContextHeading", "Filter Options"));
-	{
-		MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("RemoveFilter", "Remove: {0}"), SnapshotFilter->GetDisplayName()),
-			LOCTEXT("RemoveFilterTooltip", "Remove this filter from the list. It can be added again in the filters menu."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([this]()
-			{
-				OnClickRemoveFilter.ExecuteIfBound(SharedThis(this));
-			}))
-			);
-
-		// TODO:
-		/*MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("EnableOnlyThisFilter", "Enable Only This: {0}"), GetFilterName()),
-			LOCTEXT("EnableOnlyThisFilterTooltip", "Enable only this filter from the list."),
-			FSlateIcon(),
-			FUIAction()
-			);*/
-	}
-	MenuBuilder.EndSection();
-	
-	return MenuBuilder.MakeWidget();
+	OnClickRemoveFilter.Execute(SharedThis(this));
+	return FReply::Handled();
 }
 
-void SLevelSnapshotsEditorFilter::OnClick() const
-{
-	FiltersModelPtr.Pin()->SetActiveFilter(SnapshotFilter.Get());
-}
 
 #undef LOCTEXT_NAMESPACE
