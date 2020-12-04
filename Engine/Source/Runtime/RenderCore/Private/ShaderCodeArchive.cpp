@@ -11,6 +11,7 @@
 #include "Misc/FileHelper.h"
 #if WITH_EDITOR
 #include "Misc/StringBuilder.h"
+#include "Templates/Greater.h"
 #endif
 
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
