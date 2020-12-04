@@ -1371,7 +1371,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 
 	if (Ar.IsLoading())
 	{
-		int32 SaveNum;
+		int32 SaveNum = 0;
 		Ar << SaveNum;
 
 		bool bLoadUnicodeChar = SaveNum < 0;
