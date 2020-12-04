@@ -15,25 +15,26 @@
 UFractureToolAutoCluster::UFractureToolAutoCluster(const FObjectInitializer& ObjInit)
   : Super(ObjInit) 
 {
-	Settings = NewObject<UFractureAutoClusterSettings>(GetTransientPackage(), UFractureAutoClusterSettings::StaticClass());
+	AutoClusterSettings = NewObject<UFractureAutoClusterSettings>(GetTransientPackage(), UFractureAutoClusterSettings::StaticClass());
+	AutoClusterSettings->OwnerTool = this;
 }
 
 
 // UFractureTool Interface
 FText UFractureToolAutoCluster::GetDisplayText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolAutoCluster", "Auto")); 
+	return FText(NSLOCTEXT("FractureAutoCluster", "FractureToolAutoCluster", "Auto")); 
 }
 
 
 FText UFractureToolAutoCluster::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolAutoClusterToolTip", "Automatically group together pieces of a fractured mesh (based on your settings) and assign them within the Geometry Collection.")); 
+	return FText(NSLOCTEXT("FractureAutoCluster", "FractureToolAutoClusterToolTip", "Automatically group together pieces of a fractured mesh (based on your settings) and assign them within the Geometry Collection.")); 
 }
 
 FText UFractureToolAutoCluster::GetApplyText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "ExecuteAutoCluster", "Auto Cluster")); 
+	return FText(NSLOCTEXT("FractureAutoCluster", "ExecuteAutoCluster", "Auto Cluster")); 
 }
 
 FSlateIcon UFractureToolAutoCluster::GetToolIcon() const
@@ -45,7 +46,7 @@ FSlateIcon UFractureToolAutoCluster::GetToolIcon() const
 TArray<UObject*> UFractureToolAutoCluster::GetSettingsObjects() const 
 {
 	TArray<UObject*> AllSettings; 
-	AllSettings.Add(Settings);
+	AllSettings.Add(AutoClusterSettings);
 	return AllSettings;
 }
 
@@ -55,18 +56,27 @@ void UFractureToolAutoCluster::RegisterUICommand( FFractureEditorCommands* Bindi
 	BindingContext->AutoCluster = UICommandInfo;
 }
 
-void UFractureToolAutoCluster::ExecuteFracture(const FFractureContext& FractureContext)
+void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent))
+	if (InToolkit.IsValid())
 	{
-		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-		int32 CurrentLevelView = EditBoneColor.GetViewLevel();
+		TSet<UGeometryCollectionComponent*> GeomCompSelection;
+		GetSelectedGeometryCollectionComponents(GeomCompSelection);
+		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		{
+			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+			int32 CurrentLevelView = EditBoneColor.GetViewLevel();
 
-		UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(GeometryCollectionComponent, Settings->AutoClusterMode, Settings->SiteCount);
+			UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(GeometryCollectionComponent, AutoClusterSettings->AutoClusterMode, AutoClusterSettings->SiteCount);
 
-		EditBoneColor.ResetBoneSelection();
-		EditBoneColor.SetLevelViewMode(0);
-		EditBoneColor.SetLevelViewMode(CurrentLevelView);
+			EditBoneColor.ResetBoneSelection();
+			EditBoneColor.SetLevelViewMode(CurrentLevelView);
+
+			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
+			GeometryCollectionComponent->MarkRenderStateDirty();
+		}
+
+		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
 	}
 }
 

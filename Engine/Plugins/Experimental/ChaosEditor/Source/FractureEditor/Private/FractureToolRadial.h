@@ -2,32 +2,28 @@
 
 #pragma once
 
-#include "FractureToolVoronoiBase.h"
+#include "FractureTool.h"
+#include "FractureToolCutter.h"
 
 #include "FractureToolRadial.generated.h"
 
 
-UCLASS()
-class UFractureRadialSettings
-	: public UObject
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureRadialSettings : public UFractureToolSettings
 {
-	GENERATED_BODY()
 public:
+	GENERATED_BODY()
 
-	UFractureRadialSettings()
-	: Center(FVector(0,0,0))
-	, Normal(FVector(0, 0, 1))
-	, Radius(50.0f)
-	, AngularSteps(5)
-	, RadialSteps(5)
-	, AngleOffset(0.0f)
-	, Variability(0.0f)
+	UFractureRadialSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+		, Center(FVector(0,0,0))
+		, Normal(FVector(0, 0, 1))
+		, Radius(50.0f)
+		, AngularSteps(5)
+		, RadialSteps(5)
+		, AngleOffset(0.0f)
+		, Variability(0.0f)
 	{}
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
 
 	/** Center of generated pattern */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
@@ -56,31 +52,30 @@ public:
 	/** Randomness of sites distribution */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
 	float Variability;
-
-	UPROPERTY()
-	UFractureTool *OwnerTool;
 };
 
 
 UCLASS(DisplayName="Radial Voronoi", Category="FractureTools")
-class UFractureToolRadial : public UFractureToolVoronoiBase
+class UFractureToolRadial : public UFractureToolVoronoiCutterBase
 {
 public:
 	GENERATED_BODY()
 
-	UFractureToolRadial(const FObjectInitializer& ObjInit);//  : Super(ObjInit) {}
+	UFractureToolRadial(const FObjectInitializer& ObjInit);
 
 	// UFractureTool Interface
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FSlateIcon GetToolIcon() const override;
-	virtual TArray<UObject*> GetSettingsObjects() const override;// { return TArray<UObject*>(); }
+	virtual TArray<UObject*> GetSettingsObjects() const override;
 
-	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext );
-	
-	// virtual void ExecuteFracture() {}
-	// virtual bool CanExecuteFracture() { return true; }
+	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext ) override;
+
+	// Radial Voronoi Fracture Input Settings
+	UPROPERTY(EditAnywhere, Category = Uniform)
+	UFractureRadialSettings* RadialSettings;
+
 protected:
-	void GenerateVoronoiSites(const FFractureContext &Context, TArray<FVector>& Sites) override;
+	void GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites) override;
 
 };
