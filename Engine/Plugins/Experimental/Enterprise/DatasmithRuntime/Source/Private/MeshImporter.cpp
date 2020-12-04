@@ -410,7 +410,7 @@ namespace DatasmithRuntime
 
 			if (!NativeTranslator.LoadStaticMesh(MeshElement, MeshPayload))
 			{
-				// #ueent_datasmithruntime: Update FAssetFactory
+				// #ueent_datasmithruntime: TODO : Update FAssetFactory
 				ActionCounter.Add(MeshData.Referencers.Num());
 				MeshData.Object.Reset();
 				MeshData.AddState(EAssetState::Completed);
@@ -426,7 +426,13 @@ namespace DatasmithRuntime
 		// Empty mesh?
 		if (MeshDescriptions.Num() == 0)
 		{
+			// #ueent_datasmithruntime: TODO : Update FAssetFactory
+			ActionCounter.Add(MeshData.Referencers.Num());
+			MeshData.Object.Reset();
 			MeshData.AddState(EAssetState::Completed);
+
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: %s does not have a mesh description"), MeshElement->GetLabel());
+
 			return true;
 		}
 
