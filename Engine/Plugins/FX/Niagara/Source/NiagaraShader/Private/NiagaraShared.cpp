@@ -116,10 +116,11 @@ void FNiagaraShaderScript::Invalidate()
 {
 	CancelCompilation();
 	ReleaseShaderMap();
+#if WITH_EDITOR
 	CompileErrors.Empty();
 	HlslOutput.Empty();
+#endif
 }
-
 
 void FNiagaraShaderScript::LegacySerialize(FArchive& Ar)
 {
@@ -430,19 +431,24 @@ void FNiagaraShaderScript::SetRenderThreadCachedData(const FNiagaraShaderMapCach
 	CachedData_RenderThread = CachedData;
 }
 
-void FNiagaraShaderScript::QueueForRelease(FThreadSafeBool& Fence)
+bool FNiagaraShaderScript::QueueForRelease(FThreadSafeBool& Fence)
 {
 	check(!bQueuedForRelease);
 
-	bQueuedForRelease = true;
-	Fence = false;
-	FThreadSafeBool* Released = &Fence;
+	if (BaseVMScript)
+	{
+		bQueuedForRelease = true;
+		Fence = false;
+		FThreadSafeBool* Released = &Fence;
 
-	ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[Released](FRHICommandListImmediate& RHICmdList)
-		{
-			*Released = true;
-		});
+		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
+			[Released](FRHICommandListImmediate& RHICmdList)
+			{
+				*Released = true;
+			});
+	}
+
+	return bQueuedForRelease;
 }
 
 void FNiagaraShaderScript::UpdateCachedData_All()
@@ -559,7 +565,7 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 	{
 		GameThreadShaderMap = nullptr;
 		{
-			NIAGARASHADER_API extern FCriticalSection GIdToNiagaraShaderMapCS;
+			extern FCriticalSection GIdToNiagaraShaderMapCS;
 			FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
 			// Find the script's cached shader map.
 			GameThreadShaderMap = FNiagaraShaderMap::FindId(ShaderMapId, ShaderPlatform);
