@@ -727,9 +727,13 @@ static TMap<TWeakObjectPtr<UActorComponent>,FComponentReregisterContext*> EditRe
 
 bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 {
+	AActor* MyOwner = GetOwner();
+    
+	// Components in transient actors should never mark the package as dirty
+	bAlwaysMarkDirty = bAlwaysMarkDirty && (!MyOwner || !MyOwner->HasAnyFlags(RF_Transient));
+
 	// If this is a construction script component we don't store them in the transaction buffer.  Instead, mark
 	// the Actor as modified so that we store of the transaction annotation that has the component properties stashed
-	AActor* MyOwner = GetOwner();
 	if (MyOwner && IsCreatedByConstructionScript())
 	{
 		return MyOwner->Modify(bAlwaysMarkDirty);
