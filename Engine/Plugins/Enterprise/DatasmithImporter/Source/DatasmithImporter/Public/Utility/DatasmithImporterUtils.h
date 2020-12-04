@@ -8,10 +8,11 @@
 
 class ADatasmithSceneActor;
 class IDatasmithScene;
+class IDatasmithUEPbrMaterialElement;
 class UDatasmithScene;
-class UWorld;
-class UPackage;
 class UFunction;
+class UPackage;
+class UWorld;
 
 DECLARE_LOG_CATEGORY_EXTERN( LogDatasmithImport, Log, All );
 
@@ -151,13 +152,17 @@ public:
 	 */
 	static void FillSceneElement( TSharedPtr< IDatasmithScene >& SceneElement, const TArray<AActor*>& RootActors );
 
+
+	using FFunctionAndMaterialsThatUseIt = TPair< TSharedPtr< IDatasmithUEPbrMaterialElement >, TArray< TSharedPtr< IDatasmithUEPbrMaterialElement > > >;
+
 	/**
 	 * Finds all materials that are referenced by other materials in the scene and returns a list ordered
 	 * by dependencies, making sure that materials referencing other materials in the list will come after.
+	 * The list also include the direct parents (materials or functions) that are using the functions.
 	 *
 	 * @param SceneElement		DatasmithScene holding the materials.
 	 */
-	static TArray< TSharedPtr< IDatasmithBaseMaterialElement > > GetOrderedListOfMaterialsReferencedByMaterials( TSharedPtr< IDatasmithScene >& SceneElement );
+	static TArray< FFunctionAndMaterialsThatUseIt > GetOrderedListOfMaterialsReferencedByMaterials(TSharedPtr< IDatasmithScene >& SceneElement);
 
 	class FDatasmithMaterialImportIterator
 	{

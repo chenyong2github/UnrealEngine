@@ -1007,18 +1007,19 @@ void FDatasmithImporterUtils::FillSceneElement(TSharedPtr<IDatasmithScene>& Scen
 	}
 }
 
-TArray<TSharedPtr<IDatasmithBaseMaterialElement>> FDatasmithImporterUtils::GetOrderedListOfMaterialsReferencedByMaterials(TSharedPtr< IDatasmithScene >& SceneElement)
+TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImporterUtils::GetOrderedListOfMaterialsReferencedByMaterials(TSharedPtr< IDatasmithScene >& SceneElement)
 {
 	//This map is used to keep track of which materials are referencing which
-	//it serves both as a TSet for referenced material and in the predicate to sort by dependences.
-	TMultiMap<FString, FString> ReferencedReferencingMaterialNameMap;
+	TMap<FString, TSet<FString>> MaterialToFunctionNameMap;
 	//Mapping materials to their names for easy access.
-	TMap<FString, TSharedPtr<IDatasmithBaseMaterialElement>> MaterialNameMap;
+	TMap<FString, TSharedPtr<IDatasmithUEPbrMaterialElement>> MaterialNameMap;
 
+
+	MaterialToFunctionNameMap.Reserve(SceneElement->GetMaterialsCount());
+	MaterialNameMap.Reserve(SceneElement->GetMaterialsCount());
 	for (int32 MaterialIndex = 0; MaterialIndex < SceneElement->GetMaterialsCount(); ++MaterialIndex)
 	{
 		const TSharedPtr<IDatasmithBaseMaterialElement> BaseMaterialElement = SceneElement->GetMaterial(MaterialIndex);
-		MaterialNameMap.FindOrAdd(BaseMaterialElement->GetName()) = BaseMaterialElement;
 
 		if (!BaseMaterialElement->IsA(EDatasmithElementType::UEPbrMaterial))
 		{
@@ -1026,6 +1027,10 @@ TArray<TSharedPtr<IDatasmithBaseMaterialElement>> FDatasmithImporterUtils::GetOr
 		}
 
 		const TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterialElement = StaticCastSharedPtr<IDatasmithUEPbrMaterialElement>(BaseMaterialElement);
+
+		uint32 BaseMaterialHash = GetTypeHash(UEPbrMaterialElement->GetName());
+		MaterialNameMap.FindOrAddByHash(BaseMaterialHash, BaseMaterialElement->GetName()) = UEPbrMaterialElement;
+
 		for (int32 MaterialExpressionIndex = 0; MaterialExpressionIndex < UEPbrMaterialElement->GetExpressionsCount(); ++MaterialExpressionIndex)
 		{
 			if (UEPbrMaterialElement->GetExpression(MaterialExpressionIndex)->IsA(EDatasmithMaterialExpressionType::FunctionCall))
@@ -1033,34 +1038,89 @@ TArray<TSharedPtr<IDatasmithBaseMaterialElement>> FDatasmithImporterUtils::GetOr
 				const FString FunctionPathName(StaticCast<IDatasmithMaterialExpressionFunctionCall*>(UEPbrMaterialElement->GetExpression(MaterialExpressionIndex))->GetFunctionPathName());
 				if (FPaths::IsRelative(FunctionPathName))
 				{
-					check(!ReferencedReferencingMaterialNameMap.FindPair(BaseMaterialElement->GetName(), FunctionPathName));//Can't have inter-dependencies
-					ReferencedReferencingMaterialNameMap.Add(FunctionPathName, BaseMaterialElement->GetName());
+					uint32 FunctionPathNameHash = GetTypeHash(FunctionPathName);
+					if (TSet<FString>* Values = MaterialToFunctionNameMap.FindByHash(FunctionPathNameHash, FunctionPathName))
+					{
+						check(!Values->ContainsByHash(BaseMaterialHash, BaseMaterialElement->GetName())); //Can't have inter-dependencies
+					}
+		
+					MaterialToFunctionNameMap.FindOrAddByHash(BaseMaterialHash, BaseMaterialElement->GetName()).AddByHash(FunctionPathNameHash, FunctionPathName);
 				}
 			}
 		}
 	}
 
-	TArray<TSharedPtr<IDatasmithBaseMaterialElement>> ReferencedMaterials;
-	TArray<FString> ReferencedMaterialNames;
-	if (ReferencedReferencingMaterialNameMap.GetKeys(ReferencedMaterialNames))
-	{
-		for (FString& ReferencedMaterialName : ReferencedMaterialNames)
+
+	TArray<FFunctionAndMaterialsThatUseIt> ReferencedMaterialAndTheirReferencer;
+	ReferencedMaterialAndTheirReferencer.Reserve(MaterialToFunctionNameMap.Num());
+	TMap<TSharedPtr<IDatasmithUEPbrMaterialElement>, int32> VisitedAndInsertionIndex;
+	VisitedAndInsertionIndex.Reserve(MaterialToFunctionNameMap.Num());
+
+	// Topological sort while also noting who was the direct dependents of a node also. Base on a DFS
+	TFunction<void (const TSharedPtr<IDatasmithUEPbrMaterialElement>&, const TSet<FString>&, const TSharedPtr<IDatasmithUEPbrMaterialElement>&)> DepthFirstSearch;
+
+	DepthFirstSearch = [&MaterialToFunctionNameMap, &MaterialNameMap, &ReferencedMaterialAndTheirReferencer, &VisitedAndInsertionIndex, &DepthFirstSearch] (const TSharedPtr<IDatasmithUEPbrMaterialElement>& CurrentElement, const TSet<FString>& Dependencies, const TSharedPtr<IDatasmithUEPbrMaterialElement>& Parent)
 		{
-			if (MaterialNameMap.Contains(ReferencedMaterialName))
+			uint32 CurrentHash = GetTypeHash(CurrentElement);
+			// Check if visited
+			if (int32* Index = VisitedAndInsertionIndex.FindByHash(CurrentHash, CurrentElement))
 			{
-				ReferencedMaterials.Add(MaterialNameMap[ReferencedMaterialName]);
+				// update output to add the dependent
+				ReferencedMaterialAndTheirReferencer[*Index].Value.Add(Parent);
+				return;
+			}
+
+			// Visit children
+			for (const FString& Dependency : Dependencies)
+			{
+				uint32 DependencyHash = GetTypeHash(Dependency);
+				const TSharedPtr<IDatasmithUEPbrMaterialElement>* NextElement = MaterialNameMap.FindByHash(DependencyHash, Dependency);
+				check(NextElement);
+
+				if (const TSet<FString>* NextElementDependencies = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+				{
+					DepthFirstSearch(*NextElement, *NextElementDependencies, CurrentElement);
+				}
+				else
+				{
+					DepthFirstSearch(*NextElement, TSet<FString>(), CurrentElement);
+				}
+			}
+
+			// Mark Visited and add to output
+			VisitedAndInsertionIndex.AddByHash(CurrentHash, CurrentElement, ReferencedMaterialAndTheirReferencer.Num());
+			TArray<TSharedPtr<IDatasmithUEPbrMaterialElement>> Parents;
+			Parents.Add(Parent);
+
+			ReferencedMaterialAndTheirReferencer.Emplace(CurrentElement, MoveTemp(Parents));
+		};
+
+	for (const TPair<FString, TSet<FString>>& Pair : MaterialToFunctionNameMap)
+	{
+		const TSharedPtr<IDatasmithUEPbrMaterialElement>& CurrentElement = MaterialNameMap.FindChecked(Pair.Key);
+		// Only if not yet visited
+		if (!VisitedAndInsertionIndex.Contains(CurrentElement))
+		{
+			// Only DFS the dependencies because we don't want to add the top level material as they don't need to be functions
+			for (const FString& Dependency : Pair.Value)
+			{
+				uint32 DependencyHash = GetTypeHash(Dependency);
+				const TSharedPtr<IDatasmithUEPbrMaterialElement>* CurrentDependency = MaterialNameMap.FindByHash(DependencyHash, Dependency);
+				check(CurrentDependency);
+
+				if (const TSet<FString>* DependenciesOfDependency = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+				{
+					DepthFirstSearch(*CurrentDependency, *DependenciesOfDependency, CurrentElement);
+				}
+				else
+				{
+					DepthFirstSearch(*CurrentDependency, TSet<FString>(), CurrentElement);
+				}
 			}
 		}
 	}
 
-	//Sorting the materials by dependences
-	ReferencedMaterials.Sort([ReferencedReferencingMaterialNameMap](TSharedPtr<IDatasmithBaseMaterialElement> MatA, TSharedPtr<IDatasmithBaseMaterialElement> MatB)
-	{
-		//If MatA is referenced by MatB, then MatA comes before.
-		return ReferencedReferencingMaterialNameMap.FindPair(MatA->GetName(), MatB->GetName()) != nullptr;
-	});
-
-	return ReferencedMaterials;
+	return ReferencedMaterialAndTheirReferencer;
 }
 
 FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImportIterator(const FDatasmithImportContext& InImportContext)

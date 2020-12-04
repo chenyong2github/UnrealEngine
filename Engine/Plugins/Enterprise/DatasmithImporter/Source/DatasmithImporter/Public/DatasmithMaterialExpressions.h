@@ -33,6 +33,7 @@ class UMaterialInterface;
 struct FExpressionInput;
 class UMaterialExpressionMaterialFunctionCall;
 
+enum class EDatasmithMaterialExpressionType;
 enum class EDatasmithTextureMode : uint8;
 
 enum class EDatasmithTextureSlot
@@ -71,6 +72,7 @@ public:
 
 	static UMaterialExpression* AddCompExpression(const TSharedPtr<IDatasmithCompositeTexture>& Comp, UObject* UnrealMaterial, EDatasmithTextureSlot Slot, const FDatasmithAssetsImportContext& AssetsContext);
 
+	static void ForEachParamsNameInMaterial(const TSharedPtr<IDatasmithUEPbrMaterialElement>& MaterialElement, const TFunctionRef<void (FName Expression, const EDatasmithMaterialExpressionType& ExpressionType, int32 Index)>& CallbackForEach);
 private:
 	static FLinearColor TemperatureToColor(float Kelvin);
 

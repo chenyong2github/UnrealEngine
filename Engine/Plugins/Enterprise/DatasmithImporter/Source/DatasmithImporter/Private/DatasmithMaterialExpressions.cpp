@@ -131,7 +131,56 @@ namespace
 		return 0;
 	}
 
-	FName GenerateParamName( IDatasmithMaterialExpression& DatasmithExpression, const TCHAR* DefaultName, int32 Index )
+	UClass* GetGenericExpressionClass(IDatasmithMaterialExpressionGeneric& GenericExpression)
+	{
+		constexpr TCHAR* MaterialExpressionCharPtr = TEXT("MaterialExpression");
+		const int32 MaterialExpressionLength = FCString::Strlen( MaterialExpressionCharPtr );
+		const int32 ExpressionNameLength = FCString::Strlen( GenericExpression.GetExpressionName() );
+
+		FString ClassName;
+		ClassName.Reserve( MaterialExpressionLength + ExpressionNameLength );
+		ClassName.AppendChars( TEXT("MaterialExpression"), MaterialExpressionLength );
+		ClassName.AppendChars(  GenericExpression.GetExpressionName(), ExpressionNameLength );
+		return FindClass( *ClassName );
+	}
+
+	template<EDatasmithMaterialExpressionType ExpressionType>
+	FString GetDefaultParameterName()
+	{
+		static_assert(false, "Not implemented for this expression type");
+	}
+
+	template<>
+	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::ConstantBool>()
+	{
+		return TEXT("Bool");
+	}
+
+	template<>
+	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::Texture>()
+	{
+		return TEXT("Texture");
+	}
+
+	template<>
+	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::ConstantColor>()
+	{
+		return TEXT("Color");
+	}
+	template<>
+	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::ConstantScalar>()
+	{
+		return TEXT("Scalar");
+	}
+
+	template<>
+	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::Generic>()
+	{
+		return TEXT("Generic");
+	}
+
+	template<EDatasmithMaterialExpressionType ExpressionType>
+	FName GenerateParamName( IDatasmithMaterialExpression& DatasmithExpression, int32 Index )
 	{
 		FString ParameterNameString;
 
@@ -141,7 +190,7 @@ namespace
 		}
 		else
 		{
-			ParameterNameString = DefaultName;
+			ParameterNameString = GetDefaultParameterName<ExpressionType>();
 		}
 
 		ParameterNameString += TEXT(" (") + FString::FromInt( Index ) + TEXT(")");
@@ -154,6 +203,39 @@ namespace
 		FString Label = ObjectTools::SanitizeObjectName( MaterialLabel );
 		// Generate unique name from label if valid, otherwise return element's name as it is unique
 		return UniqueNameProvider.GenerateUniqueName( Label );
+	}
+
+	template<class IDatasmithMaterialExpression>
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpression& Expression)
+	{
+		static_assert(false, "Not implemented for this expression type");
+	}
+
+	template<>
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionColor& ExpressionColor)
+	{
+		return FCString::Strlen( ExpressionColor.GetName() ) != 0;
+	}
+
+	template<>
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionScalar& ExpressionScalar)
+	{
+		return FCString::Strlen( ExpressionScalar.GetName() ) != 0;
+	}
+
+	template<>
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionGeneric& ExpressionGeneric)
+	{
+		if ( UClass* ExpressionClass = GetGenericExpressionClass( ExpressionGeneric ) )
+		{
+			if ( UMaterialExpression* DefaultExpression = ExpressionClass->GetDefaultObject<UMaterialExpression>() )
+			{
+				return DefaultExpression->HasAParameterName();
+			}
+		}
+
+		ensure( false );
+		return false;
 	}
 }
 
@@ -1719,6 +1801,78 @@ UMaterialExpression* FDatasmithMaterialExpressions::AddCompExpression(const TSha
 	return nullptr;
 }
 
+void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr<IDatasmithUEPbrMaterialElement>& MaterialElement, const TFunctionRef<void (FName Expression, const EDatasmithMaterialExpressionType& ExpressionType, int32 Index)>& CallbackForEach)
+{
+	if (MaterialElement)
+	{
+		for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
+		{
+			IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression( ExpressionIndex );
+			if ( !MaterialExpression )
+			{
+				check( false );
+			}
+
+			// Should be keep in sync with the Create...Expression functions
+			if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
+			{
+				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *MaterialExpression, ExpressionIndex + 1 );
+				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::Texture, ExpressionIndex );
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantBool ) )
+			{
+				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *MaterialExpression, ExpressionIndex + 1 );
+				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::ConstantBool, ExpressionIndex );
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantColor ) )
+			{
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionColor&>( *MaterialExpression ) ) )
+				{
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( *MaterialExpression, ExpressionIndex + 1 );
+					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantColor, ExpressionIndex );
+				}
+			}
+		
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantScalar ) )
+			{
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionScalar&>( *MaterialExpression ) ) )
+				{
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( *MaterialExpression, ExpressionIndex + 1 );
+					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantScalar, ExpressionIndex );
+				}
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Generic ) )
+			{
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionGeneric&>( *MaterialExpression ) ) )
+				{ 
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( *MaterialExpression, ExpressionIndex + 1 );
+					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::Generic, ExpressionIndex );
+				}
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FunctionCall ) )
+			{
+				// Do noting
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			{
+				// Do noting
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FlattenNormal ) )
+			{
+				// Do noting
+			}
+			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FunctionCall ) )
+			{
+				// Do nothing
+			}
+			else
+			{
+				ensure( false );
+			}
+		}
+	}
+}
+
 // glass node includes custom reflection
 void FDatasmithMaterialExpressions::AddGlassNode(UMaterialExpression* RefleExpression, UMaterialExpression* OpacityExpression, double IOR, double IORRefra, UObject* UnrealMaterial)
 {
@@ -2773,7 +2927,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureExpression( IDa
 	UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, DatasmithTextureExpression.GetTexturePathName() );
 
 	UMaterialExpressionTextureSampleParameter2D* TextureExpression = CreateMaterialExpression< UMaterialExpressionTextureSampleParameter2D >( UnrealMaterialOrFunction );
-	TextureExpression->ParameterName = GenerateParamName( DatasmithTextureExpression, TEXT("Texture"), GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
+	TextureExpression->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( DatasmithTextureExpression, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
 
 	if ( Texture )
 	{
@@ -2809,7 +2963,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateFlattenNormalExpressio
 UMaterialExpression* FDatasmithMaterialExpressions::CreateBoolExpression( IDatasmithMaterialExpressionBool& DatasmithBool, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialExpressionStaticBoolParameter* ConstantBool = CreateMaterialExpression< UMaterialExpressionStaticBoolParameter >( UnrealMaterialOrFunction );
-	ConstantBool->ParameterName = GenerateParamName( DatasmithBool, TEXT("Bool"), GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
+	ConstantBool->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( DatasmithBool, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
 	ConstantBool->DefaultValue = DatasmithBool.GetBool();
 	ConstantBool->Group = DatasmithBool.GetGroupName();
 
@@ -2820,19 +2974,19 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateColorExpression( IData
 {
 	UMaterialExpression* Result = nullptr;
 
-	if ( FCString::Strlen( DatasmithColor.GetName() ) == 0 )
+	if ( ShouldExpressionBeAParameter( DatasmithColor ) )
 	{
-		UMaterialExpressionConstant3Vector* ConstantColor = CreateMaterialExpression< UMaterialExpressionConstant3Vector >( UnrealMaterialOrFunction );
-		ConstantColor->Constant = DatasmithColor.GetColor();
+		UMaterialExpressionVectorParameter* ConstantColor = CreateMaterialExpression< UMaterialExpressionVectorParameter >( UnrealMaterialOrFunction );
+		ConstantColor->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( DatasmithColor, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
+		ConstantColor->DefaultValue = DatasmithColor.GetColor();
+		ConstantColor->Group = DatasmithColor.GetGroupName();
 
 		Result = ConstantColor;
 	}
 	else
 	{
-		UMaterialExpressionVectorParameter* ConstantColor = CreateMaterialExpression< UMaterialExpressionVectorParameter >( UnrealMaterialOrFunction );
-		ConstantColor->ParameterName = GenerateParamName( DatasmithColor, TEXT("Color"), GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
-		ConstantColor->DefaultValue = DatasmithColor.GetColor();
-		ConstantColor->Group = DatasmithColor.GetGroupName();
+		UMaterialExpressionConstant3Vector* ConstantColor = CreateMaterialExpression< UMaterialExpressionConstant3Vector >( UnrealMaterialOrFunction );
+		ConstantColor->Constant = DatasmithColor.GetColor();
 
 		Result = ConstantColor;
 	}
@@ -2844,19 +2998,19 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( IDat
 {
 	UMaterialExpression* Result = nullptr;
 
-	if ( FCString::Strlen( DatasmithScalar.GetName() ) == 0 )
+	if ( ShouldExpressionBeAParameter( DatasmithScalar ) )
 	{
-		UMaterialExpressionConstant* ScalarExpression = CreateMaterialExpression< UMaterialExpressionConstant >( UnrealMaterialOrFunction );
-		ScalarExpression->R = DatasmithScalar.GetScalar();
+		UMaterialExpressionScalarParameter* ScalarExpression = CreateMaterialExpression< UMaterialExpressionScalarParameter >( UnrealMaterialOrFunction );
+		ScalarExpression->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( DatasmithScalar, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
+		ScalarExpression->DefaultValue = DatasmithScalar.GetScalar();
+		ScalarExpression->Group = DatasmithScalar.GetGroupName();
 
 		Result = ScalarExpression;
 	}
 	else
 	{
-		UMaterialExpressionScalarParameter* ScalarExpression = CreateMaterialExpression< UMaterialExpressionScalarParameter >( UnrealMaterialOrFunction );
-		ScalarExpression->ParameterName = GenerateParamName( DatasmithScalar, TEXT("Scalar"), GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
-		ScalarExpression->DefaultValue = DatasmithScalar.GetScalar();
-		ScalarExpression->Group = DatasmithScalar.GetGroupName();
+		UMaterialExpressionConstant* ScalarExpression = CreateMaterialExpression< UMaterialExpressionConstant >( UnrealMaterialOrFunction );
+		ScalarExpression->R = DatasmithScalar.GetScalar();
 
 		Result = ScalarExpression;
 	}
@@ -2866,7 +3020,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( IDat
 
 UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDatasmithMaterialExpressionGeneric& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
-	UClass* ExpressionClass = FindClass( *( FString( TEXT("MaterialExpression") ) + DatasmithGeneric.GetExpressionName() ) );
+	UClass* ExpressionClass = GetGenericExpressionClass( DatasmithGeneric );
 
 	if ( !ExpressionClass )
 	{
@@ -2881,9 +3035,14 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 		return nullptr;
 	}
 
-	if ( MaterialExpression->HasAParameterName() )
+	bool bShouldHaveParameterName = ShouldExpressionBeAParameter( DatasmithGeneric );
+
+	// Validate the new logic at least for a version or two (added in 4.27)
+	check( bShouldHaveParameterName == MaterialExpression->HasAParameterName() )
+
+	if ( bShouldHaveParameterName )
 	{
-		MaterialExpression->SetParameterName( GenerateParamName( DatasmithGeneric, TEXT("Generic"), GetNumberOfExpressionInMaterialOrFunction(UnrealMaterialOrFunction) ) );
+		MaterialExpression->SetParameterName( GenerateParamName<EDatasmithMaterialExpressionType::Generic>( DatasmithGeneric, GetNumberOfExpressionInMaterialOrFunction(UnrealMaterialOrFunction) ) );
 	}
 
 	for ( int32 PropertyIndex = 0; PropertyIndex < DatasmithGeneric.GetPropertiesCount(); ++PropertyIndex )
@@ -3233,7 +3392,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 		if ( DatasmithExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
 		{
-			FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Texture"), ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *DatasmithExpression, ExpressionIndex + 1 );
 
 			IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( DatasmithExpression );
 			UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, TextureExpression->GetTexturePathName() );
@@ -3258,7 +3417,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 		}
 		else if ( DatasmithExpression->IsA( EDatasmithMaterialExpressionType::ConstantBool ) )
 		{
-			FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Bool"), ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *DatasmithExpression, ExpressionIndex + 1 );
 
 			IDatasmithMaterialExpressionBool* BoolExpression = static_cast< IDatasmithMaterialExpressionBool* >( DatasmithExpression );
 
@@ -3266,7 +3425,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 		}
 		else if ( DatasmithExpression->IsA( EDatasmithMaterialExpressionType::ConstantColor ) )
 		{
-			FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Color"), ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( *DatasmithExpression, ExpressionIndex + 1 );
 
 			IDatasmithMaterialExpressionColor* ColorExpression = static_cast< IDatasmithMaterialExpressionColor* >( DatasmithExpression );
 
@@ -3274,7 +3433,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 		}
 		else if ( DatasmithExpression->IsA( EDatasmithMaterialExpressionType::ConstantScalar ) )
 		{
-			FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Scalar"), ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( *DatasmithExpression, ExpressionIndex + 1 );
 
 			IDatasmithMaterialExpressionScalar* ScalarExpression = static_cast< IDatasmithMaterialExpressionScalar* >( DatasmithExpression );
 
@@ -3287,7 +3446,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 			// Instancing is only supported for generic expressions with a single value so that there's no ambiguity on which is the parameter
 			if ( GenericExpression->GetPropertiesCount() == 1 )
 			{
-				FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Generic"), ExpressionIndex + 1 );
+				FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( *DatasmithExpression, ExpressionIndex + 1 );
 
 				const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = GenericExpression->GetProperty( 0 );
 
