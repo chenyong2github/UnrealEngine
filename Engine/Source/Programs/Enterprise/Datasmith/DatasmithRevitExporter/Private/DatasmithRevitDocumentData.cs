@@ -160,7 +160,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private class FElementData : FBaseElementData
+		public class FElementData : FBaseElementData
 		{
 			public Element		CurrentElement = null;
 			public Transform	MeshPointsTransform = null;
