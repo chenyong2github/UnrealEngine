@@ -503,6 +503,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, LastHandledDesiredAge(0.0f)
 	, bCanRenderWhileSeeking(true)
 	, SeekDelta(1 / 30.0f)
+	, bLockDesiredAgeDeltaTimeToSeekDelta(true)
 	, MaxSimTime(33.0f / 1000.0f)
 	, bIsSeeking(false)
 	, bAutoDestroy(false)
@@ -712,7 +713,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		{
 			float AgeDiff = FMath::Max(DesiredAge, 0.0f) - SystemInstance->GetAge();
 			int32 TicksToProcess = 0;
-			if (FMath::Abs(AgeDiff) < KINDA_SMALL_NUMBER)
+			if (bLockDesiredAgeDeltaTimeToSeekDelta && FMath::Abs(AgeDiff) < KINDA_SMALL_NUMBER)
 			{
 				AgeDiff = 0.0f;
 			}
@@ -729,16 +730,25 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 					FNiagaraSystemSimulation* SystemSim = GetSystemSimulation().Get();
 					if (SystemSim)
 					{
-						double StartTime = FPlatformTime::Seconds();
-						double CurrentTime = StartTime;
-
-						TicksToProcess = FMath::FloorToInt(AgeDiff / SeekDelta);
-						for (; TicksToProcess > 0 && CurrentTime - StartTime < MaxSimTime; --TicksToProcess)
+						if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > SeekDelta)
 						{
-							//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
-							//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-							SystemInstance->ManualTick(SeekDelta, nullptr);
-							CurrentTime = FPlatformTime::Seconds();
+							// If we're locking the delta time to the seek delta, or we need to seek more than a frame, tick the simulation by the seek delta.
+							double StartTime = FPlatformTime::Seconds();
+							double CurrentTime = StartTime;
+
+							TicksToProcess = FMath::FloorToInt(AgeDiff / SeekDelta);
+							for (; TicksToProcess > 0 && CurrentTime - StartTime < MaxSimTime; --TicksToProcess)
+							{
+								//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
+								//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
+								SystemInstance->ManualTick(SeekDelta, nullptr);
+								CurrentTime = FPlatformTime::Seconds();
+							}
+						}
+						else
+						{
+							// Otherwise just tick by the age difference.
+							SystemInstance->ManualTick(AgeDiff, nullptr);
 						}
 					}
 				}
@@ -1577,6 +1587,22 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
+void UNiagaraComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+#if WITH_EDITOR
+	// When component's properties are initialized on a component on an actor spawned into the world using a template, neither post load or serialize is
+	// called on the component when it's properties are up to date so this delegate isn't bound correctly.  the asset property will be valid when this
+	// callback is called so we bind the delegate here if it's not already bound.  This fixes an issue where components in the level don't save changes 
+	// made to user parameters if the user parameter list is changed. 
+	if (Asset != nullptr && AssetExposedParametersChangedHandle.IsValid() == false)
+	{
+		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+	}
+#endif
+}
+
 void UNiagaraComponent::OnUnregister()
 {
 	Super::OnUnregister();
@@ -2375,6 +2401,40 @@ void FixInvalidUserParameters(FNiagaraUserRedirectionParameterStore& ParameterSt
 	}
 }
 
+void UNiagaraComponent::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);
+#if WITH_EDITOR
+	if (Record.GetUnderlyingArchive().IsLoading())
+	{
+		// HACK - When a component's properties are set using CopyPropertiesForUnrelatedObjects, the source objects is saved to a record, and then
+		// that record is used to load the properties on the target component.  This case doesn't handle copying instanced object properties on components 
+		// correctly, so this hack is here to make sure that the data interfaces in the template and instance overrides are copied correctly when this
+		// api is used.  A specific example of where this fix is needed is when template components are updated on sequencer spawned actors.
+		for (TPair<FNiagaraVariableBase, FNiagaraVariant>& VariableValuePair : InstanceParameterOverrides)
+		{
+			if (VariableValuePair.Key.IsDataInterface() && VariableValuePair.Value.GetDataInterface() != nullptr)
+			{
+				if (VariableValuePair.Value.GetDataInterface()->GetOuter() != this)
+				{
+					UNiagaraDataInterface* CorrectlyOuteredDataInterface = NewObject<UNiagaraDataInterface>(this, VariableValuePair.Value.GetDataInterface()->GetClass());
+					VariableValuePair.Value.GetDataInterface()->CopyTo(CorrectlyOuteredDataInterface);
+					VariableValuePair.Value.SetDataInterface(CorrectlyOuteredDataInterface);
+				}
+			}
+		}
+
+		// Check the the event handler here as well as in post load since post load isn't always called due to how components are managed when spawning
+		// actors with templates.
+		if (Asset != nullptr && AssetExposedParametersChangedHandle.IsValid() == false)
+		{
+			AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+		}
+	}
+#endif
+}
+
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -2479,7 +2539,16 @@ void UNiagaraComponent::PostLoad()
 			}
 		}
 #endif
+
+		FixInvalidUserParameterOverrideData();
 		SynchronizeWithSourceSystem();
+		OverrideParameters.SanityCheckData();
+
+		if(AssetExposedParametersChangedHandle.IsValid() == false)
+		{
+			AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+		}
 	}
 #endif
 }
@@ -2521,6 +2590,7 @@ void UNiagaraComponent::PreEditChange(FProperty* PropertyAboutToChange)
 		Asset != nullptr)
 	{
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
+		AssetExposedParametersChangedHandle.Reset();
 		DestroyInstance();
 	}
 }
@@ -2632,6 +2702,11 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 
 void UNiagaraComponent::UpgradeDeprecatedParameterOverrides()
 {
+	if (EditorOverridesValue_DEPRECATED.Num() == 0)
+	{
+		return;
+	}
+
 	OverrideParameters.SanityCheckData();
 	PostLoadNormalizeOverrideNames();
 	
@@ -2803,6 +2878,31 @@ void UNiagaraComponent::SynchronizeWithSourceSystem()
 	OnSynchronizedWithAssetParametersDelegate.Broadcast();
 #endif
 }
+
+#if WITH_EDITORONLY_DATA
+void FixInvalidDataInterfaceOverrides(TMap<FNiagaraVariableBase, FNiagaraVariant>& ParameterOverrides, const FString& OverrideSource, UNiagaraComponent* OwningComponent)
+{
+	for (TPair<FNiagaraVariableBase, FNiagaraVariant>& VariableValuePair : ParameterOverrides)
+	{
+		FNiagaraVariableBase& Variable = VariableValuePair.Key;
+		FNiagaraVariant& Value = VariableValuePair.Value;
+		if (Variable.IsDataInterface())
+		{
+			if (Value.GetDataInterface() == nullptr)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Replaced invalid user parameter data interface with it's default.  Component: %s Override Source: %s Parameter Name: %s."), *OwningComponent->GetPathName(), *OverrideSource, *Variable.GetName().ToString());
+				Value.SetDataInterface(NewObject<UNiagaraDataInterface>(OwningComponent, Variable.GetType().GetClass()));
+			}
+		}
+	}
+}
+
+void UNiagaraComponent::FixInvalidUserParameterOverrideData()
+{
+	FixInvalidDataInterfaceOverrides(TemplateParameterOverrides, TEXT("Template"), this);
+	FixInvalidDataInterfaceOverrides(InstanceParameterOverrides, TEXT("Instance"), this);
+}
+#endif
 
 void UNiagaraComponent::AssetExposedParametersChanged()
 {
@@ -3029,6 +3129,16 @@ void UNiagaraComponent::SetSeekDelta(float InSeekDelta)
 	SeekDelta = InSeekDelta;
 }
 
+bool UNiagaraComponent::GetLockDesiredAgeDeltaTimeToSeekDelta() const
+{
+	return bLockDesiredAgeDeltaTimeToSeekDelta;
+}
+
+void UNiagaraComponent::SetLockDesiredAgeDeltaTimeToSeekDelta(bool bLock)
+{
+	bLockDesiredAgeDeltaTimeToSeekDelta = bLock;
+}
+
 float UNiagaraComponent::GetMaxSimTime() const
 {
 	return MaxSimTime;
@@ -3099,9 +3209,10 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 	}
 
 #if WITH_EDITOR
-	if (Asset != nullptr)
+	if (Asset != nullptr && AssetExposedParametersChangedHandle.IsValid())
 	{
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
+		AssetExposedParametersChangedHandle.Reset();
 	}
 #endif
 
@@ -3115,10 +3226,6 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 	{
 		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
-	}
-	else
-	{
-		AssetExposedParametersChangedHandle.Reset();
 	}
 #else
 	CopyParametersFromAsset();
