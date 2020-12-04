@@ -1457,11 +1457,13 @@ DEFINE_STAT(STAT_D3D12TotalVideoMemory);
 DEFINE_STAT(STAT_D3D12RenderTargetStandAloneAllocated);
 DEFINE_STAT(STAT_D3D12UAVTextureStandAloneAllocated);
 DEFINE_STAT(STAT_D3D12TextureStandAloneAllocated);
+DEFINE_STAT(STAT_D3D12UAVBufferStandAloneAllocated);
 DEFINE_STAT(STAT_D3D12BufferStandAloneAllocated);
 
 DEFINE_STAT(STAT_D3D12RenderTargetStandAloneCount);
 DEFINE_STAT(STAT_D3D12UAVTextureStandAloneCount);
 DEFINE_STAT(STAT_D3D12TextureStandAloneCount);
+DEFINE_STAT(STAT_D3D12UAVBufferStandAloneCount);
 DEFINE_STAT(STAT_D3D12BufferStandAloneCount);
 
 DEFINE_STAT(STAT_D3D12TextureAllocatorAllocated);

@@ -737,56 +737,38 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 		// Get the desired size and allocated size for stand alone resources - allocated are very slow anyway
 		D3D12_RESOURCE_ALLOCATION_INFO Info = UnderlyingResource->GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 
+		int64 SizeInBytes = bIncrement ? Info.SizeInBytes : -(int64)Info.SizeInBytes;
+		int32 Count = bIncrement ? 1 : -1;
+
 		if (bIsBuffer)
 		{
-			if (bIncrement)
+			if (bIsUAV)
 			{
-				INC_DWORD_STAT(STAT_D3D12BufferStandAloneCount);
-				INC_MEMORY_STAT_BY(STAT_D3D12BufferStandAloneAllocated, Info.SizeInBytes);
+				INC_DWORD_STAT_BY(STAT_D3D12UAVBufferStandAloneCount, Count);
+				INC_MEMORY_STAT_BY(STAT_D3D12UAVBufferStandAloneAllocated, SizeInBytes);
 			}
 			else
 			{
-				DEC_DWORD_STAT(STAT_D3D12BufferStandAloneCount);
-				DEC_MEMORY_STAT_BY(STAT_D3D12BufferStandAloneAllocated, Info.SizeInBytes);
-			}
-		}
-		else if (bIsRenderTarget)
-		{
-			if (bIncrement)
-			{
-				INC_DWORD_STAT(STAT_D3D12RenderTargetStandAloneCount);
-				INC_MEMORY_STAT_BY(STAT_D3D12RenderTargetStandAloneAllocated, Info.SizeInBytes);
-			}
-			else
-			{
-				DEC_DWORD_STAT(STAT_D3D12RenderTargetStandAloneCount);
-				DEC_MEMORY_STAT_BY(STAT_D3D12RenderTargetStandAloneAllocated, Info.SizeInBytes);
-			}
-		}
-		else if (bIsUAV)
-		{
-			if (bIncrement)
-			{
-				INC_DWORD_STAT(STAT_D3D12UAVTextureStandAloneCount);
-				INC_MEMORY_STAT_BY(STAT_D3D12UAVTextureStandAloneAllocated, Info.SizeInBytes);
-			}
-			else
-			{
-				DEC_DWORD_STAT(STAT_D3D12UAVTextureStandAloneCount);
-				DEC_MEMORY_STAT_BY(STAT_D3D12UAVTextureStandAloneAllocated, Info.SizeInBytes);
+				INC_DWORD_STAT_BY(STAT_D3D12BufferStandAloneCount, Count);
+				INC_MEMORY_STAT_BY(STAT_D3D12BufferStandAloneAllocated, SizeInBytes);
 			}
 		}
 		else
 		{
-			if (bIncrement)
+			if (bIsRenderTarget)
 			{
-				INC_DWORD_STAT(STAT_D3D12TextureStandAloneCount);
-				INC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, Info.SizeInBytes);
+				INC_DWORD_STAT_BY(STAT_D3D12RenderTargetStandAloneCount, Count);
+				INC_MEMORY_STAT_BY(STAT_D3D12RenderTargetStandAloneAllocated, SizeInBytes);
+			}
+			else if (bIsUAV)
+			{
+				INC_DWORD_STAT_BY(STAT_D3D12UAVTextureStandAloneCount, Count);
+				INC_MEMORY_STAT_BY(STAT_D3D12UAVTextureStandAloneAllocated, SizeInBytes);
 			}
 			else
 			{
-				DEC_DWORD_STAT(STAT_D3D12TextureStandAloneCount);
-				DEC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, Info.SizeInBytes);
+				INC_DWORD_STAT_BY(STAT_D3D12TextureStandAloneCount, Count);
+				INC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, SizeInBytes);
 			}
 		}
 	}
