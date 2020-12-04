@@ -28,6 +28,8 @@
 #include "MediaSampleQueueDepths.h"
 #include "MediaSampleQueue.h"
 
+#include "Async/Async.h"
+
 #define MEDIAPLAYERFACADE_DISABLE_BLOCKING 0
 #define MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS 0
 
@@ -107,10 +109,13 @@ FMediaPlayerFacade::~FMediaPlayerFacade()
 {
 	if (Player.IsValid())
 	{
-		FScopeLock Lock(&CriticalSection);
+		{
+			FScopeLock Lock(&CriticalSection);
+			Player->Close();
+		}
+		NotifyLifetimeManagerDelegate_PlayerClosed();
 
-		Player->Close();
-		Player.Reset();
+		DestroyPlayer();
 	}
 
 	delete Cache;
@@ -232,8 +237,11 @@ void FMediaPlayerFacade::Close()
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
 	if (CurrentPlayer.IsValid())
 	{
-		FScopeLock Lock(&CriticalSection);
-		CurrentPlayer->Close();
+		{
+			FScopeLock Lock(&CriticalSection);
+			CurrentPlayer->Close();
+		}
+		NotifyLifetimeManagerDelegate_PlayerClosed();
 	}
 
 	BlockOnTime = FTimespan::MinValue();
@@ -665,6 +673,237 @@ bool FMediaPlayerFacade::IsReady() const
 			(State != EMediaState::Preparing));
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+class FMediaPlayerLifecycleManagerDelegateOpenRequest : public IMediaPlayerLifecycleManagerDelegate::IOpenRequest
+{
+public:
+	FMediaPlayerLifecycleManagerDelegateOpenRequest(const FString& InUrl, const IMediaOptions* InOptions, const FMediaPlayerOptions* InPlayerOptions, IMediaPlayerFactory* InPlayerFactory, bool bInWillCreatePlayer, uint32 InWillUseNewResources)
+		: Url(InUrl), Options(InOptions), PlayerFactory(InPlayerFactory), bWillCreatePlayer(bInWillCreatePlayer), NewResources(InWillUseNewResources)
+	{
+		if (InPlayerOptions)
+		{
+			PlayerOptions = *InPlayerOptions;
+		}
+	}
+
+	virtual const FString& GetUrl() const override
+	{
+		return Url;
+	}
+
+	virtual const IMediaOptions* GetOptions() const override
+	{
+		return Options;
+	}
+
+	virtual const FMediaPlayerOptions* GetPlayerOptions() const override
+	{
+		return PlayerOptions.IsSet() ? &PlayerOptions.GetValue() : nullptr;
+	}
+
+	virtual IMediaPlayerFactory* GetPlayerFactory() const override
+	{
+		return PlayerFactory;
+	}
+
+	virtual bool WillCreateNewPlayer() const
+	{
+		return bWillCreatePlayer;
+	}
+
+	virtual bool WillUseNewResources(uint32 ResourceFlags) const
+	{
+		return !!(NewResources & ResourceFlags);
+	}
+
+	FString Url;
+	const IMediaOptions* Options;
+	TOptional<FMediaPlayerOptions> PlayerOptions;
+	IMediaPlayerFactory* PlayerFactory;
+	bool bWillCreatePlayer;
+	uint32 NewResources;
+};
+
+class FMediaPlayerLifecycleManagerDelegateControl : public IMediaPlayerLifecycleManagerDelegate::IControl, public TSharedFromThis<FMediaPlayerLifecycleManagerDelegateControl, ESPMode::ThreadSafe>
+{
+public:
+	FMediaPlayerLifecycleManagerDelegateControl(TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> InFacade) : Facade(InFacade), InstanceID(~0), SubmittedRequest(false) {}
+
+	virtual ~FMediaPlayerLifecycleManagerDelegateControl()
+	{
+		if (!SubmittedRequest)
+		{
+			if (TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PinnedFacade = Facade.Pin())
+			{
+				PinnedFacade->ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
+			}
+		}
+	}
+
+	virtual bool SubmitOpenRequest(IMediaPlayerLifecycleManagerDelegate::IOpenRequestRef&& OpenRequest) override
+	{
+		if (TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PinnedFacade = Facade.Pin())
+		{
+			const FMediaPlayerLifecycleManagerDelegateOpenRequest* OR = static_cast<const FMediaPlayerLifecycleManagerDelegateOpenRequest*>(OpenRequest.Get());
+			bool bOk = PinnedFacade->ContinueOpen(AsShared(), OR->Url, OR->Options, OR->PlayerOptions.IsSet() ? &OR->PlayerOptions.GetValue() : nullptr, OR->PlayerFactory, OR->bWillCreatePlayer, InstanceID);
+			if (bOk)
+			{
+				SubmittedRequest = true;
+			}
+			return bOk;
+		}
+		return false;
+	}
+
+	virtual TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> GetFacade() const override
+	{
+		return Facade.Pin();
+	}
+
+	virtual uint64 GetMediaPlayerInstanceID() const override
+	{
+		return InstanceID;
+	}
+
+	void SetInstanceID(uint64 InInstanceID)
+	{
+		InstanceID = InInstanceID;
+	}
+
+	void Reset()
+	{
+		SubmittedRequest = true;
+	}
+
+private:
+	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> Facade;
+	uint64 InstanceID;
+	bool SubmittedRequest;
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef & NewLifecycleManagerDelegateControl, const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bWillCreatePlayer, uint32 WillUseNewResources, uint64 NewPlayerInstanceID)
+{
+	check(IsInGameThread());
+
+	if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+	{
+		NewLifecycleManagerDelegateControl = MakeShared<FMediaPlayerLifecycleManagerDelegateControl, ESPMode::ThreadSafe>(AsShared());
+		if (NewLifecycleManagerDelegateControl.IsValid())
+		{
+			// Set instance ID we will use for a new player if we get the go-ahead to create it (old ID if player is about to be reused)
+			static_cast<FMediaPlayerLifecycleManagerDelegateControl*>(NewLifecycleManagerDelegateControl.Get())->SetInstanceID(NewPlayerInstanceID);
+
+			IMediaPlayerLifecycleManagerDelegate::IOpenRequestRef OpenRequest(new FMediaPlayerLifecycleManagerDelegateOpenRequest(Url, Options, PlayerOptions, PlayerFactory, bWillCreatePlayer, WillUseNewResources));
+			if (OpenRequest.IsValid())
+			{
+				if (Delegate->OnMediaPlayerOpen(NewLifecycleManagerDelegateControl, OpenRequest))
+				{
+					return true;
+				}
+			}
+			static_cast<FMediaPlayerLifecycleManagerDelegateControl*>(NewLifecycleManagerDelegateControl.Get())->Reset();
+		}
+	}
+	return false;
+}
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerCreated()
+{
+	check(IsInGameThread());
+	check(Player.IsValid());
+
+	if (LifecycleManagerDelegateControl.IsValid())
+	{
+		if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+		{
+			Delegate->OnMediaPlayerCreated(LifecycleManagerDelegateControl);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerCreateFailed()
+{
+	check(IsInGameThread());
+
+	if (LifecycleManagerDelegateControl.IsValid())
+	{
+		if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+		{
+			Delegate->OnMediaPlayerCreateFailed(LifecycleManagerDelegateControl);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerClosed()
+{
+	check(IsInGameThread());
+
+	if (LifecycleManagerDelegateControl.IsValid())
+	{
+		if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+		{
+			Delegate->OnMediaPlayerClosed(LifecycleManagerDelegateControl);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerDestroyed()
+{
+	check(IsInGameThread());
+
+	if (LifecycleManagerDelegateControl.IsValid())
+	{
+		if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+		{
+			Delegate->OnMediaPlayerDestroyed(LifecycleManagerDelegateControl);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerResourcesReleased(uint32 ResourceFlags)
+{
+	check(IsInGameThread());
+
+	if (LifecycleManagerDelegateControl.IsValid())
+	{
+		if (IMediaPlayerLifecycleManagerDelegate* Delegate = MediaModule->GetPlayerLifecycleManagerDelegate())
+		{
+			Delegate->OnMediaPlayerResourcesReleased(LifecycleManagerDelegateControl, ResourceFlags);
+			return true;
+		}
+	}
+	return false;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+void FMediaPlayerFacade::DestroyPlayer()
+{
+	FScopeLock Lock(&CriticalSection);
+
+	if (!Player.IsValid() || !LifecycleManagerDelegateControl.IsValid())
+	{
+		return;
+	}
+
+	Player.Reset();
+	NotifyLifetimeManagerDelegate_PlayerDestroyed();
+	if (!PlayerUsesResourceReleaseNotification)
+	{
+		NotifyLifetimeManagerDelegate_PlayerResourcesReleased(IMediaPlayerLifecycleManagerDelegate::ResourceFlags_All);
+	}
+}
 
 bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions)
 {
@@ -686,17 +925,91 @@ bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, 
 
 	check(MediaModule);
 
-	// find & initialize new player
-	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> NewPlayer = GetPlayerForUrl(Url, Options);
+	// find a player factory for the intended playback
+	IMediaPlayerFactory* PlayerFactory = GetPlayerFactoryForUrl(Url, Options);
+
+	IMediaPlayerFactory* OldFactory(Player.IsValid() ? MediaModule->GetPlayerFactory(Player->GetPlayerName()) : nullptr);
+
+	bool bWillCreatePlayer = (PlayerFactory != OldFactory);
+	uint64 NewPlayerInstanceID;
+	uint32 WillUseNewResources;
+
+	if (bWillCreatePlayer)
+	{
+		NewPlayerInstanceID = MediaModule->CreateMediaPlayerInstanceID();
+		WillUseNewResources = IMediaPlayerLifecycleManagerDelegate::ResourceFlags_All; // as we create a new player we assume all resources a newly created in any case
+	}
+	else
+	{
+		if (Player.IsValid())
+		{
+			NewPlayerInstanceID = PlayerInstanceID;
+			WillUseNewResources = Player->GetNewResourcesOnOpen(); // ask player what resources it will create again even if it already exists
+		}
+		else
+		{
+			NewPlayerInstanceID = ~0;
+			WillUseNewResources = 0;
+		}
+	}
+
+	IMediaPlayerLifecycleManagerDelegate::IControlRef NewLifecycleManagerDelegateControl;
+	if (FMediaPlayerFacade::NotifyLifetimeManagerDelegate_PlayerOpen(NewLifecycleManagerDelegateControl, Url, Options, PlayerOptions, PlayerFactory, bWillCreatePlayer, WillUseNewResources, NewPlayerInstanceID))
+	{
+		// Assume all is well: the delegate will either (have) submit(ted) the request or not -- in any case we need to assume the best -> "true"
+		return true;
+	}
+
+	// We did not notify successfully or the delegate will not submit the request in its own. Do so here...
+	return ContinueOpen(NewLifecycleManagerDelegateControl, Url, Options, PlayerOptions, PlayerFactory, bWillCreatePlayer, NewPlayerInstanceID);
+}
+
+bool FMediaPlayerFacade::ContinueOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef NewLifecycleManagerDelegateControl, const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bCreateNewPlayer, uint64 NewPlayerInstanceID)
+{
+	// Create or reuse player
+	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> NewPlayer(bCreateNewPlayer ? PlayerFactory->CreatePlayer(*this) : Player);
+
+	// Continue initialization ---------------------------------------
 
 	if (NewPlayer != Player)
 	{
+		DestroyPlayer();
+
+		class FAsyncResourceReleaseNotification : public IMediaPlayer::IAsyncResourceReleaseNotification
+		{
+		public:
+			FAsyncResourceReleaseNotification(IMediaModule* InMediaModule, IMediaPlayerLifecycleManagerDelegate::IControlRef InDelegateControl) : MediaModule(InMediaModule), DelegateControl(InDelegateControl) {}
+
+			virtual void Signal(uint32 ResourceFlags) override
+			{
+				TFunction<void()> NotifyTask = [TargetMediaModule=MediaModule, TargetDelegateControl=DelegateControl, ResourceFlags]()
+				{
+					if (IMediaPlayerLifecycleManagerDelegate* Delegate = TargetMediaModule->GetPlayerLifecycleManagerDelegate())
+					{
+						Delegate->OnMediaPlayerResourcesReleased(TargetDelegateControl, ResourceFlags);
+					}
+				};
+				Async(EAsyncExecution::TaskGraphMainThread, NotifyTask);
+			};
+
+			IMediaModule* MediaModule;
+			IMediaPlayerLifecycleManagerDelegate::IControlRef DelegateControl;
+		};
+
 		FScopeLock Lock(&CriticalSection);
 		Player = NewPlayer;
+		PlayerInstanceID = NewPlayerInstanceID;
+		LifecycleManagerDelegateControl = NewLifecycleManagerDelegateControl;
+		PlayerUsesResourceReleaseNotification = LifecycleManagerDelegateControl.IsValid() ? Player->SetAsyncResourceReleaseNotification(TSharedRef<IMediaPlayer::IAsyncResourceReleaseNotification, ESPMode::ThreadSafe>(new FAsyncResourceReleaseNotification(MediaModule, LifecycleManagerDelegateControl))) : false;
+	}
+	else
+	{
+		LifecycleManagerDelegateControl = NewLifecycleManagerDelegateControl;
 	}
 
 	if (!Player.IsValid())
 	{
+		NotifyLifetimeManagerDelegate_PlayerCreateFailed();
 		// Make sure we don't get called from the "tickable" thread anymore - no need as we have no player
 		MediaModule->GetTicker().RemoveTickable(AsShared());
 		return false;
@@ -719,6 +1032,7 @@ bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, 
 	// open the new media source
 	if (!Player->Open(Url, Options, PlayerOptions))
 	{
+		NotifyLifetimeManagerDelegate_PlayerCreateFailed();
 		CurrentUrl.Empty();
 		ActivePlayerOptions.Reset();
 
@@ -729,6 +1043,11 @@ bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, 
 	LastVideoSampleProcessedTime.Invalidate();
 	LastAudioSampleProcessedTime.Invalidate();
 	CurrentFrameAudioTimeStamp.Invalidate();
+
+	if (bCreateNewPlayer)
+	{
+		NotifyLifetimeManagerDelegate_PlayerCreated();
+	}
 
 	return true;
 }
@@ -985,7 +1304,7 @@ bool FMediaPlayerFacade::GetAudioTrackFormat(int32 TrackIndex, int32 FormatIndex
 }
 
 
-TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUrl(const FString& Url, const IMediaOptions* Options)
+IMediaPlayerFactory* FMediaPlayerFacade::GetPlayerFactoryForUrl(const FString& Url, const IMediaOptions* Options) const
 {
 	FName PlayerName;
 
@@ -1008,13 +1327,21 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 		return nullptr;
 	}
 
-	// reuse existing player if requested
-	if (Player.IsValid() && (PlayerName == MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID())->GetPlayerName()))
+	//
+	// Reuse existing player if explicitly requested name matches
+	//
+	if (Player.IsValid())
 	{
-		return Player;
+		IMediaPlayerFactory* CurrentFactory = MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID());
+		if (PlayerName == CurrentFactory->GetPlayerName())
+		{
+			return CurrentFactory;
+		}
 	}
 
-	// try to create requested player
+	//
+	// Try to create explicitly requested player
+	//
 	if (PlayerName != NAME_None)
 	{
 		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(PlayerName);
@@ -1022,34 +1349,32 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 		if (Factory == nullptr)
 		{
 			UE_LOG(LogMediaUtils, Error, TEXT("Could not find desired player %s for %s"), *PlayerName.ToString(), *Url);
-			return nullptr;
 		}
 
-		TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> NewPlayer = Factory->CreatePlayer(*this);
-
-		if (!NewPlayer.IsValid())
-		{
-			UE_LOG(LogMediaUtils, Error, TEXT("Failed to create desired player %s for %s"), *PlayerName.ToString(), *Url);
-			return nullptr;
-		}
-
-		return NewPlayer;
+		return Factory;
 	}
 
-	// try to reuse existing player
+
+
+	//
+	// Try to find a fitting player with no explicit name given
+	//
+
+
+	// Can any existing player play the URL?
 	if (Player.IsValid())
 	{
 		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID());
 
 		if ((Factory != nullptr) && Factory->CanPlayUrl(Url, Options))
 		{
-			return Player;
+			// Yes...
+			return Factory;
 		}
 	}
 
+	// Try to auto-select new player...
 	const FString RunningPlatformName(FPlatformProperties::IniPlatformName());
-
-	// try to auto-select new player
 	const TArray<IMediaPlayerFactory*>& PlayerFactories = MediaModule->GetPlayerFactories();
 
 	for (IMediaPlayerFactory* Factory : PlayerFactories)
@@ -1059,15 +1384,12 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 			continue;
 		}
 
-		TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> NewPlayer = Factory->CreatePlayer(*this);
-
-		if (NewPlayer.IsValid())
-		{
-			return NewPlayer;
-		}
+		return Factory;
 	}
 
-	// no suitable player found
+	//
+	// No suitable player found!
+	//
 	if (PlayerFactories.Num() > 0)
 	{
 		UE_LOG(LogMediaUtils, Error, TEXT("Cannot play %s, because none of the enabled media player plug-ins support it:"), *Url);
@@ -1159,8 +1481,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 			if(Player.IsValid() && Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::AllowShutdownOnClose))
 			{
 				bDidRecentPlayerHaveError = HasError();
-				FScopeLock Lock(&CriticalSection);
-				Player.Reset();
+				DestroyPlayer();
 			}
 
 			// Stop issuing audio thread ticks until we open the player again

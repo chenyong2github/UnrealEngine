@@ -10,6 +10,7 @@
 #include "IMediaEventSink.h"
 #include "IMediaTickable.h"
 #include "IMediaTimeSource.h"
+#include "IMediaPlayerLifecycleManager.h"
 #include "MediaPlayerOptions.h"
 #include "Math/Quat.h"
 #include "Math/Range.h"
@@ -26,6 +27,7 @@ class IMediaOptions;
 class IMediaPlayer;
 class IMediaSamples;
 class IMediaModule;
+class IMediaPlayerFactory;
 
 enum class EMediaEvent;
 enum class EMediaCacheState;
@@ -34,6 +36,7 @@ enum class EMediaTrackType;
 
 struct FMediaAudioTrackFormat;
 struct FMediaVideoTrackFormat;
+struct FMediaPlayerOptions;
 
 
 /**
@@ -725,7 +728,7 @@ protected:
 	 * @param Options The media options for the URL.
 	 * @return The player if found, or nullptr otherwise.
 	 */
-	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> GetPlayerForUrl(const FString& Url, const IMediaOptions* Options);
+	IMediaPlayerFactory *GetPlayerFactoryForUrl(const FString& Url, const IMediaOptions* Options) const;
 
 	/**
 	 * Get details about the specified audio track format.
@@ -774,12 +777,25 @@ protected:
 	void ReceiveMediaEvent(EMediaEvent Event) override;
 
 private:
+	friend class FMediaPlayerLifecycleManagerDelegateControl;
+
+	// Internal
+	bool NotifyLifetimeManagerDelegate_PlayerOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef& NewLifecycleManagerDelegateControl, const FString& InUrl, const IMediaOptions* Options, const FMediaPlayerOptions* InPlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bWillCreatePlayer, uint32 WillUseNewResources, uint64 NewPlayerInstanceID);
+	bool NotifyLifetimeManagerDelegate_PlayerCreated();
+	bool NotifyLifetimeManagerDelegate_PlayerCreateFailed();
+	bool NotifyLifetimeManagerDelegate_PlayerClosed();
+	bool NotifyLifetimeManagerDelegate_PlayerDestroyed();
+	bool NotifyLifetimeManagerDelegate_PlayerResourcesReleased(uint32 ResourceFlags);
 
 	void ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp> & TimeRange);
 	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
 	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
 
 	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp> & TimeRange, float Rate, FTimespan DeltaTime, bool bDoNotUseFrameStartReference) const;
+
+	void DestroyPlayer();
+
+	bool ContinueOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef NewLifecycleManagerDelegateControl, const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, bool bCreateNewPlayer, uint64 NewPlayerInstanceID);
 
 	/** Audio sample sinks. */
 	TWeakPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> PrimaryAudioSink;
@@ -830,6 +846,12 @@ private:
 	/** The low-level player used to play the media source. */
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> Player;
 
+	/** Low level player instance ID */
+	uint64 PlayerInstanceID = ~0;
+
+	/** Low level player will use callback to notify of resource release */
+	bool PlayerUsesResourceReleaseNotification = false;
+
 	/** Media player Guid */
 	FGuid PlayerGuid;
 
@@ -862,4 +884,7 @@ private:
 
 	/** Mediamodule we are working in */
 	IMediaModule* MediaModule;
+
+	/** Control interface for lifecycle manager delegate */
+	IMediaPlayerLifecycleManagerDelegate::IControlRef LifecycleManagerDelegateControl;
 };
