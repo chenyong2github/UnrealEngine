@@ -1726,6 +1726,12 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
 	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.GetVirtualTextureFeedbackBufferSize().X;
+	// Use some low(ish) discrepancy sequence to run over every pixel in the virtual texture feedback tile.
+	ViewUniformShaderParameters.VirtualTextureFeedbackJitterOffset = FSceneRenderTargets::SampleVirtualTextureFeedbackSequence(FrameIndex);
+	// Offset the selected sample index for each frame and add an additional offset each time we iterate over a full virtual texture feedback tile to ensure we get full coverage of sample indices over time.
+	const uint32 NumPixelsInTile = FMath::Square(FSceneRenderTargets::GetVirtualTextureFeedbackScale());
+	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
+	
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4(ForceInitToZero);
