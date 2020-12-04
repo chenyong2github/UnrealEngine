@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Engine/DeveloperSettings.h"
+#include "AudioEditorSettings.h"
 #include "WidgetBlueprint.h"
 
 #include "SynthesisEditorSettings.generated.h"
 
 
-UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "Synthesis"))
+UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "Synthesis and DSP Plugin"))
 class USynthesisEditorSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

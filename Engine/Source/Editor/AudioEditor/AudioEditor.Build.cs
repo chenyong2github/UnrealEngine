@@ -25,6 +25,7 @@ public class AudioEditor : ModuleRules
 				"GameProjectGeneration",
 				"ToolMenus",
 				"UMG",
+				"DeveloperSettings",
 				"UMGEditor",
 				"AudioExtensions"
 			}
@@ -38,6 +39,7 @@ public class AudioEditor : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"AudioMixer",
+				"SignalProcessing",
 				"InputCore",
 				"Engine",
 				"EditorFramework",

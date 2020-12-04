@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "AudioEditorSubsystem"
 
-TArray<UUserWidget*> UAudioEditorSubsystem::CreateUserWidgets(TSubclassOf<UAudioWidgetInterface> InWidgetClass, UClass* InObjectClass) const
+TArray<UUserWidget*> UAudioEditorSubsystem::CreateUserWidgets(TSubclassOf<UInterface> InWidgetClass, UClass* InObjectClass) const
 {
 	TArray<UUserWidget*> UserWidgets;
 	UClass* InterfaceClass = InWidgetClass ? InWidgetClass.Get() : UAudioWidgetInterface::StaticClass();
@@ -96,17 +96,20 @@ bool UAudioEditorSubsystem::ImplementsInterface(const FAssetData& InAssetData, U
 	const FString ImplementedInterfaces = InAssetData.GetTagValueRef<FString>(FBlueprintTags::ImplementedInterfaces);
 	if (!ImplementedInterfaces.IsEmpty())
 	{
-		FString FullInterface;
 		FString RemainingString;
 		FString InterfacePath;
 		FString CurrentString = *ImplementedInterfaces;
-		while (CurrentString.Split(TEXT(","), &FullInterface, &RemainingString))
+		FString FullInterface = CurrentString;
+		do
 		{
 			if (!CurrentString.StartsWith(TEXT("Graphs=(")))
 			{
 				if (FullInterface.Split(TEXT("\""), &CurrentString, &InterfacePath, ESearchCase::CaseSensitive))
 				{
-					InterfacePath.RemoveFromEnd(TEXT("\"'"));
+					if (!InterfacePath.RemoveFromEnd(TEXT("\"'")))
+					{
+						InterfacePath.RemoveFromEnd(TEXT("\"'))"));
+					}
 
 					const FCoreRedirectObjectName ResolvedInterfaceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(InterfacePath));
 					if (InInterfaceClass->GetFName() == ResolvedInterfaceName.ObjectName)
@@ -117,7 +120,9 @@ bool UAudioEditorSubsystem::ImplementsInterface(const FAssetData& InAssetData, U
 			}
 
 			CurrentString = RemainingString;
-		}
+
+		} 
+		while (CurrentString.Split(TEXT(","), &FullInterface, &RemainingString));
 	}
 
 	return false;

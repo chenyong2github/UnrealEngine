@@ -58,7 +58,6 @@ private:
 	static bool ImplementsInterface(const FAssetData& InAssetData, UClass* InInterfaceClass);
 
 public:
-	// Returns user widgets that implement an AudioWidgetInterface.  Optionally, constructs only widgets that implement
-	// the provided AudioWidgetInterface type and/or widgets that support the given Object's parent class.
-	TArray<UUserWidget*> CreateUserWidgets(TSubclassOf<UAudioWidgetInterface> InWidgetClass, UClass* InObjectClass = nullptr) const;
+	// Returns user widgets that implement a widget interface of the given class and optionally widgets that support the given object's parent class.
+	TArray<UUserWidget*> CreateUserWidgets(TSubclassOf<UInterface> InWidgetClass, UClass* InObjectClass = nullptr) const;
 };
