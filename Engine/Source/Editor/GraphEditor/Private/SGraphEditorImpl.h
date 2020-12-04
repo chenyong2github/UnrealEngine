@@ -12,9 +12,12 @@
 #include "Widgets/SOverlay.h"
 #include "GraphEditor.h"
 #include "EdGraph/EdGraphPin.h" // for FEdGraphPinReference
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
 
 class SGraphPanel;
 class UEdGraph;
+class UEdGraphSchema;
 struct FEdGraphEditAction;
 struct FGraphContextMenuArguments;
 struct FNotificationInfo;
