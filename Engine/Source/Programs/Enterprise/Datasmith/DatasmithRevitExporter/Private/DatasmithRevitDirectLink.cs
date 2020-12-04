@@ -101,7 +101,10 @@ namespace DatasmithRevitExporter
 		// Sets of elements related to current sync.
 		private HashSet<ElementId>										DeletedElements = new HashSet<ElementId>();
 		
-	
+		public HashSet<string>											UniqueTextureNameSet = new HashSet<string>();
+		public Dictionary<string, FMaterialData>						MaterialDataMap = new Dictionary<string, FMaterialData>();
+		public Dictionary<string, Dictionary<string, int>>				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
+
 		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
 		private string													SceneName;
 

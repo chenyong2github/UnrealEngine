@@ -149,9 +149,18 @@ FDatasmithFacadeTexture* FDatasmithFacadeMaterialsUtils::CreateSimpleTextureElem
 {
 	if (!FString( InTextureFilePath ).IsEmpty())
 	{
-		// Make Datasmith texture name from file name.
-		FString FileName = FDatasmithUtils::SanitizeObjectName( FPaths::GetBaseFilename( InTextureFilePath ) );
-		FString TextureName = FString::Printf( TEXT( "%ls_%d" ), *FileName, int( InTextureMode ) );
+		// Sanitize full path before hashing: this ensures back/forward slashes will result in the 
+		// same converted file path (as they are refering to the same file).
+#if PLATFORM_WINDOWS
+		const FString ConvertedFilePath = FDatasmithUtils::SanitizeObjectName( FString( InTextureFilePath ).ToLower() );
+#else
+		const FString ConvertedFilePath = FDatasmithUtils::SanitizeObjectName( FString( InTextureFilePath ) );
+#endif
+
+		// Hash file path and use that as texture name.
+		const FString HashedFilePath = FMD5::HashAnsiString( *ConvertedFilePath );
+
+		FString TextureName = FString::Printf( TEXT( "%ls_%d" ), *HashedFilePath, int( InTextureMode ) );
 
 		// Create a Datasmith texture element.
 		TSharedRef<IDatasmithTextureElement> TexturePtr = FDatasmithSceneFactory::CreateTexture( *TextureName );
