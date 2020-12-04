@@ -14,7 +14,6 @@ namespace DatasmithRevitExporter
 	{
 		private Material                       CurrentMaterial   = null;
 		private string                         MaterialLabel     = null;	
-		public  int                            MaterialIndex     = 0;
 		public  FDatasmithFacadeMasterMaterial MasterMaterial    = null;
 		public  List<FDatasmithFacadeTexture>  CollectedTextures = new List<FDatasmithFacadeTexture>();
 		private IList<string>                  ExtraTexturePaths = null;
@@ -28,6 +27,8 @@ namespace DatasmithRevitExporter
 			Material     InMaterial
 		)
 		{
+			string Name;
+
 			if (InMaterial == null)
 			{
 				Color MaterialColor        = InMaterialNode.Color.IsValid ? InMaterialNode.Color : new Color(255, 255, 255);
@@ -35,12 +36,14 @@ namespace DatasmithRevitExporter
 				int   MaterialSmoothness   = InMaterialNode.Smoothness;
 
 				// Generate a unique name for the fallback material.
-				return $"{MaterialColor.Red:x2}{MaterialColor.Green:x2}{MaterialColor.Blue:x2}{MaterialTransparency:x2}{MaterialSmoothness:x2}";
+				Name = $"{MaterialColor.Red:x2}{MaterialColor.Green:x2}{MaterialColor.Blue:x2}{MaterialTransparency:x2}{MaterialSmoothness:x2}";
 			}
 			else
 			{
-				return $"{Path.GetFileNameWithoutExtension(InMaterial.Document.PathName)}:{InMaterial.UniqueId}";
+				Name = $"{Path.GetFileNameWithoutExtension(InMaterial.Document.PathName)}:{InMaterial.UniqueId}";
 			}
+
+			return FDatasmithFacadeElement.GetStringHash(Name);
 		}
 
 		// Calculate lightness from color value. 
@@ -59,18 +62,16 @@ namespace DatasmithRevitExporter
 		public FMaterialData(
 			MaterialNode  InMaterialNode,
 			Material      InMaterial,
-			int           InMaterialIndex,
 			IList<string> InExtraTexturePaths
 		)
 		{
 			CurrentMaterial   = InMaterial;
 			MaterialLabel     = GetMaterialLabel(InMaterialNode, InMaterial);
-			MaterialIndex     = InMaterialIndex;
 			ExtraTexturePaths = InExtraTexturePaths;
 
 			// Create a new Datasmith master material.
 			// Hash the Datasmith master material name to shorten it.
-			string HashedMaterialName = FDatasmithFacadeElement.GetStringHash(GetMaterialName(InMaterialNode, CurrentMaterial));
+			string HashedMaterialName = GetMaterialName(InMaterialNode, CurrentMaterial);
 			MasterMaterial = new FDatasmithFacadeMasterMaterial(HashedMaterialName);
 			MasterMaterial.SetLabel(GetMaterialLabel(InMaterialNode, CurrentMaterial));
 
@@ -82,18 +83,15 @@ namespace DatasmithRevitExporter
 		}
 
 		public FMaterialData(
-			string InMaterialName,
-			Color  InMaterialColor,
-			int    InMaterialIndex
+			string InHashedMaterialName,
+			string InMaterialLabel,
+			Color  InMaterialColor
 		)
 		{
-			MaterialLabel = InMaterialName;
-			MaterialIndex = InMaterialIndex;
+			MaterialLabel = InMaterialLabel;
 
 			// Create a new Datasmith master material.
-			// Hash the Datasmith master material name to shorten it.
-			string HashedMaterialName = FDatasmithFacadeElement.GetStringHash(InMaterialName);
-			MasterMaterial = new FDatasmithFacadeMasterMaterial(HashedMaterialName);
+			MasterMaterial = new FDatasmithFacadeMasterMaterial(InHashedMaterialName);
 			MasterMaterial.SetLabel(MaterialLabel);
 
 			// Set the properties of the Datasmith master material.
