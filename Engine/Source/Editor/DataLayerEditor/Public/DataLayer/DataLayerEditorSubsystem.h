@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
 #include "DataLayerAction.h"
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "DataLayerEditorSubsystem.generated.h"
 
 class AActor;
