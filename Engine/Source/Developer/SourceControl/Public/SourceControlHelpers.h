@@ -233,6 +233,17 @@ public:
 	static bool CheckOutOrAddFile(const FString& InFile, bool bSilent = false);
 
 	/**
+	 * Use currently set source control provider to check out files or mark them for add.
+	 * @note	Blocks until action is complete.
+	 *
+	 * @param	InFiles		The files to check out/add - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
+	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	static bool CheckOutOrAddFiles(const TArray<FString>& InFiles, bool bSilent = false);
+
+	/**
 	 * Helper function perform an operation on files in our 'source controlled' directories, handling checkout/add etc.
 	 * @note	Blocks until action is complete. Older C++ only version of CheckOutOrAddFile().
 	 *

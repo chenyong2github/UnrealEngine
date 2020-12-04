@@ -115,14 +115,13 @@ bool FScreenComparisonModel::Replace()
 	const FString ImportIncomingRoot = Report.GetReportPath();
 
 	TArray<FString> SourceControlFiles;
-
 	for ( const FFileMapping& Incoming : FileImports)
 	{
 		SourceControlFiles.Add(Incoming.DestinationFile);
 	}
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::RevertFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -136,12 +135,7 @@ bool FScreenComparisonModel::Replace()
 		SourceControlFiles.Add(Incoming.DestinationFile);
 	}
 
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlFiles) == ECommandResult::Failed )
-	{
-		//TODO Error
-	}
-
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::CheckOutOrAddFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -175,14 +169,12 @@ bool FScreenComparisonModel::AddAlternative()
 	const FString ImportIncomingRoot = Report.GetReportPath();
 
 	TArray<FString> SourceControlFiles;
-
 	for ( const FFileMapping& Import : FileImports )
 	{
 		SourceControlFiles.Add(Import.DestinationFile);
 	}
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::RevertFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -199,11 +191,7 @@ bool FScreenComparisonModel::AddAlternative()
 		}
 	}
 
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlFiles) == ECommandResult::Failed )
-	{
-		//TODO Error
-	}
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::CheckOutOrAddFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
