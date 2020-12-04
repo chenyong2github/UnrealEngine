@@ -23,6 +23,7 @@ enum class EReplayHeaderFlags : uint32
 	HasStreamingFixes = (1 << 1),
 	DeltaCheckpoints = (1 << 2),
 	GameSpecificFrameData = (1 << 3),
+	ReplayConnection = (1 << 4),
 };
 
 ENUM_CLASS_FLAGS(EReplayHeaderFlags);
