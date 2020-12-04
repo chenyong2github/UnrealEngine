@@ -6566,6 +6566,23 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 		return INDEX_NONE;
 	}
 
+	FMaterialUniformExpression* DefaultExpression = GetParameterUniformExpression(Default);
+	FMaterialUniformExpression* ShadowExpression = GetParameterUniformExpression(Shadow);
+	if (DefaultExpression->IsConstant() && ShadowExpression->IsConstant())
+	{
+		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+		FLinearColor DefaultValue;
+		FLinearColor ShadowValue;
+		DefaultExpression->GetNumberValue(DummyContext, DefaultValue);
+		ShadowExpression->GetNumberValue(DummyContext, ShadowValue);
+		if (DefaultValue == ShadowValue)
+		{
+			// If both inputs are wired to == constant values, avoid adding the runtime switch
+			// This will avoid breaking various offline checks for constant values
+			return Default;
+		}
+	}
+
 	EMaterialValueType ResultType = GetArithmeticResultType(Default, Shadow);
 	return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 }
