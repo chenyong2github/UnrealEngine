@@ -80,7 +80,7 @@ public:
 	TMap<int32, int32> RegisterRefCount;
 	TArray<TPair<FName, int32>> RefCountSteps;
 	TMap<int32, FRigVMOperand> IntegerLiterals;
-	FRigVMOperand ComparisonLiteral;
+	FRigVMOperand ComparisonOperand;
 
 	int32 IncRefRegister(int32 InRegister, int32 InIncrement = 1);
 	int32 DecRefRegister(int32 InRegister, int32 InDecrement = 1);

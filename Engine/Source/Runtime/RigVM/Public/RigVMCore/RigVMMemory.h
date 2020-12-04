@@ -89,7 +89,7 @@ public:
 	// returns the index of the register of this argument
 	FORCEINLINE_DEBUGGABLE int32 GetRegisterIndex() const { return RegisterIndex == UINT16_MAX ? INDEX_NONE : (int32)RegisterIndex; }
 
-	// returns the index of the register of this argument
+	// returns the register offset of this argument
 	FORCEINLINE_DEBUGGABLE int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
 
 	void Serialize(FArchive& Ar);
@@ -158,8 +158,8 @@ struct RIGVM_API FRigVMRegister
 		, bIsArray(false)
 		, bIsDynamic(false)
 #if WITH_EDITORONLY_DATA
-		, CPPType(NAME_None)
-		, CPPTypeObject(nullptr)
+		, BaseCPPType(NAME_None)
+		, BaseCPPTypeObject(nullptr)
 #endif
 	{
 	}
@@ -214,10 +214,10 @@ struct RIGVM_API FRigVMRegister
 
 	// Defines the CPP type used for the register
 	UPROPERTY(transient)
-	FName CPPType;
+	FName BaseCPPType;
 
 	UPROPERTY(transient)
-	UObject* CPPTypeObject;
+	UObject* BaseCPPTypeObject;
 
 #endif
 

@@ -322,6 +322,14 @@ public:
 	{
 	}
 
+	// constructor from a typed TArray
+	template<uint32 NumInlineElements>
+	FORCEINLINE_DEBUGGABLE FRigVMFixedArray(const TArray<T, TFixedAllocator<NumInlineElements>>& InStorage)
+		: Data((T*)InStorage.GetData())
+		, Size(NumInlineElements)
+	{
+	}
+
 	// constructor from direct memory
 	FORCEINLINE_DEBUGGABLE FRigVMFixedArray(T* InData, int32 InSize)
 	: Data(InData)
