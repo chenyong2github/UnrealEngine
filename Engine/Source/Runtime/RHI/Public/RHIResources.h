@@ -275,9 +275,7 @@ public:
 
 		// SRV access is allowed whilst a depth stencil target is "readable".
 		constexpr ERHIAccess DSVReadOnlyMask =
-			ERHIAccess::DSVRead |
-			ERHIAccess::SRVGraphics |
-			ERHIAccess::SRVCompute;
+			ERHIAccess::DSVRead;
 
 		// If write access is required, only the depth block can access the resource.
 		constexpr ERHIAccess DSVReadWriteMask =
