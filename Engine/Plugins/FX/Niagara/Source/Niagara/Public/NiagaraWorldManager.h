@@ -264,6 +264,8 @@ private:
 
 	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interefre. */
 	bool bAppHasFocus;
+
+	float WorldLoopTime = 0.0f;
 };
 
 

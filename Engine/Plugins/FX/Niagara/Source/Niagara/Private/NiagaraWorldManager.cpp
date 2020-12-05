@@ -114,6 +114,15 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 	ECVF_Default
 );
 
+
+float GWorldLoopTime = 0.0f;
+static FAutoConsoleVariableRef CVarWorldLoopTime(
+	TEXT("fx.GlobalLoopTime"),
+	GWorldLoopTime,
+	TEXT("If > 0 all Niagara FX will reset every N seconds. \n"),
+	ECVF_Default
+);
+
 FDelegateHandle FNiagaraWorldManager::OnWorldInitHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPostWorldCleanupHandle;
@@ -701,7 +710,27 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )
-	{
+	{		
+		//Utility loop feature to trigger all systems to loop on a timer.
+		if (GWorldLoopTime > 0.0f)
+		{
+			if (WorldLoopTime <= 0.0f)
+			{
+				WorldLoopTime = GWorldLoopTime;
+				for (TObjectIterator<UNiagaraComponent> It; It; ++It)
+				{
+					if (UNiagaraComponent* Comp = *It)
+					{
+						if(Comp->GetWorld() == GetWorld())
+						{
+							Comp->ResetSystem();
+						}
+					}
+				}
+			}
+			WorldLoopTime -= DeltaSeconds;
+		}
+
 		//Ensure the pools have been primed.
 		//WorldInit is too early.
 		if(!bPoolIsPrimed)
