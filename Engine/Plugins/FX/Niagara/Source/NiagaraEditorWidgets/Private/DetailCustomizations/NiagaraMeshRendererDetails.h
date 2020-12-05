@@ -4,6 +4,10 @@
 
 #include "IDetailCustomization.h"
 
+class IPropertyHandle;
+class IDetailChildrenBuilder;
+class IDetailLayoutBuilder;
+
 class FNiagaraMeshRendererDetails : public IDetailCustomization
 {
 public:	
