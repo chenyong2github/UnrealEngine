@@ -22,6 +22,30 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 	const FGeometry Geom = FGeometry().MakeChild(WidgetInfo->GetLocalSize(), WidgetInfo->GetAccumulatedLayoutTransform(), WidgetInfo->GetAccumulatedRenderTransform(), FVector2D::ZeroVector);
 	SizeInfoText = FText::FromString(Geom.ToString());
 
+	bool bIsInsideInvalidationRoot = false;
+	FText InvalidationText = FText::GetEmpty();
+	{
+		TSharedPtr<FWidgetReflectorNodeBase> CurrentWidget = WidgetInfo;
+		if (CurrentWidget->GetWidgetIsInvalidationRoot())
+		{
+			bIsInsideInvalidationRoot = true;
+			InvalidationText = LOCTEXT("IsInvalidationRoot", "Is an Invalidation Root");
+		}
+		else
+		{
+			while (CurrentWidget)
+			{
+				if (CurrentWidget->GetWidgetIsInvalidationRoot())
+				{
+					bIsInsideInvalidationRoot = true;
+					InvalidationText = LOCTEXT("FromInvalidationRoot", "Controlled by an Invalidation Root");
+					break;
+				}
+				CurrentWidget = CurrentWidget->GetParentNode();
+			}
+		}
+	}
+
 	TSharedRef<SGridPanel> GridPanel = SNew(SGridPanel)
 			.FillColumn(1, 1.0f);
 	{
@@ -52,19 +76,11 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 		BuildLabelAndValue(LOCTEXT("IsVolatile", "Is Volatile"), { this, &SReflectorToolTipWidget::GetIsVolatile });
 		BuildLabelAndValue(LOCTEXT("IsVolatileIndirectly", "Is Volatile Indirectly"), { this, &SReflectorToolTipWidget::GetIsVolatileIndirectly });
 		BuildLabelAndValue(LOCTEXT("HasActiveTimers", "Has Active Timers"), { this, &SReflectorToolTipWidget::GetHasActiveTimers });
-	}
 
-	bool bIsInsideInvalidationRoot = false;
-	{
-		TSharedPtr<FWidgetReflectorNodeBase> CurrentWidget = WidgetInfo;
-		while(CurrentWidget)
+		if (bIsInsideInvalidationRoot)
 		{
-			if (CurrentWidget->GetWidgetIsInvalidationRoot())
-			{
-				bIsInsideInvalidationRoot = true;
-				break;
-			}
-			CurrentWidget = CurrentWidget->GetParentNode();
+			BuildLabelAndValue(LOCTEXT("IsVisible", "Is Visible"), { this, &SReflectorToolTipWidget::GetIsVisible });
+			BuildLabelAndValue(LOCTEXT("IsVisibleInherited", "Is Visible Inherited"), { this, &SReflectorToolTipWidget::GetIsVisibleInherited });
 		}
 	}
 
@@ -81,7 +97,7 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("FromInvalidationRoot", "Controlled by an invalidation root"))
+					.Text(InvalidationText)
 				]
 			]
 			+ SVerticalBox::Slot()

@@ -36,7 +36,7 @@ static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetList(
 	GSlateInvalidationRootVerifyWidgetList,
 	TEXT("Each frame, verify that the updated list doesn't match a newly created list.")
 );
-void VerifyWidgetList(SWidget* InvalidationRootWidget, FSlateInvalidationRootHandle InvalidationRootHandle, FSlateInvalidationWidgetList& WidgetList);
+void VerifyWidgetList(TSharedRef<SWidget> RootWidget, FSlateInvalidationRootHandle InvalidationRootHandle, FSlateInvalidationWidgetList& WidgetList);
 
 bool GSlateInvalidationRootVerifyWidgetsIndex = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetsIndex(
@@ -105,6 +105,10 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 	, bProcessingChildOrderUpdate(false)
+#if WITH_SLATE_DEBUGGING
+	, LastPaintType(ESlateInvalidationPaintType::None)
+	, ProcessInvalidationFrameNumber(0)
+#endif
 {
 	InvalidationRootHandle = FSlateInvalidationRootHandle(GSlateInvalidationRootListInstance.AddInvalidationRoot(this));
 	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::HandleInvalidateAllWidgets);
@@ -155,11 +159,20 @@ FString FSlateInvalidationRoot::GetReferencerName() const
 
 void FSlateInvalidationRoot::InvalidateRoot(const SWidget* Investigator)
 {
+	InvalidateRootChildOrder(Investigator);
+}
+
+void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigator)
+{
 	// Update the generation number. This will effectively invalidate all proxy handles
 	++FastPathGenerationNumber;
+	InvalidateRootLayout(Investigator);
+}
 
+void FSlateInvalidationRoot::InvalidateRootLayout(const SWidget* Investigator)
+{
 	InvalidationRootWidget->InvalidatePrepass();
-
+	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
 	bNeedsSlowPath = true;
 
 #if WITH_SLATE_DEBUGGING
@@ -196,11 +209,6 @@ void FSlateInvalidationRoot::InvalidateWidgetChildOrder(TSharedRef<SWidget> Widg
 	}
 }
 
-const SWidget* FSlateInvalidationRoot::GetInvalidationRootWidget() const
-{
-	return InvalidationRootWidget;
-}
-
 void FSlateInvalidationRoot::InvalidateScreenPosition(const SWidget* Investigator)
 {
 	bNeedScreenPositionShift = true;
@@ -208,6 +216,11 @@ void FSlateInvalidationRoot::InvalidateScreenPosition(const SWidget* Investigato
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ScreenPosition);
 #endif
+}
+
+const TSharedPtr<SWidget> FSlateInvalidationRoot::GetFastPathWidgetListRoot() const
+{
+	return GetFastPathWidgetList().GetRoot().Pin();
 }
 
 FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSlateInvalidationContext& Context)
@@ -228,7 +241,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		Context.WindowElementList->PushCachedElementData(*CachedElementData);
 	}
 
-	TSharedRef<SWidget> RootWidget = InvalidationRootWidget->Advanced_IsWindow() ? InvalidationRootWidget->AsShared() : InvalidationRootWidget->GetAllChildren()->GetChildAt(0);
+	TSharedRef<SWidget> RootWidget = GetRootWidget();
 
 	if (bNeedScreenPositionShift)
 	{
@@ -260,11 +273,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 				TGuardValue<bool> InSlowPathGuard(GSlateIsInInvalidationSlowPath, true);
 
 				BuildFastPathWidgetList(RootWidget);
-
-				if(GSlateEnableGlobalInvalidation)
-				{
-					InvalidationRootWidget->SlatePrepass(Context.LayoutScaleMultiplier);
-				}
 			}
 
 			CachedMaxLayerId = PaintSlowPath(Context);
@@ -292,7 +300,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	FinalUpdateList.Reset();
 
 #if WITH_SLATE_DEBUGGING
-	if (GSlateInvalidationRootVerifyHittestGrid)
+	if (GSlateInvalidationRootVerifyHittestGrid && Context.bAllowFastPathUpdate)
 	{
 		VerifyHittest(InvalidationRootWidget, GetFastPathWidgetList(), GetHittestGrid());
 	}
@@ -442,7 +450,6 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 
 	FastWidgetPathList->ForEachWidget([WindowToDesktopTransform, &WindowToDesktop](SWidget* Widget)
 		{
-			Widget->PersistentState.DesktopGeometry = Widget->PersistentState.AllottedGeometry;
 			Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
 		});
 }
@@ -450,9 +457,10 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 
 void FSlateInvalidationRoot::ProcessChildOrderUpdate()
 {
-	TGuardValue<bool> Tmp(bProcessingChildOrderUpdate, true);
+	TSharedRef<SWidget> RootWidget = GetRootWidget();
+
 	{
-		TSharedRef<SWidget> RootWidget = InvalidationRootWidget->Advanced_IsWindow() ? InvalidationRootWidget->AsShared() : InvalidationRootWidget->GetAllChildren()->GetChildAt(0);
+		TGuardValue<bool> Tmp(bProcessingChildOrderUpdate, true);
 		if (FastWidgetPathList->GetRoot().Pin() != RootWidget)
 		{
 			FastWidgetPathList->BuildWidgetList(RootWidget);
@@ -469,7 +477,7 @@ void FSlateInvalidationRoot::ProcessChildOrderUpdate()
 #if WITH_SLATE_DEBUGGING
 	if (GSlateInvalidationRootVerifyWidgetList)
 	{
-		VerifyWidgetList(InvalidationRootWidget, InvalidationRootHandle, GetFastPathWidgetList());
+		VerifyWidgetList(RootWidget, InvalidationRootHandle, GetFastPathWidgetList());
 	}
 
 	if (GSlateInvalidationRootVerifyWidgetsIndex)
@@ -581,18 +589,18 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 			// Reset each widgets paint state
 			// Must be done before actual painting because children can repaint 
 			WidgetProxy.bUpdatedSinceLastInvalidate = false;
-			WidgetProxy.bInUpdateList = false;
 
 			// Widget could be null if it was removed and we are on the slow path
 			if (SWidget* WidgetPtr = WidgetProxy.GetWidget())
 			{
-				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->NeedsPrepass() && WidgetPtr->Advanced_IsInvalidationRoot())
+				const bool bIsInvalidationRoot = WidgetPtr->Advanced_IsInvalidationRoot();
+				if (bIsInvalidationRoot && WidgetPtr != InvalidationRootWidget)
 				{
-					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
-#if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastWidgetInvalidate(WidgetPtr, nullptr, EInvalidateWidgetReason::Layout);
-#endif
-					UE_TRACE_SLATE_WIDGET_INVALIDATED(WidgetPtr, nullptr, EInvalidateWidgetReason::Layout);
+					FSlateInvalidationRoot* InvalidationRoot = const_cast<FSlateInvalidationRoot*>(WidgetPtr->Advanced_AsInvalidationRoot());
+					check(InvalidationRoot);
+					// Prevent reentering call
+					FSlateInvalidationWidgetHeap::FScopeWidgetCannotBeAdded Guard{ *WidgetsNeedingUpdate, WidgetProxy };
+					InvalidationRoot->ProcessInvalidation();
 				}
 
 #if SLATE_CSV_TRACKER
@@ -710,7 +718,7 @@ void FSlateInvalidationRoot::HandleInvalidateAllWidgets(bool bClearResourcesImme
 
 void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImmediately)
 {
-	InvalidateRoot();
+	InvalidateRootChildOrder();
 
 	InvalidationRootWidget->InvalidatePrepass();
 
@@ -723,10 +731,8 @@ void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImme
 }
 
 #if WITH_SLATE_DEBUGGING
-void VerifyWidgetList(SWidget* InvalidationRootWidget, FSlateInvalidationRootHandle InvalidationRootHandle, FSlateInvalidationWidgetList& WidgetList)
+void VerifyWidgetList(TSharedRef<SWidget> RootWidget, FSlateInvalidationRootHandle InvalidationRootHandle, FSlateInvalidationWidgetList& WidgetList)
 {
-	TSharedRef<SWidget> RootWidget = InvalidationRootWidget->Advanced_IsWindow() ? InvalidationRootWidget->AsShared() : InvalidationRootWidget->GetAllChildren()->GetChildAt(0);
-
 	FSlateInvalidationWidgetList List(InvalidationRootHandle, FSlateInvalidationWidgetList::FArguments{ 128, 128, 1000, false });
 	List.BuildWidgetList(RootWidget);
 	bool bIsIdentical = (List.DeapCompare(WidgetList));
@@ -813,7 +819,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 		HittestGridSortDatas.RemoveAtSwap(FoundHittestIndex);
 	}
 
-	ensureAlwaysMsgf(HittestGridSortDatas.Num() == 0, TEXT("The hittest grid of Root '%s' has widget that are not inside the InvalidationRoot's widget list")
+	ensureAlwaysMsgf(HittestGridSortDatas.Num() == 0, TEXT("The hittest grid of Root '%s' has widgets that are not inside the InvalidationRoot's widget list")
 		, *FReflectionMetaData::GetWidgetPath(InvalidationRootWidget));
 }
 
@@ -825,14 +831,19 @@ void VerifyWidgetVisibilityInherited(FSlateInvalidationWidgetList& WidgetList)
 			if (Widget != Root)
 			{
 				bool bSouldBeFastPathVisible = Widget->GetVisibility().IsVisible();
+				bool bShouldBeVolatile = Widget->IsVolatile();
 				TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
 				if (ensure(ParentWidget))
 				{
 					bSouldBeFastPathVisible = bSouldBeFastPathVisible && ParentWidget->IsFastPathVisible();
+					bShouldBeVolatile = bShouldBeVolatile || ParentWidget->IsVolatileIndirectly();
 				}
 				ensureMsgf(Widget->IsFastPathVisible() == bSouldBeFastPathVisible, TEXT("Widget '%s' should be %s.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
 					, (bSouldBeFastPathVisible ? TEXT("visible") : TEXT("hidden")));
+				ensureMsgf(Widget->IsVolatileIndirectly() == bShouldBeVolatile, TEXT("Widget '%s' should be %s.")
+					, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
+					, (bShouldBeVolatile ? TEXT("volatile") : TEXT("not volatile")));
 			}
 		});
 }

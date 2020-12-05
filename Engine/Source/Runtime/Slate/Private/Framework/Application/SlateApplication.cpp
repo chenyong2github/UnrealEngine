@@ -797,7 +797,7 @@ FSlateApplication::FSlateApplication()
 		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Variable)
 		{
 			UE_TRACE_SLATE_BOOKMARK(TEXT("GlobalInvalidationChanged"));
-			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation != 0);
+			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation);
 		}));
 	}
 }
@@ -1145,6 +1145,7 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 		FScopedSwitchWorldHack SwitchWorld(WindowToPrepass);
 		
 		{
+			WindowToPrepass->ProcessWindowInvalidation();
 			WindowToPrepass->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * WindowToPrepass->GetNativeWindow()->GetDPIScaleFactor());
 		}
 

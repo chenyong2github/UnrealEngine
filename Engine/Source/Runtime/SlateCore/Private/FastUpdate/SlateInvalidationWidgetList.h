@@ -53,6 +53,11 @@ public:
 
 	/** Get the root the widget list was built with. */
 	TWeakPtr<SWidget> GetRoot() { return Root; };
+	/** Get the root the widget list was built with. */
+	const TWeakPtr<SWidget> GetRoot() const { return Root; };
+
+	/** Get the Generation number the list was built on. */
+	int32 GetGenerationNumber() const { return GenerationNumber; }
 
 	/** Process widget that have a ChildOrder invalidation. */
 	void ProcessChildOrderInvalidation(const TArray<TWeakPtr<SWidget>>& Invalidated);
@@ -260,6 +265,7 @@ private:
 	TWeakPtr<SWidget> Root;
 	int32 FirstArrayIndex = INDEX_NONE;
 	int32 LastArrayIndex = INDEX_NONE;
+	int32 GenerationNumber = INDEX_NONE;
 
 	const FArguments WidgetListConfig;
 };

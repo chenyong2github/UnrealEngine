@@ -803,8 +803,8 @@ public:
 	bool IsDrawingEnabled() const { return bIsDrawingEnabled; }
 
 	virtual bool Advanced_IsWindow() const override { return true; }
-	virtual bool Advanced_IsInvalidationRoot() const override { return bAllowFastUpdate; }
-	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bAllowFastUpdate ? this : nullptr; }
+	virtual bool Advanced_IsInvalidationRoot() const override;
+	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
 
 #if WITH_ACCESSIBILITY
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
@@ -942,8 +942,7 @@ public:
 	void SetAllowFastUpdate(bool bInAllowFastUpdate);
 public:
 
-	// SWidget overrides
-
+	//~ SWidget overrides
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
 	/** Windows that are not hittestable should not show up in the hittest grid. */
@@ -1212,7 +1211,15 @@ protected:
 
 	void UpdateWindowContentVisibility();
 
-	int32 PaintSlowPath(const FSlateInvalidationContext& InvalidationContext) override;
+	//~ FSlateInvalidationRoot overrides
+	virtual TSharedRef<SWidget> GetRootWidget() override;
+	virtual int32 PaintSlowPath(const FSlateInvalidationContext& InvalidationContext) override;
+
+public:
+
+	/** Process the invalidation of the widget contained by the window in GlobalInvalidation. */
+	void ProcessWindowInvalidation();
+
 private:
 
 	/** The handle to the active timer */

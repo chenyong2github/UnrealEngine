@@ -26,17 +26,21 @@ public:
 public:
 	FSlateInvalidationWidgetHeap(FSlateInvalidationWidgetList& InOwnerList)
 		: OwnerList(InOwnerList)
+		, WidgetCannotBeAdded(FSlateInvalidationWidgetIndex::Invalid)
 	{ }
 
 	/** Insert into the list at the proper order (see binary heap) only if it's not already contains by the list. */
 	void PushUnique(const FSlateInvalidationWidgetIndex WidgetIndex)
 	{
+		check(WidgetIndex != FSlateInvalidationWidgetIndex::Invalid);
+
 		FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = OwnerList[WidgetIndex];
-		check(Contains(WidgetIndex) == InvalidationWidget.bContainedByWidgetHeap);
+		check(Contains(WidgetIndex) == InvalidationWidget.bContainedByWidgetHeap
+			|| WidgetCannotBeAdded == WidgetIndex);
+
 		if (!InvalidationWidget.bContainedByWidgetHeap)
 		{
 			InvalidationWidget.bContainedByWidgetHeap = true;
-			InvalidationWidget.bInUpdateList = true;
 			Heap.HeapPush(FElement{ WidgetIndex, FSlateInvalidationWidgetSortOrder{OwnerList, WidgetIndex} }, TWidgetOrderGreater());
 		}
 	}
@@ -44,12 +48,14 @@ public:
 	/** Insert into the list at the proper order (see binary heap) only if it's not already contains by the list. */
 	void PushUnique(FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
 	{
-		check(Contains(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetHeap);
+		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
+
+		check(Contains(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetHeap
+			|| WidgetCannotBeAdded == InvalidationWidget.Index);
 
 		if (!InvalidationWidget.bContainedByWidgetHeap)
 		{
 			InvalidationWidget.bContainedByWidgetHeap = true;
-			InvalidationWidget.bInUpdateList = true;
 			Heap.HeapPush(FElement{ InvalidationWidget.Index, FSlateInvalidationWidgetSortOrder{OwnerList, InvalidationWidget.Index} }, TWidgetOrderGreater());
 		}
 	}
@@ -57,10 +63,11 @@ public:
 	/** Insert into the list at the proper order (see binary heap). */
 	void ForcePush(const FSlateInvalidationWidgetIndex WidgetIndex)
 	{
+		check(WidgetIndex != FSlateInvalidationWidgetIndex::Invalid);
+
 		FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = OwnerList[WidgetIndex];
 
 		InvalidationWidget.bContainedByWidgetHeap = true;
-		InvalidationWidget.bInUpdateList = true;
 		Heap.HeapPush(FElement{ WidgetIndex, FSlateInvalidationWidgetSortOrder{OwnerList, WidgetIndex} }, TWidgetOrderGreater());
 	}
 
@@ -98,6 +105,31 @@ public:
 		return Heap;
 	}
 
+public:
+	struct FScopeWidgetCannotBeAdded
+	{
+		FScopeWidgetCannotBeAdded(FSlateInvalidationWidgetHeap& InHeap, FSlateInvalidationWidgetList::InvalidationWidgetType& InInvalidationWidget)
+			: Heap(InHeap)
+			, InvalidationWidget(InInvalidationWidget)
+			, WidgetIndex(InvalidationWidget.Index)
+		{
+			check(!InvalidationWidget.bContainedByWidgetHeap
+				&& Heap.WidgetCannotBeAdded == FSlateInvalidationWidgetIndex::Invalid);
+			Heap.WidgetCannotBeAdded = InvalidationWidget.Index;
+			InvalidationWidget.bContainedByWidgetHeap = true;
+		}
+		~FScopeWidgetCannotBeAdded()
+		{
+			Heap.WidgetCannotBeAdded = FSlateInvalidationWidgetIndex::Invalid;
+			check(Heap.OwnerList.IsValidIndex(WidgetIndex));
+			check(&Heap.OwnerList[WidgetIndex] == &InvalidationWidget);
+			InvalidationWidget.bContainedByWidgetHeap = false;
+		}
+		FSlateInvalidationWidgetHeap& Heap;
+		FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget;
+		FSlateInvalidationWidgetIndex WidgetIndex;
+	};
+
 private:
 	bool Contains(const FSlateInvalidationWidgetIndex WidgetIndex) const
 	{
@@ -110,4 +142,5 @@ private:
 private:
 	TArray<FElement, TInlineAllocator<100>> Heap;
 	FSlateInvalidationWidgetList& OwnerList;
+	FSlateInvalidationWidgetIndex WidgetCannotBeAdded;
 };

@@ -271,7 +271,7 @@ void SRetainerWidget::RefreshRenderingMode()
 	if ( bEnableRetainedRendering != bShouldBeRenderingOffscreen )
 	{
 		bEnableRetainedRendering = bShouldBeRenderingOffscreen;
-		InvalidateRoot();
+		InvalidateRootChildOrder();
 	}
 }
 
@@ -323,7 +323,7 @@ void SRetainerWidget::SetWorld(UWorld* World)
 
 FChildren* SRetainerWidget::GetChildren()
 {
-	if (bEnableRetainedRendering && !GSlateEnableGlobalInvalidation && !NeedsPrepass())
+	if (bEnableRetainedRendering)
 	{
 		return &EmptyChildSlot;
 	}
@@ -347,7 +347,7 @@ void SRetainerWidget::SetRenderingPhase(int32 InPhase, int32 InPhaseCount)
 void SRetainerWidget::RequestRender()
 {
 	bRenderRequested = true;
-	InvalidateRoot();
+	InvalidateRootChildOrder();
 }
 
 bool SRetainerWidget::PaintRetainedContent(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry)
@@ -363,15 +363,41 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 		if (LastTickedFrame != GFrameCounter && (GFrameCounter % PhaseCount) == Phase)
 		{
 			// If doing some phase based invalidation, just redraw everything again
-			InvalidateRoot();
-			bRenderRequested = true;
+			RequestRender();
 		}
 	}
+
+	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
+	const FVector2D RenderSize = PaintGeometry.GetLocalSize() * PaintGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
 
 	if (RenderOnInvalidation)
 	{
 		// the invalidation root will take care of whether or not we actually rendered
 		bRenderRequested = true;
+
+		// Aggressively repaint when a base state changes.
+		const FVector2D ClipRectSize = Context.CullingRect.GetSize().RoundToVector();
+		const TOptional<FSlateClippingState> ClippingState = Context.WindowElementList->GetClippingState();
+		const FLinearColor ColorAndOpacityTint = Context.WidgetStyle.GetColorAndOpacityTint();
+		if (RenderSize != PreviousRenderSize
+			|| AllottedGeometry != PreviousAllottedGeometry
+			|| ClipRectSize != PreviousClipRectSize
+			|| ClippingState != PreviousClippingState
+			|| ColorAndOpacityTint != PreviousColorAndOpacity)
+		{
+			PreviousRenderSize = RenderSize;
+			PreviousAllottedGeometry = AllottedGeometry;
+			PreviousClipRectSize = ClipRectSize;
+			PreviousClippingState = ClippingState;
+			PreviousColorAndOpacity = ColorAndOpacityTint;
+
+			RequestRender();
+		}
+	}
+	else if (RenderSize != PreviousRenderSize)
+	{
+		RequestRender();
+		PreviousRenderSize = RenderSize;
 	}
 
 	if (Shared_MaxRetainerWorkPerFrame > 0)
@@ -381,15 +407,6 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 			Shared_WaitingToRender.AddUnique(this);
 			return EPaintRetainedContentResult::Queued;
 		}
-	}
-	
-	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
-	const FVector2D RenderSize = PaintGeometry.GetLocalSize() * PaintGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
-
-	if (RenderSize != PreviousRenderSize)
-	{
-		PreviousRenderSize = RenderSize;
-		bRenderRequested = true;
 	}
 
 	if (bRenderRequested)
@@ -529,6 +546,7 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		else
 		{
 			UTextureRenderTarget2D* RenderTarget = RenderingResources->RenderTarget;
+			check(RenderTarget);
 
 			if (RenderTarget->GetSurfaceWidth() >= 1 && RenderTarget->GetSurfaceHeight() >= 1)
 			{
@@ -583,7 +601,7 @@ FVector2D SRetainerWidget::ComputeDesiredSize(float LayoutScaleMuliplier) const
 
 void SRetainerWidget::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled)
 {
-	InvalidateRoot();
+	InvalidateRootChildOrder();
 
 	ClearAllFastPathData(true);
 }
@@ -592,14 +610,29 @@ bool SRetainerWidget::CustomPrepass(float LayoutScaleMultiplier)
 {
 	if (bEnableRetainedRendering)
 	{
-		ProcessInvalidation();
+		// The InvalidationRoot that own this retainer will call the ProcessInvalidation.
+		//ProcessInvalidation will only be called when the GlobalInvalidation is off and the Retainer is not inside another InvalidationRoot.
+		if (!GetProxyHandle().HasValidInvalidationRootOwnership(this))
+		{
+			ProcessInvalidation();
+		}
 
-		return NeedsPrepass();
+		if (NeedsPrepass())
+		{
+			FChildren* Children = SCompoundWidget::GetChildren();
+			Prepass_ChildLoop(LayoutScaleMultiplier, Children);
+		}
+		return false;
 	}
 	else
 	{
 		return true;
 	}
+}
+
+TSharedRef<SWidget> SRetainerWidget::GetRootWidget()
+{
+	return bEnableRetainedRendering ? SCompoundWidget::GetChildren()->GetChildAt(0) : EmptyChildSlot.GetChildAt(0);
 }
 
 int32 SRetainerWidget::PaintSlowPath(const FSlateInvalidationContext& Context)

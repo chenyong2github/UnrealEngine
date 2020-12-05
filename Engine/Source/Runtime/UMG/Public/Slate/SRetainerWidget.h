@@ -97,6 +97,7 @@ protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
 	/** FSlateInvalidationRoot interface */
+	virtual TSharedRef<SWidget> GetRootWidget() override;
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
 
 	enum class EPaintRetainedContentResult
@@ -124,7 +125,11 @@ private:
 
 	mutable FSlateBrush SurfaceBrush;
 
-	mutable FVector2D PreviousRenderSize;
+	FVector2D PreviousRenderSize;
+	FGeometry PreviousAllottedGeometry;
+	FVector2D PreviousClipRectSize;
+	TOptional<FSlateClippingState> PreviousClippingState;
+	FLinearColor PreviousColorAndOpacity;
 
 	void UpdateWidgetRenderer();
 
