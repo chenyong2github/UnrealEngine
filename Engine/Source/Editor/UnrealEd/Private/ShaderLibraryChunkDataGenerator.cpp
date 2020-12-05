@@ -4,6 +4,7 @@
 #include "IPlatformFileSandboxWrapper.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "ShaderCodeLibrary.h"
+#include "Misc/ConfigCacheIni.h"
 
 FShaderLibraryChunkDataGenerator::FShaderLibraryChunkDataGenerator(const ITargetPlatform* TargetPlatform)
 {
