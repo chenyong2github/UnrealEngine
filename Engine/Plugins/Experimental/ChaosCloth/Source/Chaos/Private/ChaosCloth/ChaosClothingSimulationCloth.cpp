@@ -347,6 +347,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InDampingCoefficient,
 	float InCollisionThickness,
 	float InFrictionCoefficient,
+	bool bInUseCCD,
 	bool bInUseSelfCollisions,
 	float InSelfCollisionThickness,
 	bool bInUseLegacyBackstop,
@@ -382,6 +383,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
 	, FrictionCoefficient(InFrictionCoefficient)
+	, bUseCCD(bInUseCCD)
 	, bUseSelfCollisions(bInUseSelfCollisions)
 	, SelfCollisionThickness(InSelfCollisionThickness)
 	, bUseLegacyBackstop(bInUseLegacyBackstop)
@@ -707,6 +709,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// Update general solver properties
 		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
 
+		// Update use of continuous collision detection
+		Solver->SetUseCCD(GroupId, bUseCCD);
+
 		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
 		// Set the reference input velocity and deal with teleport & reset
@@ -784,6 +789,14 @@ TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticlePosition
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
 	return TConstArrayView<TVector<float, 3>>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+}
+
+TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
+{
+	check(Solver);
+	const int32 LODIndex = LODIndices.FindChecked(Solver);
+	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
+	return TConstArrayView<TVector<float, 3>>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
 TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const

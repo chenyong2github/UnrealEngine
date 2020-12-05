@@ -57,6 +57,7 @@ namespace Chaos
 			float InDampingCoefficient,
 			float InCollisionThickness,
 			float InFrictionCoefficient,
+			bool bInUseCCD,
 			bool bInUseSelfCollisions,
 			float InSelfCollisionThickness,
 			bool bInUseLegacyBackstop,
@@ -96,6 +97,8 @@ namespace Chaos
 		TConstArrayView<TVector<float, 3>> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<TVector<float, 3>> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
+		// Return the solver's previous frame positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
+		TConstArrayView<TVector<float, 3>> GetParticleOldPositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<TVector<float, 3>> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
@@ -193,6 +196,7 @@ namespace Chaos
 		float DampingCoefficient;
 		float CollisionThickness;
 		float FrictionCoefficient;
+		bool bUseCCD;
 		bool bUseSelfCollisions;
 		float SelfCollisionThickness;
 		bool bUseLegacyBackstop;

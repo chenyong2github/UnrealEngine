@@ -128,13 +128,18 @@ public:
 	UPROPERTY()
 	float ShapeTargetStiffness = 0.f;
 
-	// The radius of cloth points when considering collisions against collider shapes.
+	// The added thickness of collision shapes.
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float CollisionThickness = 1.0f;
 
 	// Friction coefficient for cloth - collider interaction.
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
 	float FrictionCoefficient = 0.2f;
+
+	// Use continuous collision detection (CCD) to prevent any missed collisions between fast moving particles and colliders.
+	// This has a negative effect on performance compared to when resolving collision without using CCD.
+	UPROPERTY(EditAnywhere, Category = "Collision Properties")
+	bool bUseCCD = false;
 
 	// Enable self collision.
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (InlineEditConditionToggle))

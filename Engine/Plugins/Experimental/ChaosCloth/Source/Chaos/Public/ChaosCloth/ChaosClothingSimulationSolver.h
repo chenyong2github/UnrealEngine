@@ -57,7 +57,7 @@ namespace Chaos
 
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
 
-		// Update solver properties before simulation
+		// Update solver properties before simulation.
 		void Update(float InDeltaTime);
 
 		FBoxSphereBounds CalculateBounds() const;
@@ -71,15 +71,18 @@ namespace Chaos
 		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
-		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space
+		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
 			const TRigidTransform<float, 3>& OldReferenceSpaceTransform,
 			const TRigidTransform<float, 3>& ReferenceSpaceTransform,
 			const TVector<float, 3>& LinearVelocityScale,
 			float AngularVelocityScale);
 
-		// Set general cloth simulation properties
+		// Set general cloth simulation properties.
 		void SetProperties(uint32 GroupId, float DampingCoefficient, float CollisionThickness, float FrictionCoefficient);
+
+		// Set whether to use continuous collision detection.
+		void SetUseCCD(uint32 GroupId, bool bUseCCD);
 
 		// Set per group gravity, used to override solver's gravity. Must be called during cloth update.
 		void SetGravity(uint32 GroupId, const TVector<float, 3>& Gravity);
@@ -128,6 +131,9 @@ namespace Chaos
 		TRotation<float, 3>* GetCollisionParticleRs(int32 Offset);
 		void SetCollisionGeometry(int32 Offset, int32 Index, TUniquePtr<FImplicitObject>&& Geometry);
 		const TUniquePtr<FImplicitObject>* GetCollisionGeometries(int32 Offset) const;
+		const bool* GetCollisionStatus(int32 Offset) const;
+		const TArray<TVector<float, 3>>& GetCollisionContacts() const;
+		const TArray<TVector<float, 3>>& GetCollisionNormals() const;
 		// ---- End of the Collider interface ----
 
 	private:
