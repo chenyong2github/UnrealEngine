@@ -838,6 +838,33 @@ void UMoviePipeline::BuildShotListFromSequence()
 	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(TargetSequence, GetCurrentJob());
 	int32 ShotIndex = 0;
 
+	// Find any duplicate shot names and append a number to keep them unique
+	TMap<FString, int32> ShotNameUseCount;
+	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
+	{
+		int32& Count = ShotNameUseCount.FindOrAdd(Shot->OuterName, 0);
+		if (++Count > 1)
+		{
+			Shot->OuterName.Append(FString::Format(TEXT("({0})"), { ShotNameUseCount[Shot->OuterName] }));
+		}
+	}
+
+	// For any shot names we found duplicates, append 1 to the first to keep naming consistent
+	for (TPair<FString, int32>& Pair : ShotNameUseCount)
+	{
+		if (Pair.Value > 1)
+		{
+			for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
+			{
+				if (Shot->OuterName.Equals(Pair.Key))
+				{
+					Shot->OuterName.Append(TEXT("(1)"));
+					break;
+				}
+			}
+		}
+	}
+
 	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
 	{
 		// Cache the original values before we modify them so that we can restore them at the end.
