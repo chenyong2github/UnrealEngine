@@ -1939,6 +1939,8 @@ protected:
 	void ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthResolveTexture, bool bShouldRenderSingleLayerWater, const FSceneWithoutWaterTextures& WaterPassData);
 	/** Compose the volumetric render target over the scene from a view under water, in the water render target.*/
 	void ComposeVolumetricRenderTargetOverSceneUnderWater(FRDGBuilder& GraphBuilder, const FSceneWithoutWaterTextures& WaterPassData);
+	/** Simply overwrite scene color for debug visualization. */
+	void ComposeVolumetricRenderTargetOverSceneForVisualization(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture);
 
 	void ResolveSceneColor(FRHICommandListImmediate& RHICmdList);
 	void ResolveSceneDepth(FRHICommandListImmediate& RHICmdList);

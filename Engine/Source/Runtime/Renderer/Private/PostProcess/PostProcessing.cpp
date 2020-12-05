@@ -123,6 +123,7 @@ bool IsPostProcessingEnabled(const FViewInfo& View)
 			!View.Family->EngineShowFlags.VisualizeShadingModels &&
 			!View.Family->EngineShowFlags.VisualizeMeshDistanceFields &&
 			!View.Family->EngineShowFlags.VisualizeGlobalDistanceField &&
+			!View.Family->EngineShowFlags.VisualizeVolumetricCloudConservativeDensity &&
 			!View.Family->EngineShowFlags.ShaderComplexity;
 	}
 	else
