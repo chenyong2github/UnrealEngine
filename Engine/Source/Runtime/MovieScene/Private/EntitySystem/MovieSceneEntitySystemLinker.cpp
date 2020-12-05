@@ -278,6 +278,8 @@ void UMovieSceneEntitySystemLinker::OnWorldCleanup(UWorld* InWorld, bool bSessio
 {
 	Events.CleanUpWorld.Broadcast(this, InWorld);
 	InstanceRegistry->WorldCleanup(InWorld);
+
+	HandlePostGarbageCollection();
 }
 
 void UMovieSceneEntitySystemLinker::AddReferencedObjects(UObject* Object, FReferenceCollector& Collector)
