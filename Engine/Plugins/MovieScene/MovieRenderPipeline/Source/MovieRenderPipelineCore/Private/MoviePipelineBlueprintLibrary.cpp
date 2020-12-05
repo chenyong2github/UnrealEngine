@@ -434,12 +434,9 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 				}
 			}
 
-			// We need to generate a UMoviePipelineExecutorShot for each thing in a sequence regardless if the user wanted
-			// to use it so that we can appropriately disable everything else that is masked off. 
-			if (bLocalForceDisable)
-			{
-				ExistingShot->bEnabled = false;
-			}
+			// We need to generate a UMoviePipelineExecutorShot for each thing in a sequence regardless of if it should
+			// be rendered so that we can appropriately disable everything else that is masked off. 
+			ExistingShot->bForceDisable = bLocalForceDisable;
 			bAddedShot = true;
 
 			// The section range in local space as clipped by the outmost playback bounds.
