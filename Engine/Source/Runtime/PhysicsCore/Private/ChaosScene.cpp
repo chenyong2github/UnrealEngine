@@ -355,9 +355,9 @@ void FChaosScene::StartFrame()
 #endif
 }
 
-void FChaosScene::OnSyncBodies()
+void FChaosScene::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 {
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([](auto){});
+	Solver->PullPhysicsStateForEachDirtyProxy_External([](auto){});
 }
 
 bool FChaosScene::AreAnyTasksPending() const
@@ -403,7 +403,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 {
 #if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
-	OnSyncBodies();
+	OnSyncBodies(Solver);
 #endif
 }
 

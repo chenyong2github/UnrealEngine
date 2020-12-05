@@ -162,7 +162,7 @@ protected:
 
 	//Engine interface BEGIN
 	virtual float OnStartFrame(float InDeltaTime){ return InDeltaTime; }
-	virtual void OnSyncBodies();
+	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver);
 	//Engine interface END
 
 	template <typename RigidLambda>
