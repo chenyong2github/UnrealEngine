@@ -146,19 +146,30 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSharedShaderCodeRelease, const FSHAHash&);
 // Populated at cook time
 struct RENDERCORE_API FShaderCodeLibrary
 {
+	/** Adds the hooks for OnPakFileMounted, since pak opening normally happens earlier. */
+	static void PreInit();
+
+	/** This is the real initialization function. */
 	static void InitForRuntime(EShaderPlatform ShaderPlatform);
 	static void Shutdown();
-	
+
 	static bool IsEnabled();
 	
-	// Open a named library.
-	// For cooking this will place all added shaders & pipelines into the library file with this name.
-	// At runtime this will open the shader library with this name.
+	/** 
+	 * Open a named library.
+	 * 
+	 * At runtime this will open the shader library with this name.
+	 * @param Name is a high level description of the library (usually a project name or "Global")
+	 * @param Directory location of the .ushadercode file
+	 * @return true if successful
+	 */
 	static bool OpenLibrary(FString const& Name, FString const& Directory);
-    
-	// Close a named library.
-	// For cooking, after this point any AddShaderCode/AddShaderPipeline calls will be invalid until OpenLibrary is called again.
-	// At runtime this will release the library data and further requests for shaders from this library will fail.
+
+	/**
+	 * Close a named library.
+	 *
+	 * At runtime this will release the library data and further requests for shaders from this library will fail.
+	 */
 	static void CloseLibrary(FString const& Name);
 
     static bool ContainsShaderCode(const FSHAHash& Hash);
@@ -181,13 +192,27 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// The shader platform that the library manages - at runtime this will only be one
 	static EShaderPlatform GetRuntimeShaderPlatform(void);
 
+	// Safely assign the hash to a shader object
+	static void SafeAssignHash(FRHIShader* InShader, const FSHAHash& Hash);
+
+	// Delegate called whenever shader code is requested.
+	static FDelegateHandle RegisterSharedShaderCodeRequestDelegate_Handle(const FSharedShaderCodeRequest::FDelegate& Delegate);
+	static void UnregisterSharedShaderCodeRequestDelegate_Handle(FDelegateHandle Handle);
+};
+
 #if WITH_EDITOR
+class ITargetPlatform;
+
+struct RENDERCORE_API FShaderLibraryCooker
+{
 	// Initialize the library cooker
 	static void InitForCooking(bool bNativeFormat);
-	
+	// Shutdown the library cooker
+	static void Shutdown();
+
 	// Clean the cook directories
 	static void CleanDirectories(TArray<FName> const& ShaderFormats);
-    
+
 	struct FShaderFormatDescriptor
 	{
 		FName ShaderFormat;
@@ -195,8 +220,28 @@ struct RENDERCORE_API FShaderCodeLibrary
 		bool bNeedsDeterministicOrder;
 	};
 
+	/**
+	 * Opens a named library for cooking and sets it as the default.
+	 *
+	 * This will place all added shaders & pipelines into the library file with this name.
+	 * @param Name is a high level description of the library (usually a project name or "Global")
+	 * @return true if successful
+	 */
+	static bool BeginCookingLibrary(FString const& Name);
+
+	/**
+	 * Close a named library.
+	 *  For cooking, after this point any AddShaderCode/AddShaderPipeline calls will be invalid until OpenLibrary is called again.
+	 */
+	static void EndCookingLibrary(FString const& Name);
+
+	/**
+	 * Whether storing shaders in the shader library is enabled
+	 */
+	static bool IsShaderLibraryEnabled();
+
 	// Specify the shader formats to cook and which ones needs stable keys. Provide an array of FShaderFormatDescriptors
-    static void CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats);
+	static void CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats);
 
 	// At cook time, add shader code to collection
 	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets);
@@ -209,23 +254,38 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// At cook time, add the human readable key value information
 	static void AddShaderStableKeyValue(EShaderPlatform ShaderPlatform, FStableShaderKeyAndValue& StableKeyValue);
 
-	// Save collected shader code to a file for each specified shader platform
-	static bool SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath, const TArray<TSet<FName>>* ChunkAssignments);
-	
-	// Package the separate shader bytecode files into a single native shader library. Must be called by the master process.
-	static bool PackageNativeShaderLibrary(const FString& ShaderCodeDir, const TArray<FName>& ShaderFormats);
-	
+	/**
+	 * Saves collected shader code to a single file per shader platform
+	 * When chunking is enabled, this call will not write the shader code, only the SCL.CSV file with the stable shader info.
+	 * 
+	 * @param TargetPlatform target platform
+	 * @param Name shader library name
+	 * @param SandboxDestinationPath where to put the .ushaderbytecode file(s)
+	 * @param SandboxMetadataPath path for the metadata (not a part of the build itself, but produced together with the build)
+	 * @param PlatformSCLCSVPaths path where to put the information about the shader hashes
+	 * @param OutErrorMessage used to return the details of the failure (if failed)
+	 * @return true if successful
+	 */
+	static bool SaveShaderLibraryWithoutChunking(const ITargetPlatform* TargetPlatform, FString const& Name, FString const& SandboxDestinationPath, FString const& SandboxMetadataPath, TArray<FString>& PlatformSCLCSVPaths, FString& OutErrorMessage);
+
+	/** 
+	 * Saves a single chunk of the collected shader code (per shader platform). Does not save SCL.CSV info.
+	 * This code path is only called if we're chunking.
+	 * FIXME: this function does not write build metadata
+	 * 
+	 * @param ChunkId the chunk id
+	 * @param InPackagesInChunk packages that belong to the chunk
+	 * @param TargetPlatform target platform
+	 * @param SandboxDestinationPath where to put the .ushaderbytecode file(s)
+	 * @param OutChunkFilenames array where the function will append the full paths of the written files
+	 * @return true if successful
+	 */
+	static bool SaveShaderLibraryChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames);
+
 	// Dump collected stats for each shader platform
 	static void DumpShaderCodeStats();
-	
+
 	// Create a smaller 'patch' library that only contains data from 'NewMetaDataDir' not contained in any of 'OldMetaDataDirs'
 	static bool CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat, bool bNeedsDeterministicOrder);
-#endif
-	
-	// Safely assign the hash to a shader object
-	static void SafeAssignHash(FRHIShader* InShader, const FSHAHash& Hash);
-
-	// Delegate called whenever shader code is requested.
-	static FDelegateHandle RegisterSharedShaderCodeRequestDelegate_Handle(const FSharedShaderCodeRequest::FDelegate& Delegate);
-	static void UnregisterSharedShaderCodeRequestDelegate_Handle(FDelegateHandle Handle);
 };
+#endif

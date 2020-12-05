@@ -104,6 +104,7 @@
 // shader compiler processAsyncResults
 #include "ShaderCompiler.h"
 #include "ShaderCodeLibrary.h"
+#include "ShaderLibraryChunkDataGenerator.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/TextureLODSettings.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -5622,7 +5623,7 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
     if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
     {
-        FShaderCodeLibrary::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
+		FShaderLibraryCooker::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
         
 		bool bAllPlatformsNeedStableKeys = false;
 		// support setting without Hungarian prefix for the compatibility, but allow newer one to override
@@ -5632,6 +5633,7 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
         for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
         {
 			// Find out if this platform requires stable shader keys, by reading the platform setting file.
+			// Stable shader keys are needed if we are going to create a PSO cache.
 			bool bNeedShaderStableKeys = bAllPlatformsNeedStableKeys;
 			FConfigFile PlatformIniFile;
 			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
@@ -5645,10 +5647,10 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 
             TArray<FName> ShaderFormats;
             TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-			TArray<FShaderCodeLibrary::FShaderFormatDescriptor> ShaderFormatsWithStableKeys;
+			TArray<FShaderLibraryCooker::FShaderFormatDescriptor> ShaderFormatsWithStableKeys;
 			for (FName& Format : ShaderFormats)
 			{
-				FShaderCodeLibrary::FShaderFormatDescriptor NewDesc;
+				FShaderLibraryCooker::FShaderFormatDescriptor NewDesc;
 				NewDesc.ShaderFormat = Format;
 				NewDesc.bNeedsStableKeys = bNeedShaderStableKeys;
 				NewDesc.bNeedsDeterministicOrder = bNeedsDeterministicOrder;
@@ -5657,7 +5659,7 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 
             if (ShaderFormats.Num() > 0)
 			{
-				FShaderCodeLibrary::CookShaderFormats(ShaderFormatsWithStableKeys);
+				FShaderLibraryCooker::CookShaderFormats(ShaderFormatsWithStableKeys);
 			}
         }
     }
@@ -5679,7 +5681,7 @@ void UCookOnTheFlyServer::OpenGlobalShaderLibrary()
 		FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 
 		// The shader code library directory doesn't matter while cooking
-		FShaderCodeLibrary::OpenLibrary(ActualName, TEXT(""));
+		FShaderLibraryCooker::BeginCookingLibrary(ActualName);
 	}
 }
 
@@ -5692,7 +5694,7 @@ void UCookOnTheFlyServer::OpenShaderLibrary(FString const& Name)
 		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 
 		// The shader code library directory doesn't matter while cooking
-		FShaderCodeLibrary::OpenLibrary(ActualName, TEXT(""));
+		FShaderLibraryCooker::BeginCookingLibrary(ActualName);
 	}
 }
 
@@ -5785,7 +5787,7 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 	}
 }
 
-void UCookOnTheFlyServer::SaveGlobalShaderLibrary()
+void UCookOnTheFlyServer::SaveAndCloseGlobalShaderLibrary()
 {
 	const TCHAR* GlobalShaderLibName = TEXT("Global");
 	FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
@@ -5797,52 +5799,41 @@ void UCookOnTheFlyServer::SaveGlobalShaderLibrary()
 		// Save shader code map - cleaning directories is deliberately a separate loop here as we open the cache once per shader platform and we don't assume that they can't be shared across target platforms.
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
-			SaveShaderLibrary(TargetPlatform, GlobalShaderLibName, nullptr);
+			SaveShaderLibrary(TargetPlatform, GlobalShaderLibName);
 		}
 
-		FShaderCodeLibrary::CloseLibrary(ActualName);
+		FShaderLibraryCooker::EndCookingLibrary(ActualName);
 	}
 }
 
-void UCookOnTheFlyServer::SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name, const TArray<TSet<FName>>* ChunkAssignments)
+void UCookOnTheFlyServer::SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name)
 {
-	FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-	FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
-
-	FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
-
-	const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
-	const FString MetaDataPathSB = ConvertToFullSandboxPath(*RootMetaDataPath, true);
-	const FString MetaDataPath = MetaDataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
-
-	// note that shader formats can be shared across the target platforms
 	TArray<FName> ShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 	if (ShaderFormats.Num() > 0)
 	{
-		FString TargetPlatformName = TargetPlatform->PlatformName();
-		TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatformName));
-		bool bSaved = FShaderCodeLibrary::SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths, ChunkAssignments);
+		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
+		FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
 
-		if (UNLIKELY(!bSaved))
+		FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
+
+		const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
+		const FString MetaDataPathSB = ConvertToFullSandboxPath(*RootMetaDataPath, true);
+		const FString MetaDataPath = MetaDataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+
+		TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatform->PlatformName()));
+		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+		FString ErrorString;
+		if (!FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(TargetPlatform, Name, ShaderCodeDir, MetaDataPath, PlatformSCLCSVPaths, ErrorString))
 		{
-			LogCookerMessage(FString::Printf(TEXT("Saving shared material shader code library failed for %s."), *TargetPlatformName), EMessageSeverity::Error);
+			// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
+			LogCookerMessage(FString::Printf(TEXT("%s"), *ErrorString), EMessageSeverity::Error);
 		}
 		else
 		{
-			const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-			if (PackagingSettings->bSharedMaterialNativeLibraries)
-			{
-				bSaved = FShaderCodeLibrary::PackageNativeShaderLibrary(ShaderCodeDir, ShaderFormats);
-				if (!bSaved)
-				{
-					// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
-					LogCookerMessage(FString::Printf(TEXT("Package Native Shader Library failed for %s."), *TargetPlatformName), EMessageSeverity::Error);
-				}
-			}
 			for (const FString& Item : PlatformSCLCSVPaths)
 			{
-				UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatformName,
+				UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatform->PlatformName(),
 					IFileManager::Get().FileSize(*Item));
 			}
 		}
@@ -5865,7 +5856,7 @@ void UCookOnTheFlyServer::CleanShaderCodeLibraries()
 			TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 			if (ShaderFormats.Num() > 0)
 			{
-				FShaderCodeLibrary::CleanDirectories(ShaderFormats);
+				FShaderLibraryCooker::CleanDirectories(ShaderFormats);
 			}
 		}
 	}
@@ -6033,9 +6024,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					// Save shader code map
 					if (LibraryName.Len() > 0)
 					{
-						TArray<TSet<FName>> ChunkAssignments;
-						Generator.GetChunkAssignments(ChunkAssignments);
-						SaveShaderLibrary(TargetPlatform, LibraryName, &ChunkAssignments);
+						SaveShaderLibrary(TargetPlatform, LibraryName);
 
 						CreatePipelineCache(TargetPlatform, LibraryName);
 					}
@@ -6064,8 +6053,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	}
 
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-	FShaderCodeLibrary::CloseLibrary(ActualLibraryName);
-	FShaderCodeLibrary::Shutdown();
+	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
+	FShaderLibraryCooker::Shutdown();
 
 	if (CookByTheBookOptions->bGenerateDependenciesForMaps)
 	{
@@ -6865,6 +6854,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		PackageNameCache.SetAssetRegistry(CacheAssetRegistry);
 	}
 	
+	// add shader library chunkers
+	if (PackagingSettings->bShareMaterialShaderCode)
+	{
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		{
+			FAssetRegistryGenerator* RegistryGenerator = PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
+			RegistryGenerator->RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(TargetPlatform));
+		}
+	}
+
 	// don't resave the global shader map files in dlc
 	if (!IsCookingDLC() && !(CookByTheBookStartupOptions.CookOptions & ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
 	{
@@ -6872,7 +6871,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 		SaveGlobalShaderMapFiles(TargetPlatforms);
 
-		SaveGlobalShaderLibrary();
+		SaveAndCloseGlobalShaderLibrary();
 	}
 	
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking

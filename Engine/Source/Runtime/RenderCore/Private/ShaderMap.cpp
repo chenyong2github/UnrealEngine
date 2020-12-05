@@ -182,7 +182,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 
 		bool bShareCode = false;
 #if WITH_EDITOR
-		bShareCode = !bInlineShaderCode && FShaderCodeLibrary::IsEnabled() && Ar.IsCooking();
+		bShareCode = !bInlineShaderCode && FShaderLibraryCooker::IsShaderLibraryEnabled() && Ar.IsCooking();
 #endif // WITH_EDITOR
 		Ar << bShareCode;
 #if WITH_EDITOR
@@ -195,7 +195,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		{
 			FSHAHash ResourceHash = Code->ResourceHash;
 			Ar << ResourceHash;
-			FShaderCodeLibrary::AddShaderCode(GetShaderPlatform(), Code, GetAssociatedAssets());
+			FShaderLibraryCooker::AddShaderCode(GetShaderPlatform(), Code, GetAssociatedAssets());
 		}
 		else
 #endif // WITH_EDITOR
