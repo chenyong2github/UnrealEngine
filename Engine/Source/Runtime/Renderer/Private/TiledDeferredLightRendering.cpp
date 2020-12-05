@@ -399,6 +399,10 @@ void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 					{
 						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, *SceneColorTexture->GetPooledRenderTarget(), *SceneColorOutputTexture->GetPooledRenderTarget());
 					}
+
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+					RHICmdList.RHIFlushTextureCacheBOP(SceneColorOutputTexture->GetRHI());
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 				});
 			}
 
