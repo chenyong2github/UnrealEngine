@@ -90,58 +90,79 @@ static FAutoConsoleVariableRef CVarNiagaraForceWaitForCompilationOnActivate(
 	ECVF_Default
 );
 
-void DumpNiagaraComponents(UWorld* World)
-{
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-	{
-		TArray<UNiagaraComponent*> Components;
-		ActorItr->GetComponents<UNiagaraComponent>(Components, true);
-		if (Components.Num() != 0)
+FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
+	TEXT("fx.Niagara.DumpComponents"),
+	TEXT("Dump Information about all Niagara Components"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args, UWorld* World)
 		{
-			UE_LOG(LogNiagara, Log, TEXT("Actor: \"%s\" ... %d Components"), *ActorItr->GetName(), Components.Num());
-		}
+			UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
 
-		for (UNiagaraComponent* Component : Components)
-		{
-			if (Component != nullptr)
-			{
-				UNiagaraSystem* Sys = Component->GetAsset();
-				FNiagaraSystemInstance* SysInst = Component->GetSystemInstance();
-				if (!Sys)
+			const bool bFullDump = Args.Contains(TEXT("full"));
+			const bool bAllWorlds = (World == nullptr) || Args.Contains(TEXT("allworlds"));
+			const FString SystemFilter = 
+				[&]() -> FString
 				{
-					UE_LOG(LogNiagara, Log, TEXT("Component: \"%s\" ... no system"), *Component->GetName());
-
-				}
-				else if (Sys && !SysInst)
-				{
-					UE_LOG(LogNiagara, Log, TEXT("Component: \"%s\" System: \"%s\" ... no instance"), *Component->GetName(), *Sys->GetName());
-
-				}
-				else
-				{
-					UE_LOG(LogNiagara, Log, TEXT("Component: \"%s\" System: \"%s\" | ReqExecState: %d | ExecState: %d | bIsActive: %d"), *Component->GetName(), *Sys->GetName(),
-						(int32)SysInst->GetRequestedExecutionState(), (int32)SysInst->GetActualExecutionState(), Component->IsActive());
-
-					if (!SysInst->IsComplete())
+					static const FString FilterPrefix(TEXT("filter="));
+					for ( const FString& Arg : Args )
 					{
-						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : SysInst->GetEmitters())
+						if ( Arg.StartsWith(FilterPrefix) )
 						{
-							UE_LOG(LogNiagara, Log, TEXT("    Emitter: \"%s\" | ExecState: %d | NumParticles: %d | CPUTime: %f"), *Emitter->GetEmitterHandle().GetUniqueInstanceName(),
-								(int32)Emitter->GetExecutionState(), Emitter->GetNumParticles(), Emitter->GetTotalCPUTimeMS());
+							return Arg.Mid(FilterPrefix.Len());
 						}
+					}
+					return FString();
+				}();
+
+				UE_LOG(LogNiagara, Log, TEXT("=========================== Begin Niagara Dump ==========================="));
+				for (TObjectIterator<UNiagaraComponent> It; It; ++It)
+			{
+				UNiagaraComponent* Component = *It;
+				if ( Component->IsPendingKill() )
+				{
+					continue;
+				}
+
+				// Filter by world
+				if (!bAllWorlds && (Component->GetWorld() != World) )
+				{
+					continue;
+				}
+
+				// Filter by asset name, we allow null assets to continue so we can identify components who are attached but have no valid asset associated with them
+				UNiagaraSystem* NiagaraSystem = Component->GetAsset();
+				if ( !SystemFilter.IsEmpty() )
+				{
+					if (!NiagaraSystem || !NiagaraSystem->GetName().Contains(SystemFilter) )
+					{
+						continue;
+					}
+				}
+
+				UE_LOG(LogNiagara, Log, TEXT("Component '%s' Asset '%s' Actor '%s' is %s"), *GetNameSafe(Component), *GetNameSafe(NiagaraSystem), *GetNameSafe(Component->GetTypedOuter<AActor>()), Component->IsActive() ? TEXT("Active") : TEXT("Inactive"));
+				if ( FNiagaraSystemInstance* SystemInstance = Component->GetSystemInstance() )
+				{
+					UE_LOG(LogNiagara, Log, TEXT("\tSystem ExecutionState(%s) RequestedExecutionState(%s)"),*ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetActualExecutionState()), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetRequestedExecutionState()));
+					if (!SystemInstance->IsComplete())
+					{
+						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : SystemInstance->GetEmitters())
+						{
+							UE_LOG(LogNiagara, Log, TEXT("\tEmitter '%s' ExecutionState(%s) NumParticles(%d)"), *Emitter->GetEmitterHandle().GetUniqueInstanceName(), *ExecutionStateEnum->GetNameStringByIndex((int32)Emitter->GetExecutionState()), Emitter->GetNumParticles());
+						}
+					}
+
+					if ( bFullDump )
+					{
+						UE_LOG(LogNiagara, Log, TEXT("=========================== Begin Full Dump ==========================="));
+						SystemInstance->Dump();
+						UE_LOG(LogNiagara, Log, TEXT("=========================== End Full Dump ==========================="));
 					}
 				}
 			}
+			UE_LOG(LogNiagara, Log, TEXT("=========================== End Niagara Dump ==========================="));
 		}
-	}
-}
-
-FAutoConsoleCommandWithWorld DumpNiagaraComponentsCommand(
-	TEXT("DumpNiagaraComponents"),
-	TEXT("Dump Existing Niagara Components"),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&DumpNiagaraComponents)
+	)
 );
-
 
 FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
