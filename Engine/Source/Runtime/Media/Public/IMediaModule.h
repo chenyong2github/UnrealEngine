@@ -15,7 +15,7 @@ class IMediaPlayerFactory;
 class IMediaTicker;
 class IMediaTimeSource;
 class IMediaInfo;
-
+class IMediaPlayerLifecycleManagerDelegate;
 
 /**
  * Interface for the Media module.
@@ -124,6 +124,22 @@ public:
 	 * @see GetPlayerFactories, RegisterPlayerFactory, RegisterPlayerFactory
 	 */
 	virtual void UnregisterPlayerFactory(IMediaPlayerFactory& Factory) = 0;
+
+	/**
+	* Set player lifetime delegate
+	* @param Delegate Delegate instance to set for use. Use nullptr to reset delegate.
+	*/
+	virtual void SetPlayerLifecycleManagerDelegate(IMediaPlayerLifecycleManagerDelegate* Delegate) = 0;
+
+	/**
+	* Get player lifetime delegate
+	*/
+	virtual IMediaPlayerLifecycleManagerDelegate* GetPlayerLifecycleManagerDelegate() = 0;
+
+	/**
+	* Get new media player instance ID
+	*/
+	virtual uint64 CreateMediaPlayerInstanceID() = 0;
 
 public:
 
