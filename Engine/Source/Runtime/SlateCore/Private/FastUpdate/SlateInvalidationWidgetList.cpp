@@ -70,7 +70,6 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 		WidgetProxy.ParentIndex = ParentIndex;
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
 		WidgetProxy.Visibility = Visibility;
-		WidgetProxy.bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
 	}
 
 #if WITH_SLATE_DEBUGGING
@@ -138,7 +137,7 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 		const bool bDoRecursion = ShouldDoRecursion(Widget);
 		if (bDoRecursion)
 		{
-			const bool bParentVisible = Widget->GetVisibility().IsVisible();
+			const bool bParentVisible = Widget->IsFastPathVisible();
 			const bool bParentVolatile = Widget->IsVolatile();
 			int32 NumChildren = ParentChildren->Num();
 			for (int32 Index = ChildAtIndex; Index < NumChildren; ++Index)

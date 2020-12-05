@@ -59,6 +59,14 @@ static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyHittestGrid(
 	TEXT("Each frame, verify the hittest grid.")
 );
 void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList& WidgetList, FHittestGrid* HittestGrid);
+
+bool GSlateInvalidationRootVerifyWidgetVisibilityInherited = false;
+static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyVisibilityInherited(
+	TEXT("Slate.InvalidationRoot.VerifyWidgetVisibilityInherited"),
+	GSlateInvalidationRootVerifyWidgetVisibilityInherited,
+	TEXT("Each frame, verify that the cached visibility of the widgets is properly set.")
+);
+void VerifyWidgetVisibilityInherited(FSlateInvalidationWidgetList& WidgetList);
 #endif //WITH_SLATE_DEBUGGING
 
 #if SLATE_CSV_TRACKER
@@ -368,7 +376,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 					{
 						UE_LOG(LogSlate, Log, TEXT("Repaint %s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr));
 					}
-					else if (!WidgetProxy.bInvisibleDueToParentOrSelfVisibility)
+					else if (WidgetPtr->IsFastPathVisible())
 					{
 						if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 						{
@@ -395,7 +403,8 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 				FWidgetProxy& WidgetProxy = (*FastWidgetPathList)[MyIndex];
 
 				// Check visibility, it may have been in the update list but a parent who was also in the update list already updated it.
-				if (!WidgetProxy.bInvisibleDueToParentOrSelfVisibility && !WidgetProxy.bUpdatedSinceLastInvalidate && ensure(WidgetProxy.GetWidget()))
+				SWidget* WidgetPtr = WidgetProxy.GetWidget();
+				if (!WidgetProxy.bUpdatedSinceLastInvalidate && ensure(WidgetPtr) && WidgetPtr->IsFastPathVisible())
 				{
 					bWidgetsNeededRepaint = bWidgetsNeededRepaint || EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
 
@@ -636,6 +645,13 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 		bWidgetsNeedRepaint = true;
 	}
 
+#if WITH_SLATE_DEBUGGING
+	if (GSlateInvalidationRootVerifyWidgetVisibilityInherited)
+	{
+		VerifyWidgetVisibilityInherited(GetFastPathWidgetList());
+	}
+#endif
+
 	return bWidgetsNeedRepaint;
 }
 
@@ -799,6 +815,26 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 
 	ensureAlwaysMsgf(HittestGridSortDatas.Num() == 0, TEXT("The hittest grid of Root '%s' has widget that are not inside the InvalidationRoot's widget list")
 		, *FReflectionMetaData::GetWidgetPath(InvalidationRootWidget));
+}
+
+void VerifyWidgetVisibilityInherited(FSlateInvalidationWidgetList& WidgetList)
+{
+	SWidget* Root = WidgetList.GetRoot().Pin().Get();
+	WidgetList.ForEachWidget([Root](const SWidget* Widget)
+		{
+			if (Widget != Root)
+			{
+				bool bSouldBeFastPathVisible = Widget->GetVisibility().IsVisible();
+				TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
+				if (ensure(ParentWidget))
+				{
+					bSouldBeFastPathVisible = bSouldBeFastPathVisible && ParentWidget->IsFastPathVisible();
+				}
+				ensureMsgf(Widget->IsFastPathVisible() == bSouldBeFastPathVisible, TEXT("Widget '%s' should be %s.")
+					, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
+					, (bSouldBeFastPathVisible ? TEXT("visible") : TEXT("hidden")));
+			}
+		});
 }
 #endif //WITH_SLATE_DEBUGGING
 
