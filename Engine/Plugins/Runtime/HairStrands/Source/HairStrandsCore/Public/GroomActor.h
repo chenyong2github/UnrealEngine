@@ -18,6 +18,12 @@ class HAIRSTRANDSCORE_API AGroomActor : public AActor
 	UPROPERTY(Category = StrandHair, VisibleAnywhere, BlueprintReadOnly)
 	class UGroomComponent* GroomComponent;
 
+	//~ Begin AActor Interface
+#if WITH_EDITOR
+	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+#endif
+	//~ End AActor Interface
+
 #if WITH_EDITORONLY_DATA
 protected:
 	/** Billboard used to see the scene in the editor */
