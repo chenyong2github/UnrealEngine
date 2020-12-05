@@ -566,8 +566,25 @@ namespace GroomBinding_RootProjection
 			return Out;
 		}
 
+		bool IsTriangleValid(const FTriangle& T) const
+		{
+			const FVector A = T.P0;
+			const FVector B = T.P1;
+			const FVector C = T.P2;
+
+			const FVector AB = B - A;
+			const FVector AC = C - A;
+			const FVector BC = B - C;
+			return FVector::DotProduct(AB, AB) > 0 && FVector::DotProduct(AC, AC) > 0 && FVector::DotProduct(BC, BC) > 0;
+		}
+
 		void Insert(const FTriangle& T)
 		{
+			if (!IsTriangleValid(T))
+			{
+				return;
+			}
+
 			FVector TriMinBound;
 			TriMinBound.X = FMath::Min(T.P0.X, FMath::Min(T.P1.X, T.P2.X));
 			TriMinBound.Y = FMath::Min(T.P0.Y, FMath::Min(T.P1.Y, T.P2.Y));
