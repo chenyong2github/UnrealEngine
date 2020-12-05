@@ -239,7 +239,7 @@ void FLevelSequenceActorSpawner::DestroySpawnedObject(UObject& Object)
 #endif
 
 	UWorld* World = Actor->GetWorld();
-	if (ensure(World))
+	if (World)
 	{
 		const bool bNetForce = false;
 		const bool bShouldModifyLevel = false;
