@@ -945,7 +945,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 
 	SkinningHandlerType SkinningHandler;
 	TransformHandlerType TransformHandler;
-	VertexAccessorType VertAccessor;
 	FNDIInputParam<int32> TriParam(Context);
 	FNDIInputParam<FVector> BaryParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> InterpParam;
@@ -977,16 +976,14 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 
 	FVector Pos0;		FVector Pos1;		FVector Pos2;
 	FVector Prev0;		FVector Prev1;		FVector Prev2;
-	FVector Normal;
-	FVector Binormal;
-	FVector Tangent;
 	int32 Idx0; int32 Idx1; int32 Idx2;
 	FVector Pos;
 	FVector Prev;
 	FVector Velocity;
 
-	bool bNeedsCurr = bInterpolated::Value || Output.bNeedsPosition || Output.bNeedsVelocity || Output.bNeedsNorm || Output.bNeedsBinorm || Output.bNeedsTangent;
-	bool bNeedsPrev = bInterpolated::Value || Output.bNeedsVelocity;
+	const bool bNeedsCurr = bInterpolated::Value || Output.bNeedsPosition || Output.bNeedsVelocity || Output.bNeedsNorm || Output.bNeedsBinorm || Output.bNeedsTangent;
+	const bool bNeedsPrev = bInterpolated::Value || Output.bNeedsVelocity;
+	const bool bNeedsTangentBasis = Output.bNeedsNorm || Output.bNeedsBinorm || Output.bNeedsTangent;
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -1035,109 +1032,57 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 			Velocity = (Pos - Prev) * InvDt;
 
 			//No need to handle velocity wrt interpolation as it's based on the prev position anyway
-
 			Output.Velocity.SetAndAdvance(Velocity);
 		}
 
-		//TODO: For preskin we should be able to calculate this stuff on the mesh for a perf win in most cases.
-		if (Output.bNeedsNorm)
+		// Do we need the tangent basis?
+		if (bNeedsTangentBasis)
 		{
-			Normal = ((Pos1 - Pos2) ^ (Pos0 - Pos2)).GetSafeNormal();
-			TransformHandler.TransformVector(Normal, Transform);
+			FVector VertexTangentX[3];
+			FVector VertexTangentY[3];
+			FVector VertexTangentZ[3];
+			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx0, VertexTangentX[0], VertexTangentY[0], VertexTangentZ[0]);
+			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx1, VertexTangentX[1], VertexTangentY[1], VertexTangentZ[1]);
+			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx2, VertexTangentX[2], VertexTangentY[2], VertexTangentZ[2]);
+
+			FVector TangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentX[0], VertexTangentX[1], VertexTangentX[2]);
+			FVector TangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentY[0], VertexTangentY[1], VertexTangentY[2]);
+			FVector TangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentZ[0], VertexTangentZ[1], VertexTangentZ[2]);
 
 			if (bInterpolated::Value)
 			{
-				FVector PrevNormal = ((Prev1 - Prev2) ^ (Prev0 - Prev2)).GetSafeNormal();
-				TransformHandler.TransformVector(PrevNormal, PrevTransform);
+				FVector PrevVertexTangentX[3];
+				FVector PrevVertexTangentY[3];
+				FVector PrevVertexTangentZ[3];
+				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx0, PrevVertexTangentX[0], PrevVertexTangentY[0], PrevVertexTangentZ[0]);
+				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx1, PrevVertexTangentX[1], PrevVertexTangentY[1], PrevVertexTangentZ[1]);
+				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx2, PrevVertexTangentX[2], PrevVertexTangentY[2], PrevVertexTangentZ[2]);
 
-				Normal = FMath::VInterpNormalRotationTo(PrevNormal, Normal, Interp, 1.0f);
+				FVector PrevTangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentX[0], PrevVertexTangentX[1], PrevVertexTangentX[2]);
+				FVector PrevTangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentY[0], PrevVertexTangentY[1], PrevVertexTangentY[2]);
+				FVector PrevTangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentZ[0], PrevVertexTangentZ[1], PrevVertexTangentZ[2]);
+
+				TangentX = FMath::Lerp(PrevTangentX, TangentX, Interp);
+				TangentY = FMath::Lerp(PrevTangentY, TangentY, Interp);
+				TangentZ = FMath::Lerp(PrevTangentZ, TangentZ, Interp);
 			}
 
-			Output.Normal.SetAndAdvance(Normal);
-		}
-
-		if (Output.bNeedsBinorm || Output.bNeedsTangent)
-		{
-			FVector2D UV0 = VertAccessor.GetVertexUV(LODData, Idx0, 0);
-			FVector2D UV1 = VertAccessor.GetVertexUV(LODData, Idx1, 0);
-			FVector2D UV2 = VertAccessor.GetVertexUV(LODData, Idx2, 0);
-
-			// Normal binormal tangent calculation code based on tools code found at:
-			// \Engine\Source\Developer\MeshUtilities\Private\MeshUtilities.cpp
-			// Skeletal_ComputeTriangleTangents
-			FMatrix	ParameterToLocal(
-				FPlane(Pos1.X - Pos0.X, Pos1.Y - Pos0.Y, Pos1.Z - Pos0.Z, 0),
-				FPlane(Pos2.X - Pos0.X, Pos2.Y - Pos0.Y, Pos2.Z - Pos0.Z, 0),
-				FPlane(Pos0.X, Pos0.Y, Pos0.Z, 0),
-				FPlane(0, 0, 0, 1)
-			);
-
-			FMatrix ParameterToTexture(
-				FPlane(UV1.X - UV0.X, UV1.Y - UV0.Y, 0, 0),
-				FPlane(UV2.X - UV0.X, UV2.Y - UV0.Y, 0, 0),
-				FPlane(UV0.X, UV0.Y, 1, 0),
-				FPlane(0, 0, 0, 1)
-			);
-
-			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-
-			if (bInterpolated::Value)
+			if (Output.bNeedsNorm)
 			{
-				FMatrix	PrevParameterToLocal(
-					FPlane(Prev1.X - Prev0.X, Prev1.Y - Prev0.Y, Prev1.Z - Prev0.Z, 0),
-					FPlane(Prev2.X - Prev0.X, Prev2.Y - Prev0.Y, Prev2.Z - Prev0.Z, 0),
-					FPlane(Prev0.X, Prev0.Y, Prev0.Z, 0),
-					FPlane(0, 0, 0, 1)
-				);
-
-				// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-				const FMatrix PrevTextureToLocal = ParameterToTexture.Inverse() * PrevParameterToLocal;
-
-				//TODO: For preskin we should be able to calculate this stuff on the mesh for a perf win in most cases.
-				if (Output.bNeedsBinorm)
-				{
-					Binormal = (TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(Binormal, Transform);
-
-					FVector PrevBinormal = (PrevTextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(PrevBinormal, PrevTransform);
-
-					Binormal = FMath::VInterpNormalRotationTo(Binormal, Binormal, Interp, 1.0f);
-
-					Output.Binormal.SetAndAdvance(Binormal);
-				}
-
-				//TODO: For preskin we should be able to calculate this stuff on the mesh for a perf win in most cases.
-				if (Output.bNeedsTangent)
-				{
-					Tangent = (TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(Tangent, Transform);
-
-					FVector PrevTangent = (TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(PrevTangent, PrevTransform);
-
-					Tangent = FMath::VInterpNormalRotationTo(PrevTangent, Tangent, Interp, 1.0f);
-
-					Output.Tangent.SetAndAdvance(Tangent);
-				}
+				TransformHandler.TransformVector(TangentZ, Transform);
+				Output.Normal.SetAndAdvance(TangentZ.GetSafeNormal());
 			}
-			else
+
+			if (Output.bNeedsBinorm)
 			{
-				if (Output.bNeedsBinorm)
-				{
-					Binormal = (TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(Binormal, Transform);
+				TransformHandler.TransformVector(TangentY, Transform);
+				Output.Binormal.SetAndAdvance(TangentY.GetSafeNormal());
+			}
 
-					Output.Binormal.SetAndAdvance(Binormal);
-				}
-
-				if (Output.bNeedsTangent)
-				{
-					Tangent = (TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-					TransformHandler.TransformVector(Tangent, Transform);
-					Output.Tangent.SetAndAdvance(Tangent);
-				}
+			if (Output.bNeedsTangent)
+			{
+				TransformHandler.TransformVector(TangentX, Transform);
+				Output.Tangent.SetAndAdvance(TangentX.GetSafeNormal());
 			}
 		}
 	}

@@ -213,6 +213,10 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 			{
 				PrevSkinnedPositions(LODIndex) = CurrSkinnedPositions(LODIndex);
 			}
+			if (PrevSkinnedTangentBasis(LODIndex).Num() != CurrSkinnedTangentBasis(LODIndex).Num())
+			{
+				PrevSkinnedTangentBasis(LODIndex) = CurrSkinnedTangentBasis(LODIndex);
+			}
 		}
 	}
 }
@@ -375,6 +379,10 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 				if (PrevSkinnedPositions(LODIndex).Num() != CurrSkinnedPositions(LODIndex).Num())
 				{
 					PrevSkinnedPositions(LODIndex) = CurrSkinnedPositions(LODIndex);
+				}
+				if (PrevSkinnedTangentBasis(LODIndex).Num() != CurrSkinnedTangentBasis(LODIndex).Num())
+				{
+					PrevSkinnedTangentBasis(LODIndex) = CurrSkinnedTangentBasis(LODIndex);
 				}
 			}
 		}

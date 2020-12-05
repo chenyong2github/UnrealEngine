@@ -1627,6 +1627,7 @@ void GetTypedSkinnedTangentBasis(
 	const int32 VertIndex,
 	const TArray<FMatrix> & RefToLocals,
 	FVector& OutTangentX,
+	FVector& OutTangentY,
 	FVector& OutTangentZ
 );
 

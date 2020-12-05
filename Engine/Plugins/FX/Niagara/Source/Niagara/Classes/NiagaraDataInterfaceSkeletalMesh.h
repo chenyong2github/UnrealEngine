@@ -108,10 +108,18 @@ struct FSkeletalMeshSkinningData
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex];
 	}
 
-	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentZ)
+	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 	{
-		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[(VertexIndex * 2) + 0];
-		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[(VertexIndex * 2) + 1];
+		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0];
+		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1];
+		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2];
+	}
+
+	FORCEINLINE void GetPreviousTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
+	{
+		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0];
+		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1];
+		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2];
 	}
 
 	FORCEINLINE TArray<FVector>& CurrSkinnedPositions(int32 LODIndex)
@@ -126,7 +134,12 @@ struct FSkeletalMeshSkinningData
 
 	FORCEINLINE TArray<FVector>& CurrSkinnedTangentBasis(int32 LODIndex)
 	{
-		return LODData[LODIndex].SkinnedTangentBasis;
+		return LODData[LODIndex].SkinnedTangentBasis[CurrIndex];
+	}
+
+	FORCEINLINE TArray<FVector>& PrevSkinnedTangentBasis(int32 LODIndex)
+	{
+		return LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1];
 	}
 
 	FORCEINLINE TArray<FMatrix>& CurrBoneRefToLocals()
@@ -213,7 +226,7 @@ private:
 		TArray<FVector> SkinnedCPUPositions[2];
 
 		/** CPU Skinned tangent basis, where each vertex will map to TangentX + TangentZ */
-		TArray<FVector> SkinnedTangentBasis;
+		TArray<FVector> SkinnedTangentBasis[2];
 	};
 	TArray<FLODData> LODData;
 
