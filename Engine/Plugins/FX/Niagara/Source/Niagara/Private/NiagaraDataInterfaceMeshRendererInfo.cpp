@@ -587,3 +587,5 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMContext&
 		OutMaxBounds.SetAndAdvance(MaxLocalBounds);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
