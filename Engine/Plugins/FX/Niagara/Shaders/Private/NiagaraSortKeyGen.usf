@@ -46,6 +46,8 @@ int NumCullPlanes;
 float4 CullPlanes[NIAGARA_KEY_GEN_MAX_CULL_PLANES];
 int RendererVisibility;
 uint RendererVisTagAttributeOffset;
+int MeshIndex;
+uint MeshIndexAttributeOffset;
 float2 CullDistanceRangeSquared;
 float4 LocalBoundingSphere;
 float3 CullingWorldSpaceOffset;
@@ -173,6 +175,17 @@ bool CullParticle(in uint ParticleIndex)
 	{
 		int Category = GetInt(RendererVisTagAttributeOffset, ParticleIndex);
 		if (Category != RendererVisibility)
+		{
+			// This particle is not visible in this renderer.
+			return true;
+		}
+	}
+	
+	// Cull based on mesh index (when applicable)
+	if (MeshIndexAttributeOffset != -1)
+	{
+		int Index = GetInt(MeshIndexAttributeOffset, ParticleIndex);
+		if (Index != MeshIndex)
 		{
 			// This particle is not visible in this renderer.
 			return true;

@@ -129,7 +129,6 @@ protected:
 	uint32 bHasLights : 1;
 	uint32 bMotionBlurEnabled : 1;
 	const ENiagaraSimTarget SimTarget;
-	uint32 NumIndicesPerInstance;
 
 	ERHIFeatureLevel::Type FeatureLevel;
 

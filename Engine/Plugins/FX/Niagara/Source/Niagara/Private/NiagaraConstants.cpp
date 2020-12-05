@@ -236,6 +236,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_SCALE);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIFETIME);
 		Attributes.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION);
+		Attributes.Add(SYS_PARAM_PARTICLES_MESH_INDEX);
 		Attributes.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET);
 		Attributes.Add(SYS_PARAM_PARTICLES_UV_SCALE);
 		Attributes.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
@@ -275,6 +276,7 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SCALE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SCALE));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIFETIME, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIFETIME));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MESH_ORIENTATION));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MESH_INDEX));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_CAMERA_OFFSET));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_UV_SCALE));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MATERIAL_RANDOM));
@@ -375,6 +377,11 @@ void FNiagaraConstants::Init()
 		Var = SYS_PARAM_PARTICLES_MESH_ORIENTATION;
 		Var.SetValue<FQuat>(FQuat::Identity);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, Var);
+
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, TEXT("0"));
+		Var = SYS_PARAM_PARTICLES_MESH_INDEX;
+		Var.SetValue<float>(0.0f);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, Var);
 		
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, TEXT("0.0"));
 		Var = SYS_PARAM_PARTICLES_CAMERA_OFFSET;
@@ -414,7 +421,7 @@ void FNiagaraConstants::Init()
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, TEXT("0"));
 		Var = SYS_PARAM_PARTICLES_VISIBILITY_TAG;
 		Var.SetValue<float>(0.0f);
-		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, Var);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, Var);		
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, TEXT("true"));
 		Var = SYS_PARAM_PARTICLES_COMPONENTS_ENABLED;
@@ -486,6 +493,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_SCALE, LOCTEXT("ScaleParamDesc", "The XYZ scale of the non-sprite based particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIFETIME, LOCTEXT("LifetimeParamDesc", "The lifetime of a particle in seconds."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, LOCTEXT("MeshOrientParamDesc", "The axis-angle rotation to be applied to the mesh particle."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, LOCTEXT("MeshIndexParamDesc", "The index of the mesh to use to render this particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, LOCTEXT("CamOffsetParamDesc", "Used to offset position in the direction of the camera. The value is multiplied by the direction vector from the camera to the particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, LOCTEXT("UVScalerParamDesc", "Used to multiply the generated UVs for Sprite renderers."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, LOCTEXT("MaterialRandomParamDesc", "Used to drive the Particle Random node in the Material Editor. Without this set, any Particle Randoms will get 0.0."));

@@ -8,11 +8,15 @@
 #include "NiagaraCustomVersion.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
-#include "Widgets/Images/SImage.h"
-#include "Styling/SlateIconFinder.h"
-#include "Widgets/SWidget.h"
 #include "AssetThumbnail.h"
+#include "Styling/SlateIconFinder.h"
+#include "Internationalization/Regex.h"
+#include "Dialogs/Dialogs.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #endif
 
 
@@ -41,18 +45,32 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 }
 
 
+FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
+	: Mesh(nullptr)
+	, Scale(1.0f, 1.0f, 1.0f)
+	, PivotOffset(ForceInitToZero)
+	, PivotOffsetSpace(ENiagaraMeshPivotOffsetSpace::Mesh)
+{
+}
+
+
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
-	: ParticleMesh(nullptr)
-	, SortMode(ENiagaraSortMode::None)
+	: SortMode(ENiagaraSortMode::None)
 	, bOverrideMaterials(false)
 	, bSortOnlyWhenTranslucent(true)
-	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
+	, SubImageSize(1.0f, 1.0f)
 	, FacingMode(ENiagaraMeshFacingMode::Default)
 	, bLockedAxisEnable(false)
 	, LockedAxis(0.0f, 0.0f, 1.0f)
 	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
+#if WITH_EDITORONLY_DATA
+	FlipbookSuffixFormat = TEXT("_{frame_number}");
+	FlipbookSuffixNumDigits = 1;
+	NumFlipbookFrames = 1;
+#endif
+
 	AttributeBindings.Reserve(15);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&ColorBinding);
@@ -69,15 +87,20 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&NormalizedAgeBinding);
 	AttributeBindings.Add(&CameraOffsetBinding);
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
+	AttributeBindings.Add(&MeshIndexBinding);
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
-	if (ParticleMesh)
+	for (const auto& MeshProperties : Meshes)
 	{
-		FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
-		NewRenderer->Initialize(this, Emitter, InComponent);
-		return NewRenderer;
+		if (MeshProperties.Mesh && MeshProperties.Mesh->GetRenderData())
+		{
+			// There's at least one valid mesh
+			FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
+			NewRenderer->Initialize(this, Emitter, InComponent);
+			return NewRenderer;
+		}
 	}
 
 	return nullptr;
@@ -85,44 +108,59 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 
 FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator()
 {
-	if (ParticleMesh)
+	FBox LocalBounds;
+	LocalBounds.Init();
+
+	FVector MaxLocalMeshOffset(ForceInitToZero);
+	FVector MaxWorldMeshOffset(ForceInitToZero);
+
+	bool bLocalSpace = false;
+	if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
 	{
-		FBox LocalBounds = ParticleMesh->GetBounds().GetBox();
-		FVector MeshOffset(ForceInitToZero);
-		ENiagaraBoundsMeshOffsetTransform MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::None;
-		if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
-		{
-			// Offset the local bounds
-			LocalBounds = LocalBounds.ShiftBy(PivotOffset);
-		}
-		else
-		{
-			// Offset is in either system-local or world space, and we need to decide how to transform it, if at all
-			MeshOffset = PivotOffset;
+		bLocalSpace = Emitter->bLocalSpace;
+	}
 
-			if (PivotOffsetSpace != ENiagaraMeshPivotOffsetSpace::Simulation)
+	for (const auto& MeshProperties : Meshes)
+	{
+		if (MeshProperties.Mesh)
+		{
+			FBox MeshBounds = MeshProperties.Mesh->GetBounds().GetBox();
+			MeshBounds.Min *= MeshProperties.Scale;
+			MeshBounds.Max *= MeshProperties.Scale;
+
+			switch (MeshProperties.PivotOffsetSpace)
 			{
-				bool bLocalSpace = false;
-				if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
-				{
-					bLocalSpace = Emitter->bLocalSpace;
-				}
+			case ENiagaraMeshPivotOffsetSpace::Mesh:
+				// Offset the local bounds
+				MeshBounds = MeshBounds.ShiftBy(MeshProperties.PivotOffset);
+				break;
 
-				if (bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::World)
+			case ENiagaraMeshPivotOffsetSpace::World:
+				MaxWorldMeshOffset = MaxWorldMeshOffset.ComponentMax(MeshProperties.PivotOffset.GetAbs());
+				break;
+
+			case ENiagaraMeshPivotOffsetSpace::Local:
+				MaxLocalMeshOffset = MaxLocalMeshOffset.ComponentMax(MeshProperties.PivotOffset.GetAbs());
+				break;
+
+			case ENiagaraMeshPivotOffsetSpace::Simulation:
 				{
-					MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::WorldToLocal;
+					FVector& Offset = bLocalSpace ? MaxLocalMeshOffset : MaxWorldMeshOffset;
+					Offset = Offset.ComponentMax(MeshProperties.PivotOffset.GetAbs());
 				}
-				else if (!bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Local)
-				{
-					MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::LocalToWorld;
-				}
+				break;
 			}			
-		}
 
+			LocalBounds += MeshBounds;
+		}
+	}
+
+	if (LocalBounds.IsValid)
+	{		
 		// Take the bounding center into account with the extents, as it may not be at the origin
 		const FVector Extents = LocalBounds.Max.GetAbs().ComponentMax(LocalBounds.Min.GetAbs());
 		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
-			= new FNiagaraBoundsCalculatorHelper<false, true, false>(Extents, MeshOffset, MeshOffsetTransform);
+			= new FNiagaraBoundsCalculatorHelper<false, true, false>(Extents, MaxLocalMeshOffset, MaxWorldMeshOffset, bLocalSpace);
 		return BoundsCalculator;
 	}
 
@@ -191,6 +229,7 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		NormalizedAgeBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
 		CameraOffsetBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_CAMERA_OFFSET);
 		RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+		MeshIndexBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MESH_INDEX);
 
 		//Default custom sorting to age
 		CustomSortingBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
@@ -234,79 +273,90 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	RendererLayoutWithoutCustomSorting.Finalize();
 }
 
-void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
+void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	if (ParticleMesh && ParticleMesh->GetRenderData())
+	check(Meshes.IsValidIndex(MeshIndex));
+	
+	const UStaticMesh* Mesh = Meshes[MeshIndex].Mesh;
+	check(Mesh);
+
+	const FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
+	check(RenderData);
+
+	OutMaterials.SetNum(0, false);
+
+	// Retrieve a list of materials whose indices match up with the mesh, and only fill it in with materials that are used by any section of any LOD	
+	for (const FStaticMeshLODResources& LODModel : RenderData->LODResources)
 	{
-		const FStaticMeshLODResources& LODModel = ParticleMesh->GetRenderData()->LODResources[0];
-		if (bOverrideMaterials)
+		for (const FStaticMeshSection& Section : LODModel.Sections)
 		{
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			if (Section.MaterialIndex >= 0)
 			{
-				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-				UMaterialInterface* ParticleMeshMaterial = ParticleMesh->GetMaterial(Section.MaterialIndex);
-
-				if (Section.MaterialIndex >= 0 && OverrideMaterials.Num() > Section.MaterialIndex)
+				if (Section.MaterialIndex >= OutMaterials.Num())
 				{
-					bool bSet = false;
-					
-					// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
-					// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
-					// and still have good defaults if it isn't set to anything.
-					if (InEmitter != nullptr && OverrideMaterials[Section.MaterialIndex].UserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(OverrideMaterials[Section.MaterialIndex].UserParamBinding, OutMaterials))
-					{
-						bSet = true;
-					}
-					else if (OverrideMaterials[Section.MaterialIndex].ExplicitMat != nullptr)
-					{
-						bSet = true;
-						OutMaterials.Add(OverrideMaterials[Section.MaterialIndex].ExplicitMat);
-					}
-
-					if (!bSet)
-					{
-						OutMaterials.Add(ParticleMeshMaterial);
-					}
+					OutMaterials.AddZeroed(Section.MaterialIndex - OutMaterials.Num() + 1);
 				}
-				else
+				else if (OutMaterials[Section.MaterialIndex])
 				{
-					OutMaterials.Add(ParticleMeshMaterial);
+					continue;
 				}
+
+				UMaterialInterface* Material = Mesh->GetMaterial(Section.MaterialIndex);
+				if (!Material)
+				{
+					Material = UMaterial::GetDefaultMaterial(MD_Surface);
+				}
+				OutMaterials[Section.MaterialIndex] = Material;
 			}
 		}
-		else
+	}
+
+	if (bOverrideMaterials)
+	{
+		for (int32 OverrideIndex = 0; OverrideIndex < OverrideMaterials.Num(); ++OverrideIndex)
 		{
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			if (OutMaterials[OverrideIndex])
 			{
-				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-				UMaterialInterface* ParticleMeshMaterial = ParticleMesh->GetMaterial(Section.MaterialIndex);
-				OutMaterials.Add(ParticleMeshMaterial);
+				UMaterialInterface* OverrideMat = nullptr;
+
+				// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
+				// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
+				// and still have good defaults if it isn't set to anything.
+				if (Emitter && OverrideMaterials[OverrideIndex].UserParamBinding.Parameter.IsValid())
+				{
+					Emitter->FindBinding(OverrideMaterials[OverrideIndex].UserParamBinding, OverrideMat);
+				}
+				
+				if (!OverrideMat)
+				{
+					OverrideMat = OverrideMaterials[OverrideIndex].ExplicitMat;
+				}
+
+				if (OverrideMat)
+				{
+					OutMaterials[OverrideIndex] = OverrideMat;
+				}
 			}
 		}
 	}
 }
 
-uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
+void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
-	//return ParticleMesh ? ParticleMesh->GetRenderData()->LODResources[0].Sections[0].NumTriangles * 3 : 0;
-	return ParticleMesh && ParticleMesh->GetRenderData() ? ParticleMesh->GetRenderData()->LODResources[0].IndexBuffer.GetNumIndices() : 0;
-}
-
-void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& IndexInfoPerSection) const
-{
-	check(ParticleMesh && ParticleMesh->GetRenderData() && ParticleMesh->GetRenderData()->LODResources.IsValidIndex(LODIndex));
-
-	if (ParticleMesh && ParticleMesh->GetRenderData()->LODResources.IsValidIndex(LODIndex))
+	TArray<UMaterialInterface*> OrderedMeshMaterials;
+	for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); ++MeshIndex)
 	{
-		const FStaticMeshLODResources& MeshLod = ParticleMesh->GetRenderData()->LODResources[LODIndex];
-		const int32 SectionCount = MeshLod.Sections.Num();
-		IndexInfoPerSection.SetNum(SectionCount);
-
-		for (int32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+		const UStaticMesh* Mesh = Meshes[MeshIndex].Mesh;
+		if (Mesh && Mesh->GetRenderData())
 		{
-			IndexInfoPerSection[SectionIdx].Key = MeshLod.Sections[SectionIdx].NumTriangles * 3;
-			IndexInfoPerSection[SectionIdx].Value = MeshLod.Sections[SectionIdx].FirstIndex;
+			GetUsedMeshMaterials(MeshIndex, InEmitter, OrderedMeshMaterials);
+			for (UMaterialInterface* Material : OrderedMeshMaterials)
+			{
+				if (Material)
+				{
+					OutMaterials.AddUnique(Material);
+				}
+			}
 		}
 	}
 }
@@ -315,17 +365,31 @@ void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArr
 void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
-	if (ParticleMesh != nullptr)
+
+	if (Meshes.Num() == 0 && ParticleMesh_DEPRECATED != nullptr)
 	{
-		ParticleMesh->ConditionalPostLoad();
-#if WITH_EDITOR
-		if (GIsEditor)
-		{
-			ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
-			ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
-		}
-#endif
+		// Likely predates the mesh array ... just add ParticleMesh to the list of Meshes
+		FNiagaraMeshRendererMeshProperties& Mesh = Meshes.AddDefaulted_GetRef();
+		Mesh.Mesh = ParticleMesh_DEPRECATED;
+		Mesh.PivotOffset = PivotOffset_DEPRECATED;
+		Mesh.PivotOffsetSpace = PivotOffsetSpace_DEPRECATED;
 	}
+
+	for (const auto& MeshProperties : Meshes)
+	{
+		if (MeshProperties.Mesh)
+		{
+			MeshProperties.Mesh->ConditionalPostLoad();
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				MeshProperties.Mesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+				MeshProperties.Mesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+			}
+#endif
+		}
+	}
+
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 
 	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
@@ -427,10 +491,16 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 {
 	Super::BeginDestroy();
 #if WITH_EDITOR
-	if (GIsEditor && (ParticleMesh != nullptr))
+	if (GIsEditor)
 	{
-		ParticleMesh->GetOnMeshChanged().RemoveAll(this);
-		ParticleMesh->OnPostMeshBuild().RemoveAll(this);
+		for (const auto& MeshProperties : Meshes)
+		{
+			if (MeshProperties.Mesh)
+			{
+				MeshProperties.Mesh->GetOnMeshChanged().RemoveAll(this);
+				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
+			}
+		}
 	}
 #endif
 }
@@ -439,13 +509,15 @@ void UNiagaraMeshRendererProperties::PreEditChange(class FProperty* PropertyThat
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
-	static FName ParticleMeshName(TEXT("ParticleMesh"));
-	if ((PropertyThatWillChange != nullptr) && (PropertyThatWillChange->GetFName() == FName(ParticleMeshName)))
+	if (ChangeRequiresMeshListRebuild(PropertyThatWillChange))
 	{
-		if (ParticleMesh != nullptr)
+		for (const auto& MeshProperties : Meshes)
 		{
-			ParticleMesh->GetOnMeshChanged().RemoveAll(this);
-			ParticleMesh->OnPostMeshBuild().RemoveAll(this);
+			if (MeshProperties.Mesh)
+			{
+				MeshProperties.Mesh->GetOnMeshChanged().RemoveAll(this);
+				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
+			}
 		}
 	}
 }
@@ -455,23 +527,65 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 	SubImageSize.X = FMath::Max<float>(SubImageSize.X, 1.f);
 	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
 
-	static FName ParticleMeshName(TEXT("ParticleMesh"));
+	const bool bIsRedirect = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
+	const bool bRebuildMeshList = ChangeRequiresMeshListRebuild(PropertyChangedEvent.Property);
 
-	if (ParticleMesh)
+	if (bIsRedirect)
 	{
-		const bool IsRedirect = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
-		if (IsRedirect)
+		// Do this in case the redirected property is not a mesh (we have no way of knowing b/c the property is nullptr)
+		for (const auto& MeshProperties : Meshes)
 		{
-			// Do this in case the redirected property is not ParticleMesh (we have no way of knowing b/c the property is nullptr)
-			ParticleMesh->GetOnMeshChanged().RemoveAll(this);
-			ParticleMesh->OnPostMeshBuild().RemoveAll(this);
+			if (MeshProperties.Mesh)
+			{
+				MeshProperties.Mesh->GetOnMeshChanged().RemoveAll(this);
+				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
+			}
 		}
-		if (IsRedirect || (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == ParticleMeshName))
+	}
+
+	if (bRebuildMeshList)
+	{
+		if (!IsRunningCommandlet() &&
+			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook) &&
+			bEnableMeshFlipbook &&
+			Meshes.Num() > 1)
 		{
-			// We only need to check material usage as we will invalidate any renderers later on
-			CheckMaterialUsage();
-			ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
-			ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+			// Give the user a chance to cancel doing something that will be destructive to the current mesh data
+			FSuppressableWarningDialog::FSetupInfo Info(
+				LOCTEXT("ShowNiagaraMeshRendererFlipbookWarning_Message", "Enabling the Mesh Flipbook option will replace all meshes currently selected for this renderer. Continue?"),
+				LOCTEXT("ShowNiagaraMeshRendererFlipbookWarning_Title", "Confirm Enable Flipbook"),
+				TEXT("SuppressNiagaraMeshRendererFlipbookWarning")
+			);
+			Info.ConfirmText = LOCTEXT("ShowNiagaraMeshRendererFlipbookWarning_Confirm", "Yes");
+			Info.CancelText = LOCTEXT("ShowNiagaraMeshRendererFlipbookWarning_Cancel", "No");
+			FSuppressableWarningDialog MeshRendererFlipbookWarning(Info);
+
+			if (MeshRendererFlipbookWarning.ShowModal() == FSuppressableWarningDialog::EResult::Cancel)
+			{
+				bEnableMeshFlipbook = false;
+			}
+			else
+			{
+				RebuildMeshList();
+			}
+		}
+		else
+		{
+			RebuildMeshList();
+		}
+	}
+		
+	if (bIsRedirect || bRebuildMeshList)
+	{
+		// We only need to check material usage as we will invalidate any renderers later on
+		CheckMaterialUsage();
+		for (const auto& MeshProperties : Meshes)
+		{
+			if (MeshProperties.Mesh)
+			{
+				MeshProperties.Mesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+				MeshProperties.Mesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+			}
 		}
 	}
 
@@ -498,19 +612,164 @@ void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 {
-	if (ParticleMesh && ParticleMesh->GetRenderData())
+	for (const auto& MeshProperties : Meshes)
 	{
-		const FStaticMeshLODResources& LODModel = ParticleMesh->GetRenderData()->LODResources[0];
-		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+		if (MeshProperties.Mesh && MeshProperties.Mesh->GetRenderData())
 		{
-			const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-			UMaterialInterface *Material = ParticleMesh->GetMaterial(Section.MaterialIndex);
-			if (Material)
+			const FStaticMeshLODResources& LODModel = MeshProperties.Mesh->GetRenderData()->LODResources[0];
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-				FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
-				Material->CheckMaterialUsage(MATUSAGE_NiagaraMeshParticles);
+				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+				UMaterialInterface *Material = MeshProperties.Mesh->GetMaterial(Section.MaterialIndex);
+				if (Material)
+				{
+					FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
+					Material->CheckMaterialUsage(MATUSAGE_NiagaraMeshParticles);
+				}
 			}
 		}
+	}
+}
+
+bool UNiagaraMeshRendererProperties::ChangeRequiresMeshListRebuild(const FProperty* Property)
+{	
+	if (Property == nullptr)
+	{
+		return false;
+	}	
+
+	// If any of these are changed, we have to rebuild the mesh list
+	static const TArray<FName, TInlineAllocator<4>> RebuildMeshPropertyNames
+	{
+		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook),
+		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FirstFlipbookFrame),
+		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FlipbookSuffixFormat),
+		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FlipbookSuffixNumDigits),
+		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, NumFlipbookFrames),
+	};
+	return RebuildMeshPropertyNames.Contains(Property->GetFName());
+}
+
+void UNiagaraMeshRendererProperties::RebuildMeshList()
+{
+	if (!bEnableMeshFlipbook)
+	{
+		// Mesh flipbook has been disabled, so let's just leave the mesh list as it was
+		return;
+	}
+
+	Meshes.Empty();
+
+	if (!FirstFlipbookFrame)
+	{
+		// No first page mesh selected
+		return;
+	}
+	
+	Meshes.AddDefaulted_GetRef().Mesh = FirstFlipbookFrame;
+
+	if (NumFlipbookFrames <= 1)
+	{
+		// No need to build a flipbook list, just add the base mesh and bail
+		return;
+	}
+
+	auto ShowFlipbookWarningToast = [](const FText& Text)
+	{
+		FNotificationInfo WarningNotification(Text);
+		WarningNotification.ExpireDuration = 5.0f;
+		WarningNotification.bFireAndForget = true;
+		WarningNotification.bUseLargeFont = false;
+		WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+		FSlateNotificationManager::Get().AddNotification(WarningNotification);
+		UE_LOG(LogNiagara, Warning, TEXT("%s"), *Text.ToString());
+	};
+
+	static const FString FrameNumReplace = TEXT("{frame_number}");
+	const int32 NumPosInSuffix = FlipbookSuffixFormat.Find(FrameNumReplace);
+	if (NumPosInSuffix == INDEX_NONE)
+	{
+		ShowFlipbookWarningToast(LOCTEXT("FlipbookSuffixWarningToastMessage", "Error gathering meshes for Mesh Flipbook. Suffix Format is missing \"{frame_number}\""));
+		return;
+	}
+
+	FSoftObjectPath ParticleMeshPath = FirstFlipbookFrame->GetPathName();
+	FString BaseName = ParticleMeshPath.GetAssetName();	
+	int32 FirstFrameIdx = 0;
+
+	// Build a regex pattern string to use to attempt to find the first frame number in the first frame mesh
+	FString MatchString;
+	for (int32 CharIdx = 0; CharIdx < FlipbookSuffixFormat.Len(); ++CharIdx)
+	{
+		if (CharIdx == NumPosInSuffix)
+		{
+			// Add the number match string and skip past the frame number
+			MatchString.Append(TEXT("([0-9][0-9]*)"));
+			CharIdx += FlipbookSuffixFormat.Len() - 1;
+		}
+		else
+		{
+			TCHAR CurChar = FlipbookSuffixFormat[CharIdx];
+			if (CurChar >= TCHAR('#') && CurChar <= TCHAR('}'))
+			{
+				MatchString.AppendChar(TCHAR('\\'));
+			}
+			MatchString.AppendChar(CurChar);
+		}
+	}
+	MatchString.AppendChar(TCHAR('$'));
+
+	FRegexPattern Pattern(MatchString);
+	FRegexMatcher Matcher(Pattern, BaseName);
+	if (Matcher.FindNext())
+	{
+		// Remove the suffix for the base name and retrieve the first frame index
+		int32 SuffixLen = Matcher.GetMatchEnding() - Matcher.GetMatchBeginning();
+		BaseName.LeftChopInline(SuffixLen, false);
+
+		FString NumMatch = Matcher.GetCaptureGroup(1);
+		FirstFrameIdx = FCString::Atoi(*NumMatch);
+	}
+
+	// Get the path to the package
+	FString BasePackageLocation = ParticleMeshPath.GetLongPackageName();
+	int32 PackageDirEnd;
+	if (BasePackageLocation.FindLastChar(TCHAR('/'), PackageDirEnd))
+	{
+		BasePackageLocation.LeftInline(PackageDirEnd, false);
+	}
+
+	// Now retrieve all meshes for the flipbook and add them
+	bool bAnyError = false;
+	int32 LastFrameIdx = FirstFrameIdx + NumFlipbookFrames - 1;
+	for (int32 FrameIdx = FirstFrameIdx + 1; FrameIdx <= LastFrameIdx; ++FrameIdx)
+	{
+		FString NumString = FString::FromInt(FrameIdx);
+		while ((uint32)NumString.Len() < FlipbookSuffixNumDigits)
+		{
+			NumString.InsertAt(0, TCHAR('0'));
+		}
+
+		TMap<FString, FStringFormatArg> Args = {
+			{ TEXT("frame_number"), NumString }
+		};		
+
+		FString FrameName = BaseName + FString::Format(*FlipbookSuffixFormat, Args);
+		FSoftObjectPath ObjPath(BasePackageLocation / (FrameName + TCHAR('.') + FrameName));
+		UStaticMesh* FrameMesh = Cast<UStaticMesh>(ObjPath.TryLoad());
+		if (!FrameMesh)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to load Static Mesh '%s' while attempting to create mesh flipbook. This frame will be missing from the flipbook."),
+				*ObjPath.GetAssetPathString());
+			bAnyError = true;
+		}
+
+		Meshes.AddDefaulted_GetRef().Mesh = FrameMesh;
+	}
+
+	if (bAnyError)
+	{
+		ShowFlipbookWarningToast(LOCTEXT("FlipbookSuffixWarningToastMessage", "Failed to load one or more meshes for Mesh Flipbook. See the Output Log for details."));
 	}
 }
 

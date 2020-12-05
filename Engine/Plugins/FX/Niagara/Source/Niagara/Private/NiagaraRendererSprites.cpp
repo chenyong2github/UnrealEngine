@@ -76,13 +76,14 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, Alignment(ENiagaraSpriteAlignment::Unaligned)
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
-	, PivotInUVSpace(0.5f, 0.5f)
 	, SortMode(ENiagaraSortMode::ViewDistance)
+	, PivotInUVSpace(0.5f, 0.5f)
 	, SubImageSize(1.0f, 1.0f)
+	, NumIndicesPerInstance(0)
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
 	, bSortOnlyWhenTranslucent(true)
@@ -104,6 +105,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	PivotInUVSpace = Properties->PivotInUVSpace;
 	SortMode = Properties->SortMode;
 	SubImageSize = Properties->SubImageSize;
+	NumIndicesPerInstance = Properties->GetNumIndicesPerInstance();
 	bSubImageBlend = Properties->bSubImageBlend;
 	bRemoveHMDRollInVR = Properties->bRemoveHMDRollInVR;
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;

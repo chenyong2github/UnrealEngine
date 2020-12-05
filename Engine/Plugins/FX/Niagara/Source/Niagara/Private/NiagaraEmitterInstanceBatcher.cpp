@@ -1693,6 +1693,8 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 			Params.CullScaleAttributeOffset = SortInfo.CullScaleAttributeOffset;
 			Params.RendererVisibility = SortInfo.RendererVisibility;
 			Params.RendererVisTagAttributeOffset = SortInfo.RendererVisTagAttributeOffset;
+			Params.MeshIndex = SortInfo.MeshIndex;
+			Params.MeshIndexAttributeOffset = SortInfo.MeshIndexAttributeOffset;
 			Params.CullDistanceRangeSquared = SortInfo.DistanceCullRange * SortInfo.DistanceCullRange;
 			Params.LocalBoundingSphere = FVector4(SortInfo.LocalBSphere.Center, SortInfo.LocalBSphere.W);
 			Params.CullingWorldSpaceOffset = SortInfo.CullingWorldSpaceOffset;

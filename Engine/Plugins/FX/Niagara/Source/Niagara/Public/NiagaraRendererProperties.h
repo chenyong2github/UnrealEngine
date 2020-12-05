@@ -220,10 +220,6 @@ public:
 
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const {	return ENiagaraRendererSourceDataMode::Particles;}
 
-
-	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
-	virtual uint32 GetNumIndicesPerInstance() const { return 0; }
-
 	virtual bool GetIsActive() const;
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
 	virtual void SetIsEnabled(bool bInIsEnabled);

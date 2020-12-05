@@ -109,7 +109,7 @@ public:
 	//UNiagaraMaterialRendererProperties interface END
 
 	int32 GetNumCutoutVertexPerSubimage() const;
-	virtual uint32 GetNumIndicesPerInstance() const;
+	uint32 GetNumIndicesPerInstance() const;
 
 	/** The material used to render the particle. Note that it must have the Use with Niagara Sprites flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")

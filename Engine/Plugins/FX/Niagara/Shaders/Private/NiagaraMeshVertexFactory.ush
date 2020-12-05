@@ -631,7 +631,7 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// Compose Transforms
-	LocalToWorld = NiagaraComposeTransformMatrix(Scale, RotationMat, Translation);
+	LocalToWorld = NiagaraComposeTransformMatrix(Scale * NiagaraMeshVF.MeshScale, RotationMat, Translation);
 	LocalToWorldNoScale = NiagaraComposeTransformMatrix((float3)1.0f, RotationMat, Translation);
 	WorldToLocal = NiagaraComposeInvTransformMatrix(Scale, RotationMat, Translation);
 }

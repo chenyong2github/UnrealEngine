@@ -63,6 +63,8 @@ public:
 		SHADER_PARAMETER_ARRAY(FVector4, CullPlanes, [NIAGARA_KEY_GEN_MAX_CULL_PLANES])
 		SHADER_PARAMETER(int32, RendererVisibility)
 		SHADER_PARAMETER(uint32, RendererVisTagAttributeOffset)
+		SHADER_PARAMETER(int32, MeshIndex)
+		SHADER_PARAMETER(uint32, MeshIndexAttributeOffset)
 		SHADER_PARAMETER(FVector2D, CullDistanceRangeSquared)
 		SHADER_PARAMETER(FVector4, LocalBoundingSphere)
 		SHADER_PARAMETER(FVector, CullingWorldSpaceOffset)
