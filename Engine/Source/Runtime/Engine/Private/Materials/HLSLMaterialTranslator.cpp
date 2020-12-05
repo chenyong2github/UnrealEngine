@@ -6568,7 +6568,10 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 
 	FMaterialUniformExpression* DefaultExpression = GetParameterUniformExpression(Default);
 	FMaterialUniformExpression* ShadowExpression = GetParameterUniformExpression(Shadow);
-	if (DefaultExpression->IsConstant() && ShadowExpression->IsConstant())
+	if (DefaultExpression &&
+		ShadowExpression &&
+		DefaultExpression->IsConstant() &&
+		ShadowExpression->IsConstant())
 	{
 		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
 		FLinearColor DefaultValue;
