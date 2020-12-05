@@ -300,7 +300,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
-	/** Which attribute should we use for the flipbook index? */
+	/** Which attribute should we use to pick the element in the mesh array on the mesh renderer? */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding MeshIndexBinding;
 	
