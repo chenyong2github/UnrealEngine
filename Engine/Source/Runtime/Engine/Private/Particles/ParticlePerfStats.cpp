@@ -695,7 +695,7 @@ void FParticlePerfStatsListener_CSVProfiler::End()
 
 //////////////////////////////////////////////////////////////////////////
 
-int32 FParticlePerfStatsListener_DebugRender::RenderStats(class UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+int32 FParticlePerfStatsListener_DebugRender::RenderStats(class UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 /*X*/, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 	UFont* Font = GEngine->GetSmallFont();
 	check(Font != nullptr);
@@ -706,8 +706,7 @@ int32 FParticlePerfStatsListener_DebugRender::RenderStats(class UWorld* World, c
 	const float ColumnWidth = 32 * CharWidth;
 	const int32 FontHeight = Font->GetMaxCharHeight() + 2.0f;
 
-	X = 100;
-
+	int32 X = 100;
 
 	// Draw background
 	{
