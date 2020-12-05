@@ -201,7 +201,7 @@ namespace DatasmithRuntime
 
 #if !NO_LOGGING
 		LogDatasmith.SetVerbosity( ELogVerbosity::Error );
-#if !WITH_EDITOR
+#if !WITH_EDITOR || defined(NO_DL_DEBUG)
 		LogDirectLink.SetVerbosity( ELogVerbosity::Warning );
 		LogDirectLinkNet.SetVerbosity( ELogVerbosity::Warning );
 #endif
@@ -307,7 +307,12 @@ namespace DatasmithRuntime
 
 			if (FRawInfo::FDataPointInfo* DataPointInfoPtr = RawInfo.DataPointsInfo.Find(SourceHandle))
 			{
-				return DataPointInfoPtr->Name;
+				if (RawInfo.EndpointsInfo.Contains(DataPointInfoPtr->EndpointAddress))
+				{
+					const FRawInfo::FEndpointInfo& EndPointInfo = RawInfo.EndpointsInfo[DataPointInfoPtr->EndpointAddress];
+
+					return DataPointInfoPtr->Name + TEXT("-") + EndPointInfo.ExecutableName + TEXT("-") + FString::FromInt((int32)EndPointInfo.ProcessId);
+				}
 			}
 		}
 
