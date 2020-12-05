@@ -29,6 +29,7 @@ struct FIrradianceCacheRecord
 
 #include "BatchedTiles.ush"
 #include "/Engine/Private/PathTracing/Material/FirstBounceRayGuidingCommon.ush"
+#include "/Engine/Private/QuasiRandom.ush"
 
 int NumRayGuidingTrialSamples;
 RWTexture2D<uint> RayGuidingLuminance;
