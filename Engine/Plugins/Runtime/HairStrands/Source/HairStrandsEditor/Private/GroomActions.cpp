@@ -319,8 +319,7 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 		UTexture2D* FollicleTexture = FGroomTextureBuilder::CreateGroomFollicleMaskTexture(CurrentOptions->Grooms[0].Groom, Resolution);
 		if (FollicleTexture)
 		{
-			const bool bUseGPU = true;
-			FGroomTextureBuilder::BuildFollicleTexture(Infos, FollicleTexture, bUseGPU);
+			FGroomTextureBuilder::BuildFollicleTexture(Infos, FollicleTexture, false);
 		}
 	}
 }
