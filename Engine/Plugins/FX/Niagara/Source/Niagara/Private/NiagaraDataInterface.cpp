@@ -41,7 +41,7 @@ bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisi
 void UNiagaraDataInterface::PostLoad()
 {
 	Super::PostLoad();
-	ClearFlags(RF_Public);
+	SetFlags(RF_Public);
 }
 
 #if WITH_EDITOR

@@ -139,8 +139,6 @@ private:
 	/** The delta time used when seeking to the desired age.  This is only relevant when using the DesiredAge age update mode. */
 	float SeekDelta;
 
-	bool bLockDesiredAgeDeltaTimeToSeekDelta;
-
 	/** The maximum amount of time in seconds to spend seeking to the desired age in a single frame. */
 	float MaxSimTime;
 
@@ -232,7 +230,6 @@ public:
 	virtual const UObject* AdditionalStatObject() const override;
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnComponentCreated() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface
@@ -304,18 +301,6 @@ public:
 	when using the DesiredAge age update mode. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Desired Age Seek Delta"))
 	void SetSeekDelta(float InSeekDelta);
-
-	/** Gets whether or not the delta time used to tick the system instance when using desired age is locked to the seek delta.  When true, the system instance
-	will only be ticked when the desired age has changed by more than the seek delta.  When false the system instance will be ticked by the change in desired 
-	age when not seeking. */
-	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get whether or not to lock the desired age delta time to the seek delta."))
-	bool GetLockDesiredAgeDeltaTimeToSeekDelta() const;
-
-	/** Sets whether or not the delta time used to tick the system instance when using desired age is locked to the seek delta.  When true, the system instance
-	will only be ticked when the desired age has changed by more than the seek delta.  When false the system instance will be ticked by the change in desired 
-	age when not seeking. */
-	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set whether or not to lock the desired age delta time to the seek delta."))
-	void SetLockDesiredAgeDeltaTimeToSeekDelta(bool bLock);
 
 	/** Sets the maximum time that you can jump within a tick which is used when seeking from the current age, to the desired age.  This is only relevant
 	when using the DesiredAge age update mode. */
@@ -479,7 +464,6 @@ public:
 	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) 	{ if(SystemInstance) SystemInstance->SetSystemSignificanceIndex(InIndex); }
 
 	//~ Begin UObject Interface.
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
@@ -552,8 +536,6 @@ public:
 private:
 	/** Compare local overrides with the source System. Remove any that have mismatched types or no longer exist on the System.*/
 	void SynchronizeWithSourceSystem();
-
-	void FixInvalidUserParameterOverrideData();
 
 	void AssetExposedParametersChanged();
 
