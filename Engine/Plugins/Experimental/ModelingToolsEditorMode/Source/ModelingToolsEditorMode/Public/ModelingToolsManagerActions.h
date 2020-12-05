@@ -78,6 +78,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginBspConversionTool;
 	TSharedPtr<FUICommandInfo> BeginMeshToVolumeTool;
 	TSharedPtr<FUICommandInfo> BeginVolumeToMeshTool;
+	TSharedPtr<FUICommandInfo> BeginMeshGroupPaintTool;
 
 	TSharedPtr<FUICommandInfo> BeginPhysicsInspectorTool;
 	TSharedPtr<FUICommandInfo> BeginSetCollisionGeometryTool;

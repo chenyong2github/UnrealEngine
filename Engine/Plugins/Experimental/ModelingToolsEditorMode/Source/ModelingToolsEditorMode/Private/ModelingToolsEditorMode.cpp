@@ -74,6 +74,7 @@
 #include "ProjectToTargetTool.h"
 #include "LatticeDeformerTool.h"
 #include "SeamSculptTool.h"
+#include "MeshGroupPaintTool.h"
 
 #include "Physics/PhysicsInspectorTool.h"
 #include "Physics/SetCollisionGeometryTool.h"
@@ -381,6 +382,10 @@ void UModelingToolsEditorMode::Enter()
 	auto MoveVerticesToolBuilder = NewObject<UMeshVertexSculptToolBuilder>();
 	MoveVerticesToolBuilder->StylusAPI = StylusStateTracker.Get();
 	RegisterTool(ToolManagerCommands.BeginSculptMeshTool, TEXT("MoveVerticesTool"), MoveVerticesToolBuilder);
+
+	auto MeshGroupPaintToolBuilder = NewObject<UMeshGroupPaintToolBuilder>();
+	MeshGroupPaintToolBuilder->StylusAPI = StylusStateTracker.Get();
+	RegisterTool(ToolManagerCommands.BeginMeshGroupPaintTool, TEXT("MeshGroupPaintTool"), MeshGroupPaintToolBuilder);
 
 	RegisterTool(ToolManagerCommands.BeginPolyEditTool, TEXT("EditMeshPolygonsTool"), NewObject<UEditMeshPolygonsToolBuilder>());
 	UEditMeshPolygonsToolBuilder* TriEditBuilder = NewObject<UEditMeshPolygonsToolBuilder>();

@@ -110,6 +110,8 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(BeginSubdividePolyTool, "Subdivide", "Start the SubdividePoly Tool", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	UI_COMMAND(BeginGenerateStaticMeshLODAssetTool, "AutoLOD", "Start the Generate Static Mesh LOD Asset Tool", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginMeshGroupPaintTool, "GroupPaint", "Start the Mesh PolyGroup Paint Tool", EUserInterfaceActionType::ToggleButton, FInputChord());
+
 
 	UI_COMMAND(BeginPolyModelTool_FaceSelect, "Faces", "Start the PolyGroup Face Selection Tool", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(BeginPolyModelTool_EdgeSelect, "Edges", "Start the PolyGroup Edge Selection Tool", EUserInterfaceActionType::ToggleButton, FInputChord());
