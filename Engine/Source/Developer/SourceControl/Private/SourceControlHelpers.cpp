@@ -127,7 +127,7 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, bool bAl
 					SCFile /= FString();
 				}
 				else if (AssociatedExtension)
-				{
+			{
 					// Just use the requested extension
 					SCFile += AssociatedExtension;
 				}
@@ -136,10 +136,10 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, bool bAl
 					// The package does not exist on disk, see if we can find it in memory and predict the file extension
 					UPackage* Package = FindPackage(nullptr, *SCFile);
 					SCFile += (Package && Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
+					}
 				}
-			}
-			else
-			{
+				else
+				{
 				bPackage = false;
 			}
 		}
@@ -394,26 +394,54 @@ bool USourceControlHelpers::CheckOutFile(const FString& InFile, bool bSilent)
 	return false;
 }
 
-
 bool USourceControlHelpers::CheckOutFiles(const TArray<FString>& InFiles, bool bSilent)
 {
-	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
+	// Determine file type and ensure it is in form source control wants
+	// Even if some files were skipped, still apply to the others
+	TArray<FString> SCFiles;
+	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, SCFiles, bSilent);
+	const int32 NumFiles = SCFiles.Num();
 
+	// Ensure source control system is up and running
+	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 	if (!Provider)
 	{
+		// Error or can't communicate with source control
 		return false;
 	}
 
-	TArray<FString> FilePaths;
+	TArray<FSourceControlStateRef> SCStates;
+	Provider->GetState(SCFiles, SCStates, EStateCacheUsage::ForceUpdate);
 
-	// Even if some files were skipped, still apply to the others
-	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent);
+	TArray<FString> SCFilesToCheckout;
+	bool bCannotCheckoutAtLeastOneFile = false;
+	for (int32 Index = 0; Index < NumFiles; ++Index)
+	{
+		FString SCFile = SCFiles[Index];
+		FSourceControlStateRef SCState = SCStates[Index];
 
 	// Less error checking and info is made for multiple files than the single file version.
 	// This multi-file version could be made similarly more sophisticated.
-	ECommandResult::Type Result = Provider->Execute(ISourceControlOperation::Create<FCheckOut>(), FilePaths);
+		if (!SCState->IsCheckedOut() && !SCState->IsAdded())
+		{
+			if (SCState->CanCheckout())
+			{
+				SCFilesToCheckout.Add(SCFile);
+			}
+			else
+			{
+				bCannotCheckoutAtLeastOneFile = true;
+			}
+		}
+	}
 
-	return !bFilesSkipped && (Result == ECommandResult::Succeeded);
+	bool bSuccess = !bFilesSkipped && !bCannotCheckoutAtLeastOneFile;
+	if (SCFilesToCheckout.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FCheckOut>(), SCFilesToCheckout) == ECommandResult::Succeeded;
+	}
+
+	return bSuccess;
 }
 
 
@@ -512,6 +540,76 @@ bool USourceControlHelpers::CheckOutOrAddFile(const FString& InFile, bool bSilen
 	return false;
 }
 
+bool USourceControlHelpers::CheckOutOrAddFiles(const TArray<FString>& InFiles, bool bSilent)
+{
+	// Determine file type and ensure it is in form source control wants
+	// Even if some files were skipped, still apply to the others
+	TArray<FString> SCFiles;
+	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, SCFiles, bSilent);
+	const int32 NumFiles = SCFiles.Num();
+
+	// Ensure source control system is up and running
+	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
+	if (!Provider)
+	{
+		// Error or can't communicate with source control
+		return false;
+	}
+
+	TArray<FSourceControlStateRef> SCStates;
+	Provider->GetState(SCFiles, SCStates, EStateCacheUsage::ForceUpdate);
+
+	TArray<FString> SCFilesToAdd;
+	TArray<FString> SCFilesToCheckout;
+	bool bCannotAddAtLeastOneFile = false;
+	bool bCannotCheckoutAtLeastOneFile = false;
+	for (int32 Index = 0; Index < NumFiles; ++Index)
+	{
+		FString SCFile = SCFiles[Index];
+		FSourceControlStateRef SCState = SCStates[Index];
+
+		// Less error checking and info is made for multiple files than the single file version.
+		// This multi-file version could be made similarly more sophisticated.
+		if (!SCState->IsCheckedOut())
+		{
+			if (!SCState->IsAdded())
+			{
+				if (SCState->CanAdd())
+				{
+					SCFilesToAdd.Add(SCFile);
+				}
+				else
+				{
+					bCannotAddAtLeastOneFile = true;
+				}
+			}
+			else
+			{
+				if (SCState->CanCheckout())
+				{
+					SCFilesToCheckout.Add(SCFile);
+				}
+				else
+				{
+					bCannotCheckoutAtLeastOneFile = true;
+				}
+			}
+		}
+	}
+
+	bool bSuccess = !bFilesSkipped && !bCannotCheckoutAtLeastOneFile && !bCannotAddAtLeastOneFile;
+	if (SCFilesToAdd.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FMarkForAdd>(), SCFilesToAdd) == ECommandResult::Succeeded;
+	}
+
+	if (SCFilesToCheckout.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FCheckOut>(), SCFilesToCheckout) == ECommandResult::Succeeded;
+	}
+
+	return bSuccess;
+}
 
 bool USourceControlHelpers::MarkFileForAdd(const FString& InFile, bool bSilent)
 {
@@ -688,6 +786,7 @@ bool USourceControlHelpers::MarkFilesForDelete(const TArray<FString>& InFiles, b
 
 	TArray<FString> SCFilesToRevert;
 	TArray<FString> SCFilesToMarkForDelete;
+	bool bCannotDeleteAtLeastOneFile = false;
 	for (int32 Index = 0; Index < NumFiles; ++Index)
 	{
 		FString SCFile = SCFiles[Index];
@@ -705,20 +804,27 @@ bool USourceControlHelpers::MarkFilesForDelete(const TArray<FString>& InFiles, b
 
 			if (!bAdded)
 			{
-				SCFilesToMarkForDelete.Add(SCFile);
+				if (SCState->CanDelete())
+				{
+					SCFilesToMarkForDelete.Add(SCFile);
+				}
+				else
+				{
+					bCannotDeleteAtLeastOneFile = true;
+				}
 			}
 		}
 	}
 
-	bool bSuccess = bFilesSkipped;
+	bool bSuccess = !bFilesSkipped && !bCannotDeleteAtLeastOneFile;
 	if (SCFilesToRevert.Num())
 	{
-		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FRevert>(), SCFiles) != ECommandResult::Failed;
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FRevert>(), SCFilesToRevert) == ECommandResult::Succeeded;
 	}
 
 	if (SCFilesToMarkForDelete.Num())
 	{
-		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FDelete>(), SCFiles) != ECommandResult::Failed;
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FDelete>(), SCFilesToMarkForDelete) == ECommandResult::Succeeded;
 	}
 
 	// Delete remaining files if they still exist : 
@@ -764,24 +870,44 @@ bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::RevertFiles(const TArray<FString>& InFiles,	bool bSilent)
 {
-	// Determine file types and ensure they are in form source control wants
-	TArray<FString> FilePaths;
-	SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent);
+	// Determine file type and ensure they are in form source control wants
+	// Even if some files were skipped, still apply to the others
+	TArray<FString> SCFiles;
+	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, SCFiles, bSilent);
+	const int32 NumFiles = SCFiles.Num();
 
+	// Ensure source control system is up and running
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
-
 	if (!Provider)
 	{
+		// Error or can't communicate with source control
 		return false;
 	}
 
-	// Less error checking and info is made for multiple files than the single file version.
-	// This multi-file version could be made similarly more sophisticated.
+	TArray<FSourceControlStateRef> SCStates;
+	Provider->GetState(SCFiles, SCStates, EStateCacheUsage::ForceUpdate);
 
-	// Revert files regardless of whether they've had any changes made
-	ECommandResult::Type Result = Provider->Execute(ISourceControlOperation::Create<FRevert>(), FilePaths);
+	TArray<FString> SCFilesToRevert;
+	for (int32 Index = 0; Index < NumFiles; ++Index)
+	{
+		FString SCFile = SCFiles[Index];
+		FSourceControlStateRef SCState = SCStates[Index];
 
-	return Result == ECommandResult::Succeeded;
+		// Less error checking and info is made for multiple files than the single file version.
+		// This multi-file version could be made similarly more sophisticated.
+		if (SCState->IsCheckedOut() || SCState->IsAdded())
+		{
+			SCFilesToRevert.Add(SCFile);
+		}
+	}
+
+	bool bSuccess = !bFilesSkipped;
+	if (SCFilesToRevert.Num())
+	{
+		bSuccess &= Provider->Execute(ISourceControlOperation::Create<FRevert>(), SCFilesToRevert) == ECommandResult::Succeeded;
+	}
+
+	return bSuccess;
 }
 
 
