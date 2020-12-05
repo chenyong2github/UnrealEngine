@@ -30,6 +30,7 @@ void SSequencerTreeFilterStatusBar::Construct(const FArguments& InArgs, TSharedP
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(3.0f, 3.0f))
+			.Visibility(EVisibility::HitTestInvisible)
 			[
 				SAssignNew(TextBlock, STextBlock)
 			]
