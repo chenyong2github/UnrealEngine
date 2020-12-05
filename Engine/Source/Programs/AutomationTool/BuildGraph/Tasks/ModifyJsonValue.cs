@@ -1,0 +1,96 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using AutomationTool;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Xml;
+using System.IO;
+using System.Text;
+using Tools.DotNETCommon;
+
+namespace BuildGraph.Tasks
+{
+	/// <summary>
+	/// Parameters for a ModifyJsonValue task
+	/// </summary>
+	public class ModifyJsonValueParameters
+	{
+		/// <summary>
+		/// json file paths which will be modified
+		/// </summary>
+		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
+		public string Files;
+
+		/// <summary>
+		/// json key path to find in each file
+		/// </summary>
+		[TaskParameter(ValidationType = TaskParameterValidationType.Default)]
+		public string KeyPath;
+
+		/// <summary>
+		/// new value to apply
+		/// </summary>
+		[TaskParameter(ValidationType = TaskParameterValidationType.Default)]
+		public int NewValue;
+	}
+
+	/// <summary>
+	/// Modifies json files by setting a value specified in the key path
+	/// </summary>
+	[TaskElement("ModifyJsonValue", typeof(ModifyJsonValueParameters))]
+	public class ModifyJsonValue : CustomTask
+	{
+		ModifyJsonValueParameters Parameters;
+
+		public ModifyJsonValue(ModifyJsonValueParameters InParameters)
+		{
+			Parameters = InParameters;
+		}
+
+		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		{
+			string[] Keys = Parameters.KeyPath.Split('.');
+			if (Keys.Length == 0)
+            {
+				return;
+            }
+			HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+			foreach (var JsonFile in Files.Select(f => f.FullName))
+			{
+				var OldContents = File.ReadAllText(JsonFile);
+				var ParamObj = fastJSON.JSON.Instance.Parse(OldContents) as IDictionary<string, object>;
+				var CurrObj = ParamObj;
+				for (int i = 0; i < Keys.Length - 1; i++)
+				{
+					if (!CurrObj.TryGetValue(Keys[i], out object NextNode))
+						CurrObj[Keys[i]] = NextNode = new Dictionary<string, object>();
+					CurrObj = (IDictionary<string, object>)NextNode;
+				}
+
+				CurrObj[Keys[Keys.Length - 1]] = Parameters.NewValue;
+
+				var NewContents = Json.Serialize(ParamObj, JsonSerializeOptions.PrettyPrint);
+				File.WriteAllText(JsonFile, NewContents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+			}
+		}
+
+		public override void Write(XmlWriter Writer)
+		{
+			Write(Writer, Parameters);
+		}
+
+		public override IEnumerable<string> FindConsumedTagNames()
+		{
+			foreach (string TagName in FindTagNamesFromFilespec(Parameters.Files))
+			{
+				yield return TagName;
+			}
+		}
+
+		public override IEnumerable<string> FindProducedTagNames()
+		{
+			yield break;
+		}
+	}
+}
