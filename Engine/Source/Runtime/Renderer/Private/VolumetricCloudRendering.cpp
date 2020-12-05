@@ -824,7 +824,7 @@ class FVolumetricCloudRenderViewMeshProcessor : public FMeshPassProcessor
 public:
 	FVolumetricCloudRenderViewMeshProcessor(const FScene* Scene, const FViewInfo* InViewIfDynamicMeshCommand,
 		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer, bool bShouldViewRenderVolumetricRenderTarget, bool bSkipAtmosphericLightShadowmap, bool bSecondAtmosphereLightEnabled,
-		FMeshPassDrawListContext* InDrawListContext/*, TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> VolumetricCloudParmsUB*/)
+		FMeshPassDrawListContext* InDrawListContext)
 		: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 		, bVolumetricCloudPerSampleAtmosphereTransmittance(ShouldUsePerSampleAtmosphereTransmittance(Scene, InViewIfDynamicMeshCommand))
 		, bVolumetricCloudSampleLightShadowmap(!bSkipAtmosphericLightShadowmap && CVarVolumetricCloudShadowSampleAtmosphericLightShadowmap.GetValueOnAnyThread() > 0)
@@ -832,7 +832,6 @@ public:
 	{
 		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 		PassDrawRenderState.SetViewUniformBuffer(ViewUniformBuffer);
-	//	PassDrawRenderState.SetPassUniformBuffer(VolumetricCloudParmsUB->GetRHI());
 
 		if (bShouldViewRenderVolumetricRenderTarget)
 		{
