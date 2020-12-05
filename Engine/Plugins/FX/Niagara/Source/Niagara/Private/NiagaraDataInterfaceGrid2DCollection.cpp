@@ -337,7 +337,8 @@ void UNiagaraDataInterfaceGrid2DCollection::PostInitProperties()
 	//Can we register data interfaces as regular types and fold them into the FNiagaraVariable framework for UI and function calls etc?
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), /*bCanBeParameter*/ true, /*bCanBePayload*/ false, /*bIsUserDefined*/ false);
+		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
 		UNiagaraDataInterfaceGrid2DCollection::ExposedRTVar = FNiagaraVariableBase(FNiagaraTypeDefinition(UTexture::StaticClass()), TEXT("RenderTarget"));
 	}
 }

@@ -2446,7 +2446,31 @@ void SNiagaraAddParameterMenu::CollectMakeNew(FGraphActionListBuilderBase& OutAc
 	}
 
 	TArray<FNiagaraVariable> Variables;
-	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
+	TConstArrayView<FNiagaraTypeDefinition> SectionTypes;
+	switch (InSection)
+	{
+		case NiagaraParameterMapSectionID::USER:
+			SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredUserVariableTypes());
+			break;
+
+		case NiagaraParameterMapSectionID::SYSTEM:
+			SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes());
+			break;
+
+		case NiagaraParameterMapSectionID::EMITTER:
+			SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes());
+			break;
+
+		case NiagaraParameterMapSectionID::PARTICLE:
+			SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes());
+			break;
+
+		default:
+			SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredTypes());
+			break;
+	}
+
+	for (const FNiagaraTypeDefinition& RegisteredType : SectionTypes)
 	{
 		bool bAllowType = true;
 		if (OnAllowMakeType.IsBound())
