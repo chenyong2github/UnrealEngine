@@ -136,7 +136,8 @@ FMovieSceneEntityID FEntityLedger::FindImportedEntity(const FMovieSceneEvaluatio
 void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityQuery& Query)
 {
 	// We always add an entry even if no entity was imported by the provider to ensure that we do not repeatedly try and import the same entity every frame
-	FMovieSceneEntityID& RefEntityID = ImportedEntities.FindOrAdd(Query.Entity.Key).EntityID;
+	FImportedEntityData& EntityData = ImportedEntities.FindOrAdd(Query.Entity.Key);
+	EntityData.MetaDataIndex = Query.MetaDataIndex;
 
 	UObject* EntityOwner = Query.Entity.Key.EntityOwner.Get();
 	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
@@ -172,7 +173,7 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 
 		FMovieSceneEntityID NewEntityID = ImportedEntity.Manufacture(Params, &Linker->EntityManager);
 
-		Linker->EntityManager.ReplaceEntityID(RefEntityID, NewEntityID);
+		Linker->EntityManager.ReplaceEntityID(EntityData.EntityID, NewEntityID);
 	}
 }
 
