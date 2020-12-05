@@ -2617,7 +2617,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			return TempChannel;
 		}
 
-		return INDEX_NONE;
+		return (int32)INDEX_NONE;
 	}();
 
 	//
