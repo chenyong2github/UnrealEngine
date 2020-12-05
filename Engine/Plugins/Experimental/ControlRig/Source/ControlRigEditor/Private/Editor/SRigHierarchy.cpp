@@ -1213,15 +1213,29 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
 	if (Mesh && Hierarchy)
 	{
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
+
 		FScopedTransaction Transaction(LOCTEXT("HierarchyRefresh", "Refresh Transform"));
 		ControlRigBlueprint->Modify();
 
+		// don't select bone if we are in setup mode.
+		// we do this to avoid the editmode / viewport gizmos to refresh recursively,
+		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
+		bool bSelectBones = true;
+		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
+		{
+			bSelectBones = !CurrentRig->IsSetupModeEnabled();
+		}
+
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
-		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, true, true, true, false /* notify */);
+		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, true, true, bSelectBones, false /* notify */);
 	}
 
-	FSlateApplication::Get().DismissAllMenus();
+	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
+	ControlRigEditor.Pin()->OnHierarchyChanged();
 	RefreshTreeView();
+	FSlateApplication::Get().DismissAllMenus();
 }
 
 void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
@@ -1254,22 +1268,36 @@ void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 {
 	FRigHierarchyContainer* Hierarchy = GetHierarchyContainer();
-	USkeletalMesh* Mesh = Cast<USkeletalMesh> (InAssetData.GetAsset());
+	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
 	if (Mesh && Hierarchy)
 	{
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
+
 		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
 		ControlRigBlueprint->Modify();
 
+		// don't select bone if we are in setup mode.
+		// we do this to avoid the editmode / viewport gizmos to refresh recursively,
+		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
+		bool bSelectBones = true;
+		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
+		{
+			bSelectBones = !CurrentRig->IsSetupModeEnabled();
+		}
+
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
-		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, false, false, true, false /* notify */);
+		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, false, false, bSelectBones, false /* notify */);
 		Hierarchy->CurveContainer.ImportCurvesFromSkeleton(Mesh->GetSkeleton(), NAME_None, true, false, false /* notify */);
 
 		ControlRigBlueprint->SourceHierarchyImport = Mesh->GetSkeleton();
 		ControlRigBlueprint->SourceCurveImport = Mesh->GetSkeleton();
 	}
 
-	FSlateApplication::Get().DismissAllMenus();
+	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
+	ControlRigEditor.Pin()->OnHierarchyChanged();
 	RefreshTreeView();
+	FSlateApplication::Get().DismissAllMenus();
 
 	if (ControlRigBlueprint->GetPreviewMesh() == nullptr &&
 		ControlRigEditor.IsValid() && 
