@@ -465,8 +465,11 @@ void FMaterialStats::BuildShaderPlatformDB()
 			bool bIsConsole = FDataDrivenShaderPlatformInfo::GetIsConsole(ShaderPlatform);
 
 			const FName ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
-			const FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
-			AddShaderPlatform(bIsConsole ? EPlatformCategoryType::Console : EPlatformCategoryType::Desktop, ShaderPlatform, PlatformName, true, true, PlatformName.ToString());
+			if (TPM.FindShaderFormat(ShaderFormat) != nullptr)
+			{
+				const FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
+				AddShaderPlatform(bIsConsole ? EPlatformCategoryType::Console : EPlatformCategoryType::Desktop, ShaderPlatform, PlatformName, true, true, PlatformName.ToString());
+			}
 		}
 	}
 
