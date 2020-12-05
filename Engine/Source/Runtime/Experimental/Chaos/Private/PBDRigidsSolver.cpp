@@ -473,6 +473,18 @@ namespace Chaos
 		{
 			GeometryParticlePhysicsProxies.RemoveSingleSwap((FGeometryParticlePhysicsProxy*)InProxy);
 		}
+		
+
+		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		{
+			//int32 ExternalTimestamp = GetMarshallingManager().GetExternalTimestamp_External();
+			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(/*ExternalTimestamp*/);
+			if (!PendingMap.Contains(GTParticle))
+			{
+				PendingMap.Add(GTParticle);
+			}
+		}
+
 
 		// Enqueue a command to remove the particle and delete the proxy
 		EnqueueCommandImmediate([InProxy, InParticleType, this]()
