@@ -37,13 +37,13 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 	do
 	{
 		XR_ENSURE(WaitResult = xrWaitSwapchainImage(Handle, &WaitInfo));
-		if (WaitResult == XR_TIMEOUT_EXPIRED)
+		if (WaitResult == XR_TIMEOUT_EXPIRED)	//-V547
 		{
 			UE_LOG(LogHMD, Warning, TEXT("Timed out waiting on swapchain image %u! Attempts remaining %d."), SwapChainIndex_RHIThread, RetryCount);
 		}
 	} while (WaitResult == XR_TIMEOUT_EXPIRED && RetryCount-- > 0);
 
-	if (WaitResult != XR_SUCCESS)
+	if (WaitResult != XR_SUCCESS) //-V547
 	{
 		// We can't continue without acquiring a new swapchain image since we won't have an image available to render to.
 		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
