@@ -914,7 +914,7 @@ void FParticlePerfStatsListener_NiagaraBaselineComparisonRender::TickRT()
 
 #include "Engine/Font.h"
 
-int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(class UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(class UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 /*X*/, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 	FScopeLock Lock(&AccumulatedStatsGuard);
 
@@ -980,7 +980,7 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 	const int32 FontHeight = Font->GetMaxCharHeight() + 2.0f;
 
 	const float BaseX = 50;
-	X = BaseX + NameWidth;
+	int32 X = BaseX + NameWidth;
 
 	// Draw background
 	static FLinearColor HeaderBackground = FLinearColor(0.2f, 0.2f, 0.2f, 0.5f);
