@@ -307,7 +307,11 @@ void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	// Determine the mesh's material and blend mode.
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-	const bool bIsCompatible = IsCompatibleWithHairStrands(&Material, FeatureLevel);
+	bool bIsCompatible = IsCompatibleWithHairStrands(&Material, FeatureLevel);
+	if (bIsCompatible && PrimitiveSceneProxy && (RasterPassType == EHairStrandsRasterPassType::FrontDepth || RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap))
+	{
+		bIsCompatible = PrimitiveSceneProxy->CastsDynamicShadow();
+	}
 
 	if (bIsCompatible
 		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
