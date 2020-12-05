@@ -542,6 +542,12 @@ FOnDeviceProfileManagerUpdated& UDeviceProfileManager::OnManagerUpdated()
 }
 
 
+FOnActiveDeviceProfileChanged& UDeviceProfileManager::OnActiveDeviceProfileChanged()
+{
+	return ActiveDeviceProfileChangedDelegate;
+}
+
+
 void UDeviceProfileManager::LoadProfiles()
 {
 	if( !HasAnyFlags( RF_ClassDefaultObject ) )
@@ -815,6 +821,8 @@ void UDeviceProfileManager::SetActiveDeviceProfile( UDeviceProfile* DeviceProfil
 	const int32 NumTextureLODGroups = ActiveDeviceProfile ? ActiveDeviceProfile->TextureLODGroups.Num() : 0;
 	UE_LOG(LogInit, Log, TEXT("Active device profile: [%p][%p %d] %s"), ActiveDeviceProfile, TextureLODGroupsAddr, NumTextureLODGroups, ActiveDeviceProfile ? *ActiveDeviceProfile->GetName() : TEXT("None"));
 	UE_LOG(LogInit, Log, TEXT("Profiles: %s"), *ProfileNames);
+
+	ActiveDeviceProfileChangedDelegate.Broadcast();
 
 #if CSV_PROFILER
 	CSV_METADATA(TEXT("DeviceProfile"), *GetActiveDeviceProfileName());
