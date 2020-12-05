@@ -237,6 +237,10 @@ void SControlHierarchy::RefreshTreeView()
 			}
 		}
 	}
+	else
+	{
+		TreeView->RequestTreeRefresh();
+	}
 }
 
 void SControlHierarchy::SetExpansionRecursive(TSharedPtr<FControlTreeElement> InElement, bool bTowardsParent)
