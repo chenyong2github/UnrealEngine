@@ -215,7 +215,21 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 	FNiagaraDataSet& Data = Emitter->GetData();
 	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
 	FNiagaraDataSetReaderInt32<FNiagaraBool> EnabledAccessor = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->EnabledBinding.GetDataSetBindableVariable().GetName());
+	FNiagaraDataSetReaderInt32<int32> VisTagAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, Properties->RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
 	FNiagaraDataSetReaderInt32<int32> UniqueIDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
+
+	auto IsParticleEnabled = [&EnabledAccessor, &VisTagAccessor, Properties](int32 ParticleIndex)
+	{
+		if (EnabledAccessor.GetSafe(ParticleIndex, true))
+		{
+			if (VisTagAccessor.IsValid())
+			{
+				return VisTagAccessor.GetSafe(ParticleIndex, 0) == Properties->RendererVisibility;
+			}
+			return true;
+		}
+		return false;
+	};
 
 	TMap<int32, int32> ParticlesWithComponents;
 	TArray<int32> FreeList;
@@ -247,7 +261,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			int32 PoolIndex;
 			if (UsedSlots.RemoveAndCopyValue(ParticleID, PoolIndex))
 			{
-				if (EnabledAccessor.GetSafe(ParticleIndex, true))
+				if (IsParticleEnabled(ParticleIndex))
 				{
 					ParticlesWithComponents.Emplace(ParticleID, PoolIndex);
 				}
@@ -258,8 +272,10 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 					if (Component && Component->IsActive())
 					{
 						Component->Deactivate();
+						Component->SetVisibility(false, true);
 					}
 					FreeList.Add(PoolIndex);
+					ComponentPool[PoolIndex].LastAssignedToParticleID = -1;
 				}
 			}
 		}
@@ -272,6 +288,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			if (Component && Component->IsActive())
 			{
 				Component->Deactivate();
+				Component->SetVisibility(false, true);
 			}
 			FreeList.Add(UsedSlot.Value);
 			ComponentPool[UsedSlot.Value].LastAssignedToParticleID = -1;
@@ -282,7 +299,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 	int32 ComponentCount = 0;
 	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
 	{
-		if (!EnabledAccessor.GetSafe(ParticleIndex, true))
+		if (!IsParticleEnabled(ParticleIndex))
 		{
 			// Skip particles that don't want a component
 			continue;
