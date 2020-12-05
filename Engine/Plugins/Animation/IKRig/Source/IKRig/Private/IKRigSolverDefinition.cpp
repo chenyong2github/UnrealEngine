@@ -13,7 +13,7 @@ void UIKRigSolverDefinition::CollectGoals(TArray<FName>& OutGoals)
 	TArray<FName> LocalGoals;
 	// this just accumulate on the current array
 	// if you want to clear, clear before coming here
-	TaskToGoal.GenerateValueArray(LocalGoals);
+	EffectorToGoal.GenerateValueArray(LocalGoals);
 
 	OutGoals += LocalGoals;
 }
@@ -21,7 +21,7 @@ void UIKRigSolverDefinition::CollectGoals(TArray<FName>& OutGoals)
 #if WITH_EDITOR
 void UIKRigSolverDefinition::RenameGoal(const FName& OldName, const FName& NewName)
 {
-	for (auto Iter = TaskToGoal.CreateIterator(); Iter; ++Iter)
+	for (auto Iter = EffectorToGoal.CreateIterator(); Iter; ++Iter)
 	{
 		if (Iter.Value() == OldName)
 		{
@@ -58,6 +58,20 @@ void UIKRigSolverDefinition::OnGoalHasBeenUpdated()
 	GoalNeedsUpdateDelegate.Broadcast();
 }
 
+void UIKRigSolverDefinition::EnsureToAddEffector(const FIKRigEffector& InEffector, const FString& InPrefix)
+{
+	FName* GoalName = EffectorToGoal.Find(InEffector);
+	if (!GoalName)
+	{
+		EffectorToGoal.Add(InEffector) = CreateUniqueGoalName(*InPrefix);
+	}
+}
+
+void UIKRigSolverDefinition::EnsureToRemoveEffector(const FIKRigEffector& InEffector)
+{
+	EffectorToGoal.Remove(InEffector);
+}
+
 #endif // WITH_EDITOR
 
 void UIKRigSolverDefinition::PostLoad()
@@ -65,6 +79,14 @@ void UIKRigSolverDefinition::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	UpdateTaskList();
+	UpdateEffectors();
 #endif // WITH_EDITOR
+}
+
+void UIKRigSolverDefinition::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// serialize these manually because that's the custom types
+	Ar << EffectorToGoal;
 }

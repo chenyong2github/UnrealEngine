@@ -12,7 +12,7 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-
+#include "IKRigDataTypes.h"
 #include "IKRigSolverDefinition.generated.h"
 
 class UIKRigSolver;
@@ -27,10 +27,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Definition")
 	FString DisplayName;
 
-	// effector name to goals name map
-	UPROPERTY(VisibleAnywhere, Category = "Definition")
-	TMap<FName, FName> TaskToGoal;
-
 	// this is name of constraints it's used
 	// use Delegate from IKRigDefinition to query and solve
 	UPROPERTY(EditAnywhere, Category = "Definition")
@@ -39,10 +35,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Definition")
 	TSubclassOf<UIKRigSolver> ExecutionClass;
 
+	// effector name to goals name map
+	TIKRigEffectorMap<FName> EffectorToGoal;
+
 public:
-	const TMap<FName, FName>& GetTaskToGoal() const
+	const TIKRigEffectorMap<FName>& GetEffectorToGoal() const
 	{
-		return TaskToGoal;
+		return EffectorToGoal;
 	}
 
 	TSubclassOf<UIKRigSolver> GetExecutionClass() 
@@ -68,19 +67,22 @@ private:
 	void RenameGoal(const FName& OldName, const FName& NewName);
 	// get unique name delegate by IKRigDefinition
 	void EnsureUniqueGoalName(FName& InOutGoalName) const;
-
+	
 	DECLARE_MULTICAST_DELEGATE(FGoalNeedsUpdate);
 	FGoalNeedsUpdate GoalNeedsUpdateDelegate;
 
 protected:
 	FName CreateUniqueGoalName(const TCHAR* Suffix) const;
 	void OnGoalHasBeenUpdated();
+	void EnsureToAddEffector(const FIKRigEffector& InEffector, const FString& InPrefix);
+	void EnsureToRemoveEffector(const FIKRigEffector& InEffector);
 
-	virtual void UpdateTaskList() {};
+	virtual void UpdateEffectors() {};
 #endif // WITH_EDITOR
 
 	/// BEGIN UObject
 	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 	/// END UObject
 	friend class UIKRigController;
 };

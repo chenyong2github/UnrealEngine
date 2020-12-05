@@ -11,6 +11,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Misc/Guid.h"
 #include "IKRigDataTypes.generated.h"
 
 struct FIKRigHierarchy;
@@ -92,6 +93,40 @@ struct IKRIG_API FIKRigGoal
 	}
 };
 
+USTRUCT()
+struct IKRIG_API FIKRigEffector
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid Guid;
+
+	FIKRigEffector()
+	{
+		Guid = FGuid::NewGuid();
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FIKRigEffector& Effector)
+	{
+		return Ar << Effector.Guid;
+	}
+
+	FORCEINLINE bool operator==(const FIKRigEffector& Rhs) const
+	{
+		return Guid == Rhs.Guid;
+	}
+};
+
+template <typename ValueType>
+struct TIKRigEffectorMapKeyFuncs : public TDefaultMapKeyFuncs<const FIKRigEffector, ValueType, false>
+{
+	static FORCEINLINE FIKRigEffector					GetSetKey(TPair<FIKRigEffector, ValueType> const& Element) { return Element.Key; }
+	static FORCEINLINE uint32							GetKeyHash(FIKRigEffector const& Key) { return GetTypeHash(Key.Guid); }
+	static FORCEINLINE bool								Matches(FIKRigEffector const& A, FIKRigEffector const& B) { return (A.Guid == B.Guid); }
+};
+
+template <typename ValueType>
+using TIKRigEffectorMap = TMap<FIKRigEffector, ValueType, FDefaultSetAllocator, TIKRigEffectorMapKeyFuncs<ValueType>>;
 
 // If you want to modify this, use FIKRigTransformModifier
 USTRUCT()

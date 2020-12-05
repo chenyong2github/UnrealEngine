@@ -32,7 +32,7 @@ void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransfo
 	if (UTransformSolverDefinition* SolverDef = Cast<UTransformSolverDefinition>(SolverDefinition))
 	{
 		FIKRigTarget Target;
-		if (GetTaskTarget(UTransformSolverDefinition::TransformTarget, Target))
+		if (GetEffectorTarget(SolverDef->TransformTarget, Target))
 		{
 			int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(Target.Bone);
 			if (Index != INDEX_NONE)

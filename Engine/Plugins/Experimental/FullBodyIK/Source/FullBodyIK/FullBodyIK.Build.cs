@@ -15,7 +15,8 @@ public class FullBodyIK : ModuleRules
 				// ... add other public dependencies that you statically link with here ...
 				"Eigen",
 				"RigVM",
-				"ControlRig"
+				"ControlRig",
+				"IKRig"
             }
 			);
 			

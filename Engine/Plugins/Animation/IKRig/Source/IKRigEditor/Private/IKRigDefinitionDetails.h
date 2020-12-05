@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/StrongObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
@@ -36,7 +36,7 @@ public:
 	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override;
 private:
 	TWeakObjectPtr<UIKRigDefinition>		IKRigDefinition;
-	TStrongObjectPtr<UIKRigController>		IKRigController;
+	UIKRigController*						IKRigController;
 
 	// source asset
 	FString GetCurrentSourceAsset() const;

@@ -37,11 +37,11 @@ void UIKRigSolver::Solve(FIKRigTransformModifier& InOutGlobalTransform)
 	}
 }
 
-bool UIKRigSolver::GetTaskTarget(const FName& TaskName, FIKRigTarget& OutTarget) const
+bool UIKRigSolver::GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const
 {
 	if (SolverDefinition && GoalGetter.IsBound())
 	{	
-		const FName* GoalName = SolverDefinition->GetTaskToGoal().Find(TaskName);
+		const FName* GoalName = SolverDefinition->GetEffectorToGoal().Find(InEffector);
 		if (GoalName)
 		{
 			return GoalGetter.Execute(*GoalName, OutTarget);

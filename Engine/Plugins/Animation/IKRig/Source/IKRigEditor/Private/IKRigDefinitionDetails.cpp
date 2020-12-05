@@ -64,13 +64,8 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	}
 
 	// create controller
-	if (!IKRigController.IsValid())
-	{
-		IKRigController = TStrongObjectPtr<UIKRigController>(NewObject<UIKRigController>());
-	}
+	IKRigController = UIKRigController::GetControllerByRigDefinition(IKRigDefinition.Get());
 	
-	IKRigController->SetIKRigDefinition(IKRigDefinition.Get());
-
 	ObjectChangedDelegate = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FIKRigDefinitionDetails::OnObjectPostEditChange);
 	/////////////////////////////////////////////////////////////////////////////////
 	// skeleton set up
@@ -319,7 +314,7 @@ TSharedRef<ITableRow> FIKRigDefinitionDetails::OnGenerateWidgetForGoals(FGoalNam
 void FIKRigDefinitionDetails::HandleGoalNameChanged(const FText& NewName, ETextCommit::Type CommitType, FGoalNameListItemPtr InItem)
 {
 	//if (CommitType == ETextCommit::OnEnter)
-	if (IKRigController.IsValid())
+	if (IKRigController)
 	{
 		if (!NewName.IsEmptyOrWhitespace())
 		{

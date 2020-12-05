@@ -8,30 +8,28 @@
 #include "Solvers/TransformSolverDefinition.h"
 #include "TransformSolver.h"
 
-const FName UTransformSolverDefinition::TransformTarget = FName(TEXT("TransformTarget"));
-
 UTransformSolverDefinition::UTransformSolverDefinition()
+	: TransformTargetName(TEXT("TransformTarget"))
 {
 	DisplayName = TEXT("Transform Solver");
 	ExecutionClass = UTransformSolver::StaticClass();
 }
 
 #if WITH_EDITOR
-void UTransformSolverDefinition::UpdateTaskList()
+void UTransformSolverDefinition::UpdateEffectors()
 {
 	// update tasks - you want to keep old name though if changed
-	FName* TaskFound= TaskToGoal.Find(TransformTarget);
 	bool bActiveTask = bEnablePosition || bEnableRotation;
 
 	// not found, we add new
-	if (bActiveTask && !TaskFound)
+	if (bActiveTask)
 	{
-		TaskToGoal.Add(TransformTarget) = CreateUniqueGoalName(*TransformTarget.ToString());
+		EnsureToAddEffector(TransformTarget, *TransformTargetName);
 	}
 	// if the opposite, we have to remove
-	else if (!bActiveTask && TaskFound)
+	else if (!bActiveTask)
 	{
-		TaskToGoal.FindAndRemoveChecked(TransformTarget);
+		EnsureToRemoveEffector(TransformTarget);
 	}
 
 	// trigger a delegate for goal has been updated?
@@ -43,8 +41,10 @@ void UTransformSolverDefinition::PostEditChangeChainProperty(struct FPropertyCha
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolverDefinition, bEnablePosition) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolverDefinition, bEnableRotation))
 	{
-		UpdateTaskList();
+		UpdateEffectors();
 	}
+
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
 
 #endif// WITH_EDITOR

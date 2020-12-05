@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "IKRigSolver.generated.h"
 
+struct FIKRigEffector;
 struct FIKRigTarget;
 struct FIKRigTransform;
 struct FIKRigTransformModifier;
@@ -51,7 +52,7 @@ protected:
 	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform) {};
 	virtual bool IsSolverActive() const;
 
-	bool GetTaskTarget(const FName& TaskName, FIKRigTarget& OutTarget) const;
+	bool GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const;
 	const FIKRigTransform& GetReferencePose() const;
 private:
 	// delegate

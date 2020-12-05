@@ -25,15 +25,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Solver")
 	bool	bEnableRotation = true;
 
+	UPROPERTY(EditAnywhere, Category = "Solver")
+	FIKRigEffector TransformTarget;
+
 private:
 #if WITH_EDITOR
-	virtual void UpdateTaskList() override;
+	virtual void UpdateEffectors() override;
 
 	// UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	// UObject interface
 #endif // WITH_EDITOR
 
-public:
-	static const FName TransformTarget;
+	const FString TransformTargetName;
 };

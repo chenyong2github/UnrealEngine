@@ -103,9 +103,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Goals")
 	TMap<FName, FIKRigGoal> IKGoals;
 
-	// UObject functions
+	// BEGIN UObject functions 
 	virtual void PostLoad() override;
-
+	virtual void BeginDestroy() override;
+	// END UObject functions
 #if WITH_EDITOR
 	// https ://drive.google.com/file/d/1EO0Ijojx-0jommdHuZv1JYxfCdoFLd44/view
 
@@ -139,13 +140,13 @@ private:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FBoneRenamed, FName /*OldName*/, FName /*NewName*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FBoneReparented, FName /*Name*/, FName /*ParentName*/);
 
-	DECLARE_MULTICAST_DELEGATE(FIKRigDefinitionModified);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FIKRigDefinitionBeginDestroy, UIKRigDefinition* Definition);
 
 	FBoneAdded BoneAddedDelegate;
 	FBoneRemoved BoneRemovedDelegate;
 	FBoneRenamed BoneRenamedDelegate;
 	FBoneReparented BoneReparentedDelegate;
-	FIKRigDefinitionModified IKRigDefinitionModified;
+	FIKRigDefinitionBeginDestroy IKRigDefinitionBeginDestroy;
 
 #endif // WITH_EDITOR
 

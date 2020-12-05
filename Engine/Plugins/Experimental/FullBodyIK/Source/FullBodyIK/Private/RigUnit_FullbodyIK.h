@@ -3,9 +3,9 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "JacobianSolver.h"
 #include "FBIKConstraintOption.h"
 #include "FBIKDebugOption.h"
+#include "FBIKShared.h"
 #include "RigUnit_FullbodyIK.generated.h"
 
 USTRUCT()
@@ -69,17 +69,6 @@ struct FFBIKEndEffector
 	}
 };
 
-class FULLBODYIK_API FJacobianSolver_FullbodyIK : public FJacobianSolverBase
-{
-public:
-	FJacobianSolver_FullbodyIK() : FJacobianSolverBase() {}
-
-private:
-	virtual void InitializeSolver(TArray<FFBIKLinkData>& InOutLinkData, TMap<int32, FFBIKEffectorTarget>& InOutEndEffectors) const override;
-	virtual void PreSolve(TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FFBIKEffectorTarget>& InEndEffectors) const override;
-};
-
-
 USTRUCT()
 struct FRigUnit_FullbodyIK_WorkData
 {
@@ -105,63 +94,6 @@ struct FRigUnit_FullbodyIK_WorkData
 	FJacobianSolver_FullbodyIK IKSolver;
 	/** Debug Data */
 	TArray<FJacobianDebugData> DebugData;
-};
-
-USTRUCT()
-struct FSolverInput
-{
-	GENERATED_BODY()
-
-	/*
-	 * This value is applied to the target information for effectors, which influence back to 
-	 * Joint's motion that are affected by the end effector
-	 * The reason min/max is used when we apply the depth through the chain that are affected
-
-	 */
-	UPROPERTY()
-	float	LinearMotionStrength = 3.f;
-
-	UPROPERTY()
-	float	MinLinearMotionStrength = 2.f;
-
-	/*
-	 * This value is applied to the target information for effectors, which influence back to 
-	 * Joint's motion that are affected by the end effector
-	 * The reason min/max is used when we apply the depth through the chain that are affected
-	 */
-	UPROPERTY()
-	float	AngularMotionStrength = 3.f;
-
-	UPROPERTY()
-	float	MinAngularMotionStrength = 2.f;
-
-	/* This is a scale value (range from 0-0.7) that is used to stablize the target vector. If less, it's more stable, but it can reduce speed of converge. */
-	UPROPERTY()
-	float	DefaultTargetClamp = 0.2f;
-
-	/**
-	 * The precision to use for the solver
-	 */
-	UPROPERTY()
-	float Precision = 0.1f;
-
-	/**
-	* The precision to use for the fabrik solver
-	*/
-	UPROPERTY()
-	float Damping = 30.f;
-
-	/**
-	 * The maximum number of iterations. Values between 4 and 16 are common.
-	 */
-	UPROPERTY()
-	int32 MaxIterations = 30;
-
-	/**
-	 * Cheaper solution than default Jacobian Pseudo Inverse Damped Least Square
-	 */
-	UPROPERTY()
-	bool bUseJacobianTranspose = false;
 };
 
 /**

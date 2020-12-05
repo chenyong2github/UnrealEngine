@@ -1,0 +1,374 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	FullBodyIKSolver.cpp: Solver execution class for Transform
+=============================================================================*/
+
+#include "FullBodyIKSolver.h"
+#include "IKRigDataTypes.h"
+#include "IKRigHierarchy.h"
+#include "FBIKConstraint.h"
+#include "JacobianIK.h"
+#include "FullBodyIKSolverDefinition.h"
+
+void UFullBodyIKSolver::InitInternal()
+{
+	if (UFullBodyIKSolverDefinition* SolverDef = Cast<UFullBodyIKSolverDefinition>(SolverDefinition))
+	{
+// 		LinkData.Reset();
+// 		EffectorTargets.Reset();
+// 		EffectorLinkIndices.Reset();
+// 		LinkDataToHierarchyIndices.Reset();
+// 		HierarchyToLinkDataMap.Reset();
+// 
+// 		// verify the chain
+// 		AddEffectors(Hierarchy, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+	}
+}
+
+bool UFullBodyIKSolver::IsSolverActive() const
+{
+	if (Super::IsSolverActive())
+	{
+ 		if (UFullBodyIKSolverDefinition* SolverDef = Cast<UFullBodyIKSolverDefinition>(SolverDefinition))
+ 		{
+			// i'm not checkinf if this is valid, but we may not know for sure because 
+ 			return SolverDef->Effectors.Num() > 1;
+ 		}
+	}
+
+	return false;
+}
+
+void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform)
+{
+#if 0 
+	if (LinkDataToHierarchyIndices.Num() > 0)
+	{
+		// we do this every frame for now
+		if (Constraints.Num() > 0)
+		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Build Constraint"))
+			//Build constraints
+			FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
+		}
+
+		// during only editor and update
+		// we expect solver type changes, it will reinit
+		// InternalConstraints can't be changed during runtime
+		if (InternalConstraints.Num() > 0)
+		{
+			WorkData.IKSolver.SetPostProcessDelegateForIteration(FPostProcessDelegateForIteration::CreateStatic(&FBIKConstraintLib::ApplyConstraint, &InternalConstraints));
+		}
+		else
+		{
+			WorkData.IKSolver.ClearPostProcessDelegateForIteration();
+		}
+		// first set mid effector's transform
+
+		// before update we finalize motion scale
+		// this code may go away once we have constraint
+		// update link data and end effectors
+		for (int32 LinkIndex = 0; LinkIndex < LinkData.Num(); ++LinkIndex)
+		{
+			const FRigElementKey& Item = *LinkDataToHierarchyIndices.Find(LinkIndex);
+			LinkData[LinkIndex].SetTransform(Hierarchy->GetGlobalTransform(Item));
+			// @todo: fix this somewhere else - we can add this to prepare step
+			// @todo: we update motion scale here, then?
+			LinkData[LinkIndex].FinalizeForSolver();
+		}
+
+		// update mid effector info
+
+		const float LinearMotionStrength = FMath::Max(SolverProperty.LinearMotionStrength, SolverProperty.MinLinearMotionStrength);
+		const float AngularMotionStrength = FMath::Max(SolverProperty.AngularMotionStrength, SolverProperty.MinAngularMotionStrength);
+		const float LinearRange = LinearMotionStrength - SolverProperty.MinLinearMotionStrength;
+		const float AngularRange = AngularMotionStrength - SolverProperty.MinAngularMotionStrength;
+
+		// update end effector info
+		for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
+		{
+			int32 EffectorLinkIndex = EffectorLinkIndices[EffectorIndex];
+			if (EffectorLinkIndex != INDEX_NONE)
+			{
+				FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+				if (EffectorTarget)
+				{
+					const FFBIKEndEffector& CurEffector = Effectors[EffectorIndex];
+					const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+					const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
+					const FVector& EffectorLocation = CurEffector.Position;
+					const FQuat& EffectorRotation = CurEffector.Rotation;
+					EffectorTarget->Position = FMath::Lerp(CurrentLinkLocation, EffectorLocation, CurEffector.PositionAlpha);
+					EffectorTarget->Rotation = FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+					EffectorTarget->InitialPositionDistance = (EffectorLocation - CurrentLinkLocation).Size();
+					EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorRotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
+
+					const float Pull = FMath::Clamp(CurEffector.Pull, 0.f, 1.f);
+					// we want some impact of Pull, in order for Pull to have some impact, we clamp to some number
+					const float TargetClamp = FMath::Clamp(SolverProperty.DefaultTargetClamp, 0.f, 0.7f);
+					const float Scale = TargetClamp + Pull * (1.f - TargetClamp);
+					// Pull set up
+					EffectorTarget->LinearMotionStrength = LinearRange * Scale + SolverProperty.MinLinearMotionStrength;
+					EffectorTarget->AngularMotionStrength = AngularRange * Scale + SolverProperty.MinAngularMotionStrength;
+					EffectorTarget->ConvergeScale = Scale;
+					EffectorTarget->TargetClampScale = Scale;
+
+					EffectorTarget->bPositionEnabled = true;
+					EffectorTarget->bRotationEnabled = true;
+				}
+			}
+		}
+
+		TArray<FJacobianDebugData>& DebugData = WorkData.DebugData;
+		DebugData.Reset();
+
+		const bool bDebugEnabled = DebugOption.bDrawDebugHierarchy || DebugOption.bDrawDebugEffector || DebugOption.bDrawDebugConstraints;
+
+		// we can't reuse memory until we fix the memory issue on RigVM
+		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Solver"))
+			FJacobianSolver_FullbodyIK& IKSolver = WorkData.IKSolver;
+			IKSolver.SolveJacobianIK(LinkData, EffectorTargets,
+				JacobianIK::FSolverParameter(SolverProperty.Damping, true, false, (SolverProperty.bUseJacobianTranspose) ? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
+				SolverProperty.MaxIterations, SolverProperty.Precision, (bDebugEnabled) ? &DebugData : nullptr);
+
+			if (MotionProperty.bForceEffectorRotationTarget)
+			{
+				// if position is reached, we force rotation target
+				for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
+				{
+					int32 EffectorLinkIndex = EffectorLinkIndices[EffectorIndex];
+					if (EffectorLinkIndex != INDEX_NONE)
+					{
+						FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+						if (EffectorTarget && EffectorTarget->bRotationEnabled)
+						{
+							bool bApplyRotation = true;
+
+							if (MotionProperty.bOnlyApplyWhenReachedToTarget)
+							{
+								// only do this when position is reached? This will conflict with converge scale
+								const FVector& BonePosition = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+								const FVector& TargetPosition = EffectorTarget->Position;
+
+								bApplyRotation = (FVector(BonePosition - TargetPosition).SizeSquared() <= SolverProperty.Precision * SolverProperty.Precision);
+							}
+
+							if (bApplyRotation)
+							{
+								FQuat NewRotation = EffectorTarget->Rotation;
+								FTransform NewTransform = LinkData[EffectorLinkIndex].GetTransform();
+								NewTransform.SetRotation(NewRotation);
+								LinkData[EffectorLinkIndex].SetTransform(NewTransform);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		///////////////////////////////////////////////////////////////////////////
+		// debug draw start
+		///////////////////////////////////////////////////////////////////////////
+		if (bDebugEnabled && Context.DrawInterface != nullptr)
+		{
+			const int32 DebugDataNum = DebugData.Num();
+			if (DebugData.Num() > 0)
+			{
+				for (int32 DebugIndex = DebugDataNum - 1; DebugIndex >= 0; --DebugIndex)
+				{
+					const TArray<FFBIKLinkData>& LocalLink = DebugData[DebugIndex].LinkData;
+
+					FTransform Offset = DebugOption.DrawWorldOffset;
+					Offset.SetLocation(Offset.GetLocation() * (DebugDataNum - DebugIndex));
+
+					if (DebugOption.bDrawDebugHierarchy)
+					{
+						for (int32 LinkIndex = 0; LinkIndex < LocalLink.Num(); ++LinkIndex)
+						{
+							const FFBIKLinkData& Data = LocalLink[LinkIndex];
+
+							FLinearColor DrawColor = FLinearColor::White;
+
+							float LineThickness = 0.f;
+							if (DebugOption.bColorAngularMotionStrength || DebugOption.bColorLinearMotionStrength)
+							{
+								DrawColor = FLinearColor::Black;
+								if (DebugOption.bColorAngularMotionStrength)
+								{
+									const float Range = FMath::Max(SolverProperty.AngularMotionStrength - SolverProperty.MinAngularMotionStrength, 0.f);
+									if (Range > 0.f)
+									{
+										float CurrentStrength = Data.GetAngularMotionStrength() - SolverProperty.MinAngularMotionStrength;
+										float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
+										DrawColor.R = LineThickness = Alpha;
+									}
+								}
+								else if (DebugOption.bColorLinearMotionStrength)
+								{
+									const float Range = FMath::Max(SolverProperty.LinearMotionStrength - SolverProperty.MinLinearMotionStrength, 0.f);
+									if (Range > 0.f)
+									{
+										float CurrentStrength = Data.GetLinearMotionStrength() - SolverProperty.MinLinearMotionStrength;
+										float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
+										DrawColor.B = LineThickness = Alpha;
+									}
+								}
+							}
+
+							if (Data.ParentLinkIndex != INDEX_NONE)
+							{
+								const FFBIKLinkData& ParentData = LocalLink[Data.ParentLinkIndex];
+								Context.DrawInterface->DrawLine(Offset, Data.GetPreviousTransform().GetLocation(), ParentData.GetPreviousTransform().GetLocation(), DrawColor, LineThickness);
+							}
+
+							if (DebugOption.bDrawDebugAxes)
+							{
+								Context.DrawInterface->DrawAxes(Offset, Data.GetPreviousTransform(), DebugOption.DrawSize);
+							}
+						}
+					}
+
+					if (DebugOption.bDrawDebugEffector)
+					{
+						for (auto Iter = EffectorTargets.CreateConstIterator(); Iter; ++Iter)
+						{
+							const FFBIKEffectorTarget& EffectorTarget = Iter.Value();
+							if (EffectorTarget.bPositionEnabled)
+							{
+								// draw effector target locations
+								Context.DrawInterface->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, DebugOption.DrawSize);
+							}
+
+							// draw effector link location
+							Context.DrawInterface->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, DebugOption.DrawSize);
+						}
+
+						for (int32 Index = 0; Index < DebugData[DebugIndex].TargetVectorSources.Num(); ++Index)
+						{
+							// draw arrow to the target
+							Context.DrawInterface->DrawLine(Offset, DebugData[DebugIndex].TargetVectorSources[Index].GetLocation(),
+								DebugData[DebugIndex].TargetVectorSources[Index].GetLocation() + DebugData[DebugIndex].TargetVectors[Index], FLinearColor::Red);
+						}
+					}
+				}
+			}
+
+			if (DebugOption.bDrawDebugConstraints && InternalConstraints.Num())
+			{
+				FTransform Offset = FTransform::Identity;
+
+				// draw frame if active
+				for (int32 Index = 0; Index < Constraints.Num(); ++Index)
+				{
+					if (Constraints[Index].bEnabled)
+					{
+						if (Constraints[Index].Item.IsValid())
+						{
+							const int32* Found = HierarchyToLinkDataMap.Find(Constraints[Index].Item);
+							if (Found)
+							{
+								FTransform ConstraintFrame = LinkData[*Found].GetTransform();
+								ConstraintFrame.ConcatenateRotation(FQuat(Constraints[Index].OffsetRotation));
+								Context.DrawInterface->DrawAxes(Offset, ConstraintFrame, 2.f);
+							}
+						}
+					}
+				}
+
+				for (int32 Index = 0; Index < InternalConstraints.Num(); ++Index)
+				{
+					// for now we have rotation limit only
+					if (InternalConstraints[Index].IsType< FRotationLimitConstraint>())
+					{
+						FRotationLimitConstraint& LimitConstraint = InternalConstraints[Index].Get<FRotationLimitConstraint>();
+						const FQuat LocalRefRotation = LimitConstraint.RelativelRefPose.GetRotation();
+						FTransform RotationTransform = LinkData[LimitConstraint.ConstrainedIndex].GetTransform();
+						// base is parent transform but in their space, we can get there by inversing local ref rotation
+						FTransform BaseTransform = FTransform(LocalRefRotation).GetRelativeTransformReverse(RotationTransform);
+						BaseTransform.ConcatenateRotation(LimitConstraint.BaseFrameOffset);
+						Context.DrawInterface->DrawAxes(Offset, BaseTransform, 5.f, 1.f);
+
+						// current transform
+						const FQuat LocalRotation = BaseTransform.GetRotation().Inverse() * RotationTransform.GetRotation();
+						const FQuat DeltaTransform = LocalRefRotation.Inverse() * LocalRotation;
+						RotationTransform.SetRotation(BaseTransform.GetRotation() * DeltaTransform);
+						RotationTransform.NormalizeRotation();
+						RotationTransform.SetLocation(BaseTransform.GetLocation());
+
+						// draw ref pose on their current transform
+						Context.DrawInterface->DrawAxes(Offset, RotationTransform, 10.f, 1.f);
+
+						FVector XAxis = BaseTransform.GetUnitAxis(EAxis::X);
+						FVector YAxis = BaseTransform.GetUnitAxis(EAxis::Y);
+						FVector ZAxis = BaseTransform.GetUnitAxis(EAxis::Z);
+
+						if (LimitConstraint.bXLimitSet)
+						{
+							FTransform XAxisConeTM(YAxis, XAxis ^ YAxis, XAxis, BaseTransform.GetTranslation());
+							XAxisConeTM.SetRotation(FQuat(XAxis, 0.f) * XAxisConeTM.GetRotation());
+							XAxisConeTM.SetScale3D(FVector(30.f));
+							Context.DrawInterface->DrawCone(Offset, XAxisConeTM, LimitConstraint.Limit.X, 0.0f, 24, false, FLinearColor::Red, GEngine->ConstraintLimitMaterialX->GetRenderProxy());
+						}
+
+						if (LimitConstraint.bYLimitSet)
+						{
+							FTransform YAxisConeTM(ZAxis, YAxis ^ ZAxis, YAxis, BaseTransform.GetTranslation());
+							YAxisConeTM.SetRotation(FQuat(YAxis, 0.f) * YAxisConeTM.GetRotation());
+							YAxisConeTM.SetScale3D(FVector(30.f));
+							Context.DrawInterface->DrawCone(Offset, YAxisConeTM, LimitConstraint.Limit.Y, 0.0f, 24, false, FLinearColor::Green, GEngine->ConstraintLimitMaterialY->GetRenderProxy());
+						}
+
+						if (LimitConstraint.bZLimitSet)
+						{
+							FTransform ZAxisConeTM(XAxis, ZAxis ^ XAxis, ZAxis, BaseTransform.GetTranslation());
+							ZAxisConeTM.SetRotation(FQuat(ZAxis, 0.f) * ZAxisConeTM.GetRotation());
+							ZAxisConeTM.SetScale3D(FVector(30.f));
+							Context.DrawInterface->DrawCone(Offset, ZAxisConeTM, LimitConstraint.Limit.Z, 0.0f, 24, false, FLinearColor::Blue, GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
+						}
+					}
+
+					if (InternalConstraints[Index].IsType<FPoleVectorConstraint>())
+					{
+						// darw pole vector location
+						// draw 3 joints line and a plane to pole vector
+						FPoleVectorConstraint& Constraint = InternalConstraints[Index].Get<FPoleVectorConstraint>();
+						FTransform RootTransform = LinkData[Constraint.ParentBoneIndex].GetTransform();
+						FTransform JointTransform = LinkData[Constraint.BoneIndex].GetTransform();
+						FTransform ChildTransform = LinkData[Constraint.ChildBoneIndex].GetTransform();
+
+						FVector JointTarget = (Constraint.bUseLocalDir) ? Constraint.CalculateCurrentPoleVectorDir(RootTransform, JointTransform, ChildTransform, LinkData[Constraint.BoneIndex].LocalFrame) : Constraint.PoleVector;
+
+						// draw the plane, 
+						TArray<FVector> Positions;
+						Positions.Add(RootTransform.GetLocation());
+						Positions.Add(ChildTransform.GetLocation());
+						Positions.Add(ChildTransform.GetLocation());
+						Positions.Add(JointTarget);
+						Positions.Add(JointTarget);
+						Positions.Add(RootTransform.GetLocation());
+
+						Context.DrawInterface->DrawLines(Offset, Positions, FLinearColor::Gray, 1.2f);
+						Context.DrawInterface->DrawLine(Offset, JointTransform.GetLocation(), JointTarget, FLinearColor::Red, 1.2f);
+					}
+				}
+			}
+		}
+		///////////////////////////////////////////////////////////////////////////
+		// debug draw end
+		///////////////////////////////////////////////////////////////////////////
+	}
+
+	// we update back to hierarchy
+	for (int32 LinkIndex = 0; LinkIndex < LinkData.Num(); ++LinkIndex)
+	{
+		// only propagate, if you are leaf joints here
+		// this means, only the last joint in the test
+		const FRigElementKey& CurrentItem = *LinkDataToHierarchyIndices.Find(LinkIndex);
+		const FTransform& LinkTransform = LinkData[LinkIndex].GetTransform();
+		Hierarchy->SetGlobalTransform(CurrentItem, LinkTransform, bPropagateToChildren);
+	}
+
+	#endif // 0 
+}

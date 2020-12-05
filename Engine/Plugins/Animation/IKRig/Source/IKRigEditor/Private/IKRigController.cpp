@@ -10,6 +10,53 @@
 #include "AnimationRuntime.h"
 #include "IKRigSolverDefinition.h"
 
+TMap<UIKRigDefinition*, UIKRigController*> UIKRigController::DefinitionToControllerMap;
+
+// currently it's not clear the lifecycle of this map
+// usually during editor, they will be present, 
+UIKRigController* UIKRigController::GetControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition)
+{
+	if (InIKRigDefinition)
+	{
+		UIKRigController** Controller = DefinitionToControllerMap.Find(InIKRigDefinition);
+		if (Controller)
+		{
+			return *Controller;
+		}
+		else
+		{
+			UIKRigController* NewController = NewObject<UIKRigController>();
+			DefinitionToControllerMap.Add(InIKRigDefinition) = NewController;
+			NewController->SetIKRigDefinition(InIKRigDefinition);
+			InIKRigDefinition->IKRigDefinitionBeginDestroy.AddStatic(&UIKRigController::RemoveControllerByRigDefinition);
+			return NewController;
+		}
+	}
+
+	return nullptr;
+}
+
+// this shoudl be called by IKRigDefinition::BeginDestroy;
+void UIKRigController::RemoveControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition)
+{
+	DefinitionToControllerMap.Remove(InIKRigDefinition);
+}
+
+void UIKRigController::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	// since static member, we just add only for default object
+	if (InThis && InThis->IsTemplate())
+	{
+		for (auto Iter = DefinitionToControllerMap.CreateIterator(); Iter; ++Iter)
+		{
+			// we add controllers to the list. so that it doens't GCed
+			// when do we delete from the list?
+			UIKRigController* Obj = Iter.Value();
+			Collector.AddReferencedObject(Obj);
+		}
+	}
+}
+
 void UIKRigController::BeginDestroy() 
 {
 	if (IKRigDefinition)
@@ -55,7 +102,7 @@ void UIKRigController::InitializeIKRigSolverDefinition(UIKRigSolverDefinition* S
 		FDelegateHandle DelegateHandle = SolverDef->GoalNeedsUpdateDelegate.AddUObject(this, &UIKRigController::UpdateGoal);
 		SolverDelegateHandles.Add(SolverDef) = DelegateHandle;
 
-		SolverDef->UpdateTaskList();
+		SolverDef->UpdateEffectors();
 	}
 }
 

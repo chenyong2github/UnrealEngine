@@ -381,3 +381,12 @@ void UIKRigDefinition::PostLoad()
 
 	Hierarchy.RebuildCacheData();
 }
+
+void UIKRigDefinition::BeginDestroy()
+{
+#if WITH_EDITOR
+	IKRigDefinitionBeginDestroy.Broadcast(this);
+#endif // #if WITH_EDITOR
+
+	Super::BeginDestroy();
+}

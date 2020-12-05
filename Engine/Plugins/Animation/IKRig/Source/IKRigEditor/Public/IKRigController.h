@@ -32,9 +32,6 @@ class IKRIGEDITOR_API UIKRigController : public UObject
 	GENERATED_BODY()
 
 public:
-	// IKRigDefinition set up
-	void SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition);
-
 	// hierarchy operators
 	void SetSkeleton(const FReferenceSkeleton& InSkeleton);
 	// const hierarchy getter
@@ -87,7 +84,12 @@ public:
 
 	// BEGIN UObject
 	virtual void BeginDestroy() override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// END UObject
+
+	// Controller getter
+	// Use this interface to get controller 
+	static UIKRigController* GetControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition);
 private:
 	UIKRigDefinition* IKRigDefinition = nullptr;
 
@@ -98,5 +100,17 @@ private:
 	void UninitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef);
 
 	TMap<UIKRigSolverDefinition*, FDelegateHandle> SolverDelegateHandles;
+
+	static TMap<UIKRigDefinition*, UIKRigController*> DefinitionToControllerMap;
+
+	// IKRigDefinition set up
+	void SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition);
+
+	// called by IKRigDefinition when it's begin destroy
+	static void RemoveControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition);
+
+	// friend class 
+	friend class UIKRigDefinition;
 };
 
+   
