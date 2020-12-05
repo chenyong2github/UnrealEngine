@@ -89,7 +89,6 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("Collisions::Reset"), STAT_Collisions_Reset, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::UpdatePointConstraints"), STAT_Collisions_UpdatePointConstraints, STATGROUP_ChaosCollision);
-	DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateManifoldConstraints"), STAT_Collisions_UpdateManifoldConstraints, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::Apply"), STAT_Collisions_Apply, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::ApplyPushOut"), STAT_Collisions_ApplyPushOut, STATGROUP_ChaosCollision);
 
@@ -110,7 +109,6 @@ namespace Chaos
 		, Particles(InParticles)
 		, NumActivePointConstraints(0)
 		, NumActiveSweptPointConstraints(0)
-		, NumActiveIterativeConstraints(0)
 		, MCollided(Collided)
 		, MPhysicsMaterials(InPhysicsMaterials)
 		, MPerParticlePhysicsMaterials(InPerParticlePhysicsMaterials)
@@ -310,30 +308,6 @@ namespace Chaos
 		}
 	}
 
-
-	void FPBDCollisionConstraints::AddConstraint(const FRigidBodyMultiPointContactConstraint& InConstraint)
-	{
-		check(!bInAppendOperation);
-
-		int32 Idx = Constraints.MultiPointConstraints.Add(InConstraint);
-
-		if (bHandlesEnabled)
-		{
-			FPBDCollisionConstraintHandle* Handle = HandleAllocator.template AllocHandle<FRigidBodyMultiPointContactConstraint>(this, Idx);
-			Handle->GetContact().Timestamp = LifespanCounter;
-
-			Constraints.MultiPointConstraints[Idx].SetConstraintHandle(Handle);
-
-			check(Handle != nullptr);
-			Handles.Add(Handle);
-
-#if CHAOS_COLLISION_PERSISTENCE_ENABLED
-			check(!Manifolds.Contains(Handle->GetKey()));
-			Manifolds.Add(Handle->GetKey(), Handle);
-#endif
-		}
-	}
-
 	void FPBDCollisionConstraints::PrepareIteration(float dt)
 	{
 		// NOTE: We could set material properties as we add constraints, but the ParticlePairBroadphase
@@ -341,11 +315,6 @@ namespace Chaos
 		// need to do it after all constraints are added.
 
 		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
-		{
-			UpdateConstraintMaterialProperties(Contact);
-		}
-
-		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
 			UpdateConstraintMaterialProperties(Contact);
 		}
@@ -483,22 +452,6 @@ namespace Chaos
 				Constraints.SinglePointSweptConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
 			}
 		}
-		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
-		{
-#if CHAOS_COLLISION_PERSISTENCE_ENABLED
-			if (Idx < Constraints.MultiPointConstraints.Num() - 1)
-			{
-				// update the handle
-				FConstraintContainerHandleKey Key = FPBDCollisionConstraintHandle::MakeKey(&Constraints.MultiPointConstraints.Last());
-				Manifolds[Key]->SetConstraintIndex(Idx, ConstraintType);
-			}
-#endif
-			Constraints.MultiPointConstraints.RemoveAtSwap(Idx);
-			if (bHandlesEnabled && (Idx < Constraints.MultiPointConstraints.Num()))
-			{
-				Constraints.MultiPointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
-			}
-		}
 		else 
 		{
 			check(false);
@@ -513,7 +466,7 @@ namespace Chaos
 			Manifolds.Remove(KeyToRemove);
 #endif
 			Handles.Remove(Handle);
-			check(Handles.Num() == Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num() + Constraints.MultiPointConstraints.Num());
+			check(Handles.Num() == Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num());
 
 			HandleAllocator.FreeHandle(Handle);
 		}
@@ -562,30 +515,6 @@ namespace Chaos
 		}
 	}
 
-	// Called once per tick to update/regenerate persistent manifold planes and points
-	void FPBDCollisionConstraints::UpdateManifolds(FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateManifoldConstraints);
-
-		// @todo(chaos): parallelism needs to be optional
-
-		//PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
-		//{
-		//	FPBDCollisionConstraintHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
-		//	check(ConstraintHandle != nullptr);
-		//	Collisions::Update(MCullDistance, ConstraintHandle->GetContact());
-		//}, bDisableCollisionParallelFor);
-
-		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
-		{
-			Collisions::UpdateManifold(Contact, MCullDistance);
-			if (Contact.GetPhi() < MCullDistance)
-			{
-				Contact.Timestamp = LifespanCounter;
-			}
-		}
-	}
-
 	Collisions::FContactParticleParameters FPBDCollisionConstraints::GetContactParticleParameters(const FReal Dt)
 	{
 		return { 
@@ -624,18 +553,8 @@ namespace Chaos
 			{
 				if (!Contact.GetDisabled())
 				{
-					Collisions::ApplySinglePoint(Contact, IterationParameters, ParticleParameters);
+					Collisions::Apply(Contact, IterationParameters, ParticleParameters);
 					++NumActivePointConstraints;
-				}
-			}
-
-			NumActiveIterativeConstraints = 0;
-			for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
-			{
-				if (!Contact.GetDisabled())
-				{
-					Collisions::ApplyMultiPoint(Contact, IterationParameters, ParticleParameters);
-					++NumActiveIterativeConstraints;
 				}
 			}
 
@@ -675,7 +594,7 @@ namespace Chaos
 			{
 				if (!Contact.GetDisabled())
 				{
-					Collisions::ApplyPushOutSinglePoint(Contact, TempStatic, IterationParameters, ParticleParameters);
+					Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
 				}
 			}
 
@@ -684,14 +603,6 @@ namespace Chaos
 				if (!Contact.GetDisabled())
 				{
 					Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
-				}
-			}
-
-			for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
-			{
-				if (!Contact.GetDisabled())
-				{
-					Collisions::ApplyPushOutMultiPoint(Contact, TempStatic, IterationParameters, ParticleParameters);
 				}
 			}
 		}
@@ -801,15 +712,7 @@ namespace Chaos
 		}
 		Index -= Constraints.SinglePointConstraints.Num();
 
-		if (Index < Constraints.SinglePointSweptConstraints.Num())
-		{
-			return Constraints.SinglePointSweptConstraints[Index];
-		}
-		Index -= Constraints.SinglePointSweptConstraints.Num();
-
-		{
-			return Constraints.MultiPointConstraints[Index];
-		}
+		return Constraints.SinglePointSweptConstraints[Index];
 	}
 
 
@@ -824,14 +727,13 @@ namespace Chaos
 
 		NumBeginSingle = Owner->Constraints.SinglePointConstraints.Num();
 		NumBeginSingleSwept = Owner->Constraints.SinglePointSweptConstraints.Num();
-		NumBeginMulti = Owner->Constraints.MultiPointConstraints.Num();
 	}
 
 	FPBDCollisionConstraints::FConstraintAppendScope::~FConstraintAppendScope()
 	{
 		FPBDCollisionConstraints::FConstraintHandleAllocator& HandleAlloc = Owner->HandleAllocator;
 		int32 HandlesBeginIndex = Owner->Handles.Num();
-		const int32 TotalAdded = NumAddedSingle + NumAddedSingleSwept + NumAddedMulti;
+		const int32 TotalAdded = NumAddedSingle + NumAddedSingleSwept;
 
 		Owner->Handles.AddUninitialized(TotalAdded);
 		const int32 NumHandles = Owner->Handles.Num();
@@ -860,17 +762,6 @@ namespace Chaos
 		}
 		HandlesBeginIndex += NumAddedSingle;
 
-		for(int32 HandleIndex = 0; HandleIndex < NumAddedMulti; ++HandleIndex)
-		{
-			FPBDCollisionConstraintHandle* NewHandle = HandleAlloc.template AllocHandle<FRigidBodyMultiPointContactConstraint>(Owner, NumBeginMulti + HandleIndex);
-
-			const int32 FullHandleIndex = HandlesBeginIndex + HandleIndex;
-			Owner->Handles[FullHandleIndex] = NewHandle;
-
-			NewHandle->GetContact().Timestamp = Owner->LifespanCounter;
-			Constraints->MultiPointConstraints[NumBeginMulti + HandleIndex].SetConstraintHandle(NewHandle);
-		}
-
 		Owner->bInAppendOperation = false;
 	}
 
@@ -882,11 +773,6 @@ namespace Chaos
 	void FPBDCollisionConstraints::FConstraintAppendScope::ReserveSingleSwept(int32 NumToAdd)
 	{
 		Constraints->SinglePointSweptConstraints.Reserve(Constraints->SinglePointConstraints.Num() + NumToAdd);
-	}
-
-	void FPBDCollisionConstraints::FConstraintAppendScope::ReserveMulti(int32 NumToAdd)
-	{
-		Constraints->MultiPointConstraints.Reserve(Constraints->SinglePointConstraints.Num() + NumToAdd);
 	}
 
 	void FPBDCollisionConstraints::FConstraintAppendScope::Append(TArray<FRigidBodyPointContactConstraint>&& InConstraints)
@@ -909,17 +795,6 @@ namespace Chaos
 
 		NumAddedSingleSwept += InConstraints.Num();
 		Constraints->SinglePointSweptConstraints.Append(MoveTemp(InConstraints));
-	}
-
-	void FPBDCollisionConstraints::FConstraintAppendScope::Append(TArray<FRigidBodyMultiPointContactConstraint>&& InConstraints)
-	{
-		if(InConstraints.Num() == 0)
-		{
-			return;
-		}
-
-		NumAddedMulti += InConstraints.Num();
-		Constraints->MultiPointConstraints.Append(MoveTemp(InConstraints));
 	}
 
 }

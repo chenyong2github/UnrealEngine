@@ -35,7 +35,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.VelocityCorrectionMode"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT("0 = No Velocity Correction; 1 = Normal Velocity Correction; 2 = Normal + Tangential Velocity Correction"));
 
-		float Chaos_Manifold_MinPushOutStiffness = 0.5f;
+		float Chaos_Manifold_MinPushOutStiffness = 0.25f;
 		float Chaos_Manifold_MaxPushOutStiffness = 0.5f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinPushOutStiffness"), Chaos_Manifold_MinPushOutStiffness, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxPushOutStiffness"), Chaos_Manifold_MaxPushOutStiffness, TEXT(""));
@@ -307,6 +307,7 @@ namespace Chaos
 			FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
 
 			// Don't allow objects to be pulled together, but we may still have to correct static friction drift
+			// @todo(chaos): allow undoing of previously added normal pushout
 			if ((ContactErrorNormal < 0.0f) && !Chaos_Manifold_PushOut_NegativePushOut)
 			{
 				ContactError = ContactError - ContactErrorNormal * ContactNormal;
@@ -556,22 +557,27 @@ namespace Chaos
 				Constraint.AccumulatedImpulse += ManifoldPoint.NetImpulse;
 			}
 
-			for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
+			const FReal StaticFriction = FMath::Max(Constraint.Manifold.Friction, Constraint.Manifold.AngularFriction);
+			const FReal DynamicFriction = Constraint.Manifold.Friction;
+			if (StaticFriction > 0.0f)
 			{
-				FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
+				for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
+				{
+					FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
 
-				CalculateManifoldFrictionVelocityCorrection(
-					Stiffness,
-					IterationParameters,
-					ParticleParameters,
-					FMath::Max(Constraint.Manifold.Friction, Constraint.Manifold.AngularFriction),	// Static
-					Constraint.Manifold.Friction,													// Dynamic
-					InvM0, InvI0, InvM1, InvI1,
-					P0, Q0, P1, Q1,
-					V0, W0, V1, W1,
-					ManifoldPoint);
+					CalculateManifoldFrictionVelocityCorrection(
+						Stiffness,
+						IterationParameters,
+						ParticleParameters,
+						StaticFriction,
+						DynamicFriction,
+						InvM0, InvI0, InvM1, InvI1,
+						P0, Q0, P1, Q1,
+						V0, W0, V1, W1,
+						ManifoldPoint);
 
-				Constraint.AccumulatedImpulse += ManifoldPoint.NetImpulse;
+					Constraint.AccumulatedImpulse += ManifoldPoint.NetImpulse;
+				}
 			}
 
 			if (bIsRigidDynamic0)
@@ -703,6 +709,8 @@ namespace Chaos
 				const FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
 				const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
 				const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
+				const FReal StaticFriction = FMath::Max(Constraint.Manifold.Friction, Constraint.Manifold.AngularFriction);
+				const FReal DynamicFriction = Constraint.Manifold.Friction;
 
 				for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
 				{
@@ -715,8 +723,8 @@ namespace Chaos
 							IterationParameters,
 							ParticleParameters,
 							Constraint.Manifold.Restitution,
-							FMath::Max(Constraint.Manifold.Friction, Constraint.Manifold.AngularFriction),	// Static
-							Constraint.Manifold.Friction,													// Dynamic
+							StaticFriction,
+							DynamicFriction,
 							InvM0, InvI0,
 							InvM1, InvI1,
 							P0, Q0, 

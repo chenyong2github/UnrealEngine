@@ -12,12 +12,6 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.Manifold.MatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
 	FAutoConsoleVariableRef CVarChaos_Manifold_MatchNormalTolerance(TEXT("p.Chaos.Collision.Manifold.MatchNormalTolerance"), Chaos_Manifold_MatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
 
-	bool bChaos_Manifold_UpdateMatchedContact = true;
-	FAutoConsoleVariableRef CVarChaos_Manifold_UpdateMatchedContact(TEXT("p.Chaos.Collision.Manifold.UpdateMatchedContact"), bChaos_Manifold_UpdateMatchedContact, TEXT(""));
-
-	int32 Chaos_Manifold_MinArraySize = 0;
-	FAutoConsoleVariableRef CVarChaos_Manifold_MinArraySize(TEXT("p.Chaos.Collision.Manifold.MinArraySize"), Chaos_Manifold_MinArraySize, TEXT(""));
-
 	FString FCollisionConstraintBase::ToString() const
 	{
 		return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
@@ -136,7 +130,7 @@ namespace Chaos
 		return BestMatchIndex;
 	}
 
-	void FRigidBodyPointContactConstraint::UpdateOneShotManifoldContacts(FReal Dt)
+	void FRigidBodyPointContactConstraint::UpdateManifoldContacts(FReal Dt)
 	{
 		for (int32 Index = 0; Index < ManifoldPoints.Num() ; Index++)
 		{
@@ -151,12 +145,9 @@ namespace Chaos
 		}
 	}
 
-	void FRigidBodyPointContactConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt, bool bInInitialize)
+	void FRigidBodyPointContactConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt)
 	{
-		if (bUseOneShotManifold)
-		{
-			AddManifoldPoint(ContactPoint, Dt, bInInitialize);
-		}
+		AddManifoldPoint(ContactPoint, Dt);
 
 		// Copy currently active point
 		if (ContactPoint.Phi < Manifold.Phi)
@@ -165,21 +156,29 @@ namespace Chaos
 		}
 	}
 
-	void FRigidBodyPointContactConstraint::UpdateManifold(const FContactPoint& ContactPoint, const FReal Dt)
+	void FRigidBodyPointContactConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt)
 	{
-		if (bUseIncrementalManifold)
+		int32 ManifoldPointIndex = INDEX_NONE;
+		if (bUseManifold)
 		{
-			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
-			if (ManifoldPointIndex >= 0)
-			{
-				// This contact point is already in the manifold - update the state (maybe)
-				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint, Dt);
-			}
-			else
-			{
-				// This is a new manifold point - capture the state and generate initial properties
-				ManifoldPointIndex = AddManifoldPoint(ContactPoint, Dt);
-			}
+			// See if the manifold point already exists
+			ManifoldPointIndex = FindManifoldPoint(ContactPoint);
+		}
+		else if (ManifoldPoints.Num() > 0)
+		{
+			// We are not using manifolds - reuse the first and only point
+			ManifoldPointIndex = 0;
+		}
+
+		if (ManifoldPointIndex >= 0)
+		{
+			// This contact point is already in the manifold - update the state
+			UpdateManifoldPoint(ManifoldPointIndex, ContactPoint, Dt);
+		}
+		else
+		{
+			// This is a new manifold point - capture the state and generate initial properties
+			ManifoldPointIndex = AddManifoldPoint(ContactPoint, Dt);
 		}
 
 		// Copy currently active point
@@ -196,6 +195,12 @@ namespace Chaos
 
 	void FRigidBodyPointContactConstraint::InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt)
 	{
+		// @todo(chaos): This is only needed for unit tests - make it more easily unit testable
+		if ((Particle[0] == nullptr) || (Particle[1] == nullptr))
+		{
+			return;
+		}
+
 		TConstGenericParticleHandle<FReal, 3> Particle0 = Particle[0];
 		TConstGenericParticleHandle<FReal, 3> Particle1 = Particle[1];
 
@@ -285,19 +290,11 @@ namespace Chaos
 
 	}
 
-	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt, bool bInInitialize)
+	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt)
 	{
-		// @todo(chaos): remove the least useful manifold point when we hit some point limit...
-		if (ManifoldPoints.Max() < Chaos_Manifold_MinArraySize)
-		{
-			ManifoldPoints.Reserve(Chaos_Manifold_MinArraySize);
-		}
 		int32 ManifoldPointIndex = ManifoldPoints.Add(ContactPoint);
 
-		if (bInInitialize)
-		{
-			InitManifoldPoint(ManifoldPoints[ManifoldPointIndex], Dt);
-		}
+		InitManifoldPoint(ManifoldPoints[ManifoldPointIndex], Dt);
 
 		return ManifoldPointIndex;
 	}
@@ -306,13 +303,9 @@ namespace Chaos
 	{
 		// We really need to know that it's exactly the same contact and not just a close one to update it here
 		// otherwise the PrevLocalContactPoint1 we calculated is not longer for the correct point.
-		// @todo(chaos): this will give us an incorrect InitialPhi until we have a proper one-shot manifold
-		if (bChaos_Manifold_UpdateMatchedContact)
-		{
-			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-			ManifoldPoint.ContactPoint = ContactPoint;
-			InitManifoldPoint(ManifoldPoint, Dt);
-		}
+		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+		ManifoldPoint.ContactPoint = ContactPoint;
+		InitManifoldPoint(ManifoldPoint, Dt);
 	}
 
 	void FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
@@ -347,34 +340,5 @@ namespace Chaos
 		SetActiveContactPoint(ManifoldPoint.ContactPoint);
 
 		return ManifoldPoint;
-	}
-
-
-	void FRigidBodyMultiPointContactConstraint::InitManifoldTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal InPositionTolerance, const FReal InRotationTolerance)
-	{
-		InitialPositionSeparation = ParticleTransform1.GetTranslation() - ParticleTransform0.GetTranslation();
-		InitialRotationSeparation = FRotation3::CalculateAngularDelta(ParticleTransform0.GetRotation(), ParticleTransform1.GetRotation());
-		PositionToleranceSq = InPositionTolerance * InPositionTolerance;
-		RotationToleranceSq = InRotationTolerance * InRotationTolerance;
-		bUseManifoldTolerance = true;
-	}
-
-	bool FRigidBodyMultiPointContactConstraint::IsManifoldWithinToleranceImpl(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1)
-	{
-		const FVec3 PositionSeparation = ParticleTransform1.GetTranslation() - ParticleTransform0.GetTranslation();
-		const FVec3 PositionDelta = PositionSeparation - InitialPositionSeparation;
-		if (PositionDelta.SizeSquared() > PositionToleranceSq)
-		{
-			return false;
-		}
-
-		const FVec3 RotationSeparation = FRotation3::CalculateAngularDelta(ParticleTransform0.GetRotation(), ParticleTransform1.GetRotation());
-		const FVec3 RotationDelta = RotationSeparation - InitialRotationSeparation;
-		if (RotationDelta.SizeSquared() > RotationToleranceSq)
-		{
-			return false;
-		}
-
-		return true;
 	}
 }

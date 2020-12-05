@@ -7,7 +7,9 @@
 #include "Chaos/GJK.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/GJK.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Triangle.h"
 
 namespace ChaosTest
@@ -1573,6 +1575,83 @@ namespace ChaosTest
 		}
 		
 	}
+
+
+	// Two convex shapes, Shape A on top of Shape B and almost touching. ShapeA is rotated 90 degrees about Z.
+	// Check that the contact point lies between Shape A and Shape B with a near zero Phi.
+	// This reproduces a bug where GJKPenetrationCore returns points on top of A and at the bottom
+	// of B, with a Phi equal to the separation of those points. Resolving this contact
+	// would result in Shape B popping to the top of Shape A.
+	void GJKConvexConvexEPABoundaryCondition()
+	{
+		// These verts are those from a rectangular box with bevelled edges
+		TArray<FVec3> CoreShapeVerts = 
+		{
+			{3.54999995f, -1.04999995f, 0.750000000f},
+			{3.75000000f, 1.04999995f, 0.549999952f},
+			{3.54999995f, 1.04999995f, 0.750000000f},
+			{-3.54999995f, 1.04999995f, 0.750000000f},
+			{-3.54999995f, 1.25000000f, 0.549999952f},
+			{-3.54999995f, 1.25000000f, -0.550000012f},
+			{-3.75000000f, 1.04999995f, 0.549999952f},
+			{3.54999995f, 1.25000000f, 0.549999952f},
+			{3.54999995f, 1.04999995f, -0.750000000f},
+			{3.54999995f, 1.25000000f, -0.550000012f},
+			{-3.54999995f, 1.04999995f, -0.750000000f},
+			{-3.54999995f, -1.04999995f, -0.750000000f},
+			{-3.75000000f, 1.04999995f, -0.550000012f},
+			{3.54999995f, -1.25000000f, -0.550000012f},
+			{3.54999995f, -1.04999995f, -0.750000000f},
+			{-3.54999995f, -1.25000000f, 0.549999952f},
+			{-3.54999995f, -1.25000000f, -0.550000012f},
+			{-3.75000000f, -1.04999995f, -0.550000012f},
+			{3.54999995f, -1.25000000f, 0.549999952f},
+			{-3.54999995f, -1.04999995f, 0.750000000f},
+			{-3.75000000f, -1.04999995f, 0.549999952f},
+			{3.75000000f, -1.04999995f, 0.549999952f},
+			{3.75000000f, -1.04999995f, -0.550000012f},
+			{3.75000000f, 1.04999995f, -0.550000012f},
+		};
+		const FVec3 Scale = FVec3(50.0f);
+		const FReal Margin = 0.75f;
+
+		TParticles<FReal, 3> CoreShapeParticles(MoveTemp(CoreShapeVerts));
+		TUniquePtr<FImplicitConvex3> CoreConvexShapePtr = MakeUnique<FImplicitConvex3>(CoreShapeParticles, 0.0f);
+		const TImplicitObjectScaled<FImplicitConvex3> ShapeA(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
+		const TImplicitObjectScaled<FImplicitConvex3> ShapeB(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
+		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));
+		const FRigidTransform3 TransformB(FVec3(0.000000000f, 0.000000000f, 107.378944f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.000000000f, 1.00000000f));
+
+		const FRigidTransform3 TransformBtoA = TransformB.GetRelativeTransform(TransformA);
+
+		FReal Penetration;
+		FVec3 ClosestA, ClosestBInA, Normal;
+		int32 ClosestVertexIndexA, ClosestVertexIndexB;
+		const FReal EpsilonSq = 1.e-5f;
+
+		const FReal ThicknessA = ShapeA.GetMargin();
+		const FReal ThicknessB = ShapeB.GetMargin();
+
+		GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1,0,0), EpsilonSq);
+
+		const FVec3 ContactLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
+		const FVec3 ContactNormal = -TransformA.TransformVectorNoScale(Normal);
+		const FReal ContactPhi = -Penetration;
+
+		const FReal ExpectedContactLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z;
+		const FReal ExpectedContactNormalZ = 1.0f;
+		const FReal ExpectedContactPhi = (TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z) - (TransformB.GetTranslation().Z + ShapeB.BoundingBox().Max().Z);
+
+		EXPECT_NEAR(ContactLocation.Z, ExpectedContactLocationZ, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ContactNormal.Z, ExpectedContactNormalZ, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ContactPhi, ExpectedContactPhi, KINDA_SMALL_NUMBER);
+	}
+
+	GTEST_TEST(GJKTests, TestGJKConvexConvexEPABoundaryCondition)
+	{
+		GJKConvexConvexEPABoundaryCondition();
+	}
+
 
 	template void SimplexLine<float>();
 	template void SimplexTriangle<float>();

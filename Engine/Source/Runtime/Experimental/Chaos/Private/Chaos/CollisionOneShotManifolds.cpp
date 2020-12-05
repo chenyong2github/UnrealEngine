@@ -13,8 +13,11 @@
 
 namespace Chaos
 {
-	float Chaos_Manifold_PlaneContactNormalEpsilon = 0.001f;
-	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
+	float Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
+	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
+
+	bool bChaos_Collision_Manifold_BoxAsConvex = false;
+	FAutoConsoleVariableRef CVarChaosCollisioConvexManifodlBoxAsConvex(TEXT("p.Chaos.Collision.Manifold.BoxAsConvex"), bChaos_Collision_Manifold_BoxAsConvex, TEXT(""));
 
 	namespace Collisions
 	{
@@ -104,26 +107,27 @@ namespace Chaos
 			const FRigidTransform3& Box2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize)
+			FRigidBodyPointContactConstraint& Constraint)
 		{
+			if (bChaos_Collision_Manifold_BoxAsConvex)
+			{
+				ConstructConvexConvexOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Dt, Constraint);
+				return;
+			}
+
 			const uint32 SpaceDimension = 3;
 
 			// We only build one shot manifolds once
 			// All boxes are prescaled
-			ensure(Constraint.GetManifoldPoints().Num() == 0);
-			ensure(Box1Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
-			ensure(Box2Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
+			check(Constraint.GetManifoldPoints().Num() == 0);
+			check(Box1Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
+			check(Box2Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			const uint32 MaxContactPointCount = 8;
 			uint32 ContactPointCount = 0;
 
 			// Use GJK only once
 			const FContactPoint GJKContactPoint = BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
-
-			// ToDo: should we generate no contacts here?
-			//if (GJKContactPoint.Phi >= CullDistance)
-				//return;
 
 			FRigidTransform3 Box1TransformCenter = Box1Transform;
 			Box1TransformCenter.SetTranslation(Box1Transform.TransformPositionNoScale(Box1.GetCenter()));
@@ -176,11 +180,11 @@ namespace Chaos
 			// Is this a vertex-plane or edge-edge contact? 
 			// For vertex-plane contacts, we use a convex face as the manifold plane
 			// For edge-edge contacts, we use the plane returned from GJK as the manifold plane
-			const FReal PlaneContactNormalEpsilon = Chaos_Manifold_PlaneContactNormalEpsilon;
+			const FReal PlaneContactNormalEpsilon = Chaos_Collision_Manifold_PlaneContactNormalEpsilon;
 			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox2, 1.0f, PlaneContactNormalEpsilon);
 			if (!bIsPlaneContact)
 			{
-				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt, bInInitialize);
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt);
 				return;
 			}
 
@@ -293,7 +297,7 @@ namespace Chaos
 				ContactPoint.Normal = GJKContactPoint.Normal;
 				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCubeCoordinates, ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : -SeparationDirectionLocalBox2);
 
-				Constraint.AddOneshotManifoldContact(ContactPoint, Dt, bInInitialize);
+				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 			}
 		}
 
@@ -509,8 +513,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize)
+			FRigidBodyPointContactConstraint& Constraint)
 		{
 			const uint32 SpaceDimension = 3;
 
@@ -545,11 +548,11 @@ namespace Chaos
 			// Is this a vertex-plane or edge-edge contact? 
 			// For vertex-plane contacts, we use a convex face as the manifold plane
 			// For edge-edge contacts, we use the plane returned from GJK as the manifold plane
-			const FReal PlaneContactNormalEpsilon = Chaos_Manifold_PlaneContactNormalEpsilon;
+			const FReal PlaneContactNormalEpsilon = Chaos_Collision_Manifold_PlaneContactNormalEpsilon;
 			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestPlaneDotNormalConvex1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestPlaneDotNormalConvex2, 1.0f, PlaneContactNormalEpsilon);
 			if (!bIsPlaneContact)
 			{
-				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt, bInInitialize);
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt);
 				return;
 			}
 
@@ -643,7 +646,7 @@ namespace Chaos
 				ContactPoint.Normal = GJKContactPoint.Normal;
 				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2) - (Convex1.GetMargin() + Convex2.GetMargin());
 
-				Constraint.AddOneshotManifoldContact(ContactPoint, Dt, bInInitialize);
+				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 			}
 		}
 
@@ -662,8 +665,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<FImplicitBox3, FImplicitConvex3>(
@@ -673,8 +675,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, FImplicitBox3>(
@@ -684,8 +685,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 
 		template
@@ -696,8 +696,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FImplicitConvex3>, FImplicitBox3>(
@@ -707,8 +706,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, FImplicitConvex3>(
@@ -718,8 +716,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FImplicitConvex3>, FImplicitConvex3>(
@@ -729,8 +726,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, TImplicitObjectScaled<FImplicitConvex3>>(
@@ -740,8 +736,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FImplicitConvex3>, TImplicitObjectScaled<FImplicitConvex3>>(
@@ -751,8 +746,7 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 	}
 }
 

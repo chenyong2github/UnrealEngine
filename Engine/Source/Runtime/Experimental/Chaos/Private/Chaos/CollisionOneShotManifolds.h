@@ -21,8 +21,7 @@ namespace Chaos
 			const FRigidTransform3& Box2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
@@ -32,7 +31,6 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint,
-			bool bInInitialize);
+			FRigidBodyPointContactConstraint& Constraint);
 	}
 }

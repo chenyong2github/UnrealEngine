@@ -66,6 +66,7 @@ namespace ChaosTest {
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(0, -1 / 2., 0)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(1 / 2., 0, 0)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(-1 / 2., 0, 0)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
+
 	}
 
 	template<class T>
