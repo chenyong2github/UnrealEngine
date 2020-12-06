@@ -6,7 +6,7 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
-#include "Engine\StaticMesh.h"
+#include "Engine/StaticMesh.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceMeshRendererInfo"
 
