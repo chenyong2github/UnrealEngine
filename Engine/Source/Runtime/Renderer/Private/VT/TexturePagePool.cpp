@@ -122,7 +122,7 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTexture
 					}
 					else
 					{
-						UnmapAllPages(System, i, false);
+						UnmapAllPages(System, i, true);
 						FreeHeap.Update(0, i);
 					}
 				}
