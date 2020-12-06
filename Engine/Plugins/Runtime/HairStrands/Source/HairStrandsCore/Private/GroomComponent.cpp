@@ -1736,6 +1736,8 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 	return SkeletalMeshComponent;
 }
 
+void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
+
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
@@ -1889,6 +1891,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, bDynamicResources);
 			BeginInitResource(HairGroupInstance->Strands.DeformedResource);
 			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
+
+			// Create an debug buffer for storing cluster visalization data. This is only used for debug purpose, hence only enable in editor build.
+			// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
+			#if WITH_EDITOR
+			CreateHairStrandsDebugAttributeBuffer(&HairGroupInstance->Strands.DebugAttributeBuffer, HairGroupInstance->Strands.RestResource->GetVertexCount());
+			#endif
 
 			// An empty groom doesn't have a ClusterCullingResource
 			if (HairGroupInstance->Strands.ClusterCullingResource)
@@ -2079,6 +2087,10 @@ void UGroomComponent::ReleaseResources()
 
 				#if RHI_RAYTRACING
 				InternalResourceRelease(LocalInstance->Strands.RenRaytracingResource);
+				#endif
+
+				#if WITH_EDITOR
+				LocalInstance->Strands.DebugAttributeBuffer.Release();
 				#endif
 			}
 
