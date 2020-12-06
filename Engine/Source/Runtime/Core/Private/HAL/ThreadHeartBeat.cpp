@@ -703,7 +703,7 @@ uint32 FThreadHeartBeat::CheckCheckpointHeartBeat(double& OutHangDuration)
 			for (TPair<FName, FHeartBeatInfo>& LastHeartBeat : CheckpointHeartBeat)
 			{
 				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
-				if (CurrentTime - HeartBeatInfo.LastHeartBeatTime > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime))
 				{
 					UE_LOG(LogCore, Warning, TEXT("Failed to reach checkpoint within allotted time %.2f triggering hang detector."), HeartBeatInfo.HangDuration);
 
