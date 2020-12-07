@@ -22,8 +22,7 @@
 
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
 #include "../PathTracing/Material/PathTracingMaterialSampling.ush"
-
-#include "../QuasiRandom.ush"
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 
 RaytracingAccelerationStructure TLAS;
 
@@ -168,18 +167,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 	uint2 BlueNoiseCoord = PixelCoord / GatherFilterWidth;
 	uint Iteration = (PixelCoord.y % GatherFilterWidth) * GatherFilterWidth + (PixelCoord.x % GatherFilterWidth);
 
-	FQuasiRandom QuasiRandom;
-	QuasiRandom_Initialize(QuasiRandom, BlueNoiseCoord, Iteration, SamplesPerPixel);
-
 	bool bTraceRay = ShouldTraceRay(DispatchThreadId, GBufferData);
 	if (bTraceRay)
 	{
-		float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
+		RandomSequence RandSequence;
+		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SamplesPerPixel);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		// Initialize ray
 		RayDesc Ray;
 		float RayPdf = 1.0;
-		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
@@ -284,9 +282,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 	FGBufferData SampleCenterGBufferData = GetGBufferDataFromSceneTexturesLoad(SampleCenterCoord);
 	float3 SampleCenterNormal = SampleCenterGBufferData.WorldNormal;
 
-	FQuasiRandom QuasiRandom;
-	QuasiRandom_Initialize(QuasiRandom, BlueNoiseCoord, Iteration, SamplesPerPixel);
-
 	bool bTraceRay = ShouldTraceRay(DispatchThreadId, GBufferData);
 	if (bTraceRay)
 	{
@@ -301,12 +296,14 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 		float3 Position = 0;
 		float3 Normal = 0;
 
-		float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
+		RandomSequence RandSequence;
+		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SamplesPerPixel);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		// Initialize ray
 		RayDesc Ray;
 		float RayPdf = 1.0;
-		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		// Distribution PDF is not used for gather points, only gather queries.
@@ -385,9 +382,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 				float3 LightUV;
 				float NeePdf = 0.0;
 
-				float4 RandSample4;
-				RandSample4.xyz = QuasiRandom_Sample3(QuasiRandom);
-				RandSample4.w = QuasiRandom_Sample3(QuasiRandom).x;
+				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
+
 				SampleLight(Ray, Payload, RandSample4, LightId, LightUV, NeePdf);
 
 				if (NeePdf > 0.0)
