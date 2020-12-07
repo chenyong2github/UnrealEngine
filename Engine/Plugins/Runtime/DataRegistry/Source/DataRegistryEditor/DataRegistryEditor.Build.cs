@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DataRegistryEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
 			PrivateIncludePaths.AddRange(
 				new string[] {
 					"DataRegistryEditor/Private",
