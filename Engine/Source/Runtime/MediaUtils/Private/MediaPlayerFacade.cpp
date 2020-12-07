@@ -928,7 +928,7 @@ bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, 
 	// find a player factory for the intended playback
 	IMediaPlayerFactory* PlayerFactory = GetPlayerFactoryForUrl(Url, Options);
 
-	IMediaPlayerFactory* OldFactory(Player.IsValid() ? MediaModule->GetPlayerFactory(Player->GetPlayerName()) : nullptr);
+	IMediaPlayerFactory* OldFactory(Player.IsValid() ? MediaModule->GetPlayerFactory(GetPlayerName()) : nullptr);
 
 	bool bWillCreatePlayer = (PlayerFactory != OldFactory);
 	uint64 NewPlayerInstanceID;
