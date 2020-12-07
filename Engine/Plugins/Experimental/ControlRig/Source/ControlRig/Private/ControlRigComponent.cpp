@@ -78,9 +78,18 @@ void UControlRigComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	for (TPair<USkeletalMeshComponent*, FCachedSkeletalMeshComponentSettings>& Pair : CachedSkeletalMeshComponentSettings)
+	if (!HasAnyFlags(RF_BeginDestroyed))
 	{
-		Pair.Value.Apply(Pair.Key);
+		for (TPair<USkeletalMeshComponent*, FCachedSkeletalMeshComponentSettings>& Pair : CachedSkeletalMeshComponentSettings)
+		{
+			if (Pair.Key)
+			{
+				if (!Pair.Key->HasAnyFlags(RF_BeginDestroyed))
+				{
+					Pair.Value.Apply(Pair.Key);
+				}
+			}
+		}
 	}
 
 	CachedSkeletalMeshComponentSettings.Reset();
