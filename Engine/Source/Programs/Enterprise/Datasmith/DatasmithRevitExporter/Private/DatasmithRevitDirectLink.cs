@@ -312,7 +312,15 @@ namespace DatasmithRevitExporter
 		public FDocumentData.FBaseElementData GetCachedElement(Element InElement)
 		{
 			FDocumentData.FBaseElementData Result = null;
-			CurrentCache.CachedElements.TryGetValue(InElement.Id, out Result);
+			if (CurrentCache.CachedElements.TryGetValue(InElement.Id, out Result))
+			{
+				FDocumentData.FElementData ElementData = Result as FDocumentData.FElementData;
+				if (ElementData != null)
+				{
+					// Re-init the element ref: in some cases (family instance update) it might become invalid.
+					ElementData.CurrentElement = InElement; 
+				}
+			}
 			return Result;
 		}
 
