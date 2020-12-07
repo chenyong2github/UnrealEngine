@@ -69,6 +69,16 @@ private:
 		return (WidgetInfo->GetWidgetHasActiveTimers()) ? TrueText : FalseText;
 	}
 
+	FText GetIsVisible() const
+	{
+		return (WidgetInfo->GetWidgetVisible()) ? TrueText : FalseText;
+	}
+	
+	FText GetIsVisibleInherited() const
+	{
+		return (WidgetInfo->GetWidgetVisibilityInherited()) ? TrueText : FalseText;
+	}
+
 private:
 
 	static const FText TrueText;

@@ -704,7 +704,7 @@ void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
 		bAllowFastUpdate = bInAllowFastUpdate;
 		if (bAllowFastUpdate)
 		{
-			InvalidateRoot();
+			InvalidateRootChildOrder();
 		}
 	}
 }
@@ -1034,7 +1034,7 @@ void SWindow::SetCachedSize( FVector2D NewSize )
 	if(Size != NewSize)
 	{
 		Size = NewSize;
-		InvalidateRoot();
+		InvalidateRootChildOrder();
 	}
 }
 
@@ -1081,12 +1081,28 @@ void SWindow::StartMorph()
 	}
 }
 
+bool SWindow::Advanced_IsInvalidationRoot() const
+{
+	return bAllowFastUpdate && GSlateEnableGlobalInvalidation;
+}
+
+const FSlateInvalidationRoot* SWindow::Advanced_AsInvalidationRoot() const
+{
+	return (bAllowFastUpdate && GSlateEnableGlobalInvalidation) ? this : nullptr;
+}
+
+void SWindow::ProcessWindowInvalidation()
+{
+	if (bAllowFastUpdate && GSlateEnableGlobalInvalidation)
+	{
+		ProcessInvalidation();
+	}
+}
 
 bool SWindow::CustomPrepass(float LayoutScaleMultiplier)
 {
 	if (bAllowFastUpdate && GSlateEnableGlobalInvalidation)
 	{
-		ProcessInvalidation();
 		return NeedsPrepass();
 	}
 	else
@@ -1094,32 +1110,6 @@ bool SWindow::CustomPrepass(float LayoutScaleMultiplier)
 		return true;
 	}
 }
-
-/*
-void SWindow::Advanced_InvalidateRoot()
-{
-	InvalidateRoot();
-}
-*/
-
-/*
-FSlateColor SWindow::GetWindowBackgroundColor() const
-{
-	return Style->BackgroundColor;
-}
-*/
-
-/*
-const FSlateBrush* SWindow::GetWindowOutline() const
-{
-	return &Style->OutlineBrush;
-}
-
-FSlateColor SWindow::GetWindowOutlineColor() const
-{
-	return Style->OutlineColor;
-}
-*/
 
 EVisibility SWindow::GetWindowVisibility() const
 {
@@ -1789,7 +1779,7 @@ bool SWindow::ComputeVolatility() const
 
 void SWindow::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled)
 {
-	InvalidateRoot();
+	InvalidateRootChildOrder();
 	UE_LOG(LogSlate, Log, TEXT("Toggling fast path.  New State: %d"), bGlobalInvalidationEnabled);
 }
 
@@ -2033,6 +2023,10 @@ SWindow::~SWindow()
 	check(IsInGameThread());
 }
 
+TSharedRef<SWidget> SWindow::GetRootWidget()
+{
+	return AsShared();
+}
 
 int32 SWindow::PaintSlowPath(const FSlateInvalidationContext& Context)
 {
@@ -2091,7 +2085,6 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 	{
 		const FGeometry& WindowGeometry = GetWindowGeometryInWindow();
 		HittestGrid->DisplayGrid(INT_MAX, WindowGeometry, OutDrawElements);
-		//HittestGrid->LogGrid
 	}
 #endif
 

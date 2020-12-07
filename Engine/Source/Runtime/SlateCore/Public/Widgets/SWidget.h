@@ -1518,6 +1518,9 @@ private:
 protected:
 
 	float GetPrepassLayoutScaleMultiplier() const { return PrepassLayoutScaleMultiplier.Get(1.0f); }
+	
+	void Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChildren);
+
 public:
 	/**
 	 * Registers an "active timer" delegate that will execute at some regular interval. TickFunction will not be called until the specified interval has elapsed once.
@@ -1618,8 +1621,6 @@ private:
 
 	/** Are we currently updating the desired size? */
 	uint8 bNeedsPrepass : 1;
-
-	uint8 bNeedsDesiredSize : 1;
 
 	/** Are we currently updating the desired size? */
 	mutable uint8 bUpdatingDesiredSize : 1;

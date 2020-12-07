@@ -74,9 +74,8 @@ public:
 	EVisibility Visibility;
 	/** Used to make sure we don't double process a widget that is invalidated.  (a widget can invalidate itself but an ancestor can end up painting that widget first thus rendering the child's own invalidate unnecessary */
 	uint8 bUpdatedSinceLastInvalidate : 1;
-	/** Is the widget already in a pending update list.  If it already is in an update list we don't bother adding it again */
-	uint8 bInUpdateList : 1;
 	uint8 bChildOrderInvalid : 1;
+	/** Is the widget already in a pending update list.  If it already is in an update list we don't bother adding it again */
 	uint8 bContainedByWidgetHeap : 1;
 };
 
@@ -133,7 +132,12 @@ public:
 		, GenerationNumber(INDEX_NONE)
 	{}
 
+	/** @returns true if it has a valid InvalidationRoot and Index. */
 	SLATECORE_API bool IsValid(const SWidget* Widget) const;
+	/**
+	 * @returns true if it has a valid InvalidationRoot owner
+	 * but it could be consider invalid because the InvalidationRoot needs to be rebuilt. */
+	SLATECORE_API bool HasValidInvalidationRootOwnership(const SWidget* Widget) const;
 
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
 
@@ -159,7 +163,6 @@ private:
 
 private:
 	FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex, int32 InGenerationNumber);
-	FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex);
 	FWidgetProxyHandle(FSlateInvalidationWidgetIndex InIndex);
 
 private:

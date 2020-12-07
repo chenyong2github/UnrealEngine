@@ -55,7 +55,7 @@ FSlateInvalidationWidgetList::FSlateInvalidationWidgetList(FSlateInvalidationRoo
 
 FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, bool bParentVisible, bool bParentVolatile)
 {
-	const bool bDoRecursion = ShouldDoRecursion(Widget);
+	const bool bIsEmpty = IsEmpty();
 	IndexType TemporaryIndex = LastestIndex;
 	const FSlateInvalidationWidgetIndex NewIndex = EmplaceInsertAfter(LastestIndex, Widget);
 	LastestIndex = NewIndex.ArrayIndex;
@@ -77,11 +77,14 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 #endif
 	{
 		const FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewIndex };
-		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex }, !bParentAndSelfVisible, bParentVolatile);
+		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex, GenerationNumber }, !bParentAndSelfVisible, bParentVolatile);
 	}
 
 	const bool bParentOrSelfVolatile = bParentVolatile || Widget->IsVolatile();
 
+	// N.B. The SInvalidationBox needs a valid Proxy to decide if he's a root or not.
+	//const bool bDoRecursion = ShouldDoRecursion(Widget);
+	const bool bDoRecursion = !Widget->Advanced_IsInvalidationRoot() || bIsEmpty;
 	if (bDoRecursion)
 	{
 		FChildren* Children = Widget->GetAllChildren();
@@ -110,6 +113,12 @@ void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
 {
 	Reset();
 	Root = InRoot;
+	FSlateInvalidationRoot*  InvalidationRoot = Owner.GetInvalidationRoot();
+	if (InvalidationRoot)
+	{
+		GenerationNumber = InvalidationRoot->GetFastPathGenerationNumber();
+	}
+
 	const bool bShouldAdd = ShouldBeAdded(InRoot);
 	if (bShouldAdd)
 	{
@@ -164,10 +173,21 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 
 //test if it's FSlateInvalidationWidgetIndex is valid and this == Widget.
 //when we remove a widget we may not invalidate it's index and it may not point to the correct widget anymore
-//That behavior is normal, if it occured during ProcessChildOrderInvalidation.
+//That behavior is normal, if it occurred during ProcessChildOrderInvalidation.
 void FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const TArray<TWeakPtr<SWidget>>& InvalidatedWidgets)
 {
 	SCOPE_CYCLE_COUNTER(STAT_WidgetList_ProcessInvalidation);
+
+	FSlateInvalidationRoot* InvalidationRoot = Owner.GetInvalidationRoot();
+	if (InvalidationRoot && InvalidationRoot->GetFastPathGenerationNumber() != GenerationNumber)
+	{
+		TSharedPtr<SWidget> RootPinned = GetRoot().Pin();
+		if (ensure(RootPinned))
+		{
+			BuildWidgetList(RootPinned.ToSharedRef());
+		}
+		return;
+	}
 
 	if (InvalidatedWidgets.Num() > 0)
 	{
@@ -179,7 +199,7 @@ void FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const TArray<TW
 
 		FMemMark Mark(FMemStack::Get());
 		using TInvalidateWidgetIndexType = TTuple<TSharedRef<SWidget>, FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder>;
-		TArray<TInvalidateWidgetIndexType> InvalidatedWidgetIndexes;
+		TArray<TInvalidateWidgetIndexType, TMemStackAllocator<>> InvalidatedWidgetIndexes;
 		InvalidatedWidgetIndexes.Reserve(InvalidatedWidgets.Num());
 
 #if UE_SLATE_VERIFY_INVALID_INVALIDATIONHANDLE
@@ -204,7 +224,7 @@ void FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const TArray<TW
 						// This widget has requested an invalidation ChildOrder but it's index is not valid.
 						//Confirm that it will have a valid index at the end of the algo.
 						VerifyWidgetInvalidationHandle.Add(InvalidatedWidget);
-						Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, FSlateInvalidationWidgetIndex::Invalid, FSlateInvalidationWidgetSortOrder{} });
+						Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, FSlateInvalidationWidgetIndex::Invalid, FSlateInvalidationWidgetSortOrder{}, GenerationNumber });
 					}
 #endif
 				}
@@ -585,6 +605,7 @@ void FSlateInvalidationWidgetList::Reset()
 	Root.Reset();
 	FirstArrayIndex = INDEX_NONE;
 	LastArrayIndex = INDEX_NONE;
+	GenerationNumber = INDEX_NONE;
 }
 
 
@@ -890,7 +911,7 @@ void FSlateInvalidationWidgetList::_RemoveRangeFromSameParent(const FIndexRange 
 				InvalidationWidgetType& InvalidationWidget = Self->Data[ArrayIndex].ElementList[ElementIndex];
 				if (SWidget* Widget = InvalidationWidget.GetWidget())
 				{
-					Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Self->Owner, SlateInvalidationWidgetIndexRemoved, FSlateInvalidationWidgetSortOrder() });
+					Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Self->Owner, SlateInvalidationWidgetIndexRemoved, FSlateInvalidationWidgetSortOrder(), GenerationNumber });
 				}
 			}
 #endif
@@ -1076,7 +1097,7 @@ int32 FSlateInvalidationWidgetList::_CutArray(const FSlateInvalidationWidgetInde
 			if (SWidget* Widget = NewInvalidationWidget.GetWidget())
 			{
 				FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewWidgetIndex };
-				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex });
+				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex, GenerationNumber });
 			}
 		}
 
