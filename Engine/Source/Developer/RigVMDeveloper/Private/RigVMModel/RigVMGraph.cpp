@@ -2,6 +2,7 @@
 
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMController.h"
+#include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "UObject/Package.h"
 
 URigVMGraph::URigVMGraph()
@@ -18,6 +19,23 @@ const TArray<URigVMNode*>& URigVMGraph::GetNodes() const
 const TArray<URigVMLink*>& URigVMGraph::GetLinks() const
 {
 	return Links;
+}
+
+TArray<URigVMGraph*> URigVMGraph::GetContainedGraphs(bool bRecursive) const
+{
+	TArray<URigVMGraph*> Graphs;
+	for (URigVMNode* Node : GetNodes())
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+		{
+			Graphs.Add(LibraryNode->GetContainedGraph());
+			if (bRecursive)
+			{
+				Graphs.Append(LibraryNode->GetContainedGraph()->GetContainedGraphs(true));
+			}
+		}
+	}
+	return Graphs;
 }
 
 TArray<FRigVMGraphVariableDescription> URigVMGraph::GetVariableDescriptions() const

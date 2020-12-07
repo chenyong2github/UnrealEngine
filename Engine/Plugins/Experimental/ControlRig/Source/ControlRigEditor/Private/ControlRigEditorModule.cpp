@@ -1039,6 +1039,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
+			UEdGraph* Graph = InGraphPin->GetOwningNode()->GetGraph();
+
 			// Add the watch pin / unwatch pin menu items
 			{
 				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
@@ -1058,8 +1060,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 			// Add alphainterp menu entries
 			if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>((UBlueprint*)Context->Blueprint))
 			{
-				if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(InGraphPin->GetName()))
+				if (URigVMPin* ModelPin = RigBlueprint->GetModel(Graph)->FindPin(InGraphPin->GetName()))
 				{
+					URigVMController* Controller = RigBlueprint->GetController(ModelPin->GetGraph());
 
 					if (ModelPin->IsArray())
 					{
@@ -1069,8 +1072,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("ClearPinArray", "Clear Array"),
 							LOCTEXT("ClearPinArray_Tooltip", "Removes all elements of the array."),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
-								RigBlueprint->Controller->ClearArrayPin(ModelPin->GetPinPath());
+							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+								Controller->ClearArrayPin(ModelPin->GetPinPath());
 							})
 						));
 		}
@@ -1082,8 +1085,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("RemoveArrayPin", "Remove Array Element"),
 							LOCTEXT("RemoveArrayPin_Tooltip", "Removes the selected element from the array"),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
-								RigBlueprint->Controller->RemoveArrayPin(ModelPin->GetPinPath());
+							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+								Controller->RemoveArrayPin(ModelPin->GetPinPath());
 							})
 						));
 						Section.AddMenuEntry(
@@ -1091,8 +1094,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("DuplicateArrayPin", "Duplicate Array Element"),
 							LOCTEXT("DuplicateArrayPin_Tooltip", "Duplicates the selected element"),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
-								RigBlueprint->Controller->DuplicateArrayPin(ModelPin->GetPinPath());
+							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+								Controller->DuplicateArrayPin(ModelPin->GetPinPath());
 							})
 						));
 					}
@@ -1110,8 +1113,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("MakeVariableNodeFromBinding", "Make Variable Node"),
 								LOCTEXT("MakeVariableNodeFromBinding_Tooltip", "Turns the variable binding on the pin to a variable node"),
 								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin, NodePosition]() {
-									RigBlueprint->Controller->MakeVariableNodeFromBinding(ModelPin->GetPinPath(), NodePosition);
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin, NodePosition]() {
+									Controller->MakeVariableNodeFromBinding(ModelPin->GetPinPath(), NodePosition);
 								})
 							));
 						}
@@ -1125,12 +1128,12 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("PromotePinToVariable", "Promote Pin To Variable"),
 								LOCTEXT("PromotePinToVariable_Tooltip", "Turns the variable into a variable"),
 								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin, NodePosition]() {
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin, NodePosition]() {
 
 									FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 									bool bCreateVariableNode = !KeyState.IsAltDown();
 
-									RigBlueprint->Controller->PromotePinToVariable(ModelPin->GetPinPath(), bCreateVariableNode, NodePosition);
+									Controller->PromotePinToVariable(ModelPin->GetPinPath(), bCreateVariableNode, NodePosition);
 								})
 							));
 						}
@@ -1159,8 +1162,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("ResetPinDefaultValue", "Reset Pin Value"),
 							LOCTEXT("ResetPinDefaultValue_Tooltip", "Resets the pin's value to its default."),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
-								RigBlueprint->Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
+							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+								Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
 							})
 						));
 					}
@@ -1195,8 +1198,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("EjectLastNode", "Eject Last Node"),
 								LOCTEXT("EjectLastNode_Tooltip", "Eject the last injected node"),
 								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
-									RigBlueprint->Controller->EjectNodeFromPin(ModelPin->GetPinPath());
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+									Controller->EjectNodeFromPin(ModelPin->GetPinPath());
 								})
 							));
 						}
@@ -1241,13 +1244,13 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("AddAlphaInterp", "Add Interpolate"),
 									LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = RigBlueprint->Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Result"));
+									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, ScriptStruct]() {
+										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Result"));
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
 											NodeNames.Add(Injection->UnitNode->GetFName());
-											RigBlueprint->Controller->SetNodeSelection(NodeNames);
+											Controller->SetNodeSelection(NodeNames);
 										}
 									})
 								));
@@ -1262,7 +1265,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InterpNode]() {
 									TArray<FName> NodeNames;
 									NodeNames.Add(InterpNode->GetFName());
-									RigBlueprint->Controller->SetNodeSelection(NodeNames);
+									RigBlueprint->GetController(InterpNode->GetGraph())->SetNodeSelection(NodeNames);
 								})
 									));
 								Section.AddMenuEntry(
@@ -1270,8 +1273,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("RemoveAlphaInterp", "Remove Interpolate"),
 									LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, InterpNode]() {
-										RigBlueprint->Controller->RemoveNodeByName(InterpNode->GetFName());
+									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, InterpNode]() {
+										Controller->RemoveNodeByName(InterpNode->GetFName());
 									})
 								));
 							}
@@ -1323,13 +1326,13 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("AddVisualDebug", "Add Visual Debug"),
 									LOCTEXT("AddVisualDebug_Tooltip", "Injects a visual debugging node"),
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = RigBlueprint->Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Value"));
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, InGraphPin, ModelPin, ScriptStruct]() {
+										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Value"));
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
 											NodeNames.Add(Injection->UnitNode->GetFName());
-											RigBlueprint->Controller->SetNodeSelection(NodeNames);
+											Controller->SetNodeSelection(NodeNames);
 
 											if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
 											{
@@ -1353,11 +1356,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 															if(URigVMPin* SpaceTypePin = SpacePin->FindSubPin(TEXT("Type")))
 															{
 																FString SpaceTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)SpaceKey.Type).ToString();
-																RigBlueprint->Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr);
+																Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr);
 															}
 															if(URigVMPin* SpaceNamePin = SpacePin->FindSubPin(TEXT("Name")))
 															{
-																RigBlueprint->Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString());
+																Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString());
 															}
 														}
 													}
@@ -1374,10 +1377,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("EditVisualDebug", "Edit Visual Debug"),
 									LOCTEXT("EditVisualDebug_Tooltip", "Edit the visual debugging node"),
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VisualDebugNode]() {
+									FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
 										TArray<FName> NodeNames;
 										NodeNames.Add(VisualDebugNode->GetFName());
-										RigBlueprint->Controller->SetNodeSelection(NodeNames);
+										Controller->SetNodeSelection(NodeNames);
 									})
 								));
 								Section.AddMenuEntry(
@@ -1385,10 +1388,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("ToggleVisualDebug", "Toggle Visual Debug"),
 									LOCTEXT("ToggleVisualDebug_Tooltip", "Toggle the visibility the visual debugging"),
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VisualDebugNode]() {
+									FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
 										URigVMPin* EnabledPin = VisualDebugNode->FindPin(TEXT("bEnabled"));
 										check(EnabledPin);
-										RigBlueprint->Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false);
+										Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false);
 									})
 								));
 								Section.AddMenuEntry(
@@ -1396,8 +1399,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("RemoveVisualDebug", "Remove Visual Debug"),
 									LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
 									FSlateIcon(),
-										FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, VisualDebugNode]() {
-										RigBlueprint->Controller->RemoveNodeByName(VisualDebugNode->GetFName());
+										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, VisualDebugNode]() {
+										Controller->RemoveNodeByName(VisualDebugNode->GetFName());
 									})
 								));
 							}
@@ -1410,14 +1413,17 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 		{
 			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>((UBlueprint*)Context->Blueprint))
 			{
+				URigVMGraph* Model = RigBlueprint->GetModel(Context->Node->GetGraph());
+				URigVMController* Controller = RigBlueprint->GetController(Model);
+
 				TArray<FRigElementKey> RigElementsToSelect;
 				TMap<const URigVMPin*, FRigElementKey> PinToKey;
-				TArray<FName> SelectedNodeNames = RigBlueprint->Model->GetSelectNodes();
+				TArray<FName> SelectedNodeNames = Model->GetSelectNodes();
 				SelectedNodeNames.AddUnique(Context->Node->GetFName());
 
 				for(const FName& SelectedNodeName : SelectedNodeNames)
 				{
-					if (URigVMNode* ModelNode = RigBlueprint->Model->FindNodeByName(SelectedNodeName))
+					if (URigVMNode* ModelNode = Model->FindNodeByName(SelectedNodeName))
 					{
 						TSharedPtr<FStructOnScope> StructOnScope;
 						FRigHierarchyContainer TemporaryHierarchy = RigBlueprint->HierarchyContainer;
@@ -1532,7 +1538,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						LOCTEXT("SearchAndReplaceNames", "Search & Replace / Mirror"),
 						LOCTEXT("SearchAndReplaceNames_Tooltip", "Searches within all names and replaces with a different text."),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, PinToKey]() {
+						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, PinToKey]() {
 
 							FRigMirrorSettings Settings;
 							TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigMirrorSettings::StaticStruct(), (uint8*)&Settings));
@@ -1542,7 +1548,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 							SGenericDialogWidget::OpenDialog(LOCTEXT("ControlRigHierarchyMirror", "Mirror Graph"), KismetInspector, SGenericDialogWidget::FArguments(), true);
 
-							RigBlueprint->Controller->OpenUndoBracket(TEXT("Mirroring Graph"));
+							Controller->OpenUndoBracket(TEXT("Mirroring Graph"));
 							int32 ReplacedNames = 0;
 
 							for (const TPair<const URigVMPin*, FRigElementKey>& Pair : PinToKey)
@@ -1562,7 +1568,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									Key.Name = *NewNameStr;
 									if(RigBlueprint->HierarchyContainer.GetIndex(Key) != INDEX_NONE)
 									{
-										RigBlueprint->Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false);
+										Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false);
 										ReplacedNames++;
 									}
 								}
@@ -1570,11 +1576,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 							if (ReplacedNames > 0)
 							{
-								RigBlueprint->Controller->CloseUndoBracket();
+								Controller->CloseUndoBracket();
 							}
 							else
 							{
-								RigBlueprint->Controller->CancelUndoBracket();
+								Controller->CancelUndoBracket();
 							}
 						})
 					));
@@ -1626,8 +1632,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("MakeBindingsFromVariableNode", "Make Bindings From Node"),
 							LOCTEXT("MakeBindingsFromVariableNode_Tooltip", "Turns the variable node into one ore more variable bindings on the pin(s)"),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VariableNode]() {
-								RigBlueprint->Controller->MakeBindingsFromVariableNode(VariableNode->GetFName());
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, VariableNode]() {
+								Controller->MakeBindingsFromVariableNode(VariableNode->GetFName());
 							})
 						));
 					}
@@ -1638,9 +1644,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						LOCTEXT("CollapseNodes", "Collapse Nodes"),
 						LOCTEXT("CollapseNodes_Tooltip", "Turns the selected nodes into a single Collapse node"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([RigBlueprint]() {
-							TArray<FName> Nodes = RigBlueprint->Model->GetSelectNodes();
-							RigBlueprint->Controller->CollapseNodes(Nodes);
+						FUIAction(FExecuteAction::CreateLambda([Model, Controller]() {
+							TArray<FName> Nodes = Model->GetSelectNodes();
+							Controller->CollapseNodes(Nodes);
 						})
 					));
 
@@ -1651,8 +1657,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("ExpandNode", "Expand Node"),
 							LOCTEXT("ExpandNode_Tooltip", "Expands the contents of the node into this graph"),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, LibraryNode]() {
-								RigBlueprint->Controller->ExpandLibraryNode(LibraryNode->GetFName());
+							FUIAction(FExecuteAction::CreateLambda([Controller, LibraryNode]() {
+								Controller->ExpandLibraryNode(LibraryNode->GetFName());
 							})
 						));
 					}

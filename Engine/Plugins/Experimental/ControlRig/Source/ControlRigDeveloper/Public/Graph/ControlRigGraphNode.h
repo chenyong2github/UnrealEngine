@@ -112,6 +112,12 @@ public:
 	/** Get the blueprint that this node is contained within */
 	UControlRigBlueprint* GetBlueprint() const;
 
+	/** Get the VM model this node lives within */
+	URigVMGraph* GetModel() const;
+
+	/** Get the blueprint that this node is contained within */
+	URigVMController* GetController() const;
+
 	/** Get the VM node this is node is wrapping */
 	URigVMNode* GetModelNode() const;
 

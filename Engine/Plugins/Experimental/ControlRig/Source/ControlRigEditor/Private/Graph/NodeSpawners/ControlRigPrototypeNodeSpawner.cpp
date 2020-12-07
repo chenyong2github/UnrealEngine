@@ -117,7 +117,7 @@ UControlRigGraphNode* UControlRigPrototypeNodeSpawner::SpawnNode(UEdGraph* Paren
 		}
 
 		FName Name = bIsTemplateNode ? Prototype->GetName() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, Prototype->GetName().ToString());
-		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->Controller;
+		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 		if (!bIsTemplateNode)
 		{

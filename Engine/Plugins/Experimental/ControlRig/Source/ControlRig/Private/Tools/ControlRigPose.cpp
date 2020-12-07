@@ -2,8 +2,6 @@
 #include "Tools/ControlRigPose.h"
 #include "Tools/ControlRigPoseProjectSettings.h"
 #include "IControlRigObjectBinding.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif

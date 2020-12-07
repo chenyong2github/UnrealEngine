@@ -145,70 +145,70 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 	if (bSuspendModelNotifications)
 	{
 		return;
-			}
+	}
 
 	switch (InNotifType)
-		{
+	{
 		case ERigVMGraphNotifType::GraphChanged:
-			{
+		{
 			for (URigVMNode* Node : InGraph->GetNodes())
-				{
+			{
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(Node->GetFName());
 				if (EdNode != nullptr)
-					{
+				{
 					RemoveNode(EdNode);
 				}
 			}
 			break;
 		}
 		case ERigVMGraphNotifType::NodeSelectionChanged:
-						{
+		{
 			if (bIsSelecting)
-							{
+			{
 				return;
-							}
+			}
 			TGuardValue<bool> SelectionGuard(bIsSelecting, true);
 
 			TSet<const UEdGraphNode*> NodeSelection;
 			for (FName NodeName : InGraph->GetSelectNodes())
-							{
+			{
 				if (UEdGraphNode* EdNode = FindNodeForModelNodeName(NodeName))
-							{
+				{
 					NodeSelection.Add(EdNode);
-							}
-						}
+				}
+			}
 			SelectNodeSet(NodeSelection);
 			break;
-					}
+		}
 		case ERigVMGraphNotifType::NodeAdded:
-			{
+		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-				{
+			{
 				if (!ModelNode->IsVisibleInUI())
 				{
 					if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
-				{
+					{
 						if (URigVMPin* ModelPin = Injection->GetPin())
-				{
+						{
 							URigVMNode* ParentModelNode = ModelPin->GetNode();
 							if (ParentModelNode)
-					{
+							{
 								UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
 								if (EdNode)
-					{
+									{
 									if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-					{
+									{
 										RigNode->ReconstructNode_Internal(true);
+									}
+								}
+							}
+						}
 					}
-				}
-			}
-		}
-			}
 					break;
-		}
+				}
 
 				if (URigVMCommentNode* CommentModelNode = Cast<URigVMCommentNode>(ModelNode))
-		{
+				{
 					UEdGraphNode_Comment* NewNode = NewObject<UEdGraphNode_Comment>(this, CommentModelNode->GetFName());
 					AddNode(NewNode, false);
 
@@ -224,7 +224,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->NodeComment = CommentModelNode->GetCommentText();
 					NewNode->SetFlags(RF_Transactional);
 					NewNode->GetNodesUnderComment();
-	}
+				}
 				else if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
 				{
 					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, ModelNode->GetFName());
@@ -242,11 +242,11 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->AllocateDefaultPins();
 
 					if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelNode->FindPin("Value")->GetPinPath()))
-	{
+					{
 						NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
 					}
-	}
-				else // struct, parameter + variable
+				}
+				else // struct, library, parameter + variable
 				{
 					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, ModelNode->GetFName());
 					AddNode(NewNode, false);
@@ -261,6 +261,14 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->SetColorFromModel(ModelNode->GetNodeColor());
 					NewNode->SetFlags(RF_Transactional);
 					NewNode->AllocateDefaultPins();
+
+					/*
+					// if we need to setup a sub graph.. we should
+					if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ModelNode))
+					{
+
+					}
+					*/
 				}
 			}
 			break;
@@ -275,29 +283,29 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					{
 						URigVMNode* ParentModelNode = ModelPin->GetNode();
 						if (ParentModelNode)
-					{
+						{
 							UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
 							if (EdNode)
-						{
-							if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 							{
+								if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+								{
 									RigNode->ReconstructNode_Internal(true);
 								}
 							}
-							}
 						}
-						break;
 					}
+					break;
+				}
 
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName());
 				if (EdNode)
-					{
+				{
 					RemoveNode(EdNode, true);
 					NotifyGraphChanged();
 				}
 			}
-						break;
-					}
+			break;
+		}
 		case ERigVMGraphNotifType::NodePositionChanged:
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
@@ -389,23 +397,23 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					UControlRigGraphNode* SourceRigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(SourcePin->GetNode()->GetFName()));
 					UControlRigGraphNode* TargetRigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(TargetPin->GetNode()->GetFName()));
 
-				if (SourceRigNode != nullptr && TargetRigNode != nullptr)
-				{
+					if (SourceRigNode != nullptr && TargetRigNode != nullptr)
+					{
 						FString SourcePinPath = SourcePin->GetPinPath();
 						FString TargetPinPath = TargetPin->GetPinPath();
-					UEdGraphPin* SourceRigPin = SourceRigNode->FindPin(*SourcePinPath, EGPD_Output);
-					UEdGraphPin* TargetRigPin = TargetRigNode->FindPin(*TargetPinPath, EGPD_Input);
+						UEdGraphPin* SourceRigPin = SourceRigNode->FindPin(*SourcePinPath, EGPD_Output);
+						UEdGraphPin* TargetRigPin = TargetRigNode->FindPin(*TargetPinPath, EGPD_Input);
 
-					if (SourceRigPin != nullptr && TargetRigPin != nullptr)
-					{
-						if (AddLink)
+						if (SourceRigPin != nullptr && TargetRigPin != nullptr)
 						{
-							SourceRigPin->MakeLinkTo(TargetRigPin);
-						}
-						else
-						{
-							SourceRigPin->BreakLinkTo(TargetRigPin);
-						}
+							if (AddLink)
+							{
+								SourceRigPin->MakeLinkTo(TargetRigPin);
+							}
+							else
+							{
+								SourceRigPin->BreakLinkTo(TargetRigPin);
+							}
 
 							for (int32 LinkedPinIndex = 0; LinkedPinIndex < SourceRigPin->LinkedTo.Num();)
 							{
@@ -416,8 +424,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 								else
 								{
 									SourceRigPin->LinkedTo.RemoveAtSwap(LinkedPinIndex);
-					}
-				}
+								}
+							}
 
 							for (int32 LinkedPinIndex = 0; LinkedPinIndex < TargetRigPin->LinkedTo.Num();)
 							{
@@ -472,7 +480,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					}
 				}
 				else if (URigVMInjectionInfo* Injection = ModelPin->GetNode()->GetInjectionInfo())
-						{
+				{
 					if (Injection->InputPin != ModelPin->GetRootPin())
 					{
 						if (URigVMPin* InjectionPin = Injection->GetPin())
@@ -489,12 +497,12 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 									}
 								}
 							}
-									}
-								}
-							}
 						}
-			break;
 					}
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::PinArraySizeChanged:
 		case ERigVMGraphNotifType::PinDirectionChanged:
 		case ERigVMGraphNotifType::PinTypeChanged:
@@ -578,6 +586,32 @@ UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNod
 	return nullptr;
 }
 
+UControlRigBlueprint* UControlRigGraph::GetBlueprint() const
+{
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetBlueprint();
+	}
+	return Cast<UControlRigBlueprint>(GetOuter());
+}
+
+URigVMGraph* UControlRigGraph::GetModel() const
+{
+	if (UControlRigBlueprint* Blueprint = GetBlueprint())
+	{
+		return Blueprint->GetModel(this);
+	}
+	return nullptr;
+}
+
+URigVMController* UControlRigGraph::GetController() const
+{
+	if (UControlRigBlueprint* Blueprint = GetBlueprint())
+	{
+		return Blueprint->GetOrCreateController(this);
+	}
+	return nullptr;
+}
 
 URigVMController* UControlRigGraph::GetTemplateController()
 {

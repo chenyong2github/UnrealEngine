@@ -130,13 +130,10 @@ void SControlRigGraphPinCurveFloat::OnCurveChanged(const TArray<FRichCurveEditIn
 	{
 		if (UControlRigGraphNode* Node = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
 		{
-			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Node->GetGraph()->GetOuter()))
-			{
-				FString ExportedText;
-				FRuntimeFloatCurve DefaultCurve;
-				FRuntimeFloatCurve::StaticStruct()->ExportText(ExportedText, &Curve, &DefaultCurve, nullptr, EPropertyPortFlags::PPF_None, nullptr, true);
-				RigBlueprint->Controller->SetPinDefaultValue(Pin->GetName(), ExportedText, true, true, true);
-			}
+			FString ExportedText;
+			FRuntimeFloatCurve DefaultCurve;
+			FRuntimeFloatCurve::StaticStruct()->ExportText(ExportedText, &Curve, &DefaultCurve, nullptr, EPropertyPortFlags::PPF_None, nullptr, true);
+			Node->GetController()->SetPinDefaultValue(Pin->GetName(), ExportedText, true, true, true);
 		}
 	}
 	ModifyOwner();

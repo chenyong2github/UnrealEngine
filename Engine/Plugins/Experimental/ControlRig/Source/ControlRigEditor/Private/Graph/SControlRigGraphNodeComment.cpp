@@ -42,10 +42,13 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 				{
 					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
 					FVector2D Size(CommentNode->NodeWidth, CommentNode->NodeHeight);
-					Blueprint->Controller->OpenUndoBracket(TEXT("Resize Comment Box"));
-					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
-					Blueprint->Controller->SetNodeSizeByName(CommentNode->GetFName(), Size, true);
-					Blueprint->Controller->CloseUndoBracket();
+					if (URigVMController* Controller = Blueprint->GetController(Graph))
+					{
+						Controller->OpenUndoBracket(TEXT("Resize Comment Box"));
+						Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
+						Controller->SetNodeSizeByName(CommentNode->GetFName(), Size, true);
+						Controller->CloseUndoBracket();
+					}
 				}
 			}
 		} 
@@ -90,7 +93,10 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 			{
 				if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 				{
-					Blueprint->Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true);
+					if (URigVMController* Controller = Blueprint->GetController(Graph))
+					{
+						Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true);
+					}
 				}
 			}
 		}
@@ -108,9 +114,12 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 				{
 					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 					{
-						// for now we won't use our undo for this kind of change
-						Blueprint->Controller->SetNodeColorByName(GraphNode->GetFName(), CurrentNodeCommentColor, false, true);
-						CachedNodeCommentColor = CurrentNodeCommentColor;
+						if (URigVMController* Controller = Blueprint->GetController(Graph))
+						{
+							// for now we won't use our undo for this kind of change
+							Controller->SetNodeColorByName(GraphNode->GetFName(), CurrentNodeCommentColor, false, true);
+							CachedNodeCommentColor = CurrentNodeCommentColor;
+						}
 					}
 				}
 			}

@@ -70,13 +70,16 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (RigBlueprint != nullptr)
 	{
-		if (PinA->Direction == EGPD_Input)
+		if (URigVMController* Controller = RigBlueprint->GetOrCreateController(PinA->GetOwningNode()->GetGraph()))
 		{
-			UEdGraphPin* Temp = PinA;
-			PinA = PinB;
-			PinB = Temp;
+			if (PinA->Direction == EGPD_Input)
+			{
+				UEdGraphPin* Temp = PinA;
+				PinA = PinB;
+				PinB = Temp;
+			}
+			return Controller->AddLink(PinA->GetName(), PinB->GetName());
 		}
-		return RigBlueprint->Controller->AddLink(PinA->GetName(), PinB->GetName());
 	}
 	return false;
 }
@@ -119,7 +122,7 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 			if (PinA)
 			{
 				PinA = PinA->GetPinForLink();
-				RigBlueprint->Model->PrepareCycleChecking(PinA, A->Direction == EGPD_Input);
+				RigNodeA->GetModel()->PrepareCycleChecking(PinA, A->Direction == EGPD_Input);
 			}
 
 			URigVMPin* PinB = RigNodeB->GetModelPinFromPinPath(B->GetName());
@@ -136,7 +139,7 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 			}
 
 			FString FailureReason;
-			bool bResult = RigBlueprint->Model->CanLink(PinA, PinB, &FailureReason);
+			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason);
 			if (!bResult)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
@@ -169,11 +172,9 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	//const FScopedTransaction Transaction( LOCTEXT("GraphEd_BreakPinLinks", "Break Pin Links") );
 
 	// cache this here, as BreakPinLinks can trigger a node reconstruction invalidating the TargetPin referenceS
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TargetPin.GetOwningNode());
-	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(TargetPin.GetOwningNode()))
 	{
-		RigBlueprint->Controller->BreakAllLinks(TargetPin.GetName(), TargetPin.Direction == EGPD_Input);
+		Node->GetController()->BreakAllLinks(TargetPin.GetName(), TargetPin.Direction == EGPD_Input);
 	}
 }
 
@@ -181,9 +182,7 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 {
 	//const FScopedTransaction Transaction(LOCTEXT("GraphEd_BreakSinglePinLink", "Break Pin Link") );
 
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TargetPin->GetOwningNode());
-	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(TargetPin->GetOwningNode()))
 	{
 		if (SourcePin->Direction == EGPD_Input)
 		{
@@ -192,7 +191,7 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 			SourcePin = Temp;
 		}
 		
-		RigBlueprint->Controller->BreakLink(SourcePin->GetName(), TargetPin->GetName());
+		Node->GetController()->BreakLink(SourcePin->GetName(), TargetPin->GetName());
 	}
 }
 
@@ -214,11 +213,9 @@ bool UControlRigGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 
 bool UControlRigGraphSchema::IsPinBeingWatched(UEdGraphPin const* Pin) const
 {
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
-	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(Pin->GetOwningNode()))
 	{
-		if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(Pin->GetName()))
+		if (URigVMPin* ModelPin = Node->GetModel()->FindPin(Pin->GetName()))
 		{
 			return ModelPin->RequiresWatch();
 		}
@@ -228,23 +225,19 @@ bool UControlRigGraphSchema::IsPinBeingWatched(UEdGraphPin const* Pin) const
 
 void UControlRigGraphSchema::ClearPinWatch(UEdGraphPin const* Pin) const
 {
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
-	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(Pin->GetOwningNode()))
 	{
-		RigBlueprint->Controller->SetPinIsWatched(Pin->GetName(), false);
+		Node->GetController()->SetPinIsWatched(Pin->GetName(), false);
 	}
 }
 
 void UControlRigGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const
 {
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
-	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(PinA->GetOwningNode()))
 	{
-		if (URigVMLink* Link = RigBlueprint->Model->FindLink(FString::Printf(TEXT("%s -> %s"), *PinA->GetName(), *PinB->GetName())))
+		if (URigVMLink* Link = Node->GetModel()->FindLink(FString::Printf(TEXT("%s -> %s"), *PinA->GetName(), *PinB->GetName())))
 		{
-			RigBlueprint->Controller->AddRerouteNodeOnLink(Link, false, GraphPosition);
+			Node->GetController()->AddRerouteNodeOnLink(Link, false, GraphPosition);
 		}
 	}
 }
@@ -271,13 +264,7 @@ void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D
 {
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(RigNode);
-		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-		if (RigBlueprint != nullptr)
-		{
-			RigBlueprint->Controller->SetNodePosition(RigNode->GetModelNode(), Position, true, false); 
-			return;
-		}
+		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, true, false); 
 	}
 }
 
@@ -435,12 +422,7 @@ bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNo
 {
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(RigNode);
-		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-		if (RigBlueprint != nullptr)
-		{
-			return RigBlueprint->Controller->RemoveNode(RigNode->GetModelNode());
-		}
+		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode());
 	}
 	return false;
 }
@@ -476,11 +458,9 @@ bool UControlRigGraphSchema::RequestVariableDropOnPin(UEdGraph* InGraph, FProper
 #if WITH_EDITOR
 	if (CanVariableBeDropped(InGraph, InVariableToDrop))
 	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph);
-		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-		if (RigBlueprint != nullptr)
+		if(UControlRigGraph* Graph = Cast<UControlRigGraph>(InGraph))
 		{
-			if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(InPin->GetName()))
+			if (URigVMPin* ModelPin = Graph->GetModel()->FindPin(InPin->GetName()))
 			{
 				FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InVariableToDrop, nullptr);
 				if (ModelPin->CanBeBoundToVariable(ExternalVariable))
@@ -488,16 +468,16 @@ bool UControlRigGraphSchema::RequestVariableDropOnPin(UEdGraph* InGraph, FProper
 					FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 					if (KeyState.IsAltDown())
 					{
-						return RigBlueprint->Controller->BindPinToVariable(ModelPin->GetPinPath(), InVariableToDrop->GetName());
+						return Graph->GetController()->BindPinToVariable(ModelPin->GetPinPath(), InVariableToDrop->GetName());
 					}
 					else
 					{
-						RigBlueprint->Controller->OpenUndoBracket(TEXT("Bind Variable to Pin"));
-						if (URigVMVariableNode* VariableNode = RigBlueprint->Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, true, FString(), InDropPosition + FVector2D(0.f, -34.f)))
+						Graph->GetController()->OpenUndoBracket(TEXT("Bind Variable to Pin"));
+						if (URigVMVariableNode* VariableNode = Graph->GetController()->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, true, FString(), InDropPosition + FVector2D(0.f, -34.f)))
 						{
-							RigBlueprint->Controller->AddLink(VariableNode->FindPin(TEXT("Value"))->GetPinPath(), ModelPin->GetPinPath(), true);
+							Graph->GetController()->AddLink(VariableNode->FindPin(TEXT("Value"))->GetPinPath(), ModelPin->GetPinPath(), true);
 						}
-						RigBlueprint->Controller->CloseUndoBracket();
+						Graph->GetController()->CloseUndoBracket();
 						return true;
 					}
 				}
@@ -519,14 +499,8 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 		return;
 	}
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
-	if (Blueprint == nullptr)
-	{
-		return;
-	}
-
-	check(Blueprint->Controller);
-	check(Blueprint->Model);
+	check(Graph->GetController());
+	check(Graph->GetModel());
 
 	TArray<UEdGraphNode*> NodesToMove;
 	NodesToMove.Add(InNode);
@@ -558,15 +532,15 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 
 	bool bMovedSomething = false;
 
-	Blueprint->Controller->OpenUndoBracket(TEXT("Move Nodes"));
+	Graph->GetController()->OpenUndoBracket(TEXT("Move Nodes"));
 
 	for (UEdGraphNode* NodeToMove : NodesToMove)
 	{
 		FName NodeName = NodeToMove->GetFName();
-		if (URigVMNode* ModelNode = Blueprint->Model->FindNodeByName(NodeName))
+		if (URigVMNode* ModelNode = Graph->GetModel()->FindNodeByName(NodeName))
 		{
 			FVector2D Position(NodeToMove->NodePosX, NodeToMove->NodePosY);
-			if (Blueprint->Controller->SetNodePositionByName(NodeName, Position, true, false))
+			if (Graph->GetController()->SetNodePositionByName(NodeName, Position, true, false))
 			{
 				bMovedSomething = true;
 			}
@@ -575,11 +549,11 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 
 	if (bMovedSomething)
 	{
-		Blueprint->Controller->CloseUndoBracket();
+		Graph->GetController()->CloseUndoBracket();
 	}
 	else
 	{
-		Blueprint->Controller->CancelUndoBracket();
+		Graph->GetController()->CancelUndoBracket();
 	}
 
 #endif

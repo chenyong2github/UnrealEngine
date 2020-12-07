@@ -134,7 +134,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		bool const bUndo = !bIsTemplateNode;
 
 		FName Name = bIsTemplateNode ? *StructTemplate->GetDisplayNameText().ToString() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
-		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->Controller;
+		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 		if (!bIsTemplateNode)
 		{
@@ -230,7 +230,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 void UControlRigUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, UControlRigBlueprint* InRigBlueprint)
 {
-	URigVMController* Controller = InRigBlueprint->Controller;
+	URigVMController* Controller = InRigBlueprint->GetController(InModelNode->GetGraph());
 
 	Controller->ClearNodeSelection(true);
 	Controller->SelectNode(InModelNode, true, true);

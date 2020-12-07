@@ -100,14 +100,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestControlRigInit();
 
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMGraph* GetModel(const UEdGraph* InEdGraph = nullptr) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	TArray<URigVMGraph*> GetAllModels() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMController* GetController(URigVMGraph* InGraph = nullptr) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMController* GetOrCreateController(URigVMGraph* InGraph = nullptr);
+
+	URigVMController* GetController(const UEdGraph* InEdGraph) const;
+	URigVMController* GetOrCreateController(const UEdGraph* InGraph);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")
 	FRigVMCompileSettings VMCompileSettings;
+
+protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "VM")
 	URigVMGraph* Model;
 
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
-	URigVMController* Controller;
+	TMap<URigVMGraph*, URigVMController*> Controllers;
+
+public:
 
 	UPROPERTY(transient)
 	TMap<FString, FRigVMOperand> PinToOperandMap;

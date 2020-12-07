@@ -92,6 +92,7 @@ namespace ControlRigEditorTabs
 
 FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
+	, ActiveController(nullptr)
 	, bControlRigEditorInitialized(false)
 	, bIsSettingObjectBeingDebugged(false)
 	, NodeDetailStruct(nullptr)
@@ -286,16 +287,16 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	{
-		if (URigVMGraph* Model = InControlRigBlueprint->Model)
+		if (URigVMGraph* Model = InControlRigBlueprint->GetModel())
 		{
 			if (Model->GetNodes().Num() == 0)
 			{
-				URigVMNode* Node = InControlRigBlueprint->Controller->AddUnitNode(FRigUnit_BeginExecution::StaticStruct(), TEXT("Execute"), FVector2D::ZeroVector, FString(), false);
+				URigVMNode* Node = InControlRigBlueprint->GetController()->AddUnitNode(FRigUnit_BeginExecution::StaticStruct(), TEXT("Execute"), FVector2D::ZeroVector, FString(), false);
 				if (Node)
 				{
 					TArray<FName> NodeNames;
 					NodeNames.Add(Node->GetFName());
-					InControlRigBlueprint->Controller->SetNodeSelection(NodeNames, false);
+					InControlRigBlueprint->GetController()->SetNodeSelection(NodeNames, false);
 				}
 			}
 			else
@@ -303,7 +304,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				InControlRigBlueprint->RebuildGraphFromModel();
 
 				// selection state does not need to be persistent, even though it is saved in the RigVM.
-				InControlRigBlueprint->Controller->ClearNodeSelection(false);
+				InControlRigBlueprint->GetController()->ClearNodeSelection(false);
 
 				if (UPackage* Package = InControlRigBlueprint->GetOutermost())
 				{
@@ -1388,7 +1389,7 @@ bool FControlRigEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedO
 		return false;
 	}
 
-	if (InTransactedObject->GetOuter() == RigBlueprint->Controller)
+	if (InTransactedObject->GetOuter() == GetFocusedController())
 	{
 		return false;
 	}
@@ -1409,7 +1410,7 @@ void FControlRigEditor::DeleteSelectedNodes()
 	SetUISelectionState(NAME_None);
 
 	bool DeletedAnything = false;
-	RigBlueprint->Controller->OpenUndoBracket(TEXT("Delete selected nodes"));
+	GetFocusedController()->OpenUndoBracket(TEXT("Delete selected nodes"));
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -1420,14 +1421,14 @@ void FControlRigEditor::DeleteSelectedNodes()
 				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 				{
-					if(RigBlueprint->Controller->RemoveNodeByName(*RigNode->ModelNodePath))
+					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath))
 					{
 						DeletedAnything = true;
 					}
 				}
 				else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
 				{
-					if(RigBlueprint->Controller->RemoveNodeByName(CommentNode->GetFName()))
+					if(GetFocusedController()->RemoveNodeByName(CommentNode->GetFName()))
 					{
 						DeletedAnything = true;
 					}
@@ -1442,11 +1443,11 @@ void FControlRigEditor::DeleteSelectedNodes()
 
 	if(DeletedAnything)
 	{
-		RigBlueprint->Controller->CloseUndoBracket();
+		GetFocusedController()->CloseUndoBracket();
 	}
 	else
 	{
-		RigBlueprint->Controller->CancelUndoBracket();
+		GetFocusedController()->CancelUndoBracket();
 	}
 }
 
@@ -1457,50 +1458,27 @@ bool FControlRigEditor::CanDeleteNodes() const
 
 void FControlRigEditor::CopySelectedNodes()
 {
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (RigBlueprint == nullptr)
-	{
-		return;
-	}
-
-	FString ExportedText = RigBlueprint->Controller->ExportSelectedNodesToText();
+	FString ExportedText = GetFocusedController()->ExportSelectedNodesToText();
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
 }
 
 bool FControlRigEditor::CanCopyNodes() const
 {
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (RigBlueprint == nullptr)
-	{
-		return false;
-	}
-	return RigBlueprint->Model->GetSelectNodes().Num() > 0;
+	return GetFocusedModel()->GetSelectNodes().Num() > 0;
 }
 
 bool FControlRigEditor::CanPasteNodes() const
 {
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (RigBlueprint == nullptr)
-	{
-		return false;
-	}
-
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
-	return RigBlueprint->Controller->CanImportNodesFromText(TextToImport);
+	return GetFocusedController()->CanImportNodesFromText(TextToImport);
 }
 
 void FControlRigEditor::PasteNodes()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (RigBlueprint == nullptr)
-	{
-		return;
-	}
-
-	RigBlueprint->Controller->OpenUndoBracket(TEXT("Pasted Nodes."));
+	GetFocusedController()->OpenUndoBracket(TEXT("Pasted Nodes."));
 
 	FVector2D PasteLocation = FSlateApplication::Get().GetCursorPos();
 
@@ -1517,7 +1495,7 @@ void FControlRigEditor::PasteNodes()
 
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
-	TArray<FName> NodeNames = RigBlueprint->Controller->ImportNodesFromText(TextToImport);
+	TArray<FName> NodeNames = GetFocusedController()->ImportNodesFromText(TextToImport);
 
 	if (NodeNames.Num() > 0)
 	{
@@ -1526,7 +1504,7 @@ void FControlRigEditor::PasteNodes()
 
 		for (const FName& NodeName : NodeNames)
 		{
-			const URigVMNode* Node = RigBlueprint->Model->FindNodeByName(NodeName);
+			const URigVMNode* Node = GetFocusedModel()->FindNodeByName(NodeName);
 			check(Node);
 
 			FVector2D Position = Node->GetPosition();
@@ -1543,19 +1521,19 @@ void FControlRigEditor::PasteNodes()
 
 		for (const FName& NodeName : NodeNames)
 		{
-			const URigVMNode* Node = RigBlueprint->Model->FindNodeByName(NodeName);
+			const URigVMNode* Node = GetFocusedModel()->FindNodeByName(NodeName);
 			check(Node);
 
 			FVector2D Position = Node->GetPosition();
-			RigBlueprint->Controller->SetNodePositionByName(NodeName, PasteLocation + Position - Bounds.GetCenter());
+			GetFocusedController()->SetNodePositionByName(NodeName, PasteLocation + Position - Bounds.GetCenter());
 		}
 
-		RigBlueprint->Controller->SetNodeSelection(NodeNames);
-		RigBlueprint->Controller->CloseUndoBracket();
+		GetFocusedController()->SetNodeSelection(NodeNames);
+		GetFocusedController()->CloseUndoBracket();
 	}
 	else
 	{
-		RigBlueprint->Controller->CancelUndoBracket();
+		GetFocusedController()->CancelUndoBracket();
 	}
 }
 
@@ -1617,25 +1595,19 @@ void FControlRigEditor::EnsureValidRigElementInDetailPanel()
 
 void FControlRigEditor::OnStartWatchingPin()
 {
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
+	if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
 	{
-		if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
-		{
-			ControlRigBlueprint->Controller->SetPinIsWatched(Pin->GetName(), true);
-		}
+		GetFocusedController()->SetPinIsWatched(Pin->GetName(), true);
 	}
 }
 
 bool FControlRigEditor::CanStartWatchingPin() const
 {
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
+	if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
 	{
-		if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
+		if (URigVMPin* ModelPin = GetFocusedModel()->FindPin(Pin->GetName()))
 		{
-			if (URigVMPin* ModelPin = ControlRigBlueprint->Model->FindPin(Pin->GetName()))
-			{
-				return ModelPin->GetParentPin() == nullptr && !ModelPin->RequiresWatch();
-			}
+			return ModelPin->GetParentPin() == nullptr && !ModelPin->RequiresWatch();
 		}
 	}
 	return false;
@@ -1643,25 +1615,19 @@ bool FControlRigEditor::CanStartWatchingPin() const
 
 void FControlRigEditor::OnStopWatchingPin()
 {
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
+	if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
 	{
-		if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
-		{
-			ControlRigBlueprint->Controller->SetPinIsWatched(Pin->GetName(), false);
-		}
+		GetFocusedController()->SetPinIsWatched(Pin->GetName(), false);
 	}
 }
 
 bool FControlRigEditor::CanStopWatchingPin() const
 {
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
+	if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
 	{
-		if (UEdGraphPin* Pin = GetCurrentlySelectedPin())
+		if (URigVMPin* ModelPin = GetFocusedModel()->FindPin(Pin->GetName()))
 		{
-			if (URigVMPin* ModelPin = ControlRigBlueprint->Model->FindPin(Pin->GetName()))
-			{
-				return ModelPin->RequiresWatch();
-			}
+			return ModelPin->RequiresWatch();
 		}
 	}
 	return false;
@@ -1964,20 +1930,20 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 			{
 				if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
 				{
-					URigVMNode* ModelNode = ControlRigBlueprint->Model->FindNodeByName(Node->GetFName());
+					URigVMNode* ModelNode = GetFocusedModel()->FindNodeByName(Node->GetFName());
 					if (ModelNode == nullptr)
 					{
 						TGuardValue<bool> BlueprintNotifGuard(ControlRigBlueprint->bSuspendModelNotificationsForOthers, true);
 						FVector2D NodePos(CommentNode->NodePosX, CommentNode->NodePosY);
 						FVector2D NodeSize(CommentNode->NodeWidth, CommentNode->NodeHeight);
 						FLinearColor NodeColor = CommentNode->CommentColor;
-						ControlRigBlueprint->Controller->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), true);
+						GetFocusedController()->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), true);
 					}
 				}
 				NodeNamesToSelect.Add(Node->GetFName());
 			}
 		}
-		ControlRigBlueprint->Controller->SetNodeSelection(NodeNamesToSelect, true);
+		GetFocusedController()->SetNodeSelection(NodeNamesToSelect, true);
 	}
 }
 
@@ -2427,14 +2393,14 @@ void FControlRigEditor::SetPinControlNameListText(const FText& NewTypeInValue, E
 			// find out if the controlled pin is part of a visual debug node
 			if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
 			{
-				if (URigVMPin* ControlledPin = ControlRigBlueprint->Model->FindPin(Control.Name.ToString()))
+				if (URigVMPin* ControlledPin = GetFocusedModel()->FindPin(Control.Name.ToString()))
 				{
 					URigVMNode* ControlledNode = ControlledPin->GetPinForLink()->GetNode();
 					if (URigVMPin* BoneSpacePin = ControlledNode->FindPin(TEXT("BoneSpace")))
 					{
 						if (BoneSpacePin->GetCPPType() == TEXT("FName") && BoneSpacePin->GetCustomWidgetName() == TEXT("BoneName"))
 						{
-							ControlRigBlueprint->Controller->SetPinDefaultValue(BoneSpacePin->GetPinPath(), Control.ParentName.ToString(), false, false, false);
+							GetFocusedController()->SetPinDefaultValue(BoneSpacePin->GetPinPath(), Control.ParentName.ToString(), false, false, false);
 						}
 					}
 				}
@@ -2671,22 +2637,26 @@ void FControlRigEditor::UpdateStaleWatchedPins()
 
 	ControlRigBP->WatchedPins.Empty();
 
-	for (URigVMNode* ModelNode : ControlRigBP->Model->GetNodes())
+	TArray<URigVMGraph*> Models = ControlRigBP->GetAllModels();
+	for (URigVMGraph* Model : Models)
 	{
-		TArray<URigVMPin*> ModelPins = ModelNode->GetAllPinsRecursively();
-		for (URigVMPin* ModelPin : ModelPins)
+		for (URigVMNode* ModelNode : Model->GetNodes())
 		{
-			if (ModelPin->RequiresWatch())
+			TArray<URigVMPin*> ModelPins = ModelNode->GetAllPinsRecursively();
+			for (URigVMPin* ModelPin : ModelPins)
 			{
-				ControlRigBP->Controller->SetPinIsWatched(ModelPin->GetPinPath(), false, false);
+				if (ModelPin->RequiresWatch())
+				{
+					ControlRigBP->GetController(Model)->SetPinIsWatched(ModelPin->GetPinPath(), false, false);
+				}
 			}
 		}
 	}
-
 	for (UEdGraphPin* Pin : AllPins)
 	{
 		ControlRigBP->WatchedPins.Add(Pin);
-		ControlRigBP->Controller->SetPinIsWatched(Pin->GetName(), true, false);
+		UEdGraph* EdGraph = Pin->GetOwningNode()->GetGraph();
+		ControlRigBP->GetController(EdGraph)->SetPinIsWatched(Pin->GetName(), true, false);
 	}
 }
 
@@ -2713,7 +2683,7 @@ void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::
 	{
 		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 		{
-			ControlRigBP->Controller->SetCommentTextByName(CommentBeingChanged->GetFName(), NewText.ToString(), true);
+			GetFocusedController()->SetCommentTextByName(CommentBeingChanged->GetFName(), NewText.ToString(), true);
 		}
 	}
 }
@@ -2877,7 +2847,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		if (!DefaultValue.IsEmpty())
 		{
 			FString PinPath = FString::Printf(TEXT("%s.%s"), *NodeDetailName.ToString(), *PropertyChangedEvent.MemberProperty->GetName());
-			ControlRigBP->Controller->SetPinDefaultValue(PinPath, DefaultValue, true, true);
+			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true);
 		}
 	}
 
@@ -3132,7 +3102,7 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 						{
 							if (ModelPin->GetDefaultValue() == RemovedElementName)
 							{
-								Blueprint->Controller->SetPinDefaultValue(ModelPin->GetPinPath(), FName(NAME_None).ToString());
+								GetFocusedController()->SetPinDefaultValue(ModelPin->GetPinPath(), FName(NAME_None).ToString());
 							}
 						}
 						else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
@@ -3149,7 +3119,7 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 										FString NameStr = NamePin->GetDefaultValue();
 										if (NameStr == RemovedElementName)
 										{
-											Blueprint->Controller->SetPinDefaultValue(NamePin->GetPinPath(), NoneStr);
+											GetFocusedController()->SetPinDefaultValue(NamePin->GetPinPath(), NoneStr);
 										}
 									}
 								}
@@ -3210,7 +3180,7 @@ void FControlRigEditor::OnRigElementRenamed(FRigHierarchyContainer* Container, E
 						{
 							if (ModelPin->GetDefaultValue() == InOldName.ToString())
 							{
-								Blueprint->Controller->SetPinDefaultValue(ModelPin->GetPinPath(), InNewName.ToString(), false);
+								GetFocusedController()->SetPinDefaultValue(ModelPin->GetPinPath(), InNewName.ToString(), false);
 							}
 						}
 						else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
@@ -3226,7 +3196,7 @@ void FControlRigEditor::OnRigElementRenamed(FRigHierarchyContainer* Container, E
 										FString NameStr = NamePin->GetDefaultValue();
 										if (NameStr == OldNameStr)
 										{
-											Blueprint->Controller->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
+											GetFocusedController()->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
 										}
 									}
 								}
@@ -3491,9 +3461,9 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 					LOCTEXT("CreateCollectionFromKeysTooltip", "Creates a collection from the selected elements in the hierarchy"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([Blueprint, DraggedKeys, NodePosition]()
+						FExecuteAction::CreateLambda([this, Blueprint, DraggedKeys, NodePosition]()
 							{
-								if (URigVMController* Controller = Blueprint->Controller)
+								if (URigVMController* Controller = GetFocusedController())
 								{
 									Controller->OpenUndoBracket(TEXT("Create Collection from Items"));
 
@@ -3554,12 +3524,12 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 	{
 		return;
 	}
-	if (Blueprint->Controller == nullptr)
+	if (GetFocusedController() == nullptr)
 	{
 		return;
 	}
 
-	Blueprint->Controller->OpenUndoBracket(TEXT("Adding Nodes from Hierarchy"));
+	GetFocusedController()->OpenUndoBracket(TEXT("Adding Nodes from Hierarchy"));
 
 	struct FNewNodeData
 	{
@@ -3804,7 +3774,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		}
 
 		FName Name = FControlRigBlueprintUtils::ValidateName(Blueprint, StructTemplate->GetName());
-		if (URigVMUnitNode* ModelNode = Blueprint->Controller->AddUnitNode(StructTemplate, TEXT("Execute"), NodePosition))
+		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, TEXT("Execute"), NodePosition))
 		{
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();
 			NewNode.Name = ModelNode->GetFName();
@@ -3812,13 +3782,13 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			
 			for (const FName& ItemPin : ItemPins)
 			{
-				Blueprint->Controller->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Name"), *ModelNode->GetName(), *ItemPin.ToString()), Key.Name.ToString());
-				Blueprint->Controller->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Type"), *ModelNode->GetName(), *ItemPin.ToString()), ItemTypeStr);			
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Name"), *ModelNode->GetName(), *ItemPin.ToString()), Key.Name.ToString());
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Type"), *ModelNode->GetName(), *ItemPin.ToString()), ItemTypeStr);
 			}
 
 			for (const FName& NamePin : NamePins)
 			{
-				Blueprint->Controller->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString()), Key.Name.ToString());
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString()), Key.Name.ToString());
 			}
 
 			if (!NewNode.ValuePinName.IsNone())
@@ -3850,7 +3820,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 				}
 				if (!DefaultValue.IsEmpty())
 				{
-					Blueprint->Controller->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NewNode.ValuePinName.ToString()), DefaultValue);
+					GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NewNode.ValuePinName.ToString()), DefaultValue);
 				}
 			}
 
@@ -3867,12 +3837,12 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		{
 			NewNodeNames.Add(NewNode.Name);
 		}
-		Blueprint->Controller->SetNodeSelection(NewNodeNames);
-		Blueprint->Controller->CloseUndoBracket();
+		GetFocusedController()->SetNodeSelection(NewNodeNames);
+		GetFocusedController()->CloseUndoBracket();
 	}
 	else
 	{
-		Blueprint->Controller->CancelUndoBracket();
+		GetFocusedController()->CancelUndoBracket();
 	}
 }
 
@@ -3932,7 +3902,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, const FRig
 
 			if (!NewDefaultValue.IsEmpty())
 			{
-				Blueprint->Controller->SetPinDefaultValue(Pin->GetPinPath(), NewDefaultValue, true, true, true);
+				GetFocusedController()->SetPinDefaultValue(Pin->GetPinPath(), NewDefaultValue, true, true, true);
 			}
 		}
 		else
@@ -4005,7 +3975,7 @@ void FControlRigEditor::HandleVariableDroppedFromBlueprint(UObject* InSubject, F
 		return;
 	}
 
-	URigVMController* Controller = Blueprint->Controller;
+	URigVMController* Controller = GetFocusedController();
 	check(Controller);
 
 	FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InVariableToDrop, nullptr);
@@ -4322,6 +4292,28 @@ TSharedPtr<FUICommandList> FControlRigEditor::HandleOnViewportContextMenuCommand
 		return OnViewportContextMenuCommandsDelegate.Execute();
 	}
 	return TSharedPtr<FUICommandList>();
+}
+
+URigVMGraph* FControlRigEditor::GetFocusedModel() const
+{
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (Blueprint == nullptr)
+	{
+		return nullptr;
+	}
+
+	UControlRigGraph* EdGraph = Cast<UControlRigGraph>(GetFocusedGraph());
+	return Blueprint->GetModel(EdGraph);
+}
+
+URigVMController* FControlRigEditor::GetFocusedController() const
+{
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (Blueprint == nullptr)
+	{
+		return nullptr;
+	}
+	return Blueprint->GetController(GetFocusedModel());
 }
 
 #undef LOCTEXT_NAMESPACE

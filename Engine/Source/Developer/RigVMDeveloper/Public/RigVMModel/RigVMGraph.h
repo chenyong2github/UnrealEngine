@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	const TArray<URigVMLink*>& GetLinks() const;
 
+	// Returns all of the contained graphs
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	TArray<URigVMGraph*> GetContainedGraphs(bool bRecursive = false) const;
+
 	// Returns a list of unique Variable descriptions within this Graph.
 	// Multiple Variable Nodes can share the same description.
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)

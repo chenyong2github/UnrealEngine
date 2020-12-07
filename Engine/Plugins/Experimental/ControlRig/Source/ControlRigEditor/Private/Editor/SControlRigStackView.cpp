@@ -259,7 +259,7 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 		}
 
 		TMap<int32, FName> InstructionIndexToNodeName;
-		for (URigVMNode* ModelNode : ControlRigBlueprint->Model->GetNodes())
+		for (URigVMNode* ModelNode : ControlRigEditor.Pin()->GetFocusedModel()->GetNodes())
 		{
 			if (ModelNode->GetInstructionIndex() != INDEX_NONE)
 			{
@@ -277,7 +277,7 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			}
 		}
 
-		ControlRigBlueprint->Controller->SetNodeSelection(SelectedNodes);
+		ControlRigEditor.Pin()->GetFocusedController()->SetNodeSelection(SelectedNodes);
 	}
 }
 
@@ -303,7 +303,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 	if (InVM)
 	{
 		FRigVMInstructionArray Instructions = InVM->GetInstructions();
-		const TArray<URigVMNode*>& Nodes = ControlRigBlueprint->Model->GetNodes();
+		const TArray<URigVMNode*>& Nodes = ControlRigBlueprint->GetModel()->GetNodes();
 		
 		// 1. cache information about instructions/nodes, which will be used later 
 		TArray<int32> InstructionIndexToNodeIndex;
@@ -541,11 +541,15 @@ void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InContr
 
 		if (UControlRigBlueprint* RigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			for (URigVMNode* ModelNode : RigBlueprint->Model->GetNodes())
+			TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
+			for (URigVMGraph* Model : Models)
 			{
-				if (ModelNode->IsSelected())
+				for (URigVMNode* ModelNode : Model->GetNodes())
 				{
-					HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, RigBlueprint->Model, ModelNode);
+					if (ModelNode->IsSelected())
+					{
+						HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, Model, ModelNode);
+					}
 				}
 			}
 		}

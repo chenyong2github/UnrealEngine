@@ -109,7 +109,7 @@ void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray
 			ensure(ChainElement.Field);
 			Parts.Add(ChainElement.Field.GetName());
 		}
-		Blueprint->Controller->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */);
+		Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */);
 	}
 }
 
@@ -122,7 +122,7 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 {
 	if (Blueprint && ModelPin)
 	{
-		Blueprint->Controller->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */);
+		Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */);
 	}
 }
 

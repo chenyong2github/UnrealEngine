@@ -62,7 +62,7 @@ URigVMGraph* UControlRigBlueprintEditorLibrary::GetModel(UControlRigBlueprint* I
 	{
 		return nullptr;
 	}
-	return InRigBlueprint->Model;
+	return InRigBlueprint->GetModel();
 }
 
 URigVMController* UControlRigBlueprintEditorLibrary::GetController(UControlRigBlueprint* InRigBlueprint)
@@ -71,7 +71,7 @@ URigVMController* UControlRigBlueprintEditorLibrary::GetController(UControlRigBl
 	{
 		return nullptr;
 	}
-	return InRigBlueprint->Controller;
+	return InRigBlueprint->GetController();
 }
 
 TArray<UControlRigBlueprint*> UControlRigBlueprintEditorLibrary::GetCurrentlyOpenRigBlueprints()

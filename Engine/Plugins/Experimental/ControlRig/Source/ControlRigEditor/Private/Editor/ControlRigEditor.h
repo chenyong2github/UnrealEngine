@@ -350,6 +350,10 @@ protected:
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 
+	URigVMGraph* GetFocusedModel() const;
+	URigVMController* GetFocusedController() const;
+
+	URigVMController* ActiveController;
 	bool bControlRigEditorInitialized;
 	bool bIsSettingObjectBeingDebugged;
 	FRigElementKey RigElementInDetailPanel;

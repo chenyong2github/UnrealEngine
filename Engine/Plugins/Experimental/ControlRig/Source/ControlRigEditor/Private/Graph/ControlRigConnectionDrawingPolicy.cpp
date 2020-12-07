@@ -38,7 +38,7 @@ void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSe
 			UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 			if (RigBlueprint != nullptr)
 			{
-				RigBlueprint->Model->PrepareCycleChecking(nullptr, true);
+				RigBlueprint->GetModel(Pin->GetOwningNode()->GetGraph())->PrepareCycleChecking(nullptr, true);
 			}
 		}
 	}

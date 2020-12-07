@@ -91,7 +91,7 @@ UEdGraphNode* UControlRigIfNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSe
 	{
 		if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
 		{
-			if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(LastPin->GetName()))
+			if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
 			{
 				CPPType = ModelPin->GetCPPType();
 				if (ModelPin->GetCPPTypeObject())
@@ -111,7 +111,7 @@ UEdGraphNode* UControlRigIfNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSe
 	}
 #endif
 
-	URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->Controller;
+	URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 	FName Name = *URigVMIfNode::IfName;
 
@@ -159,7 +159,8 @@ bool UControlRigIfNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter 
 			}
 
 			FString PinPath = Filter.Context.Pins[0]->GetName();
-			if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(PinPath))
+			UEdGraph* EdGraph = Filter.Context.Pins[0]->GetOwningNode()->GetGraph();
+			if (URigVMPin* ModelPin = RigBlueprint->GetModel(EdGraph)->FindPin(PinPath))
 			{
 				return ModelPin->IsExecuteContext();
 			}

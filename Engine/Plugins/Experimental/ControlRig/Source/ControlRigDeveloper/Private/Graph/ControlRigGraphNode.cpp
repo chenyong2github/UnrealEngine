@@ -226,10 +226,9 @@ void UControlRigGraphNode::HandleClearArray(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
-	if (Blueprint)
+	if(URigVMController* Controller = GetController())
 	{
-		Blueprint->Controller->ClearArrayPin(InPinPath);
+		Controller->ClearArrayPin(InPinPath);
 	}
 }
 
@@ -237,14 +236,13 @@ void UControlRigGraphNode::HandleAddArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
-	if (Blueprint)
+	if (URigVMController* Controller = GetController())
 	{
-		Blueprint->Controller->OpenUndoBracket(TEXT("Add Array Pin"));
-		FString PinPath = Blueprint->Controller->AddArrayPin(InPinPath);
-		Blueprint->Controller->SetPinExpansion(InPinPath, true);
-		Blueprint->Controller->SetPinExpansion(PinPath, true);
-		Blueprint->Controller->CloseUndoBracket();
+		Controller->OpenUndoBracket(TEXT("Add Array Pin"));
+		FString PinPath = Controller->AddArrayPin(InPinPath);
+		Controller->SetPinExpansion(InPinPath, true);
+		Controller->SetPinExpansion(PinPath, true);
+		Controller->CloseUndoBracket();
 	}
 }
 
@@ -252,10 +250,9 @@ void UControlRigGraphNode::HandleRemoveArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
-	if (Blueprint)
+	if (URigVMController* Controller = GetController())
 	{
-		Blueprint->Controller->RemoveArrayPin(InPinPath);
+		Controller->RemoveArrayPin(InPinPath);
 	}
 }
 
@@ -263,18 +260,17 @@ void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
-	if (Blueprint)
+	if (URigVMController* Controller = GetController())
 	{
 		if (URigVMPin* ArrayElementPin = GetModelPinFromPinPath(InPinPath))
 			{
 			if (URigVMPin* ArrayPin = ArrayElementPin->GetParentPin())
 				{
-				Blueprint->Controller->OpenUndoBracket(TEXT("Add Array Pin"));
-				FString PinPath = Blueprint->Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString());
-				Blueprint->Controller->SetPinExpansion(InPinPath, true);
-				Blueprint->Controller->SetPinExpansion(PinPath, true);
-				Blueprint->Controller->CloseUndoBracket();
+				Controller->OpenUndoBracket(TEXT("Add Array Pin"));
+				FString PinPath = Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString());
+				Controller->SetPinExpansion(InPinPath, true);
+				Controller->SetPinExpansion(PinPath, true);
+				Controller->CloseUndoBracket();
 			}
 		}
 	}
@@ -598,8 +594,11 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 	}
 
 		if (ModelPin->GetDefaultValue() != DefaultValue)
-				{
-			GetBlueprint()->Controller->SetPinDefaultValue(ModelPin->GetPinPath(), DefaultValue, false, true, false);
+		{
+			if (URigVMController* Controller = GetController())
+			{
+				Controller->SetPinDefaultValue(ModelPin->GetPinPath(), DefaultValue, false, true, false);
+			}
 		}
 	}
 }
@@ -608,7 +607,30 @@ UControlRigBlueprint* UControlRigGraphNode::GetBlueprint() const
 {
 	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
 	{
+		return Graph->GetBlueprint();
+		if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(Graph->GetOuter()))
+		{
+			return OuterGraph->GetBlueprint();
+		}
 		return Cast<UControlRigBlueprint>(Graph->GetOuter());
+	}
+	return nullptr;
+}
+
+URigVMGraph* UControlRigGraphNode::GetModel() const
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return Graph->GetModel();
+	}
+	return nullptr;
+}
+
+URigVMController* UControlRigGraphNode::GetController() const
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return Graph->GetController();
 	}
 	return nullptr;
 }
@@ -639,12 +661,9 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 
 #endif
 
-		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+		if (URigVMGraph* Model = GetModel())
 		{
-			if (URigVMGraph* Model = Blueprint->Model)
-			{
-				return MutableThis->CachedModelNode = Model->FindNode(ModelNodePath);
-			}
+			return MutableThis->CachedModelNode = Model->FindNode(ModelNodePath);
 		}
 	}
 

@@ -92,9 +92,9 @@ FReply FRigVMCompileSettingsDetails::OnCopyASTClicked()
 {
 	if (BlueprintBeingCustomized)
 	{
-		if (BlueprintBeingCustomized->Model)
+		if (BlueprintBeingCustomized->GetModel())
 		{
-			FString DotContent = BlueprintBeingCustomized->Model->GetRuntimeAST()->DumpDot();
+			FString DotContent = BlueprintBeingCustomized->GetModel()->GetRuntimeAST()->DumpDot();
 			FPlatformApplicationMisc::ClipboardCopy(*DotContent);
 		}
 	}
@@ -105,7 +105,7 @@ FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
 {
 	if (BlueprintBeingCustomized)
 	{
-		if (BlueprintBeingCustomized->Model)
+		if (BlueprintBeingCustomized->GetModel())
 		{
 			if(UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 			{

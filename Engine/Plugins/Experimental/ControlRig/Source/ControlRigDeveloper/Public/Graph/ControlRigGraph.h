@@ -53,6 +53,10 @@ public:
 
 	UEdGraphNode* FindNodeForModelNodeName(const FName& InModelNodeName);
 
+	UControlRigBlueprint* GetBlueprint() const;
+	URigVMGraph* GetModel() const;
+	URigVMController* GetController() const;
+
 private:
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);

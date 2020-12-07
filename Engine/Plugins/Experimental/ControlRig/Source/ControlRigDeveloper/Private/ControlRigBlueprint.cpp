@@ -52,7 +52,6 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	VMRecompilationBracket = 0;
 
 	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMModel"));
-	Controller = nullptr;
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
@@ -66,67 +65,9 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (Controller == nullptr)
+	if (Controllers.Num() == 0)
 	{
-		Controller = NewObject<URigVMController>(this);
-		Controller->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
-		Controller->SetGraph(Model);
-		Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleModifiedEvent);
-
-		Controller->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool {
-
-			if (InStruct == TBaseStructure<FQuat>::Get())
-			{
-				return false;
-			}
-			if (InStruct == FRuntimeFloatCurve::StaticStruct())
-			{
-				return false;
-			}
-			return true;
-		});
-
-		TWeakObjectPtr<UControlRigBlueprint> WeakThis(this);
-
-		// this delegate is used by the controller to determine variable validity
-		// during a bind process. the controller itself doesn't own the variables,
-		// so we need a delegate to request them from the owning blueprint
-		Controller->GetExternalVariablesDelegate.BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
-			
-			if (WeakThis.IsValid())
-			{
-				if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
-				{
-					if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
-					{
-						return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
-					}
-				}
-			}
-			return TArray<FRigVMExternalVariable>();
-
-		});
-
-#if WITH_EDITOR
-
-		// this sets up three delegates:
-		// a) get external variables (mapped to Controller->GetExternalVariables)
-		// b) bind pin to variable (mapped to Controller->BindPinToVariable)
-		// c) create external variable (mapped to the passed in tfunction)
-		// the last one is defined within the blueprint since the controller
-		// doesn't own the variables and can't create one itself.
-		Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
-			[WeakThis](FRigVMExternalVariable InVariableToCreate) -> FName {
-				if (WeakThis.IsValid())
-				{
-					return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate);
-				}
-				return NAME_None;
-			}
-		));
-#endif
-
-		Controller->RemoveStaleNodes();
+		GetOrCreateController(Model);
 
 		for (int32 i = 0; i < UbergraphPages.Num(); ++i)
 		{
@@ -279,16 +220,15 @@ void UControlRigBlueprint::PostLoad()
 
 	if (!IsInAsyncLoadingThread() || IsRunningCommandlet())
 	{
-		Controller->DetachLinksFromPinObjects();
+		GetOrCreateController()->DetachLinksFromPinObjects();
 		TArray<URigVMNode*> Nodes = Model->GetNodes();
 		for (URigVMNode* Node : Nodes)
 		{
-			Controller->RepopulatePinsOnNode(Node);
+			GetOrCreateController()->RepopulatePinsOnNode(Node);
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
 	}
-
-	Controller->ReattachLinksToPinObjects(true /* follow redirectors */);
+	GetOrCreateController()->ReattachLinksToPinObjects(true /* follow redirectors */);
 
 	RecompileVM();
 	RequestControlRigInit();
@@ -344,7 +284,7 @@ void UControlRigBlueprint::RecompileVM()
 
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
 		Compiler->Settings = VMCompileSettings;
-		Compiler->Compile(Model, Controller, CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
+		Compiler->Compile(Model, GetController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
 
 		CDO->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName); // need to clarify if we actually need this
 		Statistics = CDO->VM->GetStatistics();
@@ -419,6 +359,133 @@ void UControlRigBlueprint::RequestControlRigInit()
 			InstanceRig->RequestInit();
 		}
 	}
+}
+
+URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
+{
+	if (InEdGraph == nullptr)
+	{
+		return Model;
+	}
+
+	const UControlRigGraph* RigGraph = Cast< UControlRigGraph>(InEdGraph);
+	check(RigGraph);
+
+	if (RigGraph->GetOuter() == this)
+	{
+		return Model;
+	}
+
+	ensure(false);
+	return nullptr;
+}
+
+TArray<URigVMGraph*> UControlRigBlueprint::GetAllModels() const
+{
+	TArray<URigVMGraph*> Models;
+	Models.Add(GetModel());
+	Models.Append(GetModel()->GetContainedGraphs());
+	return Models;
+}
+
+URigVMController* UControlRigBlueprint::GetController(URigVMGraph* InGraph) const
+{
+	if (InGraph == nullptr)
+	{
+		InGraph = Model;
+	}
+
+	URigVMController* const* ControllerPtr = Controllers.Find(InGraph);
+	if (ControllerPtr)
+	{
+		return *ControllerPtr;
+	}
+	return nullptr;
+}
+
+URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGraph)
+{
+	if (URigVMController* ExistingController = GetController(InGraph))
+	{
+		return ExistingController;
+	}
+
+	if (InGraph == nullptr)
+	{
+		InGraph = Model;
+	}
+
+	URigVMController* Controller = NewObject<URigVMController>(this);
+	Controller->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+	Controller->SetGraph(InGraph);
+	Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleModifiedEvent);
+
+	Controller->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool {
+
+		if (InStruct == TBaseStructure<FQuat>::Get())
+		{
+			return false;
+		}
+		if (InStruct == FRuntimeFloatCurve::StaticStruct())
+		{
+			return false;
+		}
+		return true;
+		});
+
+	TWeakObjectPtr<UControlRigBlueprint> WeakThis(this);
+
+	// this delegate is used by the controller to determine variable validity
+	// during a bind process. the controller itself doesn't own the variables,
+	// so we need a delegate to request them from the owning blueprint
+	Controller->GetExternalVariablesDelegate.BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
+
+		if (WeakThis.IsValid())
+		{
+			if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+			{
+				if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+				{
+					return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
+				}
+			}
+		}
+		return TArray<FRigVMExternalVariable>();
+
+	});
+
+#if WITH_EDITOR
+
+	// this sets up three delegates:
+	// a) get external variables (mapped to Controller->GetExternalVariables)
+	// b) bind pin to variable (mapped to Controller->BindPinToVariable)
+	// c) create external variable (mapped to the passed in tfunction)
+	// the last one is defined within the blueprint since the controller
+	// doesn't own the variables and can't create one itself.
+	Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
+		[WeakThis](FRigVMExternalVariable InVariableToCreate) -> FName {
+			if (WeakThis.IsValid())
+			{
+				return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate);
+			}
+			return NAME_None;
+		}
+	));
+#endif
+
+	Controller->RemoveStaleNodes();
+	Controllers.Add(InGraph, Controller);
+	return Controller;
+}
+
+URigVMController* UControlRigBlueprint::GetController(const UEdGraph* InEdGraph) const
+{
+	return GetController(GetModel(InEdGraph));
+}
+
+URigVMController* UControlRigBlueprint::GetOrCreateController(const UEdGraph* InEdGraph)
+{
+	return GetOrCreateController(GetModel(InEdGraph));
 }
 
 void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
@@ -912,7 +979,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 				UScriptStruct* UnitStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(StructPath);
 				if (UnitStruct && UnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
 				{ 
-					ModelNode = Controller->AddUnitNode(UnitStruct, TEXT("Execute"), NodePosition, PropertyName.ToString(), false);
+					ModelNode = GetOrCreateController()->AddUnitNode(UnitStruct, TEXT("Execute"), NodePosition, PropertyName.ToString(), false);
 				}
 				else if (PropertyName != NAME_None) // check if this is a variable
 				{
@@ -985,7 +1052,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 							bIsInput = false;
 						}
 
-						ModelNode = Controller->AddParameterNode(PropertyName, DataType.ToString(), DataTypeObject, bIsInput, FString(), NodePosition, PropertyName.ToString(), false);
+						ModelNode = GetOrCreateController()->AddParameterNode(PropertyName, DataType.ToString(), DataTypeObject, bIsInput, FString(), NodePosition, PropertyName.ToString(), false);
 					}
 				}
 				else
@@ -995,44 +1062,44 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 
 				if (ModelNode)
 				{
-					bool bWasReportingEnabled = Controller->IsReportingEnabled();
-					Controller->EnableReporting(false);
+					bool bWasReportingEnabled = GetOrCreateController()->IsReportingEnabled();
+					GetOrCreateController()->EnableReporting(false);
 
-				for (UEdGraphPin* Pin : RigNode->Pins)
-				{
-						FString PinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
+					for (UEdGraphPin* Pin : RigNode->Pins)
+					{
+							FString PinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
 
-						// check the material + mesh pins for deprecated control nodes
-						if (URigVMUnitNode* ModelUnitNode = Cast<URigVMUnitNode>(ModelNode))
-						{
-							if (ModelUnitNode->GetScriptStruct()->IsChildOf(FRigUnit_Control::StaticStruct()))
+							// check the material + mesh pins for deprecated control nodes
+							if (URigVMUnitNode* ModelUnitNode = Cast<URigVMUnitNode>(ModelNode))
 							{
-								if (Pin->GetName().EndsWith(TEXT(".StaticMesh")) || Pin->GetName().EndsWith(TEXT(".Materials")))
+								if (ModelUnitNode->GetScriptStruct()->IsChildOf(FRigUnit_Control::StaticStruct()))
 								{
-									continue;
+									if (Pin->GetName().EndsWith(TEXT(".StaticMesh")) || Pin->GetName().EndsWith(TEXT(".Materials")))
+									{
+										continue;
+									}
 								}
 							}
+
+						if (Pin->Direction == EGPD_Input && Pin->PinType.ContainerType == EPinContainerType::Array)
+						{
+							int32 ArraySize = Pin->SubPins.Num();
+							GetOrCreateController()->SetArrayPinSize(PinPath, ArraySize, FString(), false);
 						}
 
-					if (Pin->Direction == EGPD_Input && Pin->PinType.ContainerType == EPinContainerType::Array)
-					{
-						int32 ArraySize = Pin->SubPins.Num();
-							Controller->SetArrayPinSize(PinPath, ArraySize, FString(), false);
-					}
-
 						if (RigNode->ExpandedPins_DEPRECATED.Find(Pin->GetName()) != INDEX_NONE)
-					{
-							Controller->SetPinExpansion(PinPath, true, false);
-					}
+						{
+								GetOrCreateController()->SetPinExpansion(PinPath, true, false);
+						}
 
 						if (Pin->SubPins.Num() == 0 && !Pin->DefaultValue.IsEmpty() && Pin->Direction == EGPD_Input)
-					{
-							Controller->SetPinDefaultValue(PinPath, Pin->DefaultValue, false, false, false);
+						{
+								GetOrCreateController()->SetPinDefaultValue(PinPath, Pin->DefaultValue, false, false, false);
+						}
 					}
-				}
 
-					Controller->EnableReporting(bWasReportingEnabled);
-			}
+					GetOrCreateController()->EnableReporting(bWasReportingEnabled);
+				}
 
 				const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, PropertyName);
 				if (VarIndex != INDEX_NONE)
@@ -1045,7 +1112,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 			{
 				FVector2D NodePosition = FVector2D((float)CommentNode->NodePosX, (float)CommentNode->NodePosY);
 				FVector2D NodeSize = FVector2D((float)CommentNode->NodeWidth, (float)CommentNode->NodeHeight);
-				Controller->AddCommentNode(CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, CommentNode->GetName(), false);
+				GetOrCreateController()->AddCommentNode(CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, CommentNode->GetName(), false);
 			}
 		}
 
@@ -1069,7 +1136,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 						{
 							FString SourcePinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
 							FString TargetPinPath = LocalHelpers::FixUpPinPath(LinkedPin->GetName());
-							Controller->AddLink(SourcePinPath, TargetPinPath, false);
+							GetOrCreateController()->AddLink(SourcePinPath, TargetPinPath, false);
 						}
 					}
 				}
@@ -1091,7 +1158,7 @@ void UControlRigBlueprint::SetupPinRedirectorsForBackwardsCompatibility()
 			{
 				URigVMPin* TransformPin = UnitNode->FindPin(TEXT("Transform"));
 				URigVMPin* ResultPin = UnitNode->FindPin(TEXT("Result"));
-				Controller->AddPinRedirector(false, true, TransformPin->GetPinPath(), ResultPin->GetPinPath());
+				GetOrCreateController()->AddPinRedirector(false, true, TransformPin->GetPinPath(), ResultPin->GetPinPath());
 			}
 		}
 	}
@@ -1102,7 +1169,7 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	TGuardValue<bool> SelfGuard(bSuspendModelNotificationsForSelf, true);
-	check(Controller);
+	check(GetOrCreateController());
 
 	for (UEdGraph* Graph : UbergraphPages)
 	{
@@ -1113,12 +1180,12 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 		}
 	}
 
-	Controller->ResendAllNotifications();
+	GetController()->ResendAllNotifications();
 }
 
 void UControlRigBlueprint::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
 {
-	Controller->Notify(InNotifType, InSubject);
+	GetOrCreateController()->Notify(InNotifType, InSubject);
 }
 
 void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
@@ -1560,7 +1627,7 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 	{
 		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
-		Controller->ReattachLinksToPinObjects();
+		GetOrCreateController()->ReattachLinksToPinObjects();
 
 		check(Model);
 
@@ -1577,7 +1644,7 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 
 				int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
 				FName VarName = NewVariables[VariableIndex].VarName;
-				Controller->RefreshVariableNode(VariableNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
+				GetOrCreateController()->RefreshVariableNode(VariableNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
 				bDirtyDuringLoad = true;
 			}
 
@@ -1591,7 +1658,7 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 
 				int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
 				FName VarName = NewVariables[VariableIndex].VarName;
-				Controller->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
+				GetOrCreateController()->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
 				bDirtyDuringLoad = true;
 			}
 		}
@@ -2045,7 +2112,7 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 
 void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 {
-	if (Controller)
+	if (URigVMController* Controller = GetController())
 	{
 		Controller->OnExternalVariableRemoved(InVarName, true);
 	}
@@ -2054,7 +2121,7 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 
 void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName)
 {
-	if (Controller)
+	if (URigVMController* Controller = GetController())
 	{
 		Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
 	}
@@ -2063,7 +2130,7 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 
 void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType)
 {
-	if (Controller)
+	if (URigVMController* Controller = GetController())
 	{
 		FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
 		if (NewVariable.IsValid(true)) // allow nullptr

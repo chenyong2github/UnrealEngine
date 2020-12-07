@@ -773,13 +773,9 @@ void SControlRigGraphNode::HandleGetChildrenForTree(URigVMPin* InItem, TArray<UR
 
 void SControlRigGraphNode::HandleExpansionChanged(URigVMPin* InItem, bool bExpanded)
 {
-	if (GraphNode)
+	if (UControlRigGraphNode* RigGraphNode = Cast< UControlRigGraphNode>(GraphNode))
 	{
-		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(GraphNode->GetGraph()->GetOuter());
-		if (ControlRigBlueprint)
-		{
-			ControlRigBlueprint->Controller->SetPinExpansion(InItem->GetPinPath(), bExpanded, true);
-		}
+		RigGraphNode->GetController()->SetPinExpansion(InItem->GetPinPath(), bExpanded, true);
 	}
 }
 
@@ -787,38 +783,34 @@ void SControlRigGraphNode::HandleExpandRecursively(URigVMPin* InItem, bool bExpa
 {
 	TSharedPtr<STreeView<URigVMPin*>>& TreeWidget = *TreeWidgetPtr;
 
-	if (GraphNode)
+	if (UControlRigGraphNode* RigGraphNode = Cast< UControlRigGraphNode>(GraphNode))
 	{
-		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(GraphNode->GetGraph()->GetOuter());
-		if (ControlRigBlueprint)
+		RigGraphNode->GetController()->OpenUndoBracket(TEXT("Expand pin recursively"));
+
+		TArray<URigVMPin*> ModelPins;
+		ModelPins.Add(InItem);
+
+		for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
 		{
-			ControlRigBlueprint->Controller->OpenUndoBracket(TEXT("Expand pin recursively"));
-
-			TArray<URigVMPin*> ModelPins;
-			ModelPins.Add(InItem);
-
-			for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
-			{
-				URigVMPin* ModelPin = ModelPins[PinIndex];
-				ModelPins.Append(ModelPin->GetSubPins());
-			}
-
-			if (!bExpanded)
-			{
-				Algo::Reverse(ModelPins);
-			}
-
-			for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
-			{
-				URigVMPin* ModelPin = ModelPins[PinIndex];
-				if (ModelPin->IsExpanded() != bExpanded && ModelPin->GetSubPins().Num() > 0)
-				{
-					TreeWidget->SetItemExpansion(ModelPin, bExpanded);
-				}
-			}
-
-			ControlRigBlueprint->Controller->CloseUndoBracket();
+			URigVMPin* ModelPin = ModelPins[PinIndex];
+			ModelPins.Append(ModelPin->GetSubPins());
 		}
+
+		if (!bExpanded)
+		{
+			Algo::Reverse(ModelPins);
+		}
+
+		for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
+		{
+			URigVMPin* ModelPin = ModelPins[PinIndex];
+			if (ModelPin->IsExpanded() != bExpanded && ModelPin->GetSubPins().Num() > 0)
+			{
+				TreeWidget->SetItemExpansion(ModelPin, bExpanded);
+			}
+		}
+
+		RigGraphNode->GetController()->CloseUndoBracket();
 	}
 }
 
@@ -873,10 +865,11 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 	const FLinearColor PinnedWatchColor(0.35f, 0.25f, 0.25f);
 
 	UControlRig* ActiveObject = Cast<UControlRig>(K2Context->ActiveObjectBeingDebugged);
+	UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode);
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(K2Context->SourceBlueprint);
 
 	// Display any pending latent actions
-	if (ActiveObject && RigBlueprint)
+	if (ActiveObject && RigBlueprint && RigGraphNode)
 	{
 		// Display pinned watches
 		if (K2Context->WatchedNodeSet.Contains(GraphNode))
@@ -890,7 +883,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 				UEdGraphPin* WatchPin = GraphNode->Pins[PinIndex];
 				if (K2Context->WatchedPinSet.Contains(WatchPin))
 				{
-					if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(WatchPin->GetName()))
+					if (URigVMPin* ModelPin = RigGraphNode->GetModel()->FindPin(WatchPin->GetName()))
 					{
 						if (ValidWatchCount > 0)
 						{

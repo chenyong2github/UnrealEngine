@@ -102,7 +102,7 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	}
 	else
 	{
-		URigVMController* Controller = RigBlueprint->Controller;
+		URigVMController* Controller = RigBlueprint->GetController(ParentGraph);
 		Controller->OpenUndoBracket(TEXT("Added Reroute Node."));
 
 		FString PinPath;
@@ -114,7 +114,7 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 
 			if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
 			{
-				if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(LastPin->GetName()))
+				if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
 				{
 					PinPath = ModelPin->GetPinPath();
 				}
