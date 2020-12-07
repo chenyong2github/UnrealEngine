@@ -683,6 +683,13 @@ public:
 	}
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+	virtual void RHIFlushTextureCacheBOP(FRHITexture* Texture)
+	{
+		checkNoEntry();
+	}
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+
 	protected:
 		FRHIRenderPassInfo RenderPassInfo;
 };

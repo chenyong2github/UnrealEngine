@@ -2429,6 +2429,10 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				ERDGPassFlags::Raster,
 				[PassParameters, VertexShader, PixelShader, GatheringViewSize, DrawIndirectParametersOffset](FRHICommandList& RHICmdList)
 			{
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+				RHICmdList.RHIFlushTextureCacheBOP(PassParameters->RenderTargets[0].GetTexture()->GetRHI());
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+
 				RHICmdList.SetViewport(0, 0, 0.0f, GatheringViewSize.X, GatheringViewSize.Y, 1.0f);
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;

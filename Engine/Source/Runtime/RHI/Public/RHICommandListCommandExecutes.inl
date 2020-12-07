@@ -746,3 +746,11 @@ void FRHICommandBackBufferWaitTrackingBeginFrame::Execute(FRHICommandListBase& C
 	INTERNAL_DECORATOR(RHIBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
 }
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+void FRHICommandFlushTextureCacheBOP::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(FRHICommandFlushTextureCacheBOP);
+	INTERNAL_DECORATOR(RHIFlushTextureCacheBOP)(Texture);
+}
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
