@@ -8,6 +8,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "IDetailCustomization.h"
+#include "ScalableFloat.h"
 #include "IPropertyTypeCustomization.h"
 
 class IDetailLayoutBuilder;
@@ -81,45 +82,56 @@ protected:
 
 	bool IsEditable( ) const;
 
-	virtual TSharedRef<SWidget> CreateCurveTableWidget();
+	// Curve Table selector
+	TSharedRef<SWidget> CreateCurveTableWidget();
+	TSharedRef<SWidget> GetCurveTablePicker();
+	void OnSelectCurveTable(const FAssetData& AssetData);
+	void OnCloseMenu();
+	FText GetCurveTableText() const;
+	FText GetCurveTableTooltip() const;
+	EVisibility GetCurveTableVisiblity() const;
+	EVisibility GetAssetButtonVisiblity() const;
+	void OnBrowseTo();
+	void OnClear();
+	void OnUseSelected();
+	
+	// Registry Type selector
+	TSharedRef<SWidget> CreateRegistryTypeWidget();
+	FString GetRegistryTypeValueString() const;
+	FText GetRegistryTypeTooltip() const;
+	EVisibility GetRegistryTypeVisiblity() const;
 
+	// Curve source accessors
+	void OnCurveSourceChanged();
+	class UCurveTable* GetCurveTable() const;
+	FDataRegistryType GetRegistryType() const;
+
+	// Row/item name widget
+	TSharedRef<SWidget> CreateRowNameWidget();
 	EVisibility GetRowNameVisibility() const;
+	FText GetRowNameComboBoxContentText() const;
+	FText GetRowNameComboBoxContentTooltip() const;
+
+	// Preview widgets
 	EVisibility GetPreviewVisibility() const;
 	float GetPreviewLevel() const;
 	void SetPreviewLevel(float NewLevel);
-
-	TSharedRef<SWidget> GetListContent();
-	void OnSelectionChanged(TSharedPtr<FString> SelectedItem, ESelectInfo::Type SelectInfo);
-	FText GetRowNameComboBoxContentText() const;
 	FText GetRowValuePreviewLabel() const;
 	FText GetRowValuePreviewText() const;
-	TSharedRef<ITableRow> HandleRowNameComboBoxGenarateWidget(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnFilterTextChanged(const FText& InFilterText);
-	void OnFilterTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 
-	bool OnIsSelectableOrNavigableInternal(TSharedPtr<FString> SelectedItem) const;
+	// Row accessors and callbacks
+	FName GetRowName() const;
+	const FRealCurve* GetRealCurve() const;
+	FDataRegistryId GetRegistryId() const;
+	void SetRegistryId(FDataRegistryId NewId);
+	void GetCustomRowNames(TArray<FName>& OutRows) const;
 
-
-	class UCurveTable* GetCurveTable();
-
-	TSharedPtr<FString> InitWidgetContent();
-
-	void OnCurveTableChanged();
-
-	bool DoesPassFilter(const TSharedPtr<FString>& TestStringPtr) const;
-
-	TSharedPtr<SComboButton> RowNameComboButton;
-	TSharedPtr<SListView<TSharedPtr<FString> > > RowNameComboListView;
-	TSharedPtr<FString> CurrentSelectedItem;
-	TArray<TSharedPtr<FString> > RowNames;
-	TSharedPtr<SSearchBox> SearchBoxWidget;
 
 	TSharedPtr<IPropertyHandle> ValueProperty;
 	TSharedPtr<IPropertyHandle> CurveTableHandleProperty;
 	TSharedPtr<IPropertyHandle> CurveTableProperty;
 	TSharedPtr<IPropertyHandle> RowNameProperty;
-
-	TArray<FString> FilterTerms;
+	TSharedPtr<IPropertyHandle> RegistryTypeProperty;
 
 	float PreviewLevel;
 	float MaxPreviewLevel;

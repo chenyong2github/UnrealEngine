@@ -22,6 +22,10 @@
 #include "Widgets/Input/STextComboBox.h"
 #include "AbilitySystemComponent.h"
 #include "SGameplayAttributeWidget.h"
+#include "DataRegistryEditorModule.h"
+#include "DataRegistrySubsystem.h"
+#include "PropertyCustomizationHelpers.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "AttributeDetailsCustomization"
 
@@ -92,8 +96,8 @@ TSharedPtr<FString> FAttributePropertyDetails::GetPropertyType() const
 {
 	if (MyProperty.IsValid())
 	{
-		FProperty *PropertyValue = NULL;
-		FProperty *ObjPtr = NULL;
+		FProperty *PropertyValue = nullptr;
+		FProperty *ObjPtr = nullptr;
 		MyProperty->GetValue(ObjPtr);
 		PropertyValue = ObjPtr;
 		if (PropertyValue)
@@ -219,12 +223,12 @@ TSharedPtr<FString> FAttributeDetails::GetPropertyType() const
 	if (!MyProperty.IsValid())
 		return PropertyOptions[0];
 
-	FProperty *PropertyValue = NULL;
-	FProperty *ObjPtr = NULL;
+	FProperty *PropertyValue = nullptr;
+	FProperty *ObjPtr = nullptr;
 	MyProperty->GetValue(ObjPtr);
 	PropertyValue = ObjPtr;
 
-	if (PropertyValue != NULL)
+	if (PropertyValue != nullptr)
 	{
 		for (int32 i=0; i < PropertyOptions.Num(); ++i)
 		{
@@ -277,16 +281,15 @@ void FScalableFloatDetails::CustomizeHeader( TSharedRef<class IPropertyHandle> S
 
 	ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat,Value));
 	CurveTableHandleProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat,Curve));
+	RegistryTypeProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat, RegistryType));
 
-	if(ValueProperty.IsValid() && CurveTableHandleProperty.IsValid())
+	if(ValueProperty.IsValid() && CurveTableHandleProperty.IsValid() && RegistryTypeProperty.IsValid())
 	{
 		RowNameProperty = CurveTableHandleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FCurveTableRowHandle, RowName));
 		CurveTableProperty = CurveTableHandleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FCurveTableRowHandle, CurveTable));
 
-		CurrentSelectedItem = InitWidgetContent();
-
-		FSimpleDelegate OnCurveTableChangedDelegate = FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnCurveTableChanged);
-		CurveTableProperty->SetOnPropertyValueChanged(OnCurveTableChangedDelegate);
+		CurveTableProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnCurveSourceChanged));
+		RegistryTypeProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnCurveSourceChanged));
 
 		HeaderRow
 			.NameContent()
@@ -297,116 +300,322 @@ void FScalableFloatDetails::CustomizeHeader( TSharedRef<class IPropertyHandle> S
 			.MinDesiredWidth( 600 )
 			.MaxDesiredWidth( 4096 )
 			[
-				SNew(SHorizontalBox)
+				SNew(SVerticalBox)
 				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FScalableFloatDetails::IsEditable)))
-			
-				+SHorizontalBox::Slot()
-				.FillWidth(0.12f)
-				.HAlign(HAlign_Fill)
-				.Padding(0.f, 0.f, 2.f, 0.f)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					ValueProperty->CreatePropertyValueWidget()
-				]
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.FillWidth(0.2f)
+					.HAlign(HAlign_Fill)
+					.Padding(1.f, 0.f, 2.f, 0.f)
+					[
+						ValueProperty->CreatePropertyValueWidget()
+					]
 		
-				+SHorizontalBox::Slot()
-				.FillWidth(0.40f)
-				.HAlign(HAlign_Fill)
-				.Padding(2.f, 0.f, 2.f, 0.f)
-				[
-					CreateCurveTableWidget()
+					+SHorizontalBox::Slot()
+					.FillWidth(0.40f)
+					.HAlign(HAlign_Fill)
+					.Padding(2.f, 0.f, 2.f, 0.f)
+					[
+						CreateCurveTableWidget()
+					]
+
+					+SHorizontalBox::Slot()
+					.FillWidth(0.40f)
+					.HAlign(HAlign_Fill)
+					.Padding(2.f, 0.f, 0.f, 0.f)
+					[
+						CreateRegistryTypeWidget()
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					[
+						SNew(SHorizontalBox)
+						.Visibility(this, &FScalableFloatDetails::GetAssetButtonVisiblity)
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							PropertyCustomizationHelpers::MakeUseSelectedButton(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnUseSelected))
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnBrowseTo))
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnClear))
+						]
+					]
 				]
 
-				+SHorizontalBox::Slot()
-				.FillWidth(0.23f)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				.Padding(2.f, 0.f, 2.f, 0.f)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 3.f, 0.f, 0.f)
 				[
-					SAssignNew(RowNameComboButton, SComboButton)
-					.OnGetMenuContent(this, &FScalableFloatDetails::GetListContent)
-					.ContentPadding(FMargin(2.0f, 2.0f))
+					SNew(SHorizontalBox)
 					.Visibility(this, &FScalableFloatDetails::GetRowNameVisibility)
-					.ButtonContent()
+					
+					+SHorizontalBox::Slot()
+					.FillWidth(0.4f)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
 					[
-						SNew(STextBlock)
-						.Text(this, &FScalableFloatDetails::GetRowNameComboBoxContentText)
-						.ToolTipText( this, &FScalableFloatDetails::GetRowNameComboBoxContentText)
+						CreateRowNameWidget()
 					]
-				]
 
-				+SHorizontalBox::Slot()
-				.FillWidth(0.15f)
-				.HAlign(HAlign_Fill)
-				.Padding(2.f, 0.f, 2.f, 0.f)
-				[
-					SNew(SVerticalBox)
-					.Visibility(this, &FScalableFloatDetails::GetPreviewVisibility)
+					+SHorizontalBox::Slot()
+					.FillWidth(0.3f)
+					.HAlign(HAlign_Fill)
+					.Padding(2.f, 0.f, 2.f, 0.f)
+					[
+						SNew(SVerticalBox)
+						.Visibility(this, &FScalableFloatDetails::GetPreviewVisibility)
 				
-					+SVerticalBox::Slot()
-					.HAlign(HAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(this, &FScalableFloatDetails::GetRowValuePreviewLabel)
+						+SVerticalBox::Slot()
+						.HAlign(HAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(this, &FScalableFloatDetails::GetRowValuePreviewLabel)
+						]
+
+						+SVerticalBox::Slot()
+						.HAlign(HAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(this, &FScalableFloatDetails::GetRowValuePreviewText)
+						]
 					]
 
-					+SVerticalBox::Slot()
-					.HAlign(HAlign_Center)
+					+SHorizontalBox::Slot()
+					.FillWidth(0.3f)
+					.HAlign(HAlign_Fill)
+					.Padding(2.f, 0.f, 0.f, 0.f)
 					[
-						SNew(STextBlock)
-						.Text(this, &FScalableFloatDetails::GetRowValuePreviewText)
+						SNew(SSlider)
+						.Visibility(this, &FScalableFloatDetails::GetPreviewVisibility)
+						.ToolTipText(LOCTEXT("LevelPreviewToolTip", "Adjust the preview level."))
+						.Value(this, &FScalableFloatDetails::GetPreviewLevel)
+						.OnValueChanged(this, &FScalableFloatDetails::SetPreviewLevel)
 					]
-				]
-
-				+SHorizontalBox::Slot()
-				.FillWidth(0.1f)
-				.HAlign(HAlign_Fill)
-				.Padding(2.f, 0.f, 0.f, 0.f)
-				[
-					SNew(SSlider)
-					.Visibility(this, &FScalableFloatDetails::GetPreviewVisibility)
-					.ToolTipText(LOCTEXT("LevelPreviewToolTip", "Adjust the preview level."))
-					.Value(this, &FScalableFloatDetails::GetPreviewLevel)
-					.OnValueChanged(this, &FScalableFloatDetails::SetPreviewLevel)
 				]
 			];	
 	}
 }
 
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
 TSharedRef<SWidget> FScalableFloatDetails::CreateCurveTableWidget()
 {
-	return CurveTableProperty->CreatePropertyValueWidget();
+	return SNew(SComboButton)
+		.OnGetMenuContent(this, &FScalableFloatDetails::GetCurveTablePicker)
+		.ContentPadding(FMargin(2.0f, 2.0f))
+		.Visibility(this, &FScalableFloatDetails::GetCurveTableVisiblity)
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.Text(this, &FScalableFloatDetails::GetCurveTableText)
+			.ToolTipText(this, &FScalableFloatDetails::GetCurveTableTooltip)
+			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		];
+
+	// Need to make the buttons go away and show custom prompt
+	return CurveTableProperty->CreatePropertyValueWidget(false);
 }
 
-void FScalableFloatDetails::OnCurveTableChanged()
+TSharedRef<SWidget> FScalableFloatDetails::CreateRegistryTypeWidget()
 {
-	CurrentSelectedItem = InitWidgetContent();
-	if (RowNameComboListView.IsValid())
+	// Only support curve types
+	static FName RealCurveName = FName("RealCurve");
+
+	return SNew(SBox)
+		.Padding(0.0f)
+		.ToolTipText(this, &FScalableFloatDetails::GetRegistryTypeTooltip)
+		.Visibility(this, &FScalableFloatDetails::GetRegistryTypeVisiblity)
+		.VAlign(VAlign_Center)
+		[
+			PropertyCustomizationHelpers::MakePropertyComboBox(RegistryTypeProperty,
+			FOnGetPropertyComboBoxStrings::CreateStatic(&FDataRegistryEditorModule::GenerateDataRegistryTypeComboBoxStrings, true, RealCurveName),
+			FOnGetPropertyComboBoxValue::CreateSP(this, &FScalableFloatDetails::GetRegistryTypeValueString))
+		];
+}
+
+TSharedRef<SWidget> FScalableFloatDetails::CreateRowNameWidget()
+{
+	return SNew(SBox)
+		.Padding(0.0f)
+		.ToolTipText(this, &FScalableFloatDetails::GetRowNameComboBoxContentTooltip)
+		.VAlign(VAlign_Center)
+		[
+			FDataRegistryEditorModule::MakeDataRegistryItemNameSelector(
+				FOnGetDataRegistryDisplayText::CreateSP(this, &FScalableFloatDetails::GetRowNameComboBoxContentText),
+				FOnGetDataRegistryId::CreateSP(this, &FScalableFloatDetails::GetRegistryId),
+				FOnSetDataRegistryId::CreateSP(this, &FScalableFloatDetails::SetRegistryId),
+				FOnGetCustomDataRegistryItemNames::CreateSP(this, &FScalableFloatDetails::GetCustomRowNames),
+				true)
+		];
+}
+
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+TSharedRef<SWidget> FScalableFloatDetails::GetCurveTablePicker()
+{
+	const bool bAllowClear = true;
+	TArray<const UClass*> AllowedClasses;
+	AllowedClasses.Add(UCurveTable::StaticClass());
+
+	FAssetData CurrentAssetData;
+	UCurveTable* SelectedTable = GetCurveTable();
+
+	if (SelectedTable)
 	{
-		RowNameComboListView->SetSelection(CurrentSelectedItem);
-		RowNameComboListView->RequestListRefresh();
+		CurrentAssetData = FAssetData(SelectedTable);
 	}
 
-	// Set the default value to 1.0 when using a data table, so the value in the table is used directly. Only do this if the value is currently 0 (default)
+	return PropertyCustomizationHelpers::MakeAssetPickerWithMenu(CurrentAssetData,
+		bAllowClear,
+		AllowedClasses,
+		PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses(AllowedClasses),
+		FOnShouldFilterAsset(),
+		FOnAssetSelected::CreateSP(this, &FScalableFloatDetails::OnSelectCurveTable),
+		FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::OnCloseMenu));
+}
+
+void FScalableFloatDetails::OnSelectCurveTable(const FAssetData& AssetData)
+{
+	UObject* SelectedTable = AssetData.GetAsset();
+
+	CurveTableProperty->SetValue(SelectedTable);
+}
+
+void FScalableFloatDetails::OnCloseMenu()
+{
+	FSlateApplication::Get().DismissAllMenus();
+}
+
+FText FScalableFloatDetails::GetCurveTableText() const
+{
+	UCurveTable* SelectedTable = GetCurveTable();
+
+	if (SelectedTable)
+	{
+		return FText::AsCultureInvariant(SelectedTable->GetName());
+	}
+
+	return LOCTEXT("PickCurveTable", "Use CurveTable...");
+}
+
+FText FScalableFloatDetails::GetCurveTableTooltip() const
+{
+	UCurveTable* SelectedTable = GetCurveTable();
+
+	if (SelectedTable)
+	{
+		return FText::AsCultureInvariant(SelectedTable->GetPathName());
+	}
+
+	return LOCTEXT("PickCurveTableTooltip", "Select a CurveTable asset containing Curve to multiply by Value");
+}
+
+EVisibility FScalableFloatDetails::GetCurveTableVisiblity() const
+{
+	FDataRegistryType RegistryType = GetRegistryType();
+	return RegistryType.IsValid() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+EVisibility FScalableFloatDetails::GetAssetButtonVisiblity() const
+{
+	UCurveTable* CurveTable = GetCurveTable();
+	return CurveTable ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void FScalableFloatDetails::OnBrowseTo()
+{
+	UCurveTable* CurveTable = GetCurveTable();
+	if (CurveTable)
+	{
+		TArray<FAssetData> SyncAssets;
+		SyncAssets.Add(FAssetData(CurveTable));
+		GEditor->SyncBrowserToObjects(SyncAssets);
+	}
+}
+
+void FScalableFloatDetails::OnClear()
+{
+	OnSelectCurveTable(FAssetData());
+}
+
+void FScalableFloatDetails::OnUseSelected()
+{
+	TArray<FAssetData> SelectedAssets;
+	GEditor->GetContentBrowserSelections(SelectedAssets);
+
+	for (const FAssetData& AssetData : SelectedAssets)
+	{
+		UCurveTable* FoundTable = Cast<UCurveTable>(AssetData.GetAsset());
+
+		if (FoundTable)
+		{
+			OnSelectCurveTable(AssetData);
+			return;
+		}
+	}
+}
+
+FString FScalableFloatDetails::GetRegistryTypeValueString() const
+{
+	FDataRegistryType RegistryType = GetRegistryType();
+
+	if (RegistryType.IsValid())
+	{
+		return RegistryType.ToString();
+	}
+
+	return LOCTEXT("PickRegistry", "Use Registry...").ToString();
+}
+
+FText FScalableFloatDetails::GetRegistryTypeTooltip() const
+{
+	return LOCTEXT("PickRegistryTooltip", "Select a DataRegistry containing Curve to multiply by Value");
+}
+
+EVisibility FScalableFloatDetails::GetRegistryTypeVisiblity() const
+{
+	UCurveTable* CurveTable = GetCurveTable();
+	FDataRegistryType RegistryType = GetRegistryType();
+	bool bIsSystemEnabled = UDataRegistrySubsystem::Get()->IsConfigEnabled();
+	return RegistryType.IsValid() || (bIsSystemEnabled && !CurveTable) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void FScalableFloatDetails::OnCurveSourceChanged()
+{
+	// Set the default value to 1.0 when using a curve source, so the value in the table is used directly. Only do this if the value is currently 0 (default)
 	// Set it back to 0 when setting back. Only do this if the value is currently 1 to go back to the default.
 	{
-		UObject* CurveTable = nullptr;
-		CurveTableProperty->GetValue(CurveTable);
+		UObject* CurveTable = GetCurveTable();
+		FDataRegistryType RegistryType = GetRegistryType();
 
 		float Value;
 		ValueProperty->GetValue(Value);
 
-		if ( CurveTable )
+		if (CurveTable || RegistryType.IsValid())
 		{
-			if ( Value == 0.f )
+			if (Value == 0.f)
 			{
 				ValueProperty->SetValue(1.f);
 			}
 		}
 		else
 		{
-			if ( Value == 1.f )
+			if (Value == 1.f)
 			{
 				ValueProperty->SetValue(0.f);
 			}
@@ -414,76 +623,41 @@ void FScalableFloatDetails::OnCurveTableChanged()
 	}
 }
 
-TSharedPtr<FString> FScalableFloatDetails::InitWidgetContent()
+UCurveTable* FScalableFloatDetails::GetCurveTable() const
 {
-	TSharedPtr<FString> InitialValue = MakeShareable(new FString(TEXT("None")));
+	UCurveTable* CurveTable = nullptr;
 
-	FName RowName;
-	const FPropertyAccess::Result RowResult = RowNameProperty->GetValue(RowName);
-	RowNames.Empty();
-	RowNames.Add(InitialValue);
-
-	/** Get the properties we wish to work with */
-	UCurveTable* CurveTable = GetCurveTable();
-
-	if (CurveTable != NULL)
+	if (CurveTableProperty.IsValid())
 	{
-		/** Extract all the row names from the RowMap */
-		for (TMap<FName, FRealCurve*>::TConstIterator Iterator(CurveTable->GetRowMap()); Iterator; ++Iterator)
-		{
-			/** Create a simple array of the row names */
-			TSharedRef<FString> RowNameItem = MakeShareable(new FString(Iterator.Key().ToString()));
-			RowNames.Add(RowNameItem);
-
-			/** Set the initial value to the currently selected item */
-			if (Iterator.Key() == RowName)
-			{
-				InitialValue = RowNameItem;
-			}
-		}
-	}
-
-	/** Reset the initial value to ensure a valid entry is set */
-	if (RowResult != FPropertyAccess::MultipleValues)
-	{
-		FName NewValue = FName(**InitialValue);
-		RowNameProperty->SetValue(NewValue);
-	}
-
-	return InitialValue;
-}
-
-bool FScalableFloatDetails::OnIsSelectableOrNavigableInternal(TSharedPtr<FString> SelectedItem) const
-{
-	return SelectedItem.IsValid() ? DoesPassFilter(SelectedItem) : false;
-}
-
-UCurveTable* FScalableFloatDetails::GetCurveTable()
-{
-	UCurveTable* CurveTable = NULL;
-	CurveTableProperty->GetValue((UObject*&)CurveTable);
-
-	if (CurveTable == NULL)
-	{
-		CurveTable = IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals()->GetGlobalCurveTable();
+		CurveTableProperty->GetValue((UObject*&)CurveTable);
 	}
 
 	return CurveTable;
 }
 
+FDataRegistryType FScalableFloatDetails::GetRegistryType() const
+{
+	FString RegistryString;
+	if (RegistryTypeProperty.IsValid())
+	{
+		RegistryTypeProperty->GetValueAsFormattedString(RegistryString);
+	}
+
+	return FDataRegistryType(*RegistryString);
+}
+
 EVisibility FScalableFloatDetails::GetRowNameVisibility() const
 {
-	UObject* CurveTable = nullptr;
-	CurveTableProperty->GetValue(CurveTable);
+	UCurveTable* CurveTable = GetCurveTable();
+	FDataRegistryType RegistryType = GetRegistryType();
 
-	return CurveTable ? EVisibility::Visible : EVisibility::Hidden;
+	return (CurveTable || RegistryType.IsValid()) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FScalableFloatDetails::GetPreviewVisibility() const
 {
-	const bool bRowNameVisible = (GetRowNameVisibility() == EVisibility::Visible);
-	const bool bRowNameValid = CurrentSelectedItem.IsValid() && !CurrentSelectedItem->IsEmpty() && *CurrentSelectedItem.Get() != FName(NAME_None).ToString();
-	return (bRowNameVisible && bRowNameValid) ? EVisibility::Visible : EVisibility::Hidden;
+	FName CurrentRow = GetRowName();
+	return (CurrentRow != NAME_None) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 float FScalableFloatDetails::GetPreviewLevel() const
@@ -496,184 +670,157 @@ void FScalableFloatDetails::SetPreviewLevel(float NewLevel)
 	PreviewLevel = FMath::FloorToInt(NewLevel * MaxPreviewLevel);
 }
 
-TSharedRef<SWidget> FScalableFloatDetails::GetListContent()
-{
-	FilterTerms.Reset();
-
-	SAssignNew(RowNameComboListView, SListView<TSharedPtr<FString> >)
-		.ListItemsSource(&RowNames)
-		.OnSelectionChanged(this, &FScalableFloatDetails::OnSelectionChanged)
-		.OnGenerateRow(this, &FScalableFloatDetails::HandleRowNameComboBoxGenarateWidget)
-		.SelectionMode(ESelectionMode::Single)
-		.OnIsSelectableOrNavigable(this, &FScalableFloatDetails::OnIsSelectableOrNavigableInternal);
-
-	if (CurrentSelectedItem.IsValid())
-	{
-		RowNameComboListView->SetSelection(CurrentSelectedItem);
-	}
-
-	SearchBoxWidget = SNew(SSearchBox)
-		.OnTextChanged(this, &FScalableFloatDetails::OnFilterTextChanged)
-		.OnTextCommitted(this, &FScalableFloatDetails::OnFilterTextCommitted);
-	
-	RowNameComboButton->SetMenuContentWidgetToFocus(SearchBoxWidget);
-
-	return SNew(SListViewSelectorDropdownMenu<TSharedPtr<FString>>, SearchBoxWidget, RowNameComboListView)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SearchBoxWidget.ToSharedRef()
-			]
-			+ SVerticalBox::Slot()
-			.FillHeight(1.f)
-			[
-				RowNameComboListView.ToSharedRef()
-			]
-		];
-}
-
-void FScalableFloatDetails::OnSelectionChanged(TSharedPtr<FString> SelectedItem, ESelectInfo::Type SelectInfo)
-{
-	if (SelectInfo != ESelectInfo::OnNavigation)
-	{
-		if (SelectedItem.IsValid())
-		{
-			CurrentSelectedItem = SelectedItem;
-			
-			const FName NewValue = FName(**SelectedItem);
-			RowNameProperty->SetValue(NewValue);
-
-			RowNameComboButton->SetIsOpen(false);
-		}
-	}
-}
-
-TSharedRef<ITableRow> FScalableFloatDetails::HandleRowNameComboBoxGenarateWidget(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	const EVisibility WidgetVisibility = DoesPassFilter(InItem) ? EVisibility::Visible : EVisibility::Collapsed;
-
-	return
-		SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		.Visibility(WidgetVisibility)
-		[
-			SNew(STextBlock).Text(FText::FromString(*InItem))
-		];
-}
-
-/** Display the current selection */
 FText FScalableFloatDetails::GetRowNameComboBoxContentText() const
 {
-	FString RowName;
+	FName RowName;
 	const FPropertyAccess::Result RowResult = RowNameProperty->GetValue(RowName);
 	if (RowResult != FPropertyAccess::MultipleValues)
 	{
-		TSharedPtr<FString> SelectedRowName = CurrentSelectedItem;
-		if (SelectedRowName.IsValid())
+		if (RowName != NAME_None)
 		{
-			return FText::FromString(*SelectedRowName);
+			return FText::FromName(RowName);
 		}
 		else
 		{
-			return LOCTEXT("None", "None");
+			return LOCTEXT("SelectCurve", "Select Curve...");
 		}
 	}
 	return LOCTEXT("MultipleValues", "Multiple Values");
 }
 
+FText FScalableFloatDetails::GetRowNameComboBoxContentTooltip() const
+{
+	FName RowName;
+	const FPropertyAccess::Result RowResult = RowNameProperty->GetValue(RowName);
+	if (RowResult != FPropertyAccess::MultipleValues)
+	{
+		if (RowName != NAME_None)
+		{
+			return FText::FromName(RowName);
+		}
+	}
+	return LOCTEXT("SelectCurveTooltip", "Select a Curve, this will be scaled using input level and then multiplied by Value");
+}
+
 FText FScalableFloatDetails::GetRowValuePreviewLabel() const
 {
-	return FText::Format(LOCTEXT("LevelPreviewLabel", "Preview At {0}"), FText::AsNumber(PreviewLevel));
+	const FRealCurve* FoundCurve = GetRealCurve();
+	if (FoundCurve)
+	{
+		return FText::Format(LOCTEXT("LevelPreviewLabel", "Preview At {0}"), FText::AsNumber(PreviewLevel));
+	}
+	else
+	{
+		return LOCTEXT("ErrorFindingCurve", "ERROR: Invalid Curve!");
+	}
 }
 
 FText FScalableFloatDetails::GetRowValuePreviewText() const
 {
-	TArray<const void*> RawPtrs;
-	CurveTableHandleProperty->AccessRawData(RawPtrs);
-	if (RawPtrs.Num() == 1 && RawPtrs[0] != nullptr)
+	const FRealCurve* FoundCurve = GetRealCurve();
+	if (FoundCurve)
 	{
-		const FCurveTableRowHandle& Curve = *reinterpret_cast<const FCurveTableRowHandle*>(RawPtrs[0]);
-		if (Curve.CurveTable && Curve.RowName != NAME_None)
-		{
-			float Value;
-			ValueProperty->GetValue(Value);
+		float Value;
+		ValueProperty->GetValue(Value);
 
-			static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
-				.SetMinimumFractionalDigits(3)
-				.SetMaximumFractionalDigits(3);
-			static const FString GetRowValuePreviewTextContext(TEXT("FScalableFloatDetails::GetRowValuePreviewText"));
-			return FText::AsNumber(Value * Curve.Eval(PreviewLevel, GetRowValuePreviewTextContext), &FormatOptions);
-		}
+		static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+			.SetMinimumFractionalDigits(3)
+			.SetMaximumFractionalDigits(3);
+		return FText::AsNumber(Value * FoundCurve->Eval(PreviewLevel), &FormatOptions);
 	}
 
 	return FText::GetEmpty();
 }
 
-bool FScalableFloatDetails::DoesPassFilter(const TSharedPtr<FString>& TestStringPtr) const
+FName FScalableFloatDetails::GetRowName() const
 {
-	bool bFilterTextMatches = true;
-	const FString& TestString = *TestStringPtr.Get();
-
-	for (int32 FilterIndex = 0; FilterIndex < FilterTerms.Num() && bFilterTextMatches; ++FilterIndex)
+	FName ReturnName;
+	if (RowNameProperty.IsValid())
 	{
-		const bool bMatchesTerm = TestString.Contains(FilterTerms[FilterIndex], ESearchCase::IgnoreCase);
-		bFilterTextMatches = bFilterTextMatches && bMatchesTerm;
+		RowNameProperty->GetValue(ReturnName);
 	}
 
-	return bFilterTextMatches;
+	return ReturnName;
 }
 
-void FScalableFloatDetails::OnFilterTextChanged(const FText& InFilterText)
+FDataRegistryId FScalableFloatDetails::GetRegistryId() const
 {
-	// Tokenize the search box text into a set of terms; all of them must be present to pass the filter
-	const FString TrimmedFilterText = FText::TrimPrecedingAndTrailing(InFilterText).ToString();
-	TrimmedFilterText.ParseIntoArray(FilterTerms, TEXT(" "), true);
-
-	TSharedPtr<FString> FirstItemToPassFilter;
-	for (int32 i = 0; i < RowNames.Num(); i++)
+	if (RowNameProperty.IsValid())
 	{
-		TSharedPtr<ITableRow> Row = RowNameComboListView->WidgetFromItem(RowNames[i]);
-		if (Row)
+		FName RowName;
+		RowNameProperty->GetValue(RowName);
+
+		UCurveTable* CurveTable = GetCurveTable();
+		if (CurveTable)
 		{
-			const bool bIncludeRow = DoesPassFilter(RowNames[i]);
+			// Use the fake custom type, options will get filled in by GetCustomRowNames
+			return FDataRegistryId(FDataRegistryType::CustomContextType, RowName);
+		}
 
-			Row->AsWidget()->SetVisibility(bIncludeRow ? EVisibility::Visible : EVisibility::Collapsed);
+		// This is a real registry, or is empty/invalid
+		FDataRegistryType RegistryType = GetRegistryType();
+		return FDataRegistryId(RegistryType, RowName);
+	}
 
-			// See if the selection no longer passes the filter and clear it
-			if ((RowNames[i] == CurrentSelectedItem) && !bIncludeRow)
+	return FDataRegistryId();
+}
+
+void FScalableFloatDetails::SetRegistryId(FDataRegistryId NewId)
+{
+	// Always set row name, only set type if it's valid and different
+	RowNameProperty->SetValue(NewId.ItemName);
+
+	FDataRegistryType CurrentType = GetRegistryType();
+	if (NewId.RegistryType != FDataRegistryType::CustomContextType && NewId.RegistryType != CurrentType)
+	{
+		RegistryTypeProperty->SetValueFromFormattedString(NewId.RegistryType.ToString());
+	}
+}
+
+void FScalableFloatDetails::GetCustomRowNames(TArray<FName>& OutRows) const
+{
+	UCurveTable* CurveTable = GetCurveTable();
+
+	if (CurveTable != nullptr)
+	{
+		for (TMap<FName, FRealCurve*>::TConstIterator Iterator(CurveTable->GetRowMap()); Iterator; ++Iterator)
+		{
+			OutRows.Add(Iterator.Key());
+		}
+	}
+}
+
+const FRealCurve* FScalableFloatDetails::GetRealCurve() const
+{
+	TArray<const void*> RawPtrs;
+	CurveTableHandleProperty->AccessRawData(RawPtrs);
+	if (RawPtrs.Num() == 1 && RawPtrs[0] != nullptr)
+	{
+		// First try curve table
+		const FCurveTableRowHandle& Curve = *reinterpret_cast<const FCurveTableRowHandle*>(RawPtrs[0]);
+		if (Curve.CurveTable && Curve.RowName != NAME_None)
+		{
+			static const FString GetRowValuePreviewTextContext(TEXT("FScalableFloatDetails::GetRowValuePreviewText"));
+			return Curve.GetCurve(GetRowValuePreviewTextContext);
+		}
+	}
+
+	FDataRegistryId RegistryId = GetRegistryId();
+	if (RegistryId.RegistryType.IsValid())
+	{
+		// Now try registry
+		UDataRegistry* Registry = UDataRegistrySubsystem::Get()->GetRegistryForType(RegistryId.RegistryType);
+		if (Registry)
+		{
+			const FRealCurve* OutCurve = nullptr;
+			if (Registry->GetCachedCurveRaw(OutCurve, RegistryId))
 			{
-				CurrentSelectedItem.Reset();
-				RowNameComboListView->SetSelection(CurrentSelectedItem, ESelectInfo::OnNavigation);
-			}
-
-			// Remember the first item that passed the filter in case we need to select that
-			if (bIncludeRow && !FirstItemToPassFilter.IsValid())
-			{
-				FirstItemToPassFilter = RowNames[i];
+				return OutCurve;
 			}
 		}
 	}
 
-	if (!CurrentSelectedItem.IsValid() && FirstItemToPassFilter.IsValid())
-	{
-		CurrentSelectedItem = FirstItemToPassFilter;
-		RowNameComboListView->SetSelection(CurrentSelectedItem, ESelectInfo::OnNavigation);
-	}
-
-	RowNameComboListView->RequestListRefresh();
-}
-
-void FScalableFloatDetails::OnFilterTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
-{
-	if (CommitInfo == ETextCommit::OnEnter)
-	{
-		TArray<TSharedPtr<FString>> SelectedItems = RowNameComboListView->GetSelectedItems();
-		if (SelectedItems.Num() > 0)
-		{
-			RowNameComboListView->SetSelection(SelectedItems[0]);
-		}
-	}
+	return nullptr;
 }
 
 bool FScalableFloatDetails::IsEditable() const

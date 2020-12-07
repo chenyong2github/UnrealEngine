@@ -59,7 +59,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 		return GlobalAttributeSetInitter.IsValid();
 	}
 
-	/** Returns the curvetable used as the default for scalable floats that don't specify a curve table */
+	/** Returns the globally registered curve table */
 	UCurveTable* GetGlobalCurveTable();
 
 	/** Returns the data table defining attribute metadata (NOTE: Currently not in use) */
@@ -134,11 +134,6 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** The class to instantiate as the globals object. Defaults to this class but can be overridden */
 	UPROPERTY(config)
 	FSoftClassPath AbilitySystemGlobalsClassName;
-
-	void AutomationTestOnly_SetGlobalCurveTable(UCurveTable *InTable)
-	{
-		GlobalCurveTable = InTable;
-	}
 
 	void AutomationTestOnly_SetGlobalAttributeDataTable(UDataTable *InTable)
 	{

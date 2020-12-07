@@ -406,8 +406,7 @@ protected:
 			return false;
 		}
 
-		// get the current curve and data table (to restore later)
-		UCurveTable *CurveTable = IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals()->GetGlobalCurveTable();
+		// get the current data table (to restore later)
 		UDataTable *DataTable = IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals()->GetGlobalAttributeMetaDataTable();
 
 		// setup required GameplayTags
@@ -434,7 +433,6 @@ protected:
 		GEngine->DestroyWorldContext(World);
 		World->DestroyWorld(false);
 
-		IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals()->AutomationTestOnly_SetGlobalCurveTable(CurveTable);
 		IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals()->AutomationTestOnly_SetGlobalAttributeDataTable(DataTable);
 		return true;
 	}
