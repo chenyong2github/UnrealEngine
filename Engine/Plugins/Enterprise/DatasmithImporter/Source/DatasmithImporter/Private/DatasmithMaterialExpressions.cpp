@@ -3054,64 +3054,49 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 			continue;
 		}
 
-		FProperty* Property = MaterialExpression->GetClass()->FindPropertyByName( KeyValueProperty->GetName() );
+		const TCHAR* PropertyName = KeyValueProperty->GetName();
+		FProperty* Property = MaterialExpression->GetClass()->FindPropertyByName( PropertyName );
 
-		if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Color )
+		// fallback to search by display name
+		if (Property == nullptr)
 		{
-			FStructProperty* StructProperty = CastField< FStructProperty >( Property );
-
-			if ( StructProperty )
+			for (FProperty* PropertyIt = MaterialExpression->GetClass()->PropertyLink; PropertyIt != NULL; PropertyIt = PropertyIt->PropertyLinkNext)
 			{
-				FLinearColor ColorValue;
-				ColorValue.InitFromString( KeyValueProperty->GetValue() );
-
-				StructProperty->CopyCompleteValue( StructProperty->ContainerPtrToValuePtr< void >( MaterialExpression ), &ColorValue );
-			}
-		}
-		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Bool )
-		{
-			FBoolProperty* BoolProperty = CastField< FBoolProperty >( Property );
-
-			if ( BoolProperty )
-			{
-				bool bValue;
-				LexFromString( bValue, KeyValueProperty->GetValue() );
-
-				BoolProperty->SetPropertyValue( BoolProperty->ContainerPtrToValuePtr< void >( MaterialExpression ), bValue );
-			}
-		}
-		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Float )
-		{
-			FFloatProperty* FloatProperty = CastField< FFloatProperty >( Property );
-
-			if ( FloatProperty )
-			{
-				float Value;
-				LexFromString( Value, KeyValueProperty->GetValue() );
-
-				FloatProperty->SetPropertyValue( FloatProperty->ContainerPtrToValuePtr< void >( MaterialExpression ), Value );
-			}
-		}
-		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture )
-		{
-			FObjectProperty* ObjectProperty = CastField< FObjectProperty >( Property );
-
-			if ( ObjectProperty )
-			{
-				UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, KeyValueProperty->GetValue() );
-
-				if ( Texture )
+				if (PropertyIt->GetDisplayNameText().ToString() == PropertyName)
 				{
-					ObjectProperty->SetPropertyValue( ObjectProperty->ContainerPtrToValuePtr< void >( MaterialExpression ), Texture );
+					Property = PropertyIt;
 				}
 			}
 		}
-		else
+
+		EDatasmithKeyValuePropertyType PropertyType = KeyValueProperty->GetPropertyType();
+		switch (PropertyType)
 		{
-			// TODO: Log error for unsupported type
+			case EDatasmithKeyValuePropertyType::Texture:
+			{
+				FObjectProperty* ObjectProperty = CastField< FObjectProperty >( Property );
+
+				if ( ObjectProperty )
+				{
+					UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, KeyValueProperty->GetValue() );
+
+					if ( Texture )
+					{
+						ObjectProperty->SetPropertyValue( ObjectProperty->ContainerPtrToValuePtr< void >( MaterialExpression ), Texture );
+					}
+				}
+				break;
+			}
+
+			default:
+			{
+				if ( Property )
+				{
+					Property->ImportText( KeyValueProperty->GetValue(), Property->ContainerPtrToValuePtr< void >( MaterialExpression ), PPF_None, nullptr );
+				}
+			}
 		}
 	}
-
 
 	if ( UMaterialExpressionTextureBase* TextureExpression = Cast< UMaterialExpressionTextureBase >( MaterialExpression ) )
 	{
