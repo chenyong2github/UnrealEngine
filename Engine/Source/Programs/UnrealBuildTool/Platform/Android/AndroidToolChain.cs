@@ -1394,7 +1394,8 @@ namespace UnrealBuildTool
 			// Add preprocessor definitions to the argument list.
 			foreach (string Definition in CompileEnvironment.Definitions)
 			{
-				BaseArguments += string.Format(" -D \"{0}\"", Definition);
+				// We must change the \" to escaped double quotes to save it properly for clang .rsp
+				BaseArguments += string.Format(" -D \"{0}\"", Definition.Replace("\"", Utils.IsRunningOnMono ? "\\\"" : "\"\""));
 			}
 
 			//LUMIN_MERGE
