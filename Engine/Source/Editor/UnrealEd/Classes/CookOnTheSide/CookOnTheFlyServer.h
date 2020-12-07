@@ -632,7 +632,7 @@ private:
 		const TArray<FString>& IniMapSections, ECookByTheBookOptions FilesToCookFlags,
 		const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
 	/* Collect filespackages that should not be cooked from ini settings and commandline. Does not include checking UAssetManager, which has to be queried later */
-	static TArray<FName> GetNeverCookPackages(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>());
+	static TArray<FName> GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>());
 
 
 	/**
