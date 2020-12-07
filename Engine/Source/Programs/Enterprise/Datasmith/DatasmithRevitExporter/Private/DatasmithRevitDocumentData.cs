@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Mechanical;
@@ -18,40 +17,15 @@ namespace DatasmithRevitExporter
 {
 	public class FDocumentData
 	{
-		public struct FPolymeshFace
-		{
-			public int V1;
-			public int V2;
-			public int V3;
-			public int MaterialIndex;
-
-			public FPolymeshFace(int InVertex1, int InVertex2, int InVertex3, int InMaterialIndex = 0)
-			{
-				V1 = InVertex1;
-				V2 = InVertex2;
-				V3 = InVertex3;
-				MaterialIndex = InMaterialIndex;
-			}
-		}
-
-		public class FDatasmithPolymesh
-		{
-			public List<XYZ> Vertices = new List<XYZ>();
-			public List<XYZ> Normals = new List<XYZ>();
-			public List<FPolymeshFace> Faces = new List<FPolymeshFace>();
-			public List<UV> UVs = new List<UV>();
-		}
-
 		public class FBaseElementData
 		{
-			public ElementType					BaseElementType;
-			public FDatasmithPolymesh			DatasmithPolymesh = null;
-			public FDatasmithFacadeMeshElement	DatasmithMeshElement = null;
-			public FDatasmithFacadeActor		ElementActor = null;
-			public FDatasmithFacadeMetaData		ElementMetaData = null;
-			public FDocumentData				DocumentData = null;
-			public bool							bOptimizeHierarchy = true;
-			public bool							bIsModified = true;
+			public ElementType				BaseElementType;
+			public FDatasmithFacadeMesh		ElementMesh = null;
+			public FDatasmithFacadeActor	ElementActor = null;
+			public FDatasmithFacadeMetaData	ElementMetaData = null;
+			public FDocumentData			DocumentData = null;
+			public bool						bOptimizeHierarchy = true;
+			public bool						bIsModified = true;
 
 			public List<FBaseElementData>	ChildElements = new List<FBaseElementData>();
 
@@ -181,7 +155,7 @@ namespace DatasmithRevitExporter
 			public void UpdateMeshName()
 			{
 				FDatasmithFacadeActorMesh MeshActor = ElementActor as FDatasmithFacadeActorMesh;
-				MeshActor.SetMesh(DatasmithMeshElement.GetName());
+				MeshActor.SetMesh(ElementMesh.GetName());
 				bOptimizeHierarchy = false;
 			}
 		}
@@ -468,19 +442,18 @@ namespace DatasmithRevitExporter
 				AddChildActor(LightActor, LightMetaData, false);
 			}
 
-			public bool AddRPCActor(
+			public FDatasmithFacadeMesh AddRPCActor(
 				Transform InWorldTransform,
 				Asset InRPCAsset,
-				FMaterialData InMaterialData,
-				out FDatasmithFacadeMesh OutDatasmithMesh,
-				out FDatasmithFacadeMeshElement OutDatasmithMeshElement
+				string InRPCMaterialName
 			)
 			{
 				// Create a new Datasmith RPC mesh.
 				// Hash the Datasmith RPC mesh name to shorten it.
 				string HashedName = FDatasmithFacadeElement.GetStringHash("RPCM:" + GetActorName());
-				FDatasmithFacadeMesh RPCMesh = new FDatasmithFacadeMesh();
-				RPCMesh.SetName(HashedName);
+				FDatasmithFacadeMesh RPCMesh = new FDatasmithFacadeMesh(HashedName);
+				RPCMesh.SetLabel(GetActorLabel());
+
 				Transform AffineTransform = Transform.Identity;
 
 				LocationPoint RPCLocationPoint = CurrentElement.Location as LocationPoint;
@@ -498,97 +471,76 @@ namespace DatasmithRevitExporter
 					}
 				}
 
-				int TotalVertexCount = 0;
-				int TotalTriangleCount = 0;
-				List<Mesh> GeometryObjectList = new List<Mesh>();
-				foreach (GeometryObject RPCGeometryObject in CurrentElement.get_Geometry(new Options()))
+				GeometryElement RPCGeometryElement = CurrentElement.get_Geometry(new Options());
+
+				foreach (GeometryObject RPCGeometryObject in RPCGeometryElement)
 				{
 					GeometryInstance RPCGeometryInstance = RPCGeometryObject as GeometryInstance;
-					if (RPCGeometryInstance == null)
-					{
-						continue;
-					}
 
-					foreach (GeometryObject RPCInstanceGeometryObject in RPCGeometryInstance.GetInstanceGeometry())
+					if (RPCGeometryInstance != null)
 					{
-						Mesh RPCInstanceGeometryMesh = RPCInstanceGeometryObject as Mesh;
-						if (RPCInstanceGeometryMesh == null || RPCInstanceGeometryMesh.NumTriangles < 1)
+						GeometryElement RPCInstanceGeometry = RPCGeometryInstance.GetInstanceGeometry();
+
+						int MaterialIndex = DocumentData.GetMeshMaterialIndex(RPCMesh, InRPCMaterialName);
+
+						foreach (GeometryObject RPCInstanceGeometryObject in RPCInstanceGeometry)
 						{
-							continue;
-						}
+							Mesh RPCInstanceGeometryMesh = RPCInstanceGeometryObject as Mesh;
 
-						TotalVertexCount += RPCInstanceGeometryMesh.Vertices.Count;
-						TotalTriangleCount += RPCInstanceGeometryMesh.NumTriangles;
-						GeometryObjectList.Add(RPCInstanceGeometryMesh);
-					}
-				}
+							if (RPCInstanceGeometryMesh == null || RPCInstanceGeometryMesh.NumTriangles < 1)
+							{
+								continue;
+							}
 
-				RPCMesh.SetVerticesCount(TotalVertexCount);
-				RPCMesh.SetFacesCount(TotalTriangleCount);
+							// RPC geometry does not have normals nor UVs available through the Revit Mesh interface.
+							int InitialVertexCount = RPCMesh.GetVertexCount();
+							int TriangleCount = RPCInstanceGeometryMesh.NumTriangles;
 
-				int VertexIndexOffset = 0;
-				int TriangleIndexOffset = 0;
-				foreach (Mesh RPCInstanceGeometryMesh in GeometryObjectList)
-				{
-					// RPC geometry does not have normals nor UVs available through the Revit Mesh interface.
-					int VertexCount = RPCInstanceGeometryMesh.Vertices.Count;
-					int TriangleCount = RPCInstanceGeometryMesh.NumTriangles;
+							// Add the RPC geometry vertices to the Datasmith RPC mesh.
+							foreach (XYZ Vertex in RPCInstanceGeometryMesh.Vertices)
+							{
+								XYZ PositionedVertex = AffineTransform.OfPoint(Vertex);
+								RPCMesh.AddVertex((float)PositionedVertex.X, (float)PositionedVertex.Y, (float)PositionedVertex.Z);
+							}
 
-					// Add the RPC geometry vertices to the Datasmith RPC mesh.
-					for (int VertexIndex = 0; VertexIndex < RPCInstanceGeometryMesh.Vertices.Count; ++VertexIndex)
-					{
-						XYZ PositionedVertex = AffineTransform.OfPoint(RPCInstanceGeometryMesh.Vertices[VertexIndex]);
-						RPCMesh.SetVertex(VertexIndexOffset + VertexIndex, (float)PositionedVertex.X, (float)PositionedVertex.Y, (float)PositionedVertex.Z);
-					}
+							// Add the RPC geometry triangles to the Datasmith RPC mesh.
+							for (int TriangleNo = 0; TriangleNo < TriangleCount; TriangleNo++)
+							{
+								MeshTriangle Triangle = RPCInstanceGeometryMesh.get_Triangle(TriangleNo);
 
-					// Add the RPC geometry triangles to the Datasmith RPC mesh.
-					for (int TriangleNo = 0; TriangleNo < TriangleCount; TriangleNo++)
-					{
-						MeshTriangle Triangle = RPCInstanceGeometryMesh.get_Triangle(TriangleNo);
+								try
+								{
+									int Index0 = Convert.ToInt32(Triangle.get_Index(0));
+									int Index1 = Convert.ToInt32(Triangle.get_Index(1));
+									int Index2 = Convert.ToInt32(Triangle.get_Index(2));
 
-						try
-						{
-							int Index0 = Convert.ToInt32(Triangle.get_Index(0));
-							int Index1 = Convert.ToInt32(Triangle.get_Index(1));
-							int Index2 = Convert.ToInt32(Triangle.get_Index(2));
-
-							// Add triangles for both the front and back faces.
-							int BaseTriangleIndex = TriangleNo * 2;
-							RPCMesh.SetFace(TriangleIndexOffset + BaseTriangleIndex, VertexIndexOffset + Index0, VertexIndexOffset + Index1, VertexIndexOffset + Index2, InMaterialData.MaterialIndex);
-							RPCMesh.SetFace(TriangleIndexOffset + BaseTriangleIndex + 1, VertexIndexOffset + Index2, VertexIndexOffset + Index1, VertexIndexOffset + Index0, InMaterialData.MaterialIndex);
-						}
-						catch (OverflowException)
-						{
-							continue;
+									// Add triangles for both the front and back faces.
+									RPCMesh.AddTriangle(InitialVertexCount + Index0, InitialVertexCount + Index1, InitialVertexCount + Index2, MaterialIndex);
+									RPCMesh.AddTriangle(InitialVertexCount + Index2, InitialVertexCount + Index1, InitialVertexCount + Index0, MaterialIndex);
+								}
+								catch (OverflowException)
+								{
+									continue;
+								}
+							}
 						}
 					}
-
-					VertexIndexOffset += VertexCount;
-					TriangleIndexOffset += TriangleCount;
 				}
 
 				// Create a new Datasmith RPC mesh actor.
 				// Hash the Datasmith RPC mesh actor name to shorten it.
 				string HashedActorName = FDatasmithFacadeElement.GetStringHash("RPC:" + GetActorName());
 				FDatasmithFacadeActor FacadeActor;
-				if (RPCMesh.GetVerticesCount() > 0 && RPCMesh.GetFacesCount() > 0)
+				if (RPCMesh.GetVertexCount() > 0 && RPCMesh.GetTriangleCount() > 0)
 				{
 					FDatasmithFacadeActorMesh RPCMeshActor = new FDatasmithFacadeActorMesh(HashedActorName);
 					RPCMeshActor.SetMesh(RPCMesh.GetName());
 					FacadeActor = RPCMeshActor;
-					
-					OutDatasmithMesh = RPCMesh;
-					OutDatasmithMeshElement = new FDatasmithFacadeMeshElement(HashedName);
-					OutDatasmithMeshElement.SetLabel(GetActorLabel());
-					OutDatasmithMeshElement.SetMaterial(InMaterialData.MasterMaterial.GetName(), InMaterialData.MaterialIndex);
 				}
 				else
 				{
 					//Create an empty actor instead of a static mesh actor with no mesh.
 					FacadeActor = new FDatasmithFacadeActor(HashedActorName);
-
-					OutDatasmithMesh = null;
-					OutDatasmithMeshElement = null;
 				}
 				FacadeActor.SetLabel(GetActorLabel());
 
@@ -623,7 +575,7 @@ namespace DatasmithRevitExporter
 				// Add the RPC mesh actor to the Datasmith actor hierarchy.
 				AddChildActor(FacadeActor, ElementMetaData, false);
 
-				return OutDatasmithMesh != null;
+				return RPCMesh;
 			}
 
 			public void AddChildActor(
@@ -659,11 +611,10 @@ namespace DatasmithRevitExporter
 				// Create a new Datasmith mesh.
 				// Hash the Datasmith mesh name to shorten it.
 				string HashedMeshName = FDatasmithFacadeElement.GetStringHash("M:" + GetMeshName());
-				InElement.DatasmithPolymesh = new FDatasmithPolymesh();
-				InElement.DatasmithMeshElement = new FDatasmithFacadeMeshElement(HashedMeshName);
-				InElement.DatasmithMeshElement.SetLabel(GetActorLabel());
+				InElement.ElementMesh = new FDatasmithFacadeMesh(HashedMeshName);
+				InElement.ElementMesh.SetLabel(GetActorLabel());
 
-				if (InElement.ElementActor == null)
+				if(InElement.ElementActor == null)
 				{
 					// Create a new Datasmith mesh actor.
 					// Hash the Datasmith mesh actor name to shorten it.
@@ -696,31 +647,19 @@ namespace DatasmithRevitExporter
 				return (BaseElementType as LevelType) != null;
 			}
 
-			public FDatasmithPolymesh GetCurrentPolymesh()
+			public FDatasmithFacadeMesh GetCurrentMesh()
 			{
 				if (InstanceDataStack.Count == 0)
 				{
-					return DatasmithPolymesh;
+					return ElementMesh;
 				}
 				else
 				{
-					return InstanceDataStack.Peek().DatasmithPolymesh;
+					return InstanceDataStack.Peek().ElementMesh;
 				}
 			}
 
-			public FDatasmithFacadeMeshElement GetCurrentMeshElement()
-			{
-				if (InstanceDataStack.Count == 0)
-				{
-					return DatasmithMeshElement;
-				}
-				else
-				{
-					return InstanceDataStack.Peek().DatasmithMeshElement;
-				}
-			}
-
-			public FDatasmithFacadeMeshElement PeekInstancedMeshElement()
+			public FDatasmithFacadeMesh PeekInstancedMesh()
 			{
 				if (InstanceDataStack.Count == 0)
 				{
@@ -728,7 +667,7 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					return InstanceDataStack.Peek().DatasmithMeshElement;
+					return InstanceDataStack.Peek().ElementMesh;
 				}
 			}
 
@@ -897,15 +836,13 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-
-		public Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>> 
-														MeshMap = new Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>>();
+		public Dictionary<string, FDatasmithFacadeMesh>	MeshMap = new Dictionary<string, FDatasmithFacadeMesh>();
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
-		public Dictionary<string, FMaterialData>		MaterialDataMap = new Dictionary<string, FMaterialData>();
+		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
+		public Dictionary<string, Dictionary<string, int>> MeshMaterialsMap = null;
 
 		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
-		private string									CurrentMaterialDataKey = null;
-		private int										LatestMaterialIndex = 0;
+		private string									CurrentMaterialName = null;
 		private List<string>							MessageList = null;
 
 		public bool										bSkipMetadataExport { get; private set; } = false;
@@ -923,6 +860,17 @@ namespace DatasmithRevitExporter
 			MessageList = InMessageList;
 			// With DirectLink, we delay export of metadata for a faster initial export.
 			bSkipMetadataExport = (DirectLink != null);
+
+			if (DirectLink != null)
+			{
+				MeshMaterialsMap = DirectLink.MeshMaterialsMap;
+				MaterialDataMap = DirectLink.MaterialDataMap;
+			}
+			else
+			{
+				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
+				MaterialDataMap = new Dictionary<string, FMaterialData>();
+			}
 		}
 
 		public Element GetElement(
@@ -1015,17 +963,18 @@ namespace DatasmithRevitExporter
 			return true;
 		}
 
-		public void PopElement(FDatasmithFacadeScene InDatasmithScene)
+		public void PopElement()
 		{
 			FElementData ElementData = ElementDataStack.Pop();
-			FDatasmithPolymesh DatasmithPolymesh = ElementData.DatasmithPolymesh;
 
-			if(DatasmithPolymesh.Vertices.Count > 0 && DatasmithPolymesh.Faces.Count > 0)
+			FDatasmithFacadeMesh ElementMesh = ElementData.ElementMesh;
+
+			if(ElementMesh.GetVertexCount() > 0 && ElementMesh.GetTriangleCount() > 0)
 			{
 				ElementData.UpdateMeshName();
 			}
 
-			CollectMesh(ElementData.DatasmithPolymesh, ElementData.DatasmithMeshElement, InDatasmithScene);
+			CollectMesh(ElementMesh);
 
 			DirectLink?.ClearModified(ElementData.CurrentElement);
 
@@ -1096,19 +1045,19 @@ namespace DatasmithRevitExporter
 			ElementDataStack.Peek().PushInstance(InInstanceType, InWorldTransform);
 		}
 
-		public void PopInstance(FDatasmithFacadeScene InDatasmithScene)
+		public void PopInstance()
 		{
 			FElementData CurrentElement = ElementDataStack.Peek();
 			FBaseElementData InstanceData = CurrentElement.PopInstance();
-			FDatasmithPolymesh DatasmithPolymesh = InstanceData.DatasmithPolymesh;
+			FDatasmithFacadeMesh ElementMesh = InstanceData.ElementMesh;
 
-			if (ContainsMesh(InstanceData.DatasmithMeshElement.GetName()) || (DatasmithPolymesh.Vertices.Count > 0 && DatasmithPolymesh.Faces.Count > 0))
+			if (ContainsMesh(ElementMesh.GetName()) || (ElementMesh.GetVertexCount() > 0 && ElementMesh.GetTriangleCount() > 0))
 			{
 				InstanceData.UpdateMeshName();
 			}
 
 			// Collect the element Datasmith mesh into the mesh dictionary.
-			CollectMesh(InstanceData.DatasmithPolymesh, InstanceData.DatasmithMeshElement, InDatasmithScene);
+			CollectMesh(ElementMesh);
 
 			// Add the instance mesh actor to the Datasmith actor hierarchy.
 			CurrentElement.AddChildActor(InstanceData);
@@ -1136,31 +1085,30 @@ namespace DatasmithRevitExporter
 
 		public void AddRPCActor(
 			Transform InWorldTransform,
-			Asset InRPCAsset,
-			FDatasmithFacadeScene InDatasmithScene
+			Asset InRPCAsset
 		)
 		{
 			// Create a simple fallback material for the RPC mesh.
 			string RPCCategoryName = ElementDataStack.Peek().GetCategoryName();
 			bool isRPCPlant = !string.IsNullOrEmpty(RPCCategoryName) && RPCCategoryName == Category.GetCategory(CurrentDocument, BuiltInCategory.OST_Planting)?.Name;
 			string RPCMaterialName = isRPCPlant ? "RPC_Plant" : "RPC_Material";
+			string RPCHashedMaterialName = FDatasmithFacadeElement.GetStringHash(RPCMaterialName);
 
-			if (!MaterialDataMap.ContainsKey(RPCMaterialName))
+			if (!MaterialDataMap.ContainsKey(RPCHashedMaterialName))
 			{
 				// Color reference: https://www.color-hex.com/color-palette/70002
 				Color RPCColor = isRPCPlant ? /* green */ new Color(88, 126, 96) : /* gray */ new Color(128, 128, 128);
 
 				// Keep track of a new RPC master material.
-				MaterialDataMap[RPCMaterialName] = new FMaterialData(RPCMaterialName, RPCColor, ++LatestMaterialIndex);
+				MaterialDataMap[RPCHashedMaterialName] = new FMaterialData(RPCHashedMaterialName, RPCMaterialName, RPCColor);
 			}
 
-			FMaterialData RPCMaterialData = MaterialDataMap[RPCMaterialName];
+			FMaterialData RPCMaterialData = MaterialDataMap[RPCHashedMaterialName];
 
-			if (ElementDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset, RPCMaterialData, out FDatasmithFacadeMesh RPCMesh, out FDatasmithFacadeMeshElement RPCMeshElement))
-			{
-				// Collect the RPC mesh into the Datasmith mesh dictionary.
-				CollectMesh(RPCMesh, RPCMeshElement, InDatasmithScene);
-			}
+			FDatasmithFacadeMesh RPCMesh = ElementDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset, RPCHashedMaterialName);
+
+			// Collect the RPC mesh into the Datasmith mesh dictionary.
+			CollectMesh(RPCMesh);
 		}
 
 		public bool SetMaterial(
@@ -1170,12 +1118,12 @@ namespace DatasmithRevitExporter
 		{
 			Material CurrentMaterial = GetElement(InMaterialNode.MaterialId) as Material;
 
-			CurrentMaterialDataKey = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
+			CurrentMaterialName = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
 
-			if (!MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (!MaterialDataMap.ContainsKey(CurrentMaterialName))
 			{
 				// Keep track of a new Datasmith master material.
-				MaterialDataMap[CurrentMaterialDataKey] = new FMaterialData(InMaterialNode, CurrentMaterial, ++LatestMaterialIndex, InExtraTexturePaths);
+				MaterialDataMap[CurrentMaterialName] = new FMaterialData(InMaterialNode, CurrentMaterial, InExtraTexturePaths);
 
 				// A new Datasmith master material was created.
 				return true;
@@ -1192,7 +1140,7 @@ namespace DatasmithRevitExporter
 			if (!bIgnore)
 			{
 				// Check for instanced meshes.
-				FDatasmithFacadeMeshElement Mesh = ElementDataStack.Peek().PeekInstancedMeshElement();
+				FDatasmithFacadeMesh Mesh = ElementDataStack.Peek().PeekInstancedMesh();
 				if (Mesh != null)
 				{
 					bIgnore = MeshMap.ContainsKey(Mesh.GetName());
@@ -1202,14 +1150,9 @@ namespace DatasmithRevitExporter
 			return bIgnore;
 		}
 
-		public FDatasmithPolymesh GetCurrentPolymesh()
+		public FDatasmithFacadeMesh GetCurrentMesh()
 		{
-			return ElementDataStack.Peek().GetCurrentPolymesh();
-		}
-
-		public FDatasmithFacadeMeshElement GetCurrentMeshElement()
-		{
-			return ElementDataStack.Peek().GetCurrentMeshElement();
+			return ElementDataStack.Peek().GetCurrentMesh();
 		}
 
 		public Transform GetCurrentMeshPointsTransform()
@@ -1217,19 +1160,35 @@ namespace DatasmithRevitExporter
 			return ElementDataStack.Peek().MeshPointsTransform;
 		}
 
-		public void GetCurrentMaterialSlotInfo(out string OutMaterialName, out int OutMaterialIndex)
+		public int GetMeshMaterialIndex(FDatasmithFacadeMesh InMesh, string InMaterialName)
 		{
-			OutMaterialName = null;
-			OutMaterialIndex = 0;
-
-			if (MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (InMaterialName.Length == 0)
 			{
-				FMaterialData MaterialData = MaterialDataMap[CurrentMaterialDataKey];
-
-				// Set the index and the name of the current material.
-				OutMaterialName = MaterialData.MasterMaterial.GetName();
-				OutMaterialIndex = MaterialData.MaterialIndex;
+				return 0;
 			}
+
+			string MeshName = InMesh.GetName();
+
+			if (!MeshMaterialsMap.ContainsKey(MeshName))
+			{
+				MeshMaterialsMap[MeshName] = new Dictionary<string, int>();
+			}
+
+			Dictionary<string, int> MaterialsMap = MeshMaterialsMap[MeshName];
+			if (!MaterialsMap.ContainsKey(InMaterialName))
+			{
+				int NewMaterialIndex = MaterialsMap.Count;
+				MaterialsMap[InMaterialName] = NewMaterialIndex;
+				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
+				InMesh.AddMaterial(NewMaterialIndex, InMaterialName);
+			}
+
+			return MaterialsMap[InMaterialName];
+		}
+
+		public int GetCurrentMaterialIndex()
+		{
+			return GetMeshMaterialIndex(GetCurrentMesh(), CurrentMaterialName);
 		}
 
 		public FBaseElementData GetCurrentActor()
@@ -1346,9 +1305,9 @@ namespace DatasmithRevitExporter
 			string InLinePrefix
 		)
 		{
-			if (MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (MaterialDataMap.ContainsKey(CurrentMaterialName))
 			{
-				MaterialDataMap[CurrentMaterialDataKey].Log(InMaterialNode, InDebugLog, InLinePrefix);
+				MaterialDataMap[CurrentMaterialName].Log(InMaterialNode, InDebugLog, InLinePrefix);
 			}
 		}
 
@@ -1519,90 +1478,19 @@ namespace DatasmithRevitExporter
 		}
 
 		private void CollectMesh(
-			FDatasmithFacadeMesh InMesh,
-			FDatasmithFacadeMeshElement InMeshElement,
-			FDatasmithFacadeScene InDatasmithScene
+			FDatasmithFacadeMesh InMesh
 		)
 		{
-			if (InDatasmithScene != null && InMesh.GetVerticesCount() > 0 && InMesh.GetFacesCount() > 0)
+			if (InMesh.GetVertexCount() > 0 && InMesh.GetTriangleCount() > 0)
 			{
 				string MeshName = InMesh.GetName();
 
 				if (!MeshMap.ContainsKey(MeshName))
 				{
-					// Export the DatasmithMesh in a task while we parse the rest of the document.
-					// The task result indicates if the export was successful and if the associated FDatasmithFacadeMeshElement can be added to the scene.
-					MeshMap[MeshName] = new Tuple<FDatasmithFacadeMeshElement, Task<bool>>(InMeshElement, Task.Run<bool>(() => InDatasmithScene.ExportDatasmithMesh(InMeshElement, InMesh)));
+					// Keep track of the Datasmith mesh.
+					MeshMap[MeshName] = InMesh;
 				}
 			}
-		}
-
-		private void CollectMesh(
-			FDatasmithPolymesh InPolymesh,
-			FDatasmithFacadeMeshElement InMeshElement,
-			FDatasmithFacadeScene InDatasmithScene
-		)
-		{
-			if (InDatasmithScene != null && InPolymesh.Vertices.Count > 0 && InPolymesh.Faces.Count > 0)
-			{
-				string MeshName = InMeshElement.GetName();
-
-				if (!MeshMap.ContainsKey(MeshName))
-				{
-					// Export the DatasmithMesh in a task while we parse the rest of the document.
-					// The task result indicates if the export was successful and if the associated FDatasmithFacadeMeshElement can be added to the scene.
-					MeshMap[MeshName] = new Tuple<FDatasmithFacadeMeshElement, Task<bool>>(InMeshElement, Task.Run<bool>(
-						() => 
-						{
-							using (FDatasmithFacadeMesh DatasmithMesh = ParsePolymesh(InPolymesh, MeshName))
-							{
-								return InDatasmithScene.ExportDatasmithMesh(InMeshElement, DatasmithMesh);
-							}
-						}
-					));
-				}
-			}
-		}
-
-		private FDatasmithFacadeMesh ParsePolymesh(FDatasmithPolymesh InPolymesh, string MeshName)
-		{
-			FDatasmithFacadeMesh DatasmithMesh = new FDatasmithFacadeMesh();
-			DatasmithMesh.SetName(MeshName);
-			DatasmithMesh.SetVerticesCount(InPolymesh.Vertices.Count);
-			DatasmithMesh.SetFacesCount(InPolymesh.Faces.Count);
-			DatasmithMesh.SetUVChannelsCount(1);
-			DatasmithMesh.SetUVCount(0, InPolymesh.UVs.Count);
-			const int UVChannelIndex = 0;
-
-			// Add the vertex points (in right-handed Z-up coordinates) to the Datasmith mesh.
-			for (int VertexIndex = 0; VertexIndex < InPolymesh.Vertices.Count; ++VertexIndex)
-			{
-				XYZ Point = InPolymesh.Vertices[VertexIndex];
-				DatasmithMesh.SetVertex(VertexIndex, (float)Point.X, (float)Point.Y, (float)Point.Z);
-			}
-
-			// Add the vertex UV texture coordinates to the Datasmith mesh.
-			for (int UVIndex = 0; UVIndex < InPolymesh.UVs.Count; ++UVIndex)
-			{
-				UV CurrentUV = InPolymesh.UVs[UVIndex];
-				DatasmithMesh.SetUV(UVChannelIndex, UVIndex, (float)CurrentUV.U, (float)CurrentUV.V);
-			}
-
-			// Add the triangle vertex indexes to the Datasmith mesh.
-			for (int FacetIndex = 0; FacetIndex < InPolymesh.Faces.Count; ++FacetIndex)
-			{
-				FDocumentData.FPolymeshFace Face = InPolymesh.Faces[FacetIndex];
-				DatasmithMesh.SetFace(FacetIndex, Face.V1, Face.V2, Face.V3, Face.MaterialIndex);
-				DatasmithMesh.SetFaceUV(FacetIndex, UVChannelIndex, Face.V1, Face.V2, Face.V3);
-			}
-
-			for (int NormalIndex = 0; NormalIndex < InPolymesh.Normals.Count; ++NormalIndex)
-			{
-				XYZ Normal = InPolymesh.Normals[NormalIndex];
-				DatasmithMesh.SetNormal(NormalIndex, (float)Normal.X, (float)Normal.Y, (float)Normal.Z);
-			}
-		
-			return DatasmithMesh;
 		}
 
 		private void AddCollectedMeshes(
@@ -1610,13 +1498,9 @@ namespace DatasmithRevitExporter
 		)
 		{
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
-			foreach (var MeshElementExportResultTuple in MeshMap.Values)
+			foreach (FDatasmithFacadeMesh CollectedMesh in MeshMap.Values)
 			{
-				// Wait for the export to complete and add the Mesh element on success.
-				if (MeshElementExportResultTuple.Item2.Result)
-				{
-					InDatasmithScene.AddMesh(MeshElementExportResultTuple.Item1);
-				}
+				InDatasmithScene.AddMesh(CollectedMesh);
 			}
 		}
 
@@ -1635,6 +1519,8 @@ namespace DatasmithRevitExporter
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
+			UniqueTextureNameSet = (DirectLink != null) ? DirectLink.UniqueTextureNameSet : UniqueTextureNameSet;
+
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
 			foreach (FMaterialData CollectedMaterialData in MaterialDataMap.Values)
 			{
@@ -1733,9 +1619,8 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					const FDatasmithFacadeScene NullScene = null;
 					PushElement(ParentElement, Transform.Identity);
-					PopElement(NullScene);
+					PopElement();
 				}
 
 				ElementIdQueue.Enqueue(ParentElementId);
