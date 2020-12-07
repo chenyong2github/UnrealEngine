@@ -138,7 +138,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Rules, meta = (ShowOnlyInnerProperties))
 	FPrimaryAssetRules Rules;
 
-	/** Combination of directories and individual assets to search for this asset type. Will have the Directories and Assets added to it */
+	/** Combination of directories and individual assets to search for this asset type. Will have the Directories and Assets added to it but may include virtual paths */
 	UPROPERTY(Transient)
 	TArray<FString> AssetScanPaths;
 
@@ -182,3 +182,51 @@ enum class EAssetManagerFilter : int32
 };
 
 ENUM_CLASS_FLAGS(EAssetManagerFilter);
+
+/** Delegate that can be used to do extra filtering on asset registry searches. Return true if it should be included */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FAssetManagerShouldIncludeDelegate, const struct FAssetData&, const struct FAssetManagerSearchRules&);
+
+/** Rules for how to scan the asset registry for assets matching path and type descriptions */
+USTRUCT(BlueprintType)
+struct FAssetManagerSearchRules
+{
+	GENERATED_BODY()
+
+	/** List of top-level directories and specific assets to search, must be paths starting with /, directories should not have a trailing / */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	TArray<FString> AssetScanPaths;
+
+	/** Optional list of include wildcard patterns using * that will get matched against full package path. If there are any at least one of these must match */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	TArray<FString> IncludePatterns;
+
+	/** Optional list of exclude wildcard patterns that can use *, if any of these match it will be excluded */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	TArray<FString> ExcludePatterns;
+
+	/** Assets must inherit from this class, for blueprints this should be the instance base class */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	UClass* AssetBaseClass = nullptr;
+
+	/** True if scanning for blueprints, false for all other assets */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	bool bHasBlueprintClasses = false;
+
+	/** True if this should force a synchronous scan of the disk even if an async scan is in progress */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	bool bForceSynchronousScan = false;
+	
+	/** True if AssetScanPaths are real paths that do not need expansion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	bool bSkipVirtualPathExpansion = false;
+
+	/** True if this test should skip the ShouldIncludeInAssetSearch function on AssetManager */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
+	bool bSkipManagerIncludeCheck = false;
+
+	/** Native filter delegate to call on asset data, if bound it should return true if asset should be included in results */
+	FAssetManagerShouldIncludeDelegate ShouldIncludeDelegate;
+
+	/** Returns true if there are any rules set that need to be verified */
+	ENGINE_API bool AreRulesSet() const;
+};
