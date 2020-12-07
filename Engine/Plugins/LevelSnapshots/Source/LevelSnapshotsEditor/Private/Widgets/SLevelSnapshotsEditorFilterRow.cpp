@@ -13,6 +13,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 
+#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
+
 void SLevelSnapshotsEditorFilterRow::Construct(
 	const FArguments& InArgs, 
 	const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters,
@@ -29,6 +31,18 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
+
+				// Write "AND" at beginning
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle( FEditorStyle::Get(), "Graph.CompactNode.Title")
+					.Text(LOCTEXT("FilterAnd", "AND"))
+					.WrapTextAt(128.0f)
+				]
 
 				// Filters
 				+ SHorizontalBox::Slot()
@@ -99,3 +113,5 @@ FReply SLevelSnapshotsEditorFilterRow::OnDrop(const FGeometry& MyGeometry, const
 	}
 	return FReply::Unhandled();
 }
+
+#undef LOCTEXT_NAMESPACE

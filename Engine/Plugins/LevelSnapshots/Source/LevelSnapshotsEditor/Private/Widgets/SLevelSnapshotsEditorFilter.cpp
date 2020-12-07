@@ -209,7 +209,7 @@ int32 SLevelSnapshotsEditorFilter::OnPaint(const FPaintArgs& Args, const FGeomet
 	if (bIsBeingEdited)
 	{
 		const FVector2D ShadowSize(14, 14);
-		const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush("Graph.CompactNode.ShadowSelected");
+		const FSlateBrush* ShadowBrush = FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.FilterSelected");
 	
 		// Draw a shadow	
 		FSlateDrawElement::MakeBox(

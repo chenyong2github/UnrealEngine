@@ -8,6 +8,8 @@
 
 #include "Widgets/Layout/SWrapBox.h"
 
+#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
+
 namespace
 {
 	void OnClickRemoveFilter(TSharedRef<SLevelSnapshotsEditorFilter> RemovedFilterWidget, const TSharedPtr<SWrapBox> FilterContainer, const TWeakObjectPtr<UConjunctionFilter> ManagedAndCondition)
@@ -43,14 +45,40 @@ void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConju
 			.UseAllottedSize(true)
 	];
 
-	for (UNegatableFilter* Filter : InManagedAndCondition->GetChildren())
+	const bool bHasNoFilters = InManagedAndCondition->GetChildren().Num() == 0;
+	
+	if (bHasNoFilters)
 	{
-		AddChild(Filter, InEditorFilterModel);
+		FilterBox->AddSlot()
+			.Padding(3, 3)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FilterListDragTutorial", "Drag a favorite filter here"))
+			.Justification(ETextJustify::Center)
+		];
+	}
+	else
+	{
+		for (UNegatableFilter* Filter : InManagedAndCondition->GetChildren())
+		{
+			AddChild(Filter, InEditorFilterModel);
+		}
 	}
 }
 	
 void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TSharedRef<FLevelSnapshotsEditorFilters> InEditorFilterModel) const
 {
+	if (!ensure(ManagedAndCondition.IsValid()))
+	{
+		return;
+	}
+	
+	const bool bWasEmptyBefore = ManagedAndCondition->GetChildren().Num() == 1;
+	if (bWasEmptyBefore)
+	{
+		FilterBox->ClearChildren();
+	}
+	
 	FilterBox->AddSlot()
 		.Padding(3, 3)
 		[
@@ -58,3 +86,5 @@ void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TS
 				.OnClickRemoveFilter(SLevelSnapshotsEditorFilter::FOnClickRemoveFilter::CreateStatic(&OnClickRemoveFilter, FilterBox, ManagedAndCondition))
 		];
 }
+
+#undef LOCTEXT_NAMESPACE
