@@ -83,7 +83,11 @@ private:
 class RENDERCORE_API FRDGBarrierBatchEnd
 {
 public:
-	FRDGBarrierBatchEnd() = default;
+	FRDGBarrierBatchEnd(FRDGPassHandle InPassHandle)
+#if RDG_ENABLE_DEBUG
+		: PassHandle(InPassHandle)
+#endif
+	{}
 
 	/** Inserts a dependency on a begin batch. A begin batch can be inserted into more than one end batch. */
 	void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
@@ -92,6 +96,10 @@ public:
 
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, FRDGArrayAllocator>> Dependencies;
+
+#if RDG_ENABLE_DEBUG
+	FRDGPassHandle PassHandle;
+#endif
 
 	friend class FRDGBarrierValidation;
 };
@@ -412,6 +420,9 @@ public:
 		ExecuteLambdaType&& InExecuteLambda)
 		: FRDGPass(MoveTemp(InName), FRDGParameterStruct(InParameterStruct, &InParameterMetadata->GetLayout()), InPassFlags)
 		, ExecuteLambda(MoveTemp(InExecuteLambda))
+#if RDG_ENABLE_DEBUG
+		, DebugParameterStruct(InParameterStruct)
+#endif
 	{
 		checkf(kSupportsAsyncCompute || !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::AsyncCompute),
 			TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
@@ -425,6 +436,8 @@ private:
 	}
 
 	ExecuteLambdaType ExecuteLambda;
+
+	IF_RDG_ENABLE_DEBUG(const ParameterStructType* DebugParameterStruct);
 };
 
 template <typename ExecuteLambdaType>

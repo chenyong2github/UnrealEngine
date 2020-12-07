@@ -222,6 +222,19 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 
 void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
 {
+#if RDG_ENABLE_DEBUG
+	check(BeginBatch);
+
+	for (ERHIPipeline Pipeline : GetRHIPipelines())
+	{
+		const FRDGPassHandle BeginPassHandle = BeginBatch->DebugPasses[Pipeline];
+		if (BeginPassHandle.IsValid())
+		{
+			checkf(BeginPassHandle <= PassHandle, TEXT("A transition end batch for pass %d is dependent on begin batch for pass %d."), PassHandle.GetIndex(), BeginPassHandle.GetIndex());
+		}
+	}
+#endif
+
 	Dependencies.AddUnique(BeginBatch);
 }
 
@@ -282,7 +295,7 @@ FRDGBarrierBatchEnd& FRDGPass::GetPrologueBarriersToEnd(FRDGAllocator& Allocator
 {
 	if (!PrologueBarriersToEnd)
 	{
-		PrologueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>();
+		PrologueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(Handle);
 	}
 	return *PrologueBarriersToEnd;
 }
@@ -291,7 +304,7 @@ FRDGBarrierBatchEnd& FRDGPass::GetEpilogueBarriersToEnd(FRDGAllocator& Allocator
 {
 	if (!EpilogueBarriersToEnd)
 	{
-		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>();
+		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(Handle);
 	}
 	return *EpilogueBarriersToEnd;
 }

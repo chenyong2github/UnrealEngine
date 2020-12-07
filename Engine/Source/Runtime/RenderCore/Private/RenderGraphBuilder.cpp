@@ -687,14 +687,11 @@ void FRDGBuilder::Compile()
 				auto& LastProducers = Texture->LastProducers;
 				auto& PassState = TexturePair.Value.State;
 
+			#if DO_CHECK
 				const bool bWholePassState = IsWholeResource(PassState);
 				const bool bWholeProducers = IsWholeResource(LastProducers);
-
-				// The producer array needs to be at least as large as the pass state array.
-				if (bWholeProducers && !bWholePassState)
-				{
-					InitAsSubresources(LastProducers, Texture->Layout, GetWholeResource(LastProducers));
-				}
+				checkf(!bWholeProducers || bWholePassState == bWholeProducers, TEXT("The producer array needs to be at least as large as the pass state array."));
+			#endif
 
 				for (uint32 Index = 0, Count = LastProducers.Num(); Index < Count; ++Index)
 				{
@@ -883,17 +880,11 @@ void FRDGBuilder::Compile()
 				Texture->ReferenceCount += PassState.ReferenceCount;
 				Texture->bUsedByAsyncComputePass |= bAsyncComputePass;
 
-				const bool bWholePassState = IsWholeResource(PassState.State);
-				const bool bWholeMergeState = IsWholeResource(Texture->MergeState);
-
 				// For simplicity, the merge / pass state dimensionality should match.
-				if (bWholeMergeState && !bWholePassState)
+				if (Texture->MergeState.Num() != PassState.State.Num())
 				{
-					InitAsSubresources(Texture->MergeState, Texture->Layout);
-				}
-				else if (!bWholeMergeState && bWholePassState)
-				{
-					InitAsWholeResource(Texture->MergeState);
+					check(IsSubresources(Texture->MergeState));
+					InitAsSubresources(PassState.State, Texture->Layout, GetWholeResource(PassState.State));
 				}
 
 				const uint32 SubresourceCount = PassState.State.Num();
@@ -1166,7 +1157,7 @@ void FRDGBuilder::Compile()
 
 		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
 		{
-			if (PassesToCull[PassHandle])
+			if (PassesToCull[PassHandle] || PassesWithEmptyParameters[PassHandle])
 			{
 				continue;
 			}
@@ -1437,8 +1428,16 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 		// Convert the pass state to subresource dimensionality if we've found a subresource range.
 		if (!bWholeTextureRange && bWholePassState)
 		{
-			InitAsSubresources(PassState.State, Texture->Layout);
+			InitAsSubresources(PassState.State, Texture->Layout, GetWholeResource(PassState.State));
 			bWholePassState = false;
+
+			// Also convert the texture's internal arrays to subresources. We'll process everything as subresources from now on.
+			if (IsWholeResource(Texture->MergeState))
+			{
+				check(IsWholeResource(Texture->LastProducers));
+				InitAsSubresources(Texture->MergeState, Texture->Layout);
+				InitAsSubresources(Texture->LastProducers, Texture->Layout);
+			}
 		}
 
 		const auto AddSubresourceAccess = [&](FRDGSubresourceState& State)

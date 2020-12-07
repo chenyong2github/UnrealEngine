@@ -101,7 +101,7 @@ public:
 	 *  bound for write access by the pass.
 	 */
 	template <typename ParameterStructType>
-	TRDGUniformBufferRef<ParameterStructType> CreateUniformBuffer(ParameterStructType* ParameterStruct);
+	TRDGUniformBufferRef<ParameterStructType> CreateUniformBuffer(const ParameterStructType* ParameterStruct);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Allocation Methods

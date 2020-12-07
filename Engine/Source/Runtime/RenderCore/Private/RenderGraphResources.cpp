@@ -81,6 +81,7 @@ bool FRDGSubresourceState::IsMergeAllowed(ERDGParentResourceType ResourceType, c
 	 */
 
 	const ERHIAccess AccessUnion = Previous.Access | Next.Access;
+	const ERHIAccess DSVMask = ERHIAccess::DSVRead | ERHIAccess::DSVWrite;
 
 	// If we have the same access between the two states, we don't need to check for invalid access combinations.
 	if (Previous.Access != Next.Access)
@@ -99,6 +100,12 @@ bool FRDGSubresourceState::IsMergeAllowed(ERDGParentResourceType ResourceType, c
 
 		// UAVs will filter through the above checks because they are both read and write. UAV can only merge it itself.
 		if (EnumHasAnyFlags(AccessUnion, ERHIAccess::UAVMask) && EnumHasAnyFlags(AccessUnion, ~ERHIAccess::UAVMask))
+		{
+			return false;
+		}
+
+		// Depth Read / Write should never merge with anything other than itself.
+		if (EnumHasAllFlags(AccessUnion, DSVMask) && EnumHasAnyFlags(AccessUnion, ~DSVMask))
 		{
 			return false;
 		}
