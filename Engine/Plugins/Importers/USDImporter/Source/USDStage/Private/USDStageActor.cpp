@@ -2,27 +2,37 @@
 
 #include "USDStageActor.h"
 
+#include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomXformableTranslator.h"
+#include "USDLightConversion.h"
 #include "USDListener.h"
 #include "USDLog.h"
 #include "USDPrimConversion.h"
-#include "USDSchemaTranslator.h"
 #include "USDSchemasModule.h"
+#include "USDSchemaTranslator.h"
 #include "USDSkelRootTranslator.h"
 #include "USDTypesConversion.h"
-#include "UnrealUSDWrapper.h"
 
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/SdfLayer.h"
 
 #include "Async/ParallelFor.h"
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/LightComponentBase.h"
+#include "Components/PointLightComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/RectLightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Light.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -1190,6 +1200,41 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				if ( UMeshComponent* MeshComponent = Cast< UMeshComponent >( PrimSceneComponent ) )
 				{
 					UnrealToUsd::ConvertMeshComponent( UsdStage, MeshComponent, UsdPrim );
+				}
+				// Rely on the fact that FUsdGeomCameraTranslator::CreateComponents always forces bNeedsActor = true,
+				// meaning all cameras that we spawned are actually ACineCameraActors. If so, PrimSceneComponent is actually
+				// just the root scene component of one of them, so we need to dig down to the camera component
+				else if ( ACineCameraActor* CameraActor = Cast<ACineCameraActor>( PrimSceneComponent->GetOwner() ) )
+				{
+					if ( UCineCameraComponent* CameraComponent = CameraActor->GetCineCameraComponent() )
+					{
+						UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim );
+					}
+				}
+				else if ( ALight* LightActor = Cast<ALight>( PrimSceneComponent->GetOwner() ) )
+				{
+					if ( ULightComponent* LightComponent = LightActor->GetLightComponent() )
+					{
+						UnrealToUsd::ConvertLightComponent( *LightComponent, UsdPrim, Time );
+
+						if ( UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>( LightComponent ) )
+						{
+							UnrealToUsd::ConvertDirectionalLightComponent( *DirectionalLight, UsdPrim, Time );
+						}
+						else if ( URectLightComponent* RectLight = Cast<URectLightComponent>( LightComponent ) )
+						{
+							UnrealToUsd::ConvertRectLightComponent( *RectLight, UsdPrim, Time );
+						}
+						else if ( UPointLightComponent* PointLight = Cast<UPointLightComponent>( LightComponent ) )
+						{
+							UnrealToUsd::ConvertPointLightComponent( *PointLight, UsdPrim, Time );
+						}
+					}
+				}
+				// In contrast to the other light types, the USkyLightComponent is the root component of the ASkyLight
+				else if ( USkyLightComponent* SkyLightComponent = Cast<USkyLightComponent>( PrimSceneComponent ) )
+				{
+					UnrealToUsd::ConvertSkyLightComponent( *SkyLightComponent, UsdPrim, Time );
 				}
 #endif // #if USE_USD_SDK
 

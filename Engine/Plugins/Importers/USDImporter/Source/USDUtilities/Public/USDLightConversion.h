@@ -18,6 +18,7 @@ class UsdLuxDomeLight;
 class UsdLuxRectLight;
 class UsdLuxSphereLight;
 
+class UsdPrim;
 class UsdStage;
 template< typename T > class TfRefPtr;
 
@@ -51,6 +52,15 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertDiskLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDiskLight& DiskLight, URectLightComponent& LightComponent, double TimeCode );
 	USDUTILITIES_API bool ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxSphereLight& SphereLight, UPointLightComponent& LightComponent, double TimeCode );
 	USDUTILITIES_API bool ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, TMap< FString, UObject* >& TexturesCache, double TimeCode );
+}
+
+namespace UnrealToUsd
+{
+	USDUTILITIES_API bool ConvertLightComponent( const ULightComponentBase& LightComponent, pxr::UsdPrim& Prim, double TimeCode );
+	USDUTILITIES_API bool ConvertDirectionalLightComponent( const UDirectionalLightComponent& LightComponent, pxr::UsdPrim& Prim, double TimeCode );
+	USDUTILITIES_API bool ConvertRectLightComponent( const URectLightComponent& LightComponent, pxr::UsdPrim& Prim, double TimeCode );
+	USDUTILITIES_API bool ConvertPointLightComponent( const UPointLightComponent& LightComponent, pxr::UsdPrim& Prim, double TimeCode );
+	USDUTILITIES_API bool ConvertSkyLightComponent( const USkyLightComponent& LightComponent, pxr::UsdPrim& Prim, double TimeCode );
 }
 
 #endif // #if USE_USD_SDK
