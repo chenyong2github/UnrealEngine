@@ -10,7 +10,7 @@
 
 // General info fields
 #define DSANIM_VERSION			TEXT("version")
-#define DSANIM_VERSION_NUMBER	TEXT("0.1")
+#define DSANIM_VERSION_NUMBER	TEXT("0.2")
 #define DSANIM_FRAMERATE		TEXT("fps")
 #define DSANIM_ANIMATIONS		TEXT("animations")
 
@@ -29,6 +29,13 @@
 #define DSANIM_TRANSFORM_X		TEXT("x")
 #define DSANIM_TRANSFORM_Y		TEXT("y")
 #define DSANIM_TRANSFORM_Z		TEXT("z")
+
+// Visibility animation data fields
+#define DSANIM_ANIMTYPE_VISIBILITY	TEXT("visibility")
+#define DSANIM_PROPAGATE		TEXT("prop")
+
+// Visibility frame data fields
+#define DSANIM_VISIBILITY		TEXT("vis")
 
 namespace DatasmithAnimationJsonSerializerImpl
 {
@@ -58,6 +65,21 @@ namespace DatasmithAnimationJsonSerializerImpl
 		{
 			Frame->SetNumberField(DSANIM_TRANSFORM_Z, FrameInfo.Z);
 			PreviousFrame.Z = FrameInfo.Z;
+		}
+
+		return Frame;
+	}
+
+	TSharedRef<FJsonObject> SerializeVisibilityFrame( const FDatasmithVisibilityFrameInfo& FrameInfo, FDatasmithVisibilityFrameInfo& PreviousFrame, const FDatasmithVisibilityFrameInfo& NextFrame )
+	{
+		TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+		Frame->SetNumberField( DSANIM_FRAME_NUMBER, FrameInfo.FrameNumber );
+
+		// Serialize the frame transform only if the values have changed since the previous frame or represent a change with the following frame
+		if ( FrameInfo.bVisible != PreviousFrame.bVisible || ( NextFrame.IsValid() && FrameInfo.bVisible != NextFrame.bVisible ) )
+		{
+			Frame->SetBoolField( DSANIM_VISIBILITY, FrameInfo.bVisible );
+			PreviousFrame.bVisible = FrameInfo.bVisible;
 		}
 
 		return Frame;
@@ -97,6 +119,28 @@ namespace DatasmithAnimationJsonSerializerImpl
 		return ChannelsWithData;
 	}
 
+	bool DeserializeVisibilityFrame( const TSharedRef<FJsonObject>& Frame, FDatasmithVisibilityFrameInfo& FrameInfo )
+	{
+		int32 FrameNumber;
+		if ( !Frame->TryGetNumberField( DSANIM_FRAME_NUMBER, FrameNumber ) )
+		{
+			FrameInfo = FDatasmithVisibilityFrameInfo::InvalidFrameInfo;
+		}
+
+		FrameInfo.FrameNumber = FrameNumber;
+
+		bool bHasData = false;
+
+		bool Value;
+		if ( Frame->TryGetBoolField( DSANIM_VISIBILITY, Value ) )
+		{
+			bHasData = true;
+			FrameInfo.bVisible = Value;
+		}
+
+		return bHasData;
+	}
+
 	TArray<TSharedPtr<FJsonValue>> SerializeTransformFrames(TSharedPtr<IDatasmithTransformAnimationElement> AnimationElement, EDatasmithTransformType TransformType, EDatasmithTransformChannels EnabledChannels)
 	{
 		TArray<TSharedPtr<FJsonValue>> Frames;
@@ -127,6 +171,32 @@ namespace DatasmithAnimationJsonSerializerImpl
 		return Frames;
 	}
 
+	TArray<TSharedPtr<FJsonValue>> SerializeVisibilityFrames( TSharedPtr<IDatasmithVisibilityAnimationElement> AnimationElement )
+	{
+		TArray<TSharedPtr<FJsonValue>> Frames;
+		int32 NumFrames = AnimationElement->GetFramesCount();
+		if ( NumFrames > 0 )
+		{
+			FDatasmithVisibilityFrameInfo PreviousFrame( MAX_uint32, false );
+			for ( int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex )
+			{
+				const FDatasmithVisibilityFrameInfo& FrameInfo = AnimationElement->GetFrame( FrameIndex );
+				if ( FrameInfo.IsValid() )
+				{
+					const FDatasmithVisibilityFrameInfo& NextFrameInfo = FrameIndex < NumFrames - 1 ? AnimationElement->GetFrame( FrameIndex + 1 ) : FDatasmithVisibilityFrameInfo::InvalidFrameInfo;
+					TSharedRef<FJsonObject> Frame = SerializeVisibilityFrame( FrameInfo, PreviousFrame, NextFrameInfo );
+
+					// Add the frame only if there are some values in it
+					if ( Frame->HasField( DSANIM_VISIBILITY ) )
+					{
+						Frames.Add( MakeShared<FJsonValueObject>( Frame ) );
+					}
+				}
+			}
+		}
+		return Frames;
+	}
+
 	ETransformChannelComponents DeserializeTransformFrames(const TSharedRef<IDatasmithTransformAnimationElement>& AnimationElement, EDatasmithTransformType TransformType, const TArray<TSharedPtr<FJsonValue>>& Frames)
 	{
 		ETransformChannelComponents ChannelsWithData = ETransformChannelComponents::None;
@@ -142,6 +212,23 @@ namespace DatasmithAnimationJsonSerializerImpl
 			}
 		}
 		return ChannelsWithData;
+	}
+
+	bool DeserializeVisibilityFrames( const TSharedRef<IDatasmithVisibilityAnimationElement>& AnimationElement, const TArray<TSharedPtr<FJsonValue>>& Frames )
+	{
+		FDatasmithVisibilityFrameInfo FrameInfo( FDatasmithVisibilityFrameInfo::InvalidFrameInfo );
+
+		bool bHasData = false;
+		for ( const TSharedPtr<FJsonValue>& Frame : Frames )
+		{
+			bool bFrameHasData = DeserializeVisibilityFrame( Frame->AsObject().ToSharedRef(), FrameInfo );
+			if ( FrameInfo.IsValid() )
+			{
+				AnimationElement->AddFrame( FrameInfo );
+				bHasData |= bFrameHasData;
+			}
+		}
+		return bHasData;
 	}
 
 	TSharedRef<FJsonObject> SerializeAnimation(const TSharedRef<IDatasmithBaseAnimationElement>& AnimationElement)
@@ -175,6 +262,21 @@ namespace DatasmithAnimationJsonSerializerImpl
 				Animation->SetArrayField(DSANIM_SCALE, Frames);
 			}
 		}
+		else if ( AnimationElement->IsSubType( ( uint64 ) EDatasmithElementAnimationSubType::VisibilityAnimation ) )
+		{
+			Animation->SetStringField( DSANIM_ANIMTYPE, DSANIM_ANIMTYPE_VISIBILITY );
+
+			const TSharedRef< IDatasmithVisibilityAnimationElement > Element = StaticCastSharedRef<IDatasmithVisibilityAnimationElement>( AnimationElement );
+
+			TArray<TSharedPtr<FJsonValue>> Frames = SerializeVisibilityFrames( Element );
+			if ( Frames.Num() > 0 )
+			{
+				Animation->SetArrayField( DSANIM_VISIBILITY, Frames );
+			}
+
+			Animation->SetBoolField( DSANIM_PROPAGATE, Element->GetPropagateToChildren() );
+		}
+
 		return Animation;
 	}
 
@@ -192,9 +294,10 @@ namespace DatasmithAnimationJsonSerializerImpl
 			return false;
 		}
 
-		EDatasmithTransformChannels TransformChannels = EDatasmithTransformChannels::None;
 		if (AnimType == DSANIM_ANIMTYPE_TRANSFORM)
 		{
+			EDatasmithTransformChannels TransformChannels = EDatasmithTransformChannels::None;
+
 			const TSharedRef< IDatasmithTransformAnimationElement > TransformAnimation = FDatasmithSceneFactory::CreateTransformAnimation(*ActorName);
 			ETransformChannelComponents Components = ETransformChannelComponents::None;
 
@@ -222,9 +325,35 @@ namespace DatasmithAnimationJsonSerializerImpl
 				TransformAnimation->SetEnabledTransformChannels(TransformChannels);
 				LevelSequence->AddAnimation(TransformAnimation);
 			}
+
+			return TransformChannels != EDatasmithTransformChannels::None;
+		}
+		else if ( AnimType == DSANIM_ANIMTYPE_VISIBILITY )
+		{
+			bool bHasData = false;
+			const TSharedRef< IDatasmithVisibilityAnimationElement > Element = FDatasmithSceneFactory::CreateVisibilityAnimation( *ActorName );
+
+			const TArray<TSharedPtr<FJsonValue>>* Frames;
+			if ( Animation->TryGetArrayField( DSANIM_VISIBILITY, Frames ) )
+			{
+				bHasData = DeserializeVisibilityFrames( Element, *Frames );
+			}
+
+			bool bPropagate = false;
+			if ( Animation->TryGetBoolField( DSANIM_PROPAGATE, bPropagate ) )
+			{
+				Element->SetPropagateToChildren( bPropagate );
+			}
+
+			if ( bHasData )
+			{
+				LevelSequence->AddAnimation( Element );
+			}
+
+			return bHasData;
 		}
 
-		return TransformChannels != EDatasmithTransformChannels::None;
+		return false;
 	}
 
 	bool SerializeLevelSequence(const TSharedRef<IDatasmithLevelSequenceElement>& LevelSequence, const TCHAR* FilePath, bool bDebugFormat)
@@ -330,6 +459,8 @@ bool FDatasmithAnimationSerializer::Deserialize(const TSharedRef<IDatasmithLevel
 #undef DSANIM_FRAMERATE
 #undef DSANIM_ANIMATIONS
 #undef DSANIM_ACTORNAME
+#undef DSANIM_ANIMTYPE
+#undef DSANIM_ANIMTYPE_TRANSFORM
 #undef DSANIM_TRANSLATION
 #undef DSANIM_ROTATION
 #undef DSANIM_SCALE
@@ -337,3 +468,6 @@ bool FDatasmithAnimationSerializer::Deserialize(const TSharedRef<IDatasmithLevel
 #undef DSANIM_TRANSFORM_X
 #undef DSANIM_TRANSFORM_Y
 #undef DSANIM_TRANSFORM_Z
+#undef DSANIM_ANIMTYPE_VISIBILITY
+#undef DSANIM_PROPAGATE
+#undef DSANIM_VISIBILITY
