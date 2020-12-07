@@ -356,25 +356,10 @@ FOcclusionResult ComputeOcclusion(
 	{
 		RandomSequence RandSequence;
 
-// This initiailization improves the visual distribution of the error in screenspace
-#define USE_ERROR_DIFFUSION_SAMPLER 1 && RANDSEQ == RANDSEQ_OWENSOBOL
-
-#if USE_ERROR_DIFFUSION_SAMPLER
-
 #if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, TimeSeed, LocalSamplesPerPixel);
 #else
 		RandomSequence_Initialize(RandSequence, PixelCoord, 0, TimeSeed, 1);
-#endif
-
-#else
-
-#if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
-		RandomSequence_Initialize(RandSequence, CalcLinearIndex(PixelCoord), LocalSamplesPerPixel * TimeSeed + SampleIndex);
-#else
-		RandomSequence_Initialize(RandSequence, CalcLinearIndex(PixelCoord), TimeSeed);
-#endif
-
 #endif
 
 		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
@@ -515,11 +500,7 @@ FOcclusionResult ComputeOcclusion(
 	if (ENABLE_TRANSMISSION && LocalSamplesPerPixel > 0 && ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
 		RandomSequence RandSequence;
-#if USE_ERROR_DIFFUSION_SAMPLER
 		RandomSequence_Initialize(RandSequence, PixelCoord, 0, TimeSeed, 1);
-#else
-		RandomSequence_Initialize(RandSequence, CalcLinearIndex(PixelCoord), TimeSeed);
-#endif
 
 		// Snag two variables to fix light sampling for all computations..
 		const float2 LightSample = RandomSequence_GenerateSample2D(RandSequence);
