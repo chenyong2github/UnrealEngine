@@ -64,6 +64,15 @@ TArray<FRigVMGraphParameterDescription> URigVMGraph::GetParameterDescriptions() 
 	return Parameters;
 }
 
+FString URigVMGraph::GetNodePath() const
+{
+	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetOuter()))
+	{
+		return CollapseNode->GetNodePath();
+	}
+	return FString();
+}
+
 URigVMNode* URigVMGraph::FindNodeByName(const FName& InNodeName) const
 {
 	for (URigVMNode* Node : Nodes)

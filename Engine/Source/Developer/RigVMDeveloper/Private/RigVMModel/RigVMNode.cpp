@@ -23,8 +23,16 @@ URigVMNode::~URigVMNode()
 {
 }
 
-FString URigVMNode::GetNodePath() const
+FString URigVMNode::GetNodePath(bool bRecursive) const
 {
+	if (bRecursive)
+	{
+		FString ParentNodePath = GetGraph()->GetNodePath();
+		if (!ParentNodePath.IsEmpty())
+		{
+			return FString::Printf(TEXT("%s|%s"), *ParentNodePath, *GetName());
+		}
+	}
 	return GetName();
 }
 

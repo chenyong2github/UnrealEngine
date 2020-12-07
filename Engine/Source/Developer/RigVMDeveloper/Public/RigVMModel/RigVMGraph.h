@@ -50,6 +50,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray<FRigVMGraphParameterDescription> GetParameterDescriptions() const;
 
+	// Returns the path of this graph as defined by its invoking nodes
+	FString GetNodePath() const;
+
 	// Returns a Node given its name (or nullptr).
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	URigVMNode* FindNodeByName(const FName& InNodeName) const;

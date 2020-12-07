@@ -33,7 +33,7 @@ public:
 	// names used to reach this Node within the Graph.
 	// (for now this is the same as the Node's name)
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	FString GetNodePath() const;
+	FString GetNodePath(bool bRecursive = false) const;
 
 	// Returns the current index of the Node within the Graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)

@@ -89,7 +89,7 @@ URigVMPin::URigVMPin()
 #endif
 }
 
-FString URigVMPin::GetPinPath() const
+FString URigVMPin::GetPinPath(bool bUseNodePath) const
 {
 	FString PinPath;
 
@@ -103,7 +103,7 @@ FString URigVMPin::GetPinPath() const
 		URigVMNode* Node = GetNode();
 		if (Node != nullptr)
 		{
-			PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(), *GetName());
+			PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(bUseNodePath), *GetName());
 		}
 	}
 #if UE_BUILD_DEBUG
