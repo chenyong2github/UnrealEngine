@@ -91,6 +91,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Rendering")
 	FNiagaraVariableAttributeBinding EnabledBinding;
 
+	/** Which attribute should we use to check if component rendering should be enabled for a particle? This can be used to control the spawn-rate on a per-particle basis. */
+	UPROPERTY(EditAnywhere, Category = "Component Rendering")
+	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
+
 	/** If true then components will not be automatically assigned to the first particle available, but try to stick to the same particle based on its unique id.
 	 * Disabling this option is faster, but a particle can get a different component each tick, which can lead to problems with for example motion blur. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering")
@@ -108,6 +112,10 @@ public:
 	bool bVisualizeComponents;
 
 #endif
+
+	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
+	UPROPERTY(EditAnywhere, Category = "Component Rendering")
+	int32 RendererVisibility;
 
 	/** The object template used to create new components at runtime. */
 	UPROPERTY(Export, Instanced, EditAnywhere, Category = "Component Properties")
