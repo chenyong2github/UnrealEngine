@@ -1015,10 +1015,28 @@ public:
 			LoadedContainer.Order = Container.Environment.GetOrder();
 
 			FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
-			IoBatch.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
+			IoBatch.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer, ContainerId](TIoStatusOr<FIoBuffer> Result)
 			{
 				// Execution method Thread will run the async block synchronously when multithreading is NOT supported
 				const EAsyncExecution ExecutionMethod = FPlatformProcess::SupportsMultithreading() ? EAsyncExecution::TaskGraph : EAsyncExecution::Thread;
+
+				if (!Result.IsOk())
+				{
+					if (EIoErrorCode::NotFound == Result.Status().GetErrorCode())
+					{
+						UE_LOG(LogStreaming, Warning, TEXT("Header for container '0x%llX' not found."), ContainerId.Value());
+					}
+					else
+					{
+						UE_LOG(LogStreaming, Fatal, TEXT("Failed reading header for container '0x%llX' (%s)"), ContainerId.Value(), *Result.Status().ToString());
+					}
+
+					if (--Remaining == 0)
+					{
+						Event->Trigger();
+					}
+					return;
+				}
 
 				Async(ExecutionMethod, [this, &Remaining, Event, IoBuffer = Result.ConsumeValueOrDie(), &LoadedContainer]()
 				{
