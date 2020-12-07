@@ -4,6 +4,7 @@
 
 #include "Misc/QualifiedFrameTime.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "MovieSceneSequencePlayer.h"
 #include "MovieSceneObjectBindingID.h"
 #include "LevelSequenceEditorBlueprintLibrary.generated.h"
 
@@ -85,6 +86,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static int32 GetCurrentTime();
+
+	/**
+	 * Play from the current time to the requested time in frames
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams);
 
 public:
 

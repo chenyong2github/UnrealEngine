@@ -3095,6 +3095,49 @@ void FSequencer::SetGlobalTime(FFrameTime NewTime)
 	}
 }
 
+void FSequencer::PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams)
+{
+	FFrameTime PlayToTime = GetLocalTime().Time;
+
+	if (PlaybackParams.PositionType == EMovieScenePositionType::Frame)
+	{
+		PlayToTime = (PlaybackParams.Frame / GetFocusedDisplayRate()) * GetFocusedTickResolution();
+	}
+	else if (PlaybackParams.PositionType == EMovieScenePositionType::Time)
+	{
+		PlayToTime = PlaybackParams.Time * GetFocusedTickResolution();
+	}
+	else if (PlaybackParams.PositionType == EMovieScenePositionType::MarkedFrame)
+	{
+		UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+		if (FocusedMovieSequence != nullptr)
+		{
+			UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+			if (FocusedMovieScene != nullptr)
+			{
+				int32 MarkedIndex = FocusedMovieScene->FindMarkedFrameByLabel(PlaybackParams.MarkedFrame);
+
+				if (MarkedIndex != INDEX_NONE)
+				{
+					PlayToTime = FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber;
+				}
+			}
+		}
+	}
+
+	if (GetLocalTime().Time < PlayToTime)
+	{
+		PlaybackSpeed = FMath::Abs(PlaybackSpeed);
+	}
+	else
+	{
+		PlaybackSpeed = -FMath::Abs(PlaybackSpeed);
+	}
+		
+	OnPlay(false);
+	PauseOnFrame = PlayToTime;
+}
+
 void FSequencer::ForceEvaluate()
 {
 	EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
@@ -4025,6 +4068,7 @@ EMovieScenePlayerStatus::Type FSequencer::GetPlaybackStatus() const
 void FSequencer::SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus)
 {
 	PlaybackState = InPlaybackStatus;
+	PauseOnFrame.Reset();
 
 	// Inform the renderer when Sequencer is in a 'paused' state for the sake of inter-frame effects
 	ESequencerState SequencerState = ESS_None;
@@ -4830,7 +4874,15 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 
 	bool bHasJumped = false;
 	bool bRestarted = false;
-	if (GetLoopMode() == ESequencerLoopMode::SLM_Loop || GetLoopMode() == ESequencerLoopMode::SLM_LoopSelectionRange)
+
+	if (PauseOnFrame.IsSet() && (PlaybackSpeed > 0 && NewLocalTime > PauseOnFrame.GetValue()) || (PlaybackSpeed < 0 && NewLocalTime < PauseOnFrame.GetValue()))
+	{
+		NewGlobalTime = PauseOnFrame.GetValue() * LocalToRootTransform;
+		PauseOnFrame.Reset();
+		bResetPosition = true;
+		NewPlaybackStatus = EMovieScenePlayerStatus::Stopped;
+	}
+	else if (GetLoopMode() == ESequencerLoopMode::SLM_Loop || GetLoopMode() == ESequencerLoopMode::SLM_LoopSelectionRange)
 	{
 		const UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
 		if (FocusedSequence)
