@@ -118,6 +118,10 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 		GEditor->OnObjectsReplaced().AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
 	}
 #endif
+
+	AttributeBindings.Reserve(2);
+	AttributeBindings.Add(&EnabledBinding);
+	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
 UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()

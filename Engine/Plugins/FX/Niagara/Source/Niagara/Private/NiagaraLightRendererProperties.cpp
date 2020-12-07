@@ -27,7 +27,7 @@ UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	, DefaultExponent(1.0f)
 	, ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
-	AttributeBindings.Reserve(6);
+	AttributeBindings.Reserve(7);
 	AttributeBindings.Add(&LightRenderingEnabledBinding);
 	AttributeBindings.Add(&LightExponentBinding);
 	AttributeBindings.Add(&PositionBinding);
