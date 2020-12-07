@@ -101,7 +101,6 @@ TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPrope
 				[
 					SAssignNew(ColorPickerParentWidget, SColorBlock)
 					.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
-					.SolidBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedSolidBackground"))
 					.Color(this, &FColorStructCustomization::OnGetColorForColorBlock)
 					.ShowBackgroundForAlpha(true)
 					.AlphaDisplayMode(bIgnoreAlpha ? EColorBlockAlphaDisplayMode::Ignore : EColorBlockAlphaDisplayMode::Separate)

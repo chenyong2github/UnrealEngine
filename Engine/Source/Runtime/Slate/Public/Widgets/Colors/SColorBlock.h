@@ -29,7 +29,6 @@ public:
 	SLATE_BEGIN_ARGS(SColorBlock)
 		: _Color(FLinearColor::White)
 		, _AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.AlphaBackground"))
-		, _SolidBackgroundBrush(FAppStyle::Get().GetBrush("GenericWhiteBox"))
 		, _CornerRadius(0.0f)
 		, _ColorIsHSV(false)
 		, _ShowBackgroundForAlpha(false)
@@ -44,9 +43,6 @@ public:
 
 		/** Background to display for when there is a color with transparency. Irrelevant if ignoring alpha */
 		SLATE_ATTRIBUTE(const FSlateBrush*, AlphaBackgroundBrush)
-	
-		/** Background to use to display when there is a solid color. This background is tinted by the solid color */
-		SLATE_ATTRIBUTE(const FSlateBrush*, SolidBackgroundBrush)
 
 		/** Rounding to apply to the corners of the block */
 		SLATE_ATTRIBUTE(float, CornerRadius)

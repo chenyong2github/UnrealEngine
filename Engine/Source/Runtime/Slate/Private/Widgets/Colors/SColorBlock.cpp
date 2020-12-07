@@ -14,7 +14,6 @@ void SColorBlock::Construct(const FArguments& InArgs)
 {
 	Color = InArgs._Color;
 	AlphaBackgroundBrush = InArgs._AlphaBackgroundBrush;
-	SolidBackgroundBrush = InArgs._SolidBackgroundBrush;
 	GradientCornerRadius = InArgs._CornerRadius;
 	ColorIsHSV = InArgs._ColorIsHSV;
 	AlphaDisplayMode = InArgs._AlphaDisplayMode;
