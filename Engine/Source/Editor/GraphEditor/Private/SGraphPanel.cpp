@@ -557,6 +557,7 @@ TSharedPtr<IToolTip> SGraphPanel::GetToolTip()
 
 void SGraphPanel::UpdateSelectedNodesPositions(FVector2D PositionIncrement)
 {
+	FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "NudgeNodeAction", "Nudge Node"));
 	for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
 	{
 		TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt);
