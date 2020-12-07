@@ -59,12 +59,20 @@ public:
 	uint32 bAlphaScalesBrightness : 1;
 
 	/** A factor used to scale each particle light radius */
-	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (UIMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (ClampMin = "0"))
 	float RadiusScale;
+
+	/** The exponent to use for all lights if no exponent binding was found */
+	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (ClampMin = "0", EditCondition = "!bUseInverseSquaredFalloff"))
+	float DefaultExponent;
 
 	/** A static color shift applied to each rendered light */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	FVector ColorAdd;
+
+	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
+	UPROPERTY(EditAnywhere, Category = "Light Rendering")
+	int32 RendererVisibility;
 
 	/** Which attribute should we use to check if light rendering should be enabled for a particle? This can be used to control the spawn-rate on a per-particle basis. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
@@ -90,12 +98,17 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VolumetricScatteringBinding;
 
+	/** Which attribute should we use for the renderer visibility tag? */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
+
 	FNiagaraDataSetAccessor<FVector> PositionDataSetAccessor;
 	FNiagaraDataSetAccessor<FLinearColor> ColorDataSetAccessor;
 	FNiagaraDataSetAccessor<float> RadiusDataSetAccessor;
 	FNiagaraDataSetAccessor<float> ExponentDataSetAccessor;
 	FNiagaraDataSetAccessor<float> ScatteringDataSetAccessor;
 	FNiagaraDataSetAccessor<FNiagaraBool> EnabledDataSetAccessor;
+	FNiagaraDataSetAccessor<int32> RendererVisibilityTagAccessor;
 
 private:
 	static TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> LightRendererPropertiesToDeferredInit;
