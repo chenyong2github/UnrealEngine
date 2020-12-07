@@ -760,7 +760,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	int32 InputVersion = ShaderCompileWorkerInputVersion;
 	TransferFile << InputVersion;
 
-	static TMap<FString, uint32> FormatVersionMap;
+	thread_local static TMap<FString, uint32> FormatVersionMap;
 	GetFormatVersionMap(FormatVersionMap);
 
 	TransferFile << FormatVersionMap;
