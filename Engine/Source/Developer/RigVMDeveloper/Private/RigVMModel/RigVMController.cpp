@@ -19,7 +19,7 @@
 #include "UObject/CoreRedirects.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "EditorStyle.h"
+#include "EditorStyleSet.h"
 #endif
 
 TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
