@@ -144,6 +144,7 @@ private:
 	TArray<FFrameNumber> KeyTimes;
 
 	/** Default value used when there are no keys */
+	UPROPERTY()
 	FMovieSceneActorReferenceKey DefaultValue;
 
 	/** Array of values that correspond to each key time */
