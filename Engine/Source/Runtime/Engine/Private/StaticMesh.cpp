@@ -111,6 +111,11 @@ static TAutoConsoleVariable<int32> CVarStripMinLodDataDuringCooking(
 	0,
 	TEXT("If non-zero, data for Static Mesh LOD levels below MinLOD will be discarded at cook time"));
 
+static TAutoConsoleVariable<int32> CVarUseMobileMinLODForFeatureLevelES31(
+	TEXT("r.StaticMesh.UseMobileMinLODForFeatureLevelES31"),
+	0,
+	TEXT("If non-zero, mobile setting for MinLOD will be used when using feature level ES31"));
+
 int32 GForceStripMeshAdjacencyDataDuringCooking = 0;
 static FAutoConsoleVariableRef CVarForceStripMeshAdjacencyDataDuringCooking(
 	TEXT("r.ForceStripAdjacencyDataDuringCooking"),
@@ -1472,6 +1477,23 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 	}
 
 #endif // #if WITH_EDITORONLY_DATA
+
+	if (bCooked)
+	{
+		int32 MinMobileLODIdx = 0;
+#if WITH_EDITOR
+		if (Ar.IsSaving())
+		{
+			MinMobileLODIdx = Owner->MinLOD.GetValueForPlatformIdentifiers(TEXT("Mobile"));
+		}
+#endif
+		Ar << MinMobileLODIdx;
+
+		if (Ar.IsLoading() && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && CVarUseMobileMinLODForFeatureLevelES31.GetValueOnAnyThread() != 0)
+		{
+			LODBiasModifier = MinMobileLODIdx;
+		}
+	}
 
 	LODResources.Serialize(Ar, Owner);
 
@@ -3311,22 +3333,22 @@ void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
 			
 			if (LODIndex != 0)
 			{
-				//Reset the section info map
-				if (bResetSectionInfoMap)
+			//Reset the section info map
+			if (bResetSectionInfoMap)
+			{
+				for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
 				{
-					for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
-					{
 						GetSectionInfoMap().Remove(LODIndex, SectionIndex);
-					}
-				}
-				//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
-				if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
-				{
-					FRawMesh EmptyRawMesh;
-					SourceModel.SaveRawMesh(EmptyRawMesh);
-					SourceModel.SourceImportFilename = FString();
 				}
 			}
+			//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
+			if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
+			{
+				FRawMesh EmptyRawMesh;
+				SourceModel.SaveRawMesh(EmptyRawMesh);
+				SourceModel.SourceImportFilename = FString();
+			}
+		}
 		}
 		SetLightMapResolution(GroupSettings.GetDefaultLightMapResolution());
 
@@ -3630,11 +3652,11 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		ComplexityString = LexToString((ECollisionTraceFlag)GetBodySetup()->GetCollisionTraceFlag());
 	}
 
-	OutTags.Add(FAssetRegistryTag("Triangles", FString::FromInt(NumTriangles), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add(FAssetRegistryTag("Vertices", FString::FromInt(NumVertices), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add(FAssetRegistryTag("UVChannels", FString::FromInt(NumUVChannels), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add(FAssetRegistryTag("Materials", FString::FromInt(GetStaticMaterials().Num()), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add(FAssetRegistryTag("ApproxSize", ApproxSizeStr, FAssetRegistryTag::TT_Dimensional) );
+	OutTags.Add(FAssetRegistryTag("Triangles", FString::FromInt(NumTriangles), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("Vertices", FString::FromInt(NumVertices), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("UVChannels", FString::FromInt(NumUVChannels), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("Materials", FString::FromInt(GetStaticMaterials().Num()), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("ApproxSize", ApproxSizeStr, FAssetRegistryTag::TT_Dimensional));
 	OutTags.Add(FAssetRegistryTag("CollisionPrims", FString::FromInt(NumCollisionPrims), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("LODs", FString::FromInt(NumLODs), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("MinLOD", GetMinLOD().ToString(), FAssetRegistryTag::TT_Alphabetical));
@@ -4883,12 +4905,12 @@ void UStaticMesh::PostLoad()
 	if (GetNumSourceModels() > 0)
 	{
 		UStaticMesh* DistanceFieldReplacementMesh = GetSourceModel(0).BuildSettings.DistanceFieldReplacementMesh;
-
+ 
 		if (DistanceFieldReplacementMesh)
 		{
 			DistanceFieldReplacementMesh->ConditionalPostLoad();
 		}
-
+		
 		//TODO remove this code when FRawMesh will be removed
 		//Fill the static mesh owner
 		int32 NumLODs = GetNumSourceModels();
@@ -5089,7 +5111,7 @@ void UStaticMesh::PostLoad()
 			LocalMinLOD.Default = MinAvailableLOD;
 			bFixedMinLOD = true;
 		}
-		
+
 		for (TMap<FName, int32>::TIterator It(LocalMinLOD.PerPlatform); It; ++It)
 		{
 			if (!GetRenderData()->LODResources.IsValidIndex(It.Value()))

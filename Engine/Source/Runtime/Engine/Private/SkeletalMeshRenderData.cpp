@@ -383,6 +383,11 @@ void FSkeletalMeshRenderData::SyncUVChannelData(const TArray<FSkeletalMaterial>&
 
 #endif // WITH_EDITOR
 
+static TAutoConsoleVariable<int32> CVarUseMobileMinLODForFeatureLevelES31(
+	TEXT("r.SkeletalMesh.UseMobileMinLODForFeatureLevelES31"),
+	0,
+	TEXT("If non-zero, mobile setting for MinLOD will be used when using feature level ES31"));
+
 FSkeletalMeshRenderData::FSkeletalMeshRenderData()
 	: bReadyForStreaming(false)
 	, NumInlinedLODs(0)
