@@ -6,6 +6,7 @@
 #include "Misc/HashBuilder.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/MetaData.h"
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
 #include "Engine/World.h"
@@ -21,7 +22,8 @@
 uint32 FWorldPartitionActorDesc::GlobalTag = 0;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
-	: LoadedRefCount(0)
+	: SoftRefCount(0)
+	, HardRefCount(0)
 	, Tag(0)
 {}
 
@@ -118,7 +120,7 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 
 void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform)
 {
-	check(!LoadedRefCount);
+	check(!HardRefCount);
 
 	ActorPath = *ActorPath.ToString().Replace(*From, *To);
 
@@ -170,39 +172,67 @@ FBox FWorldPartitionActorDesc::GetBounds() const
 
 AActor* FWorldPartitionActorDesc::GetActor() const
 {
-	return FindObject<AActor>(nullptr, *ActorPath.ToString());
+	AActor* Actor = ActorPtr.Get();
+
+	if (Actor)
+	{
+		return Actor;
+	}
+
+	Actor = FindObject<AActor>(nullptr, *ActorPath.ToString());
+
+	if (Actor)
+	{
+		ActorPtr = Actor;
+	}
+
+	return Actor;
 }
 
 AActor* FWorldPartitionActorDesc::Load(const FLinkerInstancingContext* InstancingContext) const
 {
-	UPackage* Package = nullptr;
+	AActor* Actor = GetActor();
 
-	if (InstancingContext)
+	if (!Actor)
 	{
-		FName RemappedPackageName = InstancingContext->Remap(ActorPackage);
-		check(RemappedPackageName != ActorPath);
+		UPackage* Package = nullptr;
 
-		Package = CreatePackage(*RemappedPackageName.ToString());
+		if (InstancingContext)
+		{
+			FName RemappedPackageName = InstancingContext->Remap(ActorPackage);
+			check(RemappedPackageName != ActorPath);
+
+			Package = CreatePackage(*RemappedPackageName.ToString());
+		}
+
+		Package = LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext);
+
+		if (Package)
+		{
+			Actor = GetActor();
+			check(Actor);
+		}
 	}
 
-	if (LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext))
-	{
-		return GetActor();
-	}
-
-	return nullptr;
+	return Actor;
 }
 
 void FWorldPartitionActorDesc::Unload()
 {
-	AActor* Actor = GetActor();
-	if (Actor && Actor->IsPackageExternal())
+	if (AActor* Actor = GetActor())
 	{
+		check(Actor->IsPackageExternal());
+
 		ForEachObjectWithPackage(Actor->GetPackage(), [](UObject* Object)
 		{
-			Object->ClearFlags(RF_Public | RF_Standalone);
+			if (Object->HasAnyFlags(RF_Public | RF_Standalone))
+			{
+				CastChecked<UMetaData>(Object)->ClearFlags(RF_Public | RF_Standalone);
+			}
 			return true;
 		}, false);
+
+		ActorPtr = nullptr;
 	}
 }
 #endif

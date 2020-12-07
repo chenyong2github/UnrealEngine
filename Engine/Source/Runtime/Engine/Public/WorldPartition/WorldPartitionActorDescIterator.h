@@ -37,7 +37,7 @@ public:
 	 */
 	FORCEINLINE ActorDescType* operator*() const
 	{
-		return StaticCast<ActorDescType*>(ActorsIterator->Value.Get());
+		return StaticCast<ActorDescType*>(ActorsIterator->Value->Get());
 	}
 
 	/**
@@ -47,7 +47,7 @@ public:
 	 */
 	FORCEINLINE ActorDescType* operator->() const
 	{
-		return StaticCast<ActorDescType*>(ActorsIterator->Value.Get());
+		return StaticCast<ActorDescType*>(ActorsIterator->Value->Get());
 	}
 	/**
 	 * Returns whether the iterator has reached the end and no longer points
@@ -62,7 +62,7 @@ public:
 
 private:
 	/**
-	 * Determines whether the iterator cuirrently points to a valid actor desc or not.
+	 * Determines whether the iterator currently points to a valid actor desc or not.
 	 * @return	true
 	 */
 	FORCEINLINE bool ShouldSkip() const
@@ -72,10 +72,10 @@ private:
 			return false;
 		}
 
-		return !ActorsIterator->Value.Get()->GetActorClass()->IsChildOf(ActorType::StaticClass());
+		return !ActorsIterator->Value->Get()->GetActorClass()->IsChildOf(ActorType::StaticClass());
 	}
 
 private:
-	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>>::TIterator ActorsIterator;
+	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*>::TIterator ActorsIterator;
 };
 #endif

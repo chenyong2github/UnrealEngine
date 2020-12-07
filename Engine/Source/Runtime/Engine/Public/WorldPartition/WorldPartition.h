@@ -60,15 +60,65 @@ public:
 	virtual bool Delete(UPackage* Package) const =0;
 };
 
-struct ENGINE_API FHLODGenerationContext
+/**
+* Simple chunked array that creates chunks to avoid invalidating elements when adding.
+* This will also never release elements as handles/references can still point to them.
+**/
+class FChunkedActorDescArray
 {
-	TMap<uint64, FGuid> HLODActorDescs;
-	
-	// Everything needed to build the cell hash
-	int64 GridIndexX;
-	int64 GridIndexY;
-	int64 GridIndexZ;
-	FName HLODLayerName;
+	typedef TUniquePtr<FWorldPartitionActorDesc> ElemType;
+
+	enum
+	{
+		NumElementsPerChunk = 1024,
+	};
+
+	inline ElemType* AllocInstance()
+	{
+		const uint32 ChunkIndex = NumElements / NumElementsPerChunk;
+		const uint32 ElemIndex = NumElements % NumElementsPerChunk;
+
+		if (!Chunks.IsValidIndex(ChunkIndex))
+		{
+			Chunks.Add((ElemType*)FMemory::Malloc(sizeof(ElemType) * NumElementsPerChunk));
+		}
+
+		NumElements++;
+		return Chunks[ChunkIndex] + ElemIndex;
+	}
+
+public:
+	inline FChunkedActorDescArray()
+		: NumElements(0)
+	{}
+
+	inline ~FChunkedActorDescArray()
+	{
+		int32 CurElement = 0;
+		for (ElemType* Chunk : Chunks)
+		{
+			const int32 NumElemToDestroy = FMath::Min((int32)NumElementsPerChunk, NumElements - CurElement);
+
+			for (int32 i=0; i<NumElemToDestroy; i++)
+			{
+				Chunk[i].~ElemType();
+			}
+
+			FMemory::Free(Chunk);
+
+			CurElement += NumElementsPerChunk;
+		}
+	}
+
+	template <typename... ArgsType>
+	inline ElemType* Emplace(ArgsType&&... Args)
+	{
+		return new(AllocInstance()) ElemType(Forward<ArgsType>(Args)...);
+	}
+
+private:
+	TArray<ElemType*> Chunks;
+	int32 NumElements;
 };
 #endif
 
@@ -176,7 +226,8 @@ public:
 	UWorldPartitionRuntimeHash* RuntimeHash;
 
 #if WITH_EDITOR
-	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>> Actors;
+	FChunkedActorDescArray ActorDescList;
+	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
 	
 	DECLARE_EVENT_TwoParams(UWorldPartition, FWorldPartitionActorRegisteredEvent, AActor&, bool);
 	FWorldPartitionActorRegisteredEvent OnActorRegisteredEvent;

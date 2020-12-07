@@ -8,6 +8,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescIterator.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
@@ -30,6 +31,7 @@
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
 
+#include "WorldPartition/HLOD/HLODBuilder.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
@@ -253,7 +255,7 @@ TArray<FActorCluster> CreateActorClustersImpl(UWorldPartition* WorldPartition, T
 
 	for (const auto& Pair : WorldPartition->Actors)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
+		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
 		EActorGridPlacement GridPlacement = ActorDesc->GetGridPlacement();
 
 		// Check if the actor is loaded (potentially referenced by the level script)
@@ -1578,21 +1580,8 @@ TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpati
 				TArray<AActor*> CellActors;
 				for (const FGuid& ActorGuid: GridCellDataChunk->GetActors())
 				{
-					FWorldPartitionActorDesc* ActorDesc = (FWorldPartitionActorDesc*)WorldPartition->GetActorDesc(ActorGuid);
-
-					check(!ActorDesc->GetLoadedRefCount());
-					ActorDesc->AddLoadedRefCount();
-
-					AActor* Actor = ActorDesc->GetActor();
-					
-					if (!Actor)
-					{
-						Actor = ActorDesc->Load();
-						check(Actor);
-					}
-
-					Actor->GetLevel()->AddLoadedActor(Actor);
-
+					FWorldPartitionReference& ActorRef = Context.ActorReferences.Emplace_GetRef(WorldPartition, ActorGuid);
+					FWorldPartitionActorDesc* ActorDesc  = ActorRef.Get();
 					CellActors.Add(ActorDesc->GetActor());
 				}
 
@@ -1651,27 +1640,12 @@ TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpati
 					// Update newly created HLOD actors
 					for (AWorldPartitionHLOD* CellHLODActor: NewCellHLODActors)
 					{
-						FWorldPartitionActorDesc* ActorDesc = (FWorldPartitionActorDesc*)WorldPartition->GetActorDesc(CellHLODActor->GetActorGuid());
-					
-						check(!ActorDesc->GetLoadedRefCount());
-						ActorDesc->AddLoadedRefCount();
+						Context.ActorReferences.Emplace(WorldPartition, CellHLODActor->GetActorGuid());
 					}
 				}
 
 				// Unload actors
-				TArray<AActor*> ToUnloadActors = MoveTemp(CellActors);
-				ToUnloadActors.Append(CellHLODActors);
-
-				for (AActor* Actor: ToUnloadActors)
-				{
-					FWorldPartitionActorDesc* ActorDesc = (FWorldPartitionActorDesc*)WorldPartition->GetActorDesc(Actor->GetActorGuid());
-
-					check(ActorDesc->GetLoadedRefCount() == 1);
-					ActorDesc->RemoveLoadedRefCount();
-
-					Actor->GetLevel()->RemoveLoadedActor(Actor);
-					ActorDesc->Unload();
-				}
+				Context.ActorReferences.Empty();
 			}
 		}
 	});
@@ -1901,7 +1875,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	{
 		if (HLODIterator->GetCellHash())
 		{
-			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), HLODIterator->GetGuid());
+			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), FWorldPartitionHandle(WorldPartition, HLODIterator->GetGuid()));
 		}
 	}
 
@@ -1980,7 +1954,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	// Destroy all unreferenced HLOD actors
 	for (const auto& HLODActorPair: Context.HLODActorDescs)
 	{
-		FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorPair.Value);
+		FWorldPartitionActorDesc* HLODActorDesc = HLODActorPair.Value.Get();
 		check(HLODActorDesc);
 
 		const FString ActorPackageFilename = SourceControlHelper->GetFilename(HLODActorDesc->GetActorPackage().ToString());		

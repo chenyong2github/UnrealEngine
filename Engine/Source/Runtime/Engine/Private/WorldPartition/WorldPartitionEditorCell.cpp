@@ -36,7 +36,7 @@ void UWorldPartitionEditorCell::AddActor(FWorldPartitionActorDesc* InActorDesc)
 			LoadedActors.Add(InActorDesc, &bIsAlreadyInSet);
 			check(!bIsAlreadyInSet);
 
-			const uint32 ActorRefCount = InActorDesc->AddLoadedRefCount();
+			const uint32 ActorRefCount = InActorDesc->IncHardRefCount();
 			UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced loaded actor %s(%d) [UWorldPartitionEditorCell::AddActor]"), *Actor->GetFullName(), ActorRefCount);
 		}
 	}
@@ -51,7 +51,7 @@ void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDes
 	{
 		check(bLoaded);
 
-		const uint32 ActorRefCount = InActorDesc->RemoveLoadedRefCount();
+		const uint32 ActorRefCount = InActorDesc->DecHardRefCount();
 		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartitionEditorCell::RemoveActor]"), *InActorDesc->GetActor()->GetFullName(), ActorRefCount);
 	}
 }

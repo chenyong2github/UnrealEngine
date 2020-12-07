@@ -401,6 +401,12 @@ public:
 		return Package;
 	}
 
+	/** Try to find the given tag  */
+	bool FindTag(const FName InTagName) const
+	{
+		return TagsAndValues.FindTag(InTagName).IsSet();
+	}
+
 	/** Try and get the value associated with the given tag as a type converted value */
 	template <typename ValueType>
 	bool GetTagValue(const FName InTagName, ValueType& OutTagValue) const;

@@ -6,12 +6,24 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 
 class AActor;
 class UWorldPartition;
 class UHLODLayer;
 class AWorldPartitionHLOD;
-struct FHLODGenerationContext;
+
+struct ENGINE_API FHLODGenerationContext
+{
+	TMap<uint64, FWorldPartitionHandle> HLODActorDescs;
+	TArray<FWorldPartitionReference> ActorReferences;
+	
+	// Everything needed to build the cell hash
+	int64 GridIndexX;
+	int64 GridIndexY;
+	int64 GridIndexZ;
+	FName HLODLayerName;
+};
 
 /**
  * Tools for building HLODs in WorldPartition

@@ -46,20 +46,36 @@ public:
 	inline FName GetActorPath() const { return ActorPath; }
 	FBox GetBounds() const;
 
-	inline uint32 AddLoadedRefCount() const
+	inline uint32 IncSoftRefCount() const
 	{
-		return ++LoadedRefCount;
+		return ++SoftRefCount;
 	}
 
-	inline uint32 RemoveLoadedRefCount() const
+	inline uint32 DecSoftRefCount() const
 	{
-		check(LoadedRefCount > 0);
-		return --LoadedRefCount;
+		check(SoftRefCount > 0);
+		return --SoftRefCount;
 	}
 
-	inline uint32 GetLoadedRefCount() const
+	inline uint32 GetSoftRefCount() const
 	{
-		return LoadedRefCount;
+		return SoftRefCount;
+	}
+
+	inline uint32 IncHardRefCount() const
+	{
+		return ++HardRefCount;
+	}
+
+	inline uint32 DecHardRefCount() const
+	{
+		check(HardRefCount > 0);
+		return --HardRefCount;
+	}
+
+	inline uint32 GetHardRefCount() const
+	{
+		return HardRefCount;
 	}
 
 	const TArray<FGuid>& GetReferences() const
@@ -83,34 +99,37 @@ public:
 protected:
 	FWorldPartitionActorDesc();
 
-	inline void SetLoadedRefCount(uint32 InLoadedRefCount) const
+	inline void TransferRefCounts(const FWorldPartitionActorDesc* From) const
 	{
-		LoadedRefCount = InLoadedRefCount;
+		SoftRefCount = From->SoftRefCount;
+		HardRefCount = From->HardRefCount;
 	}
 
 	virtual void Serialize(FArchive& Ar);
 
-	FGuid						Guid;
-	FName						Class;
-	FName						ActorPackage;
-	FName						ActorPath;
-	FVector						BoundsLocation;
-	FVector						BoundsExtent;
-	EActorGridPlacement			GridPlacement;
-	FName						RuntimeGrid;
-	bool						bActorIsEditorOnly;
-	bool						bLevelBoundsRelevant;
-	TArray<FName>				DataLayers;
-	TArray<FGuid>				References;
+	FGuid							Guid;
+	FName							Class;
+	FName							ActorPackage;
+	FName							ActorPath;
+	FVector							BoundsLocation;
+	FVector							BoundsExtent;
+	EActorGridPlacement				GridPlacement;
+	FName							RuntimeGrid;
+	bool							bActorIsEditorOnly;
+	bool							bLevelBoundsRelevant;
+	TArray<FName>					DataLayers;
+	TArray<FGuid>					References;
 	
-	mutable uint32				LoadedRefCount;
+	mutable uint32					SoftRefCount;
+	mutable uint32					HardRefCount;
 
 	// Cached values
-	UClass*						ActorClass;
+	UClass*							ActorClass;
+	mutable TWeakObjectPtr<AActor>	ActorPtr;
 
 public:
 	// Tagging
-	mutable uint32				Tag;
-	static uint32				GlobalTag;
+	mutable uint32					Tag;
+	static uint32					GlobalTag;
 #endif
 };

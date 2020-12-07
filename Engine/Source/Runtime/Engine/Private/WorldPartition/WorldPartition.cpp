@@ -64,9 +64,7 @@ static FAutoConsoleCommand DumpActorDescs(
 		}
 	})
 );
-#endif
 
-#if WITH_EDITOR
 // Helper class to avoid sending global events until all cells updates are processed.
 struct FWorldPartionCellUpdateContext
 {
@@ -100,9 +98,7 @@ struct FWorldPartionCellUpdateContext
 };
 
 int32 FWorldPartionCellUpdateContext::UpdatesInProgress = 0;
-#endif
 
-#if WITH_EDITOR
 UWorldPartition::FEnableWorldPartitionEvent UWorldPartition::EnableWorldPartitionEvent;
 UWorldPartition::FWorldPartitionChangedEvent UWorldPartition::WorldPartitionChangedEvent;
 #endif
@@ -241,7 +237,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (const FAssetData& Asset : Assets)
 		{
-			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(Asset);
+			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = ActorDescList.Emplace(GetActorDescriptor(Asset));
+			check(NewActorDesc->IsValid());
 
 			if (bIsInstanced)
 			{
@@ -251,19 +248,19 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 				InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-				NewActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
+				(*NewActorDesc)->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
 
-			Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
+			Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+
+			if (bEditorOnly)
+			{
+				HashActorDesc(NewActorDesc->Get());
+			}
 		}
 
 		if (bEditorOnly)
 		{
-			for (const auto& Pair : Actors)
-			{
-				HashActorDesc(Pair.Value.Get());
-			}
-
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
 
@@ -428,9 +425,9 @@ void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<
 
 void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
-	for (const TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>>& Pair : Actors)
+	for (const TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Pair : Actors)
 	{
-		FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
+		FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
 		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
 		{
 			if (!Predicate(ActorDesc))
@@ -443,14 +440,14 @@ void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunction
 
 const FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid) const
 {
-	const TUniquePtr<FWorldPartitionActorDesc>* ActorDescObj = Actors.Find(Guid);
-	return ActorDescObj != nullptr ? ActorDescObj->Get() : nullptr;
+	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);
+	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
 }
 
 FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid)
 {
-	TUniquePtr<FWorldPartitionActorDesc>* ActorDescObj = Actors.Find(Guid);
-	return ActorDescObj != nullptr ? ActorDescObj->Get() : nullptr;
+	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = Actors.Find(Guid);
+	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
 }
 
 bool UWorldPartition::IsSimulating() const
@@ -538,7 +535,7 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 	{
 		FWorldPartitionActorDesc* ActorDesc = Pair.Key;
 		// Only prompt if the actor will get unloaded by the unloading cells
-		if (ActorDesc->GetLoadedRefCount() == Pair.Value)
+		if (ActorDesc->GetHardRefCount() == Pair.Value)
 		{
 			AActor* LoadedActor = ActorDesc->GetActor();
 			check(LoadedActor);
@@ -643,7 +640,7 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	{
 		check(Actor);
 
-		const uint32 ActorRefCount = ActorDesc->RemoveLoadedRefCount();
+		const uint32 ActorRefCount = ActorDesc->DecHardRefCount();
 		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartition::UpdateLoadingEditorCell]"), *Actor->GetFullName(), ActorRefCount);
 
 		if (!ActorRefCount)
@@ -678,7 +675,7 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 
 			// The actor could be either loaded but with no cells loaded (in the case of a reference from another actor, for example)
 			// or directly referenced by a loaded cell.
-			check(Actor || !ActorDesc->GetLoadedRefCount());
+			check(Actor || !ActorDesc->GetHardRefCount());
 
 			// Filter actor against DataLayers
 			if (ShouldActorBeLoaded(ActorDesc))
@@ -690,12 +687,12 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 				{
 					// We already hold a reference to this actor
 					check(Actor);
-					check(ActorDesc->GetLoadedRefCount());
+					check(ActorDesc->GetHardRefCount());
 					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
 				}
 				else
 				{
-					const uint32 ActorRefCount = ActorDesc->AddLoadedRefCount();
+					const uint32 ActorRefCount = ActorDesc->IncHardRefCount();
 
 					if (ActorRefCount == 1)
 					{
@@ -795,14 +792,13 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 {
 	if (ShouldHandleAssetEvent(InAssetData))
 	{
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		if (NewActorDesc.IsValid())
-		{
-			check(!Actors.Contains(NewActorDesc->GetGuid()));
+		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = ActorDescList.Emplace(GetActorDescriptor(InAssetData));
+		check(NewActorDesc->IsValid());
 
-			HashActorDesc(NewActorDesc.Get());
-			Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
-		}
+		check(!Actors.Contains((*NewActorDesc)->GetGuid()));
+		Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+
+		HashActorDesc(NewActorDesc->Get());
 	}
 }
 
@@ -811,13 +807,14 @@ void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 	if (ShouldHandleAssetEvent(InAssetData))
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		if (NewActorDesc.IsValid())
-		{
-			TUniquePtr<FWorldPartitionActorDesc>& ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+		check(NewActorDesc.IsValid());
 
-			UnhashActorDesc(ExistingActorDesc.Get());
-			Actors.Remove(ExistingActorDesc->GetGuid());
-		}
+		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+
+		UnhashActorDesc(ExistingActorDesc->Get());
+
+		Actors.Remove((*ExistingActorDesc)->GetGuid());
+		ExistingActorDesc->Release();
 	}
 }
 
@@ -826,18 +823,18 @@ void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 	if (ShouldHandleAssetEvent(InAssetData))
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		if (NewActorDesc.IsValid())
-		{
-			TUniquePtr<FWorldPartitionActorDesc>& ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+		check(NewActorDesc.IsValid());
+			
+		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
 
-			UnhashActorDesc(ExistingActorDesc.Get());
+		UnhashActorDesc(ExistingActorDesc->Get());
 
-			// This is required to support external load references
-			NewActorDesc->SetLoadedRefCount(ExistingActorDesc->GetLoadedRefCount());
+		// This is required to support external load references
+		NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
 
-			ExistingActorDesc = MoveTemp(NewActorDesc);
-			HashActorDesc(ExistingActorDesc.Get());
-		}
+		*ExistingActorDesc = MoveTemp(NewActorDesc);
+		
+		HashActorDesc(ExistingActorDesc->Get());
 	}
 }
 
@@ -857,6 +854,14 @@ bool UWorldPartition::ShouldHandleAssetEvent(const FAssetData& InAssetData)
 
 	// Only handle actors
 	if (!InAssetData.GetClass()->IsChildOf<AActor>())
+	{
+		return false;
+	}
+
+	// Make sure asset contains the required tags
+	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+	static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+	if (!InAssetData.FindTag(NAME_ActorMetaDataClass) || !InAssetData.FindTag(NAME_ActorMetaData))
 	{
 		return false;
 	}
@@ -1085,7 +1090,8 @@ FBox UWorldPartition::GetWorldBounds() const
 	FBox WorldBounds(ForceInit);
 	for (const auto& Pair : Actors)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
+		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+
 		switch (ActorDesc->GetGridPlacement())
 		{
 			case EActorGridPlacement::Location:

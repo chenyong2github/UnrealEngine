@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
@@ -39,16 +40,12 @@ public:
 		// Compute HLODActor hash
 		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
 
-		FGuid HLODActorGuid;
-		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorGuid))
+		int32 HLODActorRefIndex = INDEX_NONE;
+		FWorldPartitionHandle HLODActorHandle;
+		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
 		{
-			FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
-			check(HLODActorDesc);
-
-			check(!HLODActorDesc->GetLoadedRefCount());
-			HLODActorDesc->AddLoadedRefCount();
-			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDesc->Load());
-			HLODActor->GetLevel()->AddLoadedActor(HLODActor);
+			HLODActorRefIndex = Context->ActorReferences.Add(FWorldPartitionHandleHelpers::ConvertHandleToReference(HLODActorHandle));
+			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
 		}
 
 		if (!HLODActor)
@@ -76,18 +73,10 @@ public:
 		}
 		else
 		{
-			if (HLODActorGuid.IsValid())
+			if (HLODActorRefIndex != INDEX_NONE)
 			{
-				FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
-				check(HLODActorDesc);
-
-				check(HLODActorDesc->GetLoadedRefCount() == 1);
-				HLODActorDesc->RemoveLoadedRefCount();
-
-				HLODActor->GetLevel()->RemoveLoadedActor(HLODActor);
-				HLODActorDesc->Unload();
-
-				Context->HLODActorDescs.Add(CellHash, HLODActorGuid);
+				Context->HLODActorDescs.Add(CellHash, FWorldPartitionHandle(WorldPartition, HLODActor->GetActorGuid()));
+				Context->ActorReferences.RemoveAtSwap(HLODActorRefIndex);
 			}
 			else
 			{
