@@ -55,6 +55,7 @@ public:
 	enum ELevelSnapshotsEditorResultsRowType
 	{
 		ActorGroup,
+		ComponentGroup,
 		ContainerGroup,
 		SingleProperty
 	};
@@ -89,6 +90,7 @@ public:
 	virtual void GetAllChildRowsRecursively(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutRowNodeArray);
 
 	// Pure virtual
+	virtual void InitializeResultsRow() = 0;
 	virtual void OnNodeCheckStateChanged(const ECheckBoxState NewCheckState) = 0;
 
 public:
@@ -112,30 +114,60 @@ private:
 	float ChildIndentationWidth = 20.0f;
 };
 
-class SLevelSnapshotsEditorResultsActorGroup final : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
+class SLevelSnapshotsEditorResultsObjectGroup : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
 {
 public:
-	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorResultsActorGroup)
+	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorResultsObjectGroup)
 	{}
 
-	SLATE_ATTRIBUTE(FSoftObjectPath, ActorPath)
+	SLATE_ATTRIBUTE(FSoftObjectPath, ObjectPath)
 	
-	SLATE_ATTRIBUTE(FName, ActorName)
+	SLATE_ATTRIBUTE(FName, ObjectName)
 	
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	virtual void Construct(const FArguments& InArgs, TSharedRef<SLevelSnapshotsEditorResults> InResultsViewPtr);
 
-	void AddToContents(TSharedRef<SWidget> InContent) const;
+	virtual void AddToContents(TSharedRef<SWidget> InContent) const;
+
+	virtual void GenerateObjectGroupChildWidgets();
+
+	virtual TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> GenerateResultsContainerGroupWidget(
+		UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const uint8 ParentIndentationDepth = -1,
+		void* SpecifiedOuterValue = nullptr, void* SpecifiedCounterpartOuter = nullptr);
+
+	virtual TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> GenerateResultsSinglePropertyWidget(
+		UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const int32 ArrayDimIndex = -1,
+		const uint8 ParentIndentationDepth = -1, void* SpecifiedOuterValue = nullptr, void* SpecifiedCounterpartOuter = nullptr);
+
+	virtual void OnObjectGroupExpanded(const bool bIsExpanded);
+	
+	virtual FSoftObjectPath GetObjectPath() const;
 
 	virtual void OnNodeCheckStateChanged(const ECheckBoxState NewCheckState) override {}
 
-private:
-	TAttribute<FSoftObjectPath> ActorPath;
-
-	TAttribute<FName> ActorName;
+protected:
 	
+	TAttribute<FSoftObjectPath> ObjectPath;
+
+	TAttribute<FName> ObjectName;
+
+	TSharedPtr<SLevelSnapshotsEditorResults> ResultsViewPtr;
 	TSharedPtr<SScrollBox> ScrollBoxPtr;
+
+	bool bAreChildrenGenerated = false;
+
+	FName BorderBrushName = "LevelSnapshotsEditor.GroupBorder";
+};
+
+class SLevelSnapshotsEditorResultsActorGroup final : public SLevelSnapshotsEditorResultsObjectGroup
+{
+	virtual void InitializeResultsRow() override;
+};
+
+class SLevelSnapshotsEditorResultsComponentGroup final : public SLevelSnapshotsEditorResultsObjectGroup
+{
+	virtual void InitializeResultsRow() override;
 };
 
 // Used to house nested Struct and array properties in results view
@@ -152,6 +184,8 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+	virtual void InitializeResultsRow() override;
 
 	void AddToContents(TSharedRef<SWidget> InContent) const;
 
@@ -183,6 +217,7 @@ public:
 
 	void SyncSplitter(const float InWidth, const int32 SlotIndex) const;
 
+	virtual void InitializeResultsRow() override {}
 	virtual void OnNodeCheckStateChanged(const ECheckBoxState NewCheckState) override {}
 
 	bool GetIsPropertyChangedInLevel() const
@@ -211,26 +246,21 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorResults>& InEditorResults, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorResults>& InEditorResults, 
+		const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
 
 	// Used for syncing SSplitters on each row
 	FSyncLevelSnapshotsResultsSplitters SyncLevelSnapshotsResultsSplittersDelegate;
 
 	void OnColumnResized(const float InWidth, const int32 SlotIndex) const;
 
+	ULevelSnapshot* GetSelectLevelSnapshot();
+
 private:
 	
 	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 
-	TSharedPtr<SLevelSnapshotsEditorResultsContainerPropertyGroup> GenerateResultsContainerGroupWidget(
-		UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const uint8 ParentIndentationDepth = -1,
-		void* SpecifiedOuterValue = nullptr, void* SpecifiedCounterpartOuter = nullptr);
-	
-	TSharedPtr<SLevelSnapshotsEditorResultsSingleProperty> GenerateResultsSinglePropertyWidget(
-		UObject* SnapshotObject, UObject* LevelCounterpartObject, FProperty* SnapshotProperty, const int32 ArrayDimIndex = -1, 
-		const uint8 ParentIndentationDepth = -1, void* SpecifiedOuterValue = nullptr, void* SpecifiedCounterpartOuter = nullptr);
-
-	TSharedRef<SWidget> LoopSnapshotActors(ULevelSnapshot* InLevelSnapshot);
+	TSharedRef<SWidget> GenerateActorGroupWidgets(ULevelSnapshot* InLevelSnapshot);
 	
 	// For the Select/Deselect All buttons
 	FReply SetAllGroupsSelected();
@@ -238,12 +268,12 @@ private:
 	FReply SetAllGroupsCollapsed();
 
 	// Show/hide unchanged groups
-	void OnCheckedStateChange_ShowUnchangedSnapshotActors(ECheckBoxState NewState);
-	void SetShowUnchangedSnapshotGroups(bool bShowGroups);
+	void OnCheckedStateChange_ShowUnchangedSnapshotProperties(ECheckBoxState NewState);
+	void SetShowUnchangedSnapshotProperties(bool bShowUnchangedProperties);
 
 	TSharedRef<SWidget> MakeAddFilterMenu();
 
-	// When a ULevelSnapshot is selected in the UI, let's save a reference to it in case we need it for diffing or other things
+	// Save a reference to the selected snapshot
 	TWeakObjectPtr<ULevelSnapshot> SelectedLevelSnapshotPtr;
 
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;
