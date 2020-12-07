@@ -134,6 +134,18 @@ void MainVisibility(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
+#if PROJECT_STRATA && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
+		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+
+		BaseColor		 = HAIR_BASECOLOR(HairBSDF);
+		Roughness		 = HAIR_ROUGHNESS(HairBSDF);
+		half  Metallic	 = HAIR_SCATTER(HairBSDF);
+		Specular		 = HAIR_SPECULAR(HairBSDF);
+		Backlit			 = HAIR_BACKLIT(HairBSDF);
+		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+
+		Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)]);
+#else
 		BaseColor		 = GetMaterialBaseColor(PixelMaterialInputs);
 		Roughness		 = GetMaterialRoughness(PixelMaterialInputs);
 		half  Metallic	 = GetMaterialMetallic(PixelMaterialInputs);
@@ -142,6 +154,7 @@ void MainVisibility(
 		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
 		Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
+#endif
 	}
 	{
 		Velocity = Calculate3DVelocity(PackedVelocityA, PackedVelocityC).xy;

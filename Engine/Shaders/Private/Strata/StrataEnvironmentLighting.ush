@@ -68,7 +68,7 @@ float4 StrataEnvironmentLighting(
 				* AmbientOcclusion * (BSDF_GETISTOPLAYER(BSDF) ? TopLayerSpecularContributionFactor : 1.0f);
 		}
 
-		const bool bNeedsSeparateSubsurfaceLightAccumulation = (StrataEnvLight.PathType & STRATA_PATH_TYPE_SCATTER) != 0;
+		const bool bNeedsSeparateSubsurfaceLightAccumulation = StrataEnvLight.bSubsurface;
 		LightAccumulator_AddSplit(Out, DiffuseSkyLighting, SpecularSkyLighting, DiffuseSkyLighting, CommonFactor, bNeedsSeparateSubsurfaceLightAccumulation);
 
 		// STRATA_TODO: Missing probe reflection here

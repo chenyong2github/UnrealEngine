@@ -44,7 +44,7 @@ float3 StrataForwardLighting(
 
 			// Compute some common factors
 			const float3 DirLightBaseFactor = OutThroughput * BSDFCoverage * LColor * LShadow;
-			const float3 DirLightGeometryFactor = DirLightBaseFactor * StrataBSDFContext.SatNoL;
+			const float3 DirLightGeometryFactor = DirLightBaseFactor * StrataBSDFProjectedSolidAngleFactor(StrataBSDFContext);
 			const float3 SkyLightCommonFactor = OutThroughput * BSDFCoverage * ResolvedView.SkyLightColor.rgb * IndirectOcclusion;
 
 			// Evaluate environment lighting
@@ -66,7 +66,7 @@ float3 StrataForwardLighting(
 
 			// Evalaute the lighting coming from L (it will lso contain the BSDF throughput to the next layer)
 			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
-			Color += StrataEvaluate.Value * DirLightGeometryFactor;
+			Color += (StrataEvaluate.DiffusePathValue + StrataEvaluate.SpecularPathValue) * DirLightGeometryFactor;
 
 			LayerCoverage	+= BSDFCoverage;
 			LayerThroughput += BSDFCoverage * StrataEvaluate.Throughput;

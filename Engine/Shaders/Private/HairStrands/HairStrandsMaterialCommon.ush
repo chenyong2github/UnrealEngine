@@ -186,27 +186,53 @@ FEvaluateOutput Evaluate(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, LocalScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
+#if PROJECT_STRATA && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
+		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+
+		OutSample.BaseColor = HAIR_BASECOLOR(HairBSDF);
+		OutSample.Roughness = HAIR_ROUGHNESS(HairBSDF);
+		OutSample.Specular	= HAIR_SPECULAR(HairBSDF);
+		OutSample.Backlit	= HAIR_BACKLIT(HairBSDF);
+		OutSample.Emissive	= BSDF_GETEMISSIVE(HairBSDF);
+		float3 Tangent		= normalize(MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)]);
+		
+	  #if MATERIAL_TANGENTSPACENORMAL 
+		// Convert the tangent space input tangent 
+		// * from a frame with Z/(0,0,1) being up and Y/(0,1,0) being the main tangent direction (called green)
+		// * to   a frame with Y/(0,1,0) being up and Z/(0,0,1) being the main tangent direction (called blue)
+		const float3 TangentSpaceGreen = Tangent;
+		const float3 TangentSpaceBlue = float3(-TangentSpaceGreen.x, TangentSpaceGreen.z, TangentSpaceGreen.y);
+		OutSample.Tangent = mul(TangentSpaceBlue, MaterialParameters.TangentToWorld);
+		OutSample.Tangent = normalize(OutSample.Tangent);
+	  #else // Tangent in World space (likely provided by the HairAttributes node)
+		OutSample.Tangent = Tangent;
+	  #endif
+
+#else
+
 		OutSample.BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 		OutSample.Roughness = GetMaterialRoughness(PixelMaterialInputs);
-		OutSample.Specular = GetMaterialSpecular(PixelMaterialInputs);
-		OutSample.Backlit = saturate(GetMaterialCustomData0(MaterialParameters));
-		OutSample.Emissive = GetMaterialEmissive(PixelMaterialInputs);
+		OutSample.Specular	= GetMaterialSpecular(PixelMaterialInputs);
+		OutSample.Backlit	= saturate(GetMaterialCustomData0(MaterialParameters));
+		OutSample.Emissive	= GetMaterialEmissive(PixelMaterialInputs);
+		float3 Tangent		= normalize(GetMaterialNormalRaw(PixelMaterialInputs));
 
 	#if HAIRSTRANDS_HAS_NORMAL_CONNECTED
 	  #if MATERIAL_TANGENTSPACENORMAL 
 		// Convert the tangent space input tangent 
 		// * from a frame with Z/(0,0,1) being up and Y/(0,1,0) being the main tangent direction (called green)
 		// * to   a frame with Y/(0,1,0) being up and Z/(0,0,1) being the main tangent direction (called blue)
-		const float3 TangentSpaceGreen = normalize(GetMaterialNormalRaw(PixelMaterialInputs));
+		const float3 TangentSpaceGreen = Tangent;
 		const float3 TangentSpaceBlue = float3(-TangentSpaceGreen.x, TangentSpaceGreen.z, TangentSpaceGreen.y);
 		OutSample.Tangent = mul(TangentSpaceBlue, MaterialParameters.TangentToWorld);
 		OutSample.Tangent = normalize(OutSample.Tangent);
 	  #else // Tangent in World space (likely provided by the HairAttributes node)
-		OutSample.Tangent = normalize(GetMaterialNormalRaw(PixelMaterialInputs));
+		OutSample.Tangent = Tangent;
 	  #endif
 	#else
 		OutSample.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
 	#endif
+#endif
 
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 	#if USE_DEVELOPMENT_SHADERS

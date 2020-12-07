@@ -4,10 +4,6 @@
 
 #include "../Common.ush"
 #include "../BRDF.ush"
-#include "../ShadingCommon.ush"
-#include "../ParticipatingMediaCommon.ush"
-#include "../MonteCarlo.ush"
-#include "../SHCommon.ush"
 #include "../DeferredShadingCommon.ush"
 
 #include "/Engine/Shared/StrataDefinitions.h"
@@ -138,6 +134,12 @@ struct FStrataBSDF
 #define VOLUMETRICFOGCLOUD_AO(X)		X.VGPRs[0].w
 
 #define UNLIT_TRANSMITTANCE(X)			X.VGPRs[0].xyz
+
+#define HAIR_BASECOLOR(X)				X.VGPRs[0].xyz
+#define HAIR_SCATTER(X)					X.VGPRs[0].w
+#define HAIR_ROUGHNESS(X)				X.VGPRs[1].x
+#define HAIR_SPECULAR(X)				X.VGPRs[1].y
+#define HAIR_BACKLIT(X)					X.VGPRs[1].z
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
@@ -348,13 +350,26 @@ FStrataData GetStrataUnlitBSDF(float3 EmissiveColor, float3 TransmittanceColor)
 	return StrataData;
 }
 
-// STRATA_TODO put in a common file
-// Point lobe in off-specular peak direction
-float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
+FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 EmissiveColor, uint SharedNormalIndex)
 {
-	float a = Square(Roughness);
-	return lerp(Normal, ReflectionVector, (1 - a) * (sqrt(1 - a) + a));
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+	StrataData.Layers[0].BSDFCount++;
+
+	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_HAIR);
+	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
+	HAIR_BASECOLOR					(StrataData.Layers[0].BSDFs[0]) = BaseColor;
+	HAIR_SCATTER					(StrataData.Layers[0].BSDFs[0]) = Scatter;
+	HAIR_ROUGHNESS					(StrataData.Layers[0].BSDFs[0]) = Roughness;
+	HAIR_SPECULAR					(StrataData.Layers[0].BSDFs[0]) = Specular;
+	HAIR_BACKLIT					(StrataData.Layers[0].BSDFs[0]) = Backlit;
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], EmissiveColor);
+
+	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
+
+	return StrataData;
 }
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -448,436 +463,10 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 #endif
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// BSDF evaluate and sampling
-
-struct FStrataBSDFContext
-{
-	FStrataBSDF BSDF;
-
-	float3 N;
-	float3 X;
-	float3 Y;
-	float3 V;
-	float3 R;
-	float3 H;
-
-	float3 L;	// There to initialise the BxDFContext. Only used by StrataEvaluateBSDF, not by StrataImportanceSampleBSDF or StrataEvaluateForEnvLight
-
-	BxDFContext Context;
-	float SatNoL;
-	float SatNoV;
-
-	float3x3 TangentBasis;
-	float3 TangentV;
-	float3 TangentH;
-
-	// Preprocessed roughness override used for specular BSDF evaluation when integration area light (using MRP integrator)
-	float a2Override;
-};
-
-void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
-{
-	R = 0;
-	const uint BSDFType = BSDF_GETTYPE(BSDF);
-	switch (BSDFType)
-	{
-	case STRATA_BSDF_TYPE_DIFFUSE:
-	{
-		R = DIFFUSE_ROUGHNESS(BSDF);
-		break;
-	}
-	case STRATA_BSDF_TYPE_DIELECTRIC:
-	{
-		R = DIELECTRIC_ROUGHNESS0(BSDF);
-		break;
-	}
-	case STRATA_BSDF_TYPE_CONDUCTOR:
-	{
-		R = CONDUCTOR_ROUGHNESS0(BSDF);
-		break;
-	}
-	case STRATA_BSDF_TYPE_VOLUME:
-	{
-		R = 0;
-		break;
-	}
-	case STRATA_BSDF_TYPE_SHEEN:
-	{
-		R = SHEEN_ROUGHNESS(BSDF);
-		break;
-	}
-	}
-}
-
-FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, float3 V, float3 L, bool bOverrideWithLocalFrame=false)
-{
-	FStrataBSDFContext BSDFContext = (FStrataBSDFContext)0;
-
-	BSDFContext.BSDF = BSDF;
-
-	BSDFContext.V = V;
-	BSDFContext.L = L;
-
-	float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF);
-	BSDFContext.X = TangentBasis[0]; 
-	BSDFContext.Y = TangentBasis[1];
-	BSDFContext.N = TangentBasis[2]; 
-	if (bOverrideWithLocalFrame)
-	{
-		BSDFContext.X = float3(1,0,0);
-		BSDFContext.Y = float3(0,1,0);
-		BSDFContext.N = float3(0,0,1);
-	}
-
-	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
-	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
-
-	BSDFContext.Context = (BxDFContext)0;
-	if (BSDF_GETANISOTROPY(BSDF) != 0)
-	{
-		Init(BSDFContext.Context, BSDFContext.N, BSDFContext.X, BSDFContext.Y, BSDFContext.V, BSDFContext.L);
-	}
-	else
-	{
-		Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
-	}
-	BSDFContext.TangentBasis = float3x3(BSDFContext.X, BSDFContext.Y, BSDFContext.N);
-
-	BSDFContext.TangentV = mul(BSDFContext.TangentBasis, BSDFContext.V);
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
-
-	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
-	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
-
-	return BSDFContext;
-}
-
-void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
-{
-	// Update all the data related to L
-	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, NewL);
-	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
-}
-
-#define STRATA_PATH_TYPE_DIFFUSE  0x1 
-#define STRATA_PATH_TYPE_SPECULAR 0x2
-#define STRATA_PATH_TYPE_SCATTER  0x4
-
-struct FStrataEvaluateResult
-{
-	float3 Value;
-	float  PDF;
-	float3 Throughput;	// Throughput to the next layer
-	uint   PathType;	// Type of path (specular|diffuse|scattering)
-};
-
-FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
-{
-	FStrataEvaluateResult Sample = (FStrataEvaluateResult)0;
-
-	const float OpaqueBSDFThroughput = 0.0f;
-
-	const uint BSDFType = BSDF_GETTYPE(BSDFContext.BSDF);
-	switch (BSDFType)
-	{
-		case STRATA_BSDF_TYPE_DIFFUSE:
-		{
-			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDFContext.BSDF));
-			float a2 = Pow4(SafeRoughness);
-
-			Sample.Value		= Diffuse_Chan(DIFFUSE_ALBEDO(BSDFContext.BSDF), a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
-			Sample.PDF			= BSDFContext.SatNoV / PI;
-			Sample.Throughput	= OpaqueBSDFThroughput;
-			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE | (BSDF_GETHASSCATTERING(BSDFContext.BSDF) ? STRATA_PATH_TYPE_SCATTER : 0);
-			break;
-		}
-		case STRATA_BSDF_TYPE_DIELECTRIC:
-		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{
-			const bool bIsDieletric = BSDFType == STRATA_BSDF_TYPE_DIELECTRIC;
-			const float3 F0  = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
-			const float3 F90 = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) : CONDUCTOR_EDGECOLOR(BSDFContext.BSDF);
-			const float SafeRoughness0 = MakeRoughnessSafe(bIsDieletric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
-			const float SafeRoughness1 = MakeRoughnessSafe(bIsDieletric ? DIELECTRIC_ROUGHNESS1(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS1(BSDFContext.BSDF));
-
-			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
-			float D = 0;
-			float Vis = 0;
-			float PDF = 0;
-			if (bHasAnisotropy)
-			{
-				// Generalized microfacet specular
-				float Alpha0 = Pow2(SafeRoughness0);
-				float Alpha1 = Pow2(SafeRoughness1);
-				D = D_GGXaniso(Alpha0, Alpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
-				Vis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
-				PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
-			}
-			else
-			{
-				// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
-				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness0);
-
-				// Generalized microfacet specular
-				D = D_GGX(a2, BSDFContext.Context.NoH);
-				Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
-				PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
-			}
-			float3 F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
-
-			Sample.Value		= D * Vis * F;
-			Sample.PDF			= PDF;
-			Sample.Throughput	= bIsDieletric ? (1.0f - F) : OpaqueBSDFThroughput; // STRATA_TODO (Kulla's (1-FDG))
-			Sample.PathType		= STRATA_PATH_TYPE_SPECULAR;
-			break;
-		}
-		case STRATA_BSDF_TYPE_VOLUME:
-		{
-			const float3 Albedo = VOLUME_ALBEDO(BSDFContext.BSDF);
-			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDFContext.BSDF);
-			const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
-			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-			const float  Thickness = VOLUME_THICKNESS(BSDFContext.BSDF);
-			const float  Phase = HenyeyGreensteinPhase(VOLUME_ANISOTROPY(BSDFContext.BSDF), BSDFContext.Context.VoL);
-
-			const float3 SafeExtinctionThreshold = 0.000001f;
-			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-
-			const float PathLength = Thickness / max(0.0001f, abs(BSDFContext.Context.NoV));
-			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
-			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
-			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-
-#if 1
-			const float3 SelfShadowTransmittance = 1.0;// BSDFContext.SatNoL;
-#else
-			const float LightPathLength = Thickness / max(0.0001f, BSDFContext.SatNoL);
-			const float3 SelfShadowTransmittance = BSDFContext.SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
-#endif
-
-			Sample.Value		= NormLuminanceSingleScattering * Phase * SelfShadowTransmittance;
-			Sample.PDF			= Phase;
-			Sample.Throughput	= SafePathSegmentTransmittance;
-			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE;
-			break;
-		}
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			const float3 F0  = SHEEN_ALBEDO(BSDFContext.BSDF);
-			const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDFContext.BSDF));
-
-			// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
-			const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness);
-
-			// Generalized inverse microfacet specular
-			float D   = D_InvGGX(a2, BSDFContext.Context.NoH);
-			float Vis = Vis_Cloth(BSDFContext.Context.NoV, BSDFContext.SatNoL);
-			float3 F  = F_Schlick(F0, BSDFContext.Context.VoH);
-
-			Sample.Value		= D * Vis * F;
-			Sample.PDF			= BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
-			Sample.Throughput	= (1.0f - F);
-			Sample.PathType		= STRATA_PATH_TYPE_DIFFUSE;
-			break;
-		}
-	}
-
-	return Sample;
-}
-
-struct FStrataImportanceSampleResult
-{
-	float3 Direction;
-	float ConeAngle;		// Cone angle is 1/PDF as defined by Lumen
-
-//	FStrataEvaluateResult Eval;
-};
-
-/**
- * Importance sample a Strata BSDF
- * BSDF: the strata BSDF to importance sample
- * E: two random numbers
- * CameraVector: vector from the camera to the considered direction (not V)
- */
-FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, float2 E, float3 CameraVector)
-{
-	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
-
-	// Create a context from the information we have
-	const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
-	const float3 V = -CameraVector;
-	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, V, UnusedL);
-
-	float PDF = 0.0f;
-	const uint BSDFType = BSDF_GETTYPE(BSDF);
-	switch (BSDFType)
-	{
-		case STRATA_BSDF_TYPE_DIFFUSE:
-		{
-			// STRATA_TODO take into account roughness
-			float4 ImportanceSample = CosineSampleHemisphere(E);
-			Sample.Direction = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
-			PDF = ImportanceSample.w;
-			Sample.ConeAngle = 1.0f / PDF;
-			break;
-		}
-		case STRATA_BSDF_TYPE_DIELECTRIC:
-		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{
-			const bool bIsDielectric = BSDFType == STRATA_BSDF_TYPE_DIELECTRIC;
-			float SafeRoughness0 = MakeRoughnessSafe(bIsDielectric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
-			float SafeRoughness1 = MakeRoughnessSafe(bIsDielectric ? DIELECTRIC_ROUGHNESS1(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS1(BSDFContext.BSDF));
-
-			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
-			float4 GGXSample = 0;
-			if (bHasAnisotropy)
-			{
-				GGXSample = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), float2(Pow2(SafeRoughness0), Pow2(SafeRoughness1)), BSDFContext.TangentV);
-			}
-			else
-			{
-				GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughness0), BSDFContext.TangentV);
-			}
-			
-			float3 WorldH = mul(GGXSample.xyz, BSDFContext.TangentBasis);
-			Sample.Direction = reflect(CameraVector, WorldH);
-			PDF = GGXSample.w;
-			Sample.ConeAngle = 1.0f / PDF;
-			break;
-		}
-		case STRATA_BSDF_TYPE_VOLUME:
-		{
-			float4 PhaseSample = ImportanceSampleHenyeyGreensteinPhase(E, VOLUME_ANISOTROPY(BSDFContext.BSDF));
-			Sample.Direction = mul(PhaseSample.xyz, BSDFContext.TangentBasis);
-			PDF = PhaseSample.w;
-			Sample.ConeAngle = 1.0f / PDF;
-			break;
-		}
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			// Per "Production Friendly Microfacet Sheen BRDF", uniform hemispherical sampling gives good result as the roughness is 
-			// usually high and avoid issue at grazing angle
-			float4 ImportanceSample = CosineSampleHemisphere(E);
-			Sample.Direction = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
-			PDF = ImportanceSample.w;
-			Sample.ConeAngle = 1.0f / PDF;
-			break;
-		}
-	}
-
-	//StrataUpdateBSDFContext(BSDFContext, Sample.Direction);
-	//Sample.Eval = StrataEvaluateBSDF(BSDFContext);
-	//Sample.Eval.PDF = PDF;	// We override the pdf to make sure the compiler skips all pdf code from StrataEvaluateBSDF because GGXSample.w si the pdf already for instance.
-
-	return Sample;
-}
-
-struct FStrataEnvLightResult
-{
-	float3 DiffuseAlbedo;
-	float3 DiffuseNormal;
-
-	float3 SpecularDirection;
-	float3 SpecularWeight;
-	float  SpecularSafeRoughness;
-
-	uint PathType;
-};
-
-FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, bool bEnableSpecular)
-{
-	FStrataEnvLightResult StrataEnvLightResult = (FStrataEnvLightResult)0;
-
-	const uint BSDFType = BSDF_GETTYPE(BSDFContext.BSDF);
-	switch (BSDFType)
-	{
-		case STRATA_BSDF_TYPE_DIFFUSE:
-		{
-			StrataEnvLightResult.DiffuseAlbedo = DIFFUSE_ALBEDO(BSDFContext.BSDF);
-			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE | (BSDF_GETHASSCATTERING(BSDFContext.BSDF) ? STRATA_PATH_TYPE_SCATTER : 0);
-			break;
-		}
-		case STRATA_BSDF_TYPE_DIELECTRIC:
-		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{
-			BRANCH
-			if (bEnableSpecular)
-			{
-				const bool bIsDielectric = STRATA_BSDF_TYPE_DIELECTRIC == BSDFType;
-				const float3 F0  = bIsDielectric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
-				const float3 F90 = bIsDielectric ? DIELECTRIC_TINT(BSDFContext.BSDF) : CONDUCTOR_EDGECOLOR(BSDFContext.BSDF);
-				float SafeRoughness0 = MakeRoughnessSafe(bIsDielectric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
-				float SafeRoughness1 = MakeRoughnessSafe(bIsDielectric ? DIELECTRIC_ROUGHNESS1(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS1(BSDFContext.BSDF));
-
-				const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
-				if (bHasAnisotropy)
-				{
-					// Modified the BSDF normal (and roughness)
-					float Anisotropy = 0;
-					GetAnisotropicFactor(SafeRoughness0, SafeRoughness1, Anisotropy, SafeRoughness0);
-					ModifyGGXAnisotropicNormalRoughness(BSDFContext.X, Anisotropy, SafeRoughness0, BSDFContext.N, BSDFContext.V);
-
-					// Update context (only needs: NoL/SatNoL/R) with the new N
-					BSDFContext.Context.NoL = dot(BSDFContext.N, BSDFContext.L);
-					BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
-					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
-				}
-
-				float3 EvalEnvBRDF = EnvBRDFApprox(F0, F90, SafeRoughness0, BSDFContext.SatNoV);
-
-				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughness0);
-				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
-				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness0;
-				StrataEnvLightResult.PathType = STRATA_PATH_TYPE_SPECULAR;
-			}
-			break;
-		}
-		case STRATA_BSDF_TYPE_VOLUME:
-		{
-			const float3 VolumeAlbedo = VOLUME_ALBEDO(BSDFContext.BSDF);
-			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDFContext.BSDF);
-			const float3 ScatteringCoefficients = VolumeAlbedo * ExtinctionCoefficients;
-			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-			const float  Thickness = VOLUME_THICKNESS(BSDFContext.BSDF);
-
-			const float3 SafeExtinctionThreshold = 0.000001f;
-			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-
-			const float PathLength = Thickness / max(0.0001f, BSDFContext.SatNoV);
-			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
-			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
-			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-
-			StrataEnvLightResult.DiffuseAlbedo = NormLuminanceSingleScattering;
-			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE;
-			break;
-		}
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			StrataEnvLightResult.DiffuseAlbedo = SHEEN_ALBEDO(BSDFContext.BSDF);;
-			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			StrataEnvLightResult.PathType = STRATA_PATH_TYPE_DIFFUSE;
-			break;
-		}
-	}
-
-	return StrataEnvLightResult;
-}
-
-FThreeBandSHVector StrataBSDFToSH(FStrataBSDFContext BSDFContext)
-{
-	// STRATA_TODO adapt the SH to BSDFs
-	return CalcDiffuseTransferSH3(BSDFContext.N, 1.0f);
-}
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // Operators node
-
 
 FStrataData StrataAdd(FStrataData A, FStrataData B)
 {
@@ -990,6 +579,16 @@ void SanitizeStrataSheen(inout FStrataBSDF BSDF)
 	SHEEN_ROUGHNESS(BSDF) = saturate(SHEEN_ROUGHNESS(BSDF));
 }
 
+void SanitizeStrataHair(inout FStrataBSDF BSDF)
+{
+	HAIR_BASECOLOR(BSDF) = saturate(HAIR_BASECOLOR(BSDF));
+	HAIR_SCATTER(BSDF) = saturate(HAIR_SCATTER(BSDF));
+	HAIR_ROUGHNESS(BSDF) = saturate(HAIR_ROUGHNESS(BSDF));
+	HAIR_SPECULAR(BSDF) = saturate(HAIR_SPECULAR(BSDF));
+	HAIR_BACKLIT(BSDF) = saturate(HAIR_BACKLIT(BSDF));
+	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
+}
+
 void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
@@ -1019,8 +618,14 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 			SanitizeStrataSheen(BSDF);
 			break;
 		}
+		case STRATA_BSDF_TYPE_HAIR:
+		{
+			SanitizeStrataHair(BSDF);
+			break;
+		}
 	}
 }
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1512,6 +1117,20 @@ void PackStrataOut(
 				break;
 			}
 
+			case STRATA_BSDF_TYPE_HAIR:
+			{
+				// No SSR
+				if (bTopLayer)
+				{
+					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+					AccumRoughnessCount += BSDFCoverageAvg;
+				}
+				// Hair are considered opaque
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
+				break;
+			}
+
 			} // switch
 
 			// Update the weights to take into account throughput towards the view from layers above
@@ -1659,6 +1278,13 @@ void PackStrataOut(
 				// 4 bytes
 			}
 			break;
+			case STRATA_BSDF_TYPE_HAIR:
+			{
+				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
+				STRATA_STORE_UINT1(PackR11G11B10F(float3(HAIR_SCATTER(BSDF), HAIR_SPECULAR(BSDF), HAIR_BACKLIT(BSDF))));
+				// 8 bytes
+			}
+			break;
 			}
 
 			// Stop writing if above budget.
@@ -1773,6 +1399,13 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	case STRATA_BSDF_TYPE_SHEEN:
 	{
 		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SHEEN_ALBEDO(OutBSDF), SHEEN_ROUGHNESS(OutBSDF));
+	}
+	break;
+	case STRATA_BSDF_TYPE_HAIR:
+	{
+		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, HAIR_BASECOLOR(OutBSDF), HAIR_ROUGHNESS(OutBSDF));
+		StrataLoad_R11_G11_B10F(StrataBuffer, ByteOffset, HAIR_SCATTER(OutBSDF), HAIR_SPECULAR(OutBSDF), HAIR_BACKLIT(OutBSDF));
+		// 8 bytes
 	}
 	break;
 	}

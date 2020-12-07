@@ -106,8 +106,7 @@ FSkyLightVisibilityData GetSkyLightVisibilityData(FGBufferData GBuffer, float Am
 
 #if STRATA_ENABLED
 #define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#include "/Engine/Private/ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
 #endif
 

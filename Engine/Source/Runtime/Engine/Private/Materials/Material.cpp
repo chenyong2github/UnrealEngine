@@ -4557,6 +4557,12 @@ void UMaterial::RebuildShadingModelField()
 			ShadingModel = MSM_DefaultLit;
 			BlendMode = EBlendMode::BLEND_Additive;
 		}
+		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_Hair))
+		{
+			MaterialDomain = EMaterialDomain::MD_Surface;
+			ShadingModel = MSM_Hair;
+			BlendMode = EBlendMode::BLEND_Opaque;
+		}
 
 		// Also update the ShadingModels for remaining pipeline operation
 		ShadingModels.AddShadingModel(ShadingModel);

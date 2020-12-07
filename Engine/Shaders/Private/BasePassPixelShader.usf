@@ -85,7 +85,7 @@
 #define STRATA_TRANSLUCENT_ENABLED		(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT>0)
 
 #if STRATA_TRANSLUCENT_ENABLED
-#include "ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataForwardLighting.ush"
 #endif
 

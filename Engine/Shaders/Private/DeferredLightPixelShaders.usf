@@ -33,8 +33,7 @@ float CloudShadowmapStrength;
 
 #if STRATA_ENABLED
 #define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#include "/Engine/Private/ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataDeferredLighting.ush"
 #endif
 
@@ -223,7 +222,7 @@ void DeferredLightPixelMain(
 					L,
 					ToLight,
 					LightMask,
-					SurfaceShadow,
+					ShadowTerms,
 					RectTexture,
 					Strata.MaterialLobesBuffer,
 					GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));

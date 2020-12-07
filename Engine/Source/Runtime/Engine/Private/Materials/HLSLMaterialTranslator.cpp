@@ -1125,7 +1125,7 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsVolumetricFogCloudOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
 					Error(*ErrorMsg);
 				}
 			}
@@ -1136,12 +1136,21 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsUnlitOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
 					Error(*ErrorMsg);
 				}
 			}
 
-			// STRATA_TODO if not volume domain: verify that there isn't any VolumetricFogCloud node in the material
+			// Hair must be used in isolation
+			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_HAIR))
+			{
+				// If the unlit node is used, it must be the only one used
+				if (!StrataIsHairOnly(this, StrataCompilationInfo))
+				{
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains hair BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					Error(*ErrorMsg);
+				}
+			}
 
 			// Output some debug info as comment in code and in the material stat window
 			static const auto CVarStrataBytePerPixel = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.BytesPerPixel"));
@@ -7567,6 +7576,21 @@ int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 Transm
 		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s)"),
 		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(TransmittanceColor)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, uint8 SharedNormalIndex)
+{
+	return AddCodeChunk(
+		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %u) /* %s */"),
+		*GetParameterCode(BaseColor),
+		*GetParameterCode(Scatter),
+		*GetParameterCode(Specular),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Backlit),
+		*GetParameterCode(EmissiveColor),
+		SharedNormalIndex,
+		*GetParameterCode(Tangent)
 	);
 }
 

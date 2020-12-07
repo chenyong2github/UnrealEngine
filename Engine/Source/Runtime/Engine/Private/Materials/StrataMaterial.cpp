@@ -30,6 +30,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_UNLIT:
 		return TEXT("UNLIT");
 		break;
+	case STRATA_BSDF_TYPE_HAIR:
+		return TEXT("HAIR");
+		break;
 	}
 	check(false);
 	return "";
@@ -141,16 +144,25 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 	return StrataInfo;
 }
 
-bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+static bool StrataIsSingleBSDF(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
 {
 	if (Material.TotalBSDFCount == 0 || Material.LayerCount == 0)
 	{
-		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a StrataVolumetricFogCloudBSDF."));
+		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but one of the BSDF in the graph wants to enforce one and only one BSDF to be used."));
 		return false;
 	}
 	if (Material.TotalBSDFCount > 1 || Material.LayerCount > 1)
 	{
-		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single StrataVolumetricFogCloudBSDF only."));
+		Compiler->Error(TEXT("There is more than one layer or BSDF, but one of the BSDF in the graph wants to enforce one and only one BSDF to be used."));
+		return false;
+	}
+	return true;
+}
+
+bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+{
+	if (!StrataIsSingleBSDF(Compiler, Material))
+	{
 		return false;
 	}
 	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD)
@@ -164,19 +176,28 @@ bool StrataIsVolumetricFogCloudOnly(FMaterialCompiler* Compiler, const FStrataMa
 
 bool StrataIsUnlitOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
 {
-	if (Material.TotalBSDFCount == 0 || Material.LayerCount == 0)
+	if (!StrataIsSingleBSDF(Compiler, Material))
 	{
-		Compiler->Error(TEXT("There is no layer or BSDF plugged in, but a material in the volume domain wants to read from a StrataUnlitBSDF."));
-		return false;
-	}
-	if (Material.TotalBSDFCount > 1 || Material.LayerCount > 1)
-	{
-		Compiler->Error(TEXT("There is more than one layer or BSDF, but a material in the volume domain wants to read from a single StrataUnlitBSDF only."));
 		return false;
 	}
 	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_UNLIT)
 	{
-		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Volume."));
+		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Unlit."));
+		return false;
+	}
+
+	return true;
+}
+
+bool StrataIsHairOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+{
+	if (!StrataIsSingleBSDF(Compiler, Material))
+	{
+		return false;
+	}
+	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_HAIR)
+	{
+		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type Hair."));
 		return false;
 	}
 
@@ -279,6 +300,12 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 			}
 			case STRATA_BSDF_TYPE_SHEEN:
 			{
+				Result.RequestedByteCount += UintByteSize;
+				break;
+			}
+			case STRATA_BSDF_TYPE_HAIR:
+			{
+				Result.RequestedByteCount += UintByteSize;
 				Result.RequestedByteCount += UintByteSize;
 				break;
 			}

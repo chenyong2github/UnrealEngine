@@ -19783,6 +19783,7 @@ uint32 UMaterialExpressionStrataUnlitBSDF::GetInputType(int32 InputIndex)
 		break;
 	case 1:
 		return MCT_Float3;
+		break;
 	}
 
 	check(false);
@@ -19797,6 +19798,96 @@ bool UMaterialExpressionStrataUnlitBSDF::IsResultStrataMaterial(int32 OutputInde
 void UMaterialExpressionStrataUnlitBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	StrataMaterialInfo.AddShadingModel(SSM_Unlit);
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataHairBSDF::UMaterialExpressionStrataHairBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataHairBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// For hair, the shared normal index in fact represent the tangent
+	int32 TangentCodeChunk = CompileWithDefaultCodeChunk(Compiler, Tangent, Compiler->VertexTangent());
+	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, TangentCodeChunk);
+
+	int32 OutputCodeChunk = Compiler->StrataHairBSDF(
+		CompileWithDefaultFloat3(Compiler, BaseColor,	0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Scatter,		0.0f),
+		CompileWithDefaultFloat1(Compiler, Specular,	0.5f),
+		CompileWithDefaultFloat1(Compiler, Roughness,	0.5f),
+		CompileWithDefaultFloat1(Compiler, Backlit,		0.0f),
+		CompileWithDefaultFloat3(Compiler, Emissive,	1.0f, 0.0f, 0.0f),
+		TangentCodeChunk,
+		SharedNormalIndex);
+
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_HAIR);
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataHairBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Hair BSDF"));
+}
+
+uint32 UMaterialExpressionStrataHairBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataHairBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float;
+		break;
+	case 2:
+		return MCT_Float;
+		break;
+	case 3:
+		return MCT_Float;
+		break;
+	case 4:
+		return MCT_Float;
+		break;
+	case 5:
+		return MCT_Float3;
+		break;
+	case 6:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataHairBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataHairBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_Hair);
 }
 #endif // WITH_EDITOR
 

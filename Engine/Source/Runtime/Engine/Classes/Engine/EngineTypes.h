@@ -544,6 +544,7 @@ enum EStrataShadingModel
 	SSM_DefaultLit				UMETA(DisplayName = "DefaultLit"),
 	SSM_SubsurfaceLit			UMETA(DisplayName = "SubsurfaceLit"),
 	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
+	SSM_Hair					UMETA(DisplayName = "Hair"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
 };
