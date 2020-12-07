@@ -183,28 +183,23 @@ FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename T>
-static void SaveCompactBinaryToArchive(FArchive& Ar, const T& Value)
+void SaveCompactBinary(FArchive& Ar, const FCbField& Field)
 {
 	check(Ar.IsSaving());
-	struct FCopy : public T
-	{
-		using T::GetCopyType;
-		using T::CopyTo;
-	};
-	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
-	const ECbFieldType CopyType = ValueCopy.GetCopyType();
-	if (!EnumHasAnyFlags(CopyType, ECbFieldType::HasFieldType))
-	{
-		uint8 TypeByte = uint8(CopyType);
-		Ar.Serialize(&TypeByte, sizeof(TypeByte));
-	}
-	ValueCopy.CopyTo(Ar);
+	Field.CopyTo(Ar);
 }
 
-void SaveCompactBinary(FArchive& Ar, const FCbField& Field) { SaveCompactBinaryToArchive(Ar, Field); }
-void SaveCompactBinary(FArchive& Ar, const FCbArray& Array) { SaveCompactBinaryToArchive(Ar, Array); }
-void SaveCompactBinary(FArchive& Ar, const FCbObject& Object) { SaveCompactBinaryToArchive(Ar, Object); }
+void SaveCompactBinary(FArchive& Ar, const FCbArray& Array)
+{
+	check(Ar.IsSaving());
+	Array.CopyTo(Ar);
+}
+
+void SaveCompactBinary(FArchive& Ar, const FCbObject& Object)
+{
+	check(Ar.IsSaving());
+	Object.CopyTo(Ar);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -221,7 +216,7 @@ static FArchive& SerializeCompactBinary(FArchive& Ar, T& Value, ConvertType&& Co
 	}
 	else if (Ar.IsSaving())
 	{
-		SaveCompactBinary(Ar, Value);
+		Value.CopyTo(Ar);
 	}
 	else
 	{

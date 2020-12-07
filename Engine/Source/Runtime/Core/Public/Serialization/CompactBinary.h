@@ -11,8 +11,6 @@
 #include "Templates/IsTriviallyDestructible.h"
 
 /**
- * \file
- *
  * This file declares a compact binary data format that is compatible with JSON and only slightly
  * more expressive. The format is designed to achieve fairly small encoded sizes while also being
  * efficient to read both sequentially and through random access. An atom of data in this compact
@@ -25,23 +23,19 @@
  * be cast to an object or array. This attribute means that a blob containing compact binary data
  * is always safe to interpret as a field, which allows for easy validation as described later.
  *
- * A field can be constructed as a view of the underlying memory with \ref FCbField or can either
- * view (wrap) or own (clone or assume ownership) the underlying memory with \ref FCbFieldRef. An
- * array provides the same functionality through \ref FCbArray or \ref FCbArrayRef, and an object
- * uses \ref FCbObject or \ref FCbObjectRef.
+ * A field can be constructed as a view of the underlying memory with FCbField or can either view
+ * or own (clone or take ownership) the underlying memory with FCbFieldRef. An array provides the
+ * same behavior with FCbArray or FCbArrayRef, and an object uses FCbObject or FCbObjectRef.
  *
  * It is optimal use the view types when possible, and reference types only when they are needed,
  * to avoid the overhead of the atomic reference counting of the shared buffer.
  *
- * A range of data validation functionality is provided through \ref ValidateCompactBinary. Using
- * the Default mode of validation is sufficient to be able to read the data without crashing. The
- * additional validation modes are required for compatibility with other formats (Names), correct
- * byte-wise comparisons of the encoded data (Format), or storage without arbitrary padding bytes
- * leading to non-deterministic values being stored (Padding).
+ * A suite of validation functionality is provided by ValidateCompactBinary and its siblings. The
+ * Default mode provides a guarantee that the data can be consumed without a crash. Documentation
+ * of the other modes is available on ECbValidateMode.
  *
  * Example:
  *
- * \code
  * void BeginBuild(FCbObjectRef Params)
  * {
  *     if (FSharedBufferConstPtr Data = Storage().Load(Params["Data"].AsBinaryReference()))
@@ -64,7 +58,6 @@
  *         BeginCompress(FName(Format.AsString()));
  *     }
  * }
- * \endcode
  */
 
 class FArchive;
@@ -79,7 +72,7 @@ template <typename FuncType> class TFunctionRef;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Field types and flags for \ref FCbField.
+ * Field types and flags for FCbField.
  *
  * This is a private type and is only declared here to enable inline use below.
  *
@@ -198,7 +191,7 @@ ENUM_CLASS_FLAGS(ECbFieldType);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Functions that operate on \ref ECbFieldType. */
+/** Functions that operate on ECbFieldType. */
 class FCbFieldType
 {
 	static constexpr ECbFieldType SerializedTypeMask    = ECbFieldType(0b1011'1111);
@@ -273,51 +266,19 @@ using FCbFieldVisitor = TFunctionRef<void (FCbField)>;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Iterator for \ref FCbField[Ref] that can operate on any contiguous range of fields.
+ * Iterator for FCbField[Ref] that can operate on any contiguous range of fields.
  *
  * The iterator *is* the current field that the iterator points to and exposes the full interface
- * of \ref FCbField[Ref]. An iterator that is at the end is equivalent to a field with no value.
+ * of FCbField[Ref]. An iterator that is at the end is equivalent to a field with no value.
+ *
+ * The iterator represents a range of fields from the current field to the last field.
  */
 template <typename FieldType>
 class TCbFieldIterator : public FieldType
 {
 public:
-	/** Construct a field iterator that has no fields to iterate. */
+	/** Construct an empty field range. */
 	constexpr TCbFieldIterator() = default;
-
-	/**
-	 * Construct a field iterator.
-	 *
-	 * @param InField The first field, or the default field if there are no fields.
-	 * @param InFieldsEnd A pointer to the end of the payload of the last field, or null.
-	 */
-	constexpr inline TCbFieldIterator(FieldType&& InField, const void* InFieldsEnd)
-		: FieldType(MoveTemp(InField))
-		, FieldsEnd(InFieldsEnd)
-	{
-	}
-
-	/**
-	 * Construct a field iterator for one field.
-	 *
-	 * @param InField The single field to be iterated.
-	 */
-	constexpr inline explicit TCbFieldIterator(const FieldType& InField)
-		: FieldType(InField)
-		, FieldsEnd(FieldType::GetPayloadEnd())
-	{
-	}
-
-	/**
-	 * Construct a field iterator for one field.
-	 *
-	 * @param InField The single field to be iterated.
-	 */
-	constexpr inline explicit TCbFieldIterator(FieldType&& InField)
-		: FieldType(MoveTemp(InField))
-		, FieldsEnd(FieldType::GetPayloadEnd())
-	{
-	}
 
 	inline TCbFieldIterator& operator++()
 	{
@@ -333,6 +294,14 @@ public:
 
 	constexpr inline FieldType& operator*() { return *this; }
 	constexpr inline FieldType* operator->() { return this; }
+
+	/** Returns the size of the fields in the range in bytes. */
+	CORE_API uint64 GetRangeSize() const;
+
+	/** Calculate the hash of every field in the range. */
+	CORE_API FBlake3Hash GetRangeHash() const;
+	/** Calculate the hash of every field in the range. */
+	CORE_API void GetRangeHash(FBlake3& Hash) const;
 
 	using FieldType::Equals;
 
@@ -354,51 +323,62 @@ public:
 		return !Equals(Other);
 	}
 
-	/** Calculate the hash of the field range by hashing their underlying memory. */
-	inline FBlake3Hash GetRangeHash() const { return FBlake3::HashBuffer(GetFieldRangeView(*this)); }
-	/** Calculate the hash of the field range by hashing their underlying memory. */
-	inline void GetRangeHash(FBlake3& Hash) const { Hash.Update(GetFieldRangeView(*this)); }
+	/** Copy the field range into a buffer of exactly GetRangeSize() bytes. */
+	CORE_API void CopyRangeTo(FMutableMemoryView Buffer) const;
+
+	/** Copy the field range into an archive, as if calling CopyTo on every field. */
+	CORE_API void CopyRangeTo(FArchive& Ar) const;
 
 	/** Invoke the visitor for every reference or binary reference in the field range. */
-	inline void IterateRangeReferences(FCbFieldVisitor Visitor) const
+	CORE_API void IterateRangeReferences(FCbFieldVisitor Visitor) const;
+
+	/** Create a view of every field in the range. */
+	inline FConstMemoryView GetRangeView() const
 	{
-		// Always iterate over non-uniform ranges because we do not know if they contain a reference.
+		return MakeMemoryView(FieldType::GetView().GetData(), FieldsEnd);
+	}
+
+	/**
+	 * Try to get a view of every field in the range as they would be serialized.
+	 *
+	 * A serialized view is not available if the underlying fields have an externally-provided type.
+	 * Access the serialized form of such ranges using FCbFieldRefIterator::CloneRange.
+	 */
+	inline bool TryGetSerializedRangeView(FConstMemoryView& OutView) const
+	{
 		if (FCbFieldType::HasFieldType(FieldType::GetType()))
 		{
-			for (TCbFieldIterator It(*this); It; ++It)
-			{
-				if (FCbFieldType::MayContainReferences(It.GetType()))
-				{
-					It.IterateReferences(Visitor);
-				}
-			}
+			OutView = GetRangeView();
+			return true;
 		}
-		// Only iterate over uniform ranges if the uniform type may contain a reference.
-		else
-		{
-			if (FCbFieldType::MayContainReferences(FieldType::GetType()))
-			{
-				for (TCbFieldIterator It(*this); It; ++It)
-				{
-					It.IterateReferences(Visitor);
-				}
-			}
-		}
+		return false;
 	}
 
 protected:
+	/** Construct a field range that contains exactly one field. */
+	constexpr inline explicit TCbFieldIterator(FieldType InField)
+		: FieldType(MoveTemp(InField))
+		, FieldsEnd(FieldType::GetPayloadEnd())
+	{
+	}
+
+	/**
+	 * Construct a field range from the first field and a pointer to the end of the last field.
+	 *
+	 * @param InField The first field, or the default field if there are no fields.
+	 * @param InFieldsEnd A pointer to the end of the payload of the last field, or null.
+	 */
+	constexpr inline TCbFieldIterator(FieldType&& InField, const void* InFieldsEnd)
+		: FieldType(MoveTemp(InField))
+		, FieldsEnd(InFieldsEnd)
+	{
+	}
+
 	/** Returns the end of the last field, or null for an iterator at the end. */
 	template <typename OtherFieldType>
 	static inline const void* GetFieldsEnd(const TCbFieldIterator<OtherFieldType>& It)
 	{
 		return It.FieldsEnd;
-	}
-
-	/** Create a view of the field iterator. */
-	template <typename OtherFieldType>
-	static inline FConstMemoryView GetFieldRangeView(const TCbFieldIterator<OtherFieldType>& It)
-	{
-		return MakeMemoryView(It.OtherFieldType::GetFieldView().GetData(), It.FieldsEnd);
 	}
 
 private:
@@ -446,7 +426,7 @@ enum class ECbFieldError : uint8
  * uniform array of fields with no payload, where the answer is to encode as a non-uniform array.
  *
  * This type only provides a view into memory and does not perform any memory management itself.
- * Use \ref FCbFieldRef to hold a reference to the underlying memory when necessary.
+ * Use FCbFieldRef to hold a reference to the underlying memory when necessary.
  */
 class FCbField
 {
@@ -462,33 +442,11 @@ public:
 	 */
 	CORE_API explicit FCbField(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
-	/** Name of the field if it has one, otherwise empty. */
+	/** Returns the name of the field if it has a name, otherwise an empty view. */
 	constexpr inline FAnsiStringView GetName() const
 	{
 		return FAnsiStringView(static_cast<const ANSICHAR*>(Payload) - NameLen, NameLen);
 	}
-
-	/** Size of the field in bytes. */
-	CORE_API uint64 GetSize() const;
-
-	/**
-	 * Whether this field is identical to the other field.
-	 *
-	 * Performs a deep comparison of any contained arrays or objects and their fields. Comparison
-	 * assumes that both fields are valid and are written in the canonical format. Fields must be
-	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
-	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
-	 * be performed with \ref ValidateCompactBinary, except for field order and field name case.
-	 */
-	CORE_API bool Equals(const FCbField& Other) const;
-
-	/** Calculate the hash of the field by hashing its underlying memory. */
-	inline FBlake3Hash GetHash() const { return FBlake3::HashBuffer(GetFieldView()); }
-	/** Calculate the hash of the field by hashing its underlying memory. */
-	inline void GetHash(FBlake3& Hash) const { Hash.Update(GetFieldView()); }
-
-	/** Invoke the visitor for every reference or binary reference in the field. */
-	CORE_API void IterateReferences(FCbFieldVisitor Visitor) const;
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	CORE_API FCbObject AsObject();
@@ -583,7 +541,7 @@ public:
 	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(Type); }
 	constexpr inline bool IsTimeSpan() const        { return FCbFieldType::IsTimeSpan(Type); }
 
-	/** Whether the field has a value. \see \ref FCbField::HasValue() */
+	/** Whether the field has a value. */
 	constexpr inline explicit operator bool() const { return HasValue(); }
 
 	/**
@@ -596,18 +554,66 @@ public:
 
 	/** Whether the last field access encountered an error. */
 	constexpr inline bool HasError() const          { return Error != ECbFieldError::None; }
+
 	/** The type of error that occurred on the last field access, or None. */
 	constexpr inline ECbFieldError GetError() const { return Error; }
 
+	/** Returns the size of the field in bytes, including the type and name. */
+	CORE_API uint64 GetSize() const;
+
+	/** Calculate the hash of the field, including the type and name. */
+	CORE_API FBlake3Hash GetHash() const;
+	/** Calculate the hash of the field, including the type and name. */
+	CORE_API void GetHash(FBlake3& Hash) const;
+
+	/**
+	 * Whether this field is identical to the other field.
+	 *
+	 * Performs a deep comparison of any contained arrays or objects and their fields. Comparison
+	 * assumes that both fields are valid and are written in the canonical format. Fields must be
+	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
+	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
+	 * be performed with ValidateCompactBinary, except for field order and field name case.
+	 */
+	CORE_API bool Equals(const FCbField& Other) const;
+
+	/** Copy the field into a buffer of exactly GetSize() bytes, including the type and name. */
+	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
+
+	/** Copy the field into an archive, including its type and name. */
+	CORE_API void CopyTo(FArchive& Ar) const;
+
+	/** Invoke the visitor for every reference or binary reference in the field. */
+	CORE_API void IterateReferences(FCbFieldVisitor Visitor) const;
+
+	/** Returns a view of the field, including the type and name when present. */
+	CORE_API FConstMemoryView GetView() const;
+
+	/**
+	 * Try to get a view of the field as it would be serialized, such as by CopyTo.
+	 *
+	 * A serialized view is not available if the field has an externally-provided type.
+	 * Access the serialized form of such fields using CopyTo or FCbFieldRef::Clone.
+	 */
+	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
+	{
+		if (FCbFieldType::HasFieldType(Type))
+		{
+			OutView = GetView();
+			return true;
+		}
+		return false;
+	}
+
 protected:
-	/** Returns the type of the field including any relevant flags. */
+	/** Returns a view of the name and value payload, which excludes the type. */
+	CORE_API FConstMemoryView GetViewNoType() const;
+
+	/** Returns a view of the value payload, which excludes the type and name. */
+	inline FConstMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
+
+	/** Returns the type of the field including flags. */
 	constexpr inline ECbFieldType GetType() const { return Type; }
-
-	/** Returns the type to use when constructing a new field after using CopyTo. */
-	constexpr inline ECbFieldType GetCopyType() const { return Type; }
-
-	/** Size of the field payload in bytes. That is the field excluding its type and name. */
-	CORE_API uint64 GetPayloadSize() const;
 
 	/** Returns the start of the value payload. */
 	constexpr inline const void* GetPayload() const { return Payload; }
@@ -615,8 +621,8 @@ protected:
 	/** Returns the end of the value payload. */
 	inline const void* GetPayloadEnd() const { return static_cast<const uint8*>(Payload) + GetPayloadSize(); }
 
-	/** Returns a view of the value payload, which excludes the type and name. */
-	inline FConstMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
+	/** Returns the size of the value payload in bytes, which is the field excluding the type and name. */
+	CORE_API uint64 GetPayloadSize() const;
 
 	/** Assign a field from a pointer to its data and an optional externally-provided type. */
 	inline void Assign(const void* InData, const ECbFieldType InType)
@@ -625,23 +631,6 @@ protected:
 			"This optimization requires FCbField to be trivially destructible!");
 		new(this) FCbField(InData, InType);
 	}
-
-	/**
-	 * Copy the field into a buffer of at least GetSize() bytes.
-	 *
-	 * The field type will only be copied if HasFieldType is set.
-	 */
-	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
-
-	/**
-	 * Copy the field into an archive. This will write GetSize() bytes.
-	 *
-	 * The field type will only be copied if HasFieldType is set.
-	 */
-	CORE_API void CopyTo(FArchive& Ar) const;
-
-	/** Create a view of the field, including the type and name when present. */
-	CORE_API FConstMemoryView GetFieldView() const;
 
 private:
 	/** Parameters for converting to an integer. */
@@ -687,13 +676,33 @@ private:
 	const void* Payload = nullptr;
 };
 
-/** Iterator for \ref FCbField. \see \ref TCbFieldIterator */
+/**
+ * Iterator for FCbField.
+ *
+ * @see TCbFieldIterator
+ */
 class FCbFieldIterator : public TCbFieldIterator<FCbField>
 {
 public:
-	using TCbFieldIterator::TCbFieldIterator;
+	/** Construct a field range that contains exactly one field. */
+	static inline FCbFieldIterator MakeSingle(const FCbField& Field)
+	{
+		return FCbFieldIterator(Field);
+	}
 
-	FCbFieldIterator() = default;
+	/**
+	 * Construct a field range from a buffer containing zero or more valid fields.
+	 *
+	 * @param View A buffer containing zero or more valid fields.
+	 * @param Type HasFieldType means that View contains the type. Otherwise, use the given type.
+	 */
+	static inline FCbFieldIterator MakeRange(FConstMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType)
+	{
+		return !View.IsEmpty() ? FCbFieldIterator(FCbField(View.GetData(), Type), View.GetDataEnd()) : FCbFieldIterator();
+	}
+
+	/** Construct an empty field range. */
+	constexpr FCbFieldIterator() = default;
 
 	/** Construct an iterator from another iterator. */
 	template <typename OtherFieldType>
@@ -702,56 +711,49 @@ public:
 	{
 	}
 
-	/** Construct an iterator for the fields in the view. */
-	inline explicit FCbFieldIterator(FConstMemoryView View)
-		: FCbFieldIterator(MakeFromView(View))
-	{
-	}
-
 private:
-	/** Construct an iterator for the fields in the view. */
-	static inline FCbFieldIterator MakeFromView(FConstMemoryView View)
-	{
-		return !View.IsEmpty() ? FCbFieldIterator(FCbField(View.GetData()), View.GetDataEnd()) : FCbFieldIterator();
-	}
+	using TCbFieldIterator::TCbFieldIterator;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Array of \ref FCbField that have no names.
+ * Array of FCbField that have no names.
  *
  * Accessing a field of the array requires iteration. Access by index is not provided because the
  * cost of accessing an item by index scales linearly with the index.
  *
  * This type only provides a view into memory and does not perform any memory management itself.
- * Use \ref FCbArrayRef to hold a reference to the underlying memory when necessary.
+ * Use FCbArrayRef to hold a reference to the underlying memory when necessary.
  */
 class FCbArray : protected FCbField
 {
 public:
+	/** @see FCbField::FCbField */
+	using FCbField::FCbField;
+
 	/** Construct an array with no fields. */
 	CORE_API FCbArray();
 
-	/**
-	 * Construct an array from a pointer to its data and an optional externally-provided type.
-	 *
-	 * @param Data Pointer to the start of the array data.
-	 * @param Type HasFieldType means that Data contains the type. Otherwise, use the given type.
-	 */
-	inline explicit FCbArray(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType)
-		: FCbField(Data, Type)
-	{
-	}
-
-	/** Size of the array in bytes if serialized by itself with no name. */
-	CORE_API uint64 GetSize() const;
-
-	/** Number of items in the array. */
+	/** Returns the number of items in the array. */
 	CORE_API uint64 Num() const;
 
 	/** Create an iterator for the fields of this array. */
 	CORE_API FCbFieldIterator CreateIterator() const;
+
+	/** Access the array as an array field. */
+	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
+
+	/** Construct an array from an array field. No type check is performed! */
+	static inline FCbArray FromField(const FCbField& Field) { return FCbArray(Field); }
+
+	/** Returns the size of the array in bytes if serialized by itself with no name. */
+	CORE_API uint64 GetSize() const;
+
+	/** Calculate the hash of the array if serialized by itself with no name. */
+	CORE_API FBlake3Hash GetHash() const;
+	/** Calculate the hash of the array if serialized by itself with no name. */
+	CORE_API void GetHash(FBlake3& Hash) const;
 
 	/**
 	 * Whether this array is identical to the other array.
@@ -760,90 +762,65 @@ public:
 	 * assumes that both fields are valid and are written in the canonical format. Fields must be
 	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
 	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
-	 * be done with the `All` mode to check these assumptions about the format of the inputs.
+	 * be done with the All mode to check these assumptions about the format of the inputs.
 	 */
 	CORE_API bool Equals(const FCbArray& Other) const;
 
-	/** Access the array as an array field. */
-	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
+	/** Copy the array into a buffer of exactly GetSize() bytes, with no name. */
+	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
-	/** Construct an array from an array field. No type check is performed! */
-	static FCbArray FromField(const FCbField& Field) { return FCbArray(Field); }
-
-	/** Calculate the hash of the array if serialized by itself with no name. */
-	CORE_API FBlake3Hash GetHash() const;
-	/** Calculate the hash of the array if serialized by itself with no name. */
-	CORE_API void GetHash(FBlake3& Hash) const;
+	/** Copy the array into an archive. This will write GetSize() bytes, with no name. */
+	CORE_API void CopyTo(FArchive& Ar) const;
 
 	/** Invoke the visitor for every reference or binary reference in the array. */
 	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
 
-protected:
-	/** Returns the type to use when constructing a new array after using CopyTo. */
-	constexpr inline ECbFieldType GetCopyType() const
+	/** Returns a view of the array, including the type and name when present. */
+	using FCbField::GetView;
+
+	/**
+	 * Try to get a view of the array as it would be serialized, such as by CopyTo.
+	 *
+	 * A serialized view is not available if the underlying field has an externally-provided type or
+	 * a name. Access the serialized form of such arrays using CopyTo or FCbArrayRef::Clone.
+	 */
+	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
 	{
-		return FCbFieldType::GetType(GetType()) | ECbFieldType::HasFieldType;
+		return !FCbField::HasName() && FCbField::TryGetSerializedView(OutView);
 	}
-
-	/** Copy the array into a buffer of at least GetSize() bytes. */
-	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
-
-	/** Copy the array into an archive. This will write GetSize() bytes. */
-	CORE_API void CopyTo(FArchive& Ar) const;
 
 private:
 	friend inline FCbFieldIterator begin(const FCbArray& Array) { return Array.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbArray&) { return FCbFieldIterator(); }
 
+	/** Construct an array from an array field. No type check is performed! Use via FromField. */
 	inline explicit FCbArray(const FCbField& Field) : FCbField(Field) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Array of \ref FCbField that have unique names.
+ * Array of FCbField that have unique names.
  *
  * Accessing the fields of an object is always a safe operation, even if the requested field does
  * not exist. Fields may be accessed by name or through iteration. When a field is requested that
  * is not found in the object, the field that it returns has no value (evaluates to false) though
- * attempting to access the empty field is also safe, as described by \ref FCbField.
+ * attempting to access the empty field is also safe, as described by FCbField.
  *
  * This type only provides a view into memory and does not perform any memory management itself.
- * Use \ref FCbObjectRef to hold a reference to the underlying memory when necessary.
+ * Use FCbObjectRef to hold a reference to the underlying memory when necessary.
  */
 class FCbObject : protected FCbField
 {
 public:
+	/** @see FCbField::FCbField */
+	using FCbField::FCbField;
+
 	/** Construct an object with no fields. */
 	CORE_API FCbObject();
 
-	/**
-	 * Construct an object from a pointer to its data and an optional externally-provided type.
-	 *
-	 * @param Data Pointer to the start of the object data.
-	 * @param Type HasFieldType means that Data contains the type. Otherwise, use the given type.
-	 */
-	inline explicit FCbObject(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType)
-		: FCbField(Data, Type)
-	{
-	}
-
-	/** Size of the object in bytes if serialized by itself with no name. */
-	CORE_API uint64 GetSize() const;
-
 	/** Create an iterator for the fields of this object. */
 	CORE_API FCbFieldIterator CreateIterator() const;
-
-	/**
-	 * Whether this object is identical to the other object.
-	 *
-	 * Performs a deep comparison of any contained arrays or objects and their fields. Comparison
-	 * assumes that both fields are valid and are written in the canonical format. Fields must be
-	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
-	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
-	 * be done with the `All` mode to check these assumptions about the format of the inputs.
-	 */
-	CORE_API bool Equals(const FCbObject& Other) const;
 
 	/**
 	 * Find a field by case-sensitive name comparison.
@@ -856,43 +833,65 @@ public:
 	 */
 	CORE_API FCbField Find(FAnsiStringView Name) const;
 
-	/** Find a field by case-insensitive name comparison. \see \ref FCbObject::Find */
+	/** Find a field by case-insensitive name comparison. */
 	CORE_API FCbField FindIgnoreCase(FAnsiStringView Name) const;
 
-	/** Find a field by case-sensitive name comparison. \see \ref FCbObject::Find */
+	/** Find a field by case-sensitive name comparison. */
 	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
 
 	/** Access the object as an object field. */
 	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
 
 	/** Construct an object from an object field. No type check is performed! */
-	static FCbObject FromField(const FCbField& Field) { return FCbObject(Field); }
+	static inline FCbObject FromField(const FCbField& Field) { return FCbObject(Field); }
+
+	/** Returns the size of the object in bytes if serialized by itself with no name. */
+	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the object if serialized by itself with no name. */
 	CORE_API FBlake3Hash GetHash() const;
 	/** Calculate the hash of the object if serialized by itself with no name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
 
+	/**
+	 * Whether this object is identical to the other object.
+	 *
+	 * Performs a deep comparison of any contained arrays or objects and their fields. Comparison
+	 * assumes that both fields are valid and are written in the canonical format. Fields must be
+	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
+	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
+	 * be done with the All mode to check these assumptions about the format of the inputs.
+	 */
+	CORE_API bool Equals(const FCbObject& Other) const;
+
+	/** Copy the object into a buffer of exactly GetSize() bytes, with no name. */
+	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
+
+	/** Copy the object into an archive. This will write GetSize() bytes, with no name. */
+	CORE_API void CopyTo(FArchive& Ar) const;
+
 	/** Invoke the visitor for every reference or binary reference in the object. */
 	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
 
-protected:
-	/** Returns the type to use when constructing a new object after using CopyTo. */
-	constexpr inline ECbFieldType GetCopyType() const
+	/** Returns a view of the object, including the type and name when present. */
+	using FCbField::GetView;
+
+	/**
+	 * Try to get a view of the object as it would be serialized, such as by CopyTo.
+	 *
+	 * A serialized view is not available if the underlying field has an externally-provided type or
+	 * a name. Access the serialized form of such objects using CopyTo or FCbObjectRef::Clone.
+	 */
+	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
 	{
-		return FCbFieldType::GetType(GetType()) | ECbFieldType::HasFieldType;
+		return !FCbField::HasName() && FCbField::TryGetSerializedView(OutView);
 	}
-
-	/** Copy the object into a buffer of at least GetSize() bytes. */
-	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
-
-	/** Copy the object into an archive. This will write GetSize() bytes. */
-	CORE_API void CopyTo(FArchive& Ar) const;
 
 private:
 	friend inline FCbFieldIterator begin(const FCbObject& Object) { return Object.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbObject&) { return FCbFieldIterator(); }
 
+	/** Construct an object from an object field. No type check is performed! Use via FromField. */
 	inline explicit FCbObject(const FCbField& Field) : FCbField(Field) {}
 };
 
@@ -903,13 +902,7 @@ using FCbBufferAllocator = TFunctionRef<FSharedBufferPtr (ECbFieldType Type, uin
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * A wrapper that can hold a reference to the memory that contains its value.
- *
- * When constructed with an owned buffer, or by assuming ownership, or by cloning, this reference
- * type will prevent the memory containing its value from being released. To minimize overhead, a
- * buffer pointer is only stored for owned buffers.
- */
+/** A wrapper that holds a reference to the buffer that contains its compact binary value. */
 template <typename BaseType>
 class TCbBufferRef : public BaseType
 {
@@ -917,86 +910,36 @@ public:
 	/** Construct a default value. */
 	TCbBufferRef() = default;
 
-	/** Construct a value and hold a reference to the buffer that contains it. */
-	inline explicit TCbBufferRef(const FSharedBufferConstRef& ValueBuffer)
-		: BaseType(ValueBuffer->GetData())
-	{
-		if (ValueBuffer->IsOwned())
-		{
-			Buffer = ValueBuffer;
-		}
-	}
-
-	/** Construct a value and hold a reference to the buffer that contains it. */
-	inline explicit TCbBufferRef(const FSharedBufferConstPtr& ValueBuffer)
+	/**
+	 * Construct a value from a pointer to its data and an optional externally-provided type.
+	 *
+	 * @param ValueBuffer A buffer that exactly contains the value.
+	 * @param Type HasFieldType means that ValueBuffer contains the type. Otherwise, use the given type.
+	 */
+	inline explicit TCbBufferRef(FSharedBufferConstPtr ValueBuffer, ECbFieldType Type = ECbFieldType::HasFieldType)
 	{
 		if (ValueBuffer)
 		{
-			static_cast<BaseType&>(*this) = BaseType(ValueBuffer->GetData());
-			if (ValueBuffer->IsOwned())
-			{
-				Buffer = ValueBuffer;
-			}
-		}
-	}
-
-	/** Construct a value and hold a reference to the buffer that contains it. */
-	inline explicit TCbBufferRef(FSharedBufferConstPtr&& ValueBuffer)
-	{
-		if (ValueBuffer)
-		{
-			static_cast<BaseType&>(*this) = BaseType(ValueBuffer->GetData());
-			if (ValueBuffer->IsOwned())
-			{
-				Buffer = MoveTemp(ValueBuffer);
-			}
-		}
-	}
-
-	/** Construct a value and hold a reference to the buffer that contains it. */
-	inline explicit TCbBufferRef(const FSharedBufferRef& ValueBuffer)
-		: TCbBufferRef(FSharedBufferConstRef(ValueBuffer))
-	{
-	}
-
-	/** Construct a value that holds a reference to the buffer that contains it. */
-	inline TCbBufferRef(const BaseType& Value, const FSharedBufferConstPtr& ValueBuffer)
-		: BaseType(Value)
-	{
-		if (ValueBuffer)
-		{
-			check(ValueBuffer->GetView().Contains(BaseType::GetFieldView()));
-			if (ValueBuffer->IsOwned())
-			{
-				Buffer = ValueBuffer;
-			}
+			static_cast<BaseType&>(*this) = BaseType(ValueBuffer->GetData(), Type);
+			check(ValueBuffer->GetView().Contains(BaseType::GetView()));
+			Buffer = MoveTemp(ValueBuffer);
 		}
 	}
 
 	/** Construct a value that holds a reference to the buffer that contains it. */
-	inline TCbBufferRef(const BaseType& Value, FSharedBufferConstPtr&& ValueBuffer)
+	inline TCbBufferRef(const BaseType& Value, FSharedBufferConstPtr OuterBuffer)
 		: BaseType(Value)
 	{
-		if (ValueBuffer)
+		if (OuterBuffer)
 		{
-			check(ValueBuffer->GetView().Contains(BaseType::GetFieldView()));
-			if (ValueBuffer->IsOwned())
-			{
-				Buffer = MoveTemp(ValueBuffer);
-			}
+			check(OuterBuffer->GetView().Contains(BaseType::GetView()));
+			Buffer = MoveTemp(OuterBuffer);
 		}
 	}
 
 	/** Construct a value that holds a reference to the buffer of the outer that contains it. */
 	template <typename OtherBaseType>
-	inline TCbBufferRef(const BaseType& Value, const TCbBufferRef<OtherBaseType>& OuterRef)
-		: TCbBufferRef(Value, OuterRef.Buffer)
-	{
-	}
-
-	/** Construct a value that holds a reference to the buffer of the outer that contains it. */
-	template <typename OtherBaseType>
-	inline TCbBufferRef(const BaseType& Value, TCbBufferRef<OtherBaseType>&& OuterRef)
+	inline TCbBufferRef(const BaseType& Value, TCbBufferRef<OtherBaseType> OuterRef)
 		: TCbBufferRef(Value, MoveTemp(OuterRef.Buffer))
 	{
 	}
@@ -1009,7 +952,10 @@ public:
 	{
 		if (!IsOwned())
 		{
-			MakeReadOnly();
+			FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(BaseType::GetSize());
+			BaseType::CopyTo(*MutableBuffer);
+			static_cast<BaseType&>(*this) = BaseType(MutableBuffer->GetData());
+			Buffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
 		}
 	}
 
@@ -1023,13 +969,35 @@ public:
 		{
 			FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(BaseType::GetSize());
 			BaseType::CopyTo(*MutableBuffer);
-			static_cast<BaseType&>(*this) = BaseType(MutableBuffer->GetData(), BaseType::GetCopyType());
+			static_cast<BaseType&>(*this) = BaseType(MutableBuffer->GetData());
 			Buffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
 		}
 	}
 
-	/** The buffer (if any) that contains this value. */
-	inline const FSharedBufferConstPtr& GetBuffer() const { return Buffer; }
+	/** Returns a buffer that exactly contains this value. */
+	inline FSharedBufferConstPtr GetBuffer() const
+	{
+		const FConstMemoryView View = BaseType::GetView();
+		const FSharedBufferConstPtr& OuterBuffer = GetOuterBuffer();
+		if (OuterBuffer)
+		{
+			if (OuterBuffer->GetView() == View)
+			{
+				return OuterBuffer;
+			}
+			else
+			{
+				return FSharedBuffer::MakeView(View, *OuterBuffer);
+			}
+		}
+		else
+		{
+			return FSharedBuffer::MakeView(View);
+		}
+	}
+
+	/** Returns the outer buffer (if any) that contains this value. */
+	inline const FSharedBufferConstPtr& GetOuterBuffer() const { return Buffer; }
 
 private:
 	template <typename OtherType>
@@ -1064,26 +1032,16 @@ public:
 		return Ref;
 	}
 
-	/** Construct a value from a read-only view of its memory. */
-	static inline RefType MakeView(const void* const Data)
+	/** Construct a value from a read-only view of its memory and its optional outer buffer. */
+	static inline RefType MakeView(const void* const Data, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
 	{
-		return MakeView(BaseType(Data));
+		return MakeView(BaseType(Data), MoveTemp(OuterBuffer));
 	}
 
-	/** Construct a value from a read-only view of its memory. */
-	static inline RefType MakeView(const BaseType& Value)
+	/** Construct a value from a read-only view of its memory and its optional outer buffer. */
+	static inline RefType MakeView(const BaseType& Value, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
 	{
-		return RefType(Value, FSharedBufferConstPtr());
-	}
-
-	/** Construct a value and take ownership its memory. */
-	template <typename DeleteFunctionOrBufferOwnerType>
-	static inline RefType TakeOwnership(const void* const Data, DeleteFunctionOrBufferOwnerType&& DeleteFunctionOrBufferOwner)
-	{
-		const BaseType Value(Data);
-		FSharedBufferConstPtr Buffer = FSharedBuffer::TakeOwnership(Data, Value.GetSize(),
-			Forward<DeleteFunctionOrBufferOwnerType>(DeleteFunctionOrBufferOwner));
-		return RefType(Value, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
+		return RefType(Value, MoveTemp(OuterBuffer));
 	}
 };
 
@@ -1094,7 +1052,11 @@ class FCbObjectRef;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A field that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
+/**
+ * A field that can hold a reference to the memory that contains it.
+ *
+ * @see TCbBufferRef
+ */
 class FCbFieldRef : public TCbBufferRef<FCbField>, public TCbBufferRefFactory<FCbFieldRef, FCbField>
 {
 public:
@@ -1113,61 +1075,77 @@ public:
 	inline FCbArrayRef AsArrayRef() &&;
 };
 
-/** Iterator for \ref FCbFieldRef. \see \ref TCbFieldIterator */
+/**
+ * Iterator for FCbFieldRef.
+ *
+ * @see TCbFieldIterator
+ */
 class FCbFieldRefIterator : public TCbFieldIterator<FCbFieldRef>
 {
 public:
-	using TCbFieldIterator::TCbFieldIterator;
+	/** Construct a field range from an owned clone of a range. */
+	CORE_API static FCbFieldRefIterator CloneRange(const FCbFieldIterator& It);
 
-	/** Construct a field iterator that has no fields to iterate. */
+	/** Construct a field range from an owned clone of a range. */
+	static inline FCbFieldRefIterator CloneRange(const FCbFieldRefIterator& It)
+	{
+		return CloneRange(FCbFieldIterator(It));
+	}
+
+	/** Construct a field range that contains exactly one field. */
+	static inline FCbFieldRefIterator MakeSingle(FCbFieldRef Field)
+	{
+		return FCbFieldRefIterator(MoveTemp(Field));
+	}
+
+	/**
+	 * Construct a field range from a buffer containing zero or more valid fields.
+	 *
+	 * @param Buffer A buffer containing zero or more valid fields.
+	 * @param Type HasFieldType means that Buffer contains the type. Otherwise, use the given type.
+	 */
+	static inline FCbFieldRefIterator MakeRange(FSharedBufferConstPtr Buffer, ECbFieldType Type = ECbFieldType::HasFieldType)
+	{
+		if (Buffer && Buffer->GetSize())
+		{
+			const void* const DataEnd = Buffer->GetView().GetDataEnd();
+			return FCbFieldRefIterator(FCbFieldRef(MoveTemp(Buffer), Type), DataEnd);
+		}
+		return FCbFieldRefIterator();
+	}
+
+	/** Construct a field range from an iterator and its optional outer buffer. */
+	static inline FCbFieldRefIterator MakeRangeView(const FCbFieldIterator& It, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
+	{
+		return FCbFieldRefIterator(FCbFieldRef(It, MoveTemp(OuterBuffer)), GetFieldsEnd(It));
+	}
+
+	/** Construct an empty field range. */
 	constexpr FCbFieldRefIterator() = default;
 
-	/** Construct an iterator that holds a reference to the buffer that contains its fields. */
-	inline FCbFieldRefIterator(const FCbFieldIterator& It, const FSharedBufferConstPtr& ValueBuffer)
-		: TCbFieldIterator(MakeFieldRef(It, ValueBuffer), GetFieldsEnd(It))
+	/** Clone the range, if necessary, to a buffer that this reference has ownership of. */
+	inline void MakeRangeOwned()
 	{
+		if (!IsOwned())
+		{
+			*this = CloneRange(*this);
+		}
 	}
 
-	/** Construct an iterator that holds a reference to the buffer that contains its fields. */
-	inline FCbFieldRefIterator(const FCbFieldIterator& It, FSharedBufferConstPtr&& ValueBuffer)
-		: TCbFieldIterator(MakeFieldRef(It, MoveTemp(ValueBuffer)), GetFieldsEnd(It))
-	{
-	}
-
-	/** Construct an iterator and hold a reference to the buffer that contains its fields. */
-	inline explicit FCbFieldRefIterator(const FSharedBufferConstPtr& ValueBuffer)
-		: FCbFieldRefIterator(MakeFieldIterator(ValueBuffer), ValueBuffer)
-	{
-	}
-
-	/** Construct an iterator and hold a reference to the buffer that contains its fields. */
-	inline explicit FCbFieldRefIterator(FSharedBufferConstPtr&& ValueBuffer)
-		: FCbFieldRefIterator(MakeFieldIterator(ValueBuffer), MoveTemp(ValueBuffer))
-	{
-	}
+	/** Returns a buffer that exactly contains the field range. */
+	CORE_API FSharedBufferConstPtr GetRangeBuffer() const;
 
 private:
-	/** Make a field ref from an iterator and the buffer that contains its fields. */
-	template <typename BufferType>
-	static inline FCbFieldRef MakeFieldRef(const FCbFieldIterator& It, BufferType&& ValueBuffer)
-	{
-		if (ValueBuffer)
-		{
-			check(ValueBuffer->GetView().Contains(GetFieldRangeView(It)));
-		}
-		return FCbFieldRef(It, Forward<BufferType>(ValueBuffer));
-	}
-
-	/** Make a field iterator from the possibly-null buffer that contains its fields. */
-	static inline FCbFieldIterator MakeFieldIterator(const FSharedBufferConstPtr& ValueBuffer)
-	{
-		return ValueBuffer ? FCbFieldIterator(ValueBuffer->GetView()) : FCbFieldIterator();
-	}
+	using TCbFieldIterator::TCbFieldIterator;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** An array that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
+/**
+ * An array that can hold a reference to the memory that contains it.
+ *
+ * @see TCbBufferRef
+ */
 class FCbArrayRef : public TCbBufferRef<FCbArray>, public TCbBufferRefFactory<FCbArrayRef, FCbArray>
 {
 public:
@@ -1176,7 +1154,7 @@ public:
 	/** Create an iterator for the fields of this array. */
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
-		return FCbFieldRefIterator(CreateIterator(), GetBuffer());
+		return FCbFieldRefIterator::MakeRangeView(CreateIterator(), GetOuterBuffer());
 	}
 
 	/** Access the array as an array field. */
@@ -1194,7 +1172,11 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** An object that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
+/**
+ * An object that can hold a reference to the memory that contains it.
+ *
+ * @see TCbBufferRef
+ */
 class FCbObjectRef : public TCbBufferRef<FCbObject>, public TCbBufferRefFactory<FCbObjectRef, FCbObject>
 {
 public:
@@ -1203,7 +1185,7 @@ public:
 	/** Create an iterator for the fields of this object. */
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
-		return FCbFieldRefIterator(CreateIterator(), GetBuffer());
+		return FCbFieldRefIterator::MakeRangeView(CreateIterator(), GetOuterBuffer());
 	}
 
 	/** Find a field by case-sensitive name comparison. */

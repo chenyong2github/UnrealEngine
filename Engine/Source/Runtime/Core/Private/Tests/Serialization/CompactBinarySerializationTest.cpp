@@ -140,13 +140,9 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			if (TestEqual(FString::Printf(TEXT("SaveCompactBinary(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize()) &&
 				TestTrue(FString::Printf(TEXT("SaveCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr))))
 			{
-				struct FView : public FCbFieldRef
-				{
-					using FCbFieldRef::GetFieldView;
-				};
 				FMemoryReader ReadAr(WriteAr);
 				FCbFieldRef Field = LoadCompactBinary(ReadAr, [](ECbFieldType Type, uint64 Size) { return FSharedBuffer::Alloc(Size); });
-				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(static_cast<FView&>(Field).GetFieldView()));
+				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetView()));
 			}
 		}
 		{
@@ -155,13 +151,9 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			if (TestEqual(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize()) &&
 				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr))))
 			{
-				struct FView : public decltype(Value)
-				{
-					using decltype(Value)::GetFieldView;
-				};
 				FMemoryReader ReadAr(WriteAr);
 				ReadAr << Value;
-				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(static_cast<FView&>(Value).GetFieldView()));
+				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetView()));
 			}
 		}
 	};

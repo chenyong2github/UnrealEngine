@@ -48,19 +48,18 @@ static constexpr bool IsUniformType(const ECbFieldType Type)
 }
 
 /** Append the payload from the compact binary value to the array and return its type. */
-template <typename T>
-static inline ECbFieldType AppendCompactBinary(const T& Value, TArray64<uint8>& OutData)
+static inline ECbFieldType AppendCompactBinary(const FCbField& Value, TArray64<uint8>& OutData)
 {
-	struct FCopy : public T
+	struct FCopy : public FCbField
 	{
-		using T::GetCopyType;
-		using T::GetPayloadView;
+		using FCbField::GetType;
+		using FCbField::GetPayloadView;
 	};
 	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
 	const FConstMemoryView SourceView = ValueCopy.GetPayloadView();
 	const int64 TargetOffset = OutData.AddUninitialized(SourceView.GetSize());
 	FMemory::Memcpy(OutData.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
-	return FCbFieldType::GetType(ValueCopy.GetCopyType());
+	return FCbFieldType::GetType(ValueCopy.GetType());
 }
 
 FCbWriter::FCbWriter()
@@ -90,7 +89,7 @@ FCbFieldRefIterator FCbWriter::Save() const
 	const uint64 Size = GetSaveSize();
 	FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
 	const FCbFieldIterator Output = SaveToMemory(Buffer->GetView());
-	return FCbFieldRefIterator(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
+	return FCbFieldRefIterator::MakeRangeView(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
 }
 
 FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
@@ -101,7 +100,7 @@ FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
 	checkf(Buffer.GetSize() == Data.Num(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.GetSize(), Data.Num());
 	FMemory::Memcpy(Buffer.GetData(), Data.GetData(), Data.Num());
-	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.GetDataEnd());
+	return FCbFieldIterator::MakeRange(Buffer);
 }
 
 void FCbWriter::SaveToArchive(FArchive& Ar) const
@@ -289,7 +288,7 @@ void FCbWriter::EndObject()
 void FCbWriter::Object(const FCbObject& Value)
 {
 	BeginField();
-	EndField(AppendCompactBinary(Value, Data));
+	EndField(AppendCompactBinary(Value.AsField(), Data));
 }
 
 void FCbWriter::Object(const FCbObjectRef& Value)
@@ -344,7 +343,7 @@ void FCbWriter::EndArray()
 void FCbWriter::Array(const FCbArray& Value)
 {
 	BeginField();
-	EndField(AppendCompactBinary(Value, Data));
+	EndField(AppendCompactBinary(Value.AsField(), Data));
 }
 
 void FCbWriter::Array(const FCbArrayRef& Value)
