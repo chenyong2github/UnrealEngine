@@ -76,7 +76,7 @@ public:
 	//~ End FGCObject interface
 
 	/** Rebuild the list and request a SlowPath. */
-	UE_DEPRECATED(4.27, TEXT("InvalidateRoot is deprecated, use InvalidateRootChildOrder or InvalidateRootChildOrder"))
+	UE_DEPRECATED(4.27, "InvalidateRoot is deprecated, use InvalidateRootChildOrder or InvalidateRootChildOrder")
 	SLATECORE_API void InvalidateRoot(const SWidget* Investigator = nullptr);
 	/** Rebuild the list and request a SlowPath. */
 	SLATECORE_API void InvalidateRootChildOrder(const SWidget* Investigator = nullptr);
