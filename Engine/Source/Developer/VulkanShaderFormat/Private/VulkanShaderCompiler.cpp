@@ -578,8 +578,8 @@ static void AddUniformBuffer(FOLDVulkanCodeHeader& OLDHeader,
 		HeaderUBIndex = BindingIndex;
 	}
 	FVulkanShaderHeader::FUniformBufferInfo& UBInfo = OutHeader.UniformBuffers[HeaderUBIndex];
-	const uint32* LayoutHash = ShaderInput.Environment.ResourceTableLayoutHashes.Find(UBName);
-	UBInfo.LayoutHash = LayoutHash ? *LayoutHash : 0;
+	const FUniformBufferEntry* UniformBufferEntry = ShaderInput.Environment.UniformBufferMap.Find(UBName);
+	UBInfo.LayoutHash = UniformBufferEntry ? UniformBufferEntry->LayoutHash : 0;
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	UBInfo.DebugName = UBName;
 #endif
@@ -625,7 +625,7 @@ static void AddUniformBuffer(FOLDVulkanCodeHeader& OLDHeader,
 	}
 
 	// Currently we don't support mismatched uniform buffer layouts/cbuffers with resources!
-	check(LayoutHash || UBInfo.ResourceEntries.Num() == 0);
+	check(UniformBufferEntry || UBInfo.ResourceEntries.Num() == 0);
 
 	InOutParameterMap.RemoveParameterAllocation(*UBName);
 	InOutParameterMap.AddParameterAllocation(*UBName, HeaderUBIndex, (uint16)FVulkanShaderHeader::UniformBuffer, 1, EShaderParameterType::UniformBuffer);
@@ -1451,7 +1451,7 @@ static void BuildShaderOutput(
 	{
 		// Build the generic SRT for this shader.
 		FShaderCompilerResourceTable GenericSRT;
-		if (!BuildResourceTableMapping(ShaderInput.Environment.ResourceTableMap, ShaderInput.Environment.ResourceTableLayoutHashes, UsedUniformBufferSlots, ShaderOutput.ParameterMap, /*MaxBoundResourceTable, */GenericSRT))
+		if (!BuildResourceTableMapping(ShaderInput.Environment.ResourceTableMap, ShaderInput.Environment.UniformBufferMap, UsedUniformBufferSlots, ShaderOutput.ParameterMap, /*MaxBoundResourceTable, */GenericSRT))
 		{
 			ShaderOutput.Errors.Add(TEXT("Internal error on BuildResourceTableMapping."));
 			return;
@@ -1529,7 +1529,7 @@ static void BuildShaderOutput(
 		}
 	}
 
-	CullGlobalUniformBuffers(ShaderInput.Environment.ResourceTableLayoutSlots, ShaderOutput.ParameterMap);
+	CullGlobalUniformBuffers(ShaderInput.Environment.UniformBufferMap, ShaderOutput.ParameterMap);
 }
 
 

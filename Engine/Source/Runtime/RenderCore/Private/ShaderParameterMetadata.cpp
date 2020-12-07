@@ -274,6 +274,7 @@ public:
 
 FShaderParametersMetadata::FShaderParametersMetadata(
 	EUseCase InUseCase,
+	EUniformBufferBindingFlags InBindingFlags,
 	const TCHAR* InLayoutName,
 	const TCHAR* InStructTypeName,
 	const TCHAR* InShaderVariableName,
@@ -290,11 +291,14 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	, FileLine(InFileLine)
 	, Size(InSize)
 	, UseCase(InUseCase)
+	, BindingFlags(InBindingFlags)
 	, Layout(InLayoutName)
 	, Members(InMembers)
 	, GlobalListLink(this)
 	, bLayoutInitialized(false)
 {
+	checkf(UseCase == EUseCase::UniformBuffer || !EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static), TEXT("Only uniform buffers can utilize the global binding flag."));
+
 	check(StructTypeName);
 	if (UseCase == EUseCase::ShaderParameterStruct)
 	{
@@ -383,6 +387,9 @@ void FShaderParametersMetadata::InitializeLayout()
 
 	if (StaticSlotName)
 	{
+		checkf(EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static), TEXT("Uniform buffer of type '%s' and shader name '%s' attempted to reference static slot '%s', but the binding model does not contain 'Global'."),
+			StructTypeName, ShaderVariableName, StaticSlotName);
+
 		checkf(UseCase == EUseCase::UniformBuffer,
 			TEXT("Attempted to assign static slot %s to uniform buffer %s. Static slots are only supported for compile-time uniform buffers."),
 			ShaderVariableName, StaticSlotName);
@@ -394,6 +401,12 @@ void FShaderParametersMetadata::InitializeLayout()
 			StructTypeName, ShaderVariableName, StaticSlotName);
 
 		Layout.StaticSlot = StaticSlot;
+		Layout.BindingFlags = BindingFlags;
+	}
+	else
+	{
+		checkf(!EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static), TEXT("Uniform buffer of type '%s' and shader name '%s' has no binding slot specified, but the binding model specifies 'Global'."),
+			StructTypeName, ShaderVariableName, StaticSlotName);
 	}
 
 	TArray<FUniformBufferMemberAndOffset> MemberStack;
@@ -749,17 +762,17 @@ void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersM
 	}
 }
 
-void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes, TMap<FString, FString>& UniformBufferStaticSlots) const
+void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const
 {
 	uint16 ResourceIndex = 0;
 	FString Prefix = FString::Printf(TEXT("%s_"), ShaderVariableName);
 	AddResourceTableEntriesRecursive(ShaderVariableName, *Prefix, ResourceIndex, ResourceTableMap);
-	ResourceTableLayoutHashes.Add(ShaderVariableName, Layout.GetHash());
-
-	if (StaticSlotName)
-	{
-		UniformBufferStaticSlots.Add(ShaderVariableName, StaticSlotName);
-	}
+	
+	FUniformBufferEntry UniformBufferEntry;
+	UniformBufferEntry.StaticSlotName = StaticSlotName;
+	UniformBufferEntry.LayoutHash = Layout.GetHash();
+	UniformBufferEntry.BindingFlags = BindingFlags;
+	UniformBufferMap.Add(ShaderVariableName, UniformBufferEntry);
 }
 
 void FShaderParametersMetadata::AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const
@@ -953,6 +966,7 @@ FShaderParametersMetadata* FShaderParametersMetadataBuilder::Build(
 
 	FShaderParametersMetadata* ShaderParameterMetadata = new FShaderParametersMetadata(
 		UseCase,
+		EUniformBufferBindingFlags::Shader,
 		ShaderParameterName,
 		ShaderParameterName,
 		nullptr,

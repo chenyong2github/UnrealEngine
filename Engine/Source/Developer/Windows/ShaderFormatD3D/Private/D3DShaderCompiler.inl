@@ -452,12 +452,12 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	{
 		// Build the generic SRT for this shader.
 		FShaderCompilerResourceTable GenericSRT;
-		BuildResourceTableMapping(Input.Environment.ResourceTableMap, Input.Environment.ResourceTableLayoutHashes, UsedUniformBufferSlots, Output.ParameterMap, GenericSRT);
+		BuildResourceTableMapping(Input.Environment.ResourceTableMap, Input.Environment.UniformBufferMap, UsedUniformBufferSlots, Output.ParameterMap, GenericSRT);
 
 		// Ray generation shaders rely on a different binding model that aren't compatible with global uniform buffers.
 		if (Input.Target.Frequency != SF_RayGen)
 		{
-			CullGlobalUniformBuffers(Input.Environment.ResourceTableLayoutSlots, Output.ParameterMap);
+			CullGlobalUniformBuffers(Input.Environment.UniformBufferMap, Output.ParameterMap);
 		}
 
 		if (UniformBufferNames.Num() < GenericSRT.ResourceTableLayoutHashes.Num())
@@ -469,9 +469,16 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 		{
 			if (GenericSRT.ResourceTableLayoutHashes[Index] != 0 && UniformBufferNames[Index].Len() == 0)
 			{
-				auto* Name = Input.Environment.ResourceTableLayoutHashes.FindKey(GenericSRT.ResourceTableLayoutHashes[Index]);
-				check(Name);
-				UniformBufferNames[Index] = *Name;
+				for (const auto& KeyValue : Input.Environment.UniformBufferMap)
+				{
+					const FUniformBufferEntry& UniformBufferEntry = KeyValue.Value;
+
+					if (UniformBufferEntry.LayoutHash == GenericSRT.ResourceTableLayoutHashes[Index])
+					{
+						UniformBufferNames[Index] = KeyValue.Key;
+						break;
+					}
+				}
 			}
 		}
 

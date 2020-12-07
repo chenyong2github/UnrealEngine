@@ -32,7 +32,9 @@ public:
 		// Reset the compute UAV tracker since the renderer must re-bind all resources after changing a shader.
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Compute);
 
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetComputeShader(Shader);
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) override final
@@ -152,7 +154,7 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
-		Buffer->ValidateLifeTime();
+		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
@@ -164,6 +166,7 @@ public:
 
 	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
+		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
 		RHIContext->RHISetGlobalUniformBuffers(InUniformBuffers);
 	}
 
@@ -200,14 +203,11 @@ public:
 protected:
 	struct FState
 	{
-		RHIValidation::FTracker TrackerInstance;
+		RHIValidation::FTracker TrackerInstance{ ERHIPipeline::AsyncCompute };
+		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
 
 		FString ComputePassName;
-		bool bComputeShaderSet;
-
-		FState()
-			: TrackerInstance(ERHIPipeline::AsyncCompute)
-		{}
+		bool bComputeShaderSet{};
 
 		void Reset();
 	};
@@ -537,7 +537,9 @@ public:
 		// Setting a new PSO unbinds all previous bound resources
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
 
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetGraphicsPipelineState(GraphicsState, bApplyAdditionalState);
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
@@ -646,14 +648,14 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIGraphicsShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		Buffer->ValidateLifeTime();
+		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
-		Buffer->ValidateLifeTime();
+		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
@@ -671,6 +673,7 @@ public:
 
 	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
+		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
 		RHIContext->RHISetGlobalUniformBuffers(InUniformBuffers);
 	}
 
@@ -965,23 +968,19 @@ public:
 		PlatformContext->Tracker = &State.TrackerInstance;
 	}
 
-
 protected:
 	struct FState
 	{
-		RHIValidation::FTracker TrackerInstance;
+		RHIValidation::FTracker TrackerInstance{ ERHIPipeline::Graphics };
+		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
 
-		bool bInsideBeginRenderPass;
 		FRHIRenderPassInfo RenderPassInfo;
 		FString RenderPassName;
 		FString PreviousRenderPassName;
 		FString ComputePassName;
-		bool bGfxPSOSet;
-		bool bComputeShaderSet;
-
-		FState()
-			: TrackerInstance(ERHIPipeline::Graphics)
-		{}
+		bool bGfxPSOSet{};
+		bool bComputeShaderSet{};
+		bool bInsideBeginRenderPass{};
 
 		void Reset();
 	};

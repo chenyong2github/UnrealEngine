@@ -899,10 +899,10 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 
 	if (GRDGDebug)
 	{
-		Pass->GetParameters().EnumerateUniformBuffers([&](FRDGUniformBufferRef UniformBuffer)
+		Pass->GetParameters().EnumerateUniformBuffers([&](FRDGUniformBufferBinding UniformBuffer)
 		{
 			// Global uniform buffers are always marked as used, because FShader traversal doesn't know about them.
-			if (UniformBuffer->IsGlobal())
+			if (UniformBuffer.IsStatic())
 			{
 				UniformBuffer->MarkResourceAsUsed();
 			}

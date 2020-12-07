@@ -135,11 +135,6 @@ class FRDGUniformBuffer
 	: public FRDGResource
 {
 public:
-	FORCEINLINE bool IsGlobal() const
-	{
-		return bGlobal;
-	}
-
 	FORCEINLINE const FRDGParameterStruct& GetParameters() const
 	{
 		return ParameterStruct;
@@ -163,10 +158,9 @@ public:
 
 protected:
 	template <typename TParameterStruct>
-	explicit FRDGUniformBuffer(TParameterStruct* InParameters, const TCHAR* InName)
+	explicit FRDGUniformBuffer(const TParameterStruct* InParameters, const TCHAR* InName)
 		: FRDGResource(InName)
 		, ParameterStruct(InParameters)
-		, bGlobal(ParameterStruct.HasStaticSlot())
 	{}
 
 private:
@@ -174,9 +168,6 @@ private:
 	const FRDGParameterStruct ParameterStruct;
 	TRefCountPtr<FRHIUniformBuffer> UniformBufferRHI;
 	FRDGUniformBufferHandle Handle;
-
-	/** Whether this uniform buffer is bound globally or locally to a shader. */
-	uint8 bGlobal : 1;
 
 	friend FRDGBuilder;
 	friend FRDGUniformBufferRegistry;
@@ -199,13 +190,16 @@ public:
 
 	FORCEINLINE const ParameterStructType* operator->() const
 	{
-		return GetParameters().GetContents();
+		return Parameters;
 	}
 
 private:
-	explicit TRDGUniformBuffer(ParameterStructType* InParameters, const TCHAR* InName)
+	explicit TRDGUniformBuffer(const ParameterStructType* InParameters, const TCHAR* InName)
 		: FRDGUniformBuffer(InParameters, InName)
+		, Parameters(InParameters)
 	{}
+
+	const ParameterStructType* Parameters;
 
 	friend FRDGBuilder;
 	friend FRDGUniformBufferRegistry;

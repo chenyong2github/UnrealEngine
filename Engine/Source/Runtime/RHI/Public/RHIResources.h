@@ -603,7 +603,8 @@ public:
 
 	void ComputeHash()
 	{
-		uint32 TmpHash = ConstantBufferSize << 16 | static_cast<uint32>(StaticSlot);
+		// Static slot is not stable. Just track whether we have one at all.
+		uint32 TmpHash = ConstantBufferSize << 16 | static_cast<uint32>(BindingFlags) << 8 | static_cast<uint32>(StaticSlot != MAX_UNIFORM_BUFFER_STATIC_SLOTS);
 
 		for (int32 ResourceIndex = 0; ResourceIndex < Resources.Num(); ResourceIndex++)
 		{
@@ -649,6 +650,7 @@ public:
 	{
 		ConstantBufferSize = Source.ConstantBufferSize;
 		StaticSlot = Source.StaticSlot;
+		BindingFlags = Source.BindingFlags;
 		Resources = Source.Resources;
 		Name = Source.Name;
 		Hash = Source.Hash;
@@ -680,6 +682,7 @@ public:
 		Ar << Ref.StaticSlot;
 		Ar << Ref.RenderTargetsOffset;
 		Ar << Ref.bHasNonGraphOutputs;
+		Ar << Ref.BindingFlags;
 		Ar << Ref.Resources;
 		Ar << Ref.GraphResources;
 		Ar << Ref.GraphTextures;
@@ -702,6 +705,9 @@ public:
 
 	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
 	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
+
+	/** The binding flags describing how this resource can be bound to the RHI. */
+	LAYOUT_FIELD_INITIALIZED(EUniformBufferBindingFlags, BindingFlags, EUniformBufferBindingFlags::Shader);
 
 	/** The list of all resource inlined into the shader parameter structure. */
 	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Resources);
@@ -741,6 +747,7 @@ inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBuffer
 {
 	return A.ConstantBufferSize == B.ConstantBufferSize
 		&& A.StaticSlot == B.StaticSlot
+		&& A.BindingFlags == B.BindingFlags
 		&& A.Resources == B.Resources;
 }
 

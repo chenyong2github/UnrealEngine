@@ -394,6 +394,14 @@ inline FArchive& operator<<(FArchive& Ar, FResourceTableEntry& Entry)
 	return Ar;
 }
 
+inline FArchive& operator<<(FArchive& Ar, FUniformBufferEntry& Entry)
+{
+	Ar << Entry.StaticSlotName;
+	Ar << Entry.LayoutHash;
+	Ar << Entry.BindingFlags;
+	return Ar;
+}
+
 using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
 
 /** The environment used to compile a shader. */
@@ -407,9 +415,8 @@ struct FShaderCompilerEnvironment
 
 	TArray<uint32> CompilerFlags;
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
-	TMap<FString,FResourceTableEntry> ResourceTableMap;
-	TMap<FString,uint32> ResourceTableLayoutHashes;
-	TMap<FString, FString> ResourceTableLayoutSlots;
+	TMap<FString, FResourceTableEntry> ResourceTableMap;
+	TMap<FString, FUniformBufferEntry> UniformBufferMap;
 	TMap<FString, FString> RemoteServerData;
 	TMap<FString, FString> ShaderFormatCVars;
 
@@ -466,8 +473,7 @@ struct FShaderCompilerEnvironment
 		Ar << Environment.CompilerFlags;
 		Ar << Environment.RenderTargetOutputFormatsMap;
 		Ar << Environment.ResourceTableMap;
-		Ar << Environment.ResourceTableLayoutHashes;
-		Ar << Environment.ResourceTableLayoutSlots;
+		Ar << Environment.UniformBufferMap;
 		Ar << Environment.RemoteServerData;
 		Ar << Environment.ShaderFormatCVars;
 
@@ -496,8 +502,7 @@ struct FShaderCompilerEnvironment
 
 		CompilerFlags.Append(Other.CompilerFlags);
 		ResourceTableMap.Append(Other.ResourceTableMap);
-		ResourceTableLayoutHashes.Append(Other.ResourceTableLayoutHashes);
-		ResourceTableLayoutSlots.Append(Other.ResourceTableLayoutSlots);
+		UniformBufferMap.Append(Other.UniformBufferMap);
 		Definitions.Merge(Other.Definitions);
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
 		RemoteServerData.Append(Other.RemoteServerData);

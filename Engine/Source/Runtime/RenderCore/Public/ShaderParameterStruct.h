@@ -272,18 +272,24 @@ inline void SetShaderParameters(
 	// Graph Uniform Buffers
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.GraphUniformBuffers)
 	{
-		auto GraphUniformBuffer = *reinterpret_cast<FRDGUniformBuffer* const*>(Base + ParameterBinding.ByteOffset);
+		const FRDGUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FRDGUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
 
-		checkSlow(GraphUniformBuffer);
-		GraphUniformBuffer->MarkResourceAsUsed();
-		RHICmdList.SetShaderUniformBuffer(ShadeRHI, ParameterBinding.BufferIndex, GraphUniformBuffer->GetRHI());
+		if (UniformBufferBinding.IsShader())
+		{
+			UniformBufferBinding->MarkResourceAsUsed();
+			RHICmdList.SetShaderUniformBuffer(ShadeRHI, ParameterBinding.BufferIndex, UniformBufferBinding->GetRHI());
+		}
 	}
 
 	// Reference structures
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.ParameterReferences)
 	{
-		const TRefCountPtr<FRHIUniformBuffer>& ShaderParameterRef = *reinterpret_cast<const TRefCountPtr<FRHIUniformBuffer>*>(Base + ParameterBinding.ByteOffset);
-		RHICmdList.SetShaderUniformBuffer(ShadeRHI, ParameterBinding.BufferIndex, ShaderParameterRef);
+		const FUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
+
+		if (UniformBufferBinding.IsShader())
+		{
+			RHICmdList.SetShaderUniformBuffer(ShadeRHI, ParameterBinding.BufferIndex, UniformBufferBinding.GetUniformBuffer());
+		}
 	}
 }
 
@@ -375,18 +381,18 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 	// Graph Uniform Buffers
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.GraphUniformBuffers)
 	{
-		auto GraphUniformBuffer = *reinterpret_cast<FRDGUniformBuffer* const*>(Base + ParameterBinding.ByteOffset);
+		const FRDGUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FRDGUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
 
-		checkSlow(GraphUniformBuffer);
-		GraphUniformBuffer->MarkResourceAsUsed();
-		RTBindingsWriter.SetUniformBuffer(ParameterBinding.BufferIndex, GraphUniformBuffer->GetRHI());
+		checkSlow(UniformBufferBinding);
+		UniformBufferBinding->MarkResourceAsUsed();
+		RTBindingsWriter.SetUniformBuffer(ParameterBinding.BufferIndex, UniformBufferBinding->GetRHI());
 	}
 
 	// Referenced uniform buffers
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.ParameterReferences)
 	{
-		const TRefCountPtr<FRHIUniformBuffer>& ShaderParameterRef = *reinterpret_cast<const TRefCountPtr<FRHIUniformBuffer>*>(Base + ParameterBinding.ByteOffset);
-		RTBindingsWriter.SetUniformBuffer(ParameterBinding.BufferIndex, ShaderParameterRef);
+		const FUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
+		RTBindingsWriter.SetUniformBuffer(ParameterBinding.BufferIndex, UniformBufferBinding.GetUniformBuffer());
 	}
 
 	// Root uniform buffer.

@@ -21,6 +21,15 @@ static inline bool IsStencilFormat(EPixelFormat Format);
 
 namespace RHIValidation
 {
+	struct FGlobalUniformBuffers
+	{
+		TArray<FRHIUniformBuffer*> Bindings;
+		bool bInSetPipelineStateCall{};
+
+		void Reset();
+		void ValidateSetShaderUniformBuffer(FRHIUniformBuffer* UniformBuffer);
+	};
+
 	static bool IsValidCopyFormat(EPixelFormat SourceFormat, EPixelFormat DestFormat)
 	{
 		if (SourceFormat == DestFormat)

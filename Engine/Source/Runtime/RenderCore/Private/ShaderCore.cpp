@@ -381,11 +381,22 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 			TEXT("Shader is requesting a uniform buffer at slot %s with hash '%u', but a reverse lookup of the hash can't find it. The shader cache may be out of date."),
 			*SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
 
-		UE_LOG(LogShaders, Fatal,
-			TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null. The uniform buffer should ")
-			TEXT("be bound using RHICmdList.SetGlobalUniformBuffers() or passed into an RDG pass using SHADER_PARAMETER_STRUCT_REF() or ")
-			TEXT("SHADER_PARAMETER_RDG_UNIFORM_BUFFER()."),
+		const EUniformBufferBindingFlags BindingFlags = ExpectedStructMetadata->GetBindingFlags();
+
+		checkf(EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static),
+			TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it is not registered with the Global binding flag. The shader cache may be out of date."),
 			ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
+
+		// Structs can be bound both globally or per-shader, effectively leaving it up to the user to choose which to bind.
+		// But that also means we can't validate existence at the global level.
+		if (!EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Shader))
+		{
+			UE_LOG(LogShaders, Fatal,
+				TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null. The uniform buffer should ")
+				TEXT("be bound using RHICmdList.SetGlobalUniformBuffers() or passed into an RDG pass using SHADER_PARAMETER_STRUCT_REF() or ")
+				TEXT("SHADER_PARAMETER_RDG_UNIFORM_BUFFER()."),
+				ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
+		}
 	}
 	else
 	{

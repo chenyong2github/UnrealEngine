@@ -1749,9 +1749,9 @@ void FRDGBuilder::CollectPassResources(FRDGPassHandle PassHandle)
 		// Uniform buffer creation requires access to RHI resources through the validator.
 		IF_RDG_ENABLE_DEBUG(FRDGUserValidation::SetAllowRHIAccess(PassToBegin, true));
 		{
-			PassParameters.EnumerateUniformBuffers([&](FRDGUniformBufferRef UniformBuffer)
+			PassParameters.EnumerateUniformBuffers([&](FRDGUniformBufferBinding UniformBuffer)
 			{
-				BeginResourceRHI(UniformBuffer);
+				BeginResourceRHI(UniformBuffer.GetUniformBuffer());
 			});
 		}
 		IF_RDG_ENABLE_DEBUG(FRDGUserValidation::SetAllowRHIAccess(PassToBegin, false));

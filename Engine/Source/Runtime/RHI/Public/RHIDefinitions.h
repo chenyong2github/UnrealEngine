@@ -994,6 +994,25 @@ enum EUniformBufferBaseType : uint8
 static_assert(EUniformBufferBaseType_Num <= (1 << EUniformBufferBaseType_NumBits), "EUniformBufferBaseType_Num will not fit on EUniformBufferBaseType_NumBits");
 DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBaseType);
 
+/** The list of flags declaring which binding models are allowed for a uniform buffer layout. */
+enum class EUniformBufferBindingFlags : uint8
+{
+	/** If set, the uniform buffer can be bound as an RHI shader parameter on an RHI shader (i.e. RHISetShaderUniformBuffer). */
+	Shader = 1 << 0,
+
+	/** If set, the uniform buffer can be bound globally through a static slot (i.e. RHISetGlobalUniformBuffers). */
+	Static = 1 << 1,
+
+	/** If set, the uniform buffer can be bound globally or per-shader, depending on the use case. Only one binding model should be
+	 *  used at a time, and RHI validation will emit an error if both are used for a particular uniform buffer at the same time. This
+	 *  is designed for difficult cases where a fixed single binding model would produce an unnecessary maintenance burden. Using this
+	 *  disables some RHI validation errors for global bindings, so use with care.
+	 */
+	StaticAndShader = Static | Shader
+};
+ENUM_CLASS_FLAGS(EUniformBufferBindingFlags);
+DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBindingFlags);
+
 /** Numerical type used to store the static slot indices. */
 using FUniformBufferStaticSlot = uint8;
 

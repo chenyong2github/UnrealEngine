@@ -81,10 +81,10 @@ public:
 		return *GetAs<FRDGResourceRef>();
 	}
 
-	FRDGUniformBufferRef GetAsUniformBuffer() const
+	FRDGUniformBufferBinding GetAsUniformBuffer() const
 	{
 		check(IsUniformBuffer());
-		return *GetAs<FRDGUniformBufferRef>();
+		return *GetAs<FRDGUniformBufferBinding>();
 	}
 
 	FRDGParentResourceRef GetAsParentResource() const
@@ -188,7 +188,7 @@ class RENDERCORE_API FRDGParameterStruct
 {
 public:
 	template <typename ParameterStructType>
-	explicit FRDGParameterStruct(ParameterStructType* Parameters)
+	explicit FRDGParameterStruct(const ParameterStructType* Parameters)
 		: FRDGParameterStruct(Parameters, &ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayout())
 	{}
 
@@ -238,7 +238,7 @@ public:
 	template <typename FunctionType>
 	void EnumerateBuffers(FunctionType Function) const;
 
-	/** Enumerates all non-null uniform buffers. Expected function signature: void(FRDGUniformBuffer*). */
+	/** Enumerates all non-null uniform buffers. Expected function signature: void(FRDGUniformBufferBinding). */
 	template <typename FunctionType>
 	void EnumerateUniformBuffers(FunctionType Function) const;
 

@@ -11,6 +11,18 @@
 
 #if ENABLE_RHI_VALIDATION
 
+namespace RHIValidation
+{
+	int32 GBreakOnTransitionError = 1;
+	FAutoConsoleVariableRef CVarBreakOnTransitionError(
+		TEXT("r.RHIValidation.DebugBreak.Transitions"),
+		GBreakOnTransitionError,
+		TEXT("Controls whether the debugger should break when a validation error is encountered.\n")
+		TEXT(" 0: disabled;\n")
+		TEXT(" 1: break in the debugger if a validation error is encountered."),
+		ECVF_RenderThreadSafe);
+}
+
 bool GRHIValidationEnabled = false;
 
 // When set to 1, callstack for each uniform buffer allocation will be tracked 
@@ -252,7 +264,7 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 
 	UE_LOG(LogRHI, Error, TEXT("%s"), InMessage);
 
-	if (FPlatformMisc::IsDebuggerPresent())
+	if (FPlatformMisc::IsDebuggerPresent() && RHIValidation::GBreakOnTransitionError)
 	{
 		// Print the message again using the debug output function, because UE_LOG doesn't always reach
 		// the VS output window before the breakpoint is triggered, despite the log flush call below.
@@ -274,8 +286,8 @@ void FValidationComputeContext::FState::Reset()
 	ComputePassName.Reset();
 	bComputeShaderSet = false;
 	TrackerInstance.ResetAllUAVState();
+	GlobalUniformBuffers.Reset();
 }
-
 
 FValidationContext::FValidationContext()
 	: RHIContext(nullptr)
@@ -303,10 +315,42 @@ void FValidationContext::FState::Reset()
 	ComputePassName.Reset();
 	bComputeShaderSet = false;
 	TrackerInstance.ResetAllUAVState();
+	GlobalUniformBuffers.Reset();
 }
 
 namespace RHIValidation
 {
+	void FGlobalUniformBuffers::Reset()
+	{
+		Bindings.Reset();
+		check(!bInSetPipelineStateCall);
+	}
+
+	void FGlobalUniformBuffers::ValidateSetShaderUniformBuffer(FRHIUniformBuffer* UniformBuffer)
+	{
+		check(UniformBuffer);
+		UniformBuffer->ValidateLifeTime();
+
+		// Skip validating global uniform buffers that are set internally by the RHI as part of the pipeline state.
+		if (bInSetPipelineStateCall)
+		{
+			return;
+		}
+
+		const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
+
+		checkf(EnumHasAnyFlags(Layout.BindingFlags, EUniformBufferBindingFlags::Shader), TEXT("Uniform buffer '%s' does not have the 'Shader' binding flag."), *Layout.GetDebugName());
+
+		if (Layout.StaticSlot < Bindings.Num())
+		{
+			check(Layout.BindingFlags == EUniformBufferBindingFlags::StaticAndShader);
+
+			ensureMsgf(Bindings[Layout.StaticSlot] == nullptr,
+				TEXT("Uniform buffer '%s' was bound statically and is now being bound on a specific RHI shader. Only one binding model should be used at a time."),
+				*Layout.GetDebugName());
+		}
+	}
+
 	ERHIAccess DecayResourceAccess(ERHIAccess AccessMask, ERHIAccess RequiredAccess, bool bAllowUAVOverlap)
 	{
 		using T = __underlying_type(ERHIAccess);

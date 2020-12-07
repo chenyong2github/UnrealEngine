@@ -61,6 +61,7 @@ public:
 
 		Slots.Add(Slot);
 		UniformBuffers.Add(UniformBuffer);
+		SlotCount = FMath::Max(SlotCount, Slot + 1);
 	}
 
 	inline void TryAddUniformBuffer(FRHIUniformBuffer* UniformBuffer)
@@ -86,10 +87,27 @@ public:
 		return Slots[Index];
 	}
 
+	int32 GetSlotCount() const
+	{
+		return SlotCount;
+	}
+
+	void Bind(TArray<FRHIUniformBuffer*>& Bindings) const
+	{
+		Bindings.Reset();
+		Bindings.SetNumZeroed(SlotCount);
+
+		for (int32 Index = 0; Index < UniformBuffers.Num(); ++Index)
+		{
+			Bindings[Slots[Index]] = UniformBuffers[Index];
+		}
+	}
+
 private:
 	static const uint32 InlineUniformBufferCount = 8;
 	TArray<FUniformBufferStaticSlot, TInlineAllocator<InlineUniformBufferCount>> Slots;
 	TArray<FRHIUniformBuffer*, TInlineAllocator<InlineUniformBufferCount>> UniformBuffers;
+	int32 SlotCount = 0;
 };
 
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */

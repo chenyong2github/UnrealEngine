@@ -81,8 +81,8 @@ void BuildResourceTableTokenStream(const TArray<uint32>& InResourceMap, int32 Ma
 
 
 bool BuildResourceTableMapping(
-	const TMap<FString,FResourceTableEntry>& ResourceTableMap,
-	const TMap<FString, uint32>& ResourceTableLayoutHashes,
+	const TMap<FString, FResourceTableEntry>& ResourceTableMap,
+	const TMap<FString, FUniformBufferEntry>& UniformBufferMap,
 	TBitArray<>& UsedUniformBufferSlots,
 	FShaderParameterMap& ParameterMap,
 	FShaderCompilerResourceTable& OutSRT)
@@ -153,22 +153,26 @@ bool BuildResourceTableMapping(
 				return false;
 			}
 		}
+	}
 
-		// We have to do this separately from the resource table member check above. We want to include the hash even
-		// if the uniform buffer does not have any actual members used, because it will still be in the parameter map
-		// and certain platforms (like DX12) will pessimise and require them.
+	// Emit hashes for all uniform buffers in the parameter map. We need to include the ones without resources as well
+	// (i.e. just constants), since the global uniform buffer bindings rely on valid hashes.
+	for (const auto& KeyValue : ParameterMap.GetParameterMap())
+	{
+		const FString& UniformBufferName = KeyValue.Key;
+		const FParameterAllocation& UniformBufferParameter = KeyValue.Value;
+
+		if (UniformBufferParameter.Type == EShaderParameterType::UniformBuffer)
 		{
-			uint16 UniformBufferIndex = INDEX_NONE;
-			uint16 UBBaseIndex, UBSize;
-
-			if (ParameterMap.FindParameterAllocation(*Entry.UniformBufferName, UniformBufferIndex, UBBaseIndex, UBSize))
+			if (OutSRT.ResourceTableLayoutHashes.Num() <= UniformBufferParameter.BufferIndex)
 			{
-				while (OutSRT.ResourceTableLayoutHashes.Num() <= UniformBufferIndex)
-				{
-					OutSRT.ResourceTableLayoutHashes.Add(0);
-				}
+				OutSRT.ResourceTableLayoutHashes.SetNumZeroed(UniformBufferParameter.BufferIndex + 1);
+			}
 
-				OutSRT.ResourceTableLayoutHashes[UniformBufferIndex] = ResourceTableLayoutHashes.FindChecked(Entry.UniformBufferName);
+			// Data-driven uniform buffers will not have registered this information.
+			if (const FUniformBufferEntry* UniformBufferEntry = UniformBufferMap.Find(UniformBufferName))
+			{
+				OutSRT.ResourceTableLayoutHashes[UniformBufferParameter.BufferIndex] = UniformBufferEntry->LayoutHash;
 			}
 		}
 	}
@@ -177,15 +181,21 @@ bool BuildResourceTableMapping(
 	return true;
 }
 
-void CullGlobalUniformBuffers(const TMap<FString, FString>& ResourceTableLayoutSlots, FShaderParameterMap& ParameterMap)
+void CullGlobalUniformBuffers(const TMap<FString, FUniformBufferEntry>& UniformBufferMap, FShaderParameterMap& ParameterMap)
 {
 	TArray<FString> ParameterNames;
 	ParameterMap.GetAllParameterNames(ParameterNames);
 
 	for (const FString& Name : ParameterNames)
 	{
-		if (ResourceTableLayoutSlots.Contains(*Name))
+		if (const FUniformBufferEntry* UniformBufferEntry = UniformBufferMap.Find(*Name))
 		{
+			// A uniform buffer that is bound per-shader keeps its allocation in the map.
+			if (EnumHasAnyFlags(UniformBufferEntry->BindingFlags, EUniformBufferBindingFlags::Shader))
+			{
+				continue;
+			}
+
 			ParameterMap.RemoveParameterAllocation(*Name);
 		}
 	}
@@ -1094,7 +1104,7 @@ void FShaderParameterParser::ExtractFileAndLine(int32 PragamLineoffset, int32 Li
 void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environment, FString& PreprocessedShaderSource)
 {
 	TMap<FString, TArray<FUniformBufferMemberInfo>> UniformBufferNameToMembers;
-	UniformBufferNameToMembers.Reserve(Environment.ResourceTableLayoutHashes.Num());
+	UniformBufferNameToMembers.Reserve(Environment.UniformBufferMap.Num());
 
 	// Build a mapping from uniform buffer name to its members
 	{
@@ -1557,9 +1567,9 @@ namespace CrossCompiler
 	FString CreateResourceTableFromEnvironment(const FShaderCompilerEnvironment& Environment)
 	{
 		FString Line = TEXT("\n#if 0 /*BEGIN_RESOURCE_TABLES*/\n");
-		for (auto Pair : Environment.ResourceTableLayoutHashes)
+		for (auto Pair : Environment.UniformBufferMap)
 		{
-			Line += FString::Printf(TEXT("%s, %d\n"), *Pair.Key, Pair.Value);
+			Line += FString::Printf(TEXT("%s, %d\n"), *Pair.Key, Pair.Value.LayoutHash);
 		}
 		Line += TEXT("NULL, 0\n");
 		for (auto Pair : Environment.ResourceTableMap)
@@ -1621,7 +1631,9 @@ namespace CrossCompiler
 			{
 				break;
 			}
-			OutEnvironment.ResourceTableLayoutHashes.FindOrAdd(UB) = (uint32)Hash;
+
+			FUniformBufferEntry& UniformBufferEntry = OutEnvironment.UniformBufferMap.FindOrAdd(UB);
+			UniformBufferEntry.LayoutHash = (uint32)Hash;
 		}
 
 		while (Ptr < PtrEnd)

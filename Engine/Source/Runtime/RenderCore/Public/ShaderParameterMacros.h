@@ -139,6 +139,187 @@ private:
 	friend class TRDGUniformBuffer<TBufferStruct>;
 };
 
+class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FUniformBufferBinding
+{
+public:
+	FUniformBufferBinding() = default;
+
+	FORCEINLINE FUniformBufferRHIRef GetUniformBuffer() const
+	{
+		return UniformBuffer;
+	}
+
+	FORCEINLINE EUniformBufferBindingFlags GetBindingFlags() const
+	{
+		return BindingFlags;
+	}
+
+	FORCEINLINE bool IsStatic() const
+	{
+		return EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static);
+	}
+
+	FORCEINLINE bool IsShader() const
+	{
+		return EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Shader);
+	}
+
+	FORCEINLINE operator bool() const
+	{
+		return UniformBuffer.IsValid();
+	}
+
+protected:
+	FORCEINLINE FUniformBufferBinding(const FUniformBufferRHIRef& InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
+		: UniformBuffer(InUniformBuffer)
+		, BindingFlags(InBindingFlags)
+	{}
+
+private:
+	FUniformBufferRHIRef UniformBuffer;
+	EUniformBufferBindingFlags BindingFlags = EUniformBufferBindingFlags::Shader;
+};
+
+template<typename TBufferStruct>
+class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) TUniformBufferBinding
+	: public FUniformBufferBinding
+{
+public:
+	TUniformBufferBinding() = default;
+
+	TUniformBufferBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer)
+		: FUniformBufferBinding(InUniformBuffer, TBufferStruct::FTypeInfo::GetStructMetadata()->GetPreferredBindingFlag())
+	{}
+
+	TUniformBufferBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
+		: FUniformBufferBinding(InUniformBuffer, InBindingFlags)
+	{
+#if DO_CHECK
+		const auto* StructMetadata = TBufferStruct::FTypeInfo::GetStructMetadata();
+		checkf(
+			EnumHasAllFlags(StructMetadata->GetBindingFlags(), GetBindingFlags()),
+			TEXT("Uniform buffer binding flags don't match those supported by the uniform buffer layout '%s."),
+			StructMetadata->GetStructTypeName());
+#endif
+	}
+
+	FORCEINLINE const TUniformBufferRef<TBufferStruct>& GetUniformBuffer() const
+	{
+		return static_cast<const TUniformBufferRef<TBufferStruct>&>(FUniformBufferBinding::GetUniformBuffer());
+	}
+
+	FORCEINLINE TRDGUniformBuffer<TBufferStruct>* operator->() const
+	{
+		return GetUniformBuffer();
+	}
+};
+
+template <typename TBufferStruct>
+inline TUniformBufferBinding<TBufferStruct> GetStaticBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer)
+{
+	return TUniformBufferBinding<TBufferStruct>(InUniformBuffer, EUniformBufferBindingFlags::Static);
+}
+
+template <typename TBufferStruct>
+inline TUniformBufferBinding<TBufferStruct> GetShaderBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer)
+{
+	return TUniformBufferBinding<TBufferStruct>(InUniformBuffer, EUniformBufferBindingFlags::Shader);
+}
+
+class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRDGUniformBufferBinding
+{
+public:
+	FRDGUniformBufferBinding() = default;
+
+	FORCEINLINE FRDGUniformBuffer* GetUniformBuffer() const
+	{
+		return UniformBuffer;
+	}
+
+	FORCEINLINE EUniformBufferBindingFlags GetBindingFlags() const
+	{
+		return BindingFlags;
+	}
+
+	FORCEINLINE bool IsStatic() const
+	{
+		return EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static);
+	}
+
+	FORCEINLINE bool IsShader() const
+	{
+		return EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Shader);
+	}
+
+	FORCEINLINE operator bool() const
+	{
+		return UniformBuffer != nullptr;
+	}
+
+	FORCEINLINE FRDGUniformBuffer* operator->() const
+	{
+		return UniformBuffer;
+	}
+
+protected:
+	FRDGUniformBufferBinding(FRDGUniformBuffer* InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
+		: UniformBuffer(InUniformBuffer)
+		, BindingFlags(InBindingFlags)
+	{}
+
+private:
+	FRDGUniformBuffer* UniformBuffer = nullptr;
+	EUniformBufferBindingFlags BindingFlags = EUniformBufferBindingFlags::Shader;
+};
+
+template <typename TBufferStruct>
+class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) TRDGUniformBufferBinding
+	: public FRDGUniformBufferBinding
+{
+public:
+	TRDGUniformBufferBinding() = default;
+
+	TRDGUniformBufferBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer)
+		: FRDGUniformBufferBinding(InUniformBuffer, TBufferStruct::FTypeInfo::GetStructMetadata()->GetPreferredBindingFlag())
+	{}
+
+	TRDGUniformBufferBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
+		: FRDGUniformBufferBinding(InUniformBuffer, InBindingFlags)
+	{
+#if DO_CHECK
+		const auto* StructMetadata = TBufferStruct::FTypeInfo::GetStructMetadata();
+		checkf(
+			EnumHasAllFlags(StructMetadata->GetBindingFlags(), GetBindingFlags()),
+			TEXT("RDG uniform buffer binding flags don't match those supported by the uniform buffer layout '%s."),
+			StructMetadata->GetStructTypeName());
+#endif
+	}
+
+	FORCEINLINE TRDGUniformBuffer<TBufferStruct>* GetUniformBuffer() const
+	{
+		return static_cast<TRDGUniformBuffer<TBufferStruct>*>(FRDGUniformBufferBinding::GetUniformBuffer());
+	}
+
+	FORCEINLINE TRDGUniformBuffer<TBufferStruct>* operator->() const
+	{
+		return GetUniformBuffer();
+	}
+};
+
+/** Constructs a uniform buffer binding that will utilize the shader binding model. */
+template <typename TBufferStruct>
+inline TRDGUniformBufferBinding<TBufferStruct> GetShaderBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer)
+{
+	return TRDGUniformBufferBinding<TBufferStruct>(InUniformBuffer, EUniformBufferBindingFlags::Shader);
+}
+
+/** Constructs a uniform buffer binding that will utilize the static binding model. */
+template <typename TBufferStruct>
+inline TRDGUniformBufferBinding<TBufferStruct> GetStaticBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer)
+{
+	return TRDGUniformBufferBinding<TBufferStruct>(InUniformBuffer, EUniformBufferBindingFlags::Static);
+}
+
 class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRDGBufferAccess
 {
 public:
@@ -514,7 +695,11 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 			return false;
 		}
 
-		if (ResolveRect != Other.ResolveRect)
+		if (ResolveRect != Other.ResolveRect ||
+			(NumOcclusionQueries != Other.NumOcclusionQueries && Other.NumOcclusionQueries != 0) ||
+			SubpassHint != Other.SubpassHint ||
+			MultiViewCount != Other.MultiViewCount ||
+			FoveationTexture != Other.FoveationTexture)
 		{
 			return false;
 		}
@@ -888,15 +1073,29 @@ struct TShaderParameterTypeInfo<TUniformBufferRef<UniformBufferStructType>>
 };
 
 template<class UniformBufferStructType>
-struct TShaderParameterTypeInfo<TRDGUniformBuffer<UniformBufferStructType>*>
+struct TShaderParameterTypeInfo<TUniformBufferBinding<UniformBufferStructType>>
 {
 	static constexpr int32 NumRows = 1;
 	static constexpr int32 NumColumns = 1;
 	static constexpr int32 NumElements = 0;
-	static constexpr int32 Alignment = SHADER_PARAMETER_POINTER_ALIGNMENT;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
 	static constexpr bool bIsStoredInConstantBuffer = false;
 
-	using TAlignedType = TAlignedShaderParameterPtr<TRDGUniformBuffer<UniformBufferStructType>*>;
+	using TAlignedType = TAlignedShaderParameterPtr<TUniformBufferBinding<UniformBufferStructType>>;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
+};
+
+template<class UniformBufferStructType>
+struct TShaderParameterTypeInfo<TRDGUniformBufferBinding<UniformBufferStructType>>
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = false;
+
+	using TAlignedType = TRDGUniformBufferBinding<UniformBufferStructType>;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
@@ -938,6 +1137,7 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 #define INTERNAL_SHADER_PARAMETER_GET_STRUCT_METADATA(StructTypeName) \
 	static FShaderParametersMetadata StaticStructMetadata(\
 		FShaderParametersMetadata::EUseCase::ShaderParameterStruct, \
+		EUniformBufferBindingFlags::Shader, \
 		TEXT(#StructTypeName), \
 		TEXT(#StructTypeName), \
 		nullptr, \
@@ -1073,6 +1273,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 #define IMPLEMENT_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName) \
 	FShaderParametersMetadata StructTypeName::StaticStructMetadata( \
 	FShaderParametersMetadata::EUseCase::UniformBuffer, \
+	EUniformBufferBindingFlags::Shader, \
 	TEXT(#StructTypeName), \
 	TEXT(#StructTypeName), \
 	TEXT(ShaderVariableName), \
@@ -1085,6 +1286,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 #define IMPLEMENT_UNIFORM_BUFFER_ALIAS_STRUCT(StructTypeName, UniformBufferAlias) \
 	static const FShaderParametersMetadata UniformBufferAlias( \
 	FShaderParametersMetadata::EUseCase::UniformBuffer, \
+	EUniformBufferBindingFlags::Shader, \
 	TEXT(#StructTypeName), \
 	TEXT(#StructTypeName), \
 	TEXT(#UniformBufferAlias), \
@@ -1094,33 +1296,47 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 	sizeof(StructTypeName), \
 	StructTypeName::zzGetMembers())
 
-/** Implements a uniform buffer tied to a static binding slot. The third parameter is the name of the slot.
- *  Multiple uniform buffers can be associated to a slot; only one uniform buffer can be bound to a slot
- *  at one time.
- *
- * Example:
- *	BEGIN_UNIFORM_BUFFER_STRUCT(FMyParameterStruct, RENDERER_API)
- *	END_UNIFORM_BUFFER_STRUCT()
- *
- *	// C++ file
- *
- *	// Define uniform buffer slot.
- *	IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(MySlot)
- *
- *	// Associate uniform buffer with slot.
- *	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMyParameterStruct, "MyShaderBindingName", MySlot);
- */
-#define IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName,StaticSlotName) \
+#define IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX(StructTypeName,ShaderVariableName,StaticSlotName,BindingFlagsEnum) \
+	static_assert(EnumHasAnyFlags(EUniformBufferBindingFlags::BindingFlagsEnum, EUniformBufferBindingFlags::Static), "Shader bindings must include 'Static'."); \
 	FShaderParametersMetadata StructTypeName::StaticStructMetadata( \
-	FShaderParametersMetadata::EUseCase::UniformBuffer, \
-	TEXT(#StructTypeName), \
-	TEXT(#StructTypeName), \
-	TEXT(ShaderVariableName), \
-	TEXT(#StaticSlotName), \
-	StructTypeName::FTypeInfo::FileName, \
-	StructTypeName::FTypeInfo::FileLine, \
-	sizeof(StructTypeName), \
-	StructTypeName::zzGetMembers())
+		FShaderParametersMetadata::EUseCase::UniformBuffer, \
+		EUniformBufferBindingFlags::BindingFlagsEnum, \
+		TEXT(#StructTypeName), \
+		TEXT(#StructTypeName), \
+		TEXT(ShaderVariableName), \
+		TEXT(#StaticSlotName), \
+		StructTypeName::FTypeInfo::FileName, \
+		StructTypeName::FTypeInfo::FileLine, \
+		sizeof(StructTypeName), \
+		StructTypeName::zzGetMembers())
+
+/** Implements the same contract as IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT, with the addition of the 'StaticAndShader' binding
+ *  flag. This means that the uniform buffer may be bound statically or through SetShaderParameters. The uniform buffer is NOT
+ *  removed from the parameter map, which means it is possible to end up with both global and shader bindings. The RHI validation
+ *  layer will catch and report these cases, as they are both inefficient and would produce confusing behavior if the two bindings
+ *  differ. Only one binding model should be used at a time.
+ */
+#define IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName,StaticSlotName) \
+	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX(StructTypeName, ShaderVariableName, StaticSlotName, StaticAndShader)
+
+ /** Implements a uniform buffer tied to a static binding slot. The third parameter is the name of the slot.
+  *  Multiple uniform buffers can be associated to a slot; only one uniform buffer can be bound to a slot
+  *  at one time.
+  *
+  * Example:
+  *	BEGIN_UNIFORM_BUFFER_STRUCT(FMyParameterStruct, RENDERER_API)
+  *	END_UNIFORM_BUFFER_STRUCT()
+  *
+  *	// C++ file
+  *
+  *	// Define uniform buffer slot.
+  *	IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(MySlot)
+  *
+  *	// Associate uniform buffer with slot.
+  *	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMyParameterStruct, "MyShaderBindingName", MySlot);
+  */
+#define IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName,StaticSlotName) \
+	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX(StructTypeName, ShaderVariableName, StaticSlotName, Static)
 
 /** Implements a uniform buffer static binding slot. */
 #define IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(SlotName) \
@@ -1289,7 +1505,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
   *	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMyStruct, MemberName)
   */
 #define SHADER_PARAMETER_RDG_UNIFORM_BUFFER(StructType, MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_UNIFORM_BUFFER, TShaderParameterTypeInfo<TRDGUniformBuffer<StructType>*>, TRDGUniformBuffer<StructType>*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#StructType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_UNIFORM_BUFFER, TShaderParameterTypeInfo<TRDGUniformBufferBinding<StructType>>, TRDGUniformBufferBinding<StructType>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(#StructType),false)
 
 /** Nests a shader parameter structure into another one, in C++ and shader code.
  *
@@ -1375,7 +1591,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  *		SHADER_PARAMETER_STRUCT_REF(FMyNestedStruct, MyStruct)
  */
 #define SHADER_PARAMETER_STRUCT_REF(StructType,MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_REFERENCED_STRUCT, TShaderParameterTypeInfo<TUniformBufferRef<StructType>>, TUniformBufferRef<StructType>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(#StructType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_REFERENCED_STRUCT, TShaderParameterTypeInfo<TUniformBufferBinding<StructType>>, TUniformBufferBinding<StructType>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(#StructType),false)
 
 /** Informs the RDG pass to transition the buffer into the requested state.
  *

@@ -495,8 +495,9 @@ void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderPa
 	// Graph Uniform Buffers
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.GraphUniformBuffers)
 	{
-		auto GraphUniformBuffer = *reinterpret_cast<const FRDGUniformBuffer* const*>(Base + ParameterBinding.ByteOffset);
-		if (!GraphUniformBuffer)
+		const FRDGUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FRDGUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
+
+		if (!UniformBufferBinding)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
 		}
@@ -505,9 +506,9 @@ void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderPa
 	// Reference structures
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.ParameterReferences)
 	{
-		const TRefCountPtr<FRHIUniformBuffer>& ShaderParameterRef = *reinterpret_cast<const TRefCountPtr<FRHIUniformBuffer>*>(Base + ParameterBinding.ByteOffset);
+		const FUniformBufferBinding& UniformBufferBinding = *reinterpret_cast<const FUniformBufferBinding*>(Base + ParameterBinding.ByteOffset);
 
-		if (!ShaderParameterRef.IsValid())
+		if (!UniformBufferBinding)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
 		}

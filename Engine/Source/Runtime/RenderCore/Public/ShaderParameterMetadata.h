@@ -34,9 +34,20 @@ struct FResourceTableEntry
 	/** The name of the uniform buffer in which this resource exists. */
 	FString UniformBufferName;
 	/** The type of the resource (EUniformBufferBaseType). */
-	uint16 Type;
+	uint16 Type{};
 	/** The index of the resource in the table. */
-	uint16 ResourceIndex;
+	uint16 ResourceIndex{};
+};
+
+/** Minimal information about each uniform buffer entry fed to the shader compiler. */
+struct FUniformBufferEntry
+{
+	/** The name of the uniform buffer static slot (if global). */
+	FString StaticSlotName;
+	/** Hash of the resource table layout. */
+	uint32 LayoutHash{};
+	/** The binding flags used by this resource table. */
+	EUniformBufferBindingFlags BindingFlags{ EUniformBufferBindingFlags::Shader };
 };
 
 /** Parse the shader resource binding from the binding type used in shader code. */
@@ -206,6 +217,7 @@ public:
 	/** Initialization constructor. */
 	FShaderParametersMetadata(
 		EUseCase UseCase,
+		EUniformBufferBindingFlags InBindingFlags,
 		const TCHAR* InLayoutName,
 		const TCHAR* InStructTypeName,
 		const TCHAR* InShaderVariableName,
@@ -219,7 +231,7 @@ public:
 
 	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 
-	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes, TMap<FString, FString>& ResourceTableLayoutSlots) const;
+	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
 
 	const TCHAR* GetStructTypeName() const { return StructTypeName; }
 	const TCHAR* GetShaderVariableName() const { return ShaderVariableName; }
@@ -227,6 +239,16 @@ public:
 	const TCHAR* GetStaticSlotName() const { return StaticSlotName; }
 
 	bool HasStaticSlot() const { return StaticSlotName != nullptr; }
+
+	EUniformBufferBindingFlags GetBindingFlags() const { return BindingFlags; }
+
+	EUniformBufferBindingFlags GetPreferredBindingFlag() const
+	{
+		// Decay to static when both binding flags are specified.
+		return BindingFlags != EUniformBufferBindingFlags::StaticAndShader
+			? BindingFlags
+			: EUniformBufferBindingFlags::Static;
+	}
 
 	/** Returns the C++ file name where the parameter structure is declared. */
 	const ANSICHAR* GetFileName() const { return FileName; }
@@ -291,6 +313,9 @@ private:
 
 	/** The use case of this shader parameter struct. */
 	const EUseCase UseCase;
+
+	/** The binding model used by this parameter struct. */
+	const EUniformBufferBindingFlags BindingFlags;
 
 	/** Layout of all the resources in the shader parameter struct. */
 	FRHIUniformBufferLayout Layout;

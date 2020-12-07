@@ -52,8 +52,8 @@ void ClearUnusedGraphResourcesImpl(
 				continue;
 			}
 
-			FRDGUniformBufferRef UniformBuffer = *reinterpret_cast<FRDGUniformBufferRef*>(Base + ByteOffset);
-			if (!UniformBuffer || UniformBuffer->IsGlobal())
+			const FRDGUniformBufferBinding& UniformBuffer = *reinterpret_cast<FRDGUniformBufferBinding*>(Base + ByteOffset);
+			if (!UniformBuffer || UniformBuffer.IsStatic())
 			{
 				continue;
 			}
@@ -126,8 +126,8 @@ void ClearUnusedGraphResourcesImpl(
 				bResourceIsUsed |= GraphUniformBufferId < GraphUniformBuffers.Num() && ByteOffset == GraphUniformBuffers[GraphUniformBufferId].ByteOffset;
 			}
 
-			FRDGUniformBufferRef UniformBuffer = *reinterpret_cast<FRDGUniformBufferRef*>(Base + ByteOffset);
-			if (!UniformBuffer || UniformBuffer->IsGlobal())
+			const FRDGUniformBufferBinding& UniformBuffer = *reinterpret_cast<const FRDGUniformBufferBinding*>(Base + ByteOffset);
+			if (!UniformBuffer || UniformBuffer.IsStatic())
 			{
 				continue;
 			}

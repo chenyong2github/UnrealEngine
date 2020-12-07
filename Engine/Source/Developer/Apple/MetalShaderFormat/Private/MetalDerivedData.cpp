@@ -508,7 +508,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			TMap<FString, FMetalResourceTableEntry> ResourceTable;
 			if (IABTier >= 1)
 			{
-				for (auto Pair : Input.Environment.ResourceTableLayoutHashes)
+				for (auto Pair : Input.Environment.UniformBufferMap)
 				{
 					TableNames.Add(*Pair.Key);
 				}

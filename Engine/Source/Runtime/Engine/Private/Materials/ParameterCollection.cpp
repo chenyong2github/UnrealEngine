@@ -420,6 +420,7 @@ void UMaterialParameterCollection::CreateBufferStruct()
 	// (and the hlsl cbuffers are named MaterialCollection0, etc, so the names don't match the layout)
 	UniformBufferStruct = MakeUnique<FShaderParametersMetadata>(
 		FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer,
+		EUniformBufferBindingFlags::Shader,
 		TEXT("MaterialCollection"),
 		TEXT("MaterialCollection"),
 		TEXT("MaterialCollection"),

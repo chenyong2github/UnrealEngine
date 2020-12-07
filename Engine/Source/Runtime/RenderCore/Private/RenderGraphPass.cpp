@@ -19,17 +19,17 @@ FUniformBufferStaticBindings FRDGParameterStruct::GetGlobalUniformBuffers() cons
 	for (uint32 Index = 0, Count = Layout->UniformBuffers.Num(); Index < Count; ++Index)
 	{
 		const uint32 MemberOffset = Layout->UniformBuffers[Index].MemberOffset;
-		FRHIUniformBuffer* UniformBufferPtr = *reinterpret_cast<FUniformBufferRHIRef*>(const_cast<uint8*>(Contents + MemberOffset));
+		const FUniformBufferBinding& UniformBuffer = *reinterpret_cast<const FUniformBufferBinding*>(const_cast<uint8*>(Contents + MemberOffset));
 
-		if (UniformBufferPtr && UniformBufferPtr->IsGlobal())
+		if (UniformBuffer && UniformBuffer.IsStatic())
 		{
-			GlobalUniformBuffers.AddUniformBuffer(UniformBufferPtr);
+			GlobalUniformBuffers.AddUniformBuffer(UniformBuffer.GetUniformBuffer());
 		}
 	}
 
-	EnumerateUniformBuffers([&](FRDGUniformBufferRef UniformBuffer)
+	EnumerateUniformBuffers([&](FRDGUniformBufferBinding UniformBuffer)
 	{
-		if (UniformBuffer->IsGlobal())
+		if (UniformBuffer.IsStatic())
 		{
 			GlobalUniformBuffers.AddUniformBuffer(UniformBuffer->GetRHI());
 		}

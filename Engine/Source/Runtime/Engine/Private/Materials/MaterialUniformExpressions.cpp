@@ -518,6 +518,7 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 	FShaderParametersMetadata* UniformBufferStruct = new FShaderParametersMetadata(
 		FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer,
+		EUniformBufferBindingFlags::Shader,
 		TEXT("Material"),
 		TEXT("MaterialUniforms"),
 		TEXT("Material"),

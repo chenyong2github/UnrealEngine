@@ -17,14 +17,14 @@
  */
 extern SHADERCOMPILERCOMMON_API bool BuildResourceTableMapping(
 		const TMap<FString,FResourceTableEntry>& ResourceTableMap,
-		const TMap<FString,uint32>& ResourceTableLayoutHashes,
+		const TMap<FString,FUniformBufferEntry>& UniformBufferMap,
 		TBitArray<>& UsedUniformBufferSlots,
 		FShaderParameterMap& ParameterMap,
 		FShaderCompilerResourceTable& OutSRT
 	);
 
 /** Culls global uniform buffer entries from the parameter map. */
-extern SHADERCOMPILERCOMMON_API void CullGlobalUniformBuffers(const TMap<FString, FString>& ResourceTableLayoutSlots, FShaderParameterMap& ParameterMap);
+extern SHADERCOMPILERCOMMON_API void CullGlobalUniformBuffers(const TMap<FString, FUniformBufferEntry>& UniformBufferMap, FShaderParameterMap& ParameterMap);
 
 /**
  * Builds a token stream out of the resource map. The resource map is one
