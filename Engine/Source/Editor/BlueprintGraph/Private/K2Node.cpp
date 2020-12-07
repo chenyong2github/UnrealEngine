@@ -141,6 +141,11 @@ void UK2Node::Serialize(FArchive& Ar)
 	}
 }
 
+bool UK2Node::HasNonEditorOnlyReferences() const
+{
+	return true;
+}
+
 void UK2Node::FixupPinDefaultValues()
 {
 	const int32 LinkerUE4Version = GetLinkerUE4Version();

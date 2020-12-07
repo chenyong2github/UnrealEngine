@@ -470,6 +470,17 @@ public:
 	}
 
 	/**
+	* Called during saving to determine if the object's references are used in game even when the object itself
+	* is never loaded outside the editor (because e.g. its references are followed during cooking)
+	*
+	* @return	true if this object's references should be marked as used in game even when the object is editoronly
+	*/
+	virtual bool HasNonEditorOnlyReferences() const
+	{
+		return false;
+	}
+
+	/**
 	* Called during async load to determine if PostLoad can be called on the loading thread.
 	*
 	* @return	true if this object's PostLoad is thread safe
