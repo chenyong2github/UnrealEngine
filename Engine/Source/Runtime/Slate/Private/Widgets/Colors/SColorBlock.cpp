@@ -10,79 +10,71 @@
  *
  * @param	InArgs	The declaration data for this widget
  */
-void SColorBlock::Construct( const FArguments& InArgs )
+void SColorBlock::Construct(const FArguments& InArgs)
 {
 	Color = InArgs._Color;
+	AlphaBackgroundBrush = InArgs._AlphaBackgroundBrush;
+	SolidBackgroundBrush = InArgs._SolidBackgroundBrush;
+	GradientCornerRadius = InArgs._CornerRadius;
 	ColorIsHSV = InArgs._ColorIsHSV;
-	IgnoreAlpha = InArgs._IgnoreAlpha;
+	AlphaDisplayMode = InArgs._AlphaDisplayMode;
 	ShowBackgroundForAlpha = InArgs._ShowBackgroundForAlpha;
 	MouseButtonDownHandler = InArgs._OnMouseButtonDown;
 	bUseSRGB = InArgs._UseSRGB;
 	ColorBlockSize = InArgs._Size;
 }
 
-int32 SColorBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+int32 SColorBlock::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush( "GenericWhiteBox" );
-
 	const ESlateDrawEffect DrawEffects = ESlateDrawEffect::None;
-	
+
+	EColorBlockAlphaDisplayMode DisplayMode = AlphaDisplayMode.Get();
+	bool bIgnoreAlpha = DisplayMode == EColorBlockAlphaDisplayMode::Ignore;
 	FLinearColor InColor = Color.Get();
 	if (ColorIsHSV.Get())
 	{
 		InColor = InColor.HSVToLinearRGB();
 	}
-	if (IgnoreAlpha.Get())
-	{
-		InColor.A = 1.f;
-	}
-	
-	const FColor DrawColor = InColor.ToFColor(bUseSRGB.Get());
-	if( ShowBackgroundForAlpha.Get() && DrawColor.A < 255 )
-	{
-		// If we are showing a background pattern and the colors is transparent, draw a checker pattern
-		const FSlateBrush* CheckerBrush = FCoreStyle::Get().GetBrush("ColorPicker.AlphaBackground");
-		FSlateDrawElement::MakeBox( OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), CheckerBrush, DrawEffects );
-	}
-	
-	// determine if it is HDR
-	const float MaxRGB = FMath::Max3(InColor.R, InColor.G, InColor.B);
-	if (MaxRGB > 1.f)
-	{
-		FLinearColor NormalizedLinearColor = InColor / MaxRGB;
-		NormalizedLinearColor.A = InColor.A;
-		const FLinearColor DrawNormalizedColor = InWidgetStyle.GetColorAndOpacityTint() * NormalizedLinearColor.ToFColor(bUseSRGB.Get());
 
-		FLinearColor ClampedLinearColor = InColor;
-		ClampedLinearColor.A = InColor.A * MaxRGB;
-		const FLinearColor DrawClampedColor = InWidgetStyle.GetColorAndOpacityTint() * ClampedLinearColor.ToFColor(bUseSRGB.Get());
-
-		TArray<FSlateGradientStop> GradientStops;
-		
-		GradientStops.Add( FSlateGradientStop( FVector2D::ZeroVector, DrawNormalizedColor ) );
-		GradientStops.Add( FSlateGradientStop( AllottedGeometry.GetLocalSize() * 0.5f, DrawClampedColor ) );
-		GradientStops.Add( FSlateGradientStop( AllottedGeometry.GetLocalSize(), DrawNormalizedColor ) );
-
-		FSlateDrawElement::MakeGradient(
-			OutDrawElements,
-			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(),
-			GradientStops,
-			(AllottedGeometry.GetLocalSize().X > AllottedGeometry.GetLocalSize().Y) ? Orient_Vertical : Orient_Horizontal,
-			DrawEffects
-		);
-	}
-	else
+	if (ShowBackgroundForAlpha.Get() && InColor.A < 1.0f && !bIgnoreAlpha)
 	{
-		FSlateDrawElement::MakeBox( OutDrawElements, LayerId + 1, AllottedGeometry.ToPaintGeometry(), GenericBrush, DrawEffects, InWidgetStyle.GetColorAndOpacityTint() * DrawColor );
+		FSlateDrawElement::MakeBox(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), AlphaBackgroundBrush.Get(), DrawEffects);
 	}
+
+	TArray<FSlateGradientStop> GradientStops;
+
+	switch (DisplayMode)
+	{
+	default:
+	case EColorBlockAlphaDisplayMode::Combined:
+		MakeSection(GradientStops, FVector2D::ZeroVector, AllottedGeometry.GetLocalSize(), InColor, InWidgetStyle, false);
+		break;
+	case EColorBlockAlphaDisplayMode::Separate:
+		MakeSection(GradientStops, FVector2D::ZeroVector, AllottedGeometry.GetLocalSize() * 0.5f, InColor, InWidgetStyle, false);
+		MakeSection(GradientStops, AllottedGeometry.GetLocalSize() * 0.5f, AllottedGeometry.GetLocalSize(), InColor, InWidgetStyle, true);
+		break;
+	case EColorBlockAlphaDisplayMode::Ignore:
+		MakeSection(GradientStops, FVector2D::ZeroVector, AllottedGeometry.GetLocalSize(), InColor, InWidgetStyle, true);
+		break;
+	}
+
+	FSlateDrawElement::MakeGradient(
+		OutDrawElements,
+		LayerId+1,
+		AllottedGeometry.ToPaintGeometry(),
+		MoveTemp(GradientStops),
+		(AllottedGeometry.GetLocalSize().X > AllottedGeometry.GetLocalSize().Y) ? Orient_Vertical : Orient_Horizontal,
+		DrawEffects,
+		GradientCornerRadius.Get(0.0f)
+	);
+
 
 	return LayerId + 1;
 }
 
-FReply SColorBlock::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SColorBlock::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( MouseButtonDownHandler.IsBound() )
+	if (MouseButtonDownHandler.IsBound())
 	{
 		// If a handler is assigned, call it.
 		return MouseButtonDownHandler.Execute(MyGeometry, MouseEvent);
@@ -94,7 +86,38 @@ FReply SColorBlock::OnMouseButtonDown( const FGeometry& MyGeometry, const FPoint
 	}
 }
 
-FVector2D SColorBlock::ComputeDesiredSize( float ) const
+FVector2D SColorBlock::ComputeDesiredSize(float) const
 {
 	return ColorBlockSize.Get();
+}
+
+void SColorBlock::MakeSection(TArray<FSlateGradientStop>& OutGradientStops, FVector2D StartPt, FVector2D EndPt, FLinearColor InColor, const FWidgetStyle& InWidgetStyle, bool bIgnoreAlpha) const
+{
+	// determine if it is HDR
+	const float MaxRGB = FMath::Max3(InColor.R, InColor.G, InColor.B);
+	if (MaxRGB > 1.f)
+	{
+		const float Alpha = bIgnoreAlpha ? 1.0f : InColor.A;
+		FLinearColor NormalizedLinearColor = InColor / MaxRGB;
+		NormalizedLinearColor.A = Alpha;
+		const FLinearColor DrawNormalizedColor = InWidgetStyle.GetColorAndOpacityTint() * NormalizedLinearColor.ToFColor(bUseSRGB.Get());
+
+		FLinearColor ClampedLinearColor = InColor;
+		ClampedLinearColor.A = Alpha * MaxRGB;
+		const FLinearColor DrawClampedColor = InWidgetStyle.GetColorAndOpacityTint() * ClampedLinearColor.ToFColor(bUseSRGB.Get());
+
+		OutGradientStops.Add(FSlateGradientStop(StartPt, DrawNormalizedColor));
+		OutGradientStops.Add(FSlateGradientStop((StartPt + EndPt) * 0.5f, DrawClampedColor));
+		OutGradientStops.Add(FSlateGradientStop(EndPt, DrawNormalizedColor));
+	}
+	else
+	{
+		FColor DrawColor = InColor.ToFColor(bUseSRGB.Get());
+		if (bIgnoreAlpha)
+		{
+			DrawColor.A = 255;
+		}
+		OutGradientStops.Add(FSlateGradientStop(StartPt, InWidgetStyle.GetColorAndOpacityTint() * DrawColor));
+		OutGradientStops.Add(FSlateGradientStop(EndPt, InWidgetStyle.GetColorAndOpacityTint() * DrawColor));
+	}
 }

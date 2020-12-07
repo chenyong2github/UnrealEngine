@@ -14,6 +14,7 @@
 #include "Widgets/SPanel.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Colors/SColorBlock.h"
 
 class FArrangedChildren;
 class SEditableTextBox;
@@ -221,7 +222,7 @@ private:
 	 */
 	FText FormatToolTipText(const FText& ColorIdentifier, float Value) const;
 	
-	bool OnReadIgnoreAlpha() const;
+	EColorBlockAlphaDisplayMode OnGetAlphaDisplayMode() const;
 	bool OnReadShowBackgroundForAlpha() const;
 	EVisibility OnGetAlphaVisibility() const;
 

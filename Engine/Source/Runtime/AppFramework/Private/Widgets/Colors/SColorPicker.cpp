@@ -1062,7 +1062,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 							// old color
 							SNew(SColorBlock) 
 								.ColorIsHSV(true) 
-								.IgnoreAlpha(true)
+								.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 								.ToolTipText(LOCTEXT("OldColorToolTip", "Old color without alpha (drag to theme bar to save)"))
 								.Color(OldColor) 
 								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleOldColorBlockMouseButtonDown, false)
@@ -1094,7 +1094,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 							// new color
 							SNew(SColorBlock) 
 								.ColorIsHSV(true) 
-								.IgnoreAlpha(true)
+								.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 								.ToolTipText(LOCTEXT("NewColorToolTip", "New color without alpha (drag to theme bar to save)"))
 								.Color(this, &SColorPicker::GetCurrentColor)
 								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleNewColorBlockMouseButtonDown, false)

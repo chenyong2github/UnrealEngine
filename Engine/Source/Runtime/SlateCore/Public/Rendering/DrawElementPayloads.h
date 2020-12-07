@@ -55,7 +55,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 	ESlateBrushDrawType::Type GetBrushDrawType() const { return DrawType; }
 	const FSlateShaderResourceProxy* GetResourceProxy() const { return ResourceProxy; }
 
-	void SetBrush(const FSlateBrush* InBrush)
+	void SetBrush(const FSlateBrush* InBrush, FVector2D LocalSize, float DrawScale)
 	{
 		check(InBrush);
 		ensureMsgf(InBrush->GetDrawType() != ESlateBrushDrawType::NoDrawType, TEXT("This should have been filtered out earlier in the Make... call."));
@@ -66,7 +66,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 		Tiling = InBrush->GetTiling();
 		Mirroring = InBrush->GetMirroring();
 		DrawType = InBrush->GetDrawType();
-		FSlateResourceHandle Handle = InBrush->GetRenderingResource();
+		FSlateResourceHandle Handle = InBrush->GetRenderingResource(LocalSize, DrawScale);
 		if (Handle.IsValid())
 		{
 			ResourceProxy = Handle.GetResourceProxy();
@@ -80,6 +80,20 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 	FORCENOINLINE virtual ~FSlateBoxPayload()
 	{
 	}
+};
+
+struct FSlateRoundedBoxPayload : public FSlateBoxPayload
+{
+	FLinearColor OutlineColor;
+	float Radius;
+	float OutlineWeight;
+
+	FORCEINLINE void SetRadius(float InRadius) { Radius = InRadius; }
+	FORCEINLINE float GetRadius() const { return Radius; }
+
+	FORCEINLINE void SetOutline(const FLinearColor& InOutlineColor, float InOutlineWeight) { OutlineColor = InOutlineColor; OutlineWeight = InOutlineWeight; }
+	FORCEINLINE FLinearColor GetOutlineColor() const { return OutlineColor; }
+	FORCEINLINE float GetOutlineWeight() const { return OutlineWeight; }
 };
 
 struct FSlateTextPayload : public FSlateDataPayload, public FSlateTintableElement
@@ -148,11 +162,13 @@ struct FSlateGradientPayload : public FSlateDataPayload
 {
 	TArray<FSlateGradientStop> GradientStops;
 	EOrientation GradientType;
+	float CornerRadius;
 
-	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType)
+	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, float InCornerRadius)
 	{
 		GradientStops = InGradientStops;
 		GradientType = InGradientType;
+		CornerRadius = InCornerRadius;
 	}
 };
 

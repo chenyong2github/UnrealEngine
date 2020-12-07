@@ -543,7 +543,7 @@ void FSlateElementBatcher::AddBoxElement(const FSlateDrawElement& DrawElement)
 	const FColor Tint = PackVertexColor(DrawElementPayload.GetTint());
 	const FSlateRenderTransform& ElementRenderTransform = DrawElement.GetRenderTransform();
 	const FSlateRenderTransform RenderTransform = DrawElement.GetRenderTransform();// GetBoxRenderTransform(DrawElement);
-	const FVector2D& LocalSize = DrawElement.GetLocalSize();
+	const FVector2D LocalSize = DrawElement.GetLocalSize();
 
 	const ESlateDrawEffect InDrawEffects = DrawElement.GetDrawEffects();
 	const int32 Layer = DrawElement.GetLayer();
@@ -1429,21 +1429,32 @@ template<ESlateVertexRounding Rounding>
 void FSlateElementBatcher::AddGradientElement( const FSlateDrawElement& DrawElement )
 {
 	const FSlateRenderTransform& RenderTransform = DrawElement.GetRenderTransform();
-	const FVector2D& LocalSize = DrawElement.GetLocalSize();
+	const FVector2D LocalSize = DrawElement.GetLocalSize();
 	const FSlateGradientPayload& InPayload = DrawElement.GetDataPayload<FSlateGradientPayload>();
 	const ESlateDrawEffect InDrawEffects = DrawElement.GetDrawEffects();
 	const int32 Layer = DrawElement.GetLayer();
+	const float DrawScale = DrawElement.GetScale();
 
 	// There must be at least one gradient stop
 	check( InPayload.GradientStops.Num() > 0 );
 
+	FShaderParams ShaderParams;
+
+	ESlateShader ShaderType = ESlateShader::Default;
+	if (InPayload.CornerRadius > 0)
+	{
+		ShaderType = ESlateShader::RoundedBox;
+		ShaderParams.PixelParams = FVector4(InPayload.CornerRadius, 0.0f, LocalSize.X, LocalSize.Y);
+		ShaderParams.PixelParams2 = FVector4(FLinearColor::Transparent);
+	}
+
 	FSlateRenderBatch& RenderBatch = 
 		CreateRenderBatch( 
 			Layer,
-			FShaderParams(),
+			ShaderParams,
 			nullptr,
 			ESlateDrawPrimitive::TriangleList,
-			ESlateShader::Default,
+			ShaderType,
 			InDrawEffects,
 			DrawElement.GetBatchFlags(),
 			DrawElement);
@@ -1504,6 +1515,9 @@ void FSlateElementBatcher::AddGradientElement( const FSlateDrawElement& DrawElem
 		// The end vertex at this stop
 		FVector2D EndPt;
 
+		FVector2D StartUV;
+		FVector2D EndUV;
+
 		if( InPayload.GradientType == Orient_Vertical )
 		{
 			// Gradient stop is vertical so gradients to left to right
@@ -1512,28 +1526,41 @@ void FSlateElementBatcher::AddGradientElement( const FSlateDrawElement& DrawElem
 			// Gradient stops are interpreted in local space.
 			StartPt.X += CurStop.Position.X;
 			EndPt.X += CurStop.Position.X;
+
+			StartUV.X = StartPt.X / TopRight.X;
+			StartUV.Y = 0;
+
+			EndUV.X = EndPt.X / TopRight.X;
+			EndUV.Y = 1;
 		}
 		else
 		{
+
 			// Gradient stop is horizontal so gradients to top to bottom
 			StartPt = TopLeft;
 			EndPt = TopRight;
 			// Gradient stops are interpreted in local space.
 			StartPt.Y += CurStop.Position.Y;
 			EndPt.Y += CurStop.Position.Y;
+
+			StartUV.X = 0;
+			StartUV.Y = StartPt.Y / BotLeft.Y;
+
+			EndUV.X = 1;
+			EndUV.Y = StartPt.Y / BotLeft.Y;
 		}
 
 		if( StopIndex == 0 )
 		{
 			// First stop does not have a full quad yet so do not create indices
-			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, StartPt, FVector2D::ZeroVector, FVector2D::ZeroVector, PackVertexColor(CurStop.Color)));
-			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, EndPt, FVector2D::ZeroVector, FVector2D::ZeroVector, PackVertexColor(CurStop.Color)));
+			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, StartPt, LocalSize, DrawScale, FVector4(StartUV.X, StartUV.Y, 0,0), PackVertexColor(CurStop.Color)));
+			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, EndPt, LocalSize, DrawScale, FVector4(EndUV.X, EndUV.Y, 0, 0), PackVertexColor(CurStop.Color)));
 		}
 		else
 		{
 			// All stops after the first have indices and generate quads
-			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, StartPt, FVector2D::ZeroVector, FVector2D::ZeroVector, PackVertexColor(CurStop.Color)));
-			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, EndPt, FVector2D::ZeroVector, FVector2D::ZeroVector, PackVertexColor(CurStop.Color)));
+			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, StartPt, LocalSize, DrawScale, FVector4(StartUV.X, StartUV.Y, 0, 0), PackVertexColor(CurStop.Color)));
+			RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, EndPt, LocalSize, DrawScale, FVector4(EndUV.X, EndUV.Y, 0, 0), PackVertexColor(CurStop.Color)));
 
 			// Connect the indices to the previous vertices
 			RenderBatch.AddIndex(IndexStart - 2);

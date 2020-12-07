@@ -71,7 +71,7 @@ TSharedPtr<SWidget> FColorDragDrop::GetDefaultDecorator() const
 			SNew(SColorBlock) 
 				.Color(Color)
 				.ColorIsHSV(true) 
-				.IgnoreAlpha(bIgnoreAlpha) 
+				.AlphaDisplayMode(bIgnoreAlpha ? EColorBlockAlphaDisplayMode::Ignore : EColorBlockAlphaDisplayMode::Combined)
 				.ShowBackgroundForAlpha(bShowBackgroundForAlpha) 
 				.UseSRGB(bUseSRGB)
 		];
@@ -257,8 +257,8 @@ void SThemeColorBlock::Construct(const FArguments& InArgs )
 						SNew(SColorBlock)
 							.Color(this, &SThemeColorBlock::GetColor)
 							.ColorIsHSV(true)
-							.IgnoreAlpha(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SThemeColorBlock::OnReadIgnoreAlpha)))
-							.ShowBackgroundForAlpha(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SThemeColorBlock::OnReadShowBackgroundForAlpha)))
+							.AlphaDisplayMode(this, &SThemeColorBlock::OnGetAlphaDisplayMode)
+							.ShowBackgroundForAlpha(this, &SThemeColorBlock::OnReadShowBackgroundForAlpha)
 							.UseSRGB(bUseSRGB)
 					]
 				]
@@ -318,26 +318,15 @@ void SThemeColorBlock::Construct(const FArguments& InArgs )
 			.BorderBackgroundColor(this, &SThemeColorBlock::HandleBorderColor)
 			.Padding(FMargin(1.0f))
 			.ToolTip(ColorTooltip)
+			.VAlign(VAlign_Center)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SColorBlock)
-					.Color(this, &SThemeColorBlock::GetColor)
-					.ColorIsHSV(true)
-					.IgnoreAlpha(true)
-					.ShowBackgroundForAlpha(false)
-					.UseSRGB(bUseSRGB)
-				]
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SColorBlock)
-					.Color(this, &SThemeColorBlock::GetColor)
-					.ColorIsHSV(true)
-					.IgnoreAlpha(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SThemeColorBlock::OnReadIgnoreAlpha)))
-					.ShowBackgroundForAlpha(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SThemeColorBlock::OnReadShowBackgroundForAlpha)))
-					.UseSRGB(bUseSRGB)
-				]
+				SNew(SColorBlock)
+				.Color(this, &SThemeColorBlock::GetColor)
+				.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Separate)
+				.ColorIsHSV(true)
+				.ShowBackgroundForAlpha(true)
+				.UseSRGB(bUseSRGB)
+				.Size(FVector2D(32,16))
 			]
 	];
 }
@@ -486,9 +475,9 @@ FText SThemeColorBlock::FormatToolTipText(const FText& ColorIdentifier, float Va
 }
 #undef LOCTEXT_NAMESPACE
 
-bool SThemeColorBlock::OnReadIgnoreAlpha() const
+EColorBlockAlphaDisplayMode SThemeColorBlock::OnGetAlphaDisplayMode() const
 {
-	return !bUseAlpha.Get();
+	return !bUseAlpha.Get() ? EColorBlockAlphaDisplayMode::Ignore : EColorBlockAlphaDisplayMode::Combined;
 }
 
 bool SThemeColorBlock::OnReadShowBackgroundForAlpha() const

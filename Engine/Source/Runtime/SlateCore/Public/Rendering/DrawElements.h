@@ -168,8 +168,9 @@ public:
 	 * @param InGradientStops          List of gradient stops which define the element
 	 * @param InGradientType           The type of gradient (I.E Horizontal, vertical)
 	 * @param InDrawEffects            Optional draw effects to apply
+	 * @param CornerRadius			   Rounds the corners of the box created by the gradient by the specified radius
 	 */
-	SLATECORE_API static void MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None );
+	SLATECORE_API static void MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, float CornerRadius = 0.0f );
 
 	/**
 	 * Creates a Hermite Spline element
