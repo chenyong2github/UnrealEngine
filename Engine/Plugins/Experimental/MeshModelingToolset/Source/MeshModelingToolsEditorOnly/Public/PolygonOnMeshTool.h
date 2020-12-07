@@ -72,6 +72,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Shape)
 	EPolygonType Shape = EPolygonType::Circle;
 
+	/** Use a volumetric boolean rather than curve projection; cuts through all layers and across edges */
+	UPROPERTY(EditAnywhere, Category = Operation)
+	bool bCutWithBoolean = true;
+
+	/** Automatically attempt to fill any holes left by CSG (e.g. due to numerical errors) */
+	UPROPERTY(EditAnywhere, Category = Operation, meta = (EditCondition = "bCutWithBoolean"))
+	bool bAttemptFixHoles = true;
+
 	// TODO: re-add if/when extrude is added as a supported operation
 	///** Amount to extrude, if extrude is enabled */
 	//UPROPERTY(EditAnywhere, Category = Options)
@@ -197,8 +205,9 @@ protected:
 	UPROPERTY()
 	ULineSetComponent* DrawnLineSet;
 
+	TArray<int> EdgesOnFailure;
 	TArray<int> EmbeddedEdges;
-	bool bEmbedSucceeded;
+	bool bOperationSucceeded;
 
 protected:
 	UWorld* TargetWorld;

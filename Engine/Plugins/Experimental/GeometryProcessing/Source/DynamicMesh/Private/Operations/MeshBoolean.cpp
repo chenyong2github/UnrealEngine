@@ -4,6 +4,7 @@
 
 #include "Operations/MeshBoolean.h"
 #include "Operations/MeshMeshCut.h"
+#include "Selections/MeshConnectedComponents.h"
 
 #include "Async/ParallelFor.h"
 #include "MeshTransforms.h"
@@ -256,12 +257,12 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
-	bool bOpIsATrim = Operation == EBooleanOp::TrimInside || Operation == EBooleanOp::TrimOutside;
+	bool bOpOnSingleMesh = Operation == EBooleanOp::TrimInside || Operation == EBooleanOp::TrimOutside || Operation == EBooleanOp::NewGroupInside || Operation == EBooleanOp::NewGroupOutside;
 
 	// cut the meshes
 	FMeshMeshCut Cut(CutMesh[0], CutMesh[1]);
 	Cut.bTrackInsertedVertices = bCollapseDegenerateEdgesOnCut; // to collect candidates to collapse
-	Cut.bMutuallyCut = !bOpIsATrim;
+	Cut.bMutuallyCut = !bOpOnSingleMesh;
 	Cut.SnapTolerance = SnapTolerance;
 	Cut.Cut(Intersections);
 
@@ -270,7 +271,7 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
-	int NumMeshesToProcess = bOpIsATrim ? 1 : 2;
+	int NumMeshesToProcess = bOpOnSingleMesh ? 1 : 2;
 
 	// collapse tiny edges along cut boundary
 	if (bCollapseDegenerateEdgesOnCut)
@@ -363,9 +364,9 @@ bool FMeshBoolean::Compute()
 			FDynamicMesh3& ProcessMesh = *CutMesh[MeshIdx];
 			int MaxTriID = ProcessMesh.MaxTriangleID();
 			KeepTri[MeshIdx].SetNumUninitialized(MaxTriID);
-			bool bCoplanarKeepSameDir = (Operation != EBooleanOp::Difference && Operation != EBooleanOp::TrimInside);
+			bool bCoplanarKeepSameDir = (Operation != EBooleanOp::Difference && Operation != EBooleanOp::TrimInside && Operation != EBooleanOp::NewGroupInside);
 			bool bRemoveInside = 1; // whether to remove the inside triangles (e.g. for union) or the outside ones (e.g. for intersection)
-			if (Operation == EBooleanOp::TrimOutside || Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
+			if (Operation == EBooleanOp::NewGroupOutside || Operation == EBooleanOp::TrimOutside || Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
 			{
 				bRemoveInside = 0;
 			}
@@ -440,6 +441,14 @@ bool FMeshBoolean::Compute()
 			}
 		}
 		// now go ahead and delete from both meshes
+		bool bRegroupInsteadOfDelete = Operation == EBooleanOp::NewGroupInside || Operation == EBooleanOp::NewGroupOutside;
+		int NewGroupID = -1;
+		TArray<int> NewGroupTris;
+		if (bRegroupInsteadOfDelete)
+		{
+			ensure(NumMeshesToProcess == 1);
+			NewGroupID = CutMesh[0]->AllocateTriangleGroup();
+		}
 		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			FDynamicMesh3& ProcessMesh = *CutMesh[MeshIdx];
@@ -448,7 +457,29 @@ bool FMeshBoolean::Compute()
 			{
 				if (ProcessMesh.IsTriangle(TID) && !KeepTri[MeshIdx][TID])
 				{
-					ProcessMesh.RemoveTriangle(TID, true, false);
+					if (bRegroupInsteadOfDelete)
+					{
+						ProcessMesh.SetTriangleGroup(TID, NewGroupID);
+						NewGroupTris.Add(TID);
+					}
+					else
+					{
+						ProcessMesh.RemoveTriangle(TID, true, false);
+					}
+				}
+			}
+		}
+		if (bRegroupInsteadOfDelete)
+		{
+			// the new triangle group could include disconnected components; best to give them separate triangle groups
+			FMeshConnectedComponents Components(CutMesh[0]);
+			Components.FindConnectedTriangles(NewGroupTris);
+			for (int ComponentIdx = 1; ComponentIdx < Components.Num(); ComponentIdx++)
+			{
+				int SplitGroupID = CutMesh[0]->AllocateTriangleGroup();
+				for (int TID : Components.GetComponent(ComponentIdx).Indices)
+				{
+					CutMesh[0]->SetTriangleGroup(TID, SplitGroupID);
 				}
 			}
 		}

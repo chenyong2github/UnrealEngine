@@ -49,15 +49,48 @@ protected:
 							   const TArrayView<const int32>& UVSections,
 							   const TArrayView<const int32>& NormalSections,
 							   const TArrayView<const int32>& SharpNormalsAlongLength,
+							   bool bEvenlySpaceUVs,
+							   const TArrayView<const FVector3d>& Path, // can be empty unless bEvenlySpaceUVs is true
 							   int32 NumCrossSections,
 							   bool bLoop,
 							   const ECapType Caps[2],
-							   FVector2d UVScale, FVector2d UVOffset)
+							   FVector2f SectionsUVScale, FVector2f CapUVScale, FVector2f CapUVOffset)
 	{
 		// per cross section
 		int32 XVerts = CrossSection.VertexCount();
 		int32 XNormals = XVerts + NormalSections.Num();
 		int32 XUVs = XVerts + UVSections.Num() + 1;
+
+		double TotalPerimeter = 0, TotalPathLength = 0;
+		TArray<double> CrossSectionPercentages, PathPercentages;
+		if (bEvenlySpaceUVs)
+		{
+			CrossSectionPercentages.Add(0);
+			PathPercentages.Add(0);
+			for (int XIdx = 0, XNum = CrossSection.VertexCount(); XIdx < XNum; XIdx++)
+			{
+				double SegLen = CrossSection[XIdx].Distance(CrossSection[(XIdx + 1) % XNum]);
+				TotalPerimeter += SegLen;
+				CrossSectionPercentages.Add(TotalPerimeter);
+			}
+			TotalPerimeter = FMath::Max(TotalPerimeter, FMathd::ZeroTolerance);
+			for (int Idx = 1; Idx < CrossSectionPercentages.Num(); Idx++)
+			{
+				CrossSectionPercentages[Idx] /= TotalPerimeter;
+			}
+			int NumPathSegs = bLoop ? Path.Num() : Path.Num() - 1;
+			for (int PIdx = 0; PIdx < NumPathSegs; PIdx++)
+			{
+				double SegLen = Path[PIdx].Distance(Path[(PIdx + 1) % Path.Num()]);
+				TotalPathLength += SegLen;
+				PathPercentages.Add(TotalPathLength);
+			}
+			TotalPathLength = FMath::Max(TotalPathLength, FMathd::ZeroTolerance);
+			for (int Idx = 1; Idx < PathPercentages.Num(); Idx++)
+			{
+				PathPercentages[Idx] /= TotalPathLength;
+			}
+		}
 
 		int32 NumVerts = XVerts * NumCrossSections - (bLoop ? XVerts : 0);
 		int32 NumNormals = NumCrossSections > 1 ? (XNormals * NumCrossSections - (bLoop ? XNormals : 0)) : 0;
@@ -146,7 +179,7 @@ protected:
 					float SideScale = 2 * CapIdx - 1;
 					for (int32 Idx = 0; Idx < XVerts; Idx++)
 					{
-						FVector2d CenteredVert = CrossSection.GetVertices()[Idx] * UVScale + UVOffset;
+						FVector2f CenteredVert = (FVector2f)CrossSection.GetVertices()[Idx] * CapUVScale + CapUVOffset;
 						SetUV(CapUVStart[CapIdx] + Idx, FVector2f(CenteredVert.X * SideScale, CenteredVert.Y), VertOffset + Idx);
 						SetNormal(CapNormalStart[CapIdx] + Idx, FVector3f::Zero(), VertOffset + Idx);
 					}
@@ -172,11 +205,11 @@ protected:
 			int32 NextDupVertIdx = UVSection < NumSections ? UVSections[UVSection] : -1;
 			for (int32 VertSubIdx = 0; VertSubIdx < XVerts; UVSubIdx++)
 			{
-				float UVX = VertSubIdx / float(XVerts);
+				float UVX = bEvenlySpaceUVs ? CrossSectionPercentages[VertSubIdx] : VertSubIdx / float(XVerts);
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
+					float UVY = bEvenlySpaceUVs ? PathPercentages[XIdx] : XIdx / float(NumCrossSections - 1);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 
 				if (VertSubIdx == NextDupVertIdx)
@@ -207,8 +240,8 @@ protected:
 				int32 VertSubIdx = 0;
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
+					float UVY = bEvenlySpaceUVs ? PathPercentages[XIdx] : XIdx / float(NumCrossSections - 1);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 			}
 			NumSections = NormalSections.Num();
@@ -336,7 +369,7 @@ public:
 		TArray<float> AlongPercents;
 		float LenAlong = ComputeSegLengths(Radii, Heights, AlongPercents);
 
-		ConstructMeshTopology(X, {}, {}, SharpNormalsAlongLength, NumX, false, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
+		ConstructMeshTopology(X, {}, {}, SharpNormalsAlongLength, false, {}, NumX, false, Caps, FVector2f(1, 1), FVector2f(.5f, .5f), FVector2f(.5f, .5f));
 
 		TArray<FVector2d> NormalSides; NormalSides.SetNum(NumX - 1);
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
@@ -545,6 +578,15 @@ public:
 	bool bCapped = false;
 	bool bLoop = false;
 
+	// When true, the generator attempts to scale UV's in a way that preserves scaling across different mesh
+	// results, aiming for 1.0 in UV space to be equal to UnitUVInWorldCoordinates in world space. This in
+	// practice means adjusting the U scale relative to the CrossSection curve length and V scale relative
+	// to the distance between vertices on the Path.
+	bool bUVScaleRelativeWorld = false;
+
+	// Only relevant if bUVScaleRelativeWorld is true (see that description)
+	float UnitUVInWorldCoordinates = 100;
+
 public:
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override
@@ -558,7 +600,19 @@ public:
 			Caps[1] = ECapType::FlatTriangulation;
 		}
 		int PathNum = Path.Num();
-		ConstructMeshTopology(CrossSection, {}, {}, {}, PathNum + (bLoop ? 1 : 0), bLoop, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
+		
+		FAxisAlignedBox2f Bounds = (FAxisAlignedBox2f)CrossSection.Bounds();
+		double BoundsMaxDimInv = 1.0 / FMathd::Max(Bounds.MaxDim(), .001);
+		FVector2f SectionScale(1, 1), CapScale(BoundsMaxDimInv, BoundsMaxDimInv);
+		if (bUVScaleRelativeWorld)
+		{
+			double Perimeter = CrossSection.Perimeter();
+			double PathLen = TCurveUtil<double>::ArcLength(Path, bLoop);
+			SectionScale.X = Perimeter / UnitUVInWorldCoordinates;
+			SectionScale.Y = PathLen / UnitUVInWorldCoordinates;
+			CapScale.X = CapScale.Y = 1.0f / UnitUVInWorldCoordinates;
+		}
+		ConstructMeshTopology(CrossSection, {}, {}, {}, true, Path, PathNum + (bLoop ? 1 : 0), bLoop, Caps, SectionScale, CapScale, Bounds.Center());
 
 		int XNum = CrossSection.VertexCount();
 		TArray<FVector2d> XNormals; XNormals.SetNum(XNum);

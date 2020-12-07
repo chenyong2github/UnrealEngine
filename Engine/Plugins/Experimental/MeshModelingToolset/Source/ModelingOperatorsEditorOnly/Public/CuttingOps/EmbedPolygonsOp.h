@@ -31,6 +31,8 @@ public:
 	// inputs
 	FFrame3d PolygonFrame;
 	FPolygon2d EmbedPolygon;
+	bool bCutWithBoolean;
+	bool bAttemptFixHolesOnBoolean;
 
 	// TODO: switch to FGeneralPolygon2d?
 	FPolygon2d GetPolygon()
@@ -54,11 +56,14 @@ public:
 
 
 	// Outputs
+	TArray<int> EdgesOnFailure; // edges to highlight on failure, to help visualize what happened (partial cut edges or hole edges)
 	TArray<int> EmbeddedEdges;
-	bool bEmbedSucceeded = false;
+	bool bOperationSucceeded;
 
 private:
 	void RecordEmbeddedEdges(TArray<int>& PathVertIDs);
+
+	void BooleanPath(FProgressCancel* Progress);
 };
 
 

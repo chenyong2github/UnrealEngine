@@ -108,8 +108,9 @@ void UPolygonOnMeshTool::Setup()
 		[this](const FDynamicMeshOperator* Op)
 		{
 			const FEmbedPolygonsOp* PolygonsOp = (const FEmbedPolygonsOp*)(Op);
+			EdgesOnFailure = PolygonsOp->EdgesOnFailure;
 			EmbeddedEdges = PolygonsOp->EmbeddedEdges;
-			bEmbedSucceeded = PolygonsOp->bEmbedSucceeded;
+			bOperationSucceeded = PolygonsOp->bOperationSucceeded;
 		}
 	);
 	Preview->OnMeshUpdated.AddLambda(
@@ -150,16 +151,25 @@ void UPolygonOnMeshTool::Setup()
 void UPolygonOnMeshTool::UpdateVisualization()
 {
 	FColor PartialPathEdgeColor(240, 15, 15);
-	float PartialPathEdgeThickness = 2.0;
-	float PartialPathEdgeDepthBias = 2.0f;
+	float PartialPathEdgeThickness = 2.0f;
+	float PartialPathEdgeDepthBias = 3.0f;
+
+	FColor EmbedEdgeColor(100, 240, 100);
+	float EmbedEdgeThickness = 1.0f;
+	float EmbedEdgeDepthBias = 1.0f;
 
 	const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
 	FVector3d A, B;
 
 	DrawnLineSet->Clear();
-	if (!bEmbedSucceeded)
+	for (int EID : EmbeddedEdges)
 	{
-		for (int EID : EmbeddedEdges)
+		TargetMesh->GetEdgeV(EID, A, B);
+		DrawnLineSet->AddLine((FVector)A, (FVector)B, EmbedEdgeColor, EmbedEdgeThickness, EmbedEdgeDepthBias);
+	}
+	if (!bOperationSucceeded)
+	{
+		for (int EID : EdgesOnFailure)
 		{
 			TargetMesh->GetEdgeV(EID, A, B);
 			DrawnLineSet->AddLine((FVector)A, (FVector)B, PartialPathEdgeColor, PartialPathEdgeThickness, PartialPathEdgeDepthBias);
@@ -248,6 +258,8 @@ TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 	TUniquePtr<FEmbedPolygonsOp> EmbedOp = MakeUnique<FEmbedPolygonsOp>();
 	EmbedOp->bDiscardAttributes = false;
 	EmbedOp->Operation = BasicProperties->Operation;
+	EmbedOp->bCutWithBoolean = BasicProperties->bCutWithBoolean;
+	EmbedOp->bAttemptFixHolesOnBoolean = BasicProperties->bAttemptFixHoles;
 
 	FFrame3d LocalFrame = DrawPlaneWorld;
 	FTransform3d ToLocal = WorldTransform.Inverse();

@@ -39,7 +39,9 @@ public:
 		Difference,
 		Intersect,
 		TrimInside,
-		TrimOutside
+		TrimOutside,
+		NewGroupInside,
+		NewGroupOutside
 	};
 	EBooleanOp Operation;
 	

@@ -6,7 +6,8 @@
 #include "Selections/MeshFaceSelection.h"
 #include "MeshQueries.h"
 #include "Operations/EmbedSurfacePath.h"
-#include "Operations/SimpleHoleFiller.h"
+#include "Operations/MinimalHoleFiller.h"
+#include "Generators/SweepGenerator.h"
 
 #include "Engine/StaticMesh.h"
 
@@ -16,6 +17,7 @@
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "Operations/MeshPlaneCut.h"
+#include "Operations/MeshBoolean.h"
 #include "ConstrainedDelaunay2.h"
 
 
@@ -112,21 +114,145 @@ void CollapseDegenerateEdgesOnVertexPath(FDynamicMesh3& Mesh, TArray<int>& Verte
 	}
 }
 
+void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
+{
+	FAxisAlignedBox3d Bounds = OriginalMesh->GetBounds();
+	double MeshDiameter = Bounds.MaxDim();
+
+	FFrame3d Frame = PolygonFrame;
+
+	FVector3d Dir = Frame.Z();
+	FInterval1d Range;
+	for (int CornerIdx = 0; CornerIdx < 8; CornerIdx++)
+	{
+		FVector3d Corner = Bounds.GetCorner(CornerIdx);
+		Range.Contain(Dir.Dot(Corner - Frame.Origin));
+	}
+
+
+	Frame.Origin = Frame.Origin + Range.Min * Dir;
+	FGeneralizedCylinderGenerator ExtrudePolyGen;
+	ExtrudePolyGen.CrossSection = EmbedPolygon;
+	ExtrudePolyGen.InitialFrame = Frame;
+	ExtrudePolyGen.Path.Add(Frame.Origin);
+	ExtrudePolyGen.Path.Add(PolygonFrame.Origin + Range.Max * Dir);
+	ExtrudePolyGen.bCapped = true;
+	ExtrudePolyGen.bUVScaleRelativeWorld = true;
+	ExtrudePolyGen.UnitUVInWorldCoordinates = MeshDiameter;
+	FDynamicMesh3 ExtrudePoly;
+	ExtrudePoly.EnableMeshComponents(ResultMesh->GetComponentsFlags());
+	if (ResultMesh->HasAttributes())
+	{
+		ExtrudePoly.EnableAttributes();
+		ExtrudePoly.Attributes()->EnableMatchingAttributes(*ResultMesh->Attributes());
+	}
+	ExtrudePoly.Copy(&ExtrudePolyGen.Generate());
+	FMeshBoolean::EBooleanOp BoolOp = FMeshBoolean::EBooleanOp::Difference;
+	switch (Operation)
+	{
+	case EEmbeddedPolygonOpMethod::InsertPolygon:
+		BoolOp = FMeshBoolean::EBooleanOp::NewGroupInside;
+		break;
+	case EEmbeddedPolygonOpMethod::TrimInside:
+		BoolOp = FMeshBoolean::EBooleanOp::TrimInside;
+		break;
+	case EEmbeddedPolygonOpMethod::TrimOutside:
+		BoolOp = FMeshBoolean::EBooleanOp::TrimOutside;
+		break;
+	case EEmbeddedPolygonOpMethod::CutThrough:
+		BoolOp = FMeshBoolean::EBooleanOp::Difference;
+		break;
+	default:
+		unimplemented();
+	}
+
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
+	int MaxGroupID = ResultMesh->MaxGroupID();
+	FMeshBoolean Boolean(ResultMesh.Get(), &ExtrudePoly, ResultMesh.Get(), BoolOp);
+	Boolean.Progress = Progress;
+	Boolean.bPutResultInInputSpace = true;
+	bool bBoolSuccess = Boolean.Compute();
+
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
+	if (Boolean.CreatedBoundaryEdges.Num() > 0 && bAttemptFixHolesOnBoolean)
+	{
+		FMeshBoundaryLoops OpenBoundary(Boolean.Result, false);
+		TSet<int> ConsiderEdges(Boolean.CreatedBoundaryEdges);
+		OpenBoundary.EdgeFilterFunc = [&ConsiderEdges](int EID)
+		{
+			return ConsiderEdges.Contains(EID);
+		};
+		OpenBoundary.Compute();
+
+		if (Progress->Cancelled())
+		{
+			return;
+		}
+
+		for (FEdgeLoop& Loop : OpenBoundary.Loops)
+		{
+			FMinimalHoleFiller Filler(Boolean.Result, Loop);
+			Filler.Fill(ResultMesh->AllocateTriangleGroup());
+		}
+		for (int EID : Boolean.CreatedBoundaryEdges)
+		{
+			if (Boolean.Result->IsEdge(EID) && Boolean.Result->IsBoundaryEdge(EID))
+			{
+				EdgesOnFailure.Add(EID);
+			}
+		}
+
+		bOperationSucceeded = EdgesOnFailure.Num() == 0;
+	}
+	else
+	{
+		EdgesOnFailure = Boolean.CreatedBoundaryEdges;
+		bOperationSucceeded = bBoolSuccess;
+	}
+
+	for (int EID : ResultMesh->EdgeIndicesItr())
+	{
+		FDynamicMesh3::FEdge Edge = ResultMesh->GetEdge(EID);
+		if (ResultMesh->GetTriangleGroup(Edge.Tri[0]) < MaxGroupID !=
+			ResultMesh->GetTriangleGroup(Edge.Tri[1]) < MaxGroupID)
+		{
+			EmbeddedEdges.Add(EID);
+		}
+	}
+
+}
+
 void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 {
+	bOperationSucceeded = false;
+
 	if (Progress->Cancelled())
 	{
 		return;
 	}
 	ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 
-	double MeshRadius = OriginalMesh->GetBounds().MaxDim();
-	double UVScaleFactor = 1.0 / MeshRadius;
+	if (bCutWithBoolean)
+	{
+		BooleanPath(Progress);
+		return;
+	}
+
+	double MeshDiameter = OriginalMesh->GetBounds().MaxDim();
+	double UVScaleFactor = 1.0 / MeshDiameter;
 
 	bool bCollapseDegenerateEdges = true; // TODO make this optional?
 	
 	FFrame3d Frame = PolygonFrame;
-	Frame.Origin = Frame.Origin + (2*MeshRadius*Frame.Z());
+	Frame.Origin = Frame.Origin + (2*MeshDiameter*Frame.Z());
 
 	FPolygon2d Polygon = GetPolygon();
 	double Perimeter = Polygon.Perimeter();
@@ -152,6 +278,11 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			// failed to find a second surface to connect to
 			SecondHit = -1;
 		}
+	}
+
+	if (Progress->Cancelled())
+	{
+		return;
 	}
 
 	enum EDeleteMethod
@@ -287,6 +418,11 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		return bResult;
 	};
 
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
 	EDeleteMethod DeleteMethod = EDeleteMethod::DeleteInside;
 	if (Operation == EEmbeddedPolygonOpMethod::InsertPolygon)
 	{
@@ -304,6 +440,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		RecordEmbeddedEdges(PathVertIDs);
 		if (!bCutSide1 || PathVertIDs.Num() < 2)
 		{
+			EdgesOnFailure = EmbeddedEdges;
 			return;
 		}
 	}
@@ -318,6 +455,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		RecordEmbeddedEdges(AllPathVertIDs[1]);
 		if (!bCutSide2 || AllPathVertIDs[0].Num() < 2 || AllPathVertIDs[1].Num() < 2)
 		{
+			EdgesOnFailure = EmbeddedEdges;
 			return;
 		}
 		FDynamicMeshEditor MeshEditor(ResultMesh.Get());
@@ -370,7 +508,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		//}
 	//}
 
-	bEmbedSucceeded = true;
+	bOperationSucceeded = true;
 }
 
 void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
