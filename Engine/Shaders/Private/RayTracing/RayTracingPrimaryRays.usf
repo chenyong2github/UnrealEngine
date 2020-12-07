@@ -93,9 +93,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
-	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
-
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 
@@ -150,6 +147,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 		const bool bRefractionDecoupleSampleGeneration = true;
 		const bool bRefractionEnableSkyLightContribution = true;
 		float3 PathVertexRadiance = float3(0, 0, 0);
+
+		RandomSequence RandSequence;
+
+		RandomSequence_Initialize(RandSequence, PixelCoord, RefractionRayIndex, View.StateFrameIndex, MaxRefractionRays);
 
 		FMaterialClosestHitPayload Payload = TraceRayAndAccumulateResults(
 			Ray,

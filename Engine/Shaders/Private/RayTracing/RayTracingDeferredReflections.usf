@@ -209,8 +209,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			bool bDecoupleSampleGeneration             = false;
 			uint ReflectedShadowsType                  = 1; // Hard shadows
 			
-			RandomSequence RandSequence; // Not actually used, since hard shadows are forced
-			RandomSequence_Initialize(RandSequence, DispatchThreadId, 0);
+			RandomSequence RandSequence = (RandomSequence) 0; // Not actually used, since hard shadows are forced
 
 			float3 LightingViewDirection = Ray.Direction;
 			float3 RayHitWorldPos = Ray.Origin + Ray.Direction * PackedPayload.HitT;

@@ -161,8 +161,8 @@ bool CalculateRayTracedLighting(
 			if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
 			{
 				RandomSequence RandSequence;
-				uint SampleOffset = 0;
-				RandomSequence_Initialize(RandSequence, Context.LinearCoord, View.StateFrameIndex + SampleOffset * 16);
+				RandomSequence_Initialize(RandSequence, Context.TraceCoord, 0, View.StateFrameIndex, 1);
+
 				float MaxNormalBias = 0.05;
 				uint ReflectedShadowsType = 2;
 				bool bShouldDoDirectLighting = true;

@@ -244,7 +244,7 @@ float3 SampleAreaLightDirection(
 	in float3 WorldPosition,
 	in float3 WorldNormal,
 	in uint LightType, 
-	in RandomSequence RandSequence )
+	inout RandomSequence RandSequence )
 {
 	float3 ShadowRayDirection = 0.0;
 
@@ -393,7 +393,7 @@ float3 ComputeDirectLighting(
 	in uint2 PixelCoord,
 	in RaytracingAccelerationStructure TLAS,
 	inout FPackedMaterialClosestHitPayload Payload,
-	in RandomSequence RandSequence,
+	inout RandomSequence RandSequence,
 	in uint ReflectedShadowsType,
 	in float ShadowMaxNormalBias)
 {
@@ -548,7 +548,7 @@ void AccumulateResults(
 	in float3 WorldPosition,
 	in float3 ViewDirection,
 	in RaytracingAccelerationStructure TLAS,
-	in RandomSequence RandSequence,
+	inout RandomSequence RandSequence,
 	in uint2 PixelCoord,
 	in float ShadowMaxNormalBias,
 	in uint ReflectedShadowsType,
@@ -604,7 +604,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in RandomSequence RandSequence,
+	inout RandomSequence RandSequence,
 	in uint2 PixelCoord,
 	in float ShadowMaxNormalBias,
 	in uint ReflectedShadowsType,
@@ -660,7 +660,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in RandomSequence RandSequence,
+	inout RandomSequence RandSequence,
 	in uint2 PixelCoord,
 	in float ShadowMaxNormalBias,
 	in uint ReflectedShadowsType,
