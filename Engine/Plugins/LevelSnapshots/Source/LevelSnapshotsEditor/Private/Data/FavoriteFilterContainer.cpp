@@ -4,6 +4,7 @@
 
 #include "LevelSnapshotFilters.h"
 #include "UClassMetaDataDefinitions.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "UObject/UObjectIterator.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -16,19 +17,16 @@ namespace
 	}
 	bool IsBlueprintClass(const TSubclassOf<ULevelSnapshotFilter>& ClassToCheck)
 	{
-		return ClassToCheck->IsChildOf(ULevelSnapshotBlueprintFilter::StaticClass()) || ClassToCheck == ULevelSnapshotBlueprintFilter::StaticClass();
+		return ClassToCheck->IsInBlueprint();
 	}
 	
-	template<typename TFilterClassType>
-	TArray<TSubclassOf<TFilterClassType>> FindClassesAvailableToUser(const bool bOnlyCommon = false)
+	TArray<TSubclassOf<ULevelSnapshotFilter>> FindNativeFilterClasses(const bool bOnlyCommon)
 	{
-		const bool bShouldSkipBlueprints = TFilterClassType::StaticClass() != ULevelSnapshotBlueprintFilter::StaticClass();
-		
-		TArray<TSubclassOf<TFilterClassType>> Result;
+		TArray<TSubclassOf<ULevelSnapshotFilter>> Result;
 		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 		{
 			UClass* ClassToCheck = *ClassIt;
-			if (!ClassToCheck->IsChildOf(TFilterClassType::StaticClass()))
+			if (!ClassToCheck->IsChildOf(ULevelSnapshotFilter::StaticClass()))
 			{
 				continue;
 			}
@@ -39,7 +37,7 @@ namespace
 				continue;
 			}
 
-			if (bShouldSkipBlueprints && IsBlueprintClass(ClassToCheck))
+			if (IsBlueprintClass(ClassToCheck))
 			{
 				continue;
 			}
@@ -56,6 +54,40 @@ namespace
 
 			
 			Result.Add(ClassToCheck);
+		}
+		return Result;
+	}
+
+	TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> FindBlueprintFilterClasses()
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+		
+		TArray<FAssetData> BlueprintList;
+		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), BlueprintList);
+
+		// Returns = 
+		const FString BlueprintFilterBaseClassPath = ULevelSnapshotBlueprintFilter::StaticClass()->GetPathName();
+		TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> Result;
+		for (const FAssetData& BlueprintClassData : BlueprintList)
+		{
+			// Is of form = Class''
+			const FString FirstNativeParentName = BlueprintClassData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
+			const bool bInheritsFromBlueprintFilter = FirstNativeParentName.Contains(BlueprintFilterBaseClassPath);
+
+			// Loading all blueprints is too slow... this finds only the ones we need
+			if (!bInheritsFromBlueprintFilter)
+			{
+				continue;
+			}
+
+			// If there are a lot of assets, this may be slow.
+			UBlueprint* BlueprintAsset = Cast<UBlueprint>(BlueprintClassData.GetAsset());
+			UClass* LoadedClass = BlueprintAsset->GeneratedClass;
+			if (ensure(LoadedClass) && ensure(BlueprintAsset->ParentClass) && BlueprintAsset->ParentClass->IsChildOf(ULevelSnapshotBlueprintFilter::StaticClass()))
+			{
+				Result.Add(LoadedClass);
+			}
 		}
 		return Result;
 	}
@@ -177,19 +209,19 @@ const TArray<TSubclassOf<ULevelSnapshotFilter>>& UFavoriteFilterContainer::GetFa
 const TArray<TSubclassOf<ULevelSnapshotFilter>> UFavoriteFilterContainer::GetCommonFilters() const
 {
 	// Assume no native C++ classes are added at runtime.
-	static TArray<TSubclassOf<ULevelSnapshotFilter>> CachedResult = FindClassesAvailableToUser<ULevelSnapshotFilter>(true);
+	static TArray<TSubclassOf<ULevelSnapshotFilter>> CachedResult = FindNativeFilterClasses(true);
 	return CachedResult;
 }
 
 const TArray<TSubclassOf<ULevelSnapshotFilter>>& UFavoriteFilterContainer::GetAvailableNativeFilters() const
 {
 	// Assume no native C++ classes are added at runtime.
-	static TArray<TSubclassOf<ULevelSnapshotFilter>> CachedResult = FindClassesAvailableToUser<ULevelSnapshotFilter>();
+	static TArray<TSubclassOf<ULevelSnapshotFilter>> CachedResult = FindNativeFilterClasses(false);
 	return CachedResult;
 }
 
 TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> UFavoriteFilterContainer::GetAvailableBlueprintFilters() const
 {
 	// Regenerate every time to find blueprints newly added or removed by the user in the editor
-	return FindClassesAvailableToUser<ULevelSnapshotBlueprintFilter>();
+	return FindBlueprintFilterClasses();
 }
