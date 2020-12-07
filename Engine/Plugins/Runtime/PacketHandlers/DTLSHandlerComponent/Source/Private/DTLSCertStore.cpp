@@ -15,7 +15,7 @@ FDTLSCertStore& FDTLSCertStore::Get()
 {
 	if (!Instance.IsValid())
 	{
-		Instance.Reset(new FDTLSCertStore());
+		Instance = MakeUnique<FDTLSCertStore>();
 	}
 
 	return *Instance.Get();
