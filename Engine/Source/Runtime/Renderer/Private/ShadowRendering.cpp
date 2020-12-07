@@ -257,8 +257,6 @@ void GetOnePassPointShadowProjectionParameters(const FProjectedShadowInfo* Shado
 
 void FShadowVolumeBoundProjectionVS::SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo)
 {
-	FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
-	
 	if(ShadowInfo->IsWholeSceneDirectionalShadow())
 	{
 		// Calculate bounding geometry transform for whole scene directional shadow.
@@ -951,6 +949,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FShadowProjectionPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	RDG_TEXTURE_ACCESS(HairCategorizationTexture, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(ShadowTexture0, ERHIAccess::SRVGraphics)
@@ -994,6 +993,7 @@ void FProjectedShadowInfo::RenderProjection(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FShadowProjectionPassParameters>();
 	*PassParameters = CommonPassParameters;
+	PassParameters->View = View->ViewUniformBuffer;
 
 	if (RenderTargets.DepthTarget)
 	{
@@ -1186,6 +1186,7 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FShadowProjectionPassParameters>();
 	*PassParameters = CommonPassParameters;
+	PassParameters->View = View.ViewUniformBuffer;
 
 	if (RenderTargets.DepthTarget)
 	{
@@ -1669,7 +1670,6 @@ void FSceneRenderer::RenderShadowProjections(
 
 		AddPass(GraphBuilder, [&UniformBuffers, &View, LightSceneProxy](FRHICommandList& RHICmdList)
 		{
-			UniformBuffers.UpdateViewUniformBuffer(View);
 			LightSceneProxy->SetScissorRect(RHICmdList, View, View.ViewRect);
 		});
 

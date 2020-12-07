@@ -87,6 +87,7 @@ bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermuta
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, Pass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -102,6 +103,7 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> 
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FDebugViewModePassParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->Pass = CreateDebugViewModePassUniformBuffer(GraphBuilder, View);
 		PassParameters->RenderTargets = RenderTargets;
 
@@ -111,7 +113,6 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> 
 			ERDGPassFlags::Raster,
 			[Scene, &View](FRHICommandList& RHICmdList)
 		{
-			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
 		});
@@ -178,16 +179,7 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 		ViewModeParam = InViewIfDynamicMeshCommand->Family->GetViewModeParam();
 		ViewModeParamName = InViewIfDynamicMeshCommand->Family->GetViewModeParamName();
 
-		ViewUniformBuffer = InViewIfDynamicMeshCommand->ViewUniformBuffer;
-
 		DebugViewModeInterface = FDebugViewModeInterface::GetInterface(DebugViewMode);
-	}
-	if (InScene)
-	{
-		if (!ViewUniformBuffer)
-		{
-			ViewUniformBuffer = InScene->UniformBuffers.ViewUniformBuffer;
-		}
 	}
 }
 
@@ -253,7 +245,6 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *BatchMaterial, OverrideSettings);
 
 	FMeshPassProcessorRenderState DrawRenderState;
-	DrawRenderState.SetViewUniformBuffer(ViewUniformBuffer);
 
 	FDebugViewModeInterface::FRenderState InterfaceRenderState;
 	DebugViewModeInterface->SetDrawRenderState(BatchMaterial->GetBlendMode(), InterfaceRenderState, Scene ? (Scene->GetShadingPath() == EShadingPath::Deferred && Scene->EarlyZPassMode != DDM_NonMaskedOnly) : false);

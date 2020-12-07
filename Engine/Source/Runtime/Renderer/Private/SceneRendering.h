@@ -1523,6 +1523,15 @@ public:
 
 	inline FVector GetPrevViewDirection() const { return PrevViewInfo.ViewMatrices.GetViewMatrix().GetColumn(2); }
 
+	/** Prepares the view shader parameters for rendering and calls the persistent uniform buffer hooks. */
+	void BeginRenderView() const;
+
+	/** Returns the set of view uniform buffers representing this view. */
+	FViewShaderParameters GetShaderParameters() const;
+
+	/** Returns the instanced view associated with the input view, or null if none exists. */
+	const FViewInfo* GetInstancedView() const;
+
 	/** Create a snapshot of this view info on the scene allocator. */
 	FViewInfo* CreateSnapshot() const;
 
@@ -1550,6 +1559,9 @@ private:
 
 	/** Calculates bounding boxes for the translucency lighting volume cascades. */
 	void CalcTranslucencyLightingVolumeBounds(FBox* InOutCascadeBoundsArray, int32 NumCascades) const;
+
+	/** Instanced view uniform buffer held on the primary view. */
+	mutable TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 };
 
 

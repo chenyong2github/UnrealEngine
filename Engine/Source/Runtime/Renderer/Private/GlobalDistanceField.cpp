@@ -1559,7 +1559,6 @@ void UpdateGlobalDistanceFieldVolume(
 		// Recreate the view uniform buffer now that we have updated GlobalDistanceFieldInfo
 		View.SetupGlobalDistanceFieldUniformBufferParameters(*View.CachedViewUniformShaderParameters);
 		View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-		Scene->UniformBuffers.InvalidateCachedView();
 
 		bool bHasUpdateBounds = false;
 

@@ -1932,8 +1932,7 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext
 	)
 {
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+	FMeshPassProcessorRenderState PassDrawRenderState;
 	PassDrawRenderState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
 
 	const bool bStencilExport = (NANITE_MATERIAL_STENCIL != 0) && !UseComputeDepthExport();
@@ -4631,7 +4630,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
 
-		PassParameters->View = SharedView->ViewUniformBuffer; // To get VTFeedbackBuffer
+		PassParameters->View = Scene.UniformBuffers.LumenCardCaptureViewUniformBuffer;
 		PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(

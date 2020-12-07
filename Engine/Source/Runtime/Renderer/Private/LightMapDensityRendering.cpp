@@ -64,6 +64,7 @@ TRDGUniformBufferRef<FLightmapDensityPassUniformParameters> CreateLightmapDensit
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightMapDensitiesPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLightmapDensityPassUniformParameters, Pass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -76,16 +77,18 @@ void RenderLightMapDensities(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "LightMapDensity");
 
-	auto* PassParameters = GraphBuilder.AllocParameters<FLightMapDensitiesPassParameters>();
-	PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, Scene->GetFeatureLevel());
-	PassParameters->RenderTargets = RenderTargets;
-
 	// Draw the scene's emissive and light-map color.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+		View.BeginRenderView();
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FLightMapDensitiesPassParameters>();
+		PassParameters->View = View.GetShaderParameters();
+		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, Scene->GetFeatureLevel());
+		PassParameters->RenderTargets = RenderTargets;
 
 		GraphBuilder.AddPass(
 			{},
@@ -93,7 +96,6 @@ void RenderLightMapDensities(
 			ERDGPassFlags::Raster,
 			[Scene, &View](FRHICommandList& RHICmdList)
 		{
-			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 			View.ParallelMeshDrawCommandPasses[EMeshPass::LightmapDensity].DispatchDraw(nullptr, RHICmdList);
 		});
@@ -351,8 +353,6 @@ FLightmapDensityMeshProcessor::FLightmapDensityMeshProcessor(const FScene* Scene
 	// Opaque blending, depth tests and writes.
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-
-	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 }
 
 FMeshPassProcessor* CreateLightmapDensityPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)

@@ -920,6 +920,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #undef VIEW_UNIFORM_BUFFER_MEMBER_EX
 #undef VIEW_UNIFORM_BUFFER_MEMBER_ARRAY
 
+BEGIN_SHADER_PARAMETER_STRUCT(FViewShaderParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FInstancedViewUniformShaderParameters, InstancedView)
+END_SHADER_PARAMETER_STRUCT()
+
 namespace EDrawDynamicFlags
 {
 	enum Type : int32

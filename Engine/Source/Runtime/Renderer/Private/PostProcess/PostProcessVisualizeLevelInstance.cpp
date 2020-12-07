@@ -49,7 +49,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
+	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneContext, View, Inputs.SceneColor.ViewRect);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -77,6 +77,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 			Nanite::GetEditorVisualizeLevelInstancePassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
 		}
 
+		PassParameters->View = EditorView->ViewUniformBuffer;
 		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,

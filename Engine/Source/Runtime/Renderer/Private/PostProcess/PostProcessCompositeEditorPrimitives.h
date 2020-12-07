@@ -46,11 +46,7 @@ public:
 };
 
 // Constructs a new view suitable for rendering editor primitives (outlines, helpers, etc).
-const FViewInfo* UpdateEditorPrimitiveView(
-	FPersistentUniformBuffers& SceneUniformBuffers,
-	FSceneRenderTargets& SceneContext,
-	const FViewInfo& ParentView,
-	FIntRect ViewRect);
+const FViewInfo* UpdateEditorPrimitiveView(FSceneRenderTargets& SceneContext, const FViewInfo& ParentView, FIntRect ViewRect);
 
 struct FEditorPrimitiveInputs
 {

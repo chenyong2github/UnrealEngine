@@ -1863,7 +1863,6 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	FShadowDepthPassMeshProcessor* MeshPassProcessor = new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
 		Renderer.Scene,
 		ShadowDepthView,
-		ShadowDepthView->ViewUniformBuffer,
 		GetShadowDepthType(),
 		nullptr);
 

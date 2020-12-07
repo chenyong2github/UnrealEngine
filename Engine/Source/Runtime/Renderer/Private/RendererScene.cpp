@@ -897,12 +897,6 @@ void FPersistentUniformBuffers::Clear()
 {
 	ViewUniformBuffer.SafeRelease();
 	InstancedViewUniformBuffer.SafeRelease();
-	ReflectionCaptureUniformBuffer.SafeRelease();
-	CSMShadowDepthViewUniformBuffer.SafeRelease();
-	VoxelizeVolumeViewUniformBuffer.SafeRelease();
-	CustomDepthViewUniformBuffer.SafeRelease();
-	InstancedCustomDepthViewUniformBuffer.SafeRelease();
-	VirtualTextureViewUniformBuffer.SafeRelease();
 	MobileOpaqueBasePassUniformBuffer.SafeRelease();
 	MobileTranslucentBasePassUniformBuffer.SafeRelease();
 
@@ -925,21 +919,6 @@ void FPersistentUniformBuffers::Initialize()
 
 	FNaniteUniformParameters NaniteUniformBufferParameters;
 	NaniteUniformBuffer = TUniformBufferRef<FNaniteUniformParameters>::CreateUniformBufferImmediate(NaniteUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	FDeferredDecalUniformParameters DeferredDecalUniformBufferParameters;
-	DeferredDecalUniformBuffer = TUniformBufferRef<FDeferredDecalUniformParameters>::CreateUniformBufferImmediate(DeferredDecalUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	FReflectionCaptureShaderData ReflectionCaptureParameters;
-	ReflectionCaptureUniformBuffer = TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(ReflectionCaptureParameters, UniformBuffer_MultiFrame);
-
-	CSMShadowDepthViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	VoxelizeVolumeViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	CustomDepthViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-	InstancedCustomDepthViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(InstancedViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	VirtualTextureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	LumenCardCaptureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
@@ -967,6 +946,11 @@ void FRendererModule::RegisterPersistentViewUniformBufferExtension(IPersistentVi
 
 bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs)
 {
+	checkf(FSceneInterface::GetShadingPath(View.GetFeatureLevel()) != EShadingPath::Deferred,
+		TEXT("UpdateViewUniformBuffer use is deprecated for the deferred shading renderer. The view uniform buffer must be bound ")
+		TEXT("globally instead through an RDG pass. This happens automatically if the view uniform buffer is included in the pass ")
+		TEXT("parameter struct."));
+
 	// Let the implementation of each extension decide whether it can cache the result for CachedView
 	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
 	{
@@ -978,10 +962,9 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, b
 	{
 		ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
 
-		if ((View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled) && View.Family->Views.Num() > 0)
+		if (const FViewInfo* InstancedView = View.GetInstancedView())
 		{
-			const FViewInfo& InstancedView = GetInstancedView(View);
-			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView.CachedViewUniformShaderParameters));
+			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView->CachedViewUniformShaderParameters));
 		}
 		else
 		{
@@ -996,12 +979,6 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, b
 		return true;
 	}
 	return false;
-}
-
-void FPersistentUniformBuffers::UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters)
-{
-	ViewUniformBuffer.UpdateUniformBufferImmediate(Parameters);
-	CachedView = nullptr;
 }
 
 void FPersistentUniformBuffers::InvalidateCachedView()

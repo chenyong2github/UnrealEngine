@@ -4591,14 +4591,13 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 		SamplePositionsBuffer.BoxScales[CaptureIndex] = SortedCaptures[CaptureIndex].BoxScales;
 	}
 
-	Scene->UniformBuffers.ReflectionCaptureUniformBuffer.UpdateUniformBufferImmediate(SamplePositionsBuffer);
-
+	auto ReflectionCaptureUniformBuffer = TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(SamplePositionsBuffer, UniformBuffer_SingleFrame);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		View.ReflectionCaptureUniformBuffer = Scene->UniformBuffers.ReflectionCaptureUniformBuffer;
+		View.ReflectionCaptureUniformBuffer = ReflectionCaptureUniformBuffer;
 		View.NumBoxReflectionCaptures = 0;
 		View.NumSphereReflectionCaptures = 0;
 		View.FurthestReflectionCaptureDistance = 0.0f;

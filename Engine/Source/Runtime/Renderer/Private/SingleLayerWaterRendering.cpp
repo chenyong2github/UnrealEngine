@@ -396,7 +396,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			Parameters.SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			Parameters.SceneNoWaterMinMaxUV = SceneWithoutWaterTextures.Views[ViewIndex].MinMaxUV;
 			Parameters.SceneTextures = SceneTextures;
-			Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
+			Parameters.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
 			Parameters.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 			{
 				FReflectionUniformParameters ReflectionUniformParameters;
@@ -573,7 +573,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			FWaterCompositeParameters* PassParameters = GraphBuilder.AllocParameters<FWaterCompositeParameters>();
 
-			PassParameters->VS.ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->VS.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListStructureBufferSRV;
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
@@ -675,6 +675,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -712,8 +714,11 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+		View.BeginRenderView();
 
 		FSingleLayerWaterPassParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterPassParameters>();
+		PassParameters->View = View.GetShaderParameters();
+		PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, {}, {}, &SceneWithoutWaterTextures);
 		PassParameters->RenderTargets = RenderTargets;
 
@@ -725,7 +730,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
-				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 				FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_WaterSingleLayerPass), *this, View, FParallelCommandListBindings(PassParameters));
 				View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].DispatchDraw(&ParallelCommandListSet, RHICmdList);
 			});
@@ -738,7 +742,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 				ERDGPassFlags::Raster,
 				[this, &View](FRHICommandListImmediate& RHICmdList)
 			{
-				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 				SetStereoViewport(RHICmdList, View, 1.0f);
 				View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].DispatchDraw(nullptr, RHICmdList);
 			});
@@ -854,8 +857,7 @@ void FSingleLayerWaterPassMeshProcessor::Process(
 
 FMeshPassProcessor* CreateSingleLayerWaterPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FMeshPassProcessorRenderState DrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-	DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+	FMeshPassProcessorRenderState DrawRenderState;
 
 	// Make sure depth write is enabled.
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess_DepthWrite = FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite);

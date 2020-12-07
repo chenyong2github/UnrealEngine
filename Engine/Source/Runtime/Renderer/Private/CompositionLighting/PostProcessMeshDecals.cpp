@@ -100,16 +100,6 @@ public:
 		FDecalRendering::SetDecalCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	void GetShaderBindings(
-		const FScene* Scene,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-		const FMaterialRenderProxy& MaterialRenderProxy,
-		const FMaterial& Material,
-		const FMeshPassProcessorRenderState& DrawRenderState,
-		const FMeshMaterialShaderElementData& ShaderElementData,
-		FMeshDrawSingleShaderBindings& ShaderBindings) const;
-
 	FMeshDecalsPS() = default;
 	FMeshDecalsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
@@ -117,21 +107,6 @@ public:
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsPS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainPS"),SF_Pixel);
-
-void FMeshDecalsPS::GetShaderBindings(
-	const FScene* Scene,
-	ERHIFeatureLevel::Type FeatureLevel,
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-	const FMaterialRenderProxy& MaterialRenderProxy,
-	const FMaterial& Material,
-	const FMeshPassProcessorRenderState& DrawRenderState,
-	const FMeshMaterialShaderElementData& ShaderElementData,
-	FMeshDrawSingleShaderBindings& ShaderBindings) const
-{
-	FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
-
-	ShaderBindings.Add(GetUniformBufferParameter<FDeferredDecalUniformParameters>(), DrawRenderState.GetDeferredDecalUniformBuffer());
-}
 
 class FMeshDecalsEmissivePS : public FMeshDecalsPS
 {
@@ -187,8 +162,8 @@ private:
 	const FDecalRenderingCommon::ERenderTargetMode RenderTargetMode;
 };
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredDecalUniformParameters, "DeferredDecal");
-
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(DeferredDecals);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDeferredDecalUniformParameters, "DeferredDecal", DeferredDecals);
 
 FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene, 
 	const FSceneView* InViewIfDynamicMeshCommand, 
@@ -200,9 +175,6 @@ FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene,
 	, RenderTargetMode(InRenderTargetMode)
 {
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	PassDrawRenderState.SetDeferredDecalUniformBuffer(Scene->UniformBuffers.DeferredDecalUniformBuffer);
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
@@ -373,24 +345,18 @@ void DrawDecalMeshCommands(
 	auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
 	GetDeferredDecalPassParameters(View, DecalPassTextures, RenderTargetMode, *PassParameters);
 
-	FDeferredDecalUniformParameters DecalParams;
-	GetDeferredDecalUniformParameters(
-		View,
-		DecalParams);
-
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("MeshDecals"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DecalRenderStage, RenderTargetMode, DecalParams](FRHICommandList& RHICmdList)
+		[&View, DecalRenderStage, RenderTargetMode](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		const FScene& Scene = *View.Family->Scene->GetRenderScene();
-		const_cast<FScene&>(Scene).UniformBuffers.DeferredDecalUniformBuffer.UpdateUniformBufferImmediate(DecalParams);
 
 		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, DecalRenderStage, RenderTargetMode, DecalParams](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			[&View, DecalRenderStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 		{
 			FMeshDecalMeshProcessor PassMeshProcessor(
 				View.Family->Scene->GetRenderScene(),

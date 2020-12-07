@@ -254,6 +254,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHitProxyPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -307,8 +308,14 @@ static void DoRenderHitProxies(
 		}
 	}
 
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
+		const FViewInfo& View = Views[ViewIndex];
+		const FScene* LocalScene = SceneRenderer->Scene;
+		View.BeginRenderView();
+
 		auto* PassParameters = GraphBuilder.AllocParameters<FHitProxyPassParameters>();
+		PassParameters->View = View.GetShaderParameters();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
@@ -317,152 +324,144 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("RenderHitProxies"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[SceneRenderer, &Views, &ViewFamily, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
+			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
 		{
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			FMeshPassProcessorRenderState DrawRenderState;
+
+			// Set the device viewport for the view.
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+			// Depth tests + writes, no alpha blending.
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+			DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
+
+			const bool bHitTesting = true;
+
+			// Adjust the visibility map for this view
+			if (View.bAllowTranslucentPrimitivesInHitProxy)
 			{
-				const FViewInfo& View = Views[ViewIndex];
-				const FScene* LocalScene = SceneRenderer->Scene;
-
-				SceneRenderer->Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
-				FMeshPassProcessorRenderState DrawRenderState(View);
-
-				// Set the device viewport for the view.
-				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-				// Depth tests + writes, no alpha blending.
-				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-				DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
-
-				const bool bHitTesting = true;
-
-				// Adjust the visibility map for this view
-				if (View.bAllowTranslucentPrimitivesInHitProxy)
-				{
-					View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList);
-				}
-				else
-				{
-					View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList);
-				}
-
-				DrawDynamicMeshPass(View, RHICmdList,
-					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-				{
-					FHitProxyMeshProcessor PassMeshProcessor(
-						LocalScene,
-						&View,
-						View.bAllowTranslucentPrimitivesInHitProxy,
-						DrawRenderState,
-						DynamicMeshPassContext);
-
-					const uint64 DefaultBatchElementMask = ~0ull;
-
-					for (int32 MeshIndex = 0; MeshIndex < View.DynamicEditorMeshElements.Num(); MeshIndex++)
-					{
-						const FMeshBatchAndRelevance& MeshBatchAndRelevance = View.DynamicEditorMeshElements[MeshIndex];
-						PassMeshProcessor.AddMeshBatch(*MeshBatchAndRelevance.Mesh, DefaultBatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
-					}
-				});
-
-				View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
-				View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
-
-				View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
-				View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
-
-				DrawDynamicMeshPass(View, RHICmdList,
-					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-				{
-					FHitProxyMeshProcessor PassMeshProcessor(
-						LocalScene,
-						&View,
-						View.bAllowTranslucentPrimitivesInHitProxy,
-						DrawRenderState,
-						DynamicMeshPassContext);
-
-					const uint64 DefaultBatchElementMask = ~0ull;
-
-					for (int32 MeshIndex = 0; MeshIndex < View.ViewMeshElements.Num(); MeshIndex++)
-					{
-						const FMeshBatch& MeshBatch = View.ViewMeshElements[MeshIndex];
-						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-					}
-				});
-
-				DrawDynamicMeshPass(View, RHICmdList,
-					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-				{
-					FHitProxyMeshProcessor PassMeshProcessor(
-						LocalScene,
-						&View,
-						View.bAllowTranslucentPrimitivesInHitProxy,
-						DrawRenderState,
-						DynamicMeshPassContext);
-
-					const uint64 DefaultBatchElementMask = ~0ull;
-
-					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
-					{
-						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-					}
-				});
-
-
-				// Draw the view's batched simple elements(lines, sprites, etc).
-				View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
-
-				// Some elements should never be occluded (e.g. gizmos).
-				// So we render those twice, first to overwrite potentially nearer objects,
-				// then again to allows proper occlusion within those elements.
-				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-
-				DrawDynamicMeshPass(View, RHICmdList,
-					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-				{
-					FHitProxyMeshProcessor PassMeshProcessor(
-						LocalScene,
-						&View,
-						View.bAllowTranslucentPrimitivesInHitProxy,
-						DrawRenderState,
-						DynamicMeshPassContext);
-
-					const uint64 DefaultBatchElementMask = ~0ull;
-
-					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
-					{
-						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-					}
-				});
-
-				View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
-
-				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-
-				DrawDynamicMeshPass(View, RHICmdList,
-					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-				{
-					FHitProxyMeshProcessor PassMeshProcessor(
-						LocalScene,
-						&View,
-						View.bAllowTranslucentPrimitivesInHitProxy,
-						DrawRenderState,
-						DynamicMeshPassContext);
-
-					const uint64 DefaultBatchElementMask = ~0ull;
-
-					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
-					{
-						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-					}
-				});
-
-				View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList);
 			}
+			else
+			{
+				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList);
+			}
+
+			DrawDynamicMeshPass(View, RHICmdList,
+				[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			{
+				FHitProxyMeshProcessor PassMeshProcessor(
+					LocalScene,
+					&View,
+					View.bAllowTranslucentPrimitivesInHitProxy,
+					DrawRenderState,
+					DynamicMeshPassContext);
+
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				for (int32 MeshIndex = 0; MeshIndex < View.DynamicEditorMeshElements.Num(); MeshIndex++)
+				{
+					const FMeshBatchAndRelevance& MeshBatchAndRelevance = View.DynamicEditorMeshElements[MeshIndex];
+					PassMeshProcessor.AddMeshBatch(*MeshBatchAndRelevance.Mesh, DefaultBatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
+				}
+			});
+
+			View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
+			View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+
+			View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
+			View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+
+			DrawDynamicMeshPass(View, RHICmdList,
+				[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			{
+				FHitProxyMeshProcessor PassMeshProcessor(
+					LocalScene,
+					&View,
+					View.bAllowTranslucentPrimitivesInHitProxy,
+					DrawRenderState,
+					DynamicMeshPassContext);
+
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				for (int32 MeshIndex = 0; MeshIndex < View.ViewMeshElements.Num(); MeshIndex++)
+				{
+					const FMeshBatch& MeshBatch = View.ViewMeshElements[MeshIndex];
+					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+				}
+			});
+
+			DrawDynamicMeshPass(View, RHICmdList,
+				[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			{
+				FHitProxyMeshProcessor PassMeshProcessor(
+					LocalScene,
+					&View,
+					View.bAllowTranslucentPrimitivesInHitProxy,
+					DrawRenderState,
+					DynamicMeshPassContext);
+
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+				{
+					const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+				}
+			});
+
+
+			// Draw the view's batched simple elements(lines, sprites, etc).
+			View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+
+			// Some elements should never be occluded (e.g. gizmos).
+			// So we render those twice, first to overwrite potentially nearer objects,
+			// then again to allows proper occlusion within those elements.
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+
+			DrawDynamicMeshPass(View, RHICmdList,
+				[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			{
+				FHitProxyMeshProcessor PassMeshProcessor(
+					LocalScene,
+					&View,
+					View.bAllowTranslucentPrimitivesInHitProxy,
+					DrawRenderState,
+					DynamicMeshPassContext);
+
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+				{
+					const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+				}
+			});
+
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+
+			DrawDynamicMeshPass(View, RHICmdList,
+				[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			{
+				FHitProxyMeshProcessor PassMeshProcessor(
+					LocalScene,
+					&View,
+					View.bAllowTranslucentPrimitivesInHitProxy,
+					DrawRenderState,
+					DynamicMeshPassContext);
+
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+				{
+					const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+				}
+			});
+
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
 		});
 	}
 
@@ -527,7 +526,7 @@ static void DoRenderHitProxies(
 				);
 
 			FSceneView SceneView = FBatchedElements::CreateProxySceneView(PixelToView, FIntRect(0, 0, ViewFamilyTextureExtent.X, ViewFamilyTextureExtent.Y));
-			FMeshPassProcessorRenderState DrawRenderState(SceneView);
+			FMeshPassProcessorRenderState DrawRenderState;
 
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 			DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
@@ -898,8 +897,7 @@ FHitProxyMeshProcessor::FHitProxyMeshProcessor(const FScene* Scene, const FScene
 
 FMeshPassProcessor* CreateHitProxyPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+	FMeshPassProcessorRenderState PassDrawRenderState;
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	return new(FMemStack::Get()) FHitProxyMeshProcessor(Scene, InViewIfDynamicMeshCommand, true, PassDrawRenderState, InDrawListContext);
@@ -907,8 +905,7 @@ FMeshPassProcessor* CreateHitProxyPassProcessor(const FScene* Scene, const FScen
 
 FMeshPassProcessor* CreateHitProxyOpaqueOnlyPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+	FMeshPassProcessorRenderState PassDrawRenderState;
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	return new(FMemStack::Get()) FHitProxyMeshProcessor(Scene, InViewIfDynamicMeshCommand, false, PassDrawRenderState, InDrawListContext);
@@ -1060,8 +1057,6 @@ FEditorSelectionMeshProcessor::FEditorSelectionMeshProcessor(const FScene* Scene
 
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
 	PassDrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI());
-	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 }
 
 FMeshPassProcessor* CreateEditorSelectionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)

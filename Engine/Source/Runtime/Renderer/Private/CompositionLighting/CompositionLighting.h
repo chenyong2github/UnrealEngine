@@ -27,14 +27,12 @@ namespace CompositionLighting
 	void ProcessBeforeBasePass(
 		FRDGBuilder& GraphBuilder,
 		TArrayView<const FViewInfo> Views,
-		FPersistentUniformBuffers& UniformBuffers,
 		const FSceneTextures& SceneTextures,
 		FDBufferTextures& DBufferTextures);
 
 	void ProcessAfterBasePass(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPersistentUniformBuffers& UniformBuffers,
 		const FSceneTextures& SceneTextures,
 		const FAsyncResults& AsyncResults,
 		bool bEnableSSAO);

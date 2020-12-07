@@ -206,7 +206,6 @@ private:
 
 	void UpdateInstructionCount(FDebugViewModeShaderElementData& OutShaderElementData, const FMaterial* InBatchMaterial, FVertexFactoryType* InVertexFactoryType);
 
-	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	EDebugViewShaderMode DebugViewMode;
 	int32 ViewModeParam;
 	FName ViewModeParamName;

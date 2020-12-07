@@ -760,25 +760,29 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }
 
-static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& View, FIntPoint TextureExtent, float ViewportScale, FMeshPassProcessorRenderState& DrawRenderState)
+static FViewShaderParameters GetSeparateTranslucencyViewParameters(const FViewInfo& View, FIntPoint TextureExtent, float ViewportScale)
 {
-	Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+	// We can use the existing view uniform buffers if no downsampling is required.
+	if (ViewportScale == 1.0f)
+	{
+		return View.GetShaderParameters();
+	}
+
+	FViewShaderParameters ViewParameters;
 
 	FViewUniformShaderParameters DownsampledTranslucencyViewParameters;
 	SetupDownsampledTranslucencyViewParameters(View, TextureExtent, GetScaledRect(View.ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
-	Scene->UniformBuffers.UpdateViewUniformBufferImmediate(DownsampledTranslucencyViewParameters);
-	DrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
+	ViewParameters.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(DownsampledTranslucencyViewParameters, UniformBuffer_SingleFrame);
 
-	if ((View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled) && View.Family->Views.Num() > 0)
+	if (const FViewInfo* InstancedView = View.GetInstancedView())
 	{
-		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
-
-		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
-		SetupDownsampledTranslucencyViewParameters(InstancedView, TextureExtent, GetScaledRect(InstancedView.ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
-		Scene->UniformBuffers.InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters));
-		DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+		SetupDownsampledTranslucencyViewParameters(*InstancedView, TextureExtent, GetScaledRect(InstancedView->ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
+		ViewParameters.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+			reinterpret_cast<const FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters),
+			UniformBuffer_SingleFrame);
 	}
+
+	return ViewParameters;
 }
 
 static void RenderViewTranslucencyInner(
@@ -790,9 +794,8 @@ static void RenderViewTranslucencyInner(
 	ETranslucencyPass::Type TranslucencyPass,
 	FRDGParallelCommandListSet* ParallelCommandListSet)
 {
-	FMeshPassProcessorRenderState DrawRenderState(View);
+	FMeshPassProcessorRenderState DrawRenderState;
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	UpdateSeparateTranslucencyViewState(SceneRenderer.Scene, View, Viewport.Extent, ViewportScale, DrawRenderState);
 	SceneRenderer.SetStereoViewport(RHICmdList, View, ViewportScale);
 
 	if (!View.Family->UseDebugViewPS())
@@ -875,6 +878,8 @@ static void RenderViewTranslucencyInner(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTranslucentBasePassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FTranslucentBasePassUniformParameters, BasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -893,7 +898,11 @@ static void RenderTranslucencyViewInner(
 	bool bResolveColorTexture,
 	bool bRenderInParallel)
 {
+	View.BeginRenderView();
+
 	FTranslucentBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FTranslucentBasePassParameters>();
+	PassParameters->View = GetSeparateTranslucencyViewParameters(View, Viewport.Extent, ViewportScale);
+	PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	PassParameters->BasePass = BasePassParameters;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);

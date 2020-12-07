@@ -104,6 +104,8 @@ void GetDeferredDecalPassParameters(
 	const bool bWritingToGBufferA = IsWritingToGBufferA(RenderTargetMode);
 	const bool bWritingToDepth = IsWritingToDepth(RenderTargetMode);
 
+	PassParameters.View = View.GetShaderParameters();
+	PassParameters.DeferredDecal = CreateDeferredDecalUniformBuffer(View);
 	PassParameters.SceneTextures = Textures.SceneTexturesUniformBuffer;
 
 	FRDGTextureRef DepthTexture = Textures.Depth.Target;
@@ -191,9 +193,7 @@ void GetDeferredDecalPassParameters(
 		bWritingToDepth ? FExclusiveDepthStencil::DepthWrite_StencilWrite : FExclusiveDepthStencil::DepthRead_StencilWrite);
 }
 
-void GetDeferredDecalUniformParameters(
-	const FViewInfo& View,
-	FDeferredDecalUniformParameters& UniformParameters)
+TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuffer(const FViewInfo& View)
 {
 	// This extern is not pretty, but it's only temporary. The plan is to make velocity in DepthPass the only option, but requires some testing to 
 	// ensure quality and perf is what we expect.
@@ -203,6 +203,7 @@ void GetDeferredDecalUniformParameters(
 	// if we have early motion vectors (bIsMotionInDepth) and the cvar is enabled and we actually have a buffer from the previous frame (View.PrevViewInfo.GBufferA.IsValid())
 	bool bIsNormalReprojectionEnabled = (bIsMotionInDepth && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread() && View.PrevViewInfo.GBufferA.IsValid());
 
+	FDeferredDecalUniformParameters UniformParameters;
 	UniformParameters.NormalReprojectionThresholdLow  = CVarDBufferDecalNormalReprojectionThresholdLow .GetValueOnRenderThread();
 	UniformParameters.NormalReprojectionThresholdHigh = CVarDBufferDecalNormalReprojectionThresholdHigh.GetValueOnRenderThread();
 	UniformParameters.NormalReprojectionEnabled = bIsNormalReprojectionEnabled ? 1 : 0;
@@ -219,6 +220,8 @@ void GetDeferredDecalUniformParameters(
 	UniformParameters.PreviousFrameNormal = (bIsNormalReprojectionEnabled) ? View.PrevViewInfo.GBufferA->GetShaderResourceRHI() : GSystemTextures.BlackDummy->GetShaderResourceRHI();
 
 	UniformParameters.NormalReprojectionJitter = View.PrevViewInfo.ViewMatrices.GetTemporalAAJitter();
+
+	return TUniformBufferRef<FDeferredDecalUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleFrame);
 }
 
 enum EDecalDepthInputState
@@ -596,21 +599,13 @@ void AddDeferredDecalPass(
 		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
 		GetDeferredDecalPassParameters(View, PassTextures, RenderTargetMode, *PassParameters);
 
-		FDeferredDecalUniformParameters DecalParams;
-		GetDeferredDecalUniformParameters(
-			View,
-			DecalParams);
-
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Batch [%d, %d]", DecalIndexBegin, DecalIndexEnd - 1),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, FeatureLevel, ShaderPlatform, DecalIndexBegin, DecalIndexEnd, SortedDecals, DecalRenderStage, bStencilSizeThreshold, bShaderComplexity, DecalParams](FRHICommandList& RHICmdList)
+			[&View, FeatureLevel, ShaderPlatform, DecalIndexBegin, DecalIndexEnd, SortedDecals, DecalRenderStage, bStencilSizeThreshold, bShaderComplexity](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-			const FScene & Scene = *View.Family->Scene->GetRenderScene();
-			const_cast<FScene&>(Scene).UniformBuffers.DeferredDecalUniformBuffer.UpdateUniformBufferImmediate(DecalParams);
 
 			for (uint32 DecalIndex = DecalIndexBegin; DecalIndex < DecalIndexEnd; ++DecalIndex)
 			{

@@ -1561,16 +1561,6 @@ public:
 		return InstancedViewUniformBuffer != nullptr ? InstancedViewUniformBuffer : ViewUniformBuffer;
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetReflectionCaptureUniformBuffer(FRHIUniformBuffer* InUniformBuffer)
-	{
-		ReflectionCaptureUniformBuffer = InUniformBuffer;
-	}
-
-	FORCEINLINE_DEBUGGABLE const FRHIUniformBuffer* GetReflectionCaptureUniformBuffer() const
-	{
-		return ReflectionCaptureUniformBuffer;
-	}
-
 	FORCEINLINE_DEBUGGABLE void SetPassUniformBuffer(const FUniformBufferRHIRef& InPassUniformBuffer)
 	{
 		PassUniformBuffer = InPassUniformBuffer;
@@ -1589,16 +1579,6 @@ public:
 	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetNaniteUniformBuffer() const
 	{
 		return NaniteUniformBuffer;
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetDeferredDecalUniformBuffer(FRHIUniformBuffer* InDeferredDecalUniformBuffer)
-	{
-		DeferredDecalUniformBuffer = InDeferredDecalUniformBuffer;
-	}
-
-	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetDeferredDecalUniformBuffer() const
-	{
-		return DeferredDecalUniformBuffer;
 	}
 
 	FORCEINLINE_DEBUGGABLE uint32 GetStencilRef() const
@@ -1620,12 +1600,8 @@ private:
 	FRHIUniformBuffer*				ViewUniformBuffer = nullptr;
 	FRHIUniformBuffer*				InstancedViewUniformBuffer = nullptr;
 
-	/** Will be bound as reflection capture uniform buffer in case where scene is not available, typically set to dummy/empty buffer to avoid null binding */
-	FRHIUniformBuffer*				ReflectionCaptureUniformBuffer;
-
 	FRHIUniformBuffer*				PassUniformBuffer = nullptr;
 	FRHIUniformBuffer*				NaniteUniformBuffer = nullptr;
-	FRHIUniformBuffer*				DeferredDecalUniformBuffer = nullptr;
 
 	uint32							StencilRef = 0;
 };

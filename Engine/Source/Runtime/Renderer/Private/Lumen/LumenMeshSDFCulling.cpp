@@ -492,7 +492,7 @@ void CullMeshSDFObjectsToProbes(
 			PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
 			PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
 			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
-			PassParameters->VS.View = View.ViewUniformBuffer;
+			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 
 			// Boost the effective radius so that the edges of the sphere approximation lie on the sphere, instead of the vertices
 			const int32 NumRings = StencilingGeometry::GLowPolyStencilSphereVertexBuffer.GetNumRings();
@@ -504,7 +504,7 @@ void CullMeshSDFObjectsToProbes(
 			PassParameters->PS.RWNumCulledObjectsToCompact = NumCulledObjectsToCompactUAV;
 			PassParameters->PS.RWCulledObjectsToCompactArray = CulledObjectsToCompactArrayUAV;
 			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-			PassParameters->PS.View = View.ViewUniformBuffer;
+			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
 			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
 			PassParameters->PS.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
@@ -625,7 +625,7 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
 			PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
 			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
-			PassParameters->VS.View = View.ViewUniformBuffer;
+			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 
 			// Boost the effective radius so that the edges of the sphere approximation lie on the sphere, instead of the vertices
 			const int32 NumRings = StencilingGeometry::GLowPolyStencilSphereVertexBuffer.GetNumRings();
@@ -637,7 +637,7 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->PS.RWNumCulledObjectsToCompact = GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT);
 			PassParameters->PS.RWCulledObjectsToCompactArray = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT);
 			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-			PassParameters->PS.View = View.ViewUniformBuffer;
+			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
 			PassParameters->PS.CardGridZParams = ZParams;
 			PassParameters->PS.CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);

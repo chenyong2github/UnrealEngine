@@ -75,12 +75,6 @@ void AddDeferredDecalPass(
 	const FDeferredDecalPassTextures& Textures,
 	EDecalRenderStage RenderStage);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FDeferredDecalPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredDecalUniformParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreviousFrameNormal)
 	SHADER_PARAMETER(int32, NormalReprojectionEnabled)
@@ -90,15 +84,20 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredDecalUniformParameters, )
 	SHADER_PARAMETER(FVector2D, NormalReprojectionJitter)
 END_SHADER_PARAMETER_STRUCT()
 
+TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuffer(const FViewInfo& View);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDeferredDecalPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FDeferredDecalUniformParameters, DeferredDecal)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 void GetDeferredDecalPassParameters(
 	const FViewInfo& View,
 	const FDeferredDecalPassTextures& DecalPassTextures,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
 	FDeferredDecalPassParameters& PassParameters);
-
-void GetDeferredDecalUniformParameters(
-	const FViewInfo& View,
-	FDeferredDecalUniformParameters& UniformParameters);
 
 void RenderMeshDecals(
 	FRDGBuilder& GraphBuilder,

@@ -424,7 +424,6 @@ FMeshPassProcessor* CreateLumenCardCapturePassProcessor(const FScene* Scene, con
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FMeshPassProcessorRenderState PassState;
-	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
 
 	// Write and test against depth
 	PassState.SetDepthStencilState(TStaticDepthStencilState<true, CF_Greater>::GetRHI());
@@ -518,7 +517,6 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FMeshPassProcessorRenderState PassState;
-	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
 	PassState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
 
 	PassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal, true, CF_Equal>::GetRHI());
@@ -1947,6 +1945,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardIdUpload, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -2051,6 +2050,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 			{
 				FLumenCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>();
+				PassParameters->View = Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer;
 				PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);

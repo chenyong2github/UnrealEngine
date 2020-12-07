@@ -218,6 +218,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVelocityPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -277,7 +278,10 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 				continue;
 			}
 
+			View.BeginRenderView();
+
 			FVelocityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVelocityPassParameters>();
+			PassParameters->View = View.GetShaderParameters();
 			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 				SceneTextures.Depth.Resolve,
@@ -297,7 +301,6 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 					[this, &View, &ParallelMeshPass, VelocityPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 				{
-					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 					FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Velocity), *this, View, FParallelCommandListBindings(PassParameters));
 					ParallelMeshPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
 				});
@@ -312,9 +315,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					ERDGPassFlags::Raster,
 					[this, &View, &ParallelMeshPass](FRHICommandListImmediate& RHICmdList)
 				{
-					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 					SetStereoViewport(RHICmdList, View);
-
 					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList);
 				});
 			}
@@ -699,11 +700,8 @@ bool FVelocityMeshProcessor::Process(
 
 FVelocityMeshProcessor::FVelocityMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
-{
-	PassDrawRenderState = InPassDrawRenderState;
-	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-}
+	, PassDrawRenderState(InPassDrawRenderState)
+{}
 
 FOpaqueVelocityMeshProcessor::FOpaqueVelocityMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FVelocityMeshProcessor(Scene, InViewIfDynamicMeshCommand, InPassDrawRenderState, InDrawListContext)

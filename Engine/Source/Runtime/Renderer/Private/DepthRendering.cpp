@@ -99,12 +99,14 @@ FDepthPassInfo GetDepthPassInfo(const FScene* Scene)
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-FDepthPassParameters* GetDepthPassParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef DepthTexture)
+FDepthPassParameters* GetDepthPassParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef DepthTexture)
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FDepthPassParameters>();
+	PassParameters->View = View.GetShaderParameters();
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	return PassParameters;
 }
@@ -481,9 +483,10 @@ void SetupDepthPassState(FMeshPassProcessorRenderState& DrawRenderState)
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 }
 
+extern const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform);
+
 void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
 {
-	extern const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform);
 	RDG_EVENT_SCOPE(GraphBuilder, "PrePass %s %s", GetDepthDrawingModeString(DepthPass.EarlyZPassMode), GetDepthPassReason(DepthPass.bDitheredLODTransitionsUseStencil, ShaderPlatform));
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPrePass);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Prepass);
@@ -500,8 +503,6 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 		AddDitheredStencilFillPass(GraphBuilder, Views, SceneDepthTexture, DepthPass);
 	}
 
-	FDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, SceneDepthTexture);
-
 	// Draw a depth pass to avoid overdraw in the other passes.
 	if (DepthPass.EarlyZPassMode != DDM_None)
 	{
@@ -515,19 +516,22 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-				FMeshPassProcessorRenderState DrawRenderState(View);
+				FMeshPassProcessorRenderState DrawRenderState;
 				SetupDepthPassState(DrawRenderState);
 
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)
 				{
+					View.BeginRenderView();
+
+					FDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, View, SceneDepthTexture);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("DepthPassParallel"),
 						PassParameters,
 						ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 						[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 					{
-						Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Prepass), *this, View, FParallelCommandListBindings(PassParameters));
 						ParallelCommandListSet.SetHighPriority();
 
@@ -546,19 +550,22 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-				FMeshPassProcessorRenderState DrawRenderState(View);
+				FMeshPassProcessorRenderState DrawRenderState;
 				SetupDepthPassState(DrawRenderState);
 
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)
 				{
+					View.BeginRenderView();
+
+					FDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, View, SceneDepthTexture);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("DepthPass"),
 						PassParameters,
 						ERDGPassFlags::Raster,
 						[this, &View, PassParameters](FRHICommandList& RHICmdList)
 					{
-						Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 						SetStereoViewport(RHICmdList, View, 1.0f);
 						View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
 					});
@@ -572,6 +579,9 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	// Dithered transition stencil mask clear, accounting for all active viewports
 	if (DepthPass.bDitheredLODTransitionsUseStencil)
 	{
+		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("DitherStencilClear"),
 			PassParameters,
@@ -656,40 +666,41 @@ void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, 
 		return;
 	}
 
-	FDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, DepthTexture);
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HiddenAreaMask"),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[this, HMDDevice](FRHICommandList& RHICmdList)
+	for (const FViewInfo& View : Views)
 	{
-		extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
-
-		TShaderMapRef<TOneColorVS<true>> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_NONE>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		for (const FViewInfo& View : Views)
+		if (IStereoRendering::IsStereoEyeView(View))
 		{
-			if (IStereoRendering::IsStereoEyeView(View))
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+			FDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, View, DepthTexture);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("HiddenAreaMask"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View, HMDDevice](FRHICommandList& RHICmdList)
 			{
-				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+				extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
+
+				TShaderMapRef<TOneColorVS<true>> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_NONE>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
 				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				VertexShader->SetDepthParameter(RHICmdList, 1.0f);
 				HMDDevice->DrawHiddenAreaMesh_RenderThread(RHICmdList, View.StereoPass);
-			}
+			});
 		}
-	});
+	}
 }
 
 FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(EBlendMode BlendMode, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
@@ -914,8 +925,6 @@ FDepthPassMeshProcessor::FDepthPassMeshProcessor(const FScene* Scene,
 	, bDitheredLODFadingOutMaskPass(bDitheredLODFadingOutMaskPass)
 {
 	PassDrawRenderState = InPassDrawRenderState;
-	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 }
 
 FMeshPassProcessor* CreateDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)

@@ -134,8 +134,7 @@ FAnisotropyMeshProcessor::FAnisotropyMeshProcessor(
 
 FMeshPassProcessor* CreateAnisotropyPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FMeshPassProcessorRenderState AnisotropyPassState(Scene->UniformBuffers.ViewUniformBuffer);
-	AnisotropyPassState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+	FMeshPassProcessorRenderState AnisotropyPassState;
 
 	AnisotropyPassState.SetBlendState(TStaticBlendState<>::GetRHI());
 	AnisotropyPassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
@@ -286,6 +285,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderAnisotropyPass() const
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FAnisotropyPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -324,7 +324,10 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 				continue;
 			}
 
+			View.BeginRenderView();
+
 			auto* PassParameters = GraphBuilder.AllocParameters<FAnisotropyPassParameters>();
+			PassParameters->View = View.GetShaderParameters();
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 			if (bDoParallelPass)
@@ -339,7 +342,6 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 					ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 					[this, &View, &ParallelMeshPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 				{
-					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 					FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_AnisotropyPass), *this, View, FParallelCommandListBindings(PassParameters));
 
 					ParallelMeshPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
@@ -355,7 +357,6 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 					ERDGPassFlags::Raster,
 					[this, &View, &ParallelMeshPass](FRHICommandListImmediate& RHICmdList)
 				{
-					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 					SetStereoViewport(RHICmdList, View);
 
 					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList);

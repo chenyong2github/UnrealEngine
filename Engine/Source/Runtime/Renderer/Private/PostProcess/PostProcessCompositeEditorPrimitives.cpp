@@ -198,7 +198,6 @@ void RenderForegroundEditorPrimitives(FRHICommandListImmediate& RHICmdList, cons
 } //! namespace
 
 const FViewInfo* UpdateEditorPrimitiveView(
-	FPersistentUniformBuffers& SceneUniformBuffers,
 	FSceneRenderTargets& SceneContext,
 	const FViewInfo& ParentView,
 	FIntRect ViewRect)
@@ -226,12 +225,13 @@ const FViewInfo* UpdateEditorPrimitiveView(
 	TUniquePtr<FViewUniformShaderParameters> ViewParameters = MakeUnique<FViewUniformShaderParameters>();
 	EditorView->SetupUniformBufferParameters(SceneContext, VolumeBounds, TVC_MAX, *ViewParameters);
 	ViewParameters->NumSceneColorMSAASamples = SceneContext.GetEditorMSAACompositingSampleCount();
+	EditorView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewParameters, UniformBuffer_SingleFrame);
 	EditorView->CachedViewUniformShaderParameters = MoveTemp(ViewParameters);
-	EditorView->ViewUniformBuffer = SceneUniformBuffers.ViewUniformBuffer;
 	return EditorView;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FEditorPrimitivesPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -250,7 +250,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
 
-	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
+	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneContext, View, Inputs.SceneColor.ViewRect);
 
 	const uint32 MSAASampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 
@@ -305,6 +305,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 
 		{
 			FEditorPrimitivesPassParameters* PassParameters = GraphBuilder.AllocParameters<FEditorPrimitivesPassParameters>();
+			PassParameters->View = EditorView->ViewUniformBuffer;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(EditorPrimitivesColor, bPopulateDepth ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
 			if (EditorPrimitivesDepth)
@@ -325,8 +326,6 @@ FScreenPassTexture AddEditorPrimitivePass(
 				ERDGPassFlags::Raster,
 				[&View, PassParameters, EditorView, &SceneUniformBuffers, EditorPrimitivesViewport, SceneDepthViewport, BasePassType, MSAASampleCount](FRHICommandListImmediate& RHICmdList)
 			{
-				SceneUniformBuffers.UpdateViewUniformBufferImmediate(*EditorView->CachedViewUniformShaderParameters);
-
 				RHICmdList.SetViewport(EditorPrimitivesViewport.Rect.Min.X, EditorPrimitivesViewport.Rect.Min.Y, 0.0f, EditorPrimitivesViewport.Rect.Max.X, EditorPrimitivesViewport.Rect.Max.Y, 1.0f);
 
 				TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
@@ -338,7 +337,8 @@ FScreenPassTexture AddEditorPrimitivePass(
 					BasePassUniformBuffer = MobileBasePassUniformBuffer;
 				}
 
-				FMeshPassProcessorRenderState DrawRenderState(*EditorView, BasePassUniformBuffer);
+				FMeshPassProcessorRenderState DrawRenderState;
+				DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);
 				DrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilWrite);
 				DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
 

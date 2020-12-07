@@ -318,4 +318,5 @@ void FReflectionEnvironmentCubemapArray::UpdateMaxCubemaps(uint32 InMaxCubemaps,
 	}
 }
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionCaptureShaderData, "ReflectionCapture");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(ReflectionCapture);
+IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(FReflectionCaptureShaderData, "ReflectionCapture", ReflectionCapture);

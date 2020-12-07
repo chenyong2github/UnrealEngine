@@ -100,7 +100,6 @@ public:
 	FShadowDepthPassMeshProcessor(
 		const FScene* Scene, 
 		const FSceneView* InViewIfDynamicMeshCommand, 
-		const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer,
 		FShadowDepthType InShadowDepthType,
 		FMeshPassDrawListContext* InDrawListContext);
 
@@ -854,12 +853,10 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewUniformBuffer);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo*)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 	}
 };
 
@@ -882,22 +879,7 @@ public:
 	 */
 	FShadowProjectionPixelShaderInterface(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		:	FGlobalShader(Initializer)
-	{ }
-
-	/**
-	 * Sets the current pixel shader params
-	 * @param View - current view
-	 * @param ShadowInfo - projected shadow info for a single light
-	 */
-	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		int32 ViewIndex,
-		const FSceneView& View,
-		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo)
-	{ 
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
-	}
+	{}
 };
 
 /** Shadow projection parameters used by multiple shaders. */
@@ -1116,8 +1098,6 @@ public:
 		const FProjectedShadowInfo* ShadowInfo)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
-		FShadowProjectionPixelShaderInterface::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
 
 		const bool bUseFadePlaneEnable = ShadowInfo->CascadeSettings.FadePlaneLength > 0;
 
@@ -1441,8 +1421,6 @@ public:
 		const FProjectedShadowInfo* ShadowInfo)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		OnePassShadowParameters.Set(RHICmdList, ShaderRHI, ShadowInfo);
 

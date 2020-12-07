@@ -41,11 +41,6 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
 } //! namespace
 
-BEGIN_SHADER_PARAMETER_STRUCT(FSelectionOutlinePassParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
 FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	check(Inputs.SceneColor.IsValid());
@@ -56,11 +51,10 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
 	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
+	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneContext, View, Inputs.SceneColor.ViewRect);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -86,9 +80,10 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, *EditorView, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
 		}
 
+		PassParameters->View = EditorView->ViewUniformBuffer;
 		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
@@ -100,11 +95,9 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			RDG_EVENT_NAME("OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&SceneUniformBuffers, EditorView, &View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
-
-			SceneUniformBuffers.UpdateViewUniformBufferImmediate(*EditorView->CachedViewUniformShaderParameters);
 
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, EditorSelection);

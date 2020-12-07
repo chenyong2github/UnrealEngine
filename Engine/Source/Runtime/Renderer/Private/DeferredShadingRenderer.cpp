@@ -2159,7 +2159,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DeferredShadingSceneRenderer_DBuffer);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DBuffer);
-		CompositionLighting::ProcessBeforeBasePass(GraphBuilder, Views, Scene->UniformBuffers, SceneTextures, DBufferTextures);
+		CompositionLighting::ProcessBeforeBasePass(GraphBuilder, Views, SceneTextures, DBufferTextures);
 	}
 	
 	if (IsForwardShadingEnabled(ShaderPlatform) && bAllowStaticLighting)
@@ -2355,7 +2355,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 			bool bEnableSSAO = ViewPipelineState->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
-			CompositionLighting::ProcessAfterBasePass(GraphBuilder, View, Scene->UniformBuffers, SceneTextures, CompositionLightingAsyncResults, bEnableSSAO);
+			CompositionLighting::ProcessAfterBasePass(GraphBuilder, View, SceneTextures, CompositionLightingAsyncResults, bEnableSSAO);
 		}
 	}
 

@@ -142,7 +142,7 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	//PassParameters.SceneTextures = SceneTexturesBuffer;
 	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[1];
 
-	PassParameters.ReflectionCaptureData = Scene.UniformBuffers.ReflectionCaptureUniformBuffer;
+	PassParameters.ReflectionCaptureData = GetShaderBinding(View.ReflectionCaptureUniformBuffer);
 	FReflectionUniformParameters ReflectionUniformParameters;
 	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
 	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);

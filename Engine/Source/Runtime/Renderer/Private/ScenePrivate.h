@@ -2375,29 +2375,11 @@ public:
 	 */
 	bool UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs = true);
 
-	/** Updates view uniform buffer and invalidates the internally cached view instance. */
-	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
-
 	void InvalidateCachedView();
-
-	const FViewInfo& GetInstancedView(const FViewInfo& View)
-	{
-		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
-
-		return static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
-	}
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
-	TUniformBufferRef<FDeferredDecalUniformParameters> DeferredDecalUniformBuffer;
-	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
-	TUniformBufferRef<FViewUniformShaderParameters> CSMShadowDepthViewUniformBuffer;
-	TUniformBufferRef<FViewUniformShaderParameters> VoxelizeVolumeViewUniformBuffer;
-	TUniformBufferRef<FViewUniformShaderParameters> CustomDepthViewUniformBuffer;
-	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedCustomDepthViewUniformBuffer;
-	TUniformBufferRef<FViewUniformShaderParameters> VirtualTextureViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
 
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;

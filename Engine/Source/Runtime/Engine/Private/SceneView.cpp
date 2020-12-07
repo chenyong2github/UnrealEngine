@@ -33,10 +33,13 @@ DEFINE_LOG_CATEGORY(LogMultiView);
 DECLARE_CYCLE_STAT(TEXT("StartFinalPostprocessSettings"), STAT_StartFinalPostprocessSettings, STATGROUP_Engine);
 DECLARE_CYCLE_STAT(TEXT("OverridePostProcessSettings"), STAT_OverridePostProcessSettings, STATGROUP_Engine);
 
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(View);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(InstancedView);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters, "Primitive");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters, "PrimitiveInstance");
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FViewUniformShaderParameters, "View");
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedViewUniformShaderParameters, "InstancedView");
+IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(FViewUniformShaderParameters, "View", View);
+IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(FInstancedViewUniformShaderParameters, "InstancedView", InstancedView);
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDirectionalLightShaderParameters, "MobileDirectionalLight");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParameters, "MobileMovablePointLight0");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_ALIAS_STRUCT(FMobileMovablePointLightUniformShaderParameters, MobileMovablePointLight1);

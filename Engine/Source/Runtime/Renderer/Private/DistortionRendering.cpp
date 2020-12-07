@@ -227,6 +227,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistortionPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDistortionPassUniformParameters, Pass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -289,8 +290,10 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+			View.BeginRenderView();
 
 			auto* PassParameters = GraphBuilder.AllocParameters<FDistortionPassParameters>();
+			PassParameters->View = View.GetShaderParameters();
 			PassParameters->Pass = CreateDistortionPassUniformBuffer(GraphBuilder, View);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistortionTexture, LoadAction);
 			PassParameters->RenderTargets.DepthStencil = StencilWriteBinding;
@@ -302,8 +305,6 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 				[this, &View](FRHICommandListImmediate& RHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRender_RenderDistortion_Accumulate_Meshes);
-				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
 				SetStereoViewport(RHICmdList, View);
 				View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList);
 			});
@@ -523,8 +524,6 @@ FDistortionMeshProcessor::FDistortionMeshProcessor(const FScene* Scene, const FS
 FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState DistortionPassState;
-	DistortionPassState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	DistortionPassState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 	
 	// test against depth and write stencil mask
 	DistortionPassState.SetDepthStencilState(TStaticDepthStencilState<
@@ -544,8 +543,6 @@ FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSc
 FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState DistortionPassState;
-	DistortionPassState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
-	DistortionPassState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 
 	// We don't have depth, render all pixels, pixel shader will sample SceneDepth from SceneColor.A and discard if occluded
 	DistortionPassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());

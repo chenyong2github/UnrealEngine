@@ -53,11 +53,9 @@ public:
 		FrustumComponentToClip.Bind(Initializer.ParameterMap, TEXT("FrustumComponentToClip"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FMatrix& InFrustumComponentToClip)
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InFrustumComponentToClip)
 	{
 		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, ViewUniformBuffer);
 		SetShaderValue(RHICmdList, ShaderRHI, FrustumComponentToClip, InFrustumComponentToClip);
 	}
 
@@ -108,7 +106,6 @@ public:
 
 		const FMaterialRenderProxy* MaterialProxyForRendering = MaterialProxy;
 		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxyForRendering);
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxyForRendering, Material, View);
 
 		FTransform ComponentTrans = DecalProxy.ComponentTrans;
@@ -389,7 +386,7 @@ void FDecalRendering::SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineSt
 		}
 	}
 
-	VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer, FrustumComponentToClip);
+	VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
 
 	// Set stream source after updating cached strides
 	RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
@@ -404,7 +401,7 @@ void FDecalRendering::SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphics
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer, FrustumComponentToClip);
+	VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
 }
 
 // @return e.g. 1+2+4 means DBufferA(1) + DBufferB(2) + DBufferC(4) is used

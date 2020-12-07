@@ -1056,6 +1056,7 @@ static bool IsShadowDepthPassWaitForTasksEnabled()
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileShadowDepthPassUniformParameters, MobilePassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -1088,6 +1089,7 @@ void FProjectedShadowInfo::RenderDepth(
 	BeginRenderView(GraphBuilder, Scene);
 
 	FShadowDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FShadowDepthPassParameters>();
+	PassParameters->View = ShadowDepthView->ViewUniformBuffer;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 		ShadowDepthTexture,
 		ERenderTargetLoadAction::ELoad,
@@ -1097,19 +1099,10 @@ void FProjectedShadowInfo::RenderDepth(
 	if (CacheMode == SDCM_MovablePrimitivesOnly)
 	{
 		// Copy in depths of static primitives before we render movable primitives.
-		FMeshPassProcessorRenderState DrawRenderState(*ShadowDepthView);
+		FMeshPassProcessorRenderState DrawRenderState;
 		SetStateForShadowDepth(bOnePassPointLightShadow, DrawRenderState);
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
-
-	const auto TryUpdateCachedView = [this]()
-	{
-		if (IsWholeSceneDirectionalShadow())
-		{
-			// CSM shadow depth cached mesh draw commands are all referencing the same view uniform buffer.  We need to update it before rendering each cascade.
-			ShadowDepthView->ViewUniformBuffer.UpdateUniformBufferImmediate(*ShadowDepthView->CachedViewUniformShaderParameters);
-		}
-	};
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{
@@ -1139,9 +1132,8 @@ void FProjectedShadowInfo::RenderDepth(
 			RDG_EVENT_NAME("ShadowDepthPassParallel"),
 			PassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[this, PassParameters, TryUpdateCachedView](FRHICommandListImmediate& RHICmdList)
+			[this, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			TryUpdateCachedView();
 			FShadowParallelCommandListSet ParallelCommandListSet(RHICmdList, *ShadowDepthView, *this, FParallelCommandListBindings(PassParameters));
 			ShadowDepthPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
 		});
@@ -1152,9 +1144,8 @@ void FProjectedShadowInfo::RenderDepth(
 			RDG_EVENT_NAME("ShadowDepthPass"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, TryUpdateCachedView](FRHICommandList& RHICmdList)
+			[this](FRHICommandList& RHICmdList)
 		{
-			TryUpdateCachedView();
 			SetStateForView(RHICmdList);
 			ShadowDepthPass.DispatchDraw(nullptr, RHICmdList);
 		});
@@ -1190,15 +1181,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 		TVC_MAX,
 		*FoundView->CachedViewUniformShaderParameters);
 
-	if (IsWholeSceneDirectionalShadow())
-	{
-		FScene* Scene = (FScene*)FoundView->Family->Scene;
-		FoundView->ViewUniformBuffer = Scene->UniformBuffers.CSMShadowDepthViewUniformBuffer;
-	}
-	else
-	{
-		FoundView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*FoundView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-	}
+	FoundView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*FoundView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 	// we are going to set this back now because we only want the correct view rect for the uniform buffer. For LOD calculations, we want the rendering viewrect and proj matrix.
 	FoundView->ViewRect = OriginalViewRect;
@@ -2294,11 +2277,9 @@ void FShadowDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
-	const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer,
 	FShadowDepthType InShadowDepthType,
 	FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
-	, PassDrawRenderState(FMeshPassProcessorRenderState(InViewUniformBuffer))
 	, ShadowDepthType(InShadowDepthType)
 {
 	SetStateForShadowDepth(ShadowDepthType.bOnePassPointLightShadow, PassDrawRenderState);
@@ -2311,7 +2292,6 @@ FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(const FScene* Scene, const
 	return new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
 		Scene,
 		InViewIfDynamicMeshCommand,
-		Scene->UniformBuffers.CSMShadowDepthViewUniformBuffer,
 		CSMShadowDepthType,
 		InDrawListContext);
 }

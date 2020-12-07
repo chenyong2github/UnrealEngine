@@ -102,6 +102,8 @@ void FRendererModule::InitializeSystemTextures(FRHICommandListImmediate& RHICmdL
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDrawTileMeshPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, DebugViewMode)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FTranslucentBasePassUniformParameters, TranslucentBasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, OpaqueBasePass)
@@ -179,14 +181,12 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		}
 
 		View.InitRHIResources();
-		DrawRenderState.SetViewUniformBuffer(View.ViewUniformBuffer);
 
-		FUniformBufferRHIRef EmptyReflectionCaptureUniformBuffer;
-		if (!DrawRenderState.GetReflectionCaptureUniformBuffer())
+		TUniformBufferRef<FReflectionCaptureShaderData> EmptyReflectionCaptureUniformBuffer;
+
 		{
 			FReflectionCaptureShaderData EmptyData;
 			EmptyReflectionCaptureUniformBuffer = TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(EmptyData, UniformBuffer_SingleFrame);
-			DrawRenderState.SetReflectionCaptureUniformBuffer(EmptyReflectionCaptureUniformBuffer);
 		}
 
 		//get the blend mode of the material
@@ -202,6 +202,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		const ERDGPassFlags PassFlags = ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull;
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FDrawTileMeshPassParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->ReflectionCapture = EmptyReflectionCaptureUniformBuffer;
 
 		// handle translucent material blend modes, not relevant in MaterialTexCoordScalesAnalysis since it outputs the scales.
 		if (ViewFamily->GetDebugViewShaderMode() == DVSM_OutputMaterialTextureScales)

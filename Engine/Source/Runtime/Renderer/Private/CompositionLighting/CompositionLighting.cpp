@@ -490,7 +490,6 @@ namespace CompositionLighting
 void ProcessBeforeBasePass(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FPersistentUniformBuffers& UniformBuffers,
 	const FSceneTextures& SceneTextures,
 	FDBufferTextures& DBufferTextures)
 {
@@ -508,11 +507,7 @@ void ProcessBeforeBasePass(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "CompositionBeforeBasePass");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, CompositionBeforeBasePass);
-
-			AddPass(GraphBuilder, [&UniformBuffers, &View](FRHICommandList&)
-			{
-				UniformBuffers.UpdateViewUniformBuffer(View);
-			});
+			View.BeginRenderView();
 
 			// decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
 			if (bDBuffer)
@@ -556,7 +551,6 @@ void ProcessBeforeBasePass(
 void ProcessAfterBasePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FPersistentUniformBuffers& UniformBuffers,
 	const FSceneTextures& SceneTextures,
 	const FAsyncResults& AsyncResults,
 	bool bEnableSSAO)
@@ -572,10 +566,7 @@ void ProcessAfterBasePass(
 	RDG_EVENT_SCOPE(GraphBuilder, "LightCompositionTasks_PreLighting");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CompositionPreLighting);
 
-	AddPass(GraphBuilder, [&UniformBuffers, &View](FRHICommandList&)
-	{
-		UniformBuffers.UpdateViewUniformBuffer(View);
-	});
+	View.BeginRenderView();
 
 	// decal are distracting when looking at LightCulling.
 	const bool bDoDecal = ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.VisualizeLightCulling;
@@ -606,7 +597,7 @@ void ProcessAfterBasePass(
 		if (SSAOLevels && bEnableSSAO)
 		{
 			const bool bScreenSpaceAOIsProduced = SceneTextures.ScreenSpaceAO->HasBeenProduced();
-			FScreenPassRenderTarget FinalTarget = FScreenPassRenderTarget(SceneTextures.ScreenSpaceAO, View.ViewRect, ERenderTargetLoadAction::ENoAction);
+			FScreenPassRenderTarget FinalTarget = FScreenPassRenderTarget(SceneTextures.ScreenSpaceAO, View.ViewRect, bScreenSpaceAOIsProduced ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::ENoAction);
 
 			FScreenPassTexture AmbientOcclusion;
 #if RHI_RAYTRACING
