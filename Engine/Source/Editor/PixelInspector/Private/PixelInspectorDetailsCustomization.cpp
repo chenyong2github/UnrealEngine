@@ -91,8 +91,7 @@ TSharedRef<SColorBlock> FPixelInspectorDetailsCustomization::CreateColorCell(int
 	int32 SquareSize = FMath::FloorToInt(80.0f / (float)FinalColorContextGridSize);
 	return SNew(SColorBlock)
 		.Color(CellColor)
-		.ShowBackgroundForAlpha(false)
-		.IgnoreAlpha(true)
+		.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 		.Size(FVector2D(SquareSize, SquareSize))
 		.OnMouseButtonDown(this, &FPixelInspectorDetailsCustomization::HandleColorCellMouseButtonDown, RowIndex, ColumnIndex);
 }

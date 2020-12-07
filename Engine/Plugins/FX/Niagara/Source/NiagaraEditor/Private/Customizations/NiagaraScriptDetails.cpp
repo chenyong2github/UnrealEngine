@@ -426,7 +426,6 @@ private:
 				SAssignNew(ColorBlock, SColorBlock)
 				.Color(this, &SNiagaraScriptHighlightPicker::GetHighlightColor)
 				.ShowBackgroundForAlpha(true)
-				.IgnoreAlpha(false)
 				.OnMouseButtonDown(this, &SNiagaraScriptHighlightPicker::OnMouseButtonDownColorBlock)
 				.Size(FVector2D(EditColorWidth, EditColorHeight))
 			]

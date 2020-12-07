@@ -330,7 +330,7 @@ TSharedRef<SWidget> FReplaceVectorWithLinearColorBuilder::CreateColorWidget(cons
 			SAssignNew(ColorPickerParentWidget, SColorBlock)
 			.Color(this, &FReplaceVectorWithLinearColorBuilder::OnGetColorForColorBlock, StructHandle)
 			.ShowBackgroundForAlpha(false)
-			.IgnoreAlpha(true)
+			.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 			.OnMouseButtonDown(this, &FReplaceVectorWithLinearColorBuilder::OnMouseButtonDownColorBlock, StructHandle)
 			.Size(FVector2D(70.0f, 12.0f))
 		];

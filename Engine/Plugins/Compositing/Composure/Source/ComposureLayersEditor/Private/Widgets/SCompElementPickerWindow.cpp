@@ -301,7 +301,7 @@ TSharedRef<SWidget> SCompElementColorPickerDialog::GeneratePreviewContent()
 			[
 				SNew(SColorBlock)
 					.Color(this, &SCompElementColorPickerDialog::GetPickedColor)
-					.IgnoreAlpha(true)
+					.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 					.Size(FVector2D(16.0f, 16.0f))
 					.Visibility(this, &SCompElementColorPickerDialog::GetAcceptButtonVisibility)
 			]

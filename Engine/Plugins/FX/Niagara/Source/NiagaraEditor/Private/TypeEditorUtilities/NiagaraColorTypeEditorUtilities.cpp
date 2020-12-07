@@ -35,7 +35,6 @@ public:
 				SAssignNew(ColorBlock, SColorBlock)
 				.Color(this, &SNiagaraColorParameterEditor::GetColor)
 				.ShowBackgroundForAlpha(true)
-				.IgnoreAlpha(false)
 				.OnMouseButtonDown(this, &SNiagaraColorParameterEditor::OnMouseButtonDownColorBlock)
 				.Size(FVector2D(35.0f, 12.0f))
 			]

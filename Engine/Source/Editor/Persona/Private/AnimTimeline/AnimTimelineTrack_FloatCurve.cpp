@@ -367,7 +367,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 			SNew(SColorBlock)
 			.Color_Lambda(GetValue)
 			.ShowBackgroundForAlpha(false)
-			.IgnoreAlpha(true)
+			.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 			.Size(FVector2D(OutlinerRightPadding - 2.0f, OutlinerRightPadding))
 		]
 	];

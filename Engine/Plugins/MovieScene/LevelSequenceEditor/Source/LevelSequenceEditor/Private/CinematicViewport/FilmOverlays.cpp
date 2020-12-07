@@ -57,7 +57,6 @@ namespace WidgetHelpers
 				SNew(SColorBlock)
 				.Color_Lambda(GetValue)
 				.ShowBackgroundForAlpha(true)
-				.IgnoreAlpha(false)
 				.Size(FVector2D(10.0f, 10.0f))
 			];
 	}

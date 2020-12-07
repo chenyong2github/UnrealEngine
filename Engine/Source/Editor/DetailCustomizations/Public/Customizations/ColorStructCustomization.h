@@ -12,6 +12,7 @@
 
 class FDetailWidgetRow;
 class SColorPicker;
+class SBorder;
 
 /**
  * Base class for color struct customization (FColor,FLinearColor).
@@ -27,11 +28,12 @@ public:
 protected:
 
 	FColorStructCustomization()
-		: bIgnoreAlpha(false)
+		: ActiveTransaction(INDEX_NONE)
+		, bIgnoreAlpha(false)
 		, bIsInlineColorPickerVisible(false)
 		, bIsInteractive(false)
 		, bDontUpdateWhileEditing(false)
-		, ActiveTransaction(INDEX_NONE)
+
 	{}
 
 protected:
@@ -99,6 +101,15 @@ protected:
 	FLinearColor OnGetColorForColorBlock() const;
 	
 	/**
+	 * @return The color that should be displayed in the color block in slate color format                                                           
+	 */
+	FSlateColor  OnGetSlateColorForBlock() const;
+
+	/**
+	 * @return The border color encompassing the entire color block                                                         
+	 */
+	FSlateColor GetColorWidgetBorderColor() const;
+	/**
 	 * Called when the user clicks in the color block (opens inline color picker)
 	 */
 	FReply OnMouseButtonDownColorBlock(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
@@ -139,6 +150,16 @@ protected:
 	/** Color struct handle */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
 
+	/** Cached widget for the color picker to use as a parent */
+	TSharedPtr<SWidget> ColorPickerParentWidget;
+
+	TSharedPtr<SWidget > ColorWidgetBackgroundBorder;
+
+	int32 ActiveTransaction;
+
+	/** Overrides the default state of the sRGB check box */
+	TOptional<bool> sRGBOverride;
+
 	/** True if the property is a linear color property */
 	bool bIsLinearColor;
 
@@ -151,14 +172,10 @@ protected:
 	/** True if the user is performing an interactive color change */
 	bool bIsInteractive;
 
-	/** Cached widget for the color picker to use as a parent */
-	TSharedPtr<SWidget> ColorPickerParentWidget;
 
 	/** The value won;t be updated while editing */
 	bool bDontUpdateWhileEditing;
 
-	/** Overrides the default state of the sRGB check box */
-	TOptional<bool> sRGBOverride;
 
-	int32 ActiveTransaction;
+	
 };

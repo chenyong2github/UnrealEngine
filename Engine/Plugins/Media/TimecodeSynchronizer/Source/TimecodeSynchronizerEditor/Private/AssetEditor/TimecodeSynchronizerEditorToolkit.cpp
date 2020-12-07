@@ -235,7 +235,7 @@ TSharedRef<SDockTab> FTimecodeSynchronizerEditorToolkit::SpawnPropertiesTab(cons
 				[
 					SNew(SColorBlock)
 					.Color(this, &FTimecodeSynchronizerEditorToolkit::GetProgressColor)
-					.IgnoreAlpha(true)
+					.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 					.Visibility_Lambda([this]() -> EVisibility
 					{
 						if (UTimecodeSynchronizer* Asset = GetTimecodeSynchronizer())

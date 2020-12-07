@@ -600,7 +600,7 @@ void FColorGradingVectorCustomization::MakeHeaderRow(FDetailWidgetRow& Row, TSha
 					SNew(SColorBlock)
 					.Color(this, &FColorGradingVectorCustomization::OnGetHeaderColorBlock)
 					.ShowBackgroundForAlpha(false)
-					.IgnoreAlpha(true)
+					.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 					.ColorIsHSV(false)
 					.Size(FVector2D(70.0f, 12.0f))
 				]

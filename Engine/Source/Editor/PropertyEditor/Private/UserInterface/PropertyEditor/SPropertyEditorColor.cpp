@@ -46,7 +46,7 @@ TSharedRef< SColorBlock > SPropertyEditorColor::ConstructColorBlock()
 	return SNew( SColorBlock )
 		.Color( this, &SPropertyEditorColor::OnGetColor )
 		.ShowBackgroundForAlpha(true)
-		.IgnoreAlpha(bIgnoreAlpha)
+		.AlphaDisplayMode(bIgnoreAlpha ? EColorBlockAlphaDisplayMode::Ignore : EColorBlockAlphaDisplayMode::Combined)
 		.OnMouseButtonDown( this, &SPropertyEditorColor::ColorBlock_OnMouseButtonDown )
 		.Size( FVector2D( 10.0f, 10.0f ) );
 }
@@ -57,7 +57,7 @@ TSharedRef< SColorBlock > SPropertyEditorColor::ConstructAlphaColorBlock()
 	return SNew( SColorBlock )
 		.Color( this, &SPropertyEditorColor::OnGetColor )
 		.ShowBackgroundForAlpha(false)
-		.IgnoreAlpha(true)
+		.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 		.Visibility( this, &SPropertyEditorColor::GetVisibilityForOpaqueDisplay )
 		.OnMouseButtonDown( this, &SPropertyEditorColor::ColorBlock_OnMouseButtonDown )
 		.Size( FVector2D( 10.0f, 10.0f ) );
