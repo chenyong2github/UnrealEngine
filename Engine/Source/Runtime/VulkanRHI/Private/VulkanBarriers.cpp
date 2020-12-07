@@ -358,6 +358,7 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 struct FDepthStencilSubresTransition
 {
 	FVulkanTextureBase* Texture;
+	int ArraySlice;
 	ERHIAccess SrcDepthAccess;
 	ERHIAccess DestDepthAccess;
 	ERHIAccess SrcStencilAccess;
@@ -666,8 +667,8 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 		// If the device doesn't support separate depth-stencil layouts, we must merge depth-stencil subresource transitions so we only do one barrier on the image.
 		if (bIsDepthStencil && Info.PlaneSlice != FRHISubresourceRange::kAllSubresources)
 		{
-			int32 Index = DSSubresTransitions.IndexOfByPredicate([Texture](const FDepthStencilSubresTransition& Entry) -> bool {
-				return Entry.Texture->Surface.Image == Texture->Surface.Image;
+			int32 Index = DSSubresTransitions.IndexOfByPredicate([Texture, Info](const FDepthStencilSubresTransition& Entry) -> bool {
+				return Entry.Texture->Surface.Image == Texture->Surface.Image && Entry.ArraySlice == Info.ArraySlice;
 			});
 
 			FDepthStencilSubresTransition* PendingTransition;
@@ -676,6 +677,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 				PendingTransition = &DSSubresTransitions.AddDefaulted_GetRef();
 				PendingTransition->Texture = Texture;
 				PendingTransition->bDepthAccessSet = PendingTransition->bStencilAccessSet = false;
+				PendingTransition->ArraySlice = Info.ArraySlice;
 			}
 			else
 			{
