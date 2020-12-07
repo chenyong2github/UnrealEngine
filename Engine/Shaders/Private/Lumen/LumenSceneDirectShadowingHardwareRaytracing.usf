@@ -245,7 +245,6 @@ void ApplyCameraRelativeDepthBias(inout RayDesc Ray, float3 WorldPosition, const
 FOcclusionResult ComputeLumenOcclusion(
 	const uint2 PixelCoord,
 	float3 WorldPosition,
-	RandomSequence RandSequence,
 	const uint RaytracingMask,
 	float3 WorldNormal,
 	const FLightShaderParameters LightParameters,
@@ -261,10 +260,12 @@ FOcclusionResult ComputeLumenOcclusion(
 	do if (LocalSamplesPerPixel > 0)
 #endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 	{
-		float2 RandSample = 0;
+		float2 RandSample = 0.5;
 
 #if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
+			RandomSequence RandSequence;
+			RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, LocalSamplesPerPixel);
 			RandSample = RandomSequence_GenerateSample2D(RandSequence);
 		}
 #endif
@@ -381,10 +382,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardDirectLightingRGS)
 
 			uint LocalSamplesPerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
 
-			RandomSequence RandSequence;
-			uint LinearIndex = CalcLinearIndex(PixelCoord);
-			RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
-
 			FLightShaderParameters LightParameters = GetRootLightShaderParameters();
 
 			FOcclusionResult Occlusion = InitOcclusionResult();
@@ -392,7 +389,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardDirectLightingRGS)
 			Occlusion = ComputeLumenOcclusion(
 				PixelCoord,
 				WorldPositionForShadowing,
-				RandSequence,
 				RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW,
 				WorldNormal,
 				LightParameters,
