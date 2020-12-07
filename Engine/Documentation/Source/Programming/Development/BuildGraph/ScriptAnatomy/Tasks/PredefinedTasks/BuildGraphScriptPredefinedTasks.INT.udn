@@ -137,6 +137,17 @@ Modifies a config file
 | Tag     | Tag List  | Optional | Tag to be applied to the extracted files                                          |
 | If      | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 
+### ModifyJsonValue
+
+Modifies json files by setting a value specified in the key path
+
+|          |           |          |                                                                                   |
+| -------- | --------- | -------- | --------------------------------------------------------------------------------- |
+| Files    | File Spec | Required | json file paths which will be modified                                            |
+| KeyPath  | String    | Required | json key path to find in each file                                                |
+| NewValue | Int32     | Required | new value to apply                                                                |
+| If       | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
 ### Move
 
 Moves files from one directory to another.
