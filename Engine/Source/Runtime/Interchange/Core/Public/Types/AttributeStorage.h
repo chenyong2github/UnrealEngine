@@ -126,6 +126,11 @@ namespace UE
 				}
 				return Ar;
 			}
+
+			FORCEINLINE FString ToString() const
+			{
+				return Key.ToString();
+			}
 		};
 
 		FORCEINLINE uint32 GetTypeHash(const FAttributeKey& AttributeKey)
@@ -1009,7 +1014,6 @@ namespace UE
 			 * Mutex use when accessing or modifying the storage
 			 */
 			mutable FCriticalSection StorageMutex;
-
 		};
 
 		/************************************************************************/

@@ -103,11 +103,18 @@ namespace UE
 			SpawnHandler();
 		}
 
-		void FInterchangeDispatcher::StopProcess()
+		void FInterchangeDispatcher::StopProcess(bool bBlockUntilTerminated)
 		{
 			if (IsHandlerAlive())
 			{
-				WorkerHandler->Stop();
+				if (bBlockUntilTerminated)
+				{
+					WorkerHandler->StopBlocking();
+				}
+				else
+				{
+					WorkerHandler->Stop();
+				}
 			}
 		}
 
@@ -174,7 +181,7 @@ namespace UE
 
 		void FInterchangeDispatcher::CloseHandler()
 		{
-			StopProcess();
+			StopProcess(false);
 			WorkerHandler.Reset();
 		}
 

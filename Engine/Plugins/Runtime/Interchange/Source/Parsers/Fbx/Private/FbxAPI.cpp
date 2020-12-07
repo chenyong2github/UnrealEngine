@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "FbxConvert.h"
+#include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "FbxMaterial.h"
 #include "FbxScene.h"
+#include "FbxSkeletalMesh.h"
+#include "FbxSkeleton.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeTextureNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -17,8 +20,14 @@ namespace UE
 	{
 		namespace Private
 		{
+			FFbxParser::~FFbxParser()
+			{
+				PayloadContexts.Empty();
+			}
+
 			bool FFbxParser::LoadFbxFile(const FString& Filename, TArray<FString>& JSonErrorMessages)
 			{
+				SourceFilename = Filename;
 				int32 SDKMajor, SDKMinor, SDKRevision;
 				
 				//The first thing to do is to create the FBX Manager which is the object allocator for almost all the classes in the SDK
@@ -42,6 +51,8 @@ namespace UE
 				ios->SetBoolProp(IMP_FBX_GLOBAL_SETTINGS, true);
 				ios->SetBoolProp(IMP_TAKE, true);
 				SDKManager->SetIOSettings(ios);
+
+				SDKGeometryConverter = new FbxGeometryConverter(SDKManager);
 
 				//Create an FBX scene. This object holds most objects imported/exported from/to files.
 				SDKScene = FbxScene::Create(SDKManager, "My Scene");
@@ -82,8 +93,23 @@ namespace UE
 			void FFbxParser::FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
 				FFbxMaterial::AddAllSceneMaterials(SDKScene, NodeContainer, JSonErrorMessages);
-				FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
+				FFbxSkeleton::AddAllSceneSkeletons(SDKScene, NodeContainer, JSonErrorMessages, SourceFilename);
+				FFbxSkeletalMesh::AddAllSceneSkeletalMeshes(SDKScene, SDKGeometryConverter, NodeContainer, JSonErrorMessages, PayloadContexts, SourceFilename);
+				//FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
 			}
+
+			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			{
+				if (!PayloadContexts.Contains(PayloadKey))
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot retrieve payload, payload key doesnt have any context.\"}}"));
+					return false;
+				}
+
+				TSharedPtr<FPayloadContextBase>& PayloadContext = PayloadContexts.FindChecked(PayloadKey);
+				return PayloadContext->FetchPayloadToFile(PayloadFilepath, JSonErrorMessages);
+			}
+
 		} //ns Private
 	} //ns Interchange
 } //ns UE

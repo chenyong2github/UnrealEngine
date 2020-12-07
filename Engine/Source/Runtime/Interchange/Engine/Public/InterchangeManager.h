@@ -156,6 +156,7 @@ namespace UE
 			TArray<FGraphEventRef> CreatePackageTasks;
 			TArray<FGraphEventRef> CreateAssetTasks;
 
+			FGraphEventRef PreAsyncCompletionTask;
 			FGraphEventRef CompletionTask;
 
 			//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this

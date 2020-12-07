@@ -5,6 +5,8 @@
 #include "IInterchangeImportPlugin.h"
 #include "InterchangeManager.h"
 #include "Material/InterchangeMaterialFactory.h"
+#include "Mesh/InterchangeSkeletalMeshFactory.h"
+#include "Mesh/InterchangeSkeletonFactory.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Texture/InterchangeBMPTranslator.h"
@@ -52,6 +54,8 @@ void FInterchangeImportPlugin::StartupModule()
 		//Register the factories
 		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeSkeletonFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshFactory::StaticClass());
 	};
 
 	if (GEngine)

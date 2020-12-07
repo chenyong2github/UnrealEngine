@@ -23,6 +23,9 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"InterchangeNodePlugin",
+					"MeshDescription",
+					"SkeletalMeshDescription",
+					"StaticMeshDescription"
 				}
 			);
 

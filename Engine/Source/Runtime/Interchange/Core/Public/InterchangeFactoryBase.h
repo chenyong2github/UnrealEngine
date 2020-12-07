@@ -72,6 +72,8 @@ public:
 
 	/**
 	 * Create an empty asset from a Node data, this function will be call in the main thread in same time has we create the package.
+	 * The asset create here must have the internal async flag set because the object can be setup in an asynchronous thread and must be consider like an async object until
+	 * The completion task on the object is finish.
 	 *
 	 * @param Arguments - The structure containing all necessary arguments, see the structure definition for the documentation
 	 * @return the created UObject or nullptr if there is an error, see LOG for any error detail.

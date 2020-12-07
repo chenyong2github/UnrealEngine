@@ -83,6 +83,8 @@ bool FInterchangeWorkerImpl::Run()
 				UE_CLOG(!bIsRunning, LogInterchangeWorker, Error, TEXT("Worker failure: server lost"));
 			}
 		}
+		//Sleep 0 to avoid using too much cpu
+		FPlatformProcess::Sleep(0.0f);
 	}
 
 	UE_CLOG(!bIsRunning, LogInterchangeWorker, Verbose, TEXT("Worker loop exit..."));
@@ -123,6 +125,7 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 	FString JSonResult;
 	TArray<FString> JSonMessages;
 	FJsonLoadSourceCmd LoadSourceCommand;
+	FJsonFetchPayloadCmd FetchPayloadCommand;
 	//Any command FromJson function return true if the Json descibe the command
 	if (LoadSourceCommand.FromJson(JsonToProcess))
 	{
@@ -133,7 +136,15 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 			ProcessResult = LoadFbxFile(LoadSourceCommand, JSonResult, JSonMessages);
 		}
 	}
-	//TODO add GetPayload command
+	else if (FetchPayloadCommand.FromJson(JsonToProcess))
+	{
+		//Load file command
+		if (FetchPayloadCommand.GetTranslatorID().Equals(TEXT("FBX"), ESearchCase::IgnoreCase))
+		{
+			//We want to load an FBX file
+			ProcessResult = FetchFbxPayload(FetchPayloadCommand, JSonResult, JSonMessages);
+		}
+	}
 	else
 	{
 		ProcessResult = ETaskState::Unknown;
@@ -159,6 +170,19 @@ ETaskState FInterchangeWorkerImpl::LoadFbxFile(const FJsonLoadSourceCmd& LoadSou
 	FbxParser.LoadFbxFile(SourceFilename, ResultFolder);
 	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FbxParser.GetResultFilepath());
+	OutJSonMessages = FbxParser.GetJsonLoadMessages();
+	OutJSonResult = ResultParser.ToJson();
+	ResultState = ETaskState::ProcessOk;
+	return ResultState;
+}
+
+ETaskState FInterchangeWorkerImpl::FetchFbxPayload(const FJsonFetchPayloadCmd& FetchPayloadCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages)
+{
+	ETaskState ResultState = ETaskState::Unknown;
+	FString PayloadKey = FetchPayloadCommand.GetPayloadKey();
+	FbxParser.FetchPayload(PayloadKey, ResultFolder);
+	FJsonLoadSourceCmd::JsonResultParser ResultParser;
+	ResultParser.SetResultFilename(FbxParser.GetResultPayloadFilepath(PayloadKey));
 	OutJSonMessages = FbxParser.GetJsonLoadMessages();
 	OutJSonResult = ResultParser.ToJson();
 	ResultState = ETaskState::ProcessOk;

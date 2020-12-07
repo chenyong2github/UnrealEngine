@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "FbxConvert.h"
+#include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeTextureNode.h"
@@ -17,8 +18,10 @@ namespace UE
 		{
 			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel = *NodeName;
 				FName NodeUID(*NodeName);
+				FString MaterialNameNoSkin = UE::Interchange::Material::RemoveSkinFromName(NodeName);
+
+				FName DisplayLabel = *MaterialNameNoSkin;
 				UInterchangeMaterialNode* MaterialNode = NewObject<UInterchangeMaterialNode>(&NodeContainer, NAME_None);
 				if (!ensure(MaterialNode))
 				{
@@ -52,7 +55,7 @@ namespace UE
 			UInterchangeMaterialNode* FFbxMaterial::AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
 				//Create a material node
-				FString MaterialName = FFbxConvert::MakeString(FFbxConvert::MakeName(SurfaceMaterial->GetName()));
+				FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
 				FName NodeUID(*MaterialName);
 				UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(NodeContainer.GetNode(NodeUID));
 				if (!MaterialNode)
@@ -83,6 +86,11 @@ namespace UE
 								{
 									FbxFileTexture* FbxTextureFilePath = FbxProperty.GetSrcObject<FbxFileTexture>(TextureIndex);
 									FString TextureFilename = UTF8_TO_TCHAR(FbxTextureFilePath->GetFileName());
+									//Only import texture that exist on disk
+									if (!FPaths::FileExists(TextureFilename))
+									{
+										continue;
+									}
 									//Create a texture node and make it child of the material node
 									TArray<FString> JsonErrorMessage;
 									FName NodeUID(*TextureFilename);

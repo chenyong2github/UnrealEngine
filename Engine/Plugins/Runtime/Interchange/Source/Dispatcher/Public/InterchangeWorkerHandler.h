@@ -47,6 +47,7 @@ namespace UE
 			void Run();
 			bool IsAlive() const;
 			void Stop();
+			void StopBlocking();
 
 		private:
 			void RunInternal();

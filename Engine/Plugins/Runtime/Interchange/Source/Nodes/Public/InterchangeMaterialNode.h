@@ -20,6 +20,27 @@ namespace UE
 {
 	namespace Interchange
 	{
+		namespace Material
+		{
+			/**
+			 * Remove _SkinXX from a string
+			 */
+			static FString RemoveSkinFromName(const FString& Name)
+			{
+				int32 SkinOffset = Name.Find(TEXT("_skin"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				if (SkinOffset != INDEX_NONE)
+				{
+					FString MaterialNameNoSkin = Name;
+					FString SkinXXNumber = Name.Right(Name.Len() - (SkinOffset + 1)).RightChop(4);
+					if (SkinXXNumber.IsNumeric())
+					{
+						MaterialNameNoSkin = Name.LeftChop(Name.Len() - SkinOffset);
+					}
+					return MaterialNameNoSkin;
+				}
+				return Name;
+			}
+		} //ns Material
 
 		struct FMaterialNodeStaticData : public FBaseNodeStaticData
 		{

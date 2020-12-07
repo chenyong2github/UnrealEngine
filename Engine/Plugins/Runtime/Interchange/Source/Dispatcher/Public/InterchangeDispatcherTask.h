@@ -50,17 +50,17 @@ namespace UE
 			 */
 			virtual bool FromJson(const FString& JsonString) = 0;
 
-			static FString GetCommandIDKey()
+			static FString GetCommandIDJsonKey()
 			{
 				static const FString Key = TEXT("CmdID");
 				return Key;
 			}
-			static FString GetTranslatorIDKey()
+			static FString GetTranslatorIDJsonKey()
 			{
 				static const FString Key = TEXT("TranslatorID");
 				return Key;
 			}
-			static FString GetCommandDataKey()
+			static FString GetCommandDataJsonKey()
 			{
 				static const FString Key = TEXT("CmdData");
 				return Key;
@@ -109,7 +109,7 @@ namespace UE
 				return SourceFilename;
 			}
 
-			static FString GetSourceFilenameKey()
+			static FString GetSourceFilenameJsonKey()
 			{
 				static const FString Key = TEXT("SourceFile");
 				return Key;
@@ -132,7 +132,7 @@ namespace UE
 				FString ToJson() const;
 				bool FromJson(const FString& JsonString);
 
-				static FString GetResultFilenameKey()
+				static FString GetResultFilenameJsonKey()
 				{
 					const FString Key = TEXT("ResultFile");
 					return Key;
@@ -144,6 +144,81 @@ namespace UE
 		private:
 			FString TranslatorID = FString();
 			FString SourceFilename = FString();
+		};
+
+		class INTERCHANGEDISPATCHER_API FJsonFetchPayloadCmd : public IJsonCmdBase
+		{
+		public:
+			FJsonFetchPayloadCmd()
+			{
+				bIsDataInitialize = false;
+			}
+
+			FJsonFetchPayloadCmd(const FString& InTranslatorID, const FString& InPayloadKey)
+				: TranslatorID(InTranslatorID)
+				, PayloadKey(InPayloadKey)
+			{
+				bIsDataInitialize = true;
+			}
+
+			virtual FString GetAction() const override
+			{
+				static const FString LoadString = TEXT("Payload");
+				return LoadString;
+			}
+
+			virtual FString GetTranslatorID() const override
+			{
+				//Code should not do query data if the data was not set before
+				ensure(bIsDataInitialize);
+				return TranslatorID;
+			}
+
+			virtual FString ToJson() const;
+			virtual bool FromJson(const FString& JsonString);
+
+			FString GetPayloadKey() const
+			{
+				//Code should not do query data if the data was not set before
+				ensure(bIsDataInitialize);
+				return PayloadKey;
+			}
+
+			static FString GetPayloadKeyJsonKey()
+			{
+				static const FString Key = TEXT("PayloadKey");
+				return Key;
+			}
+
+			/**
+			 * Use this class helper to create the cmd result json string and to read it
+			 */
+			class INTERCHANGEDISPATCHER_API JsonResultParser
+			{
+			public:
+				FString GetResultFilename() const
+				{
+					return ResultFilename;
+				}
+				void SetResultFilename(const FString& InResultFilename)
+				{
+					ResultFilename = InResultFilename;
+				}
+				FString ToJson() const;
+				bool FromJson(const FString& JsonString);
+
+				static FString GetResultFilenameJsonKey()
+				{
+					const FString Key = TEXT("ResultFile");
+					return Key;
+				}
+			private:
+				FString ResultFilename = FString();
+			};
+
+		private:
+			FString TranslatorID = FString();
+			FString PayloadKey = FString();
 		};
 
 	} //ns Interchange

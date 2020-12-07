@@ -25,7 +25,7 @@ namespace UE
 			void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages);
 
 			void StartProcess();
-			void StopProcess();
+			void StopProcess(bool bBlockUntilTerminated);
 			void TerminateProcess();
 			void WaitAllTaskToCompleteExecution();
 			bool IsOver();

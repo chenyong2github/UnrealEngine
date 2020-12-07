@@ -136,5 +136,9 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		CompletionPrerequistes.Add(TaskDatas[TaskIndex].GraphEventRef);
 	}
 
-	AsyncHelper->CompletionTask = TGraphTask<FTaskCompletion>::CreateTask(&CompletionPrerequistes).ConstructAndDispatchWhenReady(InterchangeManager, WeakAsyncHelper);
+	FGraphEventArray PreAsyncCompletionPrerequistes;
+	AsyncHelper->PreAsyncCompletionTask = TGraphTask<FTaskPreAsyncCompletion>::CreateTask(&CompletionPrerequistes).ConstructAndDispatchWhenReady(InterchangeManager, WeakAsyncHelper);
+	PreAsyncCompletionPrerequistes.Add(AsyncHelper->PreAsyncCompletionTask);
+
+	AsyncHelper->CompletionTask = TGraphTask<FTaskCompletion>::CreateTask(&PreAsyncCompletionPrerequistes).ConstructAndDispatchWhenReady(InterchangeManager, WeakAsyncHelper);
 }

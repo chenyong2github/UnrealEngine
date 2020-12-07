@@ -23,6 +23,7 @@ private:
 	void ProcessCommand(const UE::Interchange::FRunTaskCommand& TerminateCommand);
 
 	UE::Interchange::ETaskState LoadFbxFile(const UE::Interchange::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages);
+	UE::Interchange::ETaskState FetchFbxPayload(const UE::Interchange::FJsonFetchPayloadCmd& FetchPayloadCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages);
 
 private:
 	UE::Interchange::FNetworkClientNode NetworkInterface;

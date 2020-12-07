@@ -30,10 +30,10 @@ namespace UE
 #elif PLATFORM_WINDOWS
 #if UE_BUILD_DEBUG
 				Path = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker-Win64-Debug.exe"));
-#else
+#else //#if UE_BUILD_DEBUG
 				Path = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker.exe"));
-#endif
-#endif
+#endif //#else UE_BUILD_DEBUG
+#endif //#elif PLATFORM_WINDOWS
 				if (!FPaths::FileExists(Path))
 				{
 					UE_LOG(LogInterchangeDispatcher, Warning, TEXT("InterchangeWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(ProcessorPath));
@@ -59,7 +59,7 @@ namespace UE
 
 		FInterchangeWorkerHandler::~FInterchangeWorkerHandler()
 		{
-			IOThread.Join();
+			StopBlocking();
 		}
 
 		void FInterchangeWorkerHandler::StartWorkerProcess()
@@ -289,6 +289,15 @@ namespace UE
 		void FInterchangeWorkerHandler::Stop()
 		{
 			bShouldTerminate = true;
+		}
+
+		void FInterchangeWorkerHandler::StopBlocking()
+		{
+			Stop();
+			if (IOThread.IsJoinable())
+			{
+				IOThread.Join();
+			}
 		}
 
 		bool FInterchangeWorkerHandler::IsAlive() const

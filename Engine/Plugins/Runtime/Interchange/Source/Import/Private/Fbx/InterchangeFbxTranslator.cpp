@@ -18,6 +18,7 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Serialization/LargeMemoryReader.h"
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/GCObjectScopeGuard.h"
 
@@ -113,7 +114,8 @@ void UInterchangeFbxTranslator::ReleaseSource()
 {
 	if (Dispatcher.IsValid())
 	{
-		Dispatcher->StopProcess();
+		//Do not block the main thread
+		Dispatcher->StopProcess(!IsInGameThread());
 	}
 }
 
@@ -151,20 +153,76 @@ TOptional<UE::Interchange::FMaterialPayloadData> UInterchangeFbxTranslator::GetM
 	return TOptional<UE::Interchange::FMaterialPayloadData>();
 }
 
-TOptional<UE::Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const FString& PayLoadKey) const
 {
 	//Not implemented, currently we do not have any payload data for static meshes
 	return TOptional<UE::Interchange::FStaticMeshPayloadData>();
 }
 
-TOptional<UE::Interchange::FSkeletalMeshPayloadData> UInterchangeFbxTranslator::GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
 {
-	//Not implemented, currently we do not have any payload data for skeletal meshes
-	return TOptional<UE::Interchange::FSkeletalMeshPayloadData>();
+	if (!Dispatcher.IsValid())
+	{
+		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
+	}
+
+	//Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	int32 TaskIndex = Dispatcher->AddTask(JsonCommand);
+
+	//Blocking call until all tasks are executed
+	Dispatcher->WaitAllTaskToCompleteExecution();
+
+	UE::Interchange::ETaskState TaskState;
+	FString JsonResult;
+	TArray<FString> JSonMessages;
+	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+
+	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+
+	if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+	{
+		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
+	}
+	//Grab the result file and fill the BaseNodeContainer
+	UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+	ResultParser.FromJson(JsonResult);
+	FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
+
+	if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
+	{
+		//TODO log an error saying the payload file do not exist even if the get payload command succeed
+		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
+	}
+	UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshLodPayload;
+	SkeletalMeshLodPayload.LodMeshDescription.Empty();
+	//All sub object should be gone with the reset
+	TArray64<uint8> Buffer;
+	FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
+	uint8* FileData = Buffer.GetData();
+	int64 FileDataSize = Buffer.Num();
+	if (FileDataSize < 1)
+	{
+		//Nothing to load from this file
+		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
+	}
+	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+	FLargeMemoryReader Ar(FileData, FileDataSize);
+	SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
+
+	return SkeletalMeshLodPayload;
+
+	//return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>(SkeletalMeshLodPayload);
 }
 
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const
 {
 	UE::Interchange::FJsonLoadSourceCmd LoadSourceCommand(TEXT("FBX"), FbxFilePath);
 	return LoadSourceCommand.ToJson();
+}
+
+FString UInterchangeFbxTranslator::CreateFetchPayloadFbxCommand(const FString& FbxPayloadKey) const
+{
+	UE::Interchange::FJsonFetchPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey);
+	return PayloadCommand.ToJson();
 }

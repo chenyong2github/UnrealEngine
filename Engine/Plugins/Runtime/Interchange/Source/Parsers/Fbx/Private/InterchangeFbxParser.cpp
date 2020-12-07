@@ -47,5 +47,20 @@ namespace UE
 			Container.Get()->SaveToFile(ResultFilepath);
 			JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Log\",\n\"Msg\" : \"This is a success!\"}}"));
 		}
+
+		void FInterchangeFbxParser::FetchPayload(const FString& PayloadKey, const FString& ResultFolder)
+		{
+			check(FbxParserPrivate.IsValid());
+
+			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
+			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKey + TEXT(".payload");
+			if (!FbxParserPrivate->FetchPayloadData(PayloadKey, PayloadFilepath, JsonLoadMessages))
+			{
+				JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx payload data.\"}}"));
+				return;
+			}
+			
+			JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Log\",\n\"Msg\" : \"Fetch fbx Payload success!\"}}"));
+		}
 	}//ns Interchange
 }//ns UE

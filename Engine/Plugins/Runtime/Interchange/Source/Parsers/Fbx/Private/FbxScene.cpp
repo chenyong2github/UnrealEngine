@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "FbxConvert.h"
+#include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "FbxMaterial.h"
 #include "InterchangeSceneNode.h"
@@ -19,61 +20,36 @@ namespace UE
 			{
 				UInterchangeSceneNode* AddHierarchyRecursively(FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 				{
-					FString NodeName = FFbxConvert::MakeString(FFbxConvert::MakeName(Node->GetName()));
-					UInterchangeSceneNode* UnrealNode = FFbxScene::CreateTransformNode(NodeContainer, NodeName, JSonErrorMessages);
+					FString NodeName = FFbxHelper::GetFbxObjectName(Node);
+					FString NodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Node);
+					
+					UInterchangeSceneNode* UnrealNode = nullptr;
+
+					int32 AttributeCount = Node->GetNodeAttributeCount();
+					for (int32 AttributeIndex = 0; AttributeIndex < AttributeCount; ++AttributeIndex)
+					{
+						const FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
+						switch (NodeAttribute->GetAttributeType())
+						{
+							case FbxNodeAttribute::eLODGroup:
+							case FbxNodeAttribute::eMesh:
+							case FbxNodeAttribute::eSkeleton:
+							case FbxNodeAttribute::eCamera:
+							case FbxNodeAttribute::eCameraSwitcher:
+							case FbxNodeAttribute::eLight:
+							default:
+								//Add a transform node
+								UnrealNode = FFbxScene::CreateTransformNode(NodeContainer, NodeName, NodeUniqueID, JSonErrorMessages);
+								break;
+						}
+					}
 					if (UnrealNode)
 					{
 						NodeContainer.AddNode(UnrealNode);
-						FTransform LocalTransform = FFbxConvert::GetTransform(Node->EvaluateLocalTransform());
+						FTransform LocalTransform = FFbxConvert::ConvertTransform(Node->EvaluateLocalTransform());
 						UnrealNode->SetCustomLocalTransform(LocalTransform);
-						FTransform GlobalTransform = FFbxConvert::GetTransform(Node->EvaluateGlobalTransform());
+						FTransform GlobalTransform = FFbxConvert::ConvertTransform(Node->EvaluateGlobalTransform());
 						UnrealNode->SetCustomGlobalTransform(GlobalTransform);
-
-						int32 AttributeCount = Node->GetNodeAttributeCount();
-						for (int32 AttributeIndex = 0; AttributeIndex < AttributeCount; ++AttributeIndex)
-						{
-							const FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
-							switch (NodeAttribute->GetAttributeType())
-							{
-								case FbxNodeAttribute::eLODGroup:
-									//Add LOD group node
-									//UnrealNode = FFbxScene::CreateLodGroupNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-								case FbxNodeAttribute::eMesh:
-									//Add a mesh node
-									if (Node->GetMesh()->GetDeformerCount(FbxDeformer::eSkin) > 0)
-									{
-										//Skeletal mesh node
-										//UnrealNode = FFbxSkeletalMesh::CreateSkeletalMeshNode(NodeContainer, NodeName, JSonErrorMessages);
-									}
-									else
-									{
-										//Static mesh node
-										//UnrealNode = FFbxStaticMesh::CreateStaticMeshNode(NodeContainer, NodeName, JSonErrorMessages);
-									}
-									break;
-								case FbxNodeAttribute::eSkeleton:
-									//Add a joint node
-									//UnrealNode = FFbxSkeletalMesh::CreateJointNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-								case FbxNodeAttribute::eCamera:
-									//Add a camera node
-									//UnrealNode = FFbxCamera::CreateCameraNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-								case FbxNodeAttribute::eCameraSwitcher:
-									//Add a camera switcher node
-									//UnrealNode = FFbxCamera::CreateCameraSwitcherNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-								case FbxNodeAttribute::eLight:
-									//Add a light node
-									//UnrealNode = FFbxLight::CreateLightNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-								default:
-									//Add a transform node
-									UnrealNode = FFbxScene::CreateTransformNode(NodeContainer, NodeName, JSonErrorMessages);
-									break;
-							}
-						}
 						NodeContainer.AddNode(UnrealNode);
 						//Add the dependencies of the material on the correct order
 						FFbxMaterial::AddAllNodeMaterials(UnrealNode, Node, NodeContainer, JSonErrorMessages);
@@ -93,10 +69,10 @@ namespace UE
 				}
 			} //ns Scene
 
-			UInterchangeSceneNode* FFbxScene::CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages)
+			UInterchangeSceneNode* FFbxScene::CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel = *NodeName;
-				FName NodeUID(*NodeName);
+				FName DisplayLabel(*NodeName);
+				FName NodeUID(*NodeUniqueID);
 				UInterchangeSceneNode* TransformNode = NewObject<UInterchangeSceneNode>(&NodeContainer, NAME_None);
 				if (!ensure(TransformNode))
 				{

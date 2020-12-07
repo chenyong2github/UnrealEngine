@@ -3,18 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Rendering/SkeletalMeshLODImporterData.h"
+#include "MeshDescription.h"
 
 namespace UE
 {
 	namespace Interchange
 	{
-		struct FSkeletalMeshPayloadData
+		struct FSkeletalMeshLodPayloadData
 		{
 			//Currently the skeletalmesh payload data is editor only, we have to move to something available at runtime
-#if WITH_EDITOR
-			TArray<FSkeletalMeshImportData> SkeletalMeshImportData;
-#endif
+			FMeshDescription LodMeshDescription;
 		};
 	}//ns Interchange
 }//ns UE

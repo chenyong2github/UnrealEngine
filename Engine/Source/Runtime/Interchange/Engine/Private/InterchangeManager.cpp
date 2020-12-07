@@ -142,6 +142,10 @@ void UE::Interchange::FImportAsyncHelper::CancelAndWaitUntilDoneSynchronously()
 	{
 		TasksToComplete.Append(PipelinePostImportTasks);
 	}
+	if (PreAsyncCompletionTask.GetReference())
+	{
+		TasksToComplete.Add(PreAsyncCompletionTask);
+	}
 	if (CompletionTask.GetReference())
 	{
 		//Completion task will make sure any created asset before canceling will be mark for delete
@@ -572,9 +576,15 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < PipelineStack.Num(); ++GraphPipelineIndex)
 		{
-			UClass* PipelineClass = PipelineStack[GraphPipelineIndex].LoadSynchronous();
-			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
-			AsyncHelper->Pipelines.Add(GeneratedPipeline);
+			if (PipelineStack[GraphPipelineIndex].IsValid())
+			{
+				UClass* PipelineClass = PipelineStack[GraphPipelineIndex].LoadSynchronous();
+				if (PipelineClass)
+				{
+					UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
+					AsyncHelper->Pipelines.Add(GeneratedPipeline);
+				}
+			}
 		}
 	}
 	else

@@ -68,6 +68,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+	Material->PreEditChange(nullptr);
 #endif //WITH_EDITORONLY_DATA
 	return Material;
 }
@@ -149,7 +150,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 							for (int32 DependIndex = 0; DependIndex < DependenciesCount; ++DependIndex)
 							{
 								const UInterchangeBaseNode* DepNode = Arguments.NodeContainer->GetNode(MaterialDependencies[DependIndex]);
-								if (DepNode->GetUniqueID() == OutTextureUID && DepNode->ReferenceObject.IsAsset())
+								if (DepNode && DepNode->GetUniqueID() == OutTextureUID && DepNode->ReferenceObject.IsAsset())
 								{
 									//Use Resolve object so we just look for in memory UObject
 									UObject* TextureObject = DepNode->ReferenceObject.ResolveObject();

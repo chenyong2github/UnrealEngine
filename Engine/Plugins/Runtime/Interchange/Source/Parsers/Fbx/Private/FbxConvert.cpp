@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "FbxInclude.h"
 
+#define CONVERT_TO_FRONT_X 0
+
 namespace UE
 {
 	namespace Interchange
@@ -42,9 +44,13 @@ namespace UE
 
 
 				//UE is: z up, front x, left handed
-				FbxAxisSystem::EUpVector UpVector = FbxAxisSystem::eZAxis;
+				FbxAxisSystem::EUpVector UpVector = FbxAxisSystem::EUpVector::eZAxis;
+#if CONVERT_TO_FRONT_X
 				FbxAxisSystem::EFrontVector FrontVector = (FbxAxisSystem::EFrontVector)FbxAxisSystem::eParityEven;
-				FbxAxisSystem::ECoordSystem CoordSystem = FbxAxisSystem::eLeftHanded;
+#else
+				FbxAxisSystem::EFrontVector FrontVector = (FbxAxisSystem::EFrontVector) - FbxAxisSystem::eParityOdd;
+#endif //CONVERT_TO_FRONT_X
+				FbxAxisSystem::ECoordSystem CoordSystem = FbxAxisSystem::ECoordSystem::eRightHanded;
 				FbxAxisSystem UnrealImportAxis(UpVector, FrontVector, CoordSystem);
 
 				if (FileAxisSystem != UnrealImportAxis)
@@ -62,23 +68,85 @@ namespace UE
 				SDKScene->GetAnimationEvaluator()->Reset();
 			}
 
-			FTransform FFbxConvert::GetTransform(const FbxAMatrix& Matrix)
+			FTransform FFbxConvert::ConvertTransform(const FbxAMatrix& Matrix)
 			{
-				FTransform Transform = FTransform::Identity;
-				FbxVector4 FbxLocalT = Matrix.GetT();
-				FbxVector4 FbxLocalS = Matrix.GetS();
-				FbxQuaternion FbxLocalQ = Matrix.GetQ();
-				FVector LocalT = FVector(FbxLocalT[0], FbxLocalT[1], FbxLocalT[2]);
-				Transform.SetTranslation(LocalT);
-				FVector LocalS = FVector(FbxLocalS[0], FbxLocalS[1], FbxLocalS[2]);
-				Transform.SetScale3D(LocalS);
-				FQuat LocalQ;
-				LocalQ.X = FbxLocalQ[0];
-				LocalQ.Y = FbxLocalQ[1];
-				LocalQ.Z = FbxLocalQ[2];
-				LocalQ.W = FbxLocalQ[3];
-				Transform.SetRotation(LocalQ);
-				return Transform;
+				FTransform Out;
+
+				FQuat Rotation = ConvertRotToQuat(Matrix.GetQ());
+				FVector Origin = ConvertPos(Matrix.GetT());
+				FVector Scale = ConvertScale(Matrix.GetS());
+
+				Out.SetTranslation(Origin);
+				Out.SetScale3D(Scale);
+				Out.SetRotation(Rotation);
+
+				return Out;
+			}
+
+			FMatrix FFbxConvert::ConvertMatrix(const FbxAMatrix& Matrix)
+			{
+				FMatrix UEMatrix;
+
+				for (int i = 0; i < 4; ++i)
+				{
+					const FbxVector4 Row = Matrix.GetRow(i);
+					if (i == 1)
+					{
+						UEMatrix.M[i][0] = -Row[0];
+						UEMatrix.M[i][1] = Row[1];
+						UEMatrix.M[i][2] = -Row[2];
+						UEMatrix.M[i][3] = -Row[3];
+					}
+					else
+					{
+						UEMatrix.M[i][0] = Row[0];
+						UEMatrix.M[i][1] = -Row[1];
+						UEMatrix.M[i][2] = Row[2];
+						UEMatrix.M[i][3] = Row[3];
+					}
+				}
+
+				return UEMatrix;
+			}
+
+			FQuat FFbxConvert::ConvertRotToQuat(FbxQuaternion Quaternion)
+			{
+				FQuat UnrealQuat;
+				UnrealQuat.X = Quaternion[0];
+				UnrealQuat.Y = -Quaternion[1];
+				UnrealQuat.Z = Quaternion[2];
+				UnrealQuat.W = -Quaternion[3];
+
+				return UnrealQuat;
+			}
+
+			FRotator FFbxConvert::ConvertEuler(FbxDouble3 Euler)
+			{
+				return FRotator::MakeFromEuler(FVector(Euler[0], -Euler[1], Euler[2]));
+			}
+
+			FVector FFbxConvert::ConvertScale(FbxVector4 Vector)
+			{
+				FVector Out;
+				Out[0] = Vector[0];
+				Out[1] = Vector[1];
+				Out[2] = Vector[2];
+				return Out;
+			}
+
+			FRotator FFbxConvert::ConvertRotation(FbxQuaternion Quaternion)
+			{
+				FRotator Out(ConvertRotToQuat(Quaternion));
+				return Out;
+			}
+			FVector FFbxConvert::ConvertPos(const FbxVector4& Vector)
+			{
+				return FVector(Vector[0], -Vector[1], Vector[2]);
+			}
+
+			FVector FFbxConvert::ConvertDir(const FbxVector4& Vector)
+			{
+				return FVector(Vector[0], -Vector[1], Vector[2]);
 			}
 
 			ANSICHAR* FFbxConvert::MakeName(const ANSICHAR* Name)

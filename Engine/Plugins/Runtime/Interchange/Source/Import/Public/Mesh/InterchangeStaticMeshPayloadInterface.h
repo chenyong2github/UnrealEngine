@@ -28,11 +28,10 @@ public:
 	 * Once the translation is done, the import process need a way to retrieve payload data.
 	 * This payload will be use by the factories to create the asset.
 	 *
-	 * @param SourceData - The source data containing the data to translate
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the import image data. The TOptional will not be set if there is an error.
+	 * @return a PayloadData containing the the data ask with the key.
 	 */
-	virtual TOptional<UE::Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayloadKey) const = 0;
+	virtual TOptional<UE::Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const FString& PayloadKey) const = 0;
 };
 
 

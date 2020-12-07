@@ -21,7 +21,14 @@ namespace UE
 				/**
 				 * Create a UE transform from a fbx matrix
 				 */
-				static FTransform GetTransform(const FbxAMatrix& Matrix);
+				static FTransform ConvertTransform(const FbxAMatrix& Matrix);
+				static FMatrix ConvertMatrix(const FbxAMatrix& Matrix);
+				static FQuat ConvertRotToQuat(FbxQuaternion Quaternion);
+				static FRotator ConvertEuler(FbxDouble3 Euler);
+				static FVector ConvertScale(FbxVector4 Vector);
+				static FRotator ConvertRotation(FbxQuaternion Quaternion);
+				static FVector ConvertPos(const FbxVector4& Vector);
+				static FVector ConvertDir(const FbxVector4& Vector);
 
 				/** Transform Conversion API End */
 				//////////////////////////////////////////////////////////////////////////

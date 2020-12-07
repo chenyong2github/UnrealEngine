@@ -17,6 +17,8 @@ namespace UnrealBuildTool.Rules
 					"InterchangeEngine",
 					"InterchangeNodePlugin",
 					"MeshDescription",
+					"StaticMeshDescription",
+					"SkeletalMeshDescription",
 				}
 				);
 			PrivateDependencyModuleNames.AddRange(
@@ -28,6 +30,10 @@ namespace UnrealBuildTool.Rules
 					"Json",
 				}
 				);
+
+			OptimizeCode = CodeOptimization.Never;
+			bUseUnity = false;
+			PCHUsage = PCHUsageMode.NoPCHs;
 		}
 	}
 }

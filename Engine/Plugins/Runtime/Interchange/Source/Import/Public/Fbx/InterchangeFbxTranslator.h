@@ -80,7 +80,7 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<UE::Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+	virtual TOptional<UE::Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const FString& PayLoadKey) const override;
 
 	/* IInterchangeStaticMeshPayloadInterface End */
 
@@ -96,12 +96,14 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<UE::Interchange::FSkeletalMeshPayloadData> GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+	virtual TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const override;
 
 	/* IInterchangeSkeletalMeshPayloadInterface End */
 private:
 
 	FString CreateLoadFbxFileCommand(const FString& FbxFilePath) const;
+
+	FString CreateFetchPayloadFbxCommand(const FString& FbxPayloadKey) const;
 
 	//Dispatcher is mutable since it is create during the Translate operation
 	//We do not want to allocate the dispatcher and start the InterchangeWorker process

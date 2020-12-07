@@ -32,14 +32,14 @@ namespace UE
 				const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
 
 				//Set the asset name and the package name
-				if (NodeDisplayName.Equals(BaseFileName) || BaseFileName.IsEmpty())
+				//if (NodeDisplayName.Equals(BaseFileName) || BaseFileName.IsEmpty())
 				{
 					OutAssetName = NodeDisplayName;
 				}
-				else
-				{
-					OutAssetName = BaseFileName.IsEmpty() ? NodeDisplayName : BaseFileName + TEXT("_") + NodeDisplayName;
-				}
+// 				else
+// 				{
+// 					OutAssetName = BaseFileName.IsEmpty() ? NodeDisplayName : BaseFileName + TEXT("_") + NodeDisplayName;
+// 				}
 				OutPackageName = FPaths::Combine(*PackageBasePath, *OutAssetName);
 
 				//Sanitize only the package name
@@ -112,6 +112,12 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		UObject* NodeAsset = Factory->CreateEmptyAsset(CreateAssetParams);
 		if (NodeAsset)
 		{
+			if (!NodeAsset->HasAnyInternalFlags(EInternalObjectFlags::Async))
+			{
+				//Sice the async flag is not set we must be in the game thread
+				ensure(IsInGameThread());
+				NodeAsset->SetInternalFlags(EInternalObjectFlags::Async);
+			}
 			FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
 			TArray<UE::Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
 			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();

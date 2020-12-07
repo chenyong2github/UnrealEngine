@@ -74,6 +74,9 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+
+	Texture->PreEditChange(nullptr);
+
 #endif //WITH_EDITORONLY_DATA
 	return Texture;
 }
