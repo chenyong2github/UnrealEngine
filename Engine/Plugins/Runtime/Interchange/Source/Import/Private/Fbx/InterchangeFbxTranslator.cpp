@@ -8,7 +8,6 @@
 #include "InterchangeDispatcherTask.h"
 #include "InterchangeManager.h"
 #include "LogInterchangeImportPlugin.h"
-#include "Material/InterchangeMaterialPayloadData.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Misc/ConfigCacheIni.h"
@@ -145,12 +144,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayLoadKey);
-}
-
-TOptional<UE::Interchange::FMaterialPayloadData> UInterchangeFbxTranslator::GetMaterialPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
-{
-	//Not implemented, currently we do not have any payload data for the material
-	return TOptional<UE::Interchange::FMaterialPayloadData>();
 }
 
 TOptional<UE::Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const FString& PayLoadKey) const

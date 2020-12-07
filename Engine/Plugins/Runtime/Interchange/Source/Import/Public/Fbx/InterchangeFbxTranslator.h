@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeDispatcher.h"
-#include "Material/InterchangeMaterialPayloadInterface.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"
@@ -21,7 +20,6 @@
 UCLASS(BlueprintType)
 class INTERCHANGEIMPORTPLUGIN_API UInterchangeFbxTranslator : public UInterchangeTranslatorBase
 , public IInterchangeTexturePayloadInterface
-, public IInterchangeMaterialPayloadInterface
 , public IInterchangeStaticMeshPayloadInterface
 , public IInterchangeSkeletalMeshPayloadInterface
 {
@@ -51,22 +49,6 @@ public:
 	virtual TOptional<UE::Interchange::FImportImage> GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
 
 	/* IInterchangeTexturePayloadInterface End */
-
-
-	//////////////////////////////////////////////////////////////////////////
-	/* IInterchangeMaterialPayloadInterface Begin */
-
-	/**
-	 * Once the translation is done, the import process need a way to retrieve payload data.
-	 * This payload will be use by the factories to create the asset.
-	 *
-	 * @param SourceData - The source data containing the data to translate
-	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
-	 */
-	virtual TOptional<UE::Interchange::FMaterialPayloadData> GetMaterialPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
-
-	/* IInterchangeMaterialPayloadInterface End */
 
 
 	//////////////////////////////////////////////////////////////////////////
