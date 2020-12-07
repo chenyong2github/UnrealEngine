@@ -18,7 +18,7 @@ enum class EDataRegistrySubsystemGetItemResult : uint8
 	NotFound,
 };
 
-/** Singleton manager that provides access to all data registry */
+/** Singleton manager that provides synchronous and asynchronous access to data registries */
 UCLASS(NotBlueprintType)
 class DATAREGISTRY_API UDataRegistrySubsystem : public UEngineSubsystem
 {
@@ -27,24 +27,56 @@ public:
 
 	// Blueprint Interface, it is static for ease of use in custom nodes
 
-	/** Looks up a cached item, this will return true if it is found and fill in OutItem. This needs to be hooked up to a structure of the same type as the registry */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category = DataRegistry, meta = (DisplayName = "Find Data Registry Item", CustomStructureParam = "OutItem"))
+	/**
+	 * Attempts to get structure data stored in a DataRegistry cache, modifying OutItem if the item is available
+	 * (EXPERIMENTAL) this version has an input param and simple bool return
+	 *
+	 * @param ItemID		Item identifier to lookup in cache
+	 * @param OutItem		This must be the same type as the registry, if the item is found this will be filled in with the found data
+	 * @returns				Returns true if the item was found and OutItem was modified
+	 */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = DataRegistry, meta = (DisplayName = "Get Data Registry Item (experimental)", CustomStructureParam = "OutItem"))
 	static bool GetCachedItemBP(FDataRegistryId ItemId, UPARAM(ref) FTableRowBase& OutItem) { return false; }
 	DECLARE_FUNCTION(execGetCachedItemBP);
 
-	/** Looks up a cached item using a resolved lookup, this will return true if it is found and fill in OutItem. This needs to be hooked up to a structure of the same type as the registry */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category = DataRegistry, meta = (DisplayName = "Find Data Registry Item From Lookup", CustomStructureParam = "OutItem"))
-	static bool GetCachedItemFromLookupBP(FDataRegistryId ItemId, const FDataRegistryLookup& ResolvedLookup, UPARAM(ref) FTableRowBase& OutItem) { return false; }
+	/**
+	 * Attempts to get structure data stored in a DataRegistry cache, modifying OutItem if the item is available
+	 * (EXPERIMENTAL) this version has an output param and enum result
+	 *
+	 * @param ItemID		Item identifier to lookup in cache
+	 * @param OutItem		This must be the same type as the registry, if the item is found this will be filled in with the found data
+	 * @returns				Returns true if the item was found and OutItem was modified
+	 */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = DataRegistry, meta = (DisplayName = "Find Data Registry Item (experimental)", CustomStructureParam = "OutItem", ExpandEnumAsExecs = "OutResult"))
+	static void FindCachedItemBP(FDataRegistryId ItemId, EDataRegistrySubsystemGetItemResult& OutResult, FTableRowBase& OutItem) {}
+	DECLARE_FUNCTION(execFindCachedItemBP);
+
+	/**
+	 * Attempts to get structure data stored in a DataRegistry cache after an async acquire, modifying OutItem if the item is available
+	 *
+	 * @param ItemID			Item identifier to lookup in cache
+	 * @param ResolvedLookup	Resolved identifier returned by acquire function
+	 * @param OutItem			This must be the same type as the registry, if the item is found this will be filled in with the found data
+	 * @returns					Returns true if the item was found and OutItem was modified
+	 */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = DataRegistry, meta = (DisplayName = "Get Data Registry Item From Lookup (experimental)", CustomStructureParam = "OutItem"))
+	static bool GetCachedItemFromLookupBP(FDataRegistryId ItemId, const FDataRegistryLookup& ResolvedLookup, FTableRowBase& OutItem) { return false; }
 	DECLARE_FUNCTION(execGetCachedItemFromLookupBP);
 
-	/** Starts an acquire from blueprint, will call delegate on completion */
-	UFUNCTION(BlueprintCallable, Category = DataRegistry, meta = (DisplayName = "Acquire Data Registry Item") )
+	/**
+	 * Starts an asynchronous acquire of a data registry item that may not yet be cached.
+	 *
+	 * @param ItemID			Item identifier to lookup in cache
+	 * @param AcquireCallback	Delegate that will be called after acquire succeeds or failed
+	 * @returns					Returns true if request was started, false on unrecoverable error
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataRegistry, meta = (DisplayName = "Acquire Data Registry Item (experimental)") )
 	static bool AcquireItemBP(FDataRegistryId ItemId, FDataRegistryItemAcquiredBPCallback AcquireCallback);
 
 	/**
-	 * Attempt to evaluate a curve stored in a DataRegistry cache using a specific input value
+	 * Attempts to evaluate a curve stored in a DataRegistry cache using a specific input value
 	 *
-	 * @param ItemID		Name to lookup in cache
+	 * @param ItemID		Item identifier to lookup in cache
 	 * @param InputValue	Time/level/parameter input value used to evaluate curve at certain position
 	 * @param DefaultValue	Value to use if no curve found or input is outside acceptable range
 	 * @param OutValue		Result will be replaced with evaluated value, or default if that fails
@@ -52,11 +84,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataRegistry, meta = (ExpandEnumAsExecs = "OutResult"))
 	static void EvaluateDataRegistryCurve(FDataRegistryId ItemId, float InputValue, float DefaultValue, EDataRegistrySubsystemGetItemResult& OutResult, float& OutValue);
 
-	/** Returns true if this is a non-empty type, does not verify if it is currently registered */
+
+	/** Returns true if this is a non-empty type, does not check if it is currently registered */
 	UFUNCTION(BlueprintPure, Category = DataRegistry, meta = (ScriptMethod = "IsValid", ScriptOperator = "bool", BlueprintThreadSafe))
 	static bool IsValidDataRegistryType(FDataRegistryType DataRegistryType);
 
-	/** Converts a Primary Asset Type to a string. The other direction is not provided because it cannot be validated */
+	/** Converts a Data Registry Type to a string. The other direction is not provided because it cannot be validated */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DataRegistryType)", CompactNodeTitle = "->", ScriptMethod = "ToString", BlueprintThreadSafe), Category = DataRegistry)
 	static FString Conv_DataRegistryTypeToString(FDataRegistryType DataRegistryType);
 
@@ -68,7 +101,23 @@ public:
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "NotEqual (DataRegistryType)", CompactNodeTitle = "!=", ScriptOperator = "!=", BlueprintThreadSafe), Category = DataRegistry)
 	static bool NotEqual_DataRegistryType(FDataRegistryType A, FDataRegistryType B);
 
-	
+	/** Returns true if this is a non-empty item identifier, does not check if it is currently registered */
+	UFUNCTION(BlueprintPure, Category = "AssetManager", meta=(ScriptMethod="IsValid", ScriptOperator="bool", BlueprintThreadSafe))
+	static bool IsValidDataRegistryId(FDataRegistryId DataRegistryId);
+
+	/** Converts a Data Registry Id to a string. The other direction is not provided because it cannot be validated */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DataRegistryId)", CompactNodeTitle = "->", ScriptMethod="ToString", BlueprintThreadSafe), Category = DataRegistry)
+	static FString Conv_DataRegistryIdToString(FDataRegistryId DataRegistryId);
+
+	/** Returns true if the values are equal (A == B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Equal (DataRegistryId)", CompactNodeTitle = "==", ScriptOperator="==", BlueprintThreadSafe), Category = DataRegistry)
+	static bool EqualEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B);
+
+	/** Returns true if the values are not equal (A != B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "NotEqual (DataRegistryId)", CompactNodeTitle = "!=", ScriptOperator="!=", BlueprintThreadSafe), Category = DataRegistry)
+	static bool NotEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B);
+
+
 	// Native interface, works using subsystem instance
 
 	/** Returns the global subsystem instance */
@@ -77,28 +126,28 @@ public:
 	/** Finds the right registry for a type name */
 	UDataRegistry* GetRegistryForType(FName RegistryType) const;
 
-	/** Gives proper display text for an id, using id format */
+	/** Returns proper display text for an id, using the correct id format */
 	FText GetDisplayTextForId(FDataRegistryId ItemId) const;
 
-	/** Gets list of all registries, for iterating in UI mostly */
+	/** Gets list of all registries, useful for iterating in UI or utilities */
 	void GetAllRegistries(TArray<UDataRegistry*>& AllRegistries, bool bSortByType = true) const;
 
-	/** Refreshes the active registries based on what's in memory */
+	/** Refreshes the active registry map based on what's in memory */
 	void RefreshRegistryMap();
 
-	/** Loads all registry assets and initializes them, call early in startup */
+	/** Loads all registry assets and initializes them, this is called early in startup */
 	void LoadAllRegistries();
 
-	/** True if all registeries should be initialized */
+	/** True if all registries should have been initialized*/
 	bool AreRegistriesInitialized() const;
 
-	/** Returns true if the system is enabled via any config settings, will optionally warn if not enabled */
+	/** Returns true if the system is enabled via any config scan settings, will optionally warn if not enabled */
 	bool IsConfigEnabled(bool bWarnIfNotEnabled = false) const;
 
-	/** Initializes all loaded registries and prepares them for query */
+	/** Initializes all loaded registries and prepares them for queries */
 	void InitializeAllRegistries(bool bResetIfInitialized = false);
 
-	/** Deinitializes all loaded registries */
+	/** De-initializes all loaded registries */
 	void DeinitializeAllRegistries();
 
 	/** Resets state for all registries, call when gameplay has concluded to destroy caches */
@@ -108,8 +157,8 @@ public:
 	void ReinitializeFromConfig();
 
 	/** 
-	 * Attempt to register a specified asset with all active sources that allow dynamic registration, returning true if anything changed
-	 * This will fail if the registry does not exist yet
+	 * Attempt to register a specified asset with all active sources that allow dynamic registration, returning true if anything changed.
+	 * This will fail if the registry does not exist yet.
 	 *
 	 * @param RegistryType		Type to register with, if invalid will try all registries
 	 * @param AssetData			Filled in asset data of asset to attempt to register
@@ -120,19 +169,19 @@ public:
 	/** Removes references to a specific asset, returns bool if it was removed */
 	bool UnregisterSpecificAsset(FDataRegistryType RegistryType, const FSoftObjectPath& AssetPath);
 
-	/** Schedules registration of assets by path, this will happen immediately or queue it up if the data registries don't exist yet */
+	/** Schedules registration of assets by path, this will happen immediately or will be queued if the data registries don't exist yet */
 	void PreregisterSpecificAssets(const TMap<FDataRegistryType, TArray<FSoftObjectPath>>& AssetMap, int32 AssetPriority = 0);
 
-	/** Returns the raw cached data and struct type, useful for generic C++ calls */
+	/** Returns the raw cached data and struct type. Return value specifies the cache safety for the data */
 	FDataRegistryCacheGetResult GetCachedItemRaw(const uint8*& OutItemMemory, const UScriptStruct*& OutItemStruct, const FDataRegistryId& ItemId) const;
 
-	/** Returns the raw cached data and struct type, useful for generic C++ calls */
+	/** Returns the raw cached data and struct type using an async acquire result. Return value specifies the cache safety for the data */
 	FDataRegistryCacheGetResult GetCachedItemRawFromLookup(const uint8*& OutItemMemory, const UScriptStruct*& OutItemStruct, const FDataRegistryId& ItemId, const FDataRegistryLookup& Lookup) const;
 
-	/** Returns an evaluated curve value, as well as an actual curve if it is found. Return value specifies the cache safety for the curve */
+	/** Returns an evaluated curve value, as well as the actual curve if it is found. Return value specifies the cache safety for the curve */
 	FDataRegistryCacheGetResult EvaluateCachedCurve(float& OutValue, const FRealCurve*& OutCurve, FDataRegistryId ItemId, float InputValue, float DefaultValue = 0.0f) const;
 
-	/** Finds the cached item, using the request context to handle remapping. This will return null if not in local cache */
+	/** Returns a cached item of specified struct type. This will return null if items was not found in local cache */
 	template <class T>
 	T* GetCachedItem(const FDataRegistryId& ItemId) const
 	{
@@ -144,7 +193,7 @@ public:
 		return nullptr;
 	}
 
-	/** Start an async load of an item */
+	/** Start an async load of an item, delegate will be called on success or failure of acquire. Returns false if delegate could not be scheduled */
 	bool AcquireItem(const FDataRegistryId& ItemId, FDataRegistryItemAcquiredCallback DelegateToCall) const;
 
 protected:

@@ -22,7 +22,7 @@ struct DATAREGISTRY_API FDataRegistrySource_DataTableRules
 };
 
 
-/** Data source that loads from a specific data table, which must have the same type as the registry */
+/** Data source that loads from a specific data table containing the same type of structs as the registry */
 UCLASS(Meta = (DisplayName = "DataTable Source"))
 class DATAREGISTRY_API UDataRegistrySource_DataTable : public UDataRegistrySource
 {
@@ -91,7 +91,8 @@ protected:
 #endif
 };
 
-/** Meta source that will create UDataRegistrySource_DataTable sources based on a directory scan */
+
+/** Meta source that will generate DataTable sources at runtime based on a directory scan or asset registration */
 UCLASS(Meta = (DisplayName = "DataTable Meta Source"))
 class DATAREGISTRY_API UMetaDataRegistrySource_DataTable : public UMetaDataRegistrySource
 {
