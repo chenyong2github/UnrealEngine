@@ -3,6 +3,7 @@
 #include "AllocationsProvider.h"
 
 #include "AllocationsQuery.h"
+#include "Containers/ArrayView.h"
 #include "SbTree.h"
 #include "TraceServices/Containers/Allocators.h"
 
