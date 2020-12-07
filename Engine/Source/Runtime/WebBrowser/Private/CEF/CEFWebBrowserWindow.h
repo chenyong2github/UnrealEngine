@@ -759,7 +759,7 @@ private:
 
 	TArray<FWebBrowserDragRegion> DragRegions;
 
-	TSharedPtr<SWindow> ParentWindow;
+	TWeakPtr<SWindow> ParentWindow;
 };
 
 typedef FCEFWebBrowserWindow FWebBrowserWindow;
