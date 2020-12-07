@@ -8,6 +8,7 @@ UAutomationControllerSettings::UAutomationControllerSettings(const FObjectInitia
 	: Super(ObjectInitializer)
 	, bSuppressLogErrors(false)
 	, bSuppressLogWarnings(false)
+	, bTreatLogErrorsAsTestErrors(true)
 	, bTreatLogWarningsAsTestErrors(true)
 {
 }

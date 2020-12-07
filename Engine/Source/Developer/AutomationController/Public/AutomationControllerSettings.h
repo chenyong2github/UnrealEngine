@@ -75,6 +75,10 @@ public:
 	UPROPERTY(Config)
 	bool bSuppressLogWarnings;
 
+	/** Whether to treat log errors as test errors (default=true) */
+	UPROPERTY(Config)
+	bool bTreatLogErrorsAsTestErrors;
+
 	/** Whether to treat log warnings as test errors (default=true) */
 	UPROPERTY(Config)
 	bool bTreatLogWarningsAsTestErrors;
