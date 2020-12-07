@@ -145,6 +145,20 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction&
 {
 }
 
+FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction& UIAction, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FOnGetContent& InMenuBuilder, TSharedPtr<FExtender> InExtender, bool bInSubMenu, bool bInSubMenuOnClick, bool bInCloseSelfOnly, const FSlateIcon& InIcon, bool bInShouldCloseWindowAfterMenuSelection)
+	: FMultiBlock( UIAction, InExtensionHook, EMultiBlockType::MenuEntry )
+	, LabelOverride( InLabel )
+	, ToolTipOverride( InToolTip )
+	, IconOverride( InIcon )
+	, MenuBuilder( InMenuBuilder )
+	, bIsSubMenu( bInSubMenu )
+	, bOpenSubMenuOnClick( bInSubMenuOnClick )
+	, UserInterfaceActionType( EUserInterfaceActionType::Button )
+	, bCloseSelfOnly( bInCloseSelfOnly )
+	, Extender( InExtender )
+	, bShouldCloseWindowAfterMenuSelection( bInShouldCloseWindowAfterMenuSelection )
+{
+}
 
 void FMenuEntryBlock::CreateMenuEntry(FMenuBuilder& InMenuBuilder) const
 {

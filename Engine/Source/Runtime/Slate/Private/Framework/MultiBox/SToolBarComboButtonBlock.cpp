@@ -28,7 +28,7 @@ void FToolBarComboButtonBlock::CreateMenuEntry(FMenuBuilder& MenuBuilder) const
 		EntryLabel = NSLOCTEXT("ToolBar", "CustomControlLabel", "Custom Control");
 	}
 
-	MenuBuilder.AddWrapperSubMenu(EntryLabel, FText::GetEmpty(), MenuContentGenerator, Icon.Get());
+	MenuBuilder.AddWrapperSubMenu(EntryLabel, ToolTip.Get(), MenuContentGenerator, Icon.Get(), GetDirectActions());
 }
 
 bool FToolBarComboButtonBlock::HasIcon() const
