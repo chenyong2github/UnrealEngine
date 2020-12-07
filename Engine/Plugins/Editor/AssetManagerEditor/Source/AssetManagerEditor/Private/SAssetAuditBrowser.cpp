@@ -20,6 +20,7 @@
 #include "ClassViewerFilter.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserDataSource.h"
 #include "AssetRegistryModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "FrontendFilterBase.h"
@@ -295,6 +296,8 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 	// Hide path and type by default
 	Config.HiddenColumnNames.Add(TEXT("Class"));
 	Config.HiddenColumnNames.Add(TEXT("Path"));
+	// Hide item disk size since we display a custom version here
+	Config.HiddenColumnNames.Add(ContentBrowserItemAttributes::ItemDiskSize.ToString());
 
 	// Add custom columns
 	Config.CustomColumns.Emplace(FPrimaryAssetId::PrimaryAssetTypeTag, LOCTEXT("AssetType", "Primary Type"), LOCTEXT("AssetTypeTooltip", "Primary Asset Type of this asset, if set"), UObject::FAssetRegistryTag::TT_Alphabetical, FOnGetCustomAssetColumnData::CreateSP(this, &SAssetAuditBrowser::GetStringValueForCustomColumn), FOnGetCustomAssetColumnDisplayText::CreateSP(this, &SAssetAuditBrowser::GetDisplayTextForCustomColumn));

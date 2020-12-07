@@ -1072,6 +1072,30 @@ void GetClassItemAttribute(const FAssetData& InAssetData, const bool InIncludeMe
 	}
 }
 
+bool GetDiskSizeItemAttribute(const FAssetData& InAssetData, IAssetRegistry* InAssetRegistry, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValue& OutAttributeValue)
+{
+	check(InAssetData.IsValid());
+	check(InAssetRegistry);
+
+	if (const FAssetPackageData* PackageData = InAssetRegistry->GetAssetPackageData(InAssetData.PackageName))
+	{
+		OutAttributeValue.SetValue(PackageData->DiskSize);
+
+		if (InIncludeMetaData)
+		{
+			static const FText DiskSizeDisplayName = LOCTEXT("AttributeDisplayName_DiskSize", "Disk Size");
+
+			FContentBrowserItemDataAttributeMetaData AttributeMetaData;
+			AttributeMetaData.AttributeType = UObject::FAssetRegistryTag::TT_Numerical;
+			AttributeMetaData.DisplayFlags = UObject::FAssetRegistryTag::TD_Memory;
+			AttributeMetaData.DisplayName = DiskSizeDisplayName;
+			OutAttributeValue.SetMetaData(MoveTemp(AttributeMetaData));
+		}
+		return true;
+	}
+	return false;
+}
+
 void GetGenericItemAttribute(const FName InTagKey, const FString& InTagValue, const FAssetPropertyTagCache::FClassPropertyTagCache& InClassPropertyTagCache, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValue& OutAttributeValue)
 {
 	check(!InTagKey.IsNone());
@@ -1203,6 +1227,11 @@ bool GetAssetFileItemAttribute(const FContentBrowserAssetFileItemDataPayload& In
 			return false;
 		}
 
+		if (InAttributeKey == ContentBrowserItemAttributes::ItemDiskSize)
+		{
+			return GetDiskSizeItemAttribute(InAssetPayload.GetAssetData(), IAssetRegistry::Get(), InIncludeMetaData, OutAttributeValue);
+		}
+
 		if (InAttributeKey == ContentBrowserItemAttributes::ItemIsDeveloperContent)
 		{
 			const bool bIsDevelopersFolder = AssetViewUtils::IsDevelopersFolder(InAssetPayload.GetAssetData().PackageName.ToString());
@@ -1290,8 +1319,16 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 {
 	// Hard-coded attribute keys
 	{
+		// Class
 		FContentBrowserItemDataAttributeValue& ClassAttributeValue = OutAttributeValues.Add(NAME_Class);
 		GetClassItemAttribute(InAssetPayload.GetAssetData(), InIncludeMetaData, ClassAttributeValue);
+
+		// Disk Size
+		FContentBrowserItemDataAttributeValue DiskSizeAttributeValue;
+		if (GetDiskSizeItemAttribute(InAssetPayload.GetAssetData(), IAssetRegistry::Get(), InIncludeMetaData, DiskSizeAttributeValue))
+		{
+			OutAttributeValues.Add(ContentBrowserItemAttributes::ItemDiskSize, MoveTemp(DiskSizeAttributeValue));
+		}
 	}
 
 	// Generic attribute keys

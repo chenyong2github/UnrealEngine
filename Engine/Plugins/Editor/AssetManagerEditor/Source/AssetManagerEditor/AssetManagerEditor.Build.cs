@@ -33,6 +33,7 @@ public class AssetManagerEditor : ModuleRules
 				"Json",
 				"CollectionManager",
 				"ContentBrowser",
+				"ContentBrowserData",
 				"WorkspaceMenuStructure",
 				"EditorStyle",
 				"AssetTools",

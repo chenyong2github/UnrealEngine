@@ -36,6 +36,12 @@ namespace ContentBrowserItemAttributes
 	const FName ItemDescription = "ItemDescription";
 
 	/**
+	 * Attribute key that can be used to query the internal disk size of an item.
+	 * Type: int64.
+	 */
+	const FName ItemDiskSize = "ItemDiskSize";
+
+	/**
 	 * Attribute key that can be used to query whether the given item is considered to be developer content.
 	 * Type: bool.
 	 */
