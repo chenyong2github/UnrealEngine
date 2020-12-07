@@ -109,6 +109,11 @@ DIContext.ParamsScaleBuffer = ParamsScaleBuffer_##NAME;\
  * -----------------------------------------------------------------
  */
 
+float2 ExtractBarycentrics(in uint PackedCoordinates)
+{
+	return float2(f16tof32(PackedCoordinates & 0xFFFF), f16tof32((PackedCoordinates >> 16) & 0xFFFF));
+}
+
  float3 Uint3ToFloat3( in uint3 Uint3Vector)
  {
 	uint3 SignedVector = Uint3Vector;
@@ -599,40 +604,121 @@ void DIHairStrands_ResetPointPosition(in FDIHairStrandsContext DIContext, out bo
 	}
 }
 
-// Report interpolated nodes displacements onto the points positions 
-void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in float3 NodeDisplace, out bool ReportStatus) 
+// Compute the projection triangle
+void DIHairStrands_ComputeProjectionTriangle(in float2 ProjectionUV, in float3 PA, in float3 PB, in float3 PC, in float3 Offset, 
+			out float3 OutTrianglePosition, out float4 OutTriangleRotation)
 {
-	const int ReducedSize =  DIContext.StrandSize-1;
-	SharedNodePosition[GGroupThreadId.x] = NodeDisplace;
-	GroupMemoryBarrier(); 
+	OutTrianglePosition = PA * ProjectionUV.x + PB * ProjectionUV.y + PC * (1.0 - ProjectionUV.x - ProjectionUV.y) + Offset;
 
-	int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
+	float3 TangentU = PB - PA;
+	float3 TangentV = PC - PA;
+
+	const float3 Normal = normalize(cross(TangentU, TangentV));
+	TangentV = normalize(TangentV);
+	TangentU = normalize(cross(TangentV, Normal));
+	
+	const float3 RotationMatrix[3] = { TangentU, TangentV, Normal };
+	OutTriangleRotation = QuatFromMatrix(RotationMatrix);
+}
+
+// Get the deformed triangle
+void DIHairStrands_BuildDeformedTriangle(in FDIHairStrandsContext DIContext, in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+{
+	DIHairStrands_ComputeProjectionTriangle(ProjectionUV, DIContext.DeformedTrianglePositionABuffer[StrandIndex].xyz,
+		DIContext.DeformedTrianglePositionBBuffer[StrandIndex].xyz, 
+		DIContext.DeformedTrianglePositionCBuffer[StrandIndex].xyz, 
+	    DIContext.DeformedRootOffset, OutTrianglePosition, OutTriangleRotation);
+}
+
+// Get the rest triangle
+void DIHairStrands_BuildRestTriangle(in FDIHairStrandsContext DIContext, in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+{
+	DIHairStrands_ComputeProjectionTriangle(ProjectionUV, DIContext.RestTrianglePositionABuffer[StrandIndex].xyz,
+		DIContext.RestTrianglePositionBBuffer[StrandIndex].xyz,
+		DIContext.RestTrianglePositionCBuffer[StrandIndex].xyz,
+	    DIContext.RestRootOffset, OutTrianglePosition, OutTriangleRotation);
+}
+
+// Eval the triangle local position
+float3 DIHairStrands_TriangleLocalPosition(in float3 TrianglePosition, in float4 TriangleRotation, in float3 WorldPosition)
+{
+	return RotateVectorByQuat(WorldPosition - TrianglePosition, InverseQuat(TriangleRotation));
+}
+
+// Eval the triangle local orientation
+float4 DIHairStrands_TriangleLocalOrientation(in float3 TrianglePosition, in float4 TriangleRotation, in float4 WorldOrientation)
+{
+	return NormalizeQuat(MultiplyQuat(InverseQuat(TriangleRotation), WorldOrientation));
+}
+
+// Eval the triangle world position
+float3 DIHairStrands_TriangleWorldPosition(in float3 TrianglePosition, in float4 TriangleRotation, in float3 LocalPosition)
+{
+	return RotateVectorByQuat(LocalPosition, TriangleRotation) + TrianglePosition;
+}
+
+// Eval the triangle local orientation
+float4 DIHairStrands_TriangleWorldOrientation(in float3 TrianglePosition, in float4 TriangleRotation, in float4 LocalOrientation)
+{
+	return NormalizeQuat(MultiplyQuat(TriangleRotation, LocalOrientation));
+}
+
+// Report interpolated nodes displacements onto the points positions 
+void DIHairStrands_UpdateTriangleDisplace(in FDIHairStrandsContext DIContext, in int StrandIndex, in float3 NodePosition, in float3 RestPosition, 
+		out float3 RestTrianglePosition, out float4 RestTriangleOrientation, out float3 DeformedTrianglePosition, out float4 DeformedTriangleOrientation)
+{
+	const float2 ProjectionUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[StrandIndex]);
+	
+	DIHairStrands_BuildRestTriangle(DIContext, ProjectionUV, StrandIndex, RestTrianglePosition, RestTriangleOrientation);
+	DIHairStrands_BuildDeformedTriangle(DIContext, ProjectionUV, StrandIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
+	
+	const float3 LocalRestPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, RestPosition);
+	const float3 LocalDeformedPosition = DIHairStrands_TriangleLocalPosition(DeformedTrianglePosition, DeformedTriangleOrientation, NodePosition);
+	
+	SharedNodePosition[GGroupThreadId.x] = LocalDeformedPosition - LocalRestPosition;
+	GroupMemoryBarrier();
+}
+
+// Report interpolated nodes displacements onto the points positions 
+void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in float3 NodePosition, in float3 RestPosition, out bool OutReportStatus)
+{
+	OutReportStatus = false;
+	const int ReducedSize = DIContext.StrandSize - 1;
+	
+	int LocalIndex = GGroupThreadId.x % DIContext.StrandSize - 1;
 	int StrandIndex = ExecIndex() / DIContext.StrandSize;
-
-	LocalIndex = LocalIndex - 1;
-	ReportStatus = false;
-
+	
+	float3 RestTrianglePosition = float3(0, 0, 0), DeformedTrianglePosition = float3(0, 0, 0);
+	float4 RestTriangleOrientation = QUATERNION_IDENTITY, DeformedTriangleOrientation = QUATERNION_IDENTITY;
+	
+	DIHairStrands_UpdateTriangleDisplace(DIContext, StrandIndex, NodePosition, RestPosition, 
+		RestTrianglePosition, RestTriangleOrientation, DeformedTrianglePosition, DeformedTriangleOrientation);
+	
 	const int PointBegin = DIContext.CurvesOffsetsBuffer[StrandIndex];
-	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1]; 
+	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex + 1];
 	const int PointCount = PointEnd - PointBegin;
 
 	const float3 PositionOffset = DIContext.RestPositionOffset - DIContext.DeformedPositionOffset;
 
 	for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 	{
-		const float PointCoord = (float)(PointIndex) / (PointCount-1.0);
-		const float PointNode = PointCoord * (ReducedSize-1.0);
+		const float PointCoord = (float) (PointIndex) / (PointCount - 1.0);
+		const float PointNode = PointCoord * (ReducedSize - 1.0);
 
-		const int NodePrev = (PointIndex==0) ? 0 : (PointIndex==(PointCount-1.0)) ? ReducedSize-2 : floor(PointNode);
-		const int NodeNext = NodePrev+1;
+		const int NodePrev = (PointIndex == 0) ? 0 : (PointIndex == (PointCount - 1.0)) ? ReducedSize - 2 : floor(PointNode);
+		const int NodeNext = NodePrev + 1;
 
-		if(NodePrev == LocalIndex)
+		if (NodePrev == LocalIndex)
 		{
-			ReportStatus = true;
-			const float PointAlpha = PointNode - (float)NodePrev;
-			const float3 LocalDisplace = SharedNodePosition[GGroupThreadId.x] * (1.0-PointAlpha) + SharedNodePosition[GGroupThreadId.x+1] * PointAlpha;
-			const float3 DeformedPosition = f16tof32(DIContext.RestPositionBuffer[PointBegin+PointIndex].xyz) + LocalDisplace + PositionOffset;
-			DIContext.DeformedPositionBuffer[PointBegin+PointIndex] = uint4( f32tof16(DeformedPosition), DIContext.RestPositionBuffer[PointBegin+PointIndex].w);
+			OutReportStatus = true;
+			const float PointAlpha = PointNode - (float) NodePrev;
+			const float3 LocalDisplace = SharedNodePosition[GGroupThreadId.x] * (1.0 - PointAlpha) + SharedNodePosition[GGroupThreadId.x + 1] * PointAlpha;
+			
+			const float3 LocalPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, 
+				f16tof32(DIContext.RestPositionBuffer[PointBegin + PointIndex].xyz) + DIContext.RestPositionOffset) + LocalDisplace;
+			
+			const float3 WorldPosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalPosition) - DIContext.DeformedPositionOffset;
+			DIContext.DeformedPositionBuffer[PointBegin + PointIndex] = uint4(f32tof16(WorldPosition), DIContext.RestPositionBuffer[PointBegin + PointIndex].w);
 		}
 	}
 }
@@ -737,24 +823,20 @@ void DIHairStrands_AttachNodeOrientation(in FDIHairStrandsContext DIContext, in 
  * -----------------------------------------------------------------
  */
 // Duplicate from #include "HairStrands/HairStrandsMeshRBF.ush"
-float3 ApplyRBF(
-	float3 RestControlPoint,
-	int InMaxSampleCount,
-	Buffer<float4> InRestSamplePositionsBuffer,
-	Buffer<float4> InMeshSampleWeightsBuffer)
+float3 DIHairStrands_ApplyRBF(in FDIHairStrandsContext DIContext, in float3 RestControlPoint)
 {
 	float3 ControlPoint = RestControlPoint;
 	// Apply rbf interpolation from the samples set
-	for (int i = 0; i < InMaxSampleCount; ++i)
+	for (int i = 0; i < DIContext.SampleCount; ++i)
 	{
-		const float3 PositionDelta = RestControlPoint - InRestSamplePositionsBuffer[i].xyz;
+		const float3 PositionDelta = RestControlPoint - DIContext.RestSamplePositionsBuffer[i].xyz;
 		const float FunctionValue = sqrt(dot(PositionDelta, PositionDelta) + 1);
-		ControlPoint += FunctionValue * InMeshSampleWeightsBuffer[i].xyz;
+		ControlPoint += FunctionValue * DIContext.MeshSampleWeightsBuffer[i].xyz;
 	}
-	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount].xyz;
-	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 1].xyz * RestControlPoint.x;
-	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 2].xyz * RestControlPoint.y;
-	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 3].xyz * RestControlPoint.z;
+	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount].xyz;
+	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 1].xyz * RestControlPoint.x;
+	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 2].xyz * RestControlPoint.y;
+	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 3].xyz * RestControlPoint.z;
 	return ControlPoint;
 }
 
@@ -762,7 +844,7 @@ float3 ApplyRBF(
 void DIHairStrands_EvalGlobalPosition(in FDIHairStrandsContext DIContext, in float3 RestPosition, out float3 OutGlobalPosition)
 {
 	const float3 RestSkinnedPosition = RestPosition;
-	OutGlobalPosition = ApplyRBF(RestPosition, DIContext.SampleCount, DIContext.RestSamplePositionsBuffer, DIContext.MeshSampleWeightsBuffer);
+	OutGlobalPosition = DIHairStrands_ApplyRBF(DIContext, RestPosition);
 }
 
 // Compute the global position
@@ -778,12 +860,7 @@ void DIHairStrands_EvalGlobalOrientation(in FDIHairStrandsContext DIContext, in 
 	OutGlobalOrientation = 	SharedNodeOrientation[GGroupThreadId.x];
 }
 
-float2 ExtractBarycentrics(in uint PackedCoordinates )
-{
-	return float2(f16tof32(PackedCoordinates & 0xFFFF), f16tof32((PackedCoordinates>>16) & 0xFFFF));
-}
-
-// Compuite rest position and orientation
+// Compute rest position and orientation
 void DIHairStrands_ComputeLocalState(in FDIHairStrandsContext DIContext, in float3 RestPosition, in float4 RestOrientation, 
 												out float3 OutLocalPosition, out float4 OutLocalOrientation)
 {
@@ -793,64 +870,35 @@ void DIHairStrands_ComputeLocalState(in FDIHairStrandsContext DIContext, in floa
 	if( DIContext.InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / DIContext.StrandSize;
-		const float2 RootUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[StrandIndex]);
-
-		const float3 RootProjection = DIContext.RestTrianglePositionABuffer[StrandIndex].xyz * RootUV.x + 
-									  DIContext.RestTrianglePositionBBuffer[StrandIndex].xyz * RootUV.y +
-									  DIContext.RestTrianglePositionCBuffer[StrandIndex].xyz * (1.0 - RootUV.x - RootUV.y) + DIContext.RestRootOffset;
-		const float3 DiffPosition = RestPosition - RootProjection;
-
-		float3 TangentU = normalize(DIContext.RestTrianglePositionBBuffer[StrandIndex].xyz - DIContext.RestTrianglePositionABuffer[StrandIndex].xyz);
-		float3 TangentV = normalize(DIContext.RestTrianglePositionCBuffer[StrandIndex].xyz - DIContext.RestTrianglePositionABuffer[StrandIndex].xyz);
-
-		const float3 Normal = normalize(cross(TangentU,TangentV));
-		TangentU = normalize(cross(TangentV,Normal));
-
-		const float3 RotationMatrix[3] = {float3(TangentU.x,TangentV.x,Normal.x),
-										  float3(TangentU.y,TangentV.y,Normal.y),
-										  float3(TangentU.z,TangentV.z,Normal.z)};
-		const float4 InverseOrientation = QuatFromMatrix(RotationMatrix);
-
-		OutLocalPosition = RotateVectorByQuat(DiffPosition,InverseOrientation);
-		//OutLocalPosition = float3( dot(DiffPosition,TangentU), dot(DiffPosition,TangentV), dot(DiffPosition,Normal) );
-		OutLocalOrientation = NormalizeQuat( MultiplyQuat(InverseOrientation,RestOrientation) );
+		const float2 ProjectionUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[StrandIndex]);
+		
+		float3 RestTrianglePosition = float3(0, 0, 0);
+		float4 RestTriangleOrientation = QUATERNION_IDENTITY;
+		DIHairStrands_BuildRestTriangle(DIContext, ProjectionUV, StrandIndex, RestTrianglePosition, RestTriangleOrientation);
+		
+		OutLocalPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, RestPosition);
+		OutLocalOrientation = DIHairStrands_TriangleLocalOrientation(RestTrianglePosition, RestTriangleOrientation, RestOrientation);
 	}
 }
 
 // Update Node Position and orientation
 void DIHairStrands_AttachNodeState(in FDIHairStrandsContext DIContext, in float3 LocalPosition, in float4 LocalOrientation, out float3 OutNodePosition, out float4 OutNodeOrientation)
 {	
-	float3 NodePosition =  LocalPosition;
-	float4 NodeOrientation = LocalOrientation;
+	OutNodePosition = LocalPosition;
+	OutNodeOrientation = LocalOrientation;
 
 	if( DIContext.InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / DIContext.StrandSize;
-		const float2 RootUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[StrandIndex]);
-
-		const float3 RootProjection = DIContext.DeformedTrianglePositionABuffer[StrandIndex].xyz * RootUV.x + 
-									  DIContext.DeformedTrianglePositionBBuffer[StrandIndex].xyz * RootUV.y +
-									  DIContext.DeformedTrianglePositionCBuffer[StrandIndex].xyz * (1.0 - RootUV.x - RootUV.y) + DIContext.DeformedRootOffset;
-
-		float3 TangentU = normalize(DIContext.DeformedTrianglePositionBBuffer[StrandIndex].xyz - DIContext.DeformedTrianglePositionABuffer[StrandIndex].xyz);
-		float3 TangentV = normalize(DIContext.DeformedTrianglePositionCBuffer[StrandIndex].xyz - DIContext.DeformedTrianglePositionABuffer[StrandIndex].xyz);
-
-		const float3 Normal = normalize(cross(TangentU,TangentV));
-		TangentU = normalize(cross(TangentV,Normal));
+		const float2 ProjectionUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[StrandIndex]);
 		
-		const float3 RotationMatrix[3] = { TangentU, TangentV, Normal };
-		const float4 TriangleOrientation = QuatFromMatrix(RotationMatrix);
-
-		const float3 DiffPosition = RotateVectorByQuat(LocalPosition,TriangleOrientation);  
-		//const float3 DiffPosition = LocalPosition.x * TangentU + LocalPosition.y * TangentV + LocalPosition.z * Normal;
-
-		NodePosition = RootProjection + DiffPosition;
-		NodeOrientation = NormalizeQuat( MultiplyQuat(TriangleOrientation,LocalOrientation) );
+		float3 DeformedTrianglePosition = float3(0, 0, 0);
+		float4 DeformedTriangleOrientation = QUATERNION_IDENTITY;
+		DIHairStrands_BuildDeformedTriangle(DIContext, ProjectionUV, StrandIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
+		
+		OutNodePosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalPosition);
+		OutNodeOrientation = DIHairStrands_TriangleWorldOrientation(DeformedTrianglePosition, DeformedTriangleOrientation, LocalOrientation);
 	}
-	OutNodePosition = NodePosition;
-	OutNodeOrientation = NodeOrientation;
-	//DIHairStrands_AttachNodePosition(DIContext,NodePosition,OutNodePosition);
-	//DIHairStrands_AttachNodeOrientation(DIContext,NodeOrientation,OutNodeOrientation);
 }
 
 void DIHairStrands_UpdateNodeState(in FDIHairStrandsContext DIContext, in float3 RestPosition, in float3 NodePosition, in float4 NodeOrientation, out float3 OutNodePosition, out float4 OutNodeOrientation)
