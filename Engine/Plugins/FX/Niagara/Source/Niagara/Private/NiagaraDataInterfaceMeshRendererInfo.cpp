@@ -23,6 +23,15 @@ namespace NDIMeshRendererInfoInternal
 	const FString MeshDataBufferPrefix = TEXT("MeshDataBuffer_");
 }
 
+enum class ENDIMeshRendererInfoVersion : uint32
+{
+	InitialVersion = 0,
+	AddSizeToMeshLocalBounds,
+
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
+};
+
 /** Holds information (for both CPU and GPU) accessed by this data interface for a given renderer */
 class FNDIMeshRendererInfo
 {
@@ -366,6 +375,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetFunctions(TArray<FNiagaraFunction
 		FNiagaraFunctionSignature& Signature = OutFunctions.AddDefaulted_GetRef();
 		Signature.Name = NDIMeshRendererInfoInternal::GetNumMeshesName;
 #if WITH_EDITORONLY_DATA
+		Signature.FunctionVersion = (uint32)ENDIMeshRendererInfoVersion::LatestVersion;
 		Signature.Description = LOCTEXT("GetNumMeshesInRendererDesc", "Retrieves the number of meshes on the mesh renderer by index, or -1 if the index is invalid.");
 #endif
 		Signature.bMemberFunction = true;
@@ -377,6 +387,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetFunctions(TArray<FNiagaraFunction
 		FNiagaraFunctionSignature& Signature = OutFunctions.AddDefaulted_GetRef();
 		Signature.Name = NDIMeshRendererInfoInternal::GetMeshLocalBoundsName;
 #if WITH_EDITORONLY_DATA
+		Signature.FunctionVersion = (uint32)ENDIMeshRendererInfoVersion::LatestVersion;
 		Signature.Description = LOCTEXT("GetMeshLocalBoundsDesc", "Retrieves the local bounds of the specified mesh's vertices.");
 #endif
 		Signature.bMemberFunction = true;
@@ -384,6 +395,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetFunctions(TArray<FNiagaraFunction
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("MeshIndex")));
 		Signature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("OutMinBounds")));
 		Signature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("OutMaxBounds")));
+		Signature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("OutSize")));
 	}
 }
 
@@ -444,10 +456,11 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 	else if (FunctionInfo.DefinitionName == NDIMeshRendererInfoInternal::GetMeshLocalBoundsName)
 	{
 		OutHLSL += FString::Format(TEXT(R"(
-			void {FuncName}(in int MeshIndex, out float3 OutMinBounds, out float3 OutMaxBounds)
+			void {FuncName}(in int MeshIndex, out float3 OutMinBounds, out float3 OutMaxBounds, out float3 OutSize)
 			{
 				OutMinBounds = (float3)0;
 				OutMaxBounds = (float3)0;
+				OutSize = (float3)0;
 				if (NumMeshes_{DIName} > 0)
 				{
 					Buffer<float> Buff = MeshDataBuffer_{DIName};
@@ -463,6 +476,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 						Buff[BufferOffs + 4],
 						Buff[BufferOffs + 5]
 					);
+					OutSize = OutMaxBounds - OutMinBounds;
 				}
 			}
 			)"),
@@ -475,6 +489,20 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 }
 
 #if WITH_EDITOR
+
+bool UNiagaraDataInterfaceMeshRendererInfo::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+	if (FunctionSignature.Name == NDIMeshRendererInfoInternal::GetMeshLocalBoundsName && FunctionSignature.Outputs.Num() == 2)
+	{
+		FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("OutSize")));
+		bWasChanged = true;
+	}
+
+	FunctionSignature.FunctionVersion = (uint32)ENDIMeshRendererInfoVersion::LatestVersion;
+
+	return bWasChanged;
+}
 
 void UNiagaraDataInterfaceMeshRendererInfo::GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings,
 	TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
@@ -567,6 +595,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMContext&
 	FNDIInputParam<int32> InMeshIdx(Context);
 	FNDIOutputParam<FVector> OutMinBounds(Context);
 	FNDIOutputParam<FVector> OutMaxBounds(Context);
+	FNDIOutputParam<FVector> OutSize(Context);
 
 	for (int32 Instance = 0; Instance < Context.GetNumInstances(); ++Instance)
 	{
@@ -585,6 +614,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMContext&
 		}
 		OutMinBounds.SetAndAdvance(MinLocalBounds);
 		OutMaxBounds.SetAndAdvance(MaxLocalBounds);
+		OutSize.SetAndAdvance(MaxLocalBounds - MinLocalBounds);
 	}
 }
 
