@@ -1052,6 +1052,11 @@ public:
 		return &LastRenderTime;
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetDefaultLastRenderTimeContainer()
+	{
+		LastRenderTime = DefaultLastRenderTime;
+	}
+
 	void SetName(const FName& InName)
 	{
 		TextureName = InName;
