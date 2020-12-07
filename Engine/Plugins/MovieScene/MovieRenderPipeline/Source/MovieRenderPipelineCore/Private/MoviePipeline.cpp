@@ -103,7 +103,7 @@ void UMoviePipeline::ValidateSequenceAndSettings() const
 
 		if (bAnyOutputWantsAlpha && TonemapAlphaCVar->GetInt() == 0)
 		{
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("An output requested Alpha Support but the required project setting is not enabled! Go to Project Settings > Rendering > Tonemapping > 'Enable Alpha Channel Support in Post Processing' and set it to 'Linear Color Space Only'."));
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("An output requested Alpha Support but the required project setting is not enabled! Go to Project Settings > Rendering > PostProcessing > 'Enable Alpha Channel Support in Post Processing' and set it to 'Linear Color Space Only'."));
 		}
 	}
 }
