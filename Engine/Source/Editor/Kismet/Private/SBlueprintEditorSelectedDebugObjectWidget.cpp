@@ -16,6 +16,7 @@
 #include "IDocumentation.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Components/Widget.h"
 
 #define LOCTEXT_NAMESPACE "KismetToolbar"
 
@@ -759,6 +760,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::AddDebugObject(UObject* TestObje
 	if (TestObjectName.IsEmpty())
 	{
 		NewInstance->ObjectLabel = MakeDebugObjectLabel(TestObject, true, NewInstance->IsSpawnedObject());
+	}
+
+	if (UWidget* DebugWidget = Cast<UWidget>(TestObject))
+	{
+		if (!DebugWidget->IsConstructed())
+		{
+			NewInstance->ObjectLabel += " (No Slate Widget)";
+		}
 	}
 	
 	DebugObjects.Add(NewInstance);
