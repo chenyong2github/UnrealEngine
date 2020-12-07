@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Mechanical;
@@ -720,9 +721,26 @@ namespace DatasmithRevitExporter
 					// GetActorName is being called when generating a name for instance. 
 					// After the call, the intance is added as a child to its parent. 
 					// Next time the method gets called for the next instance, ChildElements.Count will be different/incremented.
+
+					// To add uniqueness to the generated name, we construct a string with child counts from 
+					// current parent instance, up to the root:
+					// Elem->Instance->Instance->Instace can produce something like: "1:5:3" for example.
+					// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts, 
+					// but adding the CurrentElement unique id ensures we get unique name string in the end.
+
+					StringBuilder ChildCounts = new StringBuilder();
+
+					for (int ElemIndex = 1; ElemIndex < InstanceDataStack.Count; ++ElemIndex)
+					{
+						FBaseElementData Elem = InstanceDataStack.ElementAt(ElemIndex);
+						ChildCounts.AppendFormat(":{0}", Elem.ChildElements.Count);
+					}
+
+					// Add child count for the root element (parent of all instances)
+					ChildCounts.AppendFormat(":{0}", ChildElements.Count);
+
 					FBaseElementData Instance = InstanceDataStack.Peek();
-					FBaseElementData Parent = InstanceDataStack.Count > 1 ? InstanceDataStack.Skip(1).First() : this;
-					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}:{Parent.ChildElements.Count}";
+					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}{ChildCounts.ToString()}";
 				}
 			}
 
