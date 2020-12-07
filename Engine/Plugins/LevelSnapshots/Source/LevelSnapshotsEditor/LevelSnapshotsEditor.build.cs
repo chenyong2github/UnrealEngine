@@ -42,22 +42,23 @@ public class LevelSnapshotsEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
-				"Kismet",
-				"Slate",
-				"SlateCore",
-				"UnrealEd",
-				"InputCore",
-				"EditorStyle",
-				"LevelSnapshots",
-				"LevelSnapshotFilters",
 				"AssetRegistry",
 				"AssetTools",
-				"ToolMenus",
-				"Projects",
+				"CoreUObject",
+				"ContentBrowser",
+				"Engine",
 				"EditorStyle",
-				"PropertyEditor"
+				"EditorWidgets",
+				"InputCore",
+				"Kismet",
+				"LevelSnapshots",
+				"LevelSnapshotFilters",
+				"Projects",
+				"PropertyEditor",
+				"Slate",
+				"SlateCore",
+				"ToolMenus",
+				"UnrealEd"
 			}
 			);
 	}

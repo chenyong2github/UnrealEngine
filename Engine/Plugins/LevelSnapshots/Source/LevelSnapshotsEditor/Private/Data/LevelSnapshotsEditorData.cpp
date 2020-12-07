@@ -4,6 +4,7 @@
 
 #include "FavoriteFilterContainer.h"
 #include "DisjunctiveNormalFormFilter.h"
+#include "FilterLoader.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -15,6 +16,18 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		this,
 		TEXT("UserDefinedFilters")
 		);
+	
+	FilterLoader = ObjectInitializer.CreateDefaultSubobject<UFilterLoader>(
+		this,
+		TEXT("FilterLoader")
+		);
+	FilterLoader->SetAssetBeingEdited(UserDefinedFilters);
+	FilterLoader->OnUserSelectedLoadedFilters.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilterToEdit)
+	{
+		UserDefinedFilters = NewFilterToEdit;
+		FilterLoader->SetAssetBeingEdited(UserDefinedFilters);
+		OnUserDefinedFiltersChanged.Broadcast();
+	});
 }
 
 UFavoriteFilterContainer* ULevelSnapshotsEditorData::GetFavoriteFilters() const
@@ -25,4 +38,9 @@ UFavoriteFilterContainer* ULevelSnapshotsEditorData::GetFavoriteFilters() const
 UDisjunctiveNormalFormFilter* ULevelSnapshotsEditorData::GetUserDefinedFilters() const
 {
 	return UserDefinedFilters;
+}
+
+UFilterLoader* ULevelSnapshotsEditorData::GetFilterLoader() const
+{
+	return FilterLoader;
 }

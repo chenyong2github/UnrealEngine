@@ -15,7 +15,8 @@ class UConjunctionFilter;
 class SLevelSnapshotsEditorFilters : public SCompoundWidget
 {
 public:
-	
+
+	~SLevelSnapshotsEditorFilters();
 
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilters)
 	{}
@@ -38,6 +39,7 @@ private:
 
 	FReply AddFilterClick();
 
+	FDelegateHandle OnUserDefinedFiltersChangedHandle;
 	
 	TSharedPtr<SFavoriteFilterList> FavoriteList;
 	TSharedPtr<STreeView<UConjunctionFilter*>> FilterRowsList;

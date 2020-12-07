@@ -2,7 +2,6 @@
 
 #include "SLevelSnapshotsEditorFilters.h"
 
-
 #include "DisjunctiveNormalFormFilter.h"
 #include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFilters.h"
@@ -10,6 +9,7 @@
 #include "LevelSnapshotFilters.h"
 #include "SFavoriteFilterList.h"
 #include "SLevelSnapshotsEditorFilterRow.h"
+#include "SSaveAndLoadFilters.h"
 
 #include "EditorStyleSet.h"
 #include "Widgets/Images/SImage.h"
@@ -55,6 +55,14 @@ public:
 	}
 
 };
+
+SLevelSnapshotsEditorFilters::~SLevelSnapshotsEditorFilters()
+{
+	if (ULevelSnapshotsEditorData* Data = GetEditorData())
+	{
+		Data->OnUserDefinedFiltersChanged.Remove(OnUserDefinedFiltersChangedHandle);
+	}
+}
 
 void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
@@ -124,6 +132,14 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 				]
 		]
 
+		// Save & load
+		+ SVerticalBox::Slot()
+		.Padding(0.f)
+		.AutoHeight()
+		[
+			SNew(SSaveAndLoadFilters, GetEditorData()->GetFilterLoader())
+		]
+
 		// Filter details panel
 		+ SVerticalBox::Slot()
 		.Padding(0.f, 10.f)
@@ -133,6 +149,16 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		]
 	];
 
+	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this]()
+	{
+		const TArray<UConjunctionFilter*>* AndFilters = &GetEditorData()->GetUserDefinedFilters()->GetChildren();
+		FilterRowsList->SetTreeItemsSource(AndFilters);
+		
+		if (TSharedPtr<FLevelSnapshotsEditorFilters> PinnedModel = FiltersModelPtr.Pin())
+		{
+			PinnedModel->SetActiveFilter(nullptr);
+		}
+	});
 	RefreshGroups();
 
 	// Set Delegates
@@ -145,11 +171,12 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 ULevelSnapshotsEditorData* SLevelSnapshotsEditorFilters::GetEditorData() const
 {
 	TSharedPtr<FLevelSnapshotsEditorFilters> FiltersModel = FiltersModelPtr.Pin();
-	check(FiltersModel.IsValid());
-
-	const TSharedRef<FLevelSnapshotsEditorViewBuilder>& Builder = FiltersModel->GetBuilder();
-	
-	return Builder->EditorDataPtr.Get();
+	if (ensure(FiltersModel))
+	{
+		const TSharedRef<FLevelSnapshotsEditorViewBuilder>& Builder = FiltersModel->GetBuilder();
+		return Builder->EditorDataPtr.Get();
+	}
+	return nullptr;
 }
 
 TSharedRef<FLevelSnapshotsEditorFilters> SLevelSnapshotsEditorFilters::GetFiltersModel() const
@@ -175,7 +202,6 @@ void SLevelSnapshotsEditorFilters::RefreshGroups()
 
 FReply SLevelSnapshotsEditorFilters::AddFilterClick()
 {
-	// Create Row Object
 	if (ULevelSnapshotsEditorData* EditorData = GetEditorData())
 	{
 		GetEditorData()->GetUserDefinedFilters()->CreateChild();

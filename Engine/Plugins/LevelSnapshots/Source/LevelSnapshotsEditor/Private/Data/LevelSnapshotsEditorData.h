@@ -9,6 +9,7 @@
 
 class UDisjunctiveNormalFormFilter;
 class UFavoriteFilterContainer;
+class UFilterLoader;
 
 /* Stores all data shared across the editor's UI. */
 UCLASS()
@@ -21,13 +22,20 @@ public:
 
 	UFavoriteFilterContainer* GetFavoriteFilters() const;
 	UDisjunctiveNormalFormFilter* GetUserDefinedFilters() const;
+	UFilterLoader* GetFilterLoader() const;
 
+	DECLARE_EVENT(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged);
+	FUserDefinedFiltersChanged OnUserDefinedFiltersChanged;
+	
 private:
-
+	
 	UPROPERTY()
 	UFavoriteFilterContainer* FavoriteFilters;
 	/* Stores user-defined filters in chain of ORs of ANDs. */
 	UPROPERTY()
 	UDisjunctiveNormalFormFilter* UserDefinedFilters;
+	/* Handles save & load requests for exchanging UserDefinedFilters. */
+	UPROPERTY()
+	UFilterLoader* FilterLoader;
 	
 };

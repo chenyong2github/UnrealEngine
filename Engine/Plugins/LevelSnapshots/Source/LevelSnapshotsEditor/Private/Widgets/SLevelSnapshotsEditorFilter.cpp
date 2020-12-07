@@ -184,10 +184,11 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 	// Deselect when user clicks away
 	ToggleButtonPtr->SetOnFocusLost(FOnFocusLost::CreateLambda([this]()
 	{
-		if (TSharedPtr<FLevelSnapshotsEditorFilters> Model = FiltersModelPtr.Pin())
+		bIsBeingEdited = false;
+		/*if (TSharedPtr<FLevelSnapshotsEditorFilters> Model = FiltersModelPtr.Pin())
 		{
 			Model->SetActiveFilter(nullptr);
-		}
+		}*/
 	}));
 
 	// Hightlight & unhighlight filter when being edited
@@ -237,13 +238,14 @@ FReply SLevelSnapshotsEditorFilter::OnSelectFilterForEdit()
 
 void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(ULevelSnapshotFilter* NewFilter)
 {
-	if (ensure(SnapshotFilter.IsValid()))
+	if (!SnapshotFilter.IsValid() || !FiltersModelPtr.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
 	{
-		bIsBeingEdited = NewFilter == SnapshotFilter->GetChildFilter();
+		return;
 	}
+	bIsBeingEdited = NewFilter == SnapshotFilter->GetChildFilter();
 
 	// This ensures SFilterCheckBox::OnFocusLost gets called later on and unhighlights the widget when user clicks away. Needed for when this widget was just created by drag-drop. 
-	if (ensure(FiltersModelPtr.IsValid()) && FiltersModelPtr.Pin()->GetActiveFilter() == SnapshotFilter->GetChildFilter())
+	if (FiltersModelPtr.Pin()->GetActiveFilter() == SnapshotFilter->GetChildFilter())
 	{
 		FSlateApplication::Get().SetAllUserFocus(ToggleButtonPtr, EFocusCause::SetDirectly);
 	}
