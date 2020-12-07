@@ -232,7 +232,10 @@ namespace
 
 SFavoriteFilterList::~SFavoriteFilterList()
 {
-	FavoriteModel->OnFavoritesChanged.Remove(ChangedFavoritesDelegateHandle);
+	if (FavoriteModel.IsValid())
+	{
+		FavoriteModel->OnFavoritesChanged.Remove(ChangedFavoritesDelegateHandle);
+	}
 }
 
 void SFavoriteFilterList::Construct(const FArguments& InArgs, UFavoriteFilterContainer* InModel, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
