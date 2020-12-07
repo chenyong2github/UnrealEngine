@@ -50,7 +50,7 @@ namespace Gauntlet
 			/// </summary>
 			/// <param name="ArtifactPath"></param>
 			/// <param name="Name"></param>
-			/// <returns>bool</returns>
+			/// <returns>return true if the file was successfully attached</returns>
 			public override bool AttachArtifact(string ArtifactPath, string Name = null)
 			{
 				if (string.IsNullOrEmpty(OutputArtifactPath))
@@ -65,7 +65,7 @@ namespace Gauntlet
 						string TargetPath = Path.Combine(OutputArtifactPath, Name ?? Path.GetFileName(ArtifactPath));
 						string TargetDirectry = Path.GetDirectoryName(TargetPath);
 						if (!Directory.Exists(TargetDirectry)) { Directory.CreateDirectory(TargetDirectry); }
-						File.Copy(Globals.LongPathPrefix + ArtifactPath, TargetPath);
+						File.Copy(Utils.SystemHelpers.GetFullyQualifiedPath(ArtifactPath), Utils.SystemHelpers.GetFullyQualifiedPath(TargetPath));
 						return true;
 					}
 					catch (Exception Ex)
@@ -79,16 +79,17 @@ namespace Gauntlet
 			/// <summary>
 			/// Set Output Artifact Path and create the directory if missing
 			/// </summary>
-			/// <param name="ArtifactPath"></param>
+			/// <param name="InPath"></param>
 			/// <returns></returns>
-			public void SetOutputArtifactPath(string Path)
+			public void SetOutputArtifactPath(string InPath)
 			{
-				OutputArtifactPath = Path;
+				OutputArtifactPath = Path.GetFullPath(InPath);
 
 				if (!Directory.Exists(OutputArtifactPath))
 				{
 					Directory.CreateDirectory(OutputArtifactPath);
 				}
+				Log.Verbose(string.Format("Test Report output artifact path is set to: {0}", OutputArtifactPath));
 			}
 		}
 

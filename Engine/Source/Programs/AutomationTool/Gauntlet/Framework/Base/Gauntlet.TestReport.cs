@@ -93,7 +93,7 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="ArtifactPath"></param>
 		/// <param name="Name"></param>
-		/// <returns>bool</returns>
+		/// <returns>return true if the file was successfully attached</returns>
 		public virtual bool AttachArtifact(string ArtifactPath, string Name = null)
 		{
 			throw new System.NotImplementedException("AttachArtifact not implemented");

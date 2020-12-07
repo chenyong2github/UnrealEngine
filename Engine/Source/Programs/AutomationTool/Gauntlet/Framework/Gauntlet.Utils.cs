@@ -1341,6 +1341,21 @@ namespace Gauntlet
 					}
 				}				
 			}
+
+			/// <summary>
+			/// Return the fully qualified location of file path, including the Long path prefix if necessary
+			/// </summary>
+			/// <param name="FilePath"></param>
+			/// <returns></returns>
+			public static string GetFullyQualifiedPath(string FilePath)
+			{
+				FilePath = Path.GetFullPath(FilePath);
+				if (FilePath.Length > 260)
+				{
+					return Globals.LongPathPrefix + FilePath;
+				}
+				return FilePath;
+			}
 		}
 
 		public class Image
