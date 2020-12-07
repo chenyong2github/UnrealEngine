@@ -1484,7 +1484,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 		if (Ar.IsSaving())
 		{
-			MinMobileLODIdx = Owner->MinLOD.GetValueForPlatformIdentifiers(TEXT("Mobile"));
+			MinMobileLODIdx = Owner->GetMinLOD().GetValueForPlatformIdentifiers(TEXT("Mobile"));
 		}
 #endif
 		Ar << MinMobileLODIdx;
