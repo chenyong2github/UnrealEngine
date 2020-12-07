@@ -140,7 +140,10 @@ void FSocialUserList::HandleOwnerToolkitReset()
 		OnUpdateComplete().Broadcast();
 	}
 
-	OwnerToolkit->GetSocialManager().OnPartyJoined().RemoveAll(this);
+	if (OwnerToolkit.IsValid())
+	{
+		OwnerToolkit->GetSocialManager().OnPartyJoined().RemoveAll(this);
+	}
 }
 
 void FSocialUserList::HandlePartyInviteReceived(USocialUser& InvitingUser)
@@ -639,8 +642,13 @@ void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMe
 
 USocialUser* FSocialUserList::FindOwnersRelationshipTo(UPartyMember& TargetPartyMember) const
 {
-	const FUniqueNetIdRepl& PartyMemberNetId = TargetPartyMember.GetPrimaryNetId();
-	return OwnerToolkit->FindUser(PartyMemberNetId);
+	if (OwnerToolkit.IsValid())
+	{
+		const FUniqueNetIdRepl& PartyMemberNetId = TargetPartyMember.GetPrimaryNetId();
+		return OwnerToolkit->FindUser(PartyMemberNetId);
+	}
+
+	return nullptr;
 }
 
 void FSocialUserList::MarkPartyMemberAsDirty(UPartyMember& PartyMember)
@@ -648,9 +656,12 @@ void FSocialUserList::MarkPartyMemberAsDirty(UPartyMember& PartyMember)
 	// Find the USocialUser representing the PartyMember in the owning toolkit's set of USocialUsers.
 	// Must be looked up specifically for this owner player rather than the party because each player
 	// will have their own set of relationships (e.g. muted, blocked) to each of the other players.
-	USocialUser* const PartyMemberSocialUser = FindOwnersRelationshipTo(PartyMember);
-	if (ensure(PartyMemberSocialUser))
+	if (OwnerToolkit.IsValid())
 	{
-		MarkUserAsDirty(*PartyMemberSocialUser);
+		USocialUser* const PartyMemberSocialUser = FindOwnersRelationshipTo(PartyMember);
+		if (ensure(PartyMemberSocialUser))
+		{
+			MarkUserAsDirty(*PartyMemberSocialUser);
+		}
 	}
 }
