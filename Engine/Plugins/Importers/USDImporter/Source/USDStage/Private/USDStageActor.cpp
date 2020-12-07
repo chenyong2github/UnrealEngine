@@ -1061,6 +1061,12 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		return;
 	}
 
+	// Don't change the stage from PIE
+	if ( !this->HasAutorithyOverStage() )
+	{
+		return;
+	}
+
 	UObject* PrimObject = ObjectBeingModified;
 
 	if ( !ObjectsToWatch.Contains( ObjectBeingModified ) )
@@ -1120,10 +1126,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				}
 
 				// Update stage window in case any of our component changes trigger USD stage changes
-				if ( this->HasAutorithyOverStage() )
-				{
-					this->OnPrimChanged.Broadcast( PrimPath, false );
-				}
+				this->OnPrimChanged.Broadcast( PrimPath, false );
 			}
 		}
 	}
