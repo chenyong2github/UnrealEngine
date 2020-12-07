@@ -82,6 +82,7 @@
 #include "Serialization/BulkDataManifest.h"
 #include "MeshCardRepresentation.h"
 #include "Misc/PathViews.h"
+#include "String/Find.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"
@@ -4733,35 +4734,58 @@ void UCookOnTheFlyServer::OnFConfigDeleted(const FConfigFile* Config)
 	OpenConfigFiles.Remove(Config);
 }
 
-
 void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, FIniSettingContainer& OutAccessedIniStrings) const
 {	
 	if (Config->Name == NAME_None)
 	{
 		return;
 	}
-	// try figure out if this config file is for a specific platform 
+
+	// try to figure out if this config file is for a specific platform 
 	FString PlatformName;
 	bool bFoundPlatformName = false;
-	for (auto It : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+
+	if (!GConfig->ContainsConfigFile(Config)) // If the ConfigFile is in GConfig, then it is the editor's config and is not platform specific
 	{
-		FString CurrentPlatformName = It.Key.ToString();
-		for ( const auto& SourceIni : Config->SourceIniHierarchy )
+		// For the config files not in GConfig, we assume they were loaded from LoadConfigFile, and we match these to a platform
+		// By looking for a platform-specific filepath in their SourceIniHierarchy.
+		// Examples:
+		// (1) ROOT\Engine\Config\Windows\WindowsEngine.ini
+		// (2) ROOT\Engine\Config\Android\DataDrivePlatformInfo.ini
+		// (3) ROOT\Engine\Config\Android\AndroidWindowsCompatability.ini
+		// 
+		// Note that for config files of form #3, we want them to be matched to Android rather than windows;
+		// we assume that an exact match on a directory component is more definitive than a substring match
+		bool bFoundPlatformGuess = false;
+		for (auto It : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
-			if ( SourceIni.Value.Filename.Contains(CurrentPlatformName) )
+			FString CurrentPlatformName = It.Key.ToString();
+			TStringBuilder<128> PlatformDirString;
+			PlatformDirString.Appendf(TEXT("/%s/"), *CurrentPlatformName);
+			for (const auto& SourceIni : Config->SourceIniHierarchy)
 			{
-				PlatformName = MoveTemp(CurrentPlatformName);
-				bFoundPlatformName = true;
+				// Look for platform in the path, rating a full subdirectory name match (/Android/ or /Windows/) higher than a partial filename match (AndroidEngine.ini or WindowsEngine.ini)
+				bool bFoundPlatformDir = UE::String::FindFirst(SourceIni.Value.Filename, PlatformDirString, ESearchCase::IgnoreCase) != INDEX_NONE;
+				bool bFoundPlatformSubstring = UE::String::FindFirst(SourceIni.Value.Filename, CurrentPlatformName, ESearchCase::IgnoreCase) != INDEX_NONE;
+				if (bFoundPlatformDir)
+				{
+					PlatformName = MoveTemp(CurrentPlatformName);
+					bFoundPlatformName = true;
+					break;
+				}
+				else if (!bFoundPlatformGuess && bFoundPlatformSubstring)
+				{
+					PlatformName = MoveTemp(CurrentPlatformName);
+					bFoundPlatformGuess = true;
+				}
+			}
+			if (bFoundPlatformName)
+			{
 				break;
 			}
 		}
-		if ( bFoundPlatformName )
-		{
-			break;
-		}
+		bFoundPlatformName = bFoundPlatformName || bFoundPlatformGuess;
 	}
-
-	
 
 	TStringBuilder<128> ConfigName;
 	if (bFoundPlatformName)
@@ -4832,9 +4856,6 @@ void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, 
 	}
 }
 
-
-
-
 bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlatform) const
 {
 	FScopeAssign<bool> A = FScopeAssign<bool>(IniSettingRecurse, true);
@@ -4867,20 +4888,23 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		}
 	}
 
-	for ( const auto& OldIniFile : OldIniSettings )
+	for (const auto& OldIniFile : OldIniSettings)
 	{
-		const FName& ConfigNameKey = OldIniFile.Key;
+		FName ConfigNameKey = OldIniFile.Key;
 
 		TArray<FString> ConfigNameArray;
 		ConfigNameKey.ToString().ParseIntoArray(ConfigNameArray, TEXT("."));
 		FString Filename;
 		FString PlatformName;
+		// The input NameKey is of the form 
+		//   Platform.ConfigName:Section:Key:ArrayIndex=Value
+		// The Platform is optional and will not be present if the configfile was an editor config file rather than a platform-specific config file
 		bool bFoundPlatformName = false;
-		if ( ConfigNameArray.Num() <= 1 )
+		if (ConfigNameArray.Num() <= 1)
 		{
 			Filename = ConfigNameKey.ToString();
 		}
-		else if ( ConfigNameArray.Num() == 2 )
+		else if (ConfigNameArray.Num() == 2)
 		{
 			PlatformName = ConfigNameArray[0];
 			Filename = ConfigNameArray[1];
@@ -4888,25 +4912,30 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		}
 		else
 		{
-			UE_LOG( LogCook, Warning, TEXT("Found invalid file name in old ini settings file Filename %s settings file %s"), *ConfigNameKey.ToString(), *TargetPlatform->PlatformName() );
+			UE_LOG(LogCook, Warning, TEXT("Found invalid file name in old ini settings file Filename %s settings file %s"), *ConfigNameKey.ToString(), *TargetPlatform->PlatformName());
 			return true;
 		}
-		
+
 		const FConfigFile* ConfigFile = nullptr;
 		FConfigFile Temp;
-		if ( bFoundPlatformName)
+		if (bFoundPlatformName)
 		{
-			GConfig->LoadLocalIniFile(Temp, *Filename, true, *PlatformName );
+			// For the platform-specific old ini files, load them using LoadLocalIniFiles; this matches the assumption in SaveCurrentIniSettings
+			// that the platform-specific ini files were loaded by LoadLocalIniFiles
+			FConfigCacheIni::LoadLocalIniFile(Temp, *Filename, true, *PlatformName);
 			ConfigFile = &Temp;
 		}
 		else
 		{
-			ConfigFile = GConfig->Find(Filename);
+			// For the platform-agnostic old ini files, read them from GConfig; this matches where we loaded them from in SaveCurrentIniSettings
+			// The ini files may have been saved by fullpath or by shortname; search first for a fullpath match using FindConfigFile and
+			// if that fails search for the shortname match by iterating over all files in GConfig
+			ConfigFile = GConfig->FindConfigFile(Filename);
 		}
-		FName FileFName = FName(*Filename);
-		if ( !ConfigFile )
+		if (!ConfigFile)
 		{
-			for( const FString& ConfigFilename : GConfig->GetFilenames() )
+			FName FileFName = FName(*Filename);
+			for (const FString& ConfigFilename : GConfig->GetFilenames())
 			{
 				FConfigFile* File = GConfig->FindConfigFile(ConfigFilename);
 				if (File->Name == FileFName)
@@ -4915,7 +4944,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 					break;
 				}
 			}
-			if ( !ConfigFile )
+			if (!ConfigFile)
 			{
 				UE_LOG(LogCook, Display, TEXT("Unable to find config file %s invalidating inisettings"), *FString::Printf(TEXT("%s %s"), *PlatformName, *Filename));
 				return true;
@@ -4923,15 +4952,14 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		}
 		for ( const auto& OldIniSection : OldIniFile.Value )
 		{
-			
 			const FName& SectionName = OldIniSection.Key;
 			const FConfigSection* IniSection = ConfigFile->Find( SectionName.ToString() );
-
-			const FString BlackListSetting = *FString::Printf(TEXT("%s.%s:%s"), *PlatformName, *Filename, *SectionName.ToString());
+			const FString BlackListSetting = FString::Printf(TEXT("%s%s%s:%s"), *PlatformName, bFoundPlatformName ? TEXT(".") : TEXT(""), *Filename, *SectionName.ToString());
 
 			if ( IniSection == nullptr )
 			{
-				UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, Current section doesn't exist"), *FString::Printf(TEXT("%s %s %s"), *PlatformName, *Filename, *SectionName.ToString()));
+				UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, Current section doesn't exist"), 
+					*FString::Printf(TEXT("%s %s %s"), *PlatformName, *Filename, *SectionName.ToString()));
 				UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
 				return true;
 			}
@@ -4945,7 +4973,8 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 
 				if ( CurrentValues.Num() != OldIniValue.Value.Num() )
 				{
-					UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, missmatched num array elements %d != %d "), *FString::Printf(TEXT("%s %s %s %s"), *PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString()), CurrentValues.Num(), OldIniValue.Value.Num());
+					UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, missmatched num array elements %d != %d "), *FString::Printf(TEXT("%s %s %s %s"),
+						*PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString()), CurrentValues.Num(), OldIniValue.Value.Num());
 					UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
 					return true;
 				}
@@ -4954,12 +4983,13 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 					const FString FilteredCurrentValue = CurrentValues[Index].GetSavedValue().Replace(TEXT(":"), TEXT(""));
 					if ( FilteredCurrentValue != OldIniValue.Value[Index] )
 					{
-						UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, value %s != %s invalidating cook"),  *FString::Printf(TEXT("%s %s %s %s %d"),*PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString(), Index), *CurrentValues[Index].GetSavedValue(), *OldIniValue.Value[Index] );
+						UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, value %s != %s invalidating cook"),
+							*FString::Printf(TEXT("%s %s %s %s %d"),*PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString(), Index),
+							*CurrentValues[Index].GetSavedValue(), *OldIniValue.Value[Index] );
 						UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
 						return true;
 					}
 				}
-				
 			}
 		}
 	}

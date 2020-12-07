@@ -1574,7 +1574,8 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 		for( FConfigSection::TConstIterator It2(Section); It2; ++It2 )
 		{
 			const FName PropertyName = It2.Key();
-			const FString& PropertyValue = It2.Value().GetSavedValue();
+			// Use GetSavedValueForWriting rather than GetSavedValue to avoid having this save operation mark the values as having been accessed for dependency tracking
+			const FString& PropertyValue = UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(It2.Value());
 
 			// Check if the we've already processed a property of this name. If it was part of an array we may have already written it out.
 			if( !PropertiesAddedLookup.Contains( PropertyName ) )
@@ -1629,7 +1630,8 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 						PropertyName.AppendString(PropertyNameString);
 						for (const FConfigValue* ConfigValue : CompletePropertyToWrite)
 						{
-							AppendExportedPropertyLine(Text, PropertyNameString, ConfigValue->GetSavedValue());
+							// Use GetSavedValueForWriting rather than GetSavedValue to avoid marking these values used during save to disk as having been accessed for dependency tracking
+							AppendExportedPropertyLine(Text, PropertyNameString, UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue));
 						}
 					}
 
@@ -1920,7 +1922,8 @@ void FConfigFile::SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR
 		Sec->Add( Key, Value );
 		Dirty = true;
 	}
-	else if( FCString::Strcmp(*ConfigValue->GetSavedValue(),Value)!=0 )
+	// Use GetSavedValueForWriting rather than GetSavedValue to avoid having the is-it-dirty query mark the values as having been accessed for dependency tracking
+	else if( FCString::Strcmp(*UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue),Value)!=0 )
 	{
 		Dirty = true;
 		*ConfigValue = FConfigValue(Value);
@@ -1940,7 +1943,8 @@ void FConfigFile::SetText( const TCHAR* Section, const TCHAR* Key, const FText& 
 		Sec->Add( Key, StrValue );
 		Dirty = true;
 	}
-	else if( FCString::Strcmp(*ConfigValue->GetSavedValue(), *StrValue)!=0 )
+	// Use GetSavedValueForWriting rather than GetSavedValue to avoid having the is-it-dirty query mark the values as having been accessed for dependency tracking
+	else if( FCString::Strcmp(*UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue), *StrValue)!=0 )
 	{
 		Dirty = true;
 		*ConfigValue = FConfigValue(StrValue);
@@ -1988,7 +1992,8 @@ void FConfigFile::SaveSourceToBackupFile()
 		for( FConfigSection::TConstIterator PropertyIterator(Section); PropertyIterator; ++PropertyIterator )
 		{
 			const FName PropertyName = PropertyIterator.Key();
-			const FString& PropertyValue = PropertyIterator.Value().GetSavedValue();
+			// Use GetSavedValueForWriting rather than GetSavedValue to avoid having this save operation mark the values as having been accessed for dependency tracking
+			const FString& PropertyValue = UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(PropertyIterator.Value());
 			Text += FConfigFile::GenerateExportedPropertyLine(PropertyName.ToString(), PropertyValue);
 		}
 		Text += LINE_TERMINATOR;
@@ -2160,6 +2165,33 @@ FConfigFile* FConfigCacheIni::FindConfigFileWithBaseName(FName BaseName)
 	}
 	return nullptr;
 }
+
+bool FConfigCacheIni::ContainsConfigFile(const FConfigFile* ConfigFile) const
+{
+	// Check the normal inis. Note that the FConfigFiles in the map
+	// could have been reallocated if new inis were added to the map
+	// since the point at which the caller received the ConfigFile pointer
+	// they are testing. It is the caller's responsibility to not try to hold
+	// on to the ConfigFile pointer during writes to this ConfigCacheIni
+	for (const TPair<FString, FConfigFile>& CurrentFilePair : *this)
+	{
+		if (ConfigFile == &CurrentFilePair.Value)
+		{
+			return true;
+		}
+	}
+	// Check the known inis
+	for (const FKnownConfigFiles::FKnownConfigFile& KnownFile : KnownFiles.Files)
+	{
+		if (ConfigFile == &KnownFile.IniFile)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 TArray<FString> FConfigCacheIni::GetFilenames()
 {
@@ -2566,7 +2598,8 @@ void FConfigCacheIni::SetString( const TCHAR* Section, const TCHAR* Key, const T
 		Sec->Add( Key, Value );
 		File->Dirty = true;
 	}
-	else if( FCString::Strcmp(*ConfigValue->GetSavedValue(),Value)!=0 )
+	// Use GetSavedValueForWriting rather than GetSavedValue to avoid having the is-it-dirty query mark the values as having been accessed for dependency tracking
+	else if( FCString::Strcmp(*UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue),Value)!=0 )
 	{
 		File->Dirty = true;
 		*ConfigValue = FConfigValue(Value);
@@ -2593,7 +2626,8 @@ void FConfigCacheIni::SetText( const TCHAR* Section, const TCHAR* Key, const FTe
 		Sec->Add( Key, StrValue );
 		File->Dirty = true;
 	}
-	else if( FCString::Strcmp(*ConfigValue->GetSavedValue(), *StrValue)!=0 )
+	// Use GetSavedValueForWriting rather than GetSavedValue to avoid having the is-it-dirty query mark the values as having been accessed for dependency tracking
+	else if( FCString::Strcmp(*UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue), *StrValue)!=0 )
 	{
 		File->Dirty = true;
 		*ConfigValue = FConfigValue(StrValue);
@@ -3931,7 +3965,7 @@ bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool
 		const TCHAR* PlatformNameForThisIni = KnownIndex == (uint8)EKnownIniFile::Scalability ? ScalabilityPlatformOverride : PlatformName;
 		// load the hierarchy!
 		bool bConfigCreated = FConfigCacheIni::LoadGlobalIniFile(KnownFiles.Files[KnownIndex].IniPath, *KnownFiles.Files[KnownIndex].IniName.ToString(), PlatformName, 
-			bDefaultEngineIniRequired, false, bAllowGeneratedIniWhenCooked, bAllowRemoteConfig, *FPaths::GeneratedConfigDir(), this);
+			false, bDefaultEngineIniRequired, bAllowGeneratedIniWhenCooked, bAllowRemoteConfig, *FPaths::GeneratedConfigDir(), this);
 
 		// we want to return if the Engine config was successfully created (to not remove any functionality from old code)
 		if (KnownIndex == (uint8)EKnownIniFile::Engine)
@@ -4717,7 +4751,8 @@ bool FConfigFile::UpdateSinglePropertyInSection(const TCHAR* DiskFilename, const
 	{
 		if (const FConfigValue* ConfigValue = LocalSection->Find(PropertyName))
 		{
-			PropertyValue = ConfigValue->GetSavedValue();
+			// Use GetSavedValueForWriting rather than GetSavedValue to avoid having this save operation mark the value as having been accessed for dependency tracking
+			PropertyValue = UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue);
 			FSinglePropertyConfigHelper SinglePropertyConfigHelper(DiskFilename, SectionName, PropertyName, PropertyValue);
 			bSuccessfullyUpdatedFile = SinglePropertyConfigHelper.UpdateConfigFile();
 		}
