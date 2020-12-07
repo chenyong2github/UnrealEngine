@@ -9,6 +9,7 @@
 #include "Elements/Framework/TypedElementSelectionSet.h"
 
 #include "Misc/CoreDelegates.h"
+#include "UObject/UObjectIterator.h"
 
 void UPlacementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
