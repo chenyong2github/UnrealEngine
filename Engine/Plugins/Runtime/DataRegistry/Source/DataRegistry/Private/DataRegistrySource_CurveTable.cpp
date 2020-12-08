@@ -19,7 +19,7 @@ void UDataRegistrySource_CurveTable::SetSourceTable(const TSoftObjectPtr<UCurveT
 void UDataRegistrySource_CurveTable::SetCachedTable(bool bForceLoad /*= false*/)
 {
 #if WITH_EDITOR
-	if (CachedTable)
+	if (CachedTable && GIsEditor)
 	{
 		CachedTable->OnCurveTableChanged().RemoveAll(this);
 	}
@@ -63,8 +63,11 @@ void UDataRegistrySource_CurveTable::SetCachedTable(bool bForceLoad /*= false*/)
 			CachedTable = FoundTable;
 
 #if WITH_EDITOR
-			// Listen for changes like row 
-			CachedTable->OnCurveTableChanged().AddUObject(this, &UDataRegistrySource_CurveTable::EditorRefreshSource);
+			if (GIsEditor)
+			{
+				// Listen for changes like row 
+				CachedTable->OnCurveTableChanged().AddUObject(this, &UDataRegistrySource_CurveTable::EditorRefreshSource);
+			}
 #endif
 		}
 	}

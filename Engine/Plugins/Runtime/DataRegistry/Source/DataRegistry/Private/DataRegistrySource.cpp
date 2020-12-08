@@ -116,6 +116,11 @@ bool UDataRegistrySource::UnregisterSpecificAsset(const FSoftObjectPath& AssetPa
 	return false;
 }
 
+int32 UDataRegistrySource::UnregisterAssetsWithPriority(int32 AssetPriority)
+{
+	return 0;
+}
+
 void UDataRegistrySource::AddRuntimeSources(TArray<UDataRegistrySource*>& OutRuntimeSources)
 {
 	if (IsInitialized())
@@ -346,6 +351,23 @@ bool UMetaDataRegistrySource::UnregisterSpecificAsset(const FSoftObjectPath& Ass
 	}
 
 	return false;
+}
+
+int32 UMetaDataRegistrySource::UnregisterAssetsWithPriority(int32 AssetPriority)
+{
+	int32 NumberUnregistered = 0;
+	for (int32 i = 0; i < SpecificRegisteredAssets.Num(); i++)
+	{
+		if (AssetPriority == SpecificRegisteredAssets[i].Value)
+		{
+			// No need to re-sort for a simple removal
+			SpecificRegisteredAssets.RemoveAt(i);
+			i--;
+			NumberUnregistered++;
+		}
+	}
+
+	return NumberUnregistered;
 }
 
 void UMetaDataRegistrySource::OnNewAssetSearchRoot(const FString& SearchRoot)

@@ -150,6 +150,12 @@ public:
 	/** De-initializes all loaded registries */
 	void DeinitializeAllRegistries();
 
+	/** Load and initialize a specific registry, useful for plugins. This can hitch so the asset should be preloaded elsewhere if needed */
+	bool LoadRegistryPath(const FSoftObjectPath& RegistryAssetPath);
+
+	/** Removes specific data registry asset from the registration map, can be undone with LoadRegistryPath */
+	bool IgnoreRegistryPath(const FSoftObjectPath& RegistryAssetPath);
+
 	/** Resets state for all registries, call when gameplay has concluded to destroy caches */
 	void ResetRuntimeState();
 
@@ -168,6 +174,9 @@ public:
 
 	/** Removes references to a specific asset, returns bool if it was removed */
 	bool UnregisterSpecificAsset(FDataRegistryType RegistryType, const FSoftObjectPath& AssetPath);
+
+	/** Unregisters all previously registered assets in a specific registry with a specific priority, can be used as a batch reset. Returns number of assets unregistered */
+	int32 UnregisterAssetsWithPriority(FDataRegistryType RegistryType, int32 AssetPriority);
 
 	/** Schedules registration of assets by path, this will happen immediately or will be queued if the data registries don't exist yet */
 	void PreregisterSpecificAssets(const TMap<FDataRegistryType, TArray<FSoftObjectPath>>& AssetMap, int32 AssetPriority = 0);
@@ -210,6 +219,12 @@ protected:
 
 	// Paths that will be scanned for registries
 	TArray<FString> AssetScanPaths;
+
+	// Specific registries to load, will be added to AssetScanPaths at scan time
+	TArray<FSoftObjectPath> RegistryPathsToLoad;
+
+	// Specific registries to avoid registering, may be in memory but will not be registered
+	TArray<FSoftObjectPath> RegistryPathsToIgnore;
 
 	// List of assets to attempt to register when data registries come online
 	typedef TPair<FSoftObjectPath, int32> FPreregisterAsset;

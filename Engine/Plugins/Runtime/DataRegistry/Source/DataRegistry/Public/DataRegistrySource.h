@@ -73,6 +73,9 @@ public:
 	/** Removes references to a specific asset, returns bool if it was removed */
 	virtual bool UnregisterSpecificAsset(const FSoftObjectPath& AssetPath);
 
+	/** Unregisters all previously registered assets in a specific registry with a specific priority, can be used as a batch reset. Returns number of assets unregistered */
+	virtual int32 UnregisterAssetsWithPriority(int32 AssetPriority);
+
 #if WITH_EDITOR
 	/** Called on editor-defined states to check to check a source is still valid after major changes */
 	virtual void EditorRefreshSource();
@@ -136,6 +139,7 @@ public:
 	virtual bool IsSpecificAssetRegistered(const FSoftObjectPath& AssetPath) const override;
 	virtual bool RegisterSpecificAsset(const FAssetData& AssetData, int32 AssetPriority) override;
 	virtual bool UnregisterSpecificAsset(const FSoftObjectPath& AssetPath) override;
+	virtual int32 UnregisterAssetsWithPriority(int32 AssetPriority) override;
 
 	/** Asset usage */
 	UPROPERTY(EditAnywhere, Category = DataRegistry)

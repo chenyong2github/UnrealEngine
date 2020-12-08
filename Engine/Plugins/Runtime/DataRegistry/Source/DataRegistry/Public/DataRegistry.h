@@ -61,6 +61,9 @@ public:
 	/** Removes references to a specific asset, returns bool if it was removed */
 	virtual bool UnregisterSpecificAsset(const FSoftObjectPath& AssetPath);
 
+	/** Unregisters all previously registered assets in a specific registry with a specific priority, can be used as a batch reset. Returns number of assets unregistered */
+	virtual int32 UnregisterAssetsWithPriority(int32 AssetPriority);
+
 	/** Gets the current general cache policy */
 	const FDataRegistryCachePolicy& GetRuntimeCachePolicy() const;
 
@@ -142,6 +145,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 
 	/** Validate and refresh registration */
 	virtual void EditorRefreshRegistry();
