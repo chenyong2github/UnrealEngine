@@ -931,8 +931,19 @@ public:
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
-	/** Update any textures baked from the landscape as necessary */
-	void UpdateBakedTextures(bool bInShouldMarkDirty = false);
+	/** Stores Components and their latest BakedTextureMaterial hash*/
+	struct FGIBakedTextureState
+	{
+		FGuid CombinedStateId;
+		TArray<ULandscapeComponent*> Components;
+	};
+		
+	/** Update any GI baked textures from the landscape as necessary */
+	void UpdateGIBakedTextures(bool bBakeAllGITextures = false);
+	/** Update the landscape GI baked textures without deferring*/
+	void UpdateGIBakedTextureData(bool bInShouldMarkDirty = false);
+	/** Update the status of landscape GI baked textures*/
+	void UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount=nullptr) const;
 
 	/** Update the landscape physical material render tasks */
 	void UpdatePhysicalMaterialTasks();
@@ -982,8 +993,8 @@ public:
 
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
-	LANDSCAPE_API void BuildGITextures(struct FScopedSlowTask* InSlowTask = nullptr);
-	LANDSCAPE_API int32 GetComponentsNeedingGITextureBaking() const;
+	LANDSCAPE_API void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
 	LANDSCAPE_API virtual void CreateSplineComponent(const FVector& Scale3D) override;
 
@@ -1212,14 +1223,15 @@ private:
 /**
  * Helper class used to Build or monitor Landscape GI Textures
  */
-class LANDSCAPE_API FLandscapeBakedGITextureBuilder
+class LANDSCAPE_API FLandscapeGIBakedTextureBuilder
 {
 public:
-	FLandscapeBakedGITextureBuilder(UWorld* InWorld);
+	FLandscapeGIBakedTextureBuilder(UWorld* InWorld);
 	void Build();
-	int32 GetComponentsNeedingTextureBaking();
+	int32 GetOutdatedGIBakedTextureComponentsCount(bool bInForceUpdate = true) const;
 private:
 	UWorld* World;
-	int32 ComponentsNeedingTextureBaking;
+	mutable int32 OutdatedGIBakedTextureComponentsCount;
+	mutable double GIBakedTexturesLastCheckTime;
 };
 #endif

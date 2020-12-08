@@ -51,7 +51,7 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
-	BakedGITextureBuilder = new FLandscapeBakedGITextureBuilder(GetWorld());
+	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
 #endif
 }
 
@@ -61,6 +61,10 @@ void ULandscapeSubsystem::Deinitialize()
 	if (GrassMapsBuilder)
 	{
 		delete GrassMapsBuilder;
+	}
+	if (GIBakedTextureBuilder)
+	{
+		delete GIBakedTextureBuilder;
 	}
 #endif
 	Proxies.Empty();
@@ -132,7 +136,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 			// editor-only
 			if (!World->IsPlayInEditor())
 			{
-				Proxy->UpdateBakedTextures();
+				Proxy->UpdateGIBakedTextures();
 				Proxy->UpdatePhysicalMaterialTasks();
 			}
 		}
@@ -155,7 +159,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 void ULandscapeSubsystem::BuildAll()
 {
 	BuildGrassMaps();
-	BuildGITextures();
+	BuildGIBakedTextures();
 }
 
 void ULandscapeSubsystem::BuildGrassMaps()
@@ -168,14 +172,14 @@ int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
 	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
 }
 
-void ULandscapeSubsystem::BuildGITextures()
+void ULandscapeSubsystem::BuildGIBakedTextures()
 {
-	BakedGITextureBuilder->Build();
+	GIBakedTextureBuilder->Build();
 }
 
-int32 ULandscapeSubsystem::GetComponentsNeedingGITextureBaking()
+int32 ULandscapeSubsystem::GetOutdatedGIBakedTextureComponentsCount()
 {
-	return BakedGITextureBuilder->GetComponentsNeedingTextureBaking();
+	return GIBakedTextureBuilder->GetOutdatedGIBakedTextureComponentsCount(/*bInForceUpdate*/false);
 }
 
 bool ULandscapeSubsystem::IsGridBased() const
@@ -220,7 +224,7 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 		YPos += FontSizeY;
 	}
 
-	if (int32 ComponentsNeedingGITextureBaking = GetComponentsNeedingGITextureBaking())
+	if (int32 ComponentsNeedingGITextureBaking = GetOutdatedGIBakedTextureComponentsCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
 		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE BAKED TEXTURES NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);

@@ -208,7 +208,7 @@ public:
 		{
 			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
 			{
-				LandscapeSubsystem->BuildGITextures();
+				LandscapeSubsystem->BuildGIBakedTextures();
 			}
 		}
 	}
