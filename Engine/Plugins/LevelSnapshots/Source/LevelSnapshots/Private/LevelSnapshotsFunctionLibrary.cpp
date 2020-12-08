@@ -51,25 +51,29 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 		return;
 	}
 
-	for (TActorIterator<AActor> It(TargetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 	{
-		AActor* Actor = *It;
-		// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
-		if (!Actor->IsListedInSceneOutliner())
-		{
-			continue;
-		}
+		FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
 
-		for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : Snapshot->ActorSnapshots)
+		for (TActorIterator<AActor> It(TargetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 		{
-			const FString& SnapshotPathName = SnapshotPair.Key;
-			const FLevelSnapshot_Actor& ActorSnapshot = SnapshotPair.Value;
-
-			// See if the Snapshot is for the same actor
-			if (ActorSnapshot.CorrespondsTo(Actor))
+			AActor* Actor = *It;
+			// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
+			if (!Actor->IsListedInSceneOutliner())
 			{
-				ActorSnapshot.Deserialize(Actor, Filter);
-				break;
+				continue;
+			}
+
+			for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : Snapshot->ActorSnapshots)
+			{
+				const FString& SnapshotPathName = SnapshotPair.Key;
+				const FLevelSnapshot_Actor& ActorSnapshot = SnapshotPair.Value;
+
+				// See if the Snapshot is for the same actor
+				if (ActorSnapshot.CorrespondsTo(Actor))
+				{
+					ActorSnapshot.Deserialize(Actor, Filter);
+					break;
+				}
 			}
 		}
 	}
