@@ -284,6 +284,7 @@ public:
 	void AddTrackAreaReference(const TSharedPtr<SSequencerTrackLane>& Lane);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual const FSlateBrush* GetBorder() const override;
 
 	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the tree row. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnId) override;

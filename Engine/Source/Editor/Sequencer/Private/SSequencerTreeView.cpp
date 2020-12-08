@@ -138,6 +138,19 @@ void SSequencerTreeViewRow::Tick(const FGeometry& AllottedGeometry, const double
 	StaticCastSharedPtr<SSequencerTreeView>(OwnerTablePtr.Pin())->ReportChildRowGeometry(Node.Pin().ToSharedRef(), AllottedGeometry);
 }
 
+const FSlateBrush* SSequencerTreeViewRow::GetBorder() const 
+{
+	TSharedPtr<FSequencerDisplayNode> PinnedNode = Node.Pin();
+	bool bIsSelectable = PinnedNode->IsSelectable();
+
+	if (!bIsSelectable)
+	{
+		return nullptr;
+	}
+
+	return SMultiColumnTableRow::GetBorder();
+}
+
 void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FSequencerNodeTree>& InNodeTree, const TSharedRef<SSequencerTrackArea>& InTrackArea)
 {
 	SequencerNodeTree = InNodeTree;
@@ -714,6 +727,11 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 
 void SSequencerTreeView::Private_SetItemSelection( FDisplayNodeRef TheItem, bool bShouldBeSelected, bool bWasUserDirected )
 {
+	if (!TheItem->IsSelectable())
+	{
+		return;
+	}
+
 	STreeView::Private_SetItemSelection( TheItem, bShouldBeSelected, bWasUserDirected );
 	if ( bUpdatingTreeSelection == false )
 	{
