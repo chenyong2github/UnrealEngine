@@ -457,7 +457,7 @@ void CacheZVal(int2 FullGroupOriginDepth, uint pixIdx)
 
 	half2 TextureUV = TexturePosToBufferUV(TexturePos);
 
-//	TextureUV += DepthBufferSizeAndInvSize.zw*0.125;
+	TextureUV += DepthBufferSizeAndInvSize.zw*0.125;
 
 	SetZVal(GetDeviceZFromAOInput(TextureUV.xy).r, pixIdx);
 }
@@ -845,6 +845,7 @@ void GTAOHorizonSearchIntegralPS(
 	half2 TextureUV = TexturePosToBufferUV(TexturePos);
 
 	half GTAO = CalculateGTAO(TextureUV, TexturePos, 0);
+	TextureUV += DepthBufferSizeAndInvSize.zw*0.125;
 	OutColor = EncodeFloatRGBA(GetDeviceZFromAOInput(TextureUV));
 	OutColor.a = GTAO;
 }
