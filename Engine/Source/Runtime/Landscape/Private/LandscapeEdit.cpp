@@ -6823,9 +6823,11 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(NumVertices);
 
-	// Can't stream if using hole data since at least mip 0 will have holes and we don't support streaming any other mip if mip 0 isn't streamed.
-	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming) && NumHoleLods == 0;
+	// Can't stream if the number of hole LODs is greater than the number of streaming LODs
 	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
+	const bool bStreamLandscapeMeshLODs = TargetPlatform
+		&& TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming)
+		&& NumHoleLods <= FMath::Min(MaxLOD, MaxLODClamp);
 	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
 	TArray<int32> StreamingLODVertStartOffsets;
 	StreamingLODVertStartOffsets.AddUninitialized(NumStreamingLODs);
@@ -6910,7 +6912,9 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
-		if (StreamingLODIdx >= 0 && Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
+		if (StreamingLODIdx >= 0
+			&& StreamingLODIdx >= NumHoleLods - 1
+			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
 		{
 			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
 				FMath::Square(SizeVerts) :
