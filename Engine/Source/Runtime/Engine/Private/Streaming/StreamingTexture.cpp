@@ -186,6 +186,8 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 			}
 
 			LODBias += BudgetMipBias;
+
+			LODBias += RenderAsset->GetLODBiasModifier();
 		}
 
 		// If the optional mips are not available, or if we shouldn't load them now, clamp the possible mips requested. 
