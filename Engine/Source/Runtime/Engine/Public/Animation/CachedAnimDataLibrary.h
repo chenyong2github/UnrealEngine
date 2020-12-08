@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/CachedAnimData.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "CachedAnimDataLibrary.generated.h"
 
 class UAnimInstance;
