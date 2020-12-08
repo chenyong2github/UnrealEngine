@@ -86,10 +86,9 @@ void FSourceFilteringTraceModule::StartupModule()
 
 	// Add callback to trace out Filter Classes when a new UDataSourceFilter-based Blueprint has been created 
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UDataSourceFilter::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FSourceFilteringTraceModule::HandleNewFilterBlueprintCreated));
-#endif // WITH_EDITOR	
 
 	TraceFilterClasses();
-
+#endif // WITH_EDITOR	
 #endif // SOURCE_FILTER_TRACE_ENABLED
 }
 
