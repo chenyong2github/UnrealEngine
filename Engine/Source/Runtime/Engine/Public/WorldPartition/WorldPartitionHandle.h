@@ -110,13 +110,13 @@ protected:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 
-struct FWorldPartitionHandleImpl
+struct ENGINE_API FWorldPartitionHandleImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
 };
 
-struct FWorldPartitionReferenceImpl
+struct ENGINE_API FWorldPartitionReferenceImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
