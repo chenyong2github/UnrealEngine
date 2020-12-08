@@ -204,6 +204,11 @@ void SPathPicker::CreateNewFolder(FString FolderPath, FOnCreateNewFolder InOnCre
 	}
 }
 
+void SPathPicker::RefreshPathView()
+{
+	PathViewPtr->Populate(true);
+}
+
 void SPathPicker::SetPaths(const TArray<FString>& NewPaths)
 {
 	PathViewPtr->SetSelectedPaths(NewPaths);

@@ -892,6 +892,18 @@ void FContentBrowserSingleton::ExecuteAddFolder(TSharedPtr<SWidget> Widget)
 	}
 }
 
+void FContentBrowserSingleton::RefreshPathView(TSharedPtr<SWidget> Widget)
+{
+	if (Widget.IsValid())
+	{
+		if (Widget->GetType() == FName(TEXT("SPathPicker")))
+		{
+			TSharedPtr<SPathPicker> PathPicker = StaticCastSharedPtr<SPathPicker>(Widget);
+			PathPicker->RefreshPathView();
+		}
+	}
+}
+
 void FContentBrowserSingleton::PopulateConfigValues()
 {
 	const FString ContentBrowserSection = TEXT("ContentBrowser");

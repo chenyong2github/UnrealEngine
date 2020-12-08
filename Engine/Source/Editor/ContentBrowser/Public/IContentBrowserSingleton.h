@@ -660,4 +660,11 @@ public:
 	 * @param PathPickerWidget The path picker widget where we want to add an folder
 	 */
 	virtual void ExecuteAddFolder(TSharedPtr<SWidget> PathPickerWidget) = 0;
+
+	/**
+	 * Force refresh on the path picker widget.  You may need to do this if you have changed the filter/white list on the path picker.
+	 *
+	 * @param PathPickerWidget The path picker widget where we want to add an folder
+	*/
+	virtual void RefreshPathView(TSharedPtr<SWidget> PathPickerWidget) = 0;
 };

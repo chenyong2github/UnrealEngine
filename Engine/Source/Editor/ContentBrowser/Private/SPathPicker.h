@@ -43,6 +43,9 @@ public:
 	/** Add a folder to the first selected folder*/
 	void ExecuteAddFolder();
 
+	/** Refresh the path view*/
+	void RefreshPathView();
+
 private:
 
 	/** Handle for when selection changes */
