@@ -780,8 +780,13 @@ TSharedPtr<FOnlineFriend> FOnlineUserEOSPlus::GetFriend(int32 LocalUserNum, cons
 		TSharedPtr<FOnlineFriend> Friend = EOSFriendsInterface->GetFriend(LocalUserNum, *NetIdPlusToBaseNetId[FriendId.ToString()], ListName);
 		return Friend.IsValid() ? GetFriend(Friend.ToSharedRef()) : Friend;
 	}
+
 	TSharedPtr<FOnlineFriend> Friend = EOSFriendsInterface->GetFriend(LocalUserNum, *NetIdPlusToBaseNetId[FriendId.ToString()], ListName);
-	return Friend.IsValid() ? GetFriend(Friend.ToSharedRef()) : Friend;
+	if (Friend.IsValid())
+	{
+		return GetFriend(Friend.ToSharedRef());
+	}
+	return nullptr;
 }
 
 bool FOnlineUserEOSPlus::IsFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)
