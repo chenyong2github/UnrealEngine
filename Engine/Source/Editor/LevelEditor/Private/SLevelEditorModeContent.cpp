@@ -7,6 +7,7 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "EditorModeManager.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Toolkits/IToolkit.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorModeContent"
 
