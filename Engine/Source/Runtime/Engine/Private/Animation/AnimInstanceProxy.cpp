@@ -343,6 +343,7 @@ void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	MontageEvaluationData.Reset();
+	SlotGroupInertializationRequestMap.Reset();
 	DefaultLinkedInstanceInputNode = nullptr;
 	ResetAnimationCurves();
 	MaterialParametersToClear.Reset();
@@ -1085,6 +1086,18 @@ void FAnimInstanceProxy::UpdateSlotNodeWeight(const FName& SlotNodeName, float I
 		// Count as relevant if we are weighted in
 		Tracker.bIsRelevantThisTick = Tracker.bIsRelevantThisTick || FAnimWeight::IsRelevant(InMontageLocalWeight);
 	}
+}
+
+bool FAnimInstanceProxy::GetSlotInertializationRequest(const FName& SlotName, float& OutDuration)
+{
+	const FName GroupName = Skeleton ? Skeleton->GetSlotGroupName(SlotName) : NAME_None;
+	if (const float* RequestDuration = GetSlotGroupInertializationRequestMap().Find(GroupName))
+	{
+		OutDuration = *RequestDuration;
+		return true;
+	}
+
+	return false;
 }
 
 void FAnimInstanceProxy::ClearSlotNodeWeights()

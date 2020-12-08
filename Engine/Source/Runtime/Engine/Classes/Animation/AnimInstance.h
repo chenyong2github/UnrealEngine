@@ -840,6 +840,9 @@ protected:
 	/** Map between Active Montages and their FAnimMontageInstance */
 	TMap<class UAnimMontage*, struct FAnimMontageInstance*> ActiveMontagesMap;
 
+	/**  Inertialization requests gathered this frame. Gets reset in UpdateMontageEvaluationData */
+	TMap<FName, float> SlotGroupInertializationRequestMap;
+
 	/** Stop all active montages belonging to 'InGroupName' */
 	void StopAllMontagesByGroupName(FName InGroupName, const FAlphaBlend& BlendOut);
 
@@ -852,6 +855,10 @@ protected:
 	float Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAlphaBlend& BlendIn, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt = 0.f, bool bStopAllMontages = true);
 
 public:
+
+	/**  Builds an inertialization request from the montage's group and provided duration */
+	void RequestMontageInertialization(const UAnimMontage* Montage, float Duration);
+
 	/** Queue a Montage BlendingOut Event to be triggered. */
 	void QueueMontageBlendingOutEvent(const FQueuedMontageBlendingOutEvent& MontageBlendingOutEvent);
 

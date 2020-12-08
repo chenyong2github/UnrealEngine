@@ -399,6 +399,8 @@ public:
 	// Allow slot nodes to store off their weight during ticking
 	void UpdateSlotNodeWeight(const FName& SlotNodeName, float InLocalMontageWeight, float InNodeGlobalWeight);
 
+	bool GetSlotInertializationRequest(const FName& SlotName, float& OutDuration);
+
 	/** Register a named slot */
 	void RegisterSlotNodeWithAnimInstance(const FName& SlotNodeName);
 
@@ -704,6 +706,8 @@ protected:
 	/** Access montage array data */
 	TArray<FMontageEvaluationState>& GetMontageEvaluationData() { return MontageEvaluationData; }
 
+	TMap<FName, float>& GetSlotGroupInertializationRequestMap() { return SlotGroupInertializationRequestMap; }
+
 	/** Access montage array data */
 	const TArray<FMontageEvaluationState>& GetMontageEvaluationData() const { return MontageEvaluationData; }
 
@@ -969,6 +973,9 @@ private:
 private:
 	/** Copy of UAnimInstance::MontageInstances data used for update & evaluation */
 	TArray<FMontageEvaluationState> MontageEvaluationData;
+
+	// Inertialization request for each slot. Mapped with SlotNameToTrackerIndex. Initialized to a value of 1.0f, which indicates no request for this slot.
+	TMap<FName, float> SlotGroupInertializationRequestMap;
 
 	/** Delegate fired on the game thread before update occurs */
 	TArray<FAnimNode_Base*> GameThreadPreUpdateNodes;

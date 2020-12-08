@@ -280,6 +280,8 @@ void UAnimInstance::UninitializeAnimation()
 
 	ActiveAnimNotifyState.Reset();
 	NotifyQueue.Reset(SkelMeshComp);
+
+	SlotGroupInertializationRequestMap.Reset();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1665,6 +1667,16 @@ void UAnimInstance::Montage_Advance(float DeltaSeconds)
 	}
 }
 
+void UAnimInstance::RequestMontageInertialization(const UAnimMontage* Montage, float Duration)
+{
+	if (Montage)
+	{
+		// Adds a new request or overwrites an existing one
+		// We always overwrite with the last request, instead of using the shortest one (differs from AnimNode_Inertialization), because we expect the last montage played/stopped to take precedence
+		SlotGroupInertializationRequestMap.FindOrAdd(Montage->GetGroupName()) = Duration;
+	}
+}
+
 void UAnimInstance::QueueMontageBlendingOutEvent(const FQueuedMontageBlendingOutEvent& MontageBlendingOutEvent)
 {
 	if (bQueueMontageEvents)
@@ -1855,11 +1867,22 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 	{
 		if (CurrentSkeleton && CurrentSkeleton->IsCompatible(MontageToPlay->GetSkeleton()))
 		{
+			const float BlendDuration = BlendIn.GetBlendTime();
+			// If using interial blend, force an instant blend in
+			const FAlphaBlend EffectiveBlendIn = (MontageToPlay->BlendMode == EMontageBlendMode::Inertialization) ? FAlphaBlend(BlendIn, 0.0f) : BlendIn;
+
+			const FName NewMontageGroupName = MontageToPlay->GetGroupName();
 			if (bStopAllMontages)
 			{
 				// Enforce 'a single montage at once per group' rule
-				FName NewMontageGroupName = MontageToPlay->GetGroupName();
-				StopAllMontagesByGroupName(NewMontageGroupName, BlendIn);
+				StopAllMontagesByGroupName(NewMontageGroupName, EffectiveBlendIn);
+			}
+
+			if (MontageToPlay->BlendMode == EMontageBlendMode::Inertialization)
+			{
+				// Request new inertialization for new montage's group name
+				// The above montage stop may request an inertial blend. We overwrite that here.
+				RequestMontageInertialization(MontageToPlay, BlendDuration);
 			}
 
 			// Enforce 'a single root motion montage at once' rule.
@@ -1868,7 +1891,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 				FAnimMontageInstance* ActiveRootMotionMontageInstance = GetRootMotionMontageInstance();
 				if (ActiveRootMotionMontageInstance)
 				{
-					ActiveRootMotionMontageInstance->Stop(MontageToPlay->BlendIn);
+					ActiveRootMotionMontageInstance->Stop(EffectiveBlendIn);
 				}
 			}
 
@@ -1878,7 +1901,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 			const float MontageLength = MontageToPlay->GetPlayLength();
 
 			NewInstance->Initialize(MontageToPlay);
-			NewInstance->Play(InPlayRate, BlendIn);
+			NewInstance->Play(InPlayRate, EffectiveBlendIn);
 			NewInstance->SetPosition(FMath::Clamp(InTimeToStartMontageAt, 0.f, MontageLength));
 			MontageInstances.Add(NewInstance);
 			ActiveMontagesMap.Add(MontageToPlay, NewInstance);
@@ -3192,6 +3215,12 @@ void UAnimInstance::UpdateMontageEvaluationData()
 				));
 		}
 	}
+
+	Proxy.GetSlotGroupInertializationRequestMap() = SlotGroupInertializationRequestMap;
+
+	// Reset inertialization requests every frame.
+	// If the request is missed by the graph (i.e. the slot node is not relevant), we assume assume what brought it back to relevancy will handle the blend instead.
+	SlotGroupInertializationRequestMap.Reset();
 }
 
 float UAnimInstance::GetInstanceAssetPlayerLength(int32 AssetPlayerIndex)

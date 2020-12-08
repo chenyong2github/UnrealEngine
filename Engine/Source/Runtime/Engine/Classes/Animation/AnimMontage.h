@@ -124,6 +124,15 @@ namespace EAnimNotifyEventType
 	};
 }
 
+UENUM()
+enum class EMontageBlendMode : uint8
+{
+	//Uses standard weight based blend
+	Standard,
+	//Uses inertialization. Requires an inertialization node somewhere in the graph after every slot node used by this montage.
+	Inertialization,
+};
+
 /** AnimNotifies marked as BranchingPoints will create these markers on their Begin/End times.
 	They create stopping points when the Montage is being ticked to dispatch events. */
 USTRUCT()
@@ -581,6 +590,9 @@ class UAnimMontage : public UAnimCompositeBase
 	GENERATED_UCLASS_BODY()
 
 	friend struct FAnimMontageInstance;
+	
+	UPROPERTY(EditAnywhere, Category = BlendOption)
+	EMontageBlendMode BlendMode;
 
 	/** Blend in option. */
 	UPROPERTY(EditAnywhere, Category=BlendOption)
