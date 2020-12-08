@@ -1104,8 +1104,7 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 	if (Scene && Scene->PhysicsField && Scene->PhysicsField->FieldResource)
 	{
 		FPhysicsFieldResource* FieldResource = Scene->PhysicsField->FieldResource;
-		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(FieldResource->FieldClipmap.Buffer);
-		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.PhysicsFieldClipmapBuffer = FieldResource->ClipmapBuffer.SRV.GetReference();
 		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FieldResource->FieldInfos.ClipmapCenter;
 		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = FieldResource->FieldInfos.ClipmapDistance;
 		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = FieldResource->FieldInfos.ClipmapResolution;
@@ -1118,11 +1117,8 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 	}
 	else
 	{
-		FRHITexture* BlackVolume = (GBlackVolumeTexture && GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
-		TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
-
-		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = BlackVolume;
-		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		TStaticArray<int32, MAX_PHYSICS_FIELD_TARGETS, 16> EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
 		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
 		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = 2;

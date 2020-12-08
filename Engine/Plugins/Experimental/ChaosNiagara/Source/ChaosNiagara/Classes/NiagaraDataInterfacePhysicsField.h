@@ -79,8 +79,7 @@ public:
 	void GetPhysicsFieldBounds(FVectorVMContext& Context);
 
 	/** Shader attributes names */
-	static const FString ClipmapTextureName;
-	static const FString ClipmapSamplerName;
+	static const FString ClipmapBufferName;
 	static const FString ClipmapCenterName;
 	static const FString ClipmapDistanceName;
 	static const FString ClipmapResolutionName;

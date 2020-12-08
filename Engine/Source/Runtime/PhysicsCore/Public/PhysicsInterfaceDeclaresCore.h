@@ -2,6 +2,8 @@
 
 #pragma once
 
+#define MAX_PHYSICS_FIELD_TARGETS 32
+
 #ifndef PHYSICS_INTERFACE_PHYSX
 #define PHYSICS_INTERFACE_PHYSX 0
 #endif

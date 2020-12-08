@@ -68,13 +68,31 @@ public:
 	virtual FFieldSystemMetaData* NewMetaData() const override;
 
 	UFUNCTION(BlueprintPure, Category = "Field" )
-	UFieldSystemMetaDataProcessingResolution* SetMetaDataaProcessingResolutionType(EFieldResolutionType ResolutionType);
+	UFieldSystemMetaDataProcessingResolution* SetMetaDataProcessingResolutionType(EFieldResolutionType ResolutionType);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
 	TEnumAsByte<EFieldResolutionType> ResolutionType;
 };
 
+/*
+* UFieldSystemMetaDataFilter
+*/
+UCLASS(ClassGroup = "Field", meta = (BlueprintSpawnableComponent), ShowCategories = ("Field"))
+class FIELDSYSTEMENGINE_API UFieldSystemMetaDataFilter : public UFieldSystemMetaData
+{
+	GENERATED_BODY()
 
+public:
+	virtual ~UFieldSystemMetaDataFilter() {}
+	virtual FFieldSystemMetaData::EMetaType Type() const override { return  FFieldSystemMetaData::EMetaType::ECommandData_Filter; }
+	virtual FFieldSystemMetaData* NewMetaData() const override;
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	UFieldSystemMetaDataFilter* SetMetaDataFilterType(EFieldFilterType FilterType);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	TEnumAsByte<EFieldFilterType> FilterType;
+};
 
 
 /**
@@ -240,7 +258,6 @@ public:
 		, Position(0,0,0)
 		, Wavelength(10000)
 		, Period(1.0)
-		, Time(0.0)
 		, Function(EWaveFunctionType::Field_Wave_Cosine)
 		, Falloff(EFieldFalloffType::Field_Falloff_Linear)
 	{}
@@ -249,7 +266,7 @@ public:
 
 	virtual FFieldNodeBase* NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const override;
 
-	UFUNCTION(BlueprintPure, Category = "Field", meta = (Magnitude = "1.0", Wavelength = "1000", Period = "1"))
+	UFUNCTION(BlueprintPure, Category = "Field", meta = (Magnitude = "1.0", Wavelength = "1000", Period = "1", HidePin = "Time"))
 	UWaveScalar* SetWaveScalar(float Magnitude, FVector Position, float Wavelength, float Period, float Time, EWaveFunctionType Function, EFieldFalloffType Falloff);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
@@ -263,9 +280,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	float Period;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	float Time;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	TEnumAsByte<EWaveFunctionType> Function;

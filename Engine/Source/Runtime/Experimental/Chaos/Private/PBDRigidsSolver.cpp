@@ -169,10 +169,10 @@ namespace Chaos
 					FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
 					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
 					FieldObj.FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains,
-						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
 					auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
 					FieldObj.FieldParameterUpdateCallback(MSolver, ClusteredParticles, Strains,
-						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
 				}
 
 				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
@@ -223,9 +223,9 @@ namespace Chaos
 					{
 						FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
 						auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+						FieldObj.FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques);
 						auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques, MSolver->GetSolverTime());
+						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques);
 					}
 
 					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())

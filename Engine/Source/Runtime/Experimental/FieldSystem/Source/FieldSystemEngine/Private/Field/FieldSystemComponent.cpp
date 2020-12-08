@@ -19,10 +19,14 @@ DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FieldSystem(nullptr)
-	, IsGlobalField(false)
-	, IsChaosField(true)
+	, bIsWorldField(false)
+	, bIsChaosField(true)
+	, SupportedSolvers()
 	, ChaosModule(nullptr)
 	, bHasPhysicsState(false)
+	, SetupConstructionFields()
+	, ChaosPersistentFields()
+	, WorldPersistentFields()
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::UFieldSystemComponent()"),this);
 
@@ -65,6 +69,36 @@ TSet<FPhysScene_Chaos*> UFieldSystemComponent::GetPhysicsScenes() const
 	return Scenes;
 }
 
+TArray<Chaos::FPhysicsSolverBase*> UFieldSystemComponent::GetPhysicsSolvers() const 
+{
+	TArray<Chaos::FPhysicsSolverBase*> PhysicsSolvers;
+
+	// Assemble a list of compatible solvers
+	TArray<Chaos::FPhysicsSolverBase*> FilterSolvers;
+	if (SupportedSolvers.Num() > 0)
+	{
+		for (const TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
+		{
+			if (AChaosSolverActor* CurrActor = SolverActorPtr.Get())
+			{
+				FilterSolvers.Add(CurrActor->GetSolver());
+			}
+		}
+	}
+
+	const TArray<Chaos::FPhysicsSolverBase*>& WorldSolvers = ChaosModule->GetAllSolvers();
+	const int32 NumFilterSolvers = FilterSolvers.Num();
+
+	for (Chaos::FPhysicsSolverBase* Solver : WorldSolvers)
+	{
+		if (NumFilterSolvers == 0 || FilterSolvers.Contains(Solver))
+		{
+			PhysicsSolvers.Add(Solver);
+		}
+	}
+	return PhysicsSolvers;
+}
+
 void UFieldSystemComponent::OnCreatePhysicsState()
 {
 	UActorComponent::OnCreatePhysicsState();
@@ -82,7 +116,7 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 		{
 			for(FFieldSystemCommand& Cmd : FieldSystem->Commands)
 			{
-				DispatchCommand(Cmd);
+				DispatchFieldCommand(Cmd, true);
 			}
 		}
 	}
@@ -91,12 +125,10 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 void UFieldSystemComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
+	ClearFieldCommands();
 
 	ChaosModule = nullptr;
-
 	bHasPhysicsState = false;
-
-	RemovePersistentFields();
 }
 
 bool UFieldSystemComponent::ShouldCreatePhysicsState() const
@@ -109,162 +141,110 @@ bool UFieldSystemComponent::HasValidPhysicsState() const
 	return bHasPhysicsState;
 }
 
-void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
+void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand, const bool IsTransient)
 {
 	using namespace Chaos;
 	if (HasValidPhysicsState())
 	{
-		if (IsChaosField)
+		const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
+		
+		if (bIsChaosField)
 		{
 			checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
 
-			// Assemble a list of compatible solvers
-			TArray<FPhysicsSolverBase*> SupportedSolverList;
-			if(SupportedSolvers.Num() > 0)
+			TArray<FPhysicsSolverBase*> PhysicsSolvers = GetPhysicsSolvers();
+
+			for (FPhysicsSolverBase* Solver : PhysicsSolvers)
 			{
-				for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
+				TArray<FFieldSystemCommand>& LocalFields = ChaosPersistentFields;
+				Solver->CastHelper([&InCommand,IsTransient,&LocalFields,Name](auto& Concrete)
 				{
-					if(AChaosSolverActor* CurrActor = SolverActorPtr.Get())
-					{
-						SupportedSolverList.Add(CurrActor->GetSolver());
-					}
+					FFieldSystemCommand LocalCommand = InCommand;
+					LocalCommand.InitFieldNodes(Concrete.GetSolverTime(), Name);
+					if(!IsTransient) LocalFields.Add(LocalCommand);
+
+					Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = LocalCommand, LocalTransient = IsTransient]()
+						{
+							if (!LocalTransient)
+							{
+								ConcreteSolver->GetPerSolverField().AddPersistentCommand(NewCommand);
+							}
+							if (ConcreteSolver->HasActiveParticles())
+							{
+								ConcreteSolver->GetPerSolverField().AddTransientCommand(NewCommand);
+							}
+						});
+				});
+			}
+		}
+		if (bIsWorldField)
+		{
+			UWorld* World = GetWorld();
+			if (World && World->PhysicsField)
+			{
+				FFieldSystemCommand LocalCommand = InCommand;
+				LocalCommand.InitFieldNodes(World->GetTimeSeconds(), Name);
+				if (!IsTransient) WorldPersistentFields.Add(LocalCommand);
+
+				if (IsTransient)
+				{
+					World->PhysicsField->AddTransientCommand(LocalCommand);
+				}
+				else
+				{
+					World->PhysicsField->AddPersistentCommand(LocalCommand);
 				}
 			}
+		}
+	}
+}
 
-			TArray<FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
-			const int32 NumFilterSolvers = SupportedSolverList.Num();
+void UFieldSystemComponent::ClearFieldCommands()
+{
+	using namespace Chaos;
+	if (HasValidPhysicsState())
+	{
+		if (bIsChaosField)
+		{
+			checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
 
-			for (FPhysicsSolverBase* Solver : WorldSolverList)
+			TArray<FPhysicsSolverBase*> PhysicsSolvers = GetPhysicsSolvers();
+
+			for (FPhysicsSolverBase* Solver : PhysicsSolvers)
 			{
-				const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
-				if (bSolverValid)
+				for (auto& FieldCommand : ChaosPersistentFields)
 				{
-					Solver->CastHelper([&InCommand](auto& Concrete)
+					Solver->CastHelper([&FieldCommand](auto& Concrete)
 						{
-							Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
+							Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = FieldCommand]()
 								{
-									if (ConcreteSolver->HasActiveParticles())
-									{
-										ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
-									}
+									ConcreteSolver->GetPerSolverField().RemovePersistentCommand(NewCommand);
 								});
 						});
 				}
 			}
 		}
-		if (IsGlobalField)
+		ChaosPersistentFields.Reset();
+
+		if (bIsWorldField)
 		{
 			UWorld* World = GetWorld();
 			if (World && World->PhysicsField)
 			{
-				World->PhysicsField->AddTransientCommand(InCommand);
-			}
-		}
-	}
-}
-
-void UFieldSystemComponent::ApplyStayDynamicField(bool Enabled, FVector Position, float Radius)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		DispatchCommand({"DynamicState",new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic, 
-			(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior)});
-	}
-}
-
-void UFieldSystemComponent::ApplyLinearForce(bool Enabled, FVector Direction, float Magnitude)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		DispatchCommand({ "LinearForce", new FUniformVector(Magnitude, Direction) });
-	}
-}
-
-void UFieldSystemComponent::ApplyRadialForce(bool Enabled, FVector Position, float Magnitude)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		DispatchCommand({ "LinearForce", new FRadialVector(Magnitude, Position) });
-	}
-}
-
-void UFieldSystemComponent::ApplyRadialVectorFalloffForce(bool Enabled, FVector Position, float Radius, float Magnitude)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position);
-		FRadialVector* VectorField = new FRadialVector(Magnitude, Position);
-		DispatchCommand({"LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply)});
-	}
-}
-
-void UFieldSystemComponent::ApplyUniformVectorFalloffForce(bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude, 0.f, 1.f, 0.f, Radius, Position);
-		FUniformVector* VectorField = new FUniformVector(Magnitude, Direction);
-		DispatchCommand({ "LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply) });
-	}
-}
-
-void UFieldSystemComponent::ApplyStrainField(bool Enabled, FVector Position, float Radius, float Magnitude, int32 Iterations)
-{
-	if (Enabled && HasValidPhysicsState())
-	{
-		FFieldSystemCommand Command = { "ExternalClusterStrain", new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position) };
-		DispatchCommand(Command);
-	}
-}
-
-UFUNCTION(BlueprintCallable, Category = "Field")
-void UFieldSystemComponent::ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
-{
-	if (Enabled && Field && HasValidPhysicsState())
-	{
-		TArray<const UFieldNodeBase*> Nodes;
-		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
-		if (ensureMsgf(Command.RootNode, 
-			TEXT("Failed to generate physics field command for target attribute.")))
-		{
-			if (MetaData)
-			{
-				switch (MetaData->Type())
+				for (auto& FieldCommand : WorldPersistentFields)
 				{
-				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData)->ResolutionType));
-					break;
-				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
-					break;
+					World->PhysicsField->RemovePersistentCommand(FieldCommand);
 				}
 			}
-			ensure(!Command.TargetAttribute.IsEqual("None"));
-			DispatchCommand(Command);
 		}
+		WorldPersistentFields.Reset();
 	}
 }
 
-void UFieldSystemComponent::RemovePersistentFields()
-{
-	if (IsGlobalField)
-	{
-		UWorld* World = GetWorld();
-		if (World && World->PhysicsField)
-		{
-			for (auto& FieldCommand : PersistentFields)
-			{
-				World->PhysicsField->RemovePersistentCommand(FieldCommand);
-			}
-		}
-	}
 
-	PersistentFields.Reset();
-}
-
-void UFieldSystemComponent::AddPersistentField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
+void UFieldSystemComponent::BuildFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field, const bool IsTransient)
 {
-	if (Enabled && Field)
+	if (Enabled && Field && HasValidPhysicsState())
 	{
 		TArray<const UFieldNodeBase*> Nodes;
 		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
@@ -281,28 +261,14 @@ void UFieldSystemComponent::AddPersistentField(bool Enabled, EFieldPhysicsType T
 				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
 					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
 					break;
+				case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType));
+					break;
 				}
 			}
 			ensure(!Command.TargetAttribute.IsEqual("None"));
-			PersistentFields.Add(Command);
-
-			if (IsGlobalField)
-			{
-				UWorld* World = GetWorld();
-				if (World && World->PhysicsField)
-				{
-					World->PhysicsField->AddPersistentCommand(Command);
-				}
-			}
+			DispatchFieldCommand(Command, IsTransient);
 		}
-	}
-}
-
-void UFieldSystemComponent::ResetFieldSystem()
-{
-	if (FieldSystem)
-	{
-		BlueprintBufferedCommands.Reset();
 	}
 }
 
@@ -325,11 +291,91 @@ void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Targ
 				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
 					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
 					break;
+				case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType));
+					break;
 				}
 			}
 			ensure(!Command.TargetAttribute.IsEqual("None"));
-			BlueprintBufferedCommands.Add(Command);
+			SetupConstructionFields.Add(Command);
 		}
+	}
+}
+
+void UFieldSystemComponent::ApplyStayDynamicField(bool Enabled, FVector Position, float Radius)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		DispatchFieldCommand({"DynamicState",new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic, 
+			(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior)}, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyLinearForce(bool Enabled, FVector Direction, float Magnitude)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		DispatchFieldCommand({ "LinearForce", new FUniformVector(Magnitude, Direction) }, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyRadialForce(bool Enabled, FVector Position, float Magnitude)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		DispatchFieldCommand({ "LinearForce", new FRadialVector(Magnitude, Position) }, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyRadialVectorFalloffForce(bool Enabled, FVector Position, float Radius, float Magnitude)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position);
+		FRadialVector* VectorField = new FRadialVector(Magnitude, Position);
+		DispatchFieldCommand({"LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply)}, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyUniformVectorFalloffForce(bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude, 0.f, 1.f, 0.f, Radius, Position);
+		FUniformVector* VectorField = new FUniformVector(Magnitude, Direction);
+		DispatchFieldCommand({ "LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply) }, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyStrainField(bool Enabled, FVector Position, float Radius, float Magnitude, int32 Iterations)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		FFieldSystemCommand Command = { "ExternalClusterStrain", new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position) };
+		DispatchFieldCommand(Command, true);
+	}
+}
+
+void UFieldSystemComponent::ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
+{
+	BuildFieldCommand(Enabled, Target, MetaData, Field, true);
+}
+
+void UFieldSystemComponent::AddPersistentField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
+{
+	BuildFieldCommand(Enabled, Target, MetaData, Field, false);
+}
+
+void UFieldSystemComponent::RemovePersistentFields()
+{
+	ClearFieldCommands();
+}
+
+void UFieldSystemComponent::ResetFieldSystem()
+{
+	if (FieldSystem)
+	{
+		SetupConstructionFields.Reset();
 	}
 }
 

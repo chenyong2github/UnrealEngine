@@ -32,20 +32,27 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	//~ End UPrimitiveComponent Interface.
 
-	TSet<FPhysScene_Chaos*> GetPhysicsScenes() const;
-
-	/** FieldSystem @todo(remove the field system, we dont need the asset*/
+	/** Set the field system asset @todo(remove the field system, we dont need the asset */
 	void SetFieldSystem(UFieldSystem * FieldSystemIn) { FieldSystem = FieldSystemIn; }
+
+	/** Get the field system asset */
 	FORCEINLINE const UFieldSystem* GetFieldSystem() const { return FieldSystem; }
 
+	/** Field system asset to be used to store the construction fields */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field")
 	UFieldSystem* FieldSystem;
 
-	UPROPERTY(EditAnywhere, Category = "Field")
-	bool IsGlobalField;
+	/** If enabled the field will be pushed to the world fields and will be available to materials and niagara */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (ToolTip = "If enabled the field will be pushed to the world fields and will be available to materials and niagara"))
+	bool bIsWorldField;
 
-	UPROPERTY(EditAnywhere, Category = "Field")
-	bool IsChaosField;
+	/** If enabled the field will be used by all the chaos solvers */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (ToolTip = "If enabled the field will be used by all the chaos solvers"))
+	bool bIsChaosField;
+
+	/** List of solvers this field will affect. An empty list makes this field affect all solvers. */
+	UPROPERTY(EditAnywhere, Category = Field)
+	TArray<TSoftObjectPtr<AChaosSolverActor>> SupportedSolvers;
 
 	//
 	// Blueprint based field interface
@@ -61,7 +68,7 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Force")
 	void ApplyLinearForce(bool Enabled, FVector Direction, float Magnitude);
 
 	/**
@@ -74,7 +81,7 @@ public:
 	*    @param Radius : Radial influence from the position
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Dynamic State")
 	void ApplyStayDynamicField(bool Enabled, FVector Position, float Radius);
 
 	/**
@@ -87,7 +94,7 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Force")
 	void ApplyRadialForce(bool Enabled, FVector Position, float Magnitude);
 
 	/**
@@ -102,7 +109,7 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Falloff Force")
 	void ApplyRadialVectorFalloffForce(bool Enabled, FVector Position, float Radius, float Magnitude);
 
 	/**
@@ -118,14 +125,14 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Falloff Force")
 	void ApplyUniformVectorFalloffForce(bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude);
 
 	/**
 	*  ApplyStrainField
 	*    This function will dispatch a command to the physics thread to apply
 	*    a strain field on a clustered set of geometry. This is used to trigger a 
-	*    breaking even within the solver.
+	*    breaking event within the solver.
 	*
 	*    @param Enabled : Is this force enabled for evaluation.
 	*    @param Position : The origin point of the force
@@ -134,13 +141,17 @@ public:
 	*    @param Iterations : Levels of evaluation into the cluster hierarchy.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply External Cluster Strain")
 	void ApplyStrainField(bool Enabled, FVector Position, float Radius, float Magnitude, int32 Iterations);
 
 	/**
-	*  ApplyPhysicsField
+	*  AddTransientField
 	*    This function will dispatch a command to the physics thread to apply
-	*    a generic evaluation of a user defined field network. 
+	*    a generic evaluation of a user defined transient field network. See documentation,
+	*    for examples of how to recreate variations of the above generic
+	*    fields using field networks
+	*
+	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
 	*
 	*    @param Enabled : Is this force enabled for evaluation.
 	*    @param EFieldPhysicsType : Type of field supported by the solver.
@@ -148,45 +159,112 @@ public:
 	*    @param UFieldNodeBase : Base evaluation node for the field network.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Transient Field")
 	void ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	//
+	// Blueprint persistent field interface
+	//
+
+	/**
+	*  AddPersistentField
+	*    This function will dispatch a command to the physics thread to apply
+	*    a generic evaluation of a user defined field network. This command will be persistent in time and will live until 
+	*    the component is destroyed or until the RemovePersistenFields function is called. See documentation,
+	*    for examples of how to recreate variations of the above generic
+	*    fields using field networks
+	*
+	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
+	*
+	*    @param Enabled : Is this force enabled for evaluation.
+	*    @param EFieldPhysicsType : Type of field supported by the solver.
+	*    @param UFieldSystemMetaData : Meta data used to assist in evaluation
+	*    @param UFieldNodeBase : Base evaluation node for the field network.
+	*
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Persistent Field")
 	void AddPersistentField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 
-	UFUNCTION(BlueprintCallable, Category = "Field")
+	/**
+	*  RemovePersistenFields
+	*    This function will remove all the field component persistent fields from chaos and from the world
+	*
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Remove Persistent Fields")
 	void RemovePersistentFields();
 
 	//
-	// Blueprint Construction based field interface
+	// Blueprint construction field interface
 	//
 
-	UFUNCTION(BlueprintCallable, Category = "Field Construction")
+	/**
+	*  AddConstructionField
+	*    This function will dispatch a command to the physics thread to apply
+	*    a generic evaluation of a user defined field network. This command will be used in a 
+	*    construction script to setup some particles properties (anchors...). See documentation,
+	*    for examples of how to recreate variations of the above generic
+	*    fields using field networks
+	*
+	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
+	*
+	*    @param Enabled : Is this force enabled for evaluation.
+	*    @param EFieldPhysicsType : Type of field supported by the solver.
+	*    @param UFieldSystemMetaData : Meta data used to assist in evaluation
+	*    @param UFieldNodeBase : Base evaluation node for the field network.
+	*
+	*/
+
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Construction Field")
 	void AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 
-	UFUNCTION(BlueprintCallable, Category = "Field Construction")
+	/**
+	*  RemoveConstructionFields
+	*    This function will remove all the field component construction fields from chaos and from the world
+	*
+	*/
+
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Remove Construction Fields")
 	void ResetFieldSystem();
 
-	/** List of all the field used in the construction script*/
-	TArray< FFieldSystemCommand > BlueprintBufferedCommands;
-
-	/** List of all the peristent fields */
-	TArray< FFieldSystemCommand > PersistentFields;
-
-	/** List of solvers this field will affect. An empty list makes this field affect all solvers. */
-	UPROPERTY(EditAnywhere, Category = Field)
-	TArray<TSoftObjectPtr<AChaosSolverActor>> SupportedSolvers;
+	/** Get all the construction fields*/
+	const TArray< FFieldSystemCommand >&  GetConstructionFields() const { return SetupConstructionFields;  }
 	
 protected:
 
+	/** Get ell ethe supported physics scenes */
+	TSet<FPhysScene_Chaos*> GetPhysicsScenes() const;
+
+	/** Get ell the supported physics solvers */
+	TArray<Chaos::FPhysicsSolverBase*> GetPhysicsSolvers() const;
+
+	/** Build a physics field command and dispatch it */
+	void BuildFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field, const bool IsTransient);
+
+	/** Dispatch the field command to chaos/world */
+	void DispatchFieldCommand(const FFieldSystemCommand& InCommand, const bool IsTransient);
+
+	/** Remove the persistent commands from chaos/world  */
+	void ClearFieldCommands();
+
+	//~ Begin UActorComponent Interface.
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
 	virtual bool ShouldCreatePhysicsState() const override;
 	virtual bool HasValidPhysicsState() const override;
+	//~ End UActorComponent Interface.
 
-	void DispatchCommand(const FFieldSystemCommand& InCommand);
-
+	/** Chaos module linked to that component */
 	FChaosSolversModule* ChaosModule;
 
+	/** Boolean to check that the physics state has been built*/
 	bool bHasPhysicsState;
+
+	/** List of all the field used to setup chaos (anchor...)*/
+	TArray< FFieldSystemCommand > SetupConstructionFields;
+
+	/** List of all the chaos peristent fields */
+	TArray< FFieldSystemCommand > ChaosPersistentFields;
+
+	/** List of all the global peristent fields */
+	TArray< FFieldSystemCommand > WorldPersistentFields;
 };

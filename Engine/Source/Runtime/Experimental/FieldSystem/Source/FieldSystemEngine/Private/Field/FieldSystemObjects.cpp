@@ -10,10 +10,23 @@ UFieldSystemMetaDataProcessingResolution::NewMetaData() const
 	return new FFieldSystemMetaDataProcessingResolution(ResolutionType);
 }
 
-UFieldSystemMetaDataProcessingResolution* UFieldSystemMetaDataProcessingResolution::SetMetaDataaProcessingResolutionType(EFieldResolutionType ResolutionTypeIn)
+UFieldSystemMetaDataProcessingResolution* UFieldSystemMetaDataProcessingResolution::SetMetaDataProcessingResolutionType(EFieldResolutionType ResolutionTypeIn)
 {
 
 	this->ResolutionType = ResolutionTypeIn;
+	return this;
+}
+
+// UFieldSystemMetaDataFilter
+FFieldSystemMetaData*
+UFieldSystemMetaDataFilter::NewMetaData() const
+{
+	return new FFieldSystemMetaDataFilter(FilterType);
+}
+
+UFieldSystemMetaDataFilter* UFieldSystemMetaDataFilter::SetMetaDataFilterType(EFieldFilterType FilterTypeIn)
+{
+	this->FilterType = FilterTypeIn;
 	return this;
 }
 
@@ -97,18 +110,17 @@ UWaveScalar::NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const
 	if (ensureMsgf(!Nodes.Contains(this), TEXT("Cycle Dependency Error : Graph nodes may not be resued in a single chain.")))
 	{
 		Nodes.Add(this);
-		return new FWaveScalar(Magnitude,Position,Wavelength,Period,Time,Function,Falloff);
+		return new FWaveScalar(Magnitude,Position,Wavelength,Period,Function,Falloff);
 	}
 	return nullptr;
 };
 
-UWaveScalar* UWaveScalar::SetWaveScalar(float InMagnitude, FVector InPosition, float InWavelength, float InPeriod, float InTime, EWaveFunctionType InFunction, EFieldFalloffType InFalloff)
+UWaveScalar* UWaveScalar::SetWaveScalar(float InMagnitude, FVector InPosition, float InWavelength, float InPeriod, float Time, EWaveFunctionType InFunction, EFieldFalloffType InFalloff)
 {
 	this->Magnitude = InMagnitude;
 	this->Position = InPosition;
 	this->Wavelength = InWavelength;
 	this->Period = InPeriod;
-	this->Time = InTime;
 	this->Function = InFunction;
 	this->Falloff = InFalloff;
 	return this;
