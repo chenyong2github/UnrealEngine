@@ -9,7 +9,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectPathId.h"
 
-#define UE_WITH_OBJECT_HANDLE_LATE_RESOLVE WITH_EDITORONLY_DATA
+#define UE_WITH_OBJECT_HANDLE_LATE_RESOLVE 0 // @TODO: OBJPTR: Should be WITH_EDITORONLY_DATA when ready to tackle lazy load/resolve issues
 #define UE_WITH_OBJECT_HANDLE_TRACKING WITH_EDITORONLY_DATA
 
 /**
