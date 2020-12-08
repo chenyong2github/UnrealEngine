@@ -11,7 +11,7 @@
 
 namespace Metasound
 {
-	/** TInputOperator supplies a writeable input and a readable output. */
+	/** TInputOperator supplies a writable input and a readable output. */
 	template<typename DataType>
 	class TInputOperator : public IOperator
 	{
@@ -26,12 +26,12 @@ namespace Metasound
 
 			virtual ~TInputOperator() {}
 
-			virtual const FDataReferenceCollection& GetInputs() const override
+			virtual FDataReferenceCollection GetInputs() const override
 			{
 				return Inputs;
 			}
 
-			virtual const FDataReferenceCollection& GetOutputs() const override
+			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				return Outputs;
 			}
@@ -53,7 +53,7 @@ namespace Metasound
 		public:
 			// If the data type is parsable from a literal type, then the data type 
 			// can be registered as an input type with the frontend.  To make a 
-			// DataType registerable, either create a constructor for the data type
+			// DataType registrable, either create a constructor for the data type
 			// which accepts the one of the supported literal types with an optional 
 			// FOperatorSettings argument, or create a default constructor, or specialize
 			// this factory with an implementation for that specific data type.

@@ -45,7 +45,6 @@ namespace Metasound
 			, AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 		{
 			check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
-			OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 		}
 		
 		FWavePlayerOperator(
@@ -62,16 +61,19 @@ namespace Metasound
 			, DecoderOutput(MoveTemp(InDecoderOutput))
 		{
 			check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
-			OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 		}
 
-		virtual const FDataReferenceCollection& GetInputs() const override
+		virtual FDataReferenceCollection GetInputs() const override
 		{
+			FDataReferenceCollection InputDataReferences;
+			InputDataReferences.AddDataReadReference(TEXT("Audio"), FWaveAssetReadRef(Wave));
 			return InputDataReferences;
 		}
 
-		virtual const FDataReferenceCollection& GetOutputs() const override
+		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			FDataReferenceCollection OutputDataReferences;
+			OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 			return OutputDataReferences;
 		}
 
@@ -113,8 +115,6 @@ namespace Metasound
 
 		FWaveAssetReadRef Wave;
 		FAudioBufferWriteRef AudioBuffer;
-		FDataReferenceCollection InputDataReferences;
-		FDataReferenceCollection OutputDataReferences;
 
 		// Decoder/IO. 
 		Audio::ICodec::FDecoderPtr Decoder;

@@ -32,42 +32,45 @@ namespace Metasound
 
 			FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod);
 
-			virtual const FDataReferenceCollection& GetInputs() const override;
+			virtual FDataReferenceCollection GetInputs() const override;
 
-			virtual const FDataReferenceCollection& GetOutputs() const override;
+			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
 
 		private:
 
-			FOperatorSettings OperatorSettings;
 			FBopWriteRef Bop;
 			FFloatTimeReadRef Period;
 
 			float ExecuteDurationInSamples;
+			float SampleRate;
 			float SampleCountdown;
 
-			FDataReferenceCollection InputDataReferences;
-			FDataReferenceCollection OutputDataReferences;
 	};
 
 	FPeriodicBopOperator::FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod)
-	:	OperatorSettings(InSettings)
-	,	Bop(FBopWriteRef::CreateNew(InSettings))
+	:	Bop(FBopWriteRef::CreateNew(InSettings))
 	,	Period(InPeriod)
 	,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
+	,	SampleRate(InSettings.GetSampleRate())
 	,	SampleCountdown(0.f)
 	{
-		OutputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
 	}
 
-	const FDataReferenceCollection& FPeriodicBopOperator::GetInputs() const
+	FDataReferenceCollection FPeriodicBopOperator::GetInputs() const
 	{
+		FDataReferenceCollection InputDataReferences;
+		InputDataReferences.AddDataReadReference(TEXT("Period"), FFloatTimeReadRef(Period));
+
 		return InputDataReferences;
 	}
 
-	const FDataReferenceCollection& FPeriodicBopOperator::GetOutputs() const
+	FDataReferenceCollection FPeriodicBopOperator::GetOutputs() const
 	{
+		FDataReferenceCollection OutputDataReferences;
+		OutputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
+
 		return OutputDataReferences;
 	}
 
@@ -76,7 +79,7 @@ namespace Metasound
 		// Advance internal counter to get rid of old bops.
 		Bop->AdvanceBlock();
 
-		float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.GetSampleRate();
+		float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * SampleRate;
 
 		PeriodInSamples = FMath::Max(PeriodInSamples, MinimumPeriodSamples);
 

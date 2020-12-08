@@ -36,12 +36,12 @@ namespace Metasound
 		Outputs = InCollection;
 	}
 
-	const FDataReferenceCollection& FGraphOperator::GetInputs() const
+	FDataReferenceCollection FGraphOperator::GetInputs() const
 	{
 		return Inputs;
 	}
 
-	const FDataReferenceCollection& FGraphOperator::GetOutputs() const
+	FDataReferenceCollection FGraphOperator::GetOutputs() const
 	{
 		return Outputs;
 	}

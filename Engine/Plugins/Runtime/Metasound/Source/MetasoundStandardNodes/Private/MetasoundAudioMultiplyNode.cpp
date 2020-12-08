@@ -22,25 +22,27 @@ namespace Metasound
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
 			FAudioMultiplyOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InBuffer1, const FAudioBufferReadRef& InBuffer2)
-			:	OperatorSettings(InSettings)
-			,	InputBuffer1(InBuffer1)
+			:	InputBuffer1(InBuffer1)
 			,	InputBuffer2(InBuffer2)
 			,	OutputBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
+			,	BlockSize(InSettings.GetNumFramesPerBlock())
 			{
-				check(OutputBuffer->Num() == InSettings.GetNumFramesPerBlock());
-				check(InputBuffer1->Num() == InSettings.GetNumFramesPerBlock());
-				check(InputBuffer2->Num() == InSettings.GetNumFramesPerBlock());
+				check(OutputBuffer->Num() == BlockSize);
+				check(InputBuffer1->Num() == BlockSize);
+				check(InputBuffer2->Num() == BlockSize);
 
-				OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(OutputBuffer));
 			}
 
-			virtual const FDataReferenceCollection& GetInputs() const override
+			virtual FDataReferenceCollection GetInputs() const override
 			{
+				FDataReferenceCollection InputDataReferences;
 				return InputDataReferences;
 			}
 
-			virtual const FDataReferenceCollection& GetOutputs() const override
+			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				FDataReferenceCollection OutputDataReferences;
+				OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(OutputBuffer));
 				return OutputDataReferences;
 			}
 
@@ -48,20 +50,17 @@ namespace Metasound
 			{
 				using namespace Audio;
 
-				// TODO: add buffer vector op to multipy two buffers (not in place). 
+				// TODO: add buffer vector op to multiply two buffers (not in place). 
 				// TODO: what to do about RESTRICT? This could be something for the builder to keep in mind.
-				FMemory::Memcpy(OutputBuffer->GetData(), InputBuffer1->GetData(), sizeof(float) * OperatorSettings.GetNumFramesPerBlock());
+				FMemory::Memcpy(OutputBuffer->GetData(), InputBuffer1->GetData(), sizeof(float) * BlockSize);
 				MultiplyBuffersInPlace(*InputBuffer2, *OutputBuffer);
 			}
 
 		private:
-			const FOperatorSettings OperatorSettings;
-
 			FAudioBufferReadRef InputBuffer1;
 			FAudioBufferReadRef InputBuffer2;
 			FAudioBufferWriteRef OutputBuffer;
-			FDataReferenceCollection OutputDataReferences;
-			FDataReferenceCollection InputDataReferences;
+			int32 BlockSize;
 	};
 
 	FAudioMultiplyNode::FAudioMultiplyNode(const FString& InInstanceName)

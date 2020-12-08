@@ -33,14 +33,14 @@ namespace Metasound
 		 * exceptions are input operators and graph operators which need to interface with external
 		 * systems even after the operator is created.
 		 */
-		virtual const FDataReferenceCollection& GetInputs() const = 0;
+		virtual FDataReferenceCollection GetInputs() const = 0;
 
 		/** Return the output parameters associated with this IOperator.
 		 *
 		 * Implementations of IOperator should return a collection of their output parameters
 		 * which other nodes can read.
 		 */
-		virtual const FDataReferenceCollection& GetOutputs() const = 0;
+		virtual FDataReferenceCollection GetOutputs() const = 0;
 
 		/** Return the execution function to call during graph execution.
 		 *

@@ -84,18 +84,20 @@ namespace Metasound
 					: FromData(InFromDataReference)
 					, ToData(InToDataReference) 
 				{
-					Outputs.AddDataReadReference<ToDataType>(GetOutputName(), ToData);
 				}
 
 				virtual ~FConverterOperator() {}
 
-				virtual const FDataReferenceCollection& GetInputs() const override
+				virtual FDataReferenceCollection GetInputs() const override
 				{
+					FDataReferenceCollection Inputs;
 					return Inputs;
 				}
 
-				virtual const FDataReferenceCollection& GetOutputs() const override
+				virtual FDataReferenceCollection GetOutputs() const override
 				{
+					FDataReferenceCollection Outputs;
+					Outputs.AddDataReadReference<ToDataType>(GetOutputName(), ToData);
 					return Outputs;
 				}
 
@@ -107,9 +109,6 @@ namespace Metasound
 			private:
 				TDataReadReference<FromDataType> FromData;
 				TDataWriteReference<ToDataType> ToData;
-
-				FDataReferenceCollection Inputs;
-				FDataReferenceCollection Outputs;
 		};
 
 		/** FConverterOperatorFactory creates an operator which converts from 

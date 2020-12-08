@@ -26,9 +26,9 @@ namespace Metasound
 
 			void SetOutputs(const FDataReferenceCollection& InCollection);
 
-			virtual const FDataReferenceCollection& GetInputs() const override;
+			virtual FDataReferenceCollection GetInputs() const override;
 
-			virtual const FDataReferenceCollection& GetOutputs() const override;
+			virtual FDataReferenceCollection GetOutputs() const override;
 
 			virtual FExecuteFunction GetExecuteFunction() override;
 

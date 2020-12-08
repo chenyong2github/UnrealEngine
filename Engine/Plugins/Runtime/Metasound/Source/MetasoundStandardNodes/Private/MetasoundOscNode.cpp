@@ -24,52 +24,54 @@ namespace Metasound
 
 			FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency);
 
-			virtual const FDataReferenceCollection& GetInputs() const override;
+			virtual FDataReferenceCollection GetInputs() const override;
 
-			virtual const FDataReferenceCollection& GetOutputs() const override;
+			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
 
 		private:
-			const FOperatorSettings OperatorSettings;
 			const float TwoPi;
 			float Phase;
+			float SampleRate;
+			int32 BlockSize;
 
 			FFrequencyReadRef Frequency;
 			FAudioBufferWriteRef AudioBuffer;
 
-			FDataReferenceCollection InputDataReferences;
-			FDataReferenceCollection OutputDataReferences;
 	};
 
 	FOscOperator::FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency)
-	:	OperatorSettings(InSettings)
-	,	TwoPi(2.f * PI)
+	:	TwoPi(2.f * PI)
 	,	Phase(0.f)
+	,	SampleRate(InSettings.GetSampleRate())
+	,	BlockSize(InSettings.GetNumFramesPerBlock())
 	,	Frequency(InFrequency)
 	,	AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 	{
 		check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
-
-		OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 	}
 
-	const FDataReferenceCollection& FOscOperator::GetInputs() const
+	FDataReferenceCollection FOscOperator::GetInputs() const
 	{
+		FDataReferenceCollection InputDataReferences;
+		InputDataReferences.AddDataReadReference(TEXT("Audio"), FFrequencyReadRef(Frequency));
 		return InputDataReferences;
 	}
 
-	const FDataReferenceCollection& FOscOperator::GetOutputs() const
+	FDataReferenceCollection FOscOperator::GetOutputs() const
 	{
+		FDataReferenceCollection OutputDataReferences;
+		OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 		return OutputDataReferences;
 	}
 
 	void FOscOperator::Execute()
 	{
-		const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.GetSampleRate());
+		const float PhaseDelta = Frequency->GetRadiansPerSample(SampleRate);
 		float* Data = AudioBuffer->GetData();
 
-		for (int32 i = 0; i < OperatorSettings.GetNumFramesPerBlock(); i++)
+		for (int32 i = 0; i < BlockSize; i++)
 		{
 			Data[i] = FMath::Sin(Phase);
 			Phase += PhaseDelta;

@@ -26,12 +26,12 @@ namespace Metasound
 
 				virtual ~FOutputOperator() {}
 
-				virtual const FDataReferenceCollection& GetInputs() const override
+				virtual FDataReferenceCollection GetInputs() const override
 				{
-					return Inputs;
+					return {};
 				}
 
-				virtual const FDataReferenceCollection& GetOutputs() const override
+				virtual FDataReferenceCollection GetOutputs() const override
 				{
 					return Outputs;
 				}
@@ -42,7 +42,6 @@ namespace Metasound
 				}
 
 			private:
-				FDataReferenceCollection Inputs;
 				FDataReferenceCollection Outputs;
 		};
 

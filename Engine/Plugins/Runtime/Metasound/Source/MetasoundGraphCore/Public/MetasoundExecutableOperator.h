@@ -114,7 +114,7 @@ namespace Metasound
 				return Operator.IsValid();
 			}
 
-			virtual const FDataReferenceCollection& GetInputs() const override
+			virtual FDataReferenceCollection GetInputs() const override
 			{
 				static FDataReferenceCollection EmptyCollection;
 
@@ -126,7 +126,7 @@ namespace Metasound
 				return EmptyCollection;
 			}
 
-			virtual const FDataReferenceCollection& GetOutputs() const override
+			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				static FDataReferenceCollection EmptyCollection;
 

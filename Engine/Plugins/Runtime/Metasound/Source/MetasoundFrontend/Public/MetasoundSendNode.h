@@ -82,20 +82,21 @@ namespace Metasound
 					, CachedSenderParams({InOperatorSettings, 0.0f})
 					, Sender(FDataTransmissionCenter::Get().RegisterNewSend<TDataType>(CachedSendAddress, CachedSenderParams))
 				{
-					Inputs.AddDataReadReference<FSendAddress>(GetAddressInputName(), SendAddress);
-					Inputs.AddDataReadReference<TDataType>(GetSendInputName(), TDataReadReference<TDataType>(InputData));
 				}
 
 				virtual ~TSendOperator() {}
 
-				virtual const FDataReferenceCollection& GetInputs() const override
+				virtual FDataReferenceCollection GetInputs() const override
 				{
+					FDataReferenceCollection Inputs;
+					Inputs.AddDataReadReference<FSendAddress>(GetAddressInputName(), SendAddress);
+					Inputs.AddDataReadReference<TDataType>(GetSendInputName(), TDataReadReference<TDataType>(InputData));
 					return Inputs;
 				}
 
-				virtual const FDataReferenceCollection& GetOutputs() const override
+				virtual FDataReferenceCollection GetOutputs() const override
 				{
-					return Outputs;
+					return {};
 				}
 
 				void Execute()
@@ -117,9 +118,6 @@ namespace Metasound
 				FSenderInitParams CachedSenderParams;
 
 				TSenderPtr<TDataType> Sender;
-
-				FDataReferenceCollection Inputs;
-				FDataReferenceCollection Outputs;
 		};
 
 		class FSendOperatorFactory : public IOperatorFactory

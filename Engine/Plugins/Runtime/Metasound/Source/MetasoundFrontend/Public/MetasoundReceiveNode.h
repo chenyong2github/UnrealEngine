@@ -83,18 +83,19 @@ namespace Metasound
 					, CachedReceiverParams({InOperatorSettings})
 					, Receiver(FDataTransmissionCenter::Get().RegisterNewReceiver<TDataType>(CachedSendAddress, CachedReceiverParams))
 				{
-					Outputs.AddDataReadReference<TDataType>(GetSendOutputName(), TDataReadReference<TDataType>(OutputData));
 				}
 
 				virtual ~TReceiverOperator() {}
 
-				virtual const FDataReferenceCollection& GetInputs() const override
+				virtual FDataReferenceCollection GetInputs() const override
 				{
-					return Inputs;
+					return {};
 				}
 
-				virtual const FDataReferenceCollection& GetOutputs() const override
+				virtual FDataReferenceCollection GetOutputs() const override
 				{
+					FDataReferenceCollection Outputs;
+					Outputs.AddDataReadReference<TDataType>(GetSendOutputName(), TDataReadReference<TDataType>(OutputData));
 					return Outputs;
 				}
 
@@ -120,9 +121,6 @@ namespace Metasound
 				FReceiverInitParams CachedReceiverParams;
 
 				TReceiverPtr<TDataType> Receiver;
-
-				FDataReferenceCollection Inputs;
-				FDataReferenceCollection Outputs;
 		};
 
 		class FReceiverOperatorFactory : public IOperatorFactory

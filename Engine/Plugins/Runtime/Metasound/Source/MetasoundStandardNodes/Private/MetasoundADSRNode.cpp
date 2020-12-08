@@ -33,34 +33,30 @@ namespace Metasound
 
 			FADSROperator(const FOperatorSettings& InSettings, const FBopReadRef& InBop, const FADSRReferences& InADSRData);
 
-			virtual const FDataReferenceCollection& GetInputs() const override;
-			virtual const FDataReferenceCollection& GetOutputs() const override;
+			virtual FDataReferenceCollection GetInputs() const override;
+			virtual FDataReferenceCollection GetOutputs() const override;
 			void Execute();
 
 		private:
 
 			void GenerateEnvelope(int32 InStartFrame, int32 InEndFrame);
 
-			const FOperatorSettings OperatorSettings;
-
 			// TODO: write envelope gen for metasound more suited to this processing structure. 
 			Audio::FEnvelope Envelope;
 
 			FBopReadRef Bop;
 			bool bNotReleased;
+			float SampleRate;
 			FSampleTime TimeTillRelease;
 			FSampleTime TimePerBlock;
 			FADSRReferences ADSRReferences;
 			FAudioBufferWriteRef EnvelopeBuffer;
-
-			FDataReferenceCollection OutputDataReferences;
-			FDataReferenceCollection InputDataReferences;
 	};
 
 	FADSROperator::FADSROperator(const FOperatorSettings& InSettings, const FBopReadRef& InBop, const FADSRReferences& InADSRData)
-	:	OperatorSettings(InSettings)
-	,	Bop(InBop)
+	:	Bop(InBop)
 	,	bNotReleased(false)
+	,	SampleRate(InSettings.GetSampleRate())
 	,	TimeTillRelease(0, InSettings.GetSampleRate())
 	,	TimePerBlock(InSettings.GetNumFramesPerBlock(), InSettings.GetSampleRate())
 	,	ADSRReferences(InADSRData)
@@ -68,18 +64,25 @@ namespace Metasound
 	{
 		check(EnvelopeBuffer->Num() == InSettings.GetNumFramesPerBlock());
 
-		OutputDataReferences.AddDataReadReference(TEXT("Envelope"), FAudioBufferReadRef(EnvelopeBuffer));
 
-		Envelope.Init(OperatorSettings.GetSampleRate());
+		Envelope.Init(SampleRate);
 	}
 
-	const FDataReferenceCollection& FADSROperator::GetInputs() const
+	FDataReferenceCollection FADSROperator::GetInputs() const
 	{
+		FDataReferenceCollection InputDataReferences;
+		InputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
+		InputDataReferences.AddDataReadReference(TEXT("Attack"), FFloatTimeReadRef(ADSRReferences.Attack));
+		InputDataReferences.AddDataReadReference(TEXT("Decay"), FFloatTimeReadRef(ADSRReferences.Decay));
+		InputDataReferences.AddDataReadReference(TEXT("Sustain"), FFloatTimeReadRef(ADSRReferences.Sustain));
+		InputDataReferences.AddDataReadReference(TEXT("Release"), FFloatTimeReadRef(ADSRReferences.Release));
 		return InputDataReferences;
 	}
 
-	const FDataReferenceCollection& FADSROperator::GetOutputs() const
+	FDataReferenceCollection FADSROperator::GetOutputs() const
 	{
+		FDataReferenceCollection OutputDataReferences;
+		OutputDataReferences.AddDataReadReference(TEXT("Envelope"), FAudioBufferReadRef(EnvelopeBuffer));
 		return OutputDataReferences;
 	}
 
