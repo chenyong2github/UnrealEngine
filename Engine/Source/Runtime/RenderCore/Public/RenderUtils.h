@@ -605,6 +605,6 @@ inline bool UseNanite(EShaderPlatform ShaderPlatform)
 	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
 	bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
 	bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
-	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && EnableNaniteCVar->GetInt() > 0;
+	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && (EnableNaniteCVar != nullptr && EnableNaniteCVar->GetInt() > 0);
 }
 
