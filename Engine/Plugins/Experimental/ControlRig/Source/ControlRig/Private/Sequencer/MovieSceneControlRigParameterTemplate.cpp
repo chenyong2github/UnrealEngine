@@ -685,7 +685,7 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 						{
 							float Weight = 1.0f;
 							FControlRigIOSettings InputSettings;
-							InputSettings.bUpdateCurves = false;
+							InputSettings.bUpdateCurves = true;
 							InputSettings.bUpdatePose = true;
 							AnimInstance->UpdateControlRigTrack(ControlRig->GetUniqueID(), Weight, InputSettings, true);
 						}
