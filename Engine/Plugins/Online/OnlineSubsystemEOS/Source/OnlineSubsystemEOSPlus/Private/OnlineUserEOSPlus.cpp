@@ -9,7 +9,7 @@ inline FString BuildEOSPlusStringId(TSharedPtr<const FUniqueNetId> InBaseUniqueN
 {
 	FString StrId = InBaseUniqueNetId.IsValid() ? InBaseUniqueNetId->ToString() : TEXT("");
 	StrId += TEXT("_+_");
-	StrId += InEOSUniqueNetId.IsValid() ? InEOSUniqueNetId->ToString() : TEXT(""), TEXT("EOSPlus");
+	StrId += InEOSUniqueNetId.IsValid() ? InEOSUniqueNetId->ToString() : TEXT("");
 	return StrId;
 }
 
