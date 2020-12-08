@@ -20,7 +20,12 @@
 TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> UNiagaraLightRendererProperties::LightRendererPropertiesToDeferredInit;
 
 UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
-	: bUseInverseSquaredFalloff(1), bAffectsTranslucency(0), bAlphaScalesBrightness(0), RadiusScale(1.0f), ColorAdd(FVector(0.0f, 0.0f, 0.0f))
+	: bUseInverseSquaredFalloff(1)
+	, bAffectsTranslucency(0)
+	, bAlphaScalesBrightness(0)
+	, RadiusScale(1.0f)
+	, DefaultExponent(1.0f)
+	, ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
 	AttributeBindings.Reserve(6);
 	AttributeBindings.Add(&LightRenderingEnabledBinding);
@@ -29,15 +34,14 @@ UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&RadiusBinding);
 	AttributeBindings.Add(&VolumetricScatteringBinding);
+	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
-
 
 void UNiagaraLightRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 }
-
 
 void UNiagaraLightRendererProperties::PostInitProperties()
 {
@@ -59,6 +63,7 @@ void UNiagaraLightRendererProperties::PostInitProperties()
 			LightExponentBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_EXPONENT);
 			LightRenderingEnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 			VolumetricScatteringBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING);
+			RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 		}
 	}
 }
@@ -73,6 +78,7 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	CDO->LightExponentBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_EXPONENT);
 	CDO->LightRenderingEnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 	CDO->VolumetricScatteringBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING);
+	CDO->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 
 	for (TWeakObjectPtr<UNiagaraLightRendererProperties>& WeakLightRendererProperties : LightRendererPropertiesToDeferredInit)
 	{
@@ -86,6 +92,7 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 				WeakLightRendererProperties->LightExponentBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_EXPONENT);
 				WeakLightRendererProperties->LightRenderingEnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 				WeakLightRendererProperties->VolumetricScatteringBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING);
+				WeakLightRendererProperties->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 			}
 		}
 	}
@@ -112,6 +119,7 @@ void UNiagaraLightRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 	ExponentDataSetAccessor.Init(CompiledData, LightExponentBinding.GetDataSetBindableVariable().GetName());
 	ScatteringDataSetAccessor.Init(CompiledData, VolumetricScatteringBinding.GetDataSetBindableVariable().GetName());
 	EnabledDataSetAccessor.Init(CompiledData, LightRenderingEnabledBinding.GetDataSetBindableVariable().GetName());
+	RendererVisibilityTagAccessor.Init(CompiledData, RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
 }
 
 #if WITH_EDITORONLY_DATA
@@ -127,6 +135,7 @@ const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetOptionalAttr
 		Attrs.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT);
 		Attrs.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 		Attrs.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING);
+		Attrs.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 	}
 	return Attrs;
 }

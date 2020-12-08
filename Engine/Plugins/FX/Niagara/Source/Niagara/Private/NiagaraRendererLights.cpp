@@ -76,6 +76,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	const auto ExponentReader = Properties->ExponentDataSetAccessor.GetReader(Data);
 	const auto ScatteringReader = Properties->ScatteringDataSetAccessor.GetReader(Data);
 	const auto EnabledReader = Properties->EnabledDataSetAccessor.GetReader(Data);
+	const auto VisTagReader = Properties->RendererVisibilityTagAccessor.GetReader(Data);
 
 	// This used to use Proxy->GetLocalToWorld(), but that's a bad thing to do here, because the proxy gets updated on the render thread,
 	// and this function happens during EndOfFrame updates. So instead, use the most up-to-date transform here (fixes local-space frame-behind issues)
@@ -90,12 +91,18 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	const float DefaultRadius = Properties->RadiusBinding.GetDefaultValue<float>();
 	const float DefaultScattering = Properties->VolumetricScatteringBinding.GetDefaultValue<float>();
 	const FNiagaraBool DefaultEnabled(true);
+	const int32 DefaultVisibilityTag(0);
+	const float DefaultExponent = Properties->DefaultExponent;
 
 	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 	{
-		bool ShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
+		bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
+		if (bShouldRenderParticleLight && VisTagReader.IsValid())
+		{
+			bShouldRenderParticleLight = VisTagReader.GetSafe(ParticleIndex, DefaultVisibilityTag) == Properties->RendererVisibility;
+		}
 		float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
-		if (ShouldRenderParticleLight && LightRadius > 0)
+		if (bShouldRenderParticleLight && LightRadius > 0)
 		{
 			SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
 
@@ -104,7 +111,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			
 			LightData.LightEntry.Radius = LightRadius;
 			LightData.LightEntry.Color = FVector(Color) * Brightness + Properties->ColorAdd;
-			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, 1.0f);
+			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
 			LightData.PerViewEntry.Position = PositionReader.GetSafe(ParticleIndex, DefaultPos);
