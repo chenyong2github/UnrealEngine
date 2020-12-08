@@ -94,6 +94,11 @@ float2 ShadowNearAndFarDepth;
 Texture2D<uint4> HairCategorizationTexture;
 #endif
 
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#include "Strata/StrataEvaluation.ush"
+#endif
+
 /**
 * Entry point for uniform manual PCF that supports lights using normal shadows.
 */
@@ -118,9 +123,9 @@ void Main(
 	float SceneW = CalcSceneDepth(ScreenUV);
 
 	bool bIsSubsurfaceCompatible = true;
+	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 #if SUBPIXEL_SHADOW
 	const bool bUseFadePlane = bCascadeUseFadePlane > 0;
-	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 	const FCategorizationData CategorizationData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
 	if (CategorizationData.PixelCoverage > 0)
 	{
@@ -259,17 +264,29 @@ void Main(
 
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING && !APPLY_TRANSLUCENCY_SHADOWS
 
-		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		FGBufferData GBufferData	= GetGBufferData(ScreenUV); 
+		bool bHasSubsurface			= IsSubsurfaceModel(GBufferData.ShadingModelID);
+		bool bHasSubsurfaceProfile	= GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+		bool bIsEyeOrHair 			= GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE;
+		#if STRATA_ENABLED
+		{
+			const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelCoord));
+			if (StrataData.bIsStrataMaterial)
+			{
+				bIsEyeOrHair			= bIsEyeOrHair || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
+				bHasSubsurface			= bHasSubsurface || StrataData.bHasSubsurface || bIsEyeOrHair;
+				bHasSubsurfaceProfile	= bHasSubsurfaceProfile || StrataData.bHasSubsurfaceProfile;
+			}
+		}
+		#endif
 
 		BRANCH
-		if (bIsSubsurfaceCompatible && IsSubsurfaceModel(GBufferData.ShadingModelID))
+		if (bIsSubsurfaceCompatible && bHasSubsurface)
 		{
 			float Opacity = GBufferData.CustomData.a;
 			float Density = SubsurfaceDensityFromOpacity(Opacity);
-			if( GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE )
+			if(bIsEyeOrHair)
 			{
-				// STRATA_TODO strata hair should also go there. Right now we would need to add SHADINGMODEL_STRATA there 
-				// and also enable HasCustomGBufferData just because we go through the GBuffer. We are going to fixcthat next the right way.
 				Opacity = 1;
 				Density = 1;
 			}
@@ -299,7 +316,7 @@ void Main(
 				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 
 			  #if USE_TRANSMISSION
-				if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE || GBufferData.ShadingModelID == SHADINGMODELID_STRATA)
+				if (bHasSubsurfaceProfile)
 				{
 					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, GBufferData, Settings);
 				}

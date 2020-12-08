@@ -1,0 +1,61 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
+
+#define STRATA_INLINE_SHADING 0
+#include "/Engine/Private/Strata/Strata.ush"
+
+void MainPS(
+	float4 SVPos : SV_POSITION, 
+	out uint OutColor0 : SV_Target0)
+{
+	const uint2 PixelPos = uint2(SVPos.xy);
+
+	// Sample scene textures.
+	float2 BufferUV = SvPositionToBufferUV(float4(PixelPos, SVPos.zw));
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	bool bStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
+	
+	FStrataClassification Out = (FStrataClassification)0;
+	if (bStrataMaterial)
+	{
+		Out.bIsStrataMaterial = true;
+		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
+		{
+			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+			Out.ShadingModels |= StrataShadingModelBit(BSDF_GETTYPE(BSDF));
+
+			switch (BSDF_GETTYPE(BSDF))
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE:
+				if (BSDF_GETHASSCATTERING(BSDF))
+				{
+					Out.bHasSubsurface = true;
+					if (BSDF_GETHASSSSPROFILE(BSDF))
+					{
+						Out.bHasSubsurfaceProfile = true;
+					}
+				}
+				break;
+			case STRATA_BSDF_TYPE_HAIR:
+				Out.bHasTransmission = true;
+				break;
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+				break;
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+				break;
+			case STRATA_BSDF_TYPE_VOLUME:	
+				break;
+			case STRATA_BSDF_TYPE_SHEEN:	
+				break;
+			}
+		}
+	}
+
+	OutColor0 = StrataPackClassificationData(Out);
+}
+
+

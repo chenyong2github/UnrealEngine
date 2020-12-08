@@ -400,6 +400,13 @@ static void BindShaderShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStat
 
 	VertexShader->SetParameters(RHICmdList, View, ShadowInfo);
 	PixelShader->SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
+
+	if (Strata::IsStrataEnabled())
+	{
+		FRHIPixelShader* ShaderRHI = PixelShader.GetPixelShader();
+		FRHIUniformBuffer* StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
+		PixelShader->FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, StrataUniformBuffer);
+	}
 }
 
 

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once 
+
 /*=============================================================================
 	TransmissionThickness.ush: Calc Transmission Thickness shaders.
 =============================================================================*/
@@ -94,18 +96,6 @@ float2(0.843562, 0.357036),
 float2(0.865413, 0.763726),
 float2(0.872005, -0.927)
 };
-
-// Normalized(1.0f / (4 * PI))
-#define ISO_PHASE_FUNC_Normalized ( 0.5f )
-#define Light_Intensity_Blit (2.0f) 
-float ApproximateHG(float cosJ, float g)		// HG phase function approximated
-{
-	float g2 = g * g;
-	float gcos2 = 1.0f - (g * cosJ);
-	gcos2 *= gcos2;
-
-	return (Light_Intensity_Blit * ISO_PHASE_FUNC_Normalized * (1.0f - g2) / gcos2);
-}
 
 float CalcShadowLinearDepth(float shadowDepth, float2 param)
 {

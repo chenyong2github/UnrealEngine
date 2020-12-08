@@ -28,8 +28,6 @@ static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
 
-
-
 namespace Strata
 {
 
@@ -58,6 +56,11 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		const uint32 MaterialConservativeByteCountPerPixel = 100u;
 		const uint32 RoundToValue = 4u;
 		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
+
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable);
+		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("StrataClassificationTexture"));
+		GraphBuilder.PreallocateTexture(Texture);
+		StrataSceneData.ClassificationTexture = GraphBuilder.GetPooledTexture(Texture);
 	}
 	else
 	{
@@ -112,6 +115,7 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 
 		StrataUniformParameters.MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
 		StrataUniformParameters.MaterialLobesBuffer = View.StrataSceneData->MaterialLobesBuffer.SRV;
+		StrataUniformParameters.ClassificationTexture = View.StrataSceneData->ClassificationTexture->GetRenderTargetItem().ShaderResourceTexture;
 
 		View.StrataSceneData->StrataGlobalUniformParameters = CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleFrame);
 		return View.StrataSceneData->StrataGlobalUniformParameters;
@@ -121,13 +125,13 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		// Create each time. This path will go away when Strata is always enabled anyway.
 		StrataUniformParameters.MaxBytesPerPixel = 0;
 		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+		StrataUniformParameters.ClassificationTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 	}
 }
 
-
-////////////////////////////////////////////////////////////////////////// Debug
-
+////////////////////////////////////////////////////////////////////////// 
+// Debug
 
 class FVisualizeMaterialPS : public FGlobalShader
 {
@@ -196,6 +200,81 @@ void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInf
 			FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("StrataVisualizeMaterial"),
 				PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
 		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Material classification pass
+// * Classification texture (shading models, BSDF bits, ...)
+// For future:
+// * SSS: hasSSS, Normal, ProfilID, BaseColor, Opacity,  MFPAlbedo/MFPRadius, Shadingmodel | 64bit?
+// * SSR: depth, roughness, normal, (clear coat amount/roughness), tangent, aniso
+
+// SSS/SSR/Auxilary data (AO/ShadowMask/...)
+class FStrataMaterialClassificationPassPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FStrataMaterialClassificationPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialClassificationPassPS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FStrataMaterialClassificationPassPS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "MainPS", SF_Pixel);
+
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views)
+{
+	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, IsStrataEnabled() && Views.Num() > 0, "StrataMaterialClassification");
+	if (!IsStrataEnabled())
+	{
+		return;
+	}
+
+	for (int32 i = 0; i < Views.Num(); ++i)
+	{
+		const FViewInfo& View = Views[i];
+		
+		FStrataMaterialClassificationPassPS::FPermutationDomain PermutationVector;
+		TShaderMapRef<FStrataMaterialClassificationPassPS> PixelShader(View.ShaderMap, PermutationVector);
+		FStrataMaterialClassificationPassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialClassificationPassPS::FParameters>();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);		
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(View.StrataSceneData->ClassificationTexture), ERenderTargetLoadAction::EClear);
+
+		if (ShaderDrawDebug::IsShaderDrawDebugEnabled())
+		{
+			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
+		}
+
+		FPixelShaderUtils::AddFullscreenPass<FStrataMaterialClassificationPassPS>(
+			GraphBuilder, 
+			View.ShaderMap, 
+			RDG_EVENT_NAME("StrataMaterialClassification"),
+			PixelShader, 
+			PassParameters, 
+			View.ViewRect);
 	}
 }
 

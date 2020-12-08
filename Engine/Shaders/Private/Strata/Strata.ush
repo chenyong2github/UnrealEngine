@@ -143,6 +143,46 @@ struct FStrataBSDF
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
+struct FStrataClassification
+{
+	uint ShadingModels;
+	bool bIsStrataMaterial;
+	bool bHasSubsurface;
+	bool bHasSubsurfaceProfile;
+	bool bHasTransmission;
+};
+
+uint StrataPackClassificationData(FStrataClassification In)
+{
+	return 
+		(In.ShadingModels & 0xFF) | 
+		((In.bIsStrataMaterial		? 1 : 0) << 8) |
+		((In.bHasSubsurface			? 1 : 0) << 9) | 
+		((In.bHasSubsurfaceProfile	? 1 : 0) << 10)|
+		((In.bHasTransmission		? 1 : 0) << 11);
+}
+
+FStrataClassification StrataUnpackClassificationData(uint In)
+{
+	FStrataClassification Out;
+	Out.ShadingModels			= (In & 0xFF);
+	Out.bIsStrataMaterial		= (In >>  8) & 0x1;
+	Out.bHasSubsurface			= (In >>  9) & 0x1;
+	Out.bHasSubsurfaceProfile	= (In >> 10) & 0x1;
+	Out.bHasTransmission		= (In >> 11) & 0x1;
+	return Out;
+}
+
+uint StrataShadingModelBit(uint ShadingModel)
+{
+	return 1 << ShadingModel;
+}
+
+bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
+{
+	return (ShadingModels & (1 << ShadingModel)) > 0;
+}
+
 bool StrataHasAnisotropy(in float Roughness0, float Roughness1)
 {
 	return Roughness0 != Roughness1;

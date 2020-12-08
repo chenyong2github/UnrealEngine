@@ -23,15 +23,14 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, ClassificationTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-
 
 struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
-	TRefCountPtr<IPooledRenderTarget> MaterialLobesTexture; // This should be a RDG resource when the refactoring gets in
-	FRWByteAddressBuffer MaterialLobesBuffer;				// This should be a RDG resource	"		"		"
+	FRWByteAddressBuffer MaterialLobesBuffer;				// This should be a RDG resource
+	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;// This should be a RDG resource
 
 	TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 
@@ -39,9 +38,6 @@ struct FStrataSceneData
 	{
 	}
 };
-
-
-
 
 namespace Strata
 {
@@ -55,6 +51,8 @@ void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePas
 TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
 
 void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, FRDGTextureRef SceneColorTexture);
+
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views);
 
 };
 
