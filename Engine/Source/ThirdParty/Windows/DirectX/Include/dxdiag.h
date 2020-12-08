@@ -9,6 +9,11 @@
 
 #ifndef _DXDIAG_H_
 #define _DXDIAG_H_
+#include <winapifamily.h>
+
+#pragma region Desktop Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 #include <ole2.h>      // for DECLARE_INTERFACE_ and HRESULT
 
@@ -181,6 +186,10 @@ DECLARE_INTERFACE_(IDxDiagContainer,IUnknown)
 #ifdef __cplusplus
 }
 #endif
+
+
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#pragma endregion
 
 #endif /* _DXDIAG_H_ */
 

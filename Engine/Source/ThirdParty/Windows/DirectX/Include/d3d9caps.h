@@ -17,6 +17,11 @@
 // include this file content only if compiling for DX9 interfaces
 #if(DIRECT3D_VERSION >= 0x0900)
 
+#include <winapifamily.h>
+
+#pragma region Desktop Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 #if defined(_X86_) || defined(_IA64_)
 #pragma pack(4)
 #endif
@@ -258,6 +263,7 @@ typedef struct _D3DCAPS9
 #define D3DCAPS3_COPY_TO_VIDMEM         0x00000100L /* Device can acclerate copies from sysmem to local vidmem */
 #define D3DCAPS3_COPY_TO_SYSTEMMEM      0x00000200L /* Device can acclerate copies from local vidmem to sysmem */
 #define D3DCAPS3_DXVAHD                 0x00000400L
+#define D3DCAPS3_DXVAHD_LIMITED         0x00000800L
 
 
 //
@@ -561,6 +567,9 @@ typedef struct _D3DCAPS9
 
 
 #pragma pack()
+
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#pragma endregion
 
 #endif /* (DIRECT3D_VERSION >= 0x0900) */
 #endif /* _d3d9CAPS_H_ */

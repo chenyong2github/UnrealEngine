@@ -17,6 +17,10 @@
 // include this file content only if compiling for DX9 interfaces
 #if(DIRECT3D_VERSION >= 0x0900)
 
+#include <winapifamily.h>
+#pragma region Desktop Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 /* This identifier is passed to Direct3DCreate9 in order to ensure that an
  * application was built against the correct header files. This number is
@@ -47,7 +51,6 @@
 #endif
 
 #define D3DAPI WINAPI
-
 /*
  * Interface IID's
  */
@@ -157,7 +160,6 @@ DEFINE_GUID(IID_IDirect3DAuthenticatedChannel9, 0xff24beee, 0xda21, 0x4beb, 0x98
 // {FA0AB799-7A9C-48ca-8C5B-237E71A54434}
 DEFINE_GUID(IID_IDirect3DCryptoSession9, 0xfa0ab799, 0x7a9c, 0x48ca, 0x8c, 0x5b, 0x23, 0x7e, 0x71, 0xa5, 0x44, 0x34);
 
-
 #endif // !D3D_DISABLE_9EX
 /* -- D3D9Ex only */
 
@@ -244,6 +246,7 @@ _COM_SMARTPTR_TYPEDEF(IDirect3D9ExOverlayExtension, __uuidof(IDirect3D9ExOverlay
 _COM_SMARTPTR_TYPEDEF(IDirect3DDevice9Video, __uuidof(IDirect3DDevice9Video));
 _COM_SMARTPTR_TYPEDEF(IDirect3DAuthenticatedChannel9, __uuidof(IDirect3DAuthenticatedChannel9));
 _COM_SMARTPTR_TYPEDEF(IDirect3DCryptoSession9, __uuidof(IDirect3DCryptoSession9));
+
 
 #endif // !D3D_DISABLE_9EX
 /* -- D3D9Ex only */
@@ -1809,7 +1812,6 @@ typedef struct IDirect3DQuery9 *LPDIRECT3DQUERY9, *PDIRECT3DQUERY9;
 #define IDirect3DQuery9_GetData(p,a,b,c) (p)->GetData(a,b,c)
 #endif
 
-
 /****************************************************************************
  * Flags for SetPrivateData method on all D3D9 interfaces
  *
@@ -2041,6 +2043,7 @@ DECLARE_INTERFACE_(IDirect3D9Ex, IDirect3D9)
     STDMETHOD_(ULONG,Release)(THIS) PURE;
 
     /*** IDirect3D9 methods ***/
+    STDMETHOD(RegisterSoftwareDevice)(THIS_ void* pInitializeFunction) PURE;
     STDMETHOD_(UINT, GetAdapterCount)(THIS) PURE;
     STDMETHOD(GetAdapterIdentifier)(THIS_ UINT Adapter,DWORD Flags,D3DADAPTER_IDENTIFIER9* pIdentifier) PURE;
     STDMETHOD_(UINT, GetAdapterModeCount)(THIS_ UINT Adapter,D3DFORMAT Format) PURE;
@@ -2067,6 +2070,7 @@ typedef struct IDirect3D9Ex *LPDIRECT3D9EX, *PDIRECT3D9EX;
 #define IDirect3D9Ex_QueryInterface(p,a,b) (p)->lpVtbl->QueryInterface(p,a,b)
 #define IDirect3D9Ex_AddRef(p) (p)->lpVtbl->AddRef(p)
 #define IDirect3D9Ex_Release(p) (p)->lpVtbl->Release(p)
+#define IDirect3D9Ex_RegisterSoftwareDevice(p,a) (p)->lpVtbl->RegisterSoftwareDevice(p,a)
 #define IDirect3D9Ex_GetAdapterCount(p) (p)->lpVtbl->GetAdapterCount(p)
 #define IDirect3D9Ex_GetAdapterIdentifier(p,a,b,c) (p)->lpVtbl->GetAdapterIdentifier(p,a,b,c)
 #define IDirect3D9Ex_GetAdapterModeCount(p,a,b) (p)->lpVtbl->GetAdapterModeCount(p,a,b)
@@ -2089,6 +2093,7 @@ typedef struct IDirect3D9Ex *LPDIRECT3D9EX, *PDIRECT3D9EX;
 #define IDirect3D9Ex_QueryInterface(p,a,b) (p)->QueryInterface(a,b)
 #define IDirect3D9Ex_AddRef(p) (p)->AddRef()
 #define IDirect3D9Ex_Release(p) (p)->Release()
+#define IDirect3D9Ex_RegisterSoftwareDevice(p,a) (p)->RegisterSoftwareDevice(a)
 #define IDirect3D9Ex_GetAdapterCount(p) (p)->GetAdapterCount()
 #define IDirect3D9Ex_GetAdapterIdentifier(p,a,b,c) (p)->GetAdapterIdentifier(a,b,c)
 #define IDirect3D9Ex_GetAdapterModeCount(p,a,b) (p)->GetAdapterModeCount(a,b)
@@ -2785,6 +2790,9 @@ typedef struct IDirect3DCryptoSession9 *LPDIRECT3DCRYPTOSESSION9, *PDIRECT3DCRYP
 #ifdef __cplusplus
 };
 #endif
+
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#pragma endregion
 
 #endif /* (DIRECT3D_VERSION >= 0x0900) */
 #endif /* _D3D_H_ */

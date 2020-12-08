@@ -10,6 +10,8 @@
 #ifndef _d3d9TYPES_H_
 #define _d3d9TYPES_H_
 
+#include <winapifamily.h>
+
 #ifndef DIRECT3D_VERSION
 #define DIRECT3D_VERSION         0x0900
 #endif  //DIRECT3D_VERSION
@@ -26,6 +28,9 @@
 #if defined(_X86_) || defined(_IA64_)
 #pragma pack(4)
 #endif
+
+#pragma region Desktop Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 // D3DCOLOR is equivalent to D3DFMT_A8R8G8B8
 #ifndef D3DCOLOR_DEFINED
@@ -76,6 +81,12 @@ typedef struct _D3DRECT {
 #define D3DRECT_DEFINED
 #endif
 
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#pragma endregion
+
+#pragma region App Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+
 #ifndef D3DMATRIX_DEFINED
 typedef struct _D3DMATRIX {
     union {
@@ -91,6 +102,12 @@ typedef struct _D3DMATRIX {
 } D3DMATRIX;
 #define D3DMATRIX_DEFINED
 #endif
+
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) */
+#pragma endregion
+
+#pragma region Desktop Family
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 typedef struct _D3DVIEWPORT9 {
     DWORD       X;
@@ -1164,6 +1181,24 @@ typedef enum _D3DSHADER_PARAM_SRCMOD_TYPE
     D3DSPSM_FORCE_DWORD = 0x7fffffff,        // force 32-bit size enum
 } D3DSHADER_PARAM_SRCMOD_TYPE;
 
+// Source or dest token bits [15:14]:
+// destination parameter modifiers
+#define D3DSP_MIN_PRECISION_SHIFT      14
+#define D3DSP_MIN_PRECISION_MASK       0x0000C000
+
+typedef enum _D3DSHADER_MIN_PRECISION
+{
+    D3DMP_DEFAULT   = 0, // Default precision for the shader model
+    D3DMP_16        = 1, // 16 bit per component
+    D3DMP_2_8       = 2, // 10 bits (2.8) per component
+} D3DSHADER_MIN_PRECISION;
+// If the older D3DSPDM_PARTIALPRECISION is set,
+// that is equivalent to the whole operation specifying
+// D3DMP_16 (on all operands).  The two encodings are not 
+// used together however.
+
+
+
 // pixel shader version token
 #define D3DPS_VERSION(_Major,_Minor) (0xFFFF0000|((_Major)<<8)|(_Minor))
 
@@ -1623,6 +1658,8 @@ typedef enum _D3DRESOURCETYPE {
 
 #endif // !D3D_DISABLE_9EX
 /* -- D3D9Ex only */
+
+
 
 
 
@@ -2400,7 +2437,6 @@ typedef struct _D3DAES_CTR_IV
 } D3DAES_CTR_IV;
 
 
-
 #endif // !D3D_DISABLE_9EX
 /* -- D3D9Ex only */
 
@@ -2410,6 +2446,9 @@ typedef struct _D3DAES_CTR_IV
 #else
 #pragma warning(default:4201)
 #endif
+
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#pragma endregion
 
 #endif /* (DIRECT3D_VERSION >= 0x0900) */
 #endif /* _d3d9TYPES(P)_H_ */

@@ -461,6 +461,7 @@ typedef enum DXC_OUT_KIND {
   DXC_OUT_TEXT = 7,           // IDxcBlobUtf8 or IDxcBlobUtf16 - other text, such as -ast-dump or -Odump
   DXC_OUT_REFLECTION = 8,     // IDxcBlob - RDAT part with reflection data
   DXC_OUT_ROOT_SIGNATURE = 9, // IDxcBlob - Serialized root signature output
+  DXC_OUT_EXTRA_OUTPUTS  = 10,// IDxcExtraResults - Extra outputs
 
   DXC_OUT_FORCE_DWORD = 0xFFFFFFFF
 } DXC_OUT_KIND;
@@ -477,6 +478,22 @@ IDxcResult : public IDxcOperationResult {
   virtual DXC_OUT_KIND PrimaryOutput() = 0;
 
   DECLARE_CROSS_PLATFORM_UUIDOF(IDxcResult)
+};
+
+// Special names for extra output that should get written to specific streams
+#define DXC_EXTRA_OUTPUT_NAME_STDOUT L"*stdout*"
+#define DXC_EXTRA_OUTPUT_NAME_STDERR L"*stderr*"
+
+struct __declspec(uuid("319b37a2-a5c2-494a-a5de-4801b2faf989"))
+IDxcExtraOutputs : public IUnknown {
+
+  virtual UINT32 STDMETHODCALLTYPE GetOutputCount() = 0;
+  virtual HRESULT STDMETHODCALLTYPE GetOutput(_In_ UINT32 uIndex,
+    _In_ REFIID iid, _COM_Outptr_opt_result_maybenull_ void **ppvObject,
+    _COM_Outptr_opt_result_maybenull_ IDxcBlobUtf16 **ppOutputType,
+    _COM_Outptr_opt_result_maybenull_ IDxcBlobUtf16 **ppOutputName) = 0;
+
+  DECLARE_CROSS_PLATFORM_UUIDOF(IDxcExtraOutputs)
 };
 
 struct __declspec(uuid("228B4687-5A6A-4730-900C-9702B2203F54"))
@@ -540,10 +557,6 @@ IDxcAssembler : public IUnknown {
 
   DECLARE_CROSS_PLATFORM_UUIDOF(IDxcAssembler)
 };
-
-// D3D_SIT_RTACCELERATIONSTRUCTURE is an additional value for D3D_SHADER_INPUT_TYPE,
-// in order to fit it in to ID3D12LibraryReflection.
-static const UINT32 D3D_SIT_RTACCELERATIONSTRUCTURE = 12; // (D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER + 1)
 
 struct __declspec(uuid("d2c21b26-8350-4bdc-976a-331ce6f4c54c"))
 IDxcContainerReflection : public IUnknown {

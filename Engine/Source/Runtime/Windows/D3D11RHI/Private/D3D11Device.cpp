@@ -410,47 +410,6 @@ uint32 FD3D11DynamicRHI::GetMaxMSAAQuality(uint32 SampleCount)
 
 static bool GFormatSupportsTypedUAVLoad[PF_MAX];
 
-// The D3D11 header is not recent enough to check support for this
-static const D3D11_FEATURE D3D11_FEATURE_D3D11_OPTIONS2 = (D3D11_FEATURE)14;
-static const D3D11_FEATURE D3D11_FEATURE_D3D11_OPTIONS3 = (D3D11_FEATURE)15;
-
-#if !PLATFORM_HOLOLENS
-
-typedef enum D3D11_CONSERVATIVE_RASTERIZATION_TIER
-{
-	D3D11_CONSERVATIVE_RASTERIZATION_NOT_SUPPORTED = 0,
-	D3D11_CONSERVATIVE_RASTERIZATION_TIER_1 = 1,
-	D3D11_CONSERVATIVE_RASTERIZATION_TIER_2 = 2,
-	D3D11_CONSERVATIVE_RASTERIZATION_TIER_3 = 3
-} D3D11_CONSERVATIVE_RASTERIZATION_TIER;
-
-typedef enum D3D11_TILED_RESOURCES_TIER
-{
-	D3D11_TILED_RESOURCES_NOT_SUPPORTED = 0,
-	D3D11_TILED_RESOURCES_TIER_1 = 1,
-	D3D11_TILED_RESOURCES_TIER_2 = 2,
-	D3D11_TILED_RESOURCES_TIER_3 = 3
-} D3D11_TILED_RESOURCES_TIER;
-
-typedef struct D3D11_FEATURE_DATA_D3D11_OPTIONS2
-{
-	BOOL PSSpecifiedStencilRefSupported;
-	BOOL TypedUAVLoadAdditionalFormats;
-	BOOL ROVsSupported;
-	D3D11_CONSERVATIVE_RASTERIZATION_TIER ConservativeRasterizationTier;
-	D3D11_TILED_RESOURCES_TIER TiledResourcesTier;
-	BOOL MapOnDefaultTextures;
-	BOOL StandardSwizzle;
-	BOOL UnifiedMemoryArchitecture;
-} D3D11_FEATURE_DATA_D3D11_OPTIONS2;
-
-typedef struct D3D11_FEATURE_DATA_D3D11_OPTIONS3
-{
-	BOOL VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;
-} D3D11_FEATURE_DATA_D3D11_OPTIONS3;
-
-#endif
-
 void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 {
 	// without that the first RHIClear would get a scissor rect of (0,0)-(0,0) which means we get a draw call clear 
