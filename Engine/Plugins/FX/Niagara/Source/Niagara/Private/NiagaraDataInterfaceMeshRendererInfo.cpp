@@ -270,11 +270,9 @@ void FNDIMeshRendererInfo::Release(UNiagaraMeshRendererProperties& Renderer, FND
 				}
 			);
 		}
-		else
-		{
-			Info = nullptr;
-		}
 	}
+
+	Info = nullptr;
 }
 
 void FNDIMeshRendererInfo::ResetMeshData(const UNiagaraMeshRendererProperties& Renderer, FMeshDataArray& OutMeshData)
@@ -566,7 +564,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::CopyToInternal(UNiagaraDataInterface
 
 void UNiagaraDataInterfaceMeshRendererInfo::PushToRenderThreadImpl()
 {
-	if (MeshRenderer && Info.IsValid())
+	if (MeshRenderer)
 	{
 		auto TypedProxy = GetProxyAs<FNDIMeshRendererInfoProxy>();
 		ENQUEUE_RENDER_COMMAND(FDIMeshRendererInfoPushToRT)
