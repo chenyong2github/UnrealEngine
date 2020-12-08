@@ -737,12 +737,12 @@ FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 		check(Size >= CreateInfo.ResourceArray->GetResourceDataSize());
 
 		// make a buffer usable by CPU
-		void* Buffer = ::RHILockVertexBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
+		void* Buffer = ::RHILockBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
 		
 		// copy the contents of the given data into the buffer
 		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
 		
-		::RHIUnlockVertexBuffer(VertexBuffer);
+		::RHIUnlockBuffer(VertexBuffer);
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
@@ -776,22 +776,22 @@ FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 	}
 }
 
-void* FMetalDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FMetalDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	@autoreleasepool {
-	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FMetalResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 
-	// default to vertex buffer memory
-	return (uint8*)VertexBuffer->Lock(true, LockMode, Offset, Size);
+	// default to buffer memory
+	return (uint8*)Buffer->Lock(true, LockMode, Offset, Size);
 	}
 }
 
-void FMetalDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
+void FMetalDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
 {
 	@autoreleasepool {
-	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FMetalResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 
-	VertexBuffer->Unlock();
+	Buffer->Unlock();
 	}
 }
 

@@ -24,17 +24,3 @@ FStructuredBufferRHIRef FOpenGLDynamicRHI::RHICreateStructuredBuffer(uint32 Stri
 	TRefCountPtr<FOpenGLBuffer> StructuredBuffer = new FOpenGLBuffer(GL_ARRAY_BUFFER, Stride, Size, InUsage | BUF_StructuredBuffer, Data);
 	return StructuredBuffer.GetReference();
 }
-
-void* FOpenGLDynamicRHI::LockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
-	return StructuredBuffer->Lock(Offset, Size, LockMode == RLM_ReadOnly, StructuredBuffer->IsDynamic());
-}
-
-void FOpenGLDynamicRHI::UnlockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
-{
-	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
-	StructuredBuffer->Unlock();
-}

@@ -59,18 +59,6 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 	return Buffer;
 }
 
-void* FD3D12DynamicRHI::RHILockVertexBuffer(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
-	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
-}
-
-void FD3D12DynamicRHI::RHIUnlockVertexBuffer(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
-	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
-}
-
 FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {	
 	if (CreateInfo.bWithoutNativeResource)

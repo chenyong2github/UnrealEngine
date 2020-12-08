@@ -39,12 +39,12 @@ FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 		check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
 
 		// make a buffer usable by CPU
-		void* Buffer = ::RHILockIndexBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
+		void* Buffer = ::RHILockBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
 
 		// copy the contents of the given data into the buffer
 		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
 
-		::RHIUnlockIndexBuffer(IndexBuffer);
+		::RHIUnlockBuffer(IndexBuffer);
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
@@ -69,24 +69,6 @@ void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 		FMetalResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
 		Dest->Swap(*Src);
 	}
-	}
-}
-
-void* FMetalDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	@autoreleasepool {
-	FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-
-	return (uint8*)IndexBuffer->Lock(true, LockMode, Offset, Size);
-	}
-}
-
-void FMetalDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
-{
-	@autoreleasepool {
-	FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-
-	IndexBuffer->Unlock();
 	}
 }
 

@@ -52,33 +52,6 @@ FIndexBufferRHIRef FD3D12DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 	return Buffer;
 }
 
-void* FD3D12DynamicRHI::RHILockIndexBuffer(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
-	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
-}
-
-void FD3D12DynamicRHI::RHIUnlockIndexBuffer(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
-	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
-}
-
-void FD3D12DynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
-{
-	check(DestBuffer);
-	FD3D12Buffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
-	{
-		Dest->ReleaseUnderlyingResource();
-	}
-	else
-	{
-		FD3D12Buffer* Src = ResourceCast(SrcBuffer);
-		Dest->Swap(*Src);
-	}
-}
-
 FIndexBufferRHIRef FD3D12DynamicRHI::CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bWithoutNativeResource)

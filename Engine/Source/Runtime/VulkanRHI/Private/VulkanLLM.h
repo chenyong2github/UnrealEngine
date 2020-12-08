@@ -23,8 +23,7 @@ enum class ELLMTagVulkan : LLM_TAG_TYPE
 {
 	VulkanMisc = (LLM_TAG_TYPE)ELLMTag::PlatformTagStart,
 	VulkanUniformBuffers,
-	VulkanIndexBuffers,
-	VulkanVertexBuffers,
+	VulkanBuffers,
 	VulkanTextures,
 	VulkanRenderTargets,
 	VulkanSpareMemoryGPU,

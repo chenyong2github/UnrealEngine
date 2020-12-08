@@ -415,7 +415,7 @@ void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 
 FIndexBufferRHIRef FVulkanDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanIndexBuffers);
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
 	if (CreateInfo.bWithoutNativeResource)
 	{
 		return new FVulkanResourceMultiBuffer(nullptr, 0, 0, 0, 0, CreateInfo);
@@ -423,29 +423,29 @@ FIndexBufferRHIRef FVulkanDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32
 	return new FVulkanResourceMultiBuffer(Device, 0, Size, InUsage | BUF_IndexBuffer, Stride, CreateInfo);
 }
 
-void* FVulkanDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FVulkanDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-	return IndexBuffer->Lock(false, LockMode, Size, Offset);
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
+	FVulkanResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
+	return Buffer->Lock(false, LockMode, Size, Offset);
+}
+
+void FVulkanDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
+{
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
+	FVulkanResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
+	Buffer->Unlock(false);
 }
 
 #if VULKAN_BUFFER_LOCK_THREADSAFE
-void* FVulkanDynamicRHI::LockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FVulkanDynamicRHI::LockBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
-	return this->RHILockIndexBuffer(IndexBufferRHI, Offset, SizeRHI, LockMode);
-}
-#endif
-
-void FVulkanDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
-{
-	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-	IndexBuffer->Unlock(false);
+	return this->RHILockBuffer(BufferRHI, Offset, SizeRHI, LockMode);
 }
 
-#if VULKAN_BUFFER_LOCK_THREADSAFE
-void FVulkanDynamicRHI::UnlockIndexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
+void FVulkanDynamicRHI::UnlockBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
 {
-	this->RHIUnlockIndexBuffer(IndexBufferRHI);
+	this->RHIUnlockBuffer(BufferRHI);
 }
 #endif
 

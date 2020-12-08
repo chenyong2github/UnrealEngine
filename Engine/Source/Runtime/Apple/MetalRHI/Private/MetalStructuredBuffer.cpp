@@ -18,24 +18,6 @@ FStructuredBufferRHIRef FMetalDynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 	}
 }
 
-void* FMetalDynamicRHI::LockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	@autoreleasepool {
-	FMetalStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
-	
-	// just return the memory plus the offset
-	return (uint8*)StructuredBuffer->Lock(true, LockMode, Offset, Size);
-	}
-}
-
-void FMetalDynamicRHI::UnlockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
-{
-	@autoreleasepool {
-	FMetalStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
-	StructuredBuffer->Unlock();
-	}
-}
-
 FStructuredBufferRHIRef FMetalDynamicRHI::CreateStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
