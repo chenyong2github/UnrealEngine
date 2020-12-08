@@ -129,6 +129,7 @@ struct CORE_API FHoloLensPlatformMemory : public FGenericPlatformMemory
 
 	static FSharedMemoryRegion* MapNamedSharedMemoryRegion(const FString& InName, bool bCreate, uint32 AccessMode, SIZE_T Size);
 	static bool UnmapNamedSharedMemoryRegion(FSharedMemoryRegion * MemoryRegion);
+	static bool GetLLMAllocFunctions(void* (*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
 protected:
 	friend struct FGenericStatsUpdater;
 
