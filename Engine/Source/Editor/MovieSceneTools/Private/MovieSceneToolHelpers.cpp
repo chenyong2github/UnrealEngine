@@ -76,6 +76,7 @@
 #include "INodeAndChannelMappings.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 /* FSkelMeshRecorder
  ***********/
