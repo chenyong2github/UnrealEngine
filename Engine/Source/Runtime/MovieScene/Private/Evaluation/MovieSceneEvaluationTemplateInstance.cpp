@@ -58,7 +58,13 @@ UMovieSceneEntitySystemLinker* FMovieSceneRootEvaluationTemplateInstance::Constr
 
 void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& InRootSequence, IMovieScenePlayer& Player, UMovieSceneCompiledDataManager* InCompiledDataManager)
 {
-	bool bReinitialize = (WeakRootSequence.Get() == nullptr);
+	bool bReinitialize = (
+			// Initialize if we weren't initialized before and this is our first sequence.
+			WeakRootSequence.Get() == nullptr ||
+			// Initialize if we lost our linker.
+			EntitySystemLinker == nullptr ||
+			// Initialize if our linker was reset and forced our runner to detach.
+			!EntitySystemRunner.IsAttachedToLinker());
 
 	const UMovieSceneCompiledDataManager* PreviousCompiledDataManager = CompiledDataManager;
 	if (InCompiledDataManager)
