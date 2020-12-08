@@ -1417,6 +1417,9 @@ namespace UsdShadeConversionImpl
 
 		FScopedUsdAllocs UsdAllocs;
 
+		FString InputName = UsdToUnreal::ConvertToken( ShadeInput.GetBaseName() );
+		InOutHashState.UpdateWithString( *InputName, InputName.Len() );
+
 		FString InputTypeName = UsdToUnreal::ConvertToken(ShadeInput.GetTypeName().GetAsToken());
 		InOutHashState.UpdateWithString( *InputTypeName, InputTypeName.Len() );
 
