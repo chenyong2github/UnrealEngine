@@ -51,6 +51,18 @@ public:
 
 	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override;
 
+	bool HasOriginatedFrom(const TSharedPtr<FWidgetBlueprintEditor>& BlueprintEditor)
+	{
+		for (const FItem& Item : DraggedWidgets)
+		{
+			if (Item.Widget.WidgetEditor.Pin() != BlueprintEditor)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	struct FItem
 	{
 		/** The slot properties for the old slot the widget was in, is used to attempt to reapply the same layout information */
@@ -137,6 +149,15 @@ void FHierarchyWidgetDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEven
 TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, bool bIsDrop, TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor, FWidgetReference TargetItem, TOptional<int32> Index = TOptional<int32>())
 {
 	UWidget* TargetTemplate = TargetItem.GetTemplate();
+
+
+	if (TSharedPtr<FHierarchyWidgetDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FHierarchyWidgetDragDropOp>())
+	{
+		if (!HierarchyDragDropOp->HasOriginatedFrom(BlueprintEditor))
+		{
+			return TOptional<EItemDropZone>();
+		}
+	}
 
 	if ( TargetTemplate && ( DropZone == EItemDropZone::AboveItem || DropZone == EItemDropZone::BelowItem ) )
 	{
@@ -1130,9 +1151,8 @@ FSlateFontInfo FHierarchyWidget::GetFont() const
 
 TOptional<EItemDropZone> FHierarchyWidget::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
 	bool bIsFreeFromCircularReferences = true;
-	if (TemplateDragDropOp.IsValid())
+	if (TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>())
 	{
 		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 		if(Blueprint)

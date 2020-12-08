@@ -25,7 +25,8 @@ private:
  */
 struct UMGEDITOR_API FWidgetReference
 {
-	friend FWidgetBlueprintEditor;
+	friend class FWidgetBlueprintEditor;
+	friend class FHierarchyWidgetDragDropOp;
 
 public:
 	FWidgetReference();
