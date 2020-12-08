@@ -194,6 +194,7 @@ public:
 
 	//Begin UObject Interface
 	virtual void PostLoad() override;
+	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
