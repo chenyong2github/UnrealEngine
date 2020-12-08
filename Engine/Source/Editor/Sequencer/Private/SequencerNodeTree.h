@@ -304,6 +304,8 @@ private:
 	/** Symbolic root node that contains the actual displayed root nodes as children */
 	TSharedRef<FSequencerDisplayNode> RootNode;
 
+	TSharedRef<FSequencerDisplayNode> BottomSpacerNode;
+
 	/** A serially incrementing integer that is increased each time the tree is refreshed to track node relevance */
 	uint32 SerialNumber;
 	/** Map from FMovieSceneBinding::GetObjectGuid to display node */

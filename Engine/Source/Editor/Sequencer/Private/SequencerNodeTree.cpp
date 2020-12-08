@@ -26,6 +26,47 @@
 #include "SequencerLog.h"
 #include "SequencerCommonHelpers.h"
 
+
+/**
+ * A spacer node that is unselectable
+ */
+class FSequencerSpacerNode : public FSequencerDisplayNode
+{
+public:
+
+	/**
+	 * Create and initialize a new instance.
+	 * 
+	 * @param InParentTree The tree this node is in.
+	 */
+	FSequencerSpacerNode(float InSize, int32 InSortingOrder, FSequencerNodeTree& InParentTree)
+		: FSequencerDisplayNode(NAME_None, InParentTree)
+		, Size(InSize)
+		, SortingOrder(InSortingOrder)
+	{ }
+
+public:
+
+	// FSequencerDisplayNode interface
+	virtual bool CanRenameNode() const override { return false; }
+	virtual int32 GetSortingOrder() const override { return SortingOrder; }
+	virtual FText GetDisplayName() const override { return FText(); }
+	virtual float GetNodeHeight() const override { return Size; }
+	virtual FNodePadding GetNodePadding() const override { return FNodePadding(0.f); }
+	virtual ESequencerNode::Type GetType() const override { return ESequencerNode::Object; }
+	virtual void SetDisplayName(const FText& NewDisplayName) override { }
+	virtual TSharedRef<SWidget> GenerateContainerWidgetForOutliner(const TSharedRef<SSequencerTreeViewRow>& InRow) override { return SNew(SBox).HeightOverride(Size); }
+	virtual bool IsSelectable() const override { return false; }
+
+private:
+
+	/** The size of the spacer */
+	float Size;
+
+	/** The sorting order for the spacer */
+	int32 SortingOrder;
+};
+
 FSequencerNodeTree::~FSequencerNodeTree()
 {
 	if (TrackFilters.IsValid())
@@ -41,6 +82,7 @@ FSequencerNodeTree::~FSequencerNodeTree()
 
 FSequencerNodeTree::FSequencerNodeTree(FSequencer& InSequencer)
 	: RootNode(MakeShared<FSequencerRootNode>(*this))
+	, BottomSpacerNode(MakeShared<FSequencerSpacerNode>(30.f, INT_MAX, *this))
 	, SerialNumber(0)
 	, Sequencer(InSequencer)
 	, bFilterUpdateRequested(false)
@@ -195,6 +237,8 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 	// @todo sequencer: Newly added sections may need to be visible even when there is a filter
 	bFilterUpdateRequested = true;
 	UpdateFilters();
+
+	BottomSpacerNode->SetParent(RootNode);
 }
 
 TSharedPtr<FSequencerTrackNode> FSequencerNodeTree::CreateOrUpdateTrack(UMovieSceneTrack* Track, ETrackType TrackType)
