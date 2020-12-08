@@ -25,7 +25,7 @@ FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)
 	Parameters.GBufferCTexture = GetIfProduced(SceneTextures.GBufferC);
 	Parameters.GBufferDTexture = GetIfProduced(SceneTextures.GBufferD);
 	Parameters.GBufferETexture = GetIfProduced(SceneTextures.GBufferE);
-	Parameters.GBufferFTexture = GetIfProduced(SceneTextures.GBufferF, SystemTextures.Black);
+	Parameters.GBufferFTexture = GetIfProduced(SceneTextures.GBufferF, SystemTextures.MidGrey);
 
 	return Parameters;
 }

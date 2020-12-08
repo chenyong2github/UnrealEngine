@@ -1853,7 +1853,7 @@ void SetupSceneTextureUniformParameters(
 	SceneTextureParameters.GBufferCTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferDTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferETexture = SystemTextures.Black;
-	SceneTextureParameters.GBufferFTexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferFTexture = SystemTextures.MidGrey;
 	SceneTextureParameters.GBufferVelocityTexture = SystemTextures.Black;
 	SceneTextureParameters.ScreenSpaceAOTexture = GetScreenSpaceAOFallback(SystemTextures);
 
