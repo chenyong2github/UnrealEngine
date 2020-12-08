@@ -261,6 +261,35 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 }
 
 
+void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FName ClockName)
+{
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
+	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	if (!ClockManager)
+	{
+		return;
+	}
+
+	ClockManager->RemoveClock(ClockName);
+}
+
+void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQuartzClockHandle*& InClockHandle)
+{
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
+	if (InClockHandle)
+	{
+		DeleteClockByName(WorldContextObject, InClockHandle->GetClockName());
+	}
+}
+
 UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldContextObject, FName ClockName)
 {
 	if (DisableQuartzCvar)
