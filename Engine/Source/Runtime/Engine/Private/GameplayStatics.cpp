@@ -976,6 +976,33 @@ void UGameplayStatics::GetAllActorsOfClassWithTag(const UObject* WorldContextObj
 	}
 }
 
+AActor* UGameplayStatics::FindNearestActor(FVector Origin, const TArray<AActor*>& ActorsToCheck, float& Distance)
+{
+	AActor* NearestActor = nullptr;
+	float DistanceFromNearestActor = Distance = TNumericLimits<float>::Max();
+
+	for (AActor* ActorToCheck : ActorsToCheck)
+	{
+		if (ActorToCheck)
+		{
+			const float DistanceFromActorToCheck = (Origin - ActorToCheck->GetActorLocation()).SizeSquared();
+			if (DistanceFromActorToCheck < DistanceFromNearestActor)
+			{
+				NearestActor = ActorToCheck;
+				DistanceFromNearestActor = DistanceFromActorToCheck;
+			}
+		}
+	}
+
+	if (NearestActor)
+	{
+		Distance = FMath::Sqrt(DistanceFromNearestActor);
+	}
+
+	return NearestActor;
+}
+
+
 void UGameplayStatics::PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
