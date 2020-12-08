@@ -1858,6 +1858,9 @@ void FControlRigEditor::Tick(float DeltaTime)
 			ControlRig != nullptr && 
 			bExecutionControlRig)
 		{
+			// reset transforms here to prevent additive transforms from accumulating to INF
+			ControlRig->GetBoneHierarchy().ResetTransforms();
+			
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();
 			bDrawHierarchyBones = true;
