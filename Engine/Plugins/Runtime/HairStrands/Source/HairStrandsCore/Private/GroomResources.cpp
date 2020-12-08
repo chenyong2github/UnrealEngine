@@ -235,6 +235,24 @@ static UTexture2D* CreateCardTexture(FIntPoint Resolution)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
+void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount)
+{
+	if (VertexCount == 0 || !DebugAttributeBuffer)
+		return;
+
+	FRDGExternalBuffer* LocalAttributeBuffer = DebugAttributeBuffer;
+	ENQUEUE_RENDER_COMMAND(FHairStrandsCreateDebugAttributeBuffer)(
+	[LocalAttributeBuffer, VertexCount](FRHICommandListImmediate& RHICmdList)
+	{
+		if (GUsingNullRHI) { return; }
+		FMemMark Mark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+		InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, VertexCount, *LocalAttributeBuffer, TEXT("HairStrands_DebugAttributeBuffer"));
+		GraphBuilder.Execute();
+	});
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
 
 void FHairCardIndexBuffer::InitRHI()
 {
