@@ -1576,12 +1576,132 @@ namespace ChaosTest
 		
 	}
 
+	// Check that GJKPenetrationCore returns the correct result when two objects are within various distances
+	//of each other. When distance is less that GJKEpsilon, GJK will abort and call into EPA.
+	void GJKBoxBoxSeparationTest(FReal GJKEpsilon, FReal SeparationSize, int32 SeparationAxis)
+	{
+		const FReal Margin = 0.0f;
+
+		FVec3 SeparationDir = FVec3(0);
+		SeparationDir[SeparationAxis] = 1.0f;
+		FVec3 Separation = SeparationSize * SeparationDir;
+
+		// Extents covering both boxes - we will split this in the middle using the separation axis
+		FVec3 MinExtent = FVec3(-100, -100, -100);
+		FVec3 MaxExtent = FVec3(100, 100, 100);
+
+		// A is most positive along separation axis and shifted by SeperationSize (e.g., the top is axis is Z)
+		FVec3 MinA = MinExtent;
+		FVec3 MaxA = MaxExtent;
+		MinA[SeparationAxis] = SeparationSize;
+		MaxA[SeparationAxis] = 100.0f + SeparationSize;
+
+		// B is most negative along separation axis and shifted by SeperationSize (e.g., the bottom if axis is Z)
+		FVec3 MinB = MinExtent;
+		FVec3 MaxB = MaxExtent;
+		MaxB[SeparationAxis] = 0.0f;
+
+		// Create the shapes
+		FAABB3 ShapeA(MinA, MaxA);
+		FAABB3 ShapeB(MinB, MaxB);
+		const FRigidTransform3 TransformA = FRigidTransform3::Identity;
+		const FRigidTransform3 TransformB = FRigidTransform3::Identity;
+		const FRigidTransform3 TransformBtoA = FRigidTransform3::Identity;
+		const FReal ThicknessA = Margin;
+		const FReal ThicknessB = Margin;
+
+		// Run GJK/EPA
+		FReal Penetration;
+		FVec3 ClosestA, ClosestBInA, Normal;
+		int32 ClosestVertexIndexA, ClosestVertexIndexB;
+		bool bSuccess = GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1, 0, 0), GJKEpsilon);
+		EXPECT_TRUE(bSuccess);
+
+		// Convert the contact data to world-space (not really necessary here)
+		const FVec3 ResultLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
+		const FVec3 ResultNormal = -TransformA.TransformVectorNoScale(Normal);
+		const FReal ResultPhi = -Penetration;
+
+		const FReal ExpectedLocationI = SeparationSize;
+		const FReal ExpectedNormalI = 1.0f;
+		const FReal ExpectedPhi = SeparationSize;
+
+		EXPECT_NEAR(ResultLocation[SeparationAxis], ExpectedLocationI, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+		EXPECT_NEAR(ResultNormal[SeparationAxis], ExpectedNormalI, 1.e-4f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+		EXPECT_NEAR(ResultPhi, ExpectedPhi, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+	}
+
+	const FReal BoxBoxGJKDistances[] =
+	{
+		1.0f,
+		1.0f / 2.0f,
+		1.0f / 4.0f,
+		1.0f / 8.0f,
+		1.0f / 16.0f,
+		1.0f / 32.0f,
+		1.0f / 64.0f,
+		1.0f / 128.0f,
+		1.0f / 256.0f,
+		1.0f / 512.0f,
+		1.0f / 1024.0f,
+		1.0f / 2048.0f,
+		1.0f / 4096.0f,
+		1.0f / 8192.0f,
+		1.0f / 16384.0f,
+		1.0f / 32768.0f,
+		1.e-4f,
+		1.e-5f,
+		1.e-6f,
+		1.e-7f,
+		1.e-8f,
+		0.0f,
+	};
+	const int32 NumBoxBoxGJKDistances = UE_ARRAY_COUNT(BoxBoxGJKDistances);
+
+	// TEMP some tests that are failing from below - only here for easier debugging
+	GTEST_TEST(GJKTests, TestGJKBoxBoxTestFails)
+	{
+		const FReal Epsilon = 1.e-3f;
+
+		GJKBoxBoxSeparationTest(Epsilon, -BoxBoxGJKDistances[3], 0);
+	}
+
+
+	GTEST_TEST(GJKTests, TestGJKBoxBoxPositiveSeparation)
+	{
+		const FReal Epsilon = 1.e-3f;
+
+		for (int32 DistanceIndex = 0; DistanceIndex < NumBoxBoxGJKDistances; ++DistanceIndex)
+		{
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+			{
+				GJKBoxBoxSeparationTest(Epsilon, BoxBoxGJKDistances[DistanceIndex], AxisIndex);
+			}
+		}
+	}
+
+	GTEST_TEST(GJKTests, TestGJKBoxBoxNegativeSeparation)
+	{
+		const FReal Epsilon = 1.e-3f;
+
+		for (int32 DistanceIndex = 0; DistanceIndex < NumBoxBoxGJKDistances; ++DistanceIndex)
+		{
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+			{
+				GJKBoxBoxSeparationTest(Epsilon, -BoxBoxGJKDistances[DistanceIndex], AxisIndex);
+			}
+		}
+	}
 
 	// Two convex shapes, Shape A on top of Shape B and almost touching. ShapeA is rotated 90 degrees about Z.
 	// Check that the contact point lies between Shape A and Shape B with a near zero Phi.
 	// This reproduces a bug where GJKPenetrationCore returns points on top of A and at the bottom
 	// of B, with a Phi equal to the separation of those points. Resolving this contact
 	// would result in Shape B popping to the top of Shape A.
+	//
+	// The problem was in EPA where the possible set of simplex faces are added to the queue. Here it checks
+	// to see if the origin projects to within the face, since if it does not, it cannot the face that is nearest
+	// to the origin. However, without a tolerance, this could reject valid faces.
 	void GJKConvexConvexEPABoundaryCondition()
 	{
 		// These verts are those from a rectangular box with bevelled edges
@@ -1619,25 +1739,29 @@ namespace ChaosTest
 		TUniquePtr<FImplicitConvex3> CoreConvexShapePtr = MakeUnique<FImplicitConvex3>(CoreShapeParticles, 0.0f);
 		const TImplicitObjectScaled<FImplicitConvex3> ShapeA(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
 		const TImplicitObjectScaled<FImplicitConvex3> ShapeB(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
-		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));
-		const FRigidTransform3 TransformB(FVec3(0.000000000f, 0.000000000f, 107.378944f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.000000000f, 1.00000000f));
+		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));	// Top
+		const FRigidTransform3 TransformB(FVec3(0.000000000f, 0.000000000f, 107.378944f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.000000000f, 1.00000000f));		// Bottom
 
 		const FRigidTransform3 TransformBtoA = TransformB.GetRelativeTransform(TransformA);
 
 		FReal Penetration;
 		FVec3 ClosestA, ClosestBInA, Normal;
 		int32 ClosestVertexIndexA, ClosestVertexIndexB;
-		const FReal EpsilonSq = 1.e-5f;
+		const FReal Epsilon = 3.e-3f;
 
 		const FReal ThicknessA = ShapeA.GetMargin();
 		const FReal ThicknessB = ShapeB.GetMargin();
 
-		GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1,0,0), EpsilonSq);
+		GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1,0,0), Epsilon);
 
 		const FVec3 ContactLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
 		const FVec3 ContactNormal = -TransformA.TransformVectorNoScale(Normal);
 		const FReal ContactPhi = -Penetration;
 
+		// Contact should be on bottom of A
+		// Normal should point upwars (from B to A)
+		// const FReal PreviousIncorrectLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Max().Z;
+		// const FReal PreviousIncorrectNormalZ = -1.0f;
 		const FReal ExpectedContactLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z;
 		const FReal ExpectedContactNormalZ = 1.0f;
 		const FReal ExpectedContactPhi = (TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z) - (TransformB.GetTranslation().Z + ShapeB.BoundingBox().Max().Z);

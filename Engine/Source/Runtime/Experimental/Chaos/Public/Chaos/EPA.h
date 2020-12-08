@@ -351,6 +351,7 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 	OutDir = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
 	OutPenetration = OutDir.Size();
 
+	// @todo(chaos): pass in epsilon? Does it need to match anything in GJK?
 	if (OutPenetration < 1e-4)	//if closest point is on the origin (edge case when surface is right on the origin)
 	{
 		OutDir = Entry.PlaneNormal;	//just fall back on plane normal
@@ -408,6 +409,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	T UpperBound = TNumericLimits<T>::Max();
 	T LowerBound = TNumericLimits<T>::Lowest();
 
+	// @todo(chaos): pass in epsilon? Does it need to match anything in GJK?
 	constexpr T Eps = 1e-2;
 
 	TArray<TEPAEntry<T>> Entries;
