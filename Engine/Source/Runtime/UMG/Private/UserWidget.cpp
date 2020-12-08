@@ -549,7 +549,10 @@ void UUserWidget::StopAnimation(const UWidgetAnimation* InAnimation)
 void UUserWidget::StopAllAnimations()
 {
 	bStoppingAllAnimations = true;
-	for (UUMGSequencePlayer* FoundPlayer : ActiveSequencePlayers)
+	
+	// Stopping players modifies ActiveSequencePlayers, work on a copy aprray
+	TArray<UUMGSequencePlayer*, TInlineAllocator<8>> CurrentActivePlayers(ActiveSequencePlayers);
+	for (UUMGSequencePlayer* FoundPlayer : CurrentActivePlayers)
 	{
 		if (FoundPlayer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
