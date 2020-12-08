@@ -4155,6 +4155,18 @@ void FEngineLoop::Exit()
 
 	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 
+	if (FPreLoadScreenManager::Get())
+	{
+		// If we exit before the preload screen is done, clean it up before shutting down
+		if (FPreLoadScreenManager::Get()->HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
+		{
+			FPreLoadScreenManager::Get()->SetEngineLoadingComplete(true);
+			FPreLoadScreenManager::Get()->WaitForEngineLoadingScreenToFinish();
+		}
+
+		FPreLoadScreenManager::Destroy();
+	}
+
 	// shutdown visual logger and flush all data
 #if ENABLE_VISUAL_LOG
 	FVisualLogger::Get().Shutdown();
