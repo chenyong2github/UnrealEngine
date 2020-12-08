@@ -8,7 +8,7 @@
 #include "DataRegistrySource_CurveTable.generated.h"
 
 
-/** Data source that loads from a specific data table, which must have the same type as the registry */
+/** Data source that loads from a specific curve table asset */
 UCLASS(Meta = (DisplayName = "CurveTable Source"))
 class DATAREGISTRY_API UDataRegistrySource_CurveTable : public UDataRegistrySource
 {
@@ -77,7 +77,8 @@ protected:
 #endif
 };
 
-/** Meta source that will create UDataRegistrySource_CurveTable sources based on a directory scan */
+
+/** Meta source that will generate CurveTable sources at runtime based on a directory scan or asset registration */
 UCLASS(Meta = (DisplayName = "CurveTable Meta Source"))
 class DATAREGISTRY_API UMetaDataRegistrySource_CurveTable : public UMetaDataRegistrySource
 {

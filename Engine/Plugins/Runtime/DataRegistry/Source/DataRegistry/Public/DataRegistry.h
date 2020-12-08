@@ -10,7 +10,9 @@ struct FDataRegistryCache;
 struct FCachedDataRegistryItem;
 struct FRealCurve;
 
-/** Defines a specific type of data item, and stores cached data */
+/** 
+ * Defines a place to efficiently store and retrieve structure data, can be used as a wrapper around Data/Curve Tables or extended with other sources
+ */
 UCLASS()
 class DATAREGISTRY_API UDataRegistry : public UObject
 {
@@ -153,17 +155,17 @@ public:
 
 protected:
 
-	/** Structure to use for items in this registry */
-	UPROPERTY(EditDefaultsOnly, Category = DataRegistry, AssetRegistrySearchable, meta = (DisplayThumbnail = "false"))
-	const UScriptStruct* ItemStruct;
+	/** Globally unique name used to identify this registry */
+	UPROPERTY(EditDefaultsOnly, Category = DataRegistry, AssetRegistrySearchable)
+	FName RegistryType;
 
-	/** Rules for generating valid Ids, if empty can be any name */
+	/** Rules for specifying valid item Ids, if default than any name can be used */
 	UPROPERTY(EditDefaultsOnly, Category = DataRegistry)
 	FDataRegistryIdFormat IdFormat;
 
-	/** Type to lookup */
-	UPROPERTY(EditDefaultsOnly, Category = DataRegistry, AssetRegistrySearchable)
-	FName RegistryType;
+	/** Structure type of all for items in this registry */
+	UPROPERTY(EditDefaultsOnly, Category = DataRegistry, AssetRegistrySearchable, meta = (DisplayThumbnail = "false"))
+	const UScriptStruct* ItemStruct;
 
 	/** List of data sources to search for items */
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = DataRegistry)

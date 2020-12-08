@@ -5,7 +5,7 @@
 #include "DataRegistry.h"
 #include "DataRegistrySource.generated.h"
 
-/** Specifies a source for DataRegistryItems, which is an interface to acquire an individual item asynchronously */
+/** Specifies a source for DataRegistry items, which is an interface that provides asynchronous access to individual structs */
 UCLASS(Abstract, EditInlineNew, DefaultToInstanced, Within = DataRegistry, CollapseCategories)
 class DATAREGISTRY_API UDataRegistrySource : public UObject
 {
@@ -111,7 +111,7 @@ enum class EMetaDataRegistrySourceAssetUsage : uint8
 };
 ENUM_CLASS_FLAGS(EMetaDataRegistrySourceAssetUsage);
 
-/** Base class for a data source that generates additional data sources at runtime  */
+/** Base class for a data source that generates additional data sources at runtime */
 UCLASS(Abstract)
 class DATAREGISTRY_API UMetaDataRegistrySource : public UDataRegistrySource
 {

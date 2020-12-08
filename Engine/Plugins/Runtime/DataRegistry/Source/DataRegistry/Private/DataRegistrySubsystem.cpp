@@ -22,7 +22,7 @@ UDataRegistrySubsystem* UDataRegistrySubsystem::Get()
 	return GEngine->GetEngineSubsystem<UDataRegistrySubsystem>();
 }
 
-//static bool GetCachedItem(FDataRegistryId ItemId, UPARAM(ref) FTableRowBase& OutItem);
+//static bool GetCachedItemBP(FDataRegistryId ItemId, UPARAM(ref) FTableRowBase& OutItem);
 DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemBP)
 {
 	P_GET_STRUCT(FDataRegistryId, ItemId);
@@ -40,6 +40,7 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemBP)
 	const uint8* CacheData = nullptr;
 	const UScriptStruct* CacheStruct = nullptr;
 	FDataRegistryCacheGetResult CacheResult;
+	EDataRegistrySubsystemGetItemResult OutResult = EDataRegistrySubsystemGetItemResult::NotFound;
 
 	if (OutItemProp && OutItemDataPtr && SubSystem->IsConfigEnabled(true))
 	{
@@ -55,16 +56,60 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemBP)
 			
 			if (bCompatible)
 			{
+				OutResult = EDataRegistrySubsystemGetItemResult::Found;
 				CacheStruct->CopyScriptStruct(OutItemDataPtr, CacheData);
 			}
 		}
 		P_NATIVE_END;
 	}
 
-	*(bool*)RESULT_PARAM = !!CacheResult;
+	*(bool*)RESULT_PARAM = (OutResult == EDataRegistrySubsystemGetItemResult::Found);
 }
 
-// static bool GetCachedItemFromLookup(FDataRegistryId ItemId, const FDataRegistryLookup& ResolvedLookup, UPARAM(ref) FTableRowBase& OutItem) { return false; }
+//static bool FindCachedItemBP(FDataRegistryId ItemId, EDataRegistrySubsystemGetItemResult& OutResult, FTableRowBase& OutItem) {}
+DEFINE_FUNCTION(UDataRegistrySubsystem::execFindCachedItemBP)
+{
+	P_GET_STRUCT(FDataRegistryId, ItemId);
+	P_GET_ENUM_REF(EDataRegistrySubsystemGetItemResult, OutResult)
+
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	void* OutItemDataPtr = Stack.MostRecentPropertyAddress;
+	FStructProperty* OutItemProp = CastField<FStructProperty>(Stack.MostRecentProperty);
+	P_FINISH;
+
+	UDataRegistrySubsystem* SubSystem = UDataRegistrySubsystem::Get();
+	check(SubSystem);
+
+	const uint8* CacheData = nullptr;
+	const UScriptStruct* CacheStruct = nullptr;
+	FDataRegistryCacheGetResult CacheResult;
+	OutResult = EDataRegistrySubsystemGetItemResult::NotFound;
+
+	if (OutItemProp && OutItemDataPtr && SubSystem->IsConfigEnabled(true))
+	{
+		P_NATIVE_BEGIN;
+		CacheResult = SubSystem->GetCachedItemRaw(CacheData, CacheStruct, ItemId);
+
+		if (CacheResult && CacheStruct && CacheData)
+		{
+			UScriptStruct* OutputStruct = OutItemProp->Struct;
+
+			const bool bCompatible = (OutputStruct == CacheStruct) ||
+				(OutputStruct->IsChildOf(CacheStruct) && FStructUtils::TheSameLayout(OutputStruct, CacheStruct));
+
+			if (bCompatible)
+			{
+				OutResult = EDataRegistrySubsystemGetItemResult::Found;
+				CacheStruct->CopyScriptStruct(OutItemDataPtr, CacheData);
+			}
+		}
+		P_NATIVE_END;
+	}
+}
+
+//static bool GetCachedItemFromLookupBP(FDataRegistryId ItemId, const FDataRegistryLookup& ResolvedLookup, UPARAM(ref) FTableRowBase& OutItem) { return false; }
 DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemFromLookupBP)
 {
 	P_GET_STRUCT(FDataRegistryId, ItemId);
@@ -658,6 +703,26 @@ bool UDataRegistrySubsystem::EqualEqual_DataRegistryType(FDataRegistryType A, FD
 }
 
 bool UDataRegistrySubsystem::NotEqual_DataRegistryType(FDataRegistryType A, FDataRegistryType B)
+{
+	return A != B;
+}
+
+bool UDataRegistrySubsystem::IsValidDataRegistryId(FDataRegistryId DataRegistryId)
+{
+	return DataRegistryId.IsValid();
+}
+
+FString UDataRegistrySubsystem::Conv_DataRegistryIdToString(FDataRegistryId DataRegistryId)
+{
+	return DataRegistryId.ToString();
+}
+
+bool UDataRegistrySubsystem::EqualEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B)
+{
+	return A == B;
+}
+
+bool UDataRegistrySubsystem::NotEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B)
 {
 	return A != B;
 }
