@@ -72,7 +72,7 @@ public:
 struct FDefaultsEditorSummoner : public FWorkflowTabFactory
 {
 public:
-	FDefaultsEditorSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp);
+	FDefaultsEditorSummoner(TSharedPtr<class FBlueprintEditor> InHostingApp);
 
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 
@@ -86,6 +86,8 @@ private:
 	TSharedRef<SWidget> CreateOptionalEditableWarning() const;
 
 	void OnChangeBlueprintToNotDataOnly();
+
+	TWeakObjectPtr<UBlueprint> EditingBlueprint;
 };
 
 /////////////////////////////////////////////////////
