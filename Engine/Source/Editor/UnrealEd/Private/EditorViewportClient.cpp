@@ -750,7 +750,8 @@ void FEditorViewportClient::ToggleOrbitCamera( bool bEnableOrbitCamera )
 		{
 			FRotator ViewRotation = ViewTransform.GetRotation();
 
-			bool bUpsideDown = (ViewRotation.Pitch < -90.0f || ViewRotation.Pitch > 90.0f || !FMath::IsNearlyZero(ViewRotation.Roll, KINDA_SMALL_NUMBER));
+			bool bUpsideDown = (ViewRotation.Pitch < -90.0f || ViewRotation.Pitch > 90.0f ||
+				FMath::IsNearlyZero(FMath::Abs(ViewRotation.Roll) - 180.f, KINDA_SMALL_NUMBER));
 
 			// if the camera is upside down compute the rotation differently to preserve pitch
 			// otherwise the view will pop to right side up when transferring to orbit controls
