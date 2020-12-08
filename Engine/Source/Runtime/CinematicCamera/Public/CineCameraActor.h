@@ -16,6 +16,16 @@ struct FCameraLookatTrackingSettings
 {
 	GENERATED_USTRUCT_BODY()
 
+	FCameraLookatTrackingSettings()
+		: bEnableLookAtTracking(false)
+		, bDrawDebugLookAtTrackingPosition(false)
+		, LookAtTrackingInterpSpeed(0.f)
+		, LastLookatTrackingRotation(FRotator::ZeroRotator)
+		, RelativeOffset(FVector::ZeroVector)
+		, bAllowRoll(false)
+	{
+	}
+
 	/** True to enable lookat tracking, false otherwise. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "LookAt")
 	uint8 bEnableLookAtTracking : 1;
