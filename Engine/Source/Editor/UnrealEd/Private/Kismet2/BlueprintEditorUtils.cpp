@@ -43,7 +43,6 @@
 #include "EdMode.h"
 #include "Dialogs/Dialogs.h"
 #include "UnrealEdGlobals.h"
-#include "Settings/ProjectPackagingSettings.h"
 #include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "UObject/BlueprintsObjectVersion.h"
@@ -5998,12 +5997,6 @@ void FBlueprintEditorUtils::MarkBlueprintChildrenAsModified(UBlueprint* InBluepr
 
 //////////////////////////////////////////////////////////////////////////
 
-void FBlueprintEditorUtils::FindNativizationDependencies(UBlueprint* Blueprint, TArray<UClass*>& NativizeDependenciesOut)
-{
-	FBlueprintEditorUtils::FindImplementedInterfaces(Blueprint, /*bGetAllInterfaces =*/false, NativizeDependenciesOut);
-	NativizeDependenciesOut.AddUnique(Blueprint->ParentClass);
-}
-
 /** Shared function for posting notification toasts */
 static void ShowNotification(const FText& Message, EMessageSeverity::Type Severity)
 {
@@ -6046,115 +6039,6 @@ static void ShowNotification(const FText& Message, EMessageSeverity::Type Severi
 	
 		FSlateNotificationManager::Get().AddNotification(Warning);
 	}
-}
-
-bool FBlueprintEditorUtils::PropagateNativizationSetting(UBlueprint* Blueprint)
-{
-	bool bSettingsChanged = false;
-	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
-
-	switch (Blueprint->NativizationFlag)
-	{
-	case EBlueprintNativizationFlag::Disabled:
-		bSettingsChanged |= PackagingSettings->RemoveBlueprintAssetFromNativizationList(Blueprint);
-		break;
-
-	case EBlueprintNativizationFlag::ExplicitlyEnabled:
-		{
-			bSettingsChanged |= PackagingSettings->AddBlueprintAssetToNativizationList(Blueprint);
-
-			TArray<UClass*> NativizationDependencies;
-			FindNativizationDependencies(Blueprint, NativizationDependencies);
-
-			bool bAddedDependencies = false;
-
-			for (UClass* Dependency : NativizationDependencies)
-			{
-				if (UBlueprint* DependencyBp = UBlueprint::GetBlueprintFromClass(Dependency))
-				{
-					// if the user hasn't manually altered the setting (chosen 
-					// for themselves), then let's apply the auto-setting
-					if (DependencyBp->NativizationFlag == EBlueprintNativizationFlag::Dependency)
-					{
-						DependencyBp->NativizationFlag = EBlueprintNativizationFlag::ExplicitlyEnabled;
-						// recurse and propagate this setting to dependencies once removed
-						bAddedDependencies |= PropagateNativizationSetting(DependencyBp);
-					}
-					else if (DependencyBp->NativizationFlag == EBlueprintNativizationFlag::ExplicitlyEnabled &&
-						!PackagingSettings->IsBlueprintAssetInNativizationList(DependencyBp))
-					{
-						bAddedDependencies |= PropagateNativizationSetting(DependencyBp);
-						// this is a hairy case, because the user could have changes pending to the DependencyBp
-						// that they will end up discarding... is it their intension to discard the "nativize"  
-						// setting as well? was it set before or after this dependent? maybe they set it before,
-						// and want to discard the change, but didn't realize it was a dependency?
-						// here we'll favor correctness, and save it to the config now
-					}
-				}
-			}
-			bSettingsChanged |= bAddedDependencies;
-			if (bAddedDependencies)
-			{
-				ShowNotification(LOCTEXT("DependenciesSavedForNativization", "Saved extra (required dependency) Blueprints for nativization."), EMessageSeverity::Warning);
-			}
-		}
-		break;
-
-	default:
-	case EBlueprintNativizationFlag::Dependency:
-		// the Blueprint which set this flag is responsible for applying this change
-		break;
-	}
-
-	return bSettingsChanged;
-}
-
-bool FBlueprintEditorUtils::ShouldNativizeImplicitly(const UBlueprint* Blueprint)
-{
-	if (Blueprint)
-	{
-		TArray<UK2Node_Event*> AllEventNodes;
-		FBlueprintEditorUtils::GetAllNodesOfClass<UK2Node_Event>(Blueprint, AllEventNodes);
-
-		// Add all events overridden by this Blueprint.
-		TArray<FName> CheckFunctionNames;
-		for (const UK2Node_Event* EventNode : AllEventNodes)
-		{
-			if (EventNode->bOverrideFunction)
-			{
-				CheckFunctionNames.Add(EventNode->EventReference.GetMemberName());
-			}
-		}
-
-		// Add all function graphs implemented by this Blueprint.
-		for (const UEdGraph* FunctionGraph : Blueprint->FunctionGraphs)
-		{
-			CheckFunctionNames.Add(FunctionGraph->GetFName());
-		}
-
-		// Check each overridable/callable function defined by all ancestors to see if any names match an implementation found in this Blueprint.
-		UClass* ParentClass = Blueprint->SkeletonGeneratedClass ? Blueprint->SkeletonGeneratedClass->GetSuperClass() : *Blueprint->ParentClass;
-		for (TFieldIterator<UFunction> FunctionIt(ParentClass, EFieldIteratorFlags::IncludeSuper); FunctionIt; ++FunctionIt)
-		{
-			const UFunction* Function = *FunctionIt;
-			if (UEdGraphSchema_K2::CanKismetOverrideFunction(Function) && UEdGraphSchema_K2::CanUserKismetCallFunction(Function) && CheckFunctionNames.Contains(Function->GetFName()))
-			{
-				// This Blueprint overrides a callable event/function. If the function is defined in a parent BP that is flagged for nativization, OR if
-				// the parent BP has itself been implicitly flagged for nativization, then this Blueprint will also be implicitly flagged for nativization.
-				// Currently, any calls to such a function within a nativized parent hierarchy are not able to invoke an override in a non-nativized child,
-				// so the current solution is to implicitly force the child BP to also be nativized along with its parent hierarchy in this particular case.
-				const UClass* SignatureClass = CastChecked<UClass>(Function->GetOuter());
-				const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(SignatureClass);
-				if (ParentBP != nullptr
-					&& (ParentBP->NativizationFlag == EBlueprintNativizationFlag::ExplicitlyEnabled || ShouldNativizeImplicitly(ParentBP)))
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -6271,21 +6155,6 @@ bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const F
 	{
 		Blueprint->ImplementedInterfaces.Add(NewInterface);
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
-
-		if (Blueprint->NativizationFlag != EBlueprintNativizationFlag::Disabled)
-		{
-			UBlueprint* InterfaceBlueprint = UBlueprint::GetBlueprintFromClass(InterfaceClass);
-			if (InterfaceBlueprint && InterfaceBlueprint->NativizationFlag == EBlueprintNativizationFlag::Disabled)
-			{
-				InterfaceBlueprint->NativizationFlag = EBlueprintNativizationFlag::Dependency;
-				ShowNotification(FText::Format(
-					LOCTEXT("InterfaceFlaggedForNativization", "{0} flagged for nativization (as a required dependency)."),
-					FText::FromName(InterfaceBlueprint->GetFName())
-					),
-					EMessageSeverity::Warning
-				);
-			}
-		}
 	}
 	return bAllFunctionsAdded;
 }

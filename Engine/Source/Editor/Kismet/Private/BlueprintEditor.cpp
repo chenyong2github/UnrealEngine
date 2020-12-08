@@ -2868,10 +2868,6 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::CreateMergeToolTab),
 		FCanExecuteAction());
 
-	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().GenerateNativeCode,
-		FExecuteAction::CreateSP(this, &FBlueprintEditor::OpenNativeCodeGenerationTool),
-		FCanExecuteAction::CreateSP(this, &FBlueprintEditor::CanGenerateNativeCode));
-
 	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().GenerateSearchIndex,
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::OnGenerateSearchIndexForDebugging),
 		FCanExecuteAction());
@@ -2920,21 +2916,6 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
 		FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, true)
 	);
-}
-
-void FBlueprintEditor::OpenNativeCodeGenerationTool()
-{
-	UBlueprint* Blueprint = GetBlueprintObj();
-	if (Blueprint)
-	{
-		FNativeCodeGenerationTool::Open(*Blueprint, SharedThis(this));
-	}
-}
-
-bool FBlueprintEditor::CanGenerateNativeCode() const
-{
-	UBlueprint* Blueprint = GetBlueprintObj();
-	return Blueprint && FNativeCodeGenerationTool::CanGenerate(*Blueprint);
 }
 
 void FBlueprintEditor::OnGenerateSearchIndexForDebugging()
@@ -3094,25 +3075,6 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 			// Ensure that the Blueprint is up-to-date (valid SCS etc.) after compiling (new parent class)
 			EnsureBlueprintIsUpToDate(BlueprintObj);
-
-			if (BlueprintObj->NativizationFlag != EBlueprintNativizationFlag::Disabled)
-			{
-				UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(ChosenClass);
-				if (ParentBlueprint && ParentBlueprint->NativizationFlag == EBlueprintNativizationFlag::Disabled)
-				{
-					ParentBlueprint->NativizationFlag = EBlueprintNativizationFlag::Dependency;
-
-					FNotificationInfo Warning(FText::Format(
-						LOCTEXT("InterfaceFlaggedForNativization", "{0} flagged for nativization (as a required dependency)."),
-						FText::FromName(ParentBlueprint->GetFName())
-						)
-					);
-					Warning.ExpireDuration = 5.0f;
-					Warning.bFireAndForget = true;
-					Warning.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
-					FSlateNotificationManager::Get().AddNotification(Warning);
-				}
-			}
 
 			if (SCSEditor.IsValid())
 			{

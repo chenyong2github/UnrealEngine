@@ -33,9 +33,6 @@ void UProjectPackagingSettings::PostInitProperties()
 	// Build code projects by default
 	Build = EProjectPackagingBuild::IfProjectHasCode;
 
-	// Cache the current set of Blueprint assets selected for nativization.
-	CachedNativizeBlueprintAssets = NativizeBlueprintAssets;
-
 	FixCookingPaths();
 
 	Super::PostInitProperties();
@@ -157,156 +154,12 @@ void UProjectPackagingSettings::PostEditChangeProperty(FPropertyChangedEvent& Pr
 			}
 		}
 	}
-	else if (Name == FName((TEXT("NativizeBlueprintAssets"))))
-	{
-		int32 AssetIndex;
-		if (NativizeBlueprintAssets.Num() > 0)
-		{
-			for (AssetIndex = 0; AssetIndex < NativizeBlueprintAssets.Num(); ++AssetIndex)
-			{
-				const FString& PackageName = NativizeBlueprintAssets[AssetIndex].FilePath;
-				if (AssetIndex >= CachedNativizeBlueprintAssets.Num())
-				{
-					// A new entry was added; toggle the exclusive flag on the corresponding Blueprint asset (if loaded).
-					FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(PackageName, true);
-
-					// Add an entry to the end of the cached list.
-					CachedNativizeBlueprintAssets.Add(NativizeBlueprintAssets[AssetIndex]);
-				}
-				else if (!PackageName.Equals(CachedNativizeBlueprintAssets[AssetIndex].FilePath))
-				{
-					if (NativizeBlueprintAssets.Num() < CachedNativizeBlueprintAssets.Num())
-					{
-						// An entry was removed; toggle the exclusive flag on the corresponding Blueprint asset (if loaded).
-						FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(CachedNativizeBlueprintAssets[AssetIndex].FilePath, false);
-
-						// Remove this entry from the cached list.
-						CachedNativizeBlueprintAssets.RemoveAt(AssetIndex);
-					}
-					else if (NativizeBlueprintAssets.Num() > CachedNativizeBlueprintAssets.Num())
-					{
-						// A new entry was inserted; toggle the exclusive flag on the corresponding Blueprint asset (if loaded).
-						FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(PackageName, true);
-
-						// Insert the new entry into the cached list.
-						CachedNativizeBlueprintAssets.Insert(NativizeBlueprintAssets[AssetIndex], AssetIndex);
-					}
-					else
-					{
-						// An entry was changed; toggle the exclusive flag on the corresponding Blueprint assets (if loaded).
-						FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(CachedNativizeBlueprintAssets[AssetIndex].FilePath, false);
-						FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(PackageName, true);
-
-						// Update the cached entry.
-						CachedNativizeBlueprintAssets[AssetIndex].FilePath = PackageName;
-					}
-				}
-			}
-
-			if (CachedNativizeBlueprintAssets.Num() > NativizeBlueprintAssets.Num())
-			{
-				// Removed entries at the end of the list; toggle the exclusive flag on the corresponding Blueprint asset(s) (if loaded).
-				for (AssetIndex = NativizeBlueprintAssets.Num(); AssetIndex < CachedNativizeBlueprintAssets.Num(); ++AssetIndex)
-				{
-					FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(CachedNativizeBlueprintAssets[AssetIndex].FilePath, false);
-				}
-
-				// Remove entries from the end of the cached list.
-				CachedNativizeBlueprintAssets.RemoveAt(NativizeBlueprintAssets.Num(), CachedNativizeBlueprintAssets.Num() - NativizeBlueprintAssets.Num());
-			}
-		}
-		else if (CachedNativizeBlueprintAssets.Num() > 0)
-		{
-			// Removed all entries; toggle the exclusive flag on the corresponding Blueprint asset(s) (if loaded).
-			for (AssetIndex = 0; AssetIndex < CachedNativizeBlueprintAssets.Num(); ++AssetIndex)
-			{
-				FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged.Broadcast(CachedNativizeBlueprintAssets[AssetIndex].FilePath, false);
-			}
-
-			// Clear the cached list.
-			CachedNativizeBlueprintAssets.Empty();
-		}
-	}
 }
 
 bool UProjectPackagingSettings::CanEditChange(const FProperty* InProperty) const
 {
-	if (InProperty->GetFName() == FName(TEXT("NativizeBlueprintAssets")))
-	{
-		return BlueprintNativizationMethod == EProjectPackagingBlueprintNativizationMethod::Exclusive;
-	}
-
 	return Super::CanEditChange(InProperty);
 }
-
-
-bool UProjectPackagingSettings::AddBlueprintAssetToNativizationList(const class UBlueprint* InBlueprint)
-{
-	if (InBlueprint)
-	{
-		const FString PackageName = ((UObject*)InBlueprint)->GetOutermost()->GetName();
-
-		// Make sure it's not already in the exclusive list. This can happen if the user previously added this asset in the Project Settings editor.
-		const bool bFound = IsBlueprintAssetInNativizationList(InBlueprint);
-		if (!bFound)
-		{
-			// Add this Blueprint asset to the exclusive list.
-			FFilePath FileInfo;
-			FileInfo.FilePath = PackageName;
-			NativizeBlueprintAssets.Add(FileInfo);
-
-			// Also add it to the mirrored list for tracking edits.
-			CachedNativizeBlueprintAssets.Add(FileInfo);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UProjectPackagingSettings::RemoveBlueprintAssetFromNativizationList(const class UBlueprint* InBlueprint)
-{
-	if (InBlueprint)
-	{
-		const FString PackageName = ((UObject*)InBlueprint)->GetOutermost()->GetName();
-
-		int32 AssetIndex = FindBlueprintInNativizationList(InBlueprint);
-		if (AssetIndex >= 0)
-		{
-			// Note: Intentionally not using RemoveAtSwap() here, so that the order is preserved.
-			NativizeBlueprintAssets.RemoveAt(AssetIndex);
-
-			// Also remove it from the mirrored list (for tracking edits).
-			CachedNativizeBlueprintAssets.RemoveAt(AssetIndex);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-int32 UProjectPackagingSettings::FindBlueprintInNativizationList(const class UBlueprint* InBlueprint) const
-{
-	int32 ListIndex = INDEX_NONE;
-	if (InBlueprint)
-	{
-		const FString PackageName = ((UObject*)InBlueprint)->GetOutermost()->GetName();
-
-		for (int32 AssetIndex = 0; AssetIndex < NativizeBlueprintAssets.Num(); ++AssetIndex)
-		{
-			if (NativizeBlueprintAssets[AssetIndex].FilePath.Equals(PackageName, ESearchCase::IgnoreCase))
-			{
-				ListIndex = AssetIndex;
-				break;
-			}
-		}
-	}
-	return ListIndex;
-}
-
-
 #endif
 
 TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValidPackageConfigurations()

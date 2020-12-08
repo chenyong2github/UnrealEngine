@@ -360,25 +360,6 @@ void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjec
 	UObject* ObjOuter = Obj->GetOuter();
 	UClass* ObjClass = Obj->GetClass();
 
-	// if TargetPlatorm != nullptr then we are cooking
-	if (TargetPlatform)
-	{
-		// Check for nativization replacement
-		if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-		{
-			const FCompilerNativizationOptions& NativizationOptions = Coordinator->GetNativizationOptionsForPlatform(TargetPlatform);
-			FName UnusedName;
-			if (UClass* ReplacedClass = Coordinator->FindReplacedClassForObject(Obj, NativizationOptions))
-			{
-				ObjClass = ReplacedClass;
-			}
-			if (UObject* ReplacedOuter = Coordinator->FindReplacedNameAndOuter(Obj, /*out*/UnusedName, NativizationOptions))
-			{
-				ObjOuter = ReplacedOuter;
-			}
-		}
-	}
-
 	EObjectMark NewMarks = CurrentMarks;
 
 	// Recurse into parents, then compute inherited marks

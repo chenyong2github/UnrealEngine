@@ -393,7 +393,7 @@ struct FBPEditorBookmarkNode
 };
 
 UENUM()
-enum class EBlueprintNativizationFlag : uint8
+enum class UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This type will eventually be removed.") EBlueprintNativizationFlag : uint8
 {
 	Disabled,
 	Dependency, // conditionally enabled (set from sub-class as a dependency)
@@ -506,15 +506,13 @@ class ENGINE_API UBlueprint : public UBlueprintCore
 	UPROPERTY()
 	mutable uint8 bDuplicatingReadOnly:1;
 
-private:
-	/** Deprecated properties. */
-	UPROPERTY()
-	uint8 bNativize_DEPRECATED:1;
-
 public:
 	/** When exclusive nativization is enabled, then this asset will be nativized. All super classes must be also nativized. */
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This property will eventually be removed.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY(transient)
 	EBlueprintNativizationFlag NativizationFlag;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The mode that will be used when compiling this class. */
 	UPROPERTY(EditAnywhere, Category=ClassOptions, AdvancedDisplay)
@@ -811,7 +809,8 @@ public:
 	/**
 	 * Check whether this blueprint can be nativized or not
 	 */
-	virtual bool SupportsNativization(FText* OutReason = nullptr) const;
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	virtual bool SupportsNativization(FText* OutReason = nullptr) const { return false; }
 
 private:
 

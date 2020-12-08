@@ -87,7 +87,6 @@
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"
 #include "CookerSettings.h"
-#include "BlueprintNativeCodeGenModule.h"
 
 #include "GameDelegates.h"
 #include "IPAddress.h"
@@ -4019,11 +4018,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					}
 
 					GIsCookerLoadingPackage = false;
-					{
-						UE_SCOPED_HIERARCHICAL_COOKTIMER(ConvertingBlueprints);
-						IBlueprintNativeCodeGenModule::Get().Convert(Package, Result.Result, *(Target->PlatformName()));
-					}
-
 					++this->StatSavedPackageCount;
 
 					// If package was actually saved check with asset manager to make sure it wasn't excluded for being a development or never cook package. We do this after Editor Only filtering
@@ -6433,20 +6427,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
 
 	{
-		if (IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded())
-		{
-			UE_SCOPED_HIERARCHICAL_COOKTIMER(GeneratingBlueprintAssets)
-			IBlueprintNativeCodeGenModule& CodeGenModule = IBlueprintNativeCodeGenModule::Get();
-
-			CodeGenModule.GenerateFullyConvertedClasses(); // While generating fully converted classes the list of necessary stubs is created.
-			CodeGenModule.GenerateStubs();
-
-			CodeGenModule.FinalizeManifest();
-
-			// Unload the module as we only need it while cooking. This will also clear the current module's state in order to allow a new cooker pass to function properly.
-			FModuleManager::Get().UnloadModule(CodeGenModule.GetModuleName());
-		}
-
 		// Save modified asset registry with all streaming chunk info generated during cook
 		const FString& SandboxRegistryFilename = GetSandboxAssetRegistryFilename();
 
@@ -7277,21 +7257,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
 	{
 		StartSavingEDLCookInfoForVerification();
-	}
-
-	// Note: Nativization only works with "cook by the book" mode and not from within the current editor process.
-	if (CurrentCookMode == ECookMode::CookByTheBook
-		&& PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled)
-	{
-		FNativeCodeGenInitData CodeGenData;
-		for (const ITargetPlatform* Entry : CookByTheBookStartupOptions.TargetPlatforms)
-		{
-			FPlatformNativizationDetails PlatformNativizationDetails;
-			IBlueprintNativeCodeGenModule::Get().FillPlatformNativizationDetails(Entry, PlatformNativizationDetails);
-			CodeGenData.CodegenTargets.Push(PlatformNativizationDetails);
-		}
-		CodeGenData.ManifestIdentifier = -1;
-		IBlueprintNativeCodeGenModule::InitializeModule(CodeGenData);
 	}
 
 	{

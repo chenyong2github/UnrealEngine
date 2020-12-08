@@ -248,7 +248,8 @@ public:
 	void OnEditorPostModal();
 
 	/** BP nativization settings */
-	void OnNativizeBlueprintsSettingChanged(const FString& PackageName, bool bSelect);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This delegate method will eventually be removed.")
+	void OnNativizeBlueprintsSettingChanged(const FString& PackageName, bool bSelect) {}
 
 	/** Called from tab manager when the tab changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);

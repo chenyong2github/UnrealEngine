@@ -112,11 +112,6 @@ void FKismet2Menu::FillDeveloperMenu(UToolMenu* InMenu)
 		Section.AddMenuEntry( FBlueprintEditorCommands::Get().SaveIntermediateBuildProducts );
 	}
 
-	{
-		FToolMenuSection& Section = InMenu->AddSection("GenerateNativeCode", LOCTEXT("Cpp", "C++"));
-		Section.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateNativeCode);
-	}
-
 	if (FFindInBlueprintSearchManager::Get().ShouldEnableDeveloperMenuTools())
 	{
 		FToolMenuSection& Section = InMenu->AddSection("FileDeveloperSearchTools", LOCTEXT("SearchToolsHeading", "Search Tools"));

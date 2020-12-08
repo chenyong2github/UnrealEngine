@@ -485,51 +485,6 @@ void UBlueprint::Serialize(FArchive& Ar)
 			FBlueprintEditorUtils::FixupVariableDescription(this, Variable);
 		}
 	}
-
-	if (Ar.IsPersistent())
-	{
-		bool bSettingsChanged = false;
-		const FString PackageName = GetOutermost()->GetName();
-		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
-
-		if (Ar.IsLoading())
-		{
-#if WITH_EDITORONLY_DATA
-			if (bNativize_DEPRECATED)
-			{
-				// Migrate to the new transient flag.
-				bNativize_DEPRECATED = false;
-
-				NativizationFlag = EBlueprintNativizationFlag::ExplicitlyEnabled;
-				// Add this Blueprint asset to the exclusive list in the Project Settings (in case it doesn't exist).
-				bSettingsChanged |= PackagingSettings->AddBlueprintAssetToNativizationList(this);
-			}
-			else
-#endif
-			{
-				// Cache whether or not this Blueprint asset was selected for exclusive nativization in the Project Settings.
-				for (int AssetIndex = 0; AssetIndex < PackagingSettings->NativizeBlueprintAssets.Num(); ++AssetIndex)
-				{
-					if (PackagingSettings->NativizeBlueprintAssets[AssetIndex].FilePath.Equals(PackageName, ESearchCase::IgnoreCase))
-					{
-						NativizationFlag = EBlueprintNativizationFlag::ExplicitlyEnabled;
-						break;
-					}
-				}
-			}
-		}
-		else if (Ar.IsSaving())
-		{
-			bSettingsChanged |= FBlueprintEditorUtils::PropagateNativizationSetting(this);
-		}
-
-		if (bSettingsChanged)
-		{
-			// Update cached config settings and save.
-			PackagingSettings->SaveConfig();
-			PackagingSettings->UpdateDefaultConfigFile();
-		}
-	}
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -838,44 +793,6 @@ void UBlueprint::DebuggingWorldRegistrationHelper(UObject* ObjectProvidingWorld,
 UClass* UBlueprint::GetBlueprintClass() const
 {
 	return UBlueprintGeneratedClass::StaticClass();
-}
-
-bool UBlueprint::SupportsNativization(FText* OutReason) const
-{
-	// Previously commented out in FBlueprintNativeCodeGenModule::IsTargetedForReplacement - should 'const' blueprints be nativized??
-	//BPTYPE_Const,		// What is a "const" Blueprint?
-	if (BlueprintType == BPTYPE_MacroLibrary)
-	{
-		if (OutReason)
-		{
-			*OutReason = NSLOCTEXT("Blueprint", "MacroLibraryNativizationReason", "Macro Libraries cannot be nativized.");
-		}
-		return false;
-	}
-	else if (BlueprintType == BPTYPE_LevelScript)
-	{
-		if (OutReason)
-		{
-			*OutReason = NSLOCTEXT("Blueprint", "LevelScriptNativizationReason", "Level Blueprints cannot be nativized.");
-		}
-		return false;
-	}
-	else if (!GetOuter()->IsA<UPackage>())
-	{
-		// If this blueprint is not an asset itself, check whether the asset supports nativization
-		UObject* Asset = GetOuter();
-		while (Asset && !Asset->GetOuter()->IsA<UPackage>())
-		{
-			Asset = Asset->GetOuter();
-		}
-
-		const IBlueprintAssetHandler* Handler = Asset ? FBlueprintAssetHandler::Get().FindHandler(Asset->GetClass()) : nullptr;
-		if (Handler && !Handler->SupportsNativization(Asset, this, OutReason))
-		{
-			return false;
-		}
-	}
-	return true;
 }
 
 void UBlueprint::SetObjectBeingDebugged(UObject* NewObject)
@@ -1308,84 +1225,6 @@ void UBlueprint::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPl
 
 			return false;
 		};
-
-		// If nativization is enabled and this Blueprint class will NOT be nativized, we need to determine if any of its parent Blueprints will be nativized and flag it for the runtime code.
-		// Note: Currently, this flag is set on Actor-based Blueprint classes only. If it's ever needed for non-Actor-based Blueprint classes at runtime, then this needs to be updated to match.
-		const IBlueprintNativeCodeGenCore* NativeCodeGenCore = IBlueprintNativeCodeGenCore::Get();
-		if (GeneratedClass != nullptr && NativeCodeGenCore != nullptr)
-		{
-			ensure(TargetPlatform);
-			const FCompilerNativizationOptions& NativizationOptions = NativeCodeGenCore->GetNativizationOptionsForPlatform(TargetPlatform);
-			TArray<const UBlueprintGeneratedClass*> ParentBPClassStack;
-			UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(GeneratedClass->GetSuperClass(), ParentBPClassStack);
-			for (const UBlueprintGeneratedClass *ParentBPClass : ParentBPClassStack)
-			{
-				if (NativeCodeGenCore->IsTargetedForReplacement(ParentBPClass, NativizationOptions) == EReplacementResult::ReplaceCompletely)
-				{
-					if (UBlueprintGeneratedClass* BPGC = CastChecked<UBlueprintGeneratedClass>(*GeneratedClass))
-					{
-						// Flag that this BP class will have a nativized parent class.
-						BPGC->bHasNativizedParent = true;
-
-						// Cache the IsTargetedForReplacement() result for the parent BP class that we know to be nativized.
-						TMap<const UClass*, bool> ParentBPClassNativizationResultMap;
-						ParentBPClassNativizationResultMap.Add(ParentBPClass, true);
-
-						// Cook all overridden SCS component node templates inherited from parent BP classes that will be nativized.
-						if (UInheritableComponentHandler* TargetInheritableComponentHandler = BPGC->GetInheritableComponentHandler())
-						{
-							for (auto RecordIt = TargetInheritableComponentHandler->CreateRecordIterator(); RecordIt; ++RecordIt)
-							{
-								// Only generate cooked data if the target platform supports the template class type.
-								if (ShouldCookBlueprintComponentTemplate(RecordIt->ComponentTemplate))
-								{
-									// Get the original class that we're overriding a template from.
-									const UClass* ComponentTemplateOwnerClass = RecordIt->ComponentKey.GetComponentOwner();
-
-									// Check to see if we've already checked this class for nativization; if not, then cache the result of a new query and return the result.
-									bool bIsOwnerClassTargetedForReplacement = false;
-									bool* bCachedResult = ParentBPClassNativizationResultMap.Find(ComponentTemplateOwnerClass);
-									if (bCachedResult)
-									{
-										bIsOwnerClassTargetedForReplacement = *bCachedResult;
-									}
-									else
-									{
-										bool bResult = (NativeCodeGenCore->IsTargetedForReplacement(RecordIt->ComponentKey.GetComponentOwner(), NativizationOptions) == EReplacementResult::ReplaceCompletely);
-										bIsOwnerClassTargetedForReplacement = ParentBPClassNativizationResultMap.Add(ComponentTemplateOwnerClass, bResult);
-									}
-
-									if (bIsOwnerClassTargetedForReplacement)
-									{
-										// EDL is required, because we need to enforce a preload dependency on the CDO (see UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies). This is
-										// difficult to support in the non-EDL case, because we have to enforce the dependency at runtime, which can lead to unpredictable results in a cooked build.
-										if (IsEventDrivenLoaderEnabledInCookedBuilds())
-										{
-											// Use the template's archetype for the delta serialization here; remaining properties will have already been set via native subobject instancing at runtime.
-											constexpr bool bUseTemplateArchetype = true;
-											FBlueprintEditorUtils::BuildComponentInstancingData(RecordIt->ComponentTemplate, RecordIt->CookedComponentInstancingData, bUseTemplateArchetype);
-											++NumCookedComponents;
-										}
-										else
-										{
-											UE_LOG(LogBlueprint, Error, TEXT("%s overrides component \'%s\' inherited from %s, which will be converted to C++. This requires Event-Driven Loading (EDL) to be enabled; otherwise, %s must be excluded from Blueprint nativization."),
-												*GetName(),
-												*RecordIt->ComponentKey.GetSCSVariableName().ToString(),
-												*ComponentTemplateOwnerClass->GetName(),
-												*ComponentTemplateOwnerClass->GetName()
-											);
-										}
-									}
-								}
-							}
-						}
-					}
-					
-					// All remaining antecedent classes should be native or nativized; no need to continue.
-					break;
-				}
-			}
-		}
 
 		auto ShouldCookBlueprintComponentTemplateData = [](UBlueprintGeneratedClass* InBPGClass) -> bool
 		{

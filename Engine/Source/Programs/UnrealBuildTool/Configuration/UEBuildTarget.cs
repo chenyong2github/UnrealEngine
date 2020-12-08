@@ -768,13 +768,6 @@ namespace UnrealBuildTool
 				RulesObject.bDisableLinking = true;
 			}
 
-			// Include generated code plugin if not building an editor target and project is configured for nativization
-			FileReference NativizedPluginFile = RulesObject.GetNativizedPlugin();
-			if(NativizedPluginFile != null)
-			{
-				RulesAssembly = RulesCompiler.CreatePluginRulesAssembly(NativizedPluginFile, bSkipRulesCompile, RulesAssembly, false);
-			}
-
 			// Generate a build target from this rules module
 			UEBuildTarget Target;
 			using(Timeline.ScopeEvent("UEBuildTarget constructor"))

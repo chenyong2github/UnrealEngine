@@ -48,7 +48,8 @@ public:
 	 *@param OutReason       (Optional) An optional failure text to set
 	 *@return true if the specified asset supports nativization, false otherwise
 	 */
-	virtual bool SupportsNativization(const UObject* InAsset, const UBlueprint* InBlueprint, FText* OutReason) const { return true; }
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	virtual bool SupportsNativization(const UObject* InAsset, const UBlueprint* InBlueprint, FText* OutReason) const { return false; }
 };
 
 

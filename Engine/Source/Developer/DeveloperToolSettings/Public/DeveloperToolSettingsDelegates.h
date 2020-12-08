@@ -10,8 +10,6 @@
   **/
 struct DEVELOPERTOOLSETTINGS_API FDeveloperToolSettingsDelegates
 {
-	/** Sent after a nativization setting changes */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNativeBlueprintsSettingChanged, const FString& PackageName, bool bSelect);
-	static FOnNativeBlueprintsSettingChanged OnNativeBlueprintsSettingChanged;
+	
 };
 

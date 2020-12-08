@@ -1352,13 +1352,16 @@ public:
 	static UActorComponent* FindUCSComponentTemplate(const FComponentKey& ComponentKey, const FName& TemplateName);
 
 	/** Takes the Blueprint's NativizedFlag property and applies it to the authoritative config (does the same for flagged dependencies) */
-	static bool PropagateNativizationSetting(UBlueprint* Blueprint);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	static bool PropagateNativizationSetting(UBlueprint* Blueprint) { return false; }
 
 	/** Retrieves all dependencies that need to be nativized for this to work as a nativized Blueprint */
-	static void FindNativizationDependencies(UBlueprint* Blueprint, TArray<UClass*>& NativizeDependenciesOut);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	static void FindNativizationDependencies(UBlueprint* Blueprint, TArray<UClass*>& NativizeDependenciesOut) {}
 
 	/** Returns whether or not the given Blueprint should be nativized implicitly, regardless of whether or not the user has explicitly enabled it */
-	static bool ShouldNativizeImplicitly(const UBlueprint* Blueprint);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	static bool ShouldNativizeImplicitly(const UBlueprint* Blueprint) { return false; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Interface

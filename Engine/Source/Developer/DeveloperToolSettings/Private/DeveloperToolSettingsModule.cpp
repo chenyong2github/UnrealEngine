@@ -4,7 +4,4 @@
 #include "Modules/ModuleManager.h"
 
 
-FDeveloperToolSettingsDelegates::FOnNativeBlueprintsSettingChanged FDeveloperToolSettingsDelegates::OnNativeBlueprintsSettingChanged;
-
-
 IMPLEMENT_MODULE(FDefaultModuleImpl, DeveloperToolSettings);

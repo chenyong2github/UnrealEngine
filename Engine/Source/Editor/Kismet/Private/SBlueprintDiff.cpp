@@ -383,18 +383,6 @@ public:
 				Children.Push(Entry);
 				OutRealDifferences.Push(Entry);
 			}
-
-			if (OldBlueprint->SupportsNativization() != NewBlueprint->SupportsNativization())
-			{
-				FText DiffText = FText::Format(LOCTEXT("NativizationChanged", "Nativization changed from {0} to {1}"), FText::AsNumber(OldBlueprint->SupportsNativization()), FText::AsNumber(NewBlueprint->SupportsNativization()));
-
-				TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-					SelectionCallback,
-					FGenerateDiffEntryWidget::CreateStatic(&GenerateSimpleDiffWidget, DiffText));
-
-				Children.Push(Entry);
-				OutRealDifferences.Push(Entry);
-			}
 		}
 
 		const bool bHasDifferences = Children.Num() != 0;

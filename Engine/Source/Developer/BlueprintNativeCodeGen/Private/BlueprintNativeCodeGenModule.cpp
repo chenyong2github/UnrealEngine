@@ -816,6 +816,14 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 
 EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const UObject* Object, const FCompilerNativizationOptions& NativizationOptions) const
 {
+#if 1 
+
+	// @todo (wip) - Removing Blueprint nativization as a feature.
+	// For now, don't convert/replace anything, even if the project is configured for nativization.
+	return EReplacementResult::DontReplace;
+
+#else
+
 	if (Object == nullptr)
 	{
 		return EReplacementResult::DontReplace;
@@ -1097,6 +1105,8 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 	}
 
 	return Result;
+
+#endif
 }
 
 void FBlueprintNativeCodeGenModule::ReplaceAsset(const UObject* InAsset, const FCompilerNativizationOptions& NativizationOptions) const
@@ -1243,7 +1253,7 @@ void FBlueprintNativeCodeGenModule::FillPlatformNativizationDetails(const ITarge
 	Details.CompilerNativizationOptions.PlatformName = Details.PlatformName;
 	Details.CompilerNativizationOptions.ClientOnlyPlatform = Platform->IsClientOnly();
 	Details.CompilerNativizationOptions.ServerOnlyPlatform = Platform->IsServerOnly();
-	Details.CompilerNativizationOptions.bExcludeMonolithicHeaders = GetDefault<UProjectPackagingSettings>()->bExcludeMonolithicEngineHeadersInNativizedCode;
+	Details.CompilerNativizationOptions.bExcludeMonolithicHeaders = false;
 
 	auto GatherExcludedStuff = [&](const TCHAR* KeyForExcludedModules, const TCHAR* KeyForExcludedPaths, const TCHAR* KeyForExcludedAssets)
 	{

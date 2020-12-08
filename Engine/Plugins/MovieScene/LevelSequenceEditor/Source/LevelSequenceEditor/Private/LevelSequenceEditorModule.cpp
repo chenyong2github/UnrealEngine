@@ -85,15 +85,6 @@ public:
 				// Only have a blueprint if it contains the BlueprintPathWithinPackage tag
 				return InAssetData.TagsAndValues.Contains(FBlueprintTags::BlueprintPathWithinPackage);
 			}
-
-			virtual bool SupportsNativization(const UObject* InAsset, const UBlueprint* InBlueprint, FText* OutReason) const
-			{
-				if (OutReason)
-				{
-					*OutReason = LOCTEXT("NativizationError", "Level Sequences do not support nativization.");
-				}
-				return false;
-			}
 		};
 
 		FBlueprintAssetHandler::Get().RegisterHandler<FLevelSequenceAssetBlueprintHandler>(ULevelSequence::StaticClass()->GetFName());

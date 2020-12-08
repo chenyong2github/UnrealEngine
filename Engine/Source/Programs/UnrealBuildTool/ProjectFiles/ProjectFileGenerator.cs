@@ -1299,33 +1299,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-        /// <summary>
-        /// Finds any additional plugin files.
-        /// </summary>
-        /// <returns>List of additional plugin files</returns>
-		private List<FileReference> DiscoverExtraPlugins(List<FileReference> AllGameProjects)
-		{
-			List<FileReference> AddedPlugins = new List<FileReference>();
-
-            foreach (FileReference GameProject in AllGameProjects)
-			{
-                // Check the user preference to see if they'd like to include nativized assets as a generated project.
-                bool bIncludeNativizedAssets = false;
-                ConfigHierarchy Config = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, GameProject.Directory, BuildHostPlatform.Current.Platform);
-                if (Config != null)
-                {
-                    Config.TryGetValue("/Script/UnrealEd.ProjectPackagingSettings", "bIncludeNativizedAssetsInProjectGeneration", out bIncludeNativizedAssets);
-                }
-
-                // Note: Whether or not we include nativized assets here has no bearing on whether or not they actually get built.
-                if (bIncludeNativizedAssets)
-                {
-                    AddedPlugins.AddRange(Plugins.EnumeratePlugins(DirectoryReference.Combine(GameProject.Directory, "Intermediate", "Plugins")).Where(x => x.GetFileNameWithoutExtension() == "NativizedAssets"));
-                }
-			}
-			return AddedPlugins;
-		}
-
 		/// <summary>
 		/// Finds all module files (filtering by platform)
 		/// </summary>
@@ -1335,7 +1308,7 @@ namespace UnrealBuildTool
 			List<FileReference> AllModuleFiles = new List<FileReference>();
 
 			// Locate all modules (*.Build.cs files)
-			List<FileReference> FoundModuleFiles = RulesCompiler.FindAllRulesSourceFiles( RulesCompiler.RulesFileType.Module, GameFolders: AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: DiscoverExtraPlugins(AllGameProjects), AdditionalSearchPaths:null );
+			List<FileReference> FoundModuleFiles = RulesCompiler.FindAllRulesSourceFiles( RulesCompiler.RulesFileType.Module, GameFolders: AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins:null, AdditionalSearchPaths:null );
 			foreach( FileReference BuildFileName in FoundModuleFiles )
 			{
 				AllModuleFiles.Add( BuildFileName );
@@ -1379,7 +1352,7 @@ namespace UnrealBuildTool
 			List<string> UnsupportedPlatformNameStrings = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms:true);
 
 			// Locate all targets (*.Target.cs files)
-			List<FileReference> FoundTargetFiles = RulesCompiler.FindAllRulesSourceFiles( RulesCompiler.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: DiscoverExtraPlugins(AllGameProjects), AdditionalSearchPaths:null, bIncludeTempTargets: bIncludeTempTargets );
+			List<FileReference> FoundTargetFiles = RulesCompiler.FindAllRulesSourceFiles( RulesCompiler.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins:null, AdditionalSearchPaths:null, bIncludeTempTargets: bIncludeTempTargets );
 			foreach( FileReference CurTargetFile in FoundTargetFiles )
 			{
 				string CleanTargetFileName = Utils.CleanDirectorySeparators( CurTargetFile.FullName );

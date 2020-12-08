@@ -589,12 +589,6 @@ public:
 	/** Closes the merge tool, rather than simply hiding it */
 	void CloseMergeTool();
 
-	/** Opens a native code generation modal window */
-	void OpenNativeCodeGenerationTool();
-
-	/** Can generate native code for current blueprint */
-	bool CanGenerateNativeCode() const;
-
 	/** Dumps the current blueprint search index to a JSON file for debugging purposes */
 	void OnGenerateSearchIndexForDebugging();
 

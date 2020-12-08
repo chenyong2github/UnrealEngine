@@ -164,19 +164,23 @@ public:
 	bool IncludeDebugFiles;
 
 	/** If enabled, then the project's Blueprint assets (including structs and enums) will be intermediately converted into C++ and used in the packaged project (in place of the .uasset files).*/
-	UPROPERTY(config, EditAnywhere, Category = Blueprints)
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This setting is no longer exposed for editing and will eventually be removed.")
+	UPROPERTY(config)
 	EProjectPackagingBlueprintNativizationMethod BlueprintNativizationMethod;
 
 	/** List of Blueprints to include for nativization when using the exclusive method. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = Blueprints, meta = (DisplayName = "List of Blueprint assets to nativize", RelativeToGameContentDir, LongPackageName))
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This setting is no longer exposed for editing and will eventually be removed.")
+	UPROPERTY(config)
 	TArray<FFilePath> NativizeBlueprintAssets;
 
 	/** If enabled, the nativized assets code plugin will be added to the Visual Studio solution if it exists when regenerating the game project. Intended primarily to assist with debugging the target platform after cooking with nativization turned on. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = Blueprints)
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This setting is no longer exposed for editing and will eventually be removed.")
+	UPROPERTY(config)
 	bool bIncludeNativizedAssetsInProjectGeneration;
 
 	/** Whether or not to exclude monolithic engine headers (e.g. Engine.h) in the generated code when nativizing Blueprint assets. This may improve C++ compiler performance if your game code does not depend on monolithic engine headers to build. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = Blueprints)
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This setting is no longer exposed for editing and will eventually be removed.")
+	UPROPERTY(config)
 	bool bExcludeMonolithicEngineHeadersInNativizedCode;
 
 	/** If enabled, all content will be put into a one or more .pak files instead of many individual files (default = enabled). */
@@ -494,13 +498,16 @@ public:
 	virtual bool CanEditChange( const FProperty* InProperty ) const override;
 
 	/** Adds the given Blueprint asset to the exclusive nativization list. */
-	bool AddBlueprintAssetToNativizationList(const class UBlueprint* InBlueprint);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	bool AddBlueprintAssetToNativizationList(const class UBlueprint* InBlueprint) { return false; }
 
 	/** Removes the given Blueprint asset from the exclusive nativization list. */
-	bool RemoveBlueprintAssetFromNativizationList(const class UBlueprint* InBlueprint);
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	bool RemoveBlueprintAssetFromNativizationList(const class UBlueprint* InBlueprint) { return false; }
 
 	/** Determines if the specified Blueprint is already saved for exclusive nativization. */
-	bool IsBlueprintAssetInNativizationList(const class UBlueprint* InBlueprint) const { return FindBlueprintInNativizationList(InBlueprint) >= 0; }
+	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This API will eventually be removed.")
+	bool IsBlueprintAssetInNativizationList(const class UBlueprint* InBlueprint) const { return false; }
 #endif
 
 	/** Gets a list of all valid packaging configurations for the current project */
@@ -510,9 +517,6 @@ public:
 	const FTargetInfo* GetBuildTargetInfo() const;
 
 private:
-	/** Returns the index of the specified Blueprint in the exclusive nativization list (otherwise INDEX_NONE) */
-	int32 FindBlueprintInNativizationList(const UBlueprint* InBlueprint) const;
-
 	/** Fix up cooking paths after they've been edited or laoded */
 	void FixCookingPaths();
 };

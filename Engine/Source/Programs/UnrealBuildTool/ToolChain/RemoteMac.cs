@@ -446,13 +446,6 @@ namespace UnrealBuildTool
 				Mappings.Add(new RemoteMapping(RemoteLogFile.Directory, GetRemotePath(RemoteLogFile.Directory)));
 			}
 
-			// Check if we need to enable a nativized plugin, and compile the assembly for that if we do
-			FileReference NativizedPluginFile = Rules.GetNativizedPlugin();
-			if(NativizedPluginFile != null)
-			{
-				RulesAssembly = RulesCompiler.CreatePluginRulesAssembly(NativizedPluginFile, false, RulesAssembly, false);
-			}
-
 			// Path to the local manifest file. This has to be translated from the remote format after the build is complete.
 			List<FileReference> LocalManifestFiles = new List<FileReference>();
 

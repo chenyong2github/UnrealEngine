@@ -95,7 +95,6 @@ protected:
 	static bool ShouldBuildProject(UProjectPackagingSettings* PackagingSettings, const ITargetPlatform* TargetPlatform)
 	{
 		const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)PackagingSettings->BuildConfiguration];
-		bool bAssetNativizationEnabled = (PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled);
 
 		// Get the target to build
 		const FTargetInfo* Target = PackagingSettings->GetBuildTargetInfo();
@@ -113,7 +112,7 @@ protected:
 		else if (PackagingSettings->Build == EProjectPackagingBuild::IfProjectHasCode)
 		{
 			bBuild = true;
-			if (FApp::GetEngineIsPromotedBuild() && !bAssetNativizationEnabled)
+			if (FApp::GetEngineIsPromotedBuild())
 			{
 				FString BaseDir;
 
@@ -1621,7 +1620,9 @@ if (/*PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != ETurnkeyPlatformSd
 
 UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)PackagingSettings->BuildConfiguration];
-bool bAssetNativizationEnabled = (PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled);
+
+// Note: Blueprint nativization has been removed as a feature.
+const bool bAssetNativizationEnabled = false;
 
 const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name.ToString());
 {
