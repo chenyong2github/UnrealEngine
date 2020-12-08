@@ -5,11 +5,19 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Engine/Canvas.h"
+#include "Debug/DebugDrawService.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #endif
+
+static int32 GDrawDataLayers = 0;
+static FAutoConsoleCommand CVarDrawDataLayers(
+	TEXT("wp.Runtime.ToggleDrawDataLayers"),
+	TEXT("Toggles debug display of active data layers."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayers = !GDrawDataLayers; }));
 
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
@@ -39,6 +47,27 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
 	}
 #endif
+}
+
+void UDataLayerSubsystem::PostInitialize()
+{
+	Super::PostInitialize();
+
+	if (GetWorld()->IsGameWorld() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
+	{
+		DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UDataLayerSubsystem::Draw));
+	}
+}
+
+void UDataLayerSubsystem::Deinitialize()
+{
+	if (DrawHandle.IsValid())
+	{
+		UDebugDrawService::Unregister(DrawHandle);
+		DrawHandle.Reset();
+	}
+
+	Super::Deinitialize();
 }
 
 UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
@@ -120,6 +149,40 @@ bool UDataLayerSubsystem::IsAnyDataLayerActive(const TArray<FName>& InDataLayerN
 		}
 	}
 	return false;
+}
+
+void UDataLayerSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC)
+{
+	if (!GDrawDataLayers || !Canvas || !Canvas->SceneView)
+	{
+		return;
+	}
+
+	auto DrawText = [](UCanvas* Canvas, const FString& Text, UFont* Font, const FColor& Color, FVector2D& Pos)
+	{
+		float TextWidth, TextHeight;
+		Canvas->StrLen(Font, Text, TextWidth, TextHeight);
+		Canvas->SetDrawColor(Color);
+		Canvas->DrawText(Font, Text, Pos.X, Pos.Y);
+		Pos.Y += TextHeight + 1;
+	};
+
+	if (ActiveDataLayerNames.Num() > 0)
+	{
+		const FVector2D CanvasTopLeftPadding(10.f, 10.f);
+		FVector2D Pos = CanvasTopLeftPadding;
+		FString Title(TEXT("Active Data Layers"));
+		DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, Pos);
+		UFont* DataLayerFont = GEngine->GetTinyFont();
+		for (const FName& DataLayerName : ActiveDataLayerNames)
+		{
+			if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
+			{
+				const FString Text = DataLayer->GetDataLayerLabel().ToString();
+				DrawText(Canvas, Text, DataLayerFont, FColor::White, Pos);
+			}
+		}
+	}
 }
 
 FAutoConsoleCommand UDataLayerSubsystem::ToggleDataLayerActivation(

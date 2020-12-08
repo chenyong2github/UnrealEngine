@@ -22,7 +22,12 @@ public:
 	//~ Begin USubsystem Interface.
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
+
+	//~ Begin UWorldSubsystem Interface.
+	virtual void PostInitialize() override;
+	//~ End UWorldSubsystem Interface.
 
 	//~ Begin Blueprint callable functions
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
@@ -46,9 +51,13 @@ public:
 	bool IsDataLayerActiveByName(const FName& InDataLayerName) const;
 	bool IsAnyDataLayerActive(const TArray<FName>& InDataLayerNames) const;
 
+	void Draw(class UCanvas* Canvas, class APlayerController* PC);
+
 private:
 	/** Console command used to toggle activation of a DataLayer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
 	TSet<FName> ActiveDataLayerNames;
+
+	FDelegateHandle	DrawHandle;
 };

@@ -839,7 +839,7 @@ void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* 
 	}
 }
 
-void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources) const
+void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const
 {
 	const FSquare2DGridHelper& Helper = GetGridHelper();
 	int32 MinGridLevel = FMath::Clamp<int32>(GShowRuntimeSpatialHashGridLevel, 0, GridLevels.Num() - 1);
@@ -882,13 +882,16 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 				}
 				FColor CellColor = Cell ? Cell->GetDebugColor().ToFColor(false).WithAlpha(16) : FColor(0, 0, 0, 16);
 				FVector BoundsOrigin(CellWorldBounds.GetCenter(), Z);
-				DrawDebugSolidBox(World, BoundsOrigin, BoundsExtent, CellColor, false, -1.f, 255);
-				DrawDebugBox(World, BoundsOrigin, BoundsExtent, CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
+				FBox Box = FBox::BuildAABB(BoundsOrigin, BoundsExtent);
+				DrawDebugSolidBox(World, Box, CellColor, Transform, false, -1.f, 255);
+				FVector Pos = Transform.TransformPosition(BoundsOrigin);
+				DrawDebugBox(World, Pos, BoundsExtent, Transform.GetRotation(), CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
 			});
 		}
 
 		// Draw Loading Ranges
 		FVector SphereLocation(FVector2D(Source.Location), Z);
+		SphereLocation = Transform.TransformPosition(SphereLocation);
 		DrawDebugSphere(World, SphereLocation, Radius, 32, FColor::White, false, -1.f, 0, 20.f);
 	}
 }
@@ -907,8 +910,8 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, const TArray<FWorldParti
 			Axis.LineThickness = 3;
 			{
 				Axis.SetColor(FLinearColor::Green);
-				FVector2D LineStart = WorldToScreen(FVector2D(-163840.f, 0.f));
-				FVector2D LineEnd = WorldToScreen(FVector2D(163840.f, 0.f));
+				FVector2D LineStart = WorldToScreen(FVector2D(-1638400.f, 0.f));
+				FVector2D LineEnd = WorldToScreen(FVector2D(1638400.f, 0.f));
 				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
 				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
 				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
@@ -917,8 +920,8 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, const TArray<FWorldParti
 			}
 			{
 				Axis.SetColor(FLinearColor::Red);
-				FVector2D LineStart = WorldToScreen(FVector2D(0.f, -163840.f));
-				FVector2D LineEnd = WorldToScreen(FVector2D(0.f, 163840.f));
+				FVector2D LineStart = WorldToScreen(FVector2D(0.f, -1638400.f));
+				FVector2D LineEnd = WorldToScreen(FVector2D(0.f, 1638400.f));
 				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
 				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
 				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
@@ -2278,15 +2281,18 @@ void UWorldPartitionRuntimeSpatialHash::Draw3D(const TArray<FWorldPartitionStrea
 {
 	UWorld* World = GetWorld();
 
+	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	FTransform Transform = WorldPartition->GetInstanceTransform();
+
 	if (StreamingGrids.IsValidIndex(GShowRuntimeSpatialHashGridIndex))
 	{
-		StreamingGrids[GShowRuntimeSpatialHashGridIndex].Draw3D(World, Sources);
+		StreamingGrids[GShowRuntimeSpatialHashGridIndex].Draw3D(World, Sources, Transform);
 	}
 	else
 	{
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.Draw3D(World, Sources);
+			StreamingGrid.Draw3D(World, Sources, Transform);
 		}
 	}
 }

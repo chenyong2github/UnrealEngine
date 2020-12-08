@@ -159,10 +159,11 @@ void UWorldPartitionSubsystem::DrawRuntimeHash2D(UCanvas* Canvas, class APlayerC
 		return;
 	}
 
+	const float MaxScreenRatio = 0.75f;
 	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
 	const FVector2D CanvasBottomRightPadding(10.f, 10.f);
 	const FVector2D CanvasMinimumSize(100.f, 100.f);
-	const FVector2D CanvasMaxScreenSize = FVector2D::Max(FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CanvasTopLeftPadding, CanvasMinimumSize);
+	const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CanvasTopLeftPadding, CanvasMinimumSize);
 
 	FVector2D TotalFootprint(ForceInitToZero);
 	for (UWorldPartition* Partition : RegisteredWorldPartitions)
