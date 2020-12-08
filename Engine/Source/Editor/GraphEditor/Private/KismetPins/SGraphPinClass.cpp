@@ -11,6 +11,7 @@
 #include "ScopedTransaction.h"
 #include "AssetRegistryModule.h"
 #include "K2Node_Variable.h"
+#include "K2Node_StructOperation.h"
 #include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SGraphPinClass"
@@ -104,8 +105,10 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 	TSharedPtr<FGraphPinFilter> Filter = MakeShareable(new FGraphPinFilter);
 	Filter->bAllowAbstractClasses = bAllowAbstractClasses;
 
-	if (UK2Node_Variable* VarNode = Cast<UK2Node_Variable>(GraphPinObj->GetOwningNode()))
+	if ( Cast<UK2Node_Variable>(GraphPinObj->GetOwningNode()) &&
+	    !Cast<UK2Node_StructOperation>(GraphPinObj->GetOwningNode()))
 	{
+		UK2Node_Variable* VarNode = CastChecked<UK2Node_Variable>(GraphPinObj->GetOwningNode());
 		const FString* AllowAbstractString = VarNode->GetPropertyForVariable()->FindMetaData(FBlueprintMetadata::MD_AllowAbstractClasses);
 		Filter->bAllowAbstractClasses = AllowAbstractString && AllowAbstractString->ToBool();
 	}
