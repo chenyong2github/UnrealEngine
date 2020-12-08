@@ -527,7 +527,7 @@ public:
 
 	virtual void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
-		if (LandscapeInfo && EdMode->LandscapeRenderAddCollision)
+		if (LandscapeInfo)
 		{
 			check(Brush->GetBrushType() == ELandscapeBrushType::Component);
 
@@ -724,8 +724,6 @@ public:
 				}				
 			}
 
-			EdMode->LandscapeRenderAddCollision = nullptr;
-
 			// Add/update "add collision" around the newly added components
 			if (!bHasLandscapeLayersContent)
 			{
@@ -799,6 +797,7 @@ public:
 	virtual void EnterTool() override
 	{
 		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::EnterTool();
+		AddCollision.Reset();
 		if(ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get())
 		{
 			LandscapeInfo->UpdateAllAddCollisions(); // Todo - as this is only used by this tool, move it into this tool?
@@ -809,8 +808,85 @@ public:
 	{
 		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::ExitTool();
 
-		EdMode->LandscapeRenderAddCollision = nullptr;
+		AddCollision.Reset();
 	}
+
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override
+	{
+		if (AddCollision.IsSet())
+		{
+			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[3], FColor(0, 255, 128), SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[1], FColor(0, 255, 128), SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[1], AddCollision->Corners[0], FColor(0, 255, 128), SDPG_Foreground);
+
+			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[2], FColor(0, 255, 128), SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[2], AddCollision->Corners[3], FColor(0, 255, 128), SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[0], FColor(0, 255, 128), SDPG_Foreground);
+		}
+	}
+
+	virtual bool HitTrace(const FVector& TraceStart, const FVector& TraceEnd, FVector& OutHitLocation) override
+	{
+		ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
+		if (!LandscapeInfo)
+		{
+			return false;
+		}
+
+		ALandscapeProxy* Proxy = LandscapeInfo->GetLandscapeProxy();
+		if (!Proxy)
+		{
+			return false;
+		}
+
+		AddCollision.Reset();
+
+		FVector IntersectPoint;
+		// Need to optimize collision for AddLandscapeComponent...?
+		for (auto& XYToAddCollisionPair : LandscapeInfo->XYtoAddCollisionMap)
+		{
+			FLandscapeAddCollision& CurrentAddCollision = XYToAddCollisionPair.Value;
+			// Triangle 1
+			if(RayIntersectTriangle(TraceStart, TraceEnd, CurrentAddCollision.Corners[0], CurrentAddCollision.Corners[3], CurrentAddCollision.Corners[1], IntersectPoint))
+			{
+				AddCollision = CurrentAddCollision;
+				OutHitLocation = Proxy->LandscapeActorToWorld().InverseTransformPosition(IntersectPoint);
+				return true;
+			}
+			// Triangle 2
+			if(RayIntersectTriangle(TraceStart, TraceEnd, CurrentAddCollision.Corners[0], CurrentAddCollision.Corners[2], CurrentAddCollision.Corners[3], IntersectPoint))
+			{
+				AddCollision = CurrentAddCollision;
+				OutHitLocation = Proxy->LandscapeActorToWorld().InverseTransformPosition(IntersectPoint);
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+private:
+	bool RayIntersectTriangle(const FVector& Start, const FVector& End, const FVector& A, const FVector& B, const FVector& C, FVector& IntersectPoint)
+	{
+		const FVector BA = A - B;
+		const FVector CB = B - C;
+		const FVector TriNormal = BA ^ CB;
+
+		bool bCollide = FMath::SegmentPlaneIntersection(Start, End, FPlane(A, TriNormal), IntersectPoint);
+		if (!bCollide)
+		{
+			return false;
+		}
+
+		FVector BaryCentric = FMath::ComputeBaryCentric2D(IntersectPoint, A, B, C);
+		if (BaryCentric.X > 0.0f && BaryCentric.Y > 0.0f && BaryCentric.Z > 0.0f)
+		{
+			return true;
+		}
+		return false;
+	}
+
+	TOptional<FLandscapeAddCollision> AddCollision;
 };
 
 //

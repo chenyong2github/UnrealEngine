@@ -608,9 +608,6 @@ public:
 	TArray<TUniquePtr<FLandscapeTool>> LandscapeTools;
 	TArray<FLandscapeBrushSet> LandscapeBrushSets;
 
-	// For collision add visualization
-	FLandscapeAddCollision* LandscapeRenderAddCollision;
-
 	ELandscapeEditingState GetEditingState() const;
 
 	bool IsEditingEnabled() const
