@@ -1642,7 +1642,7 @@ private:
 	const FNameMap* NameMap = nullptr;
 	TArrayView<const FExportObject> Exports;
 	const FExportMapEntry* ExportMap = nullptr;
-	UObject* CurrentExport;
+	UObject* CurrentExport = nullptr;
 	uint32 CookedHeaderSize = 0;
 	uint64 CookedSerialOffset = 0;
 	uint64 CookedSerialSize = 0;
@@ -5701,7 +5701,7 @@ bool FAsyncLoadingThread2::OverridePackageName(FName CustomPackageName, FAsyncPa
 	// CustomPackageName must not be an existing disk package name,
 	// that could cause missing or incorrect import objects for other packages.
 	FPackageId CustomPackageId = FPackageId::FromName(CustomPackageName);
-	bool bSuccess = true;
+	bool bSuccess = false;
 	if (!GlobalPackageStore.StoreEntryExists(CustomPackageId))
 	{
 		FString PackageNameStr = CustomPackageName.ToString();
@@ -5784,17 +5784,27 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	}
 	else
 	{
+		static TSet<FName> SkippedPackages;
+		bool bIsAlreadySkipped = false;
 		if (!Desc.StoreEntry)
 		{
-			if (!FLinkerLoad::IsKnownMissingPackage(Desc.DiskPackageName))
+			SkippedPackages.Add(NameToLoad, &bIsAlreadySkipped);
+			if (!bIsAlreadySkipped)
 			{
-				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("LoadPackage: SkipPackage"),
-					TEXT("The package to load does not exist on disk or in the loader"));
+				UE_LOG(LogStreaming, Warning,
+					TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package to load does not exist on disk or in the loader"),
+					*NameToLoad.ToString(), FPackageId::FromName(NameToLoad).ValueForDebugging());
 			}
 		}
 		else
 		{
-			UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("LoadPackage: SkipPackage"), TEXT("The package name is invalid"));
+			SkippedPackages.Add(Name, &bIsAlreadySkipped);
+			if (!bIsAlreadySkipped)
+			{
+				UE_LOG(LogStreaming, Warning,
+					TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package name is invalid"),
+					*Name.ToString(), FPackageId::FromName(Name).ValueForDebugging());
+			}
 		}
 
 		if (InCompletionDelegate.IsBound())
