@@ -144,6 +144,15 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
+#if WITH_EDITOR	
+	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+		TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
+
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 	// GPU sim functionality
@@ -158,6 +167,9 @@ public:
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+
+
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 
 	virtual bool CanExposeVariables() const override { return true;}
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
@@ -203,6 +215,10 @@ public:
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+	static const FName SetValueAtIndexFunctionName;
+	static const FName GetPreviousValueAtIndexFunctionName;
+	static const FName SamplePreviousGridAtIndexFunctionName;
+
 	static const FName SetVector4ValueFunctionName;
 	static const FName GetVector4ValueFunctionName;
 	static const FName SampleGridVector4FunctionName;
@@ -218,6 +234,17 @@ public:
 	static const FName SetFloatValueFunctionName;
 	static const FName GetFloatValueFunctionName;
 	static const FName SampleGridFloatFunctionName;
+
+	static const FName GetPreviousVector4ValueFunctionName;
+	static const FName SamplePreviousGridVector4FunctionName;
+	static const FName SetVectorValueFunctionName;
+	static const FName GetPreviousVectorValueFunctionName;
+	static const FName SamplePreviousGridVectorFunctionName;
+	static const FName SetVector2DValueFunctionName;
+	static const FName GetPreviousVector2DValueFunctionName;
+	static const FName SamplePreviousGridVector2DFunctionName;
+	static const FName GetPreviousFloatValueFunctionName;
+	static const FName SamplePreviousGridFloatFunctionName;
 	
 	static const FString AttributeIndicesBaseName;
 	static const TCHAR* VectorComponentNames[];
@@ -225,8 +252,8 @@ public:
 	static const FName SetNumCellsFunctionName;
 
 	static const FName GetVector4AttributeIndexFunctionName;
-	static const FName GetVector3AttributeIndexFunctionName;
-	static const FName GetVector2AttributeIndexFunctionName;
+	static const FName GetVectorAttributeIndexFunctionName;
+	static const FName GetVector2DAttributeIndexFunctionName;
 	static const FName GetFloatAttributeIndexFunctionName;
 
 	static const FString AnonymousAttributeString;
