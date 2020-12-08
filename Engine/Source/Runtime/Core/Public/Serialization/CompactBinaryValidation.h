@@ -115,7 +115,7 @@ ENUM_CLASS_FLAGS(ECbValidateError);
  * @param Type HasFieldType means that View contains the type. Otherwise, use the given type.
  * @return None on success, otherwise the flags for the types of errors that were detected.
  */
-CORE_API ECbValidateError ValidateCompactBinary(FConstMemoryView View, ECbValidateMode Mode, ECbFieldType Type = ECbFieldType::HasFieldType);
+CORE_API ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 /**
  * Validate the compact binary data for every field in the view as specified by the mode flags.
@@ -126,6 +126,6 @@ CORE_API ECbValidateError ValidateCompactBinary(FConstMemoryView View, ECbValida
  *
  * \see \ref ValidateCompactBinary for more detail.
  */
-CORE_API ECbValidateError ValidateCompactBinaryRange(FConstMemoryView View, ECbValidateMode Mode);
+CORE_API ECbValidateError ValidateCompactBinaryRange(FMemoryView View, ECbValidateMode Mode);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

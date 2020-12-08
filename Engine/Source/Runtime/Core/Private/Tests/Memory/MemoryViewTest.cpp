@@ -6,6 +6,13 @@
 
 #include <type_traits>
 
+static_assert(std::is_trivially_copyable<FMemoryView>::value, "FMemoryView must be trivially copyable");
+static_assert(std::is_trivially_copy_constructible<FMemoryView>::value, "FMemoryView must be trivially copy constructible");
+static_assert(std::is_trivially_move_constructible<FMemoryView>::value, "FMemoryView must be trivially move constructible");
+static_assert(std::is_trivially_copy_assignable<FMemoryView>::value, "FMemoryView must be trivially copy assignable");
+static_assert(std::is_trivially_move_assignable<FMemoryView>::value, "FMemoryView must be trivially move assignable");
+static_assert(std::is_trivially_destructible<FMemoryView>::value, "FMemoryView must be trivially destructible");
+
 static_assert(std::is_trivially_copyable<FMutableMemoryView>::value, "FMutableMemoryView must be trivially copyable");
 static_assert(std::is_trivially_copy_constructible<FMutableMemoryView>::value, "FMutableMemoryView must be trivially copy constructible");
 static_assert(std::is_trivially_move_constructible<FMutableMemoryView>::value, "FMutableMemoryView must be trivially move constructible");
@@ -13,37 +20,30 @@ static_assert(std::is_trivially_copy_assignable<FMutableMemoryView>::value, "FMu
 static_assert(std::is_trivially_move_assignable<FMutableMemoryView>::value, "FMutableMemoryView must be trivially move assignable");
 static_assert(std::is_trivially_destructible<FMutableMemoryView>::value, "FMutableMemoryView must be trivially destructible");
 
-static_assert(std::is_trivially_copyable<FConstMemoryView>::value, "FConstMemoryView must be trivially copyable");
-static_assert(std::is_trivially_copy_constructible<FConstMemoryView>::value, "FConstMemoryView must be trivially copy constructible");
-static_assert(std::is_trivially_move_constructible<FConstMemoryView>::value, "FConstMemoryView must be trivially move constructible");
-static_assert(std::is_trivially_copy_assignable<FConstMemoryView>::value, "FConstMemoryView must be trivially copy assignable");
-static_assert(std::is_trivially_move_assignable<FConstMemoryView>::value, "FConstMemoryView must be trivially move assignable");
-static_assert(std::is_trivially_destructible<FConstMemoryView>::value, "FConstMemoryView must be trivially destructible");
-
-static_assert(std::is_constructible<FConstMemoryView, const FMutableMemoryView&>::value, "Missing constructor");
-static_assert(!std::is_constructible<FMutableMemoryView, const FConstMemoryView&>::value, "Invalid constructor");
+static_assert(std::is_constructible<FMemoryView, const FMutableMemoryView&>::value, "Missing constructor");
+static_assert(!std::is_constructible<FMutableMemoryView, const FMemoryView&>::value, "Invalid constructor");
 static_assert(!std::is_constructible<FMutableMemoryView, const void*, uint64>::value, "Invalid constructor");
 
-static_assert(std::is_assignable<FConstMemoryView, const FMutableMemoryView&>::value, "Missing assignment");
-static_assert(!std::is_assignable<FMutableMemoryView, const FConstMemoryView&>::value, "Invalid assignment");
+static_assert(std::is_assignable<FMemoryView, const FMutableMemoryView&>::value, "Missing assignment");
+static_assert(!std::is_assignable<FMutableMemoryView, const FMemoryView&>::value, "Invalid assignment");
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMemoryViewTest, "System.Core.Memory.MemoryView", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FMemoryViewTest::RunTest(const FString& Parameters)
 {
-	auto TestMutableMemoryView = [this](const FMutableMemoryView& View, void* Data, uint64 Size)
+	auto TestMemoryView = [this](const FMemoryView& View, const void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
-		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<void*>(static_cast<uint8*>(Data) + Size));
+		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<const void*>(static_cast<const uint8*>(Data) + Size));
 		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
 
-	auto TestConstMemoryView = [this](const FConstMemoryView& View, const void* Data, uint64 Size)
+	auto TestMutableMemoryView = [this](const FMutableMemoryView& View, void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
-		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<const void*>(static_cast<const uint8*>(Data) + Size));
+		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<void*>(static_cast<uint8*>(Data) + Size));
 		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
@@ -59,24 +59,24 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	uint32 IntArray[12]{};
 
 	// Test Empty Views
+	TestMemoryView(FMemoryView(), nullptr, 0);
+	TestMemoryView(FMutableMemoryView(), nullptr, 0);
 	TestMutableMemoryView(FMutableMemoryView(), nullptr, 0);
-	TestConstMemoryView(FMutableMemoryView(), nullptr, 0);
-	TestConstMemoryView(FConstMemoryView(), nullptr, 0);
 
 	// Test Construction from Type[], TArrayView, (Type*, uint64), (Type*, Type*)
+	TestMemoryView(MakeMemoryView(AsConst(IntArray)), IntArray, sizeof(IntArray));
+	TestMemoryView(MakeMemoryView(MakeArrayView(AsConst(IntArray))), IntArray, sizeof(IntArray));
+	TestMemoryView(MakeMemoryView(AsConst(IntArray), sizeof(IntArray)), IntArray, sizeof(IntArray));
+	TestMemoryView(MakeMemoryView(AsConst(IntArray), AsConst(IntArray) + 6), IntArray, sizeof(*IntArray) * 6);
 	TestMutableMemoryView(MakeMemoryView(IntArray), IntArray, sizeof(IntArray));
 	TestMutableMemoryView(MakeMemoryView(MakeArrayView(IntArray)), IntArray, sizeof(IntArray));
 	TestMutableMemoryView(MakeMemoryView(IntArray, sizeof(IntArray)), IntArray, sizeof(IntArray));
 	TestMutableMemoryView(MakeMemoryView(IntArray, IntArray + 6), IntArray, sizeof(*IntArray) * 6);
-	TestConstMemoryView(MakeMemoryView(AsConst(IntArray)), IntArray, sizeof(IntArray));
-	TestConstMemoryView(MakeMemoryView(MakeArrayView(AsConst(IntArray))), IntArray, sizeof(IntArray));
-	TestConstMemoryView(MakeMemoryView(AsConst(IntArray), sizeof(IntArray)), IntArray, sizeof(IntArray));
-	TestConstMemoryView(MakeMemoryView(AsConst(IntArray), AsConst(IntArray) + 6), IntArray, sizeof(*IntArray) * 6);
 
 	// Test Construction from std::initializer_list
 	//MakeMemoryView({1, 2, 3}); // fail because the type must be deduced
 	std::initializer_list<uint8> InitializerList{1, 2, 3};
-	TestConstMemoryView(MakeMemoryView(InitializerList), GetData(InitializerList), GetNum(InitializerList) * sizeof(uint8));
+	TestMemoryView(MakeMemoryView(InitializerList), GetData(InitializerList), GetNum(InitializerList) * sizeof(uint8));
 
 	// Test Reset
 	{
@@ -128,8 +128,8 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("MemoryView.Mid(MaxSize,MaxSize)"), MakeMemoryView(IntArray).Mid(MAX_uint64, MAX_uint64), FMutableMemoryView());
 
 	// Test Contains
-	TestTrue(TEXT("MemoryView.Contains(Empty)"), FMutableMemoryView().Contains(FConstMemoryView()));
-	TestTrue(TEXT("MemoryView.Contains(Empty)"), FConstMemoryView().Contains(FMutableMemoryView()));
+	TestTrue(TEXT("MemoryView.Contains(Empty)"), FMemoryView().Contains(FMutableMemoryView()));
+	TestTrue(TEXT("MemoryView.Contains(Empty)"), FMutableMemoryView().Contains(FMemoryView()));
 	TestTrue(TEXT("MemoryView.Contains(Equal)"), MakeMemoryView(ByteArray).Contains(MakeMemoryView(ByteArray)));
 	TestTrue(TEXT("MemoryView.Contains(SmallerBy1Left)"), MakeMemoryView(ByteArray).Contains(MakeMemoryView(ByteArray + 1, 15)));
 	TestTrue(TEXT("MemoryView.Contains(SmallerBy1Right)"), MakeMemoryView(ByteArray).Contains(MakeMemoryView(ByteArray, 15)));
@@ -158,8 +158,8 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("MemoryView.Intersects(LargerBy1Right)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArray, 17)));
 	TestTrue(TEXT("MemoryView.Intersects(LargerBy2Both)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArrayContainer.BeforeByteArray + 3, 18)));
 	TestTrue(TEXT("MemoryView.Intersects(EmptyMiddle)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArray + 8, 0)));
-	TestFalse(TEXT("MemoryView.Intersects(Empty)"), FMutableMemoryView().Intersects(FConstMemoryView()));
-	TestFalse(TEXT("MemoryView.Intersects(Empty)"), FConstMemoryView().Intersects(FMutableMemoryView()));
+	TestFalse(TEXT("MemoryView.Intersects(Empty)"), FMemoryView().Intersects(FMutableMemoryView()));
+	TestFalse(TEXT("MemoryView.Intersects(Empty)"), FMutableMemoryView().Intersects(FMemoryView()));
 	TestFalse(TEXT("MemoryView.Intersects(EmptyLeft)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArray, 0)));
 	TestFalse(TEXT("MemoryView.Intersects(EmptyRight)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArray + 16, 0)));
 	TestFalse(TEXT("MemoryView.Intersects(EmptyOutside)"), MakeMemoryView(ByteArray).Intersects(MakeMemoryView(ByteArrayContainer.BeforeByteArray + 3, 0)));
@@ -169,12 +169,12 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 
 	// Test CompareBytes
 	const uint8 CompareBytes[8] = { 5, 4, 6, 2, 4, 7, 1, 3 };
-	TestEqual(TEXT("MemoryView.CompareBytes(Empty)"), FMutableMemoryView().CompareBytes(FConstMemoryView()), 0);
-	TestEqual(TEXT("MemoryView.CompareBytes(Empty)"), FConstMemoryView().CompareBytes(FMutableMemoryView()), 0);
+	TestEqual(TEXT("MemoryView.CompareBytes(Empty)"), FMemoryView().CompareBytes(FMutableMemoryView()), 0);
+	TestEqual(TEXT("MemoryView.CompareBytes(Empty)"), FMutableMemoryView().CompareBytes(FMemoryView()), 0);
 	TestEqual(TEXT("MemoryView.CompareBytes(EqualView)"), MakeMemoryView(ByteArray).CompareBytes(MakeMemoryView(ByteArray)), 0);
 	TestEqual(TEXT("MemoryView.CompareBytes(EqualBytes)"), MakeMemoryView(ByteArray, 8).CompareBytes(MakeMemoryView(ByteArray + 8, 8)), 0);
-	TestTrue(TEXT("MemoryView.CompareBytes(EmptyLeft)"), FConstMemoryView().CompareBytes(MakeMemoryView(ByteArray)) < 0);
-	TestTrue(TEXT("MemoryView.CompareBytes(EmptyRight)"), MakeMemoryView(ByteArray).CompareBytes(FConstMemoryView()) > 0);
+	TestTrue(TEXT("MemoryView.CompareBytes(EmptyLeft)"), FMemoryView().CompareBytes(MakeMemoryView(ByteArray)) < 0);
+	TestTrue(TEXT("MemoryView.CompareBytes(EmptyRight)"), MakeMemoryView(ByteArray).CompareBytes(FMemoryView()) > 0);
 	TestTrue(TEXT("MemoryView.CompareBytes(ShorterLeft)"), MakeMemoryView(ByteArray, 8).CompareBytes(MakeMemoryView(ByteArray)) < 0);
 	TestTrue(TEXT("MemoryView.CompareBytes(ShorterRight)"), MakeMemoryView(ByteArray).CompareBytes(MakeMemoryView(ByteArray, 8)) > 0);
 	TestTrue(TEXT("MemoryView.CompareBytes(ShorterLeft)"), MakeMemoryView(IntArray, 8).CompareBytes(MakeMemoryView(ByteArray)) < 0);
@@ -185,8 +185,8 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("MemoryView.CompareBytes(SameSizeLeftGreater)"), MakeMemoryView(CompareBytes, 3).CompareBytes(MakeMemoryView(CompareBytes + 3, 3)) > 0);
 
 	// Test EqualBytes
-	TestTrue(TEXT("MemoryView.EqualBytes(Empty)"), FMutableMemoryView().EqualBytes(FConstMemoryView()));
-	TestTrue(TEXT("MemoryView.EqualBytes(Empty)"), FConstMemoryView().EqualBytes(FMutableMemoryView()));
+	TestTrue(TEXT("MemoryView.EqualBytes(Empty)"), FMemoryView().EqualBytes(FMutableMemoryView()));
+	TestTrue(TEXT("MemoryView.EqualBytes(Empty)"), FMutableMemoryView().EqualBytes(FMemoryView()));
 	TestTrue(TEXT("MemoryView.EqualBytes(EqualView)"), MakeMemoryView(ByteArray).EqualBytes(MakeMemoryView(ByteArray)));
 	TestTrue(TEXT("MemoryView.EqualBytes(EqualBytes)"), MakeMemoryView(ByteArray, 8).EqualBytes(MakeMemoryView(ByteArray + 8, 8)));
 	TestFalse(TEXT("MemoryView.EqualBytes(DifferentSize)"), MakeMemoryView(ByteArray, 8).EqualBytes(MakeMemoryView(ByteArray, 4)));
@@ -194,10 +194,10 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("MemoryView.EqualBytes(DifferentBytes)"), MakeMemoryView(CompareBytes, 4).EqualBytes(MakeMemoryView(CompareBytes + 4, 4)));
 
 	// Test Equals
+	TestTrue(TEXT("MemoryView.Equals(Empty)"), FMemoryView().Equals(FMemoryView()));
+	TestTrue(TEXT("MemoryView.Equals(Empty)"), FMemoryView().Equals(FMutableMemoryView()));
+	TestTrue(TEXT("MemoryView.Equals(Empty)"), FMutableMemoryView().Equals(FMemoryView()));
 	TestTrue(TEXT("MemoryView.Equals(Empty)"), FMutableMemoryView().Equals(FMutableMemoryView()));
-	TestTrue(TEXT("MemoryView.Equals(Empty)"), FMutableMemoryView().Equals(FConstMemoryView()));
-	TestTrue(TEXT("MemoryView.Equals(Empty)"), FConstMemoryView().Equals(FMutableMemoryView()));
-	TestTrue(TEXT("MemoryView.Equals(Empty)"), FConstMemoryView().Equals(FConstMemoryView()));
 	TestTrue(TEXT("MemoryView.Equals(Equal)"), MakeMemoryView(IntArray).Equals(MakeMemoryView(AsConst(IntArray))));
 	TestFalse(TEXT("MemoryView.Equals(DataDiff)"), MakeMemoryView(IntArray).Equals(MakeMemoryView(IntArray + 1, sizeof(IntArray) - sizeof(*IntArray))));
 	TestFalse(TEXT("MemoryView.Equals(SizeDiff)"), MakeMemoryView(IntArray).Equals(MakeMemoryView(IntArray, sizeof(*IntArray))));

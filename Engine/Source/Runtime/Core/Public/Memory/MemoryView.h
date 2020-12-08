@@ -21,7 +21,7 @@
 /**
  * A non-owning view of a contiguous region of memory.
  *
- * Prefer to use the aliases FConstMemoryView or FMutableMemoryView over this type.
+ * Prefer to use the aliases FMemoryView or FMutableMemoryView over this type.
  *
  * Functions that modify a view clamp sizes and offsets to always return a sub-view of the input.
  */

@@ -7,11 +7,11 @@
 template <typename DataType>
 class TMemoryView;
 
+/** A non-owning view of a contiguous region of memory. */
+using FMemoryView = TMemoryView<const void>;
+
 /** A non-owning mutable view of a contiguous region of memory. */
 using FMutableMemoryView = TMemoryView<void>;
-
-/** A non-owning const view of a contiguous region of memory. */
-using FConstMemoryView = TMemoryView<const void>;
 
 // SharedBuffer
 

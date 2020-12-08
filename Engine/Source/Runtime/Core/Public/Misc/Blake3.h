@@ -50,7 +50,7 @@ public:
 	CORE_API void Update(const void* Data, uint64 Size);
 
 	/** Add the view as input to the hash. May be called any number of times. */
-	inline void Update(FConstMemoryView View)
+	inline void Update(FMemoryView View)
 	{
 		Update(View.GetData(), View.GetSize());
 	}
@@ -62,7 +62,7 @@ public:
 	CORE_API static FBlake3Hash HashBuffer(const void* Data, uint64 Size);
 
 	/** Calculate the hash of the input view. */
-	static inline FBlake3Hash HashBuffer(FConstMemoryView View)
+	static inline FBlake3Hash HashBuffer(FMemoryView View)
 	{
 		return HashBuffer(View.GetData(), View.GetSize());
 	}

@@ -24,7 +24,7 @@ class FArchive;
  * @param View A memory view that may contain the start of a field.
  * @param Type HasFieldType means that View contains the type. Otherwise, use the given type.
  */
-CORE_API uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType);
+CORE_API uint64 MeasureCompactBinary(FMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 /**
  * Try to determine the type and size of the compact binary field at the start of the view.
@@ -43,7 +43,7 @@ CORE_API uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type = 
  * @return true if the size of the field was determined, otherwise false.
  */
 CORE_API bool TryMeasureCompactBinary(
-	FConstMemoryView InView,
+	FMemoryView InView,
 	ECbFieldType& OutType,
 	uint64& OutSize,
 	ECbFieldType InType = ECbFieldType::HasFieldType);

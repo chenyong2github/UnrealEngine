@@ -763,7 +763,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.Name("Binary"_ASV);
 		Writer.BeginObject();
 		{
-			Writer.Name("Empty"_ASV).Binary(FConstMemoryView());
+			Writer.Name("Empty"_ASV).Binary(FMemoryView());
 			Writer.Name("Value"_ASV).Binary(MakeMemoryView("BinaryValue"));
 			Writer.Name("LargeValue"_ASV).Binary(MakeMemoryView(FString::ChrN(256, TEXT('.'))));
 			Writer.Name("LargeRefValue"_ASV).Binary(FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));

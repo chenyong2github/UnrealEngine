@@ -495,7 +495,7 @@ public:
 	}
 
 	/** Make an owned writable clone of the memory view. */
-	static inline FSharedBufferPtr Clone(const FConstMemoryView View)
+	static inline FSharedBufferPtr Clone(const FMemoryView View)
 	{
 		return Clone(View.GetData(), View.GetSize());
 	}
@@ -515,7 +515,7 @@ public:
 	}
 
 	/** Make a non-owned read-only view of the memory view. */
-	static inline FSharedBufferConstPtr MakeView(FConstMemoryView View)
+	static inline FSharedBufferConstPtr MakeView(FMemoryView View)
 	{
 		return MakeView(View.GetData(), View.GetSize());
 	}
@@ -534,7 +534,7 @@ public:
 	}
 
 	/** Make a non-owned read-only view of the outer buffer and hold a reference to it. */
-	static inline FSharedBufferConstPtr MakeView(FConstMemoryView View, const FSharedBuffer& OuterBuffer)
+	static inline FSharedBufferConstPtr MakeView(FMemoryView View, const FSharedBuffer& OuterBuffer)
 	{
 		return MakeView(View.GetData(), View.GetSize(), OuterBuffer);
 	}
@@ -724,10 +724,10 @@ public:
 	/** A writable view of buffer. */
 	inline FMutableMemoryView GetView() { return FMutableMemoryView(GetData(), GetSize()); }
 	/** A read-only view of the buffer. */
-	inline FConstMemoryView GetView() const { return FConstMemoryView(GetData(), GetSize()); }
+	inline FMemoryView GetView() const { return FMemoryView(GetData(), GetSize()); }
 
 	inline operator FMutableMemoryView() { return GetView(); }
-	inline operator FConstMemoryView() const { return GetView(); }
+	inline operator FMemoryView() const { return GetView(); }
 
 private:
 	/**

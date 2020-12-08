@@ -56,7 +56,7 @@ static inline ECbFieldType AppendCompactBinary(const FCbField& Value, TArray64<u
 		using FCbField::GetPayloadView;
 	};
 	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
-	const FConstMemoryView SourceView = ValueCopy.GetPayloadView();
+	const FMemoryView SourceView = ValueCopy.GetPayloadView();
 	const int64 TargetOffset = OutData.AddUninitialized(SourceView.GetSize());
 	FMemory::Memcpy(OutData.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
 	return FCbFieldType::GetType(ValueCopy.GetType());

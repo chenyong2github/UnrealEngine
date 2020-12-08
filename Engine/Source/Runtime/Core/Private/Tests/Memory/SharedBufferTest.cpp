@@ -124,13 +124,13 @@ static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclV
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferRef>()))>::value, "Invalid constructor");
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferConstRef>()))>::value, "Invalid constructor");
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<FMemoryView>()))>::value, "Invalid constructor");
 
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeView(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FMemoryView>()))>::value, "Invalid constructor");
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeView(DeclVal<void*>(), 0))>::value, "Invalid constructor");
 static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<const void*>(), 0))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FConstMemoryView>(), DeclVal<const FSharedBuffer&>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FMemoryView>(), DeclVal<const FSharedBuffer&>()))>::value, "Invalid constructor");
 static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<const void*>(), 0, DeclVal<const FSharedBuffer&>()))>::value, "Invalid constructor");
 
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::TakeOwnership(DeclVal<void*>(), 0, FMemory::Free))>::value, "Invalid constructor");
@@ -141,12 +141,12 @@ static_assert(std::is_same<const void*, decltype(DeclVal<const FSharedBuffer>().
 static_assert(std::is_same<uint64, decltype(DeclVal<FSharedBuffer>().GetSize())>::value, "Invalid accessor");
 
 static_assert(std::is_same<FMutableMemoryView, decltype(DeclVal<FSharedBuffer>().GetView())>::value, "Invalid accessor");
-static_assert(std::is_same<FConstMemoryView, decltype(DeclVal<const FSharedBuffer>().GetView())>::value, "Invalid accessor");
+static_assert(std::is_same<FMemoryView, decltype(DeclVal<const FSharedBuffer>().GetView())>::value, "Invalid accessor");
 
 static_assert(std::is_convertible<FSharedBuffer, FMutableMemoryView>::value, "Missing conversion");
-static_assert(std::is_convertible<FSharedBuffer, FConstMemoryView>::value, "Missing conversion");
+static_assert(std::is_convertible<FSharedBuffer, FMemoryView>::value, "Missing conversion");
 static_assert(!std::is_convertible<const FSharedBuffer, FMutableMemoryView>::value, "Invalid conversion");
-static_assert(std::is_convertible<const FSharedBuffer, FConstMemoryView>::value, "Missing conversion");
+static_assert(std::is_convertible<const FSharedBuffer, FMemoryView>::value, "Missing conversion");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

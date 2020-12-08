@@ -132,7 +132,7 @@ bool FCbMeasureTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbSaveTest, "System.Core.Serialization.SaveCompactBinary", CompactBinarySerializationTestFlags)
 bool FCbSaveTest::RunTest(const FString& Parameters)
 {
-	const auto TestSave = [this](const TCHAR* Test, auto Value, FConstMemoryView ExpectedData)
+	const auto TestSave = [this](const TCHAR* Test, auto Value, FMemoryView ExpectedData)
 	{
 		{
 			FBufferArchive WriteAr;

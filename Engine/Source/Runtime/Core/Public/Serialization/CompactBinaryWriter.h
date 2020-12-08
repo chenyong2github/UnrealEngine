@@ -139,7 +139,7 @@ public:
 	/** Write a binary field by copying Size bytes from Value. */
 	CORE_API void Binary(const void* Value, uint64 Size);
 	/** Write a binary field by copying the view. */
-	inline void Binary(FConstMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
+	inline void Binary(FMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
 	/** Write a binary field by copying the buffer. Holds a reference if owned. */
 	CORE_API void Binary(const FSharedBufferConstPtr& Buffer);
 

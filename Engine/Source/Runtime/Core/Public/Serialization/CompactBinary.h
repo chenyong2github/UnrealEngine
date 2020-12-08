@@ -333,7 +333,7 @@ public:
 	CORE_API void IterateRangeReferences(FCbFieldVisitor Visitor) const;
 
 	/** Create a view of every field in the range. */
-	inline FConstMemoryView GetRangeView() const
+	inline FMemoryView GetRangeView() const
 	{
 		return MakeMemoryView(FieldType::GetView().GetData(), FieldsEnd);
 	}
@@ -344,7 +344,7 @@ public:
 	 * A serialized view is not available if the underlying fields have an externally-provided type.
 	 * Access the serialized form of such ranges using FCbFieldRefIterator::CloneRange.
 	 */
-	inline bool TryGetSerializedRangeView(FConstMemoryView& OutView) const
+	inline bool TryGetSerializedRangeView(FMemoryView& OutView) const
 	{
 		if (FCbFieldType::HasFieldType(FieldType::GetType()))
 		{
@@ -455,7 +455,7 @@ public:
 	CORE_API FCbArray AsArray();
 
 	/** Access the field as binary. Returns the provided default on error. */
-	CORE_API FConstMemoryView AsBinary(FConstMemoryView Default = FConstMemoryView());
+	CORE_API FMemoryView AsBinary(FMemoryView Default = FMemoryView());
 
 	/** Access the field as a UTF-8 string. Returns the provided default on error. */
 	CORE_API FAnsiStringView AsString(FAnsiStringView Default = FAnsiStringView());
@@ -587,7 +587,7 @@ public:
 	CORE_API void IterateReferences(FCbFieldVisitor Visitor) const;
 
 	/** Returns a view of the field, including the type and name when present. */
-	CORE_API FConstMemoryView GetView() const;
+	CORE_API FMemoryView GetView() const;
 
 	/**
 	 * Try to get a view of the field as it would be serialized, such as by CopyTo.
@@ -595,7 +595,7 @@ public:
 	 * A serialized view is not available if the field has an externally-provided type.
 	 * Access the serialized form of such fields using CopyTo or FCbFieldRef::Clone.
 	 */
-	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
+	inline bool TryGetSerializedView(FMemoryView& OutView) const
 	{
 		if (FCbFieldType::HasFieldType(Type))
 		{
@@ -607,10 +607,10 @@ public:
 
 protected:
 	/** Returns a view of the name and value payload, which excludes the type. */
-	CORE_API FConstMemoryView GetViewNoType() const;
+	CORE_API FMemoryView GetViewNoType() const;
 
 	/** Returns a view of the value payload, which excludes the type and name. */
-	inline FConstMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
+	inline FMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
 
 	/** Returns the type of the field including flags. */
 	constexpr inline ECbFieldType GetType() const { return Type; }
@@ -696,7 +696,7 @@ public:
 	 * @param View A buffer containing zero or more valid fields.
 	 * @param Type HasFieldType means that View contains the type. Otherwise, use the given type.
 	 */
-	static inline FCbFieldIterator MakeRange(FConstMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType)
+	static inline FCbFieldIterator MakeRange(FMemoryView View, ECbFieldType Type = ECbFieldType::HasFieldType)
 	{
 		return !View.IsEmpty() ? FCbFieldIterator(FCbField(View.GetData(), Type), View.GetDataEnd()) : FCbFieldIterator();
 	}
@@ -784,7 +784,7 @@ public:
 	 * A serialized view is not available if the underlying field has an externally-provided type or
 	 * a name. Access the serialized form of such arrays using CopyTo or FCbArrayRef::Clone.
 	 */
-	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
+	inline bool TryGetSerializedView(FMemoryView& OutView) const
 	{
 		return !FCbField::HasName() && FCbField::TryGetSerializedView(OutView);
 	}
@@ -882,7 +882,7 @@ public:
 	 * A serialized view is not available if the underlying field has an externally-provided type or
 	 * a name. Access the serialized form of such objects using CopyTo or FCbObjectRef::Clone.
 	 */
-	inline bool TryGetSerializedView(FConstMemoryView& OutView) const
+	inline bool TryGetSerializedView(FMemoryView& OutView) const
 	{
 		return !FCbField::HasName() && FCbField::TryGetSerializedView(OutView);
 	}
@@ -977,7 +977,7 @@ public:
 	/** Returns a buffer that exactly contains this value. */
 	inline FSharedBufferConstPtr GetBuffer() const
 	{
-		const FConstMemoryView View = BaseType::GetView();
+		const FMemoryView View = BaseType::GetView();
 		const FSharedBufferConstPtr& OuterBuffer = GetOuterBuffer();
 		if (OuterBuffer)
 		{

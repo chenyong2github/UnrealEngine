@@ -8,7 +8,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
+uint64 MeasureCompactBinary(FMemoryView View, ECbFieldType Type)
 {
 	uint64 Size;
 	return TryMeasureCompactBinary(View, Type, Size, Type) ? Size : 0;
@@ -16,7 +16,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool TryMeasureCompactBinary(FConstMemoryView View, ECbFieldType& OutType, uint64& OutSize, ECbFieldType Type)
+bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& OutSize, ECbFieldType Type)
 {
 	uint64 Size = 0;
 

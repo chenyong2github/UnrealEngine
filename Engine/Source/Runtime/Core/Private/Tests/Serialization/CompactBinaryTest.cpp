@@ -52,7 +52,7 @@ constexpr auto TCbFieldAsTypeFn = TCbFieldTypeAccessors<FCbFieldType::GetType(Fi
 
 UE_CBFIELD_TYPE_ACCESSOR(Object, IsObject, AsObject, FCbObject);
 UE_CBFIELD_TYPE_ACCESSOR(Array, IsArray, AsArray, FCbArray);
-UE_CBFIELD_TYPE_ACCESSOR(Binary, IsBinary, AsBinary, FConstMemoryView);
+UE_CBFIELD_TYPE_ACCESSOR(Binary, IsBinary, AsBinary, FMemoryView);
 UE_CBFIELD_TYPE_ACCESSOR(String, IsString, AsString, FAnsiStringView);
 UE_CBFIELD_TYPE_ACCESSOR(IntegerPositive, IsInteger, AsUInt64, uint64);
 UE_CBFIELD_TYPE_ACCESSOR(IntegerNegative, IsInteger, AsInt64, int64);
@@ -75,7 +75,7 @@ protected:
 	using FAutomationTestBase::FAutomationTestBase;
 	using FAutomationTestBase::TestEqual;
 
-	void TestEqualBytes(const TCHAR* What, FConstMemoryView Actual, TArrayView<const uint8> Expected)
+	void TestEqualBytes(const TCHAR* What, FMemoryView Actual, TArrayView<const uint8> Expected)
 	{
 		TestTrue(What, Actual.EqualBytes(MakeMemoryView(Expected)));
 	}
@@ -192,8 +192,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField()::HasError()"), DefaultField.HasError());
 		TestEqual(TEXT("FCbField()::GetError() == None"), DefaultField.GetError(), ECbFieldError::None);
 		TestEqual(TEXT("FCbField()::GetHash()"), DefaultField.GetHash(), FBlake3::HashBuffer(MakeMemoryView<uint8>({uint8(ECbFieldType::None)})));
-		TestEqual(TEXT("FCbField()::GetView()"), DefaultField.GetView(), FConstMemoryView());
-		FConstMemoryView SerializedView;
+		TestEqual(TEXT("FCbField()::GetView()"), DefaultField.GetView(), FMemoryView());
+		FMemoryView SerializedView;
 		TestFalse(TEXT("FCbField()::TryGetSerializedView()"), DefaultField.TryGetSerializedView(SerializedView));
 	}
 
@@ -207,8 +207,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None)::HasError()"), NoneField.HasError());
 		TestEqual(TEXT("FCbField(None)::GetError() == None"), NoneField.GetError(), ECbFieldError::None);
 		TestEqual(TEXT("FCbField(None)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
-		TestEqual(TEXT("FCbField(None)::GetView()"), NoneField.GetView(), FConstMemoryView());
-		FConstMemoryView SerializedView;
+		TestEqual(TEXT("FCbField(None)::GetView()"), NoneField.GetView(), FMemoryView());
+		FMemoryView SerializedView;
 		TestFalse(TEXT("FCbField(None)::TryGetSerializedView()"), NoneField.TryGetSerializedView(SerializedView));
 	}
 
@@ -223,7 +223,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None|Type|Name)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbField(None|Type|Name)::GetHash()"), NoneField.GetHash(), FBlake3::HashBuffer(MakeMemoryView(NoneBytes)));
 		TestEqual(TEXT("FCbField(None|Type|Name)::GetView()"), NoneField.GetView(), MakeMemoryView(NoneBytes));
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestTrue(TEXT("FCbField(None|Type|Name)::TryGetSerializedView()"), NoneField.TryGetSerializedView(SerializedView) && SerializedView == MakeMemoryView(NoneBytes));
 
 		uint8 CopyBytes[sizeof(NoneBytes)];
@@ -242,7 +242,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None|Type)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbField(None|Type)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
 		TestEqual(TEXT("FCbField(None|Type)::GetView()"), NoneField.GetView(), MakeMemoryView(NoneBytes));
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestTrue(TEXT("FCbField(None|Type)::TryGetSerializedView()"), NoneField.TryGetSerializedView(SerializedView) && SerializedView == MakeMemoryView(NoneBytes));
 	}
 
@@ -257,7 +257,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None|Name)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbField(None|Name)::GetHash()"), NoneField.GetHash(), FBlake3::HashBuffer(MakeMemoryView(NoneBytes)));
 		TestEqual(TEXT("FCbField(None|Name)::GetView()"), NoneField.GetView(), MakeMemoryView(NoneBytes) + 1);
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestFalse(TEXT("FCbField(None|Name)::TryGetSerializedView()"), NoneField.TryGetSerializedView(SerializedView));
 
 		uint8 CopyBytes[sizeof(NoneBytes)];
@@ -276,7 +276,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None|EmptyName)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbField(None|EmptyName)::GetHash()"), NoneField.GetHash(), FBlake3::HashBuffer(MakeMemoryView(NoneBytes)));
 		TestEqual(TEXT("FCbField(None|EmptyName)::GetView()"), NoneField.GetView(), MakeMemoryView(NoneBytes) + 1);
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestFalse(TEXT("FCbField(None|EmptyName)::TryGetSerializedView()"), NoneField.TryGetSerializedView(SerializedView));
 	}
 
@@ -422,7 +422,7 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbObject(NoType, Name)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 
 		// GetSerializedView
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestTrue(TEXT("FCbObject(Clone)::TryGetSerializedView()"), Object.TryGetSerializedView(SerializedView) && SerializedView == Object.AsField().GetView());
 		TestFalse(TEXT("FCbObject(NoType)::TryGetSerializedView()"), Field.AsObject().TryGetSerializedView(SerializedView));
 		TestFalse(TEXT("FCbObject(Name)::TryGetSerializedView()"), NamedField.AsObject().TryGetSerializedView(SerializedView));
@@ -587,7 +587,7 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbArray(NoType, Name)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 
 		// GetSerializedView
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestTrue(TEXT("FCbArray(Clone)::TryGetSerializedView()"), Array.TryGetSerializedView(SerializedView) && SerializedView == Array.AsField().GetView());
 		TestFalse(TEXT("FCbArray(NoType)::TryGetSerializedView()"), Field.AsArray().TryGetSerializedView(SerializedView));
 		TestFalse(TEXT("FCbArray(Name)::TryGetSerializedView()"), NamedField.AsArray().TryGetSerializedView(SerializedView));
@@ -1522,7 +1522,7 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		const FSharedBufferConstPtr View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
 		const FSharedBufferConstPtr Clone = FSharedBuffer::Clone(MakeMemoryView(Payload));
 
-		const FConstMemoryView EmptyView;
+		const FMemoryView EmptyView;
 		const FSharedBufferConstPtr NullBuffer;
 
 		const FCbFieldIterator FieldIt = FCbFieldIterator::MakeRange(*View);
@@ -1533,7 +1533,7 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 
 		TestEqual(TEXT("FCbFieldIterator::GetRangeView()"), FieldIt.GetRangeView(), MakeMemoryView(Payload));
 		TestEqual(TEXT("FCbFieldRefIterator::GetRangeView()"), FieldRefIt.GetRangeView(), MakeMemoryView(Payload));
-		FConstMemoryView SerializedView;
+		FMemoryView SerializedView;
 		TestTrue(TEXT("FCbFieldIterator::TryGetSerializedRangeView()"), FieldIt.TryGetSerializedRangeView(SerializedView) && SerializedView == MakeMemoryView(Payload));
 		TestTrue(TEXT("FCbFieldRefIterator::TryGetSerializedRangeView()"), FieldRefIt.TryGetSerializedRangeView(SerializedView) && SerializedView == MakeMemoryView(Payload));
 

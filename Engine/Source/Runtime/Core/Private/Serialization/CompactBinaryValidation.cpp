@@ -42,7 +42,7 @@ FORCENOINLINE static void AddError(ECbValidateError& OutError, const ECbValidate
  *
  * A type argument with the HasFieldType flag indicates that the type will not be read from the view.
  */
-static ECbFieldType ValidateCbFieldType(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType Type = ECbFieldType::HasFieldType)
+static ECbFieldType ValidateCbFieldType(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType Type = ECbFieldType::HasFieldType)
 {
 	if (FCbFieldType::HasFieldType(Type))
 	{
@@ -77,7 +77,7 @@ static ECbFieldType ValidateCbFieldType(FConstMemoryView& View, ECbValidateMode 
  *
  * Modifies the view to start at the end of the value, and adds error flags if applicable.
  */
-static uint64 ValidateCbUInt(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static uint64 ValidateCbUInt(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	if (View.GetSize() > 0 && View.GetSize() >= MeasureVarUInt(View.GetData()))
 	{
@@ -103,7 +103,7 @@ static uint64 ValidateCbUInt(FConstMemoryView& View, ECbValidateMode Mode, ECbVa
  *
  * Modifies the view to start at the end of the value, and adds error flags if applicable.
  */
-static void ValidateCbFloat64(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static void ValidateCbFloat64(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	if (View.GetSize() >= sizeof(double))
 	{
@@ -130,7 +130,7 @@ static void ValidateCbFloat64(FConstMemoryView& View, ECbValidateMode Mode, ECbV
  *
  * Modifies the view to start at the end of the string, and adds error flags if applicable.
  */
-static FAnsiStringView ValidateCbString(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FAnsiStringView ValidateCbString(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	const uint64 NameSize = ValidateCbUInt(View, Mode, Error);
 	if (View.GetSize() >= NameSize)
@@ -147,7 +147,7 @@ static FAnsiStringView ValidateCbString(FConstMemoryView& View, ECbValidateMode 
 	}
 }
 
-static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
+static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
 
 /** A type that checks whether all validated fields are of the same type. */
 class FCbUniformFieldsValidator
@@ -158,7 +158,7 @@ public:
 	{
 	}
 
-	inline FCbField ValidateField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+	inline FCbField ValidateField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 	{
 		const void* const FieldData = View.GetData();
 		if (FCbField Field = ValidateCbField(View, Mode, Error, ExternalType))
@@ -193,10 +193,10 @@ private:
 	ECbFieldType ExternalType;
 };
 
-static void ValidateCbObject(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ObjectType)
+static void ValidateCbObject(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ObjectType)
 {
 	const uint64 Size = ValidateCbUInt(View, Mode, Error);
-	FConstMemoryView ObjectView = View.Left(Size);
+	FMemoryView ObjectView = View.Left(Size);
 	View += Size;
 
 	if (Size > 0)
@@ -245,10 +245,10 @@ static void ValidateCbObject(FConstMemoryView& View, ECbValidateMode Mode, ECbVa
 	}
 }
 
-static void ValidateCbArray(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ArrayType)
+static void ValidateCbArray(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ArrayType)
 {
 	const uint64 Size = ValidateCbUInt(View, Mode, Error);
-	FConstMemoryView ArrayView = View.Left(Size);
+	FMemoryView ArrayView = View.Left(Size);
 	View += Size;
 
 	const uint64 Count = ValidateCbUInt(ArrayView, Mode, Error);
@@ -274,9 +274,9 @@ static void ValidateCbArray(FConstMemoryView& View, ECbValidateMode Mode, ECbVal
 	}
 }
 
-static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, const ECbFieldType ExternalType = ECbFieldType::HasFieldType)
+static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, const ECbFieldType ExternalType = ECbFieldType::HasFieldType)
 {
-	const FConstMemoryView FieldView = View;
+	const FMemoryView FieldView = View;
 	const ECbFieldType Type = ValidateCbFieldType(View, Mode, Error, ExternalType);
 	const FAnsiStringView Name = FCbFieldType::HasFieldName(Type) ? ValidateCbString(View, Mode, Error) : FAnsiStringView();
 
@@ -374,7 +374,7 @@ static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, EC
 	return FCbField(FieldView.GetData(), ExternalType);
 }
 
-ECbValidateError ValidateCompactBinary(FConstMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
+ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
 {
 	ECbValidateError Error = ECbValidateError::None;
 	ValidateCbField(View, Mode, Error, Type);
@@ -385,7 +385,7 @@ ECbValidateError ValidateCompactBinary(FConstMemoryView View, ECbValidateMode Mo
 	return Error;
 }
 
-ECbValidateError ValidateCompactBinaryRange(FConstMemoryView View, ECbValidateMode Mode)
+ECbValidateError ValidateCompactBinaryRange(FMemoryView View, ECbValidateMode Mode)
 {
 	ECbValidateError Error = ECbValidateError::None;
 	while (!View.IsEmpty())
