@@ -2306,19 +2306,13 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 						const float PlayTimeToEnd = MontageSubStepper.GetRemainingPlayTimeToSectionEnd(Position);
 
 						const bool bCustomBlendOutTriggerTime = (Montage->BlendOutTriggerTime >= 0);
-						const bool bUsesInertialization = Montage->BlendMode == EMontageBlendMode::Inertialization;
-
 						const float DefaultBlendOutTime = Montage->BlendOut.GetBlendTime() * DefaultBlendTimeMultiplier;
-
-						// If we are using inertialization, we don't need to stop the montage early. In this case, we also don't want to miss out on notifies during the blend out window.
-						const float EffectiveDefaultBlendOutTime = bUsesInertialization ? 0.0f : DefaultBlendOutTime;
-						const float BlendOutTriggerTime = bCustomBlendOutTriggerTime ? Montage->BlendOutTriggerTime : EffectiveDefaultBlendOutTime;
+						const float BlendOutTriggerTime = bCustomBlendOutTriggerTime ? Montage->BlendOutTriggerTime : DefaultBlendOutTime;
 
 						// ... trigger blend out if within blend out time window.
 						if (PlayTimeToEnd <= FMath::Max<float>(BlendOutTriggerTime, KINDA_SMALL_NUMBER))
 						{
-							// If we are using inertialization, use DefaultBlendOutTime, as we no longer crossfade between poses.
-							const float BlendOutTime = (bCustomBlendOutTriggerTime || bUsesInertialization) ? DefaultBlendOutTime : PlayTimeToEnd;
+							const float BlendOutTime = bCustomBlendOutTriggerTime ? DefaultBlendOutTime : PlayTimeToEnd;
 							Stop(FAlphaBlend(Montage->BlendOut, BlendOutTime), false);
 						}
 					}

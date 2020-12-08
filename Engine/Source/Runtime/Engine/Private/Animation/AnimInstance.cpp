@@ -1868,7 +1868,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 		if (CurrentSkeleton && CurrentSkeleton->IsCompatible(MontageToPlay->GetSkeleton()))
 		{
 			const float BlendDuration = BlendIn.GetBlendTime();
-			// If using interial blend, force an instant blend in
+			// If using inertial blend, force an instant blend in
 			const FAlphaBlend EffectiveBlendIn = (MontageToPlay->BlendMode == EMontageBlendMode::Inertialization) ? FAlphaBlend(BlendIn, 0.0f) : BlendIn;
 
 			const FName NewMontageGroupName = MontageToPlay->GetGroupName();
@@ -3219,7 +3219,7 @@ void UAnimInstance::UpdateMontageEvaluationData()
 	Proxy.GetSlotGroupInertializationRequestMap() = SlotGroupInertializationRequestMap;
 
 	// Reset inertialization requests every frame.
-	// If the request is missed by the graph (i.e. the slot node is not relevant), we assume assume what brought it back to relevancy will handle the blend instead.
+	// If the request is missed by the graph (i.e. the slot node is not relevant), we assume what brought it back to relevancy will handle the blend instead.
 	SlotGroupInertializationRequestMap.Reset();
 }
 

@@ -129,7 +129,7 @@ enum class EMontageBlendMode : uint8
 {
 	//Uses standard weight based blend
 	Standard,
-	//Uses inertialization. Requires an inertialization node somewhere in the graph after every slot node used by this montage.
+	//Uses inertialization. Requires an inertialization node somewhere in the graph after any slot node used by this montage.
 	Inertialization,
 };
 
