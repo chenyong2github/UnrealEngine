@@ -6691,7 +6691,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	PackageTracker->NeverCookPackageList.Empty();
-	for (FName NeverCookPackage : GetNeverCookPackages(CookByTheBookStartupOptions.NeverCookDirectories))
+	for (FName NeverCookPackage : GetNeverCookPackageFileNames(CookByTheBookStartupOptions.NeverCookDirectories))
 	{
 		PackageTracker->NeverCookPackageList.Add(NeverCookPackage);
 	}
@@ -6979,7 +6979,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 }
 
-TArray<FName> UCookOnTheFlyServer::GetNeverCookPackages(TArrayView<const FString> ExtraNeverCookDirectories)
+TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories)
 {
 	TArray<FString> NeverCookDirectories(ExtraNeverCookDirectories);
 
@@ -7003,18 +7003,15 @@ TArray<FName> UCookOnTheFlyServer::GetNeverCookPackages(TArrayView<const FString
 	AddDirectoryPathArray(PackagingSettings->DirectoriesToNeverCook, TEXT("ProjectSettings -> Project -> Packaging -> Directories to never cook"));
 	AddDirectoryPathArray(PackagingSettings->TestDirectoriesToNotSearch, TEXT("ProjectSettings -> Project -> Packaging -> Test directories to not search"));
 
-	TArray<FName> NeverCookPackageNames;
 	TArray<FString> NeverCookPackagesPaths;
 	FPackageName::FindPackagesInDirectories(NeverCookPackagesPaths, NeverCookDirectories);
+
+	TArray<FName> NeverCookNormalizedFileNames;
 	for (const FString& NeverCookPackagePath : NeverCookPackagesPaths)
 	{
-		FString PackageName;
-		if (FPackageName::TryConvertFilenameToLongPackageName(NeverCookPackagePath, PackageName))
-		{
-			NeverCookPackageNames.Add(FName(*PackageName));
-		}
+		NeverCookNormalizedFileNames.Add(FPackageNameCache::GetStandardFileName(NeverCookPackagePath));
 	}
-	return NeverCookPackageNames;
+	return NeverCookNormalizedFileNames;
 }
 
 bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlatform*>& TargetPlatforms)
