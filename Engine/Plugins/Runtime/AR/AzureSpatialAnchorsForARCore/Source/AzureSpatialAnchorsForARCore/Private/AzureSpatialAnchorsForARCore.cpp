@@ -9,6 +9,8 @@ IMPLEMENT_MODULE(FAzureSpatialAnchorsForARCore, AzureSpatialAnchorsForARCore)
 
 void FAzureSpatialAnchorsForARCore::StartupModule()
 {
+	FAzureSpatialAnchorsBase::Startup();
+
 	auto AnchorLocatedLambda = std::bind(&FAzureSpatialAnchorsForARCore::AnchorLocatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	auto LocateAnchorsCompletedLambda = std::bind(&FAzureSpatialAnchorsForARCore::LocateAnchorsCompletedCallback, this, std::placeholders::_1, std::placeholders::_2);
 	auto SessionUpdatedLambda = std::bind(&FAzureSpatialAnchorsForARCore::SessionUpdatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -27,6 +29,8 @@ void FAzureSpatialAnchorsForARCore::ShutdownModule()
 	AndroidInterop->StopSession();
 	AndroidInterop->DestroySession();
 	AndroidInterop = nullptr;
+
+	FAzureSpatialAnchorsBase::Shutdown();
 }
 
 bool FAzureSpatialAnchorsForARCore::CreateSession()

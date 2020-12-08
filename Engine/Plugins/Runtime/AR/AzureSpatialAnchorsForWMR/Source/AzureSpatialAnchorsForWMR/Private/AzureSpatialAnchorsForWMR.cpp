@@ -18,6 +18,8 @@ static_assert((uint8)EAzureSpatialAnchorsResult::Success == (uint8)AzureSpatialA
 
 void FAzureSpatialAnchorsForWMR::StartupModule()
 {
+	FAzureSpatialAnchorsBase::Startup();
+
 	IModularFeatures::Get().RegisterModularFeature(IAzureSpatialAnchors::GetModularFeatureName(), this);
 
 #if !PLATFORM_HOLOLENS
@@ -67,6 +69,8 @@ void FAzureSpatialAnchorsForWMR::CreateInterop()
 void FAzureSpatialAnchorsForWMR::ShutdownModule()
 {
 	AzureSpatialAnchorsInterop::Release();
+
+	FAzureSpatialAnchorsBase::Shutdown();
 }
 
 
