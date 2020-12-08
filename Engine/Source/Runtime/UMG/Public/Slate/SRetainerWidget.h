@@ -96,7 +96,7 @@ protected:
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bEnableRetainedRendering ? this : nullptr; }
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
-	/** FSlateInvalidationRoot interface */
+	//~ Begin FSlateInvalidationRoot interface
 	virtual TSharedRef<SWidget> GetRootWidget() override;
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
 
@@ -108,6 +108,7 @@ protected:
 		InvalidSize,
 	};
 	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
+	//~ End FSlateInvalidationRoot interface
 
 	void RefreshRenderingMode();
 	bool ShouldBeRenderingOffscreen() const;
