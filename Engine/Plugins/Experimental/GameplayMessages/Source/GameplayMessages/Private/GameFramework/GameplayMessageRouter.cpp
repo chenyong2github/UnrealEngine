@@ -42,7 +42,7 @@ UGameplayMessageRouter& UGameplayMessageRouter::Get(UObject* WorldContextObject)
 	return *Router;
 }
 
-void UGameplayMessageRouter::BroadcastMessageInternal(FGameplayTag Channel, const UScriptStruct* StructType, void* MessageBytes) const
+void UGameplayMessageRouter::BroadcastMessageInternal(FGameplayTag Channel, const UScriptStruct* StructType, const void* MessageBytes) const
 {
 	// Log the message if enabled
 	if (UE::GameplayMessageRouter::ShouldLogMessages != 0)
@@ -112,7 +112,7 @@ DEFINE_FUNCTION(UGameplayMessageRouter::execK2_BroadcastMessage)
 	}
 }
 
-FGameplayMessageReceiverHandle UGameplayMessageRouter::RegisterReceiverInternal(FGameplayTag Channel, TFunction<void(FGameplayTag, void*)>&& Callback, const UScriptStruct* StructType, EGameplayMessageMatchType MatchType)
+FGameplayMessageReceiverHandle UGameplayMessageRouter::RegisterReceiverInternal(FGameplayTag Channel, TFunction<void(FGameplayTag, const void*)>&& Callback, const UScriptStruct* StructType, EGameplayMessageMatchType MatchType)
 {
 	FChannelReceiverList& List = ReceiverMap.FindOrAdd(Channel);
 

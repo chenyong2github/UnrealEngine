@@ -89,7 +89,7 @@ public:
 	void BroadcastMessage(FGameplayTag Channel, const FMessageStructType& Message) const
 	{
 		const UScriptStruct* StructType = TBaseStructure<FMessageStructType>::Get();
-		BroadcastMessageInternal(Channel, StructType, &Message)
+		BroadcastMessageInternal(Channel, StructType, &Message);
 	}
 
 	/**
@@ -102,11 +102,11 @@ public:
 	 * @return a handle that can be used to unregister this receiver (either by calling Unregister() on the handle or calling UnregisterReceiver on the router)
 	 */
 	template <typename FMessageStructType>
-	FGameplayMessageReceiverHandle RegisterReceiver(FGameplayTag Channel, TFunction<void(FGameplayTag, const FMessageStructType&)>&& Callback, EGameplayMessageMatchType MatchType = EMatchType::ExactMatch)
+	FGameplayMessageReceiverHandle RegisterReceiver(FGameplayTag Channel, TFunction<void(FGameplayTag, const FMessageStructType&)>&& Callback, EGameplayMessageMatchType MatchType = EGameplayMessageMatchType::ExactMatch)
 	{
-		auto ThunkCallback = [InnerCallback = MoveTemp(Callback)](FGameplayTag ActualTag, void* SenderPayload)
+		auto ThunkCallback = [InnerCallback = MoveTemp(Callback)](FGameplayTag ActualTag, const void* SenderPayload)
 		{
-			InnerCallback(ActualTag, *reinterpret_cast<const MessagePayloadType*>(SenderPayload));
+			InnerCallback(ActualTag, *reinterpret_cast<const FMessageStructType*>(SenderPayload));
 		};
 
 		const UScriptStruct* StructType = TBaseStructure<FMessageStructType>::Get();
@@ -134,16 +134,16 @@ protected:
 	
 private:
 	// Internal helper for broadcasting a message
-	void BroadcastMessageInternal(FGameplayTag Channel, const UScriptStruct* StructType, void* MessageBytes) const;
+	void BroadcastMessageInternal(FGameplayTag Channel, const UScriptStruct* StructType, const void* MessageBytes) const;
 
 	// Internal helper for registering a message receiver
-	FGameplayMessageReceiverHandle RegisterReceiverInternal(FGameplayTag Channel, TFunction<void(FGameplayTag, void*)>&& Callback, const UScriptStruct* StructType, EGameplayMessageMatchType MatchType);
+	FGameplayMessageReceiverHandle RegisterReceiverInternal(FGameplayTag Channel, TFunction<void(FGameplayTag, const void*)>&& Callback, const UScriptStruct* StructType, EGameplayMessageMatchType MatchType);
 
 private:
 	// Entry for a single receiver
 	struct FReceiverData
 	{
-		TFunction<void(FGameplayTag, void*)> Callback;
+		TFunction<void(FGameplayTag, const void*)> Callback;
 		const UScriptStruct* ReceiverStructType;
 		int32 HandleID;
 		EGameplayMessageMatchType MatchType;
