@@ -244,9 +244,9 @@ public:
 			Data = MakeShared<AzureSpatialAnchorsLibrary::SessionStatusAsyncData, ESPMode::ThreadSafe>();
 
 			Data->Result = EAzureSpatialAnchorsResult::Started;
-			IAzureSpatialAnchors::Callback_Result_SessionStatus Callback = [Data = Data](EAzureSpatialAnchorsResult Result, const wchar_t* ErrorString, FAzureSpatialAnchorsSessionStatus Status)
+			IAzureSpatialAnchors::Callback_Result_SessionStatus Callback = [Data = Data](EAzureSpatialAnchorsResult Result, const wchar_t* ErrorString, FAzureSpatialAnchorsSessionStatus InStatus)
 			{
-				Data->Status = Status;
+				Data->Status = InStatus;
 				Data->Result = Result;
 				Data->OutError = WCHAR_TO_TCHAR(ErrorString);
 				Data->Complete();
