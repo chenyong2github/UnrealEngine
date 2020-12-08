@@ -7979,6 +7979,9 @@ void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBas
 	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace))
 		return;
 
+	if (InVar.GetName() == TEXT("Particles.UniqueID"))
+		return;
+
 	if (bEmitAsLinker)
 	{
 
