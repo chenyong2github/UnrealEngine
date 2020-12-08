@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "ProfilingDebugging/TagTrace.h"
 
 #ifndef ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST
 	#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
@@ -16,8 +17,6 @@
 #if !defined(ENABLE_LOW_LEVEL_MEM_TRACKER) || !LLM_ENABLED_ON_PLATFORM 
 	#define ENABLE_LOW_LEVEL_MEM_TRACKER LLM_ENABLED_ON_PLATFORM && !UE_BUILD_SHIPPING && (!UE_BUILD_TEST || ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST) && WITH_ENGINE && 1
 #endif
-
-#include "ProfilingDebugging/TagTrace.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 
