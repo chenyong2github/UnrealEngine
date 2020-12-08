@@ -308,7 +308,7 @@ public:
 	template <typename OtherFieldType>
 	constexpr inline bool Equals(const TCbFieldIterator<OtherFieldType>& Other) const
 	{
-		return FieldType::GetPayload() == Other.FieldType::GetPayload();
+		return FieldType::GetPayload() == Other.OtherFieldType::GetPayload() && FieldsEnd == Other.FieldsEnd;
 	}
 
 	template <typename OtherFieldType>
