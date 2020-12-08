@@ -1097,7 +1097,11 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		FRootPageInfo& RootPageInfo = RootPageInfos[ Resources->RootPageIndex ];
 		RootPageInfo.RuntimeResourceID = Resources->RuntimeResourceID;
 		RootPageInfo.NumClusters = NumClusters;
+
+#if !WITH_EDITOR
+		// We can't free the CPU data in editor builds because the resource might be kept around and used for cooking later.
 		Resources->RootClusterPage.Empty();
+#endif
 	}
 
 	{
