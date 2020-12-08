@@ -93,7 +93,10 @@ void UXRVisualizationFunctionLibrary::RenderMotionController(const FXRMotionCont
 
 			FTransform WorldTransform(XRControllerData.GripRotation, XRControllerData.GripPosition, bRight ? FVector(1.0f, -1.0f, 1.0f) : FVector(1.0f, 1.0f, 1.0f));
 
-			FName ActorName(*FString::Printf(TEXT("XR_%s_%x_%d"), *XRControllerData.DeviceName.ToString(), (PTRINT)&XRControllerData), (int)XRControllerData.HandIndex);
+			//take the least significant bits of the pointer to use as a unique identifier
+			uint32 PtrInt = (((PTRINT)&XRControllerData) & 0xffffff);
+			int32 HandIndexInt = (int)XRControllerData.HandIndex;
+			FName ActorName(*FString::Printf(TEXT("XR_%s_%x_%d"), *XRControllerData.DeviceName.ToString(), PtrInt, HandIndexInt));
 
 			UStaticMesh* MeshToUse = nullptr;
 			if (XRControllerData.DeviceName == TEXT("OculusHMD"))
@@ -160,7 +163,7 @@ void UXRVisualizationFunctionLibrary::RenderGenericMesh(const FName& ActorName, 
 
 		FTimerManager& TimerManager = FoundActor->GetWorldTimerManager();
 		//reset this timer and start over
-		TimerManager.ClearAllTimersForObject(FoundActor);
+		TimerManager.ClearAllTimersForObject(FoundActor);	
 
 		//Add timer to turn the component back off
 		FTimerHandle TempHandle;
@@ -207,6 +210,8 @@ void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerDa
 
 				AActor* FoundActor = FindObjectFast<AActor>(CurrentLevel, ActorName, true);
 				UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+				TArray<FLinearColor> Colors(&FLinearColor::White, Vertices.Num());
+				
 				if ((FoundActor == nullptr) || (FoundActor->IsPendingKill()))
 				{
 					//create actor
@@ -215,20 +220,35 @@ void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerDa
 					ProceduralMeshComponent = NewObject<UProceduralMeshComponent>(FoundActor, UProceduralMeshComponent::StaticClass());
 					ProceduralMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 					ProceduralMeshComponent->RegisterComponentWithWorld(GWorld);
+					
+					ProceduralMeshComponent->CreateMeshSection_LinearColor(0, Vertices, Indices, Normals, {}, Colors, {}, false);
+
+					if (GConfig->DoesSectionExist(TEXT("/Script/EngineSettings.XRVisualizationSettings"), GGameIni))
+					{
+						FString MaterialAddress;
+						GConfig->GetString(TEXT("/Script/EngineSettings.XRVisualizationSettings"), TEXT("HandMeshMaterial"),
+							MaterialAddress, GGameIni);
+
+						if (!MaterialAddress.IsEmpty())
+						{
+							UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(StaticFindObject(UMaterialInterface::StaticClass(), ANY_PACKAGE, *MaterialAddress));
+							ProceduralMeshComponent->SetMaterial(0, MaterialInterface);
+						}
+					}
 				}
 				else
 				{
 					//get static mesh component out of the actor
 					ProceduralMeshComponent = Cast<UProceduralMeshComponent>(FoundActor->GetComponentByClass(UProceduralMeshComponent::StaticClass()));
+					
+					if (ProceduralMeshComponent)
+					{
+						ProceduralMeshComponent->UpdateMeshSection_LinearColor(0, Vertices, Normals, {}, Colors, {});
+					}
 				}
 
 				if (ProceduralMeshComponent)
 				{
-					TArray<FLinearColor> Colors(&FLinearColor::White, Vertices.Num());
-
-					//Upload the data
-					ProceduralMeshComponent->CreateMeshSection_LinearColor(0, Vertices, Indices, Normals, {}, Colors, {}, false);
-
 					//Update the transform
 					ProceduralMeshComponent->SetWorldTransform(HandMeshTransform);
 
