@@ -130,7 +130,7 @@ public:
 		{ 
 			CreateInfo.ResourceArray->Discard(); 
 		} 
-		return new FRHIIndexBuffer(Stride,Size,InUsage); 
+		return new FRHIIndexBuffer(Size, InUsage, Stride); 
 	}
 
 	virtual FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
