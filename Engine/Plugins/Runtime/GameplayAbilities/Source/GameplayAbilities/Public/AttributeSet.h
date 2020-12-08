@@ -3,14 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/UnrealType.h"
 #include "GameFramework/Actor.h"
 #include "Engine/CurveTable.h"
 #include "Engine/DataTable.h"
+#include "ScalableFloat.h"
 #include "AttributeSet.generated.h"
 
 class UAbilitySystemComponent;
@@ -251,120 +249,6 @@ protected:
 	/** Is this attribute set safe to ID over the network by name?  */
 	uint32 bNetAddressable : 1;
 };
-
-/** Generic numerical value in the form Value * Curve[Level] */
-USTRUCT(BlueprintType)
-struct GAMEPLAYABILITIES_API FScalableFloat
-{
-	GENERATED_USTRUCT_BODY()
-
-	FScalableFloat()
-		: Value(0.f)
-		, LocalCachedCurveID(INDEX_NONE)
-		, FinalCurve(nullptr)
-	{
-	}
-
-	FScalableFloat(float InInitialValue)
-		: Value(InInitialValue)
-		, LocalCachedCurveID(INDEX_NONE)
-		, FinalCurve(nullptr)
-	{
-	}
-
-	~FScalableFloat()
-	{
-	}
-
-public:
-
-	/** Raw value, is multiplied by curve */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ScalableFloat)
-	float	Value;
-
-private:
-	mutable int32 LocalCachedCurveID;
-
-public:
-	/** Curve that is evaluated at a specific level. If found, it is multipled by Value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ScalableFloat)
-	FCurveTableRowHandle	Curve;
-
-	/** Returns the scaled value at a given level */
-	float GetValueAtLevel(float Level, const FString* ContextString = nullptr) const;
-
-	/** Returns the scaled value at level 0 */
-	float GetValue(const FString* ContextString = nullptr) const;
-
-	/** Used when using a scalable float as a bool */
-	bool AsBool(float Level = 0, const FString* ContextString = nullptr) const;
-
-	/** Returns the value as an int32 */
-	int32 AsInteger(float Level = 0, const FString* ContextString = nullptr) const;
-
-	/** True if there is no curve lookup */
-	bool IsStatic() const
-	{
-		return Curve.RowName.IsNone();
-	}
-
-	/** Sets raw value */
-	void SetValue(float NewValue);
-
-	/** Overrides raw value and curve reference */
-	void SetScalingValue(float InCoeffecient, FName InRowName, UCurveTable * InTable);
-
-	float GetValueChecked() const
-	{
-		check(IsStatic());
-		return Value;
-	}
-
-	/** Outputs human readable string */
-	FString ToSimpleString() const
-	{
-		if (Curve.RowName != NAME_None)
-		{
-			return FString::Printf(TEXT("%.2f - %s@%s"), Value, *Curve.RowName.ToString(), Curve.CurveTable ? *Curve.CurveTable->GetName() : TEXT("None"));
-		}
-		return FString::Printf(TEXT("%.2f"), Value);
-	}
-
-	/** Error checking: checks if we have a curve table specified but no valid curve entry */
-	bool IsValid() const
-	{
-		static const FString ContextString = TEXT("FScalableFloat::IsValid");
-		GetValueAtLevel(1.f, &ContextString);
-		bool bInvalid = (Curve.CurveTable != nullptr || Curve.RowName != NAME_None ) && (FinalCurve == nullptr);
-		return !bInvalid;
-	}
-
-	/** Equality/Inequality operators */
-	bool operator==(const FScalableFloat& Other) const;
-	bool operator!=(const FScalableFloat& Other) const;
-
-	/** copy operator to prevent duplicate handles */
-	void operator=(const FScalableFloat& Src);
-
-	/* Used to upgrade a float or int8/int16/int32 property into an FScalableFloat */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
-
-private:
-
-	// Cached direct pointer to the RealCurve we should evaluate
-	mutable FRealCurve* FinalCurve;
-};
-
-template<>
-struct TStructOpsTypeTraits<FScalableFloat>
-	: public TStructOpsTypeTraitsBase2<FScalableFloat>
-{
-	enum
-	{
-		WithStructuredSerializeFromMismatchedTag = true,
-	};
-};
-
 
 /**
  *	DataTable that allows us to define meta data about attributes. Still a work in progress.
