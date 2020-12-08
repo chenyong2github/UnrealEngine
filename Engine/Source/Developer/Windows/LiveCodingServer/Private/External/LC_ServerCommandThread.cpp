@@ -726,6 +726,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 		// Keep retrying the compile until we've added all the required modules
 		TMap<FString, TArray<FString>> ModuleToObjectFiles;
+		ELiveCodingCompileReason CompileReason = ELiveCodingCompileReason::Initial;
 		for (;;)
 		{
 			// Build a list of modules which are enabled for live coding
@@ -737,17 +738,30 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 			// Execute the compile
 			TArray<FString> RequiredModules;
-			if (CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToObjectFiles))
+			ELiveCodingCompileResult CompileResult = CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToObjectFiles, CompileReason);
+			if (CompileResult == ELiveCodingCompileResult::Success)
 			{
 				break;
 			}
-
-			// Enable any lazy-loaded modules that we need
-			if (!EnableRequiredModules(RequiredModules))
+			else if (CompileResult == ELiveCodingCompileResult::Canceled)
+			{
+				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation canceled.");
+				return;
+			}
+			else if (CompileResult == ELiveCodingCompileResult::Failure)
 			{
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 				return;
 			}
+			
+			// Enable any lazy-loaded modules that we need
+			if (!RequiredModules.IsEmpty() && !EnableRequiredModules(RequiredModules))
+			{
+				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
+				return;
+			}
+
+			CompileReason = ELiveCodingCompileReason::Retry;
 		}
 
 		// Reset the unity file cache

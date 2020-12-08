@@ -56,6 +56,11 @@ namespace UnrealBuildTool
 		OtherCompilationError = 6,
 
 		/// <summary>
+		/// Compilation failed due to live coding action limit being exceeded.
+		/// </summary>
+		LiveCodingLimitError = 7,
+
+		/// <summary>
 		/// Compilation is not supported in the current build
 		/// </summary>
 		Unsupported,

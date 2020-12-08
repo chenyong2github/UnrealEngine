@@ -484,6 +484,8 @@ namespace UnrealBuildTool
 
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
 			{
+				CompilationResult Result = CompilationResult.Succeeded;
+
 				// Make sure we're not overwriting any lazy-loaded modules
 				if (TargetDescriptor.LiveCodingModules != null)
 				{
@@ -520,7 +522,9 @@ namespace UnrealBuildTool
 						{
 							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
 						}
-						throw new CompilationResultException(CompilationResult.Canceled);
+
+						// Note the issue but continue processing to allow the limit to generate an error if hit.
+						Result = CompilationResult.Canceled;
 					}
 				}
 
@@ -534,6 +538,21 @@ namespace UnrealBuildTool
 
 				// Get a new list of actions to execute now that the graph has been modified
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+
+				// Check to see if we exceed the limit for live coding actions
+				if (TargetDescriptor.LiveCodingLimit > 0 && TargetDescriptor.LiveCodingLimit < TargetActionsToExecute.Count)
+				{
+					Log.TraceInformation("The live coding request of {0} actions exceeds the number of allowed actions of {1}", TargetActionsToExecute.Count, TargetDescriptor.LiveCodingLimit);
+					Log.TraceInformation("This limit helps to prevent the situation where seemingly simple changes result in large scale rebuilds.");
+					Log.TraceInformation("It can also help to detect when the engine needs to be rebuilt outside of Live Coding due to compiler changes.");
+					Result = CompilationResult.LiveCodingLimitError;
+				}
+
+				// Throw an exception if there is an issue
+				if (Result != CompilationResult.Succeeded)
+				{
+					throw new CompilationResultException(Result);
+				}
 
 				// Output the Live Coding manifest
 				if (TargetDescriptor.LiveCodingManifest != null)

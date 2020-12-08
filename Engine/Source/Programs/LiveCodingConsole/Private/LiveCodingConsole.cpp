@@ -18,6 +18,10 @@
 #include "SourceCodeAccess/Public/ISourceCodeAccessModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Misc/CompilationResult.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "LiveCodingConsole"
 
@@ -39,6 +43,7 @@ private:
 	TSharedPtr<SNotificationItem> CompileNotification;
 	TArray<FSimpleDelegate> MainThreadTasks;
 	bool bRequestCancel;
+	bool bDisableLimit;
 	FDateTime LastPatchTime;
 	FDateTime NextPatchStartTime;
 
@@ -47,6 +52,7 @@ public:
 		: Slate(InSlate)
 		, Server(InServer)
 		, bRequestCancel(false)
+		, bDisableLimit(false)
 		, LastPatchTime(FDateTime::MinValue())
 		, NextPatchStartTime(FDateTime::MinValue())
 	{
@@ -81,9 +87,26 @@ public:
 					.AutoHeight()
 					.Padding(0.0f, 6.0f, 0.0f, 4.0f)
 					[
-						SNew(SButton)
-						.Text(LOCTEXT("QuickRestart", "Quick Restart"))
-						.OnClicked(FOnClicked::CreateRaw(this, &FLiveCodingConsoleApp::RestartTargets))
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Center)
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("QuickRestart", "Quick Restart"))
+							.OnClicked(FOnClicked::CreateRaw(this, &FLiveCodingConsoleApp::RestartTargets))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Center)
+						.Padding(5)
+						[
+							SNew(SCheckBox)
+							.IsChecked_Lambda([this]() { return bDisableLimit ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) { bDisableLimit = InCheckBoxState == ECheckBoxState::Checked; })
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("DisableLimit", "Disable action limit for this session"))
+							]
+						]
 					]
 				]
 			];
@@ -204,7 +227,7 @@ private:
 		LogWidget->AppendLine(GetLogColor(Verbosity), MoveTemp(Text));
 	}
 
-	bool CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, TMap<FString, TArray<FString>>& ModuleToObjectFiles)
+	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, TMap<FString, TArray<FString>>& ModuleToObjectFiles, ELiveCodingCompileReason CompileReason)
 	{
 		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
 		NextPatchStartTime = FDateTime::UtcNow();
@@ -241,6 +264,17 @@ private:
 			Arguments += FString::Printf(TEXT("-Target=\"%s\" "), *Target.Replace(TEXT("\""), TEXT("\"\"")));
 		}
 		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingModules=\"%s\" -LiveCodingManifest=\"%s\" -WaitMutex"), *ModulesFileName, *ManifestFileName);
+		if (!bDisableLimit && CompileReason == ELiveCodingCompileReason::Initial)
+		{
+			bool bDisableActionLimit = false;
+			GConfig->GetBool(TEXT("LiveCoding"), TEXT("bDisableActionLimit"), bDisableActionLimit, GEngineIni);
+			int ActionLimit = 1;
+			GConfig->GetInt(TEXT("LiveCoding"), TEXT("ActionLimit"), ActionLimit, GEngineIni);
+			if (!bDisableActionLimit && ActionLimit > 0)
+			{
+				Arguments += FString::Printf(TEXT(" -LiveCodingLimit=%d"), ActionLimit);
+			}
+		}
 		AppendLogLine(ELiveCodingLogVerbosity::Info, *FString::Printf(TEXT("Running %s %s"), *Executable, *Arguments));
 
 		// Spawn UBT and wait for it to complete (or the compile button to be pressed)
@@ -252,7 +286,7 @@ private:
 			if (HasCancelledBuild())
 			{
 				AppendLogLine(ELiveCodingLogVerbosity::Warning, TEXT("Build cancelled."));
-				return false;
+				return ELiveCodingCompileResult::Canceled;
 			}
 			FPlatformProcess::Sleep(0.1f);
 		}
@@ -260,15 +294,33 @@ private:
 		int ReturnCode = Process.GetReturnCode();
 		if (ReturnCode != 0)
 		{
+			ELiveCodingCompileResult CompileResult = ELiveCodingCompileResult::Failure;
+
+			// If there are missing modules, then we always retry them
 			if (FPaths::FileExists(ModulesOutputFileName))
 			{
 				FFileHelper::LoadFileToStringArray(RequiredModules, *ModulesOutputFileName);
+				if (!RequiredModules.IsEmpty())
+				{
+					CompileResult = ELiveCodingCompileResult::Retry;
+				}
 			}
-			else
+
+			// If we reached the live coding limit, the prompt the user to retry
+			if (ReturnCode == ECompilationResult::LiveCodingLimitError)
+			{
+				const FText Message = LOCTEXT("LimitText", "Live Coding action limit reached.  Do you wish to compile anyway?\n\n"
+				"The limit can be permanently changed or disabled by setting the ActionLimit or DisableActionLimit setting in the engine.");
+				const FText Title = LOCTEXT("LimitTitle", "Live Coding Action Limit Reached");
+				EAppReturnType::Type ReturnType = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+				CompileResult = ReturnType == EAppReturnType::Yes ? ELiveCodingCompileResult::Retry : ELiveCodingCompileResult::Canceled;
+			}
+
+			if (CompileResult == ELiveCodingCompileResult::Failure)
 			{
 				AppendLogLine(ELiveCodingLogVerbosity::Failure, TEXT("Build failed."));
 			}
-			return false;
+			return CompileResult;
 		}
 
 		// Read the output manifest
@@ -277,7 +329,7 @@ private:
 		if (!Manifest.Read(*ManifestFileName, ManifestFailReason))
 		{
 			AppendLogLine(ELiveCodingLogVerbosity::Failure, *ManifestFailReason);
-			return false;
+			return ELiveCodingCompileResult::Failure;
 		}
 
 		// Override the linker path
@@ -301,7 +353,7 @@ private:
 				}
 			}
 		}
-		return true;
+		return ELiveCodingCompileResult::Success;
 	}
 
 	void CancelBuild()

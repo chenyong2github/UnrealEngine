@@ -65,6 +65,12 @@ namespace UnrealBuildTool
 		public FileReference LiveCodingManifest = null;
 
 		/// <summary>
+		/// If a non-zero value, a live coding request will be terminated if more than the given number of actions are required.
+		/// </summary>
+		[CommandLine("-LiveCodingLimit=")]
+		public uint LiveCodingLimit = 0;
+
+		/// <summary>
 		/// Suppress messages about building this target
 		/// </summary>
 		[CommandLine("-Quiet")]

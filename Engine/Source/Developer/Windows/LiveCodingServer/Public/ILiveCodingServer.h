@@ -24,6 +24,20 @@ enum class ELiveCodingLogVerbosity
 	Failure,
 };
 
+enum class ELiveCodingCompileReason
+{
+	Initial,
+	Retry,
+};
+
+enum class ELiveCodingCompileResult
+{
+	Success,
+	Canceled,
+	Failure,
+	Retry,
+};
+
 class ILiveCodingServerModule : public IModuleInterface
 {
 public:
@@ -55,7 +69,7 @@ public:
 	virtual FLogOutputDelegate& GetLogOutputDelegate() = 0;
 
 	typedef TMap<FString, TArray<FString>> FModuleToObjectFiles;
-	DECLARE_DELEGATE_RetVal_FourParams(bool, FCompileDelegate, const TArray<FString>&, const TArray<FString>&, TArray<FString>&, FModuleToObjectFiles&)
+	DECLARE_DELEGATE_RetVal_FiveParams(ELiveCodingCompileResult, FCompileDelegate, const TArray<FString>&, const TArray<FString>&, TArray<FString>&, FModuleToObjectFiles&, ELiveCodingCompileReason);
 	virtual FCompileDelegate& GetCompileDelegate() = 0;
 
 	DECLARE_DELEGATE(FCompileStartedDelegate);
