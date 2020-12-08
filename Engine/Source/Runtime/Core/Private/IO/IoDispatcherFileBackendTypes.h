@@ -7,19 +7,35 @@
 
 struct FFileIoStoreCompressionContext;
 
-struct FFileIoStoreContainerFile
+struct FFileIoStoreContainerFilePartition
 {
 	uint64 FileHandle = 0;
 	uint64 FileSize = 0;
+	uint32 ContainerFileIndex = 0;
+	FString FilePath;
+	TUniquePtr<IMappedFileHandle> MappedFileHandle;
+};
+
+struct FFileIoStoreContainerFile
+{
+	uint64 PartitionSize = 0;
 	uint64 CompressionBlockSize = 0;
 	TArray<FName> CompressionMethods;
 	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 	FString FilePath;
-	TUniquePtr<IMappedFileHandle> MappedFileHandle;
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
 	EIoContainerFlags ContainerFlags;
 	TArray<FSHAHash> BlockSignatureHashes;
+	TArray<FFileIoStoreContainerFilePartition> Partitions;
+
+	void GetPartitionFileHandleAndOffset(uint64 TocOffset, uint64& OutFileHandle, uint64& OutOffset) const
+	{
+		int32 PartitionIndex = int32(TocOffset / PartitionSize);
+		const FFileIoStoreContainerFilePartition& Partition = Partitions[PartitionIndex];
+		OutFileHandle = Partition.FileHandle;
+		OutOffset = TocOffset % PartitionSize;
+	}
 };
 
 struct FFileIoStoreBuffer
