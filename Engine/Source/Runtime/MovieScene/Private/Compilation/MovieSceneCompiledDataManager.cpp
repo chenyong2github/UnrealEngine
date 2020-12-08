@@ -1047,7 +1047,7 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			CompileData.HierarchicalBias        = Params.HierarchicalBias;
 			CompileData.bPriorityTearDown       = EvaluationTrack->HasTearDownPriority();
 
-			auto FindChildWithSection = [Section](FMovieSceneEvalTemplatePtr ChildTemplate)
+			auto FindChildWithSection = [Section](const FMovieSceneEvalTemplatePtr& ChildTemplate)
 			{
 				return ChildTemplate.IsValid() && ChildTemplate->GetSourceSection() == Section;
 			};
