@@ -6626,5 +6626,3 @@ bool FLandscapeLayerBrush::Initialize(const FIntRect& InLandscapeExtent, UTextur
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_OPTIMIZATION
