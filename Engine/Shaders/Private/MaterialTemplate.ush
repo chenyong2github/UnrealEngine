@@ -196,7 +196,10 @@ float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Defaul
 		default: return Default;
 	}
 #elif (PARTICLE_FACTORY)
-	return Parameters.DynamicParameter;
+	if ( ParameterIndex == 0 )
+	{
+		return Parameters.DynamicParameter;
+	}
 #endif
 	return Default;
 
