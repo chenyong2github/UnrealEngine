@@ -13,6 +13,7 @@ enum class EIoStoreTocVersion : uint8
 	Invalid = 0,
 	Initial,
 	DirectoryIndex,
+	PartitionSize,
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
 };
@@ -36,14 +37,15 @@ struct FIoStoreTocHeader
 	uint32	CompressionMethodNameLength;
 	uint32	CompressionBlockSize;
 	uint32	DirectoryIndexSize;
-	uint32	Reserved2 = 0;
+	uint32	PartitionCount = 0;
 	FIoContainerId ContainerId;
 	FGuid	EncryptionKeyGuid;
 	EIoContainerFlags ContainerFlags;
 	uint8	Reserved3 = 0;
 	uint16	Reserved4 = 0;
 	uint32	Reserved5 = 0;
-	uint64	Reserved6[7] = { 0 };
+	uint64	PartitionSize = 0;
+	uint64	Reserved6[6] = { 0 };
 
 	void MakeMagic()
 	{

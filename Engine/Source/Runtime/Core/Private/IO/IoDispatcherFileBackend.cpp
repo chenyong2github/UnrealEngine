@@ -56,6 +56,7 @@ static FAutoConsoleVariableRef CVar_IoDispatcherCacheSizeMB(
 );
 
 uint32 FFileIoStoreReadRequest::NextSequence = 0;
+TAtomic<uint32> FFileIoStoreReader::GlobalPartitionIndex{ 0 };
 
 class FMappedFileProxy final : public IMappedFileHandle
 {
@@ -297,23 +298,12 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 {
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
-	TStringBuilder<256> ContainerFilePath;
-	ContainerFilePath.Append(Environment.GetPath());
-
 	TStringBuilder<256> TocFilePath;
-	TocFilePath.Append(ContainerFilePath);
+	TocFilePath.Append(Environment.GetPath());
+	TocFilePath.Append(TEXT(".utoc"));
+	ContainerFile.FilePath = TocFilePath;
 
 	UE_LOG(LogIoDispatcher, Display, TEXT("Reading toc: %s"), *TocFilePath);
-
-	ContainerFilePath.Append(TEXT(".ucas"));
-	TocFilePath.Append(TEXT(".utoc"));
-
-	if (!PlatformImpl.OpenContainer(*ContainerFilePath, ContainerFile.FileHandle, ContainerFile.FileSize))
-	{
-		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *ContainerFilePath << TEXT("'");
-	}
-
-	ContainerFile.FilePath = ContainerFilePath;
 
 	TUniquePtr<FIoStoreTocResource> TocResourcePtr = MakeUnique<FIoStoreTocResource>();
 	FIoStoreTocResource& TocResource = *TocResourcePtr;
@@ -323,31 +313,34 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 		return Status;
 	}
 
-	uint64 ContainerUncompressedSize = TocResource.Header.TocCompressedBlockEntryCount > 0
-		? uint64(TocResource.Header.TocCompressedBlockEntryCount) * uint64(TocResource.Header.CompressionBlockSize)
-		: ContainerFile.FileSize;
+	ContainerFile.PartitionSize = TocResource.Header.PartitionSize;
+	ContainerFile.Partitions.SetNum(TocResource.Header.PartitionCount);
+	for (uint32 PartitionIndex = 0; PartitionIndex < TocResource.Header.PartitionCount; ++PartitionIndex)
+	{
+		FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
+		TStringBuilder<256> ContainerFilePath;
+		ContainerFilePath.Append(Environment.GetPath());
+		if (PartitionIndex > 0)
+		{
+			ContainerFilePath.Appendf(TEXT("_s%d"), PartitionIndex);
+		}
+		ContainerFilePath.Append(TEXT(".ucas"));
+		Partition.FilePath = ContainerFilePath;
+		if (!PlatformImpl.OpenContainer(*ContainerFilePath, Partition.FileHandle, Partition.FileSize))
+		{
+			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *ContainerFilePath << TEXT("'");
+		}
+		Partition.ContainerFileIndex = GlobalPartitionIndex++;
+	}
 
 	Toc.Reserve(TocResource.Header.TocEntryCount);
 
 	for (uint32 ChunkIndex = 0; ChunkIndex < TocResource.Header.TocEntryCount; ++ChunkIndex)
 	{
 		const FIoOffsetAndLength& ChunkOffsetLength = TocResource.ChunkOffsetLengths[ChunkIndex];
-		if (ChunkOffsetLength.GetOffset() + ChunkOffsetLength.GetLength() > ContainerUncompressedSize)
-		{
-			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
-		}
-
 		Toc.Add(TocResource.ChunkIds[ChunkIndex], ChunkOffsetLength);
 	}
-
-	for (const FIoStoreTocCompressedBlockEntry& CompressedBlockEntry : TocResource.CompressionBlocks)
-	{
-		if (CompressedBlockEntry.GetOffset() + CompressedBlockEntry.GetCompressedSize() > ContainerFile.FileSize)
-		{
-			return (FIoStatus)(FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'"));
-		}
-	}
-
+	
 	ContainerFile.CompressionMethods	= MoveTemp(TocResource.CompressionMethods);
 	ContainerFile.CompressionBlockSize	= TocResource.Header.CompressionBlockSize;
 	ContainerFile.CompressionBlocks		= MoveTemp(TocResource.CompressionBlocks);
@@ -384,16 +377,18 @@ const FIoOffsetAndLength* FFileIoStoreReader::Resolve(const FIoChunkId& ChunkId)
 	return Toc.Find(ChunkId);
 }
 
-IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle()
+IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle(uint64 TocOffset)
 {
-	if (!ContainerFile.MappedFileHandle)
+	int32 PartitionIndex = int32(TocOffset / ContainerFile.PartitionSize);
+	FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
+	if (!Partition.MappedFileHandle)
 	{
 		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
-		ContainerFile.MappedFileHandle.Reset(Ipf.OpenMapped(*ContainerFile.FilePath));
+		Partition.MappedFileHandle.Reset(Ipf.OpenMapped(*Partition.FilePath));
 	}
 
-	check(ContainerFile.FileSize > 0);
-	return new FMappedFileProxy(ContainerFile.MappedFileHandle.Get(), ContainerFile.FileSize);
+	check(Partition.FileSize > 0);
+	return new FMappedFileProxy(Partition.MappedFileHandle.Get(), Partition.FileSize);
 }
 
 FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
@@ -1149,15 +1144,13 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 			
 			const FFileIoStoreContainerFile& ContainerFile = Reader->GetContainerFile();
 			
-			IMappedFileHandle* MappedFileHandle = Reader->GetMappedContainerFileHandle();
-			IMappedFileRegion* MappedFileRegion = nullptr;
-
 			int32 BlockIndex = int32(ResolvedOffset / ContainerFile.CompressionBlockSize);
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
 			const int64 BlockOffset = (int64)CompressionBlockEntry.GetOffset();
 			check(BlockOffset > 0 && IsAligned(BlockOffset, FPlatformProperties::GetMemoryMappingAlignment()));
 
-			MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
+			IMappedFileHandle* MappedFileHandle = Reader->GetMappedContainerFileHandle(BlockOffset);
+			IMappedFileRegion* MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
 			if (MappedFileRegion != nullptr)
 			{
 				check(IsAligned(MappedFileRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()));
@@ -1217,19 +1210,21 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 			CompressedBlock->CompressedSize = CompressionBlockEntry.GetCompressedSize();
 			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.GetCompressionMethodIndex()];
 			CompressedBlock->SignatureHash = EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Signed) ? &ContainerFile.BlockSignatureHashes[CompressedBlockIndex] : nullptr;
-			uint64 RawOffset = CompressionBlockEntry.GetOffset();
-			uint32 RawSize = Align(CompressionBlockEntry.GetCompressedSize(), FAES::AESBlockSize); // The raw blocks size is always aligned to AES blocks size
-			CompressedBlock->RawOffset = RawOffset;
-			CompressedBlock->RawSize = RawSize;
-			const uint32 RawBeginBlockIndex = uint32(RawOffset / ReadBufferSize);
-			const uint32 RawEndBlockIndex = uint32((RawOffset + RawSize - 1) / ReadBufferSize);
+			CompressedBlock->RawSize = Align(CompressionBlockEntry.GetCompressedSize(), FAES::AESBlockSize); // The raw blocks size is always aligned to AES blocks size;
+
+			int32 PartitionIndex = int32(CompressionBlockEntry.GetOffset() / ContainerFile.PartitionSize);
+			const FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
+			uint64 PartitionRawOffset = CompressionBlockEntry.GetOffset() % ContainerFile.PartitionSize;
+			CompressedBlock->RawOffset = PartitionRawOffset;
+			const uint32 RawBeginBlockIndex = uint32(PartitionRawOffset / ReadBufferSize);
+			const uint32 RawEndBlockIndex = uint32((PartitionRawOffset + CompressedBlock->RawSize - 1) / ReadBufferSize);
 			const uint32 RawBlockCount = RawEndBlockIndex - RawBeginBlockIndex + 1;
 			check(RawBlockCount > 0);
 			for (uint32 RawBlockIndex = RawBeginBlockIndex; RawBlockIndex <= RawEndBlockIndex; ++RawBlockIndex)
 			{
 				FFileIoStoreBlockKey RawBlockKey;
 				RawBlockKey.BlockIndex = RawBlockIndex;
-				RawBlockKey.FileIndex = ResolvedRequest.GetContainerFileIndex();
+				RawBlockKey.FileIndex = Partition.ContainerFileIndex;
 
 				bool bRawBlockWasAdded;
 				FFileIoStoreReadRequest* RawBlock = RequestTracker.FindOrAddRawBlock(RawBlockKey, bRawBlockWasAdded);
@@ -1237,10 +1232,10 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 				if (bRawBlockWasAdded)
 				{
 					RawBlock->Priority = ResolvedRequest.GetPriority();
-					RawBlock->FileHandle = ContainerFile.FileHandle;
+					RawBlock->FileHandle = Partition.FileHandle;
 					RawBlock->bIsCacheable = bCacheable;
 					RawBlock->Offset = RawBlockIndex * ReadBufferSize;
-					uint64 ReadSize = FMath::Min(ContainerFile.FileSize, RawBlock->Offset + ReadBufferSize) - RawBlock->Offset;
+					uint64 ReadSize = FMath::Min(Partition.FileSize, RawBlock->Offset + ReadBufferSize) - RawBlock->Offset;
 					RawBlock->Size = ReadSize;
 					NewBlocks.Add(RawBlock);
 				}

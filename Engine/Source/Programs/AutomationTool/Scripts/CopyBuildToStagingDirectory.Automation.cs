@@ -2556,6 +2556,15 @@ public partial class Project : CommandUtils
 				}
 			}
 
+			int MaxIoStorePartitionSizeMB = 0;
+			if (PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "MaxIoStorePartitionSizeMB", out MaxIoStorePartitionSizeMB))
+			{
+				if (MaxIoStorePartitionSizeMB > 0)
+				{
+					AdditionalArgs += String.Format(" -maxPartitionSize={0}MB", MaxIoStorePartitionSizeMB);
+				}
+			}
+
 			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
