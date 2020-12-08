@@ -432,10 +432,10 @@ float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
 
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
-    float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2].xyz;
-    float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2 + 1];
-    float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 2].xyz;
-    float4 CurrRotation = DIContext.MeshCurrSamplingBonesBuffer[Bone * 2 + 1];
+    float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3].xyz;
+    float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3 + 1];
+    float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3].xyz;
+    float4 CurrRotation = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3 + 1];
 
     if (bWorldSpace)
     {
@@ -636,6 +636,32 @@ void DISkelMesh_RandomUnfilteredBone(in FDISkelMeshContext DIContext, uint Seed1
 void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int Count)
 {
     Count = DIContext.NumFilteredSockets;
+}
+
+void DISkelMesh_GetFilteredSocketTransform(in FDISkelMeshContext DIContext, in int SocketIndex, in bool bApplyTransform, out float3 OutTranslation, out float4 OutRotation, out float3 OutScale)
+{
+    if ( DIContext.NumFilteredSockets > 0 )
+	{
+		SocketIndex = clamp(SocketIndex, 0, DIContext.NumFilteredSockets - 1);
+		int BufferOffset = (DIContext.FilteredSocketBoneOffset + SocketIndex) * 3;
+
+		OutTranslation = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 0].xyz;
+		OutRotation = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 1];
+		OutScale = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 2].xyz;
+
+		if (bApplyTransform)
+		{
+			OutTranslation = mul(float4(OutTranslation, 1), DIContext.InstanceTransform).xyz;
+			OutRotation = NiagaraGPU_QuatMul(DIContext.InstanceRotation, OutRotation);
+			OutScale = mul(OutScale, (float3x3)DIContext.InstanceTransform);
+		}
+	}
+	else
+	{
+		OutTranslation = float3(0.0f, 0.0f, 0.0f);
+		OutRotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		OutScale = float3(0.0f, 0.0f, 0.0f);
+	}
 }
 
 void DISkelMesh_GetFilteredSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
