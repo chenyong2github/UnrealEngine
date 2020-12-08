@@ -4875,7 +4875,7 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 	bool bHasJumped = false;
 	bool bRestarted = false;
 
-	if (PauseOnFrame.IsSet() && (PlaybackSpeed > 0 && NewLocalTime > PauseOnFrame.GetValue()) || (PlaybackSpeed < 0 && NewLocalTime < PauseOnFrame.GetValue()))
+	if (PauseOnFrame.IsSet() && ((PlaybackSpeed > 0 && NewLocalTime > PauseOnFrame.GetValue()) || (PlaybackSpeed < 0 && NewLocalTime < PauseOnFrame.GetValue())))
 	{
 		NewGlobalTime = PauseOnFrame.GetValue() * LocalToRootTransform;
 		PauseOnFrame.Reset();
