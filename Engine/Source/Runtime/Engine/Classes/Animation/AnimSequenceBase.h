@@ -56,6 +56,7 @@ class ENGINE_API UAnimSequenceBase : public UAnimationAsset
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
+	virtual bool IsPostLoadThreadSafe() const override;
 	//~ End UObject Interface
 
 	/** Returns the total play length of the montage, if played back with a speed of 1.0. */
