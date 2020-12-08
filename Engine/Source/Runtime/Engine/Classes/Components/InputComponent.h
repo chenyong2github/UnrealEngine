@@ -994,6 +994,19 @@ public:
 	}
 
 	/**
+	 * Binds a key event to a delegate function with key signature.
+	 * Returned reference is only guaranteed to be valid until another input key is bound.
+	 */
+	template <class UserClass>
+	FInputKeyBinding& BindKey(const FKey Key, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerWithKeySignature::TUObjectMethodDelegate<UserClass>::FMethodPtr Func)
+	{
+		FInputKeyBinding KB(FInputChord(Key, false, false, false, false), KeyEvent);
+		KB.KeyDelegate.BindDelegate(Object, Func);
+		KeyBindings.Emplace(MoveTemp(KB));
+		return KeyBindings.Last();
+	}
+
+	/**
 	 * Binds this input component to touch events.
 	 * Returned reference is only guaranteed to be valid until another touch event is bound.
 	 */
