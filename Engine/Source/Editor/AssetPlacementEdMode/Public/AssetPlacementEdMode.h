@@ -3,49 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Tools/UEdMode.h"
+#include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "Elements/Framework/TypedElementHandle.h"
 
 #include "AssetPlacementEdMode.generated.h"
 
-USTRUCT()
-struct FPaletteItem
-{
-	GENERATED_BODY()
-	FTypedHandleTypeId ElementId;
-	bool bIsEnabled;
-};
-
-UCLASS(config = EditorPerProjectUserSettings)
-class UAssetPlacementSettings : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(config, EditAnywhere, Category = "Level Partition Settings")
-	bool bPlaceInCurrentLevelPartition = true;
-
-	UPROPERTY(config, EditAnywhere, Category = "Filters")
-	bool bLandscape = true;
-
-	UPROPERTY(config, EditAnywhere, Category = "Filters")
-	bool bStaticMeshes = true;
-	
-	UPROPERTY(config, EditAnywhere, Category = "Filters")
-	bool bBSP = true;
-	
-	UPROPERTY(config, EditAnywhere, Category = "Filters")
-	bool bFoliage = false;
-	
-	UPROPERTY(config, EditAnywhere, Category = "Filters")
-	bool bTranslucent = false;
-
-	UPROPERTY(config, EditAnywhere, Category = "Asset Palette")
-	TArray<FPaletteItem> PaletteItems;
-};
-
 UCLASS()
-class UAssetPlacementEdMode : public UEdMode
+class UAssetPlacementEdMode : public UBaseLegacyWidgetEdMode
 {
 	GENERATED_BODY()
 
@@ -61,8 +25,15 @@ public:
 	virtual void CreateToolkit() override;
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void BindCommands() override;
-	//////////////////
+	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const override;
 	// End of UEdMode interface
+	//////////////////
+
+	////////////////
+	// UBaseLegacyWidgetEdMode interface
+	virtual bool UsesPropertyWidgets() const override;
+	virtual bool ShouldDrawWidget() const override;
+	// End of UBaseLegacyWidgetEdMode interface
 	//////////////////
 
 protected:
@@ -70,7 +41,6 @@ protected:
 	{
 		EntirePalette,
 		ActivePaletteOnly,
-		InvalidInstances,
 	};
 
 	enum class ESelectMode

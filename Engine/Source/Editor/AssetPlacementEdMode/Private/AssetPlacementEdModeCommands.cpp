@@ -22,14 +22,10 @@ void FAssetPlacementEdModeCommands::RegisterCommands()
 	ToolCommands.Add(SelectAll);
 	UI_COMMAND(Deselect, "Deselect", "Deselect All Assets from the Palette", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Deselect);
-	UI_COMMAND(SelectInvalid, "Invalid", "Select Invalid Assets", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ToolCommands.Add(SelectInvalid);
 	UI_COMMAND(LassoSelect, "Lasso", "Select Assets with Lasso", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(LassoSelect);
 	UI_COMMAND(Place, "Place", "Place Assets from the Palette", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Place);
-	UI_COMMAND(ReapplySettings, "Reapply", "Reapply Settings to Assets from the Palette", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ToolCommands.Add(ReapplySettings);
 	UI_COMMAND(PlaceSingle, "Single", "Place a Single Asset from the Palette", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(PlaceSingle);
 	UI_COMMAND(Fill, "Fill", "Fill the Selected Target with Assets from the Palette", EUserInterfaceActionType::ToggleButton, FInputChord());
@@ -38,8 +34,6 @@ void FAssetPlacementEdModeCommands::RegisterCommands()
 	ToolCommands.Add(Erase);
 	UI_COMMAND(Delete, "Delete", "Remove the Selected Assets", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Delete);
-	UI_COMMAND(MoveToActivePartition, "Move", "Move Selected Assets to the Current World Partition", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ToolCommands.Add(MoveToActivePartition);
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> FAssetPlacementEdModeCommands::GetCommands()

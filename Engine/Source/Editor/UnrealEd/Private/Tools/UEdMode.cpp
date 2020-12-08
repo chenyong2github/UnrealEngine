@@ -224,6 +224,13 @@ void UEdMode::Enter()
 	GetToolManager()->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
 	GetToolManager()->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
 
+	// Create the settings object so that the toolkit has access to the object we are going to use at creation time
+	if (SettingsClass.IsValid())
+	{
+		UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
+		SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
+	}
+
 	// Now that the context is ready, make the toolkit
 	CreateToolkit();
 	if (Toolkit.IsValid())
@@ -232,12 +239,6 @@ void UEdMode::Enter()
 	}
 
 	BindCommands();
-
-	if (SettingsClass.IsValid())
-	{
-		UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
-		SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
-	}
 
 	if (SettingsObject)
 	{

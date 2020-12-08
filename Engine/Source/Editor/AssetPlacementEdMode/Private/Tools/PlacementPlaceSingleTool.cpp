@@ -2,17 +2,41 @@
 
 #include "Tools/PlacementPlaceSingleTool.h"
 #include "UObject/Object.h"
-#include "ToolContextInterfaces.h"
-#include "InteractiveToolManager.h"
+#include "AssetPlacementSettings.h"
+#include "Subsystems/PlacementSubsystem.h"
+#include "ScopedTransaction.h"
+#include "Editor/EditorEngine.h"
+#include "Editor.h"
 
 constexpr TCHAR UPlacementModePlaceSingleTool::ToolName[];
 
-bool UPlacementModeSelectAllToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+UPlacementBrushToolBase* UPlacementModePlaceSingleToolBuilder::FactoryToolInstance(UObject* Outer) const
 {
-	return true;
+	return NewObject<UPlacementModePlaceSingleTool>(Outer);
 }
 
-UInteractiveTool* UPlacementModeSelectAllToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+void UPlacementModePlaceSingleTool::OnEndDrag(const FRay& Ray)
 {
-	return NewObject<UPlacementModePlaceSingleTool>(SceneState.ToolManager, UPlacementModePlaceSingleTool::ToolName);
+	Super::OnEndDrag(Ray);
+
+	if (PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num())
+	{
+		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
+		const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+		if (ItemToPlace.AssetData.IsValid())
+		{
+			FAssetPlacementInfo PlacementInfo;
+			PlacementInfo.AssetToPlace = ItemToPlace.AssetData;
+			PlacementInfo.FactoryOverride = ItemToPlace.FactoryOverride;
+			PlacementInfo.FinalizedTransform = FTransform(LastBrushStamp.HitResult.ImpactPoint);
+			PlacementInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+
+			UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
+			if (PlacementSubsystem)
+			{
+				FScopedTransaction Transaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
+				PlacementSubsystem->PlaceAsset(PlacementInfo, FPlacementOptions());
+			}
+		}
+	}
 }

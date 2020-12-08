@@ -21,6 +21,8 @@ public class AssetPlacementEdMode : ModuleRules
 				"InteractiveToolsFramework",
 				"Foliage",
 				"Landscape",
+				"TypedElementFramework",
+				"PropertyEditor",
 			}
 		);
 	}

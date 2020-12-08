@@ -16,6 +16,7 @@ public:
 	static void Shutdown();
 
 	static FName GetStyleSetName();
+	static const ISlateStyle& Get();
 
 private:
 	FAssetPlacementEdModeStyle();

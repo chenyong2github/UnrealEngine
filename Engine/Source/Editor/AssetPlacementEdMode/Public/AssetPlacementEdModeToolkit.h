@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Toolkits/BaseToolkit.h"
-#include "InteractiveTool.h"
 #include "AssetPlacementEdMode.h"
 
-class IDetailsView;
+class UAssetPlacementSettings;
 
 /**
  * This FModeToolkit just creates a basic UI panel that allows various InteractiveTools to
@@ -16,7 +15,7 @@ class IDetailsView;
 class FAssetPlacementEdModeToolkit : public FModeToolkit
 {
 public:
-	FAssetPlacementEdModeToolkit();
+	FAssetPlacementEdModeToolkit(TWeakObjectPtr<UAssetPlacementSettings> InPlacementSettings);
 	
 	// FModeToolkit interface 
 	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
@@ -24,4 +23,9 @@ public:
 	// IToolkit interface 
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
+
+protected:
+	virtual TSharedPtr<SWidget> GetInlineContent() const override;
+
+	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
 };

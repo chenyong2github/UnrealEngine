@@ -2,17 +2,19 @@
 
 #include "AssetPlacementEdModeToolkit.h"
 #include "AssetPlacementEdMode.h"
+#include "AssetPlacementSettings.h"
+#include "SAssetPlacementPalette.h"
 
 #include "Modules/ModuleManager.h"
 
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SExpandableArea.h"
 
 #include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdModeToolkit"
 
-FAssetPlacementEdModeToolkit::FAssetPlacementEdModeToolkit()
+FAssetPlacementEdModeToolkit::FAssetPlacementEdModeToolkit(TWeakObjectPtr<UAssetPlacementSettings> InPlacementSettings)
+	: PlacementSettings(InPlacementSettings)
 {
 }
 
@@ -30,6 +32,25 @@ FName FAssetPlacementEdModeToolkit::GetToolkitFName() const
 FText FAssetPlacementEdModeToolkit::GetBaseToolkitName() const
 {
 	return LOCTEXT("DisplayName", "AssetPlacementEdMode Tool");
+}
+
+TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		[
+			SNew(SExpandableArea)
+			.AreaTitle(LOCTEXT("AssetPaletteHeader", "Asset Palette"))
+			.BodyContent()
+			[
+				SNew(SAssetPlacementPalette)
+				.PlacementSettings(PlacementSettings)
+			]
+		]
+		+ SVerticalBox::Slot()
+		[
+			FModeToolkit::GetInlineContent().ToSharedRef()
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

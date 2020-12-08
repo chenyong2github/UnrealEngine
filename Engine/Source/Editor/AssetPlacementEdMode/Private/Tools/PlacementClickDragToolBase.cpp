@@ -15,3 +15,8 @@ void UPlacementClickDragToolBase::Setup()
 	BrushProperties->BrushSize = .5f;
 	BrushProperties->BrushFalloffAmount = 1.f;
 }
+
+double UPlacementClickDragToolBase::EstimateMaximumTargetDimension()
+{
+	return UBaseBrushTool::EstimateMaximumTargetDimension();
+}

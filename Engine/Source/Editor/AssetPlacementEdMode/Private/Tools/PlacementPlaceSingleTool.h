@@ -8,13 +8,12 @@
 #include "PlacementPlaceSingleTool.generated.h"
 
 UCLASS(Transient, MinimalAPI)
-class UPlacementModeSelectAllToolBuilder : public UInteractiveToolBuilder
+class UPlacementModePlaceSingleToolBuilder : public UPlacementToolBuilderBase
 {
 	GENERATED_BODY()
 
-public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+protected:
+	virtual UPlacementBrushToolBase* FactoryToolInstance(UObject* Outer) const override;
 };
 
 UCLASS(MinimalAPI)
@@ -24,4 +23,6 @@ class UPlacementModePlaceSingleTool : public UPlacementClickDragToolBase
 
 public:
 	constexpr static TCHAR ToolName[] = TEXT("PlaceSingleTool");
+
+	virtual void OnEndDrag(const FRay& Ray) override;
 };

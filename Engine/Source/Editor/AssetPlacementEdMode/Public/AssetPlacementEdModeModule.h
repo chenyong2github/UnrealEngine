@@ -8,6 +8,9 @@
 class FAssetPlacementEdMode : public IModuleInterface
 {
 public:
-	virtual void StartupModule();
-	virtual void ShutdownModule();
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+
+protected:
+	void OnPostEngineInit();
 };

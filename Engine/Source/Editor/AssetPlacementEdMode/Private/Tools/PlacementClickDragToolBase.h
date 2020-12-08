@@ -12,4 +12,7 @@ class UPlacementClickDragToolBase : public UPlacementBrushToolBase
 	GENERATED_BODY()
 public:
 	virtual void Setup() override;
+
+protected:
+	virtual double EstimateMaximumTargetDimension() override;
 };

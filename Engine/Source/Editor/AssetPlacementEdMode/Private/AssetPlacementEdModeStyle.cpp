@@ -5,6 +5,10 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/StarshipCoreStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
 TSharedPtr<FAssetPlacementEdModeStyle> FAssetPlacementEdModeStyle::AssetPlacementEdModeStyle;
 
@@ -27,6 +31,12 @@ void FAssetPlacementEdModeStyle::Shutdown()
 FName FAssetPlacementEdModeStyle::GetStyleSetName()
 {
 	return "AssetPlacementEdModeStyle";
+}
+
+const ISlateStyle& FAssetPlacementEdModeStyle::Get()
+{
+	check(AssetPlacementEdModeStyle.IsValid());
+	return *AssetPlacementEdModeStyle->StyleSet;
 }
 
 FAssetPlacementEdModeStyle::FAssetPlacementEdModeStyle()
@@ -75,6 +85,13 @@ void FAssetPlacementEdModeStyle::SetupCustomStyle()
 	StyleSet->Set("AssetPlacementEdMode.Settings.Small", MakeImageBrushFn("Icons/GeneralTools/Settings_40x"));
 	StyleSet->Set("AssetPlacementEdMode.MoveToActivePartition", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
 	StyleSet->Set("AssetPlacementEdMode.MoveToActivePartition.Small", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
+
+	StyleSet->Set("AssetPlacementEdMode.AddAssetType.Text", FTextBlockStyle(StyleSet->GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		.SetFont(DEFAULT_FONT("Bold", 10))
+		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f))
+		.SetHighlightColor(FLinearColor(1.0f, 1.0f, 1.0f))
+		.SetShadowOffset(FVector2D(1, 1))
+		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }

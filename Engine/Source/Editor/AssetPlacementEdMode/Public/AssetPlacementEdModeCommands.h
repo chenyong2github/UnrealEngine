@@ -16,15 +16,12 @@ public:
 	TSharedPtr<FUICommandInfo> Select;
 	TSharedPtr<FUICommandInfo> SelectAll;
 	TSharedPtr<FUICommandInfo> Deselect;
-	TSharedPtr<FUICommandInfo> SelectInvalid;
 	TSharedPtr<FUICommandInfo> LassoSelect;
 	TSharedPtr<FUICommandInfo> Place;
-	TSharedPtr<FUICommandInfo> ReapplySettings;
 	TSharedPtr<FUICommandInfo> PlaceSingle;
 	TSharedPtr<FUICommandInfo> Fill;
 	TSharedPtr<FUICommandInfo> Erase;
 	TSharedPtr<FUICommandInfo> Delete;
-	TSharedPtr<FUICommandInfo> MoveToActivePartition;
 
 protected:
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
