@@ -130,7 +130,7 @@ public:
 		{
 			if (OutData.Num() < sizeof(FDerivedDataTrailer))
 			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendCorruptionWrapper: Corrupted file (short), ignoring and deleting %s."),CacheKey);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("FDerivedDataBackendCorruptionWrapper: Corrupted file (short), ignoring and deleting %s."),CacheKey);
 				bOk	= false;
 			}
 			else
@@ -145,7 +145,7 @@ public:
 				}
 				else
 				{
-					UE_LOG(LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendCorruptionWrapper: Corrupted file, ignoring and deleting %s."),CacheKey);
+					UE_LOG(LogDerivedDataCache, Display, TEXT("FDerivedDataBackendCorruptionWrapper: Corrupted file, ignoring and deleting %s."),CacheKey);
 					bOk	= false;
 				}
 			}

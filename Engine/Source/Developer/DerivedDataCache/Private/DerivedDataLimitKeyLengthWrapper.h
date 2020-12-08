@@ -123,7 +123,7 @@ public:
 				int32 KeyLen = FCString::Strlen(CacheKey) + 1;
 				if (OutData.Num() < KeyLen)
 				{
-					UE_LOG(LogDerivedDataCache, Warning, TEXT("FDerivedDataLimitKeyLengthWrapper: Short file or Hash Collision, ignoring and deleting %s."), CacheKey);
+					UE_LOG(LogDerivedDataCache, Display, TEXT("FDerivedDataLimitKeyLengthWrapper: Short file or Hash Collision, ignoring and deleting %s."), CacheKey);
 					bOk	= false;
 				}
 				else
