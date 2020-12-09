@@ -673,6 +673,14 @@ bool FMeshBoolean::Compute()
 		CreatedBoundaryEdges = CutBoundaryEdges[0];
 	}
 
+	if (bTrackAllNewEdges)
+	{
+		for (int32 eid : CreatedBoundaryEdges)
+		{
+			AllNewEdges.Add(eid);
+		}
+	}
+
 	if (bPutResultInInputSpace)
 	{
 		MeshTransforms::ApplyTransform(*Result, ResultTransform);
@@ -741,6 +749,13 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 		{
 			UnmatchedEdges.Add(Candidate.A);
 		}
+		else
+		{
+			if (bTrackAllNewEdges)
+			{
+				AllNewEdges.Add(Candidate.A);
+			}
+		}
 	}
 
 	// filter matched edges from the edge array for the other mesh
@@ -781,6 +796,10 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 					if (EdgeMergeResult == EMeshResult::Ok)
 					{
 						UnmatchedEdges.RemoveAtSwap(UnmatchedIdx, 1, false);
+						if (bTrackAllNewEdges)
+						{
+							AllNewEdges.Add(EID);
+						}
 						break;
 					}
 				}

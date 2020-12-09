@@ -28,7 +28,8 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 EEdgeRefineFlags MaterialBoundaryConstraint,
 					 bool bPreserveSharpEdges, bool bAllowSeamCollapse,
 					 const ESimplifyTargetType TargetMode,
-					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
+					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength,
+					 const float AngleThreshold)
 {
 	SimplificationType Reducer(TargetMesh);
 
@@ -44,16 +45,9 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 		Reducer.SetEdgeFlipTolerance(1.e-5);
 
 		// eliminate any bowties that might have formed on UV seams.
-		if (FDynamicMeshAttributeSet* Attributes = TargetMesh->Attributes())
+		if (TargetMesh->Attributes())
 		{
-			// @todo parallelize over NumUVLayers?
-			int NumUVLayers = Attributes->NumUVLayers();
-			for (int i = 0; i < NumUVLayers; ++i)
-			{
-				Attributes->GetUVLayer(i)->SplitBowties();
-			}
-			Attributes->PrimaryNormals()->SplitBowties();
-
+			TargetMesh->Attributes()->SplitAllBowties();
 		}
 	}
 
@@ -89,6 +83,10 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	{
 		Reducer.SimplifyToEdgeLength(TargetEdgeLength);
 	}
+	else if (TargetMode == ESimplifyTargetType::MinimalPlanar)
+	{
+		Reducer.SimplifyToMinimalPlanar(AngleThreshold);
+	}
 }
 
 
@@ -110,29 +108,35 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	int OriginalTriCount = OriginalMesh->TriangleCount();
-	if (SimplifierType != ESimplifyType::UE4Standard)
+	if (SimplifierType == ESimplifyType::QEM)
 	{
-		// GeometryProcessing-specific methods that operate directly on a DynamicMesh3
 		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
-
-		if (SimplifierType == ESimplifyType::QEM)
-		{
-			ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
-												MeshBoundaryConstraint,
-												GroupBoundaryConstraint,
-												MaterialBoundaryConstraint,
-												bPreserveSharpEdges, bAllowSeamCollapse,
-												TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
-		}
-		else if (SimplifierType == ESimplifyType::Attribute)
-		{
-			ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
-													 MeshBoundaryConstraint,
-													 GroupBoundaryConstraint,
-													 MaterialBoundaryConstraint,
-													 bPreserveSharpEdges, bAllowSeamCollapse,
-													 TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
-		}
+		ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+											MeshBoundaryConstraint,
+											GroupBoundaryConstraint,
+											MaterialBoundaryConstraint,
+											bPreserveSharpEdges, bAllowSeamCollapse,
+											TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh);
+	}
+	else if (SimplifierType == ESimplifyType::Attribute)
+	{
+		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
+		ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+													MeshBoundaryConstraint,
+													GroupBoundaryConstraint,
+													MaterialBoundaryConstraint,
+													bPreserveSharpEdges, bAllowSeamCollapse,
+													TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh);
+	}
+	else if (SimplifierType == ESimplifyType::MinimalPlanar)
+	{
+		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
+		ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+			MeshBoundaryConstraint,
+			GroupBoundaryConstraint,
+			MaterialBoundaryConstraint,
+			bPreserveSharpEdges, bAllowSeamCollapse,
+			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh);
 	}
 	else // SimplifierType == ESimplifyType::UE4Standard
 	{

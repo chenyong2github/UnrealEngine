@@ -188,6 +188,7 @@ TUniquePtr<FDynamicMeshOperator> USelfUnionMeshesTool::MakeNewOperator()
 	TUniquePtr<FSelfUnionMeshesOp> Op = MakeUnique<FSelfUnionMeshesOp>();
 	
 	Op->bAttemptFixHoles = Properties->bAttemptFixHoles;
+	Op->bTryCollapseExtraEdges = Properties->bCollapseExtraEdges;
 	Op->WindingNumberThreshold = Properties->WindingNumberThreshold;
 	Op->bTrimFlaps = Properties->bTrimFlaps;
 

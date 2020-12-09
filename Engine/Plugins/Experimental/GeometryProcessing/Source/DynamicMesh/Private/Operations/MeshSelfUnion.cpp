@@ -447,6 +447,14 @@ bool FMeshSelfUnion::Compute()
 		bWeldSuccess = MergeEdges(CutBoundaryEdges, FoundMatches);
 	}
 
+	if (bTrackAllNewEdges)
+	{
+		for (int32 eid : CreatedBoundaryEdges)
+		{
+			AllNewEdges.Add(eid);
+		}
+	}
+
 	MeshTransforms::ApplyTransform(*Mesh, ResultTransform);
 
 	return bWeldSuccess;
@@ -489,6 +497,14 @@ bool FMeshSelfUnion::MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<
 
 		FDynamicMesh3::FMergeEdgesInfo MergeInfo;
 		EMeshResult EdgeMergeResult = Mesh->MergeEdges(Candidate.A, Candidate.B, MergeInfo);
+
+		if (EdgeMergeResult == EMeshResult::Ok)
+		{
+			if (bTrackAllNewEdges)
+			{
+				AllNewEdges.Add(Candidate.A);
+			}
+		}
 	}
 
 	// collect remaining unmatched edges
@@ -531,6 +547,10 @@ bool FMeshSelfUnion::MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<
 				if (EdgeMergeResult == EMeshResult::Ok)
 				{
 					UnmatchedEdges.RemoveAtSwap(OtherIdx, 1, false);
+					if (bTrackAllNewEdges)
+					{
+						AllNewEdges.Add(EID);
+					}
 					break;
 				}
 			}

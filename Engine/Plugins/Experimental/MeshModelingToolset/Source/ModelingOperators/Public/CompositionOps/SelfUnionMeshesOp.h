@@ -14,9 +14,14 @@ public:
 
 	// inputs
 	TSharedPtr<const FDynamicMesh3> CombinedMesh;
-	bool bAttemptFixHoles;
+	bool bAttemptFixHoles = false;
 	double WindingNumberThreshold = .5;
-	bool bTrimFlaps;
+	bool bTrimFlaps = false;
+
+	/** If true, try to do edge-collapses along cut edges to remove unnecessary edges inserted by cut */
+	bool bTryCollapseExtraEdges = false;
+	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
+	float TryCollapseExtraEdgesPlanarThresh = 0.01f;
 
 	void SetTransform(const FTransform& Transform);
 

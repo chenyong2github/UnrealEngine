@@ -104,10 +104,14 @@ public:
 
 	/**
 	 * Maximally collapse mesh in a way that does not change shape at all.
-	 * This process does not invove quadric error at all.
+	 * This process does not involve quadric error at all.
 	 * @param AngleTolDeg two triangles are considered coplanar if their normals are within this angle tolerance
+	 * @param EdgeFilterPredicate only edges that pass this predicate will be considered for collapse. Default all true.
 	 */
-	virtual void SimplifyToMinimalPlanar(double CoplanarAngleTolDeg = 0.001);
+	virtual void SimplifyToMinimalPlanar(
+		double CoplanarAngleTolDeg = 0.001,
+		TFunctionRef<bool(int32 EdgeID)> EdgeFilterPredicate = [](int32) { return true; }
+		);
 
 
 	/** 

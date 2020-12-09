@@ -28,6 +28,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
 
+	/** Try to collapse extra edges created by the Boolean operation */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bCollapseExtraEdges = true;
+
 	/** Show boundary edges created by the union operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;

@@ -4,6 +4,8 @@
 
 #include "Operations/MeshSelfUnion.h"
 
+#include "MeshSimplification.h"
+
 #include "MeshBoundaryLoops.h"
 #include "Operations/MinimalHoleFiller.h"
 
@@ -28,6 +30,7 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 	FMeshSelfUnion Union(ResultMesh.Get());
 	Union.WindingThreshold = WindingNumberThreshold;
 	Union.bTrimFlaps = bTrimFlaps;
+	Union.bTrackAllNewEdges = (bTryCollapseExtraEdges);
 	bool bSuccess = Union.Compute();
 
 	if (Progress->Cancelled())
@@ -35,10 +38,46 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
+	CreatedBoundaryEdges = Union.CreatedBoundaryEdges;
+
+	// Boolean operation is based on edge splits, which results in spurious vertices
+	// along straight intersection edges. Try to collapse away those extra vertices.
+	if (bTryCollapseExtraEdges)
+	{
+		FDynamicMesh3* TargetMesh = ResultMesh.Get();
+
+		FQEMSimplification Simplifier(TargetMesh);
+		Simplifier.bAllowSeamCollapse = true;
+		if (TargetMesh->Attributes())
+		{
+			TargetMesh->Attributes()->SplitAllBowties();		// eliminate any bowties that might have formed on UV seams.
+		}
+
+		FMeshConstraints Constraints;
+		FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(Constraints, *TargetMesh,
+			EEdgeRefineFlags::NoConstraint, EEdgeRefineFlags::NoConstraint, EEdgeRefineFlags::NoConstraint,
+			true, true, true);
+		Simplifier.SetExternalConstraints(MoveTemp(Constraints));
+
+		Simplifier.SimplifyToMinimalPlanar(TryCollapseExtraEdgesPlanarThresh,
+			[&Union](int32 eid) { return Union.AllNewEdges.Contains(eid); });
+
+		// update boundary-edge set as we may have collapsed some during this process
+		TArray<int32> UpdatedBoundaryEdges;
+		for (int32 eid : CreatedBoundaryEdges)
+		{
+			if (ResultMesh->IsEdge(eid))
+			{
+				UpdatedBoundaryEdges.Add(eid);
+			}
+		}
+		CreatedBoundaryEdges = MoveTemp(UpdatedBoundaryEdges);
+	}
+
 	if (!bSuccess && bAttemptFixHoles)
 	{
 		FMeshBoundaryLoops OpenBoundary(ResultMesh.Get(), false);
-		TSet<int> ConsiderEdges(Union.CreatedBoundaryEdges);
+		TSet<int> ConsiderEdges(CreatedBoundaryEdges);
 		OpenBoundary.EdgeFilterFunc = [&ConsiderEdges](int EID)
 		{
 			return ConsiderEdges.Contains(EID);
@@ -55,16 +94,16 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 			FMinimalHoleFiller Filler(ResultMesh.Get(), Loop);
 			Filler.Fill();
 		}
+
+		TArray<int32> UpdatedBoundaryEdges;
 		for (int EID : Union.CreatedBoundaryEdges)
 		{
 			if (ResultMesh->IsEdge(EID) && ResultMesh->IsBoundaryEdge(EID))
 			{
-				CreatedBoundaryEdges.Add(EID);
+				UpdatedBoundaryEdges.Add(EID);
 			}
 		}
+		CreatedBoundaryEdges = MoveTemp(UpdatedBoundaryEdges);
 	}
-	else
-	{
-		CreatedBoundaryEdges = Union.CreatedBoundaryEdges;
-	}
+
 }

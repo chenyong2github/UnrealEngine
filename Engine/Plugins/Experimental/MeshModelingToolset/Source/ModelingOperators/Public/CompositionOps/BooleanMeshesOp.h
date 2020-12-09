@@ -58,7 +58,12 @@ public:
 	bool bTrimMode = false; // if true, do a trim operation instead of a boolean
 	TArray<TSharedPtr<const FDynamicMesh3>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
-	bool bAttemptFixHoles;
+	bool bAttemptFixHoles = false;
+
+	/** If true, try to do edge-collapses along cut edges to remove unnecessary edges inserted by cut */
+	bool bTryCollapseExtraEdges = false;
+	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
+	float TryCollapseExtraEdgesPlanarThresh = 0.01f;
 
 	void SetTransform(const FTransform& Transform);
 

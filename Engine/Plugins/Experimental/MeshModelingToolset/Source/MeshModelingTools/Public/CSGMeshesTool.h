@@ -36,6 +36,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
 
+	/** Try to collapse extra edges created by the Boolean operation */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bCollapseExtraEdges = true;
+
 	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
 	UPROPERTY(EditAnywhere, Category = Materials)
 	bool bOnlyUseFirstMeshMaterials = false;

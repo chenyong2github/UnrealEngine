@@ -29,7 +29,10 @@ enum class ESimplifyTargetType : uint8
 	VertexCount = 2 UMETA(DisplayName = "Vertex Count"),
 
 	/** Target edge length */
-	EdgeLength = 3 UMETA(DisplayName = "Edge Length")
+	EdgeLength = 3 UMETA(DisplayName = "Edge Length"),
+
+	/** Apply all allowable edge collapses that do not change the shape */
+	MinimalPlanar = 4 UMETA(Hidden)
 };
 
 UENUM()
@@ -43,6 +46,9 @@ enum class ESimplifyType : uint8
 
 	/** Highest quality reduction.  Will simplify UV boundaries. */
 	UE4Standard = 2 UMETA(DisplayName = "UE4 Standard"),
+
+	/** Collapse any spurious edges but do not change the 3D shape */
+	MinimalPlanar = 3 UMETA(DisplayName = "Minimal Shape-Preserving"),
 };
 
 class MODELINGOPERATORSEDITORONLY_API FSimplifyMeshOp : public FDynamicMeshOperator
@@ -59,6 +65,8 @@ public:
 	float TargetEdgeLength;
 	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse;
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
+	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
+	float MinimalPlanarAngleThresh = 0.01f;
 
 	// stored for the UE4 Standard path
 	TSharedPtr<FMeshDescription> OriginalMeshDescription;

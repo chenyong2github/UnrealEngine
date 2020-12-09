@@ -50,6 +50,8 @@ public:
 	/** Weld newly-created cut edges where the mesh is unioned with itself.  If false, newly joined surfaces remain topologically disconnected. */
 	bool bWeldSharedEdges = true;
 
+	/** Control whether new edges should be tracked */
+	bool bTrackAllNewEdges = false;
 
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
@@ -68,6 +70,9 @@ public:
 
 	/** Boundary edges created by the mesh boolean algorithm failing to cleanly weld (doesn't include boundaries that already existed in source mesh) */
 	TArray<int> CreatedBoundaryEdges;
+
+	/** All edges created by mesh boolean algorithm. Only populated if bTrackAllNewEdges = true */
+	TSet<int32> AllNewEdges;
 
 public:
 

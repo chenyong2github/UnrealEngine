@@ -177,11 +177,13 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 		BooleanOp->TrimOperation = TrimProperties->WhichMesh;
 		BooleanOp->TrimSide = TrimProperties->TrimSide;
 		BooleanOp->bAttemptFixHoles = false;
+		BooleanOp->bTryCollapseExtraEdges = false;
 	}
 	else
 	{
 		BooleanOp->CSGOperation = CSGProperties->Operation;
 		BooleanOp->bAttemptFixHoles = CSGProperties->bAttemptFixHoles;
+		BooleanOp->bTryCollapseExtraEdges = CSGProperties->bCollapseExtraEdges;
 	}
 
 	check(OriginalDynamicMeshes.Num() == 2);

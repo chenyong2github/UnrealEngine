@@ -67,6 +67,13 @@ public:
 
 
 	/**
+	 * Split all bowtie vertices in all layers
+	 * @param bParallel if true, layers are processed in parallel
+	 */
+	void SplitAllBowties(bool bParallel = true);
+
+
+	/**
 	 * Enable the matching attributes and overlay layers as the reference Copy set, but do not copy any data across
 	 */
 	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch);

@@ -837,6 +837,10 @@ static bool IsCollapsableDevelopableEdge(const FDynamicMesh3& Mesh, int32 Collap
 		if (eid != CollapseEdgeID)
 		{
 			FIndex2i EdgeT = Mesh.GetEdgeT(eid);
+			if (EdgeT.B == IndexConstants::InvalidID)
+			{
+				return false;		// abort if one of the edges of RemoveV is a boundary edge (?)
+			}
 			FVector3d Normal3 = GetTriNormalFunc(EdgeT.A);
 			FVector3d Normal4 = GetTriNormalFunc(EdgeT.B);
 
@@ -866,7 +870,9 @@ static bool IsCollapsableDevelopableEdge(const FDynamicMesh3& Mesh, int32 Collap
 
 
 template <typename QuadricErrorType>
-void TMeshSimplification<QuadricErrorType>::SimplifyToMinimalPlanar(double CoplanarAngleTolDeg)
+void TMeshSimplification<QuadricErrorType>::SimplifyToMinimalPlanar(
+	double CoplanarAngleTolDeg,
+	TFunctionRef<bool(int32 EdgeID)> EdgeFilterPredicate)
 {
 #define RETURN_IF_CANCELLED 	if (Cancelled()) { return; }
 
@@ -927,6 +933,11 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToMinimalPlanar(double Copla
 		CollapseEdges.Reset();
 		for (int32 eid : Mesh->EdgeIndicesItr())
 		{
+			if (EdgeFilterPredicate(eid) == false)
+			{
+				continue;
+			}
+
 			FIndex2i ev = Mesh->GetEdgeV(eid);
 			if (DevelopableVerts[ev.A] || DevelopableVerts[ev.B])
 			{

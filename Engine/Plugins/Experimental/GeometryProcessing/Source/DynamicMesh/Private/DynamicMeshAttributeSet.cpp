@@ -2,6 +2,7 @@
 
 #include "DynamicMeshAttributeSet.h"
 #include "IndexTypes.h"
+#include "Async/ParallelFor.h"
 
 
 
@@ -121,6 +122,24 @@ void FDynamicMeshAttributeSet::CompactInPlace(const FCompactMaps& CompactMaps)
 	{
 		AttribPair.Value->CompactInPlace(CompactMaps);
 	}
+}
+
+
+
+void FDynamicMeshAttributeSet::SplitAllBowties(bool bParallel)
+{
+	int32 UVLayerCount = NumUVLayers();
+	ParallelFor(UVLayerCount + 1, [&](int32 idx)
+	{
+		if (idx == 0)
+		{
+			PrimaryNormals()->SplitBowties();
+		}
+		else
+		{
+			GetUVLayer(idx - 1)->SplitBowties();
+		}
+	}, (bParallel) ? EParallelForFlags::Unbalanced : EParallelForFlags::ForceSingleThread );
 }
 
 
