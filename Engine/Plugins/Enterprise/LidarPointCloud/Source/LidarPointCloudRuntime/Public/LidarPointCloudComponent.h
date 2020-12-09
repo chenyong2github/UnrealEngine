@@ -72,6 +72,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (ClampMin = "0.0"))
 	float PointSize;
 
+	/**
+	 * If enabled, sprites will be rendered using screen-space scaling method.
+	 * In that mode, Point Size property will work as Screen Percentage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	bool bUseScreenSizeScaling;
+
 	/** Specifies which source to use for point colors. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	ELidarPointCloudColorationMode ColorSource;

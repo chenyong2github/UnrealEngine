@@ -309,6 +309,7 @@ public:
 		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
 		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
 		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
+		UserDataElement.bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
 
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
 		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();		

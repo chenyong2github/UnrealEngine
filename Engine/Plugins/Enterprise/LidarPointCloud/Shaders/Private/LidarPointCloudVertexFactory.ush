@@ -37,6 +37,7 @@ float SpriteSizeMultiplier;
 float3 ViewRightVector;
 float3 ViewUpVector;
 uint bUseCameraFacing;
+uint bUseScreenSizeScaling;
 
 // Used for coloration override
 float3 BoundsSize;
@@ -162,7 +163,7 @@ FPointCloudInstanceData GetInstanceData(uint VertexId)
 		InstanceData.Normal = half3((0x000000FF & Normal) / 127.5f - 1, (0x000000FF & (Normal >> 8)) / 127.5f - 1, (0x000000FF & (Normal >> 16)) / 127.5f - 1);
 	}
 
-    InstanceData.Scale = SpriteSize * PrecomputedUV_Quad[VertexId % 4];
+	InstanceData.Scale = PrecomputedUV_Quad[VertexId % 4];
 
 	// Only process clipping if not in the editor view
 	if (!bEditorView)
@@ -207,11 +208,10 @@ half3x3 CalcTangentToWorldNoScale(in half3x3 TangentToLocal)
 
 float3 ProcessPosition(float3 Position, half3 Normal, half2 Scale)
 {
-	if (dot(Normal, Normal) < 0.1f || bUseCameraFacing)
-	{
-		return Position + (ViewRightVector * Scale.x + ViewUpVector * Scale.y) * SpriteSizeMultiplier;
-	}
-	else
+	float3 AngleUp = ViewUpVector;
+	float3 AngleRight = ViewRightVector;
+
+	if (!bUseCameraFacing && dot(Normal, Normal) > 0.1f)
 	{
 		half3 N = abs(Normal);
 
@@ -228,12 +228,13 @@ float3 ProcessPosition(float3 Position, half3 Normal, half2 Scale)
 		}
 
 		Axis1 = (Axis1 - Normal * dot(Axis1, Normal));
-		Axis1 = Axis1 * rsqrt(dot(Axis1, Axis1));
-
-		half3 Axis2 = cross(Axis1, Normal);
-
-		return Position + (Axis1 * Scale.x + Axis2 * Scale.y) * SpriteSizeMultiplier;
+		
+		AngleRight = Axis1 * rsqrt(dot(Axis1, Axis1));
+		AngleUp = cross(AngleRight, Normal);
 	}
+
+	float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : SpriteSize;
+	return Position + (AngleRight * Scale.x + AngleUp * Scale.y) * SpriteSizeMultiplier * Size;
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
