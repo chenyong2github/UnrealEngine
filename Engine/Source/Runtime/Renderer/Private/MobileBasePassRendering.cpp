@@ -302,14 +302,12 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }
 
-void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TFunction<void(FRenderTargetBindingSlots &)> UpdateRenderTargetsLoadAction, const TArrayView<const FViewInfo*> PassViews)
+void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
 	RDG_EVENT_SCOPE(GraphBuilder, "MobileBasePass");
 	SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
-
-	bool bAnyPassesAdded = false;
 
 	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 	{
@@ -324,7 +322,7 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRend
 		OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
 		OpaqueBasePassParameters->MobileBasePass = Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer;
 
-		GraphBuilder.AddPass(RDG_EVENT_NAME("RenderOpaqueBasePass"), OpaqueBasePassParameters, ERDGPassFlags::Raster,
+		GraphBuilder.AddPass(RDG_EVENT_NAME("RenderOpaqueBasePass"), OpaqueBasePassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[this, &View, OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
@@ -346,13 +344,6 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRend
 			}
 
 		});
-
-		bAnyPassesAdded = true;
-	}
-
-	if (bAnyPassesAdded)
-	{
-		UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 	}
 }
 

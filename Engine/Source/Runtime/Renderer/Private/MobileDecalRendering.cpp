@@ -241,7 +241,7 @@ void RenderDeferredDecalsMobile(FRDGBuilder& GraphBuilder, FRenderTargetBindingS
 		PassParameters->MobileSceneTextures = MobileSceneTextures;
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("MobileDeferredDecalsPass"), PassParameters, ERDGPassFlags::Raster,
+			RDG_EVENT_NAME("MobileDeferredDecalsPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[&View, SortedDecalCount, SortedDecals](FRHICommandListImmediate& RHICmdList)
 		{
 			const bool bDeferredShading = IsMobileDeferredShadingEnabled(View.GetShaderPlatform());

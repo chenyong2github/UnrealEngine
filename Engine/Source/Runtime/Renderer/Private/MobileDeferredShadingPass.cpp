@@ -333,7 +333,7 @@ void MobileDeferredShadingPass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSl
 	PassParameters->MobileSceneTextures = MobileSceneTextures;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("MobileDeferredShadingPass"), PassParameters, ERDGPassFlags::Raster,
+		RDG_EVENT_NAME("MobileDeferredShadingPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[&Scene, &View, &SortedLightSet](FRHICommandListImmediate& RHICmdList)
 	{
 

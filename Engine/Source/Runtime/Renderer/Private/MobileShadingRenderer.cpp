@@ -159,7 +159,7 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 	return bUsesCustomDepthStencil;
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FRenderOpaqueFXPassParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileRenderOpaqueFXPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, SceneTextures)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -685,7 +685,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
+		auto* PassParameters = GraphBuilder.AllocParameters<FMobileRenderOpaqueFXPassParameters>();
 		PassParameters->SceneTextures = MobileSceneTextures;
 
 		// Cascade uses pixel shaders for compute stuff in PostRenderOpaque so ERDGPassFlags::Raster is needed
@@ -857,56 +857,44 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	//if the scenecolor isn't multiview but the app is, need to render as a single-view multiview due to shaders
 	BasePassRenderTargets.MultiViewCount = View.bIsMobileMultiViewEnabled ? 2 : (bIsMultiViewApplication ? 1 : 0);
 
-	// Update the render targets load action to Eload after executing the first pass that is EClear flag to let the RDG merges as many passes as possible.
-	auto UpdateRenderTargetsLoadAction = [](FRenderTargetBindingSlots& BasePassRenderTargets)
-	{
-		if (BasePassRenderTargets[0].GetLoadAction() == ERenderTargetLoadAction::EClear)
-		{
-			BasePassRenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
-			BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
-			BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
-		}
-	};
+	auto* OpaqueBasePassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
 
-	RDG_EVENT_SCOPE(GraphBuilder, "SceneColorRendering");
+	GraphBuilder.AddPass(
+		{},
+		OpaqueBasePassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.BeginRenderPass(GetRenderPassInfo(OpaqueBasePassParameters), TEXT("SceneColorRendering"));
+	});
 
 	if (GIsEditor && !View.bIsSceneCapture)
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
-
-		GraphBuilder.AddPass(RDG_EVENT_NAME("ClearSceneColorPass"), PassParameters, ERDGPassFlags::Raster,
-			[this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 		{
 			DrawClearQuad(RHICmdList, Views[0].BackgroundColor);
 		});
-
-		UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 	}
 
 	// Depth pre-pass
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_MobilePrePass));
-	RenderPrePass(GraphBuilder, BasePassRenderTargets, UpdateRenderTargetsLoadAction);
+	RenderPrePass(GraphBuilder, BasePassRenderTargets);
 	
 	// Opaque and masked
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Opaque));
-	RenderMobileBasePass(GraphBuilder, BasePassRenderTargets, UpdateRenderTargetsLoadAction, ViewList);
+	RenderMobileBasePass(GraphBuilder, BasePassRenderTargets, ViewList);
 	AddDispatchToRHIThreadPass(GraphBuilder);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (ViewFamily.UseDebugViewPS())
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
-
 		// Here we use the base pass depth result to get z culling for opaque and masque.
 		// The color needs to be cleared at this point since shader complexity renders in additive.
-		GraphBuilder.AddPass(RDG_EVENT_NAME("ClearDebugViewPass"), PassParameters, ERDGPassFlags::Raster,
-			[this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
 			DrawClearQuad(RHICmdList, FLinearColor::Black);
 		});
-
 		RenderMobileDebugView(GraphBuilder, ViewList);
 		AddDispatchToRHIThreadPass(GraphBuilder);
 	}
@@ -923,13 +911,13 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 
 	if (ViewFamily.ViewExtensions.Num() > 1)
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FMobilePostBasePassViewExtensionParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
-		PassParameters->SceneTextures = MobileSceneTextures;
+		auto* ViewExtensionPassParameters = GraphBuilder.AllocParameters<FMobilePostBasePassViewExtensionParameters>();
+		ViewExtensionPassParameters->RenderTargets = BasePassRenderTargets;
+		ViewExtensionPassParameters->SceneTextures = MobileSceneTextures;
 
 		GraphBuilder.AddPass(
 			{},
-			PassParameters,
+			ViewExtensionPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull,
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
@@ -942,6 +930,16 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 					ViewFamily.ViewExtensions[ViewExt]->PostRenderBasePass_RenderThread(RHICmdList, Views[ViewIndex]);
 				}
 			}
+		});
+	}
+
+	// Split if we need to render translucency in a separate render pass
+	// Split if we need to render pixel projected reflection
+	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass)
+	{
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.EndRenderPass();
 		});
 	}
 	   
@@ -963,7 +961,6 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 		RenderPixelProjectedReflection(GraphBuilder, SceneColorMSAA.Resolve, SceneDepthMSAA.Resolve, PixelProjectedReflectionTexture, PlanarReflectionSceneProxy);
 	}
 
-
 	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		FExclusiveDepthStencil::Type ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
@@ -980,23 +977,31 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 		}
 
+		BasePassRenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
+		BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
+		BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
 		BasePassRenderTargets.DepthStencil.SetDepthStencilAccess(ExclusiveDepthStencil);
-
 		BasePassRenderTargets.NumOcclusionQueries = 0;
 		BasePassRenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
-	}
 
-	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
+		auto* TranslucencyBasePassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		TranslucencyBasePassParameters->RenderTargets = BasePassRenderTargets;
 
-		GraphBuilder.AddPass(RDG_EVENT_NAME("Nextsubpass"), PassParameters, ERDGPassFlags::Raster,
-			[this](FRHICommandListImmediate& RHICmdList)
+		GraphBuilder.AddPass(
+			{},
+			TranslucencyBasePassParameters,
+			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+			[TranslucencyBasePassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			// scene depth is read only and can be fetched
-			RHICmdList.NextSubpass();
+			RHICmdList.BeginRenderPass(GetRenderPassInfo(TranslucencyBasePassParameters), TEXT("SceneColorTranslucencyRendering"));
 		});
 	}
+
+	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	{
+		// scene depth is read only and can be fetched
+		RHICmdList.NextSubpass();
+	});
 
 	if (!View.bIsPlanarReflection)
 	{
@@ -1009,7 +1014,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 		if (ViewFamily.EngineShowFlags.DynamicShadows)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadowProjections);
-			RenderModulatedShadowProjections(GraphBuilder, BasePassRenderTargets, MobileSceneTextures);
+			RenderModulatedShadowProjections(GraphBuilder, MobileSceneTextures);
 		}
 	}
 	
@@ -1029,7 +1034,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	if (bAdrenoOcclusionMode)
 	{
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Occlusion));
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
 			// flush
 			RHICmdList.SubmitCommandsHint();
@@ -1045,6 +1050,11 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	{
 		PreTonemapMSAA(GraphBuilder, BasePassRenderTargets);
 	}
+
+	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.EndRenderPass();
+	});
 }
 
 void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, FRDGTextureMSAA& SceneColorMSAA, FRDGTextureMSAA& SceneDepthMSAA, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures)
@@ -1068,44 +1078,33 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 	BasePassRenderTargets.FoveationTexture = nullptr;
 	BasePassRenderTargets.MultiViewCount = 0;
 
-	// Update the render targets load action to Eload after adding the first pass with EClear flag to let the RDG merge all passes together.
-	auto UpdateRenderTargetsLoadAction = [](FRenderTargetBindingSlots& BasePassRenderTargets)
-	{
-		if (BasePassRenderTargets[0].GetLoadAction() == ERenderTargetLoadAction::EClear)
-		{
-			for (uint32 i = 0; i < 5; ++i)
-			{
-				BasePassRenderTargets[i].SetLoadAction(ERenderTargetLoadAction::ELoad);
-			}
-			
-			BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
-			BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
-		}
-	};
+	auto* OpaqueBasePassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
 
-	RDG_EVENT_SCOPE(GraphBuilder, "SceneColorRendering");
+	GraphBuilder.AddPass(
+		{},
+		OpaqueBasePassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.BeginRenderPass(GetRenderPassInfo(OpaqueBasePassParameters), TEXT("BasePassRendering"));
+	});
 	
 	if (GIsEditor && !Views[0].bIsSceneCapture)
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
-
-		GraphBuilder.AddPass(RDG_EVENT_NAME("ClearSceneColorPass"), PassParameters, ERDGPassFlags::Raster,
-			[this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 		{
 			DrawClearQuad(RHICmdList, Views[0].BackgroundColor);
 		});
-
-		UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 	}
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_MobilePrePass));
 	// Depth pre-pass
-	RenderPrePass(GraphBuilder, BasePassRenderTargets, UpdateRenderTargetsLoadAction);
+	RenderPrePass(GraphBuilder, BasePassRenderTargets);
 	
 	// Opaque and masked
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Opaque));
-	RenderMobileBasePass(GraphBuilder, BasePassRenderTargets, UpdateRenderTargetsLoadAction, ViewList);
+	RenderMobileBasePass(GraphBuilder, BasePassRenderTargets, ViewList);
 	AddDispatchToRHIThreadPass(GraphBuilder);
 
 	// Issue occlusion queries
@@ -1121,17 +1120,11 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 
 	if (!bRequiresMultiPass)
 	{
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-			PassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("Nextsubpass"), PassParameters, ERDGPassFlags::Raster,
-				[this](FRHICommandListImmediate& RHICmdList)
-			{
-				// SceneColor + GBuffer write, SceneDepth is read only
-				RHICmdList.NextSubpass();
-			});
-		}
+			// SceneColor + GBuffer write, SceneDepth is read only
+			RHICmdList.NextSubpass();
+		});
 		
 		if (ViewFamily.EngineShowFlags.Decals)
 		{
@@ -1139,17 +1132,11 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			RenderDecals(GraphBuilder, BasePassRenderTargets, MobileSceneTextures);
 		}
 
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-			PassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("Nextsubpass"), PassParameters, ERDGPassFlags::Raster,
-				[this](FRHICommandListImmediate& RHICmdList)
-			{
-				// SceneColor write, SceneDepth is read only
-				RHICmdList.NextSubpass();
-			});
-		}
+			// SceneColor write, SceneDepth is read only
+			RHICmdList.NextSubpass();
+		});
 		
 		MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, *ViewList[0], SortedLightSet);
 		// Draw translucency.
@@ -1160,34 +1147,56 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			RenderTranslucency(GraphBuilder, BasePassRenderTargets, ViewList);
 			AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 		}
+
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.EndRenderPass();
+		});
 	}
 	else
 	{
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-			PassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("Nextsubpass"), PassParameters, ERDGPassFlags::Raster,
-				[this](FRHICommandListImmediate& RHICmdList)
-			{
-				RHICmdList.NextSubpass();
-				RHICmdList.NextSubpass();
-			});
-		}
+			RHICmdList.NextSubpass();
+			RHICmdList.NextSubpass();
+			RHICmdList.EndRenderPass();
+		});
 		
 		// SceneColor + GBuffer write, SceneDepth is read only
 		{
+			for (uint32 i = 0; i < UE_ARRAY_COUNT(ColorTargets); ++i)
+			{
+				BasePassRenderTargets[i].SetLoadAction(ERenderTargetLoadAction::ELoad);
+			}
+
+			BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
+			BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
 			BasePassRenderTargets.DepthStencil.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead);
 			BasePassRenderTargets.SubpassHint = ESubpassHint::None;
 			BasePassRenderTargets.NumOcclusionQueries = 0;
-			
-			RDG_EVENT_SCOPE(GraphBuilder, "AfterBasePass");
+
+			auto* DecalPassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+			DecalPassParameters->RenderTargets = BasePassRenderTargets;
+
+			GraphBuilder.AddPass(
+				{},
+				DecalPassParameters,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+				[DecalPassParameters](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.BeginRenderPass(GetRenderPassInfo(DecalPassParameters), TEXT("AfterBasePass"));
+			});
 
 			if (ViewFamily.EngineShowFlags.Decals)
 			{
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDecals);
 				RenderDecals(GraphBuilder, BasePassRenderTargets, MobileSceneTextures);
 			}
+
+			AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.EndRenderPass();
+			});
 		}
 
 		// SceneColor write, SceneDepth is read only
@@ -1198,7 +1207,17 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			}
 			BasePassRenderTargets.DepthStencil.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilWrite);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "MobileShadingPass");
+			auto* DeferredShadingPassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+			DeferredShadingPassParameters->RenderTargets = BasePassRenderTargets;
+
+			GraphBuilder.AddPass(
+				{},
+				DeferredShadingPassParameters,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+				[DeferredShadingPassParameters](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.BeginRenderPass(GetRenderPassInfo(DeferredShadingPassParameters), TEXT("MobileShadingPass"));
+			});
 			
 			MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, *ViewList[0], SortedLightSet);
 			// Draw translucency.
@@ -1209,6 +1228,11 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 				RenderTranslucency(GraphBuilder, BasePassRenderTargets, ViewList);
 				AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 			}
+
+			AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.EndRenderPass();
+			});
 		}
 	}
 }
@@ -1477,7 +1501,7 @@ void FMobileSceneRenderer::PreTonemapMSAA(FRDGBuilder& GraphBuilder, FRenderTarg
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("PreTonemapMSAAPass"),
 		PassParameters,
-		ERDGPassFlags::Raster,
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[this, TargetSize, VertexShader, PixelShader](FRHICommandListImmediate& RHICmdList)
 	{
 

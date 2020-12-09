@@ -602,7 +602,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	}
 }
 
-void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TFunction<void(FRenderTargetBindingSlots&)> UpdateRenderTargetsLoadAction)
+void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets)
 {
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
 	RDG_EVENT_SCOPE(GraphBuilder, "MobileRenderPrePass");
@@ -615,8 +615,6 @@ void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTarge
 	// Mobile only does MaskedOnly DepthPass for the moment
 	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
 	{
-		bool bAnyPassesAdded = false;
-
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
@@ -632,7 +630,7 @@ void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTarge
 			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 			PassParameters->RenderTargets = BasePassRenderTargets;
 
-			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderPrePass"), PassParameters, ERDGPassFlags::Raster,
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderPrePass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
@@ -641,13 +639,6 @@ void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTarge
 
 				View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
 			});
-
-			bAnyPassesAdded = true;
-		}
-
-		if (bAnyPassesAdded)
-		{
-			UpdateRenderTargetsLoadAction(BasePassRenderTargets);
 		}
 	}
 }

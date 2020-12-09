@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RenderGraphDefinitions.h"
 
+class FMobileSceneTextureUniformParameters;
+class FRDGBuilder;
 class FRHICommandListImmediate;
 class FScene;
 class FViewInfo;
+struct FRenderTargetBindingSlots;
 struct FSortedLightSetSceneInfo;
-class FMobileSceneTextureUniformParameters;
 
 extern int32 GMobileUseClusteredDeferredShading;
 

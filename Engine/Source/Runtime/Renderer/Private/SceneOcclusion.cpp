@@ -1436,7 +1436,7 @@ void FMobileSceneRenderer::RenderOcclusion(FRDGBuilder& GraphBuilder, FRenderTar
 			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 			PassParameters->RenderTargets = BasePassRenderTargets;
 
-			GraphBuilder.AddPass(RDG_EVENT_NAME("BeginOcclusionTestsPass"), PassParameters, ERDGPassFlags::Raster,
+			GraphBuilder.AddPass(RDG_EVENT_NAME("BeginOcclusionTestsPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, LocalQueriesPerView = MoveTemp(QueriesPerView)](FRHICommandListImmediate& RHICmdList)
 			{
 				BeginOcclusionTests(RHICmdList, Views, FeatureLevel, LocalQueriesPerView, 1.0f);

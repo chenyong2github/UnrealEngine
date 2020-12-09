@@ -2044,7 +2044,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	}
 }
 
-void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures)
+void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures)
 {
 	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows)
 	{
@@ -2058,7 +2058,6 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBu
 
 	FShadowProjectionPassParameters CommonPassParameters;
 	CommonPassParameters.SceneTextures.MobileSceneTextures = MobileSceneTextures;
-	CommonPassParameters.RenderTargets = BasePassRenderTargets;
 
 	// render shadowmaps for relevant lights.
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
