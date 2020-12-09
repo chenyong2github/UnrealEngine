@@ -121,9 +121,11 @@ void UInteractiveToolsContext::EndTool(EToolSide WhichSide, EToolShutdownType Sh
 	DeactivateActiveTool(WhichSide, ShutdownType);
 }
 
-bool UInteractiveToolsContext::IsToolBuilderActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder)
+// Note: this takes FString by value so that it can be bound to delegates using CreateUObject. If you change it
+// to a reference, you'll need to use CreateWeakLambda instead and capture ToolIdentifier by value there.
+bool UInteractiveToolsContext::IsToolActive(EToolSide WhichSide, const FString ToolIdentifier) const
 {
-	return ToolManager->GetActiveToolBuilder(WhichSide) == Builder;
+	return GetActiveToolName(WhichSide) == ToolIdentifier;
 }
 
 void UInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
