@@ -237,7 +237,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (const FAssetData& Asset : Assets)
 		{
-			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = ActorDescList.Emplace(GetActorDescriptor(Asset));
+			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(Asset));
 			check(NewActorDesc->IsValid());
 
 			if (bIsInstanced)
@@ -792,7 +792,7 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 {
 	if (ShouldHandleAssetEvent(InAssetData))
 	{
-		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = ActorDescList.Emplace(GetActorDescriptor(InAssetData));
+		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(InAssetData));
 		check(NewActorDesc->IsValid());
 
 		check(!Actors.Contains((*NewActorDesc)->GetGuid()));
