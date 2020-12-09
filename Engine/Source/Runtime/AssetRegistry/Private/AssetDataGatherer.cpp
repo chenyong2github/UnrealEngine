@@ -930,6 +930,11 @@ void FAssetDataGatherer::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 void FAssetDataGatherer::SetBlacklistScanFilters(const TArray<FString>& InBlacklistScanFilters)
 {
+	{
+		FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
+		BlacklistScanFilters = InBlacklistScanFilters;
+	}
+
 	if (BackgroundPackageFileDiscovery.IsValid())
 	{
 		BackgroundPackageFileDiscovery->SetBlacklistScanFilters(InBlacklistScanFilters);
