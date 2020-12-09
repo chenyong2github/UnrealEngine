@@ -19196,6 +19196,50 @@ static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpres
 	}
 	return CodeChunk == INDEX_NONE ? Compiler->Constant3(X, Y, Z) : CodeChunk;
 }
+static int32 CompileWithDefaultNormalWS(class FMaterialCompiler* Compiler, FExpressionInput& Input, bool* bDefaultIsUsed = nullptr)
+{
+	if (Input.GetTracedInput().Expression != nullptr)
+	{
+		int32 NormalCodeChunk = Input.Compile(Compiler);
+
+		if (NormalCodeChunk == INDEX_NONE)
+		{
+			if (bDefaultIsUsed)
+			{
+				*bDefaultIsUsed = true;
+			}
+			return Compiler->VertexNormal();
+		}
+		return Compiler->TransformNormalFromRequestedBasisToWorld(NormalCodeChunk);
+	}
+	if (bDefaultIsUsed)
+	{
+		*bDefaultIsUsed = true;
+	}
+	return Compiler->VertexNormal();
+}
+static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExpressionInput& Input, bool* bDefaultIsUsed = nullptr)
+{
+	if (Input.GetTracedInput().Expression != nullptr)
+	{
+		int32 TangentCodeChunk = Input.Compile(Compiler);
+
+		if (TangentCodeChunk == INDEX_NONE)
+		{
+			if (bDefaultIsUsed)
+			{
+				*bDefaultIsUsed = true;
+			}
+			return Compiler->VertexTangent();
+		}
+		return Compiler->TransformNormalFromRequestedBasisToWorld(TangentCodeChunk);
+	}
+	if (bDefaultIsUsed)
+	{
+		*bDefaultIsUsed = true;
+	}
+	return Compiler->VertexTangent();
+}
 
 #endif // WITH_EDITOR
 
@@ -19216,7 +19260,7 @@ UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	int32 NormalCodeChunk = CompileWithDefaultCodeChunk(Compiler, Normal, Compiler->VertexNormal());
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
@@ -19350,8 +19394,8 @@ UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	int32 NormalCodeChunk = CompileWithDefaultCodeChunk(Compiler, Normal, Compiler->VertexNormal());
-	int32 TangentCodeChunk = CompileWithDefaultCodeChunk(Compiler, Tangent, Compiler->VertexTangent());
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
+	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
 
 	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
@@ -19439,8 +19483,8 @@ UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(c
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	int32 NormalCodeChunk = CompileWithDefaultCodeChunk(Compiler, Normal, Compiler->VertexNormal());
-	int32 TangentCodeChunk = CompileWithDefaultCodeChunk(Compiler, Tangent, Compiler->VertexTangent());
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
+	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
 
 	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
@@ -19608,7 +19652,7 @@ UMaterialExpressionStrataSheenBSDF::UMaterialExpressionStrataSheenBSDF(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataSheenBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	int32 NormalCodeChunk = CompileWithDefaultCodeChunk(Compiler, Normal, Compiler->VertexNormal());
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 OutputCodeChunk = Compiler->StrataSheenBSDF(
@@ -19821,7 +19865,7 @@ UMaterialExpressionStrataHairBSDF::UMaterialExpressionStrataHairBSDF(const FObje
 int32 UMaterialExpressionStrataHairBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	// For hair, the shared normal index in fact represent the tangent
-	int32 TangentCodeChunk = CompileWithDefaultCodeChunk(Compiler, Tangent, Compiler->VertexTangent());
+	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, TangentCodeChunk);
 
 	int32 OutputCodeChunk = Compiler->StrataHairBSDF(

@@ -424,8 +424,8 @@ struct FSharedNormals
 {
 	uint NormalCount;
 	uint NormalTypes;
-	float3 Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS];
-	float3 Tangents[STRATA_MAX_SHARED_NORMAL_REGISTERS];
+	float3 Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS];	// once registered, normals are always world space
+	float3 Tangents[STRATA_MAX_SHARED_NORMAL_REGISTERS];// idem for tangents
 };
 
 FSharedNormals StrataInitialiseSharedNormals()
@@ -989,7 +989,6 @@ void PackStrataOut(
 	uint ByteOffset, 
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataData Strata,
-	float3 VertexNormal,
 	float3 V,
 	inout FGBufferData GBuffer)
 {

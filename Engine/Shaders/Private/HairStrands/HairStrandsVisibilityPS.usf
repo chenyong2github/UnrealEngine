@@ -134,7 +134,7 @@ void MainVisibility(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
-#if PROJECT_STRATA && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
+#if PROJECT_STRATA && MATERIAL_IS_STRATA
 		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
 
 		BaseColor		 = HAIR_BASECOLOR(HairBSDF);
@@ -144,7 +144,7 @@ void MainVisibility(
 		Backlit			 = HAIR_BACKLIT(HairBSDF);
 		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
-		Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)]);
+		Tangent = MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)];	// Strata normals are all world space already
 #else
 		BaseColor		 = GetMaterialBaseColor(PixelMaterialInputs);
 		Roughness		 = GetMaterialRoughness(PixelMaterialInputs);

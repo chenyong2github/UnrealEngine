@@ -1485,7 +1485,7 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.Specular = 0;
 	GBuffer.Metallic = 0;
 	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;
-	GBuffer.WorldNormal = MaterialParameters.WorldNormal;
+	GBuffer.WorldNormal = 0; // Normal will be overriden by the top layer normal
 
 	uint2 PixelPos = In.SvPosition.xy;
 	uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel);
@@ -1494,7 +1494,7 @@ void FPixelShaderInOut_MainPS(
 	PackStrataOut(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
 		StrataPixelHeader, Strata,
-		VertexNormal, MaterialParameters.CameraVector, GBuffer);
+		MaterialParameters.CameraVector, GBuffer);
 
 	// Since we don't carry SSS on/off through the ShadingModel value (DefaultLit/SubSurfaceProfile), we update subsurface toggle, based on the MFP radius value
 	bSubsurfaceEnable = GBuffer.CustomData.a > 0;

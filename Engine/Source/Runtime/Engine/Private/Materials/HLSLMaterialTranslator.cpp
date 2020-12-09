@@ -6680,6 +6680,11 @@ int32 FHLSLMaterialTranslator::TransformPosition(EMaterialCommonBasis SourceCoor
 	return TransformBase(SourceCoordBasis, DestCoordBasis, A, 1);
 }
 
+int32 FHLSLMaterialTranslator::TransformNormalFromRequestedBasisToWorld(int32 NormalCodeChunk)
+{
+	return Material->IsTangentSpaceNormal() ? TransformBase(MCB_Tangent, MCB_World, NormalCodeChunk, 0) : NormalCodeChunk;
+}
+
 int32 FHLSLMaterialTranslator::DynamicParameter(FLinearColor& DefaultValue, uint32 ParameterIndex)
 {
 	if (ShaderFrequency != SF_Vertex && ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
@@ -7544,7 +7549,7 @@ int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, 
 		*GetParameterCode(Anisotropy),
 		*GetParameterCode(Thickness),
 		SharedNormalIndex,
-		*GetParameterCode(VertexNormal())
+		*GetParameterCode(Normal)
 	);
 }
 
