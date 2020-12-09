@@ -67,7 +67,7 @@ ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(
 		UWorld* OwningWorld = WorldPartition->GetWorld();
 		
 		const FName LevelStreamingName = FName(*FString::Printf(TEXT("WorldPartitionLevelStreaming_%s"), *GetName()));
-		const UClass* LevelStreamingClass = (IsRunningCommandlet() && IsAlwaysLoaded() && (OuterWorld == OwningWorld)) ? ULevelStreamingAlwaysLoaded::StaticClass() : UWorldPartitionLevelStreamingDynamic::StaticClass();
+		const UClass* LevelStreamingClass = UWorldPartitionLevelStreamingDynamic::StaticClass();
 		
 		// When called by Commandlet (PopulateGeneratedPackageForCook), LevelStreaming's outer is set to Cell/WorldPartition's outer to prevent warnings when saving Cell Levels (Warning: Obj in another map). 
 		// At runtime, LevelStreaming's outer will be properly set to the main world (see UWorldPartitionRuntimeLevelStreamingCell::Activate).
@@ -96,42 +96,56 @@ ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(
 	return nullptr;
 }
 
+void UWorldPartitionRuntimeLevelStreamingCell::LoadActorsForCook()
+{
+	// Load cell Actors
+	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	for (const FGuid& ActorGuid : ActorsToLoadForCook)
+	{
+		const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
+		AActor* Actor = ActorDesc->GetActor();
+		if (!Actor)
+		{
+			Actor = ActorDesc->Load();
+			ensure(Actor);
+		}
+	}
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersistentLevel()
+{
+	check(IsAlwaysLoaded());
+	if (GetActorCount() > 0)
+	{
+		LoadActorsForCook();
+
+		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
+		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel);
+	}
+}
+
 bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageCookName)
 {
+	check(!IsAlwaysLoaded());
 	if (!InPackage || InPackageCookName.IsEmpty())
 	{
 		return false;
 	}
 
-	if (ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackageCookName))
+	if (GetActorCount() > 0)
 	{
 		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-
+		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackageCookName);
+		check(NewLevelStreaming)
+		
 		// Load cell Actors
-		for (const FGuid& ActorGuid : ActorsToLoadForCook)
-		{
-			const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
-			AActor* Actor = ActorDesc->GetActor();
-			if (!Actor)
-			{
-				Actor = ActorDesc->Load();
-				ensure(Actor);
-			}
-		}
+		LoadActorsForCook();
 
 		LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(NewLevelStreaming);
-		if (!FWorldPartitionLevelHelper::CreateAndFillLevelForRuntimeCell(OuterWorld, NewLevelStreaming->GetWorldAsset().ToString(), InPackage, Packages))
-		{
-			return false;
-		}
-
-		// Always loaded streaming levels are added to world's streaming level to make sure that they get streamed in as soon as world is loaded.
-		if (NewLevelStreaming->IsA<ULevelStreamingAlwaysLoaded>())
-		{
-			OuterWorld->AddStreamingLevel(NewLevelStreaming);
-			NewLevelStreaming->bForceIsValidStreamingLevel = true;
-		}
+		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(OuterWorld, NewLevelStreaming->GetWorldAsset().ToString(), InPackage);
+		check(NewLevel->GetPackage() == InPackage);
+		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, NewLevel);
 	}
 	return true;
 }

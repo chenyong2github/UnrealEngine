@@ -1442,18 +1442,26 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 					if (StreamingCell->GetActorCount())
 					{
-						if (!OutPackagesToGenerate)
+						// Always loaded cell actors are transfered to World's Persistent Level
+						if (StreamingCell->IsAlwaysLoaded())
 						{
-							UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Error creating runtime streaming cells for cook, OutPackagesToGenerate is null."));
-							return false;
+							StreamingCell->MoveAlwaysLoadedContentToPersistentLevel();
 						}
+						else
+						{
+							if (!OutPackagesToGenerate)
+							{
+								UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Error creating runtime streaming cells for cook, OutPackagesToGenerate is null."));
+								return false;
+							}
 
-						const FString PackageRelativePath = StreamingCell->GetPackageNameToCreate();
-						check(!PackageRelativePath.IsEmpty());
-						OutPackagesToGenerate->Add(PackageRelativePath);
+							const FString PackageRelativePath = StreamingCell->GetPackageNameToCreate();
+							check(!PackageRelativePath.IsEmpty());
+							OutPackagesToGenerate->Add(PackageRelativePath);
 
-						// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/FinalizeGeneratedPackageForCook
-						PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
+							// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/FinalizeGeneratedPackageForCook
+							PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
+						}
 					}
 				}
 			}

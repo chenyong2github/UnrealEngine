@@ -38,6 +38,8 @@ private:
 	EStreamingStatus GetLevelStreamingStatus() const;
 
 #if WITH_EDITOR
+	void LoadActorsForCook();
+	void MoveAlwaysLoadedContentToPersistentLevel();
 	class ULevelStreaming* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 #endif
 

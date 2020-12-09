@@ -30,36 +30,33 @@ UWorld::InitializationValues FWorldPartitionLevelHelper::GetWorldInitializationV
 }
 
 /**
- * Creates and populates a Level used in World Partition
+ * Moves external actors into the given level
  */
-bool FWorldPartitionLevelHelper::CreateAndFillLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages)
+void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages, ULevel* InLevel)
 {
-	check(IsRunningCommandlet());
-	check(InWorld && !InWorld->IsGameWorld());
-	check(InPackage);
-
-	// Create streaming cell Level package
-	ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(InWorld, InWorldAssetName, InPackage);
-	UPackage* NewLevelPackage = NewLevel->GetPackage();
-	check(NewLevelPackage == InPackage);
-	UWorld* NewWorld = UWorld::FindWorldInPackage(NewLevelPackage);
-
+	check(InLevel);
+	UPackage* LevelPackage = InLevel->GetPackage();
+	
 	// Move all actors to Cell level
 	for (const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InChildPackages)
 	{
 		AActor* Actor = FindObject<AActor>(nullptr, *PackageObjectMapping.Path.ToString());
 		if (ensure(Actor))
 		{
+			const bool bSameOuter = (InLevel == Actor->GetOuter());
 			Actor->SetPackageExternal(false, false);
-			Actor->Rename(nullptr, NewLevel);
-			check(Actor->GetPackage() == NewLevelPackage);
+			Actor->Rename(nullptr, InLevel);
+			check(Actor->GetPackage() == LevelPackage);
+			if (bSameOuter && !InLevel->Actors.Contains(Actor))
+			{
+				InLevel->AddLoadedActor(Actor);
+			}
 		}
 		else
 		{
 			UE_LOG(LogEngine, Warning, TEXT("Can't find actor %s."), *PackageObjectMapping.Path.ToString());
 		}
 	}
-	return true;
 }
 
 /**
