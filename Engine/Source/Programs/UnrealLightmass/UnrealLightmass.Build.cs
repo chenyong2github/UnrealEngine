@@ -14,8 +14,6 @@ public class UnrealLightmass : ModuleRules
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
 		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
-
 			// Unreallightmass requires GetProcessMemoryInfo exported by psapi.dll. http://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx
 			PublicSystemLibraries.Add("psapi.lib");
 			PrivateDependencyModuleNames.AddRange(
