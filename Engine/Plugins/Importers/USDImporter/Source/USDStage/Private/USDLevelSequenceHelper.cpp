@@ -739,7 +739,8 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 
 	if ( UE::FUsdAttribute TransformAttribute = GetXformAttribute( UsdPrim ) )
 	{
-		if ( TransformAttribute.ValueMightBeTimeVarying() )
+		UE::FUsdGeomXformable Xformable( UsdPrim );
+		if ( Xformable.TransformMightBeTimeVarying() ) // Test that transform might be time varying and not TransformAttribute since it will check each xform ops
 		{
 			if ( ULevelSequence* TransformSequence = FindOrAddSequenceForAttribute( TransformAttribute ) )
 			{
