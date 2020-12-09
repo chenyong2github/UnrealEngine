@@ -27,6 +27,10 @@ public:
 	bool RemoveDataLayer(UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers);
 	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
+
+	//~ Begin AActor Interface
+	virtual bool ForceExternalActorLevelReference() const override { return true; }
+	//~ End AActor Interface
 #endif
 	
 	bool ContainsDataLayer(const UDataLayer* InDataLayer) const;

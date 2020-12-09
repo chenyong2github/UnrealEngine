@@ -715,6 +715,11 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	if (ExternalPackage)
 	{
 		ExternalPackage->MarkPackageDirty();
+
+		if (Actor->ForceExternalActorLevelReference())
+		{
+			LevelToSpawnIn->MarkPackageDirty();
+		}
 	}
 
 	if (Actor->IsPendingKill() && !SpawnParameters.bNoFail)
