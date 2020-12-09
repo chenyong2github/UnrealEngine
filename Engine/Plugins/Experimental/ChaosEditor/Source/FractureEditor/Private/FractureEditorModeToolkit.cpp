@@ -150,6 +150,7 @@ FFractureViewSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	];
 };
 
+
 FFractureEditorModeToolkit::FFractureEditorModeToolkit()
 	: ActiveTool(nullptr)
 {
@@ -323,11 +324,11 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		else if ( PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureSettings, FractureLevel))
 		{
 			OnLevelViewValueChanged();
-		} 
+		}
 	}
 }
 
-const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Generate")), FName(TEXT("Select")), FName(TEXT("Fracture")), FName(TEXT("Cluster")) };
+const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Generate")), FName(TEXT("Select")), FName(TEXT("Fracture")), FName(TEXT("Cluster")), FName(TEXT("Properties")) };
 
 FText FFractureEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
@@ -382,6 +383,10 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Cluster);
 		ToolbarBuilder.AddToolBarButton(Commands.Uncluster);
 		ToolbarBuilder.AddToolBarButton(Commands.MoveUp);
+	}
+	else if (PaletteIndex == TEXT("Properties"))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.SetInitialDynamicState);
 	}
 }
 
@@ -794,6 +799,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
 			UpdateExplodedVectors(Component);
 		}
+
 	}
 
 	if (OutlinerView)
@@ -810,6 +816,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 void FFractureEditorModeToolkit::SetBoneSelection(UGeometryCollectionComponent* InRootComponent, const TArray<int32>& InSelectedBones, bool bClearCurrentSelection)
 {
 	OutlinerView->SetBoneSelection(InRootComponent, InSelectedBones, bClearCurrentSelection);
+	
 	if (ActiveTool != nullptr)
 	{
 		ActiveTool->FractureContextChanged();
@@ -915,6 +922,7 @@ bool FFractureEditorModeToolkit::IsSelectedActorsInEditorWorld()
 	}
 	return true;
 }
+
 
 bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {
@@ -1065,6 +1073,7 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 	if(SelectedBones.Num())
 	{
 		FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true);
+		OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
 	}
 	else
 	{

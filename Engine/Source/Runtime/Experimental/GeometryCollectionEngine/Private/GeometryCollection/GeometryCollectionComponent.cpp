@@ -1950,18 +1950,28 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #endif
 			};
 
-			// @todo(temporary) : This is Temporary code for the collection to match the ObjectType
-			//                    attribute on initialization. Once proper per-object manipulation is 
-			//                    in place this code will need to be removed.
-			//
+			// If the Component is set to Dynamic, we look to the RestCollection for initial dynamic state override per transform.
 			TManagedArray<int32> & DynamicState = DynamicCollection->DynamicState;
+
 			if (ObjectType != EObjectStateTypeEnum::Chaos_Object_UserDefined)
 			{
-				for (int i = 0; i < DynamicState.Num(); i++)
+				if (RestCollection && (ObjectType == EObjectStateTypeEnum::Chaos_Object_Dynamic))
 				{
-					DynamicState[i] = (int32)ObjectType;
+					TManagedArray<int32>& InitialDynamicState = RestCollection->GetGeometryCollection()->InitialDynamicState;
+					for (int i = 0; i < DynamicState.Num(); i++)
+					{
+						DynamicState[i] = (InitialDynamicState[i] == static_cast<int32>(Chaos::EObjectStateType::Uninitialized)) ? static_cast<int32>(ObjectType) : InitialDynamicState[i];
+					}
+				}
+				else
+				{
+					for (int i = 0; i < DynamicState.Num(); i++)
+					{
+						DynamicState[i] = static_cast<int32>(ObjectType);
+					}
 				}
 			}
+
 			TManagedArray<bool> & Active = DynamicCollection->Active;
 			{
 				for (int i = 0; i < Active.Num(); i++)
@@ -1976,8 +1986,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 					CollisionGroupArray[i] = CollisionGroup;
 				}
 			}
-			// end temporary 
-
+	
 			// Set up initial filter data for our particles
 			// #BGTODO We need a dummy body setup for now to allow the body instance to generate filter information. Change body instance to operate independently.
 			DummyBodySetup = NewObject<UBodySetup>(this, UBodySetup::StaticClass());

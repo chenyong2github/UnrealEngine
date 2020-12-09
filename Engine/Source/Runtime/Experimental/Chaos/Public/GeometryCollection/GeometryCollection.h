@@ -231,6 +231,7 @@ public:
 	TManagedArray<int32>		TransformToGeometryIndex;
 	TManagedArray<int32>        SimulationType;
 	TManagedArray<int32>        StatusFlags;
+	TManagedArray<int32>		InitialDynamicState;
 
 	// Vertices Group
 	TManagedArray<FVector>		Vertex;
