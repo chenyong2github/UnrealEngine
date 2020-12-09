@@ -42,7 +42,6 @@ public class DX11 : ModuleRules
 					LibDir + "d3d11.lib",
 					LibDir + "dxguid.lib",
 					LibDir + "d3dcompiler.lib",
-					(Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? LibDir + "d3dx11d.lib" : LibDir + "d3dx11.lib",
 					LibDir + "dinput8.lib",
 					LibDir + "X3DAudio.lib",
 					LibDir + "xapobase.lib",
