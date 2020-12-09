@@ -17,3 +17,6 @@
 #else
 	#define PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS 0
 #endif
+
+#define PLATFORM_RETURN_ADDRESS()	        _ReturnAddress()
+#define PLATFORM_RETURN_ADDRESS_POINTER()	_AddressOfReturnAddress()

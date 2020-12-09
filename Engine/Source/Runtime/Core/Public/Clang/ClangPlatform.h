@@ -17,3 +17,6 @@
 #else
 	#define PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS 0
 #endif
+
+#define PLATFORM_RETURN_ADDRESS()			__builtin_return_address(0)
+#define PLATFORM_RETURN_ADDRESS_POINTER()	__builtin_frame_address(0)
