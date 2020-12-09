@@ -26,7 +26,7 @@ ENUM_CLASS_FLAGS(ERayTracingPrimaryRaysFlag);
 
 struct FRayTracingPrimaryRaysOptions
 {
-	int32 IsEnabled;
+	bool bEnabled;
 	int32 SamplerPerPixel;
 	int32 ApplyHeightFog;
 	float PrimaryRayBias;
@@ -42,8 +42,11 @@ struct FRayTracingPrimaryRaysOptions
 
 
 #if RHI_RAYTRACING
+
+// Whether a particular effect should be used, taking into account debug override
+extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled);
+
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
-extern int32 GetForceRayTracingEffectsCVarValue();
 extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions();
 
 extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy);
@@ -51,8 +54,9 @@ extern bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View);
 extern bool ShouldRenderRayTracingReflections(const FViewInfo& View);
 extern bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View);
 extern bool ShouldRenderRayTracingTranslucency(const FViewInfo& View);
-extern bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy);
-extern bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo);
+extern bool ShouldRenderRayTracingShadows();
+extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy);
+extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo);
 extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 
 extern bool EnableRayTracingShadowTwoSidedGeometry();
@@ -60,16 +64,16 @@ extern float GetRaytracingMaxNormalBias();
 
 extern bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform);
 
-#else
+#else // RHI_RAYTRACING
+
+FORCEINLINE bool ShouldRenderRayTracingEffect(bool bEffectEnabled)
+{
+	return false;
+}
 
 FORCEINLINE bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
-	return 0;
-}
-
-FORCEINLINE int32 GetForceRayTracingEffectsCVarValue()
-{
-	return 0;
+	return false;
 }
 
 FORCEINLINE bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
@@ -97,12 +101,17 @@ FORCEINLINE bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
+FORCEINLINE bool ShouldRenderRayTracingShadows()
 {
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
+FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy)
+{
+	return false;
+}
+
+FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo)
 {
 	return false;
 }

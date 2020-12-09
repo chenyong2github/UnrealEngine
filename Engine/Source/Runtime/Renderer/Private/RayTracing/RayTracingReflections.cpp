@@ -394,13 +394,15 @@ static float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View)
 
 bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 {
-	bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
+	const bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
+	
+	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 
+		? bThisViewHasRaytracingReflections 
+		: GRayTracingReflections != 0;
 
-	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 ? bThisViewHasRaytracingReflections : (GRayTracingReflections != 0);
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bReflectionPassEnabled = (ForceAllRayTracingEffects > 0 || (bReflectionsCvarEnabled && ForceAllRayTracingEffects < 0)) && (GetRayTracingReflectionsSamplesPerPixel(View) > 0);
-
-	return IsRayTracingEnabled() && bReflectionPassEnabled;
+	const bool bReflectionPassEnabled = bReflectionsCvarEnabled && (GetRayTracingReflectionsSamplesPerPixel(View) > 0);
+		
+	return ShouldRenderRayTracingEffect(bReflectionPassEnabled);
 }
 
 static bool ShouldRayTracedReflectionsUseHybridReflections()
@@ -432,7 +434,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
-	if (!GRayTracingReflections)
+	if (!ShouldRenderRayTracingReflections(View))
 	{
 		return;
 	}

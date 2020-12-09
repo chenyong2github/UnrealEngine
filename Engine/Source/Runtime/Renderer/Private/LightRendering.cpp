@@ -147,23 +147,20 @@ static bool ShouldRenderRayTracingShadowsForLightType(ELightComponentType LightT
 	}	
 }
 
-bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
+bool ShouldRenderRayTracingShadows()
 {
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const int32 RayTracingShadows = CVarRayTracingOcclusion.GetValueOnRenderThread();
-	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (RayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+	return ShouldRenderRayTracingEffect(CVarRayTracingOcclusion.GetValueOnRenderThread() > 0);
+}
 
-	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow() 
+bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy)
+{
+	return ShouldRenderRayTracingShadows() && LightProxy.CastsRaytracedShadow()
 		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightProxy.GetLightType());
 }
 
-bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
+bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo)
 {
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const int32 RayTracingShadows = CVarRayTracingOcclusion.GetValueOnRenderThread();
-	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (RayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
-
-	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow
+	return ShouldRenderRayTracingShadows() && LightInfo.bCastRaytracedShadow
 		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightInfo.LightType);
 }
 #endif // RHI_RAYTRACING
@@ -173,7 +170,7 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 	FDeferredLightUniformStruct Parameters;
 	LightSceneInfo.Proxy->GetLightShaderParameters(Parameters.LightParameters);
 
-	const bool bIsRayTracedLight = ShouldRenderRayTracingShadows(*LightSceneInfo.Proxy);
+	const bool bIsRayTracedLight = ShouldRenderRayTracingShadowsForLight(*LightSceneInfo.Proxy);
 
 	const FVector2D FadeParams = LightSceneInfo.Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), !bIsRayTracedLight && LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
 	
@@ -239,7 +236,7 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 {
 #if RHI_RAYTRACING
-	return ShouldRenderRayTracingShadows(Proxy) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadowsForLight(Proxy) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif
@@ -248,7 +245,7 @@ FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 FLightOcclusionType GetLightOcclusionType(const FLightSceneInfoCompact& LightInfo)
 {
 #if RHI_RAYTRACING
-	return ShouldRenderRayTracingShadows(LightInfo) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadowsForLight(LightInfo) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif
