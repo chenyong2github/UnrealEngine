@@ -564,7 +564,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::CopyToInternal(UNiagaraDataInterface
 
 void UNiagaraDataInterfaceMeshRendererInfo::PushToRenderThreadImpl()
 {
-	if (MeshRenderer)
+	if (MeshRenderer && Info.IsValid())
 	{
 		auto TypedProxy = GetProxyAs<FNDIMeshRendererInfoProxy>();
 		ENQUEUE_RENDER_COMMAND(FDIMeshRendererInfoPushToRT)
