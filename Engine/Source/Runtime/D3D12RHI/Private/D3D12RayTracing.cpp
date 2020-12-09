@@ -4024,7 +4024,10 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 
 	FD3D12RayTracingShader* RayGenShader = FD3D12DynamicRHI::ResourceCast(RayGenShaderRHI);
 	const int32 RayGenShaderIndex = Pipeline->RayGenShaders.Find(RayGenShader->GetHash());
-	checkf(RayGenShaderIndex != INDEX_NONE, TEXT("RayGen shader is not present in the given ray tracing pipeline. All RayGen shaders must be declared when creating RTPSO."));
+	checkf(RayGenShaderIndex != INDEX_NONE,
+		TEXT("RayGen shader '%s' is not present in the given ray tracing pipeline. ")
+		TEXT("All RayGen shaders must be declared when creating RTPSO."),
+			*(RayGenShader->EntryPoint));
 
 	D3D12_DISPATCH_RAYS_DESC DispatchDesc = ShaderTable->GetDispatchRaysDesc(RayGenShaderIndex, 0, Pipeline->bAllowHitGroupIndexing);
 

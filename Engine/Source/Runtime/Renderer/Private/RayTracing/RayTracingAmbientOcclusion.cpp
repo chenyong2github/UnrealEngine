@@ -61,30 +61,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingAmbientOcclusionEnableMaterials
 
 bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 {
-	if (!IsRayTracingEnabled())
-	{
-		return (false);
-	}
-	
-	if (GetForceRayTracingEffectsCVarValue() >= 0)
-	{
-		return GetForceRayTracingEffectsCVarValue() > 0;
-	}
-
-	bool bEnabled;
-
-	if (GRayTracingAmbientOcclusion >= 0)
-	{
-		bEnabled = (GRayTracingAmbientOcclusion > 0);
-	}
-	else
-	{
-		bEnabled = (View.FinalPostProcessSettings.RayTracingAO > 0);
-	}
+	bool bEnabled = GRayTracingAmbientOcclusion < 0
+		? View.FinalPostProcessSettings.RayTracingAO > 0
+		: GRayTracingAmbientOcclusion != 0;
 
 	bEnabled &= (View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0.0f);
 
-	return bEnabled;
+	return ShouldRenderRayTracingEffect(bEnabled);
 }
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
@@ -122,7 +105,7 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingAmbientOcclusionRGS, "/Engine/Private/RayTrac
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (!GRayTracingAmbientOcclusion)
+	if (!ShouldRenderRayTracingAmbientOcclusion(View))
 	{
 		return;
 	}
