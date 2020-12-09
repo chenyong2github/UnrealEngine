@@ -867,6 +867,7 @@ namespace DatasmithRevitExporter
 		public Dictionary<string, FDatasmithFacadeMesh>	MeshMap = new Dictionary<string, FDatasmithFacadeMesh>();
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
 		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
+		public Dictionary<string, FMaterialData>		NewMaterialsMap = new Dictionary<string, FMaterialData>();
 		public Dictionary<string, Dictionary<string, int>> MeshMaterialsMap = null;
 
 		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
@@ -1130,6 +1131,7 @@ namespace DatasmithRevitExporter
 
 				// Keep track of a new RPC master material.
 				MaterialDataMap[RPCHashedMaterialName] = new FMaterialData(RPCHashedMaterialName, RPCMaterialName, RPCColor);
+				NewMaterialsMap[RPCHashedMaterialName] = MaterialDataMap[RPCHashedMaterialName];
 			}
 
 			FMaterialData RPCMaterialData = MaterialDataMap[RPCHashedMaterialName];
@@ -1153,6 +1155,7 @@ namespace DatasmithRevitExporter
 			{
 				// Keep track of a new Datasmith master material.
 				MaterialDataMap[CurrentMaterialName] = new FMaterialData(InMaterialNode, CurrentMaterial, InExtraTexturePaths);
+				NewMaterialsMap[CurrentMaterialName] = MaterialDataMap[CurrentMaterialName];
 
 				// A new Datasmith master material was created.
 				return true;
@@ -1551,7 +1554,7 @@ namespace DatasmithRevitExporter
 			UniqueTextureNameSet = (DirectLink != null) ? DirectLink.UniqueTextureNameSet : UniqueTextureNameSet;
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			foreach (FMaterialData CollectedMaterialData in MaterialDataMap.Values)
+			foreach (FMaterialData CollectedMaterialData in NewMaterialsMap.Values)
 			{
 				InDatasmithScene.AddMaterial(CollectedMaterialData.MasterMaterial);
 
