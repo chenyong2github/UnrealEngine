@@ -34,7 +34,7 @@ void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransfo
 		FIKRigTarget Target;
 		if (GetEffectorTarget(SolverDef->TransformTarget, Target))
 		{
-			int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(Target.Bone);
+			int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(SolverDef->TransformTarget.Bone);
 			if (Index != INDEX_NONE)
 			{
 				FTransform CurrentTransform = InOutGlobalTransform.GetGlobalTransform(Index);

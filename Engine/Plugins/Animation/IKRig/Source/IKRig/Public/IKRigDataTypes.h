@@ -53,9 +53,6 @@ struct IKRIG_API FIKRigTarget
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = FIKRigTarget)
-	FName Bone;
-
-	UPROPERTY(EditAnywhere, Category = FIKRigTarget)
 	FIKRigPosition PositionTarget;
 
 	UPROPERTY(EditAnywhere, Category = FIKRigTarget)
@@ -100,6 +97,9 @@ struct IKRIG_API FIKRigEffector
 
 	UPROPERTY()
 	FGuid Guid;
+
+	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
+	FName Bone;
 
 	FIKRigEffector()
 	{
