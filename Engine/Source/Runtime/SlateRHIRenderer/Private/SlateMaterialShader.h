@@ -61,7 +61,7 @@ public:
 
 	void SetBlendState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FMaterial* Material);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material, const FVector4& InShaderParams);
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material, const FShaderParams& InShaderParams);
 
 	void SetDisplayGammaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float InContrast);
 
@@ -73,6 +73,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, GammaAndAlphaValues);
 	LAYOUT_FIELD(FShaderParameter, DrawFlags);
 	LAYOUT_FIELD(FShaderParameter, ShaderParams);
+	LAYOUT_FIELD(FShaderParameter, ShaderParams2);
 	/** Extra texture (like a font atlas) to be used in addition to any material textures */
 	LAYOUT_FIELD(FShaderResourceParameter, TextureParameterSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, AdditionalTextureParameter);
@@ -102,6 +103,7 @@ public:
 		FSlateMaterialShaderVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("USE_SLATE_INSTANCING"), (uint32)( bUseInstancing ? 1 : 0 ));
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
 	}
 };
 
@@ -129,5 +131,6 @@ public:
 		FSlateMaterialShaderPS::ModifyCompilationEnvironment(Parameters,OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SHADER_TYPE"), (uint32)ShaderType);
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
 	}
 };

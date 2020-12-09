@@ -359,8 +359,8 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 #endif
 	}
 
-    // Contrast
-    OutColor = ApplyContrast(OutColor);
+	// Contrast
+	OutColor = ApplyContrast(OutColor);
 
 	// Gamma Correct
 	OutColor.rgb = GammaCorrect(OutColor.rgb);
