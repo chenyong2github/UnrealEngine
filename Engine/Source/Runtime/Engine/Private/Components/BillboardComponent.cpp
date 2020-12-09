@@ -53,7 +53,7 @@ public:
 		// Extract the sprite category from the component if in the editor
 		if ( GIsEditor )
 		{
-			SpriteCategoryIndex = GEngine->GetSpriteCategoryIndex( InComponent->SpriteInfo.Category );
+			SpriteCategoryName = InComponent->SpriteInfo.Category;
 		}
 #endif //WITH_EDITOR
 
@@ -230,9 +230,9 @@ public:
 	{
 		bool bVisible = View->Family->EngineShowFlags.BillboardSprites;
 #if WITH_EDITOR
-		if ( GIsEditor && bVisible && SpriteCategoryIndex != INDEX_NONE && SpriteCategoryIndex < View->SpriteCategoryVisibility.Num() )
+		if ( GIsEditor && bVisible )
 		{
-			bVisible = View->SpriteCategoryVisibility[ SpriteCategoryIndex ];
+			bVisible = View->GetSpriteCategoryVisibility(SpriteCategoryName);
 		}
 #endif
 		FPrimitiveViewRelevance Result;
@@ -265,7 +265,7 @@ private:
 	const uint32 bIsScreenSizeScaled : 1;
 	uint32 bIsActorLocked : 1;
 #if WITH_EDITORONLY_DATA
-	int32 SpriteCategoryIndex;
+	FName SpriteCategoryName;
 	bool bUseInEditorScaling;
 	float EditorScale;
 #endif // #if WITH_EDITORONLY_DATA

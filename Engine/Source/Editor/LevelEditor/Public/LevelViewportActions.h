@@ -207,7 +207,13 @@ public:
 	/** Registers our commands with the binding system for showing sprites. */
 	void RegisterShowSpriteCommands();
 
+	/** Returns the index of the "show sprite" command for the given category name. */
+	int32 GetShowCommandIndexForSpriteCategory(const FName& InSpriteCategoryName) const;
+
 private:
+	/** Maps sprite category names to a matching index in the sorted ShowSpriteCommands list */
+	TMap<FName, int32> SpriteCategoryToCommandIndexMap;
+
 	/** Registers additional commands as they are loaded */
 	void HandleNewStatGroup(const TArray<FStatNameAndInfo>& NameAndInfos);
 	void HandleNewStat(const FName& InStatName, const FName& InStatCategory, const FText& InStatDescription);

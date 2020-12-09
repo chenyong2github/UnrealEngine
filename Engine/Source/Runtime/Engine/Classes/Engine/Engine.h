@@ -2279,6 +2279,7 @@ public:
 	 *
 	 * @return	Index of the provided sprite category, if possible; INDEX_NONE otherwise
 	 */
+	UE_DEPRECATED(5.0, "Please use FSceneView::GetSpriteCategoryIndex() instead, which can now be accessed from within an FPrimitiveSceneProxy::GetViewRelevance() override.")
 	virtual int32 GetSpriteCategoryIndex( const FName& InSpriteCategory )
 	{
 		// The editor may override this to handle sprite categories as necessary

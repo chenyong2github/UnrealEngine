@@ -206,7 +206,6 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 		, OverrideLODViewOrigin(ForceInitToZero)
 		, bUseFauxOrthoViewPos(false)
 		, bDisableGameScreenPercentage(false)
-		//@TODO: , const TBitArray<>& InSpriteCategoryVisibility=TBitArray<>()
 #endif
 	{
 	}
@@ -1180,6 +1179,7 @@ public:
 	bool bAllowTranslucentPrimitivesInHitProxy;
 
 	/** BitArray representing the visibility state of the various sprite categories in the editor for this view */
+	UE_DEPRECATED(5.0, "Please use GetSpriteCategoryVisibility() instead.")
 	TBitArray<> SpriteCategoryVisibility;
 	/** Selection color for the editor (used by post processing) */
 	FLinearColor SelectionOutlineColor;
@@ -1414,9 +1414,20 @@ public:
 	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
 	const FExposureBufferData* GetEyeAdaptationBuffer() const;
 
+#if WITH_EDITOR
+	/** Delegate that can provide access to the visibility state of the various sprite categories in the editor for this view */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FGetSpriteCategoryVisibility, const FName&);
+	/** Allows this view to bind to an optional override to determine sprite category visibility. */
+	FGetSpriteCategoryVisibility& GetSpriteCategoryVisibilityOverride() { return GetSpriteCategoryVisibilityDelegate; }
+	/** Returns whether the sprite category specified by the given name should be visible or not. */
+	bool GetSpriteCategoryVisibility(const FName& InCategoryName) const;
+#endif
 
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
+#if WITH_EDITOR
+	FGetSpriteCategoryVisibility GetSpriteCategoryVisibilityDelegate;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////

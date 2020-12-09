@@ -169,7 +169,8 @@ public:
 	TMap<TWeakObjectPtr<UPackage>, uint8> PackageToNotifyState;
 
 	/** Mapping of sprite category ids to their matching indices in the sorted sprite categories array */
-	TMap<FName, int32>			SpriteIDToIndexMap;
+	UE_DEPRECATED(5.0, "This mapping has been moved to FLevelViewportCommands::SpriteCategoryToCommandIndexMap.")
+	TMap<FName, int32> SpriteIDToIndexMap;
 
 	/** Map from component class to visualizer object to use */
 	TMap< FName, TSharedPtr<class FComponentVisualizer> > ComponentVisualizerMap;
@@ -776,15 +777,6 @@ public:
 	 * Identify any brushes whose sense is inverted and repair them
 	 */
 	void FixAnyInvertedBrushes(UWorld* World);
-
-	/**
-	 * Get the index of the provided sprite category
-	 *
-	 * @param	InSpriteCategory	Sprite category to get the index of
-	 *
-	 * @return	Index of the provided sprite category, if possible; INDEX_NONE otherwise
-	 */
-	virtual int32 GetSpriteCategoryIndex( const FName& InSpriteCategory ) override;
 	
 	/**
 	 * Shows the LightingStaticMeshInfoWindow, creating it first if it hasn't been initialized.

@@ -2475,6 +2475,19 @@ const FExposureBufferData* FSceneView::GetEyeAdaptationBuffer() const
 	return nullptr;
 }
 
+#if WITH_EDITOR
+bool FSceneView::GetSpriteCategoryVisibility(const FName& InCategoryName) const
+{
+	if (GetSpriteCategoryVisibilityDelegate.IsBound())
+	{
+		return GetSpriteCategoryVisibilityDelegate.Execute(InCategoryName);
+	}
+
+	// Visible by default if no delegate is bound to potentially override it.
+	return true;
+}
+#endif
+
 FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	:
 	ViewMode(VMI_Lit),

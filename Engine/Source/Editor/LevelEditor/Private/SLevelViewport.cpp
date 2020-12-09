@@ -2196,16 +2196,16 @@ void SLevelViewport::OnToggleAllSpriteCategories( bool bVisible )
 }
 
 /** Called when the user toggles a category from the sprite sub-menu. **/
-void SLevelViewport::ToggleSpriteCategory( int32 CategoryID )
+void SLevelViewport::ToggleSpriteCategory( int32 ShowSpriteCommandIndex )
 {
-	LevelViewportClient->SetSpriteCategoryVisibility( CategoryID, !LevelViewportClient->GetSpriteCategoryVisibility( CategoryID ) );
+	LevelViewportClient->SetSpriteCategoryVisibility( ShowSpriteCommandIndex, !LevelViewportClient->GetSpriteCategoryVisibility( ShowSpriteCommandIndex ) );
 	LevelViewportClient->Invalidate();
 }
 
 /** Called to determine if a category from the sprite sub-menu is visible. **/
-bool SLevelViewport::IsSpriteCategoryVisible( int32 CategoryID ) const
+bool SLevelViewport::IsSpriteCategoryVisible( int32 ShowSpriteCommandIndex ) const
 {
-	return LevelViewportClient->GetSpriteCategoryVisibility( CategoryID );
+	return LevelViewportClient->GetSpriteCategoryVisibility( ShowSpriteCommandIndex );
 }
 
 void SLevelViewport::OnToggleAllStatCommands( bool bVisible )
