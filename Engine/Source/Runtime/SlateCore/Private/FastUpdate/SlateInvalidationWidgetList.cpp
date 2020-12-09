@@ -146,8 +146,8 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 		const bool bDoRecursion = ShouldDoRecursion(Widget);
 		if (bDoRecursion)
 		{
-			const bool bParentVisible = Widget->IsFastPathVisible();
-			const bool bParentVolatile = Widget->IsVolatile();
+			const bool bParentVisible = Widget->IsFastPathVisible() && Widget->GetVisibility().IsVisible();
+			const bool bParentVolatile = Widget->IsVolatileIndirectly() || Widget->IsVolatile();
 			int32 NumChildren = ParentChildren->Num();
 			for (int32 Index = ChildAtIndex; Index < NumChildren; ++Index)
 			{

@@ -1199,3 +1199,13 @@ bool FSlateCachedElementsHandle::IsOwnedByWidget(const SWidget* Widget) const
 
 	return false;
 }
+
+bool FSlateCachedElementsHandle::HasCachedElements() const
+{
+	if (const TSharedPtr<FSlateCachedElementList> List = Ptr.Pin())
+	{
+		return List->DrawElements.Num() > 0;
+	}
+
+	return false;
+}

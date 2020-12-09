@@ -84,6 +84,24 @@ public:
 		}
 	}
 
+	/** Performs an operation on all InvalidationWidget in the list. */
+	template<typename Predicate>
+	void ForEachInvalidationWidget(Predicate Pred)
+	{
+		int32 ArrayIndex = FirstArrayIndex;
+		while (ArrayIndex != INDEX_NONE)
+		{
+			ElementListType& ElementList = Data[ArrayIndex].ElementList;
+			const int32 ElementNum = ElementList.Num();
+			for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+			{
+				Pred(ElementList[ElementIndex]);
+			}
+
+			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+		}
+	}
+
 public:
 	/** Returns reference to element at give index. */
 	InvalidationWidgetType& operator[](const FSlateInvalidationWidgetIndex Index)

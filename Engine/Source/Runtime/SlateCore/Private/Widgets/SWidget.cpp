@@ -786,6 +786,21 @@ void SWidget::SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInI
 #endif
 		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
+
+	if (IsVolatile() && !IsVolatileIndirectly())
+	{
+		if (!HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint))
+		{
+			AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
+	}
+	else
+	{
+		if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint))
+		{
+			RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
+	}
 }
 
 void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid)
