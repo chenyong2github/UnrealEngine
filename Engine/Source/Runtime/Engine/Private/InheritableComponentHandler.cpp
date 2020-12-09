@@ -47,6 +47,7 @@ void UInheritableComponentHandler::PostLoad()
 				
 				// Fix up component template name on load, if it doesn't match the original template name. Otherwise, archetype lookups will fail for this template.
 				// For example, this can occur after a component variable rename in a parent BP class, but before a child BP class with an override template is loaded.
+				// Note: If the key maps to an SCS node, the node's variable GUID will be used for the lookup instead of the name below (that's only used for UCS keys).
 				if (UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate(Record.ComponentTemplate->GetFName()))
 				{
 					FString ExpectedTemplateName = OriginalTemplate->GetName();
@@ -104,9 +105,11 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 	FName NewComponentTemplateName = BestArchetype->GetFName();
 	if (USCS_Node* SCSNode = Key.FindSCSNode())
 	{
+		const USCS_Node* DefaultSceneRootNode = SCSNode->GetSCS()->GetDefaultSceneRootNode();
+
 		// If this template will override an inherited DefaultSceneRoot node from a parent class's SCS, adjust the template name so that we don't reallocate our owner class's SCS DefaultSceneRoot node template.
 		// Note: This is currently the only case where a child class can have both an SCS node template and an override template associated with the same variable name, that is not considered to be a collision.
-		if (SCSNode == SCSNode->GetSCS()->GetDefaultSceneRootNode())
+		if (SCSNode == DefaultSceneRootNode && BestArchetype == DefaultSceneRootNode->ComponentTemplate)
 		{
 			NewComponentTemplateName = FName(*(SCSDefaultSceneRootOverrideNamePrefix + BestArchetype->GetName()));
 		}
@@ -467,9 +470,36 @@ void UInheritableComponentHandler::PreloadAll()
 
 FComponentKey UInheritableComponentHandler::FindKey(const FName VariableName) const
 {
+	auto MatchesComponentTemplateLambda = [&VariableName](const UObject* InTemplate) -> bool
+	{
+		if (InTemplate)
+		{
+			// AddComponent templates and ICH archetype lookups will match on the actual template name.
+			FName TemplateName = InTemplate->GetFName();
+
+			// ICH templates are deferred on load in order to allow the outer ICH record to be fully serialized first, as ICH template archetype lookup
+			// relies on a valid override record, and we need to be able to find the archetype before we create the export object on load. In that case,
+			// the template object will be a "placeholder" that's created by the linker at load time, in which case we need to redirect the template name
+			// to the original name that's recorded in the package export map, because the actual placeholder object name will not match the name of the
+			// ICH and/or SCS template that it's based on. See FLinkerLoad::CreateExport() and FLinkerLoad::DeferExportCreation() for the relevant code.
+			if (!InTemplate->HasAnyFlags(RF_WasLoaded) && FBlueprintSupport::IsDeferredDependencyPlaceholder(InTemplate))
+			{
+				const FName DeferredExportName = FBlueprintSupport::GetDeferredExportNameForPlaceholderObject(InTemplate);
+				if (!DeferredExportName.IsNone())
+				{
+					TemplateName = DeferredExportName;
+				}
+			}
+			
+			return TemplateName == VariableName;
+		}
+
+		return false;
+	};
+
 	for (const FComponentOverrideRecord& Record : Records)
 	{
-		if (Record.ComponentKey.GetSCSVariableName() == VariableName || (Record.ComponentTemplate && Record.ComponentTemplate->GetFName() == VariableName))
+		if (Record.ComponentKey.GetSCSVariableName() == VariableName || MatchesComponentTemplateLambda(Record.ComponentTemplate))
 		{
 			return Record.ComponentKey;
 		}

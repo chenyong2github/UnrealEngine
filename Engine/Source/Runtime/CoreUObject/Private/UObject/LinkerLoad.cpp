@@ -4552,7 +4552,10 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			ThisParent = LinkerRoot;
 		}
 
-		if ( !LoadClass->HasAnyClassFlags(CLASS_Intrinsic) || Cast<ULinkerPlaceholderExportObject>(ThisParent))
+		// Always route ICH override template exports through the object creation deferral logic, regardless of type.
+		const bool bIsInheritableComponentTemplate = !!(Export.ObjectFlags & RF_InheritableComponentTemplate);
+
+		if (bIsInheritableComponentTemplate || !LoadClass->HasAnyClassFlags(CLASS_Intrinsic) || Cast<ULinkerPlaceholderExportObject>(ThisParent))
 		{
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			if (LoadClass->HasAnyFlags(RF_NeedLoad))

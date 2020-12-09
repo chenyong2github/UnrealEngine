@@ -95,7 +95,10 @@ struct FBlueprintSupport
 	COREUOBJECT_API static void SetClassReparentingFPtr(FClassReparentingFPtr Ptr);
 
 	/** Tells if the specified object is one of the many flavors of FLinkerPlaceholderBase that we have. */
-	COREUOBJECT_API static bool IsDeferredDependencyPlaceholder(UObject* LoadedObj);
+	COREUOBJECT_API static bool IsDeferredDependencyPlaceholder(const UObject* LoadedObj);
+
+	/** Returns the original export name if its creation was deferred on load by the linker. Returns NAME_None if the given object is not an export placeholder object. */
+	COREUOBJECT_API static FName GetDeferredExportNameForPlaceholderObject(const UObject* LoadedObj);
 
 	/** Registers any object properties in this struct with the deferred dependency system */
 	COREUOBJECT_API static void RegisterDeferredDependenciesInStruct(const UStruct* Struct, void* StructData);

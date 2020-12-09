@@ -70,14 +70,19 @@ struct FComponentOverrideRecord
 {
 	GENERATED_USTRUCT_BODY()
 
+	// Keep this ordered first! We rely on it to have been serialized for archetype lookup before we can load the template below.
+	// Note: This ordering only applies to Blueprint assets saved after the ordering was changed and/or cooked assets. To deal with
+	// uncooked assets saved prior to the ordering change, the editor's linker will defer all ICH template object loads (i.e. any non-NULL
+	// object referenced by the 'ComponentTemplate' property below) until the Blueprint class regeneration phase, prior to compile-on-load.
+	// ==> @see FLinkerLoad::DeferExportCreation(), GetArchetypeFromRequiredInfoImpl() and UBlueprintGeneratedClass::FindArchetype().
+	UPROPERTY()
+	FComponentKey ComponentKey;
+
 	UPROPERTY()
 	UClass* ComponentClass;
 
 	UPROPERTY()
 	UActorComponent* ComponentTemplate;
-
-	UPROPERTY()
-	FComponentKey ComponentKey;
 
 	UPROPERTY()
 	FBlueprintCookedComponentInstancingData CookedComponentInstancingData;
@@ -93,10 +98,12 @@ class ENGINE_API UInheritableComponentHandler : public UObject
 {
 	GENERATED_BODY()
 
-private:
+public:
 
 	/* Template name prefix for SCS DefaultSceneRootNode overrides */
 	static const FString SCSDefaultSceneRootOverrideNamePrefix;
+
+private:
 
 #if WITH_EDITOR
 

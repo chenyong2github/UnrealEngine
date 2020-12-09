@@ -146,11 +146,21 @@ void FBlueprintSupport::SetClassReparentingFPtr(FClassReparentingFPtr Ptr)
 	ClassReparentingFPtr = Ptr;
 }
 
-bool FBlueprintSupport::IsDeferredDependencyPlaceholder(UObject* LoadedObj)
+bool FBlueprintSupport::IsDeferredDependencyPlaceholder(const UObject* LoadedObj)
 {
 	return LoadedObj && ( LoadedObj->IsA<ULinkerPlaceholderClass>() ||
 		LoadedObj->IsA<ULinkerPlaceholderFunction>() ||
 		LoadedObj->IsA<ULinkerPlaceholderExportObject>() );
+}
+
+FName FBlueprintSupport::GetDeferredExportNameForPlaceholderObject(const UObject* LoadedObj)
+{
+	if (const ULinkerPlaceholderExportObject* PlaceholderObject = Cast<ULinkerPlaceholderExportObject>(LoadedObj))
+	{
+		return PlaceholderObject->ExportName;
+	}
+
+	return NAME_None;
 }
 
 void FBlueprintSupport::RegisterDeferredDependenciesInStruct(const UStruct* Struct, void* StructData)
@@ -1181,6 +1191,7 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 		ULinkerPlaceholderExportObject* Placeholder = NewObject<ULinkerPlaceholderExportObject>(Outer, PlaceholderType, PlaceholderName, RF_Public | RF_Transient);
 		Placeholder->SetLinker(this, Index, false);
 		Placeholder->PackageIndex = FPackageIndex::FromExport(Index);
+		Placeholder->ExportName = Export.ObjectName;
 		
 		Export.Object = Placeholder;
 
@@ -1189,45 +1200,65 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 
 		return true;
 	}
+
+	UClass* BlueprintClass = LoadClass;
 	
-	if (LoadClass->HasAnyClassFlags(CLASS_Native))
+	// Always defer the creation of ICH templates so that the override record key can be serialized first. A valid key is required for ICH archetype lookups to succeed.
+	const bool bIsInheritableComponentTemplate = !!(Export.ObjectFlags & RF_InheritableComponentTemplate);
+	if(bIsInheritableComponentTemplate)
 	{
-		return false;
+		// Don't defer again if we're currently resolving this as a deferred export.
+		if(FResolvingExportTracker::Get().IsLinkerExportBeingResolved(this, Index))
+		{
+			return false;
+		}
+
+		// Redirect to the template's outer, which should always be a Blueprint class.
+		// Note: We cannot cast directly to a Blueprint class object here as that type is not visible to this module, so we check the class flags instead.
+		BlueprintClass = CastChecked<UClass>(Outer);
+		check(BlueprintClass->HasAllClassFlags(CLASS_CompiledFromBlueprint));
 	}
-
-	ULinkerPlaceholderClass* AsPlaceholderClass = Cast<ULinkerPlaceholderClass>(LoadClass);
-	bool const bIsPlaceholderClass = (AsPlaceholderClass != nullptr);
-
-	FLinkerLoad* ClassLinker = LoadClass->GetLinker();
-	if ( !bIsPlaceholderClass 
-		&& ((ClassLinker == nullptr) || !ClassLinker->IsBlueprintFinalizationPending())
-		&& (!LoadClass->ClassDefaultObject || LoadClass->ClassDefaultObject->HasAnyFlags(RF_LoadCompleted) || !LoadClass->ClassDefaultObject->HasAnyFlags(RF_WasLoaded)) )
+	else
 	{
-		return false;
-	}
+		if (LoadClass->HasAnyClassFlags(CLASS_Native))
+		{
+			return false;
+		}
 
-	bool const bIsLoadingExportClass = (LoadFlags & LOAD_DeferDependencyLoads) ||
-		IsBlueprintFinalizationPending();
-	// if we're not in the process of "loading/finalizing" this package's 
-	// Blueprint class, then we're either running this before the linker has got 
-	// to that class, or we're finished and in the midst of regenerating that 
-	// class... either way, we don't have to defer the export (as long as we 
-	// make sure the export's class is fully regenerated... presumably it is in 
-	// the midst of doing so somewhere up the callstack)
-	if (!bIsLoadingExportClass || (LoadFlags & LOAD_ResolvingDeferredExports) != 0 )
-	{
-		DEFERRED_DEPENDENCY_CHECK(!IsExportBeingResolved(Index));
-		FScopedResolvingExportTracker ReentranceGuard(this, Index);
+		ULinkerPlaceholderClass* AsPlaceholderClass = Cast<ULinkerPlaceholderClass>(LoadClass);
+		bool const bIsPlaceholderClass = (AsPlaceholderClass != nullptr);
 
-		// we want to be very careful, since we haven't filled in the export yet,
-		// we could get stuck in a recursive loop here (force-finalizing the 
-		// class here ends us back 
-		ForceRegenerateClass(LoadClass);
-		return false;
+		FLinkerLoad* ClassLinker = LoadClass->GetLinker();
+		if (!bIsPlaceholderClass
+			&& ((ClassLinker == nullptr) || !ClassLinker->IsBlueprintFinalizationPending())
+			&& (!LoadClass->ClassDefaultObject || LoadClass->ClassDefaultObject->HasAnyFlags(RF_LoadCompleted) || !LoadClass->ClassDefaultObject->HasAnyFlags(RF_WasLoaded)))
+		{
+			return false;
+		}
+
+		bool const bIsLoadingExportClass = (LoadFlags & LOAD_DeferDependencyLoads) ||
+			IsBlueprintFinalizationPending();
+		// if we're not in the process of "loading/finalizing" this package's 
+		// Blueprint class, then we're either running this before the linker has got 
+		// to that class, or we're finished and in the midst of regenerating that 
+		// class... either way, we don't have to defer the export (as long as we 
+		// make sure the export's class is fully regenerated... presumably it is in 
+		// the midst of doing so somewhere up the callstack)
+		if (!bIsLoadingExportClass || (LoadFlags & LOAD_ResolvingDeferredExports) != 0)
+		{
+			DEFERRED_DEPENDENCY_CHECK(!IsExportBeingResolved(Index));
+			FScopedResolvingExportTracker ReentranceGuard(this, Index);
+
+			// we want to be very careful, since we haven't filled in the export yet,
+			// we could get stuck in a recursive loop here (force-finalizing the 
+			// class here ends us back 
+			ForceRegenerateClass(LoadClass);
+			return false;
+		}
 	}
 	
 	UPackage* PlaceholderOuter = LinkerRoot;
-	UClass*   PlaceholderType  = ULinkerPlaceholderExportObject::StaticClass();
+	UClass*   PlaceholderType  = ULinkerPlaceholderExportObject::StaticClass();	
 
 	FString ClassName = LoadClass->GetName();
 	//ClassName.RemoveFromEnd("_C");	
@@ -1236,8 +1267,9 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 
 	ULinkerPlaceholderExportObject* Placeholder = NewObject<ULinkerPlaceholderExportObject>(PlaceholderOuter, PlaceholderType, PlaceholderName, RF_Public | RF_Transient);
 	Placeholder->PackageIndex = FPackageIndex::FromExport(Index);
+	Placeholder->ExportName = Export.ObjectName;
 	Placeholder->SetLinker(this, Index, false);
-	FResolvingExportTracker::Get().AddLinkerPlaceholderObject(LoadClass, Placeholder);
+	FResolvingExportTracker::Get().AddLinkerPlaceholderObject(BlueprintClass, Placeholder);
 
 	Export.Object = Placeholder;
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
@@ -2115,6 +2147,13 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 void FLinkerLoad::ResolvePlaceholder(ULinkerPlaceholderExportObject* Placeholder)
 {
 	int32 ExportIndex = Placeholder->PackageIndex.ToExport();
+
+	// If not already flagged, signal that this export is being resolved.
+	TUniquePtr<FScopedResolvingExportTracker> ScopedResolvingExportTracker;
+	if(!FResolvingExportTracker::Get().IsLinkerExportBeingResolved(this, ExportIndex))
+	{
+		ScopedResolvingExportTracker = MakeUnique<FScopedResolvingExportTracker>(this, ExportIndex);
+	}
 
 	Placeholder->SetLinker(nullptr, INDEX_NONE);
 

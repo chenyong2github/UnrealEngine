@@ -6190,7 +6190,7 @@ void UDynamicClass::PurgeClass(bool bRecompilingOnLoad)
 	AnimClassImplementation = nullptr;
 }
 
-UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
+UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName, EObjectFlags InstanceFlags) const
 {
 	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(this, ArchetypeClass, ArchetypeName));
 	if (!Archetype)
@@ -6208,7 +6208,7 @@ UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName 
 	}
 	const UClass* SuperClass = GetSuperClass();
 	return Archetype ? Archetype :
-		(SuperClass ? SuperClass->FindArchetype(ArchetypeClass, ArchetypeName) : nullptr);
+		(SuperClass ? SuperClass->FindArchetype(ArchetypeClass, ArchetypeName, InstanceFlags) : nullptr);
 }
 
 void UDynamicClass::SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const
