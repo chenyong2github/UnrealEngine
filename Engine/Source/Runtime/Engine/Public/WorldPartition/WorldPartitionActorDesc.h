@@ -106,6 +106,8 @@ protected:
 	}
 
 	virtual void Serialize(FArchive& Ar);
+	virtual void OnRegister(UWorldPartition* WorldPartition) {}
+	virtual void OnUnregister(UWorldPartition* WorldPartition) {}
 
 	FGuid							Guid;
 	FName							Class;

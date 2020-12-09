@@ -799,6 +799,8 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 		Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
 
 		HashActorDesc(NewActorDesc->Get());
+
+		(*NewActorDesc)->OnRegister(this);
 	}
 }
 
@@ -812,6 +814,8 @@ void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
 
 		UnhashActorDesc(ExistingActorDesc->Get());
+
+		(*ExistingActorDesc)->OnUnregister(this);
 
 		Actors.Remove((*ExistingActorDesc)->GetGuid());
 		ExistingActorDesc->Release();
