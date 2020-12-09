@@ -1404,7 +1404,7 @@ private:
 			FLoadedPackageRef* PackageRef = GlobalPackageStore.LoadedPackageStore.FindPackageRef(ImportedPackageId);
 			checkf(PackageRef, TEXT("Failed to find PackageRef for ImportedPackageId 0x%llX from package %s (0x%llX)"),
 				ImportedPackageId.Value(), *Desc.UPackageName.ToString(), Desc.UPackageId.Value());
-			if (PackageRef->ReleaseRef(Desc.UPackageId, ImportedPackageId))
+			if (PackageRef && PackageRef->ReleaseRef(Desc.UPackageId, ImportedPackageId))
 			{
 				ClearAsyncFlags(PackageRef->GetPackage());
 			}
@@ -1412,7 +1412,7 @@ private:
 		FLoadedPackageRef* PackageRef =	GlobalPackageStore.LoadedPackageStore.FindPackageRef(Desc.UPackageId);
 		checkf(PackageRef, TEXT("Failed to find PackageRef for package %s (0x%llX)"),
 			*Desc.UPackageName.ToString(), Desc.UPackageId.Value());
-		if (PackageRef->ReleaseRef(Desc.UPackageId, Desc.UPackageId))
+		if (PackageRef && PackageRef->ReleaseRef(Desc.UPackageId, Desc.UPackageId))
 		{
 			if (Desc.bCanBeImported)
 			{
