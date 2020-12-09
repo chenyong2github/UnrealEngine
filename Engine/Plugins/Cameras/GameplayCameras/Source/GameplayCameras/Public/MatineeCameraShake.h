@@ -339,7 +339,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Camera Shakes", meta=(BlueprintAutocast))
 	static UMatineeCameraShake* Conv_MatineeCameraShake(UCameraShakeBase* CameraShake)
 	{
-		return CastChecked<UMatineeCameraShake>(CameraShake);
+		return CastChecked<UMatineeCameraShake>(CameraShake, ECastCheckedType::NullAllowed);
 	}
 };
 
