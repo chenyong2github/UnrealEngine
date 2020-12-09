@@ -292,6 +292,11 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	{
 		Reader = MakeShareable(new FGenericImgMediaReader(ImageWrapperModule));
 	}
+	if (Reader.IsValid() == false)
+	{
+		UE_LOG(LogImgMedia, Error, TEXT("Reader is not valid for file %s."), *ImagePaths[0]);
+		return;
+	}
 
 	const UImgMediaSettings* Settings = GetDefault<UImgMediaSettings>();
 	UseGlobalCache = Settings->UseGlobalCache;
