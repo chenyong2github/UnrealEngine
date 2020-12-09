@@ -720,10 +720,27 @@ namespace DatasmithRevitExporter
 			CameraInfo InViewCamera
 		)
 		{
-			// Create a new Datasmith camera actor.
-			// Hash the Datasmith camera actor name to shorten it.
-			string HashedName = FDatasmithFacadeElement.GetStringHash(InView3D.UniqueId);
-			FDatasmithFacadeActorCamera CameraActor = new FDatasmithFacadeActorCamera(HashedName);
+			FDatasmithFacadeActorCamera CameraActor = null;
+
+			if (DirectLink != null)
+			{
+				DirectLink.MarkForExport(InView3D);
+
+				if (DirectLink.IsElementCached(InView3D))
+				{
+					FDocumentData.FBaseElementData CameraElementData = DirectLink.GetCachedElement(InView3D);
+					CameraActor = CameraElementData.ElementActor as FDatasmithFacadeActorCamera;
+				}
+			}
+
+			if (CameraActor == null)
+			{
+				// Create a new Datasmith camera actor.
+				// Hash the Datasmith camera actor name to shorten it.
+				string HashedName = FDatasmithFacadeElement.GetStringHash(InView3D.UniqueId);
+				CameraActor = new FDatasmithFacadeActorCamera(HashedName);
+			}
+
 			CameraActor.SetLabel(InView3D.Name);
 
 			if (InView3D.Category != null)
@@ -773,11 +790,14 @@ namespace DatasmithRevitExporter
 				}
 			}
 
-			// Add the camera actor to the Datasmith scene.
-			DatasmithScene.AddActor(CameraActor);
+			if (!DirectLink?.IsElementCached(InView3D) ?? true)
+			{
+				// Add the camera actor to the Datasmith scene.
+				DatasmithScene.AddActor(CameraActor);
 
-			DirectLink?.MarkForExport(InView3D);
-			DirectLink?.CacheElement(RevitDocument, InView3D, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
+				// Cache new camera actor
+				DirectLink?.CacheElement(RevitDocument, InView3D, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
+			}
 		}
 	}
 }
