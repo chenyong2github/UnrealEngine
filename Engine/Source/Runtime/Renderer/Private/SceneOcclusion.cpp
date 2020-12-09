@@ -961,7 +961,7 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		PassParameters->BoundsCenterTexture = BoundsCenterTexture;
 		PassParameters->BoundsExtentTexture = BoundsExtentTexture;
 		PassParameters->HZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(ResultsTextureGPU, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ResultsTextureGPU, ERenderTargetLoadAction::ENoAction);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("TestHZB"),
