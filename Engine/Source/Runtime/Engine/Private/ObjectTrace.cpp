@@ -269,7 +269,7 @@ void FObjectTrace::OutputWorld(const UWorld* InWorld)
 	}
 
 #if WITH_EDITOR
-	bool bIsSimulating = GEditor->bIsSimulatingInEditor;
+	bool bIsSimulating = GEditor ? GEditor->bIsSimulatingInEditor : false;
 #else
 	bool bIsSimulating = false;
 #endif
