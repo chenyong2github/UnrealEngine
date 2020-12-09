@@ -531,8 +531,7 @@ public:
 			}
 		}
 
-		return FReply::Unhandled()
-			.CaptureMouse(SharedThis(this));
+		return FReply::Unhandled();
 	}
 	
 	/**
