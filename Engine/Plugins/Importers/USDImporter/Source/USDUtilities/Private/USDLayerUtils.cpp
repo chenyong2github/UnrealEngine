@@ -78,22 +78,33 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 	switch ( Mode )
 	{
 		case EBrowseFileMode::Open :
-
-			if ( DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
+			if ( !DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
-				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
+				return {};
 			}
 			break;
 
 		case EBrowseFileMode::Save :
-			if ( DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
+			if ( !DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
-				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
+				return {};
 			}
 			break;
 
 		default:
 			break;
+	}
+
+	if ( OutFiles.Num() > 0 )
+	{
+		FString Path = FPaths::ConvertRelativePathToFull( OutFiles[ 0 ] );
+
+		// Mirror behavior of RelativeToGameDir meta tag on the stage actor's RootLayer
+		if ( FPaths::IsUnderDirectory( Path, FPaths::ProjectDir() ) )
+		{
+			FPaths::MakePathRelativeTo( Path, *FPaths::ProjectDir() );
+		}
+		return Path;
 	}
 
 	return {};
@@ -220,7 +231,7 @@ bool UsdUtils::SetRefOrPayloadLayerOffset( pxr::UsdPrim& Prim, const UE::FSdfLay
 		{
 			pxr::SdfPayloadEditorProxy PayloadEditor;
 			pxr::SdfPayload OldPayload;
-			
+
 			if ( CompositionArc.GetIntroducingListEditor( &PayloadEditor, &OldPayload ) )
 			{
 				pxr::SdfPayload NewPayload = OldPayload;

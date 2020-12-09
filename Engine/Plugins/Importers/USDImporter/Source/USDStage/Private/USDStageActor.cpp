@@ -681,9 +681,21 @@ void AUsdStageActor::OpenUsdStage()
 
 	UsdUtils::StartMonitoringErrors();
 
-	if ( FPaths::FileExists( RootLayer.FilePath ) )
+	FString AbsPath;
+	if ( FPaths::IsRelative( RootLayer.FilePath ) )
 	{
-		UsdStage = UnrealUSDWrapper::OpenStage( *RootLayer.FilePath, InitialLoadSet );
+		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
+		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );
+		AbsPath = FPaths::ConvertRelativePathToFull( FPaths::Combine( ProjectDir, RootLayer.FilePath ) );
+	}
+	else
+	{
+		AbsPath = RootLayer.FilePath;
+	}
+
+	if ( FPaths::FileExists( AbsPath ) )
+	{
+		UsdStage = UnrealUSDWrapper::OpenStage( *AbsPath, InitialLoadSet );
 	}
 
 	if ( UsdStage )
