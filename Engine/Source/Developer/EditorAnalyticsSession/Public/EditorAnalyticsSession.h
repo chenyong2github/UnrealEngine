@@ -7,6 +7,7 @@
 #include "Misc/DateTime.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/Atomic.h"
+#include <atomic>
 
 struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 {
@@ -160,9 +161,6 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 */
 	static void Unlock();
 
-	/** Is the local storage already locked? */
-	static bool IsLocked();
-
 	/**
 	 * Append an event to the session log. The function is meant to record concurrent events, especially during a crash
 	 * with minimum contention. The logger appends and persists the events of interest locklessly on spot as opposed to
@@ -200,7 +198,14 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool SaveMonitorExceptCode(int32 ExceptCode);
 
 private:
-	static FSystemWideCriticalSection* StoredValuesLock;
+	/** Returns true if the local storage is locked by the specified thread. */
+	static bool IsLockedBy(uint32 ThreadId);
+
+	/** Ensure exclusive access to the stored values. */
+	static TUniquePtr<FSystemWideCriticalSection> StoredValuesLock;
+
+	/** Keep track of the lock owner to prevent using FSystemWideCriticalSection recursively, which is not supported by the implementation. */
+	static std::atomic<uint64> StoredValuesLockOwnerInfo;
 
 	/** 
 	 * Has this session already been saved? 
@@ -208,6 +213,7 @@ private:
 	 */
 	bool bAlreadySaved : 1;
 };
+
 
 class FEditorAnalyticsSessionModule : public IModuleInterface
 {
