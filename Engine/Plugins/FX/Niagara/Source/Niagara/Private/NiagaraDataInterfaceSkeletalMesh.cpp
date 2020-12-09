@@ -40,13 +40,92 @@ struct FNiagaraSkelMeshDIFunctionVersion
 	};
 };
 
-// Calculate which tick group the skeletal mesh component will be ready by
-ETickingGroup NDISKelMesh_GetComponentTickGroup(USkeletalMeshComponent* Component)
+namespace NDISkelMeshLocal
 {
-	const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
-	const ETickingGroup PhysicsTickGroup = Component->bBlendPhysics ? FMath::Max(ComponentTickGroup, TG_EndPhysics) : ComponentTickGroup;
-	const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
-	return ClampedTickGroup;
+	int32 GetProbAliasDWORDSize(int32 TriangleCount)
+	{
+		const ENDISkelMesh_GpuUniformSamplingFormat::Type Format = GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat;
+		switch (Format)
+		{
+			case ENDISkelMesh_GpuUniformSamplingFormat::Full:
+				return TriangleCount * 2;
+			case ENDISkelMesh_GpuUniformSamplingFormat::Limited_24_8:
+			case ENDISkelMesh_GpuUniformSamplingFormat::Limited_23_9:
+				return TriangleCount * 1;
+			default:
+				UE_LOG(LogNiagara, Fatal, TEXT("GpuUniformSamplingFormat %d is invalid"), Format);
+				return 0;
+		}
+	}
+
+	void PackProbAlias(uint32* Dest, const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler, int32 AliasOffset = 0)
+	{
+		TArrayView<const float> ProbArray = triangleSampler.GetProb();
+		TArrayView<const int32> AliasArray = triangleSampler.GetAlias();
+
+		const ENDISkelMesh_GpuUniformSamplingFormat::Type Format = GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat;
+		switch (Format)
+		{
+			case ENDISkelMesh_GpuUniformSamplingFormat::Full:
+			{
+				for (int32 i = 0; i < triangleSampler.GetNumEntries(); ++i)
+				{
+					const float Probability = ProbArray[i];
+					const int32 Alias = AliasArray[i] + AliasOffset;
+					* Dest++ = *reinterpret_cast<const uint32*>(&Probability);
+					*Dest++ = Alias;
+				}
+				break;
+			}
+			case ENDISkelMesh_GpuUniformSamplingFormat::Limited_24_8:
+			{
+				for (int32 i = 0; i < triangleSampler.GetNumEntries(); ++i)
+				{
+					const float Probability = ProbArray[i];
+					const int32 Alias = AliasArray[i] + AliasOffset;
+					if (ensureMsgf(Alias <= 0xffffff, TEXT("Triangle Alias %d is higher than possible %d"), Alias, 0xffffff))
+					{
+						*Dest++ = (Alias << 8) | (int(FMath::Clamp(Probability, 0.0f, 1.0f) * 255.0f) & 0xff);
+					}
+					else
+					{
+						*Dest++ = 0;
+					}
+				}
+
+				break;
+			}
+			case ENDISkelMesh_GpuUniformSamplingFormat::Limited_23_9:
+			{
+				for (int32 i = 0; i < triangleSampler.GetNumEntries(); ++i)
+				{
+					const float Probability = ProbArray[i];
+					const int32 Alias = AliasArray[i] + AliasOffset;
+					if (ensureMsgf(Alias <= 0x7fffff, TEXT("Triangle Alias %d is higher than possible %d"), Alias, 0x7fffff))
+					{
+						*Dest++ = (Alias << 9) | (int(FMath::Clamp(Probability, 0.0f, 1.0f) * 511.0f) & 0x1ff);
+					}
+					else
+					{
+						*Dest++ = 0;
+					}
+				}
+				break;
+			}
+			default:
+				UE_LOG(LogNiagara, Fatal, TEXT("GpuUniformSamplingFormat %d is invalid"), Format);
+				break;
+		}
+	}
+
+	// Calculate which tick group the skeletal mesh component will be ready by
+	ETickingGroup GetComponentTickGroup(USkeletalMeshComponent* Component)
+	{
+		const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
+		const ETickingGroup PhysicsTickGroup = Component->bBlendPhysics ? FMath::Max(ComponentTickGroup, TG_EndPhysics) : ComponentTickGroup;
+		const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
+		return ClampedTickGroup;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -457,7 +536,7 @@ void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup,
 		// Has ticked or can be ticked
 		if (bForceTick == false)
 		{
-			const ETickingGroup PrereqTickGroup = NDISKelMesh_GetComponentTickGroup(Component);
+			const ETickingGroup PrereqTickGroup = NDISkelMeshLocal::GetComponentTickGroup(Component);
 			if ( PrereqTickGroup > TickGroup )
 			{
 				continue;
@@ -589,25 +668,19 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 			}
 
 			// Build buffers
-			SampleRegionsProb.Reserve(NumSamplingRegionTriangles);
-			SampleRegionsAlias.Reserve(NumSamplingRegionTriangles);
+			SampleRegionsProbAlias.AddUninitialized(NDISkelMeshLocal::GetProbAliasDWORDSize(NumSamplingRegionTriangles));
 			SampleRegionsTriangleIndicies.Reserve(NumSamplingRegionTriangles);
 			SampleRegionsVertices.Reserve(NumSamplingRegionVertices);
 
 			int32 RegionOffset = 0;
+			int32 PABufferOffset = 0;
 			for (const int32 RegionIndex : InstData->SamplingRegionIndices)
 			{
 				const FSkeletalMeshSamplingRegionBuiltData& SamplingRegionBuildData = SamplingInfo.GetRegionBuiltData(RegionIndex);
 				if (bSamplingRegionsAllAreaWeighted)
 				{
-					for (float v : SamplingRegionBuildData.AreaWeightedSampler.GetProb())
-					{
-						SampleRegionsProb.Add(v);
-					}
-					for (int v : SamplingRegionBuildData.AreaWeightedSampler.GetAlias())
-					{
-						SampleRegionsAlias.Add(v + RegionOffset);
-					}
+					NDISkelMeshLocal::PackProbAlias(SampleRegionsProbAlias.GetData() + PABufferOffset, SamplingRegionBuildData.AreaWeightedSampler, RegionOffset);
+					PABufferOffset += NDISkelMeshLocal::GetProbAliasDWORDSize(SamplingRegionBuildData.AreaWeightedSampler.GetNumEntries());
 				}
 				for (int v : SamplingRegionBuildData.TriangleIndices)
 				{
@@ -659,25 +732,15 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	if (bUseGpuUniformlyDistributedSampling)
 	{
 		const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler;
-		TArrayView<const float> Prob = triangleSampler.GetProb();
-		TArrayView<const int32> Alias = triangleSampler.GetAlias();
 		check(TriangleCount == triangleSampler.GetNumEntries());
 
 		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		uint32 SizeByte = TriangleCount * sizeof(float);
-		BufferTriangleUniformSamplerProbaRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
-		FMemory::Memcpy(BufferData, Prob.GetData(), SizeByte);
-		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerProbaRHI);
-		BufferTriangleUniformSamplerProbaSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerProbaRHI, sizeof(float), PF_R32_FLOAT);
-#if STATS
-		GPUMemoryUsage += SizeByte;
-#endif
-
-		BufferTriangleUniformSamplerAliasRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
-		FMemory::Memcpy(BufferData, Alias.GetData(), SizeByte);
-		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerAliasRHI);
-		BufferTriangleUniformSamplerAliasSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerAliasRHI, sizeof(uint32), PF_R32_UINT);
+		uint32* PackedData = nullptr;
+		uint32 SizeByte = NDISkelMeshLocal::GetProbAliasDWORDSize(TriangleCount) * sizeof(uint32);
+		BufferTriangleUniformSamplerProbAliasRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, reinterpret_cast<void*&>(PackedData));
+		NDISkelMeshLocal::PackProbAlias(PackedData, triangleSampler);
+		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerProbAliasRHI);
+		BufferTriangleUniformSamplerProbAliasSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerProbAliasRHI, sizeof(uint32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += SizeByte;
 #endif
@@ -689,18 +752,11 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		FRHIResourceCreateInfo CreateInfo;
 		if (bSamplingRegionsAllAreaWeighted)
 		{
-			CreateInfo.ResourceArray = &SampleRegionsProb;
-			SampleRegionsProbBuffer = RHICreateVertexBuffer(SampleRegionsProb.Num() * SampleRegionsProb.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			SampleRegionsProbSRV = RHICreateShaderResourceView(SampleRegionsProbBuffer, sizeof(float), PF_R32_FLOAT);
+			CreateInfo.ResourceArray = &SampleRegionsProbAlias;
+			SampleRegionsProbAliasBuffer = RHICreateVertexBuffer(SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			SampleRegionsProbAliasSRV = RHICreateShaderResourceView(SampleRegionsProbAliasBuffer, sizeof(uint32), PF_R32_UINT);
 #if STATS
-			GPUMemoryUsage += SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize();
-#endif
-
-			CreateInfo.ResourceArray = &SampleRegionsAlias;
-			SampleRegionsAliasBuffer = RHICreateVertexBuffer(SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			SampleRegionsAliasSRV = RHICreateShaderResourceView(SampleRegionsAliasBuffer, sizeof(float), PF_R32_UINT);
-#if STATS
-			GPUMemoryUsage += SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize();
+			GPUMemoryUsage += SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize();
 #endif
 		}
 		CreateInfo.ResourceArray = &SampleRegionsTriangleIndicies;
@@ -773,15 +829,11 @@ void FSkeletalMeshGpuSpawnStaticBuffers::ReleaseRHI()
 	FilteredAndUnfilteredBonesBuffer.SafeRelease();
 	FilteredAndUnfilteredBonesSRV.SafeRelease();
 
-	BufferTriangleUniformSamplerProbaRHI.SafeRelease();
-	BufferTriangleUniformSamplerProbaSRV.SafeRelease();
-	BufferTriangleUniformSamplerAliasRHI.SafeRelease();
-	BufferTriangleUniformSamplerAliasSRV.SafeRelease();
+	BufferTriangleUniformSamplerProbAliasRHI.SafeRelease();
+	BufferTriangleUniformSamplerProbAliasSRV.SafeRelease();
 
-	SampleRegionsProbBuffer.SafeRelease();
-	SampleRegionsProbSRV.SafeRelease();
-	SampleRegionsAliasBuffer.SafeRelease();
-	SampleRegionsAliasSRV.SafeRelease();
+	SampleRegionsProbAliasBuffer.SafeRelease();
+	SampleRegionsProbAliasSRV.SafeRelease();
 	SampleRegionsTriangleIndicesBuffer.SafeRelease();
 	SampleRegionsTriangleIndicesSRV.SafeRelease();
 	SampleRegionsVerticesBuffer.SafeRelease();
@@ -1054,12 +1106,10 @@ struct FNDISkeletalMeshParametersName
 	FString MeshTangentBufferName;
 	FString MeshTexCoordBufferName;
 	FString MeshColorBufferName;
-	FString MeshTriangleSamplerProbaBufferName;
-	FString MeshTriangleSamplerAliasBufferName;
+	FString MeshTriangleSamplerProbAliasBufferName;
 	FString MeshNumSamplingRegionTrianglesName;
 	FString MeshNumSamplingRegionVerticesName;
-	FString MeshSamplingRegionsProbaBufferName;
-	FString MeshSamplingRegionsAliasBufferName;
+	FString MeshSamplingRegionsProbAliasBufferName;
 	FString MeshSampleRegionsTriangleIndicesName;
 	FString MeshSampleRegionsVerticesName;
 	FString MeshTriangleMatricesOffsetBufferName;
@@ -1098,12 +1148,10 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.MeshTangentBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTangentBufferName + Suffix;
 	Names.MeshTexCoordBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTexCoordBufferName + Suffix;
 	Names.MeshColorBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshColorBufferName + Suffix;
-	Names.MeshTriangleSamplerProbaBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerProbaBufferName + Suffix;
-	Names.MeshTriangleSamplerAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerAliasBufferName + Suffix;
+	Names.MeshTriangleSamplerProbAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerProbAliasBufferName + Suffix;
 	Names.MeshNumSamplingRegionTrianglesName = UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionTrianglesName + Suffix;
 	Names.MeshNumSamplingRegionVerticesName = UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionVerticesName + Suffix;
-	Names.MeshSamplingRegionsProbaBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsProbaBufferName + Suffix;
-	Names.MeshSamplingRegionsAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsAliasBufferName + Suffix;
+	Names.MeshSamplingRegionsProbAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsProbAliasBufferName + Suffix;
 	Names.MeshSampleRegionsTriangleIndicesName = UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsTriangleIndicesName + Suffix;
 	Names.MeshSampleRegionsVerticesName = UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsVerticesName + Suffix;
 	Names.MeshTriangleMatricesOffsetBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleMatricesOffsetBufferName + Suffix;
@@ -1149,12 +1197,10 @@ public:
 		MeshTangentBuffer.Bind(ParameterMap, *ParamNames.MeshTangentBufferName);
 		MeshTexCoordBuffer.Bind(ParameterMap, *ParamNames.MeshTexCoordBufferName);
 		MeshColorBuffer.Bind(ParameterMap, *ParamNames.MeshColorBufferName);
-		MeshTriangleSamplerProbaBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleSamplerProbaBufferName);
-		MeshTriangleSamplerAliasBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleSamplerAliasBufferName);
+		MeshTriangleSamplerProbAliasBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleSamplerProbAliasBufferName);
 		MeshNumSamplingRegionTriangles.Bind(ParameterMap, *ParamNames.MeshNumSamplingRegionTrianglesName);
 		MeshNumSamplingRegionVertices.Bind(ParameterMap, *ParamNames.MeshNumSamplingRegionVerticesName);
-		MeshSamplingRegionsProbaBuffer.Bind(ParameterMap, *ParamNames.MeshSamplingRegionsProbaBufferName);
-		MeshSamplingRegionsAliasBuffer.Bind(ParameterMap, *ParamNames.MeshSamplingRegionsAliasBufferName);
+		MeshSamplingRegionsProbAliasBuffer.Bind(ParameterMap, *ParamNames.MeshSamplingRegionsProbAliasBufferName);
 		MeshSampleRegionsTriangleIndices.Bind(ParameterMap, *ParamNames.MeshSampleRegionsTriangleIndicesName);
 		MeshSampleRegionsVertices.Bind(ParameterMap, *ParamNames.MeshSampleRegionsVerticesName);
 		MeshTriangleMatricesOffsetBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleMatricesOffsetBufferName);
@@ -1218,13 +1264,11 @@ public:
 			// Set triangle sampling buffer
 			if (InstanceData->bIsGpuUniformlyDistributedSampling)
 			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbaBuffer, StaticBuffers->GetBufferTriangleUniformSamplerProbaSRV().GetReference());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, StaticBuffers->GetBufferTriangleUniformSamplerAliasSRV().GetReference());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, StaticBuffers->GetBufferTriangleUniformSamplerProbAliasSRV().GetReference());
 			}
 			else
 			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbaBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 			}
 
 			// Set triangle sampling region buffer
@@ -1232,13 +1276,11 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionVertices, StaticBuffers->GetNumSamplingRegionVertices());
 			if (StaticBuffers->IsSamplingRegionsAllAreaWeighted() && StaticBuffers->GetNumSamplingRegionTriangles() > 0)
 			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbaBuffer, StaticBuffers->GetSampleRegionsProbSRV().GetReference());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsAliasBuffer, StaticBuffers->GetSampleRegionsAliasSRV().GetReference());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbAliasBuffer, StaticBuffers->GetSampleRegionsProbAliasSRV().GetReference());
 			}
 			else
 			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbaBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 			}
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsTriangleIndices, StaticBuffers->GetNumSamplingRegionTriangles() > 0 ? StaticBuffers->GetSampleRegionsTriangleIndicesSRV().GetReference() : FNiagaraRenderer::GetDummyUIntBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsVertices, StaticBuffers->GetNumSamplingRegionVertices() > 0 ? StaticBuffers->GetSampleRegionsVerticesSRV().GetReference() : FNiagaraRenderer::GetDummyUIntBuffer());
@@ -1307,13 +1349,11 @@ public:
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbaBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionTriangles, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionVertices, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbaBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsTriangleIndices, FNiagaraRenderer::GetDummyUIntBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsVertices, FNiagaraRenderer::GetDummyUIntBuffer());
 
@@ -1361,12 +1401,10 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, MeshTangentBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, MeshTexCoordBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, MeshColorBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerProbaBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerAliasBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerProbAliasBuffer);
 	LAYOUT_FIELD(FShaderParameter, MeshNumSamplingRegionTriangles);
 	LAYOUT_FIELD(FShaderParameter, MeshNumSamplingRegionVertices);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSamplingRegionsProbaBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSamplingRegionsAliasBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSamplingRegionsProbAliasBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, MeshSampleRegionsTriangleIndices);
 	LAYOUT_FIELD(FShaderResourceParameter, MeshSampleRegionsVertices);
 	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleMatricesOffsetBuffer);
@@ -2557,12 +2595,10 @@ const FString UNiagaraDataInterfaceSkeletalMesh::MeshPrevSamplingBonesBufferName
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshTangentBufferName(TEXT("MeshTangentBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshTexCoordBufferName(TEXT("MeshTexCoordBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshColorBufferName(TEXT("MeshColorBuffer_"));
-const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerProbaBufferName(TEXT("MeshTriangleSamplerProbaBuffer_"));
-const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerAliasBufferName(TEXT("MeshTriangleSamplerAliasBuffer_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerProbAliasBufferName(TEXT("MeshTriangleSamplerProbAliasBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionTrianglesName(TEXT("MeshNumSamplingRegionTriangles_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionVerticesName(TEXT("MeshNumSamplingRegionVertices_"));
-const FString UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsProbaBufferName(TEXT("MeshSamplingRegionsProbaBuffer_"));
-const FString UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsAliasBufferName(TEXT("MeshSamplingRegionsAliasBuffer_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsProbAliasBufferName(TEXT("MeshSamplingRegionsProbAliasBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsTriangleIndicesName(TEXT("MeshSampleRegionsTriangleIndices_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsVerticesName(TEXT("MeshSampleRegionsVertices_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleMatricesOffsetBufferName(TEXT("MeshTriangleMatricesOffsetBuffer_"));
@@ -2601,6 +2637,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::AppendCompileHash(FNiagaraCompileHashVis
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceSkeletalMeshHLSLSource"), Hash.ToString());
 
 	InVisitor->UpdatePOD(TEXT("NDISkelmesh_Influences"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuMaxInfluences));
+	InVisitor->UpdatePOD(TEXT("NDISkelmesh_ProbAliasFormat"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat));
 
 	return true;
 }
@@ -2610,6 +2647,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(struct FSha
 	Super::ModifyCompilationEnvironment(OutEnvironment);
 
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_BONE_INFLUENCES"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuMaxInfluences));
+	OutEnvironment.SetDefine(TEXT("DISKELMESH_PROBALIAS_FORMAT"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat));
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -3024,7 +3062,7 @@ ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* 
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 	if (Component && bRequireCurrentFrameData)
 	{
-		return NDISKelMesh_GetComponentTickGroup(Component);
+		return NDISkelMeshLocal::GetComponentTickGroup(Component);
 	}
 	return NiagaraFirstTickGroup;
 }

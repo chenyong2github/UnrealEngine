@@ -24,6 +24,21 @@ namespace ENDISkelMesh_GpuMaxInfluences
 	};
 }
 
+// This enum must match the order in NiagaraDataInterfaceSkeletalMesh.ush
+UENUM()
+namespace ENDISkelMesh_GpuUniformSamplingFormat
+{
+	enum Type
+	{
+		/** 64 bits per entry. Allow for the full int32 range of triangles (2 billion). */
+		Full = 0,
+		/** 32 bits per entry. Allow for ~16.7 million triangles and 8 bits of probability precision. */
+		Limited_24_8 = 1,
+		/** 32 bits per entry. Allow for ~8.4 millions triangles and 9 bits of probability precision. */
+		Limited_23_9 = 2,
+	};
+}
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 {
@@ -62,6 +77,9 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category=SkeletalMeshDI, meta = ( DisplayName = "Gpu Max Bone Influences", ToolTip = "Controls the maximum number of influences we allow the Skeletal Mesh Data Interface to use on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
 	TEnumAsByte<ENDISkelMesh_GpuMaxInfluences::Type> NDISkelMesh_GpuMaxInfluences;
+
+	UPROPERTY(config, EditAnywhere, Category = SkeletalMeshDI, meta = (DisplayName = "Gpu Uniform Sampling Format", ToolTip = "Controls the format used for uniform sampling on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
+	TEnumAsByte<ENDISkelMesh_GpuUniformSamplingFormat::Type> NDISkelMesh_GpuUniformSamplingFormat;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
