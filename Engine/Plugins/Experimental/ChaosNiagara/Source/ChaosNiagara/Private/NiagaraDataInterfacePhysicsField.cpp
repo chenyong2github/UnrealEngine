@@ -9,6 +9,7 @@
 #include "ShaderParameterUtils.h"
 #include "Field/FieldSystemNodes.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
+#include "ChaosStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePhysicsField"
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicsField, Log, All);
@@ -24,8 +25,7 @@ static const FName GetPhysicsFieldBoundsName(TEXT("GetPhysicsFieldBounds"));
 
 //------------------------------------------------------------------------------------------------------------
 
-const FString UNiagaraDataInterfacePhysicsField::ClipmapTextureName(TEXT("ClipmapTexture_"));
-const FString UNiagaraDataInterfacePhysicsField::ClipmapSamplerName(TEXT("ClipmapSampler_"));
+const FString UNiagaraDataInterfacePhysicsField::ClipmapBufferName(TEXT("ClipmapBuffer_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapCenterName(TEXT("ClipmapCenter_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapDistanceName(TEXT("ClipmapDistance_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapResolutionName(TEXT("ClipmapResolution_"));
@@ -42,8 +42,7 @@ struct FNDIPhysicsFieldParametersName
 {
 	FNDIPhysicsFieldParametersName(const FString& Suffix)
 	{
-		ClipmapTextureName = UNiagaraDataInterfacePhysicsField::ClipmapTextureName + Suffix;
-		ClipmapSamplerName = UNiagaraDataInterfacePhysicsField::ClipmapSamplerName + Suffix;
+		ClipmapBufferName = UNiagaraDataInterfacePhysicsField::ClipmapBufferName + Suffix;
 		ClipmapCenterName = UNiagaraDataInterfacePhysicsField::ClipmapCenterName + Suffix;
 		ClipmapDistanceName = UNiagaraDataInterfacePhysicsField::ClipmapDistanceName + Suffix;
 		ClipmapResolutionName = UNiagaraDataInterfacePhysicsField::ClipmapResolutionName + Suffix;
@@ -55,8 +54,7 @@ struct FNDIPhysicsFieldParametersName
 		IntegerTargetsName = UNiagaraDataInterfacePhysicsField::IntegerTargetsName + Suffix;
 	}
 
-	FString ClipmapTextureName;
-	FString ClipmapSamplerName;
+	FString ClipmapBufferName;
 	FString ClipmapCenterName;
 	FString ClipmapDistanceName;
 	FString ClipmapResolutionName;
@@ -124,8 +122,7 @@ public:
 	{
 		FNDIPhysicsFieldParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
-		ClipmapTexture.Bind(ParameterMap, *ParamNames.ClipmapTextureName);
-		ClipmapSampler.Bind(ParameterMap, *ParamNames.ClipmapSamplerName);
+		ClipmapBuffer.Bind(ParameterMap, *ParamNames.ClipmapBufferName);
 		ClipmapCenter.Bind(ParameterMap, *ParamNames.ClipmapCenterName);
 		ClipmapDistance.Bind(ParameterMap, *ParamNames.ClipmapDistanceName);
 		ClipmapResolution.Bind(ParameterMap, *ParamNames.ClipmapResolutionName);
@@ -148,14 +145,11 @@ public:
 		FNDIPhysicsFieldData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
-		FRHISamplerState* SamplerState = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
 		if (ProxyData != nullptr && ProxyData->FieldResource)
 		{
 			FPhysicsFieldResource* FieldResource = ProxyData->FieldResource;
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapTexture, FieldResource->FieldClipmap.SRV);
-			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ClipmapSampler, TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FieldResource->ClipmapBuffer.SRV);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
@@ -169,9 +163,8 @@ public:
 		}
 		else
 		{
-			TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapTexture, FNiagaraRenderer::GetDummyTextureReadBuffer2D());
-			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ClipmapSampler, TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			TStaticArray<int32, MAX_PHYSICS_FIELD_TARGETS> EmptyTargets;
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FVector::ZeroVector);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, 2);
@@ -190,8 +183,7 @@ public:
 
 private:
 
-	LAYOUT_FIELD(FShaderResourceParameter, ClipmapTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, ClipmapSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, ClipmapBuffer);
 	LAYOUT_FIELD(FShaderParameter, ClipmapCenter);
 	LAYOUT_FIELD(FShaderParameter, ClipmapDistance);
 	LAYOUT_FIELD(FShaderParameter, ClipmapResolution);
@@ -216,11 +208,9 @@ void FNDIPhysicsFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	FNDIPhysicsFieldData* TargetData = &(SystemInstancesToProxyData.FindOrAdd(Instance));
 
 	ensure(TargetData);
-	if (TargetData)
+	if (TargetData && SourceData && SourceData->FieldResource)
 	{
-		TargetData->FieldResource= SourceData->FieldResource;
-		TargetData->FieldCommands = SourceData->FieldCommands;
-		TargetData->TimeSeconds = SourceData->TimeSeconds;
+		TargetData->FieldResource = SourceData->FieldResource;
 	}
 	else
 	{
@@ -512,11 +502,15 @@ void EvaluateFieldNodes(TArray<FFieldSystemCommand>& FieldCommands, const EField
 	bool HasMatchingCommand = false;
 	if (FieldCommands.Num() > 0 && ResultsArray.Num() == MaxArray.Num())
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraUpdateField_Object);
 		TArrayView<DataType> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 
+		const float TimeSeconds = FieldContext.TimeSeconds;
 		for (int32 CommandIndex = 0; CommandIndex < FieldCommands.Num(); ++CommandIndex)
 		{
 			const FName AttributeName = FieldCommands[CommandIndex].TargetAttribute;
+			FieldContext.TimeSeconds = TimeSeconds - FieldCommands[CommandIndex].TimeCreation;
+
 			const EFieldPhysicsType CommandType = GetFieldPhysicsType(AttributeName);
 			if (CommandType == FieldType && FieldCommands[CommandIndex].RootNode.Get())
 			{

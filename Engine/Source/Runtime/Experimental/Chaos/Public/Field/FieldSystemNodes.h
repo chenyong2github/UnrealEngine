@@ -114,18 +114,17 @@ class CHAOS_API FWaveScalar : public FFieldNode<float>
 
 public:
 
-	FWaveScalar(float MagnitudeIn = 1.f, const FVector& PositionIn = FVector(0,0,0), const float WavelengthIn = 1000, const float PeriodIn = 1.0, const float TimeIn = 0.0, 
+	FWaveScalar(float MagnitudeIn = 1.f, const FVector& PositionIn = FVector(0,0,0), const float WavelengthIn = 1000, const float PeriodIn = 1.0, 
 		const EWaveFunctionType FunctionIn = EWaveFunctionType::Field_Wave_Cosine, const EFieldFalloffType FallofffIn = EFieldFalloffType::Field_Falloff_Linear)
 		: Super()
 		, Magnitude(MagnitudeIn)
 		, Position(PositionIn)
 		, Wavelength(WavelengthIn)
 		, Period(PeriodIn)
-		, Time(TimeIn)
 		, Function(FunctionIn)
 		, Falloff(FallofffIn)
 	{}
-	virtual FFieldNodeBase* NewCopy() const override { return new FWaveScalar(Magnitude, Position, Wavelength, Period, Time, Function, Falloff); }
+	virtual FFieldNodeBase* NewCopy() const override { return new FWaveScalar(Magnitude, Position, Wavelength, Period, Function, Falloff); }
 
 	virtual ~FWaveScalar() {}
 
@@ -140,7 +139,6 @@ public:
 	FVector Position;
 	float Wavelength;
 	float Period;
-	float Time;
 	EWaveFunctionType Function;
 	EFieldFalloffType Falloff;
 };

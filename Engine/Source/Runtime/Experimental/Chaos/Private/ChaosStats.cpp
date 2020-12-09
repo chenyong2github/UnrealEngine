@@ -68,7 +68,10 @@ DEFINE_STAT(STAT_Scene_StartFrame);
 DEFINE_STAT(STAT_Scene_EndFrame);
 
 DEFINE_STAT(STAT_ParamUpdateField_Object);
+DEFINE_STAT(STAT_ForceUpdateField_Object);
+DEFINE_STAT(STAT_NiagaraUpdateField_Object);
 DEFINE_STAT(STAT_ParamUpdateField_DynamicState);
+DEFINE_STAT(STAT_ParamUpdateField_ActivateDisabled);
 DEFINE_STAT(STAT_ParamUpdateField_ExternalClusterStrain);
 DEFINE_STAT(STAT_ParamUpdateField_Kill);
 DEFINE_STAT(STAT_ParamUpdateField_LinearVelocity);
@@ -80,5 +83,8 @@ DEFINE_STAT(STAT_ParamUpdateField_PositionStatic);
 DEFINE_STAT(STAT_ParamUpdateField_PositionTarget);
 DEFINE_STAT(STAT_ParamUpdateField_PositionAnimated);
 DEFINE_STAT(STAT_ParamUpdateField_DynamicConstraint);
+DEFINE_STAT(STAT_ForceUpdateField_LinearForce);
+DEFINE_STAT(STAT_ForceUpdateField_AngularTorque);
+
 
 // Field update stats

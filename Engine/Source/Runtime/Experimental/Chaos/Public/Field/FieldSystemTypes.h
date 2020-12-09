@@ -74,6 +74,20 @@ enum EFieldResolutionType
 	Field_Resolution_Max      UMETA(Hidden)
 };
 
+/**
+*
+*/
+UENUM(BlueprintType)
+enum EFieldFilterType
+{
+	Field_Filter_Dynamic  UMETA(DisplayName = "Dynamic"),
+	Field_Filter_Kinematic  UMETA(DisplayName = "Kinematic"),
+	Field_Filter_Static  UMETA(DisplayName = "Static"),
+	Field_Filter_All  UMETA(DisplayName = "All"),
+	//~~~
+	//256th entry
+	Field_Filter_Max      UMETA(Hidden)
+};
 
 /**
 *
@@ -99,12 +113,12 @@ enum EFieldPhysicsType
 {
 	Field_None						UMETA(Hidden),
 	Field_DynamicState				UMETA(DisplayName = "DynamicState"),
-	Field_LinearForce				UMETA(DisplayName = "LinearForce"),
+	Field_LinearForce				UMETA(DisplayName = "LinearForce", ToolTip = "Add a vector field to the particles linear force"),
 	Field_ExternalClusterStrain		UMETA(DisplayName = "ExternalClusterStrain"),
 	Field_Kill   					UMETA(DisplayName = "Kill"),
 	Field_LinearVelocity			UMETA(DisplayName = "LinearVelocity"),
 	Field_AngularVelociy			UMETA(DisplayName = "AngularVelocity"),
-	Field_AngularTorque				UMETA(DisplayName = "AngularTorque"),
+	Field_AngularTorque				UMETA(DisplayName = "AngularTorque", ToolTip = "Add a vector field to the particles angular torque"),
 	Field_InternalClusterStrain		UMETA(DisplayName = "InternalClusterStrain"),
 	Field_DisableThreshold			UMETA(DisplayName = "DisableThreshold"),
 	Field_SleepingThreshold			UMETA(DisplayName = "SleepingThreshold"),
@@ -123,10 +137,10 @@ enum EFieldPhysicsType
 UENUM(BlueprintType)
 enum EFieldVectorType
 {
-	Vector_LinearForce				UMETA(DisplayName = "LinearForce"),
+	Vector_LinearForce				UMETA(DisplayName = "LinearForce", ToolTip = "Add a vector field to the particles linar force"),
 	Vector_LinearVelocity			UMETA(DisplayName = "LinearVelocity"),
 	Vector_AngularVelocity			UMETA(DisplayName = "AngularVelocity"),
-	Vector_AngularTorque			UMETA(DisplayName = "AngularTorque"),
+	Vector_AngularTorque			UMETA(DisplayName = "AngularTorque", ToolTip = "Add a vector field to the particles angular torque"),
 	Vector_PositionTarget			UMETA(DisplayName = "PositionTarget"),
 	//~~~
 	//256th entry

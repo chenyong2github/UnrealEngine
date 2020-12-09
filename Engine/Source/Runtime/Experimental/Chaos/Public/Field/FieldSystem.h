@@ -61,7 +61,8 @@ public:
 		ECommandData_ProcessingResolution,
 		ECommandData_Results,
 		ECommandData_Iteration,
-		ECommandData_Culling
+		ECommandData_Culling,
+		ECommandData_Filter
 	};
 
 
@@ -79,6 +80,16 @@ public:
 	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataProcessingResolution(ProcessingResolution); }
 
 	EFieldResolutionType ProcessingResolution;
+};
+
+class CHAOS_API FFieldSystemMetaDataFilter : public FFieldSystemMetaData {
+public:
+	FFieldSystemMetaDataFilter(EFieldFilterType FilterTypeIn) : FilterType(FilterTypeIn) {};
+	virtual ~FFieldSystemMetaDataFilter() {};
+	virtual EMetaType Type() const { return EMetaType::ECommandData_Filter; }
+	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataFilter(FilterType); }
+
+	EFieldFilterType FilterType;
 };
 
 template<class T>
@@ -301,7 +312,6 @@ public:
 
 	static EFieldType StaticType();
 	virtual EFieldType Type() const { return StaticType(); }
-
 };
 
 template<> inline FFieldNodeBase::EFieldType FFieldNode<int32>::StaticType() { return EFieldType::EField_Int32; }
@@ -324,10 +334,14 @@ public:
 	FFieldSystemCommand()
 		: TargetAttribute("")
 		, RootNode(nullptr)
+		, CommandName("")
+		, TimeCreation(0.0)
 	{}
 	FFieldSystemCommand(FName TargetAttributeIn, FFieldNodeBase * RootNodeIn)
 		: TargetAttribute(TargetAttributeIn)
 		, RootNode(RootNodeIn)
+		, CommandName("")
+		, TimeCreation(0.0)
 	{}
 
 	// Commands are copied when moved from the one thread to 
@@ -335,6 +349,8 @@ public:
 	FFieldSystemCommand(const FFieldSystemCommand& Other)
 		: TargetAttribute(Other.RootNode ? Other.TargetAttribute:"")
 		, RootNode(Other.RootNode?Other.RootNode->NewCopy():nullptr)
+		, CommandName(Other.CommandName)
+		, TimeCreation(Other.TimeCreation)
 	{
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : Other.MetaData)
 		{
@@ -369,12 +385,22 @@ public:
 		MetaData[Key].Reset(Value);
 	}
 
+	void InitFieldNodes(const float& TimeSeconds, const FName& Name)
+	{
+		CommandName = Name;
+		TimeCreation = TimeSeconds;
+	}
+
 	void Serialize(FArchive& Ar);
 	bool operator==(const FFieldSystemCommand&);
 	bool operator!=(const FFieldSystemCommand& Other) { return !this->operator==(Other); }
 
 	FName TargetAttribute;
 	TUniquePtr<FFieldNodeBase> RootNode;
+
+	FName CommandName;
+	float TimeCreation;
+
 	TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > MetaData;
 };
 
