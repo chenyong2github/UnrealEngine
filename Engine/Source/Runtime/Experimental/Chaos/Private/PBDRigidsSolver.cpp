@@ -423,6 +423,10 @@ namespace Chaos
 		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false);
 	}
 
+	int32 LogCorruptMap = 0;
+	FAutoConsoleVariableRef CVarLogCorruptMap(TEXT("p.LogCorruptMap"), LogCorruptMap, TEXT(""));
+
+
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::UnregisterObject(TGeometryParticle<float, 3>* GTParticle)
 	{
@@ -550,6 +554,10 @@ namespace Chaos
 					RewindData->RemoveParticle(Handle->UniqueIdx());
 				}
   
+				if(LogCorruptMap)
+				{
+					UE_LOG(LogChaos, Warning, TEXT("UnregisterObject this:%llx, Handle:%llx &MParticleToProxy:%llx, MParticleToProxy.Num():%d"), this, Handle, &MParticleToProxy, MParticleToProxy.Num());
+				}
 				MParticleToProxy.Remove(Handle);
   
 				// Use the handle to destroy the particle data
@@ -719,7 +727,7 @@ namespace Chaos
 
 	int32 UseResimCache = 0;
 	FAutoConsoleVariableRef CVarUseResimCache(TEXT("p.UseResimCache"),UseResimCache,TEXT("Whether resim uses cache to skip work, requires recreating world to take effect"));
-	
+
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::Reset()
 	{
