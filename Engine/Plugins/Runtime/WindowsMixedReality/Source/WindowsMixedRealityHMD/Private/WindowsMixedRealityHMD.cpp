@@ -873,7 +873,6 @@ namespace WindowsMixedReality
 	{
 		MotionControllerData.DeviceName = GetSystemName();
 		MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
-		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
 		MotionControllerData.HandIndex = Hand;
 
 		MotionControllerData.TrackingStatus = (ETrackingStatus)GetControllerTrackingStatus((WindowsMixedReality::HMDHand)Hand);
@@ -881,7 +880,7 @@ namespace WindowsMixedReality
 		//sword-grasping transform
 		HMDHand WMRHand = (Hand == EControllerHand::Left ? HMDHand::Left : HMDHand::Right);
 		FRotator GripRotation;
-		GetControllerOrientationAndPosition(WMRHand, GripRotation, MotionControllerData.GripPosition);
+		MotionControllerData.bValid = GetControllerOrientationAndPosition(WMRHand, GripRotation, MotionControllerData.GripPosition);
 		MotionControllerData.GripRotation = GripRotation.Quaternion();
 
 		//far pointing from elbow transform
@@ -891,6 +890,12 @@ namespace WindowsMixedReality
 
 		MotionControllerData.bIsGrasped = UWindowsMixedRealityFunctionLibrary::IsGrasped(Hand);
 
+		if (!SupportsHandTracking())
+		{
+			MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
+			return;
+		}
+		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
 		//assume valid
 		FTransform Transform;
 		float Radius = 0.0f;
