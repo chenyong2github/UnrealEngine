@@ -9,8 +9,10 @@
 #include "Generators/GridBoxMeshGenerator.h"
 
 // Test helpers
-namespace
+namespace DisplaceMeshToolTestsLocals
 {
+	using namespace DisplaceMeshToolLocals;
+
 	TSharedPtr<FDynamicMesh3> CreateSingleTriangleMesh()
 	{
 		TSharedPtr<FDynamicMesh3> Mesh = MakeShareable<FDynamicMesh3>(new FDynamicMesh3);
@@ -43,6 +45,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestConstant,
 
 	bool UDisplaceMeshTestConstant::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
 
@@ -88,6 +92,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestRandom,
 
 	bool UDisplaceMeshTestRandom::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
 
@@ -122,6 +128,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestPerlin,
 
 	bool UDisplaceMeshTestPerlin::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
 
@@ -157,6 +165,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSine,
 
 	bool UDisplaceMeshTestSine::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
 
@@ -200,6 +210,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSineDirection,
 
 	bool UDisplaceMeshTestSineDirection::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
 
@@ -250,6 +262,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestDirectionalFilter,
 
 	bool UDisplaceMeshTestDirectionalFilter::RunTest(const FString& Parameters)
 {
+	using namespace DisplaceMeshToolTestsLocals;
+
 	// ---- Setup
 	// Create a box mesh, random noise, and a directional filter pointing in the +Y direction
 	TSharedPtr<FDynamicMesh3> InputMesh = CreateTestBoxMesh();

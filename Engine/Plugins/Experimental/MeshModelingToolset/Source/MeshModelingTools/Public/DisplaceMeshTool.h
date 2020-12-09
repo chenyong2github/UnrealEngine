@@ -20,10 +20,13 @@ class USimpleDynamicMeshComponent;
 UENUM()
 enum class EDisplaceMeshToolDisplaceType : uint8
 {
-	/** Displace with N iterations */
+	/** Offset a set distance in the normal direction. */
 	Constant UMETA(DisplayName = "Constant"),
 
-	/** Displace with N iterations */
+	/** Offset in the normal direction using the first channel of a 2D texture. */
+	DisplacementMap UMETA(DisplayName = "Texture2D Map"),
+
+	/** Offset vertices randomly. */
 	RandomNoise UMETA(DisplayName = "Random Noise"),
 
 	/** Offset in the normal direction weighted by Perlin noise. 
@@ -33,9 +36,6 @@ enum class EDisplaceMeshToolDisplaceType : uint8
 		Note the range of 3D Perlin noise is [-sqrt(3/4), sqrt(3/4)].
 	*/
 	PerlinNoise UMETA(DisplayName = "Perlin Noise"),
-
-	/** Displace with N iterations */
-	DisplacementMap UMETA(DisplayName = "Texture2D Map"),
 
 	/** Move vertices in spatial sine wave pattern */
 	SineWave UMETA(DisplayName = "Sine Wave"),
@@ -62,7 +62,7 @@ public:
 		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise"))
 	int RandomSeed = 31337;
 
-	/** Subdivision iterations for mesh */
+	/** Number of times to subdivide the mesh before displacing it. */
 	UPROPERTY(EditAnywhere, Category = Options,
 		meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100"))
 	int Subdivisions = 4;
@@ -93,9 +93,26 @@ class MESHMODELINGTOOLS_API UDisplaceMeshTextureMapProperties : public UInteract
 	GENERATED_BODY()
 			
 public:
-	/** Displacement map */
+	/** Displacement map. Only the first channel is used. */
 	UPROPERTY(EditAnywhere, Category = Options)
 	UTexture2D* DisplacementMap = nullptr;
+
+	/** The value in the texture map that corresponds to no displacement. For instance, if set to 0, then all
+	 displacement will be positive. If set to 0.5, displacement below 0.5 will be negative, and above will be
+	 positive. Default is for 128/255 to be no displacement. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float DisplacementMapBaseValue = 128.0/255;
+
+	/** When sampling from the texture map, how to scale the mesh UV's in the x and y directions. For a mesh with
+	UV's in the range 0 to 1, setting a scale above 1 will result in tiling the texture map, and scaling below
+	1 will result in using only part of the texture map.*/
+	UPROPERTY(EditAnywhere, Category = Options)
+	FVector2D UVScale = FVector2D(1,1);
+
+	/** When sampling from the texture map, how to offset the mesh UV's. This will result in offsetting the
+	tiling of the texture map across the mesh. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-1", UIMax = "1"))
+	FVector2D UVOffset = FVector2D(0, 0);
 };
 
 
