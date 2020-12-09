@@ -120,6 +120,11 @@ int32 GetSkyLightSamplesPerPixel(const FSkyLightSceneProxy* SkyLightSceneProxy)
 	return GRayTracingSkyLightSamplesPerPixel >= 0 ? GRayTracingSkyLightSamplesPerPixel : FMath::Max(SkyLightSceneProxy->SamplesPerPixel, 2);
 }
 
+static bool IsRayTracingSkyLightAllowed()
+{
+	return ShouldRenderRayTracingEffect(GRayTracingSkyLight != 0);
+}
+
 bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
 {
 	if (SkyLightSceneProxy == nullptr)
@@ -127,22 +132,13 @@ bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProx
 		return false;
 	}
 
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	bool bRayTracingSkyEnabled;
-	if (ForceAllRayTracingEffects >= 0)
-	{
-		bRayTracingSkyEnabled = ForceAllRayTracingEffects > 0;
-	}
-	else
-	{
-		bRayTracingSkyEnabled = GRayTracingSkyLight >= 0 ? (GRayTracingSkyLight != 0) : SkyLightSceneProxy->bCastRayTracedShadow;
-	}
+	bool bRayTracingSkyEnabled = GRayTracingSkyLight  < 0 
+		? SkyLightSceneProxy->bCastRayTracedShadow
+		: GRayTracingSkyLight != 0;
 
 	bRayTracingSkyEnabled = bRayTracingSkyEnabled && (GetSkyLightSamplesPerPixel(SkyLightSceneProxy) > 0);
 
-	return
-		IsRayTracingEnabled() &&
-		bRayTracingSkyEnabled &&
+	return IsRayTracingSkyLightAllowed() && bRayTracingSkyEnabled &&
 		(SkyLightSceneProxy->ImportanceSamplingData != nullptr) &&
 		SkyLightSceneProxy->ImportanceSamplingData->bIsValid;
 }
@@ -358,7 +354,7 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingSkyLightRGS, "/Engine/Private/Raytracing/Rayt
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (!GRayTracingSkyLight)
+	if (!IsRayTracingSkyLightAllowed())
 	{
 		return;
 	}

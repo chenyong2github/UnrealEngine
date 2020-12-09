@@ -56,9 +56,11 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTrac
 void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
-
-	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDebugRGS>();
-	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	if (View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
+	{
+		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDebugRGS>();
+		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	}
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture)
