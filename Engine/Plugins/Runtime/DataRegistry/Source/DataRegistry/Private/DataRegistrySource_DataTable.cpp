@@ -19,7 +19,7 @@ void UDataRegistrySource_DataTable::SetSourceTable(const TSoftObjectPtr<UDataTab
 void UDataRegistrySource_DataTable::SetCachedTable(bool bForceLoad /*= false*/)
 {
 #if WITH_EDITOR
-	if (CachedTable)
+	if (CachedTable && GIsEditor)
 	{
 		CachedTable->OnDataTableChanged().RemoveAll(this);
 	}
@@ -60,8 +60,11 @@ void UDataRegistrySource_DataTable::SetCachedTable(bool bForceLoad /*= false*/)
 			CachedTable = FoundTable;
 
 #if WITH_EDITOR
-			// Listen for changes like row 
-			CachedTable->OnDataTableChanged().AddUObject(this, &UDataRegistrySource_DataTable::EditorRefreshSource);
+			if (GIsEditor)
+			{
+				// Listen for changes like row 
+				CachedTable->OnDataTableChanged().AddUObject(this, &UDataRegistrySource_DataTable::EditorRefreshSource);
+			}
 #endif
 		}
 	}

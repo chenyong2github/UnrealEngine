@@ -240,6 +240,30 @@ bool UDataRegistry::UnregisterSpecificAsset(const FSoftObjectPath& AssetPath)
 	return bMadeChange;
 }
 
+int32 UDataRegistry::UnregisterAssetsWithPriority(int32 AssetPriority)
+{
+	int32 NumberUnregistered = 0;
+
+	for (int32 i = 0; i < DataSources.Num(); i++)
+	{
+		UDataRegistrySource* Source = DataSources[i];
+		if (Source)
+		{
+			NumberUnregistered += Source->UnregisterAssetsWithPriority(AssetPriority);
+		}
+	}
+
+	if (NumberUnregistered > 0 && IsInitialized())
+	{
+		RefreshRuntimeSources();
+
+		// Don't want to do a full reset, but do clear cache as data may be gone
+		Cache->ClearCache();
+	}
+
+	return NumberUnregistered;
+}
+
 const FDataRegistryCachePolicy& UDataRegistry::GetRuntimeCachePolicy() const
 {
 	if (!bIsInitialized)
@@ -441,6 +465,14 @@ void UDataRegistry::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	// TODO Only if major properties change?
 
+	EditorRefreshRegistry();
+}
+
+void UDataRegistry::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+
+	// We possibly were moved to a new package, so refresh
 	EditorRefreshRegistry();
 }
 

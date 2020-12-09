@@ -209,20 +209,22 @@ void UDataRegistrySubsystem::RefreshRegistryMap()
 {
 	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
 
+	TMap<FName, TWeakObjectPtr<UDataRegistry>> OldMap = RegistryMap;
 	RegistryMap.Reset();
 
 	for (TObjectIterator<UDataRegistry> RegistryIterator; RegistryIterator; ++RegistryIterator)
 	{
 		UDataRegistry* Registry = *RegistryIterator;
+		FString ObjectPathString = Registry->GetPathName();
+		FSoftObjectPath ObjectSoftPath = FSoftObjectPath(Registry);
 
 		if (!Settings->bInitializeAllLoadedRegistries)
 		{
 			// Check it's one of the scanned directories
-			FString ObjectPath = Registry->GetPathName();
 			bool bFoundPath = false;
 			for (const FString& ScanPath : AssetScanPaths)
 			{
-				if (ObjectPath.StartsWith(ScanPath))
+				if (ObjectPathString.StartsWith(ScanPath))
 				{
 					bFoundPath = true;
 					break;
@@ -235,12 +237,28 @@ void UDataRegistrySubsystem::RefreshRegistryMap()
 			}
 		}
 
+		// Always check exclusion paths
+		if (RegistryPathsToIgnore.Contains(ObjectSoftPath))
+		{
+			continue;
+		}
+
 		RegistryMap.Add(Registry->GetRegistryType(), Registry);
 		
 		// Apply pending map before we initialize
 		if (!Registry->IsInitialized())
 		{
 			ApplyPreregisterMap(Registry);
+		}
+	}
+
+	// Deinitialize anything that is no longer valid
+	for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : OldMap)
+	{
+		UDataRegistry* Registry = RegistryPair.Value.Get();
+		if (Registry && Registry->IsInitialized() && !RegistryMap.Contains(RegistryPair.Key))
+		{
+			Registry->Deinitialize();
 		}
 	}
 }
@@ -269,6 +287,11 @@ void UDataRegistrySubsystem::LoadAllRegistries()
 		}
 	}
 
+	for (const FSoftObjectPath& ObjectPath : RegistryPathsToLoad)
+	{
+		AssetScanPaths.Add(ObjectPath.ToString());
+	}
+
 	FAssetManagerSearchRules Rules;
 	Rules.AssetScanPaths = AssetScanPaths;
 	Rules.AssetBaseClass = UDataRegistry::StaticClass();
@@ -278,8 +301,8 @@ void UDataRegistrySubsystem::LoadAllRegistries()
 
 	if (bExpandedVirtual)
 	{
-		// Handling this properly will require some integration with modular code
-		UE_LOG(LogDataRegistry, Error, TEXT("Currently DataRegistries will not automatically refresh if located in virtual asset search roots."));
+		// Handling this case properly would require some with modular feature code
+		UE_LOG(LogDataRegistry, Error, TEXT("DataRegistries do not refresh in virtual asset search roots, use LoadRegistryPath instead"));
 	}
 
 	TArray<FAssetData> AssetDataList;
@@ -322,6 +345,11 @@ bool UDataRegistrySubsystem::AreRegistriesInitialized() const
 bool UDataRegistrySubsystem::IsConfigEnabled(bool bWarnIfNotEnabled /*= false*/) const
 {
 	if (bFullyInitialized)
+	{
+		return true;
+	}
+
+	if (RegistryPathsToLoad.Num() > 0)
 	{
 		return true;
 	}
@@ -369,6 +397,44 @@ void UDataRegistrySubsystem::DeinitializeAllRegistries()
 	}
 
 	bFullyInitialized = false;
+}
+
+bool UDataRegistrySubsystem::LoadRegistryPath(const FSoftObjectPath& RegistryAssetPath)
+{
+	if (RegistryPathsToLoad.AddUnique(RegistryAssetPath) != INDEX_NONE)
+	{
+		RegistryPathsToIgnore.Remove(RegistryAssetPath);
+		if (bReadyForInitialization)
+		{
+			// Need to make sure it's in memory
+			RegistryAssetPath.TryLoad();
+
+			// If we're past initialization, add it to the path list so it doesn't get filtered out
+			AssetScanPaths.AddUnique(RegistryAssetPath.ToString());
+
+			RefreshRegistryMap();
+			InitializeAllRegistries(false);
+		}
+
+		return true;
+	}
+	return false;
+}
+
+bool UDataRegistrySubsystem::IgnoreRegistryPath(const FSoftObjectPath& RegistryAssetPath)
+{
+	if (RegistryPathsToIgnore.AddUnique(RegistryAssetPath) != INDEX_NONE)
+	{
+		RegistryPathsToLoad.Remove(RegistryAssetPath);
+		if (bReadyForInitialization)
+		{
+			// Remove if active
+			RefreshRegistryMap();
+		}
+		
+		return true;
+	}
+	return false;
 }
 
 void UDataRegistrySubsystem::ResetRuntimeState()
@@ -480,6 +546,52 @@ bool UDataRegistrySubsystem::UnregisterSpecificAsset(FDataRegistryType RegistryT
 	}
 
 	return false;
+}
+
+int32 UDataRegistrySubsystem::UnregisterAssetsWithPriority(FDataRegistryType RegistryType, int32 AssetPriority)
+{
+	int32 NumberUnregistered = 0;
+	if (!IsConfigEnabled(true))
+	{
+		return NumberUnregistered;
+	}
+
+	// First take out of pending list
+	TArray<FPreregisterAsset>* FoundPreregister = PreregisterAssetMap.Find(RegistryType);
+
+	if (FoundPreregister)
+	{
+		for (int32 i = 0; i < FoundPreregister->Num(); i++)
+		{
+			if (AssetPriority == (*FoundPreregister)[i].Value)
+			{
+				FoundPreregister->RemoveAt(i);
+				i--;
+			}
+		}
+	}
+
+	if (!RegistryType.IsValid())
+	{
+		for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+		{
+			UDataRegistry* Registry = RegistryPair.Value.Get();
+			if (Registry)
+			{
+				NumberUnregistered += Registry->UnregisterAssetsWithPriority(AssetPriority);
+			}
+		}
+	}
+	else
+	{
+		UDataRegistry* FoundRegistry = GetRegistryForType(RegistryType);
+		if (FoundRegistry)
+		{
+			NumberUnregistered += FoundRegistry->UnregisterAssetsWithPriority(AssetPriority);
+		}
+	}
+
+	return NumberUnregistered;
 }
 
 void UDataRegistrySubsystem::PreregisterSpecificAssets(const TMap<FDataRegistryType, TArray<FSoftObjectPath>>& AssetMap, int32 AssetPriority)
