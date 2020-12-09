@@ -10,6 +10,7 @@
 #include "RemeshMeshOp.generated.h"
 
 class FDynamicMesh3;
+class FRemesher;
 
 template <class TriangleMeshType>
 class TMeshAABBTree3;
@@ -56,6 +57,8 @@ public:
 	ERemeshType RemeshType = ERemeshType::Standard;
 
 	int RemeshIterations;
+	int MaxRemeshIterations;
+	int ExtraProjectionIterations = 5;
 	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
@@ -70,6 +73,11 @@ public:
 	// FDynamicMeshOperator implementation
 	// 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+protected:
+
+	TUniquePtr<FRemesher> CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh);
+
 };
 
 

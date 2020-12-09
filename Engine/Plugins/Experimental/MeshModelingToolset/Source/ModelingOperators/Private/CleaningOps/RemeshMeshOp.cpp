@@ -12,22 +12,30 @@
 #include "MeshNormals.h"
 #include "NormalFlowRemesher.h"
 
-namespace
+TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh)
 {
-	TUniquePtr<FRemesher> RemesherFactory(ERemeshType Type, FDynamicMesh3* TargetMesh)
+	switch(Type)
 	{
-		switch(Type)
-		{
-		case ERemeshType::Standard:
-			return MakeUnique<FQueueRemesher>(TargetMesh);
-		case ERemeshType::FullPass:
-			return MakeUnique<FRemesher>(TargetMesh);
-		case ERemeshType::NormalFlow:
-			return MakeUnique<FNormalFlowRemesher>(TargetMesh);
-		default:
-			check(!"Encountered unexpected Remesh Type");
-			return nullptr;
-		}
+	case ERemeshType::Standard:
+	{
+		TUniquePtr<FQueueRemesher> QueueRemesher = MakeUnique<FQueueRemesher>(TargetMesh);
+		QueueRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		return QueueRemesher;
+	}
+	case ERemeshType::FullPass:
+	{
+		return MakeUnique<FRemesher>(TargetMesh);
+	}
+	case ERemeshType::NormalFlow:
+	{
+		TUniquePtr<FNormalFlowRemesher> NormalFlowRemesher = MakeUnique<FNormalFlowRemesher>(TargetMesh);
+		NormalFlowRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		NormalFlowRemesher->NumExtraProjectionIterations = ExtraProjectionIterations;
+		return NormalFlowRemesher;
+	}
+	default:
+		checkf(false, TEXT("Encountered unexpected Remesh Type"));
+		return nullptr;
 	}
 
 }
@@ -54,7 +62,7 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	FDynamicMesh3* TargetMesh = ResultMesh.Get();
 
-	TUniquePtr<FRemesher> Remesher = RemesherFactory(RemeshType, TargetMesh);
+	TUniquePtr<FRemesher> Remesher = CreateRemesher(RemeshType, TargetMesh);
 
 	Remesher->bEnableSplits = bSplits;
 	Remesher->bEnableFlips = bFlips;

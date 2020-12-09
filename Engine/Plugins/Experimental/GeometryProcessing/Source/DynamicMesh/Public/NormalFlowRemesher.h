@@ -37,14 +37,15 @@ protected:
 	void RemeshWithFaceProjection();
 
 	// Perform face-aligned projection onto the target mesh. Queue edges whose lengths change because of it.
-	void TrackedFaceProjectionPass();
+	void TrackedFaceProjectionPass(double& MaxDistanceMoved);
 
 	// This is called during RemeshIteration 
 	void TrackedFullProjectionPass(bool bParallel) override
 	{
 		for (int i = 0; i < FaceProjectionPassesPerRemeshIteration; ++i)
 		{
-			TrackedFaceProjectionPass();
+			double ProjectionDistance;
+			TrackedFaceProjectionPass(ProjectionDistance);
 		}
 	}
 

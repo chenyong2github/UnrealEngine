@@ -74,6 +74,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (EditCondition = "RemeshType == ERemeshType::FullPass", UIMin = "0", UIMax = "50", ClampMin = "0", ClampMax = "1000"))
 	int RemeshIterations;
 
+	/** Maximum number of Remeshing passes, for Remeshers that have convergence criteria */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (EditCondition = "RemeshType != ERemeshType::FullPass", UIMin = "0", UIMax = "200", ClampMin = "0", ClampMax = "200"))
+	int MaxRemeshIterations;
+
+	/** For NormalFlowRemesher: extra iterations of normal flow with no remeshing */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "200", ClampMin = "0", ClampMax = "200"))
+	int ExtraProjectionIterations;
+
 	/** If true, the target count is ignored and the target edge length is used directly */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bUseTargetEdgeLength;

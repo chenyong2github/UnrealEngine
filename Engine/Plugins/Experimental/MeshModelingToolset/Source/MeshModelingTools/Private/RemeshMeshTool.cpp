@@ -56,6 +56,8 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	TargetTriangleCount = 5000;
 	SmoothingStrength = 0.25;
 	RemeshIterations = 20;
+	MaxRemeshIterations = 20;
+	ExtraProjectionIterations = 5;
 	bDiscardAttributes = false;
 	RemeshType = ERemeshType::Standard;
 	SmoothingType = ERemeshSmoothingType::MeanValue;
@@ -199,6 +201,8 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->bReproject = BasicProperties->bReproject;
 	Op->bSplits = BasicProperties->bSplits;
 	Op->RemeshIterations = BasicProperties->RemeshIterations;
+	Op->MaxRemeshIterations = BasicProperties->MaxRemeshIterations;
+	Op->ExtraProjectionIterations = BasicProperties->ExtraProjectionIterations;
 	Op->SmoothingStrength = BasicProperties->SmoothingStrength;
 	Op->SmoothingType = BasicProperties->SmoothingType;
 
