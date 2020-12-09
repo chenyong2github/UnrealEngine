@@ -54,16 +54,16 @@ float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
 float AnyHitMaxRoughness;
 float TextureMipBias;
-int   UpscaleFactor;
-int   GlossyReflections;
+float2 UpscaleFactor;
 int   ShouldDoDirectLighting;
 int   ShouldDoEmissiveAndIndirectLighting;
 int   ShouldDoReflectionCaptures;
-
+int   DenoisingOutputFormat; // 0: hit distance, 1: spatial resolve params (see RayTracingReflectionResolve.usf)
 RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
 RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
 RWTexture2D<float4>                             ColorOutput;
-RWTexture2D<float>                              RayHitDistanceOutput;
+RWTexture2D<float4>                             ReflectionDenoiserData;
+
 RaytracingAccelerationStructure                 TLAS;
 
 // Buffer of ray intersections aquired during Gather phase and 
@@ -89,9 +89,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		const uint  RayIndexInTile   = DispatchThreadId % ThreadGroupSize;
 		const uint2 NumTiles         = TileAlignedResolution / TileSize;
 		const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
-		const uint2 PixelPos = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
+		const uint2 PixelPos         = View.ViewRectMin.xy + TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, (uint2)UpscaleFactor, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
+		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, UpscaleFactor, ReflectionMaxNormalBias, ReflectionSmoothBias);
 		RayBuffer[DispatchThreadId] = ReflectionRay; // Store the ray to be used in shading phase
 	}	
 	#else
@@ -102,13 +102,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 	DeferredMaterialPayload.PixelCoordinates = DispatchThreadId; // Store the sorted ray index, not packed 2D pixel coordinates
 	const uint2 PixelPos = UnpackPixelCoordinates(ReflectionRay.PixelCoordinates);
-	if (all(PixelPos < RayTracingResolution))
+	if (all(PixelPos - View.ViewRectMin.xy < RayTracingResolution))
 	{
 		RayDesc Ray;
 		Ray.TMin      = 0;
 		Ray.TMax      = 1e9;
 		Ray.Origin    = ReflectionRay.Origin;
-		Ray.Direction = ReflectionRay.Direction;
+		Ray.Direction = ReflectionRay.GetDirection();
 
 		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
@@ -140,9 +140,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 	// Linear ray index is stored in PixelCoordinates (see DEFERRED_MATERIAL_MODE_GATHER above)
 	const uint ReflectionRayIndex = DeferredMaterialPayload.PixelCoordinates;
 
-	const FSortedReflectionRay ReflectionRay = RayBuffer[ReflectionRayIndex];
+	FSortedReflectionRay ReflectionRay = RayBuffer[ReflectionRayIndex];
 	const uint2 PixelPos = UnpackPixelCoordinates(ReflectionRay.PixelCoordinates);
-	if (any(PixelPos >= RayTracingResolution))
+	if (any(PixelPos - View.ViewRectMin.xy >= RayTracingResolution))
 	{
 		return;
 	}
@@ -155,17 +155,19 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 	//float ResultDistance = DENOISER_INVALID_HIT_DISTANCE;
 	float ResultDistance = 1.0e20;
 
+	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+	float3 RayHitWorldPos = ReflectionRay.Origin + ReflectionRay.GetDirection() * DENOISER_MISS_HIT_DISTANCE;
+
 	if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 	{
 		RayDesc Ray;
 		Ray.TMin      = 0;
 		Ray.TMax      = 1e9;
 		Ray.Origin    = ReflectionRay.Origin;
-		Ray.Direction = ReflectionRay.Direction;
+		Ray.Direction = ReflectionRay.GetDirection();
 
 		FRayIntersectionBookmark Bookmark = BookmarkBuffer[DeferredMaterialPayload.PixelCoordinates];
 
-		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 		if (bSkyLightAffectReflection)
 		{
 			PackedPayload.SetEnableSkyLightContribution();
@@ -213,7 +215,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			RandomSequence_Initialize(RandSequence, DispatchThreadId, 0);
 
 			float3 LightingViewDirection = Ray.Direction;
-			float3 RayHitWorldPos = Ray.Origin + Ray.Direction * PackedPayload.HitT;
+			RayHitWorldPos = Ray.Origin + Ray.Direction * PackedPayload.HitT;
 			FRayCone RayCone = (FRayCone)0; // Not used
 
 			AccumulateResults(
@@ -265,8 +267,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		}
 	}
 
-	ColorOutput[PixelPos] 			= ResultColor;
-	RayHitDistanceOutput[PixelPos] 	= ResultDistance;
+	ColorOutput[PixelPos] = ResultColor;
+
+	float4 RayParams = (float4)0;
+
+	const float FP16Max = 65504.0;
+	float ClampedHitDistance = (ResultDistance == DENOISER_MISS_HIT_DISTANCE) ? FP16Max : min(ResultDistance, FP16Max); // Clamp to fit into FP16
+	RayParams.xyz = ReflectionRay.GetDirection() * ClampedHitDistance;
+	RayParams.w  = ReflectionRay.Pdf > 0 ? min(1.0 / ReflectionRay.Pdf, FP16Max) : 0;
+
+	// NOTE: Written a ternary operator to work around shader compiler crash as of 2020-11-19
+	ReflectionDenoiserData[PixelPos] = DenoisingOutputFormat == 1 ? RayParams : (float4)ResultDistance;
 
 #endif // DIM_DEFERRED_MATERIAL_MODE
 }
