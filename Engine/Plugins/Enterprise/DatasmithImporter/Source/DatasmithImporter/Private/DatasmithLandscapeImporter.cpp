@@ -47,7 +47,7 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 
 	const ELandscapeImportAlphamapType ImportLandscape_AlphamapType = ELandscapeImportAlphamapType::Additive;
 
-	const FVector Offset = FTransform( LandscapeActorElement->GetRotation(), FVector::ZeroVector, 
+	const FVector Offset = FTransform( LandscapeActorElement->GetRotation(), FVector::ZeroVector,
 		LandscapeActorElement->GetScale() ).TransformVector( FVector( -ComponentCountX * QuadsPerComponent / 2, -ComponentCountY * QuadsPerComponent / 2, 0 ) );
 
 	FVector OriginalTranslation = LandscapeActorElement->GetTranslation();
@@ -89,7 +89,7 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 	// >= 4096x4096 -> LOD2
 	// >= 8192x8192 -> LOD3
 	LandscapeTemplate->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((SizeX * SizeY) / (2048 * 2048) + 1), (uint32)2);
-	
+
 	LandscapeTemplate->Apply( Landscape );
 
 	Landscape->ReimportHeightmapFilePath = LandscapeEditorObject->ImportLandscape_HeightmapFilename;
@@ -113,13 +113,6 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 			}
 		}
 	}
-
-	Landscape->RegisterAllComponents();
-
-	// Need to explicitly call PostEditChange on the LandscapeMaterial property or the landscape proxy won't update its material
-	FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
-	Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
-	Landscape->PostEditChange();
 
 	return Landscape;
 }
