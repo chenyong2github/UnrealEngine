@@ -1242,16 +1242,16 @@ struct FEditorShaderCodeArchive
 						if (PrevCookedShaders.LoadAssetInfo(GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName)))
 						{
 							UE_LOG(LogShaderLibrary, Display, TEXT("Loaded asset info %s for the shader library %s: %d entries"),
-								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName),
 								*GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName),
+								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName),
 								PrevCookedShaders.ShaderCodeToAssets.Num()
 								);
 						}
 						else
 						{
 							UE_LOG(LogShaderLibrary, Warning, TEXT("Could not find or load asset info %s for the shader library %s"),
-								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName),
-								*GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName)
+								*GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName),
+								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName)
 							);
 						}
 
@@ -1713,7 +1713,7 @@ class FShaderLibrariesCollection
 	// [RCL] FIXME 2020-11-25: this tracking is not perfect as the code in the asset registry performs chunking by ITargetPlatform, whereas if two platforms
 	// share the same shader format (e.g. Vulkan on Linux and Windows), we cannot make such a distinction. However, as of now it is a very hypothetical case 
 	// as the project settings don't allow disabling chunking for a particular platform.
-	bool bShaderCodeSavedInChunks[EShaderPlatform::SP_NumPlatforms];
+	TSet<int32> ChunksSaved[EShaderPlatform::SP_NumPlatforms];
 	// At cook time, shader code collection for each shader platform
 	FEditorShaderStableInfo* EditorShaderStableInfo[EShaderPlatform::SP_NumPlatforms];
 	// Cached bit field for shader formats that require stable keys
@@ -1756,7 +1756,10 @@ public:
 		FMemory::Memzero(EditorShaderStableInfo);
 		FMemory::Memzero(EditorShaderCodeStats);
 		FMemory::Memzero(EditorArchivePipelines);
-		FMemory::Memzero(bShaderCodeSavedInChunks);
+		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(ChunksSaved); ++Idx)
+		{
+			ChunksSaved[Idx].Empty();
+		}
 
 		OpenOrderMap = nullptr;
 #endif
@@ -1900,8 +1903,8 @@ public:
 			{
 				EditorShaderStableInfo[i]->CloseLibrary(Name);
 			}
+			ChunksSaved[i].Empty();
 		}
-		FMemory::Memzero(bShaderCodeSavedInChunks);
 #endif
 	}
 
@@ -2230,7 +2233,7 @@ public:
 			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 			// If we saved the shader code while generating the chunk, do not save a single consolidated library as it should not be used and
 			// will only bloat the build.
-			if (!bShaderCodeSavedInChunks[SPlatform])
+			if (ChunksSaved[SPlatform].Num() == 0)
 			{
 				FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[SPlatform];
 				if (CodeArchive)
@@ -2277,6 +2280,12 @@ public:
 			FName ShaderFormatName = ShaderFormats[i];
 			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 
+			// we may get duplicate calls for the same Chunk Id because the cooker sometimes calls asset registry SaveManifests twice.
+			if (ChunksSaved[SPlatform].Contains(ChunkId))
+			{
+				continue;
+			}
+
 			FEditorShaderCodeArchive* OrginalCodeArchive = EditorShaderCodeArchive[SPlatform];
 			if (!OrginalCodeArchive)
 			{
@@ -2308,7 +2317,7 @@ public:
 				if (bOk)
 				{
 					PerChunkArchive->DumpStatsAndDebugInfo();
-					bShaderCodeSavedInChunks[SPlatform] = true;
+					ChunksSaved[SPlatform].Add(ChunkId);
 				}
 			}
 		}
