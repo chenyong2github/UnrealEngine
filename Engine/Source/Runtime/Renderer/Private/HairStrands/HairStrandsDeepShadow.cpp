@@ -429,6 +429,8 @@ void RenderHairStrandsDeepShadows(
 				// Front depth
 				if (bDeepShadow)
 				{
+					const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 					DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
 					RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDeepShadowFrontDepth");
 					RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsDeepShadowFrontDepth);
@@ -444,6 +446,7 @@ void RenderHairStrandsDeepShadows(
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
 						UniformParameters->LayerDepths = LayerDepths;
 						UniformParameters->ViewportResolution = AtlasSlotResolution;
+						UniformParameters->FrontDepthTexture = SystemTextures.DepthDummy;
 						UniformParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
 
 						PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
