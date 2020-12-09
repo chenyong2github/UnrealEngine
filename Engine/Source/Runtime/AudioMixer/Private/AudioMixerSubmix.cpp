@@ -1287,9 +1287,6 @@ namespace Audio
 				InputData.NumChannels = ChannelCountOverride;
 				InputData.AudioBuffer = &DownmixedBuffer;
 				SubmixEffect->ProcessAudio(InputData, OutputData);
-
-				// Mix back up to the input channel count when we copy the effect output to the input
-				DownmixBuffer(ChannelCountOverride, DownmixedBuffer, NumChannels, InAudioBuffer);
 			}
 			else
 			{
@@ -1297,10 +1294,10 @@ namespace Audio
 				InputData.NumChannels = NumChannels;
 				InputData.AudioBuffer = &InAudioBuffer;
 				SubmixEffect->ProcessAudio(InputData, OutputData);
-
-				// Copy the output to the input
-				FMemory::Memcpy((void*)InAudioBuffer.GetData(), (void*)OutputData.AudioBuffer->GetData(), sizeof(float) * NumSamples);
 			}
+
+			// Copy the output to the input
+			FMemory::Memcpy((void*)InAudioBuffer.GetData(), (void*)OutputData.AudioBuffer->GetData(), sizeof(float) * NumSamples);
 
 			// Mix in the dry signal directly
 			const float DryLevel = SubmixEffect->GetDryLevel();
