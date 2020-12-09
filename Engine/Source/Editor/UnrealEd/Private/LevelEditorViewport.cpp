@@ -2597,10 +2597,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 									const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 										.SetAllowLegacyNotifications(false); // Old drag duplicate code didn't used to notify about this selection change
 
-									FTypedElementListLegacySyncScopedBatch LegacySyncBatch(SelectionSet->GetElementList(), SelectionOptions.AllowLegacyNotifications());
-
-									SelectionSet->ClearSelection(SelectionOptions);
-									SelectionSet->SelectElements(DuplicatedElements, SelectionOptions);
+									SelectionSet->SetSelection(DuplicatedElements, SelectionOptions);
 								}
 							}
 

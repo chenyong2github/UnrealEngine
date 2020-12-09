@@ -198,6 +198,23 @@ bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptio
 	return bSelectionChanged;
 }
 
+bool UTypedElementSelectionSet::SetSelection(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	return SetSelection(MakeArrayView(InElementHandles), InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, InSelectionOptions.AllowLegacyNotifications());
+
+	bool bSelectionChanged = false;
+
+	bSelectionChanged |= ClearSelection(InSelectionOptions);
+	bSelectionChanged |= SelectElements(InElementHandles, InSelectionOptions);
+
+	return bSelectionChanged;
+}
+
 bool UTypedElementSelectionSet::AllowSelectionModifiers(const FTypedElementHandle& InElementHandle) const
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
