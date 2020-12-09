@@ -32,6 +32,7 @@
 
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
+#include "ScopedTransaction.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGraphPanel, Log, All);
 
