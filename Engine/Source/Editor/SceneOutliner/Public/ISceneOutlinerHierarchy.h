@@ -12,7 +12,7 @@ class ISceneOutlinerHierarchy : public TSharedFromThis<ISceneOutlinerHierarchy>
 {
 public:
 	ISceneOutlinerHierarchy(ISceneOutlinerMode* InMode) : Mode(InMode) {}
-	virtual ~ISceneOutlinerHierarchy() {}
+	virtual ~ISceneOutlinerHierarchy() { HierarchyChangedEvent.Clear(); }
 
 	/** Find the parent of a tree item in an existing item map, it if exists. */
 	virtual FSceneOutlinerTreeItemPtr FindParent(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items) const = 0;

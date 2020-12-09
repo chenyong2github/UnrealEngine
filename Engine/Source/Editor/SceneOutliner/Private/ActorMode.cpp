@@ -87,10 +87,6 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 
 FActorMode::~FActorMode()
 {
-	if (Hierarchy)
-	{
-		Hierarchy->OnHierarchyChanged().RemoveAll(this);
-	}
 }
 
 TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
@@ -105,11 +101,6 @@ TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
 void FActorMode::Rebuild()
 {
 	ChooseRepresentingWorld();
-
-	if (Hierarchy)
-	{
-		Hierarchy->OnHierarchyChanged().Clear();
-	}
 
 	Hierarchy = CreateHierarchy();
 }

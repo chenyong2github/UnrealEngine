@@ -39,10 +39,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 FDataLayerMode::~FDataLayerMode()
 {
-	if (Hierarchy)
-	{
-		Hierarchy->OnHierarchyChanged().RemoveAll(this);
-	}
+	Hierarchy.Release();
 }
 
 int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const
@@ -618,11 +615,6 @@ void FDataLayerMode::Rebuild()
 {
 	ChooseRepresentingWorld();
 	
-	if (Hierarchy)
-	{
-		Hierarchy->OnHierarchyChanged().Clear();
-	}
-
 	Hierarchy = CreateHierarchy();
 }
 
