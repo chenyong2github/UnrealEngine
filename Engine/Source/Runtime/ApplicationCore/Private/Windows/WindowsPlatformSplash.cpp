@@ -26,7 +26,6 @@
 THIRD_PARTY_INCLUDES_START
 #pragma warning(push)
 #pragma warning(disable:4005)
-#include <d2d1.h>
 #include <strsafe.h>
 #include <wincodec.h>
 #pragma warning(pop)
