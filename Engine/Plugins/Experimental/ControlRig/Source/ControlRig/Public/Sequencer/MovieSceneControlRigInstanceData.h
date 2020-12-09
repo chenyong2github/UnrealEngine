@@ -15,11 +15,11 @@ struct FMovieSceneControlRigInstanceData : public FMovieSceneSequenceInstanceDat
 
 	/** Blend this track in additively (using the reference pose as a base) */
 	UPROPERTY()
-	bool bAdditive;
+	bool bAdditive = false;
 
 	/** Only apply bones that are in the filter */
 	UPROPERTY()
-	bool bApplyBoneFilter;
+	bool bApplyBoneFilter = false;
 
 	/** Per-bone filter to apply to our animation */
 	UPROPERTY()

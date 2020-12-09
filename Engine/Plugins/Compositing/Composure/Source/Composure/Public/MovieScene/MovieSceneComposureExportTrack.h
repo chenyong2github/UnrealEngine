@@ -22,7 +22,7 @@ struct FMovieSceneComposureExportPass
 
 	/** Whether to rename this pass when rendering out */
 	UPROPERTY(EditAnywhere, Category="Export", meta=(InlineEditConditionToggle))
-	bool bRenamePass;
+	bool bRenamePass = false;
 
 	/** The name to use for this pass when rendering out */
 	UPROPERTY(EditAnywhere, Category="Export", meta=(EditCondition="bRenamePass"))

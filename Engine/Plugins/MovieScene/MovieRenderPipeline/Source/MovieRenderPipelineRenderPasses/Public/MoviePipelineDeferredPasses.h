@@ -20,7 +20,7 @@ struct MOVIERENDERPIPELINERENDERPASSES_API FMoviePipelinePostProcessPass
 public:
 	/** Additional passes add a significant amount of render time. May produce multiple output files if using Screen Percentage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	bool bEnabled;
+	bool bEnabled = false;
 
 	/** 
 	* Material should be set to Post Process domain, and Blendable Location = After Tonemapping. 

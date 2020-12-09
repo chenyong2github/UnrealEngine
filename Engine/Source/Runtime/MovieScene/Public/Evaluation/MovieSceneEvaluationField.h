@@ -484,7 +484,7 @@ struct FMovieSceneFieldEntry_EvaluationTrack
 	FMovieSceneEvaluationFieldTrackPtr TrackPtr;
 
 	UPROPERTY()
-	uint16 NumChildren;
+	uint16 NumChildren = 0;
 };
 
 USTRUCT()
@@ -563,10 +563,10 @@ struct FMovieSceneOrderedEvaluationKey
 	FMovieSceneEvaluationKey Key;
 
 	UPROPERTY()
-	uint16 SetupIndex;
+	uint16 SetupIndex = 0;
 
 	UPROPERTY()
-	uint16 TearDownIndex;
+	uint16 TearDownIndex = 0;
 };
 
 /** Informational meta-data that applies to a given time range */

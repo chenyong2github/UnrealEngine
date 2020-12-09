@@ -80,27 +80,27 @@ struct FCameraLensSettings
 
 	/** Minimum focal length for this lens */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm, ClampMin = "0.001"))
-	float MinFocalLength;
+	float MinFocalLength = 0.f;
 
 	/** Maximum focal length for this lens */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm, ClampMin = "0.001"))
-	float MaxFocalLength;
+	float MaxFocalLength = 0.f;
 
 	/** Minimum aperture for this lens (e.g. 2.8 for an f/2.8 lens) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens")
-	float MinFStop;
+	float MinFStop = 0.f;
 
 	/** Maximum aperture for this lens (e.g. 2.8 for an f/2.8 lens) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens")
-	float MaxFStop;
+	float MaxFStop = 0.f;
 
 	/** Shortest distance this lens can focus on. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm))
-	float MinimumFocusDistance;
+	float MinimumFocusDistance = 0.f;
 
 	/** Number of blades of diaphragm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ClampMin = "4", ClampMax = "16"))
-	int32 DiaphragmBladeCount;
+	int32 DiaphragmBladeCount = 0;
 
 	bool operator==(const FCameraLensSettings& Other) const
 	{

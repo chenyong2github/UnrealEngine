@@ -38,7 +38,7 @@ struct FMovieScene3DLocationKeyStruct
 
 	/** The key's translation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -62,7 +62,7 @@ struct FMovieScene3DRotationKeyStruct
 
 	/** The key's rotation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -85,7 +85,7 @@ struct FMovieScene3DScaleKeyStruct
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector Scale;
+	FVector Scale = FVector::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -109,15 +109,15 @@ struct FMovieScene3DTransformKeyStruct
 
 	/** The key's translation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
 
 	/** The key's rotation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector Scale;
+	FVector Scale = FVector::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)

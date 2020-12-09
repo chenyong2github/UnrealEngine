@@ -48,7 +48,7 @@ struct FMovieSceneVector2DKeyStruct
 
 	/** They key's vector value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector2D Vector;
+	FVector2D Vector = FVector2D::ZeroVector;
 
 	//~ FMovieSceneVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
@@ -66,7 +66,7 @@ struct FMovieSceneVectorKeyStruct
 
 	/** They key's vector value. */
 	UPROPERTY(EditAnywhere, Category = Key)
-	FVector Vector;
+	FVector Vector = FVector::ZeroVector;
 
 	//~ FMovieSceneVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
@@ -84,7 +84,7 @@ struct FMovieSceneVector4KeyStruct
 
 	/** They key's vector value. */
 	UPROPERTY(EditAnywhere, Category = Key)
-	FVector4 Vector;
+	FVector4 Vector = FVector4(FVector::ZeroVector);
 
 	//~ FMovieSceneVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
