@@ -237,8 +237,8 @@ protected:
 	void CreateSortings();
 
 	void UpdateCurrentSortingByColumn();
-	void SortTreeNodes();
-	void SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter);
+	void SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortMode::Type InColumnSortMode);
+	void SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter, EColumnSortMode::Type InColumnSortMode);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
@@ -403,6 +403,9 @@ protected:
 	FStopwatch AsyncUpdateStopwatch;
 
 	TArray<TSharedPtr<FTreeNodeGrouping>> CurrentAsyncOpGroupings;
+	ITableCellValueSorter* CurrentAsyncOpSorter = nullptr;
+	EColumnSortMode::Type CurrentAsyncOpColumnSortMode;
+	TSharedPtr<FTableTreeNodeTextFilter> CurrentAsyncOpTextFilter;
 
 	//////////////////////////////////////////////////
 
@@ -441,9 +444,11 @@ private:
 class FTableTreeViewSortAsyncTask
 {
 public:
-	FTableTreeViewSortAsyncTask(STableTreeView* InPtr)
+	FTableTreeViewSortAsyncTask(STableTreeView* InPtr, ITableCellValueSorter* InSorter, EColumnSortMode::Type InColumnSortMode)
 	{
 		TableTreeViewPtr = InPtr;
+		Sorter = InSorter;
+		ColumnSortMode = InColumnSortMode;
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewSortAsyncTask, STATGROUP_TaskGraphTasks); }
@@ -454,12 +459,14 @@ public:
 	{
 		if (TableTreeViewPtr)
 		{
-			TableTreeViewPtr->SortTreeNodes();
+			TableTreeViewPtr->SortTreeNodes(Sorter, ColumnSortMode);
 		}
 	}
 
 private:
-	STableTreeView* TableTreeViewPtr = nullptr;
+	STableTreeView* TableTreeViewPtr;
+	ITableCellValueSorter* Sorter;
+	EColumnSortMode::Type ColumnSortMode;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
