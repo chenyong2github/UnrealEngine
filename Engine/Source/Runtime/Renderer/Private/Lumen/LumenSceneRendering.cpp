@@ -2229,6 +2229,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 							*SharedView,
 							DepthAtlasSize,
+							/*Flags*/ 0,
 							/*StreamingPriorityCategory*/ 0,
 							GLumenDistantSceneMinInstanceBoundsRadius,
 							Lumen::GetDistanceSceneNaniteLODScaleFactor());
