@@ -23,7 +23,7 @@ enum class EHairStrandsRasterPassType : uint8
 // ////////////////////////////////////////////////////////////////
 // Deep shadow raster pass
 
-BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterUniformParameters, )
 	SHADER_PARAMETER(FMatrix, CPU_WorldToClipMatrix)
 	SHADER_PARAMETER(FVector4, SliceValue)
 	SHADER_PARAMETER(FIntRect, AtlasRect)
@@ -32,7 +32,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
 	SHADER_PARAMETER(FVector4, LayerDepths)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, FrontDepthTexture)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairDeepShadowRasterUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -50,7 +54,7 @@ void AddHairDeepShadowRasterPass(
 
 // ////////////////////////////////////////////////////////////////
 // Voxelization raster pass
-BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
 	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
 	SHADER_PARAMETER(FVector, VoxelMinAABB)
@@ -60,7 +64,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVoxelizationViewInfo>, VoxelizationViewInfoBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, DensityTexture)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairVoxelizationRasterUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 

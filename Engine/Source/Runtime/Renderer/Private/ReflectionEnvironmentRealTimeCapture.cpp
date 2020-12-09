@@ -275,6 +275,7 @@ void FScene::ValidateSkyLightRealTimeCapture(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCaptureSkyMeshReflectionPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -547,6 +548,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						if (MainView.bSceneHasSkyMaterial)
 						{
 							auto* PassParameters = GraphBuilder.AllocParameters<FCaptureSkyMeshReflectionPassParameters>();
+							PassParameters->View = CubeView.GetShaderParameters();
 							PassParameters->RenderTargets = SkyRC.RenderTargets;
 							PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, MainView, 0);
 
@@ -570,8 +572,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 										{
 											FScene* Scene = MainView.Family->Scene->GetRenderScene();
 
-											FMeshPassProcessorRenderState DrawRenderState(CubeViewUniformBuffer);
-											DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
+											FMeshPassProcessorRenderState DrawRenderState;
 
 											FExclusiveDepthStencil::Type BasePassDepthStencilAccess_Sky = bUseDepthBuffer ? FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite)
 												: FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess & ~FExclusiveDepthStencil::DepthWrite);

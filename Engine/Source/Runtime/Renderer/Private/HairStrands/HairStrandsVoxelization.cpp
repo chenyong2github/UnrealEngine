@@ -1183,15 +1183,22 @@ static void AddVirtualVoxelizationRasterPass(
 	}
 
 	FHairVoxelizationRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairVoxelizationRasterPassParameters>();
-	PassParameters->VirtualVoxel = VoxelResources.Parameters.Common;
-	PassParameters->WorldToClipMatrix = WorldToClip;
-	PassParameters->VoxelMinAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB;
-	PassParameters->VoxelMaxAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB;
-	PassParameters->VoxelResolution = TotalVoxelResolution; // i.e., the virtual resolution
-	PassParameters->MacroGroupId = MacroGroup.MacroGroupId;
-	PassParameters->ViewportResolution = RasterResolution;
-	PassParameters->VoxelizationViewInfoBuffer = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
-	PassParameters->DensityTexture = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
+
+	{
+		FHairVoxelizationRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairVoxelizationRasterUniformParameters>();
+
+		UniformParameters->VirtualVoxel = VoxelResources.Parameters.Common;
+		UniformParameters->WorldToClipMatrix = WorldToClip;
+		UniformParameters->VoxelMinAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB;
+		UniformParameters->VoxelMaxAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB;
+		UniformParameters->VoxelResolution = TotalVoxelResolution; // i.e., the virtual resolution
+		UniformParameters->MacroGroupId = MacroGroup.MacroGroupId;
+		UniformParameters->ViewportResolution = RasterResolution;
+		UniformParameters->VoxelizationViewInfoBuffer = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
+		UniformParameters->DensityTexture = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
+
+		PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+	}
 
 	// For debug purpose
 	#if 0

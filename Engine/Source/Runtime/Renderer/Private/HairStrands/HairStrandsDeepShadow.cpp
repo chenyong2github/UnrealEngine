@@ -434,13 +434,21 @@ void RenderHairStrandsDeepShadows(
 					RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsDeepShadowFrontDepth);
 
 					FHairDeepShadowRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterPassParameters>();
-					PassParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
-					PassParameters->SliceValue = FVector4(1, 1, 1, 1);
-					PassParameters->AtlasRect = DomData.AtlasRect;
-					PassParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
-					PassParameters->LayerDepths = LayerDepths;
-					PassParameters->ViewportResolution = AtlasSlotResolution;
-					PassParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
+
+					{
+						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
+
+						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
+						UniformParameters->SliceValue = FVector4(1, 1, 1, 1);
+						UniformParameters->AtlasRect = DomData.AtlasRect;
+						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
+						UniformParameters->LayerDepths = LayerDepths;
+						UniformParameters->ViewportResolution = AtlasSlotResolution;
+						UniformParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
+
+						PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+					}
+
 					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(FrontDepthAtlasTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 					AddHairDeepShadowRasterPass(
@@ -464,14 +472,22 @@ void RenderHairStrandsDeepShadows(
 					RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsDeepShadowLayers);
 
 					FHairDeepShadowRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterPassParameters>();
-					PassParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
-					PassParameters->SliceValue = FVector4(1, 1, 1, 1);
-					PassParameters->AtlasRect = DomData.AtlasRect;
-					PassParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
-					PassParameters->LayerDepths = LayerDepths;
-					PassParameters->ViewportResolution = AtlasSlotResolution;
-					PassParameters->FrontDepthTexture = FrontDepthAtlasTexture;
-					PassParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
+
+					{
+						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
+
+						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
+						UniformParameters->SliceValue = FVector4(1, 1, 1, 1);
+						UniformParameters->AtlasRect = DomData.AtlasRect;
+						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
+						UniformParameters->LayerDepths = LayerDepths;
+						UniformParameters->ViewportResolution = AtlasSlotResolution;
+						UniformParameters->FrontDepthTexture = FrontDepthAtlasTexture;
+						UniformParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
+
+						PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+					}
+
 					PassParameters->RenderTargets[0] = FRenderTargetBinding(DeepShadowLayersAtlasTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, 0);
 
 					AddHairDeepShadowRasterPass(

@@ -497,7 +497,7 @@ void FProjectedShadowInfo::RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, F
 		ERDGPassFlags::Raster,
 		[this, SceneRenderer](FRHICommandListImmediate& RHICmdList)
 	{
-		FMeshPassProcessorRenderState DrawRenderState(*ShadowDepthView);
+		FMeshPassProcessorRenderState DrawRenderState;
 
 		// Clear the shadow and its border
 		RHICmdList.SetViewport(

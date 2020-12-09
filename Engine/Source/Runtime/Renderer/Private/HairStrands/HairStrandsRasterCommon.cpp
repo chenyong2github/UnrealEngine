@@ -11,63 +11,8 @@
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////
-// Deep shadow global parameters
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, )
-	SHADER_PARAMETER(FMatrix, CPU_WorldToClipMatrix)
-	SHADER_PARAMETER(FVector4, SliceValue)
-	SHADER_PARAMETER(FIntRect, AtlasRect)
-	SHADER_PARAMETER(FIntPoint, ViewportResolution)
-	SHADER_PARAMETER(uint32, AtlasSlotIndex)
-	SHADER_PARAMETER(FVector4, LayerDepths)
-	SHADER_PARAMETER_TEXTURE(Texture2D<float>, FrontDepthTexture)
-	SHADER_PARAMETER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, "DeepRasterPass");
-
-static FHairDeepShadowRasterGlobalParameters ConvertToGlobalPassParameter(const FHairDeepShadowRasterPassParameters* In)
-{
-	FHairDeepShadowRasterGlobalParameters Out;
-	Out.CPU_WorldToClipMatrix	= In->CPU_WorldToClipMatrix;
-	Out.SliceValue				= In->SliceValue;
-	Out.AtlasRect				= In->AtlasRect;
-	Out.ViewportResolution		= In->ViewportResolution;
-	Out.AtlasSlotIndex			= In->AtlasSlotIndex;
-	Out.LayerDepths				= In->LayerDepths;
-	Out.FrontDepthTexture		= In->FrontDepthTexture ? In->FrontDepthTexture->GetRHI() : (FRHITexture*)(GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture);
-	Out.DeepShadowViewInfoBuffer= In->DeepShadowViewInfoBuffer->GetRHI();
-	return Out;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Voxelization global parameters
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterGlobalParameters, )
-	SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
-	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
-	SHADER_PARAMETER(FVector, VoxelMinAABB)
-	SHADER_PARAMETER(FVector, VoxelMaxAABB)
-	SHADER_PARAMETER(FIntVector, VoxelResolution)
-	SHADER_PARAMETER(uint32, MacroGroupId)
-	SHADER_PARAMETER(FIntPoint, ViewportResolution)
-	SHADER_PARAMETER_SRV(StructuredBuffer<FVoxelizationViewInfo>, VoxelizationViewInfoBuffer)
-	SHADER_PARAMETER_UAV(RWTexture3D<uint>, DensityTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterGlobalParameters, "VoxelRasterPass");
-
-static FHairVoxelizationRasterGlobalParameters ConvertToGlobalPassParameter(const FHairVoxelizationRasterPassParameters* In)
-{
-	FHairVoxelizationRasterGlobalParameters Out;
-	Out.VirtualVoxel	   = In->VirtualVoxel;
-	Out.WorldToClipMatrix  = In->WorldToClipMatrix;
-	Out.VoxelMinAABB	   = In->VoxelMinAABB;
-	Out.VoxelMaxAABB	   = In->VoxelMaxAABB;
-	Out.VoxelResolution	   = In->VoxelResolution;
-	Out.MacroGroupId	   = In->MacroGroupId;
-	Out.ViewportResolution = In->ViewportResolution;
-	Out.VoxelizationViewInfoBuffer = In->VoxelizationViewInfoBuffer->GetRHI();
-	Out.DensityTexture  = In->DensityTexture->GetRHI();
-	return Out;
-}
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FHairDeepShadowRasterUniformParameters, "DeepRasterPass", SceneTextures);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FHairVoxelizationRasterUniformParameters, "VoxelRasterPass", SceneTextures);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -82,8 +27,6 @@ protected:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		// deferred
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDepthMeshVS() {}
@@ -116,7 +59,6 @@ protected:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDomMeshVS() {}
@@ -150,7 +92,6 @@ protected:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVoxelizationRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FVoxelMeshVS() {}
@@ -190,7 +131,6 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDepthMeshPS() {}
@@ -215,7 +155,6 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDomMeshPS() {}
@@ -246,7 +185,6 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVoxelizationRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FVoxelMeshPS() {}
@@ -397,7 +335,7 @@ FHairRasterMeshProcessor::FHairRasterMeshProcessor(
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename TPassParameter, typename TGlobalParameter>
+template<typename TPassParameter>
 void AddHairStrandsRasterPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -421,34 +359,26 @@ void AddHairStrandsRasterPass(
 		}
 	};
 
+	{
+		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo = HairRenderInfo;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfoBits = HairRenderInfoBits;
+
+		const FVector SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = RasterDirection;
+		PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
+	}
+
 	GraphBuilder.AddPass(
 		GetPassName(RasterPassType),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, ViewportRect, HairRenderInfo, HairRenderInfoBits, RasterDirection](FRHICommandListImmediate& RHICmdList)
 	{
-		check(RHICmdList.IsInsideRenderPass());
-		check(IsInRenderingThread());
-
-		check(RHICmdList.IsInsideRenderPass());
-		check(IsInRenderingThread());
-
 		SCOPE_CYCLE_COUNTER(STAT_RenderPerObjectShadowDepthsTime);
 
-		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
-		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo = HairRenderInfo;
-		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfoBits = HairRenderInfoBits;
-
-		const FVector SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;	
-		ViewInfo->CachedViewUniformShaderParameters->ViewForward = RasterDirection;
-		ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
-
-		TGlobalParameter GlobalPassParameters = ConvertToGlobalPassParameter(PassParameters);
-		TUniformBufferRef<TGlobalParameter> GlobalPassParametersBuffer = TUniformBufferRef<TGlobalParameter>::CreateUniformBufferImmediate(GlobalPassParameters, UniformBuffer_SingleFrame);
-
-		FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, GlobalPassParametersBuffer);
-		DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
+		FMeshPassProcessorRenderState DrawRenderState;
 
 		RHICmdList.SetViewport(ViewportRect.Min.X, ViewportRect.Min.Y, 0.0f, ViewportRect.Max.X, ViewportRect.Max.Y, 1.0f);
 
@@ -512,7 +442,7 @@ void AddHairDeepShadowRasterPass(
 {
 	check(PassType == EHairStrandsRasterPassType::FrontDepth || PassType == EHairStrandsRasterPassType::DeepOpacityMap);
 
-	AddHairStrandsRasterPass<FHairDeepShadowRasterPassParameters, FHairDeepShadowRasterGlobalParameters>(
+	AddHairStrandsRasterPass<FHairDeepShadowRasterPassParameters>(
 		GraphBuilder, 
 		Scene, 
 		ViewInfo, 
@@ -536,7 +466,7 @@ void AddHairVoxelizationRasterPass(
 	const FVector& RasterDirection,
 	FHairVoxelizationRasterPassParameters* PassParameters)
 {
-	AddHairStrandsRasterPass<FHairVoxelizationRasterPassParameters, FHairVoxelizationRasterGlobalParameters>(
+	AddHairStrandsRasterPass<FHairVoxelizationRasterPassParameters>(
 		GraphBuilder, 
 		Scene, 
 		ViewInfo, 
