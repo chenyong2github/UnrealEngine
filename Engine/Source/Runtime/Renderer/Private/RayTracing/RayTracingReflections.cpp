@@ -564,6 +564,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	int DenoiserMode,
 	const FRayTracingReflectionOptions& Options,
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 #if RHI_RAYTRACING
@@ -574,6 +575,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			DenoiserMode,
 			Options,
 			OutDenoiserInputs);
 		return;
