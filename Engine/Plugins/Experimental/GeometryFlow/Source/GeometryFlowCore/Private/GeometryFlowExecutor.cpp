@@ -28,42 +28,12 @@ namespace
 FGeometryFlowExecutor::FGeometryFlowExecutor(FGraph& InGraph)
 	: GeometryFlowGraph(InGraph)
 {
+	EvalInfo = MakeUnique<FEvaluationInfo>();
 	TopologicalSort();
+
+	// Check that TaskGraph is enabled!
+	check(FTaskGraphInterface::IsRunning());
 }
-
-
-void FGeometryFlowExecutor::ComputeOutputs(const TArray<NodeOutputSpec>& DesiredOutputs,
-										   TArray<TSafeSharedPtr<IData>>& OutputDatas)
-{
-	// TODO: Improve this!
-
-	CreateAndDispatchTaskGraph();
-
-	for (const NodeOutputSpec& OutputSpec : DesiredOutputs)
-	{
-		for (const TPair<FGraph::FHandle, FGraphEventRef>& NodeRef : GeometryFlowNodeToGraphTask)
-		{
-			FGraph::FHandle NodeHandle{ NodeRef.Key };
-			if ( OutputSpec.Key == NodeHandle)
-			{ 
-				// TODO: Don't wait for each one, see if we can set a callback for when a task is done
-				NodeRef.Value->Wait();
-
-				// TODO: Check desired data type matches node output type
-
-				TSafeSharedPtr<FNode> GeoFlowNode = GeometryFlowGraph.FindNode(NodeHandle);
-				TSafeSharedPtr<IData> OutputData = GeoFlowNode->GetOutput(OutputSpec.Value);
-				check(OutputData != nullptr);
-
-				OutputDatas.Add(OutputData);
-			}
-		}
-	}
-
-}
-
-
-
 
 void FGeometryFlowExecutor::TopologicalSort()
 {
@@ -111,7 +81,7 @@ void FGeometryFlowExecutor::TopologicalSort()
 }
 
 
-void FGeometryFlowExecutor::CreateAndDispatchTaskGraph()
+void FGeometryFlowExecutor::AsyncRunGraph()
 {
 	DebugNodeExecutionLog.Reset();
 	DebugNodeExecutionTime.Reset();
@@ -194,7 +164,6 @@ void FGeometryFlowExecutor::CreateAndDispatchTaskGraph()
 
 			double T0 = FPlatformTime::Seconds();
 			
-			TUniquePtr<FEvaluationInfo> EvalInfo = MakeUnique<FEvaluationInfo>();
 			Node->Evaluate(DatasIn, DatasOut, EvalInfo);
 
 			double T1 = FPlatformTime::Seconds();
@@ -211,7 +180,43 @@ void FGeometryFlowExecutor::CreateAndDispatchTaskGraph()
 
 		TPair<FGraph::FHandle, FGraphEventRef> NodeInfo{ NodeHandle, TaskGraphN };
 		GeometryFlowNodeToGraphTask.Add(NodeInfo);
-
 	}
 }
 
+
+EGeometryFlowResult FGeometryFlowExecutor::ComputeOutputs(const TArray<NodeOutputSpec>& DesiredOutputs,
+														  TArray<TSafeSharedPtr<IData>>& OutputDatas)
+{
+	AsyncRunGraph();
+
+	for (const NodeOutputSpec& Out : DesiredOutputs)
+	{
+		FGraphEventRef* GraphEvent = GeometryFlowNodeToGraphTask.Find(Out.NodeHandle);
+
+		if (GraphEvent == nullptr)
+		{
+			return EGeometryFlowResult::NoMatchesFound;
+		}
+
+		// Wait for the node to finish executing
+		(*GraphEvent)->Wait();
+
+		TSafeSharedPtr<FNode> GeoFlowNode = GeometryFlowGraph.FindNode(Out.NodeHandle);
+		if (!GeoFlowNode)
+		{
+			return EGeometryFlowResult::NodeDoesNotExist;
+		}
+
+		TSafeSharedPtr<IData> OutputData = (Out.bStealOutput) ?
+			GeoFlowNode->StealOutput(Out.OutputName) : GeoFlowNode->GetOutput(Out.OutputName);
+
+		if (!OutputData)
+		{
+			return EGeometryFlowResult::OutputDoesNotExist;
+		}
+
+		OutputDatas.Add(OutputData);
+	}
+
+	return EGeometryFlowResult::Ok;
+}

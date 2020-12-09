@@ -36,6 +36,9 @@ void FGenerateMeshLODGraph::SetSourceMesh(const FDynamicMesh3& SourceMeshIn)
 	UpdateSourceNodeValue<FDynamicMeshSourceNode>(*Graph, MeshSourceNode, SourceMeshIn);
 }
 
+
+#if 0
+
 void FGenerateMeshLODGraph::EvaluateResultParallel(
 	FDynamicMesh3& ResultMesh,
 	FMeshTangentsd& ResultTangents,
@@ -47,40 +50,51 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 
 	TArray<FGeometryFlowExecutor::NodeOutputSpec> DesiredOutputs;
 
-	DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{ BakeNormalMapNode, FBakeMeshNormalMapNode::OutParamNormalMap() });
+	bool bTakeNormalMap = true;
+	DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{ 
+		BakeNormalMapNode, 
+		FBakeMeshNormalMapNode::OutParamNormalMap(),
+		bTakeNormalMap });
 
+	bool bTakeTexBake = true;
 	for (FBakeTextureGraphInfo& TexBakeStep : BakeTextureNodes)
 	{
 		DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{
 			TexBakeStep.BakeNode,
-			FBakeMeshTextureImageNode::OutParamTextureImage() });
+			FBakeMeshTextureImageNode::OutParamTextureImage(),
+			bTakeTexBake });
 	}
 
+	bool bTakeResultCollision = false;
 	DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{
 			CollisionOutputNode,
-			FCollisionGeometryTransferNode::OutParamValue() });
+			FCollisionGeometryTransferNode::OutParamValue(),
+			bTakeResultCollision });
 
+	bool bTakeResultTangents = false;
 	DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{
 		TangentsOutputNode,
-		FMeshTangentsTransferNode::OutParamValue() });
+		FMeshTangentsTransferNode::OutParamValue(),
+		bTakeResultTangents });
 
+	bool bTakeResultMesh = true;
 	DesiredOutputs.Add(FGeometryFlowExecutor::NodeOutputSpec{
 		MeshOutputNode,
-		FDynamicMeshTransferNode::OutParamValue() });
+		FDynamicMeshTransferNode::OutParamValue(),
+		bTakeResultMesh });
 
 	FGeometryFlowExecutor Exec(*Graph);
-
 	TArray<TSafeSharedPtr<IData>> OutputDatas;
 	Exec.ComputeOutputs(DesiredOutputs, OutputDatas);
 
 	check(OutputDatas.Num() == DesiredOutputs.Num());
-
 	TArray<TSafeSharedPtr<IData>>::TIterator OutputDataIter = OutputDatas.CreateIterator();
 
-	// { BakeNormalMapNode, FBakeMeshNormalMapNode::OutParamNormalMap() }
 	NormalMap = FNormalMapImage();
-	bool bTakeNormalMap = false;
-	EGeometryFlowResult ExtractResult = ExtractData(*OutputDataIter, NormalMap, (int)EMeshProcessingDataTypes::NormalMapImage, bTakeNormalMap);
+	EGeometryFlowResult ExtractResult = ExtractData(*OutputDataIter,
+													NormalMap,
+													(int)EMeshProcessingDataTypes::NormalMapImage,
+													bTakeNormalMap);
 	check(ExtractResult == EGeometryFlowResult::Ok);
 	++OutputDataIter;
 
@@ -88,34 +102,97 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 	{
 		// { TexBakeStep.BakeNode, FBakeMeshTextureImageNode::OutParamTextureImage() }
 		TUniquePtr<UE::GeometryFlow::FTextureImage> NewImage = MakeUnique<UE::GeometryFlow::FTextureImage>();
-		bool bTakeTexBake = false;
+		
 		ExtractResult = ExtractData(*OutputDataIter, *NewImage, (int)EMeshProcessingDataTypes::TextureImage, bTakeTexBake);
 		check(ExtractResult == EGeometryFlowResult::Ok);
-		++OutputDataIter;
 		TextureImages.Add(MoveTemp(NewImage));
+		++OutputDataIter;
 	}
 
 	// {CollisionOutputNode, FCollisionGeometryTransferNode::OutParamValue() }
 	ResultCollision = FSimpleShapeSet3d();
-	bool bTakeResultCollision = false;
 	ExtractResult = ExtractData(*OutputDataIter, ResultCollision, (int)FCollisionGeometry::DataTypeIdentifier, bTakeResultCollision);
 	check(ExtractResult == EGeometryFlowResult::Ok);
 	++OutputDataIter;
 
 	// { TangentsOutputNode, FMeshTangentsTransferNode::OutParamValue() }
-	bool bTakeResultTangents = false;
 	ResultTangents = FMeshTangentsd();
 	ExtractResult = ExtractData(*OutputDataIter, ResultTangents, (int)EMeshProcessingDataTypes::MeshTangentSet, bTakeResultTangents);
 	check(ExtractResult == EGeometryFlowResult::Ok);
 	++OutputDataIter;
 
 	// {MeshOutputNode, FDynamicMeshTransferNode::OutParamValue() }
-	bool bTakeResultMesh = false;
 	ResultMesh.Clear();
 	ExtractResult = ExtractData(*OutputDataIter, ResultMesh, (int32)EMeshProcessingDataTypes::DynamicMesh, bTakeResultMesh);
 	check(ExtractResult == EGeometryFlowResult::Ok);
 	++OutputDataIter;
 }
+
+#else
+
+void FGenerateMeshLODGraph::EvaluateResultParallel(
+	FDynamicMesh3& ResultMesh,
+	FMeshTangentsd& ResultTangents,
+	FSimpleShapeSet3d& ResultCollision,
+	UE::GeometryFlow::FNormalMapImage& NormalMap,
+	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages)
+{
+	//FScopedDurationTimeLogger Timer(TEXT("FGenerateMeshLODGraph::EvaluateResult -- parallel execution"));
+
+	FGeometryFlowExecutor Exec(*Graph);
+	Exec.AsyncRunGraph();
+
+	NormalMap = FNormalMapImage();
+	bool bTakeNormalMap = true;
+	EGeometryFlowResult ExtractResult = Exec.GetOutput(BakeNormalMapNode,
+													   FBakeMeshNormalMapNode::OutParamNormalMap(),
+													   NormalMap, 
+													   (int)EMeshProcessingDataTypes::NormalMapImage, 
+													   bTakeNormalMap);
+	check(ExtractResult == EGeometryFlowResult::Ok);
+
+	for (FBakeTextureGraphInfo& TexBakeStep : BakeTextureNodes)
+	{
+		TUniquePtr<UE::GeometryFlow::FTextureImage> NewImage = MakeUnique<UE::GeometryFlow::FTextureImage>();
+		bool bTakeTexBake = true;
+		ExtractResult = Exec.GetOutput(TexBakeStep.BakeNode,
+									   FBakeMeshTextureImageNode::OutParamTextureImage(),
+									   *NewImage,
+									   (int)EMeshProcessingDataTypes::TextureImage,
+									   bTakeNormalMap);
+		check(ExtractResult == EGeometryFlowResult::Ok);
+		TextureImages.Add(MoveTemp(NewImage));
+	}
+
+	ResultCollision = FSimpleShapeSet3d();
+	bool bTakeResultCollision = false;
+	ExtractResult = Exec.GetOutput(CollisionOutputNode,
+								   FCollisionGeometryTransferNode::OutParamValue(),
+								   ResultCollision,
+								   (int)FCollisionGeometry::DataTypeIdentifier, bTakeResultCollision);
+	check(ExtractResult == EGeometryFlowResult::Ok);
+
+	bool bTakeResultTangents = false;
+	ResultTangents = FMeshTangentsd();
+	ExtractResult = Exec.GetOutput(TangentsOutputNode, 
+								   FMeshTangentsTransferNode::OutParamValue(),
+								   ResultTangents, 
+								   (int)EMeshProcessingDataTypes::MeshTangentSet, 
+								   bTakeResultTangents);
+	check(ExtractResult == EGeometryFlowResult::Ok);
+	
+
+	bool bTakeResultMesh = true;
+	ResultMesh.Clear();
+	ExtractResult = Exec.GetOutput(MeshOutputNode, 
+								   FDynamicMeshTransferNode::OutParamValue(),
+								   ResultMesh, 
+								   (int32)EMeshProcessingDataTypes::DynamicMesh, 
+								   bTakeResultMesh);
+	check(ExtractResult == EGeometryFlowResult::Ok);
+}
+
+#endif
 
 
 void FGenerateMeshLODGraph::UpdateSolidifySettings(const FMeshSolidifySettings& SolidifySettings)

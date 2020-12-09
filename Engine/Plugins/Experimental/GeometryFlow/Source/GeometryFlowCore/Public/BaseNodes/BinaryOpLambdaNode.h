@@ -63,7 +63,7 @@ public:
 
 					TSafeSharedPtr<DataType> Result = MakeSafeShared<DataType>();
 					Result->SetData(BinaryOpResult);
-					SetOutput(ResultName(), Result);
+					SetOutput(OutParamResult(), Result);
 
 					EvaluationInfo->CountCompute(this);
 				}
