@@ -9,6 +9,8 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "CineCameraComponent.h"
 #include "TextureResource.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Scene.h"
 
 #include "ReprojectionBlendingData.generated.h"
 
