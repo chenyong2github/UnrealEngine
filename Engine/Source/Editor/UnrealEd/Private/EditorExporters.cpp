@@ -1383,7 +1383,15 @@ bool ULevelExporterOBJ::ExportText(const FExportObjectInnerContext* Context, UOb
 	TSet<UMaterialInterface*> GlobalMaterials;
 	TSet<UMaterialInterface*> *Materials = 0;
 
-	int32 YesNoCancelReply = FMessageDialog::Open( EAppMsgType::YesNoCancel, NSLOCTEXT("UnrealEd", "Prompt_OBJExportWithBMP", "Would you like to export the materials as images (slower)?"));
+	int32 YesNoCancelReply = EAppReturnType::Yes;
+	if (!(GIsAutomationTesting || FApp::IsUnattended() || ExportTask->bAutomated))
+	{
+		YesNoCancelReply = FMessageDialog::Open( EAppMsgType::YesNoCancel, NSLOCTEXT("UnrealEd", "Prompt_OBJExportWithBMP", "Would you like to export the materials as images (slower)?"));
+	}
+	else
+	{
+		UE_LOG(LogEditorExporters, Display, TEXT("Executing OBJ automated export, materials will be exported as images by default."));
+	}
 
 	switch (YesNoCancelReply)
 	{
