@@ -623,6 +623,10 @@ public:
 	/** Represents hash for last PhysicalMaterialTask */
 	UPROPERTY()
 	uint32 PhysicalMaterialHash;
+
+	/** Represents last saved hash for PhysicalMaterialTask */
+	UPROPERTY(Transient)
+	uint32 LastSavedPhysicalMaterialHash;
 #endif
 
 	/** For mobile */

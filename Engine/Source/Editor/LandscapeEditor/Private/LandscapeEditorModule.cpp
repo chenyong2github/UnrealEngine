@@ -127,6 +127,9 @@ public:
 			
 			FUIAction ActionBuildGrassMaps(FExecuteAction::CreateStatic(&BuildGrassMaps), FCanExecuteAction());
 			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildGrassMapsOnly","Build Grass Maps Only"), LOCTEXT("BuildLandscapeGrassMaps","Build landscape grass maps"),TAttribute<FSlateIcon>(), ActionBuildGrassMaps, EUserInterfaceActionType::Button);
+
+			FUIAction ActionBuildPhysicalMaterial(FExecuteAction::CreateStatic(&BuildPhysicalMaterial), FCanExecuteAction());
+			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildPhysicalMaterialOnly", "Build Physical Material Only"), LOCTEXT("BuildLandscapePhysicalMaterial", "Build landscape physical material"), TAttribute<FSlateIcon>(), ActionBuildPhysicalMaterial, EUserInterfaceActionType::Button);
 		}
 
 	}
@@ -220,6 +223,17 @@ public:
 			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
 			{
 				LandscapeSubsystem->BuildGrassMaps();
+			}
+		}
+	}
+
+	static void BuildPhysicalMaterial()
+	{
+		if (UWorld* World = GEditor->GetEditorWorldContext().World())
+		{
+			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+			{
+				LandscapeSubsystem->BuildPhysicalMaterial();
 			}
 		}
 	}

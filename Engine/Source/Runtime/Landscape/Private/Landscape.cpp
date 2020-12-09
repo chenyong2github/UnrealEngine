@@ -558,8 +558,10 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsSaving() && Ar.IsPersistent())
 	{
-		//Update the lastsaved Guid for GI texture
+		//Update the last saved Guid for GI texture
 		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
+		//Update the last saved Hash for physical material
+		LastSavedPhysicalMaterialHash = PhysicalMaterialHash;
 	}
 #endif
 }
@@ -805,6 +807,7 @@ void ULandscapeComponent::PostLoad()
 			}
 		}
 		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
+		LastSavedPhysicalMaterialHash = PhysicalMaterialHash;
 	}
 #endif
 
@@ -3781,12 +3784,9 @@ void FLandscapeGIBakedTextureBuilder::Build()
 {
 	if (World)
 	{
-		FScopedSlowTask SlowTask(OutdatedGIBakedTextureComponentsCount, (LOCTEXT("BakeTextures_BuildLandscapeBakedTextures", "Baking Landscape Textures")));
-		SlowTask.MakeDialog();
-
 		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
 		{
-			ProxyIt->BuildGIBakedTextures(&SlowTask);
+			ProxyIt->BuildGIBakedTextures();
 		}
 		//Force update the outdated count when using the build menu option.
 		OutdatedGIBakedTextureComponentsCount = 0;
@@ -4075,11 +4075,98 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 	}
 }
 
-void ALandscapeProxy::UpdatePhysicalMaterialTasks()
+FLandscapePhysicalMaterialBuilder::FLandscapePhysicalMaterialBuilder(UWorld* InWorld)
+	:World(InWorld)
+	,OudatedPhysicalMaterialComponentsCount(0)
 {
-	for (ULandscapeComponent* Component : LandscapeComponents)
+}
+
+void FLandscapePhysicalMaterialBuilder::Build()
+{
+	if (World)
+	{
+		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+		{
+			ProxyIt->BuildPhysicalMaterial();
+		}
+	}
+}
+
+int32 FLandscapePhysicalMaterialBuilder::GetOudatedPhysicalMaterialComponentsCount()
+{
+	if (World)
+	{
+		OudatedPhysicalMaterialComponentsCount = 0;
+		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+		{
+			OudatedPhysicalMaterialComponentsCount += ProxyIt->GetOudatedPhysicalMaterialComponentsCount();
+		}
+	}
+	return OudatedPhysicalMaterialComponentsCount;
+}
+
+int32 ALandscapeProxy::GetOudatedPhysicalMaterialComponentsCount() const
+{
+	int32 OudatedPhysicalMaterialComponentsCount = 0;
+	UpdatePhysicalMaterialTasksStatus(nullptr, &OudatedPhysicalMaterialComponentsCount);
+	return OudatedPhysicalMaterialComponentsCount;
+}
+
+void ALandscapeProxy::BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		const bool bShouldMarkDirty = true;
+		UpdatePhysicalMaterialTasks(bShouldMarkDirty);
+	}
+}
+
+void ALandscapeProxy::UpdatePhysicalMaterialTasksStatus(TSet<ULandscapeComponent*>* OutdatedComponents, int32* OutdatedComponentsCount) const
+{
+	int32 OutdatedCount = 0;
+	for (auto Component : LandscapeComponents)
+	{
+		uint32 Hash = Component->CalculatePhysicalMaterialTaskHash();
+		if (Component->PhysicalMaterialHash != Hash || Component->PhysicalMaterialTask.IsValid())
+		{
+			OutdatedCount++;
+			if (OutdatedComponents)
+			{
+				OutdatedComponents->Add(Component);
+			}
+		}
+	}
+
+	if (OutdatedCount == 0)
+	{
+		for (auto Component : LandscapeComponents)
+		{
+			const bool bIsDirty = Component->GetPackage()->IsDirty();
+			if (Component->LastSavedPhysicalMaterialHash != Component->PhysicalMaterialHash && !bIsDirty)
+			{
+				OutdatedCount++;
+			}
+		}
+	}
+
+	if (OutdatedComponentsCount)
+	{
+		*OutdatedComponentsCount = OutdatedCount;
+	}
+}
+
+void ALandscapeProxy::UpdatePhysicalMaterialTasks(bool bInShouldMarkDirty)
+{
+	TSet<ULandscapeComponent*> OutdatedComponents;
+	int32 PendingComponentsToBeSaved = 0;
+	UpdatePhysicalMaterialTasksStatus(&OutdatedComponents, &PendingComponentsToBeSaved);
+	for (ULandscapeComponent* Component : OutdatedComponents)
 	{
 		Component->UpdatePhysicalMaterialTasks();
+	}
+	if (bInShouldMarkDirty && PendingComponentsToBeSaved >0)
+	{
+		MarkPackageDirty();
 	}
 }
 #endif

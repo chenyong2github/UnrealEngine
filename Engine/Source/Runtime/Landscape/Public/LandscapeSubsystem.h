@@ -36,6 +36,8 @@ public:
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
 	LANDSCAPE_API void BuildGIBakedTextures();
 	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount();
+	LANDSCAPE_API void BuildPhysicalMaterial();
+	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
 	LANDSCAPE_API bool IsGridBased() const;
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
@@ -53,5 +55,6 @@ private:
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
 	class FLandscapeGIBakedTextureBuilder* GIBakedTextureBuilder;
+	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder;
 #endif
 };

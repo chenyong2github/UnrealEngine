@@ -946,7 +946,9 @@ public:
 	void UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount=nullptr) const;
 
 	/** Update the landscape physical material render tasks */
-	void UpdatePhysicalMaterialTasks();
+	void UpdatePhysicalMaterialTasks(bool bInShouldMarkDirty = false);
+
+	void UpdatePhysicalMaterialTasksStatus(TSet<ULandscapeComponent*>* OutdatedComponents, int32* OutdatedComponentsCount) const;
 
 	/** Frame counter to count down to the next time we check to update baked textures, so we don't check every frame */
 	int32 UpdateBakedTexturesCountdown;
@@ -995,6 +997,8 @@ public:
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
 	LANDSCAPE_API void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr);
 	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() const;
+	LANDSCAPE_API void BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
 	LANDSCAPE_API virtual void CreateSplineComponent(const FVector& Scale3D) override;
 
@@ -1233,5 +1237,20 @@ private:
 	UWorld* World;
 	mutable int32 OutdatedGIBakedTextureComponentsCount;
 	mutable double GIBakedTexturesLastCheckTime;
+};
+
+
+/**
+ * Helper class used to Build or monitor Landscape Physical Material
+ */
+class LANDSCAPE_API FLandscapePhysicalMaterialBuilder
+{
+public:
+	FLandscapePhysicalMaterialBuilder(UWorld* InWorld);
+	void Build();
+	int32 GetOudatedPhysicalMaterialComponentsCount();
+private:
+	UWorld* World;
+	int32 OudatedPhysicalMaterialComponentsCount;
 };
 #endif

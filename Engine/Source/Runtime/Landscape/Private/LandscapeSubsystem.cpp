@@ -52,6 +52,7 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
+	PhysicalMaterialBuilder = new FLandscapePhysicalMaterialBuilder(GetWorld());
 #endif
 }
 
@@ -65,6 +66,10 @@ void ULandscapeSubsystem::Deinitialize()
 	if (GIBakedTextureBuilder)
 	{
 		delete GIBakedTextureBuilder;
+	}
+	if (PhysicalMaterialBuilder)
+	{
+		delete PhysicalMaterialBuilder;
 	}
 #endif
 	Proxies.Empty();
@@ -160,6 +165,7 @@ void ULandscapeSubsystem::BuildAll()
 {
 	BuildGrassMaps();
 	BuildGIBakedTextures();
+	BuildPhysicalMaterial();
 }
 
 void ULandscapeSubsystem::BuildGrassMaps()
@@ -180,6 +186,16 @@ void ULandscapeSubsystem::BuildGIBakedTextures()
 int32 ULandscapeSubsystem::GetOutdatedGIBakedTextureComponentsCount()
 {
 	return GIBakedTextureBuilder->GetOutdatedGIBakedTextureComponentsCount(/*bInForceUpdate*/false);
+}
+
+void ULandscapeSubsystem::BuildPhysicalMaterial()
+{
+	PhysicalMaterialBuilder->Build();
+}
+
+int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
+{
+	return PhysicalMaterialBuilder->GetOudatedPhysicalMaterialComponentsCount();
 }
 
 bool ULandscapeSubsystem::IsGridBased() const
@@ -219,7 +235,7 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 	if (int32 OutdatedGrassMapCount = GetOutdatedGrassMapCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "GRASS MAPS NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
+		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "GRASS MAPS NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
 	}
@@ -227,7 +243,15 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 	if (int32 ComponentsNeedingGITextureBaking = GetOutdatedGIBakedTextureComponentsCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE BAKED TEXTURES NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
+		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE BAKED TEXTURES NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
+		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
+		YPos += FontSizeY;
+	}
+
+	if (int32 ComponentsWithOudatedPhysicalMaterial = GetOudatedPhysicalMaterialComponentsCount())
+	{
+		SmallTextItem.SetColor(FLinearColor::Red);
+		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_PHYSICALMATERIAL_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE PHYSICAL MATERIAL NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsWithOudatedPhysicalMaterial);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
 	}
