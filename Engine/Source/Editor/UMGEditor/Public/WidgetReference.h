@@ -50,6 +50,8 @@ public:
 		return TSharedPtr<SWidget>();
 	}
 
+	TSharedPtr<FWidgetBlueprintEditor> GetWidgetEditor() const { return WidgetEditor.Pin(); };
+
 	/** Checks if widget reference is the same as another widget reference, based on the template pointers. */
 	bool operator==( const FWidgetReference& Other ) const
 	{
