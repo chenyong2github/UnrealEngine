@@ -108,6 +108,8 @@ PxU32 getBinaryPlatformTag()
 	return sBinaryPlatformTags[4];
 #elif PX_OSX && PX_X64
 	return sBinaryPlatformTags[5];
+#elif PX_OSX && PX_A64
+	return sBinaryPlatformTags[9];
 #elif PX_PS4
 	return sBinaryPlatformTags[6];
 #elif PX_ANDROID

@@ -159,7 +159,7 @@ bool InitGamePhysCore()
 	// 1 legacy module for all in APEX 1.3
 	// Load the only 1 legacy module
 #if WITH_APEX_LEGACY
-	GApexModuleLegacy = GApexSDK->createModule("Legacy");
+	GApexModuleLegacy = GApexSDK->createModule("Legacy", &ErrorCode);
 	check(GApexModuleLegacy);
 #endif // WITH_APEX_LEGACY
 

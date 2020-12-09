@@ -1175,7 +1175,7 @@ abstract class BuildPhysX_MacBase : BuildPhysX.XcodeTargetPlatform
 
 	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
 	{ 
-		return string.Format(" -DCMAKE_OSX_ARCHITECTURES=\"{0}\"", Arch);
+		return string.Format(" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_OSX_ARCHITECTURES=\"{0}\"", Arch);
 	}
 }
 
