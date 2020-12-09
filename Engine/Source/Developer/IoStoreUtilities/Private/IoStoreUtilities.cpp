@@ -3568,11 +3568,6 @@ private:
 			Event->Trigger();
 		}
 
-		bool IsDoneAdding() const
-		{
-			return bIsDoneAdding;
-		}
-
 	private:
 		FCriticalSection CriticalSection;
 		FEvent* Event = nullptr;
@@ -3636,15 +3631,15 @@ private:
 		for (;;)
 		{
 			FQueueEntry* QueueEntry = InitiatorQueue.DequeueOrWait();
+			if (!QueueEntry)
+			{
+				return;
+			}
 			while (QueueEntry)
 			{
 				FQueueEntry* Next = QueueEntry->Next;
 				Start(QueueEntry);
 				QueueEntry = Next;
-			}
-			if (InitiatorQueue.IsDoneAdding())
-			{
-				return;
 			}
 		}
 	}
@@ -3654,15 +3649,15 @@ private:
 		for (;;)
 		{
 			FQueueEntry* QueueEntry = RetirerQueue.DequeueOrWait();
+			if (!QueueEntry)
+			{
+				return;
+			}
 			while (QueueEntry)
 			{
 				FQueueEntry* Next = QueueEntry->Next;
 				Retire(QueueEntry);
 				QueueEntry = Next;
-			}
-			if (RetirerQueue.IsDoneAdding())
-			{
-				return;
 			}
 		}
 	}
