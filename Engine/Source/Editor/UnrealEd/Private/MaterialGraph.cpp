@@ -425,6 +425,15 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 						NodesToCheck.Push(InputPins[Index]->LinkedTo[0]->GetOwningNode());
 					}
 				}
+
+				// Since named reroute nodes don't have any input pins, we manually push the declaration node here
+				if (const UMaterialExpressionNamedRerouteUsage* NamedRerouteUsage = Cast<UMaterialExpressionNamedRerouteUsage>(GraphNode->MaterialExpression))
+				{
+					if (NamedRerouteUsage->Declaration && NamedRerouteUsage->Declaration->GraphNode)
+					{
+						NodesToCheck.Push(NamedRerouteUsage->Declaration->GraphNode);
+					}
+				}
 			}
 		}
 	}
