@@ -351,14 +351,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult * RightResult);
@@ -423,14 +423,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult / RightResult);
@@ -496,14 +496,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult + RightResult);
@@ -569,14 +569,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult - RightResult);
@@ -641,14 +641,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult);
@@ -714,14 +714,14 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta2 = (SamplesArray[Index] - RadialFalloff->Position).SizeSquared();
-			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize2 - RadialFalloffDelta2) / RadialFalloffSize2;
-			if (RadialFalloffDelta2 >= RadialFalloffSize2)
+			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			float ScalarResult = RadialFalloff->Magnitude* (RadialFalloffSize - RadialFalloffDelta) / RadialFalloffSize;
+			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
 			FVector ExpectedVal = ScalarResult * (RightResult);
@@ -831,7 +831,7 @@ namespace GeometryCollectionTest
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff->Radius = 10;
 		RadialFalloff->Magnitude = 3.0;
-		float RadialFalloffRadius2 = RadialFalloff->Radius * RadialFalloff->Radius;
+		float RadialFalloffRadius = RadialFalloff->Radius;
 
 		FRadialFalloff * RadialFalloff2 = new FRadialFalloff();
 		RadialFalloff2->Position = FVector(5.0, 0.0, 0.0);
@@ -857,10 +857,10 @@ namespace GeometryCollectionTest
 		{
 			float ScalarRight = 0.f;
 			{// FRadialFalloff::Evaluate
-				float  RadialFalloffDelta2 = (RadialFalloff->Position - SamplesArray[Index]).SizeSquared();
-				if (RadialFalloffDelta2 < RadialFalloffRadius2)
+				float  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
-					ScalarRight = RadialFalloff->Magnitude * (RadialFalloffRadius2 - RadialFalloffDelta2) / RadialFalloffRadius2;
+					ScalarRight = RadialFalloff->Magnitude * (RadialFalloffRadius - RadialFalloffDelta) / RadialFalloffRadius;
 				}
 			}
 
