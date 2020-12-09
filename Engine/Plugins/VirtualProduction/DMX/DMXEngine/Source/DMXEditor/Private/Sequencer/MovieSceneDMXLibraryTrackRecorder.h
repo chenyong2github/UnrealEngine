@@ -52,8 +52,7 @@ public:
 
 public:
 	// Creates a track. We don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed.
-	void CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bInAlwaysUseTimecode, bool bDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject);
-	void AddContentsToFolder(UMovieSceneFolder* InFolder);
+	TWeakObjectPtr<UMovieSceneDMXLibraryTrack> CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bInAlwaysUseTimecode, bool bDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject);
 	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }
 
 	// Refreshes the recorder. Useful when the underlying DMX Library changed.
