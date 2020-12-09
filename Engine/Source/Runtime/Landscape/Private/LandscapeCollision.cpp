@@ -1254,8 +1254,9 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 	MeshDesc.Indices = MoveTemp(Indices);
 	MeshDesc.MaterialIndices = MoveTemp(MaterialIndices);
 	CookInfo.bCookTriMesh = true;
-	TArray<int32> Remap;
-	TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh = FChaosDerivedDataCooker::BuildSingleTrimesh(MeshDesc, Remap);
+	TArray<int32> FaceRemap;
+	TArray<int32> VertexRemap;
+	TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh = FChaosDerivedDataCooker::BuildSingleTrimesh(MeshDesc, FaceRemap, VertexRemap);
 
 	if(Trimesh.IsValid())
 	{

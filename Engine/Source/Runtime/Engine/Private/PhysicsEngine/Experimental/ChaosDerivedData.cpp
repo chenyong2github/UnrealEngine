@@ -95,7 +95,7 @@ FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFo
 
 }
 
-TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap)
+TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap, TArray<int32>& OutVertexRemap)
 {
 	if(Desc.Vertices.Num() == 0)
 	{
@@ -117,7 +117,7 @@ TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSin
 
 	if(EnableMeshClean)
 	{
-		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
+		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap, &OutVertexRemap);
 	}
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
@@ -131,7 +131,7 @@ TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSin
 	}
 
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
-	auto LambdaHelper = [&Desc, &FinalVerts, &FinalIndices, &TriMeshParticles, &OutFaceRemap](auto& Triangles) -> TUniquePtr<Chaos::FTriangleMeshImplicitObject>
+	auto LambdaHelper = [&Desc, &FinalVerts, &FinalIndices, &TriMeshParticles, &OutFaceRemap, &OutVertexRemap](auto& Triangles) -> TUniquePtr<Chaos::FTriangleMeshImplicitObject>
 	{
 		const int32 NumTriangles = FinalIndices.Num() / 3;
 		bool bHasMaterials = Desc.MaterialIndices.Num() > 0;
@@ -200,7 +200,8 @@ TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSin
 		}
 
 		TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
-		return MakeUnique<Chaos::FTriangleMeshImplicitObject>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr));
+		TUniquePtr<TArray<int32>> OutVertexRemapPtr = MakeUnique<TArray<int32>>(OutVertexRemap);
+		return MakeUnique<Chaos::FTriangleMeshImplicitObject>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr));
 	};
 
 	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
@@ -217,7 +218,7 @@ TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSin
 	return nullptr;
 }
 
-void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams)
+void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, TArray<int32>& OutVertexRemap, const FCookBodySetupInfo& InParams)
 {
 	if(!InParams.bCookTriMesh)
 	{
@@ -239,7 +240,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 
 	if (EnableMeshClean)
 	{
-		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
+		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap, &OutVertexRemap);
 	}
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
@@ -322,7 +323,8 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 		}
 
 		TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
-		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr)));
+		TUniquePtr<TArray<int32>> OutVertexRemapPtr = MakeUnique<TArray<int32>>(OutVertexRemap);
+		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr)));
 	};
 
 	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
@@ -430,9 +432,10 @@ void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodyS
 	TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>> ComplexImplicits;
 
 	TArray<int32> FaceRemap;
+	TArray<int32> VertexRemap;
 	//BuildSimpleShapes(SimpleImplicits, Setup);
 	BuildConvexMeshes(SimpleImplicits, InInfo);
-	BuildTriangleMeshes(ComplexImplicits, FaceRemap, InInfo);
+	BuildTriangleMeshes(ComplexImplicits, FaceRemap, VertexRemap, InInfo);
 
 	//TUniquePtr<Chaos::TImplicitObjectUnion<Precision, 3>> SimpleUnion = MakeUnique<Chaos::TImplicitObjectUnion<Precision, 3>>(MoveTemp(SimpleImplicits));
 	//TUniquePtr<Chaos::TImplicitObjectUnion<Precision, 3>> ComplexUnion = MakeUnique<Chaos::TImplicitObjectUnion<Precision, 3>>(MoveTemp(ComplexImplicits));
