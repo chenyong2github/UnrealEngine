@@ -10,6 +10,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "TimerManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "UObject/ConstructorHelpers.h"
 #include "ProceduralMeshComponent.h"
 #include "IHandTracker.h"
