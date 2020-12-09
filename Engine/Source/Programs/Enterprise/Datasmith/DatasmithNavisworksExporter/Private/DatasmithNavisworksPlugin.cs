@@ -2898,7 +2898,6 @@ namespace DatasmithNavisworks
 			public bool bIsSimpleGeometry;
 			public bool bChildrenOnlySimple;
 			public FDatasmithFacadeActor DatasmithActor;
-			public TransformMatrix Transform;
 		}
 
 		class Appearance : IEquatable<Appearance>
