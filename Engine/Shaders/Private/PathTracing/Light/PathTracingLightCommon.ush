@@ -144,6 +144,31 @@ float ComputeAttenuationFalloff(float Distance, float Attenuation)
 #endif
 }
 
+
+Texture3D    IESTexture;
+SamplerState IESTextureSampler;
+
+float ComputeIESAttenuation(int LightId, float3 WorldPosition)
+{
+	float Result = 1.f;
+	if (SceneLightsData.IESTextureSlice[LightId] >= 0)
+	{
+		float3 LightDirection = normalize(GetPosition(LightId) - WorldPosition);
+
+		float DotProd = dot(LightDirection, GetNormal(LightId));
+		float Angle = asin(DotProd);
+		const float NormAngle = Angle / PI + 0.5f;
+
+		float du = dot(LightDirection, GetdPdu(LightId));
+		float dv = dot(LightDirection, GetdPdv(LightId));
+		float NormTangentAngle = atan2(dv, du) / (PI * 2.f) + 0.5f;
+
+		const float3 UVW = float3(NormAngle, NormTangentAngle, SceneLightsData.IESTextureSlice[LightId]);
+		Result = Texture3DSampleLevel(IESTexture, IESTextureSampler, UVW, 0).r;
+	}
+	return Result;
+}
+
 bool HasTransmission(int LightId)
 {
 	return SceneLightsData.Flags[LightId] & 0x01;
