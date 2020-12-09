@@ -113,7 +113,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		LOCTEXT("OnStartStaticMeshLODAssetTool", "This tool creates a new LOD asset"),
 		EToolMessageLevel::UserNotification);
 
-	GenerateProcess = MakeUnique<FGenerateStaticMeshLODProcess>();
+	GenerateProcess = NewObject<UGenerateStaticMeshLODProcess>(this);
 
 	TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
 	UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
@@ -160,7 +160,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	{
 		// TODO: We crash if we don't recreate the Process and reinitialize it. Why?
 
-		GenerateProcess = MakeUnique<FGenerateStaticMeshLODProcess>();
+		GenerateProcess = NewObject<UGenerateStaticMeshLODProcess>(this);
 
 		TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
@@ -254,7 +254,7 @@ void UGenerateStaticMeshLODAssetTool::ValidatePreview()
 	});
 	PreviewMesh->UpdateTangents(&ResultTangents, true);
 
-	FGenerateStaticMeshLODProcess::FPreviewMaterials PreviewMaterialSet;
+	UGenerateStaticMeshLODProcess::FPreviewMaterials PreviewMaterialSet;
 	GenerateProcess->GetDerivedMaterialsPreview(PreviewMaterialSet);
 	if (PreviewMaterialSet.Materials.Num() > 0)
 	{

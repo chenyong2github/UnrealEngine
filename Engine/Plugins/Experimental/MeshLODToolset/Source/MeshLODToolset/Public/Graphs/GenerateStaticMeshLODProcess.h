@@ -85,9 +85,11 @@ struct FGenerateStaticMeshLODProcessSettings
 };
 
 
-
-class FGenerateStaticMeshLODProcess
+UCLASS(Transient)
+class UGenerateStaticMeshLODProcess : public UObject
 {
+	GENERATED_BODY()
+
 public:
 
 	bool Initialize(UStaticMesh* SourceMesh);
@@ -135,7 +137,9 @@ public:
 
 protected:
 
+	UPROPERTY()
 	UStaticMesh* SourceStaticMesh;
+
 	FString SourceAssetPath;
 	FString SourceAssetFolder;
 	FString SourceAssetName;
@@ -172,9 +176,16 @@ protected:
 	FSimpleShapeSet3d DerivedCollision;
 	UE::GeometryFlow::FNormalMapImage DerivedNormalMapImage;
 	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>> DerivedTextureImages;
-	TMap<UTexture2D*, int32> TextureToDerivedTexIndex;
+	TMap<UTexture2D*, int32> SourceTextureToDerivedTexIndex;
 
 	TArray<FMaterialInfo> DerivedMaterials;
+
+	// This list is for accumulating derived UTexture2D's created during WriteDerivedTextures(). We have to
+	// maintain uproperty references to these or they may be garbage collected
+	UPROPERTY()
+	TSet<UTexture2D*> AllDerivedTextures;
+
+	UPROPERTY()
 	UTexture2D* DerivedNormalMapTex;
 
 	TUniquePtr<FGenerateMeshLODGraph> Generator;

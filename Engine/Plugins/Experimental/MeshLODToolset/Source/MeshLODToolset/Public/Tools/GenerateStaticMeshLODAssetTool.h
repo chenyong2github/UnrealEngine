@@ -134,7 +134,8 @@ protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
-	TUniquePtr<FGenerateStaticMeshLODProcess> GenerateProcess;
+	UPROPERTY()
+	UGenerateStaticMeshLODProcess* GenerateProcess;
 
 	void OnSettingsModified();
 
