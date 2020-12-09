@@ -32,6 +32,9 @@
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
+#include "AssetData.h"
+#include "ActorFactories/ActorFactory.h"
+#include "ActorFactories/ActorFactoryBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "EditorLevelLibrary"
 
@@ -349,6 +352,56 @@ void UEditorLevelLibrary::EditorInvalidateViewports()
 	{
 		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
 		LevelViewportClient.Invalidate();
+	}
+}
+
+void UEditorLevelLibrary::ReplaceSelectedActors(const FString& InAssetPath)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	if (InAssetPath.IsEmpty())
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("ReplaceSelectedActors: Asset path is empty."));
+		return;
+	}
+
+	FString OutFailureReason;
+	FAssetData AssetData = EditorScriptingUtils::FindAssetDataFromAnyPath(InAssetPath, OutFailureReason);
+	if (!AssetData.IsValid())
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("ReplaceSelectedActors: Asset path not found: %s. %s"), *InAssetPath, *OutFailureReason);
+		return;
+	}
+
+	if (UClass* AssetClass = AssetData.GetClass())
+	{
+		UActorFactory* Factory = nullptr;
+
+		if (AssetClass->IsChildOf(UBlueprint::StaticClass()))
+		{
+			Factory = GEditor->FindActorFactoryByClass(UActorFactoryBlueprint::StaticClass());
+		}
+		else
+		{
+			const TArray<UActorFactory*>& ActorFactories = GEditor->ActorFactories;
+			for (int32 FactoryIdx = 0; FactoryIdx < ActorFactories.Num(); FactoryIdx++)
+			{
+				UActorFactory* ActorFactory = ActorFactories[FactoryIdx];
+
+				// Check if the actor can be created using this factory, making sure to check for an asset to be assigned from the selector
+				FText ErrorMessage;
+				if (ActorFactory->CanCreateActorFrom(AssetData, ErrorMessage))
+				{
+					Factory = ActorFactory;
+					break;
+				}
+			}
+		}
+
+		if (Factory)
+		{
+			GEditor->ReplaceSelectedActors(Factory, AssetData);
+		}
 	}
 }
 
