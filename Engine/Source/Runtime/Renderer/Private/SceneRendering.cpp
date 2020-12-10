@@ -1827,13 +1827,6 @@ void FViewInfo::InitRHIResources()
 
 	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
-	// Reset CachedView when CachedViewUniformShaderParameters change.
-	FScene* Scene = Family->Scene ? Family->Scene->GetRenderScene() : nullptr;
-	if (Scene)
-	{
-		Scene->UniformBuffers.InvalidateCachedView();
-	}
-
 	for (int32 CascadeIndex = 0; CascadeIndex < TVC_MAX; CascadeIndex++)
 	{
 		TranslucencyLightingVolumeMin[CascadeIndex] = VolumeBounds[CascadeIndex].Min;

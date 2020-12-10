@@ -360,8 +360,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
-	// Initialize global system textures (pass-through if already initialized).
-	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	// Allocate the maximum scene render target space for the current view family.
@@ -491,17 +489,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	// update buffers used in cached mesh path
-	// in case there are multiple views, these buffers will be updated before rendering each view
-	if (Views.Num() > 0)
-	{
-		const FViewInfo& View = Views[0];
-		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
-		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
-		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-	}
 	if (bDeferredShading)
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
@@ -567,10 +554,13 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	// Initialize global system textures (pass-through if already initialized).
+	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
+	FRDGSystemTextures::Create(GraphBuilder);
+
 	// Find the visible primitives and prepare targets and buffers for rendering
 	InitViews(GraphBuilder);
 
-	
 	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_PostInitViewsFlushDel);
@@ -1412,32 +1402,25 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRDGBuilder& GraphBuilde
 	}
 }
 
-void FMobileSceneRenderer::UpdateOpaqueBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, false, false, Parameters);
-	Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
-	SetupMobileBasePassUniformParameters(RHICmdList, View, false, true, Parameters);
-	Scene->UniformBuffers.MobileCSMOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);	
-}
-
-void FMobileSceneRenderer::UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
-{
-	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, true, false, Parameters);
-	Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
-}
-
-void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
-{
-	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
-	// Fill in the other entries based on the lights
-	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	if (CachedView == &View)
 	{
-		FMobileDirectionalLightShaderParameters Params;
-		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
-		Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
+		return;
 	}
+	CachedView = &View;
+
+	AddPass(GraphBuilder, [this, &View](FRHICommandList&)
+	{
+		const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
+		// Fill in the other entries based on the lights
+		for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+		{
+			FMobileDirectionalLightShaderParameters Params;
+			SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
+			Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
+		}
+	});
 }
 
 void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()

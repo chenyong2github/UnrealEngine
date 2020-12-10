@@ -98,19 +98,9 @@ ENUM_CLASS_FLAGS(EMobileSceneTextureSetupMode);
 
 /** Fills the scene texture uniform buffer struct. */
 extern RENDERER_API void SetupMobileSceneTextureUniformParameters(
-	const FSceneRenderTargets& SceneContext,
-	EMobileSceneTextureSetupMode SetupMode,
-	FMobileSceneTextureUniformParameters& SceneTextureParameters);
-
-extern RENDERER_API void SetupMobileSceneTextureUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	EMobileSceneTextureSetupMode SetupMode,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters);
-
-/** Creates the RHI mobile scene texture uniform buffer with passthrough RDG resources. */
-extern RENDERER_API TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
-	FRHIComputeCommandList& RHICmdList,
-	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
 
 /** Creates the RDG mobile scene texture uniform buffer. */
 extern RENDERER_API TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
@@ -154,6 +144,18 @@ extern RENDERER_API TUniformBufferRef<FSceneTextureUniformParameters> CreateScen
 	FRHIComputeCommandList& RHICmdList,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+
+UE_DEPRECATED(5.0, "SetupMobileSceneTextureUniformParameters now requires an FRDGBuilder.")
+extern RENDERER_API void SetupMobileSceneTextureUniformParameters(
+	const FSceneRenderTargets& SceneContext,
+	EMobileSceneTextureSetupMode SetupMode,
+	FMobileSceneTextureUniformParameters& SceneTextureParameters);
+
+/** Creates the RHI mobile scene texture uniform buffer with passthrough RDG resources. */
+UE_DEPRECATED(5.0, "CreateMobileSceneTextureUniformBuffer now requires an FRDGBuilder.")
+extern RENDERER_API TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
+	FRHIComputeCommandList& RHICmdList,
+	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
 
 UE_DEPRECATED(5.0, "Use CreateSceneTextureShaderParameters instead.")
 extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(

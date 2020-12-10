@@ -539,8 +539,6 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	}
 }
 
-extern void SetupFogUniformParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters);
-
 void SetupSharedBasePassParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -548,13 +546,13 @@ void SetupSharedBasePassParameters(
 {
 	SharedParameters.Forward = View.ForwardLightingResources->ForwardLightData;
 
-	SetupFogUniformParameters(&GraphBuilder, View, SharedParameters.Fog);
+	SetupFogUniformParameters(GraphBuilder, View, SharedParameters.Fog);
 
 	if (View.IsInstancedStereoPass())
 	{
 		const FSceneView& RightEye = *View.Family->Views[1];
 		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;
-		SetupFogUniformParameters(&GraphBuilder, (FViewInfo&)RightEye, SharedParameters.FogISR);
+		SetupFogUniformParameters(GraphBuilder, (FViewInfo&)RightEye, SharedParameters.FogISR);
 	}
 	else
 	{

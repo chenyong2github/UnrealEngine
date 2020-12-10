@@ -493,24 +493,12 @@ void FMeshMaterialShader::GetShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings) const
 {
 	FMaterialShader::GetShaderBindings(Scene, FeatureLevel, MaterialRenderProxy, Material, ShaderBindings);
-	if (PassUniformBuffer.IsInitialized())
-	{
-		ShaderBindings.Add(PassUniformBuffer, DrawRenderState.GetPassUniformBuffer());
-	}
-	else
-	{
-		checkf(!DrawRenderState.GetPassUniformBuffer(), TEXT("Shader is missing the pass uniform buffer binding in the parameter map and the mesh pass draw render state requires it."));
-	}
 	if (DrawRenderState.GetViewUniformBuffer())
 	{
 		ShaderBindings.Add(GetUniformBufferParameter<FViewUniformShaderParameters>(), DrawRenderState.GetViewUniformBuffer());
 	}
 	ShaderBindings.Add(GetUniformBufferParameter<FDistanceCullFadeUniformShaderParameters>(), ShaderElementData.FadeUniformBuffer);
 	ShaderBindings.Add(GetUniformBufferParameter<FDitherUniformShaderParameters>(), ShaderElementData.DitherUniformBuffer);
-	if (DrawRenderState.GetInstancedViewUniformBuffer())
-	{
-		ShaderBindings.Add(GetUniformBufferParameter<FInstancedViewUniformShaderParameters>(), DrawRenderState.GetInstancedViewUniformBuffer());
-	}
 	ShaderBindings.Add(GetUniformBufferParameter<FNaniteUniformParameters>(), DrawRenderState.GetNaniteUniformBuffer());
 }
 

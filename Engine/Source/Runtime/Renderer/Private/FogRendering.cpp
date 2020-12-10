@@ -56,7 +56,7 @@ struct FHeightFogRenderingParameters
 	FVector4 LinearDepthMinMaxUV;
 };
 
-void SetupFogUniformParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters)
+void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters)
 {
 	// Exponential Height Fog
 	{
@@ -89,23 +89,11 @@ void SetupFogUniformParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View,
 		}
 		else
 		{
-			if (GraphBuilder)
-			{
-				OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetRDG(*GraphBuilder);
-			}
-			else
-			{
-				OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetPassthroughRDG();
-			}
+			OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetRDG(GraphBuilder);
 			OutParameters.ApplyVolumetricFog = 0.0f;
 		}
 		OutParameters.IntegratedLightScatteringSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
-}
-
-void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters)
-{
-	SetupFogUniformParameters(&GraphBuilder, View, OutParameters);
 }
 
 TRDGUniformBufferRef<FFogUniformParameters> CreateFogUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)

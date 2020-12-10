@@ -51,9 +51,13 @@ void FMobileSceneRenderer::RenderTranslucency(FRDGBuilder& GraphBuilder, FRender
 				continue;
 			}
 
+			View.BeginRenderView();
+			UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
+
 			auto* TranslucencyBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
+			TranslucencyBasePassParameters->View = View.GetShaderParameters();
+			TranslucencyBasePassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent);
 			TranslucencyBasePassParameters->RenderTargets = BasePassRenderTargets;
-			TranslucencyBasePassParameters->MobileBasePass = Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderTranslucencyBasePass"), TranslucencyBasePassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, &View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
@@ -62,12 +66,6 @@ void FMobileSceneRenderer::RenderTranslucency(FRDGBuilder& GraphBuilder, FRender
 
 				if (!View.Family->UseDebugViewPS())
 				{
-					if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-					{
-						UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-						UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-					}
-
 					const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
 					View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList);
 				}
@@ -85,8 +83,12 @@ void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const
 	FRDGTextureMSAA SceneColorMSAA = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
 	FRDGTextureMSAA SceneDepthMSAA = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
 
+	View.BeginRenderView();
+	UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
+
 	auto* InverseOpacityParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
-	InverseOpacityParameters->MobileBasePass = Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer;
+	InverseOpacityParameters->View = View.GetShaderParameters();
+	InverseOpacityParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent);
 	InverseOpacityParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorMSAA.Target, SceneColorMSAA.Resolve, ERenderTargetLoadAction::EClear);
 	InverseOpacityParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthMSAA.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	// Opacity could fetch depth as we use exactly the same shaders as in base pass
@@ -95,12 +97,6 @@ void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const
 	GraphBuilder.AddPass(RDG_EVENT_NAME("InverseOpacityPass"), InverseOpacityParameters, ERDGPassFlags::Raster,
 		[this, &View](FRHICommandListImmediate& RHICmdList)
 	{
-		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-		{
-			UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-			UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-		}
-
 		// Mobile multi-view is not side by side stereo
 		const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
 		RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
@@ -121,7 +117,7 @@ void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const
 // This pass is registered only when we render to scene capture, see UpdateSceneCaptureContentMobile_RenderThread()
 FMeshPassProcessor* CreateMobileInverseOpacityPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
+	FMeshPassProcessorRenderState PassDrawRenderState;
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_ALPHA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
 	PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead);

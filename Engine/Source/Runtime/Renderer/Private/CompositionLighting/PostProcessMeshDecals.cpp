@@ -175,10 +175,6 @@ FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene,
 	, RenderTargetMode(InRenderTargetMode)
 {
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
-	{
-		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
-	}
 }
 
 void FMeshDecalMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -421,7 +417,8 @@ void RenderMeshDecalsMobile(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots
 		FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal : 
 		FDecalRenderingCommon::RTM_SceneColor;
 
-	auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	auto* PassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
+	PassParameters->View = View.GetShaderParameters();
 	PassParameters->RenderTargets = BasePassRenderTargets;
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshDecalsPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,

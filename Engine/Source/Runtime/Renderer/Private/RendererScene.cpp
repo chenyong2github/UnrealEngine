@@ -897,11 +897,6 @@ FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWo
 void FPersistentUniformBuffers::Clear()
 {
 	ViewUniformBuffer.SafeRelease();
-	InstancedViewUniformBuffer.SafeRelease();
-	MobileOpaqueBasePassUniformBuffer.SafeRelease();
-	MobileTranslucentBasePassUniformBuffer.SafeRelease();
-
-
 	for (auto& UniformBuffer : MobileDirectionalLightUniformBuffers)
 	{
 		UniformBuffer.SafeRelease();
@@ -910,24 +905,17 @@ void FPersistentUniformBuffers::Clear()
 
 	Initialize();
 }
+
 void FPersistentUniformBuffers::Initialize()
 {
 	FViewUniformShaderParameters ViewUniformBufferParameters;
 	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	FInstancedViewUniformShaderParameters InstancedViewUniformBufferParameters;
-	InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(InstancedViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	FNaniteUniformParameters NaniteUniformBufferParameters;
 	NaniteUniformBuffer = TUniformBufferRef<FNaniteUniformParameters>::CreateUniformBufferImmediate(NaniteUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	LumenCardCaptureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
-	FMobileBasePassUniformParameters MobileBasePassUniformParameters;
-	MobileOpaqueBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-	MobileCSMOpaqueBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-	MobileTranslucentBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-		
 	FMobileDirectionalLightShaderParameters MobileDirectionalLightShaderParameters = {};
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(MobileDirectionalLightUniformBuffers); ++Index)
 	{
@@ -943,48 +931,6 @@ TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensio
 void FRendererModule::RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension)
 {
 	PersistentViewUniformBufferExtensions.Add(Extension);
-}
-
-bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs)
-{
-	checkf(FSceneInterface::GetShadingPath(View.GetFeatureLevel()) != EShadingPath::Deferred,
-		TEXT("UpdateViewUniformBuffer use is deprecated for the deferred shading renderer. The view uniform buffer must be bound ")
-		TEXT("globally instead through an RDG pass. This happens automatically if the view uniform buffer is included in the pass ")
-		TEXT("parameter struct."));
-
-	// Let the implementation of each extension decide whether it can cache the result for CachedView
-	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-	{
-		Extension->BeginRenderView(&View, bShouldWaitForPersistentViewUniformBufferExtensionsJobs);
-	}
-
-	// ViewUniformBuffer can be cached by mesh commands, so we need to update it every time we change current view.
-	if (CachedView != &View)
-	{
-		ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
-
-		if (const FViewInfo* InstancedView = View.GetInstancedView())
-		{
-			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView->CachedViewUniformShaderParameters));
-		}
-		else
-		{
-			// If we don't render this pass in stereo we simply update the buffer with the same view uniform parameters.
-			// The shader will detect this and it will not attempt to apply ISR while this view is being rendered.
-			// TODO: It's more efficient to change the shader binding to point to ViewUniformBuffer instead of updating InstancedViewUniformBuffer.
-			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
-		}
-
-		CachedView = &View;
-
-		return true;
-	}
-	return false;
-}
-
-void FPersistentUniformBuffers::InvalidateCachedView()
-{
-	CachedView = nullptr;
 }
 
 class FAsyncCreateLightPrimitiveInteractionsTask : public FNonAbandonableTask

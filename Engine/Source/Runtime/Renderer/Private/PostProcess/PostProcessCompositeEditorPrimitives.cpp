@@ -233,6 +233,7 @@ const FViewInfo* UpdateEditorPrimitiveView(
 BEGIN_SHADER_PARAMETER_STRUCT(FEditorPrimitivesPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileBasePassUniformParameters, MobileBasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -319,6 +320,10 @@ FScreenPassTexture AddEditorPrimitivePass(
 			{
 				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, *EditorView, 0);
 			}
+			else
+			{
+				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, *EditorView, EMobileBasePass::Translucent);
+			}
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("EditorPrimitives"),
@@ -328,17 +333,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 			{
 				RHICmdList.SetViewport(EditorPrimitivesViewport.Rect.Min.X, EditorPrimitivesViewport.Rect.Min.Y, 0.0f, EditorPrimitivesViewport.Rect.Max.X, EditorPrimitivesViewport.Rect.Max.Y, 1.0f);
 
-				TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-				FRHIUniformBuffer* BasePassUniformBuffer = nullptr;
-
-				if (BasePassType == FEditorPrimitiveInputs::EBasePassType::Mobile)
-				{
-					CreateMobileBasePassUniformBuffer(RHICmdList, *EditorView, true, false, MobileBasePassUniformBuffer);
-					BasePassUniformBuffer = MobileBasePassUniformBuffer;
-				}
-
 				FMeshPassProcessorRenderState DrawRenderState;
-				DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);
 				DrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilWrite);
 				DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
 

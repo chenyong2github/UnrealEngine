@@ -262,10 +262,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 			}
 			else // Mobile
 			{
-				TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-				CreateMobileBasePassUniformBuffer(RHICmdList, View, true, false, MobileBasePassUniformBuffer);
-				DrawRenderState.SetPassUniformBuffer(MobileBasePassUniformBuffer);
-				
+				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent);
+
 				DrawDynamicMeshPass(View, RHICmdList,
 					[Scene, &View, &DrawRenderState, &Mesh](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 				{
@@ -337,9 +335,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				}
 				else // Mobile
 				{
-					TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-					CreateMobileBasePassUniformBuffer(RHICmdList, View, false, true, MobileBasePassUniformBuffer);
-					DrawRenderState.SetPassUniformBuffer(MobileBasePassUniformBuffer);
+					PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque);
 					
 					DrawDynamicMeshPass(View, RHICmdList,
 						[Scene, &View, &DrawRenderState, &Mesh](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)

@@ -602,6 +602,11 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets)
 {
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
@@ -626,17 +631,17 @@ void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTarge
 			{
 				continue;
 			}
-			
-			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+
+			View.BeginRenderView();
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FMobileDepthPassParameters>();
+			PassParameters->View = View.GetShaderParameters();
 			PassParameters->RenderTargets = BasePassRenderTargets;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderPrePass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
-				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
 				SetStereoViewport(RHICmdList, View);
-
 				View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
 			});
 		}

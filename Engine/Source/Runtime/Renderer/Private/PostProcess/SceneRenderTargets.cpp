@@ -1981,26 +1981,25 @@ EMobileSceneTextureSetupMode Translate(ESceneTextureSetupMode InSetupMode)
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileSceneTextureUniformParameters, "MobileSceneTextures", SceneTextures);
 
-static void SetupMobileSceneTextureUniformParameters(
-	FRDGBuilder* GraphBuilder,
-	const FSceneRenderTargets& SceneContext,
+void SetupMobileSceneTextureUniformParameters(
+	FRDGBuilder& GraphBuilder,
 	EMobileSceneTextureSetupMode SetupMode,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+
 	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget)
 	{
-		return RegisterExternalOrPassthroughTexture(GraphBuilder, PooledRenderTarget);
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget);
 	};
 
-	FRDGTextureRef BlackDefault2D = GetRDG(GSystemTextures.BlackDummy);
-	FRDGTextureRef MaxFP16Depth2D = GetRDG(GSystemTextures.MaxFP16Depth);
-	FRDGTextureRef DepthDefault = GetRDG(GSystemTextures.DepthDummy);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	const bool bUseSceneTextures = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneColor);
 
-	SceneTextureParameters.SceneColorTexture = BlackDefault2D;
+	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	SceneTextureParameters.SceneDepthTexture = DepthDefault;
+	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	if (bUseSceneTextures)
@@ -2013,8 +2012,8 @@ static void SetupMobileSceneTextureUniformParameters(
 		}
 	}
 
-	FRDGTextureRef CustomDepth = MaxFP16Depth2D;
-	FRDGTextureRef CustomStencil = BlackDefault2D;
+	FRDGTextureRef CustomDepth = SystemTextures.MaxFP16Depth;
+	FRDGTextureRef CustomStencil = SystemTextures.Black;
 
 	const bool bUseCustomDepth = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::CustomDepth) && SceneContext.bCustomDepthIsValid;
 
@@ -2067,17 +2066,17 @@ void SetupMobileSceneTextureUniformParameters(
 	EMobileSceneTextureSetupMode SetupMode,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
-	SetupMobileSceneTextureUniformParameters(nullptr, SceneContext, SetupMode, SceneTextureParameters);
+	// Deprecated.
+	checkNoEntry();
 }
 
 TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
 	FRHIComputeCommandList& RHICmdList,
 	EMobileSceneTextureSetupMode SetupMode)
 {
-	FMobileSceneTextureUniformParameters SceneTextures;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupMobileSceneTextureUniformParameters(nullptr, SceneContext, SetupMode, SceneTextures);
-	return TUniformBufferRef<FMobileSceneTextureUniformParameters>::CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	// Deprecated
+	checkNoEntry();
+	return {};
 }
 
 TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
@@ -2085,8 +2084,7 @@ TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneText
 	EMobileSceneTextureSetupMode SetupMode)
 {
 	FMobileSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FMobileSceneTextureUniformParameters>();
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupMobileSceneTextureUniformParameters(&GraphBuilder, SceneContext, SetupMode, *SceneTextures);
+	SetupMobileSceneTextureUniformParameters(GraphBuilder, SetupMode, *SceneTextures);
 	return GraphBuilder.CreateUniformBuffer(SceneTextures);
 }
 
@@ -2132,23 +2130,6 @@ void SetupMobileSceneTextureUniformParameters(
 	bool bCustomDepthIsValid,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
-	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::None;
-	if (bSceneTexturesValid)
-	{
-		SetupMode |= EMobileSceneTextureSetupMode::SceneColor;
-	}
-	if (bCustomDepthIsValid)
-	{
-		SetupMode |= EMobileSceneTextureSetupMode::CustomDepth;
-	}
-	SetupMobileSceneTextureUniformParameters(nullptr, SceneContext, SetupMode, SceneTextureParameters);
-}
-
-void SetupMobileSceneTextureUniformParameters(
-	FRDGBuilder& GraphBuilder,
-	EMobileSceneTextureSetupMode SetupMode,
-	FMobileSceneTextureUniformParameters& SceneTextureParameters)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupMobileSceneTextureUniformParameters(&GraphBuilder, SceneContext, SetupMode, SceneTextureParameters);
+	// Deprecated
+	checkNoEntry();
 }

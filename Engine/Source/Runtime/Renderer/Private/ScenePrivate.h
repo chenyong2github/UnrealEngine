@@ -2360,39 +2360,20 @@ public:
 class FPersistentUniformBuffers
 {
 public:
-	FPersistentUniformBuffers()
-		: CachedView(nullptr)
-	{
-	}
+	FPersistentUniformBuffers() = default;
 
 	void Initialize();
 	void Clear();
 
-	/** Compares the provided view against the cached view and updates the view uniform buffer
-	 *  if the views differ. Returns whether uniform buffer was updated.
-	 *  If bShouldWaitForPersistentViewUniformBufferExtensionsJobs == true, it calls Extension->BeginRenderView() which
-	 *  waits on the potential jobs dispatched in Extension->PrepareView(). Currently it is false only in FMobileSceneRenderer::InitViews()
-	 */
-	bool UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs = true);
-
-	void InvalidateCachedView();
-
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
-	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
 
-	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;
-	TUniformBufferRef<FMobileBasePassUniformParameters> MobileCSMOpaqueBasePassUniformBuffer;
-	TUniformBufferRef<FMobileBasePassUniformParameters> MobileTranslucentBasePassUniformBuffer;
 	/** Mobile Directional Lighting uniform buffers, one for each lighting channel 
 	  * The first is used for primitives with no lighting channels set.
 	  */
 	TUniformBufferRef<FMobileDirectionalLightShaderParameters> MobileDirectionalLightUniformBuffers[NUM_LIGHTING_CHANNELS+1];
 	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileSkyReflectionUniformBuffer;
-
-	// View from which ViewUniformBuffer was last updated.
-	const FViewInfo* CachedView;
 };
 
 #if RHI_RAYTRACING

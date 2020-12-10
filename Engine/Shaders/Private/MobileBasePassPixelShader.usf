@@ -115,6 +115,10 @@ int NumDynamicPointLights;
 	#endif
 #endif
 
+#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	uint UseCSM;
+#endif
+
 #if !FULLY_ROUGH
 half4 GetPlanarReflection(float3 WorldPosition, half3 WorldNormal, half Roughness)
 {
@@ -688,7 +692,7 @@ void Main(
 
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
-	if(MobileBasePass.UseCSM)
+	if (UseCSM)
 	{
 		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
 	#if MOVABLE_DIRECTIONAL_LIGHT

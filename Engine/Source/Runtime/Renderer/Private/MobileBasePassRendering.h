@@ -25,7 +25,6 @@
 #include "SkyAtmosphereRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
-	SHADER_PARAMETER(int32, UseCSM)
 	SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
 	SHADER_PARAMETER_STRUCT(FFogUniformParameters, Fog)
 	SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection for the forward pass.
@@ -33,28 +32,32 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
-	SHADER_PARAMETER_TEXTURE(Texture2D, AmbientOcclusionTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AmbientOcclusionSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMobileBasePassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FMobileBasePassUniformParameters, MobileBasePass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileBasePassUniformParameters, MobileBasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+enum class EMobileBasePass
+{
+	Opaque,
+	Translucent
+};
+
 extern void SetupMobileBasePassUniformParameters(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	bool bTranslucentPass,
-	bool bCanUseCSM,
+	EMobileBasePass BasePass,
 	FMobileBasePassUniformParameters& BasePassParameters);
 
-extern void CreateMobileBasePassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList,
+extern TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUniformBuffer(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	bool bTranslucentPass,
-	bool bCanUseCSM,
-	TUniformBufferRef<FMobileBasePassUniformParameters>& BasePassUniformBuffer);
+	EMobileBasePass BasePass);
 
 extern void SetupMobileDirectionalLightUniformParameters(
 	const FScene& Scene,
@@ -105,11 +108,14 @@ template<typename LightMapPolicyType>
 class TMobileBasePassShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
-	TMobileBasePassShaderElementData(const typename LightMapPolicyType::ElementDataType& InLightMapPolicyElementData) :
-		LightMapPolicyElementData(InLightMapPolicyElementData)
+	TMobileBasePassShaderElementData(const typename LightMapPolicyType::ElementDataType& InLightMapPolicyElementData, bool bInCanReceiveCSM)
+		: LightMapPolicyElementData(InLightMapPolicyElementData)
+		, bCanReceiveCSM(bInCanReceiveCSM)
 	{}
 
 	typename LightMapPolicyType::ElementDataType LightMapPolicyElementData;
+
+	const bool bCanReceiveCSM;
 };
 
 /**
@@ -261,8 +267,9 @@ public:
 		HQReflectionCaptureBoxScalesArray.Bind(Initializer.ParameterMap, TEXT("CaptureBoxScalesArray"));
 
 		NumDynamicPointLightsParameter.Bind(Initializer.ParameterMap, TEXT("NumDynamicPointLights"));
-						
+
 		CSMDebugHintParams.Bind(Initializer.ParameterMap, TEXT("CSMDebugHint"));
+		UseCSMParameter.Bind(Initializer.ParameterMap, TEXT("UseCSM"));
 	}
 
 	TMobileBasePassPSPolicyParamType() {}
@@ -283,6 +290,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, NumDynamicPointLightsParameter);
 
 	LAYOUT_FIELD(FShaderParameter, CSMDebugHintParams);
+	LAYOUT_FIELD(FShaderParameter, UseCSMParameter);
 	
 public:
 	void GetShaderBindings(
@@ -480,6 +488,7 @@ private:
 		EBlendMode BlendMode,
 		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
+		const bool bCanReceiveCSM,
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
 
 	const ETranslucencyPass::Type TranslucencyPassType;
