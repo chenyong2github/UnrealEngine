@@ -1486,7 +1486,7 @@ void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
 	int64 Offset = BulkDataOffset;
 
 	// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
-	if (IsInlined() && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+	if (IsInlined() && GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
 	{
 		Offset -= IFileManager::Get().FileSize(*Filename);
 		Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
