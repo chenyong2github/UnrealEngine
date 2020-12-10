@@ -16,6 +16,7 @@ public class OpenGLDrv : ModuleRules
 				"ApplicationCore",
 				"Engine",
 				"RHI",
+				"RHICore",
 				"RenderCore",
 				"PreLoadScreen"
 			}

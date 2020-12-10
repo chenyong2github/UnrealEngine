@@ -35,6 +35,7 @@ public class DisplayClusterRendering : ModuleRules
 				"Renderer",
 				"RenderCore",
 				"RHI",
+				"RHICore",
 				"Slate",
 				"SlateCore"
 			}

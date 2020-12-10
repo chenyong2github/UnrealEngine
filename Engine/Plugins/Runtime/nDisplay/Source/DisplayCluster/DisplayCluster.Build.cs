@@ -27,6 +27,7 @@ public class DisplayCluster : ModuleRules
 				"Networking",
 				"RenderCore",
 				"RHI",
+				"RHICore",
 				"Slate",
 				"SlateCore",
 				"Sockets",

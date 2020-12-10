@@ -134,7 +134,7 @@ void FMetalRHICommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShad
 	// sets this compute shader pipeline as the current (this resets all state, so we need to set all resources after calling this)
 	Context->GetCurrentState().SetComputeShader(ComputeShader);
 
-	ApplyGlobalUniformBuffers(ComputeShader);
+	ApplyStaticUniformBuffers(ComputeShader);
 	}
 }
 
@@ -147,7 +147,7 @@ void FMetalRHICommandContext::RHISetComputePipelineState(FRHIComputePipelineStat
 	// sets this compute shader pipeline as the current (this resets all state, so we need to set all resources after calling this)
 	Context->GetCurrentState().SetComputeShader(ComputePipeline->GetComputeShader());
 
-	ApplyGlobalUniformBuffers(ComputePipeline->GetComputeShader());
+	ApplyStaticUniformBuffers(ComputePipeline->GetComputeShader());
 	}
 }
 
@@ -267,12 +267,12 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineSt
 
 		if (bApplyAdditionalState)
 		{
-			ApplyGlobalUniformBuffers(PipelineState->VertexShader.GetReference());
+			ApplyStaticUniformBuffers(PipelineState->VertexShader.GetReference());
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			ApplyGlobalUniformBuffers(PipelineState->HullShader.GetReference());
-			ApplyGlobalUniformBuffers(PipelineState->DomainShader.GetReference());
+			ApplyStaticUniformBuffers(PipelineState->HullShader.GetReference());
+			ApplyStaticUniformBuffers(PipelineState->DomainShader.GetReference());
 #endif
-			ApplyGlobalUniformBuffers(PipelineState->PixelShader.GetReference());
+			ApplyStaticUniformBuffers(PipelineState->PixelShader.GetReference());
 		}
 	}
 }

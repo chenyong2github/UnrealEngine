@@ -31,7 +31,7 @@ void ApplyStaticUniformBuffers(
 		if (IsUniformBufferStaticSlotValid(Slot))
 		{
 			FRHIUniformBuffer* Buffer = UniformBuffers[Slot];
-			RHICore::ValidateStaticUniformBuffer(Buffer, Slot, LayoutHashes[BufferIndex]);
+			ValidateStaticUniformBuffer(Buffer, Slot, LayoutHashes[BufferIndex]);
 
 			if (Buffer)
 			{

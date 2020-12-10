@@ -13,6 +13,7 @@ public class MetalRHI : ModuleRules
 				"ApplicationCore",
 				"Engine",
 				"RHI",
+				"RHICore",
 				"RenderCore",
 			}
 			);

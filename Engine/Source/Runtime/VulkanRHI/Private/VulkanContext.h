@@ -9,6 +9,7 @@
 #include "VulkanResources.h"
 #include "VulkanGPUProfiler.h"
 #include "VulkanBarriers.h"
+#include "RHICoreShader.h"
 
 class FVulkanDevice;
 class FVulkanCommandBufferManager;
@@ -247,7 +248,7 @@ private:
 	FVulkanGPUTiming* FrameTiming;
 
 	template <typename TRHIShader>
-	void ApplyGlobalUniformBuffers(TRHIShader* Shader)
+	void ApplyStaticUniformBuffers(TRHIShader* Shader)
 	{
 		if (Shader)
 		{
@@ -261,7 +262,7 @@ private:
 				if (IsUniformBufferStaticSlotValid(Slot))
 				{
 					FRHIUniformBuffer* Buffer = GlobalUniformBuffers[Slot];
-					ValidateStaticUniformBuffer(Buffer, Slot, UBInfos[BufferIndex].LayoutHash);
+					UE::RHICore::ValidateStaticUniformBuffer(Buffer, Slot, UBInfos[BufferIndex].LayoutHash);
 
 					if (Buffer)
 					{

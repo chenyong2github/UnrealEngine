@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"MLSDK",
 					"RHI",
+					"RHICore",
 					"RenderCore",
 					"HeadMountedDisplay"
 				});

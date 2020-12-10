@@ -14,6 +14,7 @@ public class TextureShareD3D12 : ModuleRules
 							"Engine",
 							"RenderCore",
 							"RHI",
+							"RHICore",
 							"D3D12RHI",
 						});
 

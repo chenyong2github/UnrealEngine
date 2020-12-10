@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"RHI",
+					"RHICore",
 					"RenderCore",
 					"Renderer",
 					"HeadMountedDisplay",

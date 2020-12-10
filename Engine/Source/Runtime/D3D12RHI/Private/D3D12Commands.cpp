@@ -565,11 +565,11 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 
 	if (bApplyAdditionalState)
 	{
-		ApplyGlobalUniformBuffers(GraphicsPipelineState->GetVertexShader());
-		ApplyGlobalUniformBuffers(GraphicsPipelineState->GetHullShader());
-		ApplyGlobalUniformBuffers(GraphicsPipelineState->GetDomainShader());
-		ApplyGlobalUniformBuffers(GraphicsPipelineState->GetGeometryShader());
-		ApplyGlobalUniformBuffers(GraphicsPipelineState->GetPixelShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetVertexShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetHullShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetDomainShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetGeometryShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetPixelShader());
 	}
 }
 
@@ -591,7 +591,7 @@ void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* 
 
 	StateCache.SetComputePipelineState(ComputePipelineState);
 
-	ApplyGlobalUniformBuffers(ComputePipelineState->ComputeShader.GetReference());
+	ApplyStaticUniformBuffers(ComputePipelineState->ComputeShader.GetReference());
 }
 
 void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)

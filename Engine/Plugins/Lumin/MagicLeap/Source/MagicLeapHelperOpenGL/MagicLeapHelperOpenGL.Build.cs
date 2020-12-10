@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"RenderCore",
 					"RHI",
+					"RHICore",
 					"MLSDK"
 				});
 
