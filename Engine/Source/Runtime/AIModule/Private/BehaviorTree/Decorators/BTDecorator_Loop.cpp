@@ -47,7 +47,10 @@ void UBTDecorator_Loop::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
 	}
 	else
 	{
-		DecoratorMemory->RemainingExecutions--;
+		if (DecoratorMemory->RemainingExecutions > 0)
+		{
+			DecoratorMemory->RemainingExecutions--;
+		}
 		bShouldLoop = DecoratorMemory->RemainingExecutions > 0;
 	}
 
@@ -92,8 +95,8 @@ void UBTDecorator_Loop::DescribeRuntimeValues(const UBehaviorTreeComponent& Owne
 	{
 		FBTLoopDecoratorMemory* DecoratorMemory = (FBTLoopDecoratorMemory*)NodeMemory;
 
-		const float TimeRemaining = InfiniteLoopTimeoutTime - (GetWorld()->GetTimeSeconds() - DecoratorMemory->TimeStarted);
-		Values.Add(FString::Printf(TEXT("time remaining: %s"), *FString::SanitizeFloat(InfiniteLoopTimeoutTime)));
+		const float TimeRemaining = FMath::Max(InfiniteLoopTimeoutTime - (GetWorld()->GetTimeSeconds() - DecoratorMemory->TimeStarted), 0.f);
+		Values.Add(FString::Printf(TEXT("time remaining: %s"), *FString::SanitizeFloat(TimeRemaining)));
 	}
 }
 
