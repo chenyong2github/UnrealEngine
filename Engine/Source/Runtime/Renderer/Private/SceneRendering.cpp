@@ -3029,7 +3029,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 	// clear the commands
 	bHasRequestedToggleFreeze = false;
 
-	if(ViewFamily.EngineShowFlags.OnScreenDebug)
+	if(ViewFamily.EngineShowFlags.OnScreenDebug && ViewFamilyTexture)
 	{
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{
