@@ -125,10 +125,12 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 		return;
 	}
 
-	RowData->Name = FText::FromName( UsdPrim.GetName() );
+	const bool bIsPseudoRoot = UsdPrim.GetStage().GetPseudoRoot() == UsdPrim;
+
+	RowData->Name = FText::FromName( bIsPseudoRoot ? TEXT("Root") : UsdPrim.GetName() );
 	RowData->bHasCompositionArcs = UsdUtils::HasCompositionArcs( UsdPrim );
 
-	RowData->Type = FText::FromName( UsdPrim.GetTypeName() );
+	RowData->Type = bIsPseudoRoot ? FText::GetEmpty() : FText::FromName( UsdPrim.GetTypeName() );
 	RowData->bHasPayload = UsdPrim.HasPayload();
 	RowData->bIsLoaded = UsdPrim.IsLoaded();
 

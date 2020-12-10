@@ -328,17 +328,11 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 		return;
 	}
 
-	UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage();
-
-	if ( UsdStage )
+	if ( UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage() )
 	{
 		if ( UE::FUsdPrim RootPrim = UsdStage.GetPseudoRoot() )
 		{
-			const bool bTraverseInsanceProxies = true;
-			for ( const UE::FUsdPrim& Child : RootPrim.GetFilteredChildren( bTraverseInsanceProxies ) )
-			{
-				RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, UsdStage, Child ) );
-			}
+			RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, UsdStage, RootPrim ) );
 		}
 	}
 
@@ -724,6 +718,12 @@ void SUsdStageTreeView::RestoreExpansionStates()
 			if (bool* bFoundExpansionState = TreeItemExpansionStates.Find( Prim.GetPrimPath().GetString() ) )
 			{
 				SetItemExpansion( Item, *bFoundExpansionState );
+			}
+			// Default to showing the root level expanded
+			else if ( Prim.GetStage().GetPseudoRoot() == Prim )
+			{
+				const bool bShouldExpand = true;
+				SetItemExpansion( Item, bShouldExpand );
 			}
 		}
 

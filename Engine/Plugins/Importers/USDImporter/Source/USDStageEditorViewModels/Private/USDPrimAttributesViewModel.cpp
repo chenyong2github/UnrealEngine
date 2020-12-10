@@ -7,6 +7,7 @@
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 
@@ -126,57 +127,135 @@ void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCo
 	PrimAttributes.Reset();
 
 #if USE_USD_SDK
-	FString PrimName;
-	FString PrimKind;
-
-	UE::FUsdPrim UsdPrim;
-
-	if ( UsdStage )
+	if ( !UsdStage )
 	{
-		FScopedUsdAllocs UsdAllocs;
+		return;
+	}
 
-		UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( InPrimPath ) );
+	FScopedUsdAllocs UsdAllocs;
 
-		if ( UsdPrim )
+	// Show info about the stage
+	if ( PrimPath.Equals( TEXT( "/" ) ) || PrimPath.IsEmpty() )
+	{
+		FUsdStageInfo StageInfo( UsdStage );
+
 		{
-			PrimPath = InPrimPath;
-			PrimName = UsdPrim.GetName().ToString();
-			PrimKind = UsdToUnreal::ConvertString( IUsdPrim::GetKind( UsdPrim ).GetString() );
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "path" );
+			Property.Value = UsdStage.GetRootLayer().GetRealPath();
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "metersPerUnit" );
+			Property.Value = LexToString( StageInfo.MetersPerUnit );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "upAxis" );
+			Property.Value = StageInfo.UpAxis == EUsdUpAxis::YAxis ? TEXT("Y") : TEXT("Z");
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "defaultPrim" );
+			Property.Value = UsdStage.GetDefaultPrim().GetPrimPath().GetString();
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "interpolationType" );
+			Property.Value = pxr::UsdStageRefPtr(UsdStage)->GetInterpolationType() == pxr::UsdInterpolationTypeHeld ? TEXT("UsdInterpolationTypeHeld") : TEXT("UsdInterpolationTypeLinear") ;
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "startTimeCode" );
+			Property.Value = LexToString( UsdStage.GetStartTimeCode() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "endTimeCode" );
+			Property.Value = LexToString( UsdStage.GetEndTimeCode() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "timeCodesPerSecond" );
+			Property.Value = LexToString( UsdStage.GetTimeCodesPerSecond() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "framesPerSecond" );
+			Property.Value = LexToString( UsdStage.GetFramesPerSecond() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "colorConfiguration" );
+			Property.Value = UsdToUnreal::ConvertString( pxr::UsdStageRefPtr( UsdStage )->GetColorConfiguration().GetAssetPath() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+		}
+
+		{
+			FUsdPrimAttributeViewModel Property( this );
+			Property.Label = TEXT( "colorManagementSystem" );
+			Property.Value = UsdToUnreal::ConvertToken( pxr::UsdStageRefPtr( UsdStage )->GetColorManagementSystem() );
+
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
 		}
 	}
-
+	// Show info about a prim
+	else if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( InPrimPath ) ) )
 	{
-		FUsdPrimAttributeViewModel PrimNameProperty( this );
-		PrimNameProperty.Label = TEXT("Name");
-		PrimNameProperty.Value = PrimName;
+		{
+			FUsdPrimAttributeViewModel PrimNameProperty( this );
+			PrimNameProperty.Label = TEXT( "name" );
+			PrimNameProperty.Value = UsdPrim.GetName().ToString();
 
-		PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimNameProperty ) ) );
-	}
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimNameProperty ) ) );
+		}
 
-	{
-		FUsdPrimAttributeViewModel PrimPathProperty( this );
-		PrimPathProperty.Label = TEXT("Path");
-		PrimPathProperty.Value = PrimPath;
+		{
+			FUsdPrimAttributeViewModel PrimPathProperty( this );
+			PrimPathProperty.Label = TEXT( "path" );
+			PrimPathProperty.Value = InPrimPath;
 
-		PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimPathProperty ) ) );
-	}
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimPathProperty ) ) );
+		}
 
-	{
-		FUsdPrimAttributeViewModel PrimKindProperty( this );
-		PrimKindProperty.Label = TEXT("Kind");
-		PrimKindProperty.Value = PrimKind;
-		PrimKindProperty.WidgetType = EPrimPropertyWidget::Dropdown;
+		{
+			FUsdPrimAttributeViewModel PrimKindProperty( this );
+			PrimKindProperty.Label = TEXT( "kind" );
+			PrimKindProperty.Value = UsdToUnreal::ConvertString( IUsdPrim::GetKind( UsdPrim ).GetString() );
+			PrimKindProperty.WidgetType = EPrimPropertyWidget::Dropdown;
 
-		PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimKindProperty ) ) );
-	}
+			PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( PrimKindProperty ) ) );
+		}
 
-	if ( UsdPrim )
-	{
-		FScopedUsdAllocs UsdAllocs;
-
-		std::vector< pxr::UsdAttribute > PxrPrimAttributes = pxr::UsdPrim( UsdPrim ).GetAttributes();
-
-		for ( const pxr::UsdAttribute& PrimAttribute : PxrPrimAttributes )
+		for ( const pxr::UsdAttribute& PrimAttribute : pxr::UsdPrim( UsdPrim ).GetAttributes() )
 		{
 			FUsdPrimAttributeViewModel PrimAttributeProperty( this );
 			PrimAttributeProperty.Label = UsdToUnreal::ConvertString( PrimAttribute.GetName().GetString() );
@@ -193,7 +272,7 @@ void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCo
 			if ( AttributeValue.Len() > MaxValueLength )
 			{
 				AttributeValue.LeftInline( MaxValueLength );
-				AttributeValue.Append( TEXT("...") );
+				AttributeValue.Append( TEXT( "..." ) );
 			}
 
 			PrimAttributeProperty.Value = MoveTemp( AttributeValue );

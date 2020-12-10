@@ -68,18 +68,6 @@ void SUsdStage::Construct( const FArguments& InArgs )
 				MakeMainMenu()
 			]
 
-			// Stage Info
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding( SUSDStageConstants::SectionPadding )
-			[
-				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
-				[
-					SAssignNew( UsdStageInfoWidget, SUsdStageInfo, ViewModel.UsdStageActor.Get() )
-				]
-			]
-
 			+SVerticalBox::Slot()
 			.FillHeight(1.f)
 			.Padding( SUSDStageConstants::SectionPadding )
