@@ -208,16 +208,22 @@ public:
 
 	void Cancel(FIoRequestImpl* Request)
 	{
-		/*FScopeLock _(&UpdateLock);
-		RequestsToCancel.Add(Request);
-		WakeUpDispatcherThread();*/
+		Request->AddRef();
+		{
+			FScopeLock _(&UpdateLock);
+			RequestsToCancel.Add(Request);
+		}
+		WakeUpDispatcherThread();
 	}
 
 	void Reprioritize(FIoRequestImpl* Request)
 	{
-		/*FScopeLock _(&UpdateLock);
-		RequestsToReprioritize.Add(Request);
-		WakeUpDispatcherThread();*/
+		Request->AddRef();
+		{
+			FScopeLock _(&UpdateLock);
+			RequestsToReprioritize.Add(Request);
+		}
+		WakeUpDispatcherThread();
 	}
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
@@ -475,11 +481,15 @@ private:
 			}
 			for (FIoRequestImpl* RequestToCancel : LocalRequestsToCancel)
 			{
-				RequestToCancel->bCancelled = true;
-				if (RequestToCancel->bSubmitted)
+				if (!RequestToCancel->bCancelled)
 				{
-					FileIoStore.CancelIoRequest(RequestToCancel);
+					RequestToCancel->bCancelled = true;
+					if (RequestToCancel->bSubmitted)
+					{
+						FileIoStore.CancelIoRequest(RequestToCancel);
+					}
 				}
+				RequestToCancel->ReleaseRef();
 			}
 			for (FIoRequestImpl* RequestToRePrioritize : LocalRequestsToReprioritize)
 			{
@@ -487,6 +497,7 @@ private:
 				{
 					FileIoStore.UpdatePriorityForIoRequest(RequestToRePrioritize);
 				}
+				RequestToRePrioritize->ReleaseRef();
 			}
 			if (!RequestsToSubmitHead)
 			{
@@ -920,12 +931,11 @@ FIoRequest::GetResult()
 void
 FIoRequest::Cancel()
 {
-	if (!Impl || Impl->bCancelled)
+	if (!Impl)
 	{
 		return;
 	}
 	//TRACE_BOOKMARK(TEXT("FIoRequest::Cancel()"));
-	Impl->bCancelled = true;
 	Impl->Dispatcher.Cancel(Impl);
 }
 
