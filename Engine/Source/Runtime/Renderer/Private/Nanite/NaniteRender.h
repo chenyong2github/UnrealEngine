@@ -461,6 +461,7 @@ struct FRasterResults
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 
+	TRefCountPtr<FRDGPooledBuffer>		ViewsBuffer;
 	TRefCountPtr<FRDGPooledBuffer>		VisibleClustersSWHW;
 
 	TRefCountPtr<IPooledRenderTarget>	VisBuffer64;
@@ -619,11 +620,8 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	const FCullingContext& CullingContext,
-	const FRasterContext& RasterContext,
-	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
-	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
-	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer
+	FRasterResults& RasterResults,
+	bool bPrePass
 );
 
 void DrawBasePass(

@@ -1222,7 +1222,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::BeginAsyncUpdate);
-	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Streaming");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 	
 	check(!AsyncState.bUpdateActive);
@@ -1619,7 +1619,7 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
-	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Streaming");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 
 	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
@@ -1696,7 +1696,7 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteReadback);
-	RDG_EVENT_SCOPE(GraphBuilder, "NaniteReadback");
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Readback");
 
 	if( ReadbackBuffersNumPending == MaxStreamingReadbackBuffers )
 	{

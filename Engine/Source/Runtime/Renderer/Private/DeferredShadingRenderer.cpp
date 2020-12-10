@@ -1969,21 +1969,21 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					bExtractStats
 				);
 
-				Nanite::EmitDepthTargets(
-					GraphBuilder,
-					*Scene,
-					Views[ViewIndex],
-					CullingContext,
-					RasterContext,
-					RasterResults.MaterialDepth,
-					RasterResults.NaniteMask,
-					RasterResults.VelocityBuffer
-				);
+				if (bNeedsPrePass)
+				{
+					Nanite::EmitDepthTargets(
+						GraphBuilder,
+						*Scene,
+						Views[ViewIndex],
+						RasterResults,
+						bNeedsPrePass
+					);
+				}
 
 				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)
 				{
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
-					RDG_EVENT_SCOPE(GraphBuilder, "BuildNaniteHZB");
+					RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
 
 					FRDGTextureRef SceneDepth = SystemTextures.Black;
 					FRDGTextureRef GraphHZB = nullptr;
@@ -2186,9 +2186,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
 				const FViewInfo& View = Views[ViewIndex];
-				const Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 
-				FRDGTextureRef SceneDepth = SceneTextures.Depth.Target;
+				if (!bNeedsPrePass)
+				{
+					Nanite::EmitDepthTargets(
+						GraphBuilder,
+						*Scene,
+						Views[ViewIndex],
+						RasterResults,
+						bNeedsPrePass
+					);
+				}
 
 				Nanite::DrawBasePass(
 					GraphBuilder,
@@ -2201,7 +2210,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 				Nanite::DrawVisualization(
 					GraphBuilder,
-					SceneDepth,
+					SceneTextures.Depth.Target,
 					*Scene,
 					View,
 					RasterResults
