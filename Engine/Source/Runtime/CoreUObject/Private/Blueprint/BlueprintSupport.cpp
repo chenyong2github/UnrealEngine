@@ -587,10 +587,15 @@ public:
 
 	void ResolvePlaceholders(UClass* ForClass)
 	{
-		TArray<ULinkerPlaceholderExportObject*>* Placeholders = ClassToPlaceholderMap.Find(ForClass);
-		if( Placeholders )
+		TArray<ULinkerPlaceholderExportObject*>* PlaceholdersPtr = ClassToPlaceholderMap.Find(ForClass);
+		if (PlaceholdersPtr)
 		{
-			for(ULinkerPlaceholderExportObject* Placeholder : *Placeholders)
+			// Resolving placeholders below may incur additional loads that can, in turn, add
+			// new elements to ClassToPlaceholderMap. This could trigger a reallocation of the
+			// elements and invalidate the value ptr that was obtained above, which could lead
+			// to an invalid memory access. Thus, we copy the array value here before iterating.
+			TArray<ULinkerPlaceholderExportObject*> Placeholders(*PlaceholdersPtr);
+			for (ULinkerPlaceholderExportObject* Placeholder : Placeholders)
 			{
 				if(!Placeholder->IsMarkedResolved())
 				{
