@@ -164,7 +164,11 @@ public:
 			}
 		};
 
+#if PLATFORM_HOLOLENS //dynamic initialization of thread local data not allowed in WinRT code
+		uint32 StartIndex = 0;
+#else
 		static thread_local uint32 StartIndex = FPseudo::GetThreadId();
+#endif
 	
 		FHazardRecordChunk* p = &Head;
 		if (Cached)
