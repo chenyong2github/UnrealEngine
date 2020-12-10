@@ -31,8 +31,8 @@ FGeometryFlowExecutor::FGeometryFlowExecutor(FGraph& InGraph)
 	EvalInfo = MakeUnique<FEvaluationInfo>();
 	TopologicalSort();
 
-	// Check that TaskGraph is enabled!
-	check(FTaskGraphInterface::IsRunning());
+	// Check that TaskGraph is enabled
+	check(FTaskGraphInterface::IsRunning() && FPlatformProcess::SupportsMultithreading());
 }
 
 void FGeometryFlowExecutor::TopologicalSort()
