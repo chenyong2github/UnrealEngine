@@ -33,24 +33,10 @@ void FControlRigPoseMirrorTable::SetUpMirrorTable(const UControlRig* ControlRig)
 	}
 }
 
-
 FRigControlCopy* FControlRigPoseMirrorTable::GetControl(FControlRigControlPose& Pose, FName Name)
 {
-
 	TArray<FRigControlCopy> CopyOfControls;
-
-	//Cache of the Map, Used to make pasting faster.
-	TMap<FName, int32>  CopyOfControlsNameToIndex;
-
-	if (MatchedControls.Num() <= 0)
-	{
-		int32* Index = Pose.CopyOfControlsNameToIndex.Find(Name);
-		if (Index != nullptr && (*Index) >= 0 && (*Index) < Pose.CopyOfControls.Num())
-		{
-			return &(Pose.CopyOfControls[*Index]);
-		}
 	
-	}
 	if (MatchedControls.Num() > 0) 
 	{
 		if (const FName* MatchedName = MatchedControls.Find(Name))
@@ -62,6 +48,12 @@ FRigControlCopy* FControlRigPoseMirrorTable::GetControl(FControlRigControlPose& 
 				return &(Pose.CopyOfControls[*Index]);
 			}
 		}
+	}
+	//okay not matched so just find it.
+	int32* Index = Pose.CopyOfControlsNameToIndex.Find(Name);
+	if (Index != nullptr && (*Index) >= 0 && (*Index) < Pose.CopyOfControls.Num())
+	{
+		return &(Pose.CopyOfControls[*Index]);
 	}
 
 	return nullptr;
@@ -79,48 +71,29 @@ bool FControlRigPoseMirrorTable::IsMatched(const FName& Name) const
 	return false;
 }
 
-// Mirrors Translation as Global(Component)
-// Mirrors Rotation as Local , only if NOT matched, if matched we just use it
-void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bIsMatched, FVector& OutGlobalTranslation, FQuat& OutGlobalRotation) const
+//Now returns mirrored global and local unmirrored
+void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bIsMatched, FVector& OutGlobalTranslation,
+	FQuat& OutGlobalRotation, FQuat& OutLocalRotation) const
 {
 	const UControlRigPoseMirrorSettings* Settings = GetDefault<UControlRigPoseMirrorSettings>();
-	if (Settings)
+	FTransform GlobalTransform = ControlCopy.GlobalTransform;
+	FQuat GlobalRotation = GlobalTransform.GetRotation();
+
+	FTransform LocalTransform = ControlCopy.LocalTransform;
+	OutLocalRotation = LocalTransform.GetRotation();
+	OutGlobalTranslation = GlobalTransform.GetTranslation();
+	OutGlobalRotation = GlobalTransform.GetRotation();
+	
+	if (Settings &&  (bIsMatched || (OutGlobalRotation.IsIdentity() == false && OutLocalRotation.IsIdentity() == false)))
 	{
-		FTransform GlobalTransform = ControlCopy.GlobalTransform;
-		FTransform LocalTransform = ControlCopy.LocalTransform;
-		//FQuat Rotation = LocalTransform.GetRotation();
-		FQuat Rotation = GlobalTransform.GetRotation();
+		FRigMirrorSettings MirrorSettings;
 
-		FVector Axis(Settings->XAxis, Settings->YAxis, Settings->ZAxis);
-		//if axis nearly zero just return
-		if (Axis.IsNearlyZero())
-		{
-			OutGlobalTranslation = ControlCopy.GlobalTransform.GetTranslation();
-			OutGlobalRotation = Rotation;
-			return;
-		}
-		Axis.Normalize();
+		MirrorSettings.MirrorAxis = Settings->MirrorAxis;
+		MirrorSettings.AxisToFlip = Settings->AxisToFlip;
 
-		FVector Translation = ControlCopy.GlobalTransform.GetTranslation();
-		FPlane Plane(FVector::ZeroVector,Axis);
-		OutGlobalTranslation = Translation.MirrorByPlane(Plane);
-
-		//test FRotator OldRotator = Rotation.Rotator();
-		
-		if (bIsMatched)
-		{
-			OutGlobalRotation = Rotation;
-		}
-		else
-		{
-			FQuat MirrorNormalQuat = FQuat(Axis.X, Axis.Y, Axis.Z, 0);
-			Rotation.EnforceShortestArcWith(MirrorNormalQuat);
-			OutGlobalRotation = MirrorNormalQuat * Rotation * MirrorNormalQuat;
-		}
-		//test FRotator NewRotator = OutGlobalRotation.Rotator();
-		
+		FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);
+		OutGlobalTranslation = NewTransform.GetTranslation();
+		OutGlobalRotation = NewTransform.GetRotation();
 		return;
 	}
-	OutGlobalTranslation = FVector::ZeroVector;
-	OutGlobalRotation = FQuat::Identity;
 }

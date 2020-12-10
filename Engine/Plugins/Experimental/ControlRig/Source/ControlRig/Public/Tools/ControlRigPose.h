@@ -119,10 +119,22 @@ struct FControlRigControlPose
 
 	}
 
-	void SetControlMirrorTransform(UControlRig* ControlRig, const FName& Name, const FVector& GlobalTranslation, const FQuat& GlobalRotation, bool bNotify, FRigControlModifiedContext Context)
+	void SetControlMirrorTransform(UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation, const FQuat&LocalRotation, bool bNotify,const  FRigControlModifiedContext& Context)
 	{
-		FTransform NewGlobalTransform(GlobalRotation, GlobalTranslation);
-		ControlRig->SetControlGlobalTransform(Name, NewGlobalTransform, bNotify, Context);
+		if (bIsMatched)
+		{
+			int32 Index = ControlRig->GetControlHierarchy().GetIndex(Name);
+			FTransform ParentTransform = ControlRig->GetControlHierarchy().GetParentTransform(Index);
+			FTransform CurrentTransform = ControlRig->GetControlHierarchy().GetLocalTransform(Index);
+			FVector NewLocal = ParentTransform.InverseTransformPositionNoScale(GlobalTranslation);
+			FTransform NewCurrentTransform(LocalRotation, NewLocal);
+			ControlRig->SetControlLocalTransform(Name, NewCurrentTransform, bNotify, Context);
+		}
+		else
+		{
+			FTransform NewGlobalTransform(GlobalRotation, GlobalTranslation);
+			ControlRig->SetControlGlobalTransform(Name, NewGlobalTransform, bNotify, Context);
+		}
 	}
 
 	void PastePoseInternal(UControlRig* ControlRig, bool bDoKey,bool bDoMirror, const TArray<FRigControlCopy>& ControlsToPaste)
@@ -165,9 +177,10 @@ struct FControlRigControlPose
 						{
 							FVector GlobalTranslation;
 							FQuat GlobalRotation;
+							FQuat LocalRotation;
 							bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
-							MirrorTable.GetMirrorTransform(*CopyRigControl, bIsMatched,GlobalTranslation, GlobalRotation);
-							SetControlMirrorTransform(ControlRig,RigControl.Name, GlobalTranslation, GlobalRotation,true, Context);
+							MirrorTable.GetMirrorTransform(*CopyRigControl, bIsMatched,GlobalTranslation, GlobalRotation, LocalRotation);
+							SetControlMirrorTransform(ControlRig,RigControl.Name,bIsMatched, GlobalTranslation, GlobalRotation, LocalRotation,true, Context);
 						}
 						break;
 					}		
@@ -264,18 +277,40 @@ struct FControlRigControlPose
 							{
 								FVector GlobalTranslation;
 								FQuat GlobalRotation;
+								FQuat LocalRotation;
 								bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
-								MirrorTable.GetMirrorTransform(*CopyRigControl, bIsMatched, GlobalTranslation, GlobalRotation);
+								MirrorTable.GetMirrorTransform(*CopyRigControl, bIsMatched, GlobalTranslation, GlobalRotation, LocalRotation);
 								FVector InitialTranslation = InitialFound->GlobalTransform.GetTranslation();
-								FQuat InitialRotation = InitialFound->LocalTransform.GetRotation();
+								FQuat InitialGlobalRotation = InitialFound->GlobalTransform.GetRotation();
+								FQuat InitialLocationRotation = InitialFound->LocalTransform.GetRotation();
 								GlobalTranslation = FMath::Lerp(InitialTranslation, GlobalTranslation, BlendValue);
-								GlobalRotation = FQuat::Slerp(InitialRotation, GlobalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-								SetControlMirrorTransform(ControlRig, RigControl.Name, GlobalTranslation, GlobalRotation, false, Context);
+								GlobalRotation = FQuat::Slerp(InitialGlobalRotation, GlobalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+								LocalRotation = FQuat::Slerp(InitialLocationRotation, LocalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+
+								SetControlMirrorTransform(ControlRig, RigControl.Name, bIsMatched, GlobalTranslation, GlobalRotation, LocalRotation, false, Context);
+														
 							}
 						}
 					}
 				}
 			}			
+		}
+	}
+	bool ContainsName(const FName& Name) const
+	{
+		const int32* Index = CopyOfControlsNameToIndex.Find(Name);
+		return (Index && *Index >= 0);
+	}
+
+	void ReplaceControlName(const FName& Name, const FName& NewName)
+	{
+		int32* Index = CopyOfControlsNameToIndex.Find(Name);
+		if (Index && *Index >= 0)
+		{
+			FRigControlCopy& Control = CopyOfControls[*Index];
+			Control.Name = NewName;
+			CopyOfControlsNameToIndex.Remove(Name);
+			CopyOfControlsNameToIndex.Add(Control.Name, *Index);
 		}
 	}
 
@@ -301,6 +336,7 @@ struct FControlRigControlPose
 		}
 	}
 	TArray<FRigControlCopy> GetPoses() const {return CopyOfControls;};
+
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Controls")
@@ -337,6 +373,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Pose")
 	void GetCurrentPose(UControlRig* InControlRig, FControlRigControlPose& OutPose);
+
+	UFUNCTION(BlueprintCallable, Category = "Pose")
+	TArray<FName> GetControlNames() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Pose")
+	void ReplaceControlName(const FName& CurrentName, const FName& NewName);
 
 	void BlendWithInitialPoses(FControlRigControlPose& InitialPose, UControlRig* ControlRig, bool bDoKey, bool bdoMirror, float BlendValue);
 

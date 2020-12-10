@@ -19,11 +19,11 @@ public:
 	UControlRigPoseProjectSettings();
 
 	/** The pose asset path  */
-	FString GetAssetPath() const { return RootSaveDir.Path; }
+	TArray<FString> GetAssetPaths() const;
 
 	/** The root of the directory in which to save poses */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Control Rig Poses", meta = (ContentDir))
-	FDirectoryPath RootSaveDir;
+	TArray<FDirectoryPath> RootSaveDirs;
 
 	/** Not used but may put bad if we support other types.
 	bool bFilterPoses;

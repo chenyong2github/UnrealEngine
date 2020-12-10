@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "ControlRig.h"
 #include "ControlRigPoseMirrorSettings.generated.h"
 
 
@@ -26,12 +27,14 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Settings", meta = (ToolTip = "String To Denote Left Side"))
 	FString LeftSide;
 
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Plane", meta = (ToolTip = "X Axis Plane Normal"))
-	float XAxis;
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Plane", meta = (ToolTip = "Y Axis Plane Normal"))
-	float YAxis;
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Plane", meta = (ToolTip = "Z Axis Plane Normal"))
-	float ZAxis;
+	// the axis to mirror translations against
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Settings", meta = (ToolTip = "Axis to Mirror Translations"))
+	TEnumAsByte<EAxis::Type> MirrorAxis;
+
+	// the axis to flip for rotations
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Mirror Settings", meta = (ToolTip = "Axis to Flip for Rotations"))
+	TEnumAsByte<EAxis::Type> AxisToFlip;
 
 };
+
 

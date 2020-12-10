@@ -18,6 +18,7 @@
 #include "ControlRigEditMode.h"
 #include "EditorModeManager.h"
 #include "Widgets/Input/SButton.h"
+#include "LevelEditor.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
 
@@ -85,7 +86,7 @@ private:
 	TWeakObjectPtr<UObject> Asset;
 
 	/** The text box used to edit object names */
-	TSharedPtr< SEditableTextBox > TextBox;
+	TSharedPtr< STextBlock > TextBox;
 
 };
 
@@ -94,12 +95,13 @@ void SControlRigAssetEditableTextBox::Construct(const FArguments& InArgs)
 	Asset = InArgs._Asset;
 	ChildSlot
 		[
-			SAssignNew(TextBox, SEditableTextBox)
+			SAssignNew(TextBox, STextBlock)
 			.Text(this, &SControlRigAssetEditableTextBox::GetNameText)
-			.ToolTipText(this, &SControlRigAssetEditableTextBox::GetNameTooltipText)
-			.OnTextCommitted(this, &SControlRigAssetEditableTextBox::OnNameTextCommitted)
-			.OnTextChanged(this, &SControlRigAssetEditableTextBox::OnTextChanged)
-			.RevertTextOnEscape(true)
+			// Current Thinking is to not have this be editable here, so removing it, but leaving in case we change our minds again.
+			//.ToolTipText(this, &SControlRigAssetEditableTextBox::GetNameTooltipText)
+			//.OnTextCommitted(this, &SControlRigAssetEditableTextBox::OnNameTextCommitted)
+			//.OnTextChanged(this, &SControlRigAssetEditableTextBox::OnTextChanged)
+			//.RevertTextOnEscape(true)
 		];
 }
 
@@ -158,7 +160,7 @@ void SControlRigAssetEditableTextBox::OnNameTextCommitted(const FText& NewText, 
 	}
 
 	// Clear Error 
-	TextBox->SetError(FText::GetEmpty());
+	//TextBox->SetError(FText::GetEmpty());
 }
 
 void SControlRigAssetEditableTextBox::OnTextChanged(const FText& InLabel)
@@ -170,11 +172,11 @@ void SControlRigAssetEditableTextBox::OnTextChanged(const FText& InLabel)
 	FText OutErrorMessage;
 	if (!AssetViewUtils::IsValidObjectPathForCreate(ObjectPath, OutErrorMessage))
 	{
-		TextBox->SetError(OutErrorMessage);
+		//TextBox->SetError(OutErrorMessage);
 	}
 	else
 	{
-		TextBox->SetError(FText::GetEmpty());
+		//TextBox->SetError(FText::GetEmpty());
 	}
 }
 
@@ -190,7 +192,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 	bIsBlending = false;
 	bSliderStartedTransaction = false;
 
-	TSharedRef<SWidget> Thumbnail = GetThumbnailWidget();
+	TSharedRef<SWidget> ThumbnailWidget = GetThumbnailWidget();
 	TSharedRef <SControlRigAssetEditableTextBox> ObjectNameBox = SNew(SControlRigAssetEditableTextBox).Asset(PoseAsset);
 
 	//Not used currently CreateControlList();
@@ -249,7 +251,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 							SNew(SBox)
 							.VAlign(VAlign_Center)
 						[
-							Thumbnail
+							ThumbnailWidget
 						]
 						]
 					+ SVerticalBox::Slot()
@@ -371,7 +373,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 							SNew(SButton)
 								.ContentPadding(FMargin(5, 5))
 								.Text(LOCTEXT("SelectControls", "Select Controls"))
-								.ToolTipText(LOCTEXT("SelectControlsTooltip", "Select Controls From This Asset"))
+								.ToolTipText(LOCTEXT("SelectControlsTooltip", "Select controls from this asset"))
 								.OnClicked(this, &SControlRigPoseView::OnSelectControls)
 				
 							]
@@ -517,21 +519,31 @@ FReply SControlRigPoseView::OnCaptureThumbnail()
 
 TSharedRef<SWidget> SControlRigPoseView::GetThumbnailWidget()
 {
-	TSharedPtr<SWidget> ThumbnailWidget = nullptr;
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<FAssetThumbnailPool> ThumbnailPool = LevelEditorModule.GetFirstLevelEditor()->GetThumbnailPool();
 
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, false);
 
 	const int32 ThumbnailSize = 128;
+	Thumbnail = MakeShareable(new FAssetThumbnail(PoseAsset.Get(), ThumbnailSize, ThumbnailSize, ThumbnailPool));
+	FAssetThumbnailConfig ThumbnailConfig;
+	ThumbnailConfig.bAllowFadeIn = false;
+	ThumbnailConfig.bAllowHintText = false;
+	ThumbnailConfig.bAllowRealTimeOnHovered = false; // we use our own OnMouseEnter/Leave for logical asset item
+	ThumbnailConfig.bForceGenericThumbnail = false;
 
-	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(PoseAsset.Get(), ThumbnailSize, ThumbnailSize, ThumbnailPool);
-	ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
-
+	TSharedRef<SOverlay> ItemContentsOverlay = SNew(SOverlay);
+	ItemContentsOverlay->AddSlot()
+		[
+			Thumbnail->MakeThumbnailWidget(ThumbnailConfig)
+		];
 
 	return SNew(SBox)
-		.WidthOverride(ThumbnailSize + 5)
-		.HeightOverride(ThumbnailSize + 5)
+		.Padding(0)
+		.WidthOverride(ThumbnailSize)
+		.HeightOverride(ThumbnailSize)
 		[
-			ThumbnailWidget.IsValid() ? ThumbnailWidget.ToSharedRef() : SNullWidget::NullWidget
+			ItemContentsOverlay
+
 		];
 }
 

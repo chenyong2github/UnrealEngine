@@ -63,20 +63,13 @@ private:
 	bool bIsBlending;
 	bool bSliderStartedTransaction;
 	FControlRigControlPose TempPose;
+	TSharedPtr< FAssetThumbnail > Thumbnail;
+	TSharedRef<SWidget> GetThumbnailWidget();
 
 	TWeakObjectPtr<UControlRigPoseAsset> PoseAsset;
-
-	/* Thumbnail*/
-	TSharedRef<SWidget> GetThumbnailWidget();
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 	
 	/* Mirroring*/
 	TSharedPtr<IDetailsView> MirrorDetailsView;
-
-	/*for list of controls stored in asset 
-	void CreateControlList();
-	TArray<TSharedPtr<FString>> ControlList;
-	*/
 
 	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 	{

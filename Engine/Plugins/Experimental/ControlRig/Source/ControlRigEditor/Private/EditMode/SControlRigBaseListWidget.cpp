@@ -11,6 +11,10 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
+
 #include "ScopedTransaction.h"
 
 #include "ControlRig.h"
@@ -30,6 +34,8 @@
 #include "FileHelpers.h"
 #include "Tools/ControlRigPoseMirrorSettings.h"
 #include "ObjectTools.h"
+#include "SControlRigUpdatePose.h"
+#include "SControlRigRenamePoseControls.h"
 
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
@@ -283,7 +289,7 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 		ToolbarBuilder.AddToolBarButton(CreatePoseDialog,
 			NAME_None,
 			LOCTEXT("CreatePose", "Create Pose From Selection"),
-			LOCTEXT("CreatePoseTooltip", "Create Pose Asset From Selection"),
+			LOCTEXT("CreatePoseTooltip", "Create pose asset from selection."),
 			FSlateIcon(),
 			EUserInterfaceActionType::Button
 		);
@@ -291,7 +297,7 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 		ToolbarBuilder.AddToolBarButton(CreatePoseFromAllDialog,
 			NAME_None,
 			LOCTEXT("CreatePoseAll", "Create Pose From All Controls"),
-			LOCTEXT("CreatePoseAllTooltip", "Create Pose Asset From All Controls Not Just Selected"),
+			LOCTEXT("CreatePoseAllTooltip", "Create Pose Asset from all Controls not just selected"),
 			FSlateIcon(),
 			EUserInterfaceActionType::Button
 			
@@ -480,6 +486,143 @@ bool SControlRigPoseAnimSelectionToolbar::IsOnToggleFilter(FControlRigAssetType 
 	return false;
 }
 */
+/////////////////////////////////////////////////////////////////
+//  Helper to Select Path 
+
+class SWhiteListPathDialog : public SWindow
+{
+public:
+	SLATE_BEGIN_ARGS(SWhiteListPathDialog)
+	{
+	}
+
+	SLATE_ARGUMENT(FText, DefaultAssetPath)
+		SLATE_END_ARGS()
+
+		SWhiteListPathDialog()
+		: UserResponse(EAppReturnType::Cancel)
+	{
+	}
+
+	void Construct(const FArguments& InArgs);
+
+public:
+	/** Displays the dialog in a blocking fashion */
+	EAppReturnType::Type ShowModal();
+
+	/** Gets the resulting asset path */
+	FString GetAssetPath();
+
+protected:
+	void OnPathChange(const FString& NewPath);
+	FReply OnButtonClick(EAppReturnType::Type ButtonID);
+	bool IsOkButtonEnabled() const;
+	EAppReturnType::Type UserResponse;
+	FText AssetPath;
+
+};
+
+void SWhiteListPathDialog::Construct(const FArguments& InArgs)
+{
+	AssetPath = FText::FromString(FPackageName::GetLongPackagePath(InArgs._DefaultAssetPath.ToString()));
+
+	FPathPickerConfig PathPickerConfig;
+	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SWhiteListPathDialog::OnPathChange);
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+
+	SWindow::Construct(SWindow::FArguments()
+		.Title(LOCTEXT("SWhiteListPathDialog_Title", "Select Folder To Contain Poses"))
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		//.SizingRule( ESizingRule::Autosized )
+		.ClientSize(FVector2D(450, 450))
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot() // Add user input block
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SVerticalBox)
+
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SelectPath", "Select Path"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+					]
+
+					+SVerticalBox::Slot()
+					.FillHeight(1)
+					.Padding(3)
+					[
+						ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig)
+					]
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(5)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				+SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("OK", "OK"))
+					.OnClicked(this, &SWhiteListPathDialog::OnButtonClick, EAppReturnType::Ok)
+					.IsEnabled(this, &SWhiteListPathDialog::IsOkButtonEnabled)
+				]
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("Cancel", "Cancel"))
+					.OnClicked(this, &SWhiteListPathDialog::OnButtonClick, EAppReturnType::Cancel)
+				]
+			]
+		]);
+}
+
+void SWhiteListPathDialog::OnPathChange(const FString& NewPath)
+{
+	AssetPath = FText::FromString(NewPath);
+}
+
+FReply SWhiteListPathDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+{
+	UserResponse = ButtonID;
+	RequestDestroyWindow();
+
+	return FReply::Handled();
+}
+
+bool SWhiteListPathDialog::IsOkButtonEnabled() const
+{
+	return !AssetPath.IsEmptyOrWhitespace();
+}
+
+EAppReturnType::Type SWhiteListPathDialog::ShowModal()
+{
+	GEditor->EditorAddModalWindow(SharedThis(this));
+	return UserResponse;
+}
+
+FString SWhiteListPathDialog::GetAssetPath()
+{
+	return AssetPath.ToString();
+}
 
 /////////////////////////////////////////////////////
 // SControlRigBaseListWidget, Main Dialog Window holding the path picker, asset view and pose view.
@@ -493,8 +636,11 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 
 	const UControlRigPoseProjectSettings* PoseSettings = GetDefault<UControlRigPoseProjectSettings>();
 
-	FString PosesDir = PoseSettings->GetAssetPath();
-	CurrentlySelectedPath = PosesDir;
+	TArray<FString> PosesDirectories = PoseSettings->GetAssetPaths();
+	if (PosesDirectories.Num() > 0)
+	{
+		CurrentlySelectedPath = PosesDirectories[0];
+	}
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	// Configure filter for asset picker
@@ -509,7 +655,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 	AssetPickerConfig.bCanShowRealTimeThumbnails = true;
 	AssetPickerConfig.ThumbnailLabel = EThumbnailLabel::AssetName;
 	AssetPickerConfig.bFocusSearchBoxWhenOpened = false;
-	AssetPickerConfig.Filter.PackagePaths.Add(FName(*PosesDir));
+	AssetPickerConfig.Filter.PackagePaths.Add(FName(*CurrentlySelectedPath));
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SControlRigBaseListWidget::OnAssetSelected);
 	AssetPickerConfig.OnAssetsActivated = FOnAssetsActivated::CreateSP(this, &SControlRigBaseListWidget::OnAssetsActivated);
 	AssetPickerConfig.SaveSettingsName = TEXT("ControlPoseDialog");
@@ -522,14 +668,17 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPoses_Warning", "No Poses Found, Create One Using Button In Upper Left Corner");
 	AssetPickerConfig.OnIsAssetValidForCustomToolTip = FOnIsAssetValidForCustomToolTip::CreateLambda([](const FAssetData& AssetData) {return AssetData.IsAssetLoaded(); });
-	//AssetPickerConfig.OnGetCustomAssetToolTip = FOnGetCustomAssetToolTip::CreateSP(this, &SControlRigBaseListWidget::CreateCustomAssetToolTip);
 
 	FPathPickerConfig PathPickerConfig;
 	PathPickerConfig.bAddDefaultPath = true;
-	PathPickerConfig.DefaultPath = PosesDir;
-	PathPickerConfig.CustomFolderBlacklist = MakeShared<FBlacklistPaths>();
-	PathPickerConfig.CustomFolderBlacklist.Get()->AddWhitelistItem("PoseLibrary", PosesDir);
+	PathPickerConfig.DefaultPath = CurrentlySelectedPath;
+	CustomFolderBlacklist = PathPickerConfig.CustomFolderBlacklist = MakeShared<FBlacklistPaths>();
+	for (const FString& Path : PosesDirectories)
+	{
+		PathPickerConfig.CustomFolderBlacklist.Get()->AddWhitelistItem("PoseLibrary", Path);
+	}
 
+	PathPickerConfig.OnGetFolderContextMenu = FOnGetFolderContextMenu::CreateSP(this, &SControlRigBaseListWidget::OnGetFolderContextMenu);
 	PathPickerConfig.bFocusSearchBoxWhenOpened = false;
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SControlRigBaseListWidget::HandlePathSelected);
 	PathPickerConfig.SetPathsDelegates.Add(&SetPathsDelegate);
@@ -538,7 +687,12 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 	// The root widget in this dialog.
 	TSharedRef<SVerticalBox> MainVerticalBox = SNew(SVerticalBox);
 
-	// Toolbar on Top
+	AssetPicker = ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig);
+	PathPicker = ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig);
+
+	FContentBrowserConfig Config;
+	Config.bCanSetAsPrimaryBrowser = false;
+		
 	MainVerticalBox->AddSlot()
 		.AutoHeight()
 		[
@@ -559,7 +713,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig)
+			PathPicker.ToSharedRef()
 		]
 		]
 
@@ -569,11 +723,11 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			AssetPicker.ToSharedRef()
 		]
 		]
 		];
-
+		
 
 	//Bottom Area View Container to hold specific View (Pose/Animation).
 	MainVerticalBox->AddSlot()
@@ -737,37 +891,19 @@ void SControlRigBaseListWidget::OnAssetsActivated(const TArray<FAssetData>& Sele
 		SelectThisAsset(Asset);
 	}
 }
-/*
+
 void SControlRigBaseListWidget::FilterChanged()
 {
 	FARFilter NewFilter;
 	NewFilter.PackagePaths.Add(FName(*CurrentlySelectedPath));
-
-	const UControlRigPoseProjectSettings* PoseSettings = GetDefault<UControlRigPoseProjectSettings>();
-	if (PoseSettings)
-	{
-		if (PoseSettings->bFilterPoses)
-		{
-			NewFilter.ClassNames.Add(UControlRigPoseAsset::StaticClass()->GetFName());
-		}
-		if (PoseSettings->bFilterAnimations)
-		{
-			//NewFilter.ClassNames.Add(UControlRigAnimationAsset::StaticClass()->GetFName());
-		}
-		if (PoseSettings->bFilterSelectionSets)
-		{
-			//NewFilter.ClassNames.Add(UControlRigSelectionSetAsset::StaticClass()->GetFName());
-		}
-	}
+	NewFilter.ClassNames.Add(UControlRigPoseAsset::StaticClass()->GetFName());
 	SetFilterDelegate.ExecuteIfBound(NewFilter);
 }
-*/
 
 void SControlRigBaseListWidget::HandlePathSelected(const FString& NewPath)
 {
 	SetCurrentlySelectedPath(NewPath);
-	//FilterChanged();
-
+	FilterChanged();
 }
 
 void SControlRigBaseListWidget::HandleAssetViewFolderEntered(const FString& NewPath)
@@ -778,7 +914,6 @@ void SControlRigBaseListWidget::HandleAssetViewFolderEntered(const FString& NewP
 	NewPaths.Add(NewPath);
 	SetPathsDelegate.Execute(NewPaths);
 }
-
 
 TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetFolderContextMenu(const TArray<FString>& SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder)
 {
@@ -794,23 +929,44 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetFolderContextMenu(const TArr
 
 	if (SelectedPaths.Num() == 1)
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteAddFolder, SelectedPaths[0]));
-		const FText Label = LOCTEXT("AddFolder", "Add Folder");
-		const FText ToolTipText = LOCTEXT("AddFolder Tooltip", "Add Folder to the current Selected Folder");
-		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-
-		FUIAction Action2 = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteRenameFolder, SelectedPaths[0]));
-		const FText Label2 = LOCTEXT("RenameFolder", "Rename Folder");
-		const FText ToolTipText2 = LOCTEXT("RenameFolderTooltip", "Rename Selected Folder.");
-		MenuBuilder.AddMenuEntry(Label2, ToolTipText2, FSlateIcon(), Action2);
+		{
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteAddFolder, SelectedPaths[0]));
+			const FText Label = LOCTEXT("AddFolder", "Add Folder");
+			const FText ToolTipText = LOCTEXT("AddFolder Tooltip", "Add Folder to the current selected folder");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+		}
+		{
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteRenameFolder, SelectedPaths[0]));
+			const FText Label = LOCTEXT("RenameFolder", "Rename Folder");
+			const FText ToolTipText = LOCTEXT("RenameFolderTooltip", "Rename selected folder");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+		}
+		MenuBuilder.AddSeparator();
+		/*
+		{
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteDeleteFolder, SelectedPaths));
+			const FText Label = LOCTEXT("DeleteFolder", "Delete Folder");
+			const FText ToolTipText = LOCTEXT("DeleteFolderTooltip", "Delete selected folder(s), Note this will delete content.");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+		}
+		*/
 	}
 	else if (SelectedPaths.Num() > 0)
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteDeleteFolder, SelectedPaths));
-		const FText Label = LOCTEXT("DeleteFolder", "Delete Folder");
-		const FText ToolTipText = LOCTEXT("DeleteFolderTooltip", "Delete Selecte Folder(s), Note this will delete content.");
+		/*
+		{
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteDeleteFolder, SelectedPaths));
+			const FText Label = LOCTEXT("DeleteFolder", "Delete Folder");
+			const FText ToolTipText = LOCTEXT("DeleteFolderTooltip", "Delete selected folder(s), Note this will delete content.");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+		}
+		*/
+	}
+	{
+		FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteAddFolderToView));
+		const FText Label = LOCTEXT("AddExistingFolderToView", "Add Existing Folder To View");
+		const FText ToolTipText = LOCTEXT("AddExistingFolderToViewTooltip", "Add an existing folder to this view.");
 		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-
 	}
 	MenuBuilder.EndSection();
 
@@ -824,45 +980,46 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetAssetContextMenu(const TArra
 	{
 		return nullptr;
 	}
-	if (SelectedAssets.Num() > 0)
+	MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("Asset", "Asset"));
 	{
-		MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("Asset", "Asset"));
+		if (SelectedAssets.Num() == 1)
 		{
-			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteSaveAssets, SelectedAssets));
-				const FText Label = LOCTEXT("SaveAssetButton", "Save Asset");
-				const FText ToolTipText = LOCTEXT("SaveAssetButtonTooltip", "Save the Selected Assets.");
-				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-			}
-			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteDeleteAssets, SelectedAssets));
-				const FText Label = LOCTEXT("DeleteAssetButton", "Delete Asset");
-				const FText ToolTipText = LOCTEXT("DeleteAssetButtonTooltip", "Delete the Selected Assets.");
-				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-			}
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteRenameAssets, SelectedAssets),
+			FCanExecuteAction::CreateRaw(this, &SControlRigBaseListWidget::CanExecuteRenameAssets, SelectedAssets));
+			const FText Label = LOCTEXT("RenameAssetButton", "Rename Asset");
+			const FText ToolTipText = LOCTEXT("RenameAssetButtonTooltip", "Rename the selected asset");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 		}
-		MenuBuilder.EndSection();
 
-	}
-	if (SelectedAssets.Num() == 1)
-	{
-		UObject* SelectedAsset = SelectedAssets[0].GetAsset();
-		if (SelectedAsset == nullptr)
 		{
-			return nullptr;
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteSaveAssets, SelectedAssets));
+			const FText Label = LOCTEXT("SaveAssetButton", "Save Asset");
+			const FText ToolTipText = LOCTEXT("SaveAssetButtonTooltip", "Save the selected assets");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 		}
+		{
+			FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteDeleteAssets, SelectedAssets));
+			const FText Label = LOCTEXT("DeleteAssetButton", "Delete Asset");
+			const FText ToolTipText = LOCTEXT("DeleteAssetButtonTooltip", "Delete the selected assets.");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	UObject* SelectedAsset = SelectedAssets[0].GetAsset();
+	if (SelectedAsset)
+	{
 
 		UControlRigPoseAsset* PoseAsset = Cast<UControlRigPoseAsset>(SelectedAsset);
 		if (PoseAsset)
 		{
-
 			MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("PoseDialogMenuHeading", "Paste"));
 			{
 
 				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecutePastePose, PoseAsset),
 					FCanExecuteAction::CreateRaw(this, &SControlRigBaseListWidget::CanExecutePastePose, PoseAsset));
 				const FText Label = LOCTEXT("PastePoseButton", "Paste Pose");
-				const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the Selected Pose.");
+				const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the selected pose");
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
 
@@ -870,17 +1027,16 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetAssetContextMenu(const TArra
 				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecutePasteMirrorPose, PoseAsset),
 					FCanExecuteAction::CreateRaw(this, &SControlRigBaseListWidget::CanExecutePasteMirrorPose, PoseAsset));
 				const FText Label = LOCTEXT("PasteMirrorPoseButton", "Paste Mirror Pose");
-				const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the Mirror Pose.");
+				const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the mirror of the pose");
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
-
 			MenuBuilder.EndSection();
 
 			MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("PoseDialogSelectHeading", "Selection"));
 			{
 				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteSelectControls, PoseAsset));
 				const FText Label = LOCTEXT("SelectControls", "Select Controls");
-				const FText ToolTipText = LOCTEXT("SelectControlsTooltip", "Select Controls in this Pose on Active Control Rig");
+				const FText ToolTipText = LOCTEXT("SelectControlsTooltip", "Select controls in this pose on active control rig");
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
 			MenuBuilder.EndSection();
@@ -889,33 +1045,53 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetAssetContextMenu(const TArra
 			{
 				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteUpdatePose, PoseAsset));
 				const FText Label = LOCTEXT("UpdatePose", "Update Pose");
-				const FText ToolTipText = LOCTEXT("Update Pose Tooltip", "Update The Pose Based Upon Current Control Rig Pose");
+				const FText ToolTipText = LOCTEXT("UpdatePoseTooltip", "Update the pose based upon current control rig pose and selected controls");
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
 			MenuBuilder.EndSection();
-
 		}
 	}
+
+	MenuBuilder.BeginSection("PoseDialogOptions", LOCTEXT("PoseDialogRenameControlsHeading", "Rename Controls"));
+	{
+		FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecuteRenamePoseControls, SelectedAssets));
+		const FText Label = LOCTEXT("RenameControls", "Rename Controls");
+		const FText ToolTipText = LOCTEXT("RenameControlsTooltip", "Rename controls in pose asset");
+		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+	}
+	MenuBuilder.EndSection();
+
 	return MenuBuilder.MakeWidget();
-
 }
-
 
 void SControlRigBaseListWidget::BindCommands()
 {
 	Commands = TSharedPtr< FUICommandList >(new FUICommandList);
-
-
 }
+
 void SControlRigBaseListWidget::ExecuteRenameFolder(const FString SelectedPath)
 {
-
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.Get().ExecuteRename(PathPicker);
 }
 
 void SControlRigBaseListWidget::ExecuteAddFolder(const FString SelectedPath)
 {
-
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.Get().ExecuteAddFolder(PathPicker);
 }
+
+void SControlRigBaseListWidget::ExecuteRenameAssets(const TArray<FAssetData> SelectedAssets)
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.Get().ExecuteRename(AssetPicker);
+}
+
+bool SControlRigBaseListWidget::CanExecuteRenameAssets(const TArray<FAssetData> SelectedAssets) const
+{
+	return true;
+}
+
 void SControlRigBaseListWidget::ExecuteSaveAssets(const TArray<FAssetData> SelectedAssets)
 {
 	TArray<UPackage*> PackagesToSave;
@@ -927,17 +1103,38 @@ void SControlRigBaseListWidget::ExecuteSaveAssets(const TArray<FAssetData> Selec
 			FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, false /*bCheckDirty*/, false /*bPromptToSave*/);
 		}
 	}
-
 }
+
 void SControlRigBaseListWidget::ExecuteDeleteAssets(const TArray<FAssetData> SelectedAssets)
 {
 	ObjectTools::DeleteAssets(SelectedAssets);
 	SelectThisAsset(nullptr);
-
 }
+
+void SControlRigBaseListWidget::ExecuteAddFolderToView()
+{
+	TSharedRef<SWhiteListPathDialog> NewAnimDlg =
+		SNew(SWhiteListPathDialog);
+
+	if (NewAnimDlg->ShowModal() != EAppReturnType::Cancel)
+	{
+		FString AssetPath = NewAnimDlg->GetAssetPath();
+		CustomFolderBlacklist.Get()->AddWhitelistItem("PoseLibrary", AssetPath);
+	    UControlRigPoseProjectSettings* PoseSettings = GetMutableDefault<UControlRigPoseProjectSettings>();
+		FDirectoryPath Path;
+		Path.Path = AssetPath;
+		PoseSettings->RootSaveDirs.Add(Path);
+		PoseSettings->SaveConfig();
+
+		//Need to refresh since the blacklist changed
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+		ContentBrowserModule.Get().RefreshPathView(PathPicker);
+	}
+}
+
 void SControlRigBaseListWidget::ExecuteDeleteFolder(const TArray<FString> SelectedFolders)
 {
-
+	/*
 	// Don't allow asset deletion during PIE
 	if (GIsEditor)
 	{
@@ -951,7 +1148,7 @@ void SControlRigBaseListWidget::ExecuteDeleteFolder(const TArray<FString> Select
 			return;
 		}
 	}
-	/*
+	
 	const TArray<FContentBrowserItem> SelectedFiles = AssetPicker->GetAssetView()->GetSelectedFileItems();
 
 	// Batch these by their data sources
@@ -982,7 +1179,7 @@ void SControlRigBaseListWidget::ExecuteDeleteFolder(const TArray<FString> Select
 	{
 		SourceAndItemsPair.Key->BulkDeleteItems(SourceAndItemsPair.Value);
 	}
-	*/
+	
 	// If we had any folders selected, ask the user whether they want to delete them 
 	// as it can be slow to build the deletion dialog on an accidental click
 	if (SelectedFolders.Num() > 0)
@@ -998,7 +1195,7 @@ void SControlRigBaseListWidget::ExecuteDeleteFolder(const TArray<FString> Select
 		}
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-		/*
+	
 		// Spawn a confirmation dialog since this is potentially a highly destructive operation
 		ContentBrowserModule.Get().DisplayConfirmationPopup(
 			Prompt,
@@ -1007,8 +1204,9 @@ void SControlRigBaseListWidget::ExecuteDeleteFolder(const TArray<FString> Select
 			ToSharedRef(),
 			FOnClicked::CreateSP(this, &SControlRigBaseListWidget::ExecuteDeleteFolderConfirmed)
 		);
-		*/
+		
 	}
+	*/
 
 }
 
@@ -1044,7 +1242,6 @@ FReply SControlRigBaseListWidget::ExecuteDeleteFolderConfirmed()
 }
 
 
-
 void SControlRigBaseListWidget::ExecutePastePose(UControlRigPoseAsset* PoseAsset)
 {
 	if (PoseAsset)
@@ -1052,10 +1249,13 @@ void SControlRigBaseListWidget::ExecutePastePose(UControlRigPoseAsset* PoseAsset
 		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 		if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
 		{
+			const FScopedTransaction Transaction(LOCTEXT("PastePose", "Paste Pose"));
+			ControlRigEditMode->GetControlRig(true)->Modify();
 			PoseAsset->PastePose(ControlRigEditMode->GetControlRig(true));
 		}
 	}
 }
+
 bool SControlRigBaseListWidget::CanExecutePastePose(UControlRigPoseAsset* PoseAsset) const
 {
 	return PoseAsset != nullptr;
@@ -1063,11 +1263,7 @@ bool SControlRigBaseListWidget::CanExecutePastePose(UControlRigPoseAsset* PoseAs
 
 void SControlRigBaseListWidget::ExecuteUpdatePose(UControlRigPoseAsset* PoseAsset)
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
-	{
-		PoseAsset->SavePose(ControlRigEditMode->GetControlRig(true),false);
-	}
+	FControlRigUpdatePoseDialog::UpdatePose(PoseAsset);
 }
 
 void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* PoseAsset)
@@ -1075,6 +1271,8 @@ void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* Pose
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
 	{
+		const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
+		ControlRigEditMode->GetControlRig(true)->Modify();
 		PoseAsset->SelectControls(ControlRigEditMode->GetControlRig(true));
 	}
 }
@@ -1086,6 +1284,8 @@ void SControlRigBaseListWidget::ExecutePasteMirrorPose(UControlRigPoseAsset* Pos
 		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 		if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
 		{
+			const FScopedTransaction Transaction(LOCTEXT("PasteMirrorPose", "Paste Mirror Pose"));
+			ControlRigEditMode->GetControlRig(true)->Modify();
 			PoseAsset->PastePose(ControlRigEditMode->GetControlRig(true), false, true);
 		}
 	}
@@ -1094,6 +1294,21 @@ void SControlRigBaseListWidget::ExecutePasteMirrorPose(UControlRigPoseAsset* Pos
 bool SControlRigBaseListWidget::CanExecutePasteMirrorPose(UControlRigPoseAsset* PoseAsset) const
 {
 	return PoseAsset != nullptr;
+}
+
+void SControlRigBaseListWidget::ExecuteRenamePoseControls(const TArray<FAssetData> SelectedAssets)
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	TArray<UControlRigPoseAsset*> SelectedObjects;
+	for (const FAssetData& AssetData : SelectedAssets)
+	{
+		if (AssetData.IsValid() && AssetData.GetAsset() && AssetData.GetAsset()->IsA<UControlRigPoseAsset>())
+		{
+			UControlRigPoseAsset* PoseAsset = Cast<UControlRigPoseAsset>(AssetData.GetAsset());
+			SelectedObjects.Add(PoseAsset);
+		}
+	}
+	FControlRigRenameControlsDialog::RenameControls(SelectedObjects);
 }
 
 void SControlRigBaseListWidget::CreateCurrentView(UObject* Asset)
@@ -1124,7 +1339,6 @@ void SControlRigBaseListWidget::CreateCurrentView(UObject* Asset)
 		ViewContainer->SetContent(EmptyBox.ToSharedRef());
 		break;
 	}
-
 }
 
 TSharedRef<class SControlRigPoseView> SControlRigBaseListWidget::CreatePoseView(UObject* InObject)

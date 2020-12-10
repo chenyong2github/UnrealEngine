@@ -67,5 +67,15 @@ void UControlRigPoseAsset::BlendWithInitialPoses(FControlRigControlPose& Initial
 	}
 }
 
+TArray<FName> UControlRigPoseAsset::GetControlNames() const
+{
+	return Pose.GetControlNames();
+}
+
+void UControlRigPoseAsset::ReplaceControlName(const FName& CurrentName, const FName& NewName)
+{
+	Pose.ReplaceControlName(CurrentName, NewName);
+}
+
 #undef LOCTEXT_NAMESPACE
 

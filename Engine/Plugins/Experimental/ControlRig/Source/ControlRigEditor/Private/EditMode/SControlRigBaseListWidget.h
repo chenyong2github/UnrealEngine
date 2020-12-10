@@ -23,6 +23,7 @@
 class UControlRig;
 class FControlRigEditMode;
 class UControlRigPoseAsset;
+class FAssetFileContextMenu;
 
 namespace ESelectedControlAsset
 {
@@ -55,10 +56,9 @@ public:
 	FControlRigEditMode* GetEditMode();
 	UControlRig* GetControlRig(); 
 
-	/*Notification from Toolbar that the Filter Changed and so we should reset the filter.
-	Currently disabled
+	/*Notification that filter has changed, this includes new folder selected*/
 	void FilterChanged();
-	*/
+	
 	/*Current Path we use to save the asset.*/
 	FString GetCurrentlySelectedPath()const;
 
@@ -92,6 +92,8 @@ private:
 	void ExecuteRenameFolder(const FString SelectedPath);
 	void ExecuteAddFolder(const FString SelectedPath);
 	FReply ExecuteDeleteFolderConfirmed();
+	void ExecuteRenameAssets(const TArray<FAssetData> RenameAssets);
+	bool CanExecuteRenameAssets(const TArray<FAssetData> RenameAssets) const;
 	void ExecuteSaveAssets(const TArray<FAssetData> SelectedAssets);
 	void ExecuteDeleteAssets(const TArray<FAssetData> SelectedAssets);
 	void ExecutePastePose(UControlRigPoseAsset* PoseAsset);
@@ -100,6 +102,8 @@ private:
 	void ExecutePasteMirrorPose(UControlRigPoseAsset* PoseAsset);
 	bool CanExecutePasteMirrorPose(UControlRigPoseAsset* PoseAsset) const;
 	void ExecuteUpdatePose(UControlRigPoseAsset* PoseAsset);
+	void ExecuteRenamePoseControls(const TArray<FAssetData> SelectedAssets);
+	void ExecuteAddFolderToView();
 
 	/** Create the Views for the Selected Asset*/
 	void CreateCurrentView(UObject* Asset);
@@ -115,7 +119,10 @@ private:
 	TSharedPtr<SBox> EmptyBox;
 	TSharedPtr<SBox> ViewContainer;
 
+	TSharedPtr<SWidget> PathPicker;
+	TSharedPtr<SWidget> AssetPicker;
 
+	TSharedPtr<FAssetFileContextMenu> AssetFileContextMenu;
 
 	FString CurrentlySelectedPath;
 	FString CurrentlyEnteredAssetName;
@@ -123,6 +130,9 @@ private:
 
 	/** Commands handled by this widget */
 	TSharedPtr< FUICommandList > Commands;
+
+	/** Blacklist held by the Path Picker*/
+	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
 
 	/** Utility function to display notifications to the user */
 	void NotifyUser(FNotificationInfo& NotificationInfo);

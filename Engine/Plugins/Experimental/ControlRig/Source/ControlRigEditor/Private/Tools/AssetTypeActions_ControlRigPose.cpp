@@ -3,12 +3,20 @@
 #include "AssetTypeActions_ControlRigPose.h"
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
-#include "Tools/ControlRigPose.h"
 #include "ToolMenus.h"
+
+#include "ControlRig.h"
+#include "UnrealEdGlobals.h"
+#include "ControlRigEditMode.h"
+#include "Tools/ControlRigPose.h"
+#include "EditorModeManager.h"
+#include "SControlRigRenamePoseControls.h"
+
+#define LOCTEXT_NAMESPACE "AssetTypeActions_ControlRigPose"
 
 FText FAssetTypeActions_ControlRigPose::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ControlRigPose", "Control Pose");
+	return LOCTEXT("AssetTypeActions_ControlRigPose", "Control Rig Pose");
 }
 
 FColor FAssetTypeActions_ControlRigPose::GetTypeColor() const
@@ -59,8 +67,117 @@ bool FAssetTypeActions_ControlRigPose::IsImportedAsset() const
 
 void FAssetTypeActions_ControlRigPose::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
-	//TODO Add custom Actions based on feedback
+	if (InObjects.Num() == 1)
+	{
+		UObject* SelectedAsset = InObjects[0];
+		if (SelectedAsset == nullptr)
+		{
+			return;
+		}
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+		{
+			UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
+			UControlRigPoseAsset* PoseAsset = Cast<UControlRigPoseAsset>(SelectedAsset);
+			if (PoseAsset)
+			{
+				Section.AddDynamicEntry("Control Rig Pose Actions", FNewToolMenuSectionDelegate::CreateLambda([ControlRig,PoseAsset](FToolMenuSection& InSection)
+					{
+						{
+							const FText Label = LOCTEXT("PastePoseButton", "Paste Pose");
+							const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the selected pose");
+							InSection.AddMenuEntry(
+								"PastePose",
+								Label,
+								ToolTipText,
+								FSlateIcon(),
+								FUIAction(
+									FExecuteAction::CreateLambda([ControlRig,PoseAsset]()
+										{
+											PoseAsset->PastePose(ControlRig, false, false);
+										})));
+						}
+						{
+							const FText Label = LOCTEXT("SelectControls", "Select Controls");
+							const FText ToolTipText = LOCTEXT("SelectControlsTooltip", "Select controls in this pose on active control rig");
+							InSection.AddMenuEntry(
+								"SelectControls",
+								Label,
+								ToolTipText,
+								FSlateIcon(),
+								FUIAction(
+									FExecuteAction::CreateLambda([ControlRig, PoseAsset]()
+										{
+											PoseAsset->SelectControls(ControlRig);
+										})));
+						}
+						{
+							const FText Label = LOCTEXT("UpdatePose", "Update Pose");
+							const FText ToolTipText = LOCTEXT("UpdatePoseTooltip", "Update the pose based upon current control rig pose and selected controls");
+							InSection.AddMenuEntry(
+								"UpdatePose",
+								Label,
+								ToolTipText,
+								FSlateIcon(),
+								FUIAction(
+									FExecuteAction::CreateLambda([ControlRig,PoseAsset]()
+										{
+											PoseAsset->SavePose(ControlRig,false);
+										})));
+						}
+						{
 
-//	FAssetTypeActions_Base::GetActions(InObjects, Section);
-//	TArray<TWeakObjectPtr<UControlRigPoseAsset>> ControlRigPoseAsset = GetTypedWeakObjectPtrs<UControlRigPoseAsset>(InObjects);
+							const FText Label = LOCTEXT("RenameControls", "Rename Controls");
+							const FText ToolTipText = LOCTEXT("RenameControlsTooltip", "Rename controls on selected poses");
+							InSection.AddMenuEntry(
+								"RenameControls",
+								Label,
+								ToolTipText,
+								FSlateIcon(),
+								FUIAction(
+									FExecuteAction::CreateLambda([PoseAsset]()
+										{
+											TArray<UControlRigPoseAsset*> PoseAssets;
+											PoseAssets.Add(PoseAsset);
+											FControlRigRenameControlsDialog::RenameControls(PoseAssets);
+										})));
+						}
+
+					}));
+			}
+		}
+	}
+	else if (InObjects.Num() > 1)
+	{
+		TArray<UControlRigPoseAsset*> PoseAssets;
+		for (UObject* Object : InObjects)
+		{
+			if (Object && Object->IsA<UControlRigPoseAsset>())
+			{
+				UControlRigPoseAsset* PoseAsset = Cast<UControlRigPoseAsset>(Object);
+				PoseAssets.Add(PoseAsset);
+			}
+		}
+		Section.AddDynamicEntry("Control Rig Pose Actions", FNewToolMenuSectionDelegate::CreateLambda([PoseAssets](FToolMenuSection& InSection)
+			{
+				{
+
+					const FText Label = LOCTEXT("RenameControls", "Rename Controls");
+					const FText ToolTipText = LOCTEXT("RenameControlsTooltip", "Rename controls on selected poses");
+					InSection.AddMenuEntry(
+						"RenameControls",
+						Label,
+						ToolTipText,
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([PoseAssets]()
+								{
+									FControlRigRenameControlsDialog::RenameControls(PoseAssets);
+								})));
+				}
+			}));
+
+	}
 }
+
+#undef LOCTEXT_NAMESPACE
