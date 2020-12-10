@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "AudioPanelWidgetInterface.h"
+#include "Sound/SoundEffectPreset.h"
 #include "UObject/Class.h"
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
