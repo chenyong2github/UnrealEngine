@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
 #include "Camera/CameraTypes.h"
+#include "Engine/Scene.h"
 #include "CameraShakeBase.generated.h"
 
 class APlayerCameraManager;
@@ -122,6 +123,7 @@ struct ENGINE_API FCameraShakeUpdateResult
 		: Location(FVector::ZeroVector)
 		, Rotation(FRotator::ZeroRotator)
 		, FOV(0.f)
+		, PostProcessBlendWeight(0.f)
 		, Flags(ECameraShakeUpdateResultFlags::Default)
 	{}
 
@@ -131,6 +133,11 @@ struct ENGINE_API FCameraShakeUpdateResult
 	FRotator Rotation;
 	/** Field-of-view offset for the view, or new absolute field-of-view if ApplyAsAbsolute flag is set */
 	float FOV;
+
+	/** Post process settings, applied if PostProcessBlendWeight is above 0 */
+	FPostProcessSettings PostProcessSettings;
+	/** Blend weight for post process settings */
+	float PostProcessBlendWeight;
 
 	/** Flags for how the base class should handle the result */
 	ECameraShakeUpdateResultFlags Flags;
@@ -230,6 +237,9 @@ struct ENGINE_API FCameraShakeApplyResultParams
 	ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal;
 	/** The custom space to use when PlaySpace is UserDefined */
 	FMatrix UserPlaySpaceMatrix;
+
+	/** Optional camera manager for queuing up blended post-process settings */
+	TWeakObjectPtr<APlayerCameraManager> CameraManager;
 };
 
 /**

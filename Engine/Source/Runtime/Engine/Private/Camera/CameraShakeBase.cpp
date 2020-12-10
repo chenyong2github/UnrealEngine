@@ -256,6 +256,7 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	ApplyParams.Scale = Params.TotalScale;
 	ApplyParams.PlaySpace = PlaySpace;
 	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
+	ApplyParams.CameraManager = CameraManager;
 	ApplyResult(ApplyParams, Result, InOutPOV);
 }
 
@@ -295,6 +296,7 @@ void UCameraShakeBase::ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha,
 	ApplyParams.Scale = Params.TotalScale;
 	ApplyParams.PlaySpace = PlaySpace;
 	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
+	ApplyParams.CameraManager = CameraManager;
 	ApplyResult(ApplyParams, Result, InOutPOV);
 }
 
@@ -386,6 +388,12 @@ void UCameraShakeBase::ApplyResult(const FCameraShakeApplyResultParams& ApplyPar
 		InOutPOV.Rotation += TempResult.Rotation;
 		InOutPOV.FOV += TempResult.FOV;
 	}
+
+	// It's weird but the post-process settings go directly on the camera manager, not on the view info.
+	if (ApplyParams.CameraManager.IsValid() && TempResult.PostProcessBlendWeight > 0.f)
+	{
+		ApplyParams.CameraManager->AddCachedPPBlend(TempResult.PostProcessSettings, TempResult.PostProcessBlendWeight);
+	}
 }
 
 void UCameraShakeBase::ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const
@@ -398,6 +406,7 @@ void UCameraShakeBase::ApplyScale(float Scale, FCameraShakeUpdateResult& InOutRe
 	InOutResult.Location *= Scale;
 	InOutResult.Rotation *= Scale;
 	InOutResult.FOV *= Scale;
+	InOutResult.PostProcessBlendWeight *= Scale;
 }
 
 void UCameraShakeBase::ApplyLimits(const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult)
