@@ -50,25 +50,22 @@ float ComputeDirectionalLightStaticShadowing(float3 WorldPosition)
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 0
 #endif
 
+uint GetForwardLightingCascadeIndex(float4 CascadeEndDepths, float SceneDepth)
+{
+	float4 Count = float4(SceneDepth.xxxx >= CascadeEndDepths);
+	return uint(Count.x + Count.y + Count.z + Count.w);
+}
+
 float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneDepth, inout bool bShadowingFromValidUVArea)
 {
 	float ShadowFactor = 1;
 	bShadowingFromValidUVArea = false;
 
-	if (ForwardLightData.NumDirectionalLightCascades > 0)
+	const uint NumCascades = ForwardLightData.NumDirectionalLightCascades;
+	if (NumCascades > 0)
 	{
-		uint CascadeIndex = ForwardLightData.NumDirectionalLightCascades;
-
-		for (uint TestCascadeIndex = 0; TestCascadeIndex < ForwardLightData.NumDirectionalLightCascades; TestCascadeIndex++)
-		{
-			if (SceneDepth < ForwardLightData.CascadeEndDepths[TestCascadeIndex])
-			{
-				CascadeIndex = TestCascadeIndex;
-				break;
-			}
-		}
-
-		if (CascadeIndex < ForwardLightData.NumDirectionalLightCascades)
+		uint CascadeIndex = GetForwardLightingCascadeIndex(ForwardLightData.CascadeEndDepths, SceneDepth);
+		if (CascadeIndex < NumCascades)
 		{
 			// Transform the world position into shadowmap space
 			float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), ForwardLightData.DirectionalLightWorldToShadowMatrix[CascadeIndex]);
@@ -98,6 +95,50 @@ float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneD
 			#endif
 
 				// Note this doesn't actually mean the shadow factor computed is valid, eg CSM culling removes meshes which would cast on off-screen areas of the shadowmap, which still have valid UVs
+				bShadowingFromValidUVArea = true;
+			}
+		}
+	}
+
+	return ShadowFactor;
+}
+
+// As above, but samples the high(er) resolution conventional shadow map that does not contain Nanite geometry
+// rather than the combined, lower-resolution "complete" shadow map that contains both types.
+float ComputeDirectionalLightDynamicShadowingNonNanite(float3 WorldPosition, float SceneDepth, inout bool bShadowingFromValidUVArea)
+{
+	float ShadowFactor = 1;
+	bShadowingFromValidUVArea = false;
+
+	const uint NumCascades = ForwardLightData.NumDirectionalLightCascades;
+	if (NumCascades > 0)
+	{
+		uint CascadeIndex = GetForwardLightingCascadeIndex(ForwardLightData.NonNaniteCascadeEndDepths, SceneDepth);
+		if (CascadeIndex < NumCascades)
+		{
+			float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), ForwardLightData.NonNaniteDirectionalLightWorldToShadowMatrix[CascadeIndex]);
+			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
+			float4 ShadowmapMinMax = ForwardLightData.NonNaniteDirectionalLightShadowmapMinMax[CascadeIndex];
+
+			if (all(ShadowUVs >= ShadowmapMinMax.xy && ShadowUVs <= ShadowmapMinMax.zw))
+			{
+	#if FILTER_DIRECTIONAL_LIGHT_SHADOWING
+				FPCFSamplerSettings Settings;
+				Settings.ShadowDepthTexture = ForwardLightData.NonNaniteDirectionalLightShadowmapAtlas;
+				Settings.ShadowDepthTextureSampler = ForwardLightData.ShadowmapSampler;
+				Settings.ShadowBufferSize = ForwardLightData.NonNaniteDirectionalLightShadowmapAtlasBufferSize;
+				Settings.SceneDepth = 1 - HomogeneousShadowPosition.z;
+				Settings.TransitionScale = 4000;
+				Settings.bSubsurface = false;
+				Settings.bTreatMaxDepthUnshadowed = false;
+				Settings.DensityMulConstant = 0;
+				Settings.ProjectionDepthBiasParameters = float2(0, 0);
+
+				ShadowFactor = Manual1x1PCF(ShadowUVs, Settings);
+	#else
+				float ShadowDepth = Texture2DSampleLevel(ForwardLightData.NonNaniteDirectionalLightShadowmapAtlas, ForwardLightData.ShadowmapSampler, ShadowUVs, 0).x;
+				ShadowFactor = 1 - HomogeneousShadowPosition.z < ShadowDepth - ForwardLightData.NonNaniteDirectionalLightDepthBias.x;
+	#endif
 				bShadowingFromValidUVArea = true;
 			}
 		}

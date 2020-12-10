@@ -663,12 +663,19 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER_ARRAY(FVector4, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
 	SHADER_PARAMETER(FVector4, DirectionalLightShadowmapAtlasBufferSize) \
 	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
+	SHADER_PARAMETER(uint32, NonNaniteNumDirectionalLightCascades) \
+	SHADER_PARAMETER(FVector4, NonNaniteCascadeEndDepths) \
+	SHADER_PARAMETER_ARRAY(FMatrix, NonNaniteDirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
+	SHADER_PARAMETER_ARRAY(FVector4, NonNaniteDirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
+	SHADER_PARAMETER(FVector4, NonNaniteDirectionalLightShadowmapAtlasBufferSize) \
+	SHADER_PARAMETER(float, NonNaniteDirectionalLightDepthBias) \
 	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing) \
 	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
 	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
 	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
 	SHADER_PARAMETER(FMatrix, DirectionalLightWorldToStaticShadow) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
+	SHADER_PARAMETER_TEXTURE(Texture2D, NonNaniteDirectionalLightShadowmapAtlas) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler) \
