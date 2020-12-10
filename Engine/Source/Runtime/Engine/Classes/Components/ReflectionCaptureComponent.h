@@ -77,6 +77,10 @@ class UReflectionCaptureComponent : public USceneComponent
 	UPROPERTY()
 	FGuid MapBuildDataId;
 
+	/** Cached Cubemap texture from MapBuildData used for rendering with the encoded HDR values. */
+	UPROPERTY(transient)
+	UTextureCube* CachedEncodedHDRCubemap;
+
 #if WITH_EDITOR
 	/** Check to see if MapBuildDataId was loaded - otherwise we need to display a warning on cook */
 	bool bMapBuildDataIdLoaded;
@@ -137,10 +141,6 @@ private:
 
 	/** Whether the reflection capture needs to re-capture the scene. */
 	bool bNeedsRecaptureOrUpload;
-
-	/** Cached Cubemap texture from MapBuildData used for rendering with the encoded HDR values. */
-	UPROPERTY(transient)
-	UTextureCube* CachedEncodedHDRCubemap;
 
 	/** Cached Average Brightness from MapBuildData used for rendering with the encoded HDR values. */
 	float CachedAverageBrightness;
