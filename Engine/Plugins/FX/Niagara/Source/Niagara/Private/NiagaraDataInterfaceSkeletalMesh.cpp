@@ -277,15 +277,12 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 			PrevComponentTransforms() = CurrComponentTransforms();
 		}
 
-		if (Usage.NeedPreSkinnedVerts() && CurrSkinnedPositions(LODIndex).Num() == 0 && SkelComp->SkeletalMesh->GetLODInfo(LODIndex)->bAllowCPUAccess)
+		if (Usage.NeedPreSkinnedVerts() && CurrSkinnedPositions(LODIndex).Num() == 0 && SkelMesh && SkelMesh->GetLODInfo(LODIndex)->bAllowCPUAccess)
 		{
-			if (SkelMesh != nullptr)
-			{
-				FSkeletalMeshLODRenderData& SkelMeshLODData = SkelMesh->GetResourceForRendering()->LODRenderData[LODIndex];
-				FSkinWeightVertexBuffer* SkinWeightBuffer = SkelComp->GetSkinWeightBuffer(LODIndex);
-				USkeletalMeshComponent::ComputeSkinnedPositions(SkelComp, CurrSkinnedPositions(LODIndex), CurrBoneRefToLocals(), SkelMeshLODData, *SkinWeightBuffer);
-				USkeletalMeshComponent::ComputeSkinnedTangentBasis(SkelComp, CurrSkinnedTangentBasis(LODIndex), CurrBoneRefToLocals(), SkelMeshLODData, *SkinWeightBuffer);
-			}
+			FSkeletalMeshLODRenderData& SkelMeshLODData = SkelMesh->GetResourceForRendering()->LODRenderData[LODIndex];
+			FSkinWeightVertexBuffer* SkinWeightBuffer = SkelComp->GetSkinWeightBuffer(LODIndex);
+			USkeletalMeshComponent::ComputeSkinnedPositions(SkelComp, CurrSkinnedPositions(LODIndex), CurrBoneRefToLocals(), SkelMeshLODData, *SkinWeightBuffer);
+			USkeletalMeshComponent::ComputeSkinnedTangentBasis(SkelComp, CurrSkinnedTangentBasis(LODIndex), CurrBoneRefToLocals(), SkelMeshLODData, *SkinWeightBuffer);
 
 			//Prime the previous positions if they're missing
 			if (PrevSkinnedPositions(LODIndex).Num() != CurrSkinnedPositions(LODIndex).Num())
@@ -303,18 +300,31 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Usage)
 {
 	FRWScopeLock Lock(RWGuard, SLT_Write);
-	check(LODData.IsValidIndex(Usage.GetLODIndex()));
 
 	if (Usage.NeedBoneMatrices())
 	{
 		--BoneMatrixUsers;
 	}
 
-	FLODData& LOD = LODData[Usage.GetLODIndex()];
-	if (Usage.NeedPreSkinnedVerts())
+	int32 LODIndex = 0;
+
+	USkeletalMeshComponent* SkelComp = MeshComp.Get();
+	if ( ensure(SkelComp) )
 	{
-		--LOD.PreSkinnedVertsUsers;
-		--TotalPreSkinnedVertsUsers;
+		if (SkelComp->SkeletalMesh != nullptr)
+		{
+			LODIndex = Usage.GetLODIndex();
+		}
+	}
+
+	if ( ensure(LODData.IsValidIndex(LODIndex)) )
+	{
+		FLODData& LOD = LODData[LODIndex];
+		if (Usage.NeedPreSkinnedVerts())
+		{
+			--LOD.PreSkinnedVertsUsers;
+			--TotalPreSkinnedVertsUsers;
+		}
 	}
 }
 
