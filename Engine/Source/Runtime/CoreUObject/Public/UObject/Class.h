@@ -3161,7 +3161,7 @@ public:
 	virtual bool HasProperty(FProperty* InProperty) const;
 
 	/** Finds the object that is used as the parent object when serializing properties, overridden for blueprints */
-	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName, EObjectFlags InstanceFlags = RF_NoFlags) const { return nullptr; }
+	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const { return nullptr; }
 
 	/** Returns archetype object for CDO */
 	virtual UObject* GetArchetypeForCDO() const;
@@ -3270,7 +3270,7 @@ public:
 	// UClass interface
 	virtual UObject* CreateDefaultObject();
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
-	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName, EObjectFlags InstanceFlags) const override;
+	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const override;
 	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
 
 	/** Find a struct property, called from generated code */

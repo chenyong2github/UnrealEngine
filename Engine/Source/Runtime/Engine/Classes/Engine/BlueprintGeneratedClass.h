@@ -765,7 +765,7 @@ public:
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
 	virtual void Bind() override;
 	virtual void GetDefaultObjectPreloadDependencies(TArray<UObject*>& OutDeps) override;
-	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName, EObjectFlags InstanceFlags) const override;
+	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const override;
 
 	virtual void InitPropertiesFromCustomList(uint8* DataPtr, const uint8* DefaultDataPtr) override;
 	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;

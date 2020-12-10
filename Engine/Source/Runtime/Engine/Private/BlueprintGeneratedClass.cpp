@@ -755,12 +755,9 @@ UInheritableComponentHandler* UBlueprintGeneratedClass::GetInheritableComponentH
 }
 
 
-UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName, EObjectFlags InstanceFlags) const
+UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
 {
 	UObject* Archetype = nullptr;
-
-	// Determine if we're searching for the archetype of an inherited component template override.
-	const bool bIsFromInheritedComponentTemplate = !!(InstanceFlags & RF_InheritableComponentTemplate);
 
 	// There are some rogue LevelScriptActors that still have a SimpleConstructionScript
 	// and since preloading the SCS of a script in a world package is bad news, we need to filter them out
@@ -800,22 +797,19 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 		UBlueprintGeneratedClass* Class = const_cast<UBlueprintGeneratedClass*>(this);
 		while (Class)
 		{
-			const USCS_Node* SCSNode = nullptr;
-			if (!bIsFromInheritedComponentTemplate)
+			USimpleConstructionScript* ClassSCS = Class->SimpleConstructionScript;
+			USCS_Node* SCSNode = nullptr;
+			if (ClassSCS)
 			{
-				USimpleConstructionScript* ClassSCS = Class->SimpleConstructionScript;
-				if (ClassSCS)
+				if (ClassSCS->HasAnyFlags(RF_NeedLoad))
 				{
-					if (ClassSCS->HasAnyFlags(RF_NeedLoad))
-					{
-						ClassSCS->PreloadChain();
-					}
-
-					// We keep the index name here rather than the base name, in order to avoid potential
-					// collisions between an SCS variable name and an existing AddComponent node template.
-					// This is because old AddComponent node templates were based on the class display name.
-					SCSNode = ClassSCS->FindSCSNode(ArchetypeName);
+					ClassSCS->PreloadChain();
 				}
+
+				// We keep the index name here rather than the base name, in order to avoid potential
+				// collisions between an SCS variable name and an existing AddComponent node template.
+				// This is because old AddComponent node templates were based on the class display name.
+				SCSNode = ClassSCS->FindSCSNode(ArchetypeName);
 			}
 
 			if (SCSNode)
@@ -830,7 +824,7 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 					Archetype = SCSNode->ComponentTemplate;
 				}
 			}
-			else if(UInheritableComponentHandler* ICH = Class->GetInheritableComponentHandler())
+			else if (UInheritableComponentHandler* ICH = Class->GetInheritableComponentHandler())
 			{
 				if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
 				{
@@ -842,7 +836,6 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 				// This would find either an SCS component template override (for which the archetype
 				// name will match the SCS variable name), or an old AddComponent node template override
 				// (for which the archetype name will match the override record's component template name).
-				// It would also find archetypes of ICH template objects (which are themselves archetypes).
 				FComponentKey ComponentKey = ICH->FindKey(ArchetypeName);
 				if (!ComponentKey.IsValid() && ArchetypeName != ArchetypeBaseName)
 				{
@@ -863,73 +856,7 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 				// Avoid searching for an invalid key.
 				if (ComponentKey.IsValid())
 				{
-					if (bIsFromInheritedComponentTemplate)
-					{
-						FName OriginalTemplateName = ArchetypeName;
-						bool bIsDefaultSceneRootNodeTemplateOverride = false;
-
-						if(const UActorComponent* OriginalTemplate = ComponentKey.GetOriginalTemplate())
-						{
-							// Since the original template may have been renamed, we treat it as authoritative during ICH template archetype lookup.
-							// Note: ICH override template names will be fixed up during ICH serialization after its super class is loaded/compiled.
-							OriginalTemplateName = OriginalTemplate->GetFName();
-
-							// Get the owner of the original template, which should always be a valid Blueprint class.
-							const UBlueprintGeneratedClass* OriginalTemplateOwnerClass = CastChecked<UBlueprintGeneratedClass>(OriginalTemplate->GetOuter());
-							if(OriginalTemplateOwnerClass->SimpleConstructionScript)
-							{
-								// Determine if this template overrides the original template's owner class's default scene root node.
-								if (const USCS_Node* OriginalTemplateOwnerClass_DefaultSceneRootNode = OriginalTemplateOwnerClass->SimpleConstructionScript->GetDefaultSceneRootNode())
-								{
-									if (OriginalTemplateOwnerClass_DefaultSceneRootNode->ComponentTemplate == OriginalTemplate)
-									{
-										bIsDefaultSceneRootNodeTemplateOverride = true;
-									}
-								}
-							}
-						}
-
-						// Look for the first valid archetype in the parent class hierarchy that matches the archetype name.
-						do
-						{
-							Class = Cast<UBlueprintGeneratedClass>(Class->GetSuperClass());
-							if (Class)
-							{
-								if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
-								{
-									if (Class->HasAnyFlags(RF_NeedLoad))
-									{
-										UE_LOG(LogClass, Fatal, TEXT("%s had RF_NeedLoad when searching for an archetype of %s named %s"), *GetFullNameSafe(Class), *GetFullNameSafe(ArchetypeClass), *ArchetypeName.ToString());
-									}
-								}
-
-								// Note: The template name differs from the SCS variable name; template override archetypes use the template name.
-								FName SuperClassArchetypeName = OriginalTemplateName;
-
-								// We need special handling for a default scene root override template - these are explicitly named to avoid collisions
-								// with every Actor-based Blueprint class's own default scene root node (which persist but is "hidden" in a child class).
-								if (bIsDefaultSceneRootNodeTemplateOverride && ComponentKey.GetComponentOwner() != Class)
-								{
-									// We're not searching in the original template owner's class, so use the "special" default scene root override template name.
-									SuperClassArchetypeName = FName(UInheritableComponentHandler::SCSDefaultSceneRootOverrideNamePrefix + SuperClassArchetypeName.ToString());
-								}
-
-								// Note: This may also traverse the class hierarchy, but it will either return a valid match or an invalid/unnecessary
-								// template at the current level, in which case we need to move up one level here and try again (per the condition below).
-								Archetype = Class->FindArchetype(ArchetypeClass, SuperClassArchetypeName, InstanceFlags & ~RF_InheritableComponentTemplate);
-							}
-							else
-							{
-								// No valid match was found. We've searched the full inheritance hierarchy at this point, so just return NULL.
-								return nullptr;
-							}
-						}
-						while (Archetype && (Archetype->IsPendingKill() || Archetype->HasAnyFlags(RF_Transient)));	// Note: Anything marked for GC or transient (temporary) should not match as an archetype.
-					}
-					else
-					{
-						Archetype = ICH->GetOverridenComponentTemplate(ComponentKey);
-					}
+					Archetype = ICH->GetOverridenComponentTemplate(ComponentKey);
 
 					if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
 					{
@@ -938,12 +865,6 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 							UE_LOG(LogClass, Fatal, TEXT("%s had RF_NeedLoad when searching for an archetype of %s named %s"), *GetFullNameSafe(Archetype), *GetFullNameSafe(ArchetypeClass), *ArchetypeName.ToString());
 						}
 					}
-				}
-				else if (bIsFromInheritedComponentTemplate)
-				{
-					// We don't have a valid key, which means the override is missing, invalid or unnecessary.
-					// In that case, we drop to the logic below to try and find a match within the super class.
-					Class = CastChecked<UBlueprintGeneratedClass>(Class->GetSuperClass());
 				}
 			}
 
@@ -967,7 +888,7 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 			}
 		}
 	}
-	
+
 	return Archetype;
 }
 

@@ -1083,7 +1083,7 @@ namespace EditorUtilities
 					// If the target actor's class is a child of our owner and we're both archetypes, then we're actually looking for an overridden version of ourselves
 					if (BPGC && TargetActor->GetClass()->IsChildOf(BPGC))
 					{
-						TargetComponent = Cast<UActorComponent>(TargetActor->GetClass()->FindArchetype(SourceComponent->GetClass(), SourceComponent->GetFName(), SourceComponent->GetFlags()));
+						TargetComponent = Cast<UActorComponent>(TargetActor->GetClass()->FindArchetype(SourceComponent->GetClass(), SourceComponent->GetFName()));
 
 						// If it is us, then we're done, we don't need to find this
 						if (TargetComponent == SourceComponent)

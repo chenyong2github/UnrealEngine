@@ -470,36 +470,9 @@ void UInheritableComponentHandler::PreloadAll()
 
 FComponentKey UInheritableComponentHandler::FindKey(const FName VariableName) const
 {
-	auto MatchesComponentTemplateLambda = [&VariableName](const UObject* InTemplate) -> bool
-	{
-		if (InTemplate)
-		{
-			// AddComponent templates and ICH archetype lookups will match on the actual template name.
-			FName TemplateName = InTemplate->GetFName();
-
-			// ICH templates are deferred on load in order to allow the outer ICH record to be fully serialized first, as ICH template archetype lookup
-			// relies on a valid override record, and we need to be able to find the archetype before we create the export object on load. In that case,
-			// the template object will be a "placeholder" that's created by the linker at load time, in which case we need to redirect the template name
-			// to the original name that's recorded in the package export map, because the actual placeholder object name will not match the name of the
-			// ICH and/or SCS template that it's based on. See FLinkerLoad::CreateExport() and FLinkerLoad::DeferExportCreation() for the relevant code.
-			if (!InTemplate->HasAnyFlags(RF_WasLoaded) && FBlueprintSupport::IsDeferredDependencyPlaceholder(InTemplate))
-			{
-				const FName DeferredExportName = FBlueprintSupport::GetDeferredExportNameForPlaceholderObject(InTemplate);
-				if (!DeferredExportName.IsNone())
-				{
-					TemplateName = DeferredExportName;
-				}
-			}
-			
-			return TemplateName == VariableName;
-		}
-
-		return false;
-	};
-
 	for (const FComponentOverrideRecord& Record : Records)
 	{
-		if (Record.ComponentKey.GetSCSVariableName() == VariableName || MatchesComponentTemplateLambda(Record.ComponentTemplate))
+		if (Record.ComponentKey.GetSCSVariableName() == VariableName || (Record.ComponentTemplate && Record.ComponentTemplate->GetFName() == VariableName))
 		{
 			return Record.ComponentKey;
 		}

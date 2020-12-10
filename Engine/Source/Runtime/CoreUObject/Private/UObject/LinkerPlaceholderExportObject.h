@@ -27,7 +27,4 @@ public:
 	// FLinkerPlaceholderBase interface
 	virtual UObject* GetPlaceholderAsUObject() override { return (UObject*)(this); }
 	// End of FLinkerPlaceholderBase interface
-
-	/** Keeps track of the original export object resource name that this instance is being used in place of. */
-	FName ExportName;
 }; 
