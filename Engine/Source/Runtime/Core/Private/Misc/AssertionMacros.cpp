@@ -113,7 +113,7 @@ void PrintScriptCallstack()
 	}
 }
 
-static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format, va_list Args)
+static void AssertFailedImplV(const FDebug::FFailureInfo& Info, const TCHAR* Format, va_list Args)
 {
 	FTempCommandLineScope TempCommandLine;
 
@@ -127,8 +127,8 @@ static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 
 	FCString::GetVarArgs(DescriptionString, UE_ARRAY_COUNT(DescriptionString), Format, Args);
 
 	TCHAR ErrorString[MAX_SPRINTF];
-	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Expr));
-	GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, DescriptionString);
+	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Info.Expr));
+	GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(Info.File), Info.Line, DescriptionString);
 }
 
 /**
@@ -136,8 +136,11 @@ static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 
  *	prompts for the remote debugging if there is not debugger, breaks into the debugger 
  *	and copies the error into the global error message.
  */
-FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, int32 Line, const TCHAR* Description, bool bIsEnsure, int NumStackFramesToIgnore )
+FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureInfo& Info, const TCHAR* Description, bool bIsEnsure, int NumStackFramesToIgnore )
 {
+	const ANSICHAR* File = Info.File;
+	int32 Line = Info.Line;
+
 	// Print out the blueprint callstack
 	PrintScriptCallstack();
 
@@ -268,15 +271,15 @@ void FDebug::LogFormattedMessageWithCallstack(const FName& InLogName, const ANSI
 //warning: May be called at library startup time.
 //
 
-FORCENOINLINE void FDebug::LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Fmt, ...)
+FORCENOINLINE void FDebug::LogAssertFailedMessageImpl(const FFailureInfo& Info, const TCHAR* Fmt, ...)
 {
 	va_list Args;
 	va_start(Args, Fmt);
-	LogAssertFailedMessageImplV(Expr, File, Line, Fmt, Args);
+	LogAssertFailedMessageImplV(Info, Fmt, Args);
 	va_end(Args);
 }
 
-void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Fmt, va_list Args)
+void FDebug::LogAssertFailedMessageImplV(const FFailureInfo& Info, const TCHAR* Fmt, va_list Args)
 {
 	// Ignore this assert if we're already forcibly shutting down because of a critical error.
 	if( !GIsCriticalError )
@@ -285,10 +288,10 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
 		FCString::GetVarArgs( DescriptionString, UE_ARRAY_COUNT(DescriptionString), Fmt, Args );
 
 		TCHAR ErrorString[MAX_SPRINTF];
-		FCString::Sprintf( ErrorString, TEXT( "Assertion failed: %s" ), ANSI_TO_TCHAR( Expr ) );
+		FCString::Sprintf( ErrorString, TEXT( "Assertion failed: %s" ), ANSI_TO_TCHAR( Info.Expr ) );
 
 		const int32 NumStackFramesToIgnore = 1;
-		StaticFailDebug( ErrorString, File, Line, DescriptionString, false, NumStackFramesToIgnore );
+		StaticFailDebug( ErrorString, Info, DescriptionString, false, NumStackFramesToIgnore );
 	}
 }
 
@@ -301,8 +304,12 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
  * @param	Msg		Informative error message text
  * @param	NumStackFramesToIgnore	Number of stack frames to ignore in the callstack
  */
-FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Msg, int NumStackFramesToIgnore)
+FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* Msg, int NumStackFramesToIgnore)
 {
+	const ANSICHAR* Expr = Info.Expr;
+	const ANSICHAR* File = Info.File;
+	int32 Line = Info.Line;
+
 	FTempCommandLineScope TempCommandLine;
 
 	// if time isn't ready yet, we better not continue
@@ -323,7 +330,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 	if( bShouldCrash )
 	{
 		// Just trigger a regular assertion which will crash via GError->Logf()
-		FDebug::LogAssertFailedMessageImpl( Expr, File, Line, TEXT("%s"), Msg );
+		FDebug::LogAssertFailedMessageImpl( Info, TEXT("%s"), Msg );
 		return;
 	}
 
@@ -332,9 +339,9 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 
 	// Print initial debug message for this error
 	TCHAR ErrorString[MAX_SPRINTF];
-	FCString::Sprintf(ErrorString,TEXT("Ensure condition failed: %s"),ANSI_TO_TCHAR(Expr));
+	FCString::Sprintf(ErrorString,TEXT("Ensure condition failed: %s"),ANSI_TO_TCHAR(Info.Expr));
 
-	StaticFailDebug( ErrorString, File, Line, Msg, true, NumStackFramesToIgnore + 1 );
+	StaticFailDebug( ErrorString, Info, Msg, true, NumStackFramesToIgnore + 1 );
 
 	// Is there a debugger attached?  If not we'll submit an error report.
 	if (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash)
@@ -466,16 +473,14 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 }
 
 void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
-	const ANSICHAR* Expr,
-	const ANSICHAR* File,
-	const int Line,
+	const FFailureInfo& Info,
 	const TCHAR* Format,
 	...)
 {
 	va_list Args;
 
 	va_start(Args, Format);
-	FDebug::LogAssertFailedMessageImplV(Expr, File, Line, Format, Args);
+	FDebug::LogAssertFailedMessageImplV(Info, Format, Args);
 	va_end(Args);
 
 	if (!FPlatformMisc::IsDebuggerPresent())
@@ -483,7 +488,7 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 		FPlatformMisc::PromptForRemoteDebugging(false);
 
 		va_start(Args, Format);
-		AssertFailedImplV(Expr, File, Line, Format, Args);
+		AssertFailedImplV(Info, Format, Args);
 		va_end(Args);
 	}
 }
@@ -494,7 +499,8 @@ void VARARGS FDebug::AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, in
 {
 	va_list Args;
 	va_start(Args, Format);
-	AssertFailedImplV(Expr, File, Line, Format, Args);
+	FDebug::FFailureInfo Info = { Expr, File, Line };
+	AssertFailedImplV(Info, Format, Args);
 	va_end(Args);
 }
 
@@ -510,7 +516,7 @@ void FDebug::ProcessFatalError()
 }
 
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
-FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl( bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* FormattedMsg, ... )
+FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl( bool bLog, const FFailureInfo& Info, const TCHAR* FormattedMsg, ... )
 {
 	if (bLog)
 	{
@@ -519,20 +525,20 @@ FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningF
 		GET_VARARGS( TempStr, TempStrSize, TempStrSize - 1, FormattedMsg, FormattedMsg );
 
 		const int32 NumStackFramesToIgnore = 1; // Just ignore this frame
-		EnsureFailed( Expr, File, Line, TempStr, NumStackFramesToIgnore );
+		EnsureFailed( Info, TempStr, NumStackFramesToIgnore );
 	}
 	
 	return false;
 }
 #endif
 
-FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, const TCHAR* Format, ...)
+FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const FDebug::FFailureInfo& Info, const TCHAR* Format, ...)
 {
 	TCHAR DescriptionString[4096];
 	GET_VARARGS( DescriptionString, UE_ARRAY_COUNT(DescriptionString), UE_ARRAY_COUNT(DescriptionString)-1, Format, Format );
 
 	const int32 NumStackFramesToIgnore = 1; // Just ignore this frame
-	StaticFailDebug(TEXT("LowLevelFatalError"), File, Line, DescriptionString, false, NumStackFramesToIgnore);
+	StaticFailDebug(TEXT("LowLevelFatalError"), Info, DescriptionString, false, NumStackFramesToIgnore);
 }
 
 void FDebug::DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity)
