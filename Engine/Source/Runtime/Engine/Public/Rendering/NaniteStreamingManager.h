@@ -120,7 +120,7 @@ public:
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 	
 
-	TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
+	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()	{ return StreamingRequestsBuffer; }
 
 	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }

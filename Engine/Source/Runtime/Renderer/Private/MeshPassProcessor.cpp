@@ -1025,7 +1025,7 @@ uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
 	return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
 }
 
-void FMeshDrawCommand::SubmitDraw(
+void FMeshDrawCommand::SubmitDrawBegin(
 	const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
@@ -1035,7 +1035,7 @@ void FMeshDrawCommand::SubmitDraw(
 	FMeshDrawCommandStateCache& RESTRICT StateCache)
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
-		
+
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent MeshEvent;
 
@@ -1068,7 +1068,7 @@ void FMeshDrawCommand::SubmitDraw(
 	}
 #endif
 
-		const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
+	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
 	if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
 	{
@@ -1101,7 +1101,10 @@ void FMeshDrawCommand::SubmitDraw(
 	}
 
 	MeshDrawCommand.ShaderBindings.SetOnCommandList(RHICmdList, MeshPipelineState.BoundShaderState.AsBoundShaderState(), StateCache.ShaderBindings);
+}
 
+void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList)
+{
 	if (MeshDrawCommand.IndexBuffer)
 	{
 		if (MeshDrawCommand.NumPrimitives > 0)
@@ -1119,19 +1122,19 @@ void FMeshDrawCommand::SubmitDraw(
 		else
 		{
 			RHICmdList.DrawIndexedPrimitiveIndirect(
-				MeshDrawCommand.IndexBuffer, 
-				MeshDrawCommand.IndirectArgs.Buffer, 
+				MeshDrawCommand.IndexBuffer,
+				MeshDrawCommand.IndirectArgs.Buffer,
 				MeshDrawCommand.IndirectArgs.Offset
-				);
+			);
 		}
 	}
 	else
 	{
 		if (MeshDrawCommand.NumPrimitives > 0)
 		{
-		RHICmdList.DrawPrimitive(
-			MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
-			MeshDrawCommand.NumPrimitives,
+			RHICmdList.DrawPrimitive(
+				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
+				MeshDrawCommand.NumPrimitives,
 				MeshDrawCommand.NumInstances * InstanceFactor);
 		}
 		else
@@ -1139,10 +1142,24 @@ void FMeshDrawCommand::SubmitDraw(
 			RHICmdList.DrawPrimitiveIndirect(
 				MeshDrawCommand.IndirectArgs.Buffer,
 				MeshDrawCommand.IndirectArgs.Offset
-		);
+			);
+		}
 	}
 }
+
+void FMeshDrawCommand::SubmitDraw(
+	const FMeshDrawCommand& RESTRICT MeshDrawCommand,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
+	int32 PrimitiveIdOffset,
+	uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FMeshDrawCommandStateCache& RESTRICT StateCache)
+{
+	SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, ScenePrimitiveIdsBuffer, PrimitiveIdOffset, InstanceFactor, RHICmdList, StateCache);
+	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList);
 }
+
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {

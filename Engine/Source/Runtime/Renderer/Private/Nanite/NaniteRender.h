@@ -32,7 +32,6 @@ DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials,	TEXT("Nanite Materials"));
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(FIntVector4,					SOAStrides)
 	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w unused
-	SHADER_PARAMETER(float,							MaterialDepth)
 	SHADER_PARAMETER(uint32,						MaxNodes)
 	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
@@ -208,6 +207,10 @@ class FNaniteVS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteVS);
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, MaterialDepth)
+	END_SHADER_PARAMETER_STRUCT()
+
 	FNaniteVS()
 	{
 	}
@@ -215,6 +218,7 @@ class FNaniteVS : public FNaniteShader
 	FNaniteVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FNaniteShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
 		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
 	}
 
@@ -254,6 +258,7 @@ class FNaniteVS : public FNaniteShader
 	}
 
 private:
+	LAYOUT_FIELD(FShaderParameter, MaterialDepth);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
 };
 

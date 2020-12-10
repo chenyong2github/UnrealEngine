@@ -388,6 +388,7 @@ void EmitEditorSelectionDepthPS(
 
 #endif
 
+float MaterialDepth;
 
 void FullScreenVS(
 	float2 InPosition   : ATTRIBUTE0,
@@ -405,7 +406,7 @@ void FullScreenVS(
 	float2 TilePosition = (InPosition + (float2)GridPos) * GridStep;
 	TilePosition.xy = TilePosition.xy * Nanite.RectScaleOffset.xy + Nanite.RectScaleOffset.zw;
 
-	const float Depth = Nanite.MaterialDepth;
+	const float Depth = MaterialDepth;
 	const uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
 
 	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);

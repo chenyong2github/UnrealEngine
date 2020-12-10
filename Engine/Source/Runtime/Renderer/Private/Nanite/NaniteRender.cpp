@@ -2331,7 +2331,7 @@ FCullingContext InitCullingContext(
 		CullingContext.PostPass.RasterizeArgsSWHW		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT( "PostPass.RasterizeArgsSWHW" ) );
 	}
 
-	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer(), TEXT("StreamingRequestsBuffer")); 
+	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
 	if (bUpdateStreaming)
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_OUTPUT_STREAMING_REQUESTS;
@@ -3565,11 +3565,6 @@ void ExtractResults(
 		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer64, RasterResults.DbgBuffer64);
 		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer32, RasterResults.DbgBuffer32);
 	}
-
-	if (CullingContext.RenderFlags & RENDER_FLAG_OUTPUT_STREAMING_REQUESTS)
-	{
-		ConvertToExternalBuffer(GraphBuilder, CullingContext.StreamingRequests, GStreamingManager.GetStreamingRequestsBuffer());
-	}
 }
 
 void DrawHitProxies(
@@ -4120,6 +4115,45 @@ static void BuildNaniteMaterialPassCommands(
 	}
 }
 
+static void SubmitNaniteMaterialPassCommand(
+	const FMeshDrawCommand& MeshDrawCommand,
+	const float MaterialDepth,
+	const TShaderRef<FNaniteVS>& NaniteVertexShader,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	const uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FMeshDrawCommandStateCache& StateCache)
+{
+	FMeshDrawCommand::SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+
+	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
+	{
+		FNaniteVS::FParameters Parameters;
+		Parameters.MaterialDepth = MaterialDepth;
+		SetShaderParameters(RHICmdList, NaniteVertexShader, NaniteVertexShader.GetVertexShader(), Parameters);
+	}
+
+	FMeshDrawCommand::SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList);
+}
+
+static void SubmitNaniteMaterialPassCommand(
+	const FNaniteMaterialPassCommand& MaterialPassCommand,
+	const TShaderRef<FNaniteVS>& NaniteVertexShader,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	const uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FMeshDrawCommandStateCache& StateCache)
+{
+	SubmitNaniteMaterialPassCommand(
+		MaterialPassCommand.MeshDrawCommand,
+		MaterialPassCommand.MaterialDepth,
+		NaniteVertexShader,
+		GraphicsMinimalPipelineStateSet,
+		InstanceFactor,
+		RHICmdList,
+		StateCache);
+}
+
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
@@ -4279,11 +4313,13 @@ void DrawBasePass(
 			MaterialDepthStencil
 		);
 
+		TShaderMapRef<FNaniteVS> NaniteVertexShader(View.ShaderMap);
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, NaniteVertexShader, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
@@ -4317,6 +4353,7 @@ void DrawBasePass(
 			UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
 			UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
 			UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
+			const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
 
 			FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
@@ -4328,14 +4365,7 @@ void DrawBasePass(
 			const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
 			for (auto CommandsIt = NaniteMaterialPassCommands.CreateConstIterator(); CommandsIt; ++CommandsIt)
 			{
-				const FNaniteMaterialPassCommand& MaterialPassCommand = *CommandsIt;
-
-				UniformParams.MaterialDepth = MaterialPassCommand.MaterialDepth;
-				const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
-				StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
-
-				const FMeshDrawCommand& MeshDrawCommand = MaterialPassCommand.MeshDrawCommand;
-				FMeshDrawCommand::SubmitDraw(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, TileCount, RHICmdList, StateCache);
+				SubmitNaniteMaterialPassCommand(*CommandsIt, NaniteVertexShader, GraphicsMinimalPipelineStateSet, TileCount, RHICmdList, StateCache);
 			}
 		});
 	}
@@ -4644,11 +4674,13 @@ void DrawLumenMeshCapturePass(
 			FExclusiveDepthStencil::DepthWrite_StencilRead
 		);
 
+		TShaderMapRef<FNaniteVS> NaniteVertexShader(SharedView->ShaderMap);
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Lumen Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, SharedView, &CardsToRender, ViewportSize](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, NaniteVertexShader, SharedView, &CardsToRender, ViewportSize](FRHICommandListImmediate& RHICmdList)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
 
@@ -4687,7 +4719,12 @@ void DrawLumenMeshCapturePass(
 				UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
 				UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
 
+				const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
+				StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
+
 				FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+
+				const uint32 InstanceFactor = 1; // Rendering a single rect per Lumen card, unlike main GBuffer export path that may render 32 if tiled material culling is used.
 
 				if (CardRenderData.CardData.bDistantScene)
 				{
@@ -4696,12 +4733,7 @@ void DrawLumenMeshCapturePass(
 
 					for (auto CommandsIt = NaniteMaterialPassCommands.CreateConstIterator(); CommandsIt; ++CommandsIt)
 					{
-						UniformParams.MaterialDepth = CommandsIt->MaterialDepth;
-						const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
-						StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
-
-						const uint32 InstanceFactor = 1; // Rendering a single rect per Lumen card, unlike main GBuffer export path that may render 32 if tiled material culling is used.
-						FMeshDrawCommand::SubmitDraw(CommandsIt->MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+						SubmitNaniteMaterialPassCommand(*CommandsIt, NaniteVertexShader, GraphicsMinimalPipelineStateSet, InstanceFactor, RHICmdList, StateCache);
 					}
 				}
 				else
@@ -4711,14 +4743,9 @@ void DrawLumenMeshCapturePass(
 						Experimental::FHashElementId SetId(CommandInfo.GetStateBucketId());
 						const FMeshDrawCommand& MeshDrawCommand = Scene.NaniteDrawCommands[ENaniteMeshPass::LumenCardCapture].GetByElementId(SetId).Key;
 
-						int32 DrawIdx = CommandInfo.GetStateBucketId();
-
-						UniformParams.MaterialDepth = FNaniteCommandInfo::GetDepthId(DrawIdx);
-						const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
-						StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
-
-						const uint32 InstanceFactor = 1; // Rendering a single rect per Lumen card, unlike main GBuffer export path that may render 32 if tiled material culling is used.
-						FMeshDrawCommand::SubmitDraw(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+						const int32 DrawIdx = CommandInfo.GetStateBucketId();
+						const float MaterialDepth = FNaniteCommandInfo::GetDepthId(DrawIdx);
+						SubmitNaniteMaterialPassCommand(MeshDrawCommand, MaterialDepth, NaniteVertexShader, GraphicsMinimalPipelineStateSet, InstanceFactor, RHICmdList, StateCache);
 					}
 				}
 			}

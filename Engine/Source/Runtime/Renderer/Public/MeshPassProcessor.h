@@ -1094,14 +1094,27 @@ public:
 		ShaderBindings.Finalize(ShadersForDebugging);	
 	}
 
-	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
-	static void SubmitDraw(
-		const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
+	/** Submits the state and shader bindings to the RHI command list, but does not invoke the draw. */
+	static void SubmitDrawBegin(
+		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
-		FRHICommandList& CommandList, 
+		FRHICommandList& RHICmdList,
+		FMeshDrawCommandStateCache& RESTRICT StateCache);
+
+	/** Submits just the draw primitive portion of the draw command. */
+	static void SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList);
+
+	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
+	static void SubmitDraw(
+		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
+		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
+		int32 PrimitiveIdOffset,
+		uint32 InstanceFactor,
+		FRHICommandList& CommandList,
 		class FMeshDrawCommandStateCache& RESTRICT StateCache);
 
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
@@ -1522,7 +1535,7 @@ public:
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetStencilRef(uint32 InStencilRef)
-		{
+	{
 		StencilRef = InStencilRef;
 	}
 
