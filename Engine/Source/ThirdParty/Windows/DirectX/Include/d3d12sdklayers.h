@@ -149,7 +149,9 @@ extern "C"{
 
 #include <winapifamily.h>
 #pragma region App Family
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES)
+// UE CHANGE START - Removing newer WINAPI usage.
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+// UE CHANGE END
 
 
 extern RPC_IF_HANDLE __MIDL_itf_d3d12sdklayers_0000_0000_v0_0_c_ifspec;

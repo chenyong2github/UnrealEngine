@@ -42,7 +42,9 @@ extern "C" {
 
 
 #pragma region Application Family
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES)
+// UE CHANGE START - Removing newer WINAPI usage.
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+// UE CHANGE END
 
 //----------------------------------------------------------------------------
 // D3DReadFileToBlob:

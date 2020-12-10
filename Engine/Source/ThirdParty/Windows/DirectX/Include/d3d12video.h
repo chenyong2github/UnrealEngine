@@ -199,7 +199,9 @@ extern "C"{
 
 #include <winapifamily.h>
 #pragma region App Family
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES)
+// UE CHANGE START - Removing newer WINAPI usage.
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+// UE CHANGE END
 typedef 
 enum D3D12_VIDEO_FIELD_TYPE
     {
