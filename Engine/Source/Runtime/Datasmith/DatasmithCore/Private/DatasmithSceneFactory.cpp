@@ -41,6 +41,8 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateMaterial( InName );
 	case EDatasmithElementType::MasterMaterial:
 		return CreateMasterMaterial( InName );
+	case EDatasmithElementType::UEPbrMaterial:
+		return CreateUEPbrMaterial( InName );
 	case EDatasmithElementType::KeyValueProperty:
 		return CreateKeyValueProperty( InName );
 	case EDatasmithElementType::Texture:
