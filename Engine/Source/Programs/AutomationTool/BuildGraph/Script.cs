@@ -489,6 +489,14 @@ namespace AutomationTool
 		/// <returns>True if the property was found, false otherwise</returns>
 		bool TryGetPropertyValue(string Name, out string Value)
 		{
+			int ValueLength = 0;
+			if (Name.Contains(":"))
+			{
+				string[] Tokens = Name.Split(':');
+				Name = Tokens[0];
+				ValueLength = int.Parse(Tokens[1]);
+			}
+
 			// Check each scope for the property
 			for (int ScopeIdx = ScopedProperties.Count - 1; ScopeIdx >= 0; ScopeIdx--)
 			{
@@ -496,6 +504,14 @@ namespace AutomationTool
 				if (ScopedProperties[ScopeIdx].TryGetValue(Name, out ScopeValue))
 				{
 					Value = ScopeValue;
+					if (ValueLength > 0)
+					{
+						Value = Value.Substring(0, ValueLength);
+					}
+					if (ValueLength < 0)
+					{
+						Value = Value.Substring(Value.Length + ValueLength, -ValueLength);
+					}
 					return true;
 				}
 			}
