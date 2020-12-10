@@ -12458,6 +12458,12 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateSP( this, &FSequencer::IsPlaybackRangeLocked ));
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleCleanPlaybackMode,
+		FExecuteAction::CreateLambda( [this]{ Settings->SetCleanPlaybackMode( !Settings->GetCleanPlaybackMode() ); } ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ),
+		FIsActionChecked::CreateLambda( [this]{ return Settings->GetCleanPlaybackMode(); } ) );
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleRerunConstructionScripts,
 		FExecuteAction::CreateLambda( [this]{ Settings->SetRerunConstructionScripts( !Settings->ShouldRerunConstructionScripts() ); } ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
