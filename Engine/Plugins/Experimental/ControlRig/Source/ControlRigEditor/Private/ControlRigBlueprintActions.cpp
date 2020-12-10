@@ -199,7 +199,7 @@ USkeletalMesh* FControlRigBlueprintActions::GetSkeletalMeshFromControlRigBluepri
 
 void FControlRigBlueprintActions::PostSpawningSkeletalMeshActor(AActor* InSpawnedActor, UObject* InAsset)
 {
-	if (InSpawnedActor->HasAnyFlags(RF_Transient))
+	if (InSpawnedActor->HasAnyFlags(RF_Transient) || InSpawnedActor->bIsEditorPreviewActor)
 	{
 		return;
 	}
