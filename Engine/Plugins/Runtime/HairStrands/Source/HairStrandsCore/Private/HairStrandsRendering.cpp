@@ -58,6 +58,8 @@ EHairCardsSimulationType GetHairCardsSimulationType()
 		(GHairCardsInterpolationType >= 1 ? EHairCardsSimulationType::Guide : EHairCardsSimulationType::None);
 }
 
+bool IsHairLODSimulationEnabled(const int32 LODIndex);
+
 bool NeedsUpdateCardsMeshTriangles()
 {
 	return GetHairCardsSimulationType() == EHairCardsSimulationType::Guide;
@@ -632,7 +634,7 @@ static void AddHairStrandsInterpolationPass(
 	}
 
 	const bool bUseSingleGuide = GHairStrandsUseSingleGuideInterpolation > 0;
-	const bool bHasLocalDeformation = Instance->Guides.bIsSimulationEnable || bSupportGlobalInterpolation;
+	const bool bHasLocalDeformation = (Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || bSupportGlobalInterpolation;
 	const bool bCullingEnable = InstanceGeometryType == EHairGeometryType::Strands && CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 
@@ -1660,7 +1662,7 @@ void ResetHairStrandsInterpolation(
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex)
 {
-	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable) || !IsHairStrandsBindingEnable()) return;
+	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || !IsHairStrandsBindingEnable()) return;
 
 	DECLARE_GPU_STAT(HairStrandsResetInterpolation);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsResetInterpolation");
