@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InputCore",
 					"RHI",
+					"RHICore",
 					"RenderCore",
 					"Renderer",
 					"Slate",

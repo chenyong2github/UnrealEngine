@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
                     "BuildSettings",
                     "InputCore",
 					"RHI",
+					"RHICore",
 					"RenderCore",
 					"Renderer",
 					"RenderCore",

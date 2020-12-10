@@ -67,6 +67,7 @@ namespace UnrealBuildTool.Rules
                         "EngineSettings",
                         "InputCore",
 						"RHI",
+						"RHICore",
 						"RenderCore",
 						"Renderer",
 						"HeadMountedDisplay",

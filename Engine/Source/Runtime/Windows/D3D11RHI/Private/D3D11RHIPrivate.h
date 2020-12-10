@@ -29,6 +29,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 #include "D3D11ConstantBuffer.h"
 #include "D3D11StateCache.h"
 #include "RHIValidationCommon.h"
+#include "RHICoreShader.h"
 
 #include "ShaderCompiler.h"
 
@@ -878,15 +879,15 @@ protected:
 	uint16 DirtyUniformBuffers[SF_NumStandardFrequencies];
 
 	template <typename TRHIShader>
-	void ApplyGlobalUniformBuffers(TRHIShader* Shader)
+	void ApplyStaticUniformBuffers(TRHIShader* Shader)
 	{
 		if (Shader)
 		{
-			::ApplyGlobalUniformBuffers(this, Shader, Shader->StaticSlots, Shader->ShaderResourceTable.ResourceTableLayoutHashes, GlobalUniformBuffers);
+			UE::RHICore::ApplyStaticUniformBuffers(this, Shader, Shader->StaticSlots, Shader->ShaderResourceTable.ResourceTableLayoutHashes, StaticUniformBuffers);
 		}
 	}
 
-	TArray<FRHIUniformBuffer*> GlobalUniformBuffers;
+	TArray<FRHIUniformBuffer*> StaticUniformBuffers;
 
 	/** Tracks the current depth stencil access type. */
 	FExclusiveDepthStencil CurrentDSVAccessType;

@@ -29,7 +29,8 @@ public class HLMedia : ModuleRules
                 "Projects",
                 "RenderCore",
                 "RHI",
-                "MediaUtils",
+				"RHICore",
+				"MediaUtils",
             });
 
         PrivateIncludePathModuleNames.AddRange(

@@ -27,7 +27,8 @@ public class DisplayClusterProjection : ModuleRules
 				"MPCDI",
 				"Projects",
 				"RenderCore",
-				"RHI"
+				"RHI",
+				"RHICore"
 			});
 
 		if (Target.bBuildEditor == true)

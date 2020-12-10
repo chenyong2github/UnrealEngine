@@ -20,6 +20,7 @@ public class D3D11RHI : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"RHI",
+				"RHICore",
 				"RenderCore"
 			}
 			);
