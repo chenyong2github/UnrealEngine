@@ -90,17 +90,6 @@ bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& O
 #endif
 	}
 
-#if WITH_EDITOR
-	// update the reverse mapping which doesn't depend on whether new code was added or not
-	if (AssociatedAssets)
-	{
-		for (FShaderMapAssetPaths::TConstIterator AssetNameIter(*AssociatedAssets); AssetNameIter; ++AssetNameIter)
-		{
-			AssetToShaderCode.Add(*AssetNameIter, Hash);
-		}
-	}
-#endif
-
 	OutIndex = Index;
 	return bAdded;
 }
@@ -371,11 +360,6 @@ bool FSerializedShaderArchive::LoadAssetInfo(const FString& Filename)
 		}
 
 		ShaderCodeToAssets.Add(ShaderMapHash, Paths);
-		// build the reverse mapping, too
-		for (FShaderMapAssetPaths::TConstIterator AssetNameIter(Paths); AssetNameIter; ++AssetNameIter)
-		{
-			AssetToShaderCode.Add(*AssetNameIter, ShaderMapHash);
-		}
 	}
 
 	return true;
@@ -387,21 +371,38 @@ void FSerializedShaderArchive::CreateAsChunkFrom(const FSerializedShaderArchive&
 	checkf(ShaderMapHashes.Num() == 0 && ShaderHashes.Num() == 0 && ShaderMapEntries.Num() == 0 && ShaderEntries.Num() == 0 && PreloadEntries.Num() == 0 && ShaderIndices.Num() == 0,
 		TEXT("Expecting a new, uninitialized FSerializedShaderArchive instance for creating a chunk."));
 
-	for (TMap<FName, FSHAHash>::TConstIterator Iter(Parent.AssetToShaderCode); Iter; ++Iter)
+	// go through parent's shadermap hashes in the order of their addition
+	for (int32 IdxSM = 0, NumSMs = Parent.ShaderMapHashes.Num(); IdxSM < NumSMs; ++IdxSM)
 	{
-		const FName& AssetName = Iter.Key();
-
-		if (PackagesInChunk.Contains(AssetName))
+		const FSHAHash& ShaderMapHash = Parent.ShaderMapHashes[IdxSM];
+		const FShaderMapAssetPaths* Assets = Parent.ShaderCodeToAssets.Find(ShaderMapHash);
+		bool bIncludeSM = false;
+		if (UNLIKELY(Assets == nullptr))
 		{
-			const FSHAHash& ShaderMapHash = Iter.Value();
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Shadermap %s is not associated with any asset. Including it in every chunk"), *ShaderMapHash.ToString());
+			bIncludeSM = true;
+		}
+		else
+		{
+			// if any asset is in the chunk, include
+			for (const FName& Asset : *Assets)
+			{
+				if (PackagesInChunk.Contains(Asset))
+				{
+					bIncludeSM = true;
+					break;
+				}
+			}
+		}
 
+		if (bIncludeSM)
+		{
 			// add this shader map
 			int32 ShaderMapIndex = INDEX_NONE;
-			if (FindOrAddShaderMap(ShaderMapHash, ShaderMapIndex, Parent.ShaderCodeToAssets.Find(ShaderMapHash)))
+			if (FindOrAddShaderMap(ShaderMapHash, ShaderMapIndex, Assets))
 			{
 				// if we're in this scope, it means it's a new shadermap for the chunk and we need more information about it from the parent
-				int32 ParentShaderMapIndex = Parent.FindShaderMap(ShaderMapHash);
-				checkf(ParentShaderMapIndex != INDEX_NONE, TEXT("Inconsistent FSerializedShaderArchive: asset %s is associated with missing shader map %s"), *AssetName.ToString(), *ShaderMapHash.ToString());
+				int32 ParentShaderMapIndex = IdxSM;
 				const FShaderMapEntry& ParentShaderMapDescriptor = Parent.ShaderMapEntries[ParentShaderMapIndex];
 
 				const int32 NumShaders = ParentShaderMapDescriptor.NumShaders;
@@ -436,7 +437,6 @@ void FSerializedShaderArchive::CollectStatsAndDebugInfo(FDebugStats& OutDebugSta
 {
 	// collect the light-weight stats first
 	FMemory::Memzero(OutDebugStats);
-	OutDebugStats.NumAssets = AssetToShaderCode.Num();
 	OutDebugStats.NumUniqueShaders = ShaderHashes.Num();
 	OutDebugStats.NumShaderMaps = ShaderMapHashes.Num();
 	int32 TotalShaders = 0;
@@ -457,6 +457,19 @@ void FSerializedShaderArchive::CollectStatsAndDebugInfo(FDebugStats& OutDebugSta
 	}
 	OutDebugStats.NumShaders = TotalShaders;
 	OutDebugStats.ShadersSize = TotalShaderSize;
+
+	// this is moderately expensive, consider moving to ExtendedStats?
+	{
+		TSet<FName> AllAssets;
+		for (TMap<FSHAHash, FShaderMapAssetPaths>::TConstIterator Iter(ShaderCodeToAssets); Iter; ++Iter)
+		{
+			for (const FName& AssetName : Iter.Value())
+			{
+				AllAssets.Add(AssetName);
+			}
+		}
+		OutDebugStats.NumAssets = AllAssets.Num();
+	}
 
 	int64 ActuallySavedShaderSize = 0;
 	for (const FShaderCodeEntry& ShaderEntry : ShaderEntries)
