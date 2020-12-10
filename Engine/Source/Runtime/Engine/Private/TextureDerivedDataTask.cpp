@@ -453,22 +453,24 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				{
 					// Code inspired by the texture compressor module as a hot fix for the bad data that might have been push into the ddc in 4.23 or 4.24 
 					const bool bLongLatCubemap = DerivedData->IsCubemap() && DerivedData->GetNumSlices() == 1;
-					int32 MaximunNumberOfMipMap = TNumericLimits<int32>::Max();
+					int32 MaximumNumberOfMipMaps = TNumericLimits<int32>::Max();
 					if (bLongLatCubemap)
 					{
-						MaximunNumberOfMipMap = FMath::CeilLogTwo(FMath::Clamp<uint32>(uint32(1 << FMath::FloorLog2(DerivedData->SizeX / 2)), uint32(32), BuildSettingsPerLayer[0].MaxTextureResolution)) + 1;
+						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Clamp<uint32>(uint32(1 << FMath::FloorLog2(DerivedData->SizeX / 2)), uint32(32), BuildSettingsPerLayer[0].MaxTextureResolution)) + 1;
 					}
 					else
 					{
-						MaximunNumberOfMipMap = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, BuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
+						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, BuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
 					}
 
-					bSucceeded = DerivedData->Mips.Num() <= MaximunNumberOfMipMap;
-				}
+					bSucceeded = DerivedData->Mips.Num() <= MaximumNumberOfMipMaps;
 
-				if (!bSucceeded)
-				{
-					UE_LOG(LogTexture, Warning, TEXT("The data retrieved from the derived data cache for the texture %s was invalid. The texture will be rebuild."), *Texture.GetFullName())
+					if (!bSucceeded)
+					{
+						UE_LOG(LogTexture, Warning, TEXT("The data retrieved from the derived data cache for the texture %s was invalid. ")
+							TEXT("The cached data has %d mips when a maximum of %d are expected. The texture will be rebuilt."),
+							*Texture.GetFullName(), DerivedData->Mips.Num(), MaximumNumberOfMipMaps);
+					}
 				}
 			}
 		}
