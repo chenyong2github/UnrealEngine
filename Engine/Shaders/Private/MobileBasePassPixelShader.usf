@@ -659,6 +659,8 @@ void Main(
 	ComputeIndirect(Interpolants, DiffuseDir, ShadingModelContext, IndirectIrradiance, IndirectColor);
 	Color += IndirectColor;
 
+	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+
 #if DEFERRED_SHADING_PATH
 	float4 OutGBufferD;
 	float4 OutGBufferE;
@@ -666,7 +668,7 @@ void Main(
 	float4 OutGBufferVelocity = 0;
 
 	GBuffer.IndirectIrradiance = IndirectIrradiance;
-	GBuffer.PrecomputedShadowFactors.r = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+	GBuffer.PrecomputedShadowFactors.r = Shadow;
 
 	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
 #else
@@ -682,8 +684,6 @@ void Main(
 	Color *= MaterialAO;
 	IndirectIrradiance *= MaterialAO;
 
-	// Shadow
-	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
