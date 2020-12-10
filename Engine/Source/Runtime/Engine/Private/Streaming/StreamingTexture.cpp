@@ -104,7 +104,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 		for (int32 LODIndex = 0; LODIndex < ResourceState.MaxNumLODs; ++LODIndex)
 		{
-			CumulativeLODSizes[LODIndex] = RenderAsset->CalcCumulativeLODSize(LODIndex + ResourceState.AssetLODBias + 1);
+			CumulativeLODSizes[LODIndex] = RenderAsset->CalcCumulativeLODSize(LODIndex + 1);
 		}
 
 		// If there are optional mips
