@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/IsConst.h"
 #include "Templates/IsSigned.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Traits/ElementType.h"
 #include "Containers/Array.h"
 
 namespace ArrayViewPrivate
@@ -33,6 +35,19 @@ namespace ArrayViewPrivate
 		return GetData(Forward<T>(Arg));
 	}
 
+	// Gets the data from the passed argument and proceeds to reinterpret the resulting elements
+	template <typename T>
+	FORCEINLINE decltype(auto) GetReinterpretedDataHelper(T&& Arg)
+	{
+		auto NaturalPtr = GetData(Forward<T>(Arg));
+		using NaturalElementType = typename TRemovePointer<decltype(NaturalPtr)>::Type;
+
+		auto EndPtr = NaturalPtr + GetNum(Arg);
+		TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretRange(NaturalPtr, EndPtr);
+
+		return reinterpret_cast<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType*>(NaturalPtr);
+	}
+
 	/**
 	 * Trait testing whether a type is compatible with the view type
 	 */
@@ -40,6 +55,34 @@ namespace ArrayViewPrivate
 	struct TIsCompatibleRangeType
 	{
 		static constexpr bool Value = TIsCompatibleElementType<typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type, ElementType>::Value;
+
+		template <typename T>
+		static decltype(auto) GetData(T&& Arg)
+		{
+			return ArrayViewPrivate::GetDataHelper(Forward<T>(Arg));
+		}
+	};
+
+	/**
+	 * Trait testing whether a type is reinterpretable in a way that permits use with the view type
+	 */
+	template <typename RangeType, typename ElementType>
+	struct TIsReinterpretableRangeType
+	{
+	private:
+		using NaturalElementType = typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type;
+
+	public:
+		static constexpr bool Value = 
+			!TIsSame<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, NaturalElementType>::Value
+			&&
+			TIsCompatibleElementType<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, ElementType>::Value;
+
+		template <typename T>
+		static decltype(auto) GetData(T&& Arg)
+		{
+			return ArrayViewPrivate::GetReinterpretedDataHelper(Forward<T>(Arg));
+		}
 	};
 }
 
@@ -98,6 +141,9 @@ private:
 	template <typename T>
 	using TIsCompatibleRangeType = ArrayViewPrivate::TIsCompatibleRangeType<T, ElementType>;
 
+	template <typename T>
+	using TIsReinterpretableRangeType = ArrayViewPrivate::TIsReinterpretableRangeType<T, ElementType>;
+
 public:
 	/**
 	 * Constructor from another range
@@ -110,12 +156,19 @@ public:
 		typename = typename TEnableIf<
 			TAnd<
 				TIsContiguousContainer<CVUnqualifiedOtherRangeType>,
-				TIsCompatibleRangeType<OtherRangeType>
+				TOr<
+					TIsCompatibleRangeType<OtherRangeType>,
+					TIsReinterpretableRangeType<OtherRangeType>
+				>
 			>::Value
 		>::Type
 	>
 	FORCEINLINE TArrayView(OtherRangeType&& Other)
-		: DataPtr(ArrayViewPrivate::GetDataHelper(Forward<OtherRangeType>(Other)))
+		: DataPtr(TChooseClass<
+						TIsCompatibleRangeType<OtherRangeType>::Value,
+						TIsCompatibleRangeType<OtherRangeType>,
+						TIsReinterpretableRangeType<OtherRangeType>
+					>::Result::GetData(Forward<OtherRangeType>(Other)))
 	{
 		const auto InCount = GetNum(Forward<OtherRangeType>(Other));
 		check((InCount >= 0) && ((sizeof(InCount) < sizeof(SizeType)) || (InCount <= static_cast<decltype(InCount)>(TNumericLimits<SizeType>::Max()))));

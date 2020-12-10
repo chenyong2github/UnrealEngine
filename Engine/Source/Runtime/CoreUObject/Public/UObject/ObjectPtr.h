@@ -164,6 +164,7 @@ template <typename T>
 struct TObjectPtr : private FObjectPtr
 {
 public:
+	using ElementType = T;
 
 	TObjectPtr() = default;
 	TObjectPtr(TObjectPtr<T>&&) = default;
@@ -278,7 +279,7 @@ public:
 	FORCEINLINE T& operator*() const { return *Get(); }
 
 	UE_OBJPTR_DEPRECATED(5.0, "Conversion to a mutable pointer is deprecated.  Please pass a TObjectPtr<T>& instead so that assignment can be tracked accurately.")
-	FORCEINLINE operator T*& () { return GetInternalRef(); }
+	explicit FORCEINLINE operator T*& () { return GetInternalRef(); }
 
 	using FObjectPtr::IsNull;
 	using FObjectPtr::operator bool;
@@ -310,11 +311,10 @@ private:
 	}
 };
 
-template <typename T>
-struct TIsTObjectPtr<TObjectPtr<T>>
-{
-	enum { Value = true };
-};
+template <typename T> struct TIsTObjectPtr<               TObjectPtr<T>> { enum { Value = true }; };
+template <typename T> struct TIsTObjectPtr<const          TObjectPtr<T>> { enum { Value = true }; };
+template <typename T> struct TIsTObjectPtr<      volatile TObjectPtr<T>> { enum { Value = true }; };
+template <typename T> struct TIsTObjectPtr<const volatile TObjectPtr<T>> { enum { Value = true }; };
 
 template <typename T>
 struct TRemoveObjectPointer
@@ -329,6 +329,12 @@ struct TRemoveObjectPointer<TObjectPtr<T>>
 
 namespace ObjectPtr_Private
 {
+	template <typename T> struct TRawPointerType                               { using Type = T;  };
+	template <typename T> struct TRawPointerType<               TObjectPtr<T>> { using Type = T*; };
+	template <typename T> struct TRawPointerType<const          TObjectPtr<T>> { using Type = T*; };
+	template <typename T> struct TRawPointerType<      volatile TObjectPtr<T>> { using Type = T*; };
+	template <typename T> struct TRawPointerType<const volatile TObjectPtr<T>> { using Type = T*; };
+
 	/** Coerce to pointer through implicit conversion to const T* (overload through less specific "const T*" parameter to avoid ambiguity with other coercion options that may also exist. */
 	template <typename T>
 	FORCEINLINE const T* CoerceToPointer(const T* Other)
@@ -476,6 +482,288 @@ FORCEINLINE T** ToRawPtrArrayUnsafe(T** ArrayOfPtr)
 	return ArrayOfPtr;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+template <
+	typename ArrayType,
+	typename ArrayTypeNoRef = std::remove_reference_t<ArrayType>,
+	std::enable_if_t<TIsTArray<ArrayTypeNoRef>::Value>* = nullptr
+>
+decltype(auto) ToRawPtrTArrayUnsafe(ArrayType&& Array)
+{
+	using ArrayElementType         = typename ArrayTypeNoRef::ElementType;
+	using ArrayAllocatorType       = typename ArrayTypeNoRef::Allocator;
+	using RawPointerType           = typename ObjectPtr_Private::TRawPointerType<ArrayElementType>::Type;
+	using QualifiedRawPointerType  = typename TCopyQualifiersFromTo<ArrayElementType, RawPointerType>::Type;
+	using NewArrayType             = TArray<QualifiedRawPointerType, ArrayAllocatorType>;
+	using RefQualifiedNewArrayType = typename TCopyQualifiersAndRefsFromTo<ArrayType, NewArrayType>::Type;
+
+	return (RefQualifiedNewArrayType&)Array;
+}
+
+template <
+	typename SetElementType,
+	typename Allocator,
+	typename RawPtrType = typename SetElementType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<SetElementType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TSet<RawPtrType, DefaultKeyFuncs<RawPtrType>, Allocator>& ToRawPtrTSetUnsafe(TSet<SetElementType, DefaultKeyFuncs<SetElementType>, Allocator>& InSet)
+{
+	return InSet;
+}
+
+template <
+	typename SetElementType,
+	typename Allocator,
+	typename RawPtrType = typename SetElementType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<SetElementType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TSet<RawPtrType, DefaultKeyFuncs<RawPtrType>, Allocator>& ToRawPtrTSetUnsafe(const TSet<SetElementType, DefaultKeyFuncs<SetElementType>, Allocator>& InSet)
+{
+	return InSet;
+}
+
+template <
+	typename ElementType,
+	typename KeyFuncs,
+	typename Allocator,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<ElementType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TSet<ElementType, KeyFuncs, Allocator>& ToRawPtrTSetUnsafe(TSet<ElementType, KeyFuncs, Allocator>& InSet)
+{
+	return InSet;
+}
+
+template <
+	typename ElementType,
+	typename KeyFuncs,
+	typename Allocator,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<ElementType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TSet<ElementType, KeyFuncs, Allocator>& ToRawPtrTSetUnsafe(const TSet<ElementType, KeyFuncs, Allocator>& InSet)
+{
+	return InSet;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename KeyRawPtrType = typename KeyType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		!TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TMap<KeyRawPtrType, ValueType, Allocator>& ToRawPtrTMapUnsafe(TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename ValueRawPtrType = typename ValueType::ElementType*,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TMap<KeyType, ValueRawPtrType, Allocator>& ToRawPtrTMapUnsafe(TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename KeyRawPtrType = typename KeyType::ElementType*,
+	typename ValueRawPtrType = typename ValueType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TMap<KeyRawPtrType, ValueRawPtrType, Allocator>& ToRawPtrTMapUnsafe(TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename KeyRawPtrType = typename KeyType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		!TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TMap<KeyRawPtrType, ValueType, Allocator>& ToRawPtrTMapUnsafe(const TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename ValueRawPtrType = typename ValueType::ElementType*,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TMap<KeyType, ValueRawPtrType, Allocator>& ToRawPtrTMapUnsafe(const TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	typename KeyRawPtrType = typename KeyType::ElementType*,
+	typename ValueRawPtrType = typename ValueType::ElementType*,
+	std::enable_if_t<
+		TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TMap<KeyRawPtrType, ValueRawPtrType, Allocator>& ToRawPtrTMapUnsafe(const TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		!TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE TMap<KeyType, ValueType, Allocator>& ToRawPtrTMapUnsafe(TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+
+template <
+	typename KeyType,
+	typename ValueType,
+	typename Allocator,
+	std::enable_if_t<
+		!TIsTObjectPtr<std::remove_cv_t<KeyType>>::Value
+		&&
+		!TIsTObjectPtr<std::remove_cv_t<ValueType>>::Value
+	>* = nullptr
+>
+FORCEINLINE const TMap<KeyType, ValueType, Allocator>& ToRawPtrTMapUnsafe(const TMap<KeyType, ValueType, Allocator>& InMap)
+{
+	return InMap;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+template <typename T>
+struct TContainerElementTypeCompatibility<TObjectPtr<T>>
+{
+	typedef T* ReinterpretType;
+	
+	template <typename IterBeginType, typename IterEndType, typename OperatorType = typename TRemoveReference<decltype(*DeclVal<IterBeginType>())>::Type& (*)(IterBeginType&)>
+	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
+	static void ReinterpretRange(IterBeginType Iter, IterEndType IterEnd, OperatorType Operator = [](IterBeginType& InIt) -> decltype(auto) { return *InIt; })
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		while (Iter != IterEnd)
+		{
+			Operator(Iter).Get();
+			++Iter;
+		}
+#endif
+	}
+
+	typedef T* CopyFromOtherType;
+
+	UE_OBJPTR_DEPRECATED(5.0, "Copying ranges of one type to another type is deprecated.")
+	static constexpr void CopyingFromOtherType() {}
+};
+
+template <typename T>
+struct TContainerElementTypeCompatibility<const TObjectPtr<T>>
+{
+	typedef T* const ReinterpretType;
+
+	template <typename IterBeginType, typename IterEndType, typename OperatorType = const TObjectPtr<T>&(*)(IterBeginType&)>
+	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
+	static void ReinterpretRange(IterBeginType Iter, IterEndType IterEnd, OperatorType Operator = [](IterBeginType& InIt) -> const TObjectPtr<T>& { return *InIt; })
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		while (Iter != IterEnd)
+		{
+			Operator(Iter).Get();
+			++Iter;
+		}
+#endif
+	}
+
+	typedef T* const CopyFromOtherType;
+
+	UE_OBJPTR_DEPRECATED(5.0, "Copying ranges of one type to another type is deprecated.")
+	static constexpr void CopyingFromOtherType() {}
+};
+
+
+// Trait which allows TObjectPtr to be default constructed by memsetting to zero.
+template <typename T>
+struct TIsZeroConstructType<TObjectPtr<T>>
+{
+	enum { Value = true };
+};
+
+// Trait which allows TObjectPtr to be memcpy'able from pointers.
+template <typename T>
+struct TIsBitwiseConstructible<TObjectPtr<T>, T*>
+{
+	enum { Value = true };
+};
+
+template <typename T, class PREDICATE_CLASS>
+struct TDereferenceWrapper<TObjectPtr<T>, PREDICATE_CLASS>
+{
+	const PREDICATE_CLASS& Predicate;
+
+	TDereferenceWrapper(const PREDICATE_CLASS& InPredicate)
+		: Predicate(InPredicate) {}
+
+	/** Dereference pointers */
+	FORCEINLINE bool operator()(const TObjectPtr<T>& A, const TObjectPtr<T>& B) const
+	{
+		return Predicate(*A, *B);
+	}
+};
+
+template <typename T>
+struct TCallTraits<TObjectPtr<T>> : public TCallTraitsBase<TObjectPtr<T>>
+{
+	using ConstPointerType = typename TCallTraitsParamTypeHelper<const TObjectPtr<const T>, true>::ConstParamType;
+};
 
 
 template <typename T>
@@ -504,4 +792,16 @@ template <typename T>
 inline void Exchange(T*& A, TObjectPtr<T>& B)
 {
 	Swap(A, (T*&)B);
+}
+
+/** Exchange variants between TArray<TObjectPtr<T>> and TArray<T*> */
+template <typename T>
+inline void Exchange(TArray<TObjectPtr<T>>& A, TArray<T*>& B)
+{
+	Swap(ToRawPtrTArrayUnsafe(A), B);
+}
+template <typename T>
+inline void Exchange(TArray<T*>& A, TArray<TObjectPtr<T>>& B)
+{
+	Swap(A, ToRawPtrTArrayUnsafe(B));
 }

@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 
 #include "Algo/Reverse.h"
+#include "Containers/ContainerElementTypeCompatibility.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "Misc/AssertionMacros.h"
@@ -1246,6 +1247,46 @@ public:
 
 	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key) { return this->FindChecked(Key); }
 	FORCEINLINE const ValueType& operator[](KeyConstPointerType Key) const { return this->FindChecked(Key); }
+
+	/** Implicit conversion operator to container of compatible key and value element type. */
+	template <
+		typename KeyTypeAlias = KeyType,
+		typename ValueTypeAlias = ValueType,
+		typename std::enable_if_t<
+			TIsContainerElementTypeReinterpretable<KeyTypeAlias>::Value
+			||
+			TIsContainerElementTypeReinterpretable<ValueTypeAlias>::Value
+		>* = nullptr
+	>
+	operator TMap<typename TContainerElementTypeCompatibility<KeyTypeAlias>::ReinterpretType, typename TContainerElementTypeCompatibility<ValueTypeAlias>::ReinterpretType>& ()
+	{
+		using KeyCompat = TContainerElementTypeCompatibility<KeyType>;
+		using ValueCompat = TContainerElementTypeCompatibility<ValueType>;
+		KeyCompat::ReinterpretRange(Super::Pairs.begin(), Super::Pairs.end(), [](typename Super::ElementSetType::TRangedForIterator& It) -> KeyType& { return It->Key; });
+		ValueCompat::ReinterpretRange(Super::Pairs.begin(), Super::Pairs.end(), [](typename Super::ElementSetType::TRangedForIterator& It) -> ValueType& { return It->Value; });
+
+		return *reinterpret_cast<TMap<typename KeyCompat::ReinterpretType, typename ValueCompat::ReinterpretType>*>(this);
+	}
+
+	/** Implicit conversion operator to constant container of compatible key and value element type. */
+	template <
+		typename KeyTypeAlias = KeyType,
+		typename ValueTypeAlias = ValueType,
+		typename std::enable_if_t<
+			TIsContainerElementTypeReinterpretable<KeyTypeAlias>::Value
+			||
+			TIsContainerElementTypeReinterpretable<ValueTypeAlias>::Value
+		>* = nullptr
+	>
+	operator const TMap<typename TContainerElementTypeCompatibility<KeyTypeAlias>::ReinterpretType, typename TContainerElementTypeCompatibility<ValueTypeAlias>::ReinterpretType>& () const
+	{
+		using KeyCompat = TContainerElementTypeCompatibility<KeyType>;
+		using ValueCompat = TContainerElementTypeCompatibility<ValueType>;
+		KeyCompat::ReinterpretRange(Super::Pairs.begin(), Super::Pairs.end(), [](typename Super::ElementSetType::TRangedForConstIterator& It) -> const KeyType& { return It->Key; });
+		ValueCompat::ReinterpretRange(Super::Pairs.begin(), Super::Pairs.end(), [](typename Super::ElementSetType::TRangedForConstIterator& It) -> const ValueType& { return It->Value; });
+
+		return *reinterpret_cast<const TMap<typename KeyCompat::ReinterpretType, typename ValueCompat::ReinterpretType>*>(this);
+	}
 };
 
 namespace Freeze

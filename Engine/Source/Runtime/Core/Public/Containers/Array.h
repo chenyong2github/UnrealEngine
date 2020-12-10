@@ -10,6 +10,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/UnrealTemplate.h"
 #include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainerElementTypeCompatibility.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryImageWriter.h"
 
@@ -2107,6 +2108,141 @@ public:
 		ElementType* Ptr = GetData() + Index;
 		DefaultConstructItems<ElementType>(Ptr, 1);
 		return *Ptr;
+	}
+
+	/** Implicit conversion operator to container of compatible element type. */
+	template <
+		typename AliasElementType = ElementType,
+		typename TEnableIf<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>::Type* = nullptr
+		>
+	operator TArray<typename TContainerElementTypeCompatibility<AliasElementType>::ReinterpretType, Allocator>& ()
+	{
+		using ElementCompat = TContainerElementTypeCompatibility<ElementType>;
+		ElementCompat::ReinterpretRange(begin(), end());
+		return *reinterpret_cast<TArray<typename ElementCompat::ReinterpretType>*>(this);
+	}
+
+	/** Implicit conversion operator to constant container of compatible element type. */
+	template <
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>* = nullptr
+		>
+	operator const TArray<typename TContainerElementTypeCompatibility<AliasElementType>::ReinterpretType, Allocator>& () const
+	{
+		using ElementCompat = TContainerElementTypeCompatibility<ElementType>;
+		ElementCompat::ReinterpretRange(begin(), end());
+		return *reinterpret_cast<const TArray<typename ElementCompat::ReinterpretType>*>(this);
+	}
+
+	/**
+	 * Move assignment operator.
+	 * Compatible element type version.
+	 *
+	 * @param Other Array to assign and move from.
+	 */
+	template <
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeCopyable<AliasElementType>::Value>* = nullptr
+	>
+	TArray& operator=(TArray<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, Allocator>&& Other)
+	{
+		TContainerElementTypeCompatibility<ElementType>::CopyingFromOtherType();
+		DestructItems(GetData(), ArrayNum);
+		MoveOrCopy(*this, Other, ArrayMax);
+		return *this; 
+	}
+
+	/**
+	 * Assignment operator. First deletes all currently contained elements
+	 * and then copies from other array.
+	 * Compatible element type version.
+	 *
+	 * @param Other The source array to assign from.
+	 */
+	template <
+		typename OtherAllocator,
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeCopyable<AliasElementType>::Value>* = nullptr
+	>
+	TArray& operator=(const TArray<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, OtherAllocator>& Other)
+	{
+		TContainerElementTypeCompatibility<ElementType>::CopyingFromOtherType();
+		DestructItems(GetData(), ArrayNum);
+		CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax, 0);
+		return *this;
+	}
+
+	/**
+	 * Inserts given elements into the array at given location.
+	 * Compatible element type version.
+	 *
+	 * @param Items Array of elements to insert.
+	 * @param InIndex Tells where to insert the new elements.
+	 * @returns Location at which the item was inserted.
+	 */
+	template <
+		typename OtherAllocator,
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeCopyable<AliasElementType>::Value>* = nullptr
+	>
+	SizeType Insert(const TArray<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, OtherAllocator>& Items, const SizeType InIndex)
+	{
+		TContainerElementTypeCompatibility<ElementType>::CopyingFromOtherType();
+
+		auto NumNewElements = Items.Num();
+
+		InsertUninitializedImpl(InIndex, NumNewElements);
+		ConstructItems<ElementType>(GetData() + InIndex, Items.GetData(), NumNewElements);
+
+		return InIndex;
+	}
+
+	/**
+	 * Inserts given elements into the array at given location.
+	 * Compatible element type version.
+	 *
+	 * @param Items Array of elements to insert.
+	 * @param InIndex Tells where to insert the new elements.
+	 * @returns Location at which the item was inserted.
+	 */
+	template <
+		typename OtherAllocator,
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeCopyable<AliasElementType>::Value>* = nullptr
+	>
+	SizeType Insert(TArray<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, OtherAllocator>&& Items, const SizeType InIndex)
+	{
+		check((const void*)this != (const void*)&Items);
+		TContainerElementTypeCompatibility<ElementType>::CopyingFromOtherType();
+
+		auto NumNewElements = Items.Num();
+
+		InsertUninitializedImpl(InIndex, NumNewElements);
+		RelocateConstructItems<ElementType>(GetData() + InIndex, Items.GetData(), NumNewElements);
+		Items.ArrayNum = 0;
+
+		return InIndex;
+	}
+
+	/**
+	 * Adds a raw array of elements to the end of the TArray.
+	 * Compatible element type version.
+	 *
+	 * @param Ptr   A pointer to an array of elements to add.
+	 * @param Count The number of elements to insert from Ptr.
+	 * @see Add, Insert
+	 */
+	template <
+		typename AliasElementType = ElementType,
+		typename std::enable_if_t<TIsContainerElementTypeCopyable<AliasElementType>::Value>* = nullptr
+	>
+	void Append(const typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType* Ptr, SizeType Count)
+	{
+		check(Ptr != nullptr || Count == 0);
+		TContainerElementTypeCompatibility<ElementType>::CopyingFromOtherType();
+
+		SizeType Pos = AddUninitialized(Count);
+		ConstructItems<ElementType>(GetData() + Pos, Ptr, Count);
 	}
 
 private:
