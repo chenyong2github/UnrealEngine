@@ -95,7 +95,7 @@ public:
 		bIsMaterialNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
 		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
+		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
 		FillAssetClassFromAttribute();
 	}
 
@@ -122,16 +122,16 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 	virtual const TOptional<FString> GetPayLoadKey() const
 	{
-		if (!Attributes.ContainAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey()))
+		if (!Attributes->ContainAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey()))
 		{
 			return TOptional<FString>();
 		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes.GetAttributeHandle<FString>(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
 		if (!AttributeHandle.IsValid())
 		{
 			return TOptional<FString>();
@@ -149,7 +149,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	virtual void SetPayLoadKey(const FString& PayloadKey)
 	{
-		UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey(), PayloadKey);
+		UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey(), PayloadKey);
 		if (!IsAttributeStorageResultSuccess(Result))
 		{
 			LogAttributeStorageErrors(Result, TEXT("UInterchangeMaterialNode.SetPayLoadKey"), UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
@@ -327,7 +327,7 @@ private:
 #if WITH_ENGINE
 		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
 		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, ClassName);
+		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
 		if (ClassName.Equals(UMaterial::StaticClass()->GetName()))
 		{
 			AssetClass = UMaterial::StaticClass();

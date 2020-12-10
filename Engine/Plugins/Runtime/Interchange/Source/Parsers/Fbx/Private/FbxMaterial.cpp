@@ -76,6 +76,7 @@ namespace UE
 							int32 UnsupportedTextureCount = FbxProperty.GetSrcObjectCount<FbxLayeredTexture>();
 							UnsupportedTextureCount += FbxProperty.GetSrcObjectCount<FbxProceduralTexture>();
 							int32 TextureCount = FbxProperty.GetSrcObjectCount<FbxTexture>();
+							bool bFoundValidTexture = false;
 							if (UnsupportedTextureCount > 0)
 							{
 								JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Warning\",\n\"Msg\" : \"Layered or procedural Textures are not supported (material" + MaterialName + TEXT(")\"}}")));
@@ -109,9 +110,11 @@ namespace UE
 									MaterialNode->AddTextureParameterData(MaterialParameterName, TextureNode->GetUniqueID(), UVChannelIndex, ScaleU, ScaleV);
 									MaterialNode->SetDependencyUID(TextureNode->GetUniqueID());
 									bSetMaterial = true;
+									bFoundValidTexture = true;
 								}
 							}
-							else if (MaterialParameterName == EInterchangeMaterialNodeParameterName::BaseColor)
+							
+							if (!bFoundValidTexture && MaterialParameterName == EInterchangeMaterialNodeParameterName::BaseColor)
 							{
 								//We support only the base color has a vector color
 								//TODO support all basic attributes has vector or scalar

@@ -199,9 +199,13 @@ TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> UInterchangeFbxTranslato
 		//Nothing to load from this file
 		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
 	}
+
+
 	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
 	FLargeMemoryReader Ar(FileData, FileDataSize);
 	SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
+	//Read the blend shape
+	Ar << SkeletalMeshLodPayload.LodBlendShapeMeshDescriptions;
 
 	return SkeletalMeshLodPayload;
 

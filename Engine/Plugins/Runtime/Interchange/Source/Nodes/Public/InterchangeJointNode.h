@@ -42,7 +42,7 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 public:

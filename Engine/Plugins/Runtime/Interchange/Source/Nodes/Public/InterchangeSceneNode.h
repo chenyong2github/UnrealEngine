@@ -30,7 +30,7 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 	/** Return false if the Attribute was not set previously.*/

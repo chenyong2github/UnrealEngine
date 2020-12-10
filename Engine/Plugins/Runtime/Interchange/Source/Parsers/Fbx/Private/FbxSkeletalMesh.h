@@ -8,6 +8,7 @@
 
 /** Forward declarations */
 class FSkeletalMeshAttributes;
+class FStaticMeshAttributes;
 class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
 class UInterchangeSkeletalMeshNode;
@@ -30,11 +31,13 @@ namespace UE
 				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) override;
 				TArray<FbxNode*> SkelMeshNodeArray;
 				TArray<FbxNode*> SortedJoints;
+				TMap<FString, TArray<FbxShape*>> ShapeNameToShapeArray;
 				FbxScene* SDKScene = nullptr;
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
 
 			private:
 				bool AddFbxMeshToMeshDescription(int32 MeshIndex, FMeshDescription& SkeletalMeshDescription, FSkeletalMeshAttributes& SkeletalMeshAttribute, TArray<FString>& JSonErrorMessages);
+				bool AddFbxShapeToMeshDescription(int32 MeshIndex, FbxShape* Shape, FMeshDescription& StaticMeshDescription, FStaticMeshAttributes& StaticMeshAttribute, TArray<FString>& JSonErrorMessages);
 			};
 
 			class FFbxSkeletalMesh

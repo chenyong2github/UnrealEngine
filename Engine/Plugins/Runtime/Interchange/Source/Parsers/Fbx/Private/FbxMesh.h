@@ -22,6 +22,7 @@ namespace UE
 				FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxNode* InMeshNode, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter);
 				bool FillStaticMeshDescriptionFromFbxMesh();
 				bool FillSkinnedMeshDescriptionFromFbxMesh(TArray<FbxNode*>* SortedJoints);
+				bool FillMeshDescriptionFromFbxShape(FbxShape* Shape);
 			private:
 				
 				enum class EMeshType : uint8

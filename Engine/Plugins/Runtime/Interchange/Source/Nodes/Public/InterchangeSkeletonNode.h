@@ -37,7 +37,7 @@ public:
 		bIsNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
 		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
+		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
 		FillAssetClassFromAttribute();
 	}
 
@@ -77,7 +77,7 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 public:
@@ -101,7 +101,7 @@ private:
 #if WITH_ENGINE
 		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
 		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, ClassName);
+		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
 		if (ClassName.Equals(USkeleton::StaticClass()->GetName()))
 		{
 			AssetClass = USkeleton::StaticClass();

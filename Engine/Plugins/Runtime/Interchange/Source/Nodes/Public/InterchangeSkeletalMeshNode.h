@@ -19,16 +19,10 @@ namespace UE
 
 		struct FSkeletalMeshNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FAttributeKey& LodDataIdsCountKey()
+			static const FString& GetLodDependenciesBaseKey()
 			{
-				static FAttributeKey AttributeKey(TEXT("__LOD_DATA_IDS_COUNT_"));
-				return AttributeKey;
-			}
-
-			static const FAttributeKey& LodDataIdsBaseKey()
-			{
-				static FAttributeKey AttributeKey(TEXT("__LOD_DATA_IDS_INDEX_"));
-				return AttributeKey;
+				static FString LodDependencies_BaseKey = TEXT("Lod_Dependencies");
+				return LodDependencies_BaseKey;
 			}
 		};
 
@@ -47,6 +41,7 @@ public:
 #if WITH_ENGINE
 		AssetClass = nullptr;
 #endif
+		LodDependencies.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey());
 	}
 
 	/**
@@ -60,8 +55,9 @@ public:
 	{
 		bIsNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
+
 		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
+		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
 		FillAssetClassFromAttribute();
 	}
 
@@ -101,7 +97,7 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 public:
@@ -109,141 +105,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	int32 GetLodDataCount() const
 	{
-		int32 LodCount = 0;
-		if (Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey()))
-		{
-			UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey());
-			if (Handle.IsValid())
-			{
-				Handle.Get(LodCount);
-			}
-		}
-		return LodCount;
+		return LodDependencies.GetCount();
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	void GetLodDataUniqueIds(TArray<FName>& OutLodDataUniqueIds) const
 	{
-		OutLodDataUniqueIds.Reset();
-
-		int32 LodCount = 0;
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey()))
-		{
-			return;
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey());
-		if (!Handle.IsValid())
-		{
-			return;
-		}
-		Handle.Get(LodCount);
-		for (int32 LODIndex = 0; LODIndex < LodCount; ++LODIndex)
-		{
-			FString DepIndexKeyString = UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsBaseKey().ToString() + FString::FromInt(LODIndex);
-			UE::Interchange::FAttributeKey DepIndexKey(*DepIndexKeyString);
-			UE::Interchange::FAttributeStorage::TAttributeHandle<FName> HandleLOD = Attributes.GetAttributeHandle<FName>(DepIndexKey);
-			if (!HandleLOD.IsValid())
-			{
-				continue;
-			}
-			FName& NodeUniqueID = OutLodDataUniqueIds.AddDefaulted_GetRef();
-			HandleLOD.Get(NodeUniqueID);
-		}
+		LodDependencies.GetNames(OutLodDataUniqueIds);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool AddLodDataUniqueId(FName LodDataUniqueId)
 	{
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey()))
-		{
-			const int32 DependencyCount = 0;
-			UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute<int32>(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey(), DependencyCount);
-			if (!UE::Interchange::IsAttributeStorageResultSuccess(Result))
-			{
-				UE::Interchange::LogAttributeStorageErrors(Result, TEXT("UInterchangeSkeletalMeshNode.AddLodDataUniqueId"), UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey());
-				return false;
-			}
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey());
-		if (!ensure(Handle.IsValid()))
-		{
-			return false;
-		}
-		int32 LODIndex = 0;
-		Handle.Get(LODIndex);
-		FString LodIndexKeyString = UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsBaseKey().ToString() + FString::FromInt(LODIndex);
-		UE::Interchange::FAttributeKey LodIndexKey(*LodIndexKeyString);
-		//Increment the counter
-		LODIndex++;
-		Handle.Set(LODIndex);
-
-		UE::Interchange::EAttributeStorageResult AddLodResult = Attributes.RegisterAttribute<FName>(LodIndexKey, LodDataUniqueId);
-		if (!UE::Interchange::IsAttributeStorageResultSuccess(AddLodResult))
-		{
-			UE::Interchange::LogAttributeStorageErrors(AddLodResult, TEXT("UInterchangeSkeletalMeshNode.AddLodDataUniqueId"), LodIndexKey);
-			return false;
-		}
-		return true;
+		return LodDependencies.AddName(LodDataUniqueId);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool RemoveLodDataUniqueId(FName LodDataUniqueId)
 	{
-		int32 LodCount = 0;
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey()))
-		{
-			return false;
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsCountKey());
-		if (!Handle.IsValid())
-		{
-			return false;
-		}
-		Handle.Get(LodCount);
-		bool DecrementKey = false;
-		for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
-		{
-			FString DepIndexKeyString = UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsBaseKey().ToString() + FString::FromInt(LodIndex);
-			UE::Interchange::FAttributeKey DepIndexKey(*DepIndexKeyString);
-			UE::Interchange::FAttributeStorage::TAttributeHandle<FName> HandleMesh = Attributes.GetAttributeHandle<FName>(DepIndexKey);
-			if (!HandleMesh.IsValid())
-			{
-				continue;
-			}
-			FName MeshUniqueID;
-			HandleMesh.Get(MeshUniqueID);
-			if (MeshUniqueID == LodDataUniqueId)
-			{
-				//Remove this entry
-				Attributes.UnregisterAttribute(DepIndexKey);
-				Handle.Set(LodCount - 1);
-				//We have to rename the key for all the next item
-				DecrementKey = true;;
-			}
-			else if (DecrementKey)
-			{
-				FString NewDepIndexKeyString = UE::Interchange::FSkeletalMeshNodeStaticData::LodDataIdsBaseKey().ToString() + FString::FromInt(LodIndex - 1);
-				UE::Interchange::FAttributeKey NewDepIndexKey(*NewDepIndexKeyString);
-				UE::Interchange::EAttributeStorageResult UnregisterResult = Attributes.UnregisterAttribute(DepIndexKey);
-				if (UE::Interchange::IsAttributeStorageResultSuccess(UnregisterResult))
-				{
-					UE::Interchange::EAttributeStorageResult RegisterResult = Attributes.RegisterAttribute<FName>(NewDepIndexKey, MeshUniqueID);
-					if (!UE::Interchange::IsAttributeStorageResultSuccess(RegisterResult))
-					{
-						UE::Interchange::LogAttributeStorageErrors(RegisterResult, TEXT("UInterchangeSkeletalMeshNode.RemoveLodDataUniqueId"), NewDepIndexKey);
-					}
-				}
-				else
-				{
-					UE::Interchange::LogAttributeStorageErrors(UnregisterResult, TEXT("UInterchangeSkeletalMeshNode.RemoveLodDataUniqueId"), DepIndexKey);
-				}
-
-				//Avoid doing more code in the for since the HandleMesh is now invalid
-				continue;
-			}
-		}
-		return true;
+		return LodDependencies.RemoveName(LodDataUniqueId);
 	}
+
 private:
 
 	void FillAssetClassFromAttribute()
@@ -251,7 +133,7 @@ private:
 #if WITH_ENGINE
 		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
 		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(Attributes, ClassNameAttributeKey, OperationName, ClassName);
+		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
 		if (ClassName.Equals(USkeletalMesh::StaticClass()->GetName()))
 		{
 			AssetClass = USkeletalMesh::StaticClass();
@@ -280,6 +162,7 @@ private:
 
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
 
+	UE::Interchange::FNameAttributeArrayHelper LodDependencies;
 protected:
 #if WITH_ENGINE
 	TSubclassOf<USkeletalMesh> AssetClass = nullptr;

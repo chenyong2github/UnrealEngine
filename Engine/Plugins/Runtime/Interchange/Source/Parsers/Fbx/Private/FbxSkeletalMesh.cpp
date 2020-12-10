@@ -50,11 +50,6 @@ namespace UE
 				{
 					return false;
 				}
-				FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(0, FbxDeformer::eSkin);
-				if (!ensure(Skin))
-				{
-					return false;
-				}
 
 				FMeshDescriptionImporter MeshDescriptionImporter(&SkeletalMeshDescription, Node, SDKScene, SDKGeometryConverter);
 				if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(&SortedJoints))
@@ -62,10 +57,34 @@ namespace UE
 					return false;
 				}
 
+				return true;
+			}
 
-				//////////////////////////////////////////////////////////////////////////
-				//////////////////////////////////////////////////////////////////////////
-				//////////////////////////////////////////////////////////////////////////
+			
+
+			bool FSkeletalMeshGeometryPayload::AddFbxShapeToMeshDescription(int32 MeshIndex, FbxShape* Shape, FMeshDescription& StaticMeshDescription, FStaticMeshAttributes& StaticMeshAttribute, TArray<FString>& JSonErrorMessages)
+			{
+				if (!ensure(SDKScene) || !ensure(SDKGeometryConverter))
+				{
+					return false;
+				}
+
+				if (!ensure(SkelMeshNodeArray.IsValidIndex(MeshIndex)))
+				{
+					return false;
+				}
+
+				FbxNode* Node = SkelMeshNodeArray[MeshIndex];
+				if (!ensure(Node))
+				{
+					return false;
+				}
+
+				FMeshDescriptionImporter MeshDescriptionImporter(&StaticMeshDescription, Node, SDKScene, SDKGeometryConverter);
+				if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape))
+				{
+					return false;
+				}
 
 				return true;
 			}
@@ -98,10 +117,40 @@ namespace UE
 					}
 				}
 
+				//Import the BlendShape
+				TMap<FString, FMeshDescription> BlendShapes;
+				if (ShapeNameToShapeArray.Num() > 0)
+				{
+					for (const TPair<FString, TArray<FbxShape*>>& Pair : ShapeNameToShapeArray)
+					{
+						const TArray<FbxShape*> FbxShapes = Pair.Value;
+						FMeshDescription& BlendShapeDescription = BlendShapes.FindOrAdd(Pair.Key);
+						FStaticMeshAttributes StaticMeshAttribute(BlendShapeDescription);
+						StaticMeshAttribute.Register();
+						ensure(FbxShapes.Num() == SkelMeshNodeArray.Num());
+						for (int32 MeshIndex = 0; MeshIndex < SkelMeshNodeArray.Num(); ++MeshIndex)
+						{
+							if (!FbxShapes.IsValidIndex(MeshIndex))
+							{
+								//TODO warn the user
+								break;
+							}
+							FbxShape* Shape = FbxShapes[MeshIndex];
+							if (!AddFbxShapeToMeshDescription(MeshIndex, Shape, BlendShapeDescription, StaticMeshAttribute, JSonErrorMessages))
+							{
+								continue;
+							}
+						}
+					}
+				}
 				//Dump the MeshDescription to a file
 				{
 					FLargeMemoryWriter Ar;
 					SkeletalMeshDescription.Serialize(Ar);
+
+					//Add the LOD BlendShape Array to the archive
+					Ar << BlendShapes;
+
 					uint8* ArchiveData = Ar.GetData();
 					int64 ArchiveSize = Ar.TotalSize();
 					TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
@@ -134,7 +183,7 @@ namespace UE
 							}
 						}
 					}
-					
+
 					UInterchangeSkeletalMeshNode* SkeletalMeshNode = nullptr;
 
 					bool bOverrideSkeletalMeshName = false;
@@ -147,7 +196,10 @@ namespace UE
 
 					for (int32 LODIndex = 0; LODIndex < MaxNumberOfLOD; LODIndex++)
 					{
+						//Array use to retrieve the payload data, so we easily find the request payload data
 						TArray<FbxNode*> SkelMeshNodeArray;
+						TArray<FbxNode*> SortedJoints;
+						TMap<FString, TArray<FbxShape*>> ShapeNameToShapeArray;
 						for (int32 j = 0; j < NodeArray.Num(); j++)
 						{
 							FbxNode* Node = NodeArray[j];
@@ -179,7 +231,7 @@ namespace UE
 							continue;
 						}
 						//Find the skeleton for this skeletal mesh LOD
-						TArray<FbxNode*> SortedJoints;
+						
 						FbxArray<FbxAMatrix> LocalsPerLink;
 						if (!FFbxHelper::FindSkeletonJoints(SDKScene, SkelMeshNodeArray, SortedJoints, LocalsPerLink))
 						{
@@ -229,9 +281,9 @@ namespace UE
 						//We will use this information to retrieve the payload
 						FSHA1 Sha;
 						
-
-						for (FbxNode* MeshNode : SkelMeshNodeArray)
+						for (int32 NodeIndex = 0; NodeIndex < SkelMeshNodeArray.Num(); ++NodeIndex)
 						{
+							FbxNode* MeshNode = SkelMeshNodeArray[NodeIndex];
 							FString MeshNodePath = FFbxHelper::GetFbxNodeHierarchyName(MeshNode);
 						
 							int32 NodeMaterialCount = MeshNode->GetMaterialCount();
@@ -255,6 +307,69 @@ namespace UE
 
 							TArray<TCHAR> IDArray = MeshNodePath.GetCharArray();
 							Sha.Update((uint8*)IDArray.GetData(), IDArray.Num()* IDArray.GetTypeSize());
+
+							//Add the Blendshape names to the node
+							FbxGeometry* Geometry = (FbxGeometry*)MeshNode->GetNodeAttribute();
+							if (Geometry)
+							{
+								const int32 BlendShapeDeformerCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
+								if (BlendShapeDeformerCount > 0)
+								{
+									for (int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeDeformerCount; ++BlendShapeIndex)
+									{
+										FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
+										const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
+										FString BlendShapeName = FFbxHelper::GetFbxObjectName(BlendShape);
+										// see below where this is used for explanation...
+										const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
+										for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
+										{
+											FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
+											if (Channel)
+											{
+												//Find which shape should we use according to the weight.
+												const int32 CurrentChannelShapeCount = Channel->GetTargetShapeCount();
+												FString ChannelName = FFbxHelper::GetFbxObjectName(Channel);
+												// Maya adds the name of the blendshape and an underscore to the front of the channel name, so remove it
+												if (ChannelName.StartsWith(BlendShapeName))
+												{
+													ChannelName.RightInline(ChannelName.Len() - (BlendShapeName.Len() + 1), false);
+												}
+												for (int32 ShapeIndex = 0; ShapeIndex < CurrentChannelShapeCount; ++ShapeIndex)
+												{
+													FbxShape* Shape = Channel->GetTargetShape(ShapeIndex);
+													FString ShapeName;
+													if (CurrentChannelShapeCount > 1)
+													{
+														ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+													}
+													else
+													{
+														if (bMightBeBadMAXFile)
+														{
+															ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+														}
+														else
+														{
+															// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
+															ShapeName = ChannelName;
+														}
+													}
+
+													TArray<FbxShape*>& ShapeArray = ShapeNameToShapeArray.FindOrAdd(ShapeName);
+													if (ShapeArray.Num() == 0)
+													{
+														//Add the Shape name to the LodDataNode so we can retrieve the shapes when someone query the payload
+														LodDataNode->AddBlendShape(*ShapeName);
+														ShapeArray.AddZeroed(SkelMeshNodeArray.Num());
+													}
+													ShapeArray[NodeIndex] = Shape;
+												}
+											}
+										}
+									}
+								}
+							}
 						}
 						Sha.Final();
 						// Retrieve the hash and use it to construct a pseudo-GUID. 
@@ -267,6 +382,7 @@ namespace UE
 							TSharedPtr<FSkeletalMeshGeometryPayload> GeoPayload = MakeShared<FSkeletalMeshGeometryPayload>();
 							GeoPayload->SkelMeshNodeArray = SkelMeshNodeArray;
 							GeoPayload->SortedJoints = SortedJoints;
+							GeoPayload->ShapeNameToShapeArray = ShapeNameToShapeArray;
 							GeoPayload->SDKScene = SDKScene;
 							GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
 							PayloadContexts.Add(PayloadKey, GeoPayload);

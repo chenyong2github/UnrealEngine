@@ -18,15 +18,16 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 
 	FString KeyPrefixString = TEXT("TestKey");
 	FName KeyPrefix(*KeyPrefixString);
-	TAtomic<int32> KeySuffixCounter(1);
+	int32 KeySuffixCounter = 1;
 	auto CreateUniqueKey = [&KeyPrefix, &KeySuffixCounter]()->FAttributeKey
 	{
-		KeyPrefix.SetNumber(KeySuffixCounter.IncrementExchange());
+		check(IsInGameThread());
+		KeyPrefix.SetNumber(KeySuffixCounter++);
 		const FAttributeKey UniqueKeyRet = FAttributeKey(KeyPrefix);
 		return UniqueKeyRet;
 	};
 
-	FAttributeStorage TestStorage;
+	FAttributeStorage TestStorage = FAttributeStorage();
 	//This seed make the tests deterministic
 	FRandomStream RandomStream(564389);
 	const FAttributeKey TestInt32KeyName = CreateUniqueKey();
@@ -261,6 +262,11 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 		Keys.AddZeroed(BatchSize*BatchCount);
 		bool ThreadError = false;
 		FAttributeStorage::TAttributeHandle<FRandomStream> RandomStreamHandle = TestStorage.GetAttributeHandle<FRandomStream>(RandomStreamKey);
+		for (FAttributeKey& Key : Keys)
+		{
+			Key = CreateUniqueKey();
+		}
+
 		//Iterate all vertex to compute normals for all vertex instance
 		ParallelFor(BatchCount,
 			[&TestStorage, &RandomStreamHandle, &BatchSize, &Keys, &CreateUniqueKey, &ThreadError](const int32 BatchIndex)
@@ -272,7 +278,6 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 			{
 				const uint64 RealIndex = (BatchIndex * BatchSize) + AttributeIndex;
 				const FVector ValueRef = RandomStream.VRand();
-				Keys[RealIndex] = CreateUniqueKey();
 				if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(Keys[RealIndex], ValueRef)))
 				{
 					ThreadError = true;
@@ -317,8 +322,8 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 
 	//Test compare storage
 	{
-		FAttributeStorage BaseStorage;
-		FAttributeStorage VersionStorage;
+		FAttributeStorage BaseStorage = FAttributeStorage();
+		FAttributeStorage VersionStorage = FAttributeStorage();
 		
 		//Adding many FVector
 		for (int32 AddedIndex = 0; AddedIndex < 3; ++AddedIndex)
@@ -408,7 +413,7 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 		FMemoryWriter Ar(MemoryMocked, bMemoryPersistent);
 		Ar << TestStorage;
 
-		FAttributeStorage FromMemoryMocked;
+		FAttributeStorage FromMemoryMocked = FAttributeStorage();
 		FMemoryReader ArRead(MemoryMocked, bMemoryPersistent);
 		ArRead << FromMemoryMocked;
 

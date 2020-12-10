@@ -224,6 +224,81 @@ namespace UE
 				return FillMeshDescriptionFromFbxMesh(MeshType, SortedJoints);
 			}
 
+			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
+			{
+				//For the shape we just need the vertex positions
+				if (!ensure(bInitialized) || !ensure(MeshDescription))
+				{
+					return false;
+				}
+				FStaticMeshAttributes Attributes(*MeshDescription);
+				FbxMesh* Mesh = MeshNode->GetMesh();
+
+				//The shape should be for a specified mesh
+				if (!ensure(Mesh))
+				{
+					return false;
+				}
+
+				//Extract the points into a simplified MeshDescription
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(GatherMorphTargetPoints);
+					MeshDescription->SuspendVertexIndexing();
+
+					// Construct the matrices for the conversion from right handed to left handed system
+					FbxAMatrix TotalMatrix;
+					FbxAMatrix TotalMatrixForNormal;
+					TotalMatrix = ComputeNodeMatrix(MeshNode);
+					TotalMatrixForNormal = TotalMatrix.Inverse();
+					TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
+
+					FbxGeometryBase* GeoBase = (Shape != nullptr ? (FbxGeometryBase*)Shape : (FbxGeometryBase*)Mesh);
+
+					int32 VertexCount = GeoBase->GetControlPointsCount();
+					if (Shape)
+					{
+						if (!ensure(Mesh->GetControlPointsCount() == VertexCount))
+						{
+							//TODO warn the user
+							return false;
+						}
+					}
+
+					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+					int32 VertexOffset = MeshDescription->Vertices().Num();
+					// The below code expects Num() to be equivalent to GetArraySize(), i.e. that all added elements are appended, not inserted into existing gaps
+					check(VertexOffset == MeshDescription->Vertices().GetArraySize());
+					//Fill the vertex array
+					auto GetFinalPosition = [&TotalMatrix](FbxVector4& FbxPosition)
+					{
+						FbxPosition = TotalMatrix.MultT(FbxPosition);
+						return FFbxConvert::ConvertPos(FbxPosition);
+					};
+
+					MeshDescription->ReserveNewVertices(VertexCount);
+					for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+					{
+						int32 RealVertexIndex = VertexOffset + VertexIndex;
+						const FVector VertexPosition = GetFinalPosition(GeoBase->GetControlPoints()[VertexIndex]);
+						//Maybe we want to do some work here like computing the deltas
+						//const FVector MeshVertexPosition = GetFinalPosition(Mesh->GetControlPoints()[VertexIndex]);
+						FVertexID AddedVertexId = MeshDescription->CreateVertex();
+						if (AddedVertexId.GetValue() != RealVertexIndex)
+						{
+							//TODO add an error log
+							//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertex", "Cannot create valid vertex for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+							return false;
+						}
+						//Add the delta position, so we do not have to recompute it later
+						VertexPositions[AddedVertexId] = VertexPosition;// -MeshVertexPosition;
+					}
+					MeshDescription->ResumeVertexIndexing();
+					FElementIDRemappings OutRemappings;
+					MeshDescription->Compact(OutRemappings);
+				}
+				return true;
+			}
+
 			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(EMeshType MeshType, TArray<FbxNode*>* SortedJoints)
 			{
 				if (!ensure(bInitialized) || !ensure(MeshDescription))

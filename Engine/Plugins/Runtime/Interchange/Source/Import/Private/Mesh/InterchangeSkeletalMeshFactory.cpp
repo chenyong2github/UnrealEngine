@@ -702,6 +702,54 @@ namespace UE
 				return true;
 			}
 
+			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TArray<FName>& BlendShapeToImport, const TMap<FString, FMeshDescription>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			{
+				for (const TPair<FString, FMeshDescription>& Pair : LodBlendShapeMeshDescriptions)
+				{
+					FName BlendShapeName(*(Pair.Key));
+					//Skip blend shape that is not define in the BlendShapeToImport array
+					if (!BlendShapeToImport.Contains(BlendShapeName))
+					{
+						continue;
+					}
+
+					TArray<FVector> CompressPoints;
+					CompressPoints.Reserve(DestinationSkeletalMeshImportData.Points.Num());
+
+					const FMeshDescription& SourceMeshDescription = Pair.Value;
+					FStaticMeshConstAttributes Attributes(SourceMeshDescription);
+					TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+
+					//Create the morph target source data
+					FString& MorphTargetName = DestinationSkeletalMeshImportData.MorphTargetNames.AddDefaulted_GetRef();
+					MorphTargetName = Pair.Key;
+					TSet<uint32>& ModifiedPoints = DestinationSkeletalMeshImportData.MorphTargetModifiedPoints.AddDefaulted_GetRef();
+					FSkeletalMeshImportData& MorphTargetData = DestinationSkeletalMeshImportData.MorphTargets.AddDefaulted_GetRef();
+
+					//Reserve the point and influences
+					MorphTargetData.Points.AddZeroed(SourceMeshDescription.Vertices().Num());
+
+					for (FVertexID VertexID : SourceMeshDescription.Vertices().GetElementIDs())
+					{
+						//We can use GetValue because the Meshdescription was compacted before the copy
+						MorphTargetData.Points[VertexID.GetValue()] = VertexPositions[VertexID];
+					}
+
+					for (int32 PointIdx = 0; PointIdx < DestinationSkeletalMeshImportData.Points.Num(); ++PointIdx)
+					{
+						int32 OriginalPointIdx = DestinationSkeletalMeshImportData.PointToRawMap[PointIdx];
+						//Rebuild the data with only the modified point
+						if ((MorphTargetData.Points[OriginalPointIdx] - DestinationSkeletalMeshImportData.Points[PointIdx]).SizeSquared() > FMath::Square(THRESH_POINTS_ARE_SAME))
+						{
+							ModifiedPoints.Add(PointIdx);
+							CompressPoints.Add(MorphTargetData.Points[OriginalPointIdx]);
+						}
+					}
+					MorphTargetData.Points = CompressPoints;
+				}
+				return true;
+			}
+
 			/**
 			 * Fill the Materials array using the raw skeletalmesh geometry data (using material imported name)
 			 * Find the material from the dependencies of the skeletalmesh before searching in all package.
@@ -1146,6 +1194,12 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					FElementIDRemappings ElementIDRemappings;
 					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
 					UE::Interchange::Private::CopyMeshDescriptionToSkeletalMeshImportData(LodMeshPayload->LodMeshDescription, SkeletalMeshImportData);
+
+					//Pipeline can remove names from the list to control which blendshapes they import
+					TArray<FName> BlendShapeToImport;
+					LodDataNode->GetBlendShapes(BlendShapeToImport);
+					//Copy also the blend shapes data
+					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
 				}
 
 				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);

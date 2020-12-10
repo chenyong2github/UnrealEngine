@@ -15,16 +15,16 @@ namespace UE
 
 		struct FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
-			static const FAttributeKey& TranslatorMeshKeysCountKey()
+			static const FString& GetBlendShapesNameBaseKey()
 			{
-				static FAttributeKey AttributeKey(TEXT("__LOD_DATA_IDS_COUNT_"));
-				return AttributeKey;
+				static FString BlendShapesName_BaseKey = TEXT("BlendShape_Names");
+				return BlendShapesName_BaseKey;
 			}
 
-			static const FAttributeKey& TranslatorMeshKeysBaseKey()
+			static const FString& GetTranslatorMeshKeysBaseKey()
 			{
-				static FAttributeKey AttributeKey(TEXT("__LOD_DATA_IDS_INDEX_"));
-				return AttributeKey;
+				static FString TranslatorMeshKeys_BaseKey = TEXT("TranslatorMesh_Keys");
+				return TranslatorMeshKeys_BaseKey;
 			}
 		};
 
@@ -40,6 +40,8 @@ public:
 	UInterchangeSkeletalMeshLodDataNode()
 		:UInterchangeBaseNode()
 	{
+		BlendShapesNames.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetBlendShapesNameBaseKey());
+		TranslatorMeshKeys.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetTranslatorMeshKeysBaseKey());
 	}
 
 	/**
@@ -53,7 +55,7 @@ public:
 
 	virtual FGuid GetHash() const override
 	{
-		return Attributes.GetStorageHash();
+		return Attributes->GetStorageHash();
 	}
 
 
@@ -71,138 +73,62 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonID, FName)
 	}
 
-	/** Return The number of LOD this skeletalmesh has.*/
+	/* Translator mesh keys*/
+
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
 	int32 GetTranslatorMeshKeyCount() const
 	{
-		int32 MeshCount = 0;
-		if (Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey()))
-		{
-			UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey());
-			if (Handle.IsValid())
-			{
-				Handle.Get(MeshCount);
-			}
-		}
-		return MeshCount;
+		return TranslatorMeshKeys.GetCount();
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
 	void GetTranslatorMeshKeys(TArray<FName>& OutTranslatorMeshKeys) const
 	{
-		OutTranslatorMeshKeys.Reset();
-
-		int32 MeshCount = 0;
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey()))
-		{
-			return;
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey());
-		if (!Handle.IsValid())
-		{
-			return;
-		}
-		Handle.Get(MeshCount);
-		for (int32 MeshIndex = 0; MeshIndex < MeshCount; ++MeshIndex)
-		{
-			FString DepIndexKeyString = UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysBaseKey().ToString() + FString::FromInt(MeshIndex);
-			UE::Interchange::FAttributeKey DepIndexKey(*DepIndexKeyString);
-			UE::Interchange::FAttributeStorage::TAttributeHandle<FName> HandleMesh = Attributes.GetAttributeHandle<FName>(DepIndexKey);
-			if (!HandleMesh.IsValid())
-			{
-				continue;
-			}
-			FName& NodeUniqueID = OutTranslatorMeshKeys.AddDefaulted_GetRef();
-			HandleMesh.Get(NodeUniqueID);
-		}
+		TranslatorMeshKeys.GetNames(OutTranslatorMeshKeys);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
 	bool AddTranslatorMeshKey(FName TranslatorMeshKey)
 	{
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey()))
-		{
-			const int32 DependencyCount = 0;
-			UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute<int32>(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey(), DependencyCount);
-			if (!UE::Interchange::IsAttributeStorageResultSuccess(Result))
-			{
-				UE::Interchange::LogAttributeStorageErrors(Result, TEXT("UInterchangeSkeletalMeshLodDataNode.AddTranslatorMeshKey"), UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey());
-				return false;
-			}
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey());
-		if (!ensure(Handle.IsValid()))
-		{
-			return false;
-		}
-		int32 MeshIndex = 0;
-		Handle.Get(MeshIndex);
-		FString MeshIndexKeyString = UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysBaseKey().ToString() + FString::FromInt(MeshIndex);
-		UE::Interchange::FAttributeKey MeshIndexKey(*MeshIndexKeyString);
-		//Increment the counter
-		MeshIndex++;
-		Handle.Set(MeshIndex);
-
-		UE::Interchange::EAttributeStorageResult AddMeshResult = Attributes.RegisterAttribute<FName>(MeshIndexKey, TranslatorMeshKey);
-		return true;
+		return TranslatorMeshKeys.AddName(TranslatorMeshKey);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
 	bool RemoveTranslatorMeshKey(FName TranslatorMeshKey)
 	{
-		int32 MeshCount = 0;
-		if (!Attributes.ContainAttribute(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey()))
-		{
-			return false;
-		}
-		UE::Interchange::FAttributeStorage::TAttributeHandle<int32> Handle = Attributes.GetAttributeHandle<int32>(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysCountKey());
-		if (!Handle.IsValid())
-		{
-			return false;
-		}
-		Handle.Get(MeshCount);
-		bool DecrementKey = false;
-		for (int32 MeshIndex = 0; MeshIndex < MeshCount; ++MeshIndex)
-		{
-			FString DepIndexKeyString = UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysBaseKey().ToString() + FString::FromInt(MeshIndex);
-			UE::Interchange::FAttributeKey DepIndexKey(*DepIndexKeyString);
-			UE::Interchange::FAttributeStorage::TAttributeHandle<FName> HandleMesh = Attributes.GetAttributeHandle<FName>(DepIndexKey);
-			if (!HandleMesh.IsValid())
-			{
-				continue;
-			}
-			FName MeshUniqueID;
-			HandleMesh.Get(MeshUniqueID);
-			if (MeshUniqueID == TranslatorMeshKey)
-			{
-				//Remove this entry
-				Attributes.UnregisterAttribute(DepIndexKey);
-				Handle.Set(MeshCount-1);
-				//We have to rename the key for all the next item
-				DecrementKey = true;;
-			}
-			else if (DecrementKey)
-			{
-				FString NewDepIndexKeyString = UE::Interchange::FSkeletalMeshNodeLodDataStaticData::TranslatorMeshKeysBaseKey().ToString() + FString::FromInt(MeshIndex-1);
-				UE::Interchange::FAttributeKey NewDepIndexKey(*NewDepIndexKeyString);
-				UE::Interchange::EAttributeStorageResult UnregisterResult = Attributes.UnregisterAttribute(DepIndexKey);
-				if (UE::Interchange::IsAttributeStorageResultSuccess(UnregisterResult))
-				{
-					UE::Interchange::EAttributeStorageResult RegisterResult = Attributes.RegisterAttribute<FName>(NewDepIndexKey, MeshUniqueID);
-					if (!UE::Interchange::IsAttributeStorageResultSuccess(RegisterResult))
-					{
-						UE::Interchange::LogAttributeStorageErrors(RegisterResult, TEXT("UInterchangeSkeletalMeshLodDataNode.RemoveTranslatorMeshKey"), NewDepIndexKey);
-					}
-				}
-				else
-				{
-					UE::Interchange::LogAttributeStorageErrors(UnregisterResult, TEXT("UInterchangeSkeletalMeshLodDataNode.RemoveTranslatorMeshKey"), DepIndexKey);
-				}
-				//make sure the for loop iterate since HandleMesh is now invalid
-				continue;
-			}
-		}
-		return true;
+		return TranslatorMeshKeys.RemoveName(TranslatorMeshKey);
+	}
+
+	/* Blend shapes*/
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
+	int32 GetBlendShapeCount() const
+	{
+		return BlendShapesNames.GetCount();
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
+	void GetBlendShapes(TArray<FName>& OutBlendShapeNames) const
+	{
+		BlendShapesNames.GetNames(OutBlendShapeNames);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
+	bool AddBlendShape(FName BlendShapeName)
+	{
+		return BlendShapesNames.AddName(BlendShapeName);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
+	bool RemoveBlendShape(FName BlendShapeName)
+	{
+		return BlendShapesNames.RemoveName(BlendShapeName);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
+	bool RemoveAllBlendShape()
+	{
+		return BlendShapesNames.RemoveAllNames();
 	}
 
 private:
@@ -219,5 +145,7 @@ private:
 	//SkeletalMesh
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonIDKey = UE::Interchange::FAttributeKey(TEXT("SkeletonID"));
 
+	UE::Interchange::FNameAttributeArrayHelper BlendShapesNames;
+	UE::Interchange::FNameAttributeArrayHelper TranslatorMeshKeys;
 protected:
 };
