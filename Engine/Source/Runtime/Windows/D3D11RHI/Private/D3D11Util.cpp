@@ -11,23 +11,6 @@
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 
-#ifndef _FACD3D 
-	#define _FACD3D  0x876
-#endif	//_FACD3D 
-#ifndef MAKE_D3DHRESULT
-	#define _FACD3D  0x876
-	#define MAKE_D3DHRESULT( code )  MAKE_HRESULT( 1, _FACD3D, code )
-#endif	//MAKE_D3DHRESULT
-
-#if WITH_D3DX_LIBS
-	#ifndef D3DERR_INVALIDCALL
-		#define D3DERR_INVALIDCALL MAKE_D3DHRESULT(2156)
-	#endif//D3DERR_INVALIDCALL
-	#ifndef D3DERR_WASSTILLDRAWING
-		#define D3DERR_WASSTILLDRAWING MAKE_D3DHRESULT(540)
-	#endif//D3DERR_WASSTILLDRAWING
-#endif
-
 static FString GetD3D11DeviceHungErrorString(HRESULT ErrorCode)
 {
 	FString ErrorCodeText;
@@ -54,14 +37,11 @@ FString GetD3D11ErrorString(HRESULT ErrorCode, ID3D11Device* Device)
 		D3DERR(S_OK);
 		D3DERR(D3D11_ERROR_FILE_NOT_FOUND)
 		D3DERR(D3D11_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS)
-#if WITH_D3DX_LIBS
-		D3DERR(D3DERR_INVALIDCALL)
-		D3DERR(D3DERR_WASSTILLDRAWING)
-#endif	//WITH_D3DX_LIBS
 		D3DERR(E_FAIL)
 		D3DERR(E_INVALIDARG)
 		D3DERR(E_OUTOFMEMORY)
 		D3DERR(DXGI_ERROR_INVALID_CALL)
+		D3DERR(DXGI_ERROR_WAS_STILL_DRAWING)
 		D3DERR(E_NOINTERFACE)
 		D3DERR(DXGI_ERROR_DEVICE_REMOVED)
 		D3DERR(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)
@@ -229,12 +209,6 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 		FPlatformMisc::RequestExit(true);
 	}
 }
-
-
-#ifndef MAKE_D3DHRESULT
-	#define _FACD3D						0x876
-	#define MAKE_D3DHRESULT( code)		MAKE_HRESULT( 1, _FACD3D, code )
-#endif	//MAKE_D3DHRESULT
 
 void VerifyD3D11ResultNoExit(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D11Device* Device)
 {

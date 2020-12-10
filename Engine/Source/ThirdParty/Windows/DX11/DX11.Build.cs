@@ -23,8 +23,6 @@ public class DX11 : ModuleRules
 		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
 
-			PublicDefinitions.Add("WITH_D3DX_LIBS=1");
-
 			string LibDir = null;
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -49,16 +47,10 @@ public class DX11 : ModuleRules
 					}
 				);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			PublicDefinitions.Add("WITH_D3DX_LIBS=0");
-		}
-
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
 
-			PublicDefinitions.Add("WITH_D3DX_LIBS=0");
 			PublicSystemLibraries.AddRange(
 				new string[] {
 				"dxguid.lib",

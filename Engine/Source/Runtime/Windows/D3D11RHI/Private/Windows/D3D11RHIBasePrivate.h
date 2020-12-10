@@ -8,11 +8,6 @@
 
 #include "Windows/WindowsHWrapper.h"
 
-// Assume D3DX is available
-#ifndef WITH_D3DX_LIBS
-#define WITH_D3DX_LIBS	1
-#endif
-
 // Disable macro redefinition warning for compatibility with Windows SDK 8+
 #pragma warning(push)
 #pragma warning(disable : 4005)	// macro redefinition

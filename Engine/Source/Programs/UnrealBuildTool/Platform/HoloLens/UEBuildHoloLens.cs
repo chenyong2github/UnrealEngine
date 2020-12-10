@@ -516,8 +516,6 @@ namespace UnrealBuildTool
 				Rules.PublicSystemLibraryPaths.Clear();
 				Rules.PublicSystemLibraries.Clear();
 				Rules.PublicAdditionalLibraries.Clear();
-				Rules.PublicDefinitions.Remove("WITH_D3DX_LIBS=1");
-				Rules.PublicDefinitions.Add("WITH_D3DX_LIBS=0");
 				Rules.PublicAdditionalLibraries.Remove("X3DAudio.lib");
 				Rules.PublicAdditionalLibraries.Remove("XAPOFX.lib");
 			}

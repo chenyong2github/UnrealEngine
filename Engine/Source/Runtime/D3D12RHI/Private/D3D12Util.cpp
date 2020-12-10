@@ -15,23 +15,6 @@ D3D12Util.h: D3D RHI utility implementation.
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 
-#ifndef _FACD3D 
-#define _FACD3D  0x876
-#endif	//_FACD3D 
-#ifndef MAKE_D3DHRESULT
-#define _FACD3D  0x876
-#define MAKE_D3DHRESULT( code )  MAKE_HRESULT( 1, _FACD3D, code )
-#endif	//MAKE_D3DHRESULT
-
-#if WITH_D3DX_LIBS
-#ifndef D3DERR_INVALIDCALL
-#define D3DERR_INVALIDCALL MAKE_D3DHRESULT(2156)
-#endif//D3DERR_INVALIDCALL
-#ifndef D3DERR_WASSTILLDRAWING
-#define D3DERR_WASSTILLDRAWING MAKE_D3DHRESULT(540)
-#endif//D3DERR_WASSTILLDRAWING
-#endif
-
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
 static FString GetUniqueName()
@@ -104,14 +87,11 @@ static FString GetD3D12ErrorString(HRESULT ErrorCode, ID3D12Device* Device)
 		D3DERR(S_OK);
 		D3DERR(D3D11_ERROR_FILE_NOT_FOUND)
 		D3DERR(D3D11_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS)
-#if WITH_D3DX_LIBS
-		D3DERR(D3DERR_INVALIDCALL)
-		D3DERR(D3DERR_WASSTILLDRAWING)
-#endif	//WITH_D3DX_LIBS
 		D3DERR(E_FAIL)
 		D3DERR(E_INVALIDARG)
 		D3DERR(E_OUTOFMEMORY)
 		D3DERR(DXGI_ERROR_INVALID_CALL)
+		D3DERR(DXGI_ERROR_WAS_STILL_DRAWING)
 		D3DERR(E_NOINTERFACE)
 		D3DERR(DXGI_ERROR_DEVICE_REMOVED)
 #if PLATFORM_WINDOWS
@@ -539,11 +519,6 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 #endif
 	FPlatformMisc::RequestExit(true);
 }
-
-#ifndef MAKE_D3DHRESULT
-#define _FACD3D						0x876
-#define MAKE_D3DHRESULT( code)		MAKE_HRESULT( 1, _FACD3D, code )
-#endif	//MAKE_D3DHRESULT
 
 namespace D3D12RHI
 {
