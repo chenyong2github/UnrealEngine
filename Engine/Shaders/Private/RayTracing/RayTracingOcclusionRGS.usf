@@ -419,11 +419,13 @@ FOcclusionResult ComputeOcclusion(
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	#endif
 
+	#if USE_HAIR_LIGHTING
 		if (ShadingModelID == SHADINGMODELID_HAIR)
 		{
 			// Denoiser mode 0 doesn't use depth, so take first hit
 			RayFlags |= RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 		}
+	#endif
 
 		FMinimalPayload MinimalPayload = TraceVisibilityRay(
 			TLAS,
@@ -450,7 +452,7 @@ FOcclusionResult ComputeOcclusion(
 			Out.SumRayDistance += HitT;
 			Out.HitCount += 1.0;
 
-			if ((ShadingModelID == SHADINGMODELID_SUBSURFACE))
+			if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_HAIR)
 			{
 				// Reverse the ray to support sub-surface casts
 				RayDesc InvertedRay = Invert(Ray);
@@ -467,6 +469,11 @@ FOcclusionResult ComputeOcclusion(
 					float3 HitPosition = InvertedRay.Origin + InvertedRay.Direction * SubsurfacePayload.HitT;
 					float Opacity = TransmissionProfileParams.ExtinctionScale;
 					float Density = -.05f * log(1 - min(Opacity, .999f));
+					if (ShadingModelID == SHADINGMODELID_HAIR)
+					{
+						Opacity = 1;
+						Density = 1;
+					}
 					float ExtinctionCoefficient = Density;
 					float Thickness = length(HitPosition - WorldPosition);
 					float Transmission = saturate(exp(-ExtinctionCoefficient * Thickness));
@@ -508,7 +515,7 @@ FOcclusionResult ComputeOcclusion(
 
 		Out.TransmissionDistance = ComputeDiffuseTransmission(V, WorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax, PixelCoord);
 	}
-	else if (ShadingModelID == SHADINGMODELID_SUBSURFACE)
+	else if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_HAIR)
 	{
 		float Depth = length(WorldPosition - View.WorldCameraOrigin);
 		float Range = LODTransitionEnd - LODTransitionStart;
