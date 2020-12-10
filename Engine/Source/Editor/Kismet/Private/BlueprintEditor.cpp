@@ -5972,8 +5972,6 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 						{
 							VarNode->Modify();
 							VarNode->VariableReference.SetDirect(NewVarName, NewVarGuid, nullptr, true);
-							// Need to reconstruct the node here to update the displayed variable name
-							K2Schema->ReconstructNode(*VarNode);
 						}
 					}
 				}
