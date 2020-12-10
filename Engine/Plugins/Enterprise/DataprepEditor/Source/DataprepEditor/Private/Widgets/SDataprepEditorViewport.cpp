@@ -647,8 +647,18 @@ void SDataprepEditorViewport::UpdatePerfStats()
 
 	extern ENGINE_API float GAverageFPS;
 
+	DrawCallsAccumulator += GNumDrawCallsRHI;
+	++CurrentDrawCalls;
+
+	if (CurrentDrawCalls >= DrawCallsUpdateInterval)
+	{
+		AverageDrawCalls = DrawCallsAccumulator / CurrentDrawCalls;
+		CurrentDrawCalls = 0;
+		DrawCallsAccumulator = 0;
+	}
+
 	FPSText->SetText(FText::Format(LOCTEXT( "FPS_F", "FPS:  {0}"), FText::AsNumber(GAverageFPS, &FormatOptions)));
-	DrawCallsText->SetText(FText::Format(LOCTEXT( "DrawCalls_F", "Num Draw Calls:  {0}"), GNumDrawCallsRHI));
+	DrawCallsText->SetText(FText::Format(LOCTEXT( "DrawCalls_F", "Num Draw Calls:  {0}"), AverageDrawCalls));
 }
 
 void SDataprepEditorViewport::BindCommands()

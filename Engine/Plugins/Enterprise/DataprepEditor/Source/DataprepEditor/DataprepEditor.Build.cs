@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"Kismet",
 					"KismetCompiler",
 					"KismetWidgets",
+					"Landscape",
 					"MainFrame",
 					"MeshDescription",
 					"MeshUtilities",

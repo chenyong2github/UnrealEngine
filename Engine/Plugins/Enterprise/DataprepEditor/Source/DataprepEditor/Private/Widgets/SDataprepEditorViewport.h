@@ -185,6 +185,11 @@ public:
 	/** Load the settings affecting the viewport, i.e. environment map */
 	static void LoadDefaultSettings();
 
+	int32 GetDrawCallsAverage() const
+	{
+		return AverageDrawCalls;
+	}
+
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
@@ -376,6 +381,12 @@ private:
 	TSharedPtr<SVerticalBox> OverlayTextVerticalBox;
 	TSharedPtr<STextBlock> FPSText;
 	TSharedPtr<STextBlock> DrawCallsText;
+
+	// Draw calls smoothing
+	const int32 DrawCallsUpdateInterval = 20; // Number of frames to average
+	int32 DrawCallsAccumulator = 0;
+	int32 CurrentDrawCalls = 0;
+	int32 AverageDrawCalls = 0;
 
 	/** Index of the profile to use in the preview scene */
 	static int32 AssetViewerProfileIndex;

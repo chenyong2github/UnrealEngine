@@ -5,6 +5,8 @@
 #include "DataprepActionAsset.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepGraph/DataprepGraph.h"
+#include "DataprepStats.h"
+#include "Widgets/SDataprepStats.h"
 #include "PreviewSystem/DataprepPreviewSystem.h"
 
 #include "CoreMinimal.h"
@@ -244,6 +246,8 @@ private:
 
 	void CreateGraphEditor();
 
+	void RefreshStatsTab();
+
 	// A scoped object responsible of trying to conserve the selection across imports
 	friend UE::Dataprep::Private::FScopeDataprepEditorSelectionCache;
 
@@ -324,6 +328,11 @@ private:
 
 	TSharedPtr<FDataprepActionContext> ActionsContext;
 
+	TSharedPtr<FDataprepStats> PreExecuteStatsPtr;
+	TSharedPtr<FDataprepStats> PostExecuteStatsPtr;
+	TWeakPtr<SDataprepStats> StatsWidgetPtr;
+	TWeakPtr<SDockTab> StatsTabPtr;
+
 	/**	The tab ids for all the tabs used */
 	static const FName ScenePreviewTabId;
 	static const FName AssetPreviewTabId;
@@ -333,4 +342,6 @@ private:
 	static const FName SceneViewportTabId;
 	static const FName DataprepStatisticsTabId;
 	static const FName DataprepGraphEditorTabId;
+
+	static const FName StatNameDrawCalls;
 };
