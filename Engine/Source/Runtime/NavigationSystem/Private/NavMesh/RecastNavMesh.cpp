@@ -1045,7 +1045,7 @@ FNavLocation ARecastNavMesh::GetRandomPoint(FSharedConstNavQueryFilter Filter, c
 
 bool ARecastNavMesh::GetRandomReachablePointInRadius(const FVector& Origin, float Radius, FNavLocation& OutResult, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
-	if (RecastNavMeshImpl == nullptr || RecastNavMeshImpl->DetourNavMesh == nullptr || Radius <= 0.f)
+	if (RecastNavMeshImpl == nullptr || RecastNavMeshImpl->DetourNavMesh == nullptr || Radius < 0.f)
 	{
 		return false;
 	}
