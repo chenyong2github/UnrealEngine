@@ -11,6 +11,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
+#include "Misc/Optional.h"
 #include "EngineModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
@@ -415,8 +416,14 @@ void FStaticMeshCompilingManager::FinishCompilation(const TArray<UStaticMesh*>& 
 
 	if (PendingStaticMeshes.Num())
 	{
-		FScopedSlowTask SlowTask((float)PendingStaticMeshes.Num(), LOCTEXT("FinishStaticMeshCompilation", "Waiting on static meshes preparation"), true);
-		SlowTask.MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
+		TOptional<FScopedSlowTask> SlowTask;
+
+		// Do not create a progress during PostLoad as TickSlate could endup calling stuff that is not supposed to be called during PostLoad
+		if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+		{
+			SlowTask.Emplace((float)PendingStaticMeshes.Num(), LOCTEXT("FinishStaticMeshCompilation", "Waiting on static meshes preparation"), true);
+			SlowTask->MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
+		}
 
 		struct FStaticMeshTask : public IQueuedWork
 		{
@@ -451,7 +458,10 @@ void FStaticMeshCompilingManager::FinishCompilation(const TArray<UStaticMesh*>& 
 		auto UpdateProgress =
 			[&SlowTask](float Progress, int32 Done, int32 Total, const FString& CurrentObjectsName)
 			{
-				return SlowTask.EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting for static meshes to be ready %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
+				if (SlowTask.IsSet())
+				{
+					return SlowTask->EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting for static meshes to be ready %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
+				}
 			};
 
 		for (FStaticMeshTask& PendingTask : PendingTasks)
