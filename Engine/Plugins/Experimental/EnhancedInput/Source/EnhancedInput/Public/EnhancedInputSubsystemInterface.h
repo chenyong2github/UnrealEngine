@@ -94,6 +94,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")	// TODO: BlueprintPure would be nicer. Move into library?
 	virtual bool HasMappingContext(const UInputMappingContext* MappingContext) const;
 
+	/**
+	 * Returns the keys mapped to the given action in the active input mapping contexts.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")
+	virtual TArray<FKey> QueryKeysMappedToAction(const UInputAction* Action) const;
+
 private:
 
 	// Forced actions/keys for debug. These will be applied each tick once set even if zeroed, until removed. 

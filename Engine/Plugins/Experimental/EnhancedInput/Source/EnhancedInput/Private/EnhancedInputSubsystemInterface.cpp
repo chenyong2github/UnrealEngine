@@ -303,6 +303,24 @@ bool IEnhancedInputSubsystemInterface::HasMappingContext(const UInputMappingCont
 	return GetPlayerInput() && GetPlayerInput()->AppliedInputContexts.Contains(MappingContext);
 }
 
+TArray<FKey> IEnhancedInputSubsystemInterface::QueryKeysMappedToAction(const UInputAction* Action) const
+{
+	TArray<FKey> MappedKeys;
+
+	if (const UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	{
+		for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+		{
+			if (Mapping.Action == Action)
+			{
+				MappedKeys.AddUnique(Mapping.Key);
+			}
+		}
+	}
+
+	return MappedKeys;
+}
+
 template<typename T>
 void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
 {
