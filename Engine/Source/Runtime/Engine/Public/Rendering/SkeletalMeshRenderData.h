@@ -33,6 +33,9 @@ public:
 	/** [GameThread/RenderThread] Future value of CurrentFirstLODIdx. */
 	uint8 PendingFirstLODIdx;
 
+	/** Whether ray tracing acceleration structures should be created for this mesh. Derived from owner USkeletalMesh. */
+	bool bSupportRayTracing;
+
 #if WITH_EDITORONLY_DATA
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
