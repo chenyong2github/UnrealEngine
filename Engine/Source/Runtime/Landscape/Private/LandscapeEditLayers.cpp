@@ -6587,8 +6587,25 @@ UTextureRenderTarget2D* FLandscapeLayerBrush::Render(bool InIsHeightmap, const F
 	}
 	if (Initialize(InLandscapeExtent, InLandscapeRenderTarget))
 	{
+		FString ProfilingEventName = FString::Format(TEXT("LandscapeLayers_RenderLayerBrush {0}: {1}"), { InIsHeightmap ? TEXT("LS Height") : TEXT("LS Weight"), BlueprintBrush->GetName() });
+		TSharedPtr<FDrawEvent> ProfilingEvent = MakeShared<FDrawEvent>();
+
+		ENQUEUE_RENDER_COMMAND(LandscapeLayers_Cmd_BeginRenderLayerBrush)(
+			[ProfilingEvent, ProfilingEventName](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			BEGIN_DRAW_EVENTF(RHICmdList, LandscapeLayers, *ProfilingEvent.Get(), *ProfilingEventName);
+		});
+
 		TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-		return BlueprintBrush->Render(InIsHeightmap, InLandscapeRenderTarget, InWeightmapLayerName);
+		UTextureRenderTarget2D* Result = BlueprintBrush->Render(InIsHeightmap, InLandscapeRenderTarget, InWeightmapLayerName);
+
+		ENQUEUE_RENDER_COMMAND(LandscapeLayers_Cmd_StopRenderLayerBrush)(
+			[ProfilingEvent](FRHICommandList& RHICmdList)
+		{
+			STOP_DRAW_EVENT(*ProfilingEvent.Get());
+		});
+
+		return Result;
 	}
 #endif
 	return nullptr;
