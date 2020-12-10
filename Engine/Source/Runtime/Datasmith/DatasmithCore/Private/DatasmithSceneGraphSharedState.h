@@ -54,6 +54,9 @@ public:
 		}
 	}
 
+	const TSharedPtr<T>& View() const { return Inner; }
+	      TSharedPtr<T>& Edit()       { return Inner; }
+
 public:
 	TSharedPtr<T> Inner;
 };
@@ -87,10 +90,12 @@ public:
 	}
 
 
-	// simpler acces to the inner array...
+	// simpler access to the inner array...
 	const TSharedPtr<T>& operator[](int32 Index) const { return Inner[Index]; }
+	TSharedPtr<T>& operator[](int32 Index) { return Inner[Index]; }
 	bool IsValidIndex(SizeType Index) const { return Inner.IsValidIndex(Index); }
 	SizeType Add(const TSharedPtr<T>& Element) { return Inner.Add(Element); }
+	SizeType Add(TSharedPtr<T>&& Element) { return Inner.Add(MoveTemp(Element)); }
 	SizeType Remove(const TSharedPtr<T>& Item) { return Inner.Remove(Item); }
 	void Empty() { return Inner.Empty(); }
 

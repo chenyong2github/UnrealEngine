@@ -25,7 +25,7 @@ public:
 	FDatasmithElementImpl(const TCHAR* InName, EDatasmithElementType InType, uint64 InSubType = 0);
 	virtual ~FDatasmithElementImpl() {}
 
-	virtual bool IsA( EDatasmithElementType InType ) const override { return EnumHasAnyFlags(GetType(), InType); }
+	virtual bool IsA( EDatasmithElementType InType ) const override { return EnumHasAnyFlags( GetElementType(), InType); }
 	virtual bool IsSubType( uint64 InSubType ) const override { return ( InSubType & GetSubType() ) != 0; }
 
 	virtual const TCHAR* GetName() const override { return *Name.Get(Store); }
@@ -42,7 +42,7 @@ public:
 	virtual       DirectLink::FParameterStore& GetStore()       override { return Store; }
 
 private:
-	EDatasmithElementType GetType() const { return Type.Get(Store); }
+	EDatasmithElementType GetElementType() const { return Type.Get(Store); }
 	uint64 GetSubType() const { return Subtype.Get(Store); }
 
 protected:
