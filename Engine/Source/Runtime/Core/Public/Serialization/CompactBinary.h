@@ -489,6 +489,8 @@ public:
 	CORE_API FBlake3Hash AsReference(const FBlake3Hash& Default = FBlake3Hash());
 	/** Access the field as a hash referencing a blob. Returns the provided default on error. */
 	CORE_API FBlake3Hash AsBinaryReference(const FBlake3Hash& Default = FBlake3Hash());
+	/** Access the field as a hash referencing a blob or compact binary. Returns the provided default on error. */
+	CORE_API FBlake3Hash AsAnyReference(const FBlake3Hash& Default = FBlake3Hash());
 
 	/** Access the field as a hash. Returns the provided default on error. */
 	CORE_API FBlake3Hash AsHash(const FBlake3Hash& Default = FBlake3Hash());
@@ -898,7 +900,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** A reference to a function that is used to allocate buffers for compact binary data. */
-using FCbBufferAllocator = TFunctionRef<FSharedBufferPtr (ECbFieldType Type, uint64 Size)>;
+using FCbBufferAllocator = TFunctionRef<FSharedBufferPtr (uint64 Size)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -997,7 +999,8 @@ public:
 	}
 
 	/** Returns the outer buffer (if any) that contains this value. */
-	inline const FSharedBufferConstPtr& GetOuterBuffer() const { return Buffer; }
+	inline const FSharedBufferConstPtr& GetOuterBuffer() const & { return Buffer; }
+	inline FSharedBufferConstPtr GetOuterBuffer() && { return MoveTemp(Buffer); }
 
 private:
 	template <typename OtherType>

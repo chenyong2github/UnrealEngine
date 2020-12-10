@@ -141,7 +141,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 				TestTrue(FString::Printf(TEXT("SaveCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr))))
 			{
 				FMemoryReader ReadAr(WriteAr);
-				FCbFieldRef Field = LoadCompactBinary(ReadAr, [](ECbFieldType Type, uint64 Size) { return FSharedBuffer::Alloc(Size); });
+				FCbFieldRef Field = LoadCompactBinary(ReadAr, [](uint64 Size) { return FSharedBuffer::Alloc(Size); });
 				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetView()));
 			}
 		}

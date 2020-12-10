@@ -953,6 +953,12 @@ bool FCbFieldReferenceTest::RunTest(const FString& Parameters)
 	// Test FCbField(Reference, NonZero)
 	TestField<ECbFieldType::Reference>(TEXT("Reference, NonZero"), SequentialBytes, FBlake3Hash(SequentialBytes));
 
+	// Test FCbField(Reference, NonZero) AsAnyReference
+	{
+		FCbField Field(SequentialBytes, ECbFieldType::Reference);
+		TestFieldAsType(TEXT("Reference, NonZero, AsAnyReference"), Field, &FCbField::AsAnyReference, FBlake3Hash(SequentialBytes));
+	}
+
 	// Test FCbField(None) as Reference
 	{
 		FCbField DefaultField;
@@ -973,6 +979,12 @@ bool FCbFieldBinaryReferenceTest::RunTest(const FString& Parameters)
 
 	// Test FCbField(BinaryReference, NonZero)
 	TestField<ECbFieldType::BinaryReference>(TEXT("BinaryReference, NonZero"), SequentialBytes, FBlake3Hash(SequentialBytes));
+
+	// Test FCbField(BinaryReference, NonZero) AsAnyReference
+	{
+		FCbField Field(SequentialBytes, ECbFieldType::BinaryReference);
+		TestFieldAsType(TEXT("BinaryReference, NonZero, AsAnyReference"), Field, &FCbField::AsAnyReference, FBlake3Hash(SequentialBytes));
+	}
 
 	// Test FCbField(None) as BinaryReference
 	{

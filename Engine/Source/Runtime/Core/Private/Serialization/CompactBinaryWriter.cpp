@@ -88,11 +88,11 @@ FCbFieldRefIterator FCbWriter::Save() const
 {
 	const uint64 Size = GetSaveSize();
 	FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
-	const FCbFieldIterator Output = SaveToMemory(Buffer->GetView());
+	const FCbFieldIterator Output = Save(Buffer->GetView());
 	return FCbFieldRefIterator::MakeRangeView(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
 }
 
-FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
+FCbFieldIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
 {
 	checkf(States.Num() == 1 && States.Last().Flags == EStateFlags::None,
 		TEXT("It is invalid to save while there are incomplete write operations."));
@@ -103,7 +103,7 @@ FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
 	return FCbFieldIterator::MakeRange(Buffer);
 }
 
-void FCbWriter::SaveToArchive(FArchive& Ar) const
+void FCbWriter::Save(FArchive& Ar) const
 {
 	check(Ar.IsSaving());
 	checkf(States.Num() == 1 && States.Last().Flags == EStateFlags::None,

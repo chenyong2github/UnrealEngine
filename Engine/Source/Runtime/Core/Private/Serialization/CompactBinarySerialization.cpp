@@ -170,7 +170,10 @@ FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	}
 
 	// Allocate the buffer, copy the header, and read the remainder of the field.
-	FSharedBufferPtr Buffer = Allocator(FieldType, FieldSize);
+	FSharedBufferPtr Buffer = Allocator(FieldSize);
+	checkf(Buffer && Buffer->GetSize() == FieldSize,
+		TEXT("Allocator returned a buffer of size %" UINT64_FMT " bytes when %" UINT64_FMT " bytes were requested."),
+		Buffer ? Buffer->GetSize() : 0, FieldSize);
 	FMutableMemoryView View = Buffer->GetView();
 	FMemory::Memcpy(View.GetData(), HeaderBytes.GetData(), HeaderBytes.Num());
 	View += HeaderBytes.Num();
@@ -209,10 +212,7 @@ static FArchive& SerializeCompactBinary(FArchive& Ar, T& Value, ConvertType&& Co
 	if (Ar.IsLoading())
 	{
 		Value = Invoke(Forward<ConvertType>(Convert),
-			LoadCompactBinary(Ar, [](ECbFieldType Type, uint64 Size)
-			{
-				return FSharedBuffer::Alloc(Size);
-			}));
+			LoadCompactBinary(Ar, [](uint64 Size) { return FSharedBuffer::Alloc(Size); }));
 	}
 	else if (Ar.IsSaving())
 	{

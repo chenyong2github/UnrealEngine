@@ -281,6 +281,20 @@ FBlake3Hash FCbField::AsBinaryReference(const FBlake3Hash& Default)
 	}
 }
 
+FBlake3Hash FCbField::AsAnyReference(const FBlake3Hash& Default)
+{
+	if (FCbFieldType::IsAnyReference(Type))
+	{
+		Error = ECbFieldError::None;
+		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
 FBlake3Hash FCbField::AsHash(const FBlake3Hash& Default)
 {
 	if (FCbFieldType::IsHash(Type))

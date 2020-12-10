@@ -20,7 +20,7 @@ struct FTimespan;
  *
  * The writer produces a sequence of fields that can be saved to a provided memory buffer or into
  * a new owned buffer. The typical use case is to write a single object, which can be accessed by
- * calling Save().AsObjectRef() or SaveToMemory(Buffer).AsObject().
+ * calling Save().AsObjectRef() or Save(Buffer).AsObject().
  *
  * The writer will assert on most incorrect usage and will always produce valid compact binary if
  * provided with valid input. The writer does not check for invalid UTF-8 string encoding, object
@@ -81,7 +81,7 @@ public:
 	 * @param Buffer A mutable memory view to write to. Must be exactly GetSaveSize() bytes.
 	 * @return An iterator for the field(s) written to the buffer.
 	 */
-	CORE_API FCbFieldIterator SaveToMemory(FMutableMemoryView Buffer) const;
+	CORE_API FCbFieldIterator Save(FMutableMemoryView Buffer) const;
 
 	/**
 	 * Serialize the field(s) to an archive.
@@ -91,7 +91,7 @@ public:
 	 *
 	 * @param Ar An archive to write to. Exactly GetSaveSize() bytes will be written.
 	 */
-	CORE_API void SaveToArchive(FArchive& Ar) const;
+	CORE_API void Save(FArchive& Ar) const;
 
 	/**
 	 * The size of buffer (in bytes) required to serialize the fields that have been written.

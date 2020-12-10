@@ -216,7 +216,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 
-	// Test Null with SaveToMemory
+	// Test Null with Save(Buffer)
 	{
 		Writer.Reset();
 		constexpr int NullCount = 3;
@@ -225,7 +225,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 			Writer.Null();
 		}
 		uint8 Buffer[NullCount]{};
-		FCbFieldIterator Fields = Writer.SaveToMemory(MakeMemoryView(Buffer));
+		FCbFieldIterator Fields = Writer.Save(MakeMemoryView(Buffer));
 		if (TestEqual(TEXT("FCbWriter(Null, Memory) Validate"), ValidateCompactBinaryRange(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (int Index = 0; Index < NullCount; ++Index)
@@ -912,14 +912,14 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.EndObject();
 		Object = Writer.Save().AsObjectRef();
 
-		Writer.SaveToArchive(Archive);
-		TestEqual(TEXT("FCbWriter(Complex).SaveToArchive()->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
+		Writer.Save(Archive);
+		TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
 	}
 
 	TestEqual(TEXT("FCbWriter(Complex).Save()->Validate"),
 		ValidateCompactBinary(*Object.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
 
-	TestEqual(TEXT("FCbWriter(Complex).SaveToArchive()->Validate"),
+	TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Validate"),
 		ValidateCompactBinary(MakeMemoryView(Archive), ECbValidateMode::All), ECbValidateError::None);
 
 	return true;
@@ -1010,19 +1010,19 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 	// Assert on saving an empty writer.
 	//uint8 EmptyField[1];
 	//Writer.Reset();
-	//Writer.SaveToMemory(MakeMemoryView(EmptyField));
+	//Writer.Save(MakeMemoryView(EmptyField));
 
 	// Assert on under-sized save buffer.
 	//uint8 ZeroFieldSmall[1];
 	//Writer.Reset();
 	//Writer.Integer(0);
-	//Writer.SaveToMemory(MakeMemoryView(ZeroFieldSmall));
+	//Writer.Save(MakeMemoryView(ZeroFieldSmall));
 
 	// Assert on over-sized save buffer.
 	//uint8 ZeroFieldLarge[3];
 	//Writer.Reset();
 	//Writer.Integer(0);
-	//Writer.SaveToMemory(MakeMemoryView(ZeroFieldLarge));
+	//Writer.Save(MakeMemoryView(ZeroFieldLarge));
 
 	// Assert on empty name.
 	//Writer.Name(""_ASV);
@@ -1044,14 +1044,14 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 	//uint8 InvalidObject[1];
 	//Writer.Reset();
 	//Writer.BeginObject();
-	//Writer.SaveToMemory(MakeMemoryView(InvalidObject));
+	//Writer.Save(MakeMemoryView(InvalidObject));
 	//Writer.EndObject();
 
 	// Assert on save in array.
 	//uint8 InvalidArray[1];
 	//Writer.Reset();
 	//Writer.BeginArray();
-	//Writer.SaveToMemory(MakeMemoryView(InvalidArray));
+	//Writer.Save(MakeMemoryView(InvalidArray));
 	//Writer.EndArray();
 
 	// Assert on object end with no begin.
