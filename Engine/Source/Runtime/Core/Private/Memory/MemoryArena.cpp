@@ -134,7 +134,7 @@ static void FreeArenaId(uint16 ArenaId, FMemoryArena* Arena)
 
 FMemoryArena& FArenaPointer::Arena() const
 {
-	const uint16 Index = ArenaIndex();
+	const uint16 Index = GetArenaIndex();
 
 	return *GKnownArenas[Index].Arena;
 }
@@ -167,9 +167,9 @@ UE_NOALIAS void FMemoryArena::Free(const void* MemoryBlock)
 	return InternalFree(MemoryBlock, 0);
 }
 
-SIZE_T FMemoryArena::BlockSize(const void* MemoryBlock) const
+SIZE_T FMemoryArena::GetBlockSize(const void* MemoryBlock) const
 {
-	return InternalBlockSize(MemoryBlock);
+	return InternalGetBlockSize(MemoryBlock);
 }
 
 const TCHAR* FMemoryArena::GetDebugName() const
@@ -216,7 +216,7 @@ FArenaPointer ArenaRealloc(FMemoryArena* Arena, void* InPtr, SIZE_T OldSize, SIZ
 
 FArenaPointer ArenaRealloc(FArenaPointer InPtr, SIZE_T OldSize, SIZE_T NewSize, SIZE_T Alignment)
 {
-	return ArenaRealloc(&InPtr.Arena(), InPtr.Pointer(), OldSize, NewSize, Alignment);
+	return ArenaRealloc(&InPtr.Arena(), InPtr.GetPointer(), OldSize, NewSize, Alignment);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -243,7 +243,7 @@ void FHeapArena::InternalFree(const void* MemoryBlock, SIZE_T MemoryBlockSize)
 	return mspace_free(HeapHandle, (void*) MemoryBlock);
 }
 
-SIZE_T FHeapArena::InternalBlockSize(const void* MemoryBlock) const
+SIZE_T FHeapArena::InternalGetBlockSize(const void* MemoryBlock) const
 {
 	return mspace_usable_size(MemoryBlock);
 }
@@ -275,7 +275,7 @@ void FMallocArena::InternalFree(const void* MemoryBlock, SIZE_T MemoryBlockSize)
 	FMemory::Free(const_cast<void*>(MemoryBlock));
 }
 
-SIZE_T FMallocArena::InternalBlockSize(const void* MemoryBlock) const
+SIZE_T FMallocArena::InternalGetBlockSize(const void* MemoryBlock) const
 {
 	return FMemory::GetAllocSize(const_cast<void*>(MemoryBlock));
 }
@@ -302,7 +302,7 @@ void FAnsiArena::InternalFree(const void* MemoryBlock, SIZE_T MemoryBlockSize)
 	return GAnsiMalloc.Free(const_cast<void*>(MemoryBlock));
 }
 
-SIZE_T FAnsiArena::InternalBlockSize(const void* MemoryBlock) const
+SIZE_T FAnsiArena::InternalGetBlockSize(const void* MemoryBlock) const
 {
 	SIZE_T Size = 0;
 	GAnsiMalloc.GetAllocationSize(const_cast<void*>(MemoryBlock), /* out */ Size);
