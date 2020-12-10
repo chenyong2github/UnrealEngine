@@ -179,7 +179,6 @@ namespace UnrealBuildTool.Rules
 			// because those static libraries would need to be linked with the --whole-archive argument, and there is currently no standard way of doing that in UE.
 			if (bEnableUsdSdk && Target.LinkType == TargetLinkType.Monolithic && !Target.GlobalDefinitions.Contains("FORCE_ANSI_ALLOCATOR=1"))
 			{
-				System.Console.WriteLine("Warning: To build a monolithic target (e.g. a game) using the USD SDK you need to set 'FORCE_ANSI_ALLOCATOR=1' as a Global Definition on your project's Target.cs file. See the explanation on UnrealUSDWrapper.build.cs for more details. The USD SDK will be force disabled otherwise.");
 				PublicDefinitions.Add("USD_FORCE_DISABLED=1");
 				bEnableUsdSdk = false;
 			}

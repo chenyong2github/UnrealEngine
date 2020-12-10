@@ -1023,6 +1023,7 @@ UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )
 
 	return UsdStage;
 #else
+	UsdWrapperUtils::CheckIfForceDisabled();
 	return UE::FUsdStage();
 #endif // #if USE_USD_SDK
 }
@@ -1040,6 +1041,7 @@ UE::FUsdStage UnrealUSDWrapper::NewStage()
 
 	return UsdStage;
 #else
+	UsdWrapperUtils::CheckIfForceDisabled();
 	return UE::FUsdStage();
 #endif // #if USE_USD_SDK
 }
@@ -1143,6 +1145,9 @@ public:
 
 			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
 		}
+
+#else
+		UsdWrapperUtils::CheckIfForceDisabled();
 #endif // USE_USD_SDK
 
 		FUsdMemoryManager::Initialize();
