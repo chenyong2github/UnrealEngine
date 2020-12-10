@@ -4781,6 +4781,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		Target->ComputeTickComponent_Concurrent();
 #if !WITH_EDITOR  // otherwise this is queued by the calling code because we need to be able to block and wait on it
 		{
