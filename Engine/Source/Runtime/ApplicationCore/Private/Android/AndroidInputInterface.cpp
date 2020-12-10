@@ -939,18 +939,22 @@ void FAndroidInputInterface::SendControllerEvents()
 							// For some reason the left trigger is at 0.5 when at rest so we have to adjust for that.
 							CurrentDevice.LTAnalogRangeMinimum = 0.5f;
 						}
-
-						// The PS4 controller name is just "Wireless Controller" which is hardly unique so we can't trust a name
-						// comparison. Instead we check the product and vendor IDs to ensure it's the correct one.
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("PS4 Wireless Controller")))
 						{
-							CurrentDevice.ControllerClass = ControllerClassType::PS4Wireless;
+							CurrentDevice.ControllerClass = ControllerClassType::PlaystationWireless;
 							if (CurrentDevice.DeviceInfo.Name.EndsWith(TEXT(" (v2)")) && FAndroidMisc::GetCPUVendor() != TEXT("Sony")
 								&& FAndroidMisc::GetAndroidBuildVersion() < 10)
 							{
 								// Only needed for non-Sony devices with v2 firmware
 								CurrentDevice.ButtonRemapping = ButtonRemapType::PS4;
 							}
+							CurrentDevice.bSupportsHat = true;
+							CurrentDevice.bRightStickZRZ = true;
+						}
+						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("PS5 Wireless Controller")))
+						{
+							CurrentDevice.ButtonRemapping = ButtonRemapType::PS5;
+							CurrentDevice.ControllerClass = ControllerClassType::PlaystationWireless;
 							CurrentDevice.bSupportsHat = true;
 							CurrentDevice.bRightStickZRZ = true;
 						}
@@ -1420,7 +1424,7 @@ void FAndroidInputInterface::JoystickButtonEvent(int32 deviceId, int32 buttonId,
 
 	//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("JoystickButtonEvent[%d]: %d"), (int)DeviceMapping[deviceId].ButtonRemapping, buttonId);
 
-	if (DeviceMapping[deviceId].ControllerClass == ControllerClassType::PS4Wireless)
+	if (DeviceMapping[deviceId].ControllerClass == ControllerClassType::PlaystationWireless)
 	{
 		if (buttonId == 3002)
 		{
@@ -1527,6 +1531,33 @@ void FAndroidInputInterface::JoystickButtonEvent(int32 deviceId, int32 buttonId,
 				case AKEYCODE_BUTTON_SELECT: NewControllerData[deviceId].ButtonStates[8] = buttonDown; break; // ThumbL
 				case AKEYCODE_BUTTON_START:  NewControllerData[deviceId].ButtonStates[9] = buttonDown; break; // ThumbR
 				case AKEYCODE_BUTTON_L1:     NewControllerData[deviceId].ButtonStates[10] = buttonDown; break; // L2
+				case AKEYCODE_BUTTON_R1:     NewControllerData[deviceId].ButtonStates[11] = buttonDown; break; // R2
+			}
+			break;
+		case ButtonRemapType::PS5:
+			switch (buttonId)
+			{
+				case AKEYCODE_BUTTON_B:      NewControllerData[deviceId].ButtonStates[0] = buttonDown; break; // Cross
+				case AKEYCODE_BUTTON_C:      NewControllerData[deviceId].ButtonStates[1] = buttonDown; break; // Circle
+				case AKEYCODE_BUTTON_A:      NewControllerData[deviceId].ButtonStates[2] = buttonDown; break; // Square
+				case AKEYCODE_BUTTON_X:      NewControllerData[deviceId].ButtonStates[3] = buttonDown; break; // Triangle
+				case AKEYCODE_BUTTON_Y:      NewControllerData[deviceId].ButtonStates[4] = buttonDown; break; // L1
+				case AKEYCODE_BUTTON_Z:      NewControllerData[deviceId].ButtonStates[5] = buttonDown; break; // R1
+				case AKEYCODE_BUTTON_R2:     NewControllerData[deviceId].ButtonStates[6] = buttonDown;
+					if (!bBlockAndroidKeysOnControllers)
+					{
+						NewControllerData[deviceId].ButtonStates[17] = buttonDown; // Options
+					}
+					break;
+				case AKEYCODE_BUTTON_THUMBL:          NewControllerData[deviceId].ButtonStates[7] = buttonDown;
+					if (!bBlockAndroidKeysOnControllers)
+					{
+						NewControllerData[deviceId].ButtonStates[16] = buttonDown; // Touchpad
+					}
+					break;
+				case AKEYCODE_BUTTON_SELECT: NewControllerData[deviceId].ButtonStates[8] = buttonDown; break; // ThumbL
+				case AKEYCODE_BUTTON_START:  NewControllerData[deviceId].ButtonStates[9] = buttonDown; break; // ThumbR
+				case AKEYCODE_BUTTON_L1:     NewControllerData[deviceId].ButtonStates[10]= buttonDown; break; // L2
 				case AKEYCODE_BUTTON_R1:     NewControllerData[deviceId].ButtonStates[11] = buttonDown; break; // R2
 			}
 			break;

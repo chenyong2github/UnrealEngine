@@ -101,14 +101,15 @@ enum ControllerClassType
 	Generic,
 	XBoxWired,
 	XBoxWireless,
-	PS4Wireless
+	PlaystationWireless
 };
 
 enum ButtonRemapType
 {
 	Normal,
 	XBox,
-	PS4
+	PS4,
+	PS5
 };
 
 struct FAndroidInputDeviceInfo {
