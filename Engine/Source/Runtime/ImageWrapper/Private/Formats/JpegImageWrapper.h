@@ -7,6 +7,9 @@
 
 #if WITH_UNREALJPEG
 
+#if WITH_LIBJPEGTURBO
+using tjhandle = void*;
+#endif	// WITH_LIBJPEGTURBO
 
 /**
  * Uncompresses JPEG data to raw 24bit RGB image that can be used by Unreal textures.
@@ -21,6 +24,10 @@ public:
 	/** Default constructor. */
 	FJpegImageWrapper(int32 InNumComponents = 4);
 
+#if WITH_LIBJPEGTURBO
+	virtual ~FJpegImageWrapper();
+#endif	// WITH_LIBJPEGTURBO
+
 public:
 
 	//~ FImageWrapperBase interface
@@ -30,9 +37,20 @@ public:
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 	virtual void Compress(int32 Quality) override;
 
+#if WITH_LIBJPEGTURBO
+	bool SetCompressedTurbo(const void* InCompressedData, int64 InCompressedSize);
+	void CompressTurbo(int32 Quality);
+	void UncompressTurbo(const ERGBFormat InFormat, int32 InBitDepth);
+#endif	// WITH_LIBJPEGTURBO
+
 private:
 
 	int32 NumComponents;
+
+#if WITH_LIBJPEGTURBO
+	tjhandle Compressor;
+	tjhandle Decompressor;
+#endif	// WITH_LIBJPEGTURBO
 };
 
 
