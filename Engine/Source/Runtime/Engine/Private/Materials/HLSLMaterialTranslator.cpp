@@ -107,6 +107,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bAllowCodeChunkGeneration(true)
 ,	bUsesPerInstanceCustomData(false)
 ,	bUsesAnisotropy(false)
+,	bMaterialIsStrata(false)
 ,	AllocatedUserTexCoords()
 ,	AllocatedUserVertexTexCoords()
 ,	DynamicParticleParameterMask(0)
@@ -1117,6 +1118,7 @@ bool FHLSLMaterialTranslator::Translate()
 
 		if (bStrataFrontMaterialIsValid)
 		{
+			bMaterialIsStrata = true;
 			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
 
 			// VolumetricFogCloud must be used in isolation
@@ -1558,12 +1560,11 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		}
 	}
 
-	const bool bStrataMaterial = Material->IsStrataMaterial();
-	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bStrataMaterial ? TEXT("1") : TEXT("0"));
+	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bMaterialIsStrata ? TEXT("1") : TEXT("0"));
 
 	// STRATA_TODO do not request DualSourceBlending if gray scale transmittance is selected.
 	// bMaterialRequestsDualSourceBlending this base on limited set of blend mode: Opaque, Masked, TransmittanceCoverage, TransmittanceColored;
-	bMaterialRequestsDualSourceBlending |= bStrataMaterial;
+	bMaterialRequestsDualSourceBlending |= bMaterialIsStrata;
 
 	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
 	OutEnvironment.SetDefine(TEXT("DUAL_SOURCE_COLOR_BLENDING_ENABLED"), bMaterialRequestsDualSourceBlending && Material->IsDualBlendingEnabled(Platform) ? TEXT("1") : TEXT("0"));

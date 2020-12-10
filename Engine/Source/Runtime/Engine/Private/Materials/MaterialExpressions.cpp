@@ -6361,6 +6361,10 @@ uint32 UMaterialExpressionSetMaterialAttributes::GetInputType(int32 InputIndex)
 		{
 			InputType = MCT_ShadingModel;
 		}
+		else if (InputType == MCT_Strata)
+		{
+			InputType = MCT_Strata;
+		}
 		else
 		{
 			InputType = MCT_Float3;

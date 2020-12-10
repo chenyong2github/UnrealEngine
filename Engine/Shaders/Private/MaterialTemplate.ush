@@ -21,20 +21,7 @@
 
 #define TEMPLATE_USES_STRATA (PROJECT_STRATA && MATERIAL_IS_STRATA)
 
-#if TEMPLATE_USES_STRATA
 #include "/Engine/Private/Strata/Strata.ush"
-#else
- // This is a simple way to not have strata included in vertex shader for instance while allowing generated code to compile.
-struct FStrataData
-{
-	uint a;
-};
-FStrataData GetInitialisedStrataData()
-{
-	FStrataData StrataData = (FStrataData)0;
-	return StrataData;
-}
-#endif
 
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
