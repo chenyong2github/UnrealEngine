@@ -3,33 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "AudioDevice.h"
+#include "Audio/AudioWidgetSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
 #include "SGraphNode.h"
 #include "Sound/SoundSubmix.h"
-#include "AudioDevice.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/MultithreadedPatching.h"
-#include "AudioEditorSubsystem.h"
 #include "SoundSubmixGraphNode.generated.h"
 
+
+// Forward Declarations
 class USoundSubmixBase;
 
-UINTERFACE(Blueprintable)
-class AUDIOEDITOR_API USubmixNodeWidgetInterface : public UInterface
-{
-	GENERATED_BODY()
-};
 
-class AUDIOEDITOR_API ISubmixNodeWidgetInterface
-{
-	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnSubmixNodeConstructed(USoundSubmixBase* SoundSubmix);
-};
 
 class SSubmixGraphNode : public SGraphNode
 {
@@ -42,9 +33,6 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode);
-
-	virtual void UpdateGraphNode() override;
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	TSharedRef<SWidget> CreateNodeContentArea() override;
 

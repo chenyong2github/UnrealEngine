@@ -154,6 +154,17 @@ void FSoundEffectPresetEditor::Init(const EToolkitMode::Type Mode, const TShared
 		bUseSmallIcons);
 }
 
+bool FSoundEffectPresetEditor::CloseWindow()
+{
+	if (FAssetEditorToolkit::CloseWindow())
+	{
+		UserWidgets.Reset();
+		return true;
+	}
+
+	return false;
+}
+
 FName FSoundEffectPresetEditor::GetEditorName() const
 {
 	return "Preset Editor";
@@ -183,7 +194,7 @@ void FSoundEffectPresetEditor::InitPresetWidgets(const TArray<UUserWidget*>& InW
 			if (Widget)
 			{
 				UserWidgets.Add(TStrongObjectPtr<UUserWidget>(Widget));
-				IAudioWidgetInterface::Execute_OnConstructed(Widget, Cast<UObject>(SoundEffectPreset.Get()));
+				ISoundEffectPresetWidgetInterface::Execute_OnConstructed(Widget, SoundEffectPreset.Get());
 			}
 		}
 	}
@@ -213,7 +224,7 @@ void FSoundEffectPresetEditor::NotifyPostChange(const FPropertyChangedEvent& Pro
 		for (TStrongObjectPtr<UUserWidget>& UserWidget : UserWidgets)
 		{
 			const FName PropertyName = PropertyThatChanged->GetFName();
-			IAudioWidgetInterface::Execute_OnPropertyChanged(UserWidget.Get(), SoundEffectPreset.Get(), PropertyName);
+			ISoundEffectPresetWidgetInterface::Execute_OnPropertyChanged(UserWidget.Get(), SoundEffectPreset.Get(), PropertyName);
 		}
 	}
 }
@@ -230,7 +241,7 @@ void FSoundEffectPresetEditor::NotifyPostChange(const FPropertyChangedEvent& Pro
 				if (FProperty* Property = Node->GetValue())
 				{
 					const FName PropertyName = Property->GetFName();
-					IAudioWidgetInterface::Execute_OnPropertyChanged(UserWidget.Get(), SoundEffectPreset.Get(), PropertyName);
+					ISoundEffectPresetWidgetInterface::Execute_OnPropertyChanged(UserWidget.Get(), SoundEffectPreset.Get(), PropertyName);
 				}
 				Node = Node->GetNextNode();
 			}
@@ -252,7 +263,7 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_Properties(const FSpawnT
 
 TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const FSpawnTabArgs& Args, int32 WidgetIndex)
 {
-	FName IconBrushName = IAudioWidgetInterface::Execute_GetIconBrushName(UserWidgets[WidgetIndex].Get());
+	FName IconBrushName = ISoundEffectPresetWidgetInterface::Execute_GetIconBrushName(UserWidgets[WidgetIndex].Get());
 	if (IconBrushName == FName())
 	{
 		IconBrushName = "GenericEditor.Tabs.Properties";
@@ -273,7 +284,7 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 			];
 	}
 
-	const FText CustomLabel = IAudioWidgetInterface::Execute_GetEditorName(UserWidgets[WidgetIndex].Get());
+	const FText CustomLabel = ISoundEffectPresetWidgetInterface::Execute_GetEditorName(UserWidgets[WidgetIndex].Get());
 	if (!CustomLabel.IsEmpty())
 	{
 		Label = CustomLabel;

@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-#include "AudioEditorSubsystem.h"
+#include "Audio/AudioWidgetSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "EditorUndoClient.h"
 #include "Engine/DeveloperSettings.h"
@@ -18,8 +18,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWidget.h"
 
-#include "SoundEffectPresetEditor.generated.h"
-
 
 // Forward Declarations
 class FCurveEditor;
@@ -31,17 +29,6 @@ class UCurveBase;
 class USoundEffectPreset;
 class UWidgetBlueprint;
 
-UINTERFACE(Blueprintable)
-class AUDIOEDITOR_API USoundEffectPresetViewInterface : public UAudioWidgetInterface
-{
-	GENERATED_BODY()
-};
-
-class AUDIOEDITOR_API ISoundEffectPresetViewInterface : public IAudioWidgetInterface
-{
-	GENERATED_BODY()
-};
-
 
 class FSoundEffectPresetEditor : public FAssetEditorToolkit, public FNotifyHook, public FEditorUndoClient
 {
@@ -52,6 +39,7 @@ public:
 	void Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, USoundEffectPreset* PresetToEdit, const TArray<UUserWidget*>& InWidgetBlueprints);
 
 	/** FAssetEditorToolkit interface */
+	virtual bool CloseWindow() override;
 	virtual FName GetEditorName() const override;
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;

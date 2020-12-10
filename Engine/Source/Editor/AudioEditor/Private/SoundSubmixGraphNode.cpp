@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
-#include "Sound/SoundSubmix.h"
-#include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
-#include "SoundSubmixGraph/SoundSubmixGraph.h"
-#include "SoundSubmixEditor.h"
-#include "SoundSubmixDefaultColorPalette.h"
-#include "Subsystems/AssetEditorSubsystem.h"
+
 #include "AudioDeviceManager.h"
 #include "AudioEditorSettings.h"
+#include "Audio/AudioWidgetSubsystem.h"
+#include "Sound/SoundSubmix.h"
+#include "SoundSubmixDefaultColorPalette.h"
+#include "SoundSubmixEditor.h"
+#include "SoundSubmixGraph/SoundSubmixGraph.h"
+#include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SSlider.h"
-#include "AudioEditorSubsystem.h"
+
 
 #define LOCTEXT_NAMESPACE "SoundSubmixGraphNode"
+
 
 void SSubmixGraphNode::Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode)
 {
@@ -21,19 +24,10 @@ void SSubmixGraphNode::Construct(const FArguments& InArgs, UEdGraphNode* InGraph
 
 	if (SubmixNodeUserWidget.IsValid())
 	{
-		ISubmixNodeWidgetInterface::Execute_OnSubmixNodeConstructed(SubmixNodeUserWidget.Get(), SubmixBase.Get());
+		ISoundSubmixWidgetInterface::Execute_OnConstructed(SubmixNodeUserWidget.Get(), SubmixBase.Get());
 	}
 	GraphNode = InGraphNode;
 	UpdateGraphNode();
-}
-
-void SSubmixGraphNode::UpdateGraphNode()
-{
-	SGraphNode::UpdateGraphNode();
-}
-
-void SSubmixGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
 }
 
 TSharedRef<SWidget> SSubmixGraphNode::CreateNodeContentArea()
@@ -219,25 +213,31 @@ FText USoundSubmixGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 TSharedPtr<SGraphNode> USoundSubmixGraphNode::CreateVisualWidget()
 {
-	if (USoundSubmixBase* SubmixBase = Cast<USoundSubmixBase>(SoundSubmix))
+	if (UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr)
 	{
-		if (UAudioEditorSubsystem* AudioEditorSubsytem = GEditor->GetEditorSubsystem<UAudioEditorSubsystem>())
+		if (USoundSubmixBase* SubmixBase = Cast<USoundSubmixBase>(SoundSubmix))
 		{
-			TArray<UUserWidget*> UserWidgets = AudioEditorSubsytem->CreateUserWidgets(USubmixNodeWidgetInterface::StaticClass());
-			if (!UserWidgets.IsEmpty())
+			if (UAudioWidgetSubsystem* AudioWidgetSubsystem = GEngine ? GEngine->GetEngineSubsystem<UAudioWidgetSubsystem>() : nullptr)
 			{
-				SubmixNodeUserWidget = UserWidgets[0];
+				TArray<UUserWidget*> UserWidgets = AudioWidgetSubsystem->CreateUserWidgets(*World, USoundSubmixWidgetInterface::StaticClass());
+				if (!UserWidgets.IsEmpty())
+				{
+					// For now, only supports single widget. Gallery system to be implemented to support
+					// showing multiple widgets and/or cycling node widgets.
+					SubmixNodeUserWidget = UserWidgets[0];
+				}
 			}
+
+			const UAudioSubmixEditorSettings* Settings = GetDefault<UAudioSubmixEditorSettings>();
+			check(Settings);
+
+			// Pass the owning submix and the user widgets to the graph node
+			return SNew(SSubmixGraphNode, this)
+				.SubmixBase(SubmixBase)
+				.SubmixNodeUserWidget(SubmixNodeUserWidget);
 		}
-
-		const UAudioSubmixEditorSettings* Settings = GetDefault<UAudioSubmixEditorSettings>();
-		check(Settings);
-
-		// Pass the owning submix and the user widgets to the graph node
-		return SNew(SSubmixGraphNode, this)
-			.SubmixBase(SubmixBase)
-			.SubmixNodeUserWidget(SubmixNodeUserWidget);
 	}
+
 	return nullptr;
 }
 

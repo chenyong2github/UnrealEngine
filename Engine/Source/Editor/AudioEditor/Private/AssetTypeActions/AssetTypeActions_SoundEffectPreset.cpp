@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundEffectPreset.h"
-#include "AudioEditorSubsystem.h"
+#include "Audio/AudioWidgetSubsystem.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Editors/SoundEffectPresetEditor.h"
@@ -84,14 +84,35 @@ void FAssetTypeActions_SoundEffectPreset::OpenAssetEditor(const TArray<UObject*>
 	EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
 	TArray<UObject*> Objects = InObjects;
-
-	if (UAudioEditorSubsystem* AudioEditorSubsytem = GEditor->GetEditorSubsystem<UAudioEditorSubsystem>())
+	if (UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr)
 	{
-		for (UObject* Object : InObjects)
+		if (UAudioWidgetSubsystem* WidgetSubsystem = GEngine ? GEngine->GetEngineSubsystem<UAudioWidgetSubsystem>() : nullptr)
 		{
-			if (USoundEffectPreset* Preset = Cast<USoundEffectPreset>(Object))
+			for (UObject* Object : InObjects)
 			{
-				TArray<UUserWidget*> UserWidgets = AudioEditorSubsytem->CreateUserWidgets(USoundEffectPresetViewInterface::StaticClass(), Object->GetClass());
+				USoundEffectPreset* Preset = Cast<USoundEffectPreset>(Object);
+				if (!Preset)
+				{
+					continue;
+				}
+
+				auto FilterFunction = [InPresetClass = Object->GetClass()](UUserWidget* UserWidget)
+				{
+					TSubclassOf<USoundEffectPreset> PresetClass = ISoundEffectPresetWidgetInterface::Execute_GetClass(UserWidget);
+					while (PresetClass)
+					{
+						if (PresetClass == InPresetClass)
+						{
+							return true;
+						}
+
+						PresetClass = PresetClass->GetSuperClass();
+					}
+
+					return false;
+				};
+
+				TArray<UUserWidget*> UserWidgets = WidgetSubsystem->CreateUserWidgets(*World, USoundEffectPresetWidgetInterface::StaticClass(), FilterFunction);
 				if (!UserWidgets.IsEmpty())
 				{
 					TSharedRef<FSoundEffectPresetEditor> PresetEditor = MakeShared<FSoundEffectPresetEditor>();
