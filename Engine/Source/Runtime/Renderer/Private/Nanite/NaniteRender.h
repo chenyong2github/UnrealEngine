@@ -620,7 +620,13 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	FRasterResults& RasterResults,
+	const FIntVector4& SOAStrides,
+	FRDGBufferRef VisibleClustersSWHW,
+	FRDGBufferRef ViewsBuffer,
+	FRDGTextureRef VisBuffer64,
+	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
+	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
+	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer,
 	bool bPrePass
 );
 

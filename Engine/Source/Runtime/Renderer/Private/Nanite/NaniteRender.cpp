@@ -3791,7 +3791,13 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	FRasterResults& RasterResults,
+	const FIntVector4& SOAStrides,
+	FRDGBufferRef VisibleClustersSWHW,
+	FRDGBufferRef ViewsBuffer,
+	FRDGTextureRef VisBuffer64,
+	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
+	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
+	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer,
 	bool bPrePass
 )
 {
@@ -3829,8 +3835,6 @@ void EmitDepthTargets(
 	FRDGTextureRef VelocityBuffer		= GraphBuilder.CreateTexture(VelocityBufferDesc, TEXT("NaniteVelocity"));
 	FRDGTextureRef MaterialDepth		= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
 	FRDGTextureRef SceneDepth			= GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
-	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
-	FRDGBufferRef ViewsBuffer			= GraphBuilder.RegisterExternalBuffer(RasterResults.ViewsBuffer);
 
 	if (UseComputeDepthExport())
 	{
@@ -3854,11 +3858,11 @@ void EmitDepthTargets(
 
 		PassParameters->View					= View.ViewUniformBuffer;
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-		PassParameters->SOAStrides				= RasterResults.SOAStrides;
+		PassParameters->SOAStrides				= SOAStrides;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTargets.GetBufferSizeXY().X, StencilDecalMask, 0);
-		PassParameters->VisBuffer64				= GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64);
+		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->NaniteMask				= NaniteMaskUAV;
 		PassParameters->SceneHTile				= SceneHTileUAV;
@@ -3890,12 +3894,12 @@ void EmitDepthTargets(
 			PassParameters->View						= View.ViewUniformBuffer;
 			PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->SOAStrides					= RasterResults.SOAStrides;
+			PassParameters->SOAStrides					= SOAStrides;
 			PassParameters->StencilClear				= DefaultStencil;
 			PassParameters->StencilDecal				= StencilDecalMask;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-			PassParameters->VisBuffer64					= GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64);
+			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->RenderTargets[0]			= FRenderTargetBinding(
 				NaniteMask,
 				ERenderTargetLoadAction::EClear
@@ -3935,8 +3939,8 @@ void EmitDepthTargets(
 				PassParameters->View						= View.ViewUniformBuffer;
 				PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-				PassParameters->SOAStrides					= RasterResults.SOAStrides;
-				PassParameters->VisBuffer64					= GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64);
+				PassParameters->SOAStrides					= SOAStrides;
+				PassParameters->VisBuffer64					= VisBuffer64;
 				PassParameters->RenderTargets[0]			= FRenderTargetBinding(
 					NaniteMask,
 					ERenderTargetLoadAction::EClear
@@ -3972,11 +3976,11 @@ void EmitDepthTargets(
 
 				PassParameters->View						= View.ViewUniformBuffer;
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-				PassParameters->SOAStrides					= RasterResults.SOAStrides;
+				PassParameters->SOAStrides					= SOAStrides;
 				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 				PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->NaniteMask					= NaniteMask;
-				PassParameters->VisBuffer64					= GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64);
+				PassParameters->VisBuffer64					= VisBuffer64;
 				PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
 				(
 					SceneDepth,
@@ -4007,10 +4011,10 @@ void EmitDepthTargets(
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 			PassParameters->MaterialDepthTable			= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
-			PassParameters->SOAStrides					= RasterResults.SOAStrides;
+			PassParameters->SOAStrides					= SOAStrides;
 			PassParameters->View						= View.ViewUniformBuffer;
 			PassParameters->NaniteMask					= NaniteMask;
-			PassParameters->VisBuffer64					= GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64);
+			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(
 				MaterialDepth,
@@ -4047,9 +4051,9 @@ void EmitDepthTargets(
 		}
 	}
 
-	ConvertToExternalTexture(GraphBuilder, NaniteMask,     RasterResults.NaniteMask);
-	ConvertToExternalTexture(GraphBuilder, VelocityBuffer, RasterResults.VelocityBuffer);
-	ConvertToExternalTexture(GraphBuilder, MaterialDepth,  RasterResults.MaterialDepth);
+	ConvertToExternalTexture(GraphBuilder, NaniteMask,     OutNaniteMask);
+	ConvertToExternalTexture(GraphBuilder, VelocityBuffer, OutVelocityBuffer);
+	ConvertToExternalTexture(GraphBuilder, MaterialDepth,  OutMaterialDepth);
 }
 
 struct FNaniteMaterialPassCommand

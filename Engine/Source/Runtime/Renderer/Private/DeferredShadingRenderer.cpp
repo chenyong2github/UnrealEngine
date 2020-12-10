@@ -1975,7 +1975,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 						GraphBuilder,
 						*Scene,
 						Views[ViewIndex],
-						RasterResults,
+						RasterResults.SOAStrides,
+						GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW),
+						GraphBuilder.RegisterExternalBuffer(RasterResults.ViewsBuffer),
+						GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64),
+						RasterResults.MaterialDepth,
+						RasterResults.NaniteMask,
+						RasterResults.VelocityBuffer,
 						bNeedsPrePass
 					);
 				}
@@ -2194,7 +2200,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 						GraphBuilder,
 						*Scene,
 						Views[ViewIndex],
-						RasterResults,
+						RasterResults.SOAStrides,
+						GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW),
+						GraphBuilder.RegisterExternalBuffer(RasterResults.ViewsBuffer),
+						GraphBuilder.RegisterExternalTexture(RasterResults.VisBuffer64),
+						RasterResults.MaterialDepth,
+						RasterResults.NaniteMask,
+						RasterResults.VelocityBuffer,
 						bNeedsPrePass
 					);
 				}
