@@ -8,7 +8,7 @@
 
 namespace LowLevelTasks
 {
-	DECLARE_LOG_CATEGORY_EXTERN(LogTasks2, Log, All);
+	DECLARE_LOG_CATEGORY_EXTERN(LowLevelTasks, Log, All);
 
 	enum class ETaskPriority : int32
 	{
@@ -21,12 +21,13 @@ namespace LowLevelTasks
 
 	enum class ETaskState : int32
 	{
-		Completed,		//task is finshed or the default when we create a handle
-		Ready,			//task is ready for scheduling
-		Canceled,		//task was canceled
-		Scheduled,		//task is scheduled and can run concurrently any time from now
-		Running,		//task is executing
-		Continuation,   //task is executing the continuation	
+		CanceledAndCompleted,	//means the task is completed with execution of it's continuation but the runnable was cancelled
+		Completed,				//means the task is completed with execution or the default when we create a handle
+		Ready,					//means the Task is ready to be launched
+		Canceled,				//means the task was canceled and launched and therefore queued for execution by a worker (which already might be executing it's continuation)
+		CanceledAndReady,		//means the task was canceled and is ready to be launched (it still is required to be launched)
+		Scheduled,				//means the task is launched and therefore queued for execution by a worker
+		Running,				//means the task is executing it's runnable and continuation by a worker 
 		Count
 	};
 	
@@ -121,7 +122,7 @@ namespace LowLevelTasks
 		};
 
 	private:
-		using FTaskDelegate = TTaskDelegate<PLATFORM_CACHE_LINE_SIZE - sizeof(FPackedData)>;
+		using FTaskDelegate = TTaskDelegate<PLATFORM_CACHE_LINE_SIZE - sizeof(FPackedData), bool>;
 		FTaskDelegate Runnable;
 		std::atomic<FPackedData> PackedData { FPackedData() };
 
@@ -130,6 +131,10 @@ namespace LowLevelTasks
 		{
 			static_assert(sizeof(FTaskBase) == PLATFORM_CACHE_LINE_SIZE, "Require FTaskBase to be cacheline size");
 		}
+
+	private:
+		inline bool IsCanceled() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Canceled; }
+		inline bool IsScheduled() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Scheduled; }
 	};
 	}
 
@@ -139,16 +144,32 @@ namespace LowLevelTasks
 		friend class FScheduler;
 		UE_NONCOPYABLE(FTask); //means non movable
 
-	public: //Public Interface 
-		inline bool IsCompleted() const { return PackedData.load(std::memory_order_seq_cst).GetState() == ETaskState::Completed; }
-		inline bool IsReady() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Ready; }
-		inline bool IsCanceled() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Canceled; }
-		inline bool IsScheduled() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Scheduled; }
-		inline bool IsRunning() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Running; }
-		inline bool IsRunningContinuation() const { return PackedData.load(std::memory_order_relaxed).GetState() == ETaskState::Continuation; }
+	public: //Public Interface
+		//means the task is completed and this taskhandle can be recycled
+		inline bool IsCompleted() const
+		{
+			ETaskState State = PackedData.load(std::memory_order_seq_cst).GetState();
+			return State == ETaskState::CanceledAndCompleted || State == ETaskState::Completed;
+		}
+		
+		//means the task was canceled but might still need to be launched 
+		inline bool WasCanceled() 		
+		{
+			ETaskState State = PackedData.load(std::memory_order_relaxed).GetState();
+			return State == ETaskState::CanceledAndReady || State == ETaskState::Canceled || State == ETaskState::CanceledAndCompleted;
+		}
 
-		//Note even though is canceled we do not pull it out of the scheduler and it's continuation will still run regardless
-		//so we still have to wait for completion before we can recycle/reassign the handle.
+		//means the task is ready to be launched but might already been canceled 
+		inline bool IsReady() const 
+		{
+			ETaskState State = PackedData.load(std::memory_order_relaxed).GetState();
+			return State == ETaskState::Ready || State == ETaskState::CanceledAndReady; 
+		}
+
+		
+		//try to cancel the task without launching it. Even if the task is canceled it sill needs to be launched manually
+		//to launch the task manually you use FScheduler::TryLaunch
+		//you can alternatively use FScheduler::TryCancelAndLaunch if you want to launch the task in this case automatically
 		inline bool TryCancel();
 
 		template<typename TRunnable, typename TContinuation>
@@ -174,9 +195,9 @@ namespace LowLevelTasks
 		inline ~FTask();
 
 	private: //Interface of the Scheduler
-		inline void PrepareLaunch();
+		inline bool TryPrepareLaunch();
 		//after calling this function the task can be considered dead
-		inline void ExecuteTask();			
+		inline void ExecuteTask();
 	};
 
    /******************
@@ -188,7 +209,7 @@ namespace LowLevelTasks
 	{
 		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
 		checkSlow(!Runnable.IsSet());
-		Runnable = [this, LocalRunnable = Forward<TRunnable>(InRunnable), LocalContinuation = Forward<TContinuation>(InContinuation)]()
+		Runnable = [this, LocalRunnable = Forward<TRunnable>(InRunnable), LocalContinuation = Forward<TContinuation>(InContinuation)]() -> bool
 		{
 			checkSlow(IsScheduled() || IsCanceled());
 			FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
@@ -196,14 +217,15 @@ namespace LowLevelTasks
 			if (PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Running), std::memory_order_relaxed))
 			{
 				LocalRunnable();
+				LocalContinuation();
+				return false;
 			}
 			else
 			{
 				checkSlow(IsCanceled());
+				LocalContinuation();
+				return true;
 			}
-
-			PackedData.store(FPackedData(LocalPackedData, ETaskState::Continuation), std::memory_order_relaxed);
-			LocalContinuation();
 		};
 		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready), std::memory_order_release);
 	}
@@ -213,7 +235,7 @@ namespace LowLevelTasks
 	{
 		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
 		checkSlow(!Runnable.IsSet());
-		Runnable = [this, LocalRunnable = Forward<TRunnable>(InRunnable)]()
+		Runnable = [this, LocalRunnable = Forward<TRunnable>(InRunnable)]() -> bool
 		{
 			checkSlow(IsScheduled() || IsCanceled());
 			FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
@@ -221,10 +243,12 @@ namespace LowLevelTasks
 			if (PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Running), std::memory_order_relaxed))
 			{
 				LocalRunnable();
+				return false;
 			}
 			else
 			{
 				checkSlow(IsCanceled());
+				return true;
 			}
 		};
 		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready), std::memory_order_release);
@@ -247,24 +271,24 @@ namespace LowLevelTasks
 		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
 	}
 
+	inline bool FTask::TryPrepareLaunch()
+	{
+		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
+		FPackedData ReadyState = FPackedData(LocalPackedData, ETaskState::Ready);
+		FPackedData CanceledAndReadyState = FPackedData(LocalPackedData, ETaskState::CanceledAndReady);
+		return PackedData.compare_exchange_strong(ReadyState, FPackedData(LocalPackedData, ETaskState::Scheduled), std::memory_order_acquire, std::memory_order_relaxed)
+			|| PackedData.compare_exchange_strong(CanceledAndReadyState, FPackedData(LocalPackedData, ETaskState::Canceled), std::memory_order_acquire, std::memory_order_relaxed);
+	}
+
 	inline bool FTask::TryCancel()
 	{
 		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
 		FPackedData ReadyState(LocalPackedData, ETaskState::Ready);
 		FPackedData ScheduledState(LocalPackedData, ETaskState::Scheduled);
-		return PackedData.compare_exchange_strong(ReadyState,	  FPackedData(LocalPackedData, ETaskState::Canceled), std::memory_order_relaxed) 
-			|| PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Canceled), std::memory_order_relaxed)
-			|| IsCanceled();
-	}
-
-	inline void FTask::PrepareLaunch()
-	{
-		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
-		FPackedData ReadyState(LocalPackedData, ETaskState::Ready);
-		if (!PackedData.compare_exchange_strong(ReadyState, FPackedData(LocalPackedData, ETaskState::Scheduled), std::memory_order_acquire))
-		{
-			checkf(IsCanceled(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
-		}
+		//we can use memory_order_relaxed in this case because, when a task is canceled it does not launch the task
+		//to launch a canceled  task it has to go though TryPrepareLaunch which is doing the memory_order_acquire
+		return PackedData.compare_exchange_strong(ReadyState, FPackedData(LocalPackedData, ETaskState::CanceledAndReady), std::memory_order_relaxed)
+			|| PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Canceled), std::memory_order_relaxed);
 	}
 
 	inline void FTask::ExecuteTask()
@@ -272,12 +296,12 @@ namespace LowLevelTasks
 		checkSlow(Runnable.IsSet());
 		alignas(PLATFORM_CACHE_LINE_SIZE) 
 		FTaskDelegate LocalRunnable;
-		Runnable.CallAndMove(LocalRunnable);
+		bool Canceled = Runnable.CallAndMove(LocalRunnable);
 		checkSlow(!Runnable.IsSet());
 		//do not access the task again after this call
 		//as by defitition the task can be considered dead
 		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
-		PackedData.store(FPackedData(LocalPackedData, ETaskState::Completed), std::memory_order_seq_cst);
+		PackedData.store(FPackedData(LocalPackedData, Canceled ? ETaskState::CanceledAndCompleted : ETaskState::Completed), std::memory_order_seq_cst);
 	}
 
 	inline ETaskPriority FTask::GetPriority() const 

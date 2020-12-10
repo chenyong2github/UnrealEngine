@@ -221,7 +221,7 @@ class CORE_API FQueuedLowLevelThreadPool : public FQueuedThreadPool
 
 		virtual bool Retract()
 		{
-			return Task.TryCancel();
+			return Task.WasCanceled() || Task.TryCancel();
 		}
 	};
 public:
@@ -269,7 +269,7 @@ public:
 				break;
 			}
 			TaskCount++;
-			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+			verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 		}
 
 		if (InNumQueuedWork == -1)
@@ -298,13 +298,14 @@ private:
 		[this, InternalData = InQueuedWork->InternalData]()
 		{
 			--TaskCount;
+			uint32 NumSpawned = 0;
 			while (TaskCount < MaxConcurrency)
 			{
 				FQueuedWorkInternalData* QueuedWork = Dequeue();
 				if (QueuedWork)
 				{
 					TaskCount++;
-					LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+					verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, (NumSpawned++) ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference));
 				}
 				else
 				{
@@ -316,7 +317,7 @@ private:
 		if(!bIsPaused && TaskCount <= MaxConcurrency)
 		{
 			TaskCount++;
-			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWorkInternalData->Task);
+			verifySlow(LowLevelTasks::TryLaunch(QueuedWorkInternalData->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 		}
 		else
 		{
@@ -361,7 +362,7 @@ protected:
 
 			verify(QueuedWork->Retract());
 			TaskCount++;
-			LowLevelTasks::LaunchTask<LowLevelTasks::EQueuePreference::GlobalQueuePreference>(QueuedWork->Task);
+			verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 		}
 
 		while (TaskCount != 0)

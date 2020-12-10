@@ -1874,13 +1874,14 @@ private:
 				}
 
 				const int MaxBackgroundTasks = FMath::Max(1, NumWorkerThreads - 1 - ConcurrentNormalTasks.load(std::memory_order_relaxed));
+				uint32 NumSpawned = 0;
 				while (ConcurrentBackgroundTasks.load(std::memory_order_relaxed) < MaxBackgroundTasks)
 				{
 					FBaseGraphTask* QueuedTask = QueuedBackgroundTasks.dequeue();
 					if (QueuedTask)
 					{
 						ConcurrentBackgroundTasks++;
-						LowLevelTasks::LaunchTask(QueuedTask->TaskHandle);
+						verifySlow(LowLevelTasks::TryLaunch(QueuedTask->TaskHandle, (NumSpawned++) ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference));
 						continue;
 					}
 					break;
@@ -1893,7 +1894,7 @@ private:
 				if(ConcurrentBackgroundTasks.load(std::memory_order_relaxed) < MaxBackgroundTasks)
 				{
 					ConcurrentBackgroundTasks++;
-					LowLevelTasks::LaunchTask(Task->TaskHandle);			
+					verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, LowLevelTasks::EQueuePreference::GlobalQueuePreference));			
 				}
 				else
 				{
@@ -1903,7 +1904,7 @@ private:
 			else
 			{
 				ConcurrentNormalTasks++;
-				LowLevelTasks::LaunchTask(Task->TaskHandle);
+				verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 			}
 			return;
 		}

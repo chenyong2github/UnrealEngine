@@ -2,24 +2,39 @@
 
 #pragma once
 #include "Templates/IsInvocable.h"
+#include "Misc/ScopeExit.h"
 #include <type_traits>
 
 namespace LowLevelTasks
 {
-	//version of TUniqueFunction<void()> that is less wasteful with it's memory
-	//this class might be removed when TUniqueFunction<void()> is fixed
-	template<uint32 TotalSize = PLATFORM_CACHE_LINE_SIZE>
+	namespace TTaskDelegate_Impl
+	{
+		template<typename ReturnType>
+		inline ReturnType MakeDummyValue()
+		{
+			return *(reinterpret_cast<ReturnType*>(uintptr_t(1)));
+		}
+
+		template<>
+		inline void MakeDummyValue<void>()
+		{
+			return;
+		}
+	}
+	//version of TUniqueFunction<ReturnType()> that is less wasteful with it's memory
+	//this class might be removed when TUniqueFunction<ReturnType()> is fixed
+	template<uint32 TotalSize = PLATFORM_CACHE_LINE_SIZE, typename ReturnType = void>
 	class alignas(8) TTaskDelegate
 	{
-		template<uint32>
+		template<uint32, typename>
 		friend class TTaskDelegate;
 
-		using ThisClass = TTaskDelegate<TotalSize>;
+		using ThisClass = TTaskDelegate<TotalSize, ReturnType>;
 		struct TTaskDelegateBase
 		{
 			virtual void Move(TTaskDelegateBase&, void*, void*, uint32) {check(false); };
-			virtual void Call(const void*) const { check(false); };
-			virtual void CallAndMove(ThisClass&, void*, uint32) {check(false); };
+			virtual ReturnType Call(void*) const { check(false); return TTaskDelegate_Impl::MakeDummyValue<ReturnType>(); };
+			virtual ReturnType CallAndMove(ThisClass&, void*, uint32) {check(false); return TTaskDelegate_Impl::MakeDummyValue<ReturnType>(); };
 			virtual void Destroy(void*) { check(false); };
 			virtual bool IsHeapAllocated() const { check(false); return false; }
 			virtual bool IsSet() const { check(false); return false; }
@@ -29,57 +44,62 @@ namespace LowLevelTasks
 		struct TTaskDelegateDummy final : TTaskDelegateBase
 		{
 			void Move(TTaskDelegateBase&, void*, void*, uint32) override {};
-			void Call(const void*) const override {};
-			void CallAndMove(ThisClass&, void*, uint32) override {};
+			ReturnType Call(void*) const override { check(false); return TTaskDelegate_Impl::MakeDummyValue<ReturnType>(); };
+			ReturnType CallAndMove(ThisClass&, void*, uint32) override { check(false); return TTaskDelegate_Impl::MakeDummyValue<ReturnType>(); };
 			void Destroy(void*) override {};
 			bool IsHeapAllocated() const override { return false; }
 			bool IsSet() const override { return false; }
 			uint32 DelegateSize() const override { return 0; }
 		};
 
-		template<typename TCallable, bool HeapAllocated>
+		template<typename TCallableType, bool HeapAllocated>
 		struct TTaskDelegateImpl;
 
-		template<typename TCallable>
-		struct TTaskDelegateImpl<TCallable, false> final : TTaskDelegateBase
+		template<typename TCallableType>
+		struct TTaskDelegateImpl<TCallableType, false> final : TTaskDelegateBase
 		{
+			template<typename TCallable>
 			inline TTaskDelegateImpl(TCallable&& Callable, void* InlineData)
 			{
-				static_assert(TIsInvocable<TCallable>::Value, "TCallable is not invocable");
-				static_assert(sizeof(TTaskDelegateImpl<TCallable, false>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
-				new (InlineData) TCallable(Forward<TCallable>(Callable));
+				static_assert(TIsInvocable<TCallableType>::Value, "TCallableType is not invocable");
+				static_assert(TIsSame<ReturnType, decltype(Callable())>::Value, "TCallableType return type does not match");
+				static_assert(sizeof(TTaskDelegateImpl<TCallableType, false>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
+				new (InlineData) TCallableType(Forward<TCallable>(Callable));
 			}
 
 			inline void Move(TTaskDelegateBase& DstWrapper, void* DstData, void* SrcData, uint32 DestInlineSize) override
 			{
-				TCallable* SrcPtr = reinterpret_cast<TCallable*>(SrcData);
-				if ((sizeof(TCallable) <= DestInlineSize) && (uintptr_t(DstData) % alignof(TCallable)) == 0)
+				TCallableType* SrcPtr = reinterpret_cast<TCallableType*>(SrcData);
+				if ((sizeof(TCallableType) <= DestInlineSize) && (uintptr_t(DstData) % alignof(TCallableType)) == 0)
 				{
-					new (&DstWrapper) TTaskDelegateImpl<TCallable, false>(MoveTemp(*SrcPtr), DstData);
+					new (&DstWrapper) TTaskDelegateImpl<TCallableType, false>(MoveTemp(*SrcPtr), DstData);
 				}
 				else
 				{
-					new (&DstWrapper) TTaskDelegateImpl<TCallable, true>(MoveTemp(*SrcPtr), DstData);
+					new (&DstWrapper) TTaskDelegateImpl<TCallableType, true>(MoveTemp(*SrcPtr), DstData);
 				}
 				new (this) TTaskDelegateDummy();
 			}
 
-			inline void Call(const void* InlineData) const override
+			inline ReturnType Call(void* InlineData) const override
 			{
-				const TCallable* LocalPtr = reinterpret_cast<const TCallable*>(InlineData);
-				(*LocalPtr)();
+				TCallableType* LocalPtr = reinterpret_cast<TCallableType*>(InlineData);
+				return (*LocalPtr)();
 			}
 
-			void CallAndMove(ThisClass& Destination, void* InlineData, uint32 DestInlineSize) override
+			ReturnType CallAndMove(ThisClass& Destination, void* InlineData, uint32 DestInlineSize) override
 			{
-				Call(InlineData);
-				Move(Destination.CallableWrapper, Destination.InlineStorage, InlineData, DestInlineSize);
+				ON_SCOPE_EXIT
+				{
+					Move(Destination.CallableWrapper, Destination.InlineStorage, InlineData, DestInlineSize);
+				};
+				return Call(InlineData);		
 			}
 
 			void Destroy(void* InlineData) override
 			{
-				TCallable* LocalPtr = reinterpret_cast<TCallable*>(InlineData);
-				LocalPtr->~TCallable();
+				TCallableType* LocalPtr = reinterpret_cast<TCallableType*>(InlineData);
+				LocalPtr->~TCallableType();
 			}
 
 			bool IsHeapAllocated() const override
@@ -94,49 +114,54 @@ namespace LowLevelTasks
 
 			uint32 DelegateSize() const override 
 			{ 
-				return sizeof(TCallable); 
+				return sizeof(TCallableType); 
 			}
 		};
 
-		template<typename TCallable>
-		struct TTaskDelegateImpl<TCallable, true> final : TTaskDelegateBase
+		template<typename TCallableType>
+		struct TTaskDelegateImpl<TCallableType, true> final : TTaskDelegateBase
 		{
 		private:
 			inline TTaskDelegateImpl(void* DstData, void* SrcData)
 			{
-				memcpy(DstData, SrcData, sizeof(TCallable*));
+				memcpy(DstData, SrcData, sizeof(TCallableType*));
 			}
 
 		public:
+			template<typename TCallable>
 			inline TTaskDelegateImpl(TCallable&& Callable, void* InlineData)
 			{
-				static_assert(TIsInvocable<TCallable>::Value, "TCallable is not invocable");
-				static_assert(sizeof(TTaskDelegateImpl<TCallable, true>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
-				TCallable** HeapPtr = reinterpret_cast<TCallable**>(InlineData);
-				*HeapPtr = new TCallable(Forward<TCallable>(Callable));
+				static_assert(TIsInvocable<TCallableType>::Value, "TCallableType is not invocable");
+				static_assert(TIsSame<ReturnType, decltype(Callable())>::Value, "TCallableType return type does not match");
+				static_assert(sizeof(TTaskDelegateImpl<TCallableType, true>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
+				TCallableType** HeapPtr = reinterpret_cast<TCallableType**>(InlineData);
+				*HeapPtr = new TCallableType(Forward<TCallable>(Callable));
 			}
 
 			inline void Move(TTaskDelegateBase& DstWrapper, void* DstData, void* SrcData, uint32 DestInlineSize) override
 			{
-				new (&DstWrapper) TTaskDelegateImpl<TCallable, true>(DstData, SrcData);
+				new (&DstWrapper) TTaskDelegateImpl<TCallableType, true>(DstData, SrcData);
 				new (this) TTaskDelegateDummy();
 			}
 
-			inline void Call(const void* InlineData) const override
+			inline ReturnType Call(void* InlineData) const override
 			{
-				const TCallable* HeapPtr = reinterpret_cast<const TCallable*>(*reinterpret_cast<const void* const*>(InlineData));
-				(*HeapPtr)();
+				TCallableType* HeapPtr = reinterpret_cast<TCallableType*>(*reinterpret_cast<void* const*>(InlineData));
+				return (*HeapPtr)();
 			}
 
-			void CallAndMove(ThisClass& Destination, void* InlineData, uint32 DestInlineSize) override
+			ReturnType CallAndMove(ThisClass& Destination, void* InlineData, uint32 DestInlineSize) override
 			{
-				Call(InlineData);
-				Move(Destination.CallableWrapper, Destination.InlineStorage, InlineData, DestInlineSize);
+				ON_SCOPE_EXIT
+				{
+					Move(Destination.CallableWrapper, Destination.InlineStorage, InlineData, DestInlineSize);
+				};
+				return Call(InlineData);			
 			}
 
 			void Destroy(void* InlineData) override
 			{
-				TCallable* HeapPtr = reinterpret_cast<TCallable*>(*reinterpret_cast<void**>(InlineData));
+				TCallableType* HeapPtr = reinterpret_cast<TCallableType*>(*reinterpret_cast<void**>(InlineData));
 				delete HeapPtr;
 			}
 
@@ -152,7 +177,7 @@ namespace LowLevelTasks
 
 			uint32 DelegateSize() const override 
 			{ 
-				return sizeof(TCallable); 
+				return sizeof(TCallableType); 
 			}
 		};
 
@@ -160,15 +185,15 @@ namespace LowLevelTasks
 		TTaskDelegate() 
 		{
 			static_assert(TotalSize % 8 == 0,  "Totalsize must be dividable by 8");
-			static_assert(TotalSize >= 16,  "Totalsize must be larger or equal than 16");
+			static_assert(TotalSize >= (sizeof(TTaskDelegateBase) + sizeof(void*)),  "Totalsize must be large enough to fit a vtable and pointer");
 			new (&CallableWrapper) TTaskDelegateDummy();
 		}
 
 		template<uint32 SourceTotalSize>
-		TTaskDelegate(const TTaskDelegate<SourceTotalSize>&) = delete;
+		TTaskDelegate(const TTaskDelegate<SourceTotalSize, ReturnType>&) = delete;
 
 		template<uint32 SourceTotalSize>
-		TTaskDelegate(TTaskDelegate<SourceTotalSize>&& Other)
+		TTaskDelegate(TTaskDelegate<SourceTotalSize, ReturnType>&& Other)
 		{
 			static_cast<TTaskDelegateBase*>(&Other.CallableWrapper)->Move(CallableWrapper, InlineStorage, Other.InlineStorage, InlineStorageSize);
 		}
@@ -176,13 +201,14 @@ namespace LowLevelTasks
 		template<typename TCallable>
 		TTaskDelegate(TCallable&& Callable)
 		{
-			if ((sizeof(TCallable) <= InlineStorageSize) && ((uintptr_t(InlineStorageSize) % alignof(TCallable)) == 0))
+			using TCallableType = typename TRemoveConst<typename TRemoveReference<TCallable>::Type>::Type;
+			if ((sizeof(TCallableType) <= InlineStorageSize) && ((uintptr_t(InlineStorageSize) % alignof(TCallableType)) == 0))
 			{
-				new (&CallableWrapper) TTaskDelegateImpl<TCallable, false>(Forward<TCallable>(Callable), InlineStorage);
+				new (&CallableWrapper) TTaskDelegateImpl<TCallableType, false>(Forward<TCallable>(Callable), InlineStorage);
 			}
 			else
 			{
-				new (&CallableWrapper) TTaskDelegateImpl<TCallable, true>(Forward<TCallable>(Callable), InlineStorage);
+				new (&CallableWrapper) TTaskDelegateImpl<TCallableType, true>(Forward<TCallable>(Callable), InlineStorage);
 			}
 		}
 
@@ -191,23 +217,23 @@ namespace LowLevelTasks
 			static_cast<TTaskDelegateBase*>(&CallableWrapper)->Destroy(InlineStorage);
 		}
 
-		void operator()() const
+		ReturnType operator()() const
 		{
-			static_cast<const TTaskDelegateBase*>(&CallableWrapper)->Call(InlineStorage);
+			return static_cast<const TTaskDelegateBase*>(&CallableWrapper)->Call(InlineStorage);
 		}
 
 		template<uint32 DestTotalSize>
-		void CallAndMove(TTaskDelegate<DestTotalSize>& Destination)
+		ReturnType CallAndMove(TTaskDelegate<DestTotalSize, ReturnType>& Destination)
 		{
 			checkSlow(!Destination.IsSet());
-			static_cast<TTaskDelegateBase*>(&CallableWrapper)->CallAndMove(Destination, InlineStorage, TTaskDelegate<DestTotalSize>::InlineStorageSize);
+			return static_cast<TTaskDelegateBase*>(&CallableWrapper)->CallAndMove(Destination, InlineStorage, TTaskDelegate<DestTotalSize, ReturnType>::InlineStorageSize);
 		}
 
 		template<uint32 SourceTotalSize>
-		ThisClass& operator= (const TTaskDelegate<SourceTotalSize>&) = delete;
+		ThisClass& operator= (const TTaskDelegate<SourceTotalSize, ReturnType>&) = delete;
 
 		template<uint32 SourceTotalSize>
-		ThisClass& operator= (TTaskDelegate<SourceTotalSize>&& Other)
+		ThisClass& operator= (TTaskDelegate<SourceTotalSize, ReturnType>&& Other)
 		{
 			static_cast<TTaskDelegateBase*>(&CallableWrapper)->Destroy(InlineStorage);
 			static_cast<TTaskDelegateBase*>(&Other.CallableWrapper)->Move(CallableWrapper, InlineStorage, Other.InlineStorage, InlineStorageSize);
@@ -217,14 +243,15 @@ namespace LowLevelTasks
 		template<typename TCallable>
 		ThisClass& operator= (TCallable&& Callable)
 		{
+			using TCallableType = typename TRemoveConst<typename TRemoveReference<TCallable>::Type>::Type;
 			static_cast<TTaskDelegateBase*>(&CallableWrapper)->Destroy(InlineStorage);
-			if ((sizeof(TCallable) <= InlineStorageSize) && ((uintptr_t(InlineStorageSize) % alignof(TCallable)) == 0))
+			if ((sizeof(TCallableType) <= InlineStorageSize) && ((uintptr_t(InlineStorageSize) % alignof(TCallableType)) == 0))
 			{
-				new (&CallableWrapper) TTaskDelegateImpl<TCallable, false>(Forward<TCallable>(Callable), InlineStorage);
+				new (&CallableWrapper) TTaskDelegateImpl<TCallableType, false>(Forward<TCallable>(Callable), InlineStorage);
 			}
 			else
 			{
-				new (&CallableWrapper) TTaskDelegateImpl<TCallable, true>(Forward<TCallable>(Callable), InlineStorage);
+				new (&CallableWrapper) TTaskDelegateImpl<TCallableType, true>(Forward<TCallable>(Callable), InlineStorage);
 			}
 			return *this;
 		}
@@ -252,7 +279,7 @@ namespace LowLevelTasks
 
 	private:
 		static constexpr uint32 InlineStorageSize = TotalSize - sizeof(TTaskDelegateBase);
-		char InlineStorage[InlineStorageSize];
+		mutable char InlineStorage[InlineStorageSize];
 		TTaskDelegateBase CallableWrapper;
 	};
 }

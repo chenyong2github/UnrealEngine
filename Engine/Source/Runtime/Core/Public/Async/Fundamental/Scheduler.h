@@ -31,6 +31,9 @@ namespace LowLevelTasks
 		static thread_local FTask* ActiveTask;
 		static CORE_API FScheduler Singleton;
 
+		// using 16 bytes here because it fits the vtable and one additional pointer
+		using FConditional = TTaskDelegate<16, bool>;
+
 	private: 
 		//the FLocalQueueInstaller installs a LocalQueue into the current thread
 		struct FLocalQueueInstaller
@@ -47,15 +50,21 @@ namespace LowLevelTasks
 		CORE_API void StartWorkers(uint32 NumWorkers = 0, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bIsForkable = false);
 		CORE_API void StopWorkers();
 
-		//Launching the Task and queuing it.
-		CORE_API void Launch(FTask& Task, EQueuePreference QueuePreference);
+		//try to launch the task, the return value will specify if the task was in the ready state and has been launced
+		inline bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);
+		
+		//try to cancel the task and launching it if the task was in ready state
+		//you still need to wait for task completion before recycling the handle
+		//you can alternatively use FTask::TryCancel if you want to launch the task manually
+		inline bool TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);		
 
 		//tries to do some work until the Task is completed
-		inline void BusyWait(const FTask& Task);
+		template<typename TaskType>
+		inline void BusyWait(const TaskType& Task);
 
 		//tries to do some work until the Conditional return true
 		template<typename Conditional>
-		inline void BusyWaitUntil(const Conditional& Cond);
+		inline void BusyWaitUntil(Conditional&& Cond);
 
 		//tries to do some work until all the Tasks are completed
 		//the template parameter can be any Type that has a const conversion operator to FTask
@@ -91,8 +100,9 @@ namespace LowLevelTasks
 
 	private: 
 		TUniquePtr<FThread> CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bIsForkable = false);
-		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles);	
-		CORE_API bool BusyWaitInternal(const FTask& Task);
+		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles);
+		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference);
+		CORE_API void BusyWaitInternal(const FConditional& Conditional);
 		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, uint32& WaitCount);
 		inline bool WakeUpWorker();
 		template<FTask* (FLocalQueueType::*DequeueFunction)()>
@@ -108,10 +118,14 @@ namespace LowLevelTasks
 		std::atomic_uint NextWorkerId { 0 };
 	};
 
-	template<EQueuePreference QueuePreference = EQueuePreference::DefaultPreference>
-	FORCEINLINE_DEBUGGABLE void LaunchTask(FTask& Task)
+	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
 	{
-		FScheduler::Get().Launch(Task, QueuePreference);
+		return FScheduler::Get().TryLaunch(Task, QueuePreference);
+	}
+
+	FORCEINLINE_DEBUGGABLE bool TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
+	{
+		return FScheduler::Get().TryCancelAndLaunch(Task, QueuePreference);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BusyWaitForTask(const FTask& Task)
@@ -120,9 +134,9 @@ namespace LowLevelTasks
 	}
 
 	template<typename Conditional>
-	FORCEINLINE_DEBUGGABLE void BusyWaitUntil(const Conditional& Cond)
+	FORCEINLINE_DEBUGGABLE void BusyWaitUntil(Conditional&& Cond)
 	{
-		FScheduler::Get().BusyWaitUntil<Conditional>(Cond);
+		FScheduler::Get().BusyWaitUntil<Conditional>(Forward<Conditional>(Cond));
 	}
 
 	template<typename TaskType>
@@ -134,71 +148,75 @@ namespace LowLevelTasks
    /******************
 	* IMPLEMENTATION *
 	******************/
+	inline bool FScheduler::TryLaunch(FTask& Task, EQueuePreference QueuePreference)
+	{
+		if(Task.TryPrepareLaunch())
+		{
+			FScheduler::Get().LaunchInternal(Task, QueuePreference);
+			return true;
+		}
+		return false;
+	}
+
+	inline bool FScheduler::TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference)
+	{
+		bool WasCanceled = Task.TryCancel();
+		if(WasCanceled && Task.TryPrepareLaunch())
+		{
+			Task.ExecuteTask();
+			return true;
+		}
+		return WasCanceled;
+	}
 
 	inline uint32 FScheduler::GetNumWorkers() const
 	{
 		return ActiveWorkers.load(std::memory_order_relaxed);
 	}
 
-	inline void FScheduler::BusyWait(const FTask& Task)
+	template<typename TaskType>
+	inline void FScheduler::BusyWait(const TaskType& Task)
 	{
 		if(!Task.IsCompleted())
 		{
 			FLocalQueueInstaller Installer(*this);
-			FScheduler::BusyWaitInternal(Task);
+			FScheduler::BusyWaitInternal([&Task](){ return Task.IsCompleted(); });
 		}
 	}
 
 	template<typename Conditional>
-	inline void FScheduler::BusyWaitUntil(const Conditional& Cond)
+	inline void FScheduler::BusyWaitUntil(Conditional&& Cond)
 	{
 		static_assert(TIsInvocable<Conditional>::Value, "Conditional is not invocable");
 		static_assert(TIsSame<decltype(Cond()), bool>::Value, "Conditional must return a boolean");
-
-		TOptional<FLocalQueueInstaller> Installer;
-		uint32 WaitCount = 0;
-		FTask Dummy;
-		while(!Cond())
+		
+		if(!Cond())
 		{
-			if (!Installer.IsSet())
-			{
-				Installer.Emplace(*this);
-			}
-			if(FScheduler::BusyWaitInternal(Dummy))
-			{
-				WaitCount = 0;
-			}
-			if (!Cond())
-			{
-				if (WaitCount < WorkerSpinCycles)
-				{
-					WaitCount++;
-					FPlatformProcess::Yield();
-				}
-				else
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Sleeping Conditional Busy Wait"));
-					WaitCount = 0;
-					FPlatformProcess::SleepNoStats(0);		
-				}
-			}
+			FLocalQueueInstaller Installer(*this);
+			FScheduler::BusyWaitInternal(Forward<Conditional>(Cond));
 		}
 	}
 
 	template<typename TaskType>
 	inline void FScheduler::BusyWait(const TArrayView<const TaskType>& Tasks)
 	{
-		TOptional<FLocalQueueInstaller> Installer;
-		for(const FTask& Task : Tasks)
+		auto AllTasksCompleted = [Index(0), &Tasks]() mutable
 		{
-			if(!Task.IsCompleted())
+			while (Index < Tasks.Num())
 			{
-				if (!Installer.IsSet())
+				if (!Tasks[Index].IsCompleted())
 				{
-					Installer.Emplace(*this);
+					return false;
 				}
-				FScheduler::BusyWaitInternal(Task);
+				Index++;
 			}
+			return true;
+		};
+
+		if (!AllTasksCompleted())
+		{
+			FLocalQueueInstaller Installer(*this);
+			FScheduler::BusyWaitInternal([&AllTasksCompleted](){ return AllTasksCompleted(); });
 		}
 	}
 
@@ -208,13 +226,13 @@ namespace LowLevelTasks
 		ESleepState RunningState  = ESleepState::Running;
 		if(WorkerEvent->SleepState.compare_exchange_strong(DrowsingState, ESleepState::Sleeping, std::memory_order_relaxed))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Sleeping Worker"));
+			TRACE_CPUPROFILER_EVENT_SCOPE("Sleeping Worker");
 			WaitCount = 0;
 			WorkerEvent->SleepEvent->Wait(); // State two: ((Running -> Drowsing) -> Sleeping)
 		}
 		else if(WorkerEvent->SleepState.compare_exchange_strong(RunningState, ESleepState::Drowsing, std::memory_order_relaxed))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Drowsing Worker"));
+			TRACE_CPUPROFILER_EVENT_SCOPE("Drowsing Worker");
 			SleepEventQueue.enqueue(WorkerEvent); // State one: (Running -> Drowsing)
 			FPlatformProcess::SleepNoStats(0);	
 		}

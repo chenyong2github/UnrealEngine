@@ -7,7 +7,7 @@
 
 namespace LowLevelTasks
 {
-	DEFINE_LOG_CATEGORY(LogTasks2);
+	DEFINE_LOG_CATEGORY(LowLevelTasks);
 
 	thread_local FScheduler::FLocalQueueType* FScheduler::LocalQueue = nullptr;
 	thread_local FTask* FScheduler::ActiveTask = nullptr;
@@ -96,11 +96,8 @@ namespace LowLevelTasks
 		}
 	}
 
-	void FScheduler::Launch(FTask& Task, EQueuePreference QueuePreference)
+	void FScheduler::LaunchInternal(FTask& Task, EQueuePreference QueuePreference)
 	{
-		Task.PrepareLaunch();
-		checkSlow(Task.IsScheduled() || Task.IsCanceled());
-
 		if (ActiveWorkers.load(std::memory_order_relaxed))
 		{
 			if (LocalQueue && QueuePreference != EQueuePreference::GlobalQueuePreference)
@@ -176,7 +173,7 @@ namespace LowLevelTasks
 
 			if (WaitCount < WorkerSpinCycles)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Spinning Worker"));
+				TRACE_CPUPROFILER_EVENT_SCOPE("Spinning Worker");
 				for (uint32 i = 0; i < WaitCycles; i++)
 				{
 					FPlatformProcess::Yield();
@@ -198,9 +195,9 @@ namespace LowLevelTasks
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 	}
 
-	bool FScheduler::BusyWaitInternal(const FTask& AwaitedTask)
+	void FScheduler::BusyWaitInternal(const FConditional& Conditional)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(BusyWait);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FScheduler::BusyWaitInternal);
 
 		checkSlow(LocalQueue != nullptr);
 		check(ActiveWorkers.load(std::memory_order_relaxed));
@@ -212,9 +209,9 @@ namespace LowLevelTasks
 			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
 			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue))
 			{
-				if (AwaitedTask.IsCompleted())
+				if (Conditional())
 				{
-					return true;
+					return;
 				}
 				WaitCount = 0;
 			}
@@ -222,16 +219,16 @@ namespace LowLevelTasks
 			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
 			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue))
 			{
-				if (AwaitedTask.IsCompleted())
+				if (Conditional())
 				{
-					return true;
+					return;
 				}
 				WaitCount = 0;
 			}
 
-			if (AwaitedTask.IsCompleted())
+			if (Conditional())
 			{
-				return false;
+				return;
 			}
 
 			if (WaitCount < WorkerSpinCycles)
@@ -242,7 +239,7 @@ namespace LowLevelTasks
 			}
 			else
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Sleeping Busy Wait"));
+				TRACE_CPUPROFILER_EVENT_SCOPE(BusyWaitInternal::SleepNoStats);
 				FPlatformProcess::SleepNoStats(0);
 				WaitCount = 0;
 			}
