@@ -1025,11 +1025,18 @@ namespace UnrealBuildTool
 			// If we're using precompiled headers, set that up now
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				FileItem IncludeHeader = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename);
-				BaseCompileAction.ForceIncludeFiles.Insert(0, IncludeHeader);
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+				{
+					BaseCompileAction.ForceIncludeFiles.Insert(0, FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderFile.Location.ChangeExtension(null)));
+				}
+				else
+				{
+					FileItem IncludeHeader = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename);
+					BaseCompileAction.ForceIncludeFiles.Insert(0, IncludeHeader);
 
-				BaseCompileAction.UsingPchFile = CompileEnvironment.PrecompiledHeaderFile;
-				BaseCompileAction.PchThroughHeaderFile = IncludeHeader;
+					BaseCompileAction.UsingPchFile = CompileEnvironment.PrecompiledHeaderFile;
+					BaseCompileAction.PchThroughHeaderFile = IncludeHeader;
+				}
 			}
 
 			// Generate the timing info
