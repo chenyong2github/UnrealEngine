@@ -39,6 +39,18 @@ struct FCompositeReroute
 
 	UPROPERTY(meta = (NoResetToDefault))
 	UMaterialExpressionReroute* Expression;
+
+	FCompositeReroute()
+		: Name(NAME_None)
+		, Expression(nullptr)
+	{
+	}
+
+	FCompositeReroute(FName InName, UMaterialExpressionReroute* InExpression)
+		: Name(InName)
+		, Expression(InExpression)
+	{
+	}
 };
 
 UCLASS(MinimalAPI)
