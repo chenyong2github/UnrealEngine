@@ -25,6 +25,7 @@
 #include "NiagaraPrecompileContainer.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Algo/RemoveIf.h"
+#include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
@@ -707,41 +708,22 @@ void UNiagaraSystem::PostLoad()
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
 
-	PostLoadPrimePools();
-}
-
-void UNiagaraSystem::PostLoadPrimePools()
-{
+	// Run task to prime pools this must happen on the GameThread
 	if (PoolPrimeSize > 0 && MaxPoolSize > 0)
 	{
-		if (IsInGameThread())
-		{
-			FNiagaraWorldManager::PrimePoolForAllWorlds(this);
-		}
-		else
-		{
-			//If we're post loading off the game thread the add a game thread task to prime the pools.
-			class FPrimePoolsTask
+		AsyncTask(
+			ENamedThreads::GameThread,
+			[WeakSystem=TWeakObjectPtr<UNiagaraSystem>(this)]()
 			{
-				UNiagaraSystem* Target;
-			public:
-				FPrimePoolsTask(UNiagaraSystem* InTarget) : Target(InTarget) {}
-
-				FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPrimePoolsTask, STATGROUP_TaskGraphTasks); }
-				ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
-				static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::FireAndForget; }
-
-				void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				if ( UNiagaraSystem* NiagaraSystem = WeakSystem.Get() )
 				{
-					Target->PostLoadPrimePools();
+					check(IsInGameThread());
+					FNiagaraWorldManager::PrimePoolForAllWorlds(NiagaraSystem);
 				}
-			};
-
-			TGraphTask<FPrimePoolsTask>::CreateTask(nullptr).ConstructAndDispatchWhenReady(this);
-		}
+			}
+		);
 	}
 }
-
 
 #if WITH_EDITORONLY_DATA
 
