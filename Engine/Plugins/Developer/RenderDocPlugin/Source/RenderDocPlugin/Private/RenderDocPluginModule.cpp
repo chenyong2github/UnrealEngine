@@ -661,6 +661,13 @@ void FRenderDocPluginModule::EndCaptureBracket(FRHICommandListImmediate* RHIComm
 void FRenderDocPluginModule::BindCaptureCallbacks()
 {
 	RenderCaptureInterface::RegisterCallbacks(
+		RenderCaptureInterface::FOnFrameCaptureDelegate::CreateLambda([this]()
+		{
+			CaptureFrame();
+		})
+	);
+
+	RenderCaptureInterface::RegisterCallbacks(
 		RenderCaptureInterface::FOnBeginCaptureDelegate::CreateLambda([this](FRHICommandListImmediate* RHICommandList, TCHAR const* Name)
 		{
 			BeginCaptureBracket(RHICommandList);
