@@ -361,9 +361,6 @@ FLandscapeGrassWeightMeshProcessor::FLandscapeGrassWeightMeshProcessor(const FSc
 {
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-
-	PassDrawRenderState.SetViewUniformBuffer(InViewIfDynamicMeshCommand->ViewUniformBuffer);
-	PassDrawRenderState.SetPassUniformBuffer(nullptr);
 }
 
 void FLandscapeGrassWeightMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
@@ -491,6 +488,11 @@ public:
 	FMatrix ViewRotationMatrix;
 	FMatrix ProjectionMatrix;
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FLandscapeGrassPassParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
 	void RenderLandscapeComponentToTexture_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
 		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game)).SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
@@ -508,16 +510,25 @@ public:
 		
 		const FSceneView* View = ViewFamily.Views[0];
 
-		FRHIRenderPassInfo RPInfo(RenderTargetResource->GetTextureRHI(), ERenderTargetActions::Clear_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("LandscapeGrass"));
-		RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
-		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+		FMemMark Mark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
 
+		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTargetResource->GetTextureRHI(), TEXT("LandscapeGrass")));
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FLandscapeGrassPassParameters>();
+		PassParameters->View = View->ViewUniformBuffer;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("LandscapeGrass"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[this, &View](FRHICommandList& RHICmdList)
 		{
-			FMemMark Mark(FMemStack::Get());
+			RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
-			DrawDynamicMeshPass(*View, RHICmdList,
-				[View, PassOffsetX = PassOffsetX, &ComponentInfos = ComponentInfos, NumPasses = NumPasses, FirstHeightMipsPassIndex = FirstHeightMipsPassIndex, HeightMips = HeightMips](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			DrawDynamicMeshPass(*View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FLandscapeGrassWeightMeshProcessor PassMeshProcessor(
 					nullptr,
@@ -537,9 +548,9 @@ public:
 					}
 				}
 			});
-		}
+		});
 
-		RHICmdList.EndRenderPass();
+		GraphBuilder.Execute();
 	}
 };
 
