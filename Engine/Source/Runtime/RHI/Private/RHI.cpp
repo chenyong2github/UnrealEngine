@@ -1592,7 +1592,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
 	Info.bSupportsIntrinsicWaveOnce = GetSectionBool(Section, "bSupportsIntrinsicWaveOnce");
 	Info.bSupportsConservativeRasterization = GetSectionBool(Section, "bSupportsConservativeRasterization");
-	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 	Info.bSupportsWaveOperations = GetSectionBool(Section, "bSupportsWaveOperations");
 	Info.bRequiresExplicit128bitRT = GetSectionBool(Section, "bRequiresExplicit128bitRT");
 	Info.bSupportsGen5TemporalAA = GetSectionBool(Section, "bSupportsGen5TemporalAA");
