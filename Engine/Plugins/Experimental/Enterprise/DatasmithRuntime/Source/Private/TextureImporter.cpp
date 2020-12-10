@@ -298,7 +298,7 @@ namespace DatasmithRuntime
 			return this->CreateTexture(Referencer.GetId());
 		};
 
-		AddToQueue(NONASYNC_QUEUE, { CreateTaskFunc, {EDataType::Texture, ElementId, 0 } });
+		AddToQueue(EQueueTask::NonAsyncQueue, { CreateTaskFunc, {EDataType::Texture, ElementId, 0 } });
 
 		if (bSuccessfulLoad)
 		{
@@ -383,7 +383,7 @@ namespace DatasmithRuntime
 			return EActionResult::Succeeded;
 		};
 
-		AddToQueue(TEXTURE_QUEUE, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
+		AddToQueue(EQueueTask::TextureQueue, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
 		TasksToComplete |= EWorkerTask::TextureLoad;
 
 		// Create texture helper to leverage registration mechanism
