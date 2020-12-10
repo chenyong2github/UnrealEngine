@@ -31,7 +31,7 @@ static TArray<FInstallInfo> GetManuallyInstalledRiders()
 {
 	TArray<FInstallInfo> Result;
 	TArray<FString> RiderPaths;
-	IFileManager::Get().FindFilesRecursive(RiderPaths, TEXT("/Applications"), TEXT("Rider*.app"), false, true);
+	IFileManager::Get().FindFiles(RiderPaths, TEXT("/Applications/Rider*.app"), false, true);
 	for(const FString& RiderPath: RiderPaths)
 	{
 		TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(RiderPath, false);
