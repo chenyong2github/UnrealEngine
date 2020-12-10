@@ -1320,6 +1320,11 @@ void FWindowsPlatformProcess::SleepInfinite()
 	::Sleep(INFINITE);
 }
 
+void FWindowsPlatformProcess::YieldThread()
+{
+	::SwitchToThread();
+}
+
 #include "WindowsEvent.h"
 
 FEvent* FWindowsPlatformProcess::CreateSynchEvent(bool bIsManualReset)
