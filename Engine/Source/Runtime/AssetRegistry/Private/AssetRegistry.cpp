@@ -62,11 +62,34 @@ FAssetRegistryInterface GAssetRegistryInterface;
 
 // Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
 #define ASSETREGISTRY_CACHE_ALWAYS_ENABLED (WITH_EDITOR)
+// Enable loading premade asset registry in monolithic editor builds
+#define ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR (WITH_EDITOR && IS_MONOLITHIC)
 
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
+#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
+int32 LoadPremadeAssetRegistryInEditor = 0;
+static FAutoConsoleVariableRef CVarLoadPremadeRegistryInEditor(
+	TEXT("AssetRegistry.LoadPremadeRegistryInEditor"),
+	LoadPremadeAssetRegistryInEditor,
+	TEXT(""));
+#endif
+
 /** This will always read the ini, public version may return cache */
 static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName);
+
+static bool LoadAssetRegistry(const TCHAR* Path, FAssetRegistryState& Out)
+{
+	check(Path);
+
+	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(Path));
+	if (Reader)
+	{
+		return Out.Load(*Reader);
+	}
+
+	return false;
+}
 
 // Loads cooked AssetRegistry.bin using an async preload task if available and sync otherwise
 static class FCookedAssetRegistryPreloader
@@ -135,9 +158,8 @@ public:
 private:
 	void Load()
 	{
-		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(GetPath()));
-		checkf(Reader, TEXT("Failed to load %s"), GetPath());
-		State.Load(*Reader);	
+		const bool bLoaded = LoadAssetRegistry(GetPath(), State);
+		checkf(bLoaded, TEXT("Failed to load %s"), GetPath());
 	}
 
 	void KickPreload()
@@ -248,6 +270,19 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		bInitialSearchCompleted = false;
 		SearchAllAssets(false);
 	}
+#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
+	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
+	{
+		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), State))
+		{
+			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
+			CachePathsFromState(State);
+		}
+		else
+		{
+			UE_LOG(LogAssetRegistry, Log, TEXT("Failed to load premade asset registry"));
+		}
+#else
 	else if (FPlatformProperties::RequiresCookedData())
 	{
 		if (SerializationOptions.bSerializeAssetRegistry &&
@@ -255,6 +290,7 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		{
 			CachePathsFromState(State);
 		}
+#endif // ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 
 		TArray<TSharedRef<IPlugin>> ContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 		for (TSharedRef<IPlugin> ContentPlugin : ContentPlugins)
