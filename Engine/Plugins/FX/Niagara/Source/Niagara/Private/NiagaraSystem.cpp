@@ -1217,11 +1217,6 @@ void UNiagaraSystem::CacheFromCompiledData()
 	static const FName NAME_System_ExecutionState = "System.ExecutionState";
 	SystemExecutionStateAccessor.Init(SystemDataSet, NAME_System_ExecutionState);
 
-	if (!SystemExecutionStateAccessor.IsValid())
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to find 'System.ExecutionState' for NiagaraSystem '%s' it will be considered invalid and disabled."), *GetFullName());
-	}
-
 	// Cache emitter data set accessors
 	EmitterSpawnInfoAccessors.Reset();
 	EmitterExecutionStateAccessors.Reset();
