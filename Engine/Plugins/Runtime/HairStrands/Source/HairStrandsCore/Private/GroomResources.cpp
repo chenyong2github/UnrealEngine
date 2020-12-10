@@ -27,16 +27,16 @@
 // FRWBuffer utils 
 void UploadDataToBuffer(FReadBuffer& OutBuffer, uint32 DataSizeInBytes, const void* InCpuData)
 {
-	void* BufferData = RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memcpy(BufferData, InCpuData, DataSizeInBytes);
-	RHIUnlockVertexBuffer(OutBuffer.Buffer);
+	RHIUnlockBuffer(OutBuffer.Buffer);
 }
 
 void UploadDataToBuffer(FRWBufferStructured& OutBuffer, uint32 DataSizeInBytes, const void* InCpuData)
 {
-	void* BufferData = RHILockStructuredBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memcpy(BufferData, InCpuData, DataSizeInBytes);
-	RHIUnlockStructuredBuffer(OutBuffer.Buffer);
+	RHIUnlockBuffer(OutBuffer.Buffer);
 }
 
 template<typename FormatType>
@@ -48,10 +48,10 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FRWBuffer& Ou
 	if (DataSizeInBytes == 0) return;
 
 	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, InitialAccess, BUF_Static, DebugName);
-	void* BufferData = RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 
 	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
-	RHIUnlockVertexBuffer(OutBuffer.Buffer);
+	RHIUnlockBuffer(OutBuffer.Buffer);
 }
 
 template<typename FormatType>
@@ -63,9 +63,9 @@ void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer, const TCHAR* Debug
 	if (DataSizeInBytes == 0) return;
 
 	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, ERHIAccess::UAVCompute, BUF_Static, DebugName);
-	void* BufferData = RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memset(BufferData, 0, DataSizeInBytes);
-	RHIUnlockVertexBuffer(OutBuffer.Buffer);
+	RHIUnlockBuffer(OutBuffer.Buffer);
 }
 
 template<typename FormatType>
@@ -82,9 +82,9 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVer
 
 	OutBuffer.VertexBufferRHI = RHICreateVertexBuffer(DataSizeInBytes, BUF_Static | BUF_ShaderResource, InitialAccess, CreateInfo);
 
-	void* BufferData = RHILockVertexBuffer(OutBuffer.VertexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHILockBuffer(OutBuffer.VertexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
-	RHIUnlockVertexBuffer(OutBuffer.VertexBufferRHI);
+	RHIUnlockBuffer(OutBuffer.VertexBufferRHI);
 	OutBuffer.ShaderResourceViewRHI = RHICreateShaderResourceView(OutBuffer.VertexBufferRHI, FormatType::SizeInByte, FormatType::Format);
 }
 
@@ -244,7 +244,7 @@ void FHairCardIndexBuffer::InitRHI()
 	void* Buffer = nullptr;
 	IndexBufferRHI = RHICreateAndLockIndexBuffer(FHairCardsIndexFormat::SizeInByte, DataSizeInBytes, BUF_Static, CreateInfo, Buffer);
 	FMemory::Memcpy(Buffer, Indices.GetData(), DataSizeInBytes);
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 }
 
 FHairCardsRestResource::FHairCardsRestResource(const FHairCardsDatas::FRenderData& InRenderData, uint32 InVertexCount, uint32 InPrimitiveCount) :

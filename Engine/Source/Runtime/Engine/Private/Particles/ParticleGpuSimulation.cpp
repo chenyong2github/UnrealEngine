@@ -1298,7 +1298,7 @@ FORCEINLINE int32 ComputeAlignedTileCount(int32 TileCount)
  */
 static void BuildTileVertexBuffer(FParticleBufferParamRef TileOffsetsRef, const uint32* Tiles, int32 TileCount, int32 AlignedTileCount)
 {
-	FVector2D* TileOffset = (FVector2D*)RHILockVertexBuffer( TileOffsetsRef, 0, AlignedTileCount * sizeof(FVector2D), RLM_WriteOnly );
+	FVector2D* TileOffset = (FVector2D*)RHILockBuffer( TileOffsetsRef, 0, AlignedTileCount * sizeof(FVector2D), RLM_WriteOnly );
 	for ( int32 Index = 0; Index < TileCount; ++Index )
 	{
 		const uint32 TileIndex = Tiles[Index];
@@ -1310,7 +1310,7 @@ static void BuildTileVertexBuffer(FParticleBufferParamRef TileOffsetsRef, const 
 		TileOffset[Index].X = 100.0f;
 		TileOffset[Index].Y = 100.0f;
 	}
-	RHIUnlockVertexBuffer( TileOffsetsRef );
+	RHIUnlockBuffer( TileOffsetsRef );
 }
 
 /**
@@ -1774,9 +1774,9 @@ void InjectNewParticles(FRHICommandList& RHICmdList, FGraphicsPipelineStateIniti
 		// Copy new particles in to the vertex buffer.
 		const int32 ParticlesThisDrawCall = FMath::Min<int32>( ParticleCount, MaxParticlesPerDrawCall );
 		const void* Src = NewParticles.GetData() + FirstParticle;
-		void* Dest = RHILockVertexBuffer( ScratchVertexBufferRHI, 0, ParticlesThisDrawCall * sizeof(FNewParticle), RLM_WriteOnly );
+		void* Dest = RHILockBuffer( ScratchVertexBufferRHI, 0, ParticlesThisDrawCall * sizeof(FNewParticle), RLM_WriteOnly );
 		FMemory::Memcpy( Dest, Src, ParticlesThisDrawCall * sizeof(FNewParticle) );
-		RHIUnlockVertexBuffer( ScratchVertexBufferRHI );
+		RHIUnlockBuffer( ScratchVertexBufferRHI );
 		ParticleCount -= ParticlesThisDrawCall;
 		FirstParticle += ParticlesThisDrawCall;
 
@@ -2046,7 +2046,7 @@ static void BuildParticleVertexBuffer(FRHIVertexBuffer* VertexBufferRHI, const T
 	const int32 IndexCount = TileCount * GParticlesPerTile;
 	const int32 BufferSize = IndexCount * sizeof(FParticleIndex);
 	const int32 Stride = 1;
-	FParticleIndex* RESTRICT ParticleIndices = (FParticleIndex*)RHILockVertexBuffer( VertexBufferRHI, 0, BufferSize, RLM_WriteOnly );
+	FParticleIndex* RESTRICT ParticleIndices = (FParticleIndex*)RHILockBuffer( VertexBufferRHI, 0, BufferSize, RLM_WriteOnly );
 
 	for ( int32 Index = 0; Index < TileCount; ++Index )
 	{
@@ -2069,7 +2069,7 @@ static void BuildParticleVertexBuffer(FRHIVertexBuffer* VertexBufferRHI, const T
 			}
 		}
 	}
-	RHIUnlockVertexBuffer( VertexBufferRHI );
+	RHIUnlockBuffer( VertexBufferRHI );
 }
 
 /*-----------------------------------------------------------------------------
@@ -2262,7 +2262,7 @@ static FBox ComputeParticleBounds(
 		ParticleBoundsCS->UnbindBuffers(RHICmdList);
 
 		// Read back bounds.
-		FVector4* GroupBounds = (FVector4*)RHILockVertexBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
+		FVector4* GroupBounds = (FVector4*)RHILockBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
 
 		// Find valid starting bounds.
 		uint32 GroupIndex = 0;
@@ -2296,7 +2296,7 @@ static FBox ComputeParticleBounds(
 		}
 
 		// Release buffer.
-		RHICmdList.UnlockVertexBuffer(BoundsVertexBufferRHI);
+		RHICmdList.UnlockBuffer(BoundsVertexBufferRHI);
 		BoundsVertexBufferUAV.SafeRelease();
 		BoundsVertexBufferRHI.SafeRelease();
 	}

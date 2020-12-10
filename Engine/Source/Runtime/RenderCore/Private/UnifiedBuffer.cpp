@@ -475,8 +475,8 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 		UploadBuffer.SRV = RHICreateShaderResourceView( UploadBuffer.Buffer );
 	}
 
-	ScatterData = (uint32*)RHILockStructuredBuffer( ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly );
-	UploadData = (uint8*)RHILockStructuredBuffer( UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly );
+	ScatterData = (uint32*)RHILockBuffer( ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly );
+	UploadData = (uint8*)RHILockBuffer( UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly );
 }
 
 template<typename ResourceType>
@@ -484,8 +484,8 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, Resourc
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScatterUploadBuffer::ResourceUploadTo);
 	
-	RHIUnlockStructuredBuffer(ScatterBuffer.Buffer);
-	RHIUnlockStructuredBuffer(UploadBuffer.Buffer);
+	RHIUnlockBuffer(ScatterBuffer.Buffer);
+	RHIUnlockBuffer(UploadBuffer.Buffer);
 
 	ScatterData = nullptr;
 	UploadData = nullptr;

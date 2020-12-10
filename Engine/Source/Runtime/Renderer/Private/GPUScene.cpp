@@ -83,7 +83,7 @@ template<>
 void* LockResource<FRWBufferStructured>(FRWBufferStructured& Resource, uint32& Stride)
 {
 	Stride = 0;
-	return RHILockStructuredBuffer(Resource.Buffer, 0, Resource.NumBytes, RLM_ReadOnly);
+	return RHILockBuffer(Resource.Buffer, 0, Resource.NumBytes, RLM_ReadOnly);
 }
 template<>
 void* LockResource<FTextureRWBuffer2D>(FTextureRWBuffer2D& Resource, uint32& Stride)
@@ -96,7 +96,7 @@ void UnlockResourceGPUScene(ResourceType& Resource);
 template<>
 void UnlockResourceGPUScene<FRWBufferStructured>(FRWBufferStructured& Resource)
 {
-	RHIUnlockStructuredBuffer(Resource.Buffer);
+	RHIUnlockBuffer(Resource.Buffer);
 }
 template<>
 void UnlockResourceGPUScene<FTextureRWBuffer2D>(FTextureRWBuffer2D& Resource)

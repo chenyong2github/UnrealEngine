@@ -423,9 +423,9 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 					check(BufferSize == BufferNumElements * BufferStride);
 
 					RT_Proxy->Buffer.Initialize(BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static, TEXT("NiagaraArrayFloat"));
-					void* GPUMemory = RHICmdList.LockVertexBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
+					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
 					FMemory::Memcpy(GPUMemory, RT_Array.GetData(), BufferSize);
-					RHICmdList.UnlockVertexBuffer(RT_Proxy->Buffer.Buffer);
+					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 				else
 				{
@@ -437,9 +437,9 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 					const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 
 					RT_Proxy->Buffer.Initialize(BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static, TEXT("NiagaraArrayFloat"));
-					void* GPUMemory = RHICmdList.LockVertexBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
+					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
 					FMemory::Memcpy(GPUMemory, &DefaultValue, BufferSize);
-					RHICmdList.UnlockVertexBuffer(RT_Proxy->Buffer.Buffer);
+					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 
 				INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->Buffer.NumBytes);

@@ -56,7 +56,7 @@ public:
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
 
 		// Zero the buffer memory.
-		void* Data = RHILockVertexBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
+		void* Data = RHILockBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
 		FMemory::Memset(Data, 0, NumBytes);
 		
 		if (PixelFormat == PF_R8G8B8A8)
@@ -64,7 +64,7 @@ public:
 			*reinterpret_cast<uint32*>(Data) = DefaultValue;
 		}
 
-		RHIUnlockVertexBuffer(Buffer);
+		RHIUnlockBuffer(Buffer);
 
 		SRV = RHICreateShaderResourceView(Buffer, NumBytes, PixelFormat);
 	}

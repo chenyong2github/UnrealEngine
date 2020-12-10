@@ -13,7 +13,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionIndexBuffer()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	DistortionMeshIndices = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6 * DistortionPointsX * DistortionPointsY, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockIndexBuffer(DistortionMeshIndices, 0, sizeof(uint16) * 6 * DistortionPointsX * DistortionPointsY, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(DistortionMeshIndices, 0, sizeof(uint16) * 6 * DistortionPointsX * DistortionPointsY, RLM_WriteOnly);
 	uint16* DistortionMeshIndicesPtr = reinterpret_cast<uint16*>(VoidPtr);
 
 	uint32 InsertIndex = 0;
@@ -37,7 +37,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionIndexBuffer()
 			InsertIndex += 6;
 		}
 	}
-	RHIUnlockIndexBuffer(DistortionMeshIndices);
+	RHIUnlockBuffer(DistortionMeshIndices);
 	check(InsertIndex == NumIndices);
 }
 
@@ -46,7 +46,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Ey
 	FVertexBufferRHIRef& DistortionMeshVertices = (Eye == eSSP_LEFT_EYE) ? DistortionMeshVerticesLeftEye : DistortionMeshVerticesRightEye;
 	FRHIResourceCreateInfo CreateInfo;
 	DistortionMeshVertices = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(DistortionMeshVertices, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(DistortionMeshVertices, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
 	FDistortionVertex* Verts = reinterpret_cast<FDistortionVertex*>(VoidPtr);
 
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
@@ -99,7 +99,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Ey
 
 	check(VertexIndex == NumVerts);
 #endif
-	RHIUnlockVertexBuffer(DistortionMeshVertices);
+	RHIUnlockBuffer(DistortionMeshVertices);
 }
 
 void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassContext& Context, const FIntPoint& TextureSize)
@@ -139,9 +139,9 @@ void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPas
 
 		FRHIResourceCreateInfo CreateInfo;
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * 4, BUF_Volatile, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FDistortionVertex) * 4, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FDistortionVertex) * 4, RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, Verts, sizeof(FDistortionVertex) * 4);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 
 		const uint32 XBound = TextureSize.X / 2;
 		if(View.StereoPass == eSSP_LEFT_EYE)

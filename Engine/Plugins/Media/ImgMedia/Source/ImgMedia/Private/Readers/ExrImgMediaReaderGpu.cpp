@@ -103,7 +103,7 @@ FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 				// Check if fence has signaled.
 				check(!MemoryPoolItem->bWillBeSignaled || MemoryPoolItem->Fence->Poll());
 				{
-					RHIUnlockStructuredBuffer(MemoryPoolItem->BufferRef);
+					RHIUnlockBuffer(MemoryPoolItem->BufferRef);
 					delete MemoryPoolItem;
 				}
 			}
@@ -318,7 +318,7 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 				FScopeLock ScopeLock(&AllocatorCriticalSecion);
 				FRHIResourceCreateInfo CreateInfo;
 				AllocatedBuffer->BufferRef = RHICreateStructuredBuffer(sizeof(uint16) * 2., AllocSize, BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM | BUF_Transient, CreateInfo);
-				AllocatedBuffer->MappedBuffer = static_cast<uint16*>(RHILockStructuredBuffer(AllocatedBuffer->BufferRef, 0, AllocSize, RLM_WriteOnly));
+				AllocatedBuffer->MappedBuffer = static_cast<uint16*>(RHILockBuffer(AllocatedBuffer->BufferRef, 0, AllocSize, RLM_WriteOnly));
 				AllocatedBuffer->Fence = RHICreateGPUFence(TEXT("BufferNoLongerInUseFence"));
 				bInitDone = true;
 			});
@@ -344,7 +344,7 @@ void FExrImgMediaReaderGpu::ReturnGpuBufferToStagingPool(uint32 AllocSize, FStru
 		ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([this, Buffer](FRHICommandListImmediate& RHICmdList)
 		{
 			FScopeLock ScopeLock(&AllocatorCriticalSecion);
-			RHIUnlockStructuredBuffer(Buffer->BufferRef);
+			RHIUnlockBuffer(Buffer->BufferRef);
 			delete Buffer;
 		});
 	}

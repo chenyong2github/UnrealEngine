@@ -107,11 +107,11 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	if (!bUseGPUMorphTargets)
 	{
 		// Lock the buffer.
-		void* BufferData = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices(), RLM_WriteOnly);
+		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices(), RLM_WriteOnly);
 		FMorphGPUSkinVertex* Buffer = (FMorphGPUSkinVertex*)BufferData;
 		FMemory::Memzero(&Buffer[0], sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices());
 		// Unlock the buffer.
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		bNeedsInitialClear = false;
 	}
 	else
@@ -471,7 +471,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector);
 
-		void* Buffer = RHICmdList.LockVertexBuffer(
+		void* Buffer = RHICmdList.LockBuffer(
 			PositionBuffer.VertexBufferRHI,
 			0,
 			SizeInBytes,
@@ -480,7 +480,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		FMemory::Memcpy(Buffer, DynamicData->PreSkinningOffsets.GetData(), SizeInBytes);
 
-		RHICmdList.UnlockVertexBuffer(PositionBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(PositionBuffer.VertexBufferRHI);
 	}
 
 	if (DynamicData->PostSkinningOffsets.Num() > 0)
@@ -491,7 +491,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector);
 
-		void* Buffer = RHICmdList.LockVertexBuffer(
+		void* Buffer = RHICmdList.LockBuffer(
 			PositionBuffer.VertexBufferRHI,
 			0,
 			SizeInBytes,
@@ -500,7 +500,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		FMemory::Memcpy(Buffer, DynamicData->PostSkinningOffsets.GetData(), SizeInBytes);
 
-		RHICmdList.UnlockVertexBuffer(PositionBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(PositionBuffer.VertexBufferRHI);
 	}
 
 	if (LOD.MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate))
@@ -1073,7 +1073,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 		// Lock the real buffer.
 		{
 			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_RhiLockAndCopy);
-			FMorphGPUSkinVertex* ActualBuffer = (FMorphGPUSkinVertex*)RHILockVertexBuffer(MorphVertexBuffer.VertexBufferRHI, 0, Size, RLM_WriteOnly);
+			FMorphGPUSkinVertex* ActualBuffer = (FMorphGPUSkinVertex*)RHILockBuffer(MorphVertexBuffer.VertexBufferRHI, 0, Size, RLM_WriteOnly);
 			FMemory::Memcpy(ActualBuffer, Buffer, Size);
 			FMemory::Free(Buffer);
 		}
@@ -1081,7 +1081,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 		{
 			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_RhiUnlock);
 			// Unlock the buffer.
-			RHIUnlockVertexBuffer(MorphVertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(MorphVertexBuffer.VertexBufferRHI);
 			// set update flag
 			MorphVertexBuffer.bHasBeenUpdated = true;
 		}

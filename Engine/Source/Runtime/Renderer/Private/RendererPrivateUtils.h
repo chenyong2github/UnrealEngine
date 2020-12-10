@@ -24,7 +24,7 @@ public:
 			Vertices[SpriteIndex * 4 + 2] = FVector2D(1.0f, 1.0f);
 			Vertices[SpriteIndex * 4 + 3] = FVector2D(1.0f, 0.0f);
 		}
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 
 	const uint32 NumTileQuadsInBuffer;
@@ -56,7 +56,7 @@ public:
 			Indices[SpriteIndex * 6 + 4] = SpriteIndex * 4 + 2;
 			Indices[SpriteIndex * 6 + 5] = SpriteIndex * 4 + 3;
 		}
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 
 	const uint32 NumTileQuadsInBuffer;

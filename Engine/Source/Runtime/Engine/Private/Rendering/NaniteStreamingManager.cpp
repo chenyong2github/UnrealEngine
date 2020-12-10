@@ -214,8 +214,8 @@ public:
 			PageUploadBuffer.SRV = RHICreateShaderResourceView(PageUploadBuffer.Buffer);
 		}
 		
-		InstallInfoPtr = (FPageInstallInfo*)RHILockStructuredBuffer(InstallInfoUploadBuffer.Buffer, 0, InstallInfoAllocationSize, RLM_WriteOnly);
-		PageDataPtr = (uint8*)RHILockStructuredBuffer(PageUploadBuffer.Buffer, 0, PageAllocationSize, RLM_WriteOnly);
+		InstallInfoPtr = (FPageInstallInfo*)RHILockBuffer(InstallInfoUploadBuffer.Buffer, 0, InstallInfoAllocationSize, RLM_WriteOnly);
+		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer.Buffer, 0, PageAllocationSize, RLM_WriteOnly);
 	}
 
 	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset)
@@ -246,8 +246,8 @@ public:
 
 	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer)
 	{
-		RHIUnlockStructuredBuffer(InstallInfoUploadBuffer.Buffer);
-		RHIUnlockStructuredBuffer(PageUploadBuffer.Buffer);
+		RHIUnlockBuffer(InstallInfoUploadBuffer.Buffer);
+		RHIUnlockBuffer(PageUploadBuffer.Buffer);
 
 		if (NextPageIndex > 0)
 		{

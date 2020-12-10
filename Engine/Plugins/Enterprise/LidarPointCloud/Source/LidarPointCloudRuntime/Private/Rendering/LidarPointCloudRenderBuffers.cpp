@@ -66,7 +66,7 @@ void FLidarPointCloudIndexBuffer::InitRHI()
 		Data[PointOffset + i] = i;
 	}
 
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 	Buffer = nullptr;
 }
 

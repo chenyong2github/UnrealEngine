@@ -409,9 +409,9 @@ void USkelMeshDNAUtils::RebuildRenderData_VertexPosition(USkeletalMesh* SkelMesh
 				}
 
 				auto& VertexBuffer = LODRenderData.StaticVertexBuffers.PositionVertexBuffer;
-				void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+				void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 				FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-				RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+				RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 			});
 		}
 	}

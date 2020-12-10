@@ -839,9 +839,9 @@ FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetOrCreateBuffer(F
 		FRHIResourceCreateInfo CreateInfo(TEXT("ExposureBuffer"));
 		ExposureBufferData[BufferIndex].Buffer = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, CreateInfo);
 
-		FVector4* BufferData = (FVector4*)RHICmdList.LockVertexBuffer(ExposureBufferData[BufferIndex].Buffer, 0, sizeof(FVector4), RLM_WriteOnly);
+		FVector4* BufferData = (FVector4*)RHICmdList.LockBuffer(ExposureBufferData[BufferIndex].Buffer, 0, sizeof(FVector4), RLM_WriteOnly);
 		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-		RHICmdList.UnlockVertexBuffer(ExposureBufferData[BufferIndex].Buffer);
+		RHICmdList.UnlockBuffer(ExposureBufferData[BufferIndex].Buffer);
 
 		ExposureBufferData[BufferIndex].SRV = RHICmdList.CreateShaderResourceView(ExposureBufferData[BufferIndex].Buffer, sizeof(FVector4), PF_A32B32G32R32F);
 		ExposureBufferData[BufferIndex].UAV = RHICmdList.CreateUnorderedAccessView(ExposureBufferData[BufferIndex].Buffer, PF_A32B32G32R32F);

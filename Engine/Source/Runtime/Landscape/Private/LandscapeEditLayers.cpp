@@ -741,9 +741,9 @@ public:
 		ComponentsData = RHICreateStructuredBuffer(sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		ComponentsDataSRV = RHICreateShaderResourceView(ComponentsData);
 
-		uint8* Buffer = (uint8*)RHILockStructuredBuffer(ComponentsData, 0, OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), RLM_WriteOnly);
+		uint8* Buffer = (uint8*)RHILockBuffer(ComponentsData, 0, OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), RLM_WriteOnly);
 		FMemory::Memcpy(Buffer, OriginalComponentsData.GetData(), OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData));
-		RHIUnlockStructuredBuffer(ComponentsData);
+		RHIUnlockBuffer(ComponentsData);
 	}
 
 	virtual void ReleaseDynamicRHI() override
@@ -895,27 +895,27 @@ public:
 		ComponentsData = RHICreateStructuredBuffer(sizeof(FLandscapeLayerWeightmapPackMaterialLayersComponentData), ComponentsDataMemSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		ComponentsDataSRV = RHICreateShaderResourceView(ComponentsData);
 
-		uint8* Buffer = (uint8*)RHILockStructuredBuffer(ComponentsData, 0, ComponentsDataMemSize, RLM_WriteOnly);
+		uint8* Buffer = (uint8*)RHILockBuffer(ComponentsData, 0, ComponentsDataMemSize, RLM_WriteOnly);
 		FMemory::Memcpy(Buffer, OriginalComponentsData.GetData(), ComponentsDataMemSize);
-		RHIUnlockStructuredBuffer(ComponentsData);
+		RHIUnlockBuffer(ComponentsData);
 
 		FRHIResourceCreateInfo WeightBlendCreateInfo;
 		uint32 WeightBlendMemSize = OriginalWeightmapWeightBlendModeData.Num() * sizeof(float);
 		WeightmapWeightBlendMode = RHICreateVertexBuffer(WeightBlendMemSize, BUF_ShaderResource | BUF_Volatile | BUF_Dynamic, WeightBlendCreateInfo);
 		WeightmapWeightBlendModeSRV = RHICreateShaderResourceView(WeightmapWeightBlendMode, sizeof(float), PF_R32_FLOAT);
 
-		void* WeightmapWeightBlendModePtr = RHILockVertexBuffer(WeightmapWeightBlendMode, 0, WeightBlendMemSize, RLM_WriteOnly);
+		void* WeightmapWeightBlendModePtr = RHILockBuffer(WeightmapWeightBlendMode, 0, WeightBlendMemSize, RLM_WriteOnly);
 		FMemory::Memcpy(WeightmapWeightBlendModePtr, OriginalWeightmapWeightBlendModeData.GetData(), WeightBlendMemSize);
-		RHIUnlockVertexBuffer(WeightmapWeightBlendMode);
+		RHIUnlockBuffer(WeightmapWeightBlendMode);
 
 		FRHIResourceCreateInfo TextureOutputOffsetCreateInfo;
 		uint32 TextureOutputOffsetMemSize = OriginalTextureOutputOffset.Num() * sizeof(FVector2D);
 		WeightmapTextureOutputOffset = RHICreateVertexBuffer(TextureOutputOffsetMemSize, BUF_ShaderResource | BUF_Volatile | BUF_Dynamic, TextureOutputOffsetCreateInfo);
 		WeightmapTextureOutputOffsetSRV = RHICreateShaderResourceView(WeightmapTextureOutputOffset, sizeof(FVector2D), PF_G32R32F);
 
-		void* TextureOutputOffsetPtr = RHILockVertexBuffer(WeightmapTextureOutputOffset, 0, TextureOutputOffsetMemSize, RLM_WriteOnly);
+		void* TextureOutputOffsetPtr = RHILockBuffer(WeightmapTextureOutputOffset, 0, TextureOutputOffsetMemSize, RLM_WriteOnly);
 		FMemory::Memcpy(TextureOutputOffsetPtr, OriginalTextureOutputOffset.GetData(), TextureOutputOffsetMemSize);
-		RHIUnlockVertexBuffer(WeightmapTextureOutputOffset);
+		RHIUnlockBuffer(WeightmapTextureOutputOffset);
 	}
 
 	virtual void ReleaseDynamicRHI() override

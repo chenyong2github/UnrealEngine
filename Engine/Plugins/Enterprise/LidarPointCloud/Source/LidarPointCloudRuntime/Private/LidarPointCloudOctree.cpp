@@ -167,13 +167,13 @@ bool FLidarPointCloudOctreeNode::BuildDataCache()
 		{
 			DataCache->Resize(GetNumVisiblePoints() * 5);
 
-			uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * 20, RLM_WriteOnly);
+			uint8* StructuredBuffer = (uint8*)RHILockBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * 20, RLM_WriteOnly);
 			for (FLidarPointCloudPoint* Data = GetData(), *DataEnd = Data + GetNumVisiblePoints(); Data != DataEnd; ++Data)
 			{
 				FMemory::Memcpy(StructuredBuffer, Data, 20);
 				StructuredBuffer += 20;
 			}
-			RHIUnlockVertexBuffer(DataCache->Buffer);
+			RHIUnlockBuffer(DataCache->Buffer);
 
 			bRenderDataDirty = false;
 		}

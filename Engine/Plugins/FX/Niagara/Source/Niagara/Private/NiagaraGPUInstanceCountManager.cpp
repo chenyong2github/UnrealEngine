@@ -298,10 +298,10 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 				const uint32 InstanceCountClearSize = InstanceCountClearTasks.Num() * sizeof(uint32);
 				const uint32 TaskBufferSize = ArgGenSize + InstanceCountClearSize;
 				TaskInfosBuffer.Initialize(sizeof(uint32), TaskBufferSize / sizeof(uint32), EPixelFormat::PF_R32_UINT, BUF_Volatile, TEXT("NiagaraTaskInfosBuffer"));
-				uint8* TaskBufferData = (uint8*)RHILockVertexBuffer(TaskInfosBuffer.Buffer, 0, TaskBufferSize, RLM_WriteOnly);
+				uint8* TaskBufferData = (uint8*)RHILockBuffer(TaskInfosBuffer.Buffer, 0, TaskBufferSize, RLM_WriteOnly);
 				FMemory::Memcpy(TaskBufferData, DrawIndirectArgGenTasks.GetData(), ArgGenSize);
 				FMemory::Memcpy(TaskBufferData + ArgGenSize, InstanceCountClearTasks.GetData(), InstanceCountClearSize);
-				RHIUnlockVertexBuffer(TaskInfosBuffer.Buffer);
+				RHIUnlockBuffer(TaskInfosBuffer.Buffer);
 			}
 
 			FRHIShaderResourceView* CulledCountsSRV;

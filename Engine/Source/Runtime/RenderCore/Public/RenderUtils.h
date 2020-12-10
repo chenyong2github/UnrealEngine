@@ -189,9 +189,9 @@ public:
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo;
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NUM_CUBE_VERTICES, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint16) * NUM_CUBE_VERTICES, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NUM_CUBE_VERTICES, RLM_WriteOnly);
 		FMemory::Memcpy(VoidPtr, GCubeIndices, NUM_CUBE_VERTICES * sizeof(uint16));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };
 extern RENDERCORE_API TGlobalResource<FCubeIndexBuffer> GCubeIndexBuffer;
@@ -207,10 +207,10 @@ public:
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo;
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
 		static const uint16 Indices[] = { 0, 1, 3, 0, 3, 2 };
 		FMemory::Memcpy(VoidPtr, Indices, 6 * sizeof(uint16));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };
 extern RENDERCORE_API TGlobalResource<FTwoTrianglesIndexBuffer> GTwoTrianglesIndexBuffer;
@@ -226,7 +226,7 @@ public:
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo;
 		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector2D) * 4, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector2D) * 4, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector2D) * 4, RLM_WriteOnly);
 		static const FVector2D Vertices[4] =
 		{
 			FVector2D(-1,-1),
@@ -235,7 +235,7 @@ public:
 			FVector2D(+1,+1),
 		};
 		FMemory::Memcpy(VoidPtr, Vertices, sizeof(FVector2D) * 4);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 

@@ -27,11 +27,11 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 
 	FRHIResourceCreateInfo CreateInfo;
 	VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
 	FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
-	void* VoidPtr2 = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
+	void* VoidPtr2 = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
 	uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr2);
 
 	uint32 DataIndex = 0;
@@ -72,6 +72,6 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 		}
 	}
 
-	RHIUnlockVertexBuffer(VertexBufferRHI);
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 }

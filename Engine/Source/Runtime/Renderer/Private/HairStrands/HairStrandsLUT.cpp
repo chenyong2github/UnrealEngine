@@ -290,9 +290,9 @@ static FRDGTextureRef AddHairCoverageLUTPass(FRDGBuilder& GraphBuilder, const FV
 	{
 		FHairCountToCoverageData Source;
 		
-		void* Dest = RHILockStructuredBuffer(UploadParameters->UploadBuffer->GetRHI(), 0, SizeInBytes, RLM_WriteOnly);
+		void* Dest = RHILockBuffer(UploadParameters->UploadBuffer->GetRHI(), 0, SizeInBytes, RLM_WriteOnly);
 		FPlatformMemory::Memcpy(Dest, Source.Data, SizeInBytes);
-		RHIUnlockStructuredBuffer(UploadParameters->UploadBuffer->GetRHI());
+		RHIUnlockBuffer(UploadParameters->UploadBuffer->GetRHI());
 	});
 
 

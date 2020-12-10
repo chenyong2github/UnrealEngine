@@ -338,7 +338,7 @@ public:
 				Indices[PrimitiveIndex * NUM_CUBE_VERTICES + Index] = PrimitiveIndex * 8 + GCubeIndices[Index];
 			}
 		}
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };
 TGlobalResource<FOcclusionQueryIndexBuffer> GOcclusionQueryIndexBuffer;
@@ -1253,7 +1253,7 @@ static void BeginOcclusionTests(
 			uint32 BaseVertexOffset = 0;
 			FRHIResourceCreateInfo CreateInfo;
 			FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector) * NumVertices, BUF_Volatile, CreateInfo);
-			void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector) * NumVertices, RLM_WriteOnly);
+			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector) * NumVertices, RLM_WriteOnly);
 
 			{
 				FVector* Vertices = reinterpret_cast<FVector*>(VoidPtr);
@@ -1276,7 +1276,7 @@ static void BeginOcclusionTests(
 				}
 			}
 
-			RHIUnlockVertexBuffer(VertexBufferRHI);
+			RHIUnlockBuffer(VertexBufferRHI);
 
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, ShadowFrustumQueries);

@@ -84,12 +84,12 @@ private:
 			Buffer[InBufferID] = RHICreateVertexBuffer(AlignedSizeInBytes, BUF_Dynamic, CreateInfo);
 		}
 
-		return reinterpret_cast<FVector4*>(RHILockVertexBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
+		return reinterpret_cast<FVector4*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
 	}
 
 	void Unlock(int32 InBufferID)
 	{
-		RHIUnlockVertexBuffer(Buffer[InBufferID]);
+		RHIUnlockBuffer(Buffer[InBufferID]);
 	}
 
 	FVertexBufferRHIRef Buffer[NumBuffers];

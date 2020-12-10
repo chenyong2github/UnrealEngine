@@ -354,9 +354,9 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDa
 //		CurveLUT.Release();
 //		CurveLUT.Initialize(sizeof(float), CurveLUTWidth * ElemSize, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 //		uint32 BufferSize = ShaderLUT.Num() * sizeof(float);
-//		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+//		int32 *BufferData = static_cast<int32*>(RHILockBuffer(CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 //		FPlatformMemory::Memcpy(BufferData, ShaderLUT.GetData(), BufferSize);
-//		RHIUnlockVertexBuffer(CurveLUT.Buffer);
+//		RHIUnlockBuffer(CurveLUT.Buffer);
 //		GPUBufferDirty = false;
 //	}
 //
@@ -411,9 +411,9 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 		check(rtShaderLUT.Num());
 		RT_Proxy->CurveLUT.Initialize(sizeof(float), rtShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		uint32 BufferSize = rtShaderLUT.Num() * sizeof(float);
-		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+		int32 *BufferData = static_cast<int32*>(RHILockBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 		FPlatformMemory::Memcpy(BufferData, rtShaderLUT.GetData(), BufferSize);
-		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
+		RHIUnlockBuffer(RT_Proxy->CurveLUT.Buffer);
 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 	});
 }

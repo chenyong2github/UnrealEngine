@@ -370,60 +370,60 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 
 		{
 			auto& VertexBuffer = VertexBuffers.PositionVertexBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 
 		{
 			auto& VertexBuffer = VertexBuffers.ColorVertexBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 		if (bEnableBoneSelection)
 		{
 			auto& VertexBuffer = HitProxyIdBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 #endif
 
 		{
 			auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTangentData(), VertexBuffer.GetTangentSize());
-			RHIUnlockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
 		}
 
 		{
 			auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
-			RHIUnlockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
 		}
 
 		{
-			void* IndexBufferData = RHILockIndexBuffer(IndexBuffer.IndexBufferRHI, 0, Indices.Num() * sizeof(int32), RLM_WriteOnly);
+			void* IndexBufferData = RHILockBuffer(IndexBuffer.IndexBufferRHI, 0, Indices.Num() * sizeof(int32), RLM_WriteOnly);
 			FMemory::Memcpy(IndexBufferData, &Indices[0], Indices.Num() * sizeof(int32));
-			RHIUnlockIndexBuffer(IndexBuffer.IndexBufferRHI);
+			RHIUnlockBuffer(IndexBuffer.IndexBufferRHI);
 		}
 
 		{							
-			void* OriginalMeshIndexBufferData = RHILockIndexBuffer(OriginalMeshIndexBuffer.IndexBufferRHI, 0, OriginalMeshIndices.Num() * sizeof(int32), RLM_WriteOnly);
+			void* OriginalMeshIndexBufferData = RHILockBuffer(OriginalMeshIndexBuffer.IndexBufferRHI, 0, OriginalMeshIndices.Num() * sizeof(int32), RLM_WriteOnly);
 			FMemory::Memcpy(OriginalMeshIndexBufferData, &OriginalMeshIndices[0], OriginalMeshIndices.Num() * sizeof(int32));
-			RHIUnlockIndexBuffer(OriginalMeshIndexBuffer.IndexBufferRHI);
+			RHIUnlockBuffer(OriginalMeshIndexBuffer.IndexBufferRHI);
 		}
 
 		// If we are using the GeometryCollection vertex factory, populate the vertex buffer for bone map
 		if (bSupportsManualVertexFetch)
 		{
-			void* BoneMapBufferData = RHILockVertexBuffer(BoneMapBuffer.VertexBufferRHI, 0, Vertices.Num() * sizeof(int32), RLM_WriteOnly);								
+			void* BoneMapBufferData = RHILockBuffer(BoneMapBuffer.VertexBufferRHI, 0, Vertices.Num() * sizeof(int32), RLM_WriteOnly);								
 			FMemory::Memcpy(BoneMapBufferData, &ConstantData->BoneMap[0], ConstantData->BoneMap.Num() * sizeof(int32));
-			RHIUnlockVertexBuffer(BoneMapBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(BoneMapBuffer.VertexBufferRHI);
 		}
 
 		// Update mesh sections
@@ -510,13 +510,13 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				check(TransformBuffer.NumTransforms == DynamicData->Transforms.Num());
 				check(PrevTransformBuffer.NumTransforms == DynamicData->PrevTransforms.Num());
 
-				void* VertexBufferData = RHILockVertexBuffer(TransformBuffer.VertexBufferRHI, 0, DynamicData->Transforms.Num() * sizeof(FMatrix), LockMode);
+				void* VertexBufferData = RHILockBuffer(TransformBuffer.VertexBufferRHI, 0, DynamicData->Transforms.Num() * sizeof(FMatrix), LockMode);
 				FMemory::Memcpy(VertexBufferData, DynamicData->Transforms.GetData(), DynamicData->Transforms.Num() * sizeof(FMatrix));
-				RHIUnlockVertexBuffer(TransformBuffer.VertexBufferRHI);
+				RHIUnlockBuffer(TransformBuffer.VertexBufferRHI);
 
-				void* PrevVertexBufferData = RHILockVertexBuffer(PrevTransformBuffer.VertexBufferRHI, 0, DynamicData->PrevTransforms.Num() * sizeof(FMatrix), LockMode);
+				void* PrevVertexBufferData = RHILockBuffer(PrevTransformBuffer.VertexBufferRHI, 0, DynamicData->PrevTransforms.Num() * sizeof(FMatrix), LockMode);
 				FMemory::Memcpy(PrevVertexBufferData, DynamicData->PrevTransforms.GetData(), DynamicData->PrevTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockVertexBuffer(PrevTransformBuffer.VertexBufferRHI);
+				RHIUnlockBuffer(PrevTransformBuffer.VertexBufferRHI);
 
 				TransformVertexBuffersContainsOriginalMesh = false;
 			}
@@ -529,13 +529,13 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				VertexFactory.SetInstancePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
 
 				// if we are rendering the base mesh geometry, then use rest transforms rather than the simulated one for both current and previous transforms
-				void* VertexBufferData = RHILockVertexBuffer(TransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
+				void* VertexBufferData = RHILockBuffer(TransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
 				FMemory::Memcpy(VertexBufferData, ConstantData->RestTransforms.GetData(), ConstantData->RestTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockVertexBuffer(TransformBuffer.VertexBufferRHI);
+				RHIUnlockBuffer(TransformBuffer.VertexBufferRHI);
 
-				void* PrevVertexBufferData = RHILockVertexBuffer(PrevTransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
+				void* PrevVertexBufferData = RHILockBuffer(PrevTransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
 				FMemory::Memcpy(PrevVertexBufferData, ConstantData->RestTransforms.GetData(), ConstantData->RestTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockVertexBuffer(PrevTransformBuffer.VertexBufferRHI);
+				RHIUnlockBuffer(PrevTransformBuffer.VertexBufferRHI);
 
 				TransformVertexBuffersContainsOriginalMesh = true;
 			}
@@ -543,7 +543,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 		else
 		{
 			auto& VertexBuffer = VertexBuffers.PositionVertexBuffer;
-			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 
 			bool bParallelGeometryCollection = true;
 			int32 TotalVertices = ConstantData->Vertices.Num();
@@ -597,7 +597,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 			ParallelFor(NumBatches, GeometryCollectionBatch, !bParallelGeometryCollection);
 
-			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 	}
 }

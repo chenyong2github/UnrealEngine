@@ -76,7 +76,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 
 		FRHIResourceCreateInfo CreateInfo;
 		IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);
-		uint8* Dest = (uint8*)RHILockVertexBuffer(IntermediateVertexBuffer, OldSize, NewSize - OldSize, RLM_WriteOnly);
+		uint8* Dest = (uint8*)RHILockBuffer(IntermediateVertexBuffer, OldSize, NewSize - OldSize, RLM_WriteOnly);
 		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstLODIdx; --LODIdx)
 		{
 			if (StagingLODDataSizes[LODIdx] > 0)
@@ -89,7 +89,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 				StagingLODDataSizes[LODIdx] = 0;
 			}
 		}
-		RHIUnlockVertexBuffer(IntermediateVertexBuffer);
+		RHIUnlockBuffer(IntermediateVertexBuffer);
 
 		FRHICommandListExecutor::GetImmediateCommandList().CopyBufferRegion(IntermediateVertexBuffer, 0, RenderData->VertexBuffer->VertexBufferRHI, 0, OldSize);
 	}

@@ -173,16 +173,16 @@ void FSlateRHIRenderingPolicy::BuildRenderingBuffers(FRHICommandListImmediate& R
 			const int32 NumBatchedIndices = LambdaFinalIndexData.Num();
 
 			uint32 RequiredVertexBufferSize = NumBatchedVertices * sizeof(FSlateVertex);
-			uint8* VertexBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+			uint8* VertexBufferData = (uint8*)InRHICmdList.LockBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
 
 			uint32 RequiredIndexBufferSize = NumBatchedIndices * sizeof(SlateIndex);
-			uint8* IndexBufferData = (uint8*)InRHICmdList.LockIndexBuffer(IndexBuffer, 0, RequiredIndexBufferSize, RLM_WriteOnly);
+			uint8* IndexBufferData = (uint8*)InRHICmdList.LockBuffer(IndexBuffer, 0, RequiredIndexBufferSize, RLM_WriteOnly);
 
 			FMemory::Memcpy(VertexBufferData, LambdaFinalVertexData.GetData(), RequiredVertexBufferSize);
 			FMemory::Memcpy(IndexBufferData, LambdaFinalIndexData.GetData(), RequiredIndexBufferSize);
 
-			InRHICmdList.UnlockVertexBuffer(VertexBuffer);
-			InRHICmdList.UnlockIndexBuffer(IndexBuffer);
+			InRHICmdList.UnlockBuffer(VertexBuffer);
+			InRHICmdList.UnlockBuffer(IndexBuffer);
 		});
 
 		RHICmdList.RHIThreadFence(true);

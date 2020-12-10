@@ -993,7 +993,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 			const int32 PrimitiveIdBufferDataSize = InstanceFactor * NumDrawCommands * sizeof(int32);
 			FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
 			OutPrimitiveIdVertexBuffer = Entry.BufferRHI;
-			void* PrimitiveIdBufferData = RHILockVertexBuffer(OutPrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
+			void* PrimitiveIdBufferData = RHILockBuffer(OutPrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
 
 			BuildMeshDrawCommandPrimitiveIdBuffer(
 				bDynamicInstancing,
@@ -1009,7 +1009,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 				InstanceFactor
 			);
 
-			RHIUnlockVertexBuffer(OutPrimitiveIdVertexBuffer);
+			RHIUnlockBuffer(OutPrimitiveIdVertexBuffer);
 			GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 		}
 	}
@@ -1304,9 +1304,9 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 				PrimitiveIdVertexBufferPoolEntry = PrimitiveIdVertexBufferPoolEntry](FRHICommandListImmediate& CmdList)
 			{
 				// Upload vertex buffer data.
-				void* RESTRICT Data = (void* RESTRICT)CmdList.LockVertexBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
+				void* RESTRICT Data = (void* RESTRICT)CmdList.LockBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
 				FMemory::Memcpy(Data, VertexBufferData, VertexBufferDataSize);
-				CmdList.UnlockVertexBuffer(VertexBuffer);
+				CmdList.UnlockBuffer(VertexBuffer);
 
 				FMemory::Free(VertexBufferData);
 			});
@@ -1356,9 +1356,9 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		if (TaskContext.bUseGPUScene)
 		{
 			// Can immediately upload vertex buffer data, as there is no parallel draw task.
-			void* RESTRICT Data = RHILockVertexBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly);
+			void* RESTRICT Data = RHILockBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(Data, TaskContext.PrimitiveIdBufferData, TaskContext.PrimitiveIdBufferDataSize);
-			RHIUnlockVertexBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI);
+			RHIUnlockBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI);
 		}
 
 		SubmitMeshDrawCommandsRange(TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, 0, TaskContext.MeshDrawCommands.Num(), TaskContext.InstanceFactor, RHICmdList);

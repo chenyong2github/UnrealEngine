@@ -245,7 +245,7 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 				SectionTriangleInfoBuffer++;
 			}
 		}
-		RHIUnlockVertexBuffer(BufferSectionTriangleRHI);
+		RHIUnlockBuffer(BufferSectionTriangleRHI);
 
 		BufferSectionTriangleSRV = RHICreateShaderResourceView(BufferSectionTriangleRHI, sizeof(SectionTriangleInfo), PF_R32G32B32A32_UINT);
 	}

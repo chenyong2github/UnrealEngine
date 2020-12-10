@@ -314,9 +314,9 @@ void FNDIHairStrandsBuffer::Transfer(const TStaticArray<float, 32 * NumScales>& 
 		const uint32 ScaleCount = 32 * NumScales;
 		const uint32 ScaleBytes = sizeof(float) * ScaleCount;
 
-		void* ScaleBufferData = RHILockVertexBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
+		void* ScaleBufferData = RHILockBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
 		FMemory::Memcpy(ScaleBufferData, InParamsScale.GetData(), ScaleBytes);
-		RHIUnlockVertexBuffer(ParamsScaleBuffer.Buffer);
+		RHIUnlockBuffer(ParamsScaleBuffer.Buffer);
 	}
 }
 
@@ -329,10 +329,10 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
 
 			CurvesOffsetsBuffer.Initialize(sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
-			void* OffsetBufferData = RHILockVertexBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
+			void* OffsetBufferData = RHILockBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
 
 			FMemory::Memcpy(OffsetBufferData, SourceDatas->StrandsCurves.CurvesOffset.GetData(), OffsetBytes);
-			RHIUnlockVertexBuffer(CurvesOffsetsBuffer.Buffer);
+			RHIUnlockBuffer(CurvesOffsetsBuffer.Buffer);
 		}
 		{
 			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0,
@@ -344,20 +344,20 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 BoundBytes = sizeof(uint32)*BoundCount;
 
 			BoundingBoxBuffer.Initialize(sizeof(uint32), BoundCount, EPixelFormat::PF_R32_UINT, BUF_Static);
-			void* BoundBufferData = RHILockVertexBuffer(BoundingBoxBuffer.Buffer, 0, BoundBytes, RLM_WriteOnly);
+			void* BoundBufferData = RHILockBuffer(BoundingBoxBuffer.Buffer, 0, BoundBytes, RLM_WriteOnly);
 			
 			FMemory::Memcpy(BoundBufferData, ZeroData.GetData(), BoundBytes);
-			RHIUnlockVertexBuffer(BoundingBoxBuffer.Buffer);
+			RHIUnlockBuffer(BoundingBoxBuffer.Buffer);
 		}
 		{
 			const uint32 ScaleCount = 32 * NumScales;
 			const uint32 ScaleBytes = sizeof(float) * ScaleCount;  
 
 			ParamsScaleBuffer.Initialize(sizeof(float), ScaleCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
-			void* ScaleBufferData = RHILockVertexBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
+			void* ScaleBufferData = RHILockBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
 
 			FMemory::Memcpy(ScaleBufferData, ParamsScale.GetData(), ScaleBytes);
-			RHIUnlockVertexBuffer(ParamsScaleBuffer.Buffer);
+			RHIUnlockBuffer(ParamsScaleBuffer.Buffer);
 		}
 		if (SourceDeformedResources == nullptr)
 		{

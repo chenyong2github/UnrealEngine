@@ -550,7 +550,7 @@ public:
 		Vertices[1] = FColor(255, 255, 255, 255).DWColor();
 		Vertices[2] = FColor(255, 255, 255, 255).DWColor();
 		Vertices[3] = FColor(255, 255, 255, 255).DWColor();
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 	}
 
@@ -585,7 +585,7 @@ public:
 
 		*reinterpret_cast<FVector*>(LockedData) = FVector(0.0f);
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 	}

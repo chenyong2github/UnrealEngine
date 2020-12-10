@@ -399,7 +399,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 
 	// This flushes the RHI thread!
 	{
-		uint8* Buffer = (uint8*)RHILockVertexBuffer(UpdateBuffer, 0, TotalNumUpdates * sizeof(FPageTableUpdate), RLM_WriteOnly);
+		uint8* Buffer = (uint8*)RHILockBuffer(UpdateBuffer, 0, TotalNumUpdates * sizeof(FPageTableUpdate), RLM_WriteOnly);
 		for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 		{
 			for (uint32 Mip = 0; Mip < NumPageTableLevels; Mip++)
@@ -413,7 +413,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 				}
 			}
 		}
-		RHIUnlockVertexBuffer(UpdateBuffer);
+		RHIUnlockBuffer(UpdateBuffer);
 	}
 
 	// Draw

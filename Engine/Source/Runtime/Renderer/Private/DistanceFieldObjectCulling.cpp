@@ -76,7 +76,7 @@ public:
 			DestVertex[SectionIndex * 3 + 2].UV = FVector2D(.5f, .5f);
 		}
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);      
+		RHIUnlockBuffer(VertexBufferRHI);      
 	}
 };
 

@@ -2331,11 +2331,11 @@ namespace OculusHMD
 
 		FRHIResourceCreateInfo CreateInfo;
 		Mesh.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * VertexCount, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VertexCount, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VertexCount, RLM_WriteOnly);
 		FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
 		Mesh.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * IndexCount, BUF_Static, CreateInfo);
-		void* VoidPtr2 = RHILockIndexBuffer(Mesh.IndexBufferRHI, 0, sizeof(uint16) * IndexCount, RLM_WriteOnly);
+		void* VoidPtr2 = RHILockBuffer(Mesh.IndexBufferRHI, 0, sizeof(uint16) * IndexCount, RLM_WriteOnly);
 		uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr2);
 
 		ovrpVector2f* const ovrpVertices = new ovrpVector2f[VertexCount];
@@ -2377,8 +2377,8 @@ namespace OculusHMD
 
 		delete [] ovrpVertices;
 
-		RHIUnlockVertexBuffer(Mesh.VertexBufferRHI);
-		RHIUnlockIndexBuffer(Mesh.IndexBufferRHI);
+		RHIUnlockBuffer(Mesh.VertexBufferRHI);
+		RHIUnlockBuffer(Mesh.IndexBufferRHI);
 	}
 
 	void FOculusHMD::SetupOcclusionMeshes()

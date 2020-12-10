@@ -782,9 +782,9 @@ FRDGBufferRef CreateStructuredBuffer(
 			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
 		{
 			FRHIStructuredBuffer* StructuredBuffer = Buffer->GetRHI();
-			void* DestPtr = RHICmdList.LockStructuredBuffer(StructuredBuffer, 0, InitialDataSize, RLM_WriteOnly);
+			void* DestPtr = RHICmdList.LockBuffer(StructuredBuffer, 0, InitialDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
-			RHICmdList.UnlockStructuredBuffer(StructuredBuffer);
+			RHICmdList.UnlockBuffer(StructuredBuffer);
 		});
 	}
 
@@ -818,9 +818,9 @@ FRDGBufferRef CreateVertexBuffer(
 			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
 		{
 			FRHIVertexBuffer* VertexBuffer = Buffer->GetRHI();
-			void* DestPtr = RHICmdList.LockVertexBuffer(VertexBuffer, 0, InitialDataSize, RLM_WriteOnly);
+			void* DestPtr = RHICmdList.LockBuffer(VertexBuffer, 0, InitialDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
-			RHICmdList.UnlockVertexBuffer(VertexBuffer);
+			RHICmdList.UnlockBuffer(VertexBuffer);
 		});
 	}
 

@@ -478,10 +478,10 @@ void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
 
 		if (GPUDownsampledBuffer.NumBytes > 0)
 		{
-			float *BufferData = static_cast<float*>(RHILockVertexBuffer(GPUDownsampledBuffer.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+			float *BufferData = static_cast<float*>(RHILockBuffer(GPUDownsampledBuffer.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 			FScopeLock ScopeLock(&DownsampleBufferLock);
 			FPlatformMemory::Memcpy(BufferData, DownsampledBuffer.GetData(), BufferSize);
-			RHIUnlockVertexBuffer(GPUDownsampledBuffer.Buffer);
+			RHIUnlockBuffer(GPUDownsampledBuffer.Buffer);
 		}
 	});
 }

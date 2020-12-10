@@ -1010,9 +1010,9 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 			}
 			else
 			{
-				float* Data = (float*)RHILockVertexBuffer(SectionLODBuffer, 0, SectionLODValues.GetResourceDataSize(), RLM_WriteOnly);
+				float* Data = (float*)RHILockBuffer(SectionLODBuffer, 0, SectionLODValues.GetResourceDataSize(), RLM_WriteOnly);
 				FMemory::Memcpy(Data, SectionLODValues.GetData(), SectionLODValues.GetResourceDataSize());
-				RHIUnlockVertexBuffer(SectionLODBuffer);
+				RHIUnlockBuffer(SectionLODBuffer);
 			}
 
 			if (!SectionLODBiasBuffer.IsValid())
@@ -1023,9 +1023,9 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 			}
 			else
 			{
-				float* Data = (float*)RHILockVertexBuffer(SectionLODBiasBuffer, 0, SectionLODBiases.GetResourceDataSize(), RLM_WriteOnly);
+				float* Data = (float*)RHILockBuffer(SectionLODBiasBuffer, 0, SectionLODBiases.GetResourceDataSize(), RLM_WriteOnly);
 				FMemory::Memcpy(Data, SectionLODBiases.GetData(), SectionLODBiases.GetResourceDataSize());
-				RHIUnlockVertexBuffer(SectionLODBiasBuffer);
+				RHIUnlockBuffer(SectionLODBiasBuffer);
 			}
 
 			if (!SectionTessellationFalloffCBuffer.IsValid())
@@ -1039,9 +1039,9 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 				// If we use tessellation falloff, update the buffer, otherwise use the one already filled with default parameters
 				if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 				{
-					float* Data = (float*)RHILockVertexBuffer(SectionTessellationFalloffCBuffer, 0, SectionTessellationFalloffC.GetResourceDataSize(), RLM_WriteOnly);
+					float* Data = (float*)RHILockBuffer(SectionTessellationFalloffCBuffer, 0, SectionTessellationFalloffC.GetResourceDataSize(), RLM_WriteOnly);
 					FMemory::Memcpy(Data, SectionTessellationFalloffC.GetData(), SectionTessellationFalloffC.GetResourceDataSize());
-					RHIUnlockVertexBuffer(SectionTessellationFalloffCBuffer);
+					RHIUnlockBuffer(SectionTessellationFalloffCBuffer);
 				}
 			}
 
@@ -1056,9 +1056,9 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 				// If we use tessellation falloff, update the buffer, otherwise use the one already filled with default parameters
 				if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 				{
-					float* Data = (float*)RHILockVertexBuffer(SectionTessellationFalloffKBuffer, 0, SectionTessellationFalloffK.GetResourceDataSize(), RLM_WriteOnly);
+					float* Data = (float*)RHILockBuffer(SectionTessellationFalloffKBuffer, 0, SectionTessellationFalloffK.GetResourceDataSize(), RLM_WriteOnly);
 					FMemory::Memcpy(Data, SectionTessellationFalloffK.GetData(), SectionTessellationFalloffK.GetResourceDataSize());
-					RHIUnlockVertexBuffer(SectionTessellationFalloffKBuffer);
+					RHIUnlockBuffer(SectionTessellationFalloffKBuffer);
 				}
 			}
 
@@ -2853,7 +2853,7 @@ void FLandscapeVertexBuffer::InitRHI()
 		}
 	}
 	check(NumVertices == VertexIndex);
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 }
 
 //

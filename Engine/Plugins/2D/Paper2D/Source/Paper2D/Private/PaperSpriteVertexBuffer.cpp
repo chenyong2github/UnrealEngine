@@ -110,35 +110,35 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 		FVector* PositionBufferData = nullptr;
 		uint32 PositionSize = Vertices.Num() * sizeof(FVector);
 		{
-			void* Data = RHILockVertexBuffer(PositionBuffer.VertexBufferRHI, 0, PositionSize, RLM_WriteOnly);
+			void* Data = RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, PositionSize, RLM_WriteOnly);
 			PositionBufferData = static_cast<FVector*>(Data);
 		}
 
 		FPackedNormal* TangentBufferData = nullptr;
 		uint32 TangentSize = Vertices.Num() * 2 * sizeof(FPackedNormal);
 		{
-			void* Data = RHILockVertexBuffer(TangentBuffer.VertexBufferRHI, 0, TangentSize, RLM_WriteOnly);
+			void* Data = RHILockBuffer(TangentBuffer.VertexBufferRHI, 0, TangentSize, RLM_WriteOnly);
 			TangentBufferData = static_cast<FPackedNormal*>(Data);
 		}
 
 		FVector2D* TexCoordBufferData = nullptr;
 		uint32 TexCoordSize = Vertices.Num() * sizeof(FVector2D);
 		{
-			void* Data = RHILockVertexBuffer(TexCoordBuffer.VertexBufferRHI, 0, TexCoordSize, RLM_WriteOnly);
+			void* Data = RHILockBuffer(TexCoordBuffer.VertexBufferRHI, 0, TexCoordSize, RLM_WriteOnly);
 			TexCoordBufferData = static_cast<FVector2D*>(Data);
 		}
 
 		FColor* ColorBufferData = nullptr;
 		uint32 ColorSize = Vertices.Num() * sizeof(FColor);
 		{
-			void* Data = RHILockVertexBuffer(ColorBuffer.VertexBufferRHI, 0, ColorSize, RLM_WriteOnly);
+			void* Data = RHILockBuffer(ColorBuffer.VertexBufferRHI, 0, ColorSize, RLM_WriteOnly);
 			ColorBufferData = static_cast<FColor*>(Data);
 		}
 
 		uint32* IndexBufferData = nullptr;
 		uint32 IndexSize = Vertices.Num() * sizeof(uint32);
 		{
-			void* Data = RHILockIndexBuffer(IndexBuffer.IndexBufferRHI, 0, IndexSize, RLM_WriteOnly);
+			void* Data = RHILockBuffer(IndexBuffer.IndexBufferRHI, 0, IndexSize, RLM_WriteOnly);
 			IndexBufferData = static_cast<uint32*>(Data);
 		}
 
@@ -154,11 +154,11 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 		}
 
 		// Unlock the buffer.
-		RHIUnlockVertexBuffer(PositionBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(TangentBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(TexCoordBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(ColorBuffer.VertexBufferRHI);
-		RHIUnlockIndexBuffer(IndexBuffer.IndexBufferRHI);
+		RHIUnlockBuffer(PositionBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(TangentBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(TexCoordBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(ColorBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(IndexBuffer.IndexBufferRHI);
 
 		//We clear the vertex data, as it isn't needed anymore
 		Vertices.Empty();

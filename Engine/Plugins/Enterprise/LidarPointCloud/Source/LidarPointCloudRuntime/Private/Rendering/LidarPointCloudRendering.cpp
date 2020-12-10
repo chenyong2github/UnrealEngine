@@ -108,7 +108,7 @@ private:
 			void* Buffer = nullptr;
 			VertexBufferRHI = RHICreateAndLockVertexBuffer(DataLength * sizeof(FVector), BUF_Static | BUF_ShaderResource, CreateInfo, Buffer);
 			FMemory::Memcpy(Buffer, Data, DataLength * sizeof(FVector));
-			RHIUnlockVertexBuffer(VertexBufferRHI);
+			RHIUnlockBuffer(VertexBufferRHI);
 			Buffer = nullptr;
 		}
 	} VertexBuffer;
@@ -133,7 +133,7 @@ private:
 			void* Buffer = nullptr;
 			IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), DataLength * sizeof(uint32), BUF_Static, CreateInfo, Buffer);
 			FMemory::Memcpy(Buffer, Data, DataLength * sizeof(uint32));
-			RHIUnlockIndexBuffer(IndexBufferRHI);
+			RHIUnlockBuffer(IndexBufferRHI);
 			Buffer = nullptr;
 		}
 	} IndexBuffer;

@@ -67,7 +67,7 @@ inline FVertexBufferRHIRef CreateTempMediaVertexBuffer(float ULeft = 0.0f, float
 {
 	FRHIResourceCreateInfo CreateInfo;
 	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FMediaElementVertex) * 4, BUF_Volatile, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FMediaElementVertex) * 4, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FMediaElementVertex) * 4, RLM_WriteOnly);
 
 	FMediaElementVertex* Vertices = (FMediaElementVertex*)VoidPtr;
 	Vertices[0].Position.Set(-1.0f, 1.0f, 1.0f, 1.0f); // Top Left
@@ -79,7 +79,7 @@ inline FVertexBufferRHIRef CreateTempMediaVertexBuffer(float ULeft = 0.0f, float
 	Vertices[1].TextureCoordinate.Set(URight, VTop);
 	Vertices[2].TextureCoordinate.Set(ULeft, VBottom);
 	Vertices[3].TextureCoordinate.Set(URight, VBottom);
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 
 	return VertexBufferRHI;
 }

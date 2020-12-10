@@ -28,7 +28,7 @@ FVirtualTextureUploadCache::FStagingBuffer::~FStagingBuffer()
 		// Unmap and release the staging buffer if present
 		// In this case 'Memory' was the mapped pointer, so release it
 		Memory = nullptr;
-		RHIUnlockStructuredBuffer(RHIBuffer);
+		RHIUnlockBuffer(RHIBuffer);
 		RHIBuffer.SafeRelease();
 	}
 
@@ -275,7 +275,7 @@ FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTi
 
 				// Here we bypass 'normal' RHI operations in order to get a persistent pointer to GPU memory, on supported platforms
 				// This should be encapsulated into a proper RHI method at some point
-				StagingBuffer.Memory = RHICmdList.LockStructuredBuffer(StagingBuffer.RHIBuffer, 0u, StagingBuffer.Size, RLM_WriteOnly_NoOverwrite);
+				StagingBuffer.Memory = RHICmdList.LockBuffer(StagingBuffer.RHIBuffer, 0u, StagingBuffer.Size, RLM_WriteOnly_NoOverwrite);
 
 				INC_MEMORY_STAT_BY(STAT_TotalGPUUploadSize, StagingBuffer.Size);
 			}

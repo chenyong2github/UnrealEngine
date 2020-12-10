@@ -119,10 +119,10 @@ void UpdateInternalBuffer(const uint32 ElementCount, const BufferType* InputData
 		const uint32 BufferCount = ElementCount * ElementSize;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 
-		void* OutputData = RHILockVertexBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 		FMemory::Memcpy(OutputData, InputData, BufferBytes);
-		RHIUnlockVertexBuffer(OutputBuffer.Buffer);
+		RHIUnlockBuffer(OutputBuffer.Buffer);
 	}
 }
 

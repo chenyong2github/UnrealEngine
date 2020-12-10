@@ -52,11 +52,11 @@ void FSlateUpdatableInstanceBuffer::FRenderProxy::Update(FRHICommandListImmediat
 		SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer_RHIT);
 
 		int32 RequiredVertexBufferSize = LocalData.Num() * LocalData.GetTypeSize();
-		uint8* InstanceBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+		uint8* InstanceBufferData = (uint8*)InRHICmdList.LockBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
 
 		FMemory::Memcpy(InstanceBufferData, LocalData.GetData(), RequiredVertexBufferSize);
 	
-		InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+		InRHICmdList.UnlockBuffer(VertexBuffer);
 	});
 
 	RHICmdList.RHIThreadFence(true);

@@ -65,7 +65,7 @@ public:
 		int NumIndices = 6;
 		FRHIResourceCreateInfo CreateInfo;
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
 		uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr);
 
 		pIndices[0] = 0;
@@ -75,7 +75,7 @@ public:
 		pIndices[4] = 2;
 		pIndices[5] = 3;
 
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };
 TGlobalResource<FDummyIndexBuffer> GHoloLensCameraImageConversionIndexBuffer;
@@ -95,7 +95,7 @@ public:
 		DummyContents[1] = FVector4(1.f, 0.f, 0.f, 0.f);
 		DummyContents[2] = FVector4(0.f, 1.f, 0.f, 0.f);
 		DummyContents[3] = FVector4(1.f, 1.f, 0.f, 0.f);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 TGlobalResource<FDummyVertexBuffer> GHoloLensCameraImageConversionVertexBuffer;

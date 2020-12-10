@@ -421,11 +421,11 @@ static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh
 
 	FRHIResourceCreateInfo CreateInfo;
 	Dst.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * Dst.NumVertices, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(Dst.VertexBufferRHI, 0, sizeof(FFilterVertex) * Dst.NumVertices, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(Dst.VertexBufferRHI, 0, sizeof(FFilterVertex) * Dst.NumVertices, RLM_WriteOnly);
 	FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
 	Dst.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * Dst.NumIndices, BUF_Static, CreateInfo);
-	void* VoidPtr2 = RHILockIndexBuffer(Dst.IndexBufferRHI, 0, sizeof(uint16) * Dst.NumIndices, RLM_WriteOnly);
+	void* VoidPtr2 = RHILockBuffer(Dst.IndexBufferRHI, 0, sizeof(uint16) * Dst.NumIndices, RLM_WriteOnly);
 	uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr2);
 	
 	// Copy vertices
@@ -450,8 +450,8 @@ static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh
 		pIndices[DataIndex++] = (uint16)It;
 	}
 	
-	RHIUnlockVertexBuffer(Dst.VertexBufferRHI);
-	RHIUnlockIndexBuffer(Dst.IndexBufferRHI);
+	RHIUnlockBuffer(Dst.VertexBufferRHI);
+	RHIUnlockBuffer(Dst.IndexBufferRHI);
 
 	// Now free temporary mesh data
 	delete Mesh;

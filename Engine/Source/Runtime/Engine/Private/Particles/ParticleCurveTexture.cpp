@@ -247,7 +247,7 @@ static void InjectCurves(
 			CurrOffset += SampleCount;
 		}
 
-		RHICmdList.UnlockVertexBuffer(ScratchVertexBufferRHI);
+		RHICmdList.UnlockBuffer(ScratchVertexBufferRHI);
 
 
 		// now draw the curves into the curve texture target, reading from the single buffer we just filled

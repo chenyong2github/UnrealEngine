@@ -47,7 +47,7 @@ namespace
 
 			// Copy the index data into the index buffer.		
 			FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
-			RHIUnlockIndexBuffer(IndexBufferRHI);
+			RHIUnlockBuffer(IndexBufferRHI);
 		}
 	};
 

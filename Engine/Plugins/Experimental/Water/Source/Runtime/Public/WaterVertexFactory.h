@@ -128,7 +128,7 @@ public:
 			}
 		}
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 
 	int32 GetVertexCount() const { return NumVerts; }

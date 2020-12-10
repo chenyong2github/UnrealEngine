@@ -1649,11 +1649,11 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 
 	FRHIResourceCreateInfo CreateInfo;
 	Mesh.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * VisibilityMask.vertexCountOutput, BUF_Static, CreateInfo);
-	void* VertexBufferPtr = RHILockVertexBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VisibilityMask.vertexCountOutput, RLM_WriteOnly);
+	void* VertexBufferPtr = RHILockBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VisibilityMask.vertexCountOutput, RLM_WriteOnly);
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VertexBufferPtr);
 
 	Mesh.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), sizeof(uint32) * VisibilityMask.indexCountOutput, BUF_Static, CreateInfo);
-	void* IndexBufferPtr = RHILockIndexBuffer(Mesh.IndexBufferRHI, 0, sizeof(uint32) * VisibilityMask.indexCountOutput, RLM_WriteOnly);
+	void* IndexBufferPtr = RHILockBuffer(Mesh.IndexBufferRHI, 0, sizeof(uint32) * VisibilityMask.indexCountOutput, RLM_WriteOnly);
 
 	uint32* OutIndices = reinterpret_cast<uint32*>(IndexBufferPtr);
 	TUniquePtr<XrVector2f[]> const OutVertices = MakeUnique<XrVector2f[]>(VisibilityMask.vertexCountOutput);
@@ -1696,8 +1696,8 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 	Mesh.NumVertices = VisibilityMask.vertexCountOutput;
 	Mesh.NumTriangles = Mesh.NumIndices / 3;
 
-	RHIUnlockVertexBuffer(Mesh.VertexBufferRHI);
-	RHIUnlockIndexBuffer(Mesh.IndexBufferRHI);
+	RHIUnlockBuffer(Mesh.VertexBufferRHI);
+	RHIUnlockBuffer(Mesh.IndexBufferRHI);
 
 	return true;
 }

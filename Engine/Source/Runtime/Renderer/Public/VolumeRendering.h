@@ -143,7 +143,7 @@ public:
 		DestVertex[3].Position = FVector2D(-1, GProjectionSignY);
 		DestVertex[3].UV = FVector2D(0, 0);
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);      
+		RHIUnlockBuffer(VertexBufferRHI);      
 	}
 };
 

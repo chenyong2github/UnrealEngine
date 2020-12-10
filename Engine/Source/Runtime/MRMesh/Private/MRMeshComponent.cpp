@@ -111,7 +111,7 @@ public:
 
 		// Write the indices to the index buffer.
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(int32));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 
 	void InitRHIWith(const TArray<uint16>& Indices)
@@ -124,7 +124,7 @@ public:
 
 		// Write the indices to the index buffer.
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };
 

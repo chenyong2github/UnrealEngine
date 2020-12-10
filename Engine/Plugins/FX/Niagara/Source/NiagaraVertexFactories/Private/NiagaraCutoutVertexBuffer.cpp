@@ -25,7 +25,7 @@ void FNiagaraCutoutVertexBuffer::InitRHI()
 		const int32 DataSize = Data.Num() * sizeof(FVector2D);
 		VertexBufferRHI = RHICreateAndLockVertexBuffer(DataSize, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 		FMemory::Memcpy(BufferData, Data.GetData(), DataSize);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
 
 		Data.Empty();

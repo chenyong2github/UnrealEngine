@@ -106,9 +106,9 @@ public:
 		const int32 NumFloats = 4;
 		VertexBufferRHI = RHICreateVertexBuffer(sizeof(float)*NumFloats, BUF_Static | BUF_ShaderResource, CreateInfo);
 
-		float* BufferData = (float*)RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(float)*NumFloats, RLM_WriteOnly);
+		float* BufferData = (float*)RHILockBuffer(VertexBufferRHI, 0, sizeof(float)*NumFloats, RLM_WriteOnly);
 		FMemory::Memzero(BufferData, sizeof(float)*NumFloats);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 
 		// Create a view of the buffer
 		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);

@@ -27,7 +27,7 @@ void FParticleTexCoordVertexBuffer::InitRHI()
 		Vertices[SpriteIndex*4 + 2] = FVector2D(1.0f, 1.0f);
 		Vertices[SpriteIndex*4 + 3] = FVector2D(1.0f, 0.0f);
 	}
-	RHIUnlockVertexBuffer( VertexBufferRHI );
+	RHIUnlockBuffer( VertexBufferRHI );
 }
 
 /** Global particle texture coordinate vertex buffer. */
@@ -55,7 +55,7 @@ void FParticleEightTexCoordVertexBuffer::InitRHI()
 		Vertices[SpriteIndex*8 + 6] = FVector2D(1.0f, 0.0f);
 		Vertices[SpriteIndex*8 + 7] = FVector2D(1.0f, 0.0f);
 	}
-	RHIUnlockVertexBuffer( VertexBufferRHI );
+	RHIUnlockBuffer( VertexBufferRHI );
 }
 
 /** Global particle texture coordinate vertex buffer. */
@@ -85,7 +85,7 @@ void FParticleIndexBuffer::InitRHI()
 		Indices[SpriteIndex*6 + 4] = SpriteIndex*4 + 1;
 		Indices[SpriteIndex*6 + 5] = SpriteIndex*4 + 2;
 	}
-	RHIUnlockIndexBuffer( IndexBufferRHI );
+	RHIUnlockBuffer( IndexBufferRHI );
 }
 
 /** Global particle index buffer. */
@@ -129,7 +129,7 @@ void FSixTriangleParticleIndexBuffer::InitRHI()
 		Indices[SpriteIndex*18 + 16] = SpriteIndex*8 + 6;
 		Indices[SpriteIndex*18 + 17] = SpriteIndex*8 + 7;
 	}
-	RHIUnlockIndexBuffer( IndexBufferRHI );
+	RHIUnlockBuffer( IndexBufferRHI );
 }
 
 /** Global particle index buffer. */

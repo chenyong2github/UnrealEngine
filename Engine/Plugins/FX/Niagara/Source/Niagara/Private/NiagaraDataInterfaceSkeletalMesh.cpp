@@ -658,7 +658,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		uint32 SizeByte = TriangleCount * sizeof(float);
 		BufferTriangleUniformSamplerProbaRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 		FMemory::Memcpy(BufferData, Prob.GetData(), SizeByte);
-		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerProbaRHI);
+		RHIUnlockBuffer(BufferTriangleUniformSamplerProbaRHI);
 		BufferTriangleUniformSamplerProbaSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerProbaRHI, sizeof(float), PF_R32_FLOAT);
 #if STATS
 		GPUMemoryUsage += SizeByte;
@@ -666,7 +666,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 		BufferTriangleUniformSamplerAliasRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 		FMemory::Memcpy(BufferData, Alias.GetData(), SizeByte);
-		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerAliasRHI);
+		RHIUnlockBuffer(BufferTriangleUniformSamplerAliasRHI);
 		BufferTriangleUniformSamplerAliasSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerAliasRHI, sizeof(uint32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += SizeByte;
@@ -728,7 +728,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 			}
 			AccumulatedMatrixOffset += Section.BoneMap.Num();
 		}
-		RHIUnlockVertexBuffer(BufferTriangleMatricesOffsetRHI);
+		RHIUnlockBuffer(BufferTriangleMatricesOffsetRHI);
 		BufferTriangleMatricesOffsetSRV = RHICreateShaderResourceView(BufferTriangleMatricesOffsetRHI, sizeof(uint32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += VertexCount * sizeof(uint32);
@@ -1011,17 +1011,17 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			// Copy bone remap data matrices
 			{
 				const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4);
-				void* DstData = RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
+				void* DstData = RHILockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
 				FMemory::Memcpy(DstData, AllSectionsRefToLocalMatrices.GetData(), NumBytes);
-				RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
+				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
 			}
 
 			// Copy bone sampling data
 			{
 				const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4);
-				FVector4* DstData = reinterpret_cast<FVector4*>(RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
+				FVector4* DstData = reinterpret_cast<FVector4*>(RHILockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
 				FMemory::Memcpy(DstData, BoneSamplingData.GetData(), NumBytes);
-				RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
+				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
 			}
 		}
 	);

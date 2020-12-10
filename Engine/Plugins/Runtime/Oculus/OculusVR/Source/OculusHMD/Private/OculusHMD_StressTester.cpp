@@ -57,7 +57,7 @@ inline FVertexBufferRHIRef CreateTempOcculusVertexBuffer()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FTextureVertex) * 4, BUF_Volatile, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FTextureVertex) * 4, RLM_WriteOnly);
+	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FTextureVertex) * 4, RLM_WriteOnly);
 
 	FTextureVertex* Vertices = (FTextureVertex*)VoidPtr;
 	Vertices[0].Position = FVector4(-1.0f, 1.0f, 0, 1.0f);
@@ -68,7 +68,7 @@ inline FVertexBufferRHIRef CreateTempOcculusVertexBuffer()
 	Vertices[1].UV = FVector2D(1, 0);
 	Vertices[2].UV = FVector2D(0, 1);
 	Vertices[3].UV = FVector2D(1, 1);
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 
 	return VertexBufferRHI;
 }

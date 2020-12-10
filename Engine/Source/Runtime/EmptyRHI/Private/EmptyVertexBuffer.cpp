@@ -37,12 +37,12 @@ FVertexBufferRHIRef FEmptyDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 		check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
 
 		// make a buffer usable by CPU
-		void* Buffer = RHILockVertexBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHILockBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
 
 		// copy the contents of the given data into the buffer
 		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
 
-		RHIUnlockVertexBuffer(VertexBuffer);
+		RHIUnlockBuffer(VertexBuffer);
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();

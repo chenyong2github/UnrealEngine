@@ -268,7 +268,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &ReferenceToLocalMatrices, &BoneMap](FRHICommandListImmediate& InRHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-					FMatrix3x4* LambdaChunkMatrices = (FMatrix3x4*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					FMatrix3x4* LambdaChunkMatrices = (FMatrix3x4*)InRHICmdList.LockBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
 					//FMatrix3x4 is sizeof() == 48
 					// PLATFORM_CACHE_LINE_SIZE (128) / 48 = 2.6
 					//  sizeof(FMatrix) == 64
@@ -287,14 +287,14 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 						const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
 						RefToLocal.To3x4MatrixTranspose((float*)BoneMat.M);
 					}
-					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+					InRHICmdList.UnlockBuffer(VertexBuffer);
 				});
 
 				RHICmdList.RHIThreadFence(true);
 
 				return true;
 			}
-			ChunkMatrices = (FMatrix3x4*)RHILockVertexBuffer(CurrentBoneBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
+			ChunkMatrices = (FMatrix3x4*)RHILockBuffer(CurrentBoneBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
 		}
 	}
 	else
@@ -343,7 +343,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		if (NumBones)
 		{
 			check(CurrentBoneBuffer);
-			RHIUnlockVertexBuffer(CurrentBoneBuffer->VertexBufferRHI);
+			RHIUnlockBuffer(CurrentBoneBuffer->VertexBufferRHI);
 		}
 	}
 	else
@@ -997,7 +997,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& InRHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
 					uint32 LambdaNumSimulVerts = InSimulPositions.Num();
 					check(LambdaNumSimulVerts > 0 && LambdaNumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
 					float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
@@ -1013,14 +1013,14 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 						Pos += 3;
 						Normal += 3;
 					}
-					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+					InRHICmdList.UnlockBuffer(VertexBuffer);
 				});
 
 				RHICmdList.RHIThreadFence(true);
 
 				return true;
 			}
-			float* RESTRICT Data = (float* RESTRICT)RHILockVertexBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
+			float* RESTRICT Data = (float* RESTRICT)RHILockBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinAPEXClothVertexFactory_UpdateClothSimulData_CopyData);
 				float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
@@ -1037,7 +1037,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 					Normal += 3;
 				}
 			}
-			RHIUnlockVertexBuffer(CurrentClothBuffer->VertexBufferRHI);
+			RHIUnlockBuffer(CurrentClothBuffer->VertexBufferRHI);
 		}
 	}
 	return false;

@@ -46,7 +46,7 @@ void FRawIndexBuffer::InitRHI()
 
 		// Initialize the buffer.		
 		FMemory::Memcpy(Buffer,Indices.GetData(),Size);
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 }
 
@@ -118,7 +118,7 @@ void FRawIndexBuffer16or32::InitRHI()
 			}
 		}
 		
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 
 	// Undo/redo can destroy and recreate the render resources for UModels without rebuilding the

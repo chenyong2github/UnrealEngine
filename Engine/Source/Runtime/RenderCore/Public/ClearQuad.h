@@ -25,14 +25,14 @@ public:
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FClearVertexBuffer"));
 		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 4, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 4, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 4, RLM_WriteOnly);
 		// Generate the vertices used
 		FVector4* Vertices = reinterpret_cast<FVector4*>(VoidPtr);
 		Vertices[0] = FVector4(-1.0f, 1.0f, 0.0f, 1.0f);
 		Vertices[1] = FVector4(1.0f, 1.0f, 0.0f, 1.0f);
 		Vertices[2] = FVector4(-1.0f, -1.0f, 0.0f, 1.0f);
 		Vertices[3] = FVector4(1.0f, -1.0f, 0.0f, 1.0f);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 extern RENDERCORE_API TGlobalResource<FClearVertexBuffer> GClearVertexBuffer;

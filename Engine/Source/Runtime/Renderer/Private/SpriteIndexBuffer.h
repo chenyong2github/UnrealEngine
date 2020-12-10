@@ -23,6 +23,6 @@ public:
 			Indices[SpriteIndex*6 + 4] = SpriteIndex*4 + 1;
 			Indices[SpriteIndex*6 + 5] = SpriteIndex*4 + 3;
 		}
-		RHIUnlockIndexBuffer( IndexBufferRHI );
+		RHIUnlockBuffer( IndexBufferRHI );
 	}
 };

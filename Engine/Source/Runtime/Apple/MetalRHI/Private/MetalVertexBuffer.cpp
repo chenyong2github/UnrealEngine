@@ -699,10 +699,10 @@ FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsa
 		if (ResourceArray)
 		{
 			// copy any resources to the CPU address
-			void* LockedMemory = RHILockStructuredBuffer(this, 0, InSize, RLM_WriteOnly);
+			void* LockedMemory = RHILockBuffer(this, 0, InSize, RLM_WriteOnly);
 			FMemory::Memcpy(LockedMemory, ResourceArray->GetResourceData(), InSize);
 			ResourceArray->Discard();
-			RHIUnlockStructuredBuffer(this);
+			RHIUnlockBuffer(this);
 		}
 	}
 }

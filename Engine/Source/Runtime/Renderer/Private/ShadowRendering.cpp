@@ -859,7 +859,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 
 		FRHIResourceCreateInfo CreateInfo;
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 12, BUF_Volatile, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 12, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 12, RLM_WriteOnly);
 
 		// Generate the vertices used
 		FVector4* Vertices = (FVector4*)VoidPtr;
@@ -880,7 +880,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		Vertices[10] = FVector4( 1,  1, StencilNear);
 		Vertices[11] = FVector4( 1, -1, StencilNear);
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 		RHICmdList.DrawPrimitive(0, (CascadeSettings.ShadowSplitIndex > 0) ? 4 : 2, 1);
 	}
@@ -934,9 +934,9 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 
 		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 		// Draw the frustum using the stencil buffer to mask just the pixels which are inside the shadow frustum.
@@ -1135,9 +1135,9 @@ void FProjectedShadowInfo::RenderProjection(
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoFrustum"));
 			FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
-			void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
+			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 			FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
-			RHIUnlockVertexBuffer(VertexBufferRHI);
+			RHIUnlockBuffer(VertexBufferRHI);
 
 			RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 			// Draw the frustum using the projection shader..

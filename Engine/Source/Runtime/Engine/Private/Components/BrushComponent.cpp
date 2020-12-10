@@ -58,7 +58,7 @@ public:
 			FRHIResourceCreateInfo CreateInfo;
 			IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16),NumEdges * 2 * sizeof(uint16),BUF_Static, CreateInfo);
 
-			uint16* DestIndex = (uint16*)RHILockIndexBuffer(IndexBufferRHI,0,NumEdges * 2 * sizeof(uint16),RLM_WriteOnly);
+			uint16* DestIndex = (uint16*)RHILockBuffer(IndexBufferRHI,0,NumEdges * 2 * sizeof(uint16),RLM_WriteOnly);
 			uint16 BaseIndex = 0;
 			for(int32 PolyIndex = 0;PolyIndex < Polys.Num();PolyIndex++)
 			{
@@ -70,7 +70,7 @@ public:
 				}
 				BaseIndex += Poly.Vertices.Num();
 			}
-			RHIUnlockIndexBuffer(IndexBufferRHI);
+			RHIUnlockBuffer(IndexBufferRHI);
 		}
 	}
 

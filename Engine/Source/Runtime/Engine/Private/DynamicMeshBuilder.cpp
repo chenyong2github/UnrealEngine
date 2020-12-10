@@ -216,17 +216,17 @@ void FDynamicMeshIndexBuffer16::InitRHI()
 void FDynamicMeshIndexBuffer32::UpdateRHI()
 {
 	// Copy the index data into the index buffer.
-	void* Buffer = RHILockIndexBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
+	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
 	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 }
 
 void FDynamicMeshIndexBuffer16::UpdateRHI()
 {
 	// Copy the index data into the index buffer.
-	void* Buffer = RHILockIndexBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint16), RLM_WriteOnly);
+	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint16), RLM_WriteOnly);
 	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 }
 
 /** FDynamicMeshBufferAllocator's base implementation. It always reallocates new buffers. */
@@ -345,16 +345,16 @@ public:
 		// Write the indices to the index buffer.
 		void* Buffer;
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(RHILockIndexBuffer)
-			Buffer = RHILockIndexBuffer(IndexBufferRHI,0,Indices.Num() * sizeof(DynamicMeshIndexType),RLM_WriteOnly);
+			TRACE_CPUPROFILER_EVENT_SCOPE(RHILockBuffer)
+			Buffer = RHILockBuffer(IndexBufferRHI,0,Indices.Num() * sizeof(DynamicMeshIndexType),RLM_WriteOnly);
 		}
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Memcpy)
 			FMemory::Memcpy(Buffer, Indices.GetData(),Indices.Num() * sizeof(DynamicMeshIndexType));
 		}
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(RHIUnlockIndexBuffer)
-			RHIUnlockIndexBuffer(IndexBufferRHI);
+			TRACE_CPUPROFILER_EVENT_SCOPE(RHIUnlockBuffer)
+			RHIUnlockBuffer(IndexBufferRHI);
 		}
 	}
 	
@@ -435,14 +435,14 @@ public:
 			PositionBufferSRV = RHICreateShaderResourceView(PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
-		void* TexCoordBufferData = RHILockVertexBuffer(TexCoordBuffer.VertexBufferRHI, 0, NumTexCoords * TextureStride * Vertices.Num(), RLM_WriteOnly);
+		void* TexCoordBufferData = RHILockBuffer(TexCoordBuffer.VertexBufferRHI, 0, NumTexCoords * TextureStride * Vertices.Num(), RLM_WriteOnly);
 		FVector2D* TexCoordBufferData32 = !Use16bitTexCoord ? static_cast<FVector2D*>(TexCoordBufferData) : nullptr;
 		FVector2DHalf* TexCoordBufferData16 = Use16bitTexCoord ? static_cast<FVector2DHalf*>(TexCoordBufferData) : nullptr;
 
 		// Copy the vertex data into the vertex buffers.
-		FVector* PositionBufferData			= static_cast<FVector*>(RHILockVertexBuffer(PositionBuffer.VertexBufferRHI, 0, sizeof(FVector) * Vertices.Num(), RLM_WriteOnly));
-		FPackedNormal* TangentBufferData	= static_cast<FPackedNormal*>(RHILockVertexBuffer(TangentBuffer.VertexBufferRHI, 0, 2 * sizeof(FPackedNormal) * Vertices.Num(), RLM_WriteOnly));	
-		FColor* ColorBufferData				= static_cast<FColor*>(RHILockVertexBuffer(ColorBuffer.VertexBufferRHI, 0, sizeof(FColor) * Vertices.Num(), RLM_WriteOnly));
+		FVector* PositionBufferData			= static_cast<FVector*>(RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, sizeof(FVector) * Vertices.Num(), RLM_WriteOnly));
+		FPackedNormal* TangentBufferData	= static_cast<FPackedNormal*>(RHILockBuffer(TangentBuffer.VertexBufferRHI, 0, 2 * sizeof(FPackedNormal) * Vertices.Num(), RLM_WriteOnly));	
+		FColor* ColorBufferData				= static_cast<FColor*>(RHILockBuffer(ColorBuffer.VertexBufferRHI, 0, sizeof(FColor) * Vertices.Num(), RLM_WriteOnly));
 
 		{
 			// This code will generate a lot of page faults when the memory has never been written to
@@ -470,10 +470,10 @@ public:
 			}
 		}
 
-		RHIUnlockVertexBuffer(PositionBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(TangentBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(TexCoordBuffer.VertexBufferRHI);
-		RHIUnlockVertexBuffer(ColorBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(PositionBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(TangentBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(TexCoordBuffer.VertexBufferRHI);
+		RHIUnlockBuffer(ColorBuffer.VertexBufferRHI);
 	}
 
 	void InitResource() override

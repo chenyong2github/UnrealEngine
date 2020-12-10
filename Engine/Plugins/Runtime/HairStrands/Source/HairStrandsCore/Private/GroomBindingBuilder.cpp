@@ -1471,14 +1471,14 @@ namespace GroomBinding_GPU
 	template<typename ReadBackType>
 	void ReadbackBuffer(TArray<ReadBackType>& OutData, FRWBuffer& InBuffer)
 	{
-		ReadBackType* Data = (ReadBackType*)RHILockVertexBuffer(InBuffer.Buffer, 0, InBuffer.Buffer->GetSize(), RLM_ReadOnly);
+		ReadBackType* Data = (ReadBackType*)RHILockBuffer(InBuffer.Buffer, 0, InBuffer.Buffer->GetSize(), RLM_ReadOnly);
 		const uint32 ElementCount = InBuffer.Buffer->GetSize() / sizeof(ReadBackType);
 		OutData.SetNum(ElementCount);
 		for (uint32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
 		{
 			OutData[ElementIt] = Data[ElementIt];
 		}
-		RHIUnlockVertexBuffer(InBuffer.Buffer);
+		RHIUnlockBuffer(InBuffer.Buffer);
 	}
 
 	template<typename WriteBackType>
@@ -1487,9 +1487,9 @@ namespace GroomBinding_GPU
 		const uint32 DataSize = sizeof(WriteBackType) * InData.Num();
 		check(DataSize == OutBuffer.Buffer->GetSize());
 
-		WriteBackType* Data = (WriteBackType*)RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSize, RLM_WriteOnly);
+		WriteBackType* Data = (WriteBackType*)RHILockBuffer(OutBuffer.Buffer, 0, DataSize, RLM_WriteOnly);
 		FMemory::Memcpy(Data, InData.GetData(), DataSize);
-		RHIUnlockVertexBuffer(OutBuffer.Buffer);
+		RHIUnlockBuffer(OutBuffer.Buffer);
 	}
 
 	void ReadbackGroupData(

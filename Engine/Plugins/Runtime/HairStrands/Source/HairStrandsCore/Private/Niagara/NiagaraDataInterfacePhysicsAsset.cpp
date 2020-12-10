@@ -104,10 +104,10 @@ void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount>& InputData
 		const uint32 BufferCount = ElementCount;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 
-		void* OutputData = RHILockVertexBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 		FMemory::Memcpy(OutputData, InputData.GetData(), BufferBytes);
-		RHIUnlockVertexBuffer(OutputBuffer.Buffer);
+		RHIUnlockBuffer(OutputBuffer.Buffer);
 	}
 }
 

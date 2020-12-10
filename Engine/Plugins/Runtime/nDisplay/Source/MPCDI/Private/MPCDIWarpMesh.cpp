@@ -315,7 +315,7 @@ void FMPCDIWarpMesh::CreateRHIResources()
 			// Create Vertex buffer RHI:
 			FRHIResourceCreateInfo CreateInfo;
 			VertexBufferRHI = RHICreateVertexBuffer(sizeof(FWarpMeshVertex) * NumVertices, BUF_Dynamic, CreateInfo);
-			void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FWarpMeshVertex) * NumVertices, RLM_WriteOnly);
+			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FWarpMeshVertex) * NumVertices, RLM_WriteOnly);
 			FWarpMeshVertex* pVertices = reinterpret_cast<FWarpMeshVertex*>(VoidPtr);
 			for (uint32 i = 0; i < NumVertices; i++)
 			{
@@ -325,7 +325,7 @@ void FMPCDIWarpMesh::CreateRHIResources()
 				Vertex.UV_Chromakey = VertexBuffer.GetVertexUV(i, ChromakeyMarkerUVChannel);
 			}
 
-			RHIUnlockVertexBuffer(VertexBufferRHI);
+			RHIUnlockBuffer(VertexBufferRHI);
 			bIsValidRHI = true;
 		}
 	}

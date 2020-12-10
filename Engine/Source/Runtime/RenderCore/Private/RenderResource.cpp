@@ -347,7 +347,7 @@ public:
 		check(MappedBuffer == NULL);
 		check(AllocatedByteCount == 0);
 		check(IsValidRef(VertexBufferRHI));
-		MappedBuffer = (uint8*)RHILockVertexBuffer(VertexBufferRHI, 0, BufferSize, RLM_WriteOnly);
+		MappedBuffer = (uint8*)RHILockBuffer(VertexBufferRHI, 0, BufferSize, RLM_WriteOnly);
 	}
 
 	/**
@@ -357,7 +357,7 @@ public:
 	{
 		check(MappedBuffer != NULL);
 		check(IsValidRef(VertexBufferRHI));
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
 		NumFramesUnused = 0;
@@ -552,7 +552,7 @@ public:
 		check(MappedBuffer == NULL);
 		check(AllocatedByteCount == 0);
 		check(IsValidRef(IndexBufferRHI));
-		MappedBuffer = (uint8*)RHILockIndexBuffer(IndexBufferRHI, 0, BufferSize, RLM_WriteOnly);
+		MappedBuffer = (uint8*)RHILockBuffer(IndexBufferRHI, 0, BufferSize, RLM_WriteOnly);
 	}
 
 	/**
@@ -562,7 +562,7 @@ public:
 	{
 		check(MappedBuffer != NULL);
 		check(IsValidRef(IndexBufferRHI));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
 		NumFramesUnused = 0;

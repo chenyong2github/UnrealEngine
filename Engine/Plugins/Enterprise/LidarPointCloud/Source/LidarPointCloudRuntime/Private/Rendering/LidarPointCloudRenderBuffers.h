@@ -164,7 +164,7 @@ private:
 			void* Buffer = nullptr;
 			VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride, CreateInfo, Buffer);
 			FMemory::Memzero(Buffer, sizeof(FVector));
-			RHIUnlockVertexBuffer(VertexBufferRHI);
+			RHIUnlockBuffer(VertexBufferRHI);
 			Buffer = nullptr;
 		}
 

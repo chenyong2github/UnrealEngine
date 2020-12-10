@@ -85,8 +85,8 @@ void FPixelShaderUtils::UploadRectMinMaxBuffer(FRDGBuilder& GraphBuilder,
 		ERDGPassFlags::Copy,
 		[PassParameters, RectMinMaxToRenderSizeInBytes, RectMinMaxToRenderDataPtr](FRHICommandListImmediate& RHICmdList)
 	{
-		void* DestBVHQueryInfoPtr = RHILockVertexBuffer(PassParameters->RectMinMaxBuffer->GetRHI(), 0, RectMinMaxToRenderSizeInBytes, RLM_WriteOnly);
+		void* DestBVHQueryInfoPtr = RHILockBuffer(PassParameters->RectMinMaxBuffer->GetRHI(), 0, RectMinMaxToRenderSizeInBytes, RLM_WriteOnly);
 		FPlatformMemory::Memcpy(DestBVHQueryInfoPtr, RectMinMaxToRenderDataPtr, RectMinMaxToRenderSizeInBytes);
-		RHIUnlockVertexBuffer(PassParameters->RectMinMaxBuffer->GetRHI());
+		RHIUnlockBuffer(PassParameters->RectMinMaxBuffer->GetRHI());
 	});
 }

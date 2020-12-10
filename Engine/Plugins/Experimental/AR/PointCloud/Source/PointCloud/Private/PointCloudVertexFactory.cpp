@@ -93,7 +93,7 @@ public:
 		DummyContents[1] = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
 		DummyContents[2] = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
 		DummyContents[3] = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 TGlobalResource<FDummyVertexBuffer> GDummyPointCloudVertexBuffer;

@@ -179,7 +179,7 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 		// Copy to GPU data
 		if (GPUBuffer.NumBytes > 0)
 		{
-			float *BufferData = static_cast<float*>(RHILockVertexBuffer(GPUBuffer.Buffer, 0, NumBytesInBuffer, EResourceLockMode::RLM_WriteOnly));
+			float *BufferData = static_cast<float*>(RHILockBuffer(GPUBuffer.Buffer, 0, NumBytesInBuffer, EResourceLockMode::RLM_WriteOnly));
 
 			FScopeLock ScopeLock(&BufferLock);
 
@@ -190,7 +190,7 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 				FPlatformMemory::Memcpy(&BufferData[Pos], ChannelSpectrumBuffers[ChannelIndex].GetData(), NumBytesInChannelBuffer);
 			}
 
-			RHIUnlockVertexBuffer(GPUBuffer.Buffer);
+			RHIUnlockBuffer(GPUBuffer.Buffer);
 		}
 	});
 }

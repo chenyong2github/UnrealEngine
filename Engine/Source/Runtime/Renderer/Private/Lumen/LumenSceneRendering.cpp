@@ -1987,9 +1987,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
 				PrimitiveIdVertexBuffer = Entry.BufferRHI;
 
-				void* RESTRICT Data = RHILockVertexBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
+				void* RESTRICT Data = RHILockBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
 				FMemory::Memcpy(Data, LumenCardRenderer.MeshDrawPrimitiveIds.GetData(), PrimitiveIdBufferDataSize);
-				RHIUnlockVertexBuffer(PrimitiveIdVertexBuffer);
+				RHIUnlockBuffer(PrimitiveIdVertexBuffer);
 
 				GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 			}
@@ -2285,9 +2285,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					{
 						if (CardIdBytes > 0)
 						{
-							void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->CardIds->GetRHI(), 0, CardIdBytes, RLM_WriteOnly);
+							void* DestCardIdPtr = RHILockBuffer(PassParameters->CardIds->GetRHI(), 0, CardIdBytes, RLM_WriteOnly);
 							FPlatformMemory::Memcpy(DestCardIdPtr, CardIdPtr, CardIdBytes);
-							RHIUnlockVertexBuffer(PassParameters->CardIds->GetRHI());
+							RHIUnlockBuffer(PassParameters->CardIds->GetRHI());
 						}
 					});
 
@@ -2323,9 +2323,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					{
 						if (NumHashMapBytes > 0)
 						{
-							void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->CardIds->GetRHI(), 0, NumHashMapBytes, RLM_WriteOnly);
+							void* DestCardIdPtr = RHILockBuffer(PassParameters->CardIds->GetRHI(), 0, NumHashMapBytes, RLM_WriteOnly);
 							FPlatformMemory::Memcpy(DestCardIdPtr, HashMapDataPtr, NumHashMapBytes);
-							RHIUnlockVertexBuffer(PassParameters->CardIds->GetRHI());
+							RHIUnlockBuffer(PassParameters->CardIds->GetRHI());
 						}
 					});
 
@@ -2351,9 +2351,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					{
 						if (CardIdBytes > 0)
 						{
-							void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->CardIds->GetRHI(), 0, CardIdBytes, RLM_WriteOnly);
+							void* DestCardIdPtr = RHILockBuffer(PassParameters->CardIds->GetRHI(), 0, CardIdBytes, RLM_WriteOnly);
 							FPlatformMemory::Memcpy(DestCardIdPtr, CardIdPtr, CardIdBytes);
-							RHIUnlockVertexBuffer(PassParameters->CardIds->GetRHI());
+							RHIUnlockBuffer(PassParameters->CardIds->GetRHI());
 						}
 					});
 

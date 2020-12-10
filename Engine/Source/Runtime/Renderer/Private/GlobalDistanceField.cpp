@@ -1747,9 +1747,9 @@ void UpdateGlobalDistanceFieldVolume(
 							{
 								if (UploadBytes > 0)
 								{
-									void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
+									void* DestCardIdPtr = RHILockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 									FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-									RHIUnlockVertexBuffer(PassParameters->UpdateBoundsBuffer->GetRHI());
+									RHIUnlockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI());
 								}
 							});
 					}

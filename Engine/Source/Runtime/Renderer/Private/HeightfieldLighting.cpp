@@ -242,11 +242,11 @@ int32 UploadSubsectionHeightfieldDescriptions(const TArray<FHeightfieldComponent
 		GSubsectionHeightfieldDescriptions.Data.Initialize();
 	}
 
-	void* LockedBuffer = RHILockVertexBuffer(GSubsectionHeightfieldDescriptions.Data.Buffer, 0, GSubsectionHeightfieldDescriptions.Data.Buffer->GetSize(), RLM_WriteOnly);
+	void* LockedBuffer = RHILockBuffer(GSubsectionHeightfieldDescriptions.Data.Buffer, 0, GSubsectionHeightfieldDescriptions.Data.Buffer->GetSize(), RLM_WriteOnly);
 	const uint32 MemcpySize = HeightfieldDescriptionData.GetTypeSize() * HeightfieldDescriptionData.Num();
 	check(GSubsectionHeightfieldDescriptions.Data.Buffer->GetSize() >= MemcpySize);
 	FPlatformMemory::Memcpy(LockedBuffer, HeightfieldDescriptionData.GetData(), MemcpySize);
-	RHIUnlockVertexBuffer(GSubsectionHeightfieldDescriptions.Data.Buffer);
+	RHIUnlockBuffer(GSubsectionHeightfieldDescriptions.Data.Buffer);
 
 	return HeightfieldDescriptionData.Num() / GSubsectionHeightfieldDescriptions.Data.Stride;
 }
@@ -362,7 +362,7 @@ public:
 		DestVertex[5].Position = FVector2D(0, 0);
 		DestVertex[5].UV = FVector2D(0, 0);
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 
@@ -674,11 +674,11 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 		GHeightfieldDescriptions.Data.Initialize();
 	}
 
-	void* LockedBuffer = RHILockVertexBuffer(GHeightfieldDescriptions.Data.Buffer, 0, GHeightfieldDescriptions.Data.Buffer->GetSize(), RLM_WriteOnly);
+	void* LockedBuffer = RHILockBuffer(GHeightfieldDescriptions.Data.Buffer, 0, GHeightfieldDescriptions.Data.Buffer->GetSize(), RLM_WriteOnly);
 	const uint32 MemcpySize = HeightfieldDescriptionData.GetTypeSize() * HeightfieldDescriptionData.Num();
 	check(GHeightfieldDescriptions.Data.Buffer->GetSize() >= MemcpySize);
 	FPlatformMemory::Memcpy(LockedBuffer, HeightfieldDescriptionData.GetData(), MemcpySize);
-	RHIUnlockVertexBuffer(GHeightfieldDescriptions.Data.Buffer);
+	RHIUnlockBuffer(GHeightfieldDescriptions.Data.Buffer);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FUploadHeightfieldDescriptionsParameters, )
@@ -714,9 +714,9 @@ FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TAr
 		{
 			if (UploadBytes > 0)
 			{
-				void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
+				void* DestCardIdPtr = RHILockBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 				FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-				RHIUnlockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI());
+				RHIUnlockBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI());
 			}
 		});
 

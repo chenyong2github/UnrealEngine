@@ -138,7 +138,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		// Read back and validate occlusion trace results
 
 		{
-			auto MappedResults = (const uint32*)RHILockVertexBuffer(OcclusionResultBuffer, 0, sizeof(uint32)*NumRays, RLM_ReadOnly);
+			auto MappedResults = (const uint32*)RHILockBuffer(OcclusionResultBuffer, 0, sizeof(uint32)*NumRays, RLM_ReadOnly);
 
 			check(MappedResults);
 
@@ -147,7 +147,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 			check(MappedResults[2] != 0); // expect hit
 			check(MappedResults[3] == 0); // expect miss
 
-			RHIUnlockVertexBuffer(OcclusionResultBuffer);
+			RHIUnlockBuffer(OcclusionResultBuffer);
 
 			bOcclusionTestOK = (MappedResults[0] != 0) && (MappedResults[1] == 0) && (MappedResults[2] != 0) && (MappedResults[3] == 0);
 		}
@@ -155,7 +155,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		// Read back and validate intersection trace results
 
 		{
-			auto MappedResults = (const FIntersectionPayload*)RHILockVertexBuffer(IntersectionResultBuffer, 0, sizeof(FIntersectionPayload)*NumRays, RLM_ReadOnly);
+			auto MappedResults = (const FIntersectionPayload*)RHILockBuffer(IntersectionResultBuffer, 0, sizeof(FIntersectionPayload)*NumRays, RLM_ReadOnly);
 
 			check(MappedResults);
 
@@ -170,7 +170,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 			check(MappedResults[2].HitT >= 0); // expect hit back face
 			check(MappedResults[3].HitT < 0); // expect miss
 
-			RHIUnlockVertexBuffer(IntersectionResultBuffer);
+			RHIUnlockBuffer(IntersectionResultBuffer);
 
 			bIntersectionTestOK = (MappedResults[0].HitT >= 0) && (MappedResults[1].HitT < 0) && (MappedResults[2].HitT >= 0) && (MappedResults[3].HitT < 0);
 		}

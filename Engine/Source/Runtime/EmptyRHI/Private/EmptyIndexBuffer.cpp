@@ -38,12 +38,12 @@ FIndexBufferRHIRef FEmptyDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 		check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
 
 		// make a buffer usable by CPU
-		void* Buffer = RHILockIndexBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHILockBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
 
 		// copy the contents of the given data into the buffer
 		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
 
-		RHIUnlockIndexBuffer(IndexBuffer);
+		RHIUnlockBuffer(IndexBuffer);
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();

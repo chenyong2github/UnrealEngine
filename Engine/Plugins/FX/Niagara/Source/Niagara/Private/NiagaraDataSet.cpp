@@ -1230,9 +1230,9 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 			{
 				FRHIVertexBuffer* InstanceCountBuffer = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().Buffer;
 
-				void* Data = RHICmdList.LockVertexBuffer(InstanceCountBuffer, 0, (BufferOffset + 1) * sizeof(int32), RLM_ReadOnly);
+				void* Data = RHICmdList.LockBuffer(InstanceCountBuffer, 0, (BufferOffset + 1) * sizeof(int32), RLM_ReadOnly);
 				NumInstances = reinterpret_cast<int32*>(Data)[BufferOffset];
-				RHICmdList.UnlockVertexBuffer(InstanceCountBuffer);
+				RHICmdList.UnlockBuffer(InstanceCountBuffer);
 			}
 			else
 			{
@@ -1245,9 +1245,9 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 			{
 				DataBuffer->FloatData.AddUninitialized(GPUFloatBuffer.NumBytes);
 
-				void* CPUFloatBuffer = RHICmdList.LockVertexBuffer(GPUFloatBuffer.Buffer, 0, GPUFloatBuffer.NumBytes, RLM_ReadOnly);
+				void* CPUFloatBuffer = RHICmdList.LockBuffer(GPUFloatBuffer.Buffer, 0, GPUFloatBuffer.NumBytes, RLM_ReadOnly);
 				FMemory::Memcpy(DataBuffer->FloatData.GetData(), CPUFloatBuffer, GPUFloatBuffer.NumBytes);
-				RHICmdList.UnlockVertexBuffer(GPUFloatBuffer.Buffer);
+				RHICmdList.UnlockBuffer(GPUFloatBuffer.Buffer);
 			}
 
 			// Read int data
@@ -1256,9 +1256,9 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 			{
 				DataBuffer->Int32Data.AddUninitialized(GPUIntBuffer.NumBytes);
 
-				void* CPUIntBuffer = RHICmdList.LockVertexBuffer(GPUIntBuffer.Buffer, 0, GPUIntBuffer.NumBytes, RLM_ReadOnly);
+				void* CPUIntBuffer = RHICmdList.LockBuffer(GPUIntBuffer.Buffer, 0, GPUIntBuffer.NumBytes, RLM_ReadOnly);
 				FMemory::Memcpy(DataBuffer->Int32Data.GetData(), CPUIntBuffer, GPUIntBuffer.NumBytes);
-				RHICmdList.UnlockVertexBuffer(GPUIntBuffer.Buffer);
+				RHICmdList.UnlockBuffer(GPUIntBuffer.Buffer);
 			}
 	
 			// Read half data
@@ -1267,9 +1267,9 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 			{
 				DataBuffer->HalfData.AddUninitialized(GPUHalfBuffer.NumBytes);
 
-				void* CPUHalfBuffer = RHICmdList.LockVertexBuffer(GPUHalfBuffer.Buffer, 0, GPUHalfBuffer.NumBytes, RLM_ReadOnly);
+				void* CPUHalfBuffer = RHICmdList.LockBuffer(GPUHalfBuffer.Buffer, 0, GPUHalfBuffer.NumBytes, RLM_ReadOnly);
 				FMemory::Memcpy(DataBuffer->HalfData.GetData(), CPUHalfBuffer, GPUHalfBuffer.NumBytes);
-				RHICmdList.UnlockVertexBuffer(GPUHalfBuffer.Buffer);
+				RHICmdList.UnlockBuffer(GPUHalfBuffer.Buffer);
 			}
 	}
 	);

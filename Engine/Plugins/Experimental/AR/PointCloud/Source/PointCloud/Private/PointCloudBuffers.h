@@ -141,7 +141,7 @@ public:
 			Indices[SpriteIndex * 4 + 2] = SpriteIndex * 4 + 3;
 			Indices[SpriteIndex * 4 + 3] = SpriteIndex * 4 + 2;
 		}
-		RHIUnlockIndexBuffer( IndexBufferRHI );
+		RHIUnlockBuffer( IndexBufferRHI );
 	}
 
 	/** Generates a tri list when quad lists are not available on the platform */
@@ -164,7 +164,7 @@ public:
 			Indices[SpriteIndex * 6 + 4] = SpriteIndex * 4 + 1;
 			Indices[SpriteIndex * 6 + 5] = SpriteIndex * 4 + 3;
 		}
-		RHIUnlockIndexBuffer( IndexBufferRHI );
+		RHIUnlockBuffer( IndexBufferRHI );
 	}
 
 	virtual void InitRHI() override

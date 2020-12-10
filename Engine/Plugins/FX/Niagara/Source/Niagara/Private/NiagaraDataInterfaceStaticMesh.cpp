@@ -179,7 +179,7 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		BufferSectionRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 		SectionInfo* SectionInfoBuffer = (SectionInfo*)BufferData;
 		FMemory::Memcpy(SectionInfoBuffer, ValidSections.GetData(), SizeByte);
-		RHIUnlockVertexBuffer(BufferSectionRHI);
+		RHIUnlockBuffer(BufferSectionRHI);
 		BufferSectionSRV = RHICreateShaderResourceView(BufferSectionRHI, sizeof(SectionInfo), PF_R32G32B32A32_UINT);
 #if STATS
 		GPUMemoryUsage += SizeByte;

@@ -64,9 +64,9 @@ void FNiagaraGpuComputeDebug::Tick(FRHICommandListImmediate& RHICmdList)
 				DebugDrawData->StaticLineBuffer.Release();
 				DebugDrawData->StaticLineBuffer.Initialize(sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT, 0, TEXT("NiagaraGpuComputeDebug::StaticLineBuffer"));
 			}
-			void* VertexData = RHILockVertexBuffer(DebugDrawData->StaticLineBuffer.Buffer, 0, RequiredBytes, RLM_WriteOnly);
+			void* VertexData = RHILockBuffer(DebugDrawData->StaticLineBuffer.Buffer, 0, RequiredBytes, RLM_WriteOnly);
 			FMemory::Memcpy(VertexData, DebugDrawData->StaticLines.GetData(), DebugDrawData->StaticLineCount * DebugDrawData->StaticLines.GetTypeSize());
-			RHIUnlockVertexBuffer(DebugDrawData->StaticLineBuffer.Buffer);
+			RHIUnlockBuffer(DebugDrawData->StaticLineBuffer.Buffer);
 
 			DebugDrawData->StaticLines.Reset();
 		}

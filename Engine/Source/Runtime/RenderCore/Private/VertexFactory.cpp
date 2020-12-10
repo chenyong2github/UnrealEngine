@@ -331,7 +331,7 @@ void FPrimitiveIdDummyBuffer::InitRHI()
 	VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, LockedData);
 	uint32* Vertices = (uint32*)LockedData;
 	Vertices[0] = 0;
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 }
 

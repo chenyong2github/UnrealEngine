@@ -610,9 +610,9 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
 
 		// Set the captured environment map data
-		void* DataPtr = RHICmdList.LockStructuredBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
+		void* DataPtr = RHICmdList.LockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
 		SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance((FVector4*)DataPtr, NewSkyLightRenderState.IrradianceEnvironmentMap);
-		RHICmdList.UnlockStructuredBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer);
+		RHICmdList.UnlockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer);
 
 		RenderState.LightSceneRenderState.SkyLight = MoveTemp(NewSkyLightRenderState);
 

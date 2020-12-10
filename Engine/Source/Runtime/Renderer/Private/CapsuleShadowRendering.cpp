@@ -715,9 +715,9 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 					LightSceneInfo.ShadowCapsuleShapesSRV = RHICreateShaderResourceView(LightSceneInfo.ShadowCapsuleShapesVertexBuffer, sizeof(FVector4), PF_A32B32G32R32F);
 				}
 
-				void* CapsuleShapeLockedData = RHILockVertexBuffer(LightSceneInfo.ShadowCapsuleShapesVertexBuffer, 0, DataSize, RLM_WriteOnly);
+				void* CapsuleShapeLockedData = RHILockBuffer(LightSceneInfo.ShadowCapsuleShapesVertexBuffer, 0, DataSize, RLM_WriteOnly);
 				FPlatformMemory::Memcpy(CapsuleShapeLockedData, CapsuleShapeData.GetData(), DataSize);
-				RHIUnlockVertexBuffer(LightSceneInfo.ShadowCapsuleShapesVertexBuffer);
+				RHIUnlockBuffer(LightSceneInfo.ShadowCapsuleShapesVertexBuffer);
 
 				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));
@@ -1051,9 +1051,9 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 				View.ViewState->IndirectShadowCapsuleShapesSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer, sizeof(FVector4), PF_A32B32G32R32F);
 			}
 
-			void* CapsuleShapeLockedData = RHILockVertexBuffer(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer, 0, DataSize, RLM_WriteOnly);
+			void* CapsuleShapeLockedData = RHILockBuffer(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer, 0, DataSize, RLM_WriteOnly);
 			FPlatformMemory::Memcpy(CapsuleShapeLockedData, CapsuleShapeData.GetData(), DataSize);
-			RHIUnlockVertexBuffer(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer);
+			RHIUnlockBuffer(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer);
 		}
 
 		if (MeshDistanceFieldCasterIndices.Num() > 0)
@@ -1069,9 +1069,9 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 				View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer, sizeof(uint32), PF_R32_UINT);
 			}
 
-			void* LockedData = RHILockVertexBuffer(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer, 0, DataSize, RLM_WriteOnly);
+			void* LockedData = RHILockBuffer(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer, 0, DataSize, RLM_WriteOnly);
 			FPlatformMemory::Memcpy(LockedData, MeshDistanceFieldCasterIndices.GetData(), DataSize);
-			RHIUnlockVertexBuffer(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer);
+			RHIUnlockBuffer(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer);
 		}
 
 		EPixelFormat LightDirectionDataFormat = PF_A32B32G32R32F;
@@ -1090,12 +1090,12 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 				View.ViewState->IndirectShadowLightDirectionSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowLightDirectionVertexBuffer, sizeof(FVector4), LightDirectionDataFormat);
 			}
 
-			FVector4* LightDirectionLockedData = (FVector4*)RHILockVertexBuffer(View.ViewState->IndirectShadowLightDirectionVertexBuffer, 0, DataSize, RLM_WriteOnly);
+			FVector4* LightDirectionLockedData = (FVector4*)RHILockBuffer(View.ViewState->IndirectShadowLightDirectionVertexBuffer, 0, DataSize, RLM_WriteOnly);
 			FPlatformMemory::Memcpy(LightDirectionLockedData, CapsuleLightSourceData.GetData(), CapsuleLightSourceDataSize);
 			// Light data for distance fields is placed after capsule light data
 			// This packing behavior must match GetLightDirectionData
 			FPlatformMemory::Memcpy((char*)LightDirectionLockedData + CapsuleLightSourceDataSize, DistanceFieldCasterLightSourceData.GetData(), DistanceFieldCasterLightSourceData.Num() * DistanceFieldCasterLightSourceData.GetTypeSize());
-			RHIUnlockVertexBuffer(View.ViewState->IndirectShadowLightDirectionVertexBuffer);
+			RHIUnlockBuffer(View.ViewState->IndirectShadowLightDirectionVertexBuffer);
 
 			IndirectShadowLightDirectionSRV = View.ViewState->IndirectShadowLightDirectionSRV;
 		}

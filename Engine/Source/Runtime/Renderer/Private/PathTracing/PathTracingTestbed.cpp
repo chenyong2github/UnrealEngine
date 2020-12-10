@@ -365,7 +365,7 @@ void TestBRDFsIntegrity(void)
 		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 		GDynamicRHI->RHIBlockUntilGPUIdle();
 
-		uint32* BrdsResultsBufferOutput = (uint32*)RHILockStructuredBuffer(BrdsResultsBuffer.Buffer, 0, BrdsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
+		uint32* BrdsResultsBufferOutput = (uint32*)RHILockBuffer(BrdsResultsBuffer.Buffer, 0, BrdsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
 		uint32 NumNegativeBrdfs			= BrdsResultsBufferOutput[TEST_NEGATIVE_BRDF_INDEX];
 		uint32 NumMismatchedBrdfs		= BrdsResultsBufferOutput[TEST_SAMPLED_VS_EVAL_BRDF_MISMATCH_INDEX];
 		uint32 NumNegativePdfs			= BrdsResultsBufferOutput[TEST_NEGATIVE_PDF_INDEX];
@@ -373,10 +373,10 @@ void TestBRDFsIntegrity(void)
 		uint32 NumMismatchedSampledPdfs = BrdsResultsBufferOutput[TEST_SAMPLED_VS_EVAL_PDF_MISMATCH_INDEX];
 		uint32 NumNonSymmetricBrdfs		= BrdsResultsBufferOutput[TEST_NON_SYMMETRIC_BRDF];
 		uint32 NumGoodBrdfs				= BrdsResultsBufferOutput[TEST_BRDF_AND_PDF_OK];
-		RHIUnlockStructuredBuffer(BrdsResultsBuffer.Buffer);
+		RHIUnlockBuffer(BrdsResultsBuffer.Buffer);
 
-		//float* FloatBrdsResultsBufferOutput = (float*)RHILockStructuredBuffer(FloatBrdsResultsBuffer.Buffer, 0, FloatBrdsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
-		//RHIUnlockStructuredBuffer(FloatBrdsResultsBuffer.Buffer);
+		//float* FloatBrdsResultsBufferOutput = (float*)RHILockBuffer(FloatBrdsResultsBuffer.Buffer, 0, FloatBrdsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
+		//RHIUnlockBuffer(FloatBrdsResultsBuffer.Buffer);
 
 		UE_LOG(LogShaders, Display, TEXT("Samples: %d"), NumSamples);
 		if (NumGoodBrdfs == NumSamples)
@@ -473,7 +473,7 @@ void TestPDFsIntegrateToOne(void)
 			GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 			GDynamicRHI->RHIBlockUntilGPUIdle();
 
-			float* PdfResults = (float*)RHILockStructuredBuffer(PdfsResultsBuffer.Buffer, 0, PdfsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
+			float* PdfResults = (float*)RHILockBuffer(PdfsResultsBuffer.Buffer, 0, PdfsResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
 
 			float PdfAccum = 0.0f;
 			for (uint32 PdfIt = 0; PdfIt < NSamples; ++PdfIt)
@@ -488,7 +488,7 @@ void TestPDFsIntegrateToOne(void)
 				Nfails++;
 			}
 
-			RHIUnlockStructuredBuffer(PdfsResultsBuffer.Buffer);
+			RHIUnlockBuffer(PdfsResultsBuffer.Buffer);
 		}
 
 		UE_LOG(LogShaders, Display, TEXT("Executed PDF integration test for BRDF: %s."), *BrdfNames[BrdfType]);
@@ -569,7 +569,7 @@ void TestBRDFandPDFConsistency(void)
 				GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 				GDynamicRHI->RHIBlockUntilGPUIdle();
 
-				float* SampledWosResults = (float*)RHILockStructuredBuffer(SampledWisResultsBuffer.Buffer, 0, SampledWisResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
+				float* SampledWosResults = (float*)RHILockBuffer(SampledWisResultsBuffer.Buffer, 0, SampledWisResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
 				for (uint32 SamplesIt = 0; SamplesIt < WiSamplesCount; SamplesIt++)
 				{
 					FVector Wi(SampledWosResults[3*SamplesIt + 0], SampledWosResults[3 * SamplesIt + 1], SampledWosResults[3 * SamplesIt + 2]);
@@ -595,7 +595,7 @@ void TestBRDFandPDFConsistency(void)
 					BinSampledDistribution[WiThetaBin * NumPhiSteps + WiPhiBin] += 1;
 				}
 
-				RHIUnlockStructuredBuffer(SampledWisResultsBuffer.Buffer);
+				RHIUnlockBuffer(SampledWisResultsBuffer.Buffer);
 			}
 
 			//	Integrate PDF in each patch
@@ -615,7 +615,7 @@ void TestBRDFandPDFConsistency(void)
 
 				// Watch the watchman: check the hemisphere returns 1, otherwise the PDF integration routine is wrong
 				float HemisphereIntegral = 0.0;
-				float* PatchesIntegrationResults = (float*)RHILockStructuredBuffer(PdfPatchesIntegrationResultsBuffer.Buffer, 0, PdfPatchesIntegrationResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
+				float* PatchesIntegrationResults = (float*)RHILockBuffer(PdfPatchesIntegrationResultsBuffer.Buffer, 0, PdfPatchesIntegrationResultsBuffer.Buffer->GetSize(), RLM_ReadOnly);
 				for (uint32 SamplesIt = 0; SamplesIt < NumThetaSteps*NumPhiSteps; ++SamplesIt)
 				{
 					float PatchIntegral = PatchesIntegrationResults[SamplesIt];
@@ -631,6 +631,8 @@ void TestBRDFandPDFConsistency(void)
 				{
 					UE_LOG(LogShaders, Display, TEXT("The sum of the integral of the PDF for BRDF: %s for all the patches is close enough to 1."), *BrdfNames[BrdfType]);
 				}
+
+				RHIUnlockBuffer(PdfPatchesIntegrationResultsBuffer.Buffer);
 			}
 
 			//	// Compare count in each bin with expected count

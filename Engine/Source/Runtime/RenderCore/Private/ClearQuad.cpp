@@ -139,7 +139,7 @@ void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumCl
 
 		FRHIResourceCreateInfo CreateInfo;
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 10, BUF_Volatile, CreateInfo);
-		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 10, RLM_WriteOnly);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 10, RLM_WriteOnly);
 		
 		FVector4* Vertices = reinterpret_cast<FVector4*>(VoidPtr);
 		Vertices[0] = OuterVertices[0];
@@ -153,7 +153,7 @@ void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumCl
 		Vertices[8] = OuterVertices[0];
 		Vertices[9] = InnerVertices[0];
 
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 
 		RHICmdList.DrawPrimitive(0, 8, 1);

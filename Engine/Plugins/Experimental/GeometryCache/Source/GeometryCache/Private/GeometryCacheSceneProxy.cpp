@@ -281,14 +281,14 @@ FRHICOMMAND_MACRO(FRHICommandUpdateGeometryCacheBuffer)
 		//FTaskGraphInterface::Get().WaitUntilTaskCompletes(BufferGenerationCompleteFence, IsRunningRHIInSeparateThread() ? ENamedThreads::RHIThread : ENamedThreads::RenderThread);
 
 		// Upload vertex data
-		void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockVertexBuffer(VertexBuffer, 0, VertexData.Num(), RLM_WriteOnly);
+		void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockBuffer(VertexBuffer, 0, VertexData.Num(), RLM_WriteOnly);
 		FMemory::BigBlockMemcpy(Data, VertexData.GetData(), VertexData.Num());
-		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
+		GDynamicRHI->RHIUnlockBuffer(VertexBuffer);
 
 		// Upload index data
-		Data = (void* RESTRICT)GDynamicRHI->RHILockIndexBuffer(IndexBuffer, 0, IndexData.Num(), RLM_WriteOnly);
+		Data = (void* RESTRICT)GDynamicRHI->RHILockBuffer(IndexBuffer, 0, IndexData.Num(), RLM_WriteOnly);
 		FMemory::BigBlockMemcpy(Data, IndexData.GetData(), IndexData.Num());
-		GDynamicRHI->RHIUnlockIndexBuffer(IndexBuffer);
+		GDynamicRHI->RHIUnlockBuffer(IndexBuffer);
 
 		// Make sure to release refcounted things asap
 		IndexBuffer = nullptr;
@@ -1132,14 +1132,14 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 						TrackProxy->IndexBuffer.SizeInBytes());
 
 					// Upload vertex data
-					/*void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockVertexBuffer(TrackProxy->VertexBuffer.VertexBufferRHI, 0, TrackProxy->VertexBuffer.SizeInBytes(), RLM_WriteOnly);
+					/*void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockBuffer(TrackProxy->VertexBuffer.VertexBufferRHI, 0, TrackProxy->VertexBuffer.SizeInBytes(), RLM_WriteOnly);
 					FMemory::BigBlockMemcpy(Data, TrackProxy->MeshData->Vertices.GetData(), TrackProxy->VertexBuffer.SizeInBytes());
-					GDynamicRHI->RHIUnlockVertexBuffer(TrackProxy->VertexBuffer.VertexBufferRHI);
+					GDynamicRHI->RHIUnlockBuffer(TrackProxy->VertexBuffer.VertexBufferRHI);
 
 					// Upload index data
-					Data = (void* RESTRICT)GDynamicRHI->RHILockIndexBuffer(TrackProxy->IndexBuffer.IndexBufferRHI, 0, TrackProxy->IndexBuffer.SizeInBytes(), RLM_WriteOnly);
+					Data = (void* RESTRICT)GDynamicRHI->RHILockBuffer(TrackProxy->IndexBuffer.IndexBufferRHI, 0, TrackProxy->IndexBuffer.SizeInBytes(), RLM_WriteOnly);
 					FMemory::BigBlockMemcpy(Data, TrackProxy->MeshData->Indices.GetData(), TrackProxy->IndexBuffer.SizeInBytes());
-					GDynamicRHI->RHIUnlockIndexBuffer(TrackProxy->IndexBuffer.IndexBufferRHI);*/
+					GDynamicRHI->RHIUnlockBuffer(TrackProxy->IndexBuffer.IndexBufferRHI);*/
 				}
 				else
 				{
@@ -1267,7 +1267,7 @@ void FGeomCacheIndexBuffer::InitRHI()
 	FRHIResourceCreateInfo CreateInfo;
 	void* Buffer = nullptr;
 	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	RHIUnlockBuffer(IndexBufferRHI);
 }
 
 void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
@@ -1290,14 +1290,14 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 		if (Indices.Num() > 0)
 		{
 			// Copy the index data into the index buffer.
-			Buffer = RHILockIndexBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
+			Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
 		}
 	}
 
 	if (Buffer)
 	{
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
+		RHIUnlockBuffer(IndexBufferRHI);
 	}
 }
 
@@ -1319,7 +1319,7 @@ void FGeomCacheVertexBuffer::InitRHI()
 	FRHIResourceCreateInfo CreateInfo;
 	void* BufferData = nullptr;
 	VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 }
 
 void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 ItemSizeBytes, int32 ItemStrideBytes)
@@ -1338,7 +1338,7 @@ void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 I
 	}
 	else
 	{
-		VertexBufferData = RHILockVertexBuffer(VertexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
+		VertexBufferData = RHILockBuffer(VertexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
 	}
 
 	if (bCanMemcopy)
@@ -1357,7 +1357,7 @@ void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 I
 		}
 	}
 
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 }
 
 void FGeomCacheVertexBuffer::UpdateSize(int32 NewSizeInBytes)

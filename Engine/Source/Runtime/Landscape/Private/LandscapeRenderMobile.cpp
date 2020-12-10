@@ -219,7 +219,7 @@ void FLandscapeVertexBufferMobile::InitRHI()
 	FMemory::Memcpy(VertexDataPtr, VertexData.GetData(), VertexData.Num());
 	VertexData.Empty();
 
-	RHIUnlockVertexBuffer(VertexBufferRHI);
+	RHIUnlockBuffer(VertexBufferRHI);
 }
 
 struct FLandscapeMobileHoleData

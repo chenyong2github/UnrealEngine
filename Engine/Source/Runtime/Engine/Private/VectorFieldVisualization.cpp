@@ -94,7 +94,7 @@ public:
 		FVector4* DummyContents = (FVector4*)BufferData;
 		DummyContents[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 		DummyContents[1] = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
+		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
 TGlobalResource<FDummyVertexBuffer> GDummyVertexBuffer;
