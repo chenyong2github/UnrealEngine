@@ -30,7 +30,7 @@ FInputCaptureRequest UMouseHoverBehavior::WantsHoverCapture(const FInputDeviceSt
 	{
 		Modifiers.UpdateModifiers(InputState, Target);
 
-		FInputRayHit Hit = Target->BeginHoverSequenceHitTest(InputState.Mouse.WorldRay);
+		FInputRayHit Hit = Target->BeginHoverSequenceHitTest(FInputDeviceRay(InputState));
 		if (Hit.bHit)
 		{
 			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, Hit.HitDepth);
@@ -43,7 +43,7 @@ FInputCaptureUpdate UMouseHoverBehavior::BeginHoverCapture(const FInputDeviceSta
 {
 	check(Target != nullptr);
 	Modifiers.UpdateModifiers(InputState, Target);
-	Target->OnBeginHover(InputState.Mouse.WorldRay);
+	Target->OnBeginHover(FInputDeviceRay(InputState));
 	return FInputCaptureUpdate::Begin(this, eSide);
 }
 
@@ -51,7 +51,7 @@ FInputCaptureUpdate UMouseHoverBehavior::UpdateHoverCapture(const FInputDeviceSt
 {
 	check(Target != nullptr);
 	Modifiers.UpdateModifiers(InputState, Target);
-	if (Target->OnUpdateHover(InputState.Mouse.WorldRay))
+	if (Target->OnUpdateHover(FInputDeviceRay(InputState)))
 	{
 		return FInputCaptureUpdate::Continue();
 	}

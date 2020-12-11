@@ -31,40 +31,6 @@ ENUM_CLASS_FLAGS(EInputDevices);
 
 
 
-/**
- * FInputDeviceRay represents a 3D ray created based on an input device.
- * If the device is a 2D input device like a mouse, then the ray may
- * have an associated 2D screen position.
- */
-struct FInputDeviceRay
-{
-	/** 3D ray in 3D scene, in world coordinates */
-	FRay WorldRay;
-
-	/** If true, WorldRay has 2D device position coordinates */
-	bool bHas2D;
-
-	/** 2D device position coordinates associated with the ray */
-	FVector2D ScreenPosition;
-
-
-	FInputDeviceRay(const FRay& WorldRayIn)
-	{
-		WorldRay = WorldRayIn;
-		bHas2D = false;
-		ScreenPosition = FVector2D(0, 0);
-	}
-
-	FInputDeviceRay(const FRay& WorldRayIn, const FVector2D& ScreenPositionIn)
-	{
-		WorldRay = WorldRayIn;
-		bHas2D = true;
-		ScreenPosition = ScreenPositionIn;
-	}
-};
-
-
-
 /*
  * FInputRayHit is returned by various hit-test interface functions.
  * Generally this is intended to be returned as the result of a hit-test with a FInputDeviceRay 
@@ -309,4 +275,57 @@ struct FInputDeviceState
 		return InputState.bCmdKeyDown;
 	}
 };
+
+
+
+
+/**
+ * FInputDeviceRay represents a 3D ray created based on an input device.
+ * If the device is a 2D input device like a mouse, then the ray may
+ * have an associated 2D screen position.
+ */
+struct FInputDeviceRay
+{
+	/** 3D ray in 3D scene, in world coordinates */
+	FRay WorldRay;
+
+	/** If true, WorldRay has 2D device position coordinates */
+	bool bHas2D = false;
+
+	/** 2D device position coordinates associated with the ray */
+	FVector2D ScreenPosition;
+
+
+	explicit FInputDeviceRay(const FRay& WorldRayIn)
+	{
+		WorldRay = WorldRayIn;
+		bHas2D = false;
+		ScreenPosition = FVector2D(0, 0);
+	}
+
+	FInputDeviceRay(const FRay& WorldRayIn, const FVector2D& ScreenPositionIn)
+	{
+		WorldRay = WorldRayIn;
+		bHas2D = true;
+		ScreenPosition = ScreenPositionIn;
+	}
+
+	FInputDeviceRay(const FInputDeviceState& Input)
+	{
+		if (Input.IsFromDevice(EInputDevices::Mouse))
+		{
+			WorldRay = Input.Mouse.WorldRay;
+			bHas2D = true;
+			ScreenPosition = Input.Mouse.Position2D;
+		}
+		else
+		{
+			ensure(false);
+			WorldRay = FRay(FVector::ZeroVector, FVector(0, 0, 1), true);
+			ScreenPosition = FVector2D(0, 0);
+			bHas2D = false;
+		}
+	}
+};
+
 
