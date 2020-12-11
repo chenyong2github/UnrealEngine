@@ -9013,6 +9013,19 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		}, TStatId());
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("CRASHCONTEXTWRITER")))
+	{
+		TArray<uint8> TestData = { 0xd, 0xe, 0xa, 0xd };
+		UE_ADD_CRASH_CONTEXT_SCOPE([&](FCrashContextExtendedWriter& Writer) { 
+				TCHAR TextBuffer[1024] = { 0 };
+				FCString::Sprintf(TextBuffer, TEXT("Last error was: %d"), FPlatformMisc::GetLastError());
+				Writer.AddString(TEXT("TestText"), TextBuffer); 
+				Writer.AddBuffer(TEXT("TestData"), TestData.GetData(), TestData.Num());
+				
+		});
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Fatal, TEXT("Crashing the worker thread at your request"));
+	}
 #endif // !UE_BUILD_SHIPPING
 	return false;
 }
