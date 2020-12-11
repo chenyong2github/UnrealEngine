@@ -356,6 +356,9 @@ namespace AutomationTool
 					case "Property":
 						ReadProperty(ChildElement);
 						break;
+					case "Counter":
+						ReadCounter(ChildElement);
+						break;
 					case "Regex":
 						ReadRegex(ChildElement);
 						break;
@@ -739,6 +742,97 @@ namespace AutomationTool
 						Value = Builder.ToString();
 					}
 					SetPropertyValue(Element, Name, Value);
+				}
+			}
+		}
+
+
+		/// <summary>
+		/// Reads a counter assignment.
+		/// </summary>
+		/// <param name="Element">Xml element to read the definition from</param>
+		void ReadCounter(ScriptElement Element)
+		{
+			if (EvaluateCondition(Element))
+			{
+				string Name = ReadAttribute(Element, "Name");
+				if (ValidateName(Element, Name))
+				{
+					string Signature = ReadAttribute(Element, "Signature");
+
+					for (int Counter = 1; ; Counter++)
+					{
+						if(Counter > 1000)
+						{
+							throw new AutomationException("Unable to find unique counter value for {0} (checked 1...1000)", Name);
+						}
+
+						SetPropertyValue(Element, Name, Counter.ToString());
+
+						FileReference Location = new FileReference(ReadAttribute(Element, "File"));
+						if (TryCreateCounterFile(Location, Signature))
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Attempts to create a counter file with the given signature
+		/// </summary>
+		/// <param name="Location">Location of the file to create</param>
+		/// <param name="Signature">Signature of the file</param>
+		/// <returns>True if the file was created (or already exists with the matching signature), false if another file already exists</returns>
+		bool TryCreateCounterFile(FileReference Location, string Signature)
+		{
+			for (; ; )
+			{
+				if (FileReference.Exists(Location))
+				{
+					try
+					{
+						string Text = FileReference.ReadAllText(Location);
+						return Text.Equals(Signature, StringComparison.Ordinal);
+					}
+					catch (Exception Ex)
+					{
+						ExceptionUtils.AddContext(Ex, "while reading counter file {0}", Location);
+						throw;
+					}
+				}
+				else
+				{
+					// Write a temporary file
+					FileReference TempLocation = new FileReference(String.Format("{0}.{1}", Location.FullName, Guid.NewGuid().ToString("N")));
+					try
+					{
+						DirectoryReference.CreateDirectory(Location.Directory);
+						FileReference.WriteAllText(Location, Signature);
+					}
+					catch(Exception Ex)
+					{
+						ExceptionUtils.AddContext(Ex, "while writing temporary counter file {0}", Location);
+						throw;
+					}
+
+					// Move it into place
+					try
+					{
+						FileReference.Move(TempLocation, Location);
+					}
+					catch(Exception Ex)
+					{
+						if (!FileReference.Exists(Location))
+						{
+							ExceptionUtils.AddContext(Ex, "while moving {0} to {1}", TempLocation, Location);
+							throw;
+						}
+					}
+
+					// Delete the temp file
+					FileReference.Delete(TempLocation);
 				}
 			}
 		}
