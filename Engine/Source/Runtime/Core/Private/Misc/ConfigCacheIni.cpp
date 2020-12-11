@@ -3922,6 +3922,7 @@ bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 
 void FConfigCacheIni::InitializeConfigSystem()
 {
+#if PLATFORM_SUPPORTS_BINARYCONFIG
 	// attempt to load from staged binary config data
 	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Looking for binary: %s\n"), *BinaryConfigFile);
@@ -3935,6 +3936,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 		FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"));
 		return;
 	}
+#endif
 
 	// Bootstrap the Ini config cache
 	FString IniBootstrapFilename;
