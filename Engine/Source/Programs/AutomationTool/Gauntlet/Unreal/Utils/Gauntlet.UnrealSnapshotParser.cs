@@ -245,7 +245,7 @@ namespace Gauntlet
 			try
 			{
 				// Find all end of match reports
-				string[] SessionSnapshots = Parser.GetGroupsOfLinesStartingWith(InTitle, 20);
+				string[] SessionSnapshots = Parser.GetGroupsOfLinesBetween(InTitle, "==============");
 
 				SampleCount = SessionSnapshots.Length;
 				SessionTime = 0;
