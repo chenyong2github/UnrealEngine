@@ -124,6 +124,14 @@ namespace Gauntlet
 
 		}
 
+		/// <summary>
+		/// Return @"\\?\"; adding the prefix to a path string tells the Windows APIs to disable all string parsing and to send the string that follows it straight to the file system.
+		/// Allowing for longer than 260 characters path.
+		/// </summary>
+		public static string LongPathPrefix
+		{
+			get { return Path.DirectorySeparatorChar == '\\' ? @"\\?\" : ""; }
+		}
 
 		/// <summary>
 		/// Acquired and released during the main Tick of the Gauntlet systems. Use this before touchung anything global scope from a 

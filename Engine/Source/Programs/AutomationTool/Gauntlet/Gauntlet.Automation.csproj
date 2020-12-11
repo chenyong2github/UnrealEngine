@@ -76,6 +76,7 @@
     <Compile Include="Framework\Base\Gauntlet.Blacklist.cs" />
     <Compile Include="Framework\Base\Gauntlet.ConfigOption.cs" />
     <Compile Include="Framework\Base\Gauntlet.BuildSource.cs" />
+    <Compile Include="Framework\Base\Gauntlet.TestReport.cs" />
     <Compile Include="Framework\FileLockInfo.cs" />
     <Compile Include="Framework\Gauntlet.AutoParam.cs" />
     <Compile Include="Framework\Gauntlet.Exception.cs" />
