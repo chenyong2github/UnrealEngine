@@ -94,8 +94,6 @@ namespace Gauntlet
 		/// </summary>
 		public override float MaxDuration { get; protected set; }
 
-
-
 		/// <summary>
 		/// Priority of this test
 		/// </summary>
@@ -129,7 +127,7 @@ namespace Gauntlet
 
 			var FailedArtifacts = GetArtifactsWithFailures();
 
-			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message).Union(Errors);
+			 return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message).Union(Errors);
 		}
 
 		/// <summary>
@@ -1050,7 +1048,7 @@ namespace Gauntlet
 			{
 				foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
 				{
-					string LogName = Artifact.LogPath.Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
+					string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
 					HordeTestReport.AttachArtifact(Artifact.LogPath, LogName);
 
 					UnrealLogParser.LogSummary LogSummary = Artifact.LogSummary;
@@ -1066,6 +1064,32 @@ namespace Gauntlet
 				}
 			}
 			return HordeTestReport;
+		}
+
+		/// <summary>
+		/// Generate report from Unreal Automated Test Results
+		/// </summary>
+		/// <param name="UnrealAutomatedTestReportPath"></param>
+		/// <param name="ReportURL"></param>
+		/// <returns>ITestReport</returns>
+		public virtual ITestReport CreateUnrealEngineTestPassReport(string UnrealAutomatedTestReportPath, string ReportURL)
+		{
+			string JsonReportPath = Path.Combine(UnrealAutomatedTestReportPath, "index.json");
+			if (File.Exists(JsonReportPath))
+			{
+				Log.Verbose("Reading json Unreal Automated test report from {0}", JsonReportPath);
+				UnrealAutomatedTestPassResults JsonTestPassResults = UnrealAutomatedTestPassResults.LoadFromJson(JsonReportPath);
+				// Convert test results for Horde
+				string HordeArtifactPath = GetConfiguration().HordeArtifactPath;
+				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, UnrealAutomatedTestReportPath, ReportURL);
+				HordeTestPassResults.CopyTestResultsArtifacts(HordeArtifactPath);
+				return HordeTestPassResults;
+			}
+			else
+			{
+				Log.Warning("Could not find Unreal Automated test report at {0}. Reverting to base report.", JsonReportPath);
+				return CreateSimpleReportForHorde(GetTestResult());
+			}
 		}
 
 		/// <summary>

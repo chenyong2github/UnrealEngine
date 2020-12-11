@@ -3,9 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Gauntlet;
+using Gauntlet.UnrealTest;
+
 
 namespace UnrealEditor
 {
@@ -13,13 +13,17 @@ namespace UnrealEditor
 	/// Default set of options for testing Editor. Options that tests can configure
 	/// should be public, external command-line driven options should be protected/private
 	/// </summary>
-	public class EditorTestConfig : UnrealTestConfiguration
+	public class EditorTestConfig : AutomatedTestsConfig
 	{
 		/// <summary>
 		/// Filter or groups of tests to apply
 		/// </summary>
-		[AutoParam]
-		public string TestFilter = "Editor";
+		public override bool UseEditor { get; set; } = true;
+
+		/// <summary>
+		/// Use Simple Horde Report instead of Unreal Automated Tests
+		/// </summary>
+		public override bool SimpleHordeReport { get; set; } = true;
 
 		/// <summary>
 		/// Force some specific plugins to load, comma delimited (at time of writing)
@@ -53,11 +57,6 @@ namespace UnrealEditor
 		{
 			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
-			if (AppConfig.ProcessType.IsEditor())
-			{
-				AppConfig.CommandLineParams.Add("ExecCmds", string.Format("\"Automation RunTests {0}; Quit;\"", TestFilter));
-			}
-
 			if (EnablePlugins != string.Empty)
 			{
 				AppConfig.CommandLineParams.Add(string.Format("EnablePlugins={0}", EnablePlugins));
@@ -71,19 +70,19 @@ namespace UnrealEditor
 				AppConfig.CommandLineParams.Add("statnamedevents");
 			}
 
-			if (TreatLogWarningsAsTestErrors != "true" || TreatLogWarningsAsTestErrors != "1")
+			if (TreatLogWarningsAsTestErrors.ToLower() == "false" || TreatLogWarningsAsTestErrors == "0")
 			{
-				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogWarningsAsTestErrors=False");
+				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogWarningsAsTestErrors=false");
 			}
 
-			if (TreatLogErrorsAsTestErrors != "true" || TreatLogErrorsAsTestErrors != "1")
+			if (TreatLogErrorsAsTestErrors.ToLower() == "false" || TreatLogErrorsAsTestErrors == "0")
 			{
-				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogErrorsAsTestErrors=False");
+				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogErrorsAsTestErrors=false");
 			}
 		}
 	}
 
-	public class EditorTests : UnrealTestNode<EditorTestConfig>
+	public class EditorTests : AutomatedTestsBase<EditorTestConfig>
 	{
 		public EditorTests(UnrealTestContext InContext) : base(InContext)
 		{
@@ -110,4 +109,5 @@ namespace UnrealEditor
 
 			return Report;
 		}
-	}}
+	}
+}
