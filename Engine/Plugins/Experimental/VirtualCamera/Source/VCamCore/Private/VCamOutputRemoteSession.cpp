@@ -94,9 +94,10 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 
 			RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), PortNumber);
 
-			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
 			if (RemoteSessionHost.IsValid())
 			{
+				RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
+
 				RemoteSessionHost->Tick(0.0f);
 
 				if (bUseOverrideResolution)
@@ -108,6 +109,10 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 					}
 				}
 			}
+			else
+			{
+				UE_LOG(LogVCamOutputProvider, Error, TEXT("Unable to create a RemoteSession host on port %d. Check the port is not in use."), PortNumber);
+			}			
 		}
 	}
 	else

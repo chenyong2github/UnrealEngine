@@ -32,6 +32,7 @@ class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
 class FCurveModel;
+struct FMovieSceneSequencePlaybackParams;
 struct FMovieSceneChannelMetaData;
 
 /**
@@ -353,6 +354,9 @@ public:
 
 	/** Set the global time directly, without performing any auto-scroll, snapping or other adjustments to the supplied time  */
 	virtual void SetGlobalTime(FFrameTime Time) = 0;
+
+	/** Play from the current time to the requested time */
+	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) = 0;
 
 	/** Invalidate cached data so that it will be reevaluated on the next frame */
 	virtual void RequestInvalidateCachedData() = 0;

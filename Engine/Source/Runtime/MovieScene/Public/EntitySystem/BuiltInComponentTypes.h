@@ -87,7 +87,7 @@ struct FMovieSceneTrackInstanceComponent
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneSection* Owner;
+	UMovieSceneSection* Owner = nullptr;
 
 	UPROPERTY()
 	TSubclassOf<UMovieSceneTrackInstance> TrackInstanceClass;

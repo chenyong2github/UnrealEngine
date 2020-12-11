@@ -1981,9 +1981,9 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	bool FWindowsMixedRealityHMD::IsActiveThisFrame(class FViewport* InViewport) const
+	bool FWindowsMixedRealityHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 	{
-		return GEngine && GEngine->IsStereoscopic3D(InViewport);
+		return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
 	}
 
 #if WITH_WINDOWS_MIXED_REALITY

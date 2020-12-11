@@ -16,6 +16,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,10 +98,11 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 						{
 							continue;
 						}
-
-						// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly
+						
+						// Exclude comments from the expression list, as well as the base parameter expression and local variable usage, as they should not be used directly
 						if ( Class != UMaterialExpressionComment::StaticClass() 
-							&& Class != UMaterialExpressionParameter::StaticClass() )
+							&& Class != UMaterialExpressionParameter::StaticClass()
+							&& Class != UMaterialExpressionNamedRerouteUsage::StaticClass())
 						{
 							FMaterialExpression MaterialExpression;
 							// Trim the material expression name and add it to the list used for filtering.

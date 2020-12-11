@@ -28,7 +28,7 @@ class UMG_API URetainerBox : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, Category = RenderRules)
+	UPROPERTY(EditAnywhere, Category="Render Rules")
 	bool bRetainRender = true;
 
 public:
@@ -36,13 +36,13 @@ public:
 	 * Should this widget redraw the contents it has every time it receives an invalidation request
 	 * from it's children, similar to the invalidation panel.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=RenderRules)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(EditCondition=bRetainRender))
 	bool RenderOnInvalidation;
 
 	/**
 	 * Should this widget redraw the contents it has every time the phase occurs.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=RenderRules)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(EditCondition=bRetainRender))
 	bool RenderOnPhase;
 
 	/**
@@ -52,7 +52,7 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=RenderRules, meta = (UIMin = 0, ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(UIMin=0, ClampMin=0))
 	int32 Phase;
 
 	/**
@@ -63,7 +63,7 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every 
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=RenderRules, meta=( UIMin=1, ClampMin=1 ))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(UIMin=1, ClampMin=1))
 	int32 PhaseCount;
 
 public:
@@ -72,7 +72,7 @@ public:
 	 * Requests the retainer redrawn the contents it has.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer")
-	void SetRenderingPhase(int RenderPhase, int32 TotalPhases);
+	void SetRenderingPhase(int32 RenderPhase, int32 TotalPhases);
 
 	/**
 	 * Requests the retainer redrawn the contents it has.
@@ -130,15 +130,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Effect")
 	FName TextureParameter;
 
-	// UPanelWidget
+	//~ Begin UPanelWidget interface
 	virtual void OnSlotAdded(UPanelSlot* Slot) override;
 	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
-	// End UPanelWidget
+	//~ End UPanelWidget interface
 
-	// UWidget interface
+	//~ Begin UWidget interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void SynchronizeProperties() override;
-	// End of UWidget interface
+	//~ End of UWidget interface
+
+	//~ Begin UObject interface
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+#endif
+	//~ End UObject interface
 
 protected:
 	TSharedPtr<class SRetainerWidget> MyRetainerWidget;

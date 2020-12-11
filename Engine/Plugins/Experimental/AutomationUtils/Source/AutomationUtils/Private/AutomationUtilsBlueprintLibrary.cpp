@@ -50,7 +50,7 @@ public:
 		InViewFamily.DeltaWorldTime = 0;
 	}
 
-	bool IsActiveThisFrame(class FViewport* InViewport) const
+	bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 	{
 		return true;
 	}

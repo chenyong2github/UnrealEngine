@@ -58,6 +58,41 @@ struct ENGINE_API FCameraShakeUpdateParams
 };
 
 /**
+ * Parameters for scrubbing a camera shake.
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FCameraShakeScrubParams
+{
+	GENERATED_BODY()
+
+	FCameraShakeScrubParams()
+	{}
+
+	FCameraShakeScrubParams(const FMinimalViewInfo& InPOV)
+		: POV(InPOV)
+	{}
+
+	/** Convert this to an update parameter struct where the delta time is from 0 to the AbsoluteTime. */
+	FCameraShakeUpdateParams ToUpdateParams() const;
+
+	/** The time to scrub to */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float AbsoluteTime = 0.f;
+	/** The dynamic scale being passed down from the camera manger for this shake */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float DynamicScale = 1.f;
+	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float BlendingWeight = 1.f;
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float TotalScale = 1.f;
+	/** The current view that this camera shake should modify */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	FMinimalViewInfo POV;
+};
+
+/**
  * Flags that camera shakes can return to change base-class behaviour.
  */
 UENUM()
@@ -229,6 +264,20 @@ struct ENGINE_API FCameraShakeState
 	float Update(float DeltaTime);
 
 	/**
+	 * Scrub the state to the given absolute time.
+	 *
+	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
+	 * do anything and returns 1.
+	 *
+	 * If the state is managed, this updates the internal state of this class and auto-computes when
+	 * the shake has ended, along with a blending weight if there is any blending in/out.
+	 *
+	 * @param AbsoluteTime The time to scrub to
+	 * @return The evaluated blending weight (if any) for the scrub time
+	 */
+	float Scrub(float AbsoluteTime);
+
+	/**
 	 * Marks the shake has having been stopped.
 	 *
 	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
@@ -390,6 +439,13 @@ public:
 	/** Gets some infromation about this specific camera shake */
 	void GetShakeInfo(FCameraShakeInfo& OutInfo) const;
 
+	/**
+	 * Returns whether this shake is active.
+	 *
+	 * A camera shake is active between the calls to StartShake and TeardownShake.
+	 */
+	bool IsActive() const { return State.IsActive(); }
+
 	/** Starts this camera shake with the given parameters */
 	void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
@@ -398,6 +454,9 @@ public:
 
 	/** Updates this camera shake and applies its effect to the given view */
 	void UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMinimalViewInfo& InOutPOV);
+
+	/** Scrubs this camera shake to the given time and applies its effect to the given view */
+	void ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha, FMinimalViewInfo& InOutPOV);
 
 	/** Stops this camera shake */
 	void StopShake(bool bImmediately = true);
@@ -470,6 +529,8 @@ public:
 	void StartShakePattern(const FCameraShakeStartParams& Params);
 	/** Updates the shake pattern, which should add its generated offset to the given result */
 	void UpdateShakePattern(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
+	/** Scrubs the shake pattern to the given time, and apply the generated offset to the given result */
+	void ScrubShakePattern(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	/** Returns whether this shake pattern is finished */
 	bool IsFinished() const;
 	/** Called when the shake pattern is manually stopped */
@@ -492,6 +553,7 @@ private:
 	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const {}
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) {}
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) {}
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) {}
 	virtual bool IsFinishedImpl() const { return true; }
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) {}
 	virtual void TeardownShakePatternImpl()  {}

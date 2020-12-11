@@ -28,7 +28,7 @@ public:
 public:
 	/** ISceneViewExtension interface */
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 private:
 	TWeakObjectPtr<UMixedRealityCaptureComponent> Owner;

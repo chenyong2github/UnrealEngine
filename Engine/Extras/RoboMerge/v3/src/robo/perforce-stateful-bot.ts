@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { ContextualLogger, NpmLogLevel } from "../common/logger";
 import { Change, ChangelistStatus, PerforceContext } from "../common/perforce";
-import { BotIPC, ReconsiderArgs } from "./bot-interfaces";
+import { BotIPC } from "./bot-interfaces";
+import { BlockagePauseInfo, BlockagePauseInfoMinimal, ReconsiderArgs } from "./status-types";
 import { Branch, OperationResult } from "./branch-interfaces";
 import { Context } from "./settings";
-import { BlockagePauseInfo, BlockagePauseInfoMinimal, PauseState } from "./state-interfaces";
+import { PauseState } from "./state-interfaces";
 
 export interface PerforceRequestResult {
 	changes?: Change[] | null

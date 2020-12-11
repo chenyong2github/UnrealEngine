@@ -2,7 +2,8 @@
 
 import { ContextualLogger } from 'common/logger';
 import { AlreadyIntegrated, Blockage, Branch, BranchArg, branchesMatch } from './branch-interfaces';
-import { ChangeInfo, FailureKind, ForcedCl, resolveBranchArg } from './branch-interfaces';
+import { ChangeInfo, ForcedCl, resolveBranchArg } from './branch-interfaces';
+import { ConflictStatusFields } from './status-types';
 import { PersistentConflict, PersistentConflictToString, Resolution } from './conflict-interfaces';
 import { EdgeBot } from './edgebot';
 import { BotEventHandler, BotEventTriggers } from './events';
@@ -85,16 +86,6 @@ class BuildHealthReporter implements BotEventHandler {
 			UGS.reportResolved(conflict.ugsIssue)
 		}
 	}
-}
-
-export type ConflictStatusFields = {
-	cl: number
-	sourceCl: number
-	target?: string
-	targetStream?: string 
-	kind: FailureKind
-	author: string
-	owner: string
 }
 
 /** Per node-bot record of conflicts waiting for resolution */

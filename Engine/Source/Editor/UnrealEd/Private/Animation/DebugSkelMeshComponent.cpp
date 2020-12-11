@@ -485,9 +485,9 @@ void UDebugSkelMeshComponent::GenSpaceBases(TArray<FTransform>& OutSpaceBases)
 	FVector TempRootBoneTranslation;
 	FBlendedHeapCurve TempCurve;
 	FHeapCustomAttributes TempAtttributes;
-	AnimScriptInstance->PreEvaluateAnimation();
+	DoInstancePreEvaluation();
 	PerformAnimationEvaluation(SkeletalMesh, AnimScriptInstance, OutSpaceBases, TempBoneSpaceTransforms, TempRootBoneTranslation, TempCurve, TempAtttributes);
-	AnimScriptInstance->PostEvaluateAnimation();
+	DoInstancePostEvaluation();
 }
 
 void UDebugSkelMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* TickFunction)

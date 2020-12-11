@@ -637,6 +637,15 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 // This function may only be called at runtime, never during cooking.
 extern RENDERCORE_API bool IsRayTracingEnabled();
 
+enum class ERTAccelerationStructureBuildPriority
+{
+	Immediate,
+	High,
+	Normal,
+	Low,
+	Skip
+};
+
 /** A ray tracing geometry resource */
 class RENDERCORE_API FRayTracingGeometry : public FRenderResource
 {
@@ -651,8 +660,6 @@ public:
 	virtual ~FRayTracingGeometry() {}
 
 #if RHI_RAYTRACING
-	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
-	FRayTracingGeometryInitializer Initializer;
 
 	/** When set to NonSharedVertexBuffers, then shared vertex buffers are not used  */
 	static constexpr int64 NonSharedVertexBuffers = -1;
@@ -664,11 +671,10 @@ public:
 	*/
 	int64 DynamicGeometrySharedBufferGenerationID = NonSharedVertexBuffers;
 
+	FRayTracingGeometryInitializer Initializer;
+	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+
 	// FRenderResource interface.
-	virtual void ReleaseRHI() override
-	{
-		RayTracingGeometryRHI.SafeRelease();
-	}
 	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
 
 	void SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
@@ -681,39 +687,22 @@ public:
 		if (!IsRayTracingEnabled())
 			return;
 
-		check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
-		if (RawData.Num())
-		{
-			Initializer.OfflineData = &RawData;
-		}
-
-		bool bAllSegmentsAreValid = true;
-		for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
-		{
-			if (!Segment.VertexBuffer)
-			{
-				bAllSegmentsAreValid = false;
-				break;
-			}
-		}
-
-		if (Initializer.IndexBuffer && bAllSegmentsAreValid)
-		{
-			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
-			if (Initializer.OfflineData == nullptr)
-			{
-				// If offline data is not available, then acceleration structure must be built at run-time.
-				FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
-			}
-			else
-			{
-				// Offline data ownership is transferred to the RHI, which discards it after use.
-				// It is no longer valid to use it after this point.
-				Initializer.OfflineData = nullptr;
-			}
-		}
+		CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Normal);
 	}
 
+	void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
+	virtual void ReleaseRHI() override;
+
+	bool HasPendingBuildRequest() const
+	{
+		return RayTracingBuildRequestIndex != INDEX_NONE;
+	}
+	void BoostBuildPriority(float InBoostValue = 0.01f) const;
+
+protected:
+
+	friend class FRayTracingGeometryManager;
+	int32 RayTracingBuildRequestIndex = INDEX_NONE;
 
 #endif
 };

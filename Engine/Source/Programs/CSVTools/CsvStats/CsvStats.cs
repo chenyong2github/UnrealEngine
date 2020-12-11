@@ -528,17 +528,33 @@ namespace CSVStats
 			return lines.ToArray();
 		}
 
+		private static bool WildcardSubstringMatch(string strLower, string[] subSearchStrings)
+		{
+			string remainingString = strLower;
+			foreach (string subString in subSearchStrings)
+			{
+				int pos = remainingString.IndexOf(subString);
+				if (pos == -1)
+				{
+					return false;
+				}
+				remainingString = remainingString.Substring(pos + subString.Length);
+			}
+			return true;
+		}
+
 		public static bool DoesSearchStringMatch(string str, string searchString)
 		{
-			searchString = searchString.Trim().ToLower();
-			if (searchString.EndsWith("*"))
+			string searchStringLower = searchString.Trim().ToLower();
+			if (searchStringLower.Contains("*"))
 			{
-				searchString = searchString.Substring(0, searchString.Length - 1);
-				return str.ToLower().StartsWith(searchString);
+				// Break the search string into substrings and check each of the substrings appears in order
+				string [] subSearchStrings = searchStringLower.Split('*');
+				return WildcardSubstringMatch(str.ToLower(), subSearchStrings);
 			}
 			else
 			{
-				return searchString == str.ToLower();
+				return searchStringLower == str.ToLower();
 			}
 		}
 
@@ -567,21 +583,24 @@ namespace CSVStats
 
 		public List<StatSamples> GetStatsMatchingString(string statString)
 		{
-			bool isWild = false;
 			statString = statString.Trim().ToLower();
-			if (statString.EndsWith("*"))
+			string[] wildcardSearchSubStrings = null;
+			if (statString.Contains("*"))
 			{
-				isWild = true;
-				statString = statString.TrimEnd('*');
+				wildcardSearchSubStrings = statString.Split('*');
 			}
 			List<StatSamples> statList = new List<StatSamples>();
 			foreach (StatSamples stat in Stats.Values)
 			{
-				if (isWild && stat.Name.ToLower().StartsWith(statString))
+				string statNameLower = stat.Name.ToLower();
+				if (wildcardSearchSubStrings != null)
 				{
-					statList.Add(stat);
+					if ( WildcardSubstringMatch(statNameLower, wildcardSearchSubStrings) )
+					{
+						statList.Add(stat);
+					}
 				}
-				else if (stat.Name.ToLower() == statString.ToLower())
+				else if (statNameLower == statString)
 				{
 					statList.Add(stat);
 				}
@@ -1357,32 +1376,27 @@ namespace CSVStats
             if (statNames != null)
             {
                 statNamesLowercase = statNames.Select(s => s.ToLowerInvariant()).ToArray();
+				string [] headingsLowercase = headings.Select(s => s.ToLowerInvariant().Trim()).ToArray();
+				// Expand the list of stat names based on the wildcards and the headers. We do this here to make sorting simpler
+				HashSet<string> newStatNamesLowercase = new HashSet<string>();
+                foreach (string statname in statNamesLowercase)
                 {
-                    // Expand the list of stat names based on the wildcards and the headers. We do this here to make sorting simpler
-                    HashSet<string> newStatNamesLowercase = new HashSet<string>();
-                    foreach (string statname in statNamesLowercase)
+					if (statname.Contains("*"))
                     {
-                        if (statname.EndsWith("*"))
+                        foreach (string headingStat in headingsLowercase)
                         {
-                            int index = statname.LastIndexOf('*');
-                            string prefix = statname.Substring(0, index);
-                            // Expand all the stat names
-                            foreach (string headingStat in headings)
-                            {
-                                if (headingStat.ToLower().StartsWith(prefix))
-                                {
-                                    newStatNamesLowercase.Add(headingStat.ToLower());
-                                }
-                            }
-                        }
-                        else
-                        {
-                            newStatNamesLowercase.Add(statname);
+							if ( DoesSearchStringMatch(headingStat, statname) )
+							{
+								newStatNamesLowercase.Add(headingStat.ToLower());
+							}
                         }
                     }
-
-                    statNamesLowercase = newStatNamesLowercase.ToArray();
+                    else
+                    {
+                        newStatNamesLowercase.Add(statname);
+                    }
                 }
+                statNamesLowercase = newStatNamesLowercase.ToArray();
             }
 
             // First line is headings, last line contains build info 

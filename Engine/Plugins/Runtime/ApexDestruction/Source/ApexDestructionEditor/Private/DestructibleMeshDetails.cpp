@@ -69,7 +69,7 @@ void FDestructibleMeshDetails::HideUnsupportedProperties(IDetailLayoutBuilder &D
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Body setups are not available on destructible meshes as we set up the bodies through APEX
-	TSharedPtr<IPropertyHandle> BodySetupHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, BodySetup));
+	TSharedPtr<IPropertyHandle> BodySetupHandle = DetailBuilder.GetProperty(USkeletalMesh::GetBodySetupMemberName());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if(BodySetupHandle.IsValid())
@@ -79,7 +79,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Capsule shadows only supported on skeletal meshes
-	TSharedPtr<IPropertyHandle> ShadowPhysicsAssetHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, ShadowPhysicsAsset), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> ShadowPhysicsAssetHandle = DetailBuilder.GetProperty(USkeletalMesh::GetShadowPhysicsAssetMemberName(), USkeletalMesh::StaticClass());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if(ShadowPhysicsAssetHandle.IsValid())
@@ -89,7 +89,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Post processing graphs only supported on skeletal meshes
-	TSharedPtr<IPropertyHandle> PostProcessBlueprintHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, PostProcessAnimBlueprint), USkeletalMesh::StaticClass());
+	TSharedPtr<IPropertyHandle> PostProcessBlueprintHandle = DetailBuilder.GetProperty(USkeletalMesh::GetPostProcessAnimBlueprintMemberName(), USkeletalMesh::StaticClass());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if(PostProcessBlueprintHandle.IsValid())

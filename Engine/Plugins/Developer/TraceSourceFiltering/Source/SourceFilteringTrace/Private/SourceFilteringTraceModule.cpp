@@ -28,6 +28,8 @@
 
 void FSourceFilteringTraceModule::TraceFilterClasses()
 {
+	SCOPED_BOOT_TIMING("Trace_SourceFilterClasses");
+
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> Filters;

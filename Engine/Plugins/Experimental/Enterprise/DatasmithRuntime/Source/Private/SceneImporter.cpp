@@ -123,15 +123,14 @@ namespace DatasmithRuntime
 		LIVEUPDATE_LOG_TIME;
 
 		int32 ActorElementCount = 0;
-		FParsingCallback CountingCallback = 
-		[&](const TSharedPtr< IDatasmithActorElement>& ActorElement, FSceneGraphId ActorId) -> void
-		{
-			++ActorElementCount;
-		};
 
 		for (int32 Index = 0; Index < SceneElement->GetActorsCount(); ++Index)
 		{
-			ParseScene( SceneElement->GetActor(Index), DirectLink::InvalidId, CountingCallback );
+			ParseScene( SceneElement->GetActor(Index), DirectLink::InvalidId,
+				[&](const TSharedPtr< IDatasmithActorElement>& ActorElement, FSceneGraphId ActorId) -> void
+				{
+					++ActorElementCount;
+				});
 		}
 
 		int32 AssetElementCount = SceneElement->GetTexturesCount() + SceneElement->GetMaterialsCount() +

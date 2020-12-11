@@ -304,7 +304,7 @@ struct FBoundActorProxy
 
 	/** Specifies the actor to override the binding with */
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, Category="General")
-	AActor* BoundActor;
+	AActor* BoundActor = nullptr;
 
 	void Initialize(TSharedPtr<IPropertyHandle> InPropertyHandle);
 

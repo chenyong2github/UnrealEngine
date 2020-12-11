@@ -173,8 +173,8 @@ private:
 	// TODO(mlentine): Need a bb hierarchy
 	const TPBDActiveView<FCollisionParticles>& MCollisionParticlesActiveView;
 	TArray<bool>& MCollided;
-	TArray<uint32>& MDynamicGroupIds;
-	TArray<uint32>& MKinematicGroupIds;
+	const TArray<uint32>& MDynamicGroupIds;
+	const TArray<uint32>& MKinematicGroupIds;
 	mutable TMap<int32, FVelocityConstraint> MVelocityConstraints;
 	const TArray<T>& MPerGroupThickness;
 	const TArray<T>& MPerGroupFriction;

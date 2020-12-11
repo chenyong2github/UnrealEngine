@@ -16,6 +16,7 @@ struct FListener;
 struct FWaveInstance;
 
 class FSoundSource;
+class USoundWave;
 class UWorld;
 
 namespace Audio
@@ -66,7 +67,7 @@ namespace Audio
 		static bool ToggleStatSounds(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		static bool ToggleStatWaves(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		static void UpdateAudibleInactiveSounds(const uint32 FirstIndex, const TArray<FWaveInstance*>& WaveInstances);
-
+		static void LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave);
 		static void ClearStats(const uint32 StatsToToggle, UWorld* InWorld);
 		static void SetStats(const uint32 StatsToToggle, UWorld* InWorld);
 

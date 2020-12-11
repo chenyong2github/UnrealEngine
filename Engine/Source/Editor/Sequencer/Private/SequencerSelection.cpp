@@ -390,10 +390,7 @@ void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSe
 
 void FSequencerSelection::RequestOutlinerNodeSelectionChangedBroadcast()
 {
-	if ( IsBroadcasting() )
-	{
-		bOutlinerNodeSelectionChangedBroadcastPending = true;
-	}
+	bOutlinerNodeSelectionChangedBroadcastPending = true;
 }
 
 void FSequencerSelection::Tick()

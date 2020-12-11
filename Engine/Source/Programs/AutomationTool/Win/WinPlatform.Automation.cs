@@ -48,8 +48,19 @@ public abstract class BaseWinPlatform : Platform
 			SC.StageFile(StagedFileType.NonUFS, SplashImage);
 		}
 
+		// Stage cloud metadata
+		DirectoryReference ProjectCloudPath = DirectoryReference.Combine(SC.ProjectRoot, "Platforms/Windows/Build/Cloud");
+		if (DirectoryReference.Exists(ProjectCloudPath))
+		{
+			SC.StageFiles(StagedFileType.SystemNonUFS, ProjectCloudPath, StageFilesSearch.AllDirectories, new StagedDirectoryReference("Cloud"));
+		}
+		else
+		{
+			CommandUtils.LogLog("Can't find cloud directory {0}", ProjectCloudPath.FullName);
+		}
+
 		// Stage the bootstrap executable
-		if(!Params.NoBootstrapExe)
+		if (!Params.NoBootstrapExe)
 		{
 			foreach(StageTarget Target in SC.StageTargets)
 			{

@@ -101,9 +101,35 @@ public:
 
 	// This is for debugging purposes only. Prints the elements in the cache from most recently used to least.
 	// Returns the dimensions of this debug log so that multiple caches can be tiled across the screen.
-	TPair<int, int> DebugDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+	TPair<int, int> DebugDisplayLegacy(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+
 	// Generate a formatted text file for this cache.
 	FString DebugPrint();
+
+	// This is for debugging purposes only. Prints the elements in the cache from most recently used to least.
+	// Returns the dimensions of this debug log so that multiple caches can be tiled across the screen.
+
+	enum class EDebugDisplayElementTypes
+	{
+		NumRetainedAndPlaying = 0,
+		NumRetained,
+		NumPrimedAndPlaying,
+		NumPrimed,
+		NumRetainedAndPlayingCacheMiss,
+		NumRetainedCacheMiss,
+		NumPrimedAndPlayingCacheMiss,
+		NumPrimedCacheMiss,
+		NumLODAndPlaying,
+		NumLOD,
+		NumTrimmed,
+		NumLoadInProgress,
+		NumOther,
+		Count
+	};
+
+	TPair<int, int> DebugDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+	TPair<int, int> DebugVisualDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+	TPair<int, int> DebugBirdsEyeDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
 
 	void IncrementCacheOverflowCounter()
 	{
@@ -246,6 +272,18 @@ private:
 			return NumConsumers.GetValue() > 0;
 		}
 
+#if DEBUG_STREAM_CACHE
+		bool IsBeingPlayed() const
+		{
+			const int32 NumActiveConsumers = NumConsumers.GetValue();
+
+			// if we 2 or more consumers, this chunk is being rendered.
+			// if we have 1 consumer, and we aren't Retained, then this chunk is being rendered
+			return (NumActiveConsumers > 1)
+				|| (NumActiveConsumers && (DebugInfo.LoadingBehavior != ESoundWaveLoadingBehavior::RetainOnLoad));
+		}
+#endif
+
 		bool CanEvictChunk() const
 		{
 			return !IsInUse() && !IsLoadInProgress();
@@ -301,6 +339,8 @@ private:
 	// Returns cached element if it exists in our cache, nullptr otherwise.
 	// If the index of the element is already known, it can be used here to avoid searching the cache.
 	FCacheElement* FindElementForKey(const FChunkKey& InKey, uint64 CacheLookupID = InvalidAudioStreamCacheLookupID);
+	FCacheElement* LinearSearchCacheForElement(const FChunkKey& InKey);
+	FCacheElement* LinearSearchChunkArrayForElement(const FChunkKey& InKey);
 
 	// Puts this element at the front of the linked list.
 	void TouchElement(FCacheElement* InElement);

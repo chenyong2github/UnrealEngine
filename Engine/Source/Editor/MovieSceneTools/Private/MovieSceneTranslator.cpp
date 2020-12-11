@@ -192,6 +192,35 @@ bool FMovieSceneExportData::ConstructCinematicMasterTrackData(const UMovieScene*
 	MasterTrackData->MovieSceneTrack = InCinematicMasterTrack;
 	MovieSceneData->CinematicMasterTrack = MasterTrackData;
 
+	// Make a list of shotnames and how many duplicates
+	for (UMovieSceneSection* Section : InCinematicMasterTrack->GetAllSections())
+	{
+		const UMovieSceneCinematicShotSection* CinematicSection = Cast<UMovieSceneCinematicShotSection>(Section);
+
+		if (CinematicSection != nullptr && CinematicSection->GetSequence() != nullptr)
+		{
+			++DuplicateShotNameCounts.FindOrAdd(CinematicSection->GetShotDisplayName(), 0);
+		}
+	}
+
+	// Remove entries for shotnames which do not have duplicates
+	TArray<FString> ShotNames;
+	DuplicateShotNameCounts.GetKeys(ShotNames);
+	for (FString ShotName : ShotNames)
+	{
+		int32& Count = DuplicateShotNameCounts[ShotName];
+		if (Count > 1)
+		{
+			// Reset duplicate count to zero, so we can increment as we export
+			Count = 0;
+		}
+		else
+		{
+			// No dupes, so remove it
+			DuplicateShotNameCounts.Remove(ShotName);
+		}
+	}
+
 	// Construct sections & create track row index array
 	TArray<int32> CinematicTrackRowIndices;
 
@@ -344,7 +373,12 @@ bool FMovieSceneExportData::ConstructCinematicSectionData(const UMovieScene* InM
 	InMasterTrackData->CinematicSections.Add(SectionData);
 
 	SectionData->DisplayName = InCinematicSection->GetShotDisplayName();
-
+	if (DuplicateShotNameCounts.Contains(SectionData->DisplayName))
+	{
+		// If this shotname is a duplicate, append a number to make it unique
+		int32 Count = ++DuplicateShotNameCounts[SectionData->DisplayName];
+		SectionData->DisplayName.Append(FString::Format(TEXT("({0})"), { Count }));
+	}
 	SectionData->SourceFilename = SectionData->DisplayName + MovieExtension;
 	SectionData->SourceFilePath = TEXT("");
 

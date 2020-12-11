@@ -100,6 +100,30 @@ namespace ENiagaraMeshVFLayout
 	};
 };
 
+USTRUCT()
+struct NIAGARA_API FNiagaraMeshRendererMeshProperties
+{
+	GENERATED_BODY()
+
+	FNiagaraMeshRendererMeshProperties();
+
+	/** The mesh to use when rendering this slot */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	UStaticMesh* Mesh;
+
+	/** Scale of the mesh */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FVector Scale;
+
+	/** Offset of the mesh pivot */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FVector PivotOffset;
+
+	/** What space is the pivot offset in? */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
+};
+
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
 class NIAGARA_API UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
@@ -141,12 +165,17 @@ public:
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	//UNiagaraRendererProperties Interface END
 
-	virtual uint32 GetNumIndicesPerInstance() const final override;
-	void GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& InfoPerSection) const;
+	void GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const;
 
-	/** The static mesh to be instanced when rendering mesh particles. If OverrideMaterial is not specified, the mesh's material is used. Note that the material must have the Niagara Mesh Particles flag checked.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	UStaticMesh *ParticleMesh;
+	/**
+	 * The static mesh(es) to be instanced when rendering mesh particles.
+	 * 
+	 * NOTES:
+	 * - If "Override Material" is not specified, the mesh's material is used. Override materials must have the Niagara Mesh Particles flag checked.
+	 * - If "Enable Mesh Flipbook" is specified, this mesh is assumed to be the first frame of the flipbook.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "!bEnableMeshFlipbook"))
+	TArray<FNiagaraMeshRendererMeshProperties> Meshes;
 
 	/** Determines how we sort the particles prior to rendering.*/
 	UPROPERTY(EditAnywhere, Category = "Sorting")
@@ -160,6 +189,22 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sorting")
 	uint32 bSortOnlyWhenTranslucent : 1;
 
+	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
+	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
+	uint32 bSubImageBlend : 1;
+	
+	/** Enables frustum culling of individual mesh particles */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 bEnableFrustumCulling : 1;
+
+	/** Enables frustum culling of individual mesh particles */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 bEnableCameraDistanceCulling : 1;
+
+	/** When checked, will treat 'ParticleMesh' as the first frame of the flipbook, and will use the other mesh flipbook options to find the other frames */
+	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook")
+	uint32 bEnableMeshFlipbook : 1;
+
 	/** The materials to be used instead of the StaticMesh's materials. Note that each material must have the Niagara Mesh Particles flag checked. If the ParticleMesh 
 	requires more materials than exist in this array or any entry in this array is set to None, we will use the ParticleMesh's existing Material instead.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
@@ -168,10 +213,6 @@ public:
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV")
 	FVector2D SubImageSize;
-
-	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
-	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
-	uint32 bSubImageBlend : 1;
 
 	/** Determines how the mesh orients itself relative to the camera. */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
@@ -189,26 +230,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 	
-	/** Offset of the mesh pivot */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	FVector PivotOffset;
-
-	/** What space is the pivot offset in? */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
-	
-	/** Enables frustum culling of individual mesh particles */
-	UPROPERTY(EditAnywhere, Category = "Visibility")
-	uint32 bEnableFrustumCulling : 1;
-
-	/** Enables frustum culling of individual mesh particles */
-	UPROPERTY(EditAnywhere, Category = "Visibility")
-	uint32 bEnableCameraDistanceCulling : 1;
-
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", ClampMin = 0.0f))
 	float MinCameraDistance;
 	
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", ClampMin = 0.0f))
 	float MaxCameraDistance = 1000.0f;
 
 	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
@@ -275,6 +300,37 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
+	/** Which attribute should we use for the flipbook index? */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding MeshIndexBinding;
+	
+#if WITH_EDITORONLY_DATA
+	/** 
+	 * The static mesh to use for the first frame of the flipbook. Its name will also be used to find subsequent frames of a similar name.
+	 * NOTE: The subsequent frames are expected to exist in the same content directory as the first frame of the flipbook, otherwise they
+	 * will not be found or used.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook"))
+	UStaticMesh* FirstFlipbookFrame;
+
+	/**
+	 * Provides the format of the suffix of the names of the static meshes when searching for flipbook frames. "{frame_number}" is used to mark
+	 * where the frame number should appear in the suffix. If "Particle Mesh" contains this suffix, the number in its name will be treated as
+	 * the starting frame index. Otherwise, it will assume "Particle Mesh" is frame number 0, and that subsequent frames follow this format,
+	 * starting with frame number 1.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr"))
+	FString FlipbookSuffixFormat;
+
+	/** The number of digits to expect in the frame number of the flipbook page. Set to 1 to not expect any leading zeros in the package names. */
+	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", ClampMin = 1, ClampMax = 10, NoSpinbox = true))
+	uint32 FlipbookSuffixNumDigits;
+
+	/** The number of frames (static meshes) to be included in the flipbook. */
+	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", ClampMin = 1, NoSpinbox = true))
+	uint32 NumFlipbookFrames;
+#endif	
+
 	uint32 MaterialParamValidMask = 0;
 	FNiagaraRendererLayout RendererLayoutWithCustomSorting;
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSorting;
@@ -283,6 +339,23 @@ protected:
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials);
 	void InitBindings();
 
+#if WITH_EDITORONLY_DATA
+	bool ChangeRequiresMeshListRebuild(const FProperty* Property);
+	void RebuildMeshList();
+#endif
+
 private:
 	static TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> MeshRendererPropertiesToDeferredInit;
+
+	// These properties are deprecated and moved to FNiagaraMeshRendererMeshProperties
+	UPROPERTY()
+	UStaticMesh* ParticleMesh_DEPRECATED;
+
+	UPROPERTY()
+	FVector PivotOffset_DEPRECATED;
+
+	UPROPERTY()
+	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace_DEPRECATED;
+
+
 };

@@ -111,8 +111,12 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
+	if ( Material )
+	{
+		Material->ConditionalPostLoad();
+	}
 
+#if WITH_EDITORONLY_DATA
 	if (MaterialUserParamBinding.Parameter.GetType().GetClass() != UMaterialInterface::StaticClass())
 	{
 		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());

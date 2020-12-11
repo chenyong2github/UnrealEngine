@@ -373,6 +373,17 @@ public:
 	 */
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) = 0;
 
+	/**
+	 * Scans a set of given plugins and adds them to the passed in ConfigSystem so that the runtime can 
+	 * load faster without needing to scan all plugins looking for config/paks
+	 *
+	 * @param ConfigSystem The config system to insert settings into
+	 * @param EngineIniName The name of the engine ini file in ConfigSystem
+	 * @param PlatformName The name of the platform this config is made for
+	 * @param StagedPluginsFile A path to a file that contains all plugins that have been staged, and should be evaluated
+	 */
+	virtual bool IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, const TCHAR* EngineIniName, const TCHAR* PlatformName, const TCHAR* StagedPluginsFile) = 0;
+
 public:
 
 	/**

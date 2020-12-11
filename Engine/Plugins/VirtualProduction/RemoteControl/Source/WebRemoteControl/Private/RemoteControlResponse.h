@@ -72,7 +72,7 @@ struct FDescribeObjectResponse
 	FString Name;
 
 	UPROPERTY()
-	UClass* Class;
+	UClass* Class = nullptr;
 
 	UPROPERTY()
 	TArray<FRCPropertyDescription> Properties;

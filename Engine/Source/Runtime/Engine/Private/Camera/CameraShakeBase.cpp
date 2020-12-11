@@ -93,9 +93,9 @@ float FCameraShakeState::Update(float DeltaTime)
 		// Advance progress into the shake.
 		const float ShakeDuration = ShakeInfo.Duration.Get();
 		ElapsedTime = ElapsedTime + DeltaTime;
-		if (ElapsedTime >= ShakeDuration)
+		if (ElapsedTime < 0.f || ElapsedTime >= ShakeDuration)
 		{
-			// The shake has ended.
+			// The shake has ended, or hasn't started yet.
 			bIsActive = false;
 			return 0.f;
 		}
@@ -112,6 +112,19 @@ float FCameraShakeState::Update(float DeltaTime)
 		{
 			BlendingWeight *= (DurationRemaining / ShakeInfo.BlendOut);
 		}
+	}
+	return BlendingWeight;
+}
+
+float FCameraShakeState::Scrub(float AbsoluteTime)
+{
+	float BlendingWeight = 1.f;
+	if (HasDuration())
+	{
+		// Reset the state to active, at the beginning, and update from there.
+		bIsActive = true;
+		ElapsedTime = 0.f;
+		return Update(AbsoluteTime);
 	}
 	return BlendingWeight;
 }
@@ -141,6 +154,17 @@ bool FCameraShakeState::Stop(bool bImmediately)
 		return true;
 	}
 	return false;
+}
+
+FCameraShakeUpdateParams FCameraShakeScrubParams::ToUpdateParams() const
+{
+	FCameraShakeUpdateParams UpdateParams;
+	UpdateParams.BlendingWeight = BlendingWeight;
+	UpdateParams.DeltaTime = AbsoluteTime;
+	UpdateParams.DynamicScale = DynamicScale;
+	UpdateParams.POV = POV;
+	UpdateParams.TotalScale = TotalScale;
+	return UpdateParams;
 }
 
 void UCameraShakeBase::GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const
@@ -225,6 +249,45 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	if (RootShakePattern)
 	{
 		RootShakePattern->UpdateShakePattern(Params, Result);
+	}
+
+	// Apply the result to the given view info.
+	FCameraShakeApplyResultParams ApplyParams;
+	ApplyParams.Scale = Params.TotalScale;
+	ApplyParams.PlaySpace = PlaySpace;
+	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
+	ApplyResult(ApplyParams, Result, InOutPOV);
+}
+
+void UCameraShakeBase::ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha, FMinimalViewInfo& InOutPOV)
+{
+	// This code is similar to the above UpdateAndApplyCameraShake method, but calls the scrub method
+	// on the state manager and root pattern instead of the update method.
+	
+	SCOPE_CYCLE_COUNTER(STAT_UpdateShake);
+
+	checkf(State.IsActive(), TEXT("Updating a camera shake that wasn't started with a call to StartShake!"));
+
+	float BlendingWeight = State.Scrub(AbsoluteTime);
+	if (!State.IsActive())
+	{
+		return;
+	}
+
+	// Make the sub-class do the actual work.
+	FCameraShakeScrubParams Params(InOutPOV);
+	Params.AbsoluteTime = AbsoluteTime;
+	Params.DynamicScale = Alpha;
+	Params.BlendingWeight = BlendingWeight;
+	Params.TotalScale = FMath::Max(Alpha * ShakeScale * BlendingWeight, 0.f);
+
+	// Result object is initialized with zero values since the default flags make us handle it
+	// as an additive offset.
+	FCameraShakeUpdateResult Result;
+
+	if (RootShakePattern)
+	{
+		RootShakePattern->ScrubShakePattern(Params, Result);
 	}
 
 	// Apply the result to the given view info.
@@ -429,6 +492,11 @@ void UCameraShakePattern::StartShakePattern(const FCameraShakeStartParams& Param
 void UCameraShakePattern::UpdateShakePattern(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	UpdateShakePatternImpl(Params, OutResult);
+}
+
+void UCameraShakePattern::ScrubShakePattern(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	ScrubShakePatternImpl(Params, OutResult);
 }
 
 bool UCameraShakePattern::IsFinished() const

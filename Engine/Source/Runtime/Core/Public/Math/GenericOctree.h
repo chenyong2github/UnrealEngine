@@ -119,53 +119,54 @@ public:
 class FOctreeChildNodeRef
 {
 public:
-
-	union
-	{
-		struct
-		{
-			uint32 X : 1;
-			uint32 Y : 1;
-			uint32 Z : 1;
-			uint32 bNULL : 1;
-		};
-		uint32 Index : 3;
-	};
+	int8 Index;
 
 	/** Initialization constructor. */
-	FOctreeChildNodeRef(int32 InX,int32 InY,int32 InZ)
-	:	X(InX)
-	,	Y(InY)
-	,	Z(InZ)
-	,	bNULL(false)
-	{}
+	FOctreeChildNodeRef(int8 InX, int8 InY, int8 InZ)
+	{
+		checkSlow(InX >= 0 && InX <= 1);
+		checkSlow(InY >= 0 && InY <= 1);
+		checkSlow(InZ >= 0 && InZ <= 1);
+		Index = int8(InX << 0) | int8(InY << 1) | int8(InZ << 2);
+	}
 
 	/** Initialized the reference with a child index. */
-	FOctreeChildNodeRef(int32 InIndex = 0)
+	FOctreeChildNodeRef(int8 InIndex = 0)
 	:	Index(InIndex)
 	{
 		checkSlow(Index < 8);
-		// some compilers do not allow multiple members of a union to be specified in the constructor init list
-		bNULL = false;
 	}
 
-	/** Advances the reference to the next child node.  If this was the last node remain, sets bInvalid=true. */
+	/** Advances the reference to the next child node.  If this was the last node remain, Index will be 8 which represents null. */
 	FORCEINLINE void Advance()
 	{
-		if(Index < 7)
-		{
-			++Index;
-		}
-		else
-		{
-			bNULL = true;
-		}
+		++Index;
 	}
 
 	/** @return true if the reference isn't set. */
 	FORCEINLINE bool IsNULL() const
 	{
-		return bNULL;
+		return Index >= 8;
+	}
+
+	FORCEINLINE void SetNULL()
+	{
+		Index = 8;
+	}
+
+	FORCEINLINE int32 X() const
+	{
+		return (Index >> 0) & 1;
+	}
+
+	FORCEINLINE int32 Y() const
+	{
+		return (Index >> 1) & 1;
+	}
+
+	FORCEINLINE int32 Z() const
+	{
+		return (Index >> 2) & 1;
 	}
 };
 
@@ -498,7 +499,7 @@ private:
 	void FreeEightNodes(FNodeIndex Index)
 	{
 		checkSlow(Index != INDEX_NONE && Index != 0);
-		for (int i = 0; i < 8; i++)
+		for (int8 i = 0; i < 8; i++)
 		{
 			TreeNodes[Index + i] = FNode();
 			checkSlow(TreeElements[Index + i].Num() == 0);
@@ -568,7 +569,7 @@ private:
 		if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 		{
 			FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-			for (int i = 0; i < 8; i++)
+			for (int8 i = 0; i < 8; i++)
 			{
 				CollapseNodesInternal(ChildStartIndex + i, CollapsedNodeElements);
 			}
@@ -588,7 +589,7 @@ private:
 				if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 				{
 					FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-					for (int i = 0; i < 8; i++)
+					for (int8 i = 0; i < 8; i++)
 					{
 						FindNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
 					}
@@ -614,7 +615,7 @@ private:
 			{
 				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
 				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-				for (int i = 0; i < 8; i++)
+				for (int8 i = 0; i < 8; i++)
 				{
 					if(IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
 					{
@@ -643,7 +644,7 @@ private:
 			{
 				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
 				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-				for (int i = 0; i < 8; i++)
+				for (int8 i = 0; i < 8; i++)
 				{
 					if (IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
 					{
@@ -680,7 +681,7 @@ private:
 					// anything to match vs. the new point, process all of the children of the current octree node
 					else
 					{
-						for (int i = 0; i < 8; i++)
+						for (int8 i = 0; i < 8; i++)
 						{
 							FindNearbyElementsInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
 						}

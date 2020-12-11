@@ -84,6 +84,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialParameterCollection.h"
 
+#include "MaterialGraphNode_Knot.h"
 #include "MaterialEditorActions.h"
 #include "MaterialExpressionClasses.h"
 #include "MaterialCompiler.h"
@@ -135,6 +136,8 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Materials/MaterialExpressionBlendMaterialAttributes.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
+#include "Materials/MaterialExpressionReroute.h"
 
 #include "MaterialStats.h"
 #include "MaterialEditorTabs.h"
@@ -3156,6 +3159,22 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects));
 
 	ToolkitCommands->MapAction(
+		Commands.SelectNamedRerouteDeclaration,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectNamedRerouteDeclaration));
+	
+	ToolkitCommands->MapAction(
+		Commands.SelectNamedRerouteUsages,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectNamedRerouteUsages));
+	
+	ToolkitCommands->MapAction(
+		Commands.ConvertRerouteToNamedReroute,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertRerouteToNamedReroute));
+	
+	ToolkitCommands->MapAction(
+		Commands.ConvertNamedRerouteToReroute,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertNamedRerouteToReroute));
+
+	ToolkitCommands->MapAction(
 		Commands.StopPreviewNode,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::OnPreviewNode));
 
@@ -3825,6 +3844,223 @@ void FMaterialEditor::OnConvertTextures()
 			for ( TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter )
 			{
 				FocusedGraphEd->SetNodeSelection(*NodeIter, true);
+			}
+		}
+	}
+}
+
+void FMaterialEditor::OnSelectNamedRerouteDeclaration()
+{
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = FocusedGraphEd->GetSelectedNodes();
+		if (SelectedNodes.Num() == 1)
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			{
+				UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*NodeIt);
+				if (GraphNode)
+				{
+					UMaterialExpression* CurrentSelectedExpression = GraphNode->MaterialExpression;
+					UMaterialExpressionNamedRerouteUsage* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(CurrentSelectedExpression);
+					if (Usage && Usage->Declaration)
+					{
+						UEdGraphNode* DeclarationGraphNode = Usage->Declaration->GraphNode;
+						if (DeclarationGraphNode)
+						{
+							FocusedGraphEd->SetNodeSelection(DeclarationGraphNode, true);
+						}
+					}
+				}
+			}
+			FocusedGraphEd->ZoomToFit(true);
+		}
+	}
+}
+
+void FMaterialEditor::OnSelectNamedRerouteUsages()
+{
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = FocusedGraphEd->GetSelectedNodes();
+		if (SelectedNodes.Num() == 1)
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			{
+				UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*NodeIt);
+				if (GraphNode)
+				{
+					UMaterialExpression* CurrentSelectedExpression = GraphNode->MaterialExpression;
+					UMaterialExpressionNamedRerouteDeclaration* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(CurrentSelectedExpression);
+					for (UMaterialExpression* Expression : Material->Expressions)
+					{
+						auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
+						if (Usage && Usage->Declaration == Declaration)
+						{
+							UEdGraphNode* UsageGraphNode = Usage->GraphNode;
+							if (UsageGraphNode)
+							{
+								FocusedGraphEd->SetNodeSelection(UsageGraphNode, true);
+							}
+						}
+					}
+				}
+			}
+			FocusedGraphEd->ZoomToFit(true);
+		}
+	}
+}
+
+void FMaterialEditor::OnConvertRerouteToNamedReroute()
+{
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = FocusedGraphEd->GetSelectedNodes();
+		if (SelectedNodes.Num() == 1)
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			{
+				UMaterialGraphNode_Knot* GraphNode = Cast<UMaterialGraphNode_Knot>(*NodeIt);
+				if (GraphNode)
+				{
+					UEdGraph* Graph = GraphNode->GetGraph();
+					const FScopedTransaction Transaction(LOCTEXT("ConvertRerouteToNamedReroute", "Convert reroute to named reroute"));
+					Graph->Modify();
+
+					auto* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(FMaterialEditorUtilities::CreateNewMaterialExpression(
+						Graph,
+						UMaterialExpressionNamedRerouteDeclaration::StaticClass(),
+						FVector2D(GraphNode->NodePosX - 50, GraphNode->NodePosY),
+						false,
+						true));
+					if (!Declaration)
+					{
+						return;
+					}
+
+					UEdGraphPin* DeclarationInputPin = nullptr;
+					for (auto* Pin : Declaration->GraphNode->GetAllPins())
+					{
+						if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
+						{
+							DeclarationInputPin = Pin;
+							break;
+						}
+					}
+					if (!ensure(DeclarationInputPin))
+					{
+						return;
+					}
+
+					for (auto* InputPin : GraphNode->GetInputPin()->LinkedTo)
+					{
+						InputPin->MakeLinkTo(DeclarationInputPin);
+					}
+
+					TArray<UEdGraphPin*> OutputPins = GraphNode->GetOutputPin()->LinkedTo;
+					OutputPins.Sort([](UEdGraphPin& A, UEdGraphPin& B) { return A.GetOwningNode()->NodePosY < B.GetOwningNode()->NodePosY; });
+
+					int Index = -OutputPins.Num() / 2;
+					for (auto* OutputPin : OutputPins)
+					{
+						auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(FMaterialEditorUtilities::CreateNewMaterialExpression(
+							Material->MaterialGraph,
+							UMaterialExpressionNamedRerouteUsage::StaticClass(),
+							FVector2D(GraphNode->NodePosX + 50, GraphNode->NodePosY + Index * 50),
+							false,
+							true));
+						if (Usage)
+						{
+							Usage->Declaration = Declaration;
+							Usage->DeclarationGuid = Declaration->VariableGuid;
+							Usage->GraphNode->GetAllPins()[0]->MakeLinkTo(OutputPin); // usage node has a single pin
+						}
+						Index++;
+					}
+					GraphNode->DestroyNode();
+					FocusedGraphEd->SetNodeSelection(Declaration->GraphNode, true);
+				}
+			}
+		}
+	}
+}
+
+void FMaterialEditor::OnConvertNamedRerouteToReroute()
+{
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = FocusedGraphEd->GetSelectedNodes();
+		if (SelectedNodes.Num() == 1)
+		{
+			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			{
+				UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*NodeIt);
+				if (GraphNode)
+				{
+					UEdGraph* Graph = GraphNode->GetGraph();
+					const FScopedTransaction Transaction(LOCTEXT("ConvertNamedRerouteToReroute", "Convert named reroute to reroute"));
+					Graph->Modify();
+
+					UMaterialExpression* CurrentSelectedExpression = GraphNode->MaterialExpression;
+					UMaterialExpressionNamedRerouteDeclaration* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(CurrentSelectedExpression);
+					if (!Declaration)
+					{
+						UMaterialExpressionNamedRerouteUsage* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(CurrentSelectedExpression);
+						if (Usage)
+						{
+							Declaration = Usage->Declaration;
+						}
+					}
+					if (!Declaration)
+					{
+						return;
+					}
+					UEdGraphNode* DeclarationGraphNode = Declaration->GraphNode;
+					FVector2D KnotPosition(DeclarationGraphNode->NodePosX + 50, DeclarationGraphNode->NodePosY);
+
+					UMaterialExpression* Reroute = FMaterialEditorUtilities::CreateNewMaterialExpression(Graph, UMaterialExpressionReroute::StaticClass(), KnotPosition, false, true);
+					auto* KnotGraphNode = CastChecked<UMaterialGraphNode_Knot>(Reroute->GraphNode);
+
+					for (UEdGraphPin* Pin : DeclarationGraphNode->GetAllPins())
+					{
+						if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
+						{
+							for (UEdGraphPin* InputPin : Pin->LinkedTo)
+							{
+								KnotGraphNode->GetInputPin()->MakeLinkTo(InputPin);
+							}
+						}
+						if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+						{
+							for (UEdGraphPin* OutputPin : Pin->LinkedTo)
+							{
+								KnotGraphNode->GetOutputPin()->MakeLinkTo(OutputPin);
+							}
+						}
+					}
+					DeclarationGraphNode->DestroyNode();
+
+					for (UMaterialExpression* Expression : Material->Expressions)
+					{
+						auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
+						if (Usage && Usage->Declaration == Declaration)
+						{
+							UEdGraphNode* UsageGraphNode = Usage->GraphNode;
+							if (UsageGraphNode)
+							{
+								UEdGraphPin* Pin = Usage->GraphNode->GetAllPins()[0]; // usage node has a single pin
+								for (UEdGraphPin* OutputPin : Pin->LinkedTo)
+								{
+									KnotGraphNode->GetOutputPin()->MakeLinkTo(OutputPin);
+								}
+								UsageGraphNode->DestroyNode();
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -5246,6 +5482,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 		AvgNodePosition.Y *= InvNumNodes;
 	}
 
+	TArray<UMaterialExpression*> NewMaterialExpressions;
 	for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
 	{
 		UEdGraphNode* Node = *It;
@@ -5267,6 +5504,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 				NewExpression->ValidateParameterName();
 			}
 
+			NewMaterialExpressions.Add(NewExpression);
 			Material->Expressions.Add(NewExpression);
 
 			ensure(NewExpression->GraphNode == GraphNode);
@@ -5297,6 +5535,12 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 
 		// Give new node a different Guid from the old one
 		Node->CreateNewGuid();
+	}
+
+	for (auto* NewExpression : NewMaterialExpressions)
+	{
+		// For named reroute fixup: once all nodes are added to Material->Expressions, and that all their Material property are valid
+		NewExpression->PostCopyNode(NewMaterialExpressions);
 	}
 
 	UpdateMaterialAfterGraphChange();
@@ -6133,6 +6377,22 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget(TSharedRef<cla
 
 		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().ConvertToConstant,
 			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects)
+			);
+
+		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().SelectNamedRerouteDeclaration,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectNamedRerouteDeclaration)
+			);
+
+		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().SelectNamedRerouteUsages,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectNamedRerouteUsages)
+			);
+
+		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().ConvertRerouteToNamedReroute,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertRerouteToNamedReroute)
+			);
+
+		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().ConvertNamedRerouteToReroute,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertNamedRerouteToReroute)
 			);
 
 		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().StopPreviewNode,

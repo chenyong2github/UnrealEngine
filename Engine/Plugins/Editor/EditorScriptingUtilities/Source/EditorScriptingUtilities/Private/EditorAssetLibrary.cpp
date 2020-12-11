@@ -1419,10 +1419,9 @@ TMap<FName, FString> UEditorAssetLibrary::GetTagValues(const FString& AssetPath)
 		return Result;
 	}
 
-	const FAssetDataTagMap& DataTagMap = AssetData.TagsAndValues.GetMap();
-	for (const auto& Itt : DataTagMap)
+	for (TPair<FName, FAssetTagValueRef> Itt : AssetData.TagsAndValues)
 	{
-		Result.Add(Itt.Key, Itt.Value);
+		Result.Add(Itt.Key, Itt.Value.AsString());
 	}
 	return Result;
 }

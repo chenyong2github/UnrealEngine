@@ -86,6 +86,16 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 		return false;
 	}
 
+	if (NextRequest->bCancelled)
+	{
+		{
+			FScopeLock _(&CompletedRequestsCritical);
+			CompletedRequests.Add(NextRequest);
+		}
+		EventQueue.DispatcherNotify();
+		return true;
+	}
+
 	uint8* Dest;
 	if (!NextRequest->ImmediateScatter.Request)
 	{
@@ -99,7 +109,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 	else
 	{
-		Dest = NextRequest->ImmediateScatter.Request->IoBuffer.Data() + NextRequest->ImmediateScatter.DstOffset;
+		Dest = NextRequest->ImmediateScatter.Request->GetIoBuffer().Data() + NextRequest->ImmediateScatter.DstOffset;
 	}
 	
 	if (!BlockCache.Read(NextRequest))

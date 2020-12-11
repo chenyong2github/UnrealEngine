@@ -101,7 +101,10 @@ namespace DatasmithRevitExporter
 		// Sets of elements related to current sync.
 		private HashSet<ElementId>										DeletedElements = new HashSet<ElementId>();
 		
-	
+		public HashSet<string>											UniqueTextureNameSet = new HashSet<string>();
+		public Dictionary<string, FMaterialData>						MaterialDataMap = new Dictionary<string, FMaterialData>();
+		public Dictionary<string, Dictionary<string, int>>				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
+
 		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
 		private string													SceneName;
 
@@ -307,7 +310,15 @@ namespace DatasmithRevitExporter
 		public FDocumentData.FBaseElementData GetCachedElement(Element InElement)
 		{
 			FDocumentData.FBaseElementData Result = null;
-			CurrentCache.CachedElements.TryGetValue(InElement.Id, out Result);
+			if (CurrentCache.CachedElements.TryGetValue(InElement.Id, out Result))
+			{
+				FDocumentData.FElementData ElementData = Result as FDocumentData.FElementData;
+				if (ElementData != null)
+				{
+					// Re-init the element ref: in some cases (family instance update) it might become invalid.
+					ElementData.CurrentElement = InElement; 
+				}
+			}
 			return Result;
 		}
 

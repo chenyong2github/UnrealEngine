@@ -403,7 +403,13 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	// same Live++ instance.
 	m_job = ::CreateJobObjectW(NULL, primitiveNames::JobGroup(processGroupName).c_str());
 	JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobInfo = {};
-	jobInfo.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+	// BEGIN EPIC MOD
+	// With UE, we can spawn a new editor while letting the existing editor close.  If the editor calling CreateProcess is
+	// a child of the live coding console due to "Quick Restart" begin used, then the newly spawned process will be killed
+	// when the first editor exits.  By adding the breakaway options (specifically silent), the second editor is 
+	// no longer killed.
+	jobInfo.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
+	// END EPIC MOD
 	::SetInformationJobObject(m_job, JobObjectExtendedLimitInformation, &jobInfo, sizeof(jobInfo));
 
 	// lock the interprocess mutex to ensure that only one process can run this code at any time.

@@ -26,15 +26,6 @@ UMovieSceneSubSection* UMovieSceneCinematicShotTrack::AddSequenceOnRow(UMovieSce
 
 	UMovieSceneCinematicShotSection* NewShotSection = Cast<UMovieSceneCinematicShotSection>(NewSection);
 
-#if WITH_EDITOR
-
-	if (Sequence != nullptr)
-	{
-		NewShotSection->SetShotDisplayName(Sequence->GetDisplayName().ToString());	
-	}
-
-#endif
-
 	// When a new sequence is added, sort all sequences to ensure they are in the correct order
 	MovieSceneHelpers::SortConsecutiveSections(Sections);
 

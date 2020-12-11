@@ -155,24 +155,25 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		{
 			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
  			this->AddSleepData(Particle, bNewSleeping);
-
-			if (bNewSleeping == false)
-			{
-				// If waking up, reset VSmooth to something roughly in the same direction as what V will be after integration.
-				// This is temp fix, if this is only re-computed after solve, island will get incorrectly put back to sleep.
-				float FakeDT = 1.0f / 30.0f;
-				if (this->LinearImpulse(Index).IsNearlyZero() == false || this->F(Index).IsNearlyZero() == false)
-				{
-					this->VSmooth(Index) = this->F(Index)* this->InvM(Index) * FakeDT  + this->LinearImpulse(Index) * this->InvM(Index);
-				}
-				if (this->AngularImpulse(Index).IsNearlyZero() == false || this->Torque(Index).IsNearlyZero() == false)
-				{
-					this->WSmooth(Index) = this->Torque(Index) * FakeDT + this->AngularImpulse(Index);
-				}
-			}
 		}
 
 		this->ObjectState(Index) = InObjectState;
+	}
+
+
+	void ResetVSmoothFromForces(int32 Index)
+	{
+		// Reset VSmooth to something roughly in the same direction as what V will be after integration.
+		// This is temp fix, if this is only re-computed after solve, island will get incorrectly put back to sleep even if it was just impulsed.
+		float FakeDT = 1.0f / 30.0f;
+		if (this->LinearImpulse(Index).IsNearlyZero() == false || this->F(Index).IsNearlyZero() == false)
+		{
+			this->VSmooth(Index) = this->F(Index) * this->InvM(Index) * FakeDT + this->LinearImpulse(Index) * this->InvM(Index);
+		}
+		if (this->AngularImpulse(Index).IsNearlyZero() == false || this->Torque(Index).IsNearlyZero() == false)
+		{
+			this->WSmooth(Index) = this->Torque(Index) * FakeDT + this->AngularImpulse(Index);
+		}
 	}
 
 	FString ToString(int32 index) const

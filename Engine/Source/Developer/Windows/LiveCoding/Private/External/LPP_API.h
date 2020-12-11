@@ -21,6 +21,10 @@
 #define LPP_COMPILE_SUCCESS_SECTION				".lpp_compile_success_hooks"
 #define LPP_COMPILE_ERROR_SECTION				".lpp_compile_error_hooks"
 #define LPP_COMPILE_ERROR_MESSAGE_SECTION		".lpp_compile_error_message_hooks"
+// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+#define LPP_PRECOMPILE_SECTION					".lpp_precompile_hooks"
+#define LPP_POSTCOMPILE_SECTION					".lpp_postcompile_hooks"
+// END EPIC MOD
 
 // register a pre-patch hook in a custom section
 #define LPP_PREPATCH_HOOK(_function)																							\
@@ -51,6 +55,18 @@
 #define LPP_COMPILE_ERROR_MESSAGE_HOOK(_function)																												\
 	__pragma(section(LPP_COMPILE_ERROR_MESSAGE_SECTION, read))																									\
 	__declspec(allocate(LPP_COMPILE_ERROR_MESSAGE_SECTION)) extern void (*LPP_IDENTIFIER(lpp_compile_error_message_hook_function))(const wchar_t*) = &_function
+
+// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+// register a pre-compile hook in a custom section
+#define LPP_PRECOMPILE_HOOK(_function)																												\
+	__pragma(section(LPP_PRECOMPILE_SECTION, read))																									\
+	__declspec(allocate(LPP_PRECOMPILE_SECTION)) extern void (*LPP_IDENTIFIER(lpp_precompile_hook_function))(void) = &_function
+
+// register a post-compile hook in a custom section
+#define LPP_POSTCOMPILE_HOOK(_function)																												\
+	__pragma(section(LPP_POSTCOMPILE_SECTION, read))																								\
+	__declspec(allocate(LPP_POSTCOMPILE_SECTION)) extern void (*LPP_IDENTIFIER(lpp_postcompile_hook_function))(void) = &_function
+// END EPIC MOD
 
 /******************************************************************************/
 /* API                                                                        */

@@ -94,8 +94,6 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	FVelocityField& GetVelocityField(const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
 	const FVelocityField& GetVelocityField(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
 
-	const bool Collided(int32 index) { return MCollided[index]; }
-
 	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
 	TArray<TVector<int32, 3>>& CollisionTriangles() { return MCollisionTriangles; }
 	TSet<TVector<int32, 2>>& DisabledCollisionElements() { return MDisabledCollisionElements; }
@@ -114,6 +112,16 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 
 	T GetDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupDampings[GroupId]; }
 	void SetDamping(const T Damping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupDampings[GroupId] = Damping; }
+
+	bool GetUseCCD(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupUseCCDs[GroupId]; }
+	void SetUseCCD(const bool bUseCCD, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupUseCCDs[GroupId] = bUseCCD; }
+
+	UE_DEPRECATED(4.27, "Use GetCollisionStatus() instead")
+	const bool Collided(int32 index) { return MCollided[index]; }
+
+	const TArray<bool>& GetCollisionStatus() { return MCollided; }
+	const TArray<TVector<T, d>>& GetCollisionContacts() const { return MCollisionContacts; }
+	const TArray<TVector<T, d>>& GetCollisionNormals() const { return MCollisionNormals; }
 
 	T GetTime() const { return MTime; }
 
@@ -135,9 +143,12 @@ private:
 	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
 	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 
+	TArrayCollectionArray<TRigidTransform<T, d>> MCollisionTransforms;  // Used for CCD to store the initial state before the kinematic update
 	TArrayCollectionArray<bool> MCollided;
 	TArrayCollectionArray<uint32> MCollisionParticleGroupIds;  // Used for per group parameters for collision particles
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
+	TArray<TVector<T, d>> MCollisionContacts;
+	TArray<TVector<T, d>> MCollisionNormals;
 
 	TArrayCollectionArray<FGravityForces> MGroupGravityForces;
 	TArrayCollectionArray<FVelocityField> MGroupVelocityFields;
@@ -146,6 +157,7 @@ private:
 	TArrayCollectionArray<T> MGroupSelfCollisionThicknesses;
 	TArrayCollectionArray<T> MGroupCoefficientOfFrictions;
 	TArrayCollectionArray<T> MGroupDampings;
+	TArrayCollectionArray<bool> MGroupUseCCDs;
 	
 	TArray<TFunction<void(const TPBDParticles<T, d>&)>> MConstraintInits;
 	TPBDActiveView<TArray<TFunction<void(const TPBDParticles<T, d>&)>>> MConstraintInitsActiveView;

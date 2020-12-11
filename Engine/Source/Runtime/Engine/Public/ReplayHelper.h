@@ -40,18 +40,18 @@ private:
 	void SetPlaybackNetworkVersions(FArchive& Ar);
 	void SetPlaybackNetworkVersions(UNetConnection* Connection);
 
-	void StartRecording(UWorld* World);
+	void StartRecording(UNetConnection* Connection);
 	void StopReplay();
 
 	void OnStartRecordingComplete(const FStartStreamingResult& Result);
 
-	void WriteNetworkDemoHeader();
+	void WriteNetworkDemoHeader(UNetConnection* Connection);
 	bool ReadPlaybackDemoHeader(FString& Error);
 
 	static void FlushNetChecked(UNetConnection& NetConnection);
 	static void WritePacket(FArchive& Ar, uint8* Data, int32 Count);
 
-	void OnSeamlessTravelStart(UWorld* InWorld, const FString& LevelName);
+	void OnSeamlessTravelStart(UWorld* InWorld, const FString& LevelName, UNetConnection* Connection);
 
 	APlayerController* CreateSpectatorController(UNetConnection* Connection);
 

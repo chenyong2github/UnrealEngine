@@ -9,6 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultithreadedPatching.h"
 #include "Quartz/AudioMixerClockManager.h"
+#include "UObject/GCObject.h"
 #include "UObject/StrongObjectPtr.h"
 
 // Forward Declarations
@@ -61,7 +62,8 @@ namespace Audio
 	}
 
 	class AUDIOMIXER_API FMixerDevice :	public FAudioDevice,
-										public IAudioMixer
+										public IAudioMixer,
+										public FGCObject
 	{
 	public:
 		FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform);
@@ -139,10 +141,11 @@ namespace Audio
 		// Submix buffer listener callbacks
 		virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
 		virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
-		virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
-		virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) override;
 
 		virtual FPatchOutputStrongPtr AddPatchForSubmix(uint32 InObjectId, float InPatchGain) override;
+
+		virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
+		virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) override;
 
 		// Audio Device Properties
 		virtual bool IsNonRealtime() const override;
@@ -156,6 +159,10 @@ namespace Audio
 
 		FMixerSubmixPtr FindSubmixInstanceByObjectId(uint32 InObjectId);
 		FMixerSubmixPtr GetSubmixInstance(uint32 InSubmixId);
+
+		//~ Begin FGCObject
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		//~End FGCObject
 
 		FMixerSubmixWeakPtr GetSubmixInstance(const USoundSubmixBase* SoundSubmix);
 

@@ -586,6 +586,21 @@ bool FHittestGrid::IsValidCellCoord(const int32 XCoord, const int32 YCoord) cons
 
 void FHittestGrid::AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid)
 {
+	auto GetCollapsedHittestGrid_NoTests = [](const FHittestGrid* HittestGrid, FCollapsedHittestGridArray& OutResult)
+	{
+		OutResult.Add(HittestGrid);
+		for (int32 Index = 0; Index < OutResult.Num(); ++Index)
+		{
+			for (const FAppendedGridData& AppendedGridData : OutResult[Index]->AppendedGridArray)
+			{
+				if (const TSharedPtr<const FHittestGrid> Grid = AppendedGridData.Grid.Pin())
+				{
+					OutResult.Add(Grid.Get());
+				}
+			}
+		}
+	};
+
 	const bool bIsContains = AppendedGridArray.ContainsByPredicate([OtherGrid](const FAppendedGridData& Other) { return Other.Grid == OtherGrid; });
 	if (ensure(CanBeAppended(&OtherGrid.Get())))
 	{
@@ -593,7 +608,7 @@ void FHittestGrid::AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid)
 		{
 			// Check for recursion
 			FCollapsedHittestGridArray AllHittestGrid;
-			GetCollapsedHittestGrid(AllHittestGrid);
+			GetCollapsedHittestGrid_NoTests(this, AllHittestGrid); // we are building a new array, do not perform size check
 			const bool bIsInCollapsed = AllHittestGrid.ContainsByPredicate([OtherGrid](const FHittestGrid* Other) { return &*OtherGrid == Other; });
 			ensure(!bIsInCollapsed);
 			if (bIsInCollapsed)

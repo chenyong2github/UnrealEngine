@@ -22,6 +22,11 @@ public:
 	//we don't support this because it could lead to bugs with values not being properly written to remote
 	TParticleProperty(const TParticleProperty<T,PropName>& Rhs) = delete;
 
+	bool IsDirty(const FParticleDirtyFlags& Flags) const
+	{
+		return Flags.IsDirty(PropertyFlag);
+	}
+
 	const T& Read() const { return Property; }
 	void Write(const T& Val, bool bInvalidate, FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
 	{

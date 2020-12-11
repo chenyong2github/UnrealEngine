@@ -10,7 +10,9 @@ public class GameplayCameras : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine"
+				"Engine",
+				"HeadMountedDisplay",
+				"MovieSceneTracks"
 			}
 		);
 	}

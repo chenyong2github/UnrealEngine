@@ -6902,7 +6902,7 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 
 bool UEditorEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading)
 {
-	if (Connection == nullptr)
+	if (Connection == nullptr || Connection->GetWorld() == nullptr)
 	{
 		return false;
 	}

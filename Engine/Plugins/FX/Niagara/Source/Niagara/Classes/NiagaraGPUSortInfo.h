@@ -57,6 +57,8 @@ struct FNiagaraGPUSortInfo
 	int32 CullScaleAttributeOffset = INDEX_NONE;
 	int32 RendererVisTagAttributeOffset = INDEX_NONE;
 	int32 RendererVisibility = 0;
+	int32 MeshIndexAttributeOffset = INDEX_NONE;
+	int32 MeshIndex = 0;
 	FSphere LocalBSphere = FSphere(0);
 	FVector CullingWorldSpaceOffset = FVector(0, 0, 0);
 	FVector2D DistanceCullRange { 0.0f, FLT_MAX };

@@ -128,7 +128,7 @@ struct FGameplayCueTranslationLink
 
 	/** The rule that provides this translation */
 	UPROPERTY()
-	const UGameplayCueTranslator* RulesCDO;
+	const UGameplayCueTranslator* RulesCDO = nullptr;
 
 	/** Fixed size lookup. The RulesCDO return the index into this which will translate to the new node. */
 	TArray< FGameplayCueTranslatorNodeIndex > NodeLookup;
@@ -223,7 +223,7 @@ private:
 
 	/** Cached reference to tag manager */
 	UPROPERTY()
-	UGameplayTagsManager* TagManager;
+	UGameplayTagsManager* TagManager = nullptr;
 		
 	/** All name swpa rules we have gathered */
 	TArray<FNameSwapData> AllNameSwaps;

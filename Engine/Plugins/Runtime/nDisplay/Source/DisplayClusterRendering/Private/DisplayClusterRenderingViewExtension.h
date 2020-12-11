@@ -46,7 +46,7 @@ public:
 		return -1;
 	}
 
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const override
 	{
 		return false;
 	}

@@ -61,6 +61,83 @@ enum class EVehicleDifferential : uint8
 	RearWheelDrive,
 };
 
+/**
+ * Structure containing information about the status of a single wheel of the vehicle.
+ */
+USTRUCT(BlueprintType)
+struct CHAOSVEHICLES_API FWheelStatus
+{
+	GENERATED_BODY()
+
+	/** This wheel is in contact with the ground */
+	UPROPERTY()
+	bool bInContact;
+
+	/** Wheel contact point */
+	UPROPERTY()
+	FVector ContactPoint;
+
+	/** Material that wheel is in contact with */
+	UPROPERTY()
+	TWeakObjectPtr<class UPhysicalMaterial> PhysMaterial;
+
+	/** Normalized suspension length at this wheel */
+	UPROPERTY()
+	float NormalizedSuspensionLength;
+
+	/** Spring Force that is occurring at wheel suspension */
+	UPROPERTY()
+	float SpringForce;
+
+	/** Is the wheel slipping */
+	UPROPERTY()
+	bool bIsSlipping;
+
+	/** Magnitude of slippage of wheel, difference between wheel speed and ground speed */
+	UPROPERTY()
+	float SlipMagnitude;
+
+	/** Is the wheel skidding */
+	UPROPERTY()
+	bool bIsSkidding;
+
+	/** Magnitude of skid */
+	UPROPERTY()
+	float SkidMagnitude;
+
+	/** Direction of skid, i.e. normalized direction */
+	UPROPERTY()
+	FVector SkidNormal;
+
+	FWheelStatus()
+	{
+		Init();
+	}
+
+	explicit FWheelStatus(EForceInit InInit)
+	{
+		Init();
+	}
+
+	explicit FWheelStatus(ENoInit NoInit)
+	{
+	}
+
+	void Init()
+	{
+		bInContact = false;
+		bIsSlipping = false;
+		bIsSkidding = false;
+		SlipMagnitude = 0.f;
+		NormalizedSuspensionLength = 1.f;
+		SpringForce = 0.f;
+		SkidNormal = FVector::ZeroVector;
+	}
+
+	FString ToString() const;
+
+};
+
 USTRUCT()
 struct FVehicleDifferentialConfig
 {
@@ -381,7 +458,7 @@ struct CHAOSVEHICLES_API FChaosWheelSetup
 };
 
 /** Commonly used Wheel state - evaluated once used wherever required for that frame */
-struct FWheelState
+struct CHAOSVEHICLES_API FWheelState
 {
 	void Init(int NumWheels)
 	{
@@ -446,6 +523,37 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	float GetEngineMaxRotationSpeed() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
+	int GetNumWheels() const 
+	{
+		return WheelStatus.Num();
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+		static void BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
+			, float& NormalizedSuspensionLength, float& SpringForce, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal);
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+	static FWheelStatus MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
+			, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
+
+
+
+
+
+
+
+
+
+
+
+	/** Get a wheels current simulation state */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
+	const FWheelStatus& GetWheelState(int WheelIndex) const
+	{
+		return WheelStatus[WheelIndex];
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// Public
 
@@ -495,6 +603,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	{
 		bWheelFrictionEnabled = InState;
 	}
+
 
 protected:
 
@@ -569,6 +678,8 @@ protected:
 
 	private:
 
+	void FillWheelOutputState();
+
 	/** Get distances between wheels - primarily a debug display helper */
 	FVector2D CalculateWheelLayoutDimensions();
 	bool IsWheelSpinning() const;
@@ -584,6 +695,7 @@ protected:
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
 	TArray<FPhysicsConstraintHandle> ConstraintHandles;
+	TArray<FWheelStatus> WheelStatus; /** Wheel output status */
 
 	Chaos::FPerformanceMeasure PerformanceMeasure;
 };

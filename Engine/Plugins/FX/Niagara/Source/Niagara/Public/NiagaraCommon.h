@@ -92,6 +92,8 @@ enum class ENiagaraDefaultMode : uint8
 	Binding,   
 	// Default initialization is done using a sub-graph.
 	Custom,    
+	// Fail compilation if this value has not been set previously in the stack.
+	FailIfPreviouslyNotSet
 };
 
 UENUM()
@@ -671,49 +673,6 @@ private:
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
-struct FComponentPropertyAddress
-{
-	TWeakFieldPtr<FProperty> Property;
-	void* Address;
-
-	FProperty* GetProperty() const
-	{
-		FProperty* PropertyPtr = Property.Get();
-		if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
-		{
-			return PropertyPtr;
-		}
-		return nullptr;
-	}
-
-	FComponentPropertyAddress() : Property(nullptr), Address(nullptr) {}
-};
-
-struct FNiagaraComponentRenderPoolEntry
-{
-	TWeakObjectPtr<USceneComponent> Component;
-	float InactiveTimeLeft = 0;
-	TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
-	int32 LastAssignedToParticleID = -1;
-};
-
-struct FNiagaraComponentUpdateTask
-{
-	TWeakObjectPtr<USceneComponent> TemplateObject;
-	TFunction<void(USceneComponent*, FNiagaraComponentRenderPoolEntry&)> UpdateCallback;
-	int32 ParticleID = -1;
-	int32 SmallestID = -1;
-#if WITH_EDITORONLY_DATA
-	bool bVisualizeComponents = true;
-#endif
-};
-
-struct FNiagaraComponentRenderPool
-{
-	TWeakObjectPtr<AActor> OwnerActor;
-	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
-};
-
 /** Defines different usages for a niagara script. */
 UENUM()
 enum class ENiagaraScriptUsage : uint8
@@ -1207,4 +1166,53 @@ private:
 #else
 	const T* StructPtr = nullptr;
 #endif
+};
+
+
+/** Records necessary information to verify that this will link properly and trace where that linkage dependency exists. */
+USTRUCT()
+struct FNiagaraCompileDependency
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	FNiagaraCompileDependency()
+	{
+		LinkerErrorMessage = FString();
+		NodeGuid = FGuid();
+		PinGuid = FGuid();
+		StackGuids.Empty();
+	}
+
+	FNiagaraCompileDependency(const FNiagaraVariableBase& InVar, const FString& InLinkerErrorMessage, FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
+		: LinkerErrorMessage(InLinkerErrorMessage), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids), DependentVariable(InVar) {}
+
+	/* The message itself*/
+	UPROPERTY()
+	FString LinkerErrorMessage;
+
+	/** The node guid that generated the compile event*/
+	UPROPERTY()
+	FGuid NodeGuid;
+
+	/** The pin persistent id that generated the compile event*/
+	UPROPERTY()
+	FGuid PinGuid;
+
+	/** The compile stack frame of node id's*/
+	UPROPERTY()
+	TArray<FGuid> StackGuids;
+
+	/** The variable we are dependent on.*/
+	UPROPERTY()
+	FNiagaraVariableBase DependentVariable;
+
+	FORCEINLINE bool operator==(const FNiagaraCompileDependency& Other)const
+	{
+		return DependentVariable == Other.DependentVariable && NodeGuid == Other.NodeGuid && PinGuid == Other.PinGuid && StackGuids == Other.StackGuids;
+	}
+
+	FORCEINLINE bool operator!=(const FNiagaraCompileDependency& Other)const
+	{
+		return !(*this == Other);
+	}
 };

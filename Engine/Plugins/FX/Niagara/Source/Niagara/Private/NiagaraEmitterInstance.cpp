@@ -207,6 +207,11 @@ bool FNiagaraEmitterInstance::IsReadyToRun() const
 
 void FNiagaraEmitterInstance::Dump()const
 {
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	UE_LOG(LogNiagara, Log, TEXT("==  %s ========"), *CachedEmitter->GetUniqueEmitterName());
 	UE_LOG(LogNiagara, Log, TEXT(".................Spawn................."));
 	SpawnExecContext.Parameters.DumpParameters(true);
@@ -272,6 +277,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
 	}
+
+	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
 
 	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
 	if (!IsAllowedToExecute())
@@ -537,6 +544,9 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	{
 		return;
 	}
+
+	check(CachedEmitter);
+	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
 
 	SetExecutionState(ENiagaraExecutionState::Active);
 
@@ -1314,7 +1324,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
 		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
 		EmitterParameters.EmitterAge = EmitterAge;
-		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
+		EmitterParameters.EmitterRandomSeed = RandomSeed;
 		EmitterParameters.EmitterInstanceSeed = InstanceSeed;
 	}
 

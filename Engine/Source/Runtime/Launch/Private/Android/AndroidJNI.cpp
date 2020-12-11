@@ -2023,26 +2023,16 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChanged
 	FAndroidStats::OnThermalStatusChanged(Status);
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint Status)
-{
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::MemoryAdvisorState, Status);
-	FAndroidStats::OnMemoryWarningChanged(Status);
-}
-
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnTrimMemory(JNIEnv* jenv, jobject thiz, jint MemoryTrimValue)
 {
 	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
 	FAndroidStats::OnTrimMemory(MemoryTrimValue);
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetEstimatedAvailableMemoryMB(JNIEnv* jenv, jobject thiz, jint Estimate)
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetMemoryAdvisorState(JNIEnv* jenv, jobject thiz, jint State, jint EstimateAvailableMB, jint OOMScore)
 {
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::MemoryAdvisorEstimateMB, Estimate);
-}
-
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetOomScore(JNIEnv* jenv, jobject thiz, jint OomScore)
-{
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OomScore, OomScore);
+	FAndroidStats::SetMemoryWarningState(State);
+	FAndroidMisc::UpdateMemoryAdvisorState(State, EstimateAvailableMB, OOMScore);
 }
 
 

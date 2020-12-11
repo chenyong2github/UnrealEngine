@@ -36,6 +36,7 @@
 #include "ObjectTools.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraScriptVariable.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -1102,12 +1103,12 @@ void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UE
 	}
 }
 
-void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, const FGuid& NewNodePersistentId)
+void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, ENiagaraDefaultMode DesiredDefaultMode, const FGuid& NewNodePersistentId)
 {
 	checkf(OverridePin.LinkedTo.Num() == 0, TEXT("Can't set a linked value handle when the override pin already has a value."));
 
 	UNiagaraNodeParameterMapSet* OverrideNode = CastChecked<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
-	UEdGraph* Graph = OverrideNode->GetGraph();
+	UNiagaraGraph* Graph = OverrideNode->GetNiagaraGraph();
 	Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapGet> GetNodeCreator(*Graph);
 	UNiagaraNodeParameterMapGet* GetNode = GetNodeCreator.CreateNode();
@@ -1126,6 +1127,12 @@ void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphP
 	UEdGraphPin* GetOutputPin = GetNode->RequestNewTypedPin(EGPD_Output, InputType, LinkedParameterHandle.GetParameterHandleString());
 	MakeLinkTo(GetInputPin, PreviousStackNodeOutputPin);
 	MakeLinkTo(GetOutputPin, &OverridePin);
+
+	UNiagaraScriptVariable* ScriptVar = Graph->AddParameter(FNiagaraVariable(InputType, LinkedParameterHandle.GetParameterHandleString()), true);
+	if (ScriptVar)
+	{
+		ScriptVar->DefaultMode = DesiredDefaultMode; 
+	}
 
 	if (NewNodePersistentId.IsValid())
 	{
@@ -1690,7 +1697,29 @@ void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraE
 
 void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes, FName Namespace)
 {
-	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+	TConstArrayView<FNiagaraTypeDefinition> ParamTypes;
+	if (Namespace == FNiagaraConstants::UserNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredUserVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::SystemNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::EmitterNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes());
+	}
+	else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes());
+	}
+	else
+	{
+		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParameterTypes());
+	}
+
+	for (const FNiagaraTypeDefinition& RegisteredParameterType : ParamTypes)
 	{
 		//Object types only allowed in user namespace at the moment.
 		if (RegisteredParameterType.IsUObject() && RegisteredParameterType.IsDataInterface() == false && Namespace != FNiagaraConstants::UserNamespace)

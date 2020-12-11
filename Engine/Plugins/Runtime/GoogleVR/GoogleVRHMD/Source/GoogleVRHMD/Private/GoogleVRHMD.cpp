@@ -1187,10 +1187,10 @@ void FGoogleVRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICm
 #endif
 }
 
-bool FGoogleVRHMD::IsActiveThisFrame(class FViewport* InViewport) const
+bool FGoogleVRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
-	return GEngine && GEngine->IsStereoscopic3D(InViewport);
+	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
 #else
 	return false;
 #endif

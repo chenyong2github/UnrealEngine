@@ -154,6 +154,7 @@ struct FEmitterCompiledScriptPair
 	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
+	int32 ParentIndex = INDEX_NONE;
 };
 
 USTRUCT()
@@ -183,6 +184,16 @@ struct FNiagaraEmitterExecutionIndex
 	uint32 bStartNewOverlapGroup : 1;
 	/** Emitter index to use */
 	uint32 EmitterIndex : 31;
+};
+
+struct FNiagaraRendererExecutionIndex
+{
+	/** The index of the emitter */
+	uint32 EmitterIndex = INDEX_NONE;
+	/** The index of the renderer in the emitter's list */
+	uint32 EmitterRendererIndex = INDEX_NONE;
+	/** The index of the renderer in the entire system */
+	uint32 SystemRendererIndex = INDEX_NONE;
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
@@ -422,6 +433,8 @@ public:
 	void CacheFromCompiledData();
 
 	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraRendererExecutionIndex> GetRendererPostTickOrder() const { return MakeArrayView(RendererPostTickOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraRendererExecutionIndex> GetRendererCompletionOrder() const { return MakeArrayView(RendererCompletionOrder); }
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
@@ -496,7 +509,6 @@ public:
 	FORCEINLINE void RegisterActiveInstance();
 	FORCEINLINE void UnregisterActiveInstance();
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
-	FORCEINLINE int32& GetActiveInstancesTempCount() { return ActiveInstancesTemp; }
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -625,6 +637,11 @@ protected:
 	*/
 	TArray<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder;
 
+	/** Array of renderer indices to notify system PostTick, in order of execution */
+	TArray<FNiagaraRendererExecutionIndex> RendererPostTickOrder;
+	/** Array of renderer indices to notify system Completion, in order of execution */
+	TArray<FNiagaraRendererExecutionIndex> RendererCompletionOrder;
+
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
 	TArray<int32> RendererDrawOrder;
 
@@ -666,12 +683,6 @@ protected:
 
 	/** Total active instances of this system. */
 	int32 ActiveInstances;
-
-	/** 
-	Temp working value used by the scalability manager when tracking sorted instance count culling. 
-	Systems who are tracking their instance culling separately need an easily accessible working value.
-	*/
-	int32 ActiveInstancesTemp;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;

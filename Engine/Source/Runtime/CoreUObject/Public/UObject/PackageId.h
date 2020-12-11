@@ -44,6 +44,11 @@ public:
 	{
 		return Id == Other.Id;
 	}
+	
+	inline bool operator!=(FPackageId Other) const
+	{
+		return Id != Other.Id;
+	}
 
 	inline friend uint32 GetTypeHash(const FPackageId& In)
 	{

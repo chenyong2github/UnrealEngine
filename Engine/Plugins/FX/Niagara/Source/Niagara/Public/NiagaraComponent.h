@@ -27,7 +27,7 @@ class NiagaraEmitterInstanceBatcher;
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
 
-#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
+#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING) || NIAGARA_PERF_BASELINES
 
 USTRUCT()
 struct FNiagaraMaterialOverride
@@ -35,13 +35,13 @@ struct FNiagaraMaterialOverride
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	class UMaterialInterface* Material;
+	class UMaterialInterface* Material = nullptr;
 
 	UPROPERTY()
 	uint32 MaterialSubIndex;
 
 	UPROPERTY()
-	UNiagaraRendererProperties* EmitterRendererProperty;
+	UNiagaraRendererProperties* EmitterRendererProperty = nullptr;
 };
 
 /**
@@ -84,6 +84,15 @@ private:
 	/** Allows you to control how Niagara selects the tick group, changing this while an instance is active will result in not change as it is cached. */
 	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))
 	ENiagaraTickBehavior TickBehavior = ENiagaraTickBehavior::UsePrereqs;
+
+	/**
+	 * Offsets the deterministic random seed of all emitters. Used to achieve variety between components, while still achieving determinism.
+	 * WARNINGS:
+	 * - If this value is set in a non-deterministic way, it has the potential to break determinism of the entire system.
+	 * - This value is applied when emitters are activated/reset, and changing them while the emitter is active has no effect.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Randomness")
+	int32 RandomSeedOffset;
 
 	UPROPERTY()
 	FNiagaraUserRedirectionParameterStore OverrideParameters;
@@ -149,6 +158,7 @@ protected:
 	virtual void OnUnregister() override;
 	virtual void OnEndOfFrameUpdateDuringTick() override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	virtual void DestroyRenderState_Concurrent() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
@@ -187,9 +197,9 @@ public:
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
-	virtual void Activate(bool bReset = false)override;
-	virtual void Deactivate()override;
-	void DeactivateImmediate();
+	virtual void Activate(bool bReset = false) override;
+	virtual void Deactivate() override;
+	virtual void DeactivateImmediate() override;
 
 	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState()const { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
 	FORCEINLINE ENiagaraExecutionState GetExecutionState()const { return SystemInstance ? SystemInstance->GetActualExecutionState() : ENiagaraExecutionState::Complete; }
@@ -312,6 +322,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Random Seed Offset"))
+	void SetRandomSeedOffset(int32 NewRandomSeedOffset);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Random Seed Offset"))
+	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
 
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (LinearColor)"))
@@ -478,8 +494,14 @@ public:
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	FORCEINLINE int32 GetPreviewLODDistance()const;
+	FORCEINLINE float GetPreviewLODDistance()const;
 
+	/**
+	Initializes this component for capturing a performance baseline.
+	This will do things such as disabling distance culling and setting a LODDistance of 0 to ensure the effect is at it's maximum cost.
+	*/
+	UFUNCTION(BlueprintCallable, Category = Performance, meta = (Keywords = "Niagara Performance"))
+	void InitForPerformanceBaseline();
 
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance) { if (SystemInstance) SystemInstance->SetLODDistance(InLODDistance, InMaxLODDistance); }
 
@@ -641,12 +663,11 @@ private:
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
+FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
 #else
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
+FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
-
 
 /**
 * Scene proxy for drawing niagara particle simulations.
@@ -664,6 +685,9 @@ public:
 
 	void CreateRenderers(const UNiagaraComponent* InComponent);
 	void ReleaseRenderers();
+
+	/** Called to allow renderers to free render state */
+	void DestroyRenderState_Concurrent();
 
 	/** Gets whether or not this scene proxy should be rendered. */
 	bool GetRenderingEnabled() const;
@@ -734,6 +758,10 @@ private:
 #if WITH_PARTICLE_PERF_STATS
 public:
 	class UNiagaraSystem* PerfAsset;
+#endif
+
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+	float PreviewLODDistance;
 #endif
 };
 

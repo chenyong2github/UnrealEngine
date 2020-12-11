@@ -122,6 +122,11 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 #endif
 
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
+
+	if ( Material )
+	{
+		Material->ConditionalPostLoad();
+	}
 }
 
 FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculator()

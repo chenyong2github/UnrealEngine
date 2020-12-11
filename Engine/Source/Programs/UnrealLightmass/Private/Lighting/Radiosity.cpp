@@ -503,11 +503,12 @@ void FStaticLightingSystem::RadiosityIterationThreadLoop(int32 ThreadIndex, bool
 	{
 		// Atomically read and increment the next mapping index to process.
 		const int32 TaskIndex = NextMappingToProcessRadiosityIterations.Increment() - 1;
-		const int32 PassIndex = TaskIndex / AllMappings.Num();
-		const int32 MappingIndex = TaskIndex - PassIndex * AllMappings.Num();
-
+		
 		if (TaskIndex < AllMappings.Num() * NumRadiosityIterations)
 		{
+			const int32 PassIndex = TaskIndex / AllMappings.Num();
+			const int32 MappingIndex = TaskIndex - PassIndex * AllMappings.Num();
+
 			// If this is the main thread, update progress and apply completed static lighting.
 			if (bIsMainThread)
 			{

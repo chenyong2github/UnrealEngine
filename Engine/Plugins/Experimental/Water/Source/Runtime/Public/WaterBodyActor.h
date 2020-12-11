@@ -604,6 +604,15 @@ protected:
 
 	/** Validates this actor's data */
 	virtual void CheckForErrors() override;
+
+	enum class EWaterBodyStatus : uint8
+	{
+		Valid,
+		MissingWaterMesh,
+		MissingLandscape
+	};
+
+	EWaterBodyStatus CheckWaterBodyStatus() const;
 #endif // WITH_EDITOR
 
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;

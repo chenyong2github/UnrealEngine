@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Camera/CameraShakeBase.h"
-#include "CameraShake.generated.h"
+#include "Evaluation/MovieSceneCameraShakeTemplate.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "MatineeCameraShake.generated.h"
 
 class AActor;
 
@@ -35,7 +38,7 @@ enum EInitialOscillatorOffset
 
 /** Defines oscillation of a single number. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FFOscillator
+struct GAMEPLAYCAMERAS_API FFOscillator
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -116,7 +119,7 @@ struct FVOscillator
  * Legacy camera shake which can do either oscillation or run camera anims.
  */
 UCLASS(Blueprintable)
-class ENGINE_API UMatineeCameraShake : public UCameraShakeBase
+class GAMEPLAYCAMERAS_API UMatineeCameraShake : public UCameraShakeBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -215,10 +218,27 @@ public:
 
 public:
 
+	/**
+	 * Backwards compatible method used by core BP redirectors. This is needed because the return value is specifically a Matinee camera shake,
+	 * which some BP logic often uses directly to set oscillator/anim properties.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	static UMatineeCameraShake* StartMatineeCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	/**
+	 * Backwards compatible method used by core BP redirectors. This is needed because the return value is specifically a Matinee camera shake,
+	 * which some BP logic often uses directly to set oscillator/anim properties.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	static UMatineeCameraShake* StartMatineeCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+public:
+
 	/** Returns true if this camera shake will loop forever */
 	bool IsLooping() const;
 
 	/** Sets current playback time and applies the shake (both oscillation and cameraanim) to the given POV. */
+	UE_DEPRECATED(4.27, "SetCurrentTimeAndApplyShake is deprecated, please use ScrubAndApplyCameraShake")
 	void SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV);
 	
 	/** Sets actor for playing camera anims */
@@ -228,6 +248,7 @@ private:
 
 	void DoStartShake();
 	void DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
+	void DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	void DoStopShake(bool bImmediately);
 	bool DoGetIsFinished() const;
 
@@ -272,7 +293,7 @@ private:
  * to the owner shake.
  */
 UCLASS()
-class ENGINE_API UMatineeCameraShakePattern : public UCameraShakePattern
+class GAMEPLAYCAMERAS_API UMatineeCameraShakePattern : public UCameraShakePattern
 {
 	GENERATED_BODY()
 
@@ -282,6 +303,7 @@ private:
 	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
 	virtual bool IsFinishedImpl() const override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
 };
@@ -289,4 +311,35 @@ private:
 /** Backwards compatible name for the Matinee camera shake, for C++ code. */
 UE_DEPRECATED(4.26, "Please use UMatineeCameraShake")
 typedef UMatineeCameraShake UCameraShake;
+
+/** Custom sequencer evaluation code for Matinee camera shakes */
+UCLASS()
+class UMovieSceneMatineeCameraShakeEvaluator : public UMovieSceneCameraShakeEvaluator
+{
+	GENERATED_BODY()
+
+	UMovieSceneMatineeCameraShakeEvaluator(const FObjectInitializer& ObjInit);
+
+	static UMovieSceneCameraShakeEvaluator* BuildMatineeShakeEvaluator(UCameraShakeBase* ShakeInstance);
+
+	virtual bool Setup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance) override;
+	virtual bool Evaluate(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance) override;
+};
+
+/**
+ * Blueprint function library for autocasting from a base camera shake to a matinee camera shake.
+ * This prevents breaking Blueprints now that APlayerCameraManager::StartCameraShake returns the base class.
+ */
+UCLASS()
+class GAMEPLAYCAMERAS_API UMatineeCameraShakeFunctionLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintPure, Category="Camera Shakes", meta=(BlueprintAutocast))
+	static UMatineeCameraShake* Conv_MatineeCameraShake(UCameraShakeBase* CameraShake)
+	{
+		return CastChecked<UMatineeCameraShake>(CameraShake);
+	}
+};
 

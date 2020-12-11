@@ -64,12 +64,12 @@ struct FRollbackNetStartupActorInfo
 
 	FName		Name;
 	UPROPERTY()
-	UObject*	Archetype;
+	UObject*	Archetype = nullptr;
 	FVector		Location;
 	FRotator	Rotation;
 	FVector		Scale3D;
 	UPROPERTY()
-	ULevel*		Level;
+	ULevel*		Level = nullptr;
 
 	TSharedPtr<FRepState> RepState;
 	TMap<FString, TSharedPtr<FRepState>> SubObjRepState;

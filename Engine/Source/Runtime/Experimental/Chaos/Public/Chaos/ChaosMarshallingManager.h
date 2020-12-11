@@ -187,13 +187,13 @@ struct FPushPhysicsData
 	FReal StartTime;
 	FReal ExternalDt;
 	int32 ExternalTimestamp;
-	FReal DynamicsWeight;	//if external tick is faster than internal, we accumulate multiple frames worth of dynamics. This is used to average them out
 	int32 IntervalStep;		//The step we are currently at for this simulation interval. If not sub-stepping both step and num steps are 1: step is [0, IntervalNumSteps-1]
 	int32 IntervalNumSteps;	//The total number of steps associated with this simulation interval
 
 	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
 	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
 	TArray<FSimCallbackInputAndObject> SimCallbackInputs; //set of callback inputs pushed at this specific time
+	TArray<FSimCallbackCommandObject*> SimCommands;	//commands to run (this is a one off command)
 
 	void Reset();
 	void CopySubstepData(const FPushPhysicsData& FirstStepData);
@@ -218,9 +218,13 @@ public:
 		GetProducerData_External()->SimCallbackObjectsToAdd.Add(SimCallbackObject);
 	}
 
-	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bRunOnceMore = false)
+	void RegisterSimCommand_External(FSimCallbackCommandObject* SimCommand)
 	{
-		SimCallbackObject->bRunOnceMore = bRunOnceMore;
+		GetProducerData_External()->SimCommands.Add(SimCommand);
+	}
+
+	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+	{
 		GetProducerData_External()->SimCallbackObjectsToRemove.Add(SimCallbackObject);
 	}
 

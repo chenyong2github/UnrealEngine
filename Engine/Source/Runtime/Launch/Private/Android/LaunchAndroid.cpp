@@ -506,7 +506,7 @@ int32 AndroidMain(struct android_app* state)
 	}
 #endif
 
-	FAndroidStats::Init();
+	FAndroidStats::Init(FParse::Param(FCommandLine::Get(), TEXT("hwcpipe")));
 
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
@@ -1562,7 +1562,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeInitHMDs(JNIEnv* jenv,
 	GHMDsInitialized = true;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInformation(JNIEnv* jenv, jobject thiz, jstring androidVersion, jstring phoneMake, jstring phoneModel, jstring phoneBuildNumber, jstring osLanguage )
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInformation(JNIEnv* jenv, jobject thiz, jstring androidVersion, jint targetSDKversion, jstring phoneMake, jstring phoneModel, jstring phoneBuildNumber, jstring osLanguage )
 {
 	auto UEAndroidVersion = FJavaHelper::FStringFromParam(jenv, androidVersion);
 	auto UEPhoneMake = FJavaHelper::FStringFromParam(jenv, phoneMake);
@@ -1570,7 +1570,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInfor
 	auto UEPhoneBuildNumber = FJavaHelper::FStringFromParam(jenv, phoneBuildNumber);
 	auto UEOSLanguage = FJavaHelper::FStringFromParam(jenv, osLanguage);
 	
-	FAndroidMisc::SetVersionInfo( UEAndroidVersion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage );
+	FAndroidMisc::SetVersionInfo( UEAndroidVersion, targetSDKversion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage );
 }
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeOnInitialDownloadStarted();

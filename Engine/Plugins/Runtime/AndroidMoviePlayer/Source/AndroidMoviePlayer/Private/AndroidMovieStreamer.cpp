@@ -201,7 +201,7 @@ bool FAndroidMediaPlayerStreamer::StartNextMovie()
 		// possible it is in a PAK file
 		FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
 
-		FPakFile* PakFile = NULL;
+		TRefCountPtr<FPakFile> PakFile;
 		FPakEntry FileEntry;
 		if (PakPlatformFile == nullptr || !PakPlatformFile->FindFileInPakFiles(*MoviePath, &PakFile, &FileEntry))
 		{

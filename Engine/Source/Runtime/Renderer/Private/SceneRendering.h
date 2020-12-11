@@ -1352,6 +1352,9 @@ public:
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 
+	// Geometries which still have a pending build request but are used this frame and require a force build
+	TSet<const FRayTracingGeometry*> ForceBuildRayTracingGeometries;
+
 #ifdef DO_CHECK
 	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
 	TSet<const FRayTracingGeometry*> RayTracingGeometries;
@@ -2010,12 +2013,13 @@ protected:
 	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud);
 
 	/** Render volumetric cloud. */
-	void RenderVolumetricCloud(
+	bool RenderVolumetricCloud(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		bool bSkipVolumetricRenderTarget,
 		bool bSkipPerPixelTracing,
-		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture);
+		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture,
+		bool bAsyncCompute);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
 	void RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture) const;

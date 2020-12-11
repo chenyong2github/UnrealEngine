@@ -24,7 +24,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const TCHAR* ShaderProfile, ELanguage Language, bool bProcessingSecondTime,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output);
 
-bool IsRayTracingShader(const FShaderTarget& Target);
 bool ValidateResourceCounts(uint32 NumSRVs, uint32 NumSamplers, uint32 NumUAVs, uint32 NumCBs, TArray<FString>& OutFilteredErrors);
 bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input);
 

@@ -134,6 +134,9 @@ public:
 
 	uint32 BuffersSize;
 
+	/** Precooked raytracing data*/
+	TResourceArray<uint8> RayTracingData;
+
 	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
 
 	/** Whether buffers of this LOD is inlined (i.e. stored in .uexp instead of .ubulk) */

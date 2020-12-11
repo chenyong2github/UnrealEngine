@@ -848,7 +848,7 @@ private:
 
 	/** Low level player instance ID */
 	uint64 PlayerInstanceID = ~0;
-	
+
 	/** Low level player will use callback to notify of resource release */
 	bool PlayerUsesResourceReleaseNotification = false;
 

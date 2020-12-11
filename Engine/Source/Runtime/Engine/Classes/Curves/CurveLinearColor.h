@@ -21,7 +21,7 @@ public:
 	FRichCurve ColorCurves[4];
 
 	UPROPERTY(EditAnywhere, Category = RuntimeFloatCurve)
-	class UCurveLinearColor* ExternalCurve;
+	class UCurveLinearColor* ExternalCurve = nullptr;
 
 	FLinearColor GetLinearColorValue(float InTime) const;
 };

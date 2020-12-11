@@ -79,6 +79,7 @@ public:
 	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
 	virtual void ReleaseRenderThreadResources();
+	virtual void DestroyRenderState_Concurrent() {}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const {}
@@ -113,6 +114,10 @@ public:
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& UsedMaterials, bool bGetDebugMaterials) { UsedMaterials.Append(BaseMaterials_GT); }
+
+	virtual void PostSystemTick_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) { }
+	virtual void OnSystemComplete_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) { }
+
 protected:
 
 	virtual void ProcessMaterialParameterBindings(TConstArrayView< FNiagaraMaterialAttributeBinding > InMaterialParameterBindings, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const;
@@ -129,7 +134,6 @@ protected:
 	uint32 bHasLights : 1;
 	uint32 bMotionBlurEnabled : 1;
 	const ENiagaraSimTarget SimTarget;
-	uint32 NumIndicesPerInstance;
 
 	ERHIFeatureLevel::Type FeatureLevel;
 

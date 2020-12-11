@@ -140,7 +140,7 @@ public:
 		TArray<int32> OutDependencies;
 		TBitArray<> OutFlagBits;
 	};
-	void SerializeSave(FArchive& Ar, const TUniqueFunction<int32(FDependsNode*, bool)>& GetSerializeIndexFromNode, FSaveScratch& Scratch) const;
+	void SerializeSave(FArchive& Ar, const TUniqueFunction<int32(FDependsNode*, bool)>& GetSerializeIndexFromNode, FSaveScratch& Scratch, const FAssetRegistrySerializationOptions& Options) const;
 	struct FLoadScratch
 	{
 		TArray<int32> InDependencies;
@@ -148,11 +148,11 @@ public:
 		TArray<FDependsNode*> PointerDependencies;
 		TArray<int32> SortIndexes;
 	};
-	void SerializeLoad(FArchive& Ar, const TUniqueFunction<FDependsNode*(int32)>& GetNodeFromSerializeIndex, FLoadScratch& Scratch, const FAssetRegistrySerializationOptions& Options);
+	void SerializeLoad(FArchive& Ar, const TUniqueFunction<FDependsNode*(int32)>& GetNodeFromSerializeIndex, FLoadScratch& Scratch);
 
-	void LegacySerializeLoad_BeforeAssetRegistryDependencyFlags(FArchive& Ar, FAssetRegistryVersion::Type Version, FDependsNode* PreallocatedDependsNodeDataBuffer, int32 NumDependsNodes, const FAssetRegistrySerializationOptions& Options,
+	void SerializeLoad_BeforeFlags(FArchive& Ar, FAssetRegistryVersion::Type Version, FDependsNode* PreallocatedDependsNodeDataBuffer, int32 NumDependsNodes, bool bSerializeDependencies,
 		uint32 HardBits, uint32 SoftBits, uint32 HardManageBits, uint32 SoftManageBits);
-	static void LegacySerializeLoad_BeforeAssetRegistryDependencyFlags_GetPropertySetBits(uint32& HardBits, uint32& SoftBits, uint32& HardManageBits, uint32& SoftManageBits);
+	static void GetPropertySetBits_BeforeFlags(uint32& HardBits, uint32& SoftBits, uint32& HardManageBits, uint32& SoftManageBits);
 
 	bool IsDependencyListSorted(UE::AssetRegistry::EDependencyCategory Category) const;
 	void SetIsDependencyListSorted(UE::AssetRegistry::EDependencyCategory Category, bool bValue);

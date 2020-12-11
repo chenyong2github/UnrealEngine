@@ -1017,6 +1017,27 @@ public partial class Project : CommandUtils
 					}
 				}
 
+				// now make the fast-load ini/plugin file if requested
+				if (Params.GenerateOptimizationData)
+				{
+					// get the list of plugins that need to be processed
+					List<string> PluginFilesForTarget = new List<string>();
+					foreach (KeyValuePair<StagedFileReference, FileReference> StagedPlugin in StagedPlugins)
+					{
+						PluginFilesForTarget.Add(StagedPlugin.Value.FullName);
+					}
+					FileReference PluginListFile = FileReference.Combine(SC.ProjectRoot, "Intermediate", "Config", "PluginList.txt");
+					DirectoryReference.CreateDirectory(PluginListFile.Directory);
+					File.WriteAllLines(PluginListFile.FullName, PluginFilesForTarget.ToArray());
+
+					// run the commandlet to generate a binary file
+					String TargetPlatformName = ThisPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client);
+					FileReference OutputFile = FileReference.Combine(SC.ProjectRoot, "Intermediate", "Config", TargetPlatformName, "BinaryConfig.ini");
+					String CommandletParams = String.Format("-TargetPlatform={0} -OutputFile={1} -StagedPluginsFile={2}", TargetPlatformName, OutputFile.FullName, PluginListFile.FullName);
+					RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "MakeBinaryConfig", CommandletParams);
+					SC.StageFile(StagedFileType.UFS, OutputFile, StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Config", OutputFile.GetFileName()));
+				}
+
 				bCreatePluginManifest = true;
 			}
 			else
@@ -2499,10 +2520,15 @@ public partial class Project : CommandUtils
 				{
 					GameOpenOrderFileLocation = FileLocation;
 				}
-				FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
-				if (FileExists_NoExceptions(FileLocation.FullName))
+				bool bUseSecondaryOrder = false;
+				PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
+				if (bUseSecondaryOrder)
 				{
-					CookerOpenOrderFileLocation = FileLocation;
+					FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
+					if (FileExists_NoExceptions(FileLocation.FullName))
+					{
+						CookerOpenOrderFileLocation = FileLocation;
+					}
 				}
 			}
 
@@ -3276,7 +3302,7 @@ public partial class Project : CommandUtils
 
 	private static string GetTmpPackagingPath(ProjectParams Params, DeploymentContext SC)
 	{
-		string TmpPackagingPath = CombinePaths(Path.GetDirectoryName(Params.RawProjectPath.FullName), "Saved", "TmpPackaging", SC.FinalCookPlatform);
+		string TmpPackagingPath = CombinePaths(Path.GetDirectoryName(Params.RawProjectPath.FullName), "Saved", "TmpPackaging", SC.CookPlatform);
 		if (Params.bUseExtraFlavor)
 		{
 			TmpPackagingPath = CombinePaths(TmpPackagingPath, "ExtraFlavor");

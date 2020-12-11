@@ -146,7 +146,8 @@ int32 GVirtualTextureFeedbackFactor = 16;
 static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	TEXT("r.vt.FeedbackFactor"),
 	GVirtualTextureFeedbackFactor,
-	TEXT("The size of the VT feedback buffer is calculated by dividing the render resolution by this factor"),
+	TEXT("The size of the VT feedback buffer is calculated by dividing the render resolution by this factor.")
+	TEXT("The value set here is rounded up to the nearest power of two before use."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
 );
 
@@ -685,14 +686,28 @@ FUnorderedAccessViewRHIRef FSceneRenderTargets::GetVirtualTextureFeedbackUAV() c
 	return VirtualTextureFeedbackUAV.IsValid() ? VirtualTextureFeedbackUAV : GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 }
 
-int32 FSceneRenderTargets::GetVirtualTextureFeedbackScale() const
+int32 FSceneRenderTargets::GetVirtualTextureFeedbackScale()
 {
-	return GVirtualTextureFeedbackFactor;
+	// Round to nearest power of two to ensure that shader maths is efficient and sampling sequence logic is simple.
+	return FMath::RoundUpToPowerOfTwo(FMath::Max(GVirtualTextureFeedbackFactor, 1));
 }
 
 FIntPoint FSceneRenderTargets::GetVirtualTextureFeedbackBufferSize() const
 {
-	return FIntPoint::DivideAndRoundUp(BufferSize, FMath::Max(GVirtualTextureFeedbackFactor, 1));
+	return FIntPoint::DivideAndRoundUp(BufferSize, FMath::Max(GetVirtualTextureFeedbackScale(), 1));
+}
+
+uint32 FSceneRenderTargets::SampleVirtualTextureFeedbackSequence(uint32 FrameIndex)
+{
+	const uint32 TileSize = GetVirtualTextureFeedbackScale();
+	const uint32 TileSizeLog2 = FMath::CeilLogTwo(TileSize);
+	const uint32 SequenceSize = FMath::Square(TileSize);
+	const uint32 PixelIndex = FrameIndex % SequenceSize;
+	const uint32 PixelAddress = ReverseBits(PixelIndex) >> (32U - 2 * TileSizeLog2);
+	const uint32 X = FMath::ReverseMortonCode2(PixelAddress);
+	const uint32 Y = FMath::ReverseMortonCode2(PixelAddress >> 1);
+	const uint32 PixelSequenceIndex = X + Y * TileSize;
+	return PixelSequenceIndex;
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1060,6 +1075,14 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferE, TEXT("GBufferE"));
 		}
 
+		// Some mobile platforms may need to store SceneDepth into color buffer
+		if (IsMobilePlatform(ShaderPlatform) && MobileRequiresSceneDepthAux(ShaderPlatform))
+		{
+			float FarDepth = (float)ERHIZBuffer::FarPlane;
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags, false));
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
+		}
+
 		// otherwise we have a severe problem
 		check(GBufferA);
 	}
@@ -1227,13 +1250,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateFoveationTexture(RHICmdList);
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
-	
-	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
-	{
-		float FarDepth = (float)ERHIZBuffer::FarPlane;
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
-	}
 }
 
 void FSceneRenderTargets::AllocateVirtualTextureFeedbackBuffer(FRHICommandList& RHICmdList)

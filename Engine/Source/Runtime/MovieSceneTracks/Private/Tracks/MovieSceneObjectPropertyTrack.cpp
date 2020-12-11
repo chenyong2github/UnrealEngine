@@ -11,6 +11,12 @@ UMovieSceneObjectPropertyTrack::UMovieSceneObjectPropertyTrack(const FObjectInit
 	PropertyClass = nullptr;
 }
 
+bool UMovieSceneObjectPropertyTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieSceneObjectPropertySection::StaticClass();
+}
+
+
 UMovieSceneSection* UMovieSceneObjectPropertyTrack::CreateNewSection()
 {
 	UMovieSceneObjectPropertySection* Section = NewObject<UMovieSceneObjectPropertySection>(this, NAME_None, RF_Transactional);

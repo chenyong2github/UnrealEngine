@@ -637,6 +637,42 @@ FText FAudioSection::GetSectionTitle() const
 	return NSLOCTEXT("FAudioSection", "NoAudioTitleName", "No Audio");
 }
 
+FText FAudioSection::GetSectionToolTip() const
+{
+	UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(&Section);
+	const USoundWave* Sound = AudioSection ? DeriveSoundWave(AudioSection) : nullptr;
+
+	if (AudioSection && Sound && AudioSection->HasStartFrame() && AudioSection->HasEndFrame())
+	{
+		UMovieScene* MovieScene = AudioSection->GetTypedOuter<UMovieScene>();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+
+		const float AudioStartTime = AudioSection->GetStartOffset() / TickResolution;
+		const float SectionDuration = (AudioSection->GetExclusiveEndFrame() - AudioSection->GetInclusiveStartFrame())/ TickResolution;
+
+		if (AudioSection->GetLooping())
+		{
+			return FText::Format(LOCTEXT("ToolTipContentFormatLooping", "Start: {0}s\nDuration: {1}s\nLooping"),
+				AudioStartTime,
+				SectionDuration);
+		}
+		else
+		{
+			const float SoundDuration = Sound->Duration - AudioStartTime;
+			const float Duration = FMath::Min(SoundDuration, SectionDuration);
+
+			if (Duration > 0.0f)
+			{
+				return FText::Format(LOCTEXT("ToolTipContentFormat", "{0}s - {1}s ({2} seconds)"),
+					AudioStartTime,
+					AudioStartTime + Duration,
+					Duration);
+			}
+		}
+	}
+
+	return FText::GetEmpty();
+}
 
 float FAudioSection::GetSectionHeight() const
 {

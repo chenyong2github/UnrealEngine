@@ -110,10 +110,9 @@ struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
 
 class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
 {
-	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const Chaos::FSimCallbackInput* Input) override
+	virtual void OnPreSimulate_Internal() override
 	{
-		FPhysicsReplication::ApplyAsyncDesiredState(DeltaSeconds, Input);
-		return nullptr;
+		FPhysicsReplication::ApplyAsyncDesiredState(GetDeltaTime_Internal(), GetConsumerInput_Internal());
 	}
 };
 #endif
@@ -560,13 +559,11 @@ void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrect
 	CurAsyncData->AngularVelocityCoefficient = AngularVelocityCoefficient;
 }
 
-void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const Chaos::FSimCallbackInput* CallbackData)
+void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const FAsyncPhysicsRepCallbackData* AsyncData)
 {
 	using namespace Chaos;
-	if(CallbackData)
+	if(AsyncData)
 	{
-		const FAsyncPhysicsRepCallbackData* AsyncData = static_cast<const FAsyncPhysicsRepCallbackData*>(CallbackData);
-
 		const float LinearVelocityCoefficient = AsyncData->LinearVelocityCoefficient;
 		const float AngularVelocityCoefficient = AsyncData->AngularVelocityCoefficient;
 		const float PositionLerp = AsyncData->PositionLerp;
@@ -576,42 +573,44 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 		{
 			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
 			FRigidParticlePhysicsProxy* Proxy = State.Proxy;
-			TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle();
-			const FVector TargetPos = State.WorldTM.GetLocation();
-			const FQuat TargetQuat = State.WorldTM.GetRotation();
-
-			// Get Current state
-			FRigidBodyState CurrentState;
-			CurrentState.Position = Handle->X();
-			CurrentState.Quaternion = Handle->R();
-			CurrentState.AngVel = Handle->W();
-			CurrentState.LinVel = Handle->V();
-
-			FVector LinDiff;
-			float LinDiffSize;
-			FVector AngDiffAxis;
-			float AngDiff;
-			float AngDiffSize;
-			ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
-
-			const FVector NewLinVel = FVector(State.LinearVelocity) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
-			const FVector NewAngVel = FVector(State.AngularVelocity) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
-
-			const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
-			const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
-			Handle->SetX(NewPos);
-			Handle->SetR(NewAng);
-			Handle->SetV(NewLinVel);
-			Handle->SetW(FMath::DegreesToRadians(NewAngVel));
-
-			EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
-			if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
+			if(TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle())
 			{
-				ObjectStateType = EObjectStateType::Sleeping;
+				const FVector TargetPos = State.WorldTM.GetLocation();
+				const FQuat TargetQuat = State.WorldTM.GetRotation();
+
+				// Get Current state
+				FRigidBodyState CurrentState;
+				CurrentState.Position = Handle->X();
+				CurrentState.Quaternion = Handle->R();
+				CurrentState.AngVel = Handle->W();
+				CurrentState.LinVel = Handle->V();
+
+				FVector LinDiff;
+				float LinDiffSize;
+				FVector AngDiffAxis;
+				float AngDiff;
+				float AngDiffSize;
+				ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
+
+				const FVector NewLinVel = FVector(State.LinearVelocity) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
+				const FVector NewAngVel = FVector(State.AngularVelocity) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
+
+				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
+				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
+
+				Handle->SetX(NewPos);
+				Handle->SetR(NewAng);
+				Handle->SetV(NewLinVel);
+				Handle->SetW(FMath::DegreesToRadians(NewAngVel));
+
+				EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
+				if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
+				{
+					ObjectStateType = EObjectStateType::Sleeping;
+				}
+				auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
+				Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
 			}
-			auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-			Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
 		}
 	}
 }

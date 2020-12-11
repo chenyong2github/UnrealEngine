@@ -15,8 +15,6 @@
 
 namespace Chaos
 {
-	extern CHAOS_API float AsyncInterpolationMultiplier;
-
 	// Pulls physics state for each dirty particle and allows caller to do additional work if needed
 	template <typename RigidLambda>
 	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc)
@@ -26,8 +24,7 @@ namespace Chaos
 		FPullPhysicsData* LatestData = nullptr;
 		if (IsUsingAsyncResults() && UseAsyncInterpolation)
 		{
-			const FReal ExternalTime = MarshallingManager.GetExternalTime_External() + AccumulatedTime;
-			const FReal ResultsTime = ExternalTime - AsyncDt * AsyncInterpolationMultiplier;	//should we make this adjustable?
+			const FReal ResultsTime = GetPhysicsResultsTime_External();
 			//we want to interpolate between prev and next. There are a few cases to consider:
 			//case 1: dirty data exists in both prev and next. In this case continuous data is interpolated, state data is a step function from prev to next
 			//case 2: prev has dirty data and next doesn't. in this case take prev as it means nothing to interpolate, just a constant value

@@ -120,18 +120,7 @@ ETriggerState UInputTriggerTap::UpdateState_Implementation(const UEnhancedPlayer
 
 ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
-	if (const FInputActionInstance* EventData = PlayerInput->FindActionInstanceData(ChordAction))
-	{
-		// Inherit state from the chorded action
-		switch (EventData->GetTriggerEvent())
-		{
-		case ETriggerEvent::Started:
-		case ETriggerEvent::Ongoing:
-			return ETriggerState::Ongoing;
-		case ETriggerEvent::Triggered:
-			return ETriggerState::Triggered;
-		}
-	}
-	return ETriggerState::None;
+	// Inherit state from the chorded action
+	const FInputActionInstance* EventData = PlayerInput->FindActionInstanceData(ChordAction);
+	return EventData ? EventData->MappingTriggerState : ETriggerState::None;
 };
-

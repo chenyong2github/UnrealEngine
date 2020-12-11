@@ -80,20 +80,6 @@ static void D3D11FilterShaderCompileWarnings(const FString& CompileWarnings, TAr
 	}
 }
 
-bool IsRayTracingShader(const FShaderTarget& Target)
-{
-	switch(Target.Frequency)
-	{
-	case SF_RayGen:
-	case SF_RayMiss:
-	case SF_RayHitGroup:
-	case SF_RayCallable:
-		return true;
-	default:
-		return false;
-	}
-}
-
 // @return 0 if not recognized
 static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 {
@@ -851,7 +837,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory, ELanguage Language)
 {
 	FString PreprocessedShaderSource;
-	const bool bIsRayTracingShader = IsRayTracingShader(Input.Target);
+	const bool bIsRayTracingShader = Input.IsRayTracingShader();
 	const bool bUseDXC = bIsRayTracingShader
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
@@ -946,7 +932,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	FShaderParameterParser ShaderParameterParser;
 	if (!ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer(
 		Input, Output, PreprocessedShaderSource,
-		IsRayTracingShader(Input.Target) ? TEXT("cbuffer") : nullptr))
+		Input.IsRayTracingShader() ? TEXT("cbuffer") : nullptr))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;

@@ -16,6 +16,7 @@
 #include "Components/SplineMeshComponent.h"
 #include "Components/BoxComponent.h"
 #include "BuoyancyComponent.h"
+#include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 #include "WaterSubsystem.h"
 #include "WaterMeshActor.h"
@@ -797,18 +798,16 @@ void AWaterBody::PrepareCurrentPostProcessSettings()
 
 ALandscapeProxy* AWaterBody::FindLandscape() const
 {
-	if (bAffectsLandscape && !Landscape.IsValid())
+	UWorld* World = GetWorld();
+	if (bAffectsLandscape && !Landscape.IsValid() && (World != nullptr))
 	{
-		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
+		FBox WaterBodyAABB = GetComponentsBoundingBox();
+		for (TActorIterator<ALandscapeProxy> It(World); It; ++It)
 		{
-			if (It->GetWorld() == GetWorld())
+			if (WaterBodyAABB.Intersect(It->GetComponentsBoundingBox()))
 			{
-				FBox Box = It->GetComponentsBoundingBox();
-				if (Box.IsInsideXY(GetActorLocation()))
-				{
-					Landscape = *It;
-					return Landscape.Get();
-				}
+				Landscape = *It;
+				return Landscape.Get();
 			}
 		}
 	}
@@ -889,12 +888,26 @@ void AWaterBody::PostEditImport()
 
 void AWaterBody::UpdateActorIcon()
 {
-	if (ActorIcon)
+	if (ActorIcon && !bIsEditorPreviewActor)
 	{
 		// Actor icon gets in the way of meshes
 		ActorIcon->SetVisibility(IsIconVisible());
 
-		FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
+		UTexture2D* IconTexture = ActorIcon->Sprite;
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
+		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
+		{
+			if (CheckWaterBodyStatus() != EWaterBodyStatus::Valid)
+			{
+				IconTexture = WaterEditorServices->GetErrorSprite();
+			}
+			else
+			{
+				IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
+			}
+		}
+		FWaterIconHelper::UpdateSpriteComponent(this, IconTexture);
+
 
 		if (GetWaterBodyType() == EWaterBodyType::Lake && SplineComp)
 		{
@@ -976,33 +989,48 @@ void AWaterBody::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	}
 }
 
+AWaterBody::EWaterBodyStatus AWaterBody::CheckWaterBodyStatus() const
+{
+	if (!IsTemplate())
+	{
+		if (const UWorld* World = GetWorld())
+		{
+			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+			{
+				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
+				{
+					return EWaterBodyStatus::MissingWaterMesh;
+				}
+			}
+
+			if (AffectsLandscape() && FindLandscape() == nullptr)
+			{
+				return EWaterBodyStatus::MissingLandscape;
+			}
+		}
+	}
+
+	return EWaterBodyStatus::Valid;
+}
+
 void AWaterBody::CheckForErrors()
 {
 	Super::CheckForErrors();
 
-	if (!IsTemplate())
+	switch (CheckWaterBodyStatus())
 	{
-		if (UWorld* World = GetWorld())
-		{
-			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
-			{
-				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
-				{
-					FMessageLog("MapCheck").Error()
-						->AddToken(FUObjectToken::Create(this))
-						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingWaterMesh", "This water body requires a WaterMeshActor to be rendered. Please add one to the map. ")))
-						->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingWaterMesh")));
-				}
-			}
-
-			if (AffectsLandscape() && (FindLandscape() == nullptr))
-			{
-				FMessageLog("MapCheck").Error()
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This water body requires a Landscape to be rendered. Please add one to the map. ")))
-					->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingLandscape")));
-			}
-		}
+	case EWaterBodyStatus::MissingWaterMesh:
+		FMessageLog("MapCheck").Error()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingWaterMesh", "This water body requires a WaterMeshActor to be rendered. Please add one to the map. ")))
+			->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingWaterMesh")));
+		break;
+	case EWaterBodyStatus::MissingLandscape:
+		FMessageLog("MapCheck").Error()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This water body requires a Landscape to be rendered. Please add one to the map. ")))
+			->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingLandscape")));
+		break;
 	}
 }
 
@@ -1136,6 +1164,12 @@ void AWaterBody::UpdateAll(bool bShapeOrPositionChanged)
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_Water_UpdateAll);
 
 		bShapeOrPositionChanged |= UpdateWaterHeight();
+
+		if (bShapeOrPositionChanged)
+		{
+			// We might be affected to a different landscape now that our shape has changed : 
+			Landscape.Reset();
+		}
 
 		// First, update the water body without taking into account exclusion volumes, as those rely on the collision to detect overlapping water bodies
 		UpdateWaterBody(/* bWithExclusionVolumes*/false);

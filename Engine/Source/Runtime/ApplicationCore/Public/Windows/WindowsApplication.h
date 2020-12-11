@@ -449,6 +449,8 @@ private:
 	/** Helper function to update the cached states of all modifier keys */
 	void UpdateAllModifierKeyStates();
 
+	FPlatformRect GetWorkAreaFromOS(const FPlatformRect& CurrentWindow) const;
+
 private:
 
 	static const FIntPoint MinimizedWindowPosition;

@@ -28,6 +28,8 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	LongitudinalFrictionForceMultiplier = 1.0f;
 	LateralFrictionForceMultiplier = 2.0f;
 	SideSlipModifier = 1.0f;
+	SlipThreshold = 20.0f;
+	SkidThreshold = 20.0f;
 
 	bAffectedByBrake = true;
 	bAffectedByHandbrake = false;

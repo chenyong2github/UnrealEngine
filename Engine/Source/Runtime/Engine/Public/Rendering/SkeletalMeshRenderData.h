@@ -36,6 +36,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
+
+	/** The derived data key associated with this render data. */
+	FString DerivedDataKey;
+
+	/** The next cached derived data in the list. */
+	TUniquePtr<class FSkeletalMeshRenderData> NextCachedRenderData;
 #endif
 
 	FSkeletalMeshRenderData();

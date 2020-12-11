@@ -111,11 +111,6 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 	#define	VULKAN_SUBPASS_DEPTHFETCH	VULKAN_PROFILE
 #endif
 
-// reroute depth fetch for deferred shading
-#if MOBILE_DEFERRED_SHADING && VULKAN_SUBPASS_DEPTHFETCH && !defined(VulkanSubpassDepthFetch)
-#	define VulkanSubpassDepthFetch() VulkanSubpassFetch4().r
-#endif
-
 /** return all channels of the scene lighting texture */
 float4 CalcFullSceneColor(float2 ScreenUV)
 {
@@ -137,7 +132,7 @@ float LookupDeviceZ( float2 ScreenUV )
 	return FarDepthValue;
 #elif (POST_PROCESS_MATERIAL || POST_PROCESS_MATERIAL_MOBILE) && !POST_PROCESS_AR_PASSTHROUGH
 	#if MOBILE_DEFERRED_SHADING
-		return Texture2DSample(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, ScreenUV).r;
+		return Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r;
 	#else
 		// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass
 		// instead fetch DeviceZ from SceneColor.A

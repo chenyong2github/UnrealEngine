@@ -21,4 +21,16 @@ uint32 FAssetTypeActions_WaterWaves::GetCategories()
 	return FWaterEditorModule::GetAssetCategory();
 }
 
+void FAssetTypeActions_WaterWaves::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
+{
+	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		if (auto Object = Cast<UWaterWavesAsset>(*ObjIt))
+		{
+			FWaterEditorModule* WaterEditorModule = &FModuleManager::LoadModuleChecked<FWaterEditorModule>("WaterEditor");
+			WaterEditorModule->CreateWaterWaveAssetEditor(Mode, EditWithinLevelEditor, Object);
+		}
+	}
+}
 #undef LOCTEXT_NAMESPACE

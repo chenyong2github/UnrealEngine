@@ -70,7 +70,10 @@ void FAnimTrailNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilde
 
 void FAnimTrailNodeDetails::PendingDelete()
 {
-	TrailRelaxCurveWidget->SetCurveOwner(nullptr);
+	if(TrailRelaxCurveWidget.IsValid())
+	{
+		TrailRelaxCurveWidget->SetCurveOwner(nullptr);
+	}
 }
 
 TArray<FRichCurveEditInfoConst> FAnimTrailNodeDetails::FTrailRelaxCurveEditor::GetCurves() const

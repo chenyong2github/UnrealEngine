@@ -67,7 +67,7 @@ struct FChaosSceneCallbackInput : public Chaos::FSimCallbackInput
 
 struct FChaosSceneSimCallback : public Chaos::TSimCallbackObject<FChaosSceneCallbackInput>
 {
-	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* Input) override;
+	virtual void OnPreSimulate_Internal() override;
 };
 
 /**
@@ -124,7 +124,7 @@ public:
 	 * for the scene. Required when querying against a currently non-running scene to ensure the scene
 	 * is correctly represented
 	 */
-	void Flush_AssumesLocked();
+	void Flush();
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
 #endif
@@ -162,7 +162,7 @@ protected:
 
 	//Engine interface BEGIN
 	virtual float OnStartFrame(float InDeltaTime){ return InDeltaTime; }
-	virtual void OnSyncBodies();
+	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver);
 	//Engine interface END
 
 	template <typename RigidLambda>

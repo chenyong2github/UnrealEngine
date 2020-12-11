@@ -281,6 +281,9 @@ public:
 	/** Allows the generic class defaults version of this class to specify any dependencies/version/etc that might invalidate the compile. It should never depend on the value of specific properties.*/
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
+	/** Allows data interfaces to influence the compilation of GPU shaders and is only called on the CDO object not the instance. */
+	virtual void ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const {}
+
 	/** 
 		Subclasses that wish to work with GPU systems/emitters must implement this.
 		Those interfaces must fill DataForRenderThread with the data needed to upload to the GPU. It will be the last thing called on this

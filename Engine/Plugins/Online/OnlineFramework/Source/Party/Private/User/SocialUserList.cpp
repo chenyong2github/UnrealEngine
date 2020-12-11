@@ -139,6 +139,8 @@ void FSocialUserList::HandleOwnerToolkitReset()
 	{
 		OnUpdateComplete().Broadcast();
 	}
+
+	OwnerToolkit->GetSocialManager().OnPartyJoined().RemoveAll(this);
 }
 
 void FSocialUserList::HandlePartyInviteReceived(USocialUser& InvitingUser)

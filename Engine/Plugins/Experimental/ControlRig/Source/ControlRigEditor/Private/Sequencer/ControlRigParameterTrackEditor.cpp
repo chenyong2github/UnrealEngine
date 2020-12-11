@@ -164,7 +164,8 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true)
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true), bFilterAssetByAnimatibleControls(true)
+
 {
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 
@@ -427,7 +428,10 @@ void FControlRigParameterTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder
 class FControlRigClassFilter : public IClassViewerFilter
 {
 public:
-	FControlRigClassFilter(bool bInCheckSkeleton, USkeleton* InSkeleton) : bFilterAssetBySkeleton(bInCheckSkeleton),
+	FControlRigClassFilter(bool bInCheckSkeleton, bool bInCheckAnimatable, bool bInCheckInversion, USkeleton* InSkeleton) : 
+		bFilterAssetBySkeleton(bInCheckSkeleton),
+		bFilterExposesAnimatableControls(bInCheckAnimatable), 
+		bFilterInversion(bInCheckInversion),
 		AssetRegistry(FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get())
 	{
 		if (InSkeleton)
@@ -436,11 +440,43 @@ public:
 		}
 	}
 	bool bFilterAssetBySkeleton;
+	bool bFilterExposesAnimatableControls;
+	bool bFilterInversion;
+
 	FString SkeletonName;
 	const IAssetRegistry& AssetRegistry;
 
 	bool MatchesFilter(const FAssetData& AssetData)
 	{
+		bool bExposesAnimatableControls = AssetData.GetTagValueRef<bool>(TEXT("bExposesAnimatableControls"));
+		if (bFilterExposesAnimatableControls == true && bExposesAnimatableControls == false)
+		{
+			return false;
+		}
+		if (bFilterInversion)
+		{
+			bool bHasInversion = false;
+			FAssetDataTagMapSharedView::FFindTagResult Tag = AssetData.TagsAndValues.FindTag(TEXT("SupportedEventNames"));
+			if (Tag.IsSet())
+			{
+				FString EventString = FRigUnit_InverseExecution::EventName.ToString();
+				TArray<FString> SupportedEventNames;
+				Tag.GetValue().ParseIntoArray(SupportedEventNames, TEXT(","), true);
+	
+				for (const FString& Name : SupportedEventNames)
+				{
+					if (Name.Contains(EventString))
+					{
+						bHasInversion = true;
+						break;
+					}
+				}
+				if (bHasInversion == false)
+				{
+					return false;
+				}
+			}
+		}
 		if (bFilterAssetBySkeleton)
 		{
 			FString PreviewSkeletalMesh = AssetData.GetTagValueRef<FString>(TEXT("PreviewSkeletalMesh"));
@@ -519,7 +555,7 @@ void FControlRigParameterTrackEditor::BakeToControlRigSubMenu(FMenuBuilder& Menu
 		FClassViewerInitializationOptions Options;
 		Options.bShowUnloadedBlueprints = true;
 		Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
-		TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, Skeleton));
+		TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton,true, true, Skeleton));
 		Options.ClassFilter = ClassFilter;
 		Options.bShowNoneOption = false;
 
@@ -735,6 +771,20 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 						NAME_None,
 						EUserInterfaceActionType::ToggleButton);
 
+
+					MenuBuilder.AddMenuEntry(
+						NSLOCTEXT("Sequencer", "FilterAssetByAnimatibleControls", "Filter Asset By Animatible Controls"),
+						NSLOCTEXT("Sequencer", "FilterAssetByAnimatibleControlsTooltip", "Filters Control Rig assets to only show those with Animatible Controls"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetByAnimatibleControls),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateSP(this, &FControlRigParameterTrackEditor::IsToggleFilterAssetByAnimatibleControls)
+						),
+						NAME_None,
+						EUserInterfaceActionType::ToggleButton);
+
+
 					MenuBuilder.AddSubMenu(
 						LOCTEXT("AddAssetControlRig", "Asset-Based ControlRig"),
 						NSLOCTEXT("Sequencer", "AddAsetControlRigTooltip", "Adds an asset based Control Rig track"),
@@ -757,6 +807,17 @@ void FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton()
 bool FControlRigParameterTrackEditor::IsToggleFilterAssetBySkeleton()
 {
 	return bFilterAssetBySkeleton;
+}
+
+void FControlRigParameterTrackEditor::ToggleFilterAssetByAnimatibleControls()
+{
+	bFilterAssetByAnimatibleControls = bFilterAssetByAnimatibleControls ? false : true;
+
+}
+
+bool FControlRigParameterTrackEditor::IsToggleFilterAssetByAnimatibleControls()
+{
+	return bFilterAssetByAnimatibleControls;
 }
 
 void FControlRigParameterTrackEditor::AddControlRigSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track)
@@ -805,7 +866,7 @@ void FControlRigParameterTrackEditor::AddControlRigSubMenu(FMenuBuilder& MenuBui
 		Options.bShowUnloadedBlueprints = true;
 		Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 
-		TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, Skeleton));
+		TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, bFilterAssetByAnimatibleControls, false, Skeleton));
 		Options.ClassFilter = ClassFilter;
 		Options.bShowNoneOption = false;
 
@@ -1063,7 +1124,7 @@ void FControlRigParameterTrackEditor::AddTrackForComponent(USceneComponent* InCo
 		if (SkelMeshComp->SkeletalMesh && !SkelMeshComp->SkeletalMesh->GetDefaultAnimatingRig().IsNull())
 		{
 			UObject* Object = SkelMeshComp->SkeletalMesh->GetDefaultAnimatingRig().LoadSynchronous();
-			if (Object != nullptr && Object->IsA<UControlRigBlueprint>())
+			if (Object != nullptr && (Object->IsA<UControlRigBlueprint>() || Object->IsA<UControlRigComponent>()))
 			{
 				FGuid Binding = GetSequencer()->GetHandleToObject(InComponent, true /*bCreateHandle*/);
 				if (Binding.IsValid())
@@ -1100,6 +1161,11 @@ void FControlRigParameterTrackEditor::HandleActorAdded(AActor* Actor, FGuid Targ
 {
 	if (Actor)
 	{
+		if (UControlRigComponent* ControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
+		{
+			AddControlRigFromComponent(TargetObjectGuid);
+			return;
+		}
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
 			if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
@@ -2811,6 +2877,5 @@ void FControlRigParameterSection::OnAnimationAssetEnterPressedForFK(const TArray
 		OnAnimationAssetSelectedForFK(AssetData[0].GetAsset(), ObjectBinding, Section);
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE

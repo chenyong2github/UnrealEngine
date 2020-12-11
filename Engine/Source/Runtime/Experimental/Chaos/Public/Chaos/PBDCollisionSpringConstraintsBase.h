@@ -27,23 +27,23 @@ public:
 
 	TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const;
 
-	const TArray<TVector<int32, 4>>& GetConstraints() const { return MConstraints;  }
-	const TArray<TVector<T, d>>& GetBarys() const { return MBarys; }
-	const TArray<TVector<T, d>>& GetNormals() const { return MNormals; }
-	float GetThickness() const { return MThickness; }
+	const TArray<TVector<int32, 4>>& GetConstraints() const { return Constraints;  }
+	const TArray<TVector<T, d>>& GetBarys() const { return Barys; }
+	const TArray<TVector<T, d>>& GetNormals() const { return Normals; }
+	float GetThickness() const { return Thickness; }
 
 protected:
-	TArray<TVector<int32, 4>> MConstraints;
-	TArray<TVector<T, d>> MBarys;
-	TArray<TVector<T, d>> MNormals;
+	TArray<TVector<int32, 4>> Constraints;
+	TArray<TVector<T, d>> Barys;
+	TArray<TVector<T, d>> Normals;
 
 private:
-	const TArray<TVector<int32, 3>>& MElements;
-	const TSet<TVector<int32, 2>> MDisabledCollisionElements;  // TODO: Make this a bitarray
-	int32 MOffset;
-	int32 MNumParticles;
-	T MThickness;
-	T MStiffness;
+	const TArray<TVector<int32, 3>>& Elements;
+	const TSet<TVector<int32, 2>> DisabledCollisionElements;  // TODO: Make this a bitarray
+	int32 Offset;
+	int32 NumParticles;
+	T Thickness;
+	T Stiffness;
 };
 }
 #endif

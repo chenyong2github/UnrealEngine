@@ -70,7 +70,6 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 		WidgetProxy.ParentIndex = ParentIndex;
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
 		WidgetProxy.Visibility = Visibility;
-		WidgetProxy.bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
 	}
 
 #if WITH_SLATE_DEBUGGING
@@ -138,7 +137,7 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 		const bool bDoRecursion = ShouldDoRecursion(Widget);
 		if (bDoRecursion)
 		{
-			const bool bParentVisible = Widget->GetVisibility().IsVisible();
+			const bool bParentVisible = Widget->IsFastPathVisible();
 			const bool bParentVolatile = Widget->IsVolatile();
 			int32 NumChildren = ParentChildren->Num();
 			for (int32 Index = ChildAtIndex; Index < NumChildren; ++Index)
@@ -469,7 +468,7 @@ void FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const TArray<TW
 }
 
 
-namespace Private
+namespace
 {
 	template<typename TSlateInvalidationWidgetList, typename Predicate>
 	void ForEachChildren(TSlateInvalidationWidgetList& Self, const typename TSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget, FSlateInvalidationWidgetIndex WidgetIndex, Predicate InPredicate)
@@ -503,7 +502,7 @@ void FSlateInvalidationWidgetList::_FindChildren(FSlateInvalidationWidgetIndex W
 {
 	Widgets.Reserve(16);
 	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
-	Private::ForEachChildren(*this, InvalidationWidget, WidgetIndex, [&Widgets](const InvalidationWidgetType& ChildWidget)
+	ForEachChildren(*this, InvalidationWidget, WidgetIndex, [&Widgets](const InvalidationWidgetType& ChildWidget)
 		{
 			Widgets.Add(ChildWidget.GetWidget());
 		});
@@ -1091,7 +1090,7 @@ int32 FSlateInvalidationWidgetList::_CutArray(const FSlateInvalidationWidgetInde
 
 			// The parent is only invalid when it's the root. We can't remove it, but we shouldn't move it.
 			check(NewInvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid);
-			Private::ForEachChildren(*this, NewInvalidationWidget, NewWidgetIndex, [NewWidgetIndex](InvalidationWidgetType& NewChildInvalidationWidget)
+			ForEachChildren(*this, NewInvalidationWidget, NewWidgetIndex, [NewWidgetIndex](InvalidationWidgetType& NewChildInvalidationWidget)
 				{
 					NewChildInvalidationWidget.ParentIndex = NewWidgetIndex;
 				});

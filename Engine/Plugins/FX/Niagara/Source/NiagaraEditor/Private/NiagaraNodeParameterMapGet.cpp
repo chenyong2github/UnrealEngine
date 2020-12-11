@@ -334,15 +334,19 @@ void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* Defaul
 
 	// Sync pin visibility with the configured default mode
 	if (ScriptVar) {
-		if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Value) {
+		if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Value)
+		{
 			DefaultPin->bNotConnectable = true;
 			DefaultPin->bDefaultValueIsReadOnly = true;
 		}
-		else if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Custom) {
+		else if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Custom) 
+		{
 			DefaultPin->bNotConnectable = false;
 			DefaultPin->bDefaultValueIsReadOnly = false;
 		}
-		else if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Binding) {
+		else if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Binding ||
+			ScriptVar->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet)
+		{
 			DefaultPin->bHidden = true;
 		}
 	}

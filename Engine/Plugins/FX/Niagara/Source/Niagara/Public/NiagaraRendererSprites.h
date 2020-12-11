@@ -72,9 +72,11 @@ private:
 	ENiagaraRendererSourceDataMode SourceMode;
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;
-	FVector2D PivotInUVSpace;
 	ENiagaraSortMode SortMode;
+	FVector2D PivotInUVSpace;
 	FVector2D SubImageSize;
+
+	uint32 NumIndicesPerInstance;
 	
 	uint32 bSubImageBlend : 1;
 	uint32 bRemoveHMDRollInVR : 1;

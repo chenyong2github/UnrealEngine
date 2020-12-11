@@ -121,17 +121,9 @@ FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chao
 int32 ChaosSolverCollisionDeferNarrowPhase = 0;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDeferNarrowPhase(TEXT("p.Chaos.Solver.Collision.DeferNarrowPhase"), ChaosSolverCollisionDeferNarrowPhase, TEXT("Create contacts for all broadphase pairs, perform NarrowPhase later."));
 
-// Old manifold system
-int32 ChaosSolverCollisionUseManifolds = 0;
-FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
-
-// New manifold system
-int32 ChaosSolverCollisionUseIncrememtalManifolds = 1;
-FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds."));
-
-// New One-shot manifolds (only for boxes right now)
-int32 ChaosSolverCollisionUseOneShotManifolds = 1;
-FAutoConsoleVariableRef CVarChaosUseOneShotManifold(TEXT("p.Chaos.Solver.Collision.UseOneShotManifolds"), ChaosSolverCollisionUseOneShotManifolds, TEXT("Enable/Disable use of OneShot manifolds where available. If enabled Incremental manifold setting will be ignored"));
+// Allow one-shot or incremental manifolds where supported (which depends on shape pair types)
+int32 ChaosSolverCollisionUseManifolds = 1;
+FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifolds in collision."));
 
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
@@ -161,7 +153,10 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 			MSolver->StartingSceneSimulation();
 
-			MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			if(MDeltaTime > 0)	//if delta time is 0 we are flushing data, user callbacks should not be triggered because there is no sim
+			{
+				MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			}
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 
 			{
@@ -294,7 +289,7 @@ namespace Chaos
 				RewindData->FinishFrame();
 			}
 
-			MSolver->FreeCallbacksData_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			MSolver->FinalizeCallbackData_Internal();
 
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
@@ -471,6 +466,7 @@ namespace Chaos
 		{
 			GeometryParticlePhysicsProxies.RemoveSingleSwap((FGeometryParticlePhysicsProxy*)InProxy);
 		}
+		
 
 
 		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
@@ -526,21 +522,23 @@ namespace Chaos
 			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
-
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyRigidProxy.Add(Proxy);
 			}
 			else if (InParticleType == Chaos::EParticleType::Kinematic)
 			{
 				auto Proxy = (FKinematicGeometryParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyKinematicProxy.Add(Proxy);
 			}
 			else
 			{
 				auto Proxy = (FGeometryParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyGeometryProxy.Add(Proxy);
 			}
 
 			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
@@ -776,13 +774,29 @@ namespace Chaos
 	}
 
 	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::DestroyPendingProxies_Internal()
+	{
+		const auto Helper = [](auto& Proxies)
+		{
+			for (auto Proxy : Proxies)
+			{
+				ensure(Proxy->GetHandle() == nullptr);	//should have already cleared this out
+				delete Proxy;
+			}
+			Proxies.Reset();
+		};
+		
+		Helper(PendingDestroyRigidProxy);
+		Helper(PendingDestroyKinematicProxy);
+		Helper(PendingDestroyGeometryProxy);
+	}
+
+	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo)
 	{
 		const FReal StartSimTime = GetSolverTime();
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
-		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseIncrementalManifold = (ChaosSolverCollisionUseIncrememtalManifolds != 0);
-		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseOneShotManifolds = (ChaosSolverCollisionUseOneShotManifolds != 0);
 
 		// Apply CVAR overrides if set
 		{
@@ -827,6 +841,12 @@ namespace Chaos
 			//we skip dt=0 case because sync data should be identical if dt = 0
 			MarshallingManager.FinalizePullData_Internal(MEvolution->LatestExternalTimestampConsumed_Internal, StartSimTime, DeltaTime);
 		}
+
+		if(SubStepInfo.Step == SubStepInfo.NumSteps - 1)
+		{
+			//final step so we can destroy proxies
+			DestroyPendingProxies_Internal();
+		}
 	}
 
 	template <typename Traits>
@@ -850,14 +870,14 @@ namespace Chaos
 		//TODO: interpolate some data based on num steps
 
 		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
-		PushData->DynamicsWeight = FReal(1) / NumExternalSteps;
+		const FReal DynamicsWeight = FReal(1) / NumExternalSteps;
 		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData, NumExternalSteps](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
+		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
 		{
 			auto Particle = Proxy->GetParticle();
 			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.ParticleData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
@@ -867,13 +887,14 @@ namespace Chaos
 
 
 		//todo: if we allocate remote data ahead of time we could go wide
-		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this, DynamicsWeight](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
 			case EPhysicsProxyType::SingleRigidParticleType:
 			{
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+				Proxy->GetParticle()->ApplyDynamicsWeight(DynamicsWeight);
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
 				break;
 			}
@@ -925,9 +946,8 @@ namespace Chaos
 		FDirtySet* DirtyProxiesData = &PushData.DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData.DirtyPropertiesManager;
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		const FReal DynamicsWeight = PushData.DynamicsWeight;
 
-		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, DynamicsWeight, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
@@ -952,7 +972,7 @@ namespace Chaos
 				}
 			}
 
-			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution(), DynamicsWeight);
+			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution());
 
 			if(bIsNew)
 			{
@@ -1061,30 +1081,15 @@ namespace Chaos
 
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::ProcessPushedData_Internal(FPushPhysicsData& PushData)
-		{
-			//update callbacks
+	{
+		//update callbacks
 		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
 		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
 		{
 			SimCallbackObjects.Add(SimCallbackObject);
-			if(SimCallbackObject->bContactModification)
+			if (SimCallbackObject->bContactModification)
 			{
 				ContactModifiers.Add(SimCallbackObject);
-			}
-		}
-
-		for (int32 Idx = 0; Idx < PushData.SimCallbackObjectsToRemove.Num(); ++Idx)
-		{
-			ISimCallbackObject* RemovedCallbackObject = PushData.SimCallbackObjectsToRemove[Idx];
-			if (Idx == 0)
-			{
-				//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
-				RemovedCallbackObject->bPendingDelete = !RemovedCallbackObject->bRunOnceMore;
-			}
-			else
-			{
-				//want to delete, but came later in interval so need to run at least once
-				RemovedCallbackObject->bRunOnceMore = true;
 			}
 		}
 
@@ -1094,7 +1099,44 @@ namespace Chaos
 			InputAndCallbackObj.CallbackObject->SetCurrentInput_Internal(InputAndCallbackObj.Input);
 		}
 
+		//remove any callbacks that are unregistered
+		for (ISimCallbackObject* RemovedCallbackObject : PushData.SimCallbackObjectsToRemove)
+		{
+			RemovedCallbackObject->bPendingDelete = true;
+		}
+
+		for (int32 Idx = ContactModifiers.Num() - 1; Idx >= 0; --Idx)
+		{
+			ISimCallbackObject* Callback = ContactModifiers[Idx];
+			if (Callback->bPendingDelete)
+			{
+				//will also be in SimCallbackObjects so we'll delete it in that loop
+				ContactModifiers.RemoveAtSwap(Idx);
+			}
+		}
+
+		for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
+		{
+			ISimCallbackObject* Callback = SimCallbackObjects[Idx];
+			if (Callback->bPendingDelete)
+			{
+				Callback->SetCurrentInput_Internal(nullptr);	//free any pending input
+				delete Callback;
+				SimCallbackObjects.RemoveAtSwap(Idx);
+			}
+		}
+
 		ProcessSinglePushedData_Internal(PushData);
+
+		//run any commands passed in. These don't generate outputs and are a one off so just do them here
+		//note: commands run before sim callbacks. This is important for sub-stepping since we want each sub-step to have a consistent view
+		//so for example if the user deletes a floor surface, we want all sub-steps to see that in the same way
+		//also note, the commands run after data is marshalled over. This is important because data marshalling ensures any GT property changes are seen by command
+		//for example a particle may not be created until marshalling occurs, and then a command could explicitly modify something like a collision setting
+		for (FSimCallbackCommandObject* SimCallbackObject : PushData.SimCommands)
+		{
+			SimCallbackObject->PreSimulate_Internal();
+		}
 	}
 
 	template <typename Traits>

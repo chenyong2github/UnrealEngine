@@ -84,157 +84,157 @@ void FClothConstraints::CreateRules()
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const TPBDParticles<float, 3>& /*InParticles*/)
+			[this](const TPBDParticles<float, 3>& /*Particles*/)
 			{
 				XEdgeConstraints->Init();
 			};
 
 		ConstraintRules[ConstraintRuleIndex++] = 
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				XEdgeConstraints->Apply(InParticles, Dt);
+				XEdgeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (EdgeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] = 
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				EdgeConstraints->Apply(InParticles, Dt);
+				EdgeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (XBendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const TPBDParticles<float, 3>& /*InParticles*/)
+			[this](const TPBDParticles<float, 3>& /*Particles*/)
 			{
 				XBendingConstraints->Init();
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				XBendingConstraints->Apply(InParticles, Dt);
+				XBendingConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (BendingConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				BendingConstraints->Apply(InParticles, Dt);
+				BendingConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (BendingElementConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				BendingElementConstraints->Apply(InParticles, Dt);
+				BendingElementConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (XAreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const TPBDParticles<float, 3>& /*InParticles*/)
+			[this](const TPBDParticles<float, 3>& /*Particles*/)
 			{
 				XAreaConstraints->Init();
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				XAreaConstraints->Apply(InParticles, Dt);
+				XAreaConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (AreaConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				AreaConstraints->Apply(InParticles, Dt);
+				AreaConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (ThinShellVolumeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				ThinShellVolumeConstraints->Apply(InParticles, Dt);
+				ThinShellVolumeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (VolumeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				VolumeConstraints->Apply(InParticles, Dt);
+				VolumeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (XLongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const TPBDParticles<float, 3>& /*InParticles*/)
+			[this](const TPBDParticles<float, 3>& /*Particles*/)
 			{
 				XLongRangeConstraints->Init();
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				XLongRangeConstraints->Apply(InParticles, Dt);
+				XLongRangeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (LongRangeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				LongRangeConstraints->Apply(InParticles, Dt);
+				LongRangeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (MaximumDistanceConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
 				MaximumDistanceConstraints->SetSphereRadiiMultiplier(FMath::Max(0.f, MaxDistancesMultiplier));
-				MaximumDistanceConstraints->Apply(InParticles, Dt);
+				MaximumDistanceConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (BackstopConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				BackstopConstraints->Apply(InParticles, Dt);
+				BackstopConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (AnimDriveConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
 				AnimDriveConstraints->SetSpringStiffness(FMath::Clamp(AnimDriveSpringStiffness, 0.f, 1.f));
-				AnimDriveConstraints->Apply(InParticles, Dt);
+				AnimDriveConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (ShapeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				ShapeConstraints->Apply(InParticles, Dt);
+				ShapeConstraints->Apply(Particles, Dt);
 			};
 	}
 	if (SelfCollisionConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const TPBDParticles<float, 3>& InParticles)
+			[this](const TPBDParticles<float, 3>& Particles)
 			{
-				SelfCollisionConstraints->Init(InParticles);
+				SelfCollisionConstraints->Init(Particles);
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				SelfCollisionConstraints->Apply(InParticles, Dt);
+				SelfCollisionConstraints->Apply(Particles, Dt);
 			};
 	}
 	check(ConstraintInitIndex == NumConstraintInits);

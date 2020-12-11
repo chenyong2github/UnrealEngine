@@ -175,7 +175,7 @@ struct FWidgetAnimation_DEPRECATED
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UMovieScene* MovieScene;
+	UMovieScene* MovieScene = nullptr;
 
 	UPROPERTY()
 	TArray<FWidgetAnimationBinding> AnimationBindings;

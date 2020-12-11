@@ -24,7 +24,7 @@ URetainerBox::URetainerBox(const FObjectInitializer& ObjectInitializer)
 	TextureParameter = DefaultTextureParameterName;
 }
 
-void URetainerBox::SetRenderingPhase(int PhaseToRenderOn, int32 TotalRenderingPhases)
+void URetainerBox::SetRenderingPhase(int32 PhaseToRenderOn, int32 TotalRenderingPhases)
 {
 	Phase = PhaseToRenderOn;
 	PhaseCount = TotalRenderingPhases;
@@ -161,6 +161,23 @@ FGeometry URetainerBox::GetCachedAllottedGeometry() const
 	static const FGeometry TempGeo;
 	return TempGeo;
 }
+
+#if WITH_EDITOR
+bool URetainerBox::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URetainerBox, Phase)
+		|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URetainerBox, PhaseCount))
+	{
+		return RenderOnPhase && bRetainRender;
+	}
+	return true;
+}
+#endif
 
 /////////////////////////////////////////////////////
 

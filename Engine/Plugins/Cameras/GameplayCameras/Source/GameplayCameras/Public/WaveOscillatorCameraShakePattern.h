@@ -110,16 +110,25 @@ private:
 	// UCameraShakePattern interface
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
 
-public:
+	void UpdateOscillators(float DeltaTime, FCameraShakeUpdateResult& OutResult);
 
+private:
+
+	/** Initial sinusoidal offset for location oscillation. */
+	FVector InitialLocationOffset;
 	/** Current sinusoidal offset for location oscillation. */
-	FVector LocationOffset;
+	FVector CurrentLocationOffset;
 
+	/** Initial sinusoidal offset for rotation oscillation. */
+	FVector InitialRotationOffset;
 	/** Current sinusoidal offset for rotation oscillation. */
-	FVector RotationOffset;
+	FVector CurrentRotationOffset;
 
+	/** Initial sinusoidal offset for FOV oscillation */
+	float InitialFOVOffset;
 	/** Current sinusoidal offset for FOV oscillation */
-	float FOVOffset;
+	float CurrentFOVOffset;
 };
 

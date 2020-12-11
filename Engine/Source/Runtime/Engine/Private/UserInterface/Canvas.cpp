@@ -696,6 +696,7 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 			RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
 		}
 
+		TransitionRenderPassTargets(RHICmdList, RPInfo);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CanvasRenderThread"));
 	}
 	else

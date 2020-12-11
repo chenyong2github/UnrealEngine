@@ -46,9 +46,11 @@ public:
 #endif
 		return Widget.Pin().Get();
 	}
+	TSharedPtr<SWidget> GetWidgetAsShared() const;
 	void ResetWidget() { Widget.Reset(); }
 #else
 	SWidget* GetWidget() const { return Widget; }
+	TSharedPtr<SWidget> GetWidgetAsShared() const;
 	void ResetWidget() { Widget = nullptr; }
 #endif
 
@@ -74,7 +76,6 @@ public:
 	uint8 bUpdatedSinceLastInvalidate : 1;
 	/** Is the widget already in a pending update list.  If it already is in an update list we don't bother adding it again */
 	uint8 bInUpdateList : 1;
-	uint8 bInvisibleDueToParentOrSelfVisibility : 1;
 	uint8 bChildOrderInvalid : 1;
 	uint8 bContainedByWidgetHeap : 1;
 };

@@ -1904,6 +1904,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	{
 		NoPluginCompressionExtensions.Add(Ext);
 	}
+	
+	TArray<FString> FileNamesToNotUsePluginCompression;
+	GConfig->GetArray(TEXT("Pak"), TEXT("FileNamesToNotUsePluginCompression"), FileNamesToNotUsePluginCompression, GEngineIni);
+	TSet<FString> NoPluginCompressionFileNames;
+	for (const FString& FileName : FileNamesToNotUsePluginCompression)
+	{
+		NoPluginCompressionFileNames.Add(FileName);
+	}
 
 	struct FAsyncCompressor
 	{
@@ -1913,6 +1921,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		FPakEntryPair Entry;
 		const TArray<FName>* CompressionFormats;
 		const TSet<FString>* NoPluginCompressionExtensions;
+		const TSet<FString>* NoPluginCompressionFileNames;
 
 		// output
 		FCompressedFileBuffer CompressedFileBuffer;
@@ -1923,7 +1932,10 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bForceCompress = false;
 		volatile bool bIsComplete;
 		
-		void Init(FPakInputPair* InFileToAdd, const FPakCommandLineParameters& InParams, const TSet<FString>* InNoPluginCompressionExtensions)
+		void Init(	FPakInputPair* InFileToAdd,
+					const FPakCommandLineParameters& InParams, 
+					const TSet<FString>* InNoPluginCompressionExtensions, 
+					const TSet<FString>* InNoPluginCompressionFileNames)
 		{
 			CompressionMethod = NAME_None;
 			if (InFileToAdd->bIsDeleteRecord)
@@ -1935,6 +1947,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			bForceCompress = InParams.bForceCompress;
 			FileToAdd = InFileToAdd;
 			NoPluginCompressionExtensions = InNoPluginCompressionExtensions;
+			NoPluginCompressionFileNames = InNoPluginCompressionFileNames;
 			CompressionFormats = &InParams.CompressionFormats;
 			CompressionBlockSize = InParams.CompressionBlockSize;
 			bIsComplete = false;
@@ -1975,7 +1988,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				// because compression is a plugin, certain files need to be loadable out of pak files before plugins are loadable
 				// (like .uplugin files). for these, we enforce a non-plugin compression - zlib
 				bool bForceCompressionFormat = false;
-				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr)
+				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr ||
+					NoPluginCompressionFileNames->Find(FPaths::GetCleanFilename(FileToAdd->Source)) != nullptr)
 				{
 					CompressionMethod = NAME_Zlib;
 					bForceCompressionFormat = true;
@@ -2068,7 +2082,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
-		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], CmdLineParameters, &NoPluginCompressionExtensions);
+		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], CmdLineParameters, &NoPluginCompressionExtensions, &NoPluginCompressionFileNames);
 		if (bRunAsync)
 		{
 			if (FilesToAdd[FileIndex].bNeedsCompression)
@@ -2616,10 +2630,10 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 bool TestPakFile(const TCHAR* Filename, bool TestHashes)
 {	
-	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), Filename, false);
-	if (PakFile.IsValid())
+	TRefCountPtr<FPakFile> PakFile = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), Filename, false);
+	if (PakFile->IsValid())
 	{
-		return TestHashes ? PakFile.Check() : true;
+		return TestHashes ? PakFile->Check() : true;
 	}
 	else
 	{
@@ -2631,7 +2645,8 @@ bool TestPakFile(const TCHAR* Filename, bool TestHashes)
 bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bIncludeDeleted, const FString& CSVFilename, bool bExtractToMountPoint, const FKeyChain& InKeyChain)
 {
 	IPlatformFile* LowerLevelPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
-	FPakFile PakFile(LowerLevelPlatformFile, InPakFilename, false);
+	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(LowerLevelPlatformFile, InPakFilename, false);
+	FPakFile& PakFile = *PakFilePtr;
 	int32 FileCount = 0;
 	int64 FileSize = 0;
 	int64 FilteredSize = 0;
@@ -2881,7 +2896,8 @@ bool AuditPakFiles( const FString& InputPath, bool bOnlyDeleted, const FString& 
 		int32 PakPriority = GetPakPriorityFromFilename(PakFilename);
 		HighestPakPriority = FMath::Max( HighestPakPriority, PakPriority );
 
-		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		FPakFile& PakFile = *PakFilePtr;
 		if (PakFile.IsValid())
 		{
 			FString PakMountPoint = PakFile.GetMountPoint().Replace(TEXT("../../../"), TEXT(""));
@@ -3142,7 +3158,8 @@ bool ListFilesAtOffset( const TCHAR* InPakFileName, const TArray<int64>& InOffse
 		return false;
 	}
 
-	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), InPakFileName, false);
+	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), InPakFileName, false);
+	FPakFile& PakFile = *PakFilePtr;
 	if (!PakFile.IsValid())
 	{
 		UE_LOG(LogPakFile, Error, TEXT("Failed to open %s"), InPakFileName );
@@ -3190,7 +3207,8 @@ bool ListFilesAtOffset( const TCHAR* InPakFileName, const TArray<int64>& InOffse
 bool ShowCompressionBlockCRCs( const TCHAR* InPakFileName, TArray<int64>& InOffsets, const FKeyChain& InKeyChain )
 {
 	// open the pak file
-	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), InPakFileName, false);
+	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), InPakFileName, false);
+	FPakFile& PakFile = *PakFilePtr;
 	if (!PakFile.IsValid())
 	{
 		UE_LOG(LogPakFile, Error, TEXT("Failed to open %s"), InPakFileName );
@@ -3325,7 +3343,8 @@ bool GeneratePIXMappingFile(const TArray<FString> InPakFileList, const FString& 
 			}
 		}
 
-		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFileName, false);
+		TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFileName, false);
+		FPakFile& PakFile = *PakFilePtr;
 		if (!PakFile.IsValid())
 		{
 			UE_LOG(LogPakFile, Error, TEXT("Failed to open %s"), *PakFileName);
@@ -3400,7 +3419,8 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 		FString PakFilename = PakFileDirectory + "\\" + PakFileList[PakFileIndex];
 		int32 PakPriority = GetPakPriorityFromFilename(PakFilename);
 
-		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		FPakFile& PakFile = *PakFilePtr;
 		if (PakFile.IsValid())
 		{
 			FString DestPath(InDestPath);
@@ -3548,7 +3568,8 @@ void CreateDiffRelativePathMap(TArray<FString>& FileNames, const FString& RootPa
 
 bool DumpPakInfo(const FString& InPakFilename, const FKeyChain& InKeyChain)
 {
-	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename, false);
+	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename, false);
+	FPakFile& PakFile = *PakFilePtr;
 
 	if (!PakFile.IsValid())
 	{
@@ -3584,8 +3605,10 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 	TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
 	UE_LOG(LogPakFile, Log, TEXT("FileEventType, FileName, Size1, Size2"));
 
-	FPakFile PakFile1(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename1, false);
-	FPakFile PakFile2(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename2, false);
+	TRefCountPtr<FPakFile> PakFilePtr1 = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename1, false);
+	FPakFile& PakFile1 = *PakFilePtr1;
+	TRefCountPtr<FPakFile> PakFilePtr2 = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename2, false);
+	FPakFile& PakFile2 = *PakFilePtr2;
 	if (PakFile1.IsValid() && PakFile2.IsValid())
 	{		
 		FArchive& PakReader1 = *PakFile1.GetSharedReader(NULL);
@@ -3772,7 +3795,8 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 		int32 PakPriority = GetPakPriorityFromFilename(PakFilename);
 		int32 PakChunkIndex = GetPakChunkIndexFromFilename(PakFilename);
 
-		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		FPakFile& PakFile = *PakFilePtr;
 		if (PakFile.IsValid())
 		{
 			if (OutUsedEncryptionKeys != nullptr)
@@ -4414,7 +4438,8 @@ void ProcessLegacyFileMoves( TArray<FPakInputPair>& InDeleteRecords, TMap<FStrin
 		UE_LOG(LogPakFile, Display, TEXT("Checking old pak file \"%s\" Pri:%d Chunk:%d."), *PakFilename, PakPriority, PakChunkIndex );
 
 
-		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
+		FPakFile& PakFile = *PakFilePtr;
 		if (PakFile.IsValid())
 		{
 			FString PakMountPoint = PakFile.GetMountPoint().Replace(TEXT("../../../"), TEXT(""));

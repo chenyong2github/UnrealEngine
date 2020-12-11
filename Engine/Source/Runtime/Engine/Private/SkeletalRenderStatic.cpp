@@ -128,19 +128,21 @@ void FSkeletalMeshObjectStatic::ReleaseResources()
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
-				ensure(SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0);
-				SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects--;
-
-				if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects == 0)
+				if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0)
 				{
-					ENQUEUE_RENDER_COMMAND(ResetStaticRayTracingGeometryFlag)(
-						[&bReferencedByStaticSkeletalMeshObjects_RenderThread = SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread](FRHICommandListImmediate& RHICmdList)
-					{
-						bReferencedByStaticSkeletalMeshObjects_RenderThread = false;
-					}
-					);
+					SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects--;
 
-					BeginReleaseResource(&SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].StaticRayTracingGeometry);
+					if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects == 0)
+					{
+						ENQUEUE_RENDER_COMMAND(ResetStaticRayTracingGeometryFlag)(
+							[&bReferencedByStaticSkeletalMeshObjects_RenderThread = SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread](FRHICommandListImmediate& RHICmdList)
+						{
+							bReferencedByStaticSkeletalMeshObjects_RenderThread = false;
+						}
+						);
+
+						BeginReleaseResource(&SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].StaticRayTracingGeometry);
+					}
 				}
 			}
 #endif

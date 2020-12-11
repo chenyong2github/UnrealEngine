@@ -83,6 +83,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = Mesh)
 	bool IsEnabled() const { return bIsEnabled; }
 
+	// HACK [jonathan.bard] (start) : This is to make sure that the RTWorldLocation / RTWorldSizeVector MPC params can be serialized and set at runtime on the Water MPC.
+	//  It used to be handled by AWaterBrushManager, which is not available on client builds. 
+	//  This should be handled 1) not through a MPC and 2) not through a landscape-specific tool-only thing such as AWaterBrushManager : 
+	void SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
+	FVector RTWorldLocation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
+	FVector RTWorldSizeVector;
+	// HACK [jonathan.bard] (end)
+
 private:
 	//~ Begin USceneComponent Interface
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -90,6 +102,9 @@ private:
 
 	/** Based on all water bodies in the scene, rebuild the water mesh */
 	void RebuildWaterMesh(float InTileSize, const FIntPoint& InExtentInTiles);
+
+	// HACK [jonathan.bard] : see SetLandscapeInfo
+	void UpdateWaterMPC();
 
 	/** Tiles containing water, stored in a quad tree */
 	FWaterQuadTree WaterQuadTree;

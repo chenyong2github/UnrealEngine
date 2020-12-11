@@ -220,17 +220,18 @@ public:
 
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const {	return ENiagaraRendererSourceDataMode::Particles;}
 
-
-	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
-	virtual uint32 GetNumIndicesPerInstance() const { return 0; }
-
 	virtual bool GetIsActive() const;
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
 	virtual void SetIsEnabled(bool bInIsEnabled);
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) {}
 
-	virtual bool NeedsMIDsForMaterials() const { return false; }	
+	virtual bool NeedsMIDsForMaterials() const { return false; }
+
+	/** When true, the renderer will be opted in to get its PostSystemTick_GameThread overload called */
+	virtual bool NeedsSystemPostTick() const { return false; }
+	/** When true, the renderer will be opted in to get its OnSystemComplete_GameThread overload called */
+	virtual bool NeedsSystemCompletion() const { return false; }
 	
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")

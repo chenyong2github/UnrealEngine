@@ -178,6 +178,7 @@ public:
 
 	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
+	LAYOUT_FIELD_INITIALIZED(bool, bDiscardOfflineData, true);
 
 	LAYOUT_FIELD(FName, DebugName);
 };

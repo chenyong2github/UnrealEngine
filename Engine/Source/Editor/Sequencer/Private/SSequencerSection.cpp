@@ -685,7 +685,7 @@ FVector2D SSequencerSection::ComputeDesiredSize(float) const
 }
 
 
-void SSequencerSection::GetKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys ) const
+void SSequencerSection::GetKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys, float KeyHeightFraction ) const
 {
 	FGeometry SectionGeometry = MakeSectionGeometryWithoutHandles( AllottedGeometry, SectionInterface );
 
@@ -715,7 +715,7 @@ void SSequencerSection::GetKeysUnderMouse( const FVector2D& MousePosition, const
 		// Check that this section is under our mouse, and discard it from potential selection if the mouse is higher than the key's height. We have to
 		// check keys on a per-section basis (and not for the overall SectionGeometry) because keys are offset on tracks that have expandable 
 		// ranges (ie: Audio, Animation) which otherwise makes them fail the height-threshold check.
-		if (!KeyAreaGeometry.IsUnderLocation(MousePosition) || FMath::Abs(LocalKeyPosY - LocalMousePixel.Y) > SequencerSectionConstants::KeySize.Y *.5f)
+		if (!KeyAreaGeometry.IsUnderLocation(MousePosition) || FMath::Abs(LocalKeyPosY - LocalMousePixel.Y) > SequencerSectionConstants::KeySize.Y * KeyHeightFraction)
 		{
 			continue;
 		}
@@ -807,6 +807,10 @@ void SSequencerSection::CreateKeysUnderMouse( const FVector2D& MousePosition, co
 
 		FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "CreateKeysUnderMouse", "Create keys under mouse"));
 		FAddKeyOperation::FromKeyAreas(&TrackEditor, ValidKeyAreasUnderCursor).Commit(CurrentTime.FrameNumber, GetSequencer());
+
+		// Get the keys under the mouse as the newly created keys. Check with the full height of the key track area.
+		const float KeyHeightFraction = 1.f;
+		GetKeysUnderMouse(MousePosition, AllottedGeometry, OutKeys, KeyHeightFraction);
 	}
 
 	if (OutKeys.Num())
@@ -1634,9 +1638,23 @@ FReply SSequencerSection::OnMouseButtonUp(const FGeometry& MyGeometry, const FPo
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton)
 	{
+		// Snap keys on mouse up since we want to create keys at the exact mouse position (ie. to keep the newly created keys under the mouse 
+		// while dragging) but obey snapping rules if necessary
+		if (GetSequencer().GetSequencerSettings()->GetIsSnapEnabled() && GetSequencer().GetSequencerSettings()->GetSnapKeyTimesToInterval())
+		{
+			GetSequencer().SnapToFrame();
+
+			for (const FSequencerSelectedKey& SelectedKey : GetSequencer().GetSelection().GetSelectedKeys())
+			{
+				const FFrameNumber CurrentTime = SelectedKey.KeyArea->GetKeyTime(SelectedKey.KeyHandle.GetValue());
+				GetSequencer().SetLocalTime(CurrentTime, ESnapTimeMode::STM_Interval);
+				break;
+			}
+		}
 		GEditor->EndTransaction();
 
-		return FReply::Handled();
+		// Return unhandled so that the EditTool can handle the mouse up based on the newly created keyframe and finish moving it
+		return FReply::Unhandled();
 	}
 	return FReply::Unhandled();
 }

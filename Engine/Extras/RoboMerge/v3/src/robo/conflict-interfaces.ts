@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import { FailureKind } from "./branch-interfaces";
+import { FailureKind } from "./status-types";
 
 export enum Resolution {
 	RESOLVED = 'resolved',

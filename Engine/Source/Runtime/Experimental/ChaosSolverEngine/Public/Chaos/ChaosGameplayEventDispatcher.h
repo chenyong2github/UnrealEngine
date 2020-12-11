@@ -23,7 +23,7 @@ struct CHAOSSOLVERENGINE_API FChaosBreakEvent
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	UPrimitiveComponent* Component;
+	UPrimitiveComponent* Component = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	FVector Location;

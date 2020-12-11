@@ -1,19 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { ContextualLogger } from '../common/logger';
-import { Branch, BranchStatus } from './branch-interfaces';
-import { GraphBotState } from './graphbot';
+import { Branch } from './branch-interfaces';
+import { BranchDefForStatus, BranchStatus, GraphBotState, UserStatusData } from './status-types';
 import { OperationReturnType } from './ipc';
 import { AuthData } from './session';
-
-type UserStatusData = {
-	started: Date
-	version: string
-	user: {userName: string, displayName: string, privileges?: string[]}
-	branches: BranchStatus[]
-	botStates: [string, GraphBotState][]
-	insufficientPrivelege?: boolean
-}
 
 export class Status {
 	private readonly statusLogger: ContextualLogger
@@ -93,7 +84,7 @@ export class Status {
 		return result
 	}
 
-	private includeBranch(branch: Branch, userPrivileges: Set<string>) {
+	private includeBranch(branch: BranchDefForStatus, userPrivileges: Set<string>) {
 		if (branch.visibility === 'all') {
 			return true
 		}

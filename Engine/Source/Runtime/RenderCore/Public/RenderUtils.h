@@ -476,6 +476,8 @@ RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 
 RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel);
 
 RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform);
@@ -502,7 +504,14 @@ inline bool IsAnyForwardShadingEnabled(const FStaticShaderPlatform Platform)
 /** Returns if the GBuffer is used. Only valid for the current platform. */
 inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 {
-	return !IsAnyForwardShadingEnabled(Platform);
+	if (IsMobilePlatform(Platform))
+	{
+		return IsMobileDeferredShadingEnabled(Platform);
+	}
+	else
+	{
+		return !IsAnyForwardShadingEnabled(Platform);
+	}
 }
 
 /** Returns whether DBuffer decals are enabled for a given shader platform */

@@ -236,6 +236,30 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 	return Parameters;
 }
 
+void SetupSimpleDeferredLightParameters(
+	const FSimpleLightEntry& SimpleLight,
+	const FSimpleLightPerViewEntry &SimpleLightPerViewData,
+	FDeferredLightUniformStruct& DeferredLightUniformsValue)
+{
+	DeferredLightUniformsValue.LightParameters.Position = SimpleLightPerViewData.Position;
+	DeferredLightUniformsValue.LightParameters.InvRadius = 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER);
+	DeferredLightUniformsValue.LightParameters.Color = SimpleLight.Color;
+	DeferredLightUniformsValue.LightParameters.FalloffExponent = SimpleLight.Exponent;
+	DeferredLightUniformsValue.LightParameters.Direction = FVector(1, 0, 0);
+	DeferredLightUniformsValue.LightParameters.Tangent = FVector(1, 0, 0);
+	DeferredLightUniformsValue.LightParameters.SpotAngles = FVector2D(-2, 1);
+	DeferredLightUniformsValue.LightParameters.SpecularScale = 1.0f;
+	DeferredLightUniformsValue.LightParameters.SourceRadius = 0.0f;
+	DeferredLightUniformsValue.LightParameters.SoftSourceRadius = 0.0f;
+	DeferredLightUniformsValue.LightParameters.SourceLength = 0.0f;
+	DeferredLightUniformsValue.LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
+	DeferredLightUniformsValue.ContactShadowLength = 0.0f;
+	DeferredLightUniformsValue.DistanceFadeMAD = FVector2D(0, 0);
+	DeferredLightUniformsValue.ShadowMapChannelMask = FVector4(0, 0, 0, 0);
+	DeferredLightUniformsValue.ShadowedBits = 0;
+	DeferredLightUniformsValue.LightingChannelMask = 0;
+}
+
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 {
 #if RHI_RAYTRACING

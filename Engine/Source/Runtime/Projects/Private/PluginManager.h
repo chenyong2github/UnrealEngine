@@ -132,6 +132,8 @@ public:
 	virtual FName PackageNameFromModuleName(FName ModuleName) override;
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) override;
 
+	virtual bool IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, const TCHAR* EngineIniName, const TCHAR* PlatformName, const TCHAR* StagedPluginsFile);
+
 private:
 
 	/** Searches for all plugins on disk and builds up the array of plugin objects.  Doesn't load any plugins. 

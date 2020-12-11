@@ -1215,7 +1215,7 @@ void FLevelEditorActionCallbacks::LiveCoding_StartSession_Clicked()
 
 		if (!LiveCoding->IsEnabledForSession())
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoStartedLiveCodingAfterHotReload", "Live Coding cannot be started after hot-reload has been used. Please restart the editor."));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoStartedLiveCodingAfterHotReload", "Live Coding cannot be started after hot-reload has been used. Please close the editor and build from your IDE before restarting."));
 		}
 	}
 }
@@ -1523,7 +1523,7 @@ void FLevelEditorActionCallbacks::ReplaceActorsFromClass_Clicked( UClass* ActorC
 
 			FText ErrorMessage;
 			FText UnusedErrorMessage;
-			const FAssetData NoAssetData;
+			const FAssetData NoAssetData {};
 			const FAssetData TargetAssetData(TargetAsset);
 			if( ActorFactory->CanCreateActorFrom( TargetAssetData, ErrorMessage ) )
 			{

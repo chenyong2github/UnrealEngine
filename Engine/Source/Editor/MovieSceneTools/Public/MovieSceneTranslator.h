@@ -219,6 +219,8 @@ private:
 	int32 DefaultAudioSampleRate;
 	int32 DefaultAudioDepth;
 	FString MovieExtension;
+
+	TMap<FString, int32> DuplicateShotNameCounts;
 };
 
 struct FMovieSceneImportCinematicSectionData 

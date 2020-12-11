@@ -15,22 +15,33 @@
 
 #define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
 
-#if defined(SHADER_MAINVS) || defined(SHADER_RENDERVIEW_PS) || defined(SHADER_SHADOW_PS)
+#ifndef SHADER_RENDERVIEW_CS
+#define SHADER_RENDERVIEW_CS 0
+#endif
+
+#ifndef SHADER_RENDERVIEW_PS
+#define SHADER_RENDERVIEW_PS 0
+#endif
+
+#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
+
+#if !SHADER_RENDERVIEW_CS
 #include "/Engine/Generated/VertexFactory.ush"
-
-#include "ReflectionEnvironmentShared.ush"
-#include "ParticipatingMediaCommon.ush"
-
 
 struct RenderVolumetricCloudVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 Position : SV_POSITION;
 };
+#endif
 
-#if defined(SHADER_RENDERVIEW_PS) || defined(SHADER_SHADOW_PS)
+#include "ReflectionEnvironmentShared.ush"
+#include "ParticipatingMediaCommon.ush"
+
+
+#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 float3 SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
@@ -266,7 +277,7 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 // Single full screen triangle vertex shader
 ////////////////////////////////////////////////////////////
 
-#ifdef SHADER_RENDERVIEW_PS
+#if SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 
@@ -596,6 +607,7 @@ bool TraceClouds(
 	uint DebugShadowMaterialSampleCount = 0;
 	uint DebugGroundShadowSampleCount = 0;
 	uint DebugGroundShadowMaterialSampleCount = 0;
+	uint DebugZeroConservativeDensitySampleCount = 0;
 
 	const float3 wi0 = Light0Direction;
 	const float3 wi1 = Light1Direction;
@@ -638,7 +650,6 @@ bool TraceClouds(
 		t = TMin + (float(Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).x) * rcp(65536.0)) * StepT;
 	}
 
-
 	float3 S0 = 0.0f;
 	for (uint i = 0; i < IStepCount; ++i)
 	{
@@ -654,7 +665,13 @@ bool TraceClouds(
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
+		#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+			++DebugZeroConservativeDensitySampleCount;
 			t += StepT;
+		#else
+			i += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity - 1;
+			t += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity * StepT;
+		#endif
 			continue; // Conservative density is 0 so skip and go to the next sample
 		}
 	#endif
@@ -1023,7 +1040,8 @@ bool TraceClouds(
 		}
 
 		// This is helpful for performance. Can result in less light pucnhing through clouds. Should be a setting.
-		if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold))
+		if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold)
+			&& (!CLOUD_SAMPLE_COUNT_DEBUG_MODE || RenderVolumetricCloudParameters.SampleCountDebugMode < 6))
 		{
 			break;
 		}
@@ -1031,19 +1049,43 @@ bool TraceClouds(
 		t += StepT;
 	}
 
+#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+	if (RenderVolumetricCloudParameters.SampleCountDebugMode == 6)
+	{
+		OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
+	}
+	else if (RenderVolumetricCloudParameters.SampleCountDebugMode > 0)
+	{
+		uint CountToDebug = 0;
+		switch (RenderVolumetricCloudParameters.SampleCountDebugMode)
+		{
+		case 1:
+			CountToDebug = DebugPrimaryMaterialSampleCount;
+			break;
+		case 2:
+			CountToDebug = DebugShadowSampleCount;
+			break;
+		case 3:
+			CountToDebug = DebugShadowMaterialSampleCount;
+			break;
+		case 4:
+			CountToDebug = DebugGroundShadowSampleCount;
+			break;
+		case 5:
+			CountToDebug = DebugGroundShadowMaterialSampleCount;
+			break;
+		}
+
+		const bool bMediumHit = CountToDebug > 0;
+		OutColor0 = float4(bMediumHit ? GetColorCode(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f); 
+		OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
+	}
+#endif
+
 	return true;
 }
 
-
-
-
-
-void MainPS(
-	  in FVertexFactoryInterpolantsVSToPS FactoryInterpolants
-	, in float4 SvPosition : SV_Position
-	, out float4 OutColor0 : SV_Target0
-	, out float2 OutColor1 : SV_Target1
-)
+void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, out float4 OutColor0, out float2 OutColor1)
 {
 	ResolvedView = ResolveView();
 
@@ -1064,7 +1106,6 @@ void MainPS(
 	OutColor0					= float4(0.0f, 0.0f, 0.0f, 1.0f);
 	OutColor1					= MaxHalfFloat;
 
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(FactoryInterpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs	= (FPixelMaterialInputs)0;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
@@ -1179,45 +1220,90 @@ void MainPS(
 	//
 
 	float GrayScaleTransmittance = MeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : MeanTransmittance;
+#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+	OutColor0 = float4(OutColor0.r * OutputPreExposure, Luminance.gb * OutputPreExposure, GrayScaleTransmittance);
+#else
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
+#endif
 
 	OutColor1.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
 		OutColor1.x = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
+}
 
-#if 0
-	if (RenderVolumetricCloudParameters.SampleCountDebugMode > 0)
-	{
-		uint CountToDebug = 0;
-		switch (RenderVolumetricCloudParameters.SampleCountDebugMode)
-		{
-		case 1:
-			CountToDebug = DebugPrimaryMaterialSampleCount;
-			break;
-		case 2:
-			CountToDebug = DebugShadowSampleCount;
-			break;
-		case 3:
-			CountToDebug = DebugShadowMaterialSampleCount;
-			break;
-		case 4:
-			CountToDebug = DebugGroundShadowSampleCount;
-			break;
-		case 5:
-			CountToDebug = DebugGroundShadowMaterialSampleCount;
-			break;
-		}
+#endif // SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
-		const bool bMediumHit = CountToDebug > 0;
-		OutColor0 = float4(bMediumHit ? GetColorCode(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f); 
-		OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
-	}
-#endif
+#if SHADER_RENDERVIEW_PS
+
+void MainPS(
+	  in FVertexFactoryInterpolantsVSToPS FactoryInterpolants
+	, in float4 SvPosition : SV_Position
+	, out float4 OutColor0 : SV_Target0
+	, out float2 OutColor1 : SV_Target1)
+{
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(FactoryInterpolants, SvPosition);
+
+	MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
 }
 
 #endif // SHADER_RENDERVIEW_PS
+
+#if SHADER_RENDERVIEW_CS
+
+float4 OutputViewRect;
+int bBlendCloudColor;
+int TargetCubeFace;
+
+RWTexture2D<float4> OutCloudColor;
+RWTexture2D<float2> OutCloudDepth;
+RWTextureCube<float4> OutCloudColorCube;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	BRANCH
+	if (all(DispatchThreadId < OutputViewRect.zw))
+	{
+		float4 SvPosition = float4(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5, 0.5, 1);
+		float4 OutColor0;
+		float2 OutColor1;
+
+		FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
+
+		MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
+
+		if (TargetCubeFace >= 0)
+		{
+			uint3 CubemapCoord = uint3(DispatchThreadId, TargetCubeFace);
+			if (bBlendCloudColor)
+			{
+				float4 CurColor0 = OutCloudColorCube[CubemapCoord];
+				OutCloudColorCube[CubemapCoord] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
+			}
+			else
+			{
+				OutCloudColorCube[CubemapCoord] = OutColor0;
+			}
+		}
+		else
+		{
+			if (bBlendCloudColor)
+			{
+				float4 CurColor0 = OutCloudColor[DispatchThreadId];
+				OutCloudColor[DispatchThreadId] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
+			}
+			else
+			{
+				OutCloudColor[DispatchThreadId] = OutColor0;
+			}
+		}
+		OutCloudDepth[DispatchThreadId] = OutColor1;
+	}
+}
+
+#endif // SHADER_RENDERVIEW_CS
 
 
 

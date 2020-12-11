@@ -262,7 +262,7 @@ private:
 #endif
 
 #if WITH_CHAOS
-	virtual void OnSyncBodies() override;
+	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver) override;
 #endif
 
 #if 0

@@ -15,7 +15,10 @@
 
 #if WITH_EDITOR
 #include "Components/BillboardComponent.h"
+#include "Modules/ModuleManager.h"
 #include "WaterIconHelper.h"
+#include "WaterSubsystem.h"
+#include "WaterModule.h"
 #endif // WITH_EDITOR
 
 // ----------------------------------------------------------------------------------
@@ -23,7 +26,6 @@
 AWaterBodyIsland::AWaterBodyIsland(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 	SplineComp = CreateDefaultSubobject<UWaterSplineComponent>(TEXT("WaterSpline"));
 	SplineComp->SetMobility(EComponentMobility::Static);
 	SplineComp->SetClosedLoop(true);
@@ -172,9 +174,15 @@ void AWaterBodyIsland::UpdateAll()
 
 void AWaterBodyIsland::UpdateActorIcon()
 {
-	if (ActorIcon && SplineComp)
+	if (ActorIcon && SplineComp && !bIsEditorPreviewActor)
 	{
-		FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
+		UTexture2D* IconTexture = ActorIcon->Sprite;
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
+		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
+		{
+			IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
+		}
+		FWaterIconHelper::UpdateSpriteComponent(this, IconTexture);
 
 		// Move the actor icon to the center of the island
 		FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);

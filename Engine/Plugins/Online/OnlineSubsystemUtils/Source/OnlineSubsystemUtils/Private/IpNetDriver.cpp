@@ -353,7 +353,7 @@ private:
 					// NOTE: For RecvMulti, this will mass-dump packets, leading to packetloss. Avoid using with RecvMulti.
 					bBreak = true;
 
-					UE_LOG(LogNet, Warning, TEXT("Stopping packet reception after processing for more than %f seconds. %s"),
+					UE_LOG(LogNet, Verbose, TEXT("Stopping packet reception after processing for more than %f seconds. %s"),
 							Driver->MaxSecondsInReceive, *Driver->GetName());
 				}
 			}
@@ -1063,7 +1063,9 @@ bool UIpNetDriver::InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL
 		// Create a weakobj so that we can pass the Connection safely to the lambda for later
 		TWeakObjectPtr<UIpConnection> SafeConnectionPtr(IPConnection);
 
-		auto AsyncResolverHandler = [SafeConnectionPtr, SocketSubsystem, DestinationPort](FAddressInfoResult Results) {
+		auto AsyncResolverHandler = [SafeConnectionPtr, SocketSubsystem, DestinationPort](FAddressInfoResult Results)
+		{
+			FGCScopeGuard Guard;
 
 			// Check if we still have a valid pointer
 			if (!SafeConnectionPtr.IsValid())

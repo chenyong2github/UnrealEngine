@@ -113,18 +113,23 @@ namespace ChaosTest
 			int32 Data;
 		};
 
-		struct FCallback : public TSimCallbackObject<FDummyInt>
+		struct FDummyOut : public FSimCallbackOutput
 		{
-			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const FSimCallbackInput* Input) override
+			void Reset() {}
+			int32 Data;
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInt, FDummyOut>
+		{
+			virtual void OnPreSimulate_Internal() override
 			{
-				EXPECT_EQ(1 / 30.f, DeltaTime);
-				EXPECT_EQ(static_cast<const FDummyInt*>(Input)->Data, *CountPtr);
+				EXPECT_EQ(1 / 30.f, GetDeltaTime_Internal());
+				EXPECT_EQ(GetConsumerInput_Internal()->Data, *CountPtr);
+				GetProducerOutputData_Internal().Data = *CountPtr;
 				++(*CountPtr);
-				EXPECT_EQ(*Time, Input->GetExternalTime());
-				return nullptr;
 			}
 
-			mutable int32* CountPtr;	//mutable because callback shouldn't have side effects, but for testing this is the easiest way
+			int32* CountPtr;
 			float* Time;
 		};
 
@@ -132,13 +137,17 @@ namespace ChaosTest
 		Callback->CountPtr = &Count;
 		Callback->Time = &Time;
 
-
 		for(int Step = 0; Step < 10; ++Step)
 		{
 			Callback->GetProducerInputData_External()->Data = Step;
 			
 			Solver->AdvanceAndDispatch_External(Dt);
 			Solver->UpdateGameThreadStructures();
+			TSimCallbackOutputHandle<FDummyOut> Output = Callback->PopOutputData_External();
+			EXPECT_EQ(Output->Data, Step);	//output matched the step we ran
+			EXPECT_EQ(Output->InternalTime, Time);
+			TSimCallbackOutputHandle<FDummyOut> Output2 = Callback->PopOutputData_External();	//should get no output because already consumed data
+			EXPECT_FALSE(Output2);
 			Time += Dt;
 		}
 		

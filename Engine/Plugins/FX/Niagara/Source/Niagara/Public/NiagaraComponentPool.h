@@ -77,21 +77,20 @@ struct FNCPool
 	UPROPERTY(transient)
 	TArray<FNCPoolElement> FreeElements;
 
+#if ENABLE_NC_POOL_DEBUGGING
 	//Array of currently in flight components that will auto release.
-	UPROPERTY(transient)
-	TArray<UNiagaraComponent*> InUseComponents_Auto;
+	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Auto;
 
 	//Array of currently in flight components that need manual release.
-	UPROPERTY(transient)
-	TArray<UNiagaraComponent*> InUseComponents_Manual;
-	
+	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Manual;
+
 	/** Keeping track of max in flight systems to help inform any future pre-population we do. */
-	int32 MaxUsed;
+	int32 MaxUsed = 0;
+#endif
 
 public:
 
-	FNCPool();
-	void Cleanup(bool bFreeOnly);
+	void Cleanup();
 
 	/** Gets a component from the pool ready for use. */
 	UNiagaraComponent* Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew=false);
@@ -124,7 +123,7 @@ public:
 
 	~UNiagaraComponentPool();
 
-	void Cleanup(bool bFreeOnly=false);
+	void Cleanup(UWorld* World);
 
 	/** Clear all free entires of the specified system. */
 	void ClearPool(UNiagaraSystem* System);
@@ -135,9 +134,6 @@ public:
 	/** Called when an in-use particle component is finished and wishes to be returned to the pool. */
 	void ReclaimWorldParticleSystem(UNiagaraComponent* Component);
 
-	/** Call if you want to halt & reclaim all active particle systems and return them to their respective pools. */
-	void ReclaimActiveParticleSystems();
-	
 	/** Notification that the component is being destroyed but has relevance to the component pool. */
 	void PooledComponentDestroyed(UNiagaraComponent* Component);
 

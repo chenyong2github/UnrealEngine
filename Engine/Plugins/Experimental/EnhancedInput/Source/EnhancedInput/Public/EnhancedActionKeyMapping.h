@@ -20,12 +20,6 @@ struct FEnhancedActionKeyMapping
 {
 	GENERATED_BODY()
 
-	// Retained copy of the previous tick's trigger state. Drives events.
-	ETriggerState LastTickTriggerState = ETriggerState::None;
-
-	// How long the mapping has been at least partially actuated (the key is providing non-zero output).
-	float ElapsedActuatedTime = 0.f;
-
 	/** Action to be affected by the key  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	const UInputAction* Action = nullptr;

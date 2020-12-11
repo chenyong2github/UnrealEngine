@@ -4,6 +4,7 @@
 #include "Chaos/SerializationTestUtility.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "Misc/Paths.h"
 
 #include "gtest/gtest.h"
 

@@ -468,8 +468,13 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
+		TArray<FRigidParticlePhysicsProxy*> PendingDestroyRigidProxy;
+		TArray<FKinematicGeometryParticlePhysicsProxy*> PendingDestroyKinematicProxy;
+		TArray<FGeometryParticlePhysicsProxy*> PendingDestroyGeometryProxy;
+
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
+		void DestroyPendingProxies_Internal();
 	};
 
 	template<>

@@ -4040,7 +4040,7 @@ FArchive& operator<<(FArchive& Ar, FConfigCacheIni::FKnownConfigFiles& Names)
 #if PRELOAD_BINARY_CONFIG
 
 #include "Misc/PreLoadFile.h"
-static FPreLoadFile GPreLoadConfigBin(TEXT("{PROJECT}Config/Config.bin"));
+static FPreLoadFile GPreLoadConfigBin(TEXT("{PROJECT}Config/BinaryConfig.ini"));
 
 bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 {
@@ -4087,8 +4087,10 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 #if PRELOAD_BINARY_CONFIG
 	// attempt to load from staged binary config data
-	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("Config.bin"));
-	if (IFileManager::Get().FileExists(*BinaryConfigFile) &&
+	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
+
+	if (!FParse::Param(FCommandLine::Get(), TEXT("textconfig")) &&
+		IFileManager::Get().FileExists(*BinaryConfigFile) &&
 		FConfigCacheIni::CreateGConfigFromSaved(*BinaryConfigFile))
 	{
 		return;

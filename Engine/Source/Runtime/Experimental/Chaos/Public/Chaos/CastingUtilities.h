@@ -16,6 +16,71 @@ namespace Chaos
 	namespace Utilities
 	{
 		template <typename Lambda>
+		FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const Lambda& Func)
+		{
+			const EImplicitObjectType Type = Geom.GetType();
+			switch (Type)
+			{
+			case ImplicitObjectType::Sphere:
+			{
+				return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());
+			}
+			case ImplicitObjectType::Box:
+			{
+				return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>());
+			}
+			case ImplicitObjectType::Capsule:
+			{
+				return Func(Geom.template GetObjectChecked<TCapsule<FReal>>());
+			}
+			case ImplicitObjectType::Convex:
+			{
+				return Func(Geom.template GetObjectChecked<FConvex>());
+			}
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere:
+			{
+				return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>());
+			}
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Box:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>());
+			}
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>());
+			}
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>());
+			}
+			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Sphere:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TSphere<FReal, 3>>>().GetInstancedObject()->template GetObjectChecked<TSphere<FReal, 3>>());
+			}
+			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Box:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TBox<FReal, 3>>>().GetInstancedObject()->template GetObjectChecked<TBox<FReal, 3>>());
+			}
+			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>().GetInstancedObject()->template GetObjectChecked<TCapsule<FReal>>());
+			}
+			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex:
+			{
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FConvex>>().GetInstancedObject()->template GetObjectChecked<FConvex>());
+			}
+			case ImplicitObjectType::Transformed:
+			{
+				const auto& ImplicitObjectTransformed = (Geom.template GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>());
+				return CastHelper(*ImplicitObjectTransformed.GetTransformedObject(), Func);
+			}
+			default: 
+				check(false);
+			}
+			return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());	//needed for return type
+		}
+
+		template <typename Lambda>
 		FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
 		{
 			const EImplicitObjectType Type = Geom.GetType();

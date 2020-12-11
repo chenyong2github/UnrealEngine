@@ -294,7 +294,7 @@ struct FLandscapeComponentMaterialOverride
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
-	UMaterialInterface* Material;
+	UMaterialInterface* Material = nullptr;
 };
 
 USTRUCT(NotBlueprintable)
@@ -318,7 +318,7 @@ struct FHeightmapData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UTexture2D* Texture;
+	UTexture2D* Texture = nullptr;
 };
 
 USTRUCT(NotBlueprintable)

@@ -4,6 +4,7 @@
 #include "ISourceControlModule.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
+#include "SourceControlHelpers.h"
 #include "ISourceControlProvider.h"
 #include "Misc/Paths.h"
 
@@ -114,14 +115,13 @@ bool FScreenComparisonModel::Replace()
 	const FString ImportIncomingRoot = Report.GetReportPath();
 
 	TArray<FString> SourceControlFiles;
-
 	for ( const FFileMapping& Incoming : FileImports)
 	{
 		SourceControlFiles.Add(Incoming.DestinationFile);
 	}
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::RevertFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -135,12 +135,7 @@ bool FScreenComparisonModel::Replace()
 		SourceControlFiles.Add(Incoming.DestinationFile);
 	}
 
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlFiles) == ECommandResult::Failed )
-	{
-		//TODO Error
-	}
-
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::CheckOutOrAddFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -156,49 +151,14 @@ bool FScreenComparisonModel::RemoveExistingApproved()
 
 	TArray<FString> SourceControlFiles;
 
-	bool bSuccess = true;
-
 	IFileManager::Get().FindFilesRecursive(SourceControlFiles, *FPaths::GetPath(ApprovedFolder), TEXT("*.*"), true, false, false);
 
-	// Remove files from source control.
 	if (SourceControlFiles.Num())
 	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-
-		TArray<FSourceControlStateRef> SourceControlStates;
-		ECommandResult::Type Result = SourceControlProvider.GetState(SourceControlFiles, SourceControlStates, EStateCacheUsage::ForceUpdate);
-		if (Result == ECommandResult::Succeeded)
-		{
-			TArray<FString> FilesToRevert;
-			TArray<FString> FilesToDelete;
-
-			for (const FSourceControlStateRef& SourceControlState : SourceControlStates)
-			{
-				// Added files must be reverted.
-				if (SourceControlState->IsAdded())
-				{
-					FilesToRevert.Add(SourceControlState->GetFilename());
-				}
-				// Edited files must be reverted then deleted.
-				else if (SourceControlState->IsCheckedOut())
-				{
-					FilesToRevert.Add(SourceControlState->GetFilename());
-					FilesToDelete.Add(SourceControlState->GetFilename());
-				}
-				// Other source controlled files must be deleted.
-				else if (SourceControlState->IsSourceControlled() && !SourceControlState->IsDeleted())
-				{
-					FilesToDelete.Add(SourceControlState->GetFilename());
-				}
-			}
-
-			const bool WasSuccessfullyReverted = FilesToRevert.Num() == 0 || SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), FilesToRevert) == ECommandResult::Succeeded;
-			const bool WasSuccessfullyDeleted = FilesToDelete.Num() == 0 || SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), FilesToDelete) == ECommandResult::Succeeded;
-			bSuccess = WasSuccessfullyReverted && WasSuccessfullyDeleted;
-		}
+		return USourceControlHelpers::MarkFilesForDelete(SourceControlFiles);
 	}
 
-	return bSuccess;
+	return true;
 }
 
 bool FScreenComparisonModel::AddAlternative()
@@ -209,14 +169,12 @@ bool FScreenComparisonModel::AddAlternative()
 	const FString ImportIncomingRoot = Report.GetReportPath();
 
 	TArray<FString> SourceControlFiles;
-
 	for ( const FFileMapping& Import : FileImports )
 	{
 		SourceControlFiles.Add(Import.DestinationFile);
 	}
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::RevertFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}
@@ -233,11 +191,7 @@ bool FScreenComparisonModel::AddAlternative()
 		}
 	}
 
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlFiles) == ECommandResult::Failed )
-	{
-		//TODO Error
-	}
-	if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), SourceControlFiles) == ECommandResult::Failed )
+	if (!USourceControlHelpers::CheckOutOrAddFiles(SourceControlFiles))
 	{
 		//TODO Error
 	}

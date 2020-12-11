@@ -12,6 +12,7 @@
 #include "Async/Async.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "RenderCaptureInterface.h"
 #include "Misc/AutomationTest.h"
@@ -23,7 +24,7 @@ extern UNREALED_API UEditorEngine* GEditor;
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Editor.h"
-#endif
+#endif // WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(RenderDocPlugin);
 
@@ -209,13 +210,13 @@ TSharedPtr<class IInputDevice> FRenderDocPluginModule::CreateInputDevice(const T
 
 void FRenderDocPluginModule::StartupModule()
 {
-#if WITH_EDITOR && !UE_BUILD_SHIPPING // Disable in shipping builds
+#if !UE_BUILD_SHIPPING // Disable in shipping builds
 	Loader.Initialize();
 	RenderDocAPI = nullptr;
 
 #if WITH_EDITOR
 	EditorExtensions = nullptr;
-#endif
+#endif // WITH_EDITOR
 
 	if (Loader.RenderDocAPI == nullptr)
 	{
@@ -274,26 +275,26 @@ void FRenderDocPluginModule::StartupModule()
 
 	RenderDocAPI->MaskOverlayBits(eRENDERDOC_Overlay_None, eRENDERDOC_Overlay_None);
 
-#if WITH_EDITOR
-	EditorExtensions = new FRenderDocPluginEditorExtension(this);
-#endif
-
 	static FAutoConsoleCommand CCmdRenderDocCaptureFrame = FAutoConsoleCommand(
 		TEXT("renderdoc.CaptureFrame"),
 		TEXT("Captures the rendering commands of the next frame and launches RenderDoc"),
 		FConsoleCommandDelegate::CreateRaw(this, &FRenderDocPluginModule::CaptureFrame)
 	);
 
+#if WITH_EDITOR
 	static FAutoConsoleCommand CCmdRenderDocCapturePIE = FAutoConsoleCommand(
 		TEXT("renderdoc.CapturePIE"),
 		TEXT("Starts a PIE session and captures the specified number of frames from the start."),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FRenderDocPluginModule::CapturePIE)
 	);
 
+	EditorExtensions = new FRenderDocPluginEditorExtension(this);
+#endif // WITH_EDITOR
+
 	BindCaptureCallbacks();
 
 	UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc plugin is ready!"));
-#endif
+#endif // !UE_BUILD_SHIPPING
 }
 
 void FRenderDocPluginModule::BeginCapture()
@@ -328,9 +329,9 @@ void FRenderDocPluginModule::ShowNotification(const FText& Message, bool bForceN
 {
 #if WITH_EDITOR
 	FRenderDocPluginNotification::Get().ShowNotification(Message, bForceNewNotification);
-#else
+#else // WITH_EDITOR
 	GEngine->AddOnScreenDebugMessage((uint64)-1, 2.0f, FColor::Emerald, Message.ToString());
-#endif
+#endif // !WITH_EDITOR
 }
 
 void FRenderDocPluginModule::InjectDebugExecKeybind()
@@ -411,6 +412,7 @@ void FRenderDocPluginModule::CaptureFrame(FViewport* InViewport, const FString& 
 	}
 }
 
+#if WITH_EDITOR
 void FRenderDocPluginModule::CapturePIE(const TArray<FString>& Args)
 {
 	if (Args.Num() < 1)
@@ -434,6 +436,7 @@ void FRenderDocPluginModule::CapturePIE(const TArray<FString>& Args)
 	// present, and we want to catch the first PIE frame.
 	StartPIEDelayFrames = 1;
 }
+#endif // WITH_EDITOR
 
 void FRenderDocPluginModule::DoCaptureCurrentViewport(FViewport* InViewport, const FString& DestPath, ELaunchAfterCapture LaunchOption)
 {
@@ -461,7 +464,7 @@ void FRenderDocPluginModule::DoCaptureCurrentViewport(FViewport* InViewport, con
 		// button is clicked versus the one which the console is attached to)
 		Viewport = GEditor->GetActiveViewport();
 	}
-#endif
+#endif // WITH_EDITOR
 
 	check(Viewport);
 	Viewport->Draw(true);
@@ -485,7 +488,7 @@ void FRenderDocPluginModule::Tick(float DeltaTime)
 		EditorEngine->RequestPlaySession(SessionParams);
 		StartPIEDelayFrames = -1;
 	}
-#endif
+#endif // WITH_EDITOR
 
 	if (!bPendingCapture && !bCaptureInProgress)
 		return;
@@ -610,7 +613,7 @@ void FRenderDocPluginModule::ShutdownModule()
 
 #if WITH_EDITOR
 	delete EditorExtensions;
-#endif
+#endif // WITH_EDITOR
 
 	Loader.Release();
 

@@ -62,7 +62,7 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	float Pitch;
 
-	/** Lowpass filter frequency */
+	/** Lowpass filter cutoff frequency */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	float LowPassFilterFrequency;
 
@@ -81,7 +81,7 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing, meta = (DisplayName = "LFE Bleed"))
 	float LFEBleed;
 
-	/** Voice center channel volume - Not a multiplier (does not propagate to child classes) */
+	/** The amount to send to center channel (does not propagate to child classes) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing)
 	float VoiceCenterChannelVolume;
 
@@ -121,7 +121,7 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submix, meta = (DisplayName = "Send to Master Reverb Submix"))
 	uint8 bReverb:1;
 
-	/** Send amount to master reverb effect for referencing, unattenuated (2D) sounds. */
+	/** Send amount to master reverb effect for referencing unattenuated (2D) sounds. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submix)
 	float Default2DReverbSendAmount;
 
@@ -274,7 +274,7 @@ public:
 	 */
 	void RefreshAllGraphs(bool bIgnoreThis);
 
-	/** Sets the sound cue graph editor implementation.* */
+	/** Sets the sound cue graph editor implementation. */
 	static void SetSoundClassAudioEditor(TSharedPtr<ISoundClassAudioEditor> InSoundClassAudioEditor);
 
 	/** Gets the sound cue graph editor implementation. */

@@ -11,6 +11,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneSequencePlayer.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
@@ -84,6 +85,14 @@ int32 ULevelSequenceEditorBlueprintLibrary::GetCurrentTime()
 		return ConvertFrameTime(CurrentSequencer.Pin()->GetGlobalTime().Time, TickResolution, DisplayRate).FloorToFrame().Value;
 	}
 	return 0;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->PlayTo(PlaybackParams);
+	}
 }
 
 bool ULevelSequenceEditorBlueprintLibrary::IsPlaying()

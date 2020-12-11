@@ -1004,7 +1004,7 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 
 		#if RHI_RAYTRACING
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
-		#endif
+		#endif // RHI_RAYTRACING
 		}
 
 		if (SendAllEndOfFrameUpdates->ComputeFramework)
@@ -1476,7 +1476,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		for (ULevel* CollectionLevel : LevelCollections[i].GetLevels())
 		{
 			const bool bAddToTickList = (bValidateLevelList == false) || Levels.Contains(CollectionLevel);
-			if (bAddToTickList)
+			if (bAddToTickList && CollectionLevel)
 			{
 				LevelsToTick.Add(CollectionLevel);
 			}

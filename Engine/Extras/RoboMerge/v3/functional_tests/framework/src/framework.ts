@@ -190,6 +190,20 @@ export type EdgeProperties = Partial<EdgeOptionFields> & {
 	to: string
 }
 
+export async function retryWithBackoff<T extends {}>(desc: string, f: (last: boolean) => Promise<T | null>): Promise<T> {
+	let sleepTime = .5
+	for (let safety = 0; safety < 20; ++safety) {
+		const result = await f(safety === 19)
+		if (result) {
+			return result
+		}
+
+		await System.sleep(sleepTime)
+		sleepTime *= 1.2 // roughly 3 second interval after 10 tries, 20s after 20
+	}
+	throw new Error(desc + ' timed out')
+}
+
 export abstract class FunctionalTest {
 	readonly testName: string
 	botName: string
@@ -405,7 +419,7 @@ export abstract class FunctionalTest {
 	 * Map of users (testuser1, testuser2, etc.) and their maps <stream: P4Client>
 	 */
 	private clients = new Map<string, Map<string, P4Client>>()
-	private nodes: string[] = []
+	nodes: string[] = []
 	private edges: [string, string][] = []
 
 	getClient(stream: string, username = 'testuser1', depotName?: string) {
@@ -513,6 +527,7 @@ export abstract class FunctionalTest {
 	}
 
 	async checkDescriptionContainsEdit(stream: string, requiredList?: string[], blacklist?: string[], depotName?: string) {
+		this.info('Checking description of last commit to ' + stream)
 		this.getClient(stream, undefined, depotName).changes(1)
 			.then((changes: Change[]) => {
 				const description = changes[0]!.description.toLowerCase()
@@ -813,18 +828,8 @@ export abstract class FunctionalTest {
 		return true
 	}
 
-	async waitForRobomergeIdle(dump = false, wait_limit = 20) {
-		let sleepTime = .5
-		for (let safety = 0; safety < wait_limit; ++safety) {
-			if (await this.isRobomergeIdle(dump || safety === wait_limit - 1)) {
-				return true
-			}
-			dump = false
-			await System.sleep(sleepTime)
-			sleepTime *= 1.2 // roughly 3 second interval after 10 tries, 20s after 20
-		}
-		this.warn('Time out!')
-		throw new Error('RoboMerge never seemed to settle down')
+	waitForRobomergeIdle(dump = false) {
+		return retryWithBackoff('Waiting for idle', async (last: boolean) => this.isRobomergeIdle(dump || last))
 	}
 }
 

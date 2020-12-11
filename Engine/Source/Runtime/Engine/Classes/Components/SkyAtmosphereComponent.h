@@ -162,6 +162,11 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void SetAtmosphereHeight(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void SetMultiScatteringFactor(float NewValue);
 	
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetRayleighScatteringScale(float NewValue);

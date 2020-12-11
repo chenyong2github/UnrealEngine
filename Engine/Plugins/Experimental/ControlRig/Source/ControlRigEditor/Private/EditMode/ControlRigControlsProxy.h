@@ -166,6 +166,12 @@ struct FControlRigEnumControlProxyValue
 {
 	GENERATED_USTRUCT_BODY()
 
+	FControlRigEnumControlProxyValue()
+	{
+		EnumType = nullptr;
+		EnumIndex = INDEX_NONE;
+	}
+	
 	UPROPERTY()
 	UEnum* EnumType;
 

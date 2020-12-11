@@ -48,7 +48,9 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 	op(Scalability) \
 	op(RuntimeOptions) \
 	op(InstallBundle) \
-	op(Hardware)
+	op(Hardware) \
+	op(GameplayTags)
+
 
 #define KNOWN_INI_ENUM(IniName) IniName,
 enum class EKnownIniFile : uint8

@@ -29,10 +29,18 @@ FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
 	, Visibility(EVisibility::Collapsed) 
 	, bUpdatedSinceLastInvalidate(false)
 	, bInUpdateList(false)
-	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bChildOrderInvalid(false)
 	, bContainedByWidgetHeap(false)
 {
+}
+
+TSharedPtr<SWidget> FWidgetProxy::GetWidgetAsShared() const
+{
+#if UE_SLATE_WITH_WIDGETPROXY_WEAKPTR
+	return Widget.Pin();
+#else
+	return Widget ? Widget->AsShared() : TSharedPtr<SWidget>();
+#endif
 }
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements)
@@ -42,22 +50,18 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 //	ensure(UpdateFlags == Widget->UpdateFlags);
 //#endif
 
+	TSharedPtr<SWidget> CurrentWidget = GetWidgetAsShared();
+
 	// If Outgoing layer id remains index none, there was no change
 	int32 OutgoingLayerId = INDEX_NONE;
 	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
 	{
-		ensure(!bInvisibleDueToParentOrSelfVisibility);
+		check(CurrentWidget->IsFastPathVisible());
 		OutgoingLayerId = Repaint(PaintArgs, OutDrawElements);
 	}
-	else if(!bInvisibleDueToParentOrSelfVisibility)
+	else if(CurrentWidget->IsFastPathVisible())
 	{
 		EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
-#if UE_SLATE_WITH_WIDGETPROXY_WEAKPTR
-		TSharedPtr<SWidget> CurrentWidget = Widget.Pin();
-#else
-		TSharedPtr<SWidget> CurrentWidget = Widget->AsShared();
-#endif
-
 		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
@@ -88,7 +92,7 @@ bool FWidgetProxy::ProcessInvalidation(FSlateInvalidationWidgetHeap& UpdateList,
 	bool bWidgetNeedsRepaint = false;
 	SWidget* WidgetPtr = GetWidget();
 
-	if (!bInvisibleDueToParentOrSelfVisibility && ParentIndex != FSlateInvalidationWidgetIndex::Invalid && !WidgetPtr->PrepassLayoutScaleMultiplier.IsSet())
+	if (WidgetPtr->IsFastPathVisible() && ParentIndex != FSlateInvalidationWidgetIndex::Invalid && !WidgetPtr->PrepassLayoutScaleMultiplier.IsSet())
 	{
 		SCOPE_CYCLE_SWIDGET(WidgetPtr);
 		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
@@ -187,7 +191,8 @@ void FWidgetProxy::MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetHeap& Updat
 
 	if(EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
 	{
-		if (!bInUpdateList && !bInvisibleDueToParentOrSelfVisibility)
+		SWidget* WidgetPtr = GetWidget();
+		if (WidgetPtr && WidgetPtr->IsFastPathVisible())
 		{
 			// If there are any updates still needed add them to the next update list
 			UpdateList.PushUnique(*this);
@@ -340,7 +345,7 @@ void FWidgetProxyHandle::UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateF
 	{
 		FWidgetProxy& Proxy = GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
 
-		if (!Proxy.bInvisibleDueToParentOrSelfVisibility)
+		if (Widget->IsFastPathVisible())
 		{
 			Proxy.UpdateFlags = NewFlags;
 

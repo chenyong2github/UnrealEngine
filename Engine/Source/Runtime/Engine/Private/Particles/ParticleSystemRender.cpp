@@ -6876,7 +6876,7 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 
 	SCOPE_CYCLE_COUNTER(STAT_FParticleSystemSceneProxy_GetMeshElements);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_RT);
-	PARTICLE_PERF_STAT_CYCLES(PerfAsset, GetDynamicMeshElements);
+	PARTICLE_PERF_STAT_CYCLES_RT(PerfAsset, GetDynamicMeshElements);
 
 	if ((GIsEditor == true) || (GbEnableGameThreadLODCalculation == false))
 	{
@@ -7010,7 +7010,8 @@ void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ParticleUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)
-				PARTICLE_PERF_STAT_CYCLES(Proxy->PerfAsset, RenderUpdate);
+			PARTICLE_PERF_STAT_CYCLES_RT(Proxy->PerfAsset, RenderUpdate);
+			PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(Proxy->PerfAsset, 1);
 			if (NewDynamicData)
 			{
 				for (int32 Index = 0; Index < NewDynamicData->DynamicEmitterDataArray.Num(); Index++)

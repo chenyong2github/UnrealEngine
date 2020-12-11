@@ -33,6 +33,7 @@
 #include "WaterBrushCacheContainer.h"
 #include "WaterBodyBrushCacheContainerThumbnailRenderer.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "WaterWavesEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "WaterEditor"
 
@@ -115,6 +116,13 @@ void FWaterEditorModule::ShutdownModule()
 	FEditorDelegates::OnMapOpened.RemoveAll(this);
 
 	FWaterUIStyle::Shutdown();
+}
+
+TSharedRef<FWaterWavesEditorToolkit> FWaterEditorModule::CreateWaterWaveAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* WavesAsset)
+{
+	TSharedRef<FWaterWavesEditorToolkit> NewWaterWaveAssetEditor(new FWaterWavesEditorToolkit());
+	NewWaterWaveAssetEditor->InitWaterWavesEditor(Mode, InitToolkitHost, WavesAsset);
+	return NewWaterWaveAssetEditor;
 }
 
 void FWaterEditorModule::RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer)

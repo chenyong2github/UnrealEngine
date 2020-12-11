@@ -51,6 +51,19 @@ AGroomActor::AGroomActor(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
+#if WITH_EDITOR
+bool AGroomActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
+{
+	Super::GetReferencedContentObjects(Objects);
+
+	if (GroomComponent->GroomAsset)
+	{
+		Objects.Add(GroomComponent->GroomAsset);
+	}
+	return true;
+}
+#endif // WITH_EDITOR
+
 #undef LOCTEXT_NAMESPACE
 
 

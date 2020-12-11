@@ -52,7 +52,7 @@
 			"Text": "Tyre,Suspension,Wheel,Racing,Vehicle,Car"
 		}
 	],
-	"ClassTypes": "GameMode, WheeledVehicle, HUD, SpringArmComponent, Font, CameraComponent, TextRenderComponent, InputComponent, PhysicalMaterial, AudioComponent",
+	"ClassTypes": "GameMode, WheeledVehiclePawn, HUD, SpringArmComponent, Font, CameraComponent, TextRenderComponent, InputComponent, PhysicalMaterial, AudioComponent",
 	"Category": "CodeFeature",
 	"FocusAsset": "/Game/VehicleAdvCPP/AdvancedVehicleOverview.AdvancedVehicleOverview",
 	"Thumbnail": "TP_VehicleAdv.png",

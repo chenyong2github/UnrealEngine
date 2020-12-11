@@ -32,7 +32,7 @@ struct FEditorWorldExtensionActorData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	AActor* Actor;
+	AActor* Actor = nullptr;
 
 	UPROPERTY()
 	bool bValidForPIE;

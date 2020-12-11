@@ -20,6 +20,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
+#include "String/Find.h"
 #include "Internationalization/PackageLocalizationManager.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -109,6 +110,7 @@ struct FPrimaryAssetTypeData
 const FPrimaryAssetType UAssetManager::MapType = FName(TEXT("Map"));
 const FPrimaryAssetType UAssetManager::PrimaryAssetLabelType = FName(TEXT("PrimaryAssetLabel"));
 const FPrimaryAssetType UAssetManager::PackageChunkType = FName(TEXT("PackageChunk"));
+FSimpleMulticastDelegate UAssetManager::OnAssetManagerCreatedDelegate;
 
 UAssetManager::UAssetManager()
 {
@@ -586,12 +588,15 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 
 	SearchAssetRegistryPaths(AssetDataList, DerivedClassNames, Directories, PackageNames, BaseClass, bHasBlueprintClasses);
 
+	// Temporary performance fix while waiting for Ben Zeigler's AssetManager registry scanning changes
+	const bool bPathExclusionsExists = GetSettings().DirectoriesToExclude.Num() > 0;
+
 	int32 NumAdded = 0;
 	// Now add to map or update as needed
 	for (FAssetData& Data : AssetDataList)
 	{
 		// Check exclusion path
-		if (IsPathExcludedFromScan(Data.PackageName.ToString()))
+		if (bPathExclusionsExists && IsPathExcludedFromScan(Data.PackageName.ToString()))
 		{
 			continue;
 		}
@@ -669,8 +674,16 @@ void UAssetManager::StopBulkScanning()
 	RebuildObjectReferenceList();
 }
 
+// This determines if we can use a faster conversion path
+enum class EAssetDataCanBeSubobject { Yes, No };
+
+template<EAssetDataCanBeSubobject ScanForSubobject>
+FSoftObjectPath ToSoftObjectPath(const FAssetData& AssetData);
+
 void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData, bool bAllowDuplicates)
 {
+	check(PrimaryAssetId.IsValid());
+
 	const TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
 
 	if (ensure(FoundType))
@@ -679,7 +692,7 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 
 		FPrimaryAssetData* OldData = TypeData.AssetMap.Find(PrimaryAssetId.PrimaryAssetName);
 
-		FSoftObjectPath NewAssetPath = GetAssetPathForData(NewAssetData);
+		FSoftObjectPath NewAssetPath = ToSoftObjectPath<EAssetDataCanBeSubobject::No>(NewAssetData);
 
 		ensure(NewAssetPath.IsAsset());
 
@@ -733,46 +746,40 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 			AssetPathMap.Add(NewAssetPath.GetAssetPathName(), PrimaryAssetId);
 		}
 
-		// Cooked builds strip the asset bundle data from the registry after scanning to save on memory
-		// This means that we need to reuse any data that's already been read in
-		bool bStripBundleData = !WITH_EDITOR;
-		bool bUseExistingBundleData = false;
-
-		if (OldData)
+		if (NewAssetData.TaggedAssetBundles)
 		{
-			if (bStripBundleData)
-			{
-				bUseExistingBundleData = CachedAssetBundles.Contains(PrimaryAssetId);
-			}
-			else
-			{
-				CachedAssetBundles.Remove(PrimaryAssetId);
-			}
-		}
+			CachedAssetBundles.Add(PrimaryAssetId, NewAssetData.TaggedAssetBundles);
 
-		if (!bUseExistingBundleData)
-		{
-			// Mark these as editor only if our type is editor only
-			FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, TypeData.Info.bIsEditorOnly ? ESoftObjectPathCollectType::EditorOnlyCollect : ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
-
-			FAssetBundleData BundleData;
-			if (BundleData.SetFromAssetData(NewAssetData))
+			// FSoftObjectPathSerializationScope is costly and FSoftObjectPath::PostLoadPath()
+			// is only useful to make sure soft bundle references are cooked.
+			//
+			// Ideally we should not need this code, we should be able to pick up these
+			// references when we load the package header and then queue them up for cooking.
+			//
+			// For some reason, this doesn't work. StartupSoftObjectPackages in CookOnTheFlyServer.cpp
+			// become the same without this code, but GRedirectCollector picks up other soft references 
+			// thanks to this code that are not detected otherwise.
+#if WITH_EDITOR
+			if (GIsEditor)
 			{
-				for (FAssetBundleEntry& Entry : BundleData.Bundles)
+				static FName AssetBundleDataName("AssetBundleData");
+
+				// Mark these as editor only if our type is editor only
+				FSoftObjectPathSerializationScope SerializationScope(NewAssetData.PackageName, AssetBundleDataName, TypeData.Info.bIsEditorOnly ? ESoftObjectPathCollectType::EditorOnlyCollect : ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+			
+				for (const FAssetBundleEntry& Entry : NewAssetData.TaggedAssetBundles->Bundles)
 				{
-					if (Entry.BundleScope.IsValid() && Entry.BundleScope == PrimaryAssetId)
+					for (const FSoftObjectPath& Path : Entry.BundleAssets)
 					{
-						TMap<FName, FAssetBundleEntry>& BundleMap = CachedAssetBundles.FindOrAdd(PrimaryAssetId);
-
-						BundleMap.Emplace(Entry.BundleName, Entry);
+						Path.PostLoadPath(nullptr);
 					}
 				}
-
-				if (bStripBundleData)
-				{
-					GetAssetRegistry().StripAssetRegistryKeyForObject(NewAssetData.ObjectPath, TBaseStructure<FAssetBundleData>::Get()->GetFName());
-				}
 			}
+#endif
+		}
+		else if (OldData)
+		{
+			CachedAssetBundles.Remove(PrimaryAssetId);
 		}
 	}
 }
@@ -833,20 +840,16 @@ bool UAssetManager::AddDynamicAsset(const FPrimaryAssetId& PrimaryAssetId, const
 		AssetPathMap.Add(AssetPath.GetAssetPathName(), PrimaryAssetId);
 	}
 
-	if (OldData)
+
+	if (BundleData.Bundles.Num() > 0)
+	{
+		CachedAssetBundles.Add(PrimaryAssetId, MakeShared<FAssetBundleData, ESPMode::ThreadSafe>(BundleData));
+	}
+	else if (OldData)
 	{
 		CachedAssetBundles.Remove(PrimaryAssetId);
 	}
 
-	TMap<FName, FAssetBundleEntry>& BundleMap = CachedAssetBundles.FindOrAdd(PrimaryAssetId);
-
-	for (const FAssetBundleEntry& Entry : BundleData.Bundles)
-	{
-		FAssetBundleEntry NewEntry(Entry);
-		NewEntry.BundleScope = PrimaryAssetId;
-
-		BundleMap.Emplace(Entry.BundleName, NewEntry);
-	}
 	return true;
 }
 
@@ -1346,6 +1349,10 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 			NewHandles.Add(NewHandle);
 			NewAssets.Add(PrimaryAssetId);
 		}
+		else
+		{
+ 			UE_LOG(LogAssetManager, Verbose, TEXT("%s - UAssetManager::ChangeBundleStateForPrimaryAssets found no NameData for this primary asset."), *PrimaryAssetId.ToString());
+		}
 	}
 
 	if (NewHandles.Num() > 1 || ExistingHandles.Num() > 0)
@@ -1695,37 +1702,29 @@ TSharedPtr<FStreamableHandle> UAssetManager::LoadAssetList(const TArray<FSoftObj
 
 FAssetBundleEntry UAssetManager::GetAssetBundleEntry(const FPrimaryAssetId& BundleScope, FName BundleName) const
 {
-	FAssetBundleEntry InvalidEntry;
-
-	const TMap<FName, FAssetBundleEntry>* FoundMap = CachedAssetBundles.Find(BundleScope);
-
-	if (FoundMap)
+	if (const TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>* FoundMap = CachedAssetBundles.Find(BundleScope))
 	{
-		const FAssetBundleEntry* FoundEntry = FoundMap->Find(BundleName);
-		if (FoundEntry)
+		for (FAssetBundleEntry& Entry : (**FoundMap).Bundles)
 		{
-			return *FoundEntry;
+			if (Entry.BundleName == BundleName)
+			{
+				return Entry;
+			}
 		}
 	}
-	return InvalidEntry;
+	
+	return FAssetBundleEntry();
 }
 
 bool UAssetManager::GetAssetBundleEntries(const FPrimaryAssetId& BundleScope, TArray<FAssetBundleEntry>& OutEntries) const
 {
-	bool bFoundAny = false;
-
-	const TMap<FName, FAssetBundleEntry>* FoundMap = CachedAssetBundles.Find(BundleScope);
-
-	if (FoundMap)
+	if (const TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>* FoundMap = CachedAssetBundles.Find(BundleScope))
 	{
-		for (const TPair<FName, FAssetBundleEntry>& BundlePair : *FoundMap)
-		{
-			bFoundAny = true;
-
-			OutEntries.Add(BundlePair.Value);
-		}
+		OutEntries.Append((**FoundMap).Bundles);
+		return (**FoundMap).Bundles.Num() > 0;
 	}
-	return bFoundAny;
+	
+	return false;
 }
 
 bool UAssetManager::FindMissingChunkList(const TArray<FSoftObjectPath>& AssetList, TArray<int32>& OutMissingChunkList, TArray<int32>& OutErrorChunkList) const
@@ -2019,10 +2018,7 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 			{
 				bLoaded = true;
 				FMemoryReader Ar(Bytes);
-
-				FAssetRegistrySerializationOptions SerializationOptions;
-				LocalAssetRegistry.InitializeSerializationOptions(SerializationOptions);
-				OutNewState.Serialize(Ar, SerializationOptions);
+				OutNewState.Load(Ar);
 			}
 		}
 
@@ -2035,9 +2031,12 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 			bool bRebuildReferenceList = false;
 			if (OutNewState.GetAllAssets(TSet<FName>(), NewAssetData))
 			{
+				// Temporary performance fix while waiting for Ben Zeigler's AssetManager registry scanning changes
+				const bool bPathExclusionsExists = GetSettings().DirectoriesToExclude.Num() > 0;
+
 				for (const FAssetData& AssetData : NewAssetData)
 				{
-					if (!IsPathExcludedFromScan(AssetData.PackageName.ToString()))
+					if (!bPathExclusionsExists || !IsPathExcludedFromScan(AssetData.PackageName.ToString()))
 					{
 						FPrimaryAssetId PrimaryAssetId = AssetData.GetPrimaryAssetId();
 						if (PrimaryAssetId.IsValid())
@@ -2398,7 +2397,15 @@ static bool EndsWithBlueprint(FName Name)
 	return PlainName.EndsWith(TEXT("Blueprint"));
 }
 
-FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) const
+static bool ContainsSubobjectDelimiter(FName Name)
+{
+	TCHAR Buffer[NAME_SIZE];
+	FStringView View(Buffer, Name.GetPlainNameString(Buffer));
+	return UE::String::FindFirstChar(View, SUBOBJECT_DELIMITER_CHAR) != INDEX_NONE;
+}
+
+template<EAssetDataCanBeSubobject ScanForSubobject>
+FSoftObjectPath ToSoftObjectPath(const FAssetData& AssetData)
 {
 	if (!AssetData.IsValid())
 	{
@@ -2410,10 +2417,20 @@ FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) 
 		AssetPath << AssetData.ObjectPath << TEXT("_C");
 		return FSoftObjectPath(FStringView(AssetPath));
 	}
+	else if (ScanForSubobject == EAssetDataCanBeSubobject::Yes)
+	{
+		return FSoftObjectPath(AssetData.ObjectPath);
+	}
 	else
 	{
-		return FSoftObjectPath(AssetData.ObjectPath);	
+		check(!ContainsSubobjectDelimiter(AssetData.ObjectPath));
+		return FSoftObjectPath(AssetData.ObjectPath, /* no subobject */ FString());
 	}
+}
+
+FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) const
+{
+	return ToSoftObjectPath<EAssetDataCanBeSubobject::Yes>(AssetData);
 }
 
 void UAssetManager::GetAssetDataForPathInternal(IAssetRegistry& AssetRegistry, const FString& AssetPath, OUT FAssetData& OutAssetData) const
@@ -2604,7 +2621,7 @@ void UAssetManager::DumpBundlesForAsset(const TArray<FString>& Args)
 	UAssetManager& Manager = Get();
 
 	FPrimaryAssetId PrimaryAssetId(PrimaryAssetIdString);
-	const TMap<FName, FAssetBundleEntry>* FoundMap = Manager.CachedAssetBundles.Find(PrimaryAssetId);
+	const TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>* FoundMap = Manager.CachedAssetBundles.Find(PrimaryAssetId);
 	if (!FoundMap)
 	{
 		UE_LOG(LogAssetManager, Display, TEXT("Could not find bundles for primary asset %s."), *PrimaryAssetIdString);
@@ -2612,9 +2629,8 @@ void UAssetManager::DumpBundlesForAsset(const TArray<FString>& Args)
 	}
 
 	UE_LOG(LogAssetManager, Display, TEXT("Dumping bundles for primary asset %s..."), *PrimaryAssetIdString);
-	for (auto MapIt = FoundMap->CreateConstIterator(); MapIt; ++MapIt)
+	for (const FAssetBundleEntry& Entry : (**FoundMap).Bundles)
 	{
-		const FAssetBundleEntry& Entry = MapIt.Value();
 		UE_LOG(LogAssetManager, Display, TEXT("  Bundle: %s (%d assets)"), *Entry.BundleName.ToString(), Entry.BundleAssets.Num());
 		for (const FSoftObjectPath& Path : Entry.BundleAssets)
 		{
@@ -2822,6 +2838,18 @@ void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelega
 	}
 }
 
+void UAssetManager::CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegate::FDelegate&& Delegate)
+{
+	if (IsValid())
+	{
+		Delegate.Execute();
+	}
+	else
+	{
+		OnAssetManagerCreatedDelegate.Add(MoveTemp(Delegate));
+	}
+}
+
 bool UAssetManager::HasInitialScanCompleted() const
 {
 	return bHasCompletedInitialScan;
@@ -2914,6 +2942,9 @@ bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents
 void UAssetManager::StartInitialLoading()
 {
 	ScanPrimaryAssetTypesFromConfig();
+
+	OnAssetManagerCreatedDelegate.Broadcast();
+	OnAssetManagerCreatedDelegate.Clear();
 }
 
 void UAssetManager::FinishInitialLoading()
@@ -2945,6 +2976,21 @@ bool UAssetManager::IsPathExcludedFromScan(const FString& Path) const
 	{
 		if (Path.Contains(ExcludedPath.Path))
 		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UAssetManager::GetContentRootPathFromPackageName(const FString& PackageName, FString& OutContentRootPath)
+{
+	if (PackageName.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	{
+		const int32 SecondSlashIndex = PackageName.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
+		if (SecondSlashIndex != INDEX_NONE)
+		{
+			OutContentRootPath = PackageName.Mid(0, SecondSlashIndex + 1);
 			return true;
 		}
 	}
@@ -3105,20 +3151,19 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 				}
 			}
 
-			TMap<FName, FAssetBundleEntry>* BundleMap = CachedAssetBundles.Find(PrimaryAssetId);
 
 			// Add bundle references to manual reference list
-			if (BundleMap)
+			if (const TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>* BundleMap = CachedAssetBundles.Find(PrimaryAssetId))
 			{
-				for (const TPair<FName, FAssetBundleEntry>& BundlePair : *BundleMap)
+				for (const FAssetBundleEntry& Entry : (**BundleMap).Bundles)
 				{
-					for (const FSoftObjectPath& BundleAssetRef : BundlePair.Value.BundleAssets)
+					for (const FSoftObjectPath& BundleAssetRef : Entry.BundleAssets)
 					{
 						FName PackageName = FName(*BundleAssetRef.GetLongPackageName());
 
-						if (PackageName == NAME_None)
+						if (PackageName.IsNone())
 						{
-							UE_LOG(LogAssetManager, Warning, TEXT("Ignoring 'None' reference originating from %s from Bundle %s"), *PrimaryAssetId.ToString(), *BundlePair.Key.ToString());
+							UE_LOG(LogAssetManager, Warning, TEXT("Ignoring 'None' reference originating from %s from Bundle %s"), *PrimaryAssetId.ToString(), *PrimaryAssetId.ToString());
 						}
 						else
 						{

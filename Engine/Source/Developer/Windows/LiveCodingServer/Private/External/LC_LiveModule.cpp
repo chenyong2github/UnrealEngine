@@ -4461,3 +4461,45 @@ void LiveModule::OnCompiledFile(const symbols::ObjPath& objPath, symbols::Compil
 		LC_ERROR_USER("Failed to compile %s (%.3fs) (Exit code: 0x%X)", objPath.c_str(), compileTime, compileResult.exitCode);
 	}
 }
+
+// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+void LiveModule::CallPrecompileHooks()
+{
+	const ModuleCache::FindHookData& hookData = m_moduleCache->FindHooksInSectionBackwards(ModuleCache::SEARCH_ALL_MODULES, ImmutableString(LPP_PRECOMPILE_SECTION));
+	if ((hookData.firstRva != 0u) && (hookData.lastRva != 0u))
+	{
+		const size_t count = hookData.data->processes.size();
+		for (size_t p = 0u; p < count; ++p)
+		{
+			const ModuleCache::ProcessData& processData = hookData.data->processes[p];
+
+			const unsigned int pid = processData.processId;
+			void* moduleBase = processData.moduleBase;
+			const DuplexPipe* pipe = processData.pipe;
+
+			LC_LOG_USER("Calling precompile hooks (PID: %d)", pid);
+			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::PRECOMPILE, moduleBase, hookData), nullptr, 0u);
+		}
+	}
+}
+
+void LiveModule::CallPostcompileHooks()
+{
+	const ModuleCache::FindHookData& hookData = m_moduleCache->FindHooksInSectionBackwards(ModuleCache::SEARCH_ALL_MODULES, ImmutableString(LPP_POSTCOMPILE_SECTION));
+	if ((hookData.firstRva != 0u) && (hookData.lastRva != 0u))
+	{
+		const size_t count = hookData.data->processes.size();
+		for (size_t p = 0u; p < count; ++p)
+		{
+			const ModuleCache::ProcessData& processData = hookData.data->processes[p];
+
+			const unsigned int pid = processData.processId;
+			void* moduleBase = processData.moduleBase;
+			const DuplexPipe* pipe = processData.pipe;
+
+			LC_LOG_USER("Calling postcompile hooks (PID: %d)", pid);
+			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::POSTCOMPILE, moduleBase, hookData), nullptr, 0u);
+		}
+	}
+}
+// END EPIC MOD

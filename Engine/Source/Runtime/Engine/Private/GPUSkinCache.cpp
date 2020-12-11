@@ -1545,11 +1545,17 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				RayTracingGeometry.ReleaseRHI();
 			}
 
+			if (LODModel.RayTracingData.Num())
+			{
+				Initializer.OfflineData = &LODModel.RayTracingData;
+				Initializer.bDiscardOfflineData = false; // The RayTracingData can be used for multiple SkeletalMeshObjects , so we need to keep it around
+			}
+
 			// Update the new init data
 			RayTracingGeometry.SetInitializer(Initializer);
 
 			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
-			RayTracingGeometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
 
 			// Request the build
 			AddRayTracingGeometryToUpdate(&RayTracingGeometry, EAccelerationStructureBuildMode::Build);

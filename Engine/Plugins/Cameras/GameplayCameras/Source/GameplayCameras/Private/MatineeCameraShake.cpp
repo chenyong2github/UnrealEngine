@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Camera/CameraShake.h"
-#include "Camera/PlayerCameraManager.h"
+#include "MatineeCameraShake.h"
+#include "Camera/CameraActor.h"
 #include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
+#include "Evaluation/MovieSceneCameraAnimTemplate.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 
 //////////////////////////////////////////////////////////////////////////
@@ -355,6 +358,60 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 	}
 }
 
+void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	const float NewTime = Params.AbsoluteTime;
+
+	// reset to start and advance to desired point
+	LocSinOffset = InitialLocSinOffset;
+	RotSinOffset = InitialRotSinOffset;
+	FOVSinOffset = InitialFOVSinOffset;
+
+	OscillatorTimeRemaining = OscillationDuration;
+
+	if (OscillationBlendInTime > 0.f)
+	{
+		bBlendingIn = true;
+		CurrentBlendInTime = 0.f;
+	}
+
+	if (OscillationBlendOutTime > 0.f)
+	{
+		bBlendingOut = false;
+		CurrentBlendOutTime = 0.f;
+	}
+
+	if (OscillationDuration > 0.f)
+	{
+		if ((OscillationBlendOutTime > 0.f) && (NewTime > (OscillationDuration - OscillationBlendOutTime)))
+		{
+			bBlendingOut = true;
+			CurrentBlendOutTime = OscillationBlendOutTime - (OscillationDuration - NewTime);
+		}
+	}
+
+	FCameraShakeUpdateParams UpdateParams = Params.ToUpdateParams();
+
+	DoUpdateShake(UpdateParams, OutResult);
+
+	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
+
+	if (AnimInst)
+	{
+		FMinimalViewInfo AnimPOV(Params.POV);
+		AnimPOV.Location = OutResult.Location;
+		AnimPOV.Rotation = OutResult.Rotation;
+		AnimPOV.FOV = OutResult.FOV;
+
+		AnimInst->SetCurrentTime(NewTime);
+		AnimInst->ApplyToView(AnimPOV);
+
+		OutResult.Location = AnimPOV.Location;
+		OutResult.Rotation = AnimPOV.Rotation;
+		OutResult.FOV = AnimPOV.FOV;
+	}
+}
+
 bool UMatineeCameraShake::DoGetIsFinished() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
@@ -379,35 +436,17 @@ bool UMatineeCameraShake::IsLooping() const
 
 void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
 {
-	// reset to start and advance to desired point
-	LocSinOffset = InitialLocSinOffset;
-	RotSinOffset = InitialRotSinOffset;
-	FOVSinOffset = InitialFOVSinOffset;
+	ScrubAndApplyCameraShake(NewTime, 1.f, POV);
+}
 
-	OscillatorTimeRemaining = OscillationDuration;
+UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+{
+	return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
+}
 
-	if (OscillationBlendInTime > 0.f)
-	{
-		bBlendingIn = true;
-		CurrentBlendInTime = 0.f;
-	}
-
-	if (OscillationDuration > 0.f)
-	{
-		if ((OscillationBlendOutTime > 0.f) && (NewTime > (OscillationDuration - OscillationBlendOutTime)))
-		{
-			bBlendingOut = true;
-			CurrentBlendOutTime = OscillationBlendOutTime - (OscillationDuration - NewTime);
-		}
-	}
-
-	UpdateAndApplyCameraShake(NewTime, 1.f, POV);
-
-	if (AnimInst)
-	{
-		AnimInst->SetCurrentTime(NewTime);
-		AnimInst->ApplyToView(POV);
-	}
+UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+{
+	return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
 }
 
 void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
@@ -433,8 +472,74 @@ void UMatineeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdate
 	Shake->DoUpdateShake(Params, OutResult);
 }
 
+void UMatineeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	Shake->DoScrubShake(Params, OutResult);
+}
+
 bool UMatineeCameraShakePattern::IsFinishedImpl() const
 {
 	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
 	return Shake->DoGetIsFinished();
 }
+
+UMovieSceneMatineeCameraShakeEvaluator::UMovieSceneMatineeCameraShakeEvaluator(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	if (HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+	{
+		FMovieSceneCameraShakeEvaluatorRegistry::RegisterShakeEvaluatorBuilder(
+			FMovieSceneBuildShakeEvaluator::CreateStatic(&UMovieSceneMatineeCameraShakeEvaluator::BuildMatineeShakeEvaluator));
+	}
+}
+
+UMovieSceneCameraShakeEvaluator* UMovieSceneMatineeCameraShakeEvaluator::BuildMatineeShakeEvaluator(UCameraShakeBase* ShakeInstance)
+{
+	if (UMatineeCameraShake* MatineeShakeInstance = Cast<UMatineeCameraShake>(ShakeInstance))
+	{
+		return NewObject<UMovieSceneMatineeCameraShakeEvaluator>();
+	}
+	return nullptr;
+}
+
+bool UMovieSceneMatineeCameraShakeEvaluator::Setup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance)
+{
+	UMatineeCameraShake* MatineeShakeInstance = CastChecked<UMatineeCameraShake>(ShakeInstance);
+
+	// We use the global temp actor from the shared data (shared across all additive camera effects for this operand)
+	ACameraActor* TempCameraActor = FMovieSceneMatineeCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
+	MatineeShakeInstance->SetTempCameraAnimActor(TempCameraActor);
+
+	if (MatineeShakeInstance->AnimInst)
+	{
+		MatineeShakeInstance->AnimInst->SetStopAutomatically(false);
+	}
+
+	return true;
+}
+
+bool UMovieSceneMatineeCameraShakeEvaluator::Evaluate(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance)
+{
+	UMatineeCameraShake* MatineeShakeInstance = CastChecked<UMatineeCameraShake>(ShakeInstance);
+
+	FMovieSceneMatineeCameraData& MatineeSharedData = FMovieSceneMatineeCameraData::Get(Operand, PersistentData);
+	ACameraActor* TempCameraActor = MatineeSharedData.GetTempCameraActor(Player);
+	
+	// prepare temp camera actor by resetting it
+	TempCameraActor->SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+
+	ACameraActor const* const DefaultCamActor = GetDefault<ACameraActor>();
+	if (DefaultCamActor)
+	{
+		TempCameraActor->GetCameraComponent()->AspectRatio = DefaultCamActor->GetCameraComponent()->AspectRatio;
+
+		UCameraAnim* CamAnim = MatineeShakeInstance->AnimInst ? MatineeShakeInstance->AnimInst->CamAnim : nullptr;
+
+		TempCameraActor->GetCameraComponent()->PostProcessSettings = CamAnim ? CamAnim->BasePostProcessSettings : FPostProcessSettings();
+		TempCameraActor->GetCameraComponent()->PostProcessBlendWeight = CamAnim ? MatineeShakeInstance->AnimInst->CamAnim->BasePostProcessBlendWeight : 0.f;
+	}
+
+	return true;
+}
+

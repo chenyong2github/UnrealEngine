@@ -65,6 +65,20 @@ struct ENGINE_API FAudioQualitySettings
 };
 
 USTRUCT()
+struct ENGINE_API FSoundDebugEntry
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Short name to use when referencing sound (ex. in the command line) */
+	UPROPERTY(config, EditAnywhere, Category="Debug", meta=(DisplayName="Name"))
+	FName DebugName;
+
+	/** Reference to a Debug Sound */
+	UPROPERTY(config, EditAnywhere, Category="Debug", meta=(AllowedClasses="SoundBase"))
+	FSoftObjectPath Sound;
+};
+
+USTRUCT()
 struct ENGINE_API FDefaultAudioBusSettings
 {
 	GENERATED_BODY()
@@ -188,10 +202,15 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category="Dialogue")
 	FString DialogueFilenameFormat;
 
+	/**
+	* Sounds only packaged in non-shipped builds for debugging.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = "Debug")
+	TArray<FSoundDebugEntry> DebugSounds;
+
 	/** Array of AudioBuses that are automatically initialized when the AudioEngine is initialized */
 	UPROPERTY(config, EditAnywhere, Category="Mix")
 	TArray<FDefaultAudioBusSettings> DefaultAudioBuses;
-
 
 #if WITH_EDITOR
 	FAudioSettingsChanged AudioSettingsChanged;

@@ -521,7 +521,12 @@ void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TS
 	}
 }
 
-FPlatformRect FWindowsApplication::GetWorkArea( const FPlatformRect& CurrentWindow ) const
+FPlatformRect FWindowsApplication::GetWorkArea(const FPlatformRect& CurrentWindow) const
+{
+	return GetWorkAreaFromOS(CurrentWindow);
+}
+
+FPlatformRect FWindowsApplication::GetWorkAreaFromOS( const FPlatformRect& CurrentWindow ) const
 {
 	RECT WindowsWindowDim;
 	WindowsWindowDim.left = CurrentWindow.Left;
@@ -678,12 +683,12 @@ inline bool GetSizeForDevID(const FString& TargetDevID, int32& Width, int32& Hei
 static BOOL CALLBACK MonitorEnumProc(HMONITOR Monitor, HDC MonitorDC, LPRECT Rect, LPARAM UserData)
 {
 	MONITORINFOEX MonitorInfoEx;
-	MonitorInfoEx.cbSize = sizeof(MonitorInfoEx);
+	MonitorInfoEx.cbSize = sizeof(MonitorInfoEx);	
 	GetMonitorInfo(Monitor, &MonitorInfoEx);
 
 	FMonitorInfo* Info = (FMonitorInfo*)UserData;
 	if (Info->Name == MonitorInfoEx.szDevice)
-	{
+		{
 		Info->DisplayRect.Bottom = MonitorInfoEx.rcMonitor.bottom;
 		Info->DisplayRect.Left = MonitorInfoEx.rcMonitor.left;
 		Info->DisplayRect.Right = MonitorInfoEx.rcMonitor.right;

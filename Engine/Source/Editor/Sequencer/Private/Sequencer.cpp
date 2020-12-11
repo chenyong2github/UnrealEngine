@@ -2492,6 +2492,9 @@ void FSequencer::RefreshTree()
 	SequencerWidget->UpdateLayoutTree();
 	bNeedTreeRefresh = false;
 	OnTreeViewChangedDelegate.Broadcast();
+
+	// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
+	Selection.Tick();
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
@@ -3091,6 +3094,49 @@ void FSequencer::SetGlobalTime(FFrameTime NewTime)
 		SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 		AutoScrubTarget.Reset();
 	}
+}
+
+void FSequencer::PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams)
+{
+	FFrameTime PlayToTime = GetLocalTime().Time;
+
+	if (PlaybackParams.PositionType == EMovieScenePositionType::Frame)
+	{
+		PlayToTime = (PlaybackParams.Frame / GetFocusedDisplayRate()) * GetFocusedTickResolution();
+	}
+	else if (PlaybackParams.PositionType == EMovieScenePositionType::Time)
+	{
+		PlayToTime = PlaybackParams.Time * GetFocusedTickResolution();
+	}
+	else if (PlaybackParams.PositionType == EMovieScenePositionType::MarkedFrame)
+	{
+		UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+		if (FocusedMovieSequence != nullptr)
+		{
+			UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+			if (FocusedMovieScene != nullptr)
+			{
+				int32 MarkedIndex = FocusedMovieScene->FindMarkedFrameByLabel(PlaybackParams.MarkedFrame);
+
+				if (MarkedIndex != INDEX_NONE)
+				{
+					PlayToTime = FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber;
+				}
+			}
+		}
+	}
+
+	if (GetLocalTime().Time < PlayToTime)
+	{
+		PlaybackSpeed = FMath::Abs(PlaybackSpeed);
+	}
+	else
+	{
+		PlaybackSpeed = -FMath::Abs(PlaybackSpeed);
+	}
+		
+	OnPlay(false);
+	PauseOnFrame = PlayToTime;
 }
 
 void FSequencer::ForceEvaluate()
@@ -4023,6 +4069,7 @@ EMovieScenePlayerStatus::Type FSequencer::GetPlaybackStatus() const
 void FSequencer::SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus)
 {
 	PlaybackState = InPlaybackStatus;
+	PauseOnFrame.Reset();
 
 	// Inform the renderer when Sequencer is in a 'paused' state for the sake of inter-frame effects
 	ESequencerState SequencerState = ESS_None;
@@ -4828,7 +4875,15 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 
 	bool bHasJumped = false;
 	bool bRestarted = false;
-	if (GetLoopMode() == ESequencerLoopMode::SLM_Loop || GetLoopMode() == ESequencerLoopMode::SLM_LoopSelectionRange)
+
+	if (PauseOnFrame.IsSet() && ((PlaybackSpeed > 0 && NewLocalTime > PauseOnFrame.GetValue()) || (PlaybackSpeed < 0 && NewLocalTime < PauseOnFrame.GetValue())))
+	{
+		NewGlobalTime = PauseOnFrame.GetValue() * LocalToRootTransform;
+		PauseOnFrame.Reset();
+		bResetPosition = true;
+		NewPlaybackStatus = EMovieScenePlayerStatus::Stopped;
+	}
+	else if (GetLoopMode() == ESequencerLoopMode::SLM_Loop || GetLoopMode() == ESequencerLoopMode::SLM_LoopSelectionRange)
 	{
 		const UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
 		if (FocusedSequence)
@@ -6035,8 +6090,7 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		{
 			const float PreviousFOV = PreviousCameraComponent != nullptr ?
 				PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
-			const float InverseBlendFactor = FMath::Clamp(1.0f - BlendFactor, 0.f, 1.f);
-			const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, InverseBlendFactor);
+			const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, BlendFactor);
 
 			InViewportClient.ViewFOV = BlendedFOV;
 			ViewModifierInfo.ViewModifierFOV = BlendedFOV;
@@ -6828,7 +6882,7 @@ void FSequencer::SelectNodesByPath(const TSet<FString>& NodePaths)
 		}
 
 		Selection.ResumeBroadcast();
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7106,18 +7160,12 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 		{
 			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				if (Node->IsVisible())
-				{
-					NodesToSelect.Add(Node);
-				}
+				NodesToSelect.Add(Node);
 				if (bSelect == false) //make sure all children not selected
 				{
 					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
 					{
-						if (ChildNode->IsVisible())
-						{
-							NodesToSelect.Add(ChildNode);
-						}
+						NodesToSelect.Add(ChildNode);
 					}
 				}
 			}
@@ -7139,7 +7187,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
 
 			Selection.AddToSelection(NodesToSelect);
-			Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 		}
 	}
 	else if (NodesToSelect.Num() > 0)
@@ -7149,7 +7197,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7200,7 +7248,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			NodesToSelect.Add(DisplayNode);
 		}
 		Selection.AddToSelection(NodesToSelect);
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7209,7 +7257,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 
@@ -7263,7 +7311,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			NodesToSelect.Add(DisplayNode);
 		}
 		Selection.AddToSelection(NodesToSelect);
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7272,7 +7320,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
 	}
 }
 

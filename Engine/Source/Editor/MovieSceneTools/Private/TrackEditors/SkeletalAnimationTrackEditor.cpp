@@ -514,6 +514,24 @@ FText FSkeletalAnimationSection::GetSectionTitle() const
 	return LOCTEXT("NoAnimationSection", "No Animation");
 }
 
+FText FSkeletalAnimationSection::GetSectionToolTip() const
+{
+	if (Section.Params.Animation != nullptr && Section.HasStartFrame() && Section.HasEndFrame())
+	{
+		UMovieScene* MovieScene = Section.GetTypedOuter<UMovieScene>();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+
+		const float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) || Section.Params.Animation == nullptr ? 1.0f : Section.Params.PlayRate * Section.Params.Animation->RateScale;
+		const float StartOffset = TickResolution.AsSeconds(Section.Params.FirstLoopStartFrameOffset);
+		const float SectionLength = Section.GetRange().Size<FFrameTime>() / TickResolution;
+
+		if (!FMath::IsNearlyZero(SectionLength, KINDA_SMALL_NUMBER) && SectionLength > 0)
+		{
+			return FText::Format(LOCTEXT("ToolTipContentFormat", "Start: {0}s\nDuration: {1}s\nPlay Rate:{2}"), StartOffset, SectionLength, AnimPlayRate);
+		}
+	}
+	return FText::GetEmpty();
+}
 
 float FSkeletalAnimationSection::GetSectionHeight() const
 {

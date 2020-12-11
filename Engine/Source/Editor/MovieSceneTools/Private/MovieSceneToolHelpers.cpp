@@ -1820,7 +1820,7 @@ static void PrepForInsertReplaceAnimation(bool bInsert, const FFBXNodeAndChannel
 			TArray<FKeyHandle> Handles;
 			Channel->GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
 			TArray<FKeyHandle> HandlesToDelete;
-			for (int32 Index = KeyTimes.Num() - 1; Index < KeyTimes.Num(); Index++)
+			for (int32 Index = 0; Index < KeyTimes.Num(); Index++)
 			{
 				FFrameNumber FrameNumber = KeyTimes[Index];
 				if (FrameNumber >= FrameToInsertOrReplace && FrameNumber <= (FrameToInsertOrReplace + EndFrame))
@@ -1828,7 +1828,7 @@ static void PrepForInsertReplaceAnimation(bool bInsert, const FFBXNodeAndChannel
 					HandlesToDelete.Add(Handles[Index]);
 				}
 			}
-			Channel->DeleteKeys(HandlesToDelete);
+			Channel->DeleteKeys(HandlesToDelete);		
 		}
 	}
 }
@@ -1868,11 +1868,25 @@ class SControlRigImportFBXSettings : public SCompoundWidget
 
 		ChildSlot
 			[
-				SNew(SVerticalBox)
+			SNew(SVerticalBox)
 
-				+ SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
 			[
 				DetailView.ToSharedRef()
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SComboButton)
+				.HasDownArrow(true)
+				.OnGetMenuContent(this, &SControlRigImportFBXSettings::HandlePresetMenuContent)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("MovieSceneTools", "ControlMappingPresets", "Control Mapping Presets"))
+					.ToolTipText(NSLOCTEXT("MovieSceneTools", "SetControlMappingFromAPreset", "Set Control Mappings From A Preset"))
+				]
 			]
 
 		+ SVerticalBox::Slot()
@@ -1893,7 +1907,37 @@ class SControlRigImportFBXSettings : public SCompoundWidget
 		UMovieSceneUserImportFBXControlRigSettings* ImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXControlRigSettings>();
 		DetailView->SetObject(ImportFBXSettings);
 	}
-	
+	TSharedRef<SWidget> HandlePresetMenuContent()
+	{
+		FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("MovieSceneTools", "DefaultControlMappings", "Default Control Mappings"),
+			NSLOCTEXT("MovieSceneTools", "DefaultControlMappings_Tooltip", "Use Default Control Mappings Preset"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SControlRigImportFBXSettings::SetPresets,false)
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("MovieSceneTools", "MetaHumanControlMappings", "MetaHuman Control Mappings"),
+			NSLOCTEXT("MovieSceneTools", "MetaHumanControlMappings_Tooltip", "Use MetaHuman Control Mappings Preset"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SControlRigImportFBXSettings::SetPresets,true)
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+
+		return MenuBuilder.MakeWidget();
+	}
+
 	void SetNodeNames(const TArray<FString>& NodeNames)
 	{
 		UMovieSceneUserImportFBXControlRigSettings* ImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXControlRigSettings>();
@@ -1988,6 +2032,97 @@ private:
 		}
 		return bValid ? FReply::Handled() : FReply::Unhandled();
 
+	}
+
+	void SetPresets(bool bMetaHuman)
+	{
+		//since we can't change the API unfortunately need to do this here.
+		UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings = GetMutableDefault<UMovieSceneUserImportFBXControlRigSettings>();
+		ImportFBXControlRigSettings->ControlChannelMappings.SetNum(0); //clear and reset
+		FControlToTransformMappings Bool;
+		Bool.bNegate = false;
+		Bool.ControlChannel = FControlRigChannelEnum::Bool;
+		Bool.FBXChannel = FTransformChannelEnum::TranslateX;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(Bool);
+
+		FControlToTransformMappings Float;
+		Float.bNegate = false;
+		Float.ControlChannel = FControlRigChannelEnum::Float;
+		if (bMetaHuman)
+		{
+			Float.FBXChannel = FTransformChannelEnum::TranslateY;  //use Y for metahuman
+		}
+		else
+		{
+			Float.FBXChannel = FTransformChannelEnum::TranslateX;
+		}
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(Float);
+
+		FControlToTransformMappings Vector2DX;
+		Vector2DX.bNegate = false;
+		Vector2DX.ControlChannel = FControlRigChannelEnum::Vector2DX;
+		Vector2DX.FBXChannel = FTransformChannelEnum::TranslateX;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(Vector2DX);
+
+		FControlToTransformMappings Vector2DY;
+		Vector2DY.bNegate = false;
+		Vector2DY.ControlChannel = FControlRigChannelEnum::Vector2DY;
+		Vector2DY.FBXChannel = FTransformChannelEnum::TranslateY;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(Vector2DY);
+
+		FControlToTransformMappings PositionX;
+		PositionX.bNegate = false;
+		PositionX.ControlChannel = FControlRigChannelEnum::PositionX;
+		PositionX.FBXChannel = FTransformChannelEnum::TranslateX;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(PositionX);
+
+		FControlToTransformMappings PositionY;
+		PositionY.bNegate = false;
+		PositionY.ControlChannel = FControlRigChannelEnum::PositionY;
+		PositionY.FBXChannel = FTransformChannelEnum::TranslateY;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(PositionY);
+
+		FControlToTransformMappings PositionZ;
+		PositionZ.bNegate = false;
+		PositionZ.ControlChannel = FControlRigChannelEnum::PositionZ;
+		PositionZ.FBXChannel = FTransformChannelEnum::TranslateZ;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(PositionZ);
+
+		FControlToTransformMappings RotatorX;
+		RotatorX.bNegate = false;
+		RotatorX.ControlChannel = FControlRigChannelEnum::RotatorX;
+		RotatorX.FBXChannel = FTransformChannelEnum::RotateX;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(RotatorX);
+
+		FControlToTransformMappings RotatorY;
+		RotatorY.bNegate = false;
+		RotatorY.ControlChannel = FControlRigChannelEnum::RotatorY;
+		RotatorY.FBXChannel = FTransformChannelEnum::RotateY;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(RotatorY);
+
+		FControlToTransformMappings RotatorZ;
+		RotatorZ.bNegate = false;
+		RotatorZ.ControlChannel = FControlRigChannelEnum::RotatorZ;
+		RotatorZ.FBXChannel = FTransformChannelEnum::RotateZ;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(RotatorZ);
+
+		FControlToTransformMappings ScaleX;
+		ScaleX.bNegate = false;
+		ScaleX.ControlChannel = FControlRigChannelEnum::ScaleX;
+		ScaleX.FBXChannel = FTransformChannelEnum::ScaleX;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(ScaleX);
+
+		FControlToTransformMappings ScaleY;
+		ScaleY.bNegate = false;
+		ScaleY.ControlChannel = FControlRigChannelEnum::ScaleY;
+		ScaleY.FBXChannel = FTransformChannelEnum::ScaleY;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(ScaleY);
+
+		FControlToTransformMappings ScaleZ;
+		ScaleZ.bNegate = false;
+		ScaleZ.ControlChannel = FControlRigChannelEnum::ScaleZ;
+		ScaleZ.FBXChannel = FTransformChannelEnum::ScaleZ;
+		ImportFBXControlRigSettings->ControlChannelMappings.Add(ScaleZ);
 	}
 
 	TSharedPtr<IDetailsView> DetailView;

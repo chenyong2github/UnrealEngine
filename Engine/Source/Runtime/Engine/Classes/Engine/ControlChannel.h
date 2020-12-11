@@ -83,9 +83,6 @@ class ENGINE_API UControlChannel
 	UControlChannel(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
 		: UChannel(ObjectInitializer)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ChType = CHTYPE_Control;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ChName = NAME_Control;
 	}
 

@@ -52,6 +52,7 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetCo
 
 		SNew(SComboButton)
 		.HasDownArrow(false)
+		.IsFocusable(false) // Intentionally false so that it's easier to tab to the next numeric input
 		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 		.ForegroundColor( FSlateColor::UseForeground() )
 		.IsEnabled_Lambda([=]() { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; })

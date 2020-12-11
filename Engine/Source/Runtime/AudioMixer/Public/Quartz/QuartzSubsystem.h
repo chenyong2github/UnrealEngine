@@ -55,6 +55,9 @@ public:
 	static Audio::FQuartzQuantizedRequestData CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate);
 	static Audio::FQuartzQuantizedRequestData CreateDataDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
 
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle")
+	bool IsQuartzEnabled();
+
 	// Clock Creation
 	// create a new clock (or return handle if clock already exists)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))

@@ -751,12 +751,6 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 	return false;
 }
 
-bool HasGameDependenciesEvenWhenEditorOnly(UObject* Obj)
-{
-	check(Obj);
-	return Obj->IsA(UObjectRedirector::StaticClass());	
-}
-
 bool FObjectImportSortHelper::operator()(const FObjectImport& A, const FObjectImport& B) const
 {
 	int32 Result = 0;

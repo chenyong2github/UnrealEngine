@@ -365,7 +365,9 @@ namespace AutomationTool
 				try
 				{
 					bool bSkipSizeCheck = false;
-					if (IniKeyBlacklist != null && Path.GetExtension(SourceName) == ".ini")
+					// BinaryConfig.ini is a special case with binary data, but with same extension to handle all ini 
+					// file chunking/packaging/etc rules
+					if (IniKeyBlacklist != null && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
 					{
 						FilterIniFile(SourceName, TargetName, IniKeyBlacklist, IniSectionBlacklist);
 						// ini files may change size, don't check

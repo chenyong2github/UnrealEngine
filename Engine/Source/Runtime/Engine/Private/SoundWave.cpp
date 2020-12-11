@@ -244,6 +244,7 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
+	bLoadedFromCookedData = false;
 	RunningPlatformData = nullptr;
 
 	OwnedBulkDataPtr = nullptr;
@@ -381,6 +382,7 @@ void USoundWave::Serialize( FArchive& Ar )
 	bool bShouldStreamSound = false;
 
 #if WITH_EDITORONLY_DATA
+		bLoadedFromCookedData = Ar.IsLoading() && bCooked;
 		if (bVirtualizeWhenSilent_DEPRECATED)
 		{
 			bVirtualizeWhenSilent_DEPRECATED = 0;
@@ -535,34 +537,6 @@ void USoundWave::Serialize( FArchive& Ar )
 			}
 		}
 	}
-}
-
-/**
- * Prints the subtitle associated with the SoundWave to the console
- */
-void USoundWave::LogSubtitle( FOutputDevice& Ar )
-{
-	FString Subtitle = "";
-	for( int32 i = 0; i < Subtitles.Num(); i++ )
-	{
-		Subtitle += Subtitles[ i ].Text.ToString();
-	}
-
-	if( Subtitle.Len() == 0 )
-	{
-		Subtitle = SpokenText;
-	}
-
-	if( Subtitle.Len() == 0 )
-	{
-		Subtitle = "<NO SUBTITLE>";
-	}
-
-	Ar.Logf( TEXT( "Subtitle:  %s" ), *Subtitle );
-#if WITH_EDITORONLY_DATA
-	Ar.Logf( TEXT( "Comment:   %s" ), *Comment );
-#endif // WITH_EDITORONLY_DATA
-	Ar.Logf( TEXT("Mature:    %s"), bMature ? TEXT( "Yes" ) : TEXT( "No" ) );
 }
 
 float USoundWave::GetSubtitlePriority() const
@@ -1092,7 +1066,12 @@ void USoundWave::PostLoad()
 	// Compress to whatever formats the active target platforms want
 	// static here as an optimization
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
+#if WITH_EDITORONLY_DATA
+	const bool bShouldLoadCompressedData = !(bLoadedFromCookedData && IsRunningCommandlet());
+#else
+	const bool bShouldLoadCompressedData = true;
+#endif
+	if (TPM && bShouldLoadCompressedData)
 	{
 		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
 
@@ -2765,7 +2744,10 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave, ChunkIndex, (BlockOnChunkLoadCompletionCVar != 0));
 
 				// If we hit this, something went wrong in GetLoadedChunk.
-				ensureMsgf(ChunkHandle.IsValid(), TEXT("Failed to retrieve chunk %d from sound %s after successfully requesting it!"), ChunkIndex, *(WeakThis->GetName()));
+				if (!ChunkHandle.IsValid())
+				{
+					UE_LOG(LogAudio, Display, TEXT("Failed to retrieve chunk %d from sound %s after successfully requesting it!"), ChunkIndex, *(WeakThis->GetName()));
+				}
 				DispatchOnLoadCompletedCallback(MoveTemp(ChunkHandle));
 			}
 			else

@@ -91,6 +91,14 @@ static TAutoConsoleVariable<FString> CVarAndroidCPUThermalSensorFilePath(
 	TEXT("Overrides CPU Thermal sensor file path")
 );
 
+static float GAndroidMemoryStateChangeThreshold = 0.1f;
+static FAutoConsoleVariableRef CAndroidMemoryStateChangeThreshold(
+	TEXT("android.AndroidMemoryStateChangeThreshold"),
+	GAndroidMemoryStateChangeThreshold,
+	TEXT("The memory state change threshold after which memory state is reported to memory warning callback"),
+	ECVF_Default
+);
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 int32 FAndroidMisc::TraceMarkerFileDescriptor = -1;
 
@@ -108,6 +116,8 @@ static bool bUseNativeSystrace = false;
 
 // run time compatibility information
 FString FAndroidMisc::AndroidVersion; // version of android we are running eg "4.0.4"
+int32 FAndroidMisc::AndroidMajorVersion = 0; // integer major version of Android we are running, eg 10
+int32 FAndroidMisc::TargetSDKVersion = 0; // Target SDK version, eg 29.
 FString FAndroidMisc::DeviceMake; // make of the device we are running on eg. "samsung"
 FString FAndroidMisc::DeviceModel; // model of the device we are running on eg "SAMSUNG-SGH-I437"
 FString FAndroidMisc::DeviceBuildNumber; // platform image build number of device "R16NW.G960NKSU1ARD6"
@@ -1600,9 +1610,11 @@ bool FAndroidMisc::FileExistsInPlatformPackage(const FString& RelativePath)
 	return false;
 }
 
-void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
+void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, int32 InTargetSDKVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
 {
 	AndroidVersion = InAndroidVersion;
+	AndroidMajorVersion = FCString::Atoi(*InAndroidVersion);
+	TargetSDKVersion = InTargetSDKVersion;
 	DeviceMake = InDeviceMake;
 	DeviceModel = InDeviceModel;
 	DeviceBuildNumber = InDeviceBuildNumber;
@@ -1614,6 +1626,16 @@ void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMak
 const FString FAndroidMisc::GetAndroidVersion()
 {
 	return AndroidVersion;
+}
+
+int32 FAndroidMisc::GetAndroidMajorVersion()
+{
+	return AndroidMajorVersion;
+}
+
+int32 FAndroidMisc::GetTargetSDKVersion()
+{
+	return TargetSDKVersion;
 }
 
 const FString FAndroidMisc::GetDeviceMake()
@@ -2912,26 +2934,9 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 
 static FAndroidMemoryWarningContext GAndroidMemoryWarningContext;
 void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
-void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value)
-{
-	switch (OSMemoryStatusCategory)
-	{
-		case EOSMemoryStatusCategory::OSTrim:
-			GAndroidMemoryWarningContext.LastTrimMemoryState = value;
-			break;
-		case EOSMemoryStatusCategory::MemoryAdvisorState:
-			GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = value;
-			break;
-		case EOSMemoryStatusCategory::MemoryAdvisorEstimateMB:
-			GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB = value;
-			break;
-		case EOSMemoryStatusCategory::OomScore:
-			GAndroidMemoryWarningContext.OomScore = value;
-			break;
-		default:
-			checkNoEntry();
-	}
 
+static void SendMemoryWarningContext()
+	{
 	if (FTaskGraphInterface::IsRunning())
 	{
 		// Run on game thread to avoid mem handler callback getting confused.
@@ -2949,6 +2954,41 @@ void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCa
 		const FAndroidMemoryWarningContext& Context = GAndroidMemoryWarningContext;
 		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d %d %d"), Context.LastTrimMemoryState
 			   , Context.LastNativeMemoryAdvisorState, Context.MemoryAdvisorEstimatedAvailableMemoryMB, Context.OomScore);
+	}
+}
+
+void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int Value)
+{
+	switch (OSMemoryStatusCategory)
+	{
+		case EOSMemoryStatusCategory::OSTrim:
+			GAndroidMemoryWarningContext.LastTrimMemoryState = Value;
+			break;
+		default:
+			checkNoEntry();
+	}
+
+	SendMemoryWarningContext();
+}
+
+FORCEINLINE bool ValueOutsideThreshold(float Value, float BaseLine, float Threshold)
+{
+	return Value > BaseLine * (1.0f + Threshold)
+		|| Value < BaseLine * (1.0f - Threshold);
+}
+
+void FAndroidMisc::UpdateMemoryAdvisorState(int State, int EstimateAvailableMB, int OOMScore)
+{
+	bool bUpdate = GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState != State;
+	bUpdate |= ValueOutsideThreshold(EstimateAvailableMB, GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB, GAndroidMemoryStateChangeThreshold);
+	bUpdate |= ValueOutsideThreshold(OOMScore, GAndroidMemoryWarningContext.OomScore, GAndroidMemoryStateChangeThreshold);
+
+	if (bUpdate)
+	{
+		GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = State;
+		GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB = EstimateAvailableMB;
+		GAndroidMemoryWarningContext.OomScore = OOMScore;
+		SendMemoryWarningContext();
 	}
 }
 

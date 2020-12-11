@@ -9,6 +9,14 @@
 
 #if UE_ENABLE_ICU
 #include "Internationalization/ICUUtilities.h"
+#include "HAL/IConsoleManager.h"
+
+static TAutoConsoleVariable<int32> CVarSpanishUsesRAENumberFormat(
+	TEXT("Localization.SpanishUsesRAENumberFormat"),
+	1,
+	TEXT("0: Disabled (CLDR format), 1: Enabled (RAE format, default)."),
+	ECVF_Default
+	);
 
 namespace
 {
@@ -830,7 +838,7 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 namespace
 {
 
-FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatter(icu::DecimalFormat& InICUDecimalFormat)
+FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatter(icu::Locale& InICULocale, icu::DecimalFormat& InICUDecimalFormat)
 {
 	FDecimalNumberFormattingRules NewUEDecimalNumberFormattingRules;
 
@@ -887,6 +895,12 @@ FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatte
 	NewUEDecimalNumberFormattingRules.DigitCharacters[8]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kEightDigitSymbol,	TEXT('8'));
 	NewUEDecimalNumberFormattingRules.DigitCharacters[9]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kNineDigitSymbol,	TEXT('9'));
 
+	// The CLDR uses a dot as the group separator for Spanish, however the RAE favor using a space: https://www.rae.es/dpd/n%C3%BAmeros
+	if (FCStringAnsi::Strcmp(InICULocale.getLanguage(), "es") == 0 && CVarSpanishUsesRAENumberFormat.AsVariable()->GetInt())
+	{
+		NewUEDecimalNumberFormattingRules.GroupingSeparatorCharacter = TEXT('\u00A0'); // No-Break Space
+	}
+
 	return NewUEDecimalNumberFormattingRules;
 }
 
@@ -907,7 +921,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetDecimalNumber
 		checkf(DecimalFormatterForCulture.IsValid(), TEXT("Creating a decimal format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
 	}
 
-	const FDecimalNumberFormattingRules NewUEDecimalNumberFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(*DecimalFormatterForCulture);
+	const FDecimalNumberFormattingRules NewUEDecimalNumberFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *DecimalFormatterForCulture);
 
 	// Check the pointer again in case another thread beat us to it
 	{
@@ -937,7 +951,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetPercentFormat
 		checkf(PercentFormatterForCulture.IsValid(), TEXT("Creating a percent format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
 	}
 
-	const FDecimalNumberFormattingRules NewUEPercentFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(*PercentFormatterForCulture);
+	const FDecimalNumberFormattingRules NewUEPercentFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *PercentFormatterForCulture);
 
 	// Check the pointer again in case another thread beat us to it
 	{
@@ -990,7 +1004,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 		CurrencyFormatterForCulture->setCurrency(ICUCurrencyCode.getBuffer());
 	}
 
-	const FDecimalNumberFormattingRules NewUECurrencyFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(*CurrencyFormatterForCulture);
+	const FDecimalNumberFormattingRules NewUECurrencyFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *CurrencyFormatterForCulture);
 
 	if (bUseDefaultFormattingRules)
 	{

@@ -190,8 +190,12 @@ public:
 
 	FUnorderedAccessViewRHIRef GetQuadOverdrawBufferUAV() const;
 	FUnorderedAccessViewRHIRef GetVirtualTextureFeedbackUAV() const;
-	int32 GetVirtualTextureFeedbackScale() const;
 	FIntPoint GetVirtualTextureFeedbackBufferSize() const;
+	
+	/** Get size of screen tiles used for virtual texture feedback. We evaluate one feedback item from each tile per frame. */
+	static int32 GetVirtualTextureFeedbackScale();
+	/** Returns a value from the sampling sequence used to traverse the feedback tile. */
+	static uint32 SampleVirtualTextureFeedbackSequence(uint32 FrameIndex);
 
 	void SetDefaultColorClear(const FClearValueBinding ColorClear)
 	{

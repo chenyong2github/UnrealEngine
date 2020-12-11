@@ -31,7 +31,7 @@ public:
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 
 	virtual int32 GetPriority() const override { return -1; }
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 	//~End ISceneVIewExtension interface
 
 public:

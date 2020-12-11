@@ -19,9 +19,6 @@ namespace Chaos
 		// Return all items, including those not in the view.
 		TItemsType& GetItems() const { return Items; }
 
-		//// Return the total number of items in the view.
-		//int32 GetSize() const { return Size; }
-
 		// Add a new active (or inactive) range at the end of the list, and return its offset.
 		int32 AddRange(int32 NumItems, bool bActivate = true);
 
@@ -48,11 +45,11 @@ namespace Chaos
 		// Return whether there is any active range in the view.
 		bool HasActiveRange() const;
 
-		// Return internal ranges.
-		TConstArrayView<int32> GetRanges() const { return Ranges;  }
-
 		// Return a list of pair (offset, range) of all active ranges.
 		TArray<TVector<int32, 2>, TInlineAllocator<8>> GetActiveRanges() const;
+
+		// Return internal ranges.
+		TConstArrayView<int32> GetRanges() const { return Ranges;  }
 
 	private:
 		TItemsType& Items;

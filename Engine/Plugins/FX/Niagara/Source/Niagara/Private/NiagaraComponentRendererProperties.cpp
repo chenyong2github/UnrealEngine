@@ -190,7 +190,6 @@ void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 	SetterFunctionMapping.Empty();
 	for (FNiagaraComponentPropertyBinding& PropertyBinding : PropertyBindings)
 	{
-		PropertyBinding.SetterFunction = nullptr;
 		if (!TemplateComponent || SetterFunctionMapping.Contains(PropertyBinding.PropertyName))
 		{
 			continue;
@@ -211,7 +210,13 @@ void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 			{
 				PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 			}
-			for (const FString& Prefix : FNiagaraRendererComponents::SetterPrefixes)
+			
+			static const TArray<FString> SetterPrefixes = {
+				FString("Set"),
+				FString("K2_Set")
+			};
+
+			for (const FString& Prefix : SetterPrefixes)
 			{
 				FName SetterFunctionName = FName(Prefix + PropertyName);
 				SetterFunction = TemplateComponent->FindFunction(SetterFunctionName);

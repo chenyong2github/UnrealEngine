@@ -564,6 +564,15 @@ public:
 		StrandsVertexFactory.ReleaseResource();
 	}
 
+	virtual void OnTransformChanged() override
+	{
+		const FTransform HairLocalToWorld = FTransform(GetLocalToWorld());
+		for (FHairGroupInstance* Instance : HairGroupInstances)
+		{
+			Instance->LocalToWorld = HairLocalToWorld;
+		}
+	}
+
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const { return true; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
@@ -2317,10 +2326,9 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	}
 
 	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
-	const FTransform HairLocalToWorld = GetComponentTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		[Id, WorldType, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
@@ -2328,7 +2336,6 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
 		{
 			Instance->WorldType = WorldType;
-			Instance->LocalToWorld = HairLocalToWorld;
 			Instance->Debug.SkeletalLocalToWorld = SkinLocalToWorld;
 		}
 	});
@@ -2424,9 +2431,12 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	bool bIsEventProcess = false;
 
 	// If the raytracing flag change, then force to recreate resources
+	// Update the raytracing resources only if the groom asset hasn't changed. Otherwise the group desc might be 
+	// invalid. If the groom asset has change, the raytracing resources will be correctly be rebuild witin the 
+	// InitResources function
 	bool bRayTracingGeometryChanged = false;
 	#if RHI_RAYTRACING
-	if (GroomAsset)
+	if (GroomAsset && !bAssetChanged)
 	{
 		for (const FHairGroupInstance* Instance : HairGroupInstances)
 		{		

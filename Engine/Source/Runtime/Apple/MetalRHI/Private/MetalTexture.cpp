@@ -428,7 +428,11 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange)
 		return;
 	}
 #endif
-	
+	auto TextureViewType = [&Source]()
+	{
+		return Source.bIsCubemap ? mtlpp::TextureType::Texture2DArray : Source.Texture.GetTextureType();
+	};
+
 	mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PixelFormat].PlatformFormat;
 	
 	bool const bUseSourceTex = (Source.PixelFormat != PF_DepthStencil) && MipRange.location == 0 && MipRange.length == Source.Texture.GetMipmapLevelCount();
@@ -444,7 +448,7 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange)
 	// Stencil requires a format conversion, so this will access depth only, consequently there are no mip levels other than 0, so this path requires no real special casing.
 	if(Source.PixelFormat != PF_DepthStencil && !bUseSourceTex)
 	{
-		Texture = Source.Texture.NewTextureView(MetalFormat, Source.Texture.GetTextureType(), ns::Range(MipRange.location, MipRange.length), Slices);
+		Texture = Source.Texture.NewTextureView(MetalFormat, TextureViewType(), ns::Range(MipRange.location, MipRange.length), Slices);
 	}
 	else
 	{

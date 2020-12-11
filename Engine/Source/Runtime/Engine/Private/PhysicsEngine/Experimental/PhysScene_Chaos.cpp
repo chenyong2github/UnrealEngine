@@ -1650,13 +1650,13 @@ void FPhysScene_Chaos::KillVisualDebugger()
 
 }
 
-void FPhysScene_Chaos::OnSyncBodies()
+void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 {
 	using namespace Chaos;
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FRigidParticlePhysicsProxy* Proxy)
+	Solver->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FRigidParticlePhysicsProxy* Proxy)
 	{
 		TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetParticle();
 

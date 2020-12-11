@@ -105,7 +105,7 @@ static TAutoConsoleVariable<int32> CVarLandscapeOutputDiffBitmap(
 TAutoConsoleVariable<int32> CVarLandscapeShowDirty(
 	TEXT("landscape.ShowDirty"),
 	0,
-	TEXT("This will highlight the data that as changed during the layer blend phase."));
+	TEXT("This will highlight the data that has changed during the layer blend phase."));
 
 TAutoConsoleVariable<int32> CVarLandscapeTrackDirty(
 	TEXT("landscape.TrackDirty"),

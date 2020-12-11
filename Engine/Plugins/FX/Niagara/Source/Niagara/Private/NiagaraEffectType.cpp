@@ -27,6 +27,7 @@ UNiagaraEffectType::UNiagaraEffectType(const FObjectInitializer& ObjectInitializ
 	, CycleHistory_RT(GNiagaraRuntimeCycleHistorySize)
 	, FramesSincePerfSampled(0)
 	, bSampleRunTimePerfThisFrame(false)
+	, PerformanceBaselineController(nullptr)
 {
 }
 
@@ -66,6 +67,12 @@ void UNiagaraEffectType::PostLoad()
 			SignificanceHandler = NewObject<UNiagaraSignificanceHandlerDistance>(this);
 		}
 	}
+
+#if !WITH_EDITOR && NIAGARA_PERF_BASELINES
+	//When not in the editor we clear out the baseline so that it's regenerated for play tests.
+	//We cannot use the saved editor/development config settings.
+	InvalidatePerfBaseline();
+#endif
 }
 
 const FNiagaraSystemScalabilitySettings& UNiagaraEffectType::GetActiveSystemScalabilitySettings()const
@@ -116,6 +123,11 @@ void UNiagaraEffectType::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 			UpdateContext.Add(System, true);
 		}
 	}
+
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraEffectType, PerformanceBaselineController))
+	{
+		PerfBaselineVersion.Invalidate();
+	}
 }
 #endif
 
@@ -157,6 +169,27 @@ void UNiagaraEffectType::ProcessLastFrameCycleCounts()
 // 	}
 // }
 
+#if NIAGARA_PERF_BASELINES
+void UNiagaraEffectType::UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats)
+{
+	PerfBaselineStats = NewBaselineStats;
+	PerfBaselineVersion = CurrentPerfBaselineVersion;
+
+#if WITH_EDITOR
+	SaveConfig();
+#endif
+}
+
+void UNiagaraEffectType::InvalidatePerfBaseline()
+{
+	PerfBaselineVersion.Invalidate();
+	PerfBaselineStats = FNiagaraPerfBaselineStats();
+
+#if WITH_EDITOR
+	SaveConfig();
+#endif
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -206,43 +239,146 @@ FNiagaraEmitterScalabilityOverride::FNiagaraEmitterScalabilityOverride()
 //////////////////////////////////////////////////////////////////////////
 
 #include "NiagaraScalabilityManager.h"
-void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)
+void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)
 {
-	check(Components.Num() == OutState.Num());
-	for (int32 CompIdx = 0; CompIdx < Components.Num(); ++CompIdx)
+	const int32 ComponentCount = Components.Num();
+	check(ComponentCount == OutState.Num());
+
+	for (int32 CompIdx = 0; CompIdx < ComponentCount; ++CompIdx)
 	{
-		UNiagaraComponent* Component = Components[CompIdx];
 		FNiagaraScalabilityState& State = OutState[CompIdx];
 
-		float LODDistance = 0.0f;
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-		if (Component->bEnablePreviewLODDistance)
+		const bool AddIndex = !State.bCulled || State.IsDirty();
+		
+		if (State.bCulled)
 		{
-			LODDistance = Component->PreviewLODDistance;
+			State.Significance = 0.0f;
 		}
 		else
+		{
+			UNiagaraComponent* Component = Components[CompIdx];
+
+			float LODDistance = 0.0f;
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+			if (Component->bEnablePreviewLODDistance)
+			{
+				LODDistance = Component->PreviewLODDistance;
+			}
+			else
 #endif
-		if(FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
-		{
-			LODDistance = Inst->GetLODDistance();
+			if(FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+			{
+				LODDistance = Inst->GetLODDistance();
+			}
+
+			State.Significance = 1.0f / LODDistance;
 		}
 
-		State.Significance = 1.0f / LODDistance;
+		if (AddIndex)
+		{
+			OutIndices.Add(CompIdx);
+		}
 	}
 }
 
-void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)
+void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)
 {
-	for (int32 CompIdx = 0; CompIdx < Components.Num(); ++CompIdx)
-	{
-		UNiagaraComponent* Component = Components[CompIdx];
-		FNiagaraScalabilityState& State = OutState[CompIdx];
+	const int32 ComponentCount = Components.Num();
+	check(ComponentCount == OutState.Num());
 
-		if (FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+	for (int32 CompIdx = 0; CompIdx < ComponentCount; ++CompIdx)
+	{
+		FNiagaraScalabilityState& State = OutState[CompIdx];
+		const bool AddIndex = !State.bCulled || State.IsDirty();
+
+		if (State.bCulled)
 		{
-			State.Significance = 1.0f / Inst->GetAge();//Newer Systems are higher significance.
+			State.Significance = 0.0f;
+		}
+		else
+		{
+			UNiagaraComponent* Component = Components[CompIdx];
+
+			if (FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+			{
+				State.Significance = 1.0f / Inst->GetAge();//Newer Systems are higher significance.
+			}
+		}
+
+		if (AddIndex)
+		{
+			OutIndices.Add(CompIdx);
 		}
 	}
 }
 
+
+#if NIAGARA_PERF_BASELINES
+
+#include "AssetRegistryModule.h"
+
+//Invalidate this to regenerate perf baseline info.
+//For example if there are some significant code optimizations.
+const FGuid UNiagaraEffectType::CurrentPerfBaselineVersion = FGuid(0xD854D103, 0x87C17A44, 0x87CA4524, 0x5F72FBC2);
+UNiagaraEffectType::FGeneratePerfBaselines UNiagaraEffectType::GeneratePerfBaselinesDelegate;
+
+void UNiagaraEffectType::GeneratePerfBaselines()
+{
+	if (GeneratePerfBaselinesDelegate.IsBound())
+	{
+		//Load all effect types so we generate all baselines at once.
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		TArray<FAssetData> EffectTypeAssets;
+		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraEffectType::StaticClass()->GetFName(), EffectTypeAssets);
+
+		TArray<UNiagaraEffectType*> EffectTypesToGenerate;
+		for (FAssetData& Asset : EffectTypeAssets)
+		{
+			if (UNiagaraEffectType* FXType = Cast<UNiagaraEffectType>(Asset.GetAsset()))
+			{
+				if (FXType->IsPerfBaselineValid() == false && FXType->GetPerfBaselineController())
+				{
+					EffectTypesToGenerate.Add(FXType);
+				}
+			}
+		}
+
+		GeneratePerfBaselinesDelegate.Execute(EffectTypesToGenerate);
+	}
+}
+
+void UNiagaraEffectType::SpawnBaselineActor(UWorld* World)
+{
+	if (PerformanceBaselineController && World)
+	{
+		//Update with dummy stats so we don't try to regen them again.
+		FNiagaraPerfBaselineStats DummyStats;
+		UpdatePerfBaselineStats(DummyStats);
+
+		FActorSpawnParameters SpawnParams;
+		ANiagaraPerfBaselineActor* BaselineActor = CastChecked<ANiagaraPerfBaselineActor>(World->SpawnActorDeferred<ANiagaraPerfBaselineActor>(ANiagaraPerfBaselineActor::StaticClass(), FTransform::Identity));
+		BaselineActor->Controller = CastChecked<UNiagaraBaselineController>(StaticDuplicateObject(PerformanceBaselineController, BaselineActor));
+		BaselineActor->Controller->EffectType = this;
+		BaselineActor->Controller->Owner = BaselineActor;
+
+		BaselineActor->FinishSpawning(FTransform::Identity);
+		BaselineActor->RegisterAllActorTickFunctions(true, true);
+	}
+}
+
+void InvalidatePerfBaselines()
+{
+	for (TObjectIterator<UNiagaraEffectType> It; It; ++It)
+	{
+		It->InvalidatePerfBaseline();
+	}
+}
+
+FAutoConsoleCommand InvalidatePerfBaselinesCommand(
+	TEXT("fx.InvalidateNiagaraPerfBaselines"),
+	TEXT("Invalidates all Niagara performance baseline data."),
+	FConsoleCommandDelegate::CreateStatic(&InvalidatePerfBaselines)
+);
+
+#endif
 //////////////////////////////////////////////////////////////////////////

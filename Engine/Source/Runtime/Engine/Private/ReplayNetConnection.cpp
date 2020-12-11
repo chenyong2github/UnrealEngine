@@ -67,8 +67,7 @@ void UReplayNetConnection::StartRecording()
 	OnLevelRemovedFromWorldHandle = FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ThisClass::OnLevelRemovedFromWorld);
 	OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &ThisClass::OnLevelAddedToWorld);
 
-	ReplayHelper.StartRecording(GetWorld());
-
+	ReplayHelper.StartRecording(this);
 	ReplayHelper.CreateSpectatorController(this);
 }
 
@@ -240,7 +239,7 @@ void UReplayNetConnection::AddUserToReplay(const FString& UserString)
 
 void UReplayNetConnection::OnSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName)
 {
-	ReplayHelper.OnSeamlessTravelStart(CurrentWorld, LevelName);
+	ReplayHelper.OnSeamlessTravelStart(CurrentWorld, LevelName, this);
 }
 
 void UReplayNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel /* = false */)

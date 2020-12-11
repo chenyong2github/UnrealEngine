@@ -148,7 +148,7 @@ private:
 
 	/** Owning lobby beacon for this array of players */
 	UPROPERTY(NotReplicated)
-	ALobbyBeaconState* ParentState;
+	ALobbyBeaconState* ParentState = nullptr;
 
 	friend ALobbyBeaconState;
 	friend FLobbyPlayerStateActorInfo;

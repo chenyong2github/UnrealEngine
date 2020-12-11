@@ -33,30 +33,49 @@ void UWaveOscillatorCameraShakePattern::StartShakePatternImpl(const FCameraShake
 {
 	if (!Params.bIsRestarting)
 	{
-		X.Initialize(LocationOffset.X);
-		Y.Initialize(LocationOffset.Y);
-		Z.Initialize(LocationOffset.Z);
+		X.Initialize(InitialLocationOffset.X);
+		Y.Initialize(InitialLocationOffset.Y);
+		Z.Initialize(InitialLocationOffset.Z);
 
-		Pitch.Initialize(RotationOffset.X);
-		Yaw.Initialize(RotationOffset.Y);
-		Roll.Initialize(RotationOffset.Z);
+		CurrentLocationOffset = InitialLocationOffset;
 
-		FOV.Initialize(FOVOffset);
+		Pitch.Initialize(InitialRotationOffset.X);
+		Yaw.Initialize(  InitialRotationOffset.Y);
+		Roll.Initialize( InitialRotationOffset.Z);
+
+		CurrentRotationOffset = InitialRotationOffset;
+
+		FOV.Initialize(InitialFOVOffset);
+
+		CurrentFOVOffset = InitialFOVOffset;
 	}
 }
 
 void UWaveOscillatorCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	const float DeltaTime = Params.DeltaTime;
+	UpdateOscillators(Params.DeltaTime, OutResult);
+}
 
-	OutResult.Location.X = X.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, LocationOffset.X);
-	OutResult.Location.Y = Y.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, LocationOffset.Y);
-	OutResult.Location.Z = Z.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, LocationOffset.Z);
+void UWaveOscillatorCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	// Scrubbing is like going back to our initial state and updating directly to the scrub time.
+	CurrentLocationOffset = InitialLocationOffset;
+	CurrentRotationOffset = InitialRotationOffset;
+	CurrentFOVOffset = InitialFOVOffset;
+	
+	UpdateOscillators(Params.AbsoluteTime, OutResult);
+}
 
-	OutResult.Rotation.Pitch = Pitch.Update(DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, RotationOffset.X);
-	OutResult.Rotation.Yaw   = Yaw.Update(  DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, RotationOffset.Y);
-	OutResult.Rotation.Roll  = Roll.Update( DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, RotationOffset.Z);
+void UWaveOscillatorCameraShakePattern::UpdateOscillators(float DeltaTime, FCameraShakeUpdateResult& OutResult)
+{
+	OutResult.Location.X = X.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, CurrentLocationOffset.X);
+	OutResult.Location.Y = Y.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, CurrentLocationOffset.Y);
+	OutResult.Location.Z = Z.Update(DeltaTime, LocationAmplitudeMultiplier, LocationFrequencyMultiplier, CurrentLocationOffset.Z);
 
-	OutResult.FOV = FOV.Update(DeltaTime, 1.f, 1.f, FOVOffset);
+	OutResult.Rotation.Pitch = Pitch.Update(DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, CurrentRotationOffset.X);
+	OutResult.Rotation.Yaw   = Yaw.Update(  DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, CurrentRotationOffset.Y);
+	OutResult.Rotation.Roll  = Roll.Update( DeltaTime, RotationAmplitudeMultiplier, RotationFrequencyMultiplier, CurrentRotationOffset.Z);
+
+	OutResult.FOV = FOV.Update(DeltaTime, 1.f, 1.f, CurrentFOVOffset);
 }
 

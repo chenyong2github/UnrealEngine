@@ -77,6 +77,7 @@ private:
 	UEnum* TraceChannelEnum;
 
 	const static FName SceneDepthName;
+	const static FName CustomDepthName;
 	const static FName DistanceFieldName;
 	const static FName SyncTraceName;
 	const static FName AsyncTraceName;

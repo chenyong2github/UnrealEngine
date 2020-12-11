@@ -92,16 +92,25 @@ private:
 	// UCameraShakePattern interface
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
+
+	void UpdatePerlinNoise(float DeltaTime, FCameraShakeUpdateResult& OutResult);
 
 private:
 
+	/** Initial perlin noise offset for location oscillation. */
+	FVector InitialLocationOffset;
 	/** Current perlin noise offset for location oscillation. */
-	FVector LocationOffset;
+	FVector CurrentLocationOffset;
 
+	/** Initial perlin noise offset for rotation oscillation. */
+	FVector InitialRotationOffset;
 	/** Current perlin noise offset for rotation oscillation. */
-	FVector RotationOffset;
+	FVector CurrentRotationOffset;
 
+	/** Initial perlin noise offset for FOV oscillation */
+	float InitialFOVOffset;
 	/** Current perlin noise offset for FOV oscillation */
-	float FOVOffset;
+	float CurrentFOVOffset;
 };
 

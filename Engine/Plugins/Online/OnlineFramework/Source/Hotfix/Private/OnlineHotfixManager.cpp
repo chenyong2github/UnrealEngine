@@ -732,15 +732,15 @@ bool UOnlineHotfixManager::WantsHotfixProcessing(const FCloudFileHeader& FileHea
 
 			if (bWantsPlatformHotfix)
 			{
-				UE_LOG(LogHotfixManager, Verbose, TEXT("Using platform hotfix %s"), *FileHeader.FileName);
+				UE_LOG(LogHotfixManager, Log, TEXT("Using platform hotfix %s"), *FileHeader.FileName);
 			}
 			else if (bWantsServerHotfix)
 			{
-				UE_LOG(LogHotfixManager, Verbose, TEXT("Using server hotfix %s"), *FileHeader.FileName);
+				UE_LOG(LogHotfixManager, Log, TEXT("Using server hotfix %s"), *FileHeader.FileName);
 			}
 			else if (bWantsDefaultHotfix)
 			{
-				UE_LOG(LogHotfixManager, Verbose, TEXT("Using default hotfix %s"), *FileHeader.FileName);
+				UE_LOG(LogHotfixManager, Log, TEXT("Using default hotfix %s"), *FileHeader.FileName);
 			}
 
 			return bWantsPlatformHotfix || bWantsServerHotfix || bWantsDefaultHotfix;
@@ -769,7 +769,7 @@ bool UOnlineHotfixManager::ApplyHotfixProcessing(const FCloudFileHeader& FileHea
 		TArray<uint8> FileData;
 		if (OnlineTitleFile->GetFileContents(FileHeader.DLName, FileData))
 		{
-			UE_LOG(LogHotfixManager, Verbose, TEXT("Applying hotfix %s"), *FileHeader.FileName);
+			UE_LOG(LogHotfixManager, Log, TEXT("Applying hotfix %s"), *FileHeader.FileName);
 
 			if (PreProcessDownloadedFileData(FileData))
 			{

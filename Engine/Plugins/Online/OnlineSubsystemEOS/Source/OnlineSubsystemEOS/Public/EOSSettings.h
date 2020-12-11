@@ -72,6 +72,7 @@ struct FEOSSettings
 	int32 TickBudgetInMilliseconds;
 	bool bEnableOverlay;
 	bool bEnableSocialOverlay;
+	bool bShouldEnforceBeingLaunchedByEGS;
 	TArray<FEOSArtifactSettings> Artifacts;
 };
 
@@ -107,6 +108,10 @@ public:
 	/** Set to true to enable the social overlay (friends, invites, etc.) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
 	bool bEnableSocialOverlay;
+
+	/** Set to true to enable the social overlay (friends, invites, etc.) */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings", DisplayName="Require Being Launched by the Epic Games Store")
+	bool bShouldEnforceBeingLaunchedByEGS;
 
 	/** Per artifact SDK settings. A game might have a FooStaging, FooQA, and public Foo artifact */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")

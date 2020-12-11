@@ -1,0 +1,13 @@
+{
+  "files.exclude": {
+    "**/.vs": true,
+    "**/node_modules": true,
+    "**/build/**": true,
+    "**/Server/public/**": true,
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "terminal.integrated.cursorStyle": "line",
+  "terminal.integrated.copyOnSelection": true,
+}

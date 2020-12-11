@@ -44,7 +44,7 @@ namespace DatasmithNativeTranslatorImpl
 			return Result;
 		}
 
-		int32 NumMeshes;
+		int32 NumMeshes = 0;
 		*Archive << NumMeshes;
 
 		// Currently we only have 1 mesh per file. If there's a second mesh, it will be a CollisionMesh

@@ -4486,7 +4486,7 @@ void GlobalBeginCompileShader(
 	
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.vt.FeedbackFactor"));
-		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_FEEDBACK_FACTOR"), CVar ? FMath::Max(CVar->GetInt(), 1) : 1);
+		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_FEEDBACK_FACTOR"), CVar ? FMath::RoundUpToPowerOfTwo(FMath::Max(CVar->GetInt(), 1)) : 1);
 	}
 
 	{
@@ -5198,7 +5198,7 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 	}
 
 #if WITH_EDITOR
-	if (FShaderCodeLibrary::NeedsShaderStableKeys(Platform))
+	if (FShaderLibraryCooker::NeedsShaderStableKeys(Platform))
 	{
 		GlobalShaderMap->SaveShaderStableKeys(Platform);
 	}

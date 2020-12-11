@@ -398,16 +398,6 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 			}
 		}
 	}
-
-	// Tear down spawned objects
-	FMovieSceneSpawnRegister& Register = Player.GetSpawnRegister();
-
-	TArray<FMovieSceneSequenceID> ExpiredSequenceIDs;
-	ThisFrameMetaData.DiffSequences(LastFrameMetaData, nullptr, &ExpiredSequenceIDs);
-	for (FMovieSceneSequenceID ExpiredID : ExpiredSequenceIDs)
-	{
-		Register.OnSequenceExpired(RootOverridePath.Remap(ExpiredID), Player);
-	}
 }
 
 void FMovieSceneTrackEvaluator::InvalidateCachedData()

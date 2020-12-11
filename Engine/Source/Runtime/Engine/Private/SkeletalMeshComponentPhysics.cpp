@@ -2207,7 +2207,7 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 	}
 }
 
-void USkeletalMeshComponent::GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentZ)
+void USkeletalMeshComponent::GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 {
 	int32 SectionIndex;
 	int32 VertIndexInChunk;
@@ -2216,10 +2216,10 @@ void USkeletalMeshComponent::GetSkinnedTangentBasis(USkeletalMeshComponent* Comp
 	check(SectionIndex < LODData.RenderSections.Num());
 	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
 
-	return GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, VertIndexInChunk, CachedRefToLocals, OutTangentX, OutTangentZ);
+	return GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, VertIndexInChunk, CachedRefToLocals, OutTangentX, OutTangentY, OutTangentZ);
 }
 
-void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
+void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXYZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
 {
 	// Fail if no mesh
 	if (!Component->SkeletalMesh)
@@ -2227,8 +2227,8 @@ void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* 
 		return;
 	}
 
-	OutTangenXZ.Empty();
-	OutTangenXZ.AddUninitialized(LODData.GetNumVertices() * 2);
+	OutTangenXYZ.Empty();
+	OutTangenXYZ.AddUninitialized(LODData.GetNumVertices() * 3);
 
 	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 	{
@@ -2238,8 +2238,8 @@ void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* 
 		const uint32 NumSoftVerts = Section.GetNumVertices();
 		for (uint32 SoftIdx = 0; SoftIdx < NumSoftVerts; ++SoftIdx)
 		{
-			const uint32 TangentOffset = (SoftOffset + SoftIdx) * 2;
-			GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, SoftIdx, CachedRefToLocals, OutTangenXZ[TangentOffset + 0], OutTangenXZ[TangentOffset + 1]);
+			const uint32 TangentOffset = (SoftOffset + SoftIdx) * 3;
+			GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, SoftIdx, CachedRefToLocals, OutTangenXYZ[TangentOffset + 0], OutTangenXYZ[TangentOffset + 1], OutTangenXYZ[TangentOffset + 2]);
 		}
 	}
 }

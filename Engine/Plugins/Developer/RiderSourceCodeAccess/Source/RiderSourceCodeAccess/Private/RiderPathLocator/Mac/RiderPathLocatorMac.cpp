@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#if PLATFORM_MAC
+
 #include "RiderPathLocator/RiderPathLocator.h"
 
 #include "HAL/FileManager.h"
@@ -8,6 +8,8 @@
 #include "Serialization/JsonSerializer.h"
 
 #include "Runtime/Launch/Resources/Version.h"
+
+#if PLATFORM_MAC
 
 TOptional<FInstallInfo> FRiderPathLocator::GetInstallInfoFromRiderPath(const FString& PathToRiderApp, bool bIsToolbox)
 {

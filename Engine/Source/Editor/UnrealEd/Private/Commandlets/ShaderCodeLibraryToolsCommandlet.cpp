@@ -46,7 +46,7 @@ int32 UShaderCodeLibraryToolsCommandlet::StaticMain(const FString& Params)
 		TArray<FString> OldMetaDataDirs;
 		OldMetaDataDirs.Add(Left);
 		
-		return FShaderCodeLibrary::CreatePatchLibrary(OldMetaDataDirs, Right, Output, bNativeFormat, bNeedsDeterministicOrder) ? 0 : 1;
+		return FShaderLibraryCooker::CreatePatchLibrary(OldMetaDataDirs, Right, Output, bNativeFormat, bNeedsDeterministicOrder) ? 0 : 1;
 	}
 	
 	UE_LOG(LogShaderCodeLibraryTools, Warning, TEXT("Usage: <Path-To-Old-MetaData> <Path-To-New-MetaData> <Output-Path> [-PreferNativeArchives]\n"));

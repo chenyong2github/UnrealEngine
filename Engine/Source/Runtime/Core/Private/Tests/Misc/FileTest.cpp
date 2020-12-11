@@ -223,7 +223,7 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileShrinkBuffersTest, "System.Core.Misc.FileShrinkBuffers", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileShrinkBuffersTest, "System.Core.Misc.FileShrinkBuffers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
 bool FFileShrinkBuffersTest::RunTest( const FString& Parameters )
 {
 	const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir());

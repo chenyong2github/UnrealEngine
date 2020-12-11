@@ -22,7 +22,7 @@ static int32 ClearBrokenSubmixAssetsCVar = 0;
 FAutoConsoleVariableRef CVarFixUpBrokenSubmixAssets(
 	TEXT("au.submix.clearbrokensubmixassets"),
 	ClearBrokenSubmixAssetsCVar,
-	TEXT("If fixed, will verify that we don't have a submix list a child submix that doesn't have it as it's parent, or vice versa.\n")
+	TEXT("If set, will verify that we don't have a submix that lists a child submix that is no longer its child, and the former children will not erroneously list their previous parents.\n")
 	TEXT("0: Disable, >0: Enable"),
 	ECVF_Default);
 

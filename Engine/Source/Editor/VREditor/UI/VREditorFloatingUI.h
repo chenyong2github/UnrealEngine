@@ -34,7 +34,7 @@ public:
 	FName PanelID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Virtual Production UI")
-	AActor* ParentActor;
+	AActor* ParentActor = nullptr;
 
 	/** Optional offset from HMD where the window opens. Pass FTransform::Identity for default logic - window will open at controller location. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")

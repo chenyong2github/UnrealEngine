@@ -1146,6 +1146,10 @@ int32 SWidgetReflector::Visualize( const FWidgetPath& InWidgetsToVisualize, FSla
 					return VisualizePickAsRectangles(WidgetsToVisualize, OutDrawElements, LayerId);
 				}
 			}
+			else
+			{
+				SetWidgetsToVisualize(FWidgetPath{});
+			}
 		}
 	}
 	else if (!bAttemptingToVisualizeReflector)

@@ -1127,7 +1127,7 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsVolumetricFogCloudOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 					Error(*ErrorMsg);
 				}
 			}
@@ -1138,7 +1138,7 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsUnlitOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the only one representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 					Error(*ErrorMsg);
 				}
 			}
@@ -1149,7 +1149,7 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsHairOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains hair BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains hair BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 					Error(*ErrorMsg);
 				}
 			}
@@ -1199,11 +1199,11 @@ bool FHLSLMaterialTranslator::Translate()
 
 			if (StrataMaterialAnalysis.ClampedLayerCount == 0)
 			{
-				UE_LOG(LogMaterial, Error, TEXT("Material %s cannot have any layers rendered due to its complexity (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+				UE_LOG(LogMaterial, Error, TEXT("Material %s cannot have any layers rendered due to its complexity (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 			}
 			else if (StrataMaterialAnalysis.RequestedLayerCount > StrataMaterialAnalysis.ClampedLayerCount)
 			{
-				UE_LOG(LogMaterial, Warning, TEXT("Material %s is not fitting the allocated byte per pixel budget for starta. Layers will be removed (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+				UE_LOG(LogMaterial, Warning, TEXT("Material %s is not fitting the allocated byte per pixel budget for starta. Layers will be removed (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 			}
 		}
 		else
@@ -4295,8 +4295,11 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 
 	MaterialCompilationOutput.UniformExpressionSet.VTStacks.Add(FMaterialVirtualTextureStack(PreallocatedStackTextureIndex));
 
-	// these two arrays need to stay in sync
+	// These two arrays need to stay in sync
 	check(VTStacks.Num() == MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num());
+
+	// Select LoadVirtualPageTable function name for this context
+	FString BaseFunctionName = bAdaptive ? TEXT("TextureLoadVirtualPageTableAdaptive") : TEXT("TextureLoadVirtualPageTable");
 
 	// Optionally sample without virtual texture feedback but only for miplevel mode
 	check(bGenerateFeedback || MipValueMode == TMVM_MipLevel)
@@ -4308,24 +4311,26 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 	{
 	case TMVM_None:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTable("
+			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"0, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex,
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
 			StackIndex);
 		break;
 	case TMVM_MipBias:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTable("
+			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex, 
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
 			*CoerceParameter(MipValue0Index, MCT_Float1),
@@ -4333,12 +4338,13 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 		break;
 	case TMVM_MipLevel:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTableLevel("
+			"%sLevel("
 			"VIRTUALTEXTURE_PAGETABLE_%d, " 
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s"
 			"%s)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex,
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
 			*CoerceParameter(MipValue0Index, MCT_Float1),
@@ -4346,12 +4352,13 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 		break;
 	case TMVM_Derivative:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
-			"TextureLoadVirtualPageTableGrad(" 
+			"%sGrad("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
 			"%s, %s, %s, "
 			"%s, %s, Parameters.SvPosition.xy, "
 			"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			*BaseFunctionName,
 			StackIndex, StackIndex, StackIndex, 
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
 			*CoerceParameter(MipValue0Index, MCT_Float2), *CoerceParameter(MipValue1Index, MCT_Float2),
@@ -6767,6 +6774,26 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	if (Default == INDEX_NONE || Shadow == INDEX_NONE)
 	{
 		return INDEX_NONE;
+	}
+
+	FMaterialUniformExpression* DefaultExpression = GetParameterUniformExpression(Default);
+	FMaterialUniformExpression* ShadowExpression = GetParameterUniformExpression(Shadow);
+	if (DefaultExpression &&
+		ShadowExpression &&
+		DefaultExpression->IsConstant() &&
+		ShadowExpression->IsConstant())
+	{
+		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+		FLinearColor DefaultValue;
+		FLinearColor ShadowValue;
+		DefaultExpression->GetNumberValue(DummyContext, DefaultValue);
+		ShadowExpression->GetNumberValue(DummyContext, ShadowValue);
+		if (DefaultValue == ShadowValue)
+		{
+			// If both inputs are wired to == constant values, avoid adding the runtime switch
+			// This will avoid breaking various offline checks for constant values
+			return Default;
+		}
 	}
 
 	EMaterialValueType ResultType = GetArithmeticResultType(Default, Shadow);

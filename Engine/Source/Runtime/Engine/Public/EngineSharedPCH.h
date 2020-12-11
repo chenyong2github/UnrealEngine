@@ -587,7 +587,7 @@
 #include "Materials/MaterialInstanceBasePropertyOverrides.h"
 #include "UnrealEngine.h"
 #include "GameFramework/Controller.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "GameFramework/WorldSettings.h"
 #include "GameFramework/DamageType.h"
 #include "Components/InputComponent.h"

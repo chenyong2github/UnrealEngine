@@ -5,6 +5,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/CustomVersion.h"
+#include "HAL/FileManager.h"
 
 #if UE_BUILD_SHIPPING == 0
 namespace Chaos

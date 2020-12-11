@@ -336,6 +336,9 @@ void USkyAtmosphereComponent::GetOverrideLightStatus(bool* OutOverrideAtmospheri
 	}\
 }\
 
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AtmosphereHeight);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MultiScatteringFactor);
+
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighScatteringScale);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(RayleighScattering);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighExponentialDistribution);

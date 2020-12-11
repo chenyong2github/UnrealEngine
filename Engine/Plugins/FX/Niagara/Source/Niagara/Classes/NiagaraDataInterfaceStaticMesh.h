@@ -161,6 +161,11 @@ struct FNDIStaticMesh_InstanceData
 	/** Cached ComponentToWorld from previous tick. */
 	FMatrix PrevTransform;
 
+	/** Cached Rotation. */
+	FQuat Rotation;
+	/** Cached Previous Rotation. */
+	FQuat PrevRotation;
+
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
@@ -464,6 +469,8 @@ struct FNiagaraStaticMeshData
 	bool bIsGpuUniformlyDistributedSampling;
 	FMatrix Transform;
 	FMatrix PrevTransform;
+	FQuat Rotation;
+	FQuat PrevRotation;
 	float DeltaSeconds;
 };
 
@@ -472,6 +479,8 @@ struct FNiagaraPassedInstanceDataForRT
 	bool bIsGpuUniformlyDistributedSampling;
 	FMatrix Transform;
 	FMatrix PrevTransform;
+	FQuat Rotation;
+	FQuat PrevRotation;
 	float DeltaSeconds;
 };
 

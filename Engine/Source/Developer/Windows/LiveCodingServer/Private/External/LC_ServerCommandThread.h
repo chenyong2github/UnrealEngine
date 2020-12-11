@@ -41,6 +41,11 @@ private:
 	unsigned int ServerThread(void);
 	unsigned int CompileThread(void);
 
+	// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+	void CallPrecompileHooks(bool didAllProcessesMakeProgress);
+	void CallPostcompileHooks(bool didAllProcessesMakeProgress);
+	// END EPIC MOD
+
 	struct CommandThreadContext
 	{
 		DuplexPipeServer pipe;

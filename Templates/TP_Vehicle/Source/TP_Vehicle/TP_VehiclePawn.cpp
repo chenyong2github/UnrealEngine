@@ -8,7 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
-#include "WheeledVehicleMovementComponent4W.h"
+#include "ChaosWheeledVehicleMovementComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Engine.h"
 #include "UObject/ConstructorHelpers.h"
@@ -43,25 +43,38 @@ ATP_VehiclePawn::ATP_VehiclePawn()
 	GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
 	
 	// Simulation
-	UWheeledVehicleMovementComponent4W* Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
+	UChaosWheeledVehicleMovementComponent* Vehicle = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
 
-	check(Vehicle4W->WheelSetups.Num() == 4);
+	Vehicle->WheelSetups.SetNum(4);
+	{
+		Vehicle->WheelSetups[0].WheelClass = UTP_VehicleWheelFront::StaticClass();
+		Vehicle->WheelSetups[0].BoneName = FName("Wheel_Front_Left");
+		Vehicle->WheelSetups[0].AdditionalOffset = FVector(0.f, -12.f, 0.f);
 
-	Vehicle4W->WheelSetups[0].WheelClass = UTP_VehicleWheelFront::StaticClass();
-	Vehicle4W->WheelSetups[0].BoneName = FName("Wheel_Front_Left");
-	Vehicle4W->WheelSetups[0].AdditionalOffset = FVector(0.f, -12.f, 0.f);
+		Vehicle->WheelSetups[1].WheelClass = UTP_VehicleWheelFront::StaticClass();
+		Vehicle->WheelSetups[1].BoneName = FName("Wheel_Front_Right");
+		Vehicle->WheelSetups[1].AdditionalOffset = FVector(0.f, 12.f, 0.f);
 
-	Vehicle4W->WheelSetups[1].WheelClass = UTP_VehicleWheelFront::StaticClass();
-	Vehicle4W->WheelSetups[1].BoneName = FName("Wheel_Front_Right");
-	Vehicle4W->WheelSetups[1].AdditionalOffset = FVector(0.f, 12.f, 0.f);
+		Vehicle->WheelSetups[2].WheelClass = UTP_VehicleWheelRear::StaticClass();
+		Vehicle->WheelSetups[2].BoneName = FName("Wheel_Rear_Left");
+		Vehicle->WheelSetups[2].AdditionalOffset = FVector(0.f, -12.f, 0.f);
 
-	Vehicle4W->WheelSetups[2].WheelClass = UTP_VehicleWheelRear::StaticClass();
-	Vehicle4W->WheelSetups[2].BoneName = FName("Wheel_Rear_Left");
-	Vehicle4W->WheelSetups[2].AdditionalOffset = FVector(0.f, -12.f, 0.f);
+		Vehicle->WheelSetups[3].WheelClass = UTP_VehicleWheelRear::StaticClass();
+		Vehicle->WheelSetups[3].BoneName = FName("Wheel_Rear_Right");
+		Vehicle->WheelSetups[3].AdditionalOffset = FVector(0.f, 12.f, 0.f);
+	}
 
-	Vehicle4W->WheelSetups[3].WheelClass = UTP_VehicleWheelRear::StaticClass();
-	Vehicle4W->WheelSetups[3].BoneName = FName("Wheel_Rear_Right");
-	Vehicle4W->WheelSetups[3].AdditionalOffset = FVector(0.f, 12.f, 0.f);
+	// Engine 
+	// Torque setup
+	Vehicle->EngineSetup.MaxRPM = 5700.0f;
+	Vehicle->EngineSetup.MaxTorque = 500.0f;
+	Vehicle->EngineSetup.TorqueCurve.GetRichCurve()->Reset();
+	Vehicle->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 400.0f);
+	Vehicle->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 500.0f);
+	Vehicle->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(5730.0f, 400.0f);
+
+	// This works because the AxleType has been setup on the wheels
+	Vehicle->DifferentialSetup.DifferentialType = EVehicleDifferential::AllWheelDrive;
 
 	// Create a spring arm component
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm0"));
@@ -73,6 +86,14 @@ ATP_VehiclePawn::ATP_VehiclePawn()
 	SpringArm->CameraRotationLagSpeed = 7.f;
 	SpringArm->bInheritPitch = false;
 	SpringArm->bInheritRoll = false;
+
+	// Physics settings
+	// Adjust the center of mass - making it lower
+	UPrimitiveComponent* UpdatedPrimitive = Cast<UPrimitiveComponent>(Vehicle->UpdatedComponent);
+	if (UpdatedPrimitive)
+	{
+		UpdatedPrimitive->BodyInstance.COMNudge = FVector(0.0f, 0.0f, -30.0f);
+	}
 
 	// Create camera component 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera0"));
@@ -145,7 +166,16 @@ void ATP_VehiclePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInp
 
 void ATP_VehiclePawn::MoveForward(float Val)
 {
-	GetVehicleMovementComponent()->SetThrottleInput(Val);
+	if (Val > 0)
+	{
+		GetVehicleMovementComponent()->SetThrottleInput(Val);
+		GetVehicleMovementComponent()->SetBrakeInput(0.f);
+	}
+	else
+	{
+		GetVehicleMovementComponent()->SetThrottleInput(0.f);
+		GetVehicleMovementComponent()->SetBrakeInput(-Val);
+	}
 }
 
 void ATP_VehiclePawn::MoveRight(float Val)

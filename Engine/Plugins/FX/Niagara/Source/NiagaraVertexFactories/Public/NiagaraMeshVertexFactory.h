@@ -31,6 +31,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(uint32, bLocalSpace)
 	SHADER_PARAMETER(FVector, PivotOffset)
 	SHADER_PARAMETER(int, bPivotOffsetIsWorldSpace)
+	SHADER_PARAMETER(FVector, MeshScale)
 	SHADER_PARAMETER(FVector4, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
@@ -78,6 +79,7 @@ public:
 	/** Default constructor. */
 	FNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
+		, MeshIndex(-1)
 		, LODIndex(-1)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
@@ -86,6 +88,7 @@ public:
 
 	FNiagaraMeshVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
+		, MeshIndex(-1)
 		, LODIndex(-1)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
@@ -163,12 +166,16 @@ public:
 	virtual void InitRHI() override;
 
 	static bool SupportsTessellationShaders() { return true; }
+	
+	int32 GetMeshIndex() const { return MeshIndex; }
+	void SetMeshIndex(int32 InMeshIndex) { MeshIndex = InMeshIndex; }
 
 	int32 GetLODIndex() const { return LODIndex; }
 	void SetLODIndex(int32 InLODIndex) { LODIndex = InLODIndex; }
 	
 protected:
 	FStaticMeshDataType Data;
+	int32 MeshIndex;	
 	int32 LODIndex;	
 
 	/** Uniform buffer with mesh particle parameters. */

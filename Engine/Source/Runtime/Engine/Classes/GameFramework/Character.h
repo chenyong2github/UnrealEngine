@@ -45,7 +45,7 @@ struct FRepRootMotionMontage
 
 	/** AnimMontage providing Root Motion */
 	UPROPERTY()
-	UAnimMontage* AnimMontage;
+	UAnimMontage* AnimMontage = nullptr;
 
 	/** Track position of Montage */
 	UPROPERTY()
@@ -61,7 +61,7 @@ struct FRepRootMotionMontage
 
 	/** Movement Relative to Base */
 	UPROPERTY()
-	UPrimitiveComponent* MovementBase;
+	UPrimitiveComponent* MovementBase = nullptr;
 
 	/** Bone on the MovementBase, if a skeletal mesh. */
 	UPROPERTY()
@@ -156,7 +156,7 @@ struct FBasedMovementInfo
 
 	/** Component we are based on */
 	UPROPERTY()
-	UPrimitiveComponent* MovementBase;
+	UPrimitiveComponent* MovementBase = nullptr;
 
 	/** Bone name on component, for skeletal meshes. NAME_None if not a skeletal mesh or if bone is invalid. */
 	UPROPERTY()

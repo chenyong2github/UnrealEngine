@@ -547,15 +547,34 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 }
 
 
-int32 FClothingSimulationCollider::GetNumGeometries(int32 InLODIndex) const
+int32 FClothingSimulationCollider::GetNumGeometries(int32 InSlotIndex) const
 {
-	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].NumGeometries : 0;
+	return LODData.IsValidIndex(InSlotIndex) ? LODData[InSlotIndex].NumGeometries : 0;
 }
 
-int32 FClothingSimulationCollider::GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InLODIndex) const
+int32 FClothingSimulationCollider::GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InSlotIndex) const
 {
-	const int32* const Offset = LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].Offsets.Find(FSolverClothPair(Solver, Cloth)) : nullptr;
+	const int32* const Offset = LODData.IsValidIndex(InSlotIndex) ? LODData[InSlotIndex].Offsets.Find(FSolverClothPair(Solver, Cloth)) : nullptr;
 	return Offset ? *Offset : INDEX_NONE;
+}
+
+bool FClothingSimulationCollider::GetOffsetAndNumGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType, int32& OutOffset, int32& OutNumGeometries) const
+{
+	OutOffset = INDEX_NONE;
+	OutNumGeometries = 0;
+
+	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
+	const int32 SlotIndex = 
+		(CollisionDataType < ECollisionDataType::LODs) ? (int32)CollisionDataType :
+		(LODIndex >= (int32)ECollisionDataType::LODs) ? LODIndex : INDEX_NONE;
+
+	if (LODData.IsValidIndex(SlotIndex))
+	{
+		OutOffset = LODData[SlotIndex].Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
+		OutNumGeometries = LODData[SlotIndex].NumGeometries;
+	}
+
+	return OutOffset != INDEX_NONE && OutNumGeometries > 0;
 }
 
 void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
@@ -704,15 +723,8 @@ TConstArrayView<TVector<float, 3>> FClothingSimulationCollider::GetCollisionTran
 	check(Solver);
 	check(Cloth);
 
-	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
-	const int32 Index = 
-		(CollisionDataType < ECollisionDataType::LODs) ? (int32)CollisionDataType :
-		(LODIndex >= (int32)ECollisionDataType::LODs) ? LODIndex : INDEX_NONE;
-
-	const int32 Offset = GetOffset(Solver, Cloth, Index);
-	const int32 NumGeometries = GetNumGeometries(Index);
-
-	return Offset != INDEX_NONE && NumGeometries ?
+	int32 Offset, NumGeometries;
+	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
 		TConstArrayView<TVector<float, 3>>(Solver->GetCollisionParticleXs(Offset), NumGeometries) :
 		TConstArrayView<TVector<float, 3>>();
 }
@@ -722,17 +734,21 @@ TConstArrayView<TRotation<float, 3>> FClothingSimulationCollider::GetCollisionRo
 	check(Solver);
 	check(Cloth);
 
-	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
-	const int32 Index = 
-		(CollisionDataType < ECollisionDataType::LODs) ? (int32)CollisionDataType :
-		(LODIndex >= (int32)ECollisionDataType::LODs) ? LODIndex : INDEX_NONE;
-
-	const int32 Offset = GetOffset(Solver, Cloth, Index);
-	const int32 NumGeometries = GetNumGeometries(Index);
-
-	return Offset != INDEX_NONE && NumGeometries ?
+	int32 Offset, NumGeometries;
+	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
 		TConstArrayView<TRotation<float, 3>>(Solver->GetCollisionParticleRs(Offset), NumGeometries) :
 		TConstArrayView<TRotation<float, 3>>();
+}
+
+TConstArrayView<TRigidTransform<float, 3>> FClothingSimulationCollider::GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
+{
+	check(Solver);
+	check(Cloth);
+
+	int32 Offset, NumGeometries;
+	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
+		TConstArrayView<TRigidTransform<float, 3>>(Solver->GetOldCollisionTransforms(Offset), NumGeometries) :
+		TConstArrayView<TRigidTransform<float, 3>>();
 }
 
 TConstArrayView<TUniquePtr<FImplicitObject>> FClothingSimulationCollider::GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
@@ -740,15 +756,19 @@ TConstArrayView<TUniquePtr<FImplicitObject>> FClothingSimulationCollider::GetCol
 	check(Solver);
 	check(Cloth);
 
-	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
-	const int32 Index = 
-		(CollisionDataType < ECollisionDataType::LODs) ? (int32)CollisionDataType :
-		(LODIndex >= (int32)ECollisionDataType::LODs) ? LODIndex : INDEX_NONE;
-
-	const int32 Offset = GetOffset(Solver, Cloth, Index);
-	const int32 NumGeometries = GetNumGeometries(Index);
-
-	return Offset != INDEX_NONE && NumGeometries ?
+	int32 Offset, NumGeometries;
+	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
 		TConstArrayView<TUniquePtr<FImplicitObject>>(Solver->GetCollisionGeometries(Offset), NumGeometries) :
 		TConstArrayView<TUniquePtr<FImplicitObject>>();
+}
+
+TConstArrayView<bool> FClothingSimulationCollider::GetCollisionStatus(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
+{
+	check(Solver);
+	check(Cloth);
+
+	int32 Offset, NumGeometries;
+	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
+		TConstArrayView<bool>(Solver->GetCollisionStatus(Offset), NumGeometries) :
+		TConstArrayView<bool>();
 }

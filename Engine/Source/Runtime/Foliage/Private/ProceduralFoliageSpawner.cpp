@@ -2,6 +2,7 @@
 
 #include "ProceduralFoliageSpawner.h"
 #include "ProceduralFoliageTile.h"
+#include "ProceduralFoliageCustomVersion.h"
 #include "Misc/FeedbackContext.h"
 #include "Serialization/CustomVersion.h"
 #include "Async/Async.h"
@@ -41,27 +42,6 @@ void UProceduralFoliageSpawner::SetClean()
 		FoliageTypeObject.SetClean();
 	}
 }
-
-// Custom serialization version for all packages containing ProceduralFoliage
-struct FProceduralFoliageCustomVersion
-{
-	enum Type
-	{
-		// Before any version changes were made in the plugin
-		BeforeCustomVersionWasAdded = 0,
-		// We serialize the type clean change map to ensure validity
-		SerializeTypeMap = 1,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	// The GUID for this custom version number
-	const static FGuid GUID;
-
-private:
-	FProceduralFoliageCustomVersion() {}
-};
 
 const FGuid FProceduralFoliageCustomVersion::GUID(0xaafe32bd, 0x53954c14, 0xb66a5e25, 0x1032d1dd);
 // Register the custom version with core

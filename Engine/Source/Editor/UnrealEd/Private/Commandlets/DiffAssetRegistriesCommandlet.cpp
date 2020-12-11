@@ -390,10 +390,7 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to load file '%s'."), *OldPath);
 			return;
 		}
-		FAssetRegistrySerializationOptions Options;
-		Options.ModifyForDevelopment();
-
-		if (!OldState.Serialize(SerializedAssetData, Options))
+		if (!OldState.Load(SerializedAssetData))
 		{
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to parse file '%s' as asset registry."), *OldPath);
 			return;
@@ -412,10 +409,8 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to load file '%s'."), *NewPath);
 			return;
 		}
-		FAssetRegistrySerializationOptions Options;
-		Options.ModifyForDevelopment();
 
-		if (!OldState.Serialize(SerializedAssetData, Options))
+		if (!OldState.Load(SerializedAssetData))
 		{
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to parse file '%s' as asset registry."), *NewPath);
 			return;
@@ -1087,10 +1082,7 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to load file '%s'."), *OldPath);
 			return;
 		}
-		FAssetRegistrySerializationOptions Options;
-		Options.ModifyForDevelopment();
-
-		if (!OldState.Serialize(SerializedAssetData, Options))
+		if (!OldState.Load(SerializedAssetData))
 		{
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to parse file '%s' as asset registry."), *OldPath);
 			return;
@@ -1109,10 +1101,7 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to load file '%s'."), *NewPath);
 			return;
 		}
-		FAssetRegistrySerializationOptions Options;
-		Options.ModifyForDevelopment();
-
-		if (!NewState.Serialize(SerializedAssetData, Options))
+		if (!NewState.Load(SerializedAssetData))
 		{
 			UE_LOG(LogDiffAssets, Error, TEXT("Failed to parse file '%s' as asset registry."), *NewPath);
 			return;

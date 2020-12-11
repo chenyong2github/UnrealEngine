@@ -101,7 +101,7 @@ bool FGoogleARCoreXRCamera::GetPassthroughCameraUVs_RenderThread(TArray<FVector2
 	}
 }
 
-bool FGoogleARCoreXRCamera::IsActiveThisFrame(class FViewport* InViewport) const
+bool FGoogleARCoreXRCamera::IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 {
 	return GoogleARCoreTrackingSystem.IsHeadTrackingAllowed();
 }

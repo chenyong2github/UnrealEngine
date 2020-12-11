@@ -21,6 +21,7 @@ class AWaterBody;
 class UMaterialParameterCollection;
 class UWaterRuntimeSettings;
 class FSceneView;
+class UTexture2D;
 struct FUnderwaterPostProcessDebugInfo;
 enum class EWaterBodyQueryFlags;
 
@@ -67,10 +68,12 @@ class WATER_API UWaterSubsystem : public UWorldSubsystem, public FTickableGameOb
 	/** return the stat id to use for this tickable **/
 	virtual TStatId GetStatId() const override;
 
+	/** Override to support water subsystems in editor preview worlds */
+	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 public:
 
 	/** Static helper function to get a water subsystem from a world, returns nullptr if world or subsystem don't exist */
-	static UWaterSubsystem* GetWaterSubsystem(UWorld* InWorld);
+	static UWaterSubsystem* GetWaterSubsystem(const UWorld* InWorld);
 
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
 	static FWaterBodyManager* GetWaterBodyManager(UWorld* InWorld);
@@ -84,7 +87,7 @@ public:
 
 	FWaterBodyManager WaterBodyManager;
 
-	AWaterMeshActor* GetWaterMeshActor();
+	AWaterMeshActor* GetWaterMeshActor() const;
 
 	TWeakObjectPtr<AWaterBody> GetOceanActor() { return OceanActor; }
 	void SetOceanActor(TWeakObjectPtr<AWaterBody> InOceanActor) { OceanActor = InOceanActor; }
@@ -142,10 +145,11 @@ public:
 	void SetShouldOverrideSmoothedWorldTimeSeconds(bool bOverride);
 	bool GetShouldOverrideSmoothedWorldTimeSeconds() const { return bUsingOverrideWorldTimeSeconds; }
 
+	void SetShouldPauseWaveTime(bool bInPauseWaveTime);
+
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterMeshesForRebuild();
-
 public:
 	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
 	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
@@ -161,7 +165,6 @@ public:
 	
 	UPROPERTY()
 	UStaticMesh* DefaultLakeMesh;
-
 private:
 	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
 	void NotifyWaterEnabledChangedInternal(IConsoleVariable* CVar);
@@ -179,7 +182,7 @@ private:
 private:
 
 	UPROPERTY()
-	AWaterMeshActor* WaterMeshActor;
+	mutable AWaterMeshActor* WaterMeshActor;
 
 	TWeakObjectPtr<AWaterBody> OceanActor;
 
@@ -194,6 +197,7 @@ private:
 	bool bUsingSmoothedTime;
 	bool bUsingOverrideWorldTimeSeconds;
 	bool bUnderWaterForAudio;
+	bool bPauseWaveTime;
 
 	/** The parameter collection asset that holds the global parameters that are updated by this actor */
 	UPROPERTY()

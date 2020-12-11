@@ -1158,6 +1158,24 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
 
 //////////////////////////////////////////////////////////////////////////
 
+enum class ENiagaraTypeRegistryFlags : uint32
+{
+	None					= 0,
+
+	AllowUserVariable		= (1 << 0),
+	AllowSystemVariable		= (1 << 1),
+	AllowEmitterVariable	= (1 << 2),
+	AllowParticleVariable	= (1 << 3),
+	AllowAnyVariable		= (AllowUserVariable | AllowSystemVariable | AllowEmitterVariable | AllowParticleVariable),
+
+	AllowParameter			= (1 << 4),
+	AllowPayload			= (1 << 5),
+
+	IsUserDefined			= (1 << 6),
+
+};
+
+ENUM_CLASS_FLAGS(ENiagaraTypeRegistryFlags)
 
 /* Contains all types currently available for use in Niagara
 * Used by UI to provide selection; new uniforms and variables
@@ -1178,12 +1196,32 @@ public:
 		return Get().RegisteredTypes;
 	}
 
-	static const TArray<FNiagaraTypeDefinition> &GetRegisteredParameterTypes()
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredUserVariableTypes()
+	{
+		return Get().RegisteredUserVariableTypes;
+	}
+
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredSystemVariableTypes()
+	{
+		return Get().RegisteredSystemVariableTypes;
+	}
+
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredEmitterVariableTypes()
+	{
+		return Get().RegisteredEmitterVariableTypes;
+	}
+
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredParticleVariableTypes()
+	{
+		return Get().RegisteredParticleVariableTypes;
+	}
+
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredParameterTypes()
 	{
 		return Get().RegisteredParamTypes;
 	}
 
-	static const TArray<FNiagaraTypeDefinition> &GetRegisteredPayloadTypes()
+	static const TArray<FNiagaraTypeDefinition>& GetRegisteredPayloadTypes()
 	{
 		return Get().RegisteredPayloadTypes;
 	}
@@ -1220,7 +1258,30 @@ public:
 		// they will be given the same index, and if they are orphaned we don't want to have invalid indices on the handle.
 	}
 
-	static void Register(const FNiagaraTypeDefinition &NewType, bool bCanBeParameter, bool bCanBePayload, bool bIsUserDefined)
+	UE_DEPRECATED(4.27, "This overload is deprecated, please use the Register function that takes registration flags instead.")
+	static void Register(const FNiagaraTypeDefinition& NewType, bool bCanBeParameter, bool bCanBePayload, bool bIsUserDefined)
+	{
+		ENiagaraTypeRegistryFlags Flags =
+			ENiagaraTypeRegistryFlags::AllowUserVariable |
+			ENiagaraTypeRegistryFlags::AllowSystemVariable |
+			ENiagaraTypeRegistryFlags::AllowEmitterVariable;
+		if (bCanBeParameter)
+		{
+			Flags |= ENiagaraTypeRegistryFlags::AllowParameter;
+		}
+		if (bCanBePayload)
+		{
+			Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
+		}
+		if (bIsUserDefined)
+		{
+			Flags |= ENiagaraTypeRegistryFlags::IsUserDefined;
+		}
+										
+		Register(NewType, Flags);
+	}
+
+	static void Register(const FNiagaraTypeDefinition &NewType, ENiagaraTypeRegistryFlags Flags)
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
@@ -1229,17 +1290,37 @@ public:
 		//TODO: Make this a map of type to a more verbose set of metadata? Such as the hlsl defs, offset table for conversions etc.
 		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Registry.RegisteredTypes.AddUnique(NewType));
 
-		if (bCanBeParameter)
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowUserVariable))
+		{
+			Registry.RegisteredUserVariableTypes.AddUnique(NewType);
+		}
+
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowSystemVariable))
+		{
+			Registry.RegisteredSystemVariableTypes.AddUnique(NewType);
+		}
+
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowEmitterVariable))
+		{
+			Registry.RegisteredEmitterVariableTypes.AddUnique(NewType);
+		}
+
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowParticleVariable))
+		{
+			Registry.RegisteredParticleVariableTypes.AddUnique(NewType);
+		}
+
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowParameter))
 		{
 			Registry.RegisteredParamTypes.AddUnique(NewType);
 		}
 
-		if (bCanBePayload)
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowPayload))
 		{
 			Registry.RegisteredPayloadTypes.AddUnique(NewType);
 		}
 
-		if (bIsUserDefined)
+		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::IsUserDefined))
 		{
 			Registry.RegisteredUserDefinedTypes.AddUnique(NewType);
 		}
@@ -1280,6 +1361,10 @@ public:
 private:
 	RegisteredTypesArray RegisteredTypes;
 
+	TArray<FNiagaraTypeDefinition> RegisteredUserVariableTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredSystemVariableTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredEmitterVariableTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredParticleVariableTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredParamTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredPayloadTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;

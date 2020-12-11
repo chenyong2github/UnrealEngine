@@ -2,7 +2,7 @@
 
 #include "TrackEditors/CameraShakeSourceShakeTrackEditor.h"
 #include "AssetRegistryModule.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "CommonMovieSceneTools.h"
 #include "ContentBrowserModule.h"

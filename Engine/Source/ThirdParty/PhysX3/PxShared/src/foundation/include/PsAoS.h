@@ -39,7 +39,7 @@
 // @MIXEDREALITY_CHANGE : END 
 #include "unix/PsUnixAoS.h"
 #elif PX_XBOXONE
-#include "XboxOne/PsXboxOneAoS.h"
+#include "PsXboxAoS.h" //@epic: change path
 #else
 #error "Platform not supported!"
 #endif

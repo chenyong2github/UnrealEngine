@@ -65,7 +65,7 @@ namespace DatasmithRuntime
 
 	typedef DirectLink::FSceneGraphId FSceneGraphId;
 
-	typedef TFunctionRef<void(const TSharedPtr<IDatasmithActorElement>&, FSceneGraphId)> FParsingCallback;
+	using FParsingCallback = TFunction<void(const TSharedPtr<IDatasmithActorElement>&, FSceneGraphId)>;
 
 	struct CaseSensitive_KeyFuncs : BaseKeyFuncs<TPair<FString, FSceneGraphId>, FString, false>
 	{
@@ -329,7 +329,7 @@ namespace DatasmithRuntime
 		EPixelFormat PixelFormat;
 		int32 Width;
 		int32 Height;
-		int16 Pitch;
+		uint32 Pitch;
 		int16 BytesPerPixel;
 		FUpdateTextureRegion2D Region;
 		uint8* ImageData;

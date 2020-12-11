@@ -40,9 +40,9 @@ FAtmosphereSetup::FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereC
 	};
 
 	BottomRadiusKm = SkyAtmosphereComponent.BottomRadius;
-	TopRadiusKm = SkyAtmosphereComponent.BottomRadius + SkyAtmosphereComponent.AtmosphereHeight;
+	TopRadiusKm = SkyAtmosphereComponent.BottomRadius + FMath::Max(0.1f, SkyAtmosphereComponent.AtmosphereHeight);
 	GroundAlbedo = FLinearColor(SkyAtmosphereComponent.GroundAlbedo);
-	MultiScatteringFactor = SkyAtmosphereComponent.MultiScatteringFactor;
+	MultiScatteringFactor = FMath::Clamp(SkyAtmosphereComponent.MultiScatteringFactor, 0.0f, 2.0f);
 
 	RayleighDensityExpScale = -1.0f / SkyAtmosphereComponent.RayleighExponentialDistribution;
 	RayleighScattering = (SkyAtmosphereComponent.RayleighScattering * SkyAtmosphereComponent.RayleighScatteringScale).GetClamped(0.0f, 1e38f);

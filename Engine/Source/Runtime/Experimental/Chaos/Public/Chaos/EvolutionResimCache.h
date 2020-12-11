@@ -20,7 +20,6 @@ namespace Chaos
 			SavedConstraints.Reset();
 			WeakSinglePointConstraints.Reset();
 			WeakSinglePointSweptConstraints.Reset();
-			WeakMultiPointConstraints.Reset();
 		}
 
 		void SaveConstraints(const FCollisionConstraintsArray& CollisionsArray)
@@ -46,7 +45,6 @@ namespace Chaos
 
 			SaveArrayHelper(SavedConstraints.SinglePointConstraints,WeakSinglePointConstraints);
 			SaveArrayHelper(SavedConstraints.SinglePointSweptConstraints,WeakSinglePointSweptConstraints);
-			SaveArrayHelper(SavedConstraints.MultiPointConstraints,WeakMultiPointConstraints);
 		}
 
 		//Returns all constraints that are still valid (resim can invalidate constraints by either deleting particles, moving particles, etc...)
@@ -80,7 +78,6 @@ namespace Chaos
 
 			CleanupArrayHelper(SavedConstraints.SinglePointConstraints,WeakSinglePointConstraints);
 			CleanupArrayHelper(SavedConstraints.SinglePointSweptConstraints,WeakSinglePointSweptConstraints);
-			CleanupArrayHelper(SavedConstraints.MultiPointConstraints,WeakMultiPointConstraints);
 
 			return SavedConstraints;
 		}
@@ -121,7 +118,6 @@ namespace Chaos
 		//TODO: better way to handle this?
 		TArray<FWeakConstraintPair> WeakSinglePointConstraints;
 		TArray<FWeakConstraintPair> WeakSinglePointSweptConstraints;
-		TArray<FWeakConstraintPair> WeakMultiPointConstraints;
 	};
 
 } // namespace Chaos

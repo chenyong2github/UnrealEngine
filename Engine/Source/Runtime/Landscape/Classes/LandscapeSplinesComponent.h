@@ -32,7 +32,7 @@ struct FForeignControlPointData
 	FGuid ModificationKey;
 
 	UPROPERTY()
-	UControlPointMeshComponent* MeshComponent;
+	UControlPointMeshComponent* MeshComponent = nullptr;
 
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeSplineControlPoint> Identifier;

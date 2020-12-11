@@ -17,7 +17,7 @@ struct FMovieSceneTrackInstanceInput
 
 	/** The section that acts as an input for this animator */
 	UPROPERTY()
-	UMovieSceneSection* Section;
+	UMovieSceneSection* Section = nullptr;
 
 	/** The instance that this input relates to */
 	UE::MovieScene::FInstanceHandle InstanceHandle;

@@ -52,7 +52,7 @@
 			"Text": "Tyre,Wheel,Racing,Vehicle,Car"
 		}
 	],
-	"ClassTypes": "GameMode, WheeledVehicle, HUD, Font, SpringArmComponent, CameraComponent, TextRenderComponent, InputComponent, VehicleWheel",
+	"ClassTypes": "GameMode, WheeledVehiclePawn, HUD, Font, SpringArmComponent, CameraComponent, TextRenderComponent, InputComponent, ChaosVehicleWheel",
 	"Category": "CodeFeature",
 	"FocusAsset": "/Game/VehicleCPP/VehicleOverview.VehicleOverview",
 	"Thumbnail": "TP_Vehicle.png",

@@ -193,6 +193,7 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
@@ -289,6 +290,7 @@ private:
 	UCurveFloat* GetElevationCurveAsset(const FWaterCurveSettings& CurveSettings);
 	void ClearCurveCache();
 	void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
+	void ComputeWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector) const;
 
 	UTextureRenderTarget2D* VelocityPingPongRead(const FBrushRenderContext& BrushRenderContext) const;
 	UTextureRenderTarget2D* VelocityPingPongWrite(const FBrushRenderContext& BrushRenderContext) const;
@@ -304,4 +306,6 @@ private:
 private:
 	bool bKillCache = false;
 	int32 LastRenderedVelocityRTIndex = 0;
+	// HACK [jonathan.bard] : shouldn't be needed anymore once deprecation is done : 
+	FDelegateHandle OnWorldPostInitHandle;
 };

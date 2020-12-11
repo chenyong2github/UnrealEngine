@@ -57,6 +57,7 @@ class CORE_API FThreadHeartBeat : public FRunnable
 			, HangDuration(0)
 			, LastStuckTime(0.0)
 			, StuckDuration(0.0)
+			, HeartBeatName()
 		{}
 
 		/** Time we last received a heartbeat for the current thread */
@@ -72,6 +73,8 @@ class CORE_API FThreadHeartBeat : public FRunnable
 		double LastStuckTime;
 		/** How long it's benn stuck thread */
 		double StuckDuration;
+		/** An optional FName */
+		FName HeartBeatName;
 
 		/** Suspends this thread's heartbeat */
 		void Suspend()
@@ -103,7 +106,12 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	FCriticalSection FunctionHeartBeatCritical;
 	/** Keeps track of the last heartbeat time for a function, can't be nested */
 	TMap<uint32, FHeartBeatInfo> FunctionHeartBeat;
-	
+
+	/** Synch object for the checkpoint heartbeat */
+	FCriticalSection CheckpointHeartBeatCritical;
+	/** Keeps track of the last heartbeat time for a checkpoint */
+	TMap<FName, FHeartBeatInfo> CheckpointHeartBeat;
+
 	/** True if heartbeat should be measured */
 	FThreadSafeBool bReadyToCheckHeartbeat;
 	/** Max time the thread is allowed to not send the heartbeat*/
@@ -175,6 +183,16 @@ public:
 	void MonitorFunctionEnd();
 	/** Called by a supervising thread to check all function calls' being monitored health */
 	uint32 CheckFunctionHeartBeat(double& OutHangDuration);
+
+	/* 
+		Called from a thread to register a checkpoint to be monitored 
+		@param EndCheckPoint name of the checkpoint that needs to be reached. TimeToReachCheckPoint the time duration we have to reach the specified checkpoint.
+	*/
+	void MonitorCheckpointStart(FName EndCheckPoint, double TimeToReachCheckpoint);
+	/* Called from a thread when a checkpoint has ended */
+	void MonitorCheckpointEnd(FName CheckPoint);
+	/* Called by a supervising thread to check all checkpoints forward progress */
+	uint32 CheckCheckpointHeartBeat(double& OutHangDuration);
 
 	/** 
 	 * Suspend heartbeat measuring for the current thread if the thread has already had a heartbeat 

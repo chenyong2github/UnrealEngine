@@ -1693,6 +1693,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		BeginPreInitTextLocalization();
 	}
 
+#if WITH_ENGINE
+	{
+		SCOPED_BOOT_TIMING("PreInitShaderLibrary");
+		FShaderCodeLibrary::PreInit();
+	}
+#endif // WITH_ENGINE
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
@@ -3117,6 +3124,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		SlowTask.EnterProgressFrame(5);
 
+		EndInitGameTextLocalization();
+
 		{
 		    SCOPED_BOOT_TIMING("LoadAssetRegistryModule");
 		    // If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
@@ -3127,7 +3136,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		// It has to be intialized after the AssetRegistryModule; the editor implementations of PackageResourceManager relies on it
 		IPackageResourceManager::Initialize();
 #endif
-		EndInitGameTextLocalization();
 
 		FEmbeddedCommunication::ForceTick(5);
 

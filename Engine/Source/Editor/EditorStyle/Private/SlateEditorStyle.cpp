@@ -6474,6 +6474,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("InterpData"),
 			TEXT("KillZVolume"),
 			TEXT("Landscape"),
+			TEXT("LandscapeBlueprintBrushBase"),
 			TEXT("LevelBounds"),
 			TEXT("LevelSequence"),
 			TEXT("LevelStreamingVolume"),

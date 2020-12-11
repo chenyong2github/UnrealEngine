@@ -8,6 +8,7 @@
 #include "NiagaraTypes.h"
 #include "INiagaraCompiler.h"
 #include "AssetTypeCategories.h"
+#include "NiagaraPerfBaseline.h"
 
 class IAssetTools;
 class IAssetTypeActions;
@@ -31,6 +32,9 @@ class UNiagaraScratchPadViewModel;
 class FHlslNiagaraCompiler;
 class FNiagaraComponentBroker;
 class INiagaraStackObjectIssueGenerator;
+class UNiagaraEffectType;
+class SNiagaraBaselineViewport;
+class FParticlePerfStatsListener_NiagaraBaselineComparisonRender;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -266,4 +270,12 @@ private:
 	static TArray<TPair<FName, FNiagaraParameterScopeInfo>> RegisteredParameterScopeInfos;
 
 	TMap<FName, INiagaraStackObjectIssueGenerator*> StackIssueGenerators;
+
+#if NIAGARA_PERF_BASELINES
+	void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
+	void OnPerfBaselineWindowClosed(const TSharedRef<SWindow>& ClosedWindow);
+
+	/** Viewport used when generating the performance baselines for Niagara systems. */
+	TSharedPtr<SNiagaraBaselineViewport> BaselineViewport;
+#endif
 };

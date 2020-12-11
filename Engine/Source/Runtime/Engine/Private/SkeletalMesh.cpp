@@ -1447,6 +1447,39 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 	return ReleaseResourcesFence.IsFenceComplete();
 }
 
+#if WITH_EDITOR
+FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);
+
+static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform)
+{
+	FString PlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Mesh);
+	FSkeletalMeshRenderData* PlatformRenderData = Mesh->GetResourceForRendering();
+	if (Mesh->GetOutermost()->bIsCookedForEditor)
+	{
+		check(PlatformRenderData);
+		return *PlatformRenderData;
+	}
+
+	while (PlatformRenderData && PlatformRenderData->DerivedDataKey != PlatformDerivedDataKey)
+	{
+		PlatformRenderData = PlatformRenderData->NextCachedRenderData.Get();
+	}
+
+	if (PlatformRenderData == NULL)
+	{
+		// Cache render data for this platform and insert it in to the linked list.
+		PlatformRenderData = new FSkeletalMeshRenderData();
+		PlatformRenderData->Cache(TargetPlatform, Mesh);
+		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
+		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
+		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
+	}
+	check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
+	check(PlatformRenderData);
+	return *PlatformRenderData;
+}
+#endif
+
 LLM_DEFINE_TAG(SkeletalMesh_Serialize); // This is an important test case for LLM_DEFINE_TAG
 
 void USkeletalMesh::Serialize( FArchive& Ar )
@@ -1504,9 +1537,13 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			}
 			else if (Ar.IsSaving())
 			{
+				FSkeletalMeshRenderData* LocalSkeletalMeshRenderData = SkeletalMeshRenderData.Get();
+#if WITH_EDITORONLY_DATA
+				LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, Ar.CookingTarget());
+#endif
 				if (bCooked)
 				{
-					int32 MaxBonesPerChunk = SkeletalMeshRenderData->GetMaxBonesPerSection();
+					int32 MaxBonesPerChunk = LocalSkeletalMeshRenderData->GetMaxBonesPerSection();
 
 					TArray<FName> DesiredShaderFormats;
 					Ar.CookingTarget()->GetAllTargetedShaderFormats(DesiredShaderFormats);
@@ -1526,8 +1563,8 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 						}
 					}
 				}
+				LocalSkeletalMeshRenderData->Serialize(Ar, this);
 
-				SkeletalMeshRenderData->Serialize(Ar, this);
 			}
 		}
 	}
@@ -4368,7 +4405,7 @@ int32 USkeletalMesh::GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform
 
 void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	LODSettings = InLODSettings;
 	if (LODSettings)
@@ -4376,7 +4413,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		LODSettings->SetLODSettingsToMesh(this);
 	}
 #endif // WITH_EDITORONLY_DATA
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USkeletalMesh::SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig)
@@ -6014,9 +6051,10 @@ FVector GetSkeletalMeshRefVertLocation(const USkeletalMesh* Mesh, const FSkeleta
 }
 
 //GetRefTangentBasisTyped
-void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSection& Section, const FStaticMeshVertexBuffer& StaticVertexBuffer, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentZ)
+void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSection& Section, const FStaticMeshVertexBuffer& StaticVertexBuffer, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 {
 	OutTangentX = FVector::ZeroVector;
+	OutTangentY = FVector::ZeroVector;
 	OutTangentZ = FVector::ZeroVector;
 
 	// Do soft skinning for this vertex.
@@ -6024,6 +6062,7 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
 	const FVector VertexTangentX = StaticVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector VertexTangentY = StaticVertexBuffer.VertexTangentY(BufferVertIndex);
 	const FVector VertexTangentZ = StaticVertexBuffer.VertexTangentZ(BufferVertIndex);
 
 #if !PLATFORM_LITTLE_ENDIAN
@@ -6038,17 +6077,18 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 		const FMatrix BoneTransformMatrix = FMatrix::Identity;//Mesh->GetComposedRefPoseMatrix(MeshBoneIndex);
 		//const FMatrix RefToLocal = Mesh->RefBasesInvMatrix[MeshBoneIndex] * BoneTransformMatrix;
 		OutTangentX += BoneTransformMatrix.TransformVector(VertexTangentX) * Weight;
+		OutTangentY += BoneTransformMatrix.TransformVector(VertexTangentY) * Weight;
 		OutTangentZ += BoneTransformMatrix.TransformVector(VertexTangentZ) * Weight;
 	}
 }
 
-void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentZ)
+void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 {
 	int32 SectionIndex;
 	int32 VertIndexInChunk;
 	LODData.GetSectionFromVertexIndex(VertIndex, SectionIndex, VertIndexInChunk);
 	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
-	GetRefTangentBasisTyped(Mesh, Section, LODData.StaticVertexBuffers.StaticMeshVertexBuffer, SkinWeightVertexBuffer, VertIndexInChunk, OutTangentX, OutTangentZ);
+	GetRefTangentBasisTyped(Mesh, Section, LODData.StaticVertexBuffers.StaticMeshVertexBuffer, SkinWeightVertexBuffer, VertIndexInChunk, OutTangentX, OutTangentY, OutTangentZ);
 }
 
 #undef LOCTEXT_NAMESPACE

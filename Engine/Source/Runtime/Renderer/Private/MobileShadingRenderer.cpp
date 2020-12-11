@@ -163,6 +163,30 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMobileRenderOpaqueFXPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, SceneTextures)
 END_SHADER_PARAMETER_STRUCT()
 
+static bool PostProcessUsesSceneDepth(const FViewInfo& View)
+{
+	// Find out whether post-process materials use CustomDepth/Stencil lookups
+	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
+	FBlendableEntry* BlendableIt = nullptr;
+
+	while (FPostProcessMaterialNode* DataPtr = BlendableManager.IterateBlendables<FPostProcessMaterialNode>(BlendableIt))
+	{
+		if (DataPtr->IsValid())
+		{
+			FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
+			check(Proxy);
+
+			const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
+			const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_SceneDepth))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
 	: FSceneRenderer(InViewFamily, HitProxyConsumer)
 	, bGammaSpace(!IsMobileHDR())
@@ -349,6 +373,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
+	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]);
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
@@ -356,7 +381,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 		bRequriesAmbientOcclusionPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
-		Views[0].bIsReflectionCapture;
+		Views[0].bIsReflectionCapture ||
+		(bDeferredShading && bPostProcessUsesSceneDepth);
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
@@ -1059,7 +1085,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 		GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthAux)
 	};
 
-	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(ColorTargets, 5);
+	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(ColorTargets, MobileRequiresSceneDepthAux(ShaderPlatform) ? 5 : 4);
 
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::EClear, BasePassTexturesView);
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthMSAA.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
@@ -1128,7 +1154,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			RHICmdList.NextSubpass();
 		});
 		
-		MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, *ViewList[0], SortedLightSet);
+		MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, ViewList, SortedLightSet);
 		// Draw translucency.
 		if (ViewFamily.EngineShowFlags.Translucency)
 		{
@@ -1209,7 +1235,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 				RHICmdList.BeginRenderPass(GetRenderPassInfo(DeferredShadingPassParameters), TEXT("MobileShadingPass"));
 			});
 			
-			MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, *ViewList[0], SortedLightSet);
+			MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, MobileSceneTextures, *Scene, ViewList, SortedLightSet);
 			// Draw translucency.
 			if (ViewFamily.EngineShowFlags.Translucency)
 			{

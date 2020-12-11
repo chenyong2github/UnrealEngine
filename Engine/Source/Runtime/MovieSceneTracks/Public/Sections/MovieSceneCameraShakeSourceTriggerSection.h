@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"

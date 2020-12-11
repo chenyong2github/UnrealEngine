@@ -22,7 +22,6 @@ class FCollisionConstraintBase;
 class FImplicitObject;
 class FPBDCollisionConstraints;
 class FRigidBodyPointContactConstraint;
-class FRigidBodyMultiPointContactConstraint;
 
 template <typename T, int d>
 class TPBDRigidsSOAs;
@@ -108,13 +107,11 @@ public:
 		// Reserves space for NumToAdd constraints in the internal container
 		void ReserveSingle(int32 NumToAdd);
 		void ReserveSingleSwept(int32 NumToAdd);
-		void ReserveMulti(int32 NumToAdd);
 
 		// Append constraint lists to the internal container.
 		// note this will move the container, it will no longer be valid after a call to Append.
 		void Append(TArray<FRigidBodyPointContactConstraint>&& InConstraints);
 		void Append(TArray<FRigidBodySweptPointContactConstraint>&& InConstraints);
-		void Append(TArray<FRigidBodyMultiPointContactConstraint>&& InConstraints);
 
 	private:
 		FPBDCollisionConstraints* Owner = nullptr;
@@ -124,10 +121,8 @@ public:
 		// the helper added so we can build the new handles on scope exit
 		int32 NumBeginSingle = 0;
 		int32 NumBeginSingleSwept = 0;
-		int32 NumBeginMulti = 0;
 		int32 NumAddedSingle = 0;
 		int32 NumAddedSingleSwept = 0;
-		int32 NumAddedMulti = 0;
 	};
 	
 	/** Begin an append operation, recieving a helper object for bulk operations on the constraint container */
@@ -152,7 +147,6 @@ public:
 	*/
 	void AddConstraint(const FRigidBodyPointContactConstraint& InConstraint);
 	void AddConstraint(const FRigidBodySweptPointContactConstraint& InConstraint);
-	void AddConstraint(const FRigidBodyMultiPointContactConstraint& InConstraint);
 
 	/**
 	*  Reset the constraint frame. 
@@ -198,11 +192,6 @@ public:
 	 * Update all constraint values
 	 */
 	void UpdateConstraints(FReal Dt);
-
-	/**
-	* Update all contact manifolds
-	*/
-	void UpdateManifolds(FReal Dt);
 
 
 	//
@@ -334,7 +323,7 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num() + Constraints.MultiPointConstraints.Num();
+		return Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num();
 	}
 
 	FHandles& GetConstraintHandles()
@@ -371,7 +360,6 @@ private:
 	FCollisionConstraintsArray Constraints;
 	int32 NumActivePointConstraints;
 	int32 NumActiveSweptPointConstraints;
-	int32 NumActiveIterativeConstraints;
 
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
 	TMap< FConstraintContainerHandleKey, FPBDCollisionConstraintHandle* > Manifolds;

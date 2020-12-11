@@ -770,8 +770,7 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 	if (JoinApproval.GetApprovalAction() == EApprovalAction::Enqueue ||
 		JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
 	{
-
-		FUserPlatform MemberPlatform = FUserPlatform();
+		FUserPlatform MemberPlatform;
 		for (const UPartyMember* Member : GetPartyMembers())
 		{
 			if (Member->GetPrimaryNetId() == SenderId)
@@ -786,9 +785,9 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 
 		FPendingMemberApproval PendingApproval;
 		PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
-		PendingApproval.Members.Emplace(SenderId.AsShared(), MemberPlatform);
+		PendingApproval.Members.Emplace(SenderId.AsShared(), MoveTemp(MemberPlatform));
 		PendingApproval.bIsJIPApproval = true;
-		PendingApprovals.Enqueue(PendingApproval);
+		PendingApprovals.Enqueue(MoveTemp(PendingApproval));
 
 		if (!ReservationBeaconClient && JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
 		{

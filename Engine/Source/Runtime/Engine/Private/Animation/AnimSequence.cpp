@@ -742,8 +742,8 @@ void UAnimSequence::Serialize(FArchive& Ar)
 						MarkRawDataAsModified();
 					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				}
 			}
+		}
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
@@ -2653,34 +2653,102 @@ public:
 
 void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable)
 {
-	const int32 NumVirtualBones = GetSkeleton()->GetVirtualBones().Num();
+	const int32 NumVirtualBonesOnSkeleton = GetSkeleton()->GetVirtualBones().Num();
+
 	check( (RawAnimationData.Num() == TrackToSkeletonMapTable.Num()) && (RawAnimationData.Num() == AnimationTrackNames.Num()) ); //Make sure starting data is valid
 
-	auto SetupData = [NumVirtualBones](auto& InOutData, const auto& BaseData)
+	TArray<int> VirtualBonesToAdd;
+	VirtualBonesToAdd.Reserve(NumVirtualBonesOnSkeleton);
+
+	TArray<int32> SourceParents;
+
+	const FReferenceSkeleton& RefSkeleton = GetSkeleton()->GetReferenceSkeleton();
+
+	const TArray<FVirtualBone>& VirtualBones = GetSkeleton()->GetVirtualBones();
+	for (int32 VBIndex = 0; VBIndex < NumVirtualBonesOnSkeleton; ++VBIndex)
+	{
+		const FVirtualBone& VirtualBone = VirtualBones[VBIndex];
+		if (!NewAnimationTrackNames.Contains(VirtualBone.VirtualBoneName))
+		{
+			//Need to test if we will animation virtual bone. This involves seeing if any bone that can affect the position
+			//of the target relative to the source is animated by this animation. A bone that can affect the relative position
+			//is any both that is a child of the common ancestor of the target and source
+
+			SourceParents.Reset();
+			bool bBuildVirtualBone = false;
+
+			// First get all the bones that form the chain to the source bone. 
+			int32 CurrentBone = RefSkeleton.FindBoneIndex(VirtualBone.SourceBoneName);
+			while (CurrentBone != INDEX_NONE)
+			{
+				SourceParents.Add(CurrentBone);
+				CurrentBone = RefSkeleton.GetParentIndex(CurrentBone);
+			}
+
+			// Now start checking every bone in the target bones hierarchy until a common ancestor is reached. 
+			CurrentBone = RefSkeleton.FindBoneIndex(VirtualBone.TargetBoneName);
+
+			while (!SourceParents.Contains(CurrentBone))
+			{
+				if (Algo::FindBy(TrackToSkeletonMapTable, CurrentBone, &FTrackToSkeletonMap::BoneTreeIndex) != nullptr)
+				{
+					//We animate this bone so the virtual bone is needed
+					bBuildVirtualBone = true;
+					break;
+				}
+
+				CurrentBone = RefSkeleton.GetParentIndex(CurrentBone);
+				check(CurrentBone != INDEX_NONE);
+			}
+
+			// Now we have all the non common bones from the target chain we need the same check from the source chain
+			const int32 FirstCommon = SourceParents.IndexOfByKey(CurrentBone);
+			for (int32 i = FirstCommon - 1; i >= 0; --i)
+			{
+				if (Algo::FindBy(TrackToSkeletonMapTable, i, &FTrackToSkeletonMap::BoneTreeIndex) != nullptr)
+				{
+					//We animate this bone so the virtual bone is needed
+					bBuildVirtualBone = true;
+					break;
+				}
+			}
+
+			if (bBuildVirtualBone)
+			{
+				VirtualBonesToAdd.Add(VBIndex);
+			}
+		}
+	}
+
+	const int32 NumVirtualBonesToAdd = VirtualBonesToAdd.Num();
+
+	auto SetupData = [NumVirtualBonesToAdd](auto& InOutData, const auto& BaseData)
 	{
 		if (InOutData.Num() == 0)
 		{
 			InOutData = BaseData;
 		}
 
-		InOutData.Reserve(InOutData.Num() + NumVirtualBones);
+		InOutData.Reserve(InOutData.Num() + NumVirtualBonesToAdd);
 	};
 
 	SetupData(NewRawTracks, RawAnimationData);
 	SetupData(NewTrackToSkeletonMapTable, TrackToSkeletonMapTable);
 	SetupData(NewAnimationTrackNames, AnimationTrackNames);
 
-	for (int32 VBIndex = 0; VBIndex < NumVirtualBones; ++VBIndex)
+	const int32 VirtualBoneStartIndex = NewRawTracks.Num();
+
+	for (int32 VBIndex : VirtualBonesToAdd)
 	{
 		const int32 TrackIndex = NewRawTracks.Add(FRawAnimSequenceTrack());
 
 		//Init new tracks
 		NewRawTracks[TrackIndex].PosKeys.SetNumUninitialized(NumberOfKeys);
 		NewRawTracks[TrackIndex].RotKeys.SetNumUninitialized(NumberOfKeys);
-		NewRawTracks[TrackIndex].ScaleKeys.SetNumUninitialized(NumberOfKeys);
-		
+		NewRawTracks[TrackIndex].ScaleKeys.SetNumUninitialized(NumberOfKeys);		
+
 		NewTrackToSkeletonMapTable.Add(FTrackToSkeletonMap(GetSkeleton()->GetReferenceSkeleton().GetRequiredVirtualBones()[VBIndex]));
-		NewAnimationTrackNames.Add(GetSkeleton()->GetVirtualBones()[VBIndex].VirtualBoneName);
+		NewAnimationTrackNames.Add(VirtualBones[VBIndex].VirtualBoneName);
 	}
 
 	FMemMark Mark(FMemStack::Get());
@@ -2708,14 +2776,18 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 		FAnimationPoseData AnimPoseData(Pose, Curve, TempAttributes);
 		GetAnimationPose(AnimPoseData, ExtractContext);
 
-		for (int32 VBIndex = 0; VBIndex < VBRefData.Num(); ++VBIndex)
+		for (int32 VBToAddIndex = 0; VBToAddIndex < VirtualBonesToAdd.Num(); ++VBToAddIndex)
 		{
+			const int32 VBIndex = VirtualBonesToAdd[VBToAddIndex];
 			const FVirtualBoneRefData& VB = VBRefData[VBIndex];
-			CopyTransformToRawAnimationData(Pose[FCompactPoseBoneIndex(VB.VBRefSkelIndex)], NewRawTracks[VBIndex + RawAnimationData.Num()], Frame);
+			CopyTransformToRawAnimationData(Pose[FCompactPoseBoneIndex(VB.VBRefSkelIndex)], NewRawTracks[VBToAddIndex + VirtualBoneStartIndex], Frame);
 		}
 	}
 
-	StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
+	if (NewRawTracks.Num() > 0)
+	{
+		StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
+	}
 }
 
 bool IsIdentity(const FVector& Pos)
@@ -3759,7 +3831,7 @@ void UAnimSequence::PostProcessSequence(bool bForceNewRawDatGuid)
 	{
 		FRawAnimSequenceTrack& RawAnim = (*Iter);
 		SanitizeAnimationTrackData(RawAnim);
-	}
+			}
 
 	UpdateFrameRate();
 	CompressRawAnimData();
@@ -4492,23 +4564,23 @@ void UAnimSequence::ClearBakedTransformData()
 bool UAnimSequence::DoesContainTransformCurves() const
 {
 	return (RawCurveData.TransformCurves.Num() > 0);
-}
+	}
 
 
 void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable)
-{
-	if (DoesContainTransformCurves())
 	{
-		USkeleton* CurSkeleton = GetSkeleton();
+	if (DoesContainTransformCurves())
+		{
+		USkeleton * CurSkeleton = GetSkeleton();
 		check(CurSkeleton);
-
+		
 		NewRawTracks = RawAnimationData;
 		NewTrackToSkeletonMapTable = TrackToSkeletonMapTable;
 		NewTrackNames = AnimationTrackNames;
 			
 		VerifyCurveNames<FTransformCurve>(*CurSkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
 		const FSmartNameMapping*  NameMapping = CurSkeleton->GetSmartNameContainer(USkeleton::AnimTrackCurveMappingName);
-
+		
 		// since now I'm about to modify Scale Keys. I should add all of them here at least one key. 
 		// if all turns out to be same, it will clear it up. 
 		for (FRawAnimSequenceTrack& RawTrack : NewRawTracks)
@@ -4553,17 +4625,17 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 			// find curves first, and then see what is index of this curve
 			FName BoneName;
 
-			if (Curve.GetCurveTypeFlag(AACF_Disabled) == false &&
+			if(Curve.GetCurveTypeFlag(AACF_Disabled)== false &&
 				ensureAlways(NameMapping->GetName(Curve.Name.UID, BoneName)))
 			{
 				int32 TrackIndex = NewTrackNames.Find(BoneName);
 
 				// the animation data doesn't have this track, so insert it
-				if (TrackIndex == INDEX_NONE)
+				if(TrackIndex == INDEX_NONE)
 				{
 					TrackIndex = InsertNewBoneTrack(BoneName);
 					// if it still didn't find, something went horribly wrong
-					if (ensure(TrackIndex != INDEX_NONE) == false)
+					if(ensure(TrackIndex != INDEX_NONE) == false)
 					{
 						UE_LOG(LogAnimation, Warning, TEXT("Animation Baking : Error adding %s track."), *BoneName.ToString());
 						// I can't do anything about it
@@ -4571,68 +4643,68 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 					}
 				}
 
-				// now modify data
+			// now modify data
 				FRawAnimSequenceTrack& RawTrack = NewRawTracks[TrackIndex];
 
-				// since now we're editing keys, 
-				// if 1 (which meant constant), just expands to # of frames
-				if (RawTrack.PosKeys.Num() == 1)
-				{
-					FVector OneKey = RawTrack.PosKeys[0];
+			// since now we're editing keys, 
+			// if 1 (which meant constant), just expands to # of frames
+			if(RawTrack.PosKeys.Num() == 1)
+			{
+				FVector OneKey = RawTrack.PosKeys[0];
 					RawTrack.PosKeys.Init(OneKey, NumberOfKeys);
-				}
-				else
-				{
+			}
+			else
+			{
 					ensure(RawTrack.PosKeys.Num() == NumberOfKeys);
-				}
+			}
 
-				if (RawTrack.RotKeys.Num() == 1)
-				{
-					FQuat OneKey = RawTrack.RotKeys[0];
+			if(RawTrack.RotKeys.Num() == 1)
+			{
+				FQuat OneKey = RawTrack.RotKeys[0];
 					RawTrack.RotKeys.Init(OneKey, NumberOfKeys);
-				}
-				else
-				{
+			}
+			else
+			{
 					ensure(RawTrack.RotKeys.Num() == NumberOfKeys);
-				}
+			}
 
-				// although we don't allow edit of scale
-				// it is important to consider scale when apply transform
-				// so make sure this also is included
-				if (RawTrack.ScaleKeys.Num() == 1)
-				{
-					FVector OneKey = RawTrack.ScaleKeys[0];
+			// although we don't allow edit of scale
+			// it is important to consider scale when apply transform
+			// so make sure this also is included
+			if(RawTrack.ScaleKeys.Num() == 1)
+			{
+				FVector OneKey = RawTrack.ScaleKeys[0];
 					RawTrack.ScaleKeys.Init(OneKey, NumberOfKeys);
+			}
+			else
+			{
+					ensure(RawTrack.ScaleKeys.Num() == NumberOfKeys);
+			}
+
+			// now we have all data ready to apply
+				for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
+			{
+				// now evaluate
+				FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(Curve.Name.UID, ERawCurveTrackTypes::RCT_Transform));
+
+				if(ensure(TransformCurve))
+				{
+					FTransform AdditiveTransform = TransformCurve->Evaluate(KeyIndex * Interval, 1.0);
+					FTransform LocalTransform(RawTrack.RotKeys[KeyIndex], RawTrack.PosKeys[KeyIndex], RawTrack.ScaleKeys[KeyIndex]);
+					RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation() * AdditiveTransform.GetRotation();
+					RawTrack.PosKeys[KeyIndex] = LocalTransform.TransformPosition(AdditiveTransform.GetTranslation());
+					RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D();
 				}
 				else
 				{
-					ensure(RawTrack.ScaleKeys.Num() == NumberOfKeys);
+					UE_LOG(LogAnimation, Warning, TEXT("Animation Baking : Missing Curve for %s."), *BoneName.ToString());
 				}
-
-				// now we have all data ready to apply
-				for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
-				{
-					// now evaluate
-					FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(Curve.Name.UID, ERawCurveTrackTypes::RCT_Transform));
-
-					if (ensure(TransformCurve))
-					{
-						FTransform AdditiveTransform = TransformCurve->Evaluate(KeyIndex * Interval, 1.0);
-						FTransform LocalTransform(RawTrack.RotKeys[KeyIndex], RawTrack.PosKeys[KeyIndex], RawTrack.ScaleKeys[KeyIndex]);
-						RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation() * AdditiveTransform.GetRotation();
-						RawTrack.PosKeys[KeyIndex] = LocalTransform.TransformPosition(AdditiveTransform.GetTranslation());
-						RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D();
-					}
-					else
-					{
-						UE_LOG(LogAnimation, Warning, TEXT("Animation Baking : Missing Curve for %s."), *BoneName.ToString());
-					}
-				}
+			}
 
 				// Apply PostProcess behaviour in-place
 				SanitizeAnimationTrackData(RawTrack);
-			}
-		}
+}
+}
 		StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
 	}
 }
@@ -4654,7 +4726,7 @@ void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FT
 	FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(NewCurveName.UID, ERawCurveTrackTypes::RCT_Transform));
 	check(TransformCurve);
 
-	TransformCurve->UpdateOrAddKey(AdditiveTransform, Time);
+	TransformCurve->UpdateOrAddKey(AdditiveTransform, Time);	
 	MarkRawDataAsModified();
 }
 

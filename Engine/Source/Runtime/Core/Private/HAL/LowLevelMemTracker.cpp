@@ -1843,6 +1843,12 @@ void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, EL
 {
 	LLMCheck(!bInIsStatTag && InTagSet == ELLMTagSet::None);
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
+	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set bIsDisabled=false if the platform doesn't support it
+	if (FLowLevelMemTracker::bIsDisabled)
+	{
+		bEnabled = false;
+		return;
+	}
 	LLMRef.BootstrapInitialise();
 
 	bEnabled = true;
@@ -1856,6 +1862,12 @@ void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, EL
 void FLLMScope::Init(FName TagName, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker)
 {
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
+	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set bIsDisabled=false if the platform doesn't support it
+	if (FLowLevelMemTracker::bIsDisabled)
+	{
+		bEnabled = false;
+		return;
+	}
 	LLMRef.BootstrapInitialise();
 	if (!LLMRef.IsTagSetActive(InTagSet))
 	{
@@ -1883,6 +1895,12 @@ void FLLMScope::Init(const UE::LLMPrivate::FTagData* TagData, bool bInIsStatTag,
 {
 	LLMCheck(!bInIsStatTag && InTagSet == ELLMTagSet::None);
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
+	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set bIsDisabled=false if the platform doesn't support it
+	if (FLowLevelMemTracker::bIsDisabled)
+	{
+		bEnabled = false;
+		return;
+	}
 	LLMRef.BootstrapInitialise();
 
 	bEnabled = true;
@@ -1932,6 +1950,12 @@ FLLMPauseScope::FLLMPauseScope(ELLMTag TagEnum, bool bIsStatTag, uint64 Amount, 
 void FLLMPauseScope::Init(FName TagName, ELLMTag EnumTag, bool bIsEnumTag, bool bIsStatTag, uint64 Amount, ELLMTracker TrackerToPause, ELLMAllocType InAllocType)
 {
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
+	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set bIsDisabled=false if the platform doesn't support it
+	if (FLowLevelMemTracker::bIsDisabled)
+	{
+		bEnabled = false;
+		return;
+	}
 	LLMRef.BootstrapInitialise();
 	if (!LLMRef.IsTagSetActive(ELLMTagSet::None))
 	{
@@ -2003,6 +2027,12 @@ FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker InTracker )
 	}
 
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
+	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set bIsDisabled=false if the platform doesn't support it
+	if (FLowLevelMemTracker::bIsDisabled)
+	{
+		bEnabled = false;
+		return;
+	}
 	LLMRef.BootstrapInitialise();
 
 	FLLMTracker* TrackerData = LLMRef.GetTracker(InTracker);

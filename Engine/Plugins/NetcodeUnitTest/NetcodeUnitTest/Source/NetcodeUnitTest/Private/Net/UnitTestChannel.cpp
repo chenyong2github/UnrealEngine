@@ -18,9 +18,6 @@ UUnitTestChannel::UUnitTestChannel(const FObjectInitializer& ObjectInitializer)
 	, MinClient(nullptr)
 	, bVerifyOpen(false)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ChType = CHTYPE_None;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ChName = NAME_None;
 }
 

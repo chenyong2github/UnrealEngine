@@ -100,17 +100,23 @@ void FFilePathStructCustomization::HandleFilePathPickerPathPicked( const FString
 		}
 		FinalPath = LongPackageName;
 	}
-	else if (bRelativeToGameDir)
+	else if (bRelativeToGameDir && !PickedPath.IsEmpty())
 	{
-		//If path is already relative to Content dir, nothing to do.
-		const FString ContentDir = TEXT("Content/");
-		if (!PickedPath.IsEmpty() && !PickedPath.StartsWith(ContentDir))
+		//A filepath under the project directory will be made relative to the project directory
+		//Otherwise, the absolute path will be returned unless it doesn't exist, the current path will
+		//be kept. This can happen if it's already relative to project dir (tabbing when selected)
+
+		const FString ProjectDir = FPaths::ProjectDir();
+		const FString AbsoluteProjectDir = FPaths::ConvertRelativePathToFull(ProjectDir);
+		const FString AbsolutePickedPath = FPaths::ConvertRelativePathToFull(PickedPath);
+
+		//Verify if absolute path to file exists. If it was already relative to content directory
+		//the absolute will be to binaries and will possibly be garbage
+		if (FPaths::FileExists(AbsolutePickedPath))
 		{
-			//If the path is part of the project directory, make it relative to it or keep the absolute path.
-			const FString AbsolutePickedPath = FPaths::ConvertRelativePathToFull(PickedPath);
-			const FString AbsoluteProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-			const FString AbsoluteProjectWithContentDir = AbsoluteProjectDir + ContentDir;
-			if (AbsolutePickedPath.StartsWith(AbsoluteProjectWithContentDir))
+			//If file is part of the project dir, chop the project dir part
+			//Otherwise, use the absolute path
+			if (AbsolutePickedPath.StartsWith(AbsoluteProjectDir))
 			{
 				FinalPath = AbsolutePickedPath.RightChop(AbsoluteProjectDir.Len());
 			}
@@ -118,6 +124,12 @@ void FFilePathStructCustomization::HandleFilePathPickerPathPicked( const FString
 			{
 				FinalPath = AbsolutePickedPath;
 			}
+		}
+		else
+		{
+			//If absolute file doesn't exist, it might already be relative to project dir
+			//If not, then it might be a manual entry, so keep it untouched either way
+			FinalPath = PickedPath;
 		}
 	}
 

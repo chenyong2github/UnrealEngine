@@ -1019,7 +1019,7 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 	// However, it's only used for logging and DemoNetDriver's are typically given a special name.
 	BudgetLogHelper = MakeUnique<FDemoBudgetLogHelper>(NetDriverName.ToString());
 
-	ReplayHelper.StartRecording(World);
+	ReplayHelper.StartRecording(Connection);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bRecordMapChanges = ReplayHelper.bRecordMapChanges;
@@ -3021,7 +3021,7 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 		{
 			FString HeaderFlags;
 
-			for (int32 i = 0; i < sizeof(EReplayHeaderFlags) * 8; ++i)
+			for (uint32 i = 0; i < sizeof(EReplayHeaderFlags) * 8; ++i)
 			{
 				EReplayHeaderFlags Flag = (EReplayHeaderFlags)(1 << i);
 
@@ -4770,7 +4770,10 @@ void UDemoNetDriver::PendingNetGameLoadMapCompleted()
 
 void UDemoNetDriver::OnSeamlessTravelStartDuringRecording(const FString& LevelName)
 {
-	ReplayHelper.OnSeamlessTravelStart(World, LevelName);
+	if (ClientConnections.Num() > 0)
+	{
+		ReplayHelper.OnSeamlessTravelStart(World, LevelName, ClientConnections[0]);
+	}
 }
 
 void UDemoNetDriver::InitDestroyedStartupActors()

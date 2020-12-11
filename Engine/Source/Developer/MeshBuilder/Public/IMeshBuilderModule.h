@@ -40,4 +40,5 @@ public:
 	}
 
 	virtual bool BuildSkeletalMesh(class USkeletalMesh* SkeletalMesh, int32 LODIndex, const bool bRegenDepLODs) { return false; }
+	virtual void PostBuildSkeletalMesh(class FSkeletalMeshRenderData* SkeletalMeshRenderData, class USkeletalMesh* SkeletalMesh) { }
 };

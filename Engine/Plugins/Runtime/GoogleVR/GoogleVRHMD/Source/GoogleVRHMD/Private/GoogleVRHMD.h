@@ -472,7 +472,7 @@ public:
 #endif  // GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 
 	// This view extension should only be allowed when stereo is enabled.
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	// Remaining pure virtual methods are not used
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}

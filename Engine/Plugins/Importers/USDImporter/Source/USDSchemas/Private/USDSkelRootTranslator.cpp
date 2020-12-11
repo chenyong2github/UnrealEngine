@@ -282,11 +282,11 @@ namespace UsdSkelRootTranslatorImpl
 		{
 			PoseableMeshComponent.ActiveMorphTargets.Reset();
 			PoseableMeshComponent.MorphTargetWeights.Reset();
-
-			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < SkeletalMesh->GetMorphTargets().Num(); ++MorphTargetIndex )
+			TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
+			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
 			{
 				FActiveMorphTarget ActiveMorphTarget;
-				ActiveMorphTarget.MorphTarget = SkeletalMesh->GetMorphTargets()[ MorphTargetIndex ];
+				ActiveMorphTarget.MorphTarget = MorphTargets[ MorphTargetIndex ];
 				ActiveMorphTarget.WeightIndex = MorphTargetIndex;
 
 				PoseableMeshComponent.ActiveMorphTargets.Add( ActiveMorphTarget );

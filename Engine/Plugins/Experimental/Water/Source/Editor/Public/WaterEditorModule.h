@@ -7,8 +7,10 @@
 #include "Engine/EngineTypes.h"
 #include "AssetTypeCategories.h"
 #include "IAssetTypeActions.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 class FComponentVisualizer;
+class FWaterWavesEditorToolkit;
 
 WATEREDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogWaterEditor, Log, All);
 
@@ -26,6 +28,8 @@ public:
 	virtual void ShutdownModule() override;
 
 	static EAssetTypeCategories::Type GetAssetCategory() { return WaterAssetCategory; }
+
+	TSharedRef<FWaterWavesEditorToolkit> CreateWaterWaveAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UObject* WavesAsset);
 
 private:
 	void RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer);

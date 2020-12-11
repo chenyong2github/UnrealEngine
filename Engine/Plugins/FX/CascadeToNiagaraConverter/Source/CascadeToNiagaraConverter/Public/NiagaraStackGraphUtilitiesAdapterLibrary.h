@@ -437,11 +437,11 @@ struct FStackEntryAddAction
 
 	// If Mode is Module, represents the pending module script to create a stack entry for. Otherwise this value is ignored.
 	UPROPERTY()
-	UNiagaraScriptConversionContext* ScriptConversionContext;
+	UNiagaraScriptConversionContext* ScriptConversionContext = nullptr;
 
 	// If mode is SetParameter, represents the pending parameter to set directly and create a stack entry for. Otherwise this value is ignored.
 	UPROPERTY()
-	UNiagaraClipboardFunction* ClipboardFunction;
+	UNiagaraClipboardFunction* ClipboardFunction = nullptr;
 
 	// Info to find the category of the stack to add the stack entry to.
 	UPROPERTY()

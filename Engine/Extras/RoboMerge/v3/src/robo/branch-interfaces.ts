@@ -2,22 +2,10 @@
 
 import { BranchSpec, ConflictedResolveNFile, RoboWorkspace } from '../common/perforce';
 // TODO: Remove Circular Dependency on bot-interfaces
-import { NodeBotInterface, QueuedChange } from './bot-interfaces';
+import { NodeBotInterface } from './bot-interfaces';
+import { FailureKind } from './status-types';
 import { BotConfig, BranchBase, EdgeOptions, NodeOptions } from './branchdefs';
 import { BlockageNodeOpUrls } from './roboserver';
-import { PauseStatusFields } from './state-interfaces';
-import { ConflictStatusFields } from './conflicts';
-
-export type FailureKind =
-	'Integration error' |
-	'Exclusive check-out' |
-	'Merge conflict' |
-	'Commit failure' |
-	'Syntax error' |
-	'Disallowed files' |
-	'Too many files' |
-	'Conversion to edits failure' |
-	'Unit Test error'
 
 export type BranchArg = Branch | string
 export function resolveBranchArg(branchArg: BranchArg, toUpperCase?: boolean): string {
@@ -84,56 +72,6 @@ export interface BranchGraphInterface {
 
 	getBranch(name: string): Branch | undefined
 	getBranchNames(): string
-}
-
-type BotStatusFields = Partial<PauseStatusFields> & {
-	display_name: string
-	last_cl: number
-
-	is_active: boolean
-	is_available: boolean
-	is_blocked: boolean
-	is_paused: boolean
-
-	status_msg?: string
-	status_since?: string
-
-	lastBlockage?: number
-
-	// don't commit - added by preprocess
-	retry_cl?: number
-}
-
-export type EdgeStatusFields = BotStatusFields & {
-	name: string
-	target: string
-	targetStream?: string
-	rootPath: string
-
-	resolver: string
-	disallowSkip: boolean
-	incognitoMode: boolean
-	excludeAuthors: string[]
-
-	headCL?: number
-	lastGoodCL?: number
-	lastGoodCLJobLink?: string
-	lastGoodCLDate?: Date
-}
-
-type NodeStatusFields = BotStatusFields & {
-	queue: QueuedChange[]
-	headCL?: number
-
-	conflicts: ConflictStatusFields[]
-	edges: { [key: string]: EdgeStatusFields }
-}
-
-export type BranchStatus = Partial<NodeStatusFields> & {
-	def: Branch
-	bot: string
-
-	branch_spec_cl: number
 }
 
 export interface Branch extends BranchBase {

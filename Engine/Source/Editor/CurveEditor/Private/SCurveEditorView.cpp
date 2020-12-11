@@ -190,6 +190,22 @@ void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParam
 			);
 		}
 
+		// In order to work around a bug in slate's line rendering, detect sharp corners and inject an additional 1 pixel segment
+		for (int Index = 1; Index < Params.InterpolatingPoints.Num() - 1; ++Index)
+		{
+			FVector2D Line2 = Params.InterpolatingPoints[Index + 1] - Params.InterpolatingPoints[Index];
+			if (Line2.SizeSquared() > 1.0f)
+			{
+				Line2.Normalize();
+				FVector2D Line1 = Params.InterpolatingPoints[Index] - Params.InterpolatingPoints[Index - 1];
+				Line1.Normalize();
+				if (FVector2D::DotProduct(Line1, Line2) <= 0.5f)
+				{
+					Params.InterpolatingPoints.Insert(Params.InterpolatingPoints[Index] + Line2, Index + 1);
+				}
+			}
+		}
+
 		TArray<FKeyHandle> VisibleKeys;
 		CurveModel->GetKeys(*CurveEditor, InputMin, InputMax, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), VisibleKeys);
 

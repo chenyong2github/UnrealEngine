@@ -9,6 +9,10 @@
 #include "NiagaraRenderer.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTargetVolume.h"
+#include "NiagaraSettings.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid3DCollection"
 
@@ -27,6 +31,24 @@ const FName UNiagaraDataInterfaceGrid3DCollection::SampleGridFunctionName("Sampl
 
 const FName UNiagaraDataInterfaceGrid3DCollection::SetNumCellsFunctionName("SetNumCells");
 
+FNiagaraVariableBase UNiagaraDataInterfaceGrid3DCollection::ExposedRTVar;
+const FString UNiagaraDataInterfaceGrid3DCollection::AnonymousAttributeString("Attribute At Index");
+static float GNiagaraGrid3DResolutionMultiplier = 1.0f;
+static FAutoConsoleVariableRef CVarNiagaraGrid3DResolutionMultiplier(
+	TEXT("fx.Niagara.Grid3D.ResolutionMultiplier"),
+	GNiagaraGrid3DResolutionMultiplier,
+	TEXT("Optional global modifier to grid resolution\n"),
+	ECVF_Default
+);
+
+static int32 GNiagaraGrid3DOverrideFormat = -1;
+static FAutoConsoleVariableRef CVarNiagaraGrid3DOverrideFormat(
+	TEXT("fx.Niagara.Grid3D.OverrideFormat"),
+	GNiagaraGrid3DOverrideFormat,
+	TEXT("Optional override for all grids to use this format.\n"),
+	ECVF_Default
+);
+
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_Grid3DCollection : public FNiagaraDataInterfaceParametersCS
 {
@@ -36,7 +58,7 @@ public:
 	{			
 		NumCellsParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
 		NumTilesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid3DCollection::NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
-
+		UnitToUVParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::UnitToUVName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CellSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		WorldBBoxSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -69,6 +91,8 @@ public:
 		NumTilesTmp[1] = ProxyData->NumTiles.Y;
 		NumTilesTmp[2] = ProxyData->NumTiles.Z;
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumTilesParam, NumTilesTmp);		
+
+		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector(1.0f) / FVector(ProxyData->NumCells));
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, ProxyData->CellSize);		
 				
@@ -117,6 +141,7 @@ public:
 
 private:
 
+	LAYOUT_FIELD(FShaderParameter, UnitToUVParam);
 	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
 	LAYOUT_FIELD(FShaderParameter, NumTilesParam);
 	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
@@ -131,7 +156,6 @@ private:
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid3DCollection);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGrid3DCollection, FNiagaraDataInterfaceParametersCS_Grid3DCollection);
-
 
 UNiagaraDataInterfaceGrid3DCollection::UNiagaraDataInterfaceGrid3DCollection(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -150,7 +174,9 @@ void UNiagaraDataInterfaceGrid3DCollection::PostInitProperties()
 	//Can we register data interfaces as regular types and fold them into the FNiagaraVariable framework for UI and function calls etc?
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), /*bCanBeParameter*/ true, /*bCanBePayload*/ false, /*bIsUserDefined*/ false);
+		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
+		ExposedRTVar = FNiagaraVariableBase(FNiagaraTypeDefinition(UTexture::StaticClass()), TEXT("RenderTarget"));
 	}
 }
 
@@ -235,6 +261,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, GetWorldBBoxSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, GetCellSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, SetNumCells);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, GetNumCells);
 void UNiagaraDataInterfaceGrid3DCollection::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
@@ -257,9 +284,30 @@ void UNiagaraDataInterfaceGrid3DCollection::GetVMExternalFunction(const FVMExter
 		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, SetNumCells)::Bind(this, OutFunc);
 	}
+	else if (BindingInfo.Name == NumCellsFunctionName)
+	{
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, GetNumCells)::Bind(this, OutFunc);
+	}
 	//else if (BindingInfo.Name == GetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	//else if (BindingInfo.Name == SetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	//else if (BindingInfo.Name == SampleGridFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
+}
+
+void UNiagaraDataInterfaceGrid3DCollection::GetNumCells(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
+
+	FNDIOutputParam<int32> NumCellsX(Context);
+	FNDIOutputParam<int32> NumCellsY(Context);
+	FNDIOutputParam<int32> NumCellsZ(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		NumCellsX.SetAndAdvance(InstData->NumCells.X);
+		NumCellsY.SetAndAdvance(InstData->NumCells.Y);
+		NumCellsZ.SetAndAdvance(InstData->NumCells.Z);
+	}
 }
 
 bool UNiagaraDataInterfaceGrid3DCollection::Equals(const UNiagaraDataInterface* Other) const
@@ -272,7 +320,13 @@ bool UNiagaraDataInterfaceGrid3DCollection::Equals(const UNiagaraDataInterface* 
 
 	return OtherTyped != nullptr &&
 		OtherTyped->NumAttributes == NumAttributes &&
-		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter;
+		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
+		OtherTyped->OverrideBufferFormat == OverrideBufferFormat &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->bPreviewGrid == bPreviewGrid &&
+		OtherTyped->PreviewAttribute == PreviewAttribute &&
+#endif
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -291,6 +345,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNi
 		{ TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("OutputGridName"),    OutputGridName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
@@ -318,6 +373,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
@@ -340,6 +396,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputGrid"), OutputGridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumTiles"), NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
 
 		};
@@ -355,7 +412,27 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 				int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
 				int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);		
 
-				Out_Val = {Grid}.SampleLevel({SamplerName}, float3(In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x, In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y, In_UnitZ / {NumTiles}.z + 1.0*TileIndexZ/{NumTiles}.z), 0);
+				float3 UVW =
+				{
+					In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
+					In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y,
+					In_UnitZ / {NumTiles}.z + 1.0*TileIndexZ/{NumTiles}.y
+				};
+				float3 TileMin =
+				{
+					(TileIndexX * {NumCellsName}.x + 0.5) / ({NumTiles}.x * {NumCellsName}.x),
+					(TileIndexY * {NumCellsName}.y + 0.5) / ({NumTiles}.y * {NumCellsName}.y),
+					(TileIndexZ * {NumCellsName}.z + 0.5) / ({NumTiles}.z * {NumCellsName}.z)
+				};
+				float3 TileMax =
+				{
+					((TileIndexX + 1) * {NumCellsName}.x - 0.5) / ({NumTiles}.x * {NumCellsName}.x),
+					((TileIndexY + 1) * {NumCellsName}.y - 0.5) / ({NumTiles}.y * {NumCellsName}.y),
+					((TileIndexZ + 1) * {NumCellsName}.z - 0.5) / ({NumTiles}.z * {NumCellsName}.z)
+				};
+				UVW = clamp(UVW, TileMin, TileMax);
+
+				Out_Val = {Grid}.SampleLevel({SamplerName}, UVW, 0);
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
@@ -363,6 +440,8 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("SamplerName"), SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
 			{TEXT("NumTiles"), NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -380,6 +459,12 @@ bool UNiagaraDataInterfaceGrid3DCollection::CopyToInternal(UNiagaraDataInterface
 	UNiagaraDataInterfaceGrid3DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3DCollection>(Destination);
 	OtherTyped->NumAttributes = NumAttributes;
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
+	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
+	OtherTyped->bOverrideFormat = bOverrideFormat;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->bPreviewGrid = bPreviewGrid;
+	OtherTyped->PreviewAttribute = PreviewAttribute;
+#endif
 
 	return true;
 }
@@ -407,6 +492,12 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	else if (SetResolutionMethod == ESetResolutionMethod::CellSize)
 	{
 		InstanceData->CellSize = FVector(CellSize);
+	}
+
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid3DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid3DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
+	{
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid3DOverrideFormat);
 	}
 	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
 
@@ -466,6 +557,13 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		return false;
 	}
 
+	if (!FMath::IsNearlyEqual(GNiagaraGrid3DResolutionMultiplier, 1.0f))
+	{
+		InstanceData->NumCells.X = FMath::Max(1, int32(float(InstanceData->NumCells.X) * GNiagaraGrid3DResolutionMultiplier));
+		InstanceData->NumCells.Y = FMath::Max(1, int32(float(InstanceData->NumCells.Y) * GNiagaraGrid3DResolutionMultiplier));
+		InstanceData->NumCells.Z = FMath::Max(1, int32(float(InstanceData->NumCells.Z) * GNiagaraGrid3DResolutionMultiplier));
+	}
+
 	// Compute number of tiles based on resolution of individual attributes
 	// #todo(dmp): refactor
 	int32 MaxDim = 16384;
@@ -492,33 +590,51 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	check(InstanceData->NumTiles.Y > 0);
 	check(InstanceData->NumTiles.Z > 0);
 
-	FTextureResource* RT_Resource = nullptr;
+	// Initialize target texture
+	InstanceData->TargetTexture = nullptr;
+	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
+	InstanceData->UpdateTargetTexture(BufferFormat);
 
-	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
+#if WITH_EDITOR
+	InstanceData->bPreviewGrid = bPreviewGrid;
+	InstanceData->PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+	if (bPreviewGrid && !PreviewAttribute.IsNone())
 	{
-		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
-		{
-			// resize RT to match what we need for the output
-			TargetTexture->OverrideFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
-			TargetTexture->InitAutoFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y, InstanceData->NumCells.Z * InstanceData->NumTiles.Z);
-			TargetTexture->UpdateResourceImmediate(true);
-
-			if (TargetTexture->Resource)
+	//-TODO: Hook up when we have named attribubtes
+	//	const int32 VariableIndex = InstanceData->Vars.IndexOfByPredicate([&](const FNiagaraVariableBase& Variable) { return Variable.GetName() == PreviewAttribute; });
+	//	if (VariableIndex != INDEX_NONE)
+	//	{
+	//		const int32 NumComponents = InstanceData->Vars[VariableIndex].GetType().GetSize() / sizeof(float);
+	//		if (ensure(NumComponents > 0 && NumComponents <= 4))
+	//		{
+	//			const int32 ComponentOffset = InstanceData->Offsets[VariableIndex];
+	//			for (int32 i = 0; i < NumComponents; ++i)
+	//			{
+	//				InstanceData->PreviewAttribute[i] = ComponentOffset + i;
+	//			}
+	//		}
+	//	}
+	//	// Look for anonymous attributes
+	//	else if (NumAttributes > 0)
+	//	{
+			const FString PreviewAttributeString = PreviewAttribute.ToString();
+			if (PreviewAttributeString.StartsWith(AnonymousAttributeString))
 			{
-				RT_Resource = TargetTexture->Resource;
+				InstanceData->PreviewAttribute[0] = FCString::Atoi(&PreviewAttributeString.GetCharArray()[AnonymousAttributeString.Len() + 1]);
 			}
-		}
-		else
+	//	}
+
+		if (InstanceData->PreviewAttribute == FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE))
 		{
-			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to map PreviewAttribute %s to a grid index"), *PreviewAttribute.ToString());
 		}
 	}
+#endif
 
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Proxy, RT_Resource, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource=InstanceData->TargetTexture ? InstanceData->TargetTexture->Resource : nullptr, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FGrid3DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
@@ -528,6 +644,10 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		TargetData->CellSize = RT_InstanceData.CellSize;
 		TargetData->WorldBBoxSize = RT_InstanceData.WorldBBoxSize;
 		TargetData->PixelFormat = RT_InstanceData.PixelFormat;
+#if WITH_EDITOR
+		TargetData->bPreviewGrid = RT_InstanceData.bPreviewGrid;
+		TargetData->PreviewAttribute = RT_InstanceData.PreviewAttribute;
+#endif
 
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
@@ -569,43 +689,16 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTick(void* PerInstanceDat
 {
 	FGrid3DCollectionRWInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());
 
-	FTextureResource* RT_Resource = nullptr;
-
-	bool NeedsReset = false;
-	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid3DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid3DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
 	{
-		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
-		{
-			int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
-			int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
-			int32 RTSizeZ = InstanceData->NumCells.Z * InstanceData->NumTiles.Z;
-
-			const EPixelFormat OverrideFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY || TargetTexture->SizeZ != RTSizeZ || TargetTexture->OverrideFormat != OverrideFormat)
-			{
-				// resize RT to match what we need for the output
-				TargetTexture->OverrideFormat = OverrideFormat;
-				TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
-				TargetTexture->InitAutoFormat(RTSizeX, RTSizeY, RTSizeZ);
-				TargetTexture->UpdateResourceImmediate(true);
-
-				if (TargetTexture->Resource)
-				{
-					NeedsReset = true;
-				}
-			}
-
-			RT_Resource = TargetTexture->Resource;
-		}
-		else
-		{
-			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
-		}
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid3DOverrideFormat);
 	}
+	bool NeedsReset = InstanceData->UpdateTargetTexture(BufferFormat);
 
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+		[RT_Resource= InstanceData->TargetTexture ? InstanceData->TargetTexture->Resource : nullptr, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
 	{
 		FGrid3DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
 
@@ -621,6 +714,23 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTick(void* PerInstanceDat
 	});
 
 	return NeedsReset;
+}
+
+void UNiagaraDataInterfaceGrid3DCollection::GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const
+{
+	OutVariables.Emplace(ExposedRTVar);
+}
+
+bool UNiagaraDataInterfaceGrid3DCollection::GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const
+{
+	FGrid3DCollectionRWInstanceData_GameThread* InstanceData = static_cast<FGrid3DCollectionRWInstanceData_GameThread*>(InPerInstanceData);
+	if (InVariable.IsValid() && InVariable == ExposedRTVar && InstanceData && InstanceData->TargetTexture)
+	{
+		UTextureRenderTarget** Var = (UTextureRenderTarget**)OutData;
+		*Var = InstanceData->TargetTexture;
+		return true;
+	}
+	return false;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
@@ -921,6 +1031,38 @@ void UNiagaraDataInterfaceGrid3DCollection::GetCellSize(FVectorVMContext& Contex
 	}
 }
 
+bool FGrid3DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpuBufferFormat BufferFormat)
+{
+	// Pull value from user parameter
+	if (UObject* UserParamObject = RTUserParamBinding.GetValue())
+	{
+		TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject);
+	
+		if (TargetTexture == nullptr)
+		{
+			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTargetVolume"), *GetNameSafe(UserParamObject->GetClass()));
+		}
+	}
+
+	// Could be from user parameter of created internally
+	if (TargetTexture != nullptr)
+	{
+		const FIntVector RTSize(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z);
+		const EPixelFormat RenderTargetFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
+		if (TargetTexture->SizeX != RTSize.X || TargetTexture->SizeY != RTSize.Y || TargetTexture->SizeZ != RTSize.Z || TargetTexture->OverrideFormat != RenderTargetFormat)
+		{
+			TargetTexture->OverrideFormat = RenderTargetFormat;
+			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
+			TargetTexture->InitAutoFormat(RTSize.X, RTSize.Y, RTSize.Z);
+			TargetTexture->UpdateResourceImmediate(true);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRHICommandList& RHICmdList)
 {
 	for (TUniquePtr<FGrid3DBuffer>& Buffer : Buffers)
@@ -961,9 +1103,10 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
 		// memory efficient since it would theoretically not require any double buffering.
-		RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 		if (!Context.IsIterationStage)
 		{
+			check(ProxyData->DestinationData);
+			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
@@ -1008,6 +1151,23 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandLi
 		};
 
 	}
+
+#if WITH_EDITOR
+	if (ProxyData->bPreviewGrid && ProxyData->CurrentData)
+	{
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		{
+			if (ProxyData->PreviewAttribute[0] != INDEX_NONE)
+			{
+				GpuComputeDebug->AddAttributeTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, ProxyData->CurrentData->GridBuffer.Buffer, FIntPoint::ZeroValue, ProxyData->PreviewAttribute);
+			}
+			else
+			{
+				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, ProxyData->CurrentData->GridBuffer.Buffer);
+			}
+		}
+	}
+#endif
 }
 
 void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)

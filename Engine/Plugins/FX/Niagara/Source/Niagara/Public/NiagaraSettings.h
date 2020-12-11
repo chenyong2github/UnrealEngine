@@ -9,6 +9,20 @@
 #include "InputCoreTypes.h"
 #include "NiagaraSettings.generated.h"
 
+// This enum must match the order in NiagaraDataInterfaceSkeletalMesh.ush
+UENUM()
+namespace ENDISkelMesh_GpuMaxInfluences
+{
+	enum Type
+	{
+		/** Allow up to 4 bones to be sampled. */
+		AllowMax4 = 0,
+		/** Allow up to 8 bones to be sampled. */
+		AllowMax8 = 1,
+		/** Allow an unlimited amount of bones to be sampled. */
+		Unlimited = 2,
+	};
+}
 
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
@@ -45,6 +59,9 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** The default buffer format used by all Niagara Grid Data Interfaces unless overridden. */
 	UPROPERTY(config, EditAnywhere, Category = Renderer)
 	ENiagaraGpuBufferFormat DefaultGridFormat = ENiagaraGpuBufferFormat::HalfFloat;
+
+	UPROPERTY(config, EditAnywhere, Category=SkeletalMeshDI, meta = ( DisplayName = "Gpu Max Bone Influences", ToolTip = "Controls the maximum number of influences we allow the Skeletal Mesh Data Interface to use on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
+	TEnumAsByte<ENDISkelMesh_GpuMaxInfluences::Type> NDISkelMesh_GpuMaxInfluences;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;

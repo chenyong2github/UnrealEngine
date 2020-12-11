@@ -185,12 +185,18 @@ public:
 	int32 MinDrawCalls;
 	int32 TotalDrawCalls;
 
-	/** Total number of player ticks (note: it is up to the game to populate this field) */
+	/** 
+	 * Total number of player ticks (note: it is up to the game to populate this field) 
+	 * WARNING: Legacy fields. These should more properly be handled by deriving the class and providing game-specific data as necessary.
+	 */
 	int32 MaxPlayerTicks;
 	int32 MinPlayerTicks;
 	int32 TotalPlayerTicks;
 
-	/** Total number of vehicle ticks */
+	/**
+	 * Total number of vehicle ticks (note: it is up to the game to populate this field)
+	 * WARNING: Legacy field. These should more properly be handled by deriving the class and providing game-specific data as necessary.
+	 */
 	int32 MaxVehicleTicks;
 	int32 TotalVehicleTicks;
 
@@ -216,8 +222,8 @@ public:
 	int StartBatteryLevel;
 	int StopBatteryLevel;
 
+	/** WARNING: This value could technically change while data collection is ongoing. Hanlding such changes is not handled by this code. */
 	FString DeviceProfileName;
-	FDelegateHandle DeviceProfilesUpdatedDelegateHandle;
 
 	bool bIsChartingPaused;
 	
@@ -308,8 +314,6 @@ public:
 	// Dumps the FPS chart information to the special stats log file.
 	void DumpChartsToLogFile(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName, const FString& LogFileName);
 #endif
-
-	void OnDeviceProfileManagerUpdated();
 
 	// IPerformanceDataConsumer interface
 	virtual void StartCharting() override;

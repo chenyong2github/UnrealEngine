@@ -2403,7 +2403,7 @@ private:
 	int32 VisibilityId;
 
 	UPROPERTY()
-	UPrimitiveComponent* LODParent;
+	UPrimitiveComponent* LODParent = nullptr;
 };
 
 

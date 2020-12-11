@@ -61,7 +61,7 @@ struct FInitializeAttachParentsTask
 
 		IMovieScenePlayer* Player = TargetInstance->GetPlayer();
 
-		FMovieSceneSequenceID ResolvedSequenceID = TargetInstance->GetSequenceID();
+		FMovieSceneSequenceID ResolvedSequenceID = BindingID.GetSequenceID();
 		if (!TargetInstance->IsRootSequence())
 		{
 			ResolvedSequenceID = BindingID.ResolveLocalToRoot(TargetInstance->GetSequenceID(), *Player).GetSequenceID();

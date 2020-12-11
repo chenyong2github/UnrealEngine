@@ -66,7 +66,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetDestructibleComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
-	USceneThumbnailInfo* ThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetDestructibleComponent()->DestructibleMesh->ThumbnailInfo);
+	USceneThumbnailInfo* ThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetDestructibleComponent()->DestructibleMesh->GetThumbnailInfo());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (ThumbnailInfo)

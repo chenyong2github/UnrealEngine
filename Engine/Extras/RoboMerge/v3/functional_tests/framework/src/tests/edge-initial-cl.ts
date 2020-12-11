@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import { FunctionalTest, P4Util, Stream } from '../framework'
-import * as System from '../system';
+import { FunctionalTest, P4Util, retryWithBackoff, Stream } from '../framework'
 
 const streams: Stream[] = [
 	{name: 'Main', streamType: 'mainline'},
@@ -32,21 +31,15 @@ export class EdgeInitialCl extends FunctionalTest {
 			, this.makeForceAllBranchDef('Dev-Pootle', [])
 			], 'Main',
 			[ { from: this.fullBranchName('Main'), to: this.fullBranchName('Dev-Perkin')
-		      , initialCL: 1
-		      }
+			  , initialCL: 1
+			  }
 			]
 		)
 
-		for (let safety = 0; safety !== 30; ++safety) {
-			try {
-				await this.getBranchState('Dev-Perkin')
-				return
-			}
-			catch (err) {
-			}
-			await System.sleep(.5)
-		}
-		throw new Error('timed out!')
+		await retryWithBackoff('Loading updated branchmap', () =>
+			this.getBranchState('Dev-Perkin')
+			.catch(_ => false)
+		);
 	}
 
 	async verify() {

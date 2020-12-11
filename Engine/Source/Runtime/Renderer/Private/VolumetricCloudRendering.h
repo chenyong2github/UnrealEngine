@@ -91,6 +91,7 @@ private:
 
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags);
 
 
 // Structure with data necessary to specify a cloud render.
@@ -117,6 +118,9 @@ struct FCloudRenderContext
 	bool bIsSkyRealTimeReflectionRendering;		// Real time sky capture only
 	bool bSkipAtmosphericLightShadowmap;
 	bool bSecondAtmosphereLightEnabled;
+
+	bool bAsyncCompute;
+	bool bVisualizeConservativeDensity;
 
 	FUintVector4 TracingCoordToZbufferCoordScaleBias;
 	uint32 NoiseFrameIndexModPattern;

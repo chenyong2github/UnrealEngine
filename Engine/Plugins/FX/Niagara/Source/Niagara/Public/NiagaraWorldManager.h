@@ -124,6 +124,7 @@ public:
 	void PostActorTick(float DeltaSeconds);
 
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
+	void OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
 	void PreGarbageCollect();
 	void PostReachabilityAnalysis();
@@ -137,7 +138,7 @@ public:
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
-	void UpdateScalabilityManagers(bool bNewSpawnsOnly);
+	void UpdateScalabilityManagers(float DeltaSeconds, bool bNewSpawnsOnly);
 
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
@@ -179,6 +180,9 @@ private:
 	// Callback function registered with global world delegates to cleanup world manager contents
 	static void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 
+	// Callback function registered with global world delegates to cleanup world manager contentx
+	static void OnPostWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+
 	// Callback function registered with global world delegates to cleanup world manager when a game world is destroyed
 	static void OnPreWorldFinishDestroy(UWorld* World);
 
@@ -213,6 +217,7 @@ private:
 	
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;
+	static FDelegateHandle OnPostWorldCleanupHandle;
 	static FDelegateHandle OnPreWorldFinishDestroyHandle;
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
@@ -254,6 +259,8 @@ private:
 
 	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interefre. */
 	bool bAppHasFocus;
+
+	float WorldLoopTime = 0.0f;
 };
 
 

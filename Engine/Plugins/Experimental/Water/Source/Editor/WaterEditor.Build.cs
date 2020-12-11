@@ -28,9 +28,11 @@ public class WaterEditor : ModuleRules
 				"Landscape",
 				"LandscapeEditorUtilities",
 				"Landmass",
+				"EditorFramework",
 				"EditorSubsystem",
 				"ComponentVisualizers",
 				"DeveloperSettings",
+				"AdvancedPreviewScene",
 				"RenderCore",
 				"RHI"
 			});

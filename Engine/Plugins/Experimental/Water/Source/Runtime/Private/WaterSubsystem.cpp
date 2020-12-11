@@ -135,6 +135,7 @@ UWaterSubsystem::UWaterSubsystem()
 	NonSmoothedWorldTimeSeconds = 0.f;
 	PrevWorldTimeSeconds = 0.f;
 	bUnderWaterForAudio = false;
+	bPauseWaveTime = false;
 
 	struct FConstructorStatics
 	{
@@ -153,7 +154,7 @@ UWaterSubsystem::UWaterSubsystem()
 	DefaultRiverMesh = ConstructorStatics.RiverMesh.Get();
 }
 
-UWaterSubsystem* UWaterSubsystem::GetWaterSubsystem(UWorld* InWorld)
+UWaterSubsystem* UWaterSubsystem::GetWaterSubsystem(const UWorld* InWorld)
 {
 	if (InWorld)
 	{
@@ -176,7 +177,7 @@ FWaterBodyManager* UWaterSubsystem::GetWaterBodyManager(UWorld* InWorld)
 void UWaterSubsystem::Tick(float DeltaTime)
 {
 	UWorld* World = GetWorld();
-	if (FreezeWaves == 0)
+	if (FreezeWaves == 0 && bPauseWaveTime == false)
 	{
 		NonSmoothedWorldTimeSeconds += DeltaTime;
 	}
@@ -209,9 +210,14 @@ TStatId UWaterSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UWaterSubsystem, STATGROUP_Tickables);
 }
 
+bool UWaterSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
+}
+
 void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	WaterBodyManager.Initialize();
+	WaterBodyManager.Initialize(GetWorld());
 
 	bUsingSmoothedTime = false;
 	FConsoleVariableDelegate NotifyWaterScalabilityChanged = FConsoleVariableDelegate::CreateUObject(this, &UWaterSubsystem::NotifyWaterScalabilityChangedInternal);
@@ -392,6 +398,11 @@ void UWaterSubsystem::SetShouldOverrideSmoothedWorldTimeSeconds(bool bOverride)
 	bUsingOverrideWorldTimeSeconds = bOverride;
 }
 
+void UWaterSubsystem::SetShouldPauseWaveTime(bool bInPauseWaveTime)
+{
+	bPauseWaveTime = bInPauseWaveTime;
+}
+
 void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 {
 	const float ClampedFloodHeight = FMath::Max(0.0f, InFloodHeight);
@@ -416,7 +427,7 @@ void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 	}
 }
 
-AWaterMeshActor* UWaterSubsystem::GetWaterMeshActor()
+AWaterMeshActor* UWaterSubsystem::GetWaterMeshActor() const
 {
 	// @todo water: this assumes only one water mesh actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
 	TActorIterator<AWaterMeshActor> It(GetWorld());

@@ -614,7 +614,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	
 	if (CVarEnableViewExtensionsForSceneCapture.GetValueOnAnyThread() > 0)
 	{
-		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(nullptr);
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
 	}
 	
 	SetupViewFamilyForSceneCapture(
@@ -687,6 +687,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			CaptureComponent->PostProcessBlendWeight,
 			CaptureComponent->GetViewOwner());
 
+		check(SceneRenderer != nullptr);
+
 		SceneRenderer->Views[0].bFogOnlyOnRenderedOpaque = CaptureComponent->bConsiderUnrenderedOpaquePixelAsFullyTranslucent;
 
 		SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
@@ -702,7 +704,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				TSharedPtr<ISceneViewExtension, ESPMode::ThreadSafe> Extension = CaptureComponent->SceneViewExtensions[Index].Pin();
 				if (Extension.IsValid())
 				{
-					if (Extension->IsActiveThisFrame(nullptr))
+					if (Extension->IsActiveThisFrame(FSceneViewExtensionContext(SceneRenderer->Scene)))
 					{
 						SceneRenderer->ViewFamily.ViewExtensions.Add(Extension.ToSharedRef());
 					}
@@ -739,7 +741,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					View.bAllowTemporalJitter = false;
 				}
 
-				for (const TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>& Extension : SceneRenderer->ViewFamily.ViewExtensions)
+				for (const FSceneViewExtensionRef& Extension : SceneRenderer->ViewFamily.ViewExtensions)
 				{
 					Extension->SetupView(SceneRenderer->ViewFamily, View);
 				}

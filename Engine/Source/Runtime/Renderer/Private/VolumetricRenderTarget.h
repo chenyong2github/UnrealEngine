@@ -22,7 +22,8 @@ void ReconstructVolumetricRenderTarget(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<FViewInfo> Views,
 	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture);
+	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture,
+	bool bWaitFinishFence);
 
 void ComposeVolumetricRenderTargetOverScene(
 	FRDGBuilder& GraphBuilder,
@@ -37,5 +38,11 @@ void ComposeVolumetricRenderTargetOverSceneUnderWater(
 	TArrayView<FViewInfo> Views,
 	const FSceneWithoutWaterTextures& WaterPassData);
 
+void ComposeVolumetricRenderTargetOverSceneForVisualization(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture);
+
 bool ShouldViewRenderVolumetricCloudRenderTarget(const FViewInfo& ViewInfo);
 bool IsVolumetricRenderTargetEnabled();
+bool IsVolumetricRenderTargetAsyncCompute();

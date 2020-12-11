@@ -484,7 +484,7 @@ struct ENGINE_API FDataTableCategoryHandle
 
 	/** Pointer to table we want a row from */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DataTableCategoryHandle)
-	const class UDataTable*	DataTable;
+	const class UDataTable*	DataTable = nullptr;
 
 	/** Name of column in the table that we want */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DataTableCategoryHandle)

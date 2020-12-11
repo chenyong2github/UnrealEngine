@@ -26,7 +26,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorShot : public UObject
 	GENERATED_BODY()
 public:
 	UMoviePipelineExecutorShot()
-		: bEnabled(true)
+		: bEnabled(true), bForceDisable(false)
 	{
 		Progress = 0.f;
 	}
@@ -109,6 +109,13 @@ public:
 		return ShotOverridePresetOrigin.Get();
 	}
 
+	/** Returns whether this should should be rendered */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool ShouldRender() const
+	{
+		return (bEnabled && !bForceDisable);
+	}
+
 protected:
 	// UMoviePipipelineExecutorShot Interface
 	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
@@ -119,7 +126,7 @@ protected:
 
 public:
 
-	/** Should this shot be rendered? */
+	/** Does the user want to render this shot? */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	bool bEnabled;
 
@@ -141,6 +148,10 @@ public:
 public:
 	/** Transient information used by the active Movie Pipeline working on this shot. */
 	FMoviePipelineCameraCutInfo ShotInfo;
+
+	/** Is rendering of this shot disabled internally for the current render task, e.g. due to being outside the playback range or invalid */
+	UPROPERTY(Transient)
+	bool bForceDisable;
 
 protected:
 	UPROPERTY(Transient)

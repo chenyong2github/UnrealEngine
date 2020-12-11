@@ -352,7 +352,6 @@ namespace SavePackageUtilities
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
 }
-bool HasGameDependenciesEvenWhenEditorOnly(UObject* Obj);
 
 #if ENABLE_COOK_STATS
 struct FSavePackageStats

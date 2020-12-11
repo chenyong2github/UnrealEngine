@@ -435,7 +435,6 @@ namespace VulkanRHI
 	constexpr uint32 FMemoryManager::PoolSizes[(int32)FMemoryManager::EPoolSizes::SizesCount];
 	constexpr uint32 FMemoryManager::BufferSizes[(int32)FMemoryManager::EPoolSizes::SizesCount + 1];
 
-	static FCriticalSection GResourcePageLock;
 	static FCriticalSection GResourceLock;
 	static FCriticalSection GStagingLock;
 	static FCriticalSection GDeviceMemLock;
@@ -1773,6 +1772,7 @@ namespace VulkanRHI
 	{
 		SCOPED_NAMED_EVENT(FVulkanSubresourceAllocator_DefragTick, FColor::Cyan);
 
+		FScopeLock ScopeLock(&GResourceLock);
 		const uint32 DefragMask = VulkanAllocationFlagsCanEvict;
 		const uint32 DefragValue = 0;
 
@@ -2416,7 +2416,7 @@ namespace VulkanRHI
 	{
 		check(Allocation.Type == Type);
 		check(Allocation.AllocatorIndex == GetAllocatorIndex());
-
+		bool bTryFree = false;
 		{
 			FScopeLock ScopeLock(&CS);
 			FreeCalls++;
@@ -2455,8 +2455,15 @@ namespace VulkanRHI
 			check(UsedSize >= 0);
 			if (JoinFreeBlocks())
 			{
-				FScopeLock ScopeLockResourceheap(&GResourceHeapLock);
-				check(JoinFreeBlocks());
+				bTryFree = true; //cannot free here as it will cause incorrect lock ordering
+			}
+		}
+		if(bTryFree)
+		{
+			FScopeLock ScopeLockResourceheap(&GResourceHeapLock);
+			FScopeLock ScopeLock(&CS);
+			if(JoinFreeBlocks()) //someone could've allocated memory before we claimed this lock.
+			{
 				Owner->ReleaseSubresourceAllocator(this);
 			}
 		}

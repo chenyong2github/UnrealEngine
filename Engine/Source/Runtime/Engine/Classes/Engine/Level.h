@@ -118,7 +118,7 @@ struct ENGINE_API FDynamicTextureInstance : public FStreamableTextureInstance
 
 	/** Texture that is used by a dynamic UPrimitiveComponent. */
 	UPROPERTY()
-	UTexture2D*					Texture;
+	UTexture2D*					Texture = nullptr;
 
 	/** Whether the primitive that uses this texture is attached to the scene or not. */
 	UPROPERTY()
@@ -393,7 +393,7 @@ struct FReplicatedStaticActorDestructionInfo
 	FVector	DestroyedPosition;
 	TWeakObjectPtr<UObject> ObjOuter;
 	UPROPERTY()
-	UClass* ObjClass;
+	UClass* ObjClass = nullptr;
 };
 
 #if WITH_EDITORONLY_DATA

@@ -81,8 +81,6 @@ static TAutoConsoleVariable<FString> GFPSChartInterestingFramerates(
 /** Array of interesting summary thresholds (e.g., 30 Hz, 60 Hz, 120 Hz) */
 TArray<int32> GTargetFrameRatesForSummary;
 
-TWeakObjectPtr<UDeviceProfileManager> GDeviceProfileManager = nullptr;
-
 //////////////////////////////////////////////////////////////////////
 // FDumpFPSChartToEndpoint
 
@@ -569,17 +567,6 @@ FPerformanceTrackingChart::FPerformanceTrackingChart(const FDateTime& InStartTim
 	: ChartLabel(InChartLabel)
 {
 	Reset(InStartTime);
-
-	// Lazy init the DP manager. Need a weak ptr to it to tell if it still exists
-	if (GDeviceProfileManager == nullptr)
-	{
-		GDeviceProfileManager = &UDeviceProfileManager::Get(); 
-	}
-
-	if (GDeviceProfileManager.IsValid())
-	{
-		DeviceProfilesUpdatedDelegateHandle = UDeviceProfileManager::Get().OnManagerUpdated().AddRaw(this, &FPerformanceTrackingChart::OnDeviceProfileManagerUpdated);
-	}
 }
 
 FPerformanceTrackingChart::FPerformanceTrackingChart()
@@ -589,10 +576,6 @@ FPerformanceTrackingChart::FPerformanceTrackingChart()
 
 FPerformanceTrackingChart::~FPerformanceTrackingChart()
 {
-	if (GDeviceProfileManager.IsValid() && DeviceProfilesUpdatedDelegateHandle.IsValid() )
-	{
-		UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfilesUpdatedDelegateHandle);
-	}
 }
 
 // Discard all accumulated data
@@ -747,15 +730,6 @@ void FPerformanceTrackingChart::PauseCharting()
 void FPerformanceTrackingChart::ResumeCharting()
 {
 	bIsChartingPaused = false;
-}
-
-void FPerformanceTrackingChart::OnDeviceProfileManagerUpdated()
-{
-	FString CurrentDeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
-	if (CurrentDeviceProfileName != DeviceProfileName)
-	{
-		DeviceProfileName = TEXT("Mixed");
-	}
 }
 
 void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)

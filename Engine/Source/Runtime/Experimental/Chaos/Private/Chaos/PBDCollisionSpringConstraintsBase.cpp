@@ -12,42 +12,40 @@ using namespace Chaos;
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
 class FMeshBuildDataProvider
 {
-  public:
+public:
 	/** Initialization constructor. */
-	FMeshBuildDataProvider(
-	    const TkDOPTree<const FMeshBuildDataProvider, uint32>& InkDopTree)
+	FMeshBuildDataProvider(const TkDOPTree<const FMeshBuildDataProvider, uint32>& InkDopTree)
 	    : kDopTree(InkDopTree)
-	{
-	}
+	{}
 
 	// kDOP data provider interface.
 
-	FORCEINLINE const TkDOPTree<const FMeshBuildDataProvider, uint32>& GetkDOPTree(void) const
+	FORCEINLINE const TkDOPTree<const FMeshBuildDataProvider, uint32>& GetkDOPTree() const
 	{
 		return kDopTree;
 	}
 
-	FORCEINLINE const FMatrix& GetLocalToWorld(void) const
+	FORCEINLINE const FMatrix& GetLocalToWorld() const
 	{
 		return FMatrix::Identity;
 	}
 
-	FORCEINLINE const FMatrix& GetWorldToLocal(void) const
+	FORCEINLINE const FMatrix& GetWorldToLocal() const
 	{
 		return FMatrix::Identity;
 	}
 
-	FORCEINLINE FMatrix GetLocalToWorldTransposeAdjoint(void) const
+	FORCEINLINE FMatrix GetLocalToWorldTransposeAdjoint() const
 	{
 		return FMatrix::Identity;
 	}
 
-	FORCEINLINE float GetDeterminant(void) const
+	FORCEINLINE float GetDeterminant() const
 	{
 		return 1.0f;
 	}
 
-  private:
+private:
 	const TkDOPTree<const FMeshBuildDataProvider, uint32>& kDopTree;
 };
 #endif
@@ -60,62 +58,79 @@ TPBDCollisionSpringConstraintsBase<T, d>::TPBDCollisionSpringConstraintsBase(
 	TSet<TVector<int32, 2>>&& InDisabledCollisionElements,
 	const T InThickness,
 	const T InStiffness)
-	: MElements(InElements)
-	, MDisabledCollisionElements(InDisabledCollisionElements)
-	, MOffset(InOffset)
-	, MNumParticles(InNumParticles)
-	, MThickness(InThickness)
-	, MStiffness(InStiffness)
+	: Elements(InElements)
+	, DisabledCollisionElements(InDisabledCollisionElements)
+	, Offset(InOffset)
+	, NumParticles(InNumParticles)
+	, Thickness(InThickness)
+	, Stiffness(InStiffness)
 {
 }
 
 template<class T, int d>
 void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& Particles)
 {
-	if (!MElements.Num())
-		return;
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
-	MConstraints.Reset();
-	MBarys.Reset();
-	MNormals.Reset();
+	if (!Elements.Num())
+	{
+		return;
+	}
 
-	const T Height = MThickness + MThickness;
+	Constraints.Reset();
+	Barys.Reset();
+	Normals.Reset();
 
 	TkDOPTree<const FMeshBuildDataProvider, uint32> DopTree;
 	TArray<FkDOPBuildCollisionTriangle<uint32>> BuildTriangleArray;
-	BuildTriangleArray.Reserve(MElements.Num());
-	for (int32 i = 0; i < MElements.Num(); ++i)
+	BuildTriangleArray.Reserve(Elements.Num());
+	for (int32 i = 0; i < Elements.Num(); ++i)
 	{
-		const auto& Elem = MElements[i];
-		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, Particles.X(Elem[0]), Particles.X(Elem[1]), Particles.X(Elem[2])));
+		const TVector<int32, 3>& Elem = Elements[i];
+		const TVector<T, d>& P0 = Particles.X(Elem[0]);
+		const TVector<T, d>& P1 = Particles.X(Elem[1]);
+		const TVector<T, d>& P2 = Particles.X(Elem[2]);
+
+		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, P0, P1, P2));
 	}
 	DopTree.Build(BuildTriangleArray);
+
 	FMeshBuildDataProvider DopDataProvider(DopTree);
 	FCriticalSection CriticalSection;
 
-	PhysicsParallelFor(MNumParticles,
+	const T Height = Thickness + Thickness;
+
+	PhysicsParallelFor(NumParticles,
 		[this, &Particles, &CriticalSection, Height, &DopDataProvider, &DopTree](int32 i)
 		{
-			const int32 Index = i + MOffset;
+			const int32 Index = i + Offset;
 
 			FkHitResult Result;
 			const TVector<T, d>& Start = Particles.X(Index);
 			const TVector<T, d> Direction = Particles.V(Index).GetSafeNormal();
 			const TVector<T, d> End = Particles.P(Index) + Direction * Height;
-			FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
-			FVector4 End4(End.X, End.Y, End.Z, 0);
+			const FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
+			const FVector4 End4(End.X, End.Y, End.Z, 0);
 			TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> Ray(Start4, End4, true, DopDataProvider, &Result);
 			if (DopTree.LineCheck(Ray))
 			{
-				const auto& Elem = MElements[Result.Item];
-				if (MDisabledCollisionElements.Contains({Index, Elem[0]}) || MDisabledCollisionElements.Contains({Index, Elem[1]}) || MDisabledCollisionElements.Contains({Index, Elem[2]}))
+				const TVector<int32, 3>& Elem = Elements[Result.Item];
+				if (DisabledCollisionElements.Contains({Index, Elem[0]}) ||
+					DisabledCollisionElements.Contains({Index, Elem[1]}) ||
+					DisabledCollisionElements.Contains({Index, Elem[2]}))
+				{
 					return;
+				}
+
+				const TVector<T, d>& P = Particles.X(Index);
+				const TVector<T, d>& P0 = Particles.X(Elem[0]);
+				const TVector<T, d>& P1 = Particles.X(Elem[1]);
+				const TVector<T, d>& P2 = Particles.X(Elem[2]);
+				const TVector<T, d> P10 = P1 - P0;
+				const TVector<T, d> P20 = P2 - P0;
+				const TVector<T, d> PP0 = P - P0;
+				const T Size10 = P10.SizeSquared();
+				const T Size20 = P20.SizeSquared();
 				TVector<T, 3> Bary;
-				TVector<T, d> P10 = Particles.X(Elem[1]) - Particles.X(Elem[0]);
-				TVector<T, d> P20 = Particles.X(Elem[2]) - Particles.X(Elem[0]);
-				TVector<T, d> PP0 = Particles.X(Index) - Particles.X(Elem[0]);
-				T Size10 = P10.SizeSquared();
-				T Size20 = P20.SizeSquared();
 				if (Size10 < SMALL_NUMBER)
 				{
 					if (Size20 < SMALL_NUMBER)
@@ -168,40 +183,52 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 				}
 
 				TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20).GetSafeNormal();
-				Normal = TVector<T, d>::DotProduct(Normal, PP0) > 0 ? Normal : -Normal;
+				Normal = (TVector<T, d>::DotProduct(Normal, PP0) > 0) ? Normal : -Normal;
+
 				CriticalSection.Lock();
-				MConstraints.Add({Index, Elem[0], Elem[1], Elem[2]});
-				MBarys.Add(Bary);
-				MNormals.Add(Normal);
+				Constraints.Add({Index, Elem[0], Elem[1], Elem[2]});
+				Barys.Add(Bary);
+				Normals.Add(Normal);
 				CriticalSection.Unlock();
 			}
 		});
-#endif
+#endif  // #if PLATFORM_DESKTOP && PLATFORM_64BITS
 }
 
 template<class T, int d>
-TVector<T, d> TPBDCollisionSpringConstraintsBase<T, d>::GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const
+TVector<T, d> TPBDCollisionSpringConstraintsBase<T, d>::GetDelta(const TPBDParticles<T, d>& Particles, const int32 i) const
 {
-	const auto& Constraint = MConstraints[i];
-	int32 i1 = Constraint[0];
-	int32 i2 = Constraint[1];
-	int32 i3 = Constraint[2];
-	int32 i4 = Constraint[3];
-	const T CombinedMass = InParticles.InvM(i3) * MBarys[i][1] + InParticles.InvM(i2) * MBarys[i][0] + InParticles.InvM(i4) * MBarys[i][2] + InParticles.InvM(i1);
+	const TVector<int32, 4>& Constraint = Constraints[i];
+	const int32 i1 = Constraint[0];
+	const int32 i2 = Constraint[1];
+	const int32 i3 = Constraint[2];
+	const int32 i4 = Constraint[3];
+
+	const T CombinedMass = Particles.InvM(i1) +
+		Particles.InvM(i2) * Barys[i][0] +
+		Particles.InvM(i3) * Barys[i][1] +
+		Particles.InvM(i4) * Barys[i][2];
 	if (CombinedMass <= (T)1e-7)
+	{
 		return TVector<T, d>(0);
-	const TVector<T, d>& P1 = InParticles.P(i1);
-	const TVector<T, d>& P2 = InParticles.P(i2);
-	const TVector<T, d>& P3 = InParticles.P(i3);
-	const TVector<T, d>& P4 = InParticles.P(i4);
-	const T Height = MThickness + MThickness;
-	const TVector<T, d> P = MBarys[i][0] * P2 + MBarys[i][1] * P3 + MBarys[i][2] * P4 + Height * MNormals[i];
-	TVector<T, d> Difference = P1 - P;
-	if (TVector<T, d>::DotProduct(Difference, MNormals[i]) > 0)
+	}
+
+	const TVector<T, d>& P1 = Particles.P(i1);
+	const TVector<T, d>& P2 = Particles.P(i2);
+	const TVector<T, d>& P3 = Particles.P(i3);
+	const TVector<T, d>& P4 = Particles.P(i4);
+
+	const T Height = Thickness + Thickness;
+	const TVector<T, d> P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4 + Height * Normals[i];
+
+	const TVector<T, d> Difference = P1 - P;
+	if (TVector<T, d>::DotProduct(Difference, Normals[i]) > 0)
+	{
 		return TVector<T, d>(0);
-	float Distance = Difference.Size();
-	TVector<T, d> Delta = Distance * MNormals[i];
-	return MStiffness * Delta / CombinedMass;
+	}
+	const float Distance = Difference.Size();
+	const TVector<T, d> Delta = Distance * Normals[i];
+	return Stiffness * Delta / CombinedMass;
 }
 
 template class CHAOS_API Chaos::TPBDCollisionSpringConstraintsBase<float, 3>;

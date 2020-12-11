@@ -36,8 +36,6 @@ struct FNiagaraComponentPropertyBinding
 
 	UPROPERTY(Transient)
 	FNiagaraVariable WritableValue;
-
-	UFunction* SetterFunction = nullptr;
 };
 
 struct FNiagaraPropertySetter
@@ -86,7 +84,7 @@ public:
 	TSubclassOf<USceneComponent> ComponentType;
 
 	/** The max number of components that this emitter will spawn or update each frame. */
-	UPROPERTY(EditAnywhere, Category = "Component Rendering")
+	UPROPERTY(EditAnywhere, Category = "Component Rendering", meta = (ClampMin = 1))
 	uint32 ComponentCountLimit;
 
 	/** Which attribute should we use to check if component rendering should be enabled for a particle? This can be used to control the spawn-rate on a per-particle basis. */
@@ -100,7 +98,7 @@ public:
 
 	/** If true then new components can only be created on newly spawned particles. If a particle is not able to create a component on it's first frame (e.g. because the component
 	 * limit was reached) then it will be blocked from spawning a component on subsequent frames. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditConition = "bAssignComponentsOnParticleID"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditCondition = "bAssignComponentsOnParticleID"))
 	bool bOnlyCreateComponentsOnParticleSpawn;
 
 #if WITH_EDITORONLY_DATA
@@ -126,6 +124,9 @@ public:
 	static FNiagaraTypeDefinition GetFRotatorDef();
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+	
+	virtual bool NeedsSystemPostTick() const override { return true; }
+	virtual bool NeedsSystemCompletion() const override { return true; }
 
 protected:
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;

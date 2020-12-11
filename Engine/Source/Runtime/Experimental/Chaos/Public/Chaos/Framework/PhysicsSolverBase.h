@@ -27,6 +27,7 @@ namespace Chaos
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
+	extern CHAOS_API float AsyncInterpolationMultiplier;
 
 	struct CHAOS_API FSubStepInfo
 	{
@@ -151,20 +152,19 @@ namespace Chaos
 		}
 
 		template <typename Lambda>
-		void RegisterSimOneShotCallback(const Lambda& Func)
+		void RegisterSimOneShotCallback(Lambda&& Func)
 		{
 			//do we need a pool to avoid allocations?
-			auto CommandObject = new FSimCallbackCommandObject(Func);
-			RegisterSimCallbackObject_External(CommandObject);
-			MarshallingManager.UnregisterSimCallbackObject_External(CommandObject, true);
+			auto CommandObject = new FSimCallbackCommandObject(MoveTemp(Func));
+			MarshallingManager.RegisterSimCommand_External(CommandObject);
 		}
 
 		template <typename Lambda>
-		void EnqueueCommandImmediate(const Lambda& Func)
+		void EnqueueCommandImmediate(Lambda&& Func)
 		{
 			//TODO: remove this check. Need to rename with _External
 			check(IsInGameThread());
-			RegisterSimOneShotCallback(Func);
+			RegisterSimOneShotCallback(MoveTemp(Func));
 		}
 
 		//Used as helper for GT to go from unique idx back to gt particle
@@ -267,9 +267,19 @@ namespace Chaos
 			if(IsUsingFixedDt())
 			{
 				AccumulatedTime += DtWithPause;
-				InternalDt = AsyncDt;
-				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
-				AccumulatedTime -= InternalDt * NumSteps;
+				if(InDt == 0)	//this is a special flush case
+				{
+					//just use any remaining time and sync up to latest no matter what
+					InternalDt = AccumulatedTime;
+					NumSteps = 1;
+					AccumulatedTime = 0;
+				}
+				else
+				{
+					InternalDt = AsyncDt;
+					NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
+					AccumulatedTime -= InternalDt * NumSteps;
+				}
 			}
 
 			FGraphEventRef BlockingTasks = PendingTasks;
@@ -345,66 +355,17 @@ namespace Chaos
 		{
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
-				if (!Callback->bPendingDelete)
-				{
-					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
-					if(!bIsShuttingDown || Callback->bRunOnceMore)
-					{
-						Callback->PreSimulate_Internal(SimTime, Dt);
-					}
-				}
+				Callback->SetSimAndDeltaTime_Internal(SimTime, Dt);
+				Callback->PreSimulate_Internal();
 			}
 		}
 
-		void FreeCallbacksData_Internal(float SimTime, float DeltaTime)
+		void FinalizeCallbackData_Internal()
 		{
-			//final post solve call. TODO: move this out of here, just putting it here for now because we're forced to call callbacks manually during destroy
-			for(ISimCallbackObject* Callback : ContactModifiers)
-			{
-				if (!Callback->bPendingDelete)
-				{
-					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
-					if (!bIsShuttingDown || Callback->bRunOnceMore)
-					{
-						Callback->PostSimulate_Internal(SimTime, DeltaTime);
-					}
-				}
-			}
-
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
-				if (Callback->bRunOnceMore)
-				{
-					Callback->bPendingDelete = true;
-				}
-
+				Callback->FinalizeOutputData_Internal();
 				Callback->SetCurrentInput_Internal(nullptr);
-			}
-
-			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
-			//every so often a persistent callback is unregistered, so need to consider all callbacks
-			//might be possible to improve this, but number of callbacks is expected to be small
-			//one shot callbacks expect a FIFO so can't use RemoveAtSwap
-			//might be worth splitting into two different buffers if this is too slow
-
-			for (int32 Idx = ContactModifiers.Num() - 1; Idx >= 0; --Idx)
-			{
-				ISimCallbackObject* Callback = ContactModifiers[Idx];
-				if (Callback->bPendingDelete)
-				{
-					//will also be in SimCallbackObjects so we'll delete it in that loop
-					ContactModifiers.RemoveAt(Idx);
-				}
-			}
-
-			for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
-			{
-				ISimCallbackObject* Callback = SimCallbackObjects[Idx];
-				if (Callback->bPendingDelete)
-				{
-					delete Callback;
-					SimCallbackObjects.RemoveAt(Idx);
-				}
 			}
 		}
 
@@ -432,6 +393,21 @@ namespace Chaos
 		bool IsUsingFixedDt() const
 		{
 			return IsUsingAsyncResults() && UseAsyncInterpolation;
+		}
+
+		/** Returns the time used by physics results. If fixed dt is used this will be the interpolated time */
+		FReal GetPhysicsResultsTime_External() const
+		{
+			const FReal ExternalTime = MarshallingManager.GetExternalTime_External() + AccumulatedTime;
+			if (IsUsingFixedDt())
+			{
+				//fixed dt uses interpolation and looks into the past
+				return ExternalTime - AsyncDt * AsyncInterpolationMultiplier;
+			}
+			else
+			{
+				return ExternalTime;
+			}
 		}
 
 	protected:

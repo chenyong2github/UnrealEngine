@@ -152,6 +152,7 @@ public:
 	const FNiagaraParameterStore& GetRendererBoundVariables() const { return RendererBindings; }
 	FNiagaraParameterStore& GetRendererBoundVariables() { return RendererBindings; }
 
+	int32 GetRandomSeed() const { return RandomSeed; }
 	int32 GetInstanceSeed() const { return InstanceSeed; }
 
 private:
@@ -212,6 +213,7 @@ private:
 	/* The age of the emitter*/
 	float EmitterAge = 0.0f;
 
+	int32 RandomSeed = 0;
 	int32 InstanceSeed = FGenericPlatformMath::Rand();
 	int32 TickCount = 0;
 

@@ -918,11 +918,19 @@ public:
 	/** @return True if this widget is directly hovered */
 	virtual bool IsDirectlyHovered() const;
 
-	/** @return is this widget visible, hidden or collapsed */
+	/**
+	 * @return is this widget visible, hidden or collapsed.
+	 * @note this widget can be visible but if a parent is hidden or collapsed, it would not show on screen. */
 	FORCEINLINE EVisibility GetVisibility() const { return Visibility.Get(); }
 
 	/** @param InVisibility  should this widget be */
 	virtual void SetVisibility(TAttribute<EVisibility> InVisibility);
+
+	/**
+	 * @return is the widget visible and his parents also visible.
+	 * @note only valid if the widget is contained by an InvalidationRoot (the proxy is valid).
+	 */
+	bool IsFastPathVisible() const { return !bInvisibleDueToParentOrSelfVisibility; }
 
 #if WITH_ACCESSIBILITY
 	/**
@@ -993,6 +1001,7 @@ public:
 
 	/**
 	 * This widget is volatile because its parent or some ancestor is volatile
+	 * @note only valid if the widget is contained by an InvalidationRoot (the proxy is valid).
 	 */
 	FORCEINLINE bool IsVolatileIndirectly() const { return bInheritedVolatility; }
 

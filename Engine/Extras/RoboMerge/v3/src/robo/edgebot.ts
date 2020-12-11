@@ -6,7 +6,8 @@ import { ChangelistStatus, ClientSpec, ConflictedResolveNFile, EditOwnerOpts, In
 import { ResolveResult, IntegrationTarget, isExecP4Error, OpenedFileRecord, PerforceContext, EXCLUSIVE_CHECKOUT_REGEX } from "../common/perforce";
 import { convertIntegrateToEdit } from "../common/p4util";
 import { VersionReader } from "../common/version";
-import { IPCControls, ReconsiderArgs } from "./bot-interfaces";
+import { IPCControls } from "./bot-interfaces";
+import { BlockagePauseInfo, ReconsiderArgs } from "./status-types";
 import { AlreadyIntegrated, Branch, ChangeInfo, ConflictingFile, Failure, MergeAction, MergeMode, PendingChange } from "./branch-interfaces";
 import { PersistentConflict } from "./conflict-interfaces";
 import { BotEventTriggers } from "./events";
@@ -15,7 +16,6 @@ import { isUserAKnownBot, postMessageToChannel } from "./notifications";
 import { PerforceRequestResult, PerforceStatefulBot } from "./perforce-stateful-bot";
 import { Context } from "./settings";
 import { SlackMessageStyles } from "./slack";
-import { BlockagePauseInfo } from "./state-interfaces";
 import { EdgeOptions } from "./branchdefs";
 import { getIntegrationOwner } from "./targets";
 

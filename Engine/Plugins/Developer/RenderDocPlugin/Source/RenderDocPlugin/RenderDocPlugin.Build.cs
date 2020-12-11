@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 				, "Projects"
 				, "RenderCore"
 				, "InputDevice"
-                , "MainFrame"
 				, "RHI"				// RHI module: required for accessing the UE4 flag GUsingNullRHI.
 				, "DeveloperSettings"
 			});

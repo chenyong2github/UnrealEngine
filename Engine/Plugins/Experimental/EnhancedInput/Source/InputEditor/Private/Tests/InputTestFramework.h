@@ -98,8 +98,6 @@ public:
 	UPROPERTY()
 	TMap<FName, UInputAction*> InputAction;
 
-	FEnhancedActionKeyMapping* ActionMapping = nullptr;	// Last applied action mapping
-
 	// Ensure we don't try to double bind listeners when applying multiple key mappings
 	TSet<const UInputAction*> MappedActionListeners;
 

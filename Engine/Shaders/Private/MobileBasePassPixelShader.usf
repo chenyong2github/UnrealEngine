@@ -77,6 +77,7 @@ int NumDynamicPointLights;
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
 #define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
+#define USE_SCENE_DEPTH_AUX (DEFERRED_SHADING_PATH && METAL_PROFILE)
 
 #define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
 
@@ -529,10 +530,9 @@ void Main(
 	, out half4 OutGBufferA	: SV_Target1
 	, out half4 OutGBufferB	: SV_Target2
 	, out half4 OutGBufferC	: SV_Target3
+#endif
+#if USE_SCENE_DEPTH_AUX
 	, out float OutSceneDepthAux : SV_Target4
-	// MALI supports only up to 4 input attachements (GBufferA,GBufferB,GBufferC + SceneDepth)
-	// will have to change GBuffer format to fit GBufferD into this limit
-	//, out half4 OutGBufferD	: SV_Target5
 #endif
 #if OUTPUT_PIXEL_DEPTH_OFFSET
     , out float OutDepth : SV_Depth
@@ -676,7 +676,6 @@ void Main(
 	GBuffer.PrecomputedShadowFactors.r = Shadow;
 
 	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
-	OutSceneDepthAux = SvPosition.z;
 #else
 
 #if !MATERIAL_SHADINGMODEL_UNLIT
@@ -939,6 +938,10 @@ void Main(
 		// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
 		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx * 0.5f);
 	#endif
+
+#if USE_SCENE_DEPTH_AUX
+	OutSceneDepthAux = SvPosition.z;
+#endif
 
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)
 	// Editor primitive depth testing

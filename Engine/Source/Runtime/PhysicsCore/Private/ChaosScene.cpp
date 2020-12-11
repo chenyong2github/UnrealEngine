@@ -80,7 +80,7 @@ FChaosScene::FChaosScene(
 		});
 	}
 
-	Flush_AssumesLocked();	//make sure acceleration structure exists right away
+	Flush();	//make sure acceleration structure exists right away
 }
 
 FChaosScene::~FChaosScene()
@@ -146,7 +146,7 @@ void FChaosScene::CopySolverAccelerationStructure()
 	}
 }
 
-void FChaosScene::Flush_AssumesLocked()
+void FChaosScene::Flush()
 {
 	check(IsInGameThread());
 
@@ -288,14 +288,12 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 #endif
 }
 
-Chaos::FSimCallbackNoOutput* FChaosSceneSimCallback::OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* BaseInput)
+void FChaosSceneSimCallback::OnPreSimulate_Internal()
 {
-	if(auto Input = static_cast<const FChaosSceneCallbackInput*>(BaseInput))
+	if(const FChaosSceneCallbackInput* Input = GetConsumerInput_Internal())
 	{
 		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity);
 	}
-
-	return nullptr;
 }
 
 void FChaosScene::SetGravity(const Chaos::TVector<float, 3>& Acceleration)
@@ -365,9 +363,9 @@ void FChaosScene::StartFrame()
 #endif
 }
 
-void FChaosScene::OnSyncBodies()
+void FChaosScene::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 {
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([](auto){});
+	Solver->PullPhysicsStateForEachDirtyProxy_External([](auto){});
 }
 
 bool FChaosScene::AreAnyTasksPending() const
@@ -413,7 +411,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 {
 #if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
-	OnSyncBodies();
+	OnSyncBodies(Solver);
 #endif
 }
 

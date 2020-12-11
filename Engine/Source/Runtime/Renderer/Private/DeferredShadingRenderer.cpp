@@ -57,6 +57,7 @@
 #include "Strata/Strata.h"
 #include "Lumen/Lumen.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
+#include "RayTracingGeometryManager.h"
 
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
@@ -918,6 +919,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			{
 				for (FRayTracingInstance& Instance : RayTracingInstances)
 				{
+					// If geometry still has pending build request then add to list which requires a force build
+					if (Instance.Geometry->HasPendingBuildRequest())
+					{
+						ReferenceView.ForceBuildRayTracingGeometries.Add(Instance.Geometry);
+					}
+
 					FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
 					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 					RayTracingInstance.Mask = Instance.Mask;
@@ -1159,7 +1166,16 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			});
 	}
 
+	GRayTracingGeometryManager.ProcessBuildRequests(GraphBuilder.RHICmdList);
+
 	FViewInfo& ReferenceView = Views[0];
+	if (ReferenceView.ForceBuildRayTracingGeometries.Num() > 0)
+	{
+		// Force update all the collected geometries (use stack allocator?)
+		TArray<const FRayTracingGeometry*> ForceBuildRayTracingGeometries = ReferenceView.ForceBuildRayTracingGeometries.Array();
+		GRayTracingGeometryManager.ForceBuild(GraphBuilder.RHICmdList, MakeArrayView(ForceBuildRayTracingGeometries.GetData(), ForceBuildRayTracingGeometries.Num()));
+	}
+	
 	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WaitRayTracingAddMesh);
@@ -2090,15 +2106,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End early Shadow depth rendering
 
 	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	const bool bShouldRenderVolumetricCloud = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
+	const bool bShouldRenderVolumetricCloudBase = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
+	const bool bShouldRenderVolumetricCloud = bShouldRenderVolumetricCloudBase && !ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
+	const bool bShouldVisualizeVolumetricCloud = bShouldRenderVolumetricCloudBase && !!ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
+	bool bAsyncComputeVolumetricCloud = IsVolumetricRenderTargetEnabled() && IsVolumetricRenderTargetAsyncCompute();
+	bool bHasHalfResCheckerboardMinMaxDepth = false;
 	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud;
 
-	if (bVolumetricRenderTargetRequired)
+	if (bShouldRenderVolumetricCloudBase)
 	{
 		InitVolumetricRenderTargetForViews(GraphBuilder, Views);
 	}
 
-	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloud);
+	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloudBase);
 
 	// Generate sky LUTs once all shadow map has been evaluated (for volumetric light shafts). Requires bOcclusionBeforeBasePass.
 	// This also must happen before the BasePass for Sky material to be able to sample valid LUTs.
@@ -2142,6 +2162,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 
 		ComputeVolumetricFog(GraphBuilder);
+	}
+
+	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture = nullptr;
+
+	// Kick off async compute cloud eraly if all depth has been written in the prepass
+	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && DepthPass.EarlyZPassMode == DDM_AllOpaque)
+	{
+		HalfResolutionDepthCheckerboardMinMaxTexture = CreateHalfResolutionDepthCheckerboardMinMax(GraphBuilder, Views, SceneTextures.Depth.Resolve);
+		bHasHalfResCheckerboardMinMaxDepth = true;
+
+		bool bSkipVolumetricRenderTarget = false;
+		bool bSkipPerPixelTracing = true;
+		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true);
 	}
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
@@ -2324,6 +2357,17 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ComputeVolumetricFog(GraphBuilder);
 	}
 
+	// If not all depth is written during the prepass, kick off async compute cloud after basepass
+	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && DepthPass.EarlyZPassMode != DDM_AllOpaque)
+	{
+		HalfResolutionDepthCheckerboardMinMaxTexture = CreateHalfResolutionDepthCheckerboardMinMax(GraphBuilder, Views, SceneTextures.Depth.Resolve);
+		bHasHalfResCheckerboardMinMaxDepth = true;
+
+		bool bSkipVolumetricRenderTarget = false;
+		bool bSkipPerPixelTracing = true;
+		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true);
+	}
+
 	if (GetCustomDepthPassLocation() == 1)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CustomDepthPass);
@@ -2489,22 +2533,22 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder, HairDatas);
 	}
 
-	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture = nullptr;
-
-	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled())
+	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth)
 	{
 		HalfResolutionDepthCheckerboardMinMaxTexture = CreateHalfResolutionDepthCheckerboardMinMax(GraphBuilder, Views, SceneTextures.Depth.Resolve);
 	}
 
 	if (bShouldRenderVolumetricCloud)
 	{
-		// Generate the volumetric cloud render target
-		bool bSkipVolumetricRenderTarget = false;
-		bool bSkipPerPixelTracing = true;
-		RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture);
-
+		if (!bAsyncComputeVolumetricCloud)
+		{
+			// Generate the volumetric cloud render target
+			bool bSkipVolumetricRenderTarget = false;
+			bool bSkipPerPixelTracing = true;
+			RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		}
 		// Reconstruct the volumetric cloud render target to be ready to compose it over the scene
-		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture);
+		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, bAsyncComputeVolumetricCloud);
 	}
 
 	const bool bShouldRenderTranslucency = ShouldRenderTranslucency();
@@ -2569,7 +2613,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		bool bSkipVolumetricRenderTarget = true;
 		bool bSkipPerPixelTracing = false;
-		RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture);
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false);
 	}
 
 	// or composite the off screen buffer over the scene.
@@ -2749,6 +2793,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
 	{
 		RenderStationaryLightOverlap(GraphBuilder, SceneTextures, LightingChannelsTexture);
+		AddServiceLocalQueuePass(GraphBuilder);
+	}
+
+	if (bShouldVisualizeVolumetricCloud)
+	{
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, false, true, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, Views, SceneTextures.Color.Target);
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, true, false, HalfResolutionDepthCheckerboardMinMaxTexture, false);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 

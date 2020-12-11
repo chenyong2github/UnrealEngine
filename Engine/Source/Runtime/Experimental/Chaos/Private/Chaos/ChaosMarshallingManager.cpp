@@ -127,12 +127,12 @@ void FPushPhysicsData::Reset()
 	SimCallbackObjectsToAdd.Reset();
 	SimCallbackObjectsToRemove.Reset();
 	SimCallbackInputs.Reset();
+	SimCommands.Reset();
 }
 
 void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 {
 	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
-	DynamicsWeight = FirstStepData.DynamicsWeight;
 	DirtyPropertiesManager.SetNumParticles(FirstStepData.DirtyProxiesDataBuffer.NumDirtyProxies());
 	FirstStepData.DirtyProxiesDataBuffer.ForEachProxy([this, &FirstManager](int32 FirstDataIdx, const FDirtyProxy& Dirty)
 		{
@@ -142,14 +142,17 @@ void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 			{
 				if (const FParticleDynamics* DynamicsData = Dirty.ParticleData.FindDynamics(FirstManager, FirstDataIdx))
 				{
-					DirtyProxiesDataBuffer.Add(Dirty.Proxy);
-					FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
-					SubsteppedDynamics = *DynamicsData;
-					//we don't want to sub-step impulses so those are cleared in the sub-step
-					SubsteppedDynamics.SetAngularImpulse(FVec3(0));
-					SubsteppedDynamics.SetLinearImpulse(FVec3(0));
-					FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
-					NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
+					if(DynamicsData->F() != FVec3(0) || DynamicsData->Torque() != FVec3(0))	//don't bother interpolating 0. This is important because the input dirtys rewind data
+					{
+						DirtyProxiesDataBuffer.Add(Dirty.Proxy);
+						FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
+						SubsteppedDynamics = *DynamicsData;
+						//we don't want to sub-step impulses so those are cleared in the sub-step
+						SubsteppedDynamics.SetAngularImpulse(FVec3(0));
+						SubsteppedDynamics.SetLinearImpulse(FVec3(0));
+						FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
+						NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
+					}
 				}
 
 				Dirty.Proxy->ResetDirtyIdx();	//dirty idx is only used temporarily
@@ -169,7 +172,6 @@ FSimCallbackInput* ISimCallbackObject::GetProducerInputData_External()
 	{
 		FChaosMarshallingManager& Manager = Solver->GetMarshallingManager();
 		CurrentExternalInput_External = AllocateInputData_External();
-		CurrentExternalInput_External->ExternalTime = Manager.GetExternalTime_External();
 		Manager.AddSimCallbackInputData_External(this, CurrentExternalInput_External);
 	}
 

@@ -72,6 +72,7 @@ protected:
 
 	uint32 bDragMarkerVisible : 1;
 
+	virtual FText GetTitle() const;
 	virtual FText GetDescription() const;
 	virtual EVisibility GetDescriptionVisibility() const;
 
