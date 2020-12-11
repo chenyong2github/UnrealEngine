@@ -4535,7 +4535,14 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 		}
 		else if ((PinType.PinCategory == PC_SoftObject) || (PinType.PinCategory == PC_SoftClass))
 		{
-			ConstructorHelpers::StripObjectClass(UseDefaultValue);
+			if (UseDefaultValue == FName(NAME_None).ToString())
+			{
+				UseDefaultValue.Reset();
+			}
+			else
+			{
+				ConstructorHelpers::StripObjectClass(UseDefaultValue);
+			}
 		}
 	}
 }
