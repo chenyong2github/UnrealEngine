@@ -428,6 +428,19 @@ public:
 	void BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBox, const FGuid& ObjectBinding, const UClass* ObjectClass);
 
 	/**
+	 * Builds up the menu of folders to add selected nodes to
+	 *
+	 * @param MenuBuilder The menu builder to add things to.
+	 */
+	void BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder);
+
+protected:
+	void BuildAddSelectedToFolderSubMenu(FMenuBuilder& InMenuBuilder, TSharedRef<TArray<UMovieSceneFolder*> > InExcludedFolders, UMovieSceneFolder* InFolder, TArray<UMovieSceneFolder*> InChildFolders);
+	void BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, TSharedRef<TArray<UMovieSceneFolder*> > InExcludedFolders, UMovieSceneFolder* InFolder);
+
+public:
+
+	/**
 	 * Builds up the menu of node groups to add selected nodes to
 	 *
 	 * @param MenuBuilder The menu builder to add things to.
@@ -519,6 +532,7 @@ public:
 	/** Called when a user executes the move to new folder menu item */
 	void MoveSelectedNodesToNewFolder();
 	void MoveNodeToFolder(TSharedRef<FSequencerDisplayNode> NodeToMove, UMovieSceneFolder* DestinationFolder);
+	void MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder);
 
 	/** Called when a user executes the copy track menu item */
 	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, /*out*/ FString& ExportedText);

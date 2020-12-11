@@ -3627,7 +3627,7 @@ UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FString>& F
 	// An empty folder path won't create a folder
 	if (FolderPaths.Num() == 0)
 	{
-		return nullptr;
+		return ParentFolder;
 	}
 
 	check(FolderPathIndex < FolderPaths.Num());
@@ -8129,6 +8129,178 @@ TArray<TSharedRef<FSequencerDisplayNode> > FSequencer::GetSelectedNodesToMove()
 	}
 
 	return NodesToMove;
+}
+
+void FSequencer::MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder)
+{
+	if (!DestinationFolder)
+	{
+		return;
+	}
+
+	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		ShowReadOnlyError();
+		return;
+	}
+
+	TArray<TSharedRef<FSequencerDisplayNode> > NodesToMove = GetSelectedNodesToMove();
+
+	for (TSharedRef<FSequencerDisplayNode> Node : NodesToMove)
+	{
+		// If this node is the destination folder, don't try to move it
+		if (Node->GetType() == ESequencerNode::Folder)
+		{
+			if (&StaticCastSharedRef<FSequencerFolderNode>(Node)->GetFolder() == DestinationFolder)
+			{
+				NodesToMove.Remove(Node);
+				break;
+			}
+		}
+	}
+
+	if (!NodesToMove.Num())
+	{
+		return;
+	}
+
+	TArray<TArray<FString> > NodePathSplits;
+	int32 SharedPathLength = TNumericLimits<int32>::Max();
+
+	// Build a list of the paths for each node, split in to folder names
+	for (TSharedRef<FSequencerDisplayNode> Node : NodesToMove)
+	{
+		// Split the node's path in to segments
+		TArray<FString>& NodePath = NodePathSplits.AddDefaulted_GetRef();
+		Node->GetPathName().ParseIntoArray(NodePath, TEXT("."));
+
+		// Shared path obviously won't be larger than the shortest path
+		SharedPathLength = FMath::Min(SharedPathLength, NodePath.Num() - 1);
+	}
+
+	// If we have more than one, find the deepest folder shared by all paths
+	if (NodePathSplits.Num() > 1)
+	{
+		// Since we are looking for the shared path, we can arbitrarily choose the first path to compare against
+		TArray<FString>& ShareNodePathSplit = NodePathSplits[0];
+		for (int NodeIndex = 1; NodeIndex < NodePathSplits.Num(); ++NodeIndex)
+		{
+			if (SharedPathLength == 0)
+			{
+				break;
+			}
+
+			// Since all paths are at least as long as the shortest, we don't need to bounds check the path splits
+			for (int PathSplitIndex = 0; PathSplitIndex < SharedPathLength; ++PathSplitIndex)
+			{
+				if (NodePathSplits[NodeIndex][PathSplitIndex].Compare(ShareNodePathSplit[PathSplitIndex]))
+				{
+					SharedPathLength = PathSplitIndex;
+					break;
+				}
+			}
+		}
+	}
+
+	UMovieSceneFolder* ParentFolder = nullptr;
+
+	TArray<FString> FolderPath;
+
+	// Walk up the shared path to find the deepest shared folder
+	for (int32 FolderPathIndex = 0; FolderPathIndex < SharedPathLength; ++FolderPathIndex)
+	{
+		FolderPath.Add(NodePathSplits[0][FolderPathIndex]);
+		FName DesiredFolderName = FName(*FolderPath[FolderPathIndex]);
+
+		TArray<UMovieSceneFolder*> FoldersToSearch;
+		if (!ParentFolder)
+		{
+			FoldersToSearch = FocusedMovieScene->GetRootFolders();
+		}
+		else
+		{
+			FoldersToSearch = ParentFolder->GetChildFolders();
+		}
+
+		for (UMovieSceneFolder* Folder : FoldersToSearch)
+		{
+			if (Folder->GetFolderName() == DesiredFolderName)
+			{
+				ParentFolder = Folder;
+				break;
+			}
+		}
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("MoveTracksToFolder", "Move to Folder"));
+
+	Selection.Empty();
+
+	// Find the path to the displaynode of our destination folder
+	FString DestinationFolderPath;
+	if (DestinationFolder)
+	{
+		for (TSharedRef<FSequencerDisplayNode> Node : NodeTree->GetAllNodes())
+		{
+			// If this node is the destination folder, don't try to move it
+			if (Node->GetType() == ESequencerNode::Folder)
+			{
+				if (&StaticCastSharedRef<FSequencerFolderNode>(Node)->GetFolder() == DestinationFolder)
+				{
+					DestinationFolderPath = Node->GetPathName();
+
+					// Expand the folders to our destination
+					TSharedPtr<FSequencerDisplayNode> ParentNode = Node;
+					while (ParentNode)
+					{
+						ParentNode->SetExpansionState(true);
+						ParentNode = ParentNode->GetParent();
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	for (int32 NodeIndex = 0; NodeIndex < NodesToMove.Num(); ++NodeIndex)
+	{
+		TSharedRef<FSequencerDisplayNode> Node = NodesToMove[NodeIndex];
+		TArray<FString>& NodePathSplit = NodePathSplits[NodeIndex];
+
+		// Reset the relative path
+		FolderPath.Reset(NodePathSplit.Num());
+
+		FString NewPath = DestinationFolderPath;
+
+		if (!NewPath.IsEmpty())
+		{
+			NewPath += TEXT(".");
+		}
+
+		// Append any relative path for the node
+		for (int32 FolderPathIndex = SharedPathLength; FolderPathIndex < NodePathSplit.Num() - 1; ++FolderPathIndex)
+		{
+			FolderPath.Add(NodePathSplit[FolderPathIndex]);
+			NewPath += NodePathSplit[FolderPathIndex] + TEXT(".");
+		}
+
+		NewPath += Node->GetNodeName().ToString();
+
+		UMovieSceneFolder* NodeDestinationFolder = CreateFoldersRecursively(FolderPath, 0, FocusedMovieScene, DestinationFolder, DestinationFolder->GetChildFolders());
+		MoveNodeToFolder(Node, NodeDestinationFolder);
+
+		SequencerWidget->AddAdditionalPathToSelectionSet(NewPath);
+	}
+
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
 }
 
 void FSequencer::MoveSelectedNodesToNewFolder()
@@ -12830,6 +13002,87 @@ void FSequencer::BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBo
 	for (int32 i = 0; i < TrackEditors.Num(); ++i)
 	{
 		TrackEditors[i]->BuildObjectBindingEditButtons(EditBox, ObjectBinding, ObjectClass);
+	}
+}
+
+void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
+{
+	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
+	if (MovieScene)
+	{
+		TSharedRef<TArray<UMovieSceneFolder*>> ExcludedFolders = MakeShared<TArray<UMovieSceneFolder*> >();
+		for (TSharedRef<FSequencerDisplayNode> Node : GetSelection().GetSelectedOutlinerNodes())
+		{
+			if (Node->GetType() == ESequencerNode::Folder && Node->CanDrag())
+			{
+				ExcludedFolders->Add(&StaticCastSharedRef<FSequencerFolderNode>(Node)->GetFolder());
+			}
+		}
+
+		TArray<UMovieSceneFolder*> ChildFolders = MovieScene->GetRootFolders();
+		for (int32 Index = 0; Index < ChildFolders.Num(); ++Index)
+		{
+			if (ExcludedFolders->Contains(ChildFolders[Index]))
+			{
+				ChildFolders.RemoveAt(Index);
+				--Index;
+			}
+		}
+
+		for (UMovieSceneFolder* Folder : ChildFolders)
+		{
+			BuildAddSelectedToFolderMenuEntry(MenuBuilder, ExcludedFolders, Folder);
+		}
+	}
+}
+
+void FSequencer::BuildAddSelectedToFolderSubMenu(FMenuBuilder& InMenuBuilder, TSharedRef<TArray<UMovieSceneFolder*> >InExcludedFolders, UMovieSceneFolder* InFolder, TArray<UMovieSceneFolder*> InChildFolders)
+{
+	InMenuBuilder.AddMenuEntry(
+		LOCTEXT("MoveNodesHere", "Move Here"),
+		LOCTEXT("MoveNodesHereTooltip", "Move the selected nodes to this existing folder"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToFolder, InFolder)));
+
+	if (InChildFolders.Num() > 0)
+	{
+		InMenuBuilder.AddSeparator();
+
+		for (UMovieSceneFolder* Folder : InChildFolders)
+		{
+			BuildAddSelectedToFolderMenuEntry(InMenuBuilder, InExcludedFolders, Folder);
+		}
+	}
+}
+
+void FSequencer::BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, TSharedRef<TArray<UMovieSceneFolder*> > InExcludedFolders, UMovieSceneFolder* InFolder)
+{
+	TArray<UMovieSceneFolder*> ChildFolders = InFolder->GetChildFolders();;
+
+	for (int32 Index = 0; Index < ChildFolders.Num(); ++Index)
+	{
+		if (InExcludedFolders->Contains(ChildFolders[Index]))
+		{
+			ChildFolders.RemoveAt(Index);
+			--Index;
+		}
+	}
+
+	if (ChildFolders.Num() > 0)
+	{
+		InMenuBuilder.AddSubMenu(
+			FText::FromName(InFolder->GetFolderName()),
+			LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected nodes to an existing folder."),
+			FNewMenuDelegate::CreateSP(this, &FSequencer::BuildAddSelectedToFolderSubMenu, InExcludedFolders, InFolder, ChildFolders));
+	}
+	else
+	{
+		InMenuBuilder.AddMenuEntry(
+			FText::FromName(InFolder->GetFolderName()),
+			LOCTEXT("MoveNodesToFolderTooltip", "Move the selected nodes to this existing folder"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToFolder, InFolder)));
 	}
 }
 
