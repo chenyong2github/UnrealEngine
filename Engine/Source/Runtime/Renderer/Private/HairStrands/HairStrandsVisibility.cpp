@@ -221,7 +221,7 @@ inline uint32 GetMeanSamplePerPixel()
 	case HairVisibilityRenderMode_MSAA_Visibility:
 		return FMath::Max(1, FMath::FloorToInt(SamplePerPixel * FMath::Clamp(GHairVisibilityMSAA_MeanSamplePerPixel, 0.f, 1.f)));
 	case HairVisibilityRenderMode_PPLL:
-		return FMath::Max(1, FMath::FloorToInt(SamplePerPixel * FMath::Clamp(GHairVisibilityPPLL_MeanSamplePerPixel, 0.f, 1.f)));
+		return FMath::Max(1, FMath::FloorToInt(SamplePerPixel * FMath::Clamp(GHairVisibilityPPLL_MeanSamplePerPixel, 0.f, 10.f)));
 	case HairVisibilityRenderMode_Transmittance:
 	case HairVisibilityRenderMode_TransmittanceAndHairCount:
 		return 1;
