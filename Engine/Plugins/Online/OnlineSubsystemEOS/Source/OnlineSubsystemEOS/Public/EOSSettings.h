@@ -73,6 +73,12 @@ struct FEOSSettings
 	bool bEnableOverlay;
 	bool bEnableSocialOverlay;
 	bool bShouldEnforceBeingLaunchedByEGS;
+	bool bUseEAS;
+	bool bUseEOSConnect;
+	bool bMirrorStatsToEOS;
+	bool bMirrorAchievementsToEOS;
+	bool bUseEOSSessions;
+	bool bMirrorPresenceToEAS;
 	TArray<FEOSArtifactSettings> Artifacts;
 };
 

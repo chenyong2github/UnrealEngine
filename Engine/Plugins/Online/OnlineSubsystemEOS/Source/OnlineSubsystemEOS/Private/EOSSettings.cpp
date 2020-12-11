@@ -151,6 +151,13 @@ FEOSSettings UEOSSettings::ManualGetSettings()
 	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
 	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);
 
+	GConfig->GetBool(INI_SECTION, TEXT("bUseEAS"), Native.bUseEAS, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSConnect"), Native.bUseEOSConnect, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bMirrorStatsToEOS"), Native.bMirrorStatsToEOS, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bMirrorAchievementsToEOS"), Native.bMirrorAchievementsToEOS, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSSessions"), Native.bUseEOSSessions, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), Native.bMirrorPresenceToEAS, GEngineIni);
+
 	return Native;
 }
 
