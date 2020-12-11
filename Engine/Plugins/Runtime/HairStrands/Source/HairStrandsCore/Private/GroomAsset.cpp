@@ -1169,7 +1169,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("C571C104EA0E447CB099D4BEC0C871C1")
+#define GROOM_DERIVED_DATA_VERSION TEXT("04296541C35C4CE0999D08B6170BB67A")
 
 #if WITH_EDITORONLY_DATA
 

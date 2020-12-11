@@ -146,6 +146,9 @@ private:
 
 	/** Custom version to propagate to archive when serializing the bulk data */
 	FCustomVersionContainer CustomVersions;
+
+	/** Whether the bulk data has been written via SaveHairDescription */
+	bool bBulkDataUpdated = false;
 };
 
 template <typename AttributeType> using TStrandAttributesRef = TMeshAttributesRef<FStrandID, AttributeType>;
