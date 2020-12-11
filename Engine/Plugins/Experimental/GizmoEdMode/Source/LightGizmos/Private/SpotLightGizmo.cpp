@@ -435,11 +435,11 @@ FInputCaptureUpdate USpotLightGizmoInputBehavior::UpdateCapture(const FInputDevi
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 		return FInputCaptureUpdate::End();
 	}
 
-	Gizmo->OnUpdateDrag(LastWorldRay);
+	Gizmo->OnUpdateDrag(FInputDeviceRay(LastWorldRay));
 
 	return FInputCaptureUpdate::Continue();
 }
@@ -448,7 +448,7 @@ void USpotLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& data
 {
 	if (bInputDragCaptured)
 	{
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 		bInputDragCaptured = false;
 	}
 }

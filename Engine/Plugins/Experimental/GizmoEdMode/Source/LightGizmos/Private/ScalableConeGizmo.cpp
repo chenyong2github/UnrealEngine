@@ -357,11 +357,11 @@ FInputCaptureUpdate UScalableConeGizmoInputBehavior::UpdateCapture(const FInputD
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 		return FInputCaptureUpdate::End();
 	}
 
-	Gizmo->OnUpdateDrag(LastWorldRay);
+	Gizmo->OnUpdateDrag(FInputDeviceRay(LastWorldRay));
 
 	return FInputCaptureUpdate::Continue();
 }
@@ -371,7 +371,7 @@ void UScalableConeGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& d
 	if (bInputDragCaptured)
 	{
 		bInputDragCaptured = false;
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 	}
 }
 

@@ -462,11 +462,11 @@ FInputCaptureUpdate UDirectionalLightGizmoInputBehavior::UpdateCapture(const FIn
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 		return FInputCaptureUpdate::End();
 	}
 
-	Gizmo->OnUpdateDrag(LastWorldRay);
+	Gizmo->OnUpdateDrag(FInputDeviceRay(LastWorldRay));
 
 	return FInputCaptureUpdate::Continue();
 }
@@ -475,7 +475,7 @@ void UDirectionalLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureDat
 {
 	if (bInputDragCaptured)
 	{
-		Gizmo->OnEndDrag(LastWorldRay);
+		Gizmo->OnEndDrag(FInputDeviceRay(LastWorldRay));
 		bInputDragCaptured = false;
 	}
 }
