@@ -225,7 +225,7 @@ public class Core : ModuleRules
         }
 
 		// temporary thing.
-		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + SupportsBinaryConfig() ? "1" : "0");
+		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig() ? "1" : "0"));
 
         PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));
 
