@@ -925,7 +925,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 				if (SuccessfullyCopiedSourcePackages.Contains(DependencyString))
 				{
 					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([&](UObject* Object) { 
-						return Object && Object->GetOuter() && Object->GetOuter()->GetName() == DependencyString;
+						return Object && Object->IsValidLowLevel() && Object->GetOuter()->GetName() == DependencyString;
 						});
 
 					if (DependencyIndex != INDEX_NONE)
