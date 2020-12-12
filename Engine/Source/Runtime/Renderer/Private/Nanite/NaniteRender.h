@@ -203,20 +203,19 @@ public:
 };
 
 /** Vertex shader to draw a full screen quad at a specific depth that works on all platforms. */
-class FNaniteVS : public FNaniteShader
+class FNaniteMaterialVS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FNaniteVS);
+	DECLARE_GLOBAL_SHADER(FNaniteMaterialVS);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, MaterialDepth)
 	END_SHADER_PARAMETER_STRUCT()
 
-	FNaniteVS()
+	FNaniteMaterialVS()
 	{
 	}
 
-	FNaniteVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FNaniteShader(Initializer)
+	FNaniteMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FNaniteShader(Initializer)
 	{
 		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
 		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
@@ -235,8 +234,7 @@ class FNaniteVS : public FNaniteShader
 		const FMaterial& Material,
 		const FMeshPassProcessorRenderState& DrawRenderState,
 		const FMeshMaterialShaderElementData& ShaderElementData,
-		FMeshDrawSingleShaderBindings& ShaderBindings
-		) const
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
 		ShaderBindings.Add(NaniteUniformBuffer, DrawRenderState.GetNaniteUniformBuffer());
 	}

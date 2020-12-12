@@ -129,6 +129,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->DrawsVelocity(), 
 		Proxy->GetLightingChannelMask(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
+		Proxy->GetLightMapCoordinateIndex(),
 		SingleCaptureIndex,
         bOutputVelocity,
 		Proxy->GetCustomPrimitiveData(),
@@ -178,7 +179,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[23].W = *(const float*)&PrimitiveUniformShaderParameters.LightingChannelMask;
 
 	Data[24] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, 0.0f);
-	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
+	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataAndUVIndex;
 
 	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
 	Data[25].W = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;

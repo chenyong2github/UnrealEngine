@@ -747,6 +747,11 @@ public:
 	*/
 	virtual int32 GetLightMapResolution() const { return 0; }
 
+	/**
+	 * Get the lightmap UV coordinate index for this primitive. Used by systems that explicitly fetch lightmap UVs.
+	 */
+	virtual int32 GetLightMapCoordinateIndex() const { return INDEX_NONE; }
+
 	/** Tell us if this proxy is drawn in game.*/
 	ENGINE_API virtual bool IsDrawnInGame() const { return DrawInGame; }
 

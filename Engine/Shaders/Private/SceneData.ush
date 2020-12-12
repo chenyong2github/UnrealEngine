@@ -118,7 +118,7 @@ struct FPrimitiveSceneData
 	float3 LocalObjectBoundsMin;
 	uint LightingChannelMask;
 	float3 LocalObjectBoundsMax;
-	uint LightmapDataIndex;
+	uint LightmapDataAndUVIndex;
 	float3 PreSkinnedLocalBoundsMin;
 	int SingleCaptureIndex;
 	float3 PreSkinnedLocalBoundsMax;
@@ -151,6 +151,11 @@ FPrimitiveIndex SetupPrimitiveIndexes(uint PrimitiveId)
 	return PrimitiveIndex;
 }
 
+void UnpackLightmapDataAndUVIndex(uint Packed, out uint LightmapDataIndex, out uint LightmapUVIndex)
+{
+	LightmapDataIndex = (Packed & 0xFFFFFF00) >> 8u;
+	LightmapUVIndex   = (Packed & 0x000000FF);
+}
 
 float4 LoadPrimitivePrimitiveSceneDataElement(FPrimitiveIndex PrimitiveIndex, uint ItemIndex)
 {
@@ -215,7 +220,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LightingChannelMask = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w);
 
 	PrimitiveData.LocalObjectBoundsMax = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
-	PrimitiveData.LightmapDataIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w);
+	PrimitiveData.LightmapDataAndUVIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w);
 
 	PrimitiveData.PreSkinnedLocalBoundsMin = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
 	PrimitiveData.SingleCaptureIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w);

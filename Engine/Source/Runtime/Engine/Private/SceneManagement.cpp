@@ -340,6 +340,7 @@ void FDynamicPrimitiveUniformBuffer::Set(
 			GetDefaultLightingChannelMask(),
 			INDEX_NONE,
 			INDEX_NONE,
+			INDEX_NONE,
 			bOutputVelocity,
 			nullptr
 			)

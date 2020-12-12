@@ -90,7 +90,7 @@ public:
 };
 
 /**
- * A policy for shaders without a light-map.
+ * A policy for shaders without a lightmap.
  */
 struct FNoLightMapPolicy
 {
@@ -169,7 +169,7 @@ struct TLightMapPolicy
 	}
 };
 
-// A light map policy for computing up to 4 signed distance field shadow factors in the base pass.
+// A lightmap policy for computing up to 4 signed distance field shadow factors in the base pass.
 template< ELightmapQuality LightmapQuality >
 struct TDistanceFieldShadowsAndLightMapPolicy : public TLightMapPolicy< LightmapQuality >
 {
@@ -184,7 +184,7 @@ struct TDistanceFieldShadowsAndLightMapPolicy : public TLightMapPolicy< Lightmap
 };
 
 /**
- * Policy for 'fake' texture lightmaps, such as the LightMap density rendering mode
+ * Policy for 'fake' texture lightmaps, such as the lightmap density rendering mode
  */
 struct FDummyLightMapPolicy : public TLightMapPolicy< HQ_LIGHTMAP >
 {

@@ -40,7 +40,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,  LightingChannelMask)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(uint32,  LightmapDataIndex)
+	SHADER_PARAMETER(uint32,  LightmapDataAndUVIndex)
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
 	SHADER_PARAMETER(int32, SingleCaptureIndex)			// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
@@ -65,6 +65,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	bool bDrawsVelocity,
 	uint32 LightingChannelMask,
 	uint32 LightmapDataIndex,
+	uint32 LightmapUVIndex,
 	int32 SingleCaptureIndex,
 	bool bOutputVelocity,
 	const FCustomPrimitiveData* CustomPrimitiveData,
@@ -107,7 +108,9 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.UseSingleSampleShadowFromStationaryLights = bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.UseVolumetricLightmapShadowFromStationaryLights = bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.DrawsVelocity = bDrawsVelocity ? 1 : 0;
-	Result.LightmapDataIndex = LightmapDataIndex;
+
+	// Note: Keep UnpackLightmapDataAndUVIndex() in shader code up to date with packing layout.
+	Result.LightmapDataAndUVIndex = (8u << LightmapDataIndex) | (LightmapUVIndex & 0xFF);
 	
 	// If SingleCaptureIndex is invalid, set it to 0 since there will be a default cubemap at that slot
 	Result.SingleCaptureIndex = FMath::Max(SingleCaptureIndex, 0);
@@ -140,6 +143,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	bool bDrawsVelocity,
 	uint32 LightingChannelMask,
 	uint32 LightmapDataIndex,
+	uint32 LightmapUVIndex,
 	int32 SingleCaptureIndex,
     bool bOutputVelocity,
 	bool bCastContactShadow = true
@@ -161,6 +165,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		bDrawsVelocity, 
 		LightingChannelMask,
 		LightmapDataIndex, 
+		LightmapUVIndex,
 		SingleCaptureIndex,
 		bOutputVelocity,
 		nullptr,
@@ -195,6 +200,7 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 			GetDefaultLightingChannelMask(),
 			INDEX_NONE,
 			INDEX_NONE,
+			INDEX_NONE,
 			false,
 			nullptr
 		),
@@ -219,6 +225,7 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		false,
 		/* bDrawsVelocity = */ true,
 		GetDefaultLightingChannelMask(),
+		INDEX_NONE,
 		INDEX_NONE,
 		INDEX_NONE,
 		false,

@@ -399,6 +399,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				DrawsVelocity(), 
 				GetLightingChannelMask(),
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
+				GetLightMapCoordinateIndex(),
 				SingleCaptureIndex,
 				bOutputVelocity || AlwaysHasVelocity(),
 				GetCustomPrimitiveData(),

@@ -7211,6 +7211,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			GetLightingChannelMask(),
 			INDEX_NONE,
 			INDEX_NONE,
+			INDEX_NONE,
 			AlwaysHasVelocity()
 			);
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);

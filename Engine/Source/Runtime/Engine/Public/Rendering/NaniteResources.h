@@ -427,19 +427,21 @@ public:
 public:
 	// FPrimitiveSceneProxy interface.
 	virtual FPrimitiveViewRelevance	GetViewRelevance( const FSceneView* View ) const override;
+	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
+
 #if WITH_EDITOR
-	virtual HHitProxy*				CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
 #endif
-	virtual void					DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
-	virtual void					GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 #if RHI_RAYTRACING
-	virtual bool					IsRayTracingRelevant() const { return true; }
-	virtual bool					IsRayTracingStaticRelevant() const { return false; }
-	virtual void					GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+	virtual bool IsRayTracingRelevant() const { return true; }
+	virtual bool IsRayTracingStaticRelevant() const { return false; }
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
 #endif
 
-	virtual uint32					GetMemoryFootprint() const override;
+	virtual uint32 GetMemoryFootprint() const override;
 
 	virtual void GetLCIs(FLCIArray& LCIs) override
 	{
@@ -452,6 +454,8 @@ public:
 	virtual bool HasDistanceFieldRepresentation() const override;
 
 	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
+
+	virtual int32 GetLightMapCoordinateIndex() const override;
 
 protected:
 	virtual void CreateRenderThreadResources() override;

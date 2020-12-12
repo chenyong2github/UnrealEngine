@@ -869,6 +869,7 @@ void FDynamicMeshBuilder::GetMesh(
 				GetDefaultLightingChannelMask(),
 				INDEX_NONE,
 				INDEX_NONE,
+				INDEX_NONE,
 				false
 			);
 
@@ -961,6 +962,7 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 				GetDefaultLightingChannelMask(),
 				INDEX_NONE,
 				INDEX_NONE,
+				INDEX_NONE,
 				false
 			);
 
@@ -1038,6 +1040,7 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 			false,
 			/* bDrawsVelocity = */ true,
 			GetDefaultLightingChannelMask(),
+			INDEX_NONE,
 			INDEX_NONE,
 			INDEX_NONE,
 			false

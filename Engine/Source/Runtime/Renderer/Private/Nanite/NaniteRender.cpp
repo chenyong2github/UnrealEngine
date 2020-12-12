@@ -493,8 +493,6 @@ public:
 	}
 };
 
-
-
 class FInstanceCull_CS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
@@ -1185,7 +1183,7 @@ class FEmitMaterialDepthPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitMaterialDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitMaterialDepthPS", SF_Pixel);
 
-IMPLEMENT_GLOBAL_SHADER(FNaniteVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FNaniteMaterialVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
 
 class FEmitSceneDepthPS : public FNaniteShader
 {
@@ -1768,8 +1766,6 @@ FNaniteMeshProcessor::FNaniteMeshProcessor(
 	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 }
 
-using FNanitePassShaders = TMeshProcessorShaders<FNaniteVS, FBaseHS, FBaseDS, TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>;
-
 void FNaniteMeshProcessor::AddMeshBatch(
 	const FMeshBatch& RESTRICT MeshBatch, 
 	uint64 BatchElementMask, 
@@ -1778,6 +1774,11 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	)
 {
 	LLM_SCOPE_BYTAG(Nanite);
+
+	if (!MeshBatch.bUseForMaterial)
+	{
+		return;
+	}
 
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
@@ -1806,18 +1807,16 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
 	const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
 
+	const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
+	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData(); 
+	
 	static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
 	const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
-
-	const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
-	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
 
 	// Determine light map policy type
 	ELightMapPolicyType SelectedLightMapPolicyType = ELightMapPolicyType::LMP_NO_LIGHTMAP;
 	if (LightMapInteraction.GetType() == LMIT_Texture)
 	{
-// TODO: See shelved CL 9283534
-#if 0
 		if (bAllowHighQualityLightMaps)
 		{
 			const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
@@ -1837,7 +1836,6 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		{
 			SelectedLightMapPolicyType = LMP_LQ_LIGHTMAP;
 		}
-#endif
 	}
 	else
 	{
@@ -1886,7 +1884,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		}
 	}
 
-	TShaderMapRef<FNaniteVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
+	TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
 
 	GetBasePassShaders<FUniformLightMapPolicy>(
@@ -1901,11 +1899,19 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		nullptr,
 		nullptr,
 		&BasePassPixelShader
-		);
+	);
 
-	FNanitePassShaders PassShaders;
-	PassShaders.VertexShader = VertexShader;
-	PassShaders.PixelShader = BasePassPixelShader;
+	TMeshProcessorShaders
+	<
+		FNaniteMaterialVS,
+		FBaseHS,
+		FBaseDS,
+		TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>
+	>
+	PassShaders;
+
+	PassShaders.VertexShader = NaniteVertexShader;
+	PassShaders.PixelShader  = BasePassPixelShader;
 
 	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(nullptr);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, nullptr, MeshBatch, -1, false);
@@ -4118,7 +4124,7 @@ static void BuildNaniteMaterialPassCommands(
 static void SubmitNaniteMaterialPassCommand(
 	const FMeshDrawCommand& MeshDrawCommand,
 	const float MaterialDepth,
-	const TShaderRef<FNaniteVS>& NaniteVertexShader,
+	const TShaderRef<FNaniteMaterialVS>& NaniteVertexShader,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	const uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
@@ -4128,7 +4134,7 @@ static void SubmitNaniteMaterialPassCommand(
 
 	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
 	{
-		FNaniteVS::FParameters Parameters;
+		FNaniteMaterialVS::FParameters Parameters;
 		Parameters.MaterialDepth = MaterialDepth;
 		SetShaderParameters(RHICmdList, NaniteVertexShader, NaniteVertexShader.GetVertexShader(), Parameters);
 	}
@@ -4138,7 +4144,7 @@ static void SubmitNaniteMaterialPassCommand(
 
 static void SubmitNaniteMaterialPassCommand(
 	const FNaniteMaterialPassCommand& MaterialPassCommand,
-	const TShaderRef<FNaniteVS>& NaniteVertexShader,
+	const TShaderRef<FNaniteMaterialVS>& NaniteVertexShader,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	const uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
@@ -4313,7 +4319,7 @@ void DrawBasePass(
 			MaterialDepthStencil
 		);
 
-		TShaderMapRef<FNaniteVS> NaniteVertexShader(View.ShaderMap);
+		TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(View.ShaderMap);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Emit GBuffer"),
@@ -4674,7 +4680,7 @@ void DrawLumenMeshCapturePass(
 			FExclusiveDepthStencil::DepthWrite_StencilRead
 		);
 
-		TShaderMapRef<FNaniteVS> NaniteVertexShader(SharedView->ShaderMap);
+		TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Lumen Emit GBuffer"),

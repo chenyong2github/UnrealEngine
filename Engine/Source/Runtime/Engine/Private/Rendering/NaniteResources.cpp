@@ -320,7 +320,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	}
 };
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush", true, false, false, false, false, false, true, true);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush", true /* bUsedWithMaterials */, true /* bSupportsStaticLighting */, false /* bSupportsDynamicLighting */, false /* bPrecisePrevWorldPos */, false /* bSupportsPositionOnly */, false /* bSupportsCachingMeshDrawCommands */, true /* bSupportsPrimitiveIdStream */, true /* bSupportsNaniteRendering */);
 
 SIZE_T FSceneProxyBase::GetTypeHash() const
 {
@@ -385,6 +385,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	MaterialSections.Reserve(MeshSectionCount);
 
+	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
+
 	for (const auto& MeshSection : MeshSections)
 	{
 		if (MeshSection.MaterialIndex == INDEX_NONE)
@@ -421,7 +423,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 			}
 		}
 
-		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors;
+		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors || (bHasSurfaceStaticLighting && !Section.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting));
 		if (bForceDefaultMaterial)
 		{
 			Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
@@ -584,6 +586,16 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) 
 	}
 
 	return Result;
+}
+
+void FSceneProxy::GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const
+{
+	// Attach the light to the primitive's static meshes.
+	const ELightInteractionType InteractionType = MeshInfo.GetInteraction(LightSceneProxy).GetType();
+	bRelevant     = (InteractionType != LIT_CachedIrrelevant);
+	bDynamic      = (InteractionType == LIT_Dynamic);
+	bLightMapped  = (InteractionType == LIT_CachedLightMap || InteractionType == LIT_CachedIrrelevant);
+	bShadowMapped = (InteractionType == LIT_CachedSignedDistanceFieldShadowMap2D);
 }
 
 #if WITH_EDITOR
@@ -981,6 +993,11 @@ void FSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWor
 bool FSceneProxy::HasDistanceFieldRepresentation() const
 {
 	return CastsDynamicShadow() && AffectsDistanceFieldLighting() && DistanceFieldData && DistanceFieldData->VolumeTexture.IsValidDistanceFieldVolume();
+}
+
+int32 FSceneProxy::GetLightMapCoordinateIndex() const
+{
+	return StaticMesh != nullptr ? StaticMesh->GetLightMapCoordinateIndex() : INDEX_NONE;
 }
 
 bool FSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const

@@ -803,6 +803,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 			0b111,
 			0,
 			INDEX_NONE,
+			INDEX_NONE,
 			false,
 			nullptr
 			);
@@ -1075,6 +1076,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 			false,
 			0b111,
 			0,
+			INDEX_NONE,
 			INDEX_NONE,
 			false,
 			nullptr), UniformBuffer_MultiFrame);
@@ -1364,6 +1366,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			false,
 			0b111,
 			0,
+			INDEX_NONE,
 			INDEX_NONE,
 			false,
 			nullptr), UniformBuffer_MultiFrame);

@@ -7,7 +7,43 @@
 
 struct FVertexFactoryInterpolantsVSToPS
 {
+#if NEEDS_LIGHTMAP_COORDINATE
+	nointerpolation float4 LightMapCoordinate : TEXCOORD3;
+#endif
+#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+	nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
+#endif
 };
+
+#if NEEDS_LIGHTMAP_COORDINATE
+void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 LightmapUV0, out float2 LightmapUV1, out uint LightmapDataIndex)
+{
+	LightmapUV0 = Interpolants.LightMapCoordinate.xy * float2(1.0, 0.5);
+	LightmapUV1 = LightmapUV0 + float2(0.0, 0.5);
+
+#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+	LightmapDataIndex = Interpolants.LightmapDataIndex;
+#else
+	LightmapDataIndex = 0;
+#endif
+}
+
+void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 ShadowMapCoordinate, out uint LightmapDataIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+	LightmapDataIndex = Interpolants.LightmapDataIndex;
+#else
+	LightmapDataIndex = 0;
+#endif
+	ShadowMapCoordinate = Interpolants.LightMapCoordinate.zw;
+}
+
+void SetLightMapCoordinate(inout FVertexFactoryInterpolantsVSToPS Interpolants, float2 InLightMapCoordinate, float2 InShadowMapCoordinate)
+{
+	Interpolants.LightMapCoordinate.xy = InLightMapCoordinate;
+	Interpolants.LightMapCoordinate.zw = InShadowMapCoordinate;
+}
+#endif
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
@@ -257,11 +293,24 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		// Required for previewing materials that use ParticleColor
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
+#if NEEDS_LIGHTMAP_COORDINATE && NUM_TEX_COORD_INTERPOLATORS > 0
+		uint LightmapDataIndex = 0;
+		uint LightmapUVIndex   = 0;
+		UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
+
+		const float2 ShadowmapUV = float2(0, 0); // TODO: Need to support going forward?
+		const float2 LightmapUV  = Result.TexCoords[LightmapUVIndex];
+
+		Interpolants.LightmapDataIndex = LightmapDataIndex;
+
+		SetLightMapCoordinate(Interpolants, LightmapUV, ShadowmapUV);
+#else
+		const float2 LightmapUV = float2(0, 0);
+#endif
+
 #if LIGHTMAP_UV_ACCESS
-	#if NEEDS_LIGHTMAP_COORDINATE
-		Result.LightmapUVs = float2(0, 0);
-	#endif	// NEEDS_LIGHTMAP_COORDINATE
-#endif	// LIGHTMAP_UV_ACCESS
+		Result.LightmapUVs = LightmapUV;
+#endif
 
 		Result.TwoSidedSign = 1;
 		Result.PrimitiveId = InstanceData.PrimitiveId;

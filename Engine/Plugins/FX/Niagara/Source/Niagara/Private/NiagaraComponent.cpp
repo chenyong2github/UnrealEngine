@@ -391,6 +391,7 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetUniformBufferNoVelocity() const
 				DrawsVelocity(),
 				GetLightingChannelMask(),
 				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0,
+				GetLightMapCoordinateIndex(),
 				SingleCaptureIndex,
 				false,
 				GetCustomPrimitiveData()
