@@ -22,13 +22,13 @@ namespace Chaos
 	public:
 		using FGeometryParticle = TGeometryParticle<FReal, 3>;
 		using FHandleID = FUniqueIdx;
-		using FParticleArray = TArray<FGeometryParticle*>;
+		using FDeactivationArray = TArray<FUniqueIdx>;
 		using FActiveMap = TMap<FHandleID, TArray<FHandleID> >;
-		using FPendingMap = TMap<FGeometryParticle*, FParticleArray >;
+		using FPendingMap = TMap<FGeometryParticle*, TArray<FGeometryParticle*> >;
 		struct FStorageData
 		{
 			FPendingMap PendingActivations;
-			FParticleArray PendingDeactivations;
+			FDeactivationArray PendingDeactivations;
 			int32 ExternalTimestamp = INDEX_NONE;
 
 			void Reset()
@@ -69,7 +69,7 @@ namespace Chaos
 			return StorageDataProducer->PendingActivations;
 		}
 
-		FParticleArray& GetPendingDeactivationsForGameThread(int32 ExternalTimestamp)
+		FDeactivationArray& GetPendingDeactivationsForGameThread(int32 ExternalTimestamp)
 		{
 			if (StorageDataProducer->ExternalTimestamp == INDEX_NONE)
 			{
@@ -126,7 +126,7 @@ namespace Chaos
 		FActiveMap IgnoreCollisionsList;
 
 		FPendingMap PendingActivations;
-		FParticleArray PendingDeactivations;
+		FDeactivationArray PendingDeactivations;
 
 		// Producer storage data, pending changes written here until pushed into queue.
 		FStorageData* StorageDataProducer;
