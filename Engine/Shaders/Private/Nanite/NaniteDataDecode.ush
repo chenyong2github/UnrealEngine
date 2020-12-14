@@ -1168,7 +1168,7 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.PrevClipToWorld				= View.PrevInvViewProj;
 
 	NaniteView.ViewSizeAndInvSize			= View.ViewSizeAndInvSize;
-	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.zy + 0.5f));
+	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy + 0.5f));
 	NaniteView.PreViewTranslation			= View.PreViewTranslation;
 	NaniteView.PrevPreViewTranslation		= View.PrevPreViewTranslation;
 	NaniteView.WorldCameraOrigin			= View.WorldCameraOrigin;
