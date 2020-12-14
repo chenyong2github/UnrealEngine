@@ -1791,10 +1791,17 @@ void FHotReloadModule::CheckForFinishedModuleDLLCompile(EHotReloadFlags Flags, b
 		ChangedModules.Reserve(ModulesThatWereBeingRecompiled.Num());
 		for( FModuleToRecompile& CurModule : ModulesThatWereBeingRecompiled )
 		{
+			bool bModuleChanged = !CurModule.NewModuleFilename.IsEmpty();
+
 			// Were we asked to assign a new file name for this module?
-			if( CurModule.NewModuleFilename.IsEmpty() )
+			if (!bModuleChanged)
 			{
-				continue;
+				FModuleManager& ModuleManager = FModuleManager::Get();
+
+				// This is a new module, so reset the cache and find the name of it.
+				ModuleManager.ResetModulePathsCache();
+				ModuleManager.RefreshModuleFilenameFromManifest(CurModule.ModuleName);
+				CurModule.NewModuleFilename = ModuleManager.GetModuleFilename(CurModule.ModuleName);
 			}
 
 			if (IFileManager::Get().FileSize(*CurModule.NewModuleFilename) <= 0)
@@ -1819,8 +1826,11 @@ void FHotReloadModule::CheckForFinishedModuleDLLCompile(EHotReloadFlags Flags, b
 			// If the compile succeeded, update the module info entry with the new file name for this module
 			OnModuleCompileSucceeded(CurModule.ModuleName, CurModule.NewModuleFilename);
 
-			// Move modules
-			ChangedModules.Emplace(CurModule.ModuleName, MoveTemp(CurModule.NewModuleFilename));
+			if (bModuleChanged)
+			{
+				// Move modules
+				ChangedModules.Emplace(CurModule.ModuleName, MoveTemp(CurModule.NewModuleFilename));
+			}
 		}
 	}
 	ModulesThatWereBeingRecompiled.Empty();
