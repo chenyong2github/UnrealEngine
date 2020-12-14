@@ -57,10 +57,11 @@ TSharedPtr<IImageWrapper> LoadImage(const FString& ImagePath, IImageWrapperModul
 	}
 
 	// get file info
+	const UImgMediaSettings* Settings = GetDefault<UImgMediaSettings>();
 	OutInfo.CompressionName = TEXT("");
 	OutInfo.Dim.X = ImageWrapper->GetWidth();
 	OutInfo.Dim.Y = ImageWrapper->GetHeight();
-	OutInfo.FrameRate = ImgMedia::DefaultFrameRate;
+	OutInfo.FrameRate = Settings->DefaultFrameRate;
 	OutInfo.Srgb = true;
 	OutInfo.UncompressedSize = (SIZE_T)OutInfo.Dim.X * OutInfo.Dim.Y * 4;
 
