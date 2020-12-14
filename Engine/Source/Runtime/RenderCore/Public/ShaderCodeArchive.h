@@ -75,8 +75,6 @@ public:
 #if WITH_EDITOR
 	/** Mapping from shadermap hashes to an array of asset names - this is used for on-disk storage as it is shorter. */
 	TMap<FSHAHash, FShaderMapAssetPaths> ShaderCodeToAssets;
-	/** Reverse mapping from asset name to the hash of its shadermap, populated from the above mapping, actually used for chunking. */
-	TMap<FName, FSHAHash> AssetToShaderCode;
 
 	enum class EAssetInfoVersion : uint8
 	{
@@ -124,7 +122,6 @@ public:
 			ShaderIndices.GetAllocatedSize()
 #if WITH_EDITOR
 			+ ShaderCodeToAssets.GetAllocatedSize()
-			+ AssetToShaderCode.GetAllocatedSize()
 #endif
 			;
 	}
@@ -141,7 +138,6 @@ public:
 		ShaderHashTable.Clear();
 #if WITH_EDITOR
 		ShaderCodeToAssets.Empty();
-		AssetToShaderCode.Empty();
 #endif
 	}
 
