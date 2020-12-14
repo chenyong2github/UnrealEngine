@@ -87,10 +87,8 @@ namespace LowLevelTasks
 
 		struct FSleepEvent
 		{
-			FEvent* SleepEvent;
+			FEventRef SleepEvent;
 			std::atomic<ESleepState> SleepState { ESleepState::Running };
-			inline FSleepEvent();
-			inline ~FSleepEvent();
 		};
 		using FEventQueueType = FAAArrayQueue<FSleepEvent>;
 
@@ -103,19 +101,19 @@ namespace LowLevelTasks
 		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles);
 		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference);
 		CORE_API void BusyWaitInternal(const FConditional& Conditional);
-		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, uint32& WaitCount);
+		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing);
 		inline bool WakeUpWorker();
 		template<FTask* (FLocalQueueType::*DequeueFunction)()>
-		FORCEINLINE_DEBUGGABLE static bool TryExecuteTaskFrom(FLocalQueueType* Queue);
+		FORCEINLINE_DEBUGGABLE static bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork);
 
 	private:
-		FEventQueueType SleepEventQueue;
-		FQueueRegistry QueueRegistry;
-		FCriticalSection WorkerThreadsCS;
+		FEventQueueType 			SleepEventQueue;
+		FQueueRegistry 				QueueRegistry;
+		FCriticalSection 			WorkerThreadsCS;
 		TArray<TUniquePtr<FThread>> WorkerThreads;
-		TArray<FLocalQueueType> WorkerLocalQueues;
-		std::atomic_uint ActiveWorkers { 0 };
-		std::atomic_uint NextWorkerId { 0 };
+		TArray<FLocalQueueType>		WorkerLocalQueues;
+		std::atomic_uint			ActiveWorkers { 0 };
+		std::atomic_uint			NextWorkerId { 0 };
 	};
 
 	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
@@ -220,21 +218,30 @@ namespace LowLevelTasks
 		}
 	}
 
-	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, uint32& WaitCount)
+	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing)
 	{
-		ESleepState DrowsingState = ESleepState::Drowsing;
+		ESleepState DrowsingState1 = ESleepState::Drowsing;
+		ESleepState DrowsingState2 = ESleepState::Drowsing;
 		ESleepState RunningState  = ESleepState::Running;
-		if(WorkerEvent->SleepState.compare_exchange_strong(DrowsingState, ESleepState::Sleeping, std::memory_order_relaxed))
+		if(!Drowsing && WorkerEvent->SleepState.compare_exchange_strong(DrowsingState1, ESleepState::Drowsing, std::memory_order_relaxed)) //continue drowsing
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE("Sleeping Worker");
+			verifySlow(OutOfWork.Stop());
+			Drowsing = true;
+			FPlatformProcess::SleepNoStats(0);	// Alternative State one: ((Running -> Drowsing) -> Drowsing)
+		}
+		else if(WorkerEvent->SleepState.compare_exchange_strong(DrowsingState2, ESleepState::Sleeping, std::memory_order_relaxed))
+		{
+			verifySlow(!OutOfWork.Stop());
 			WaitCount = 0;
+			Drowsing = false;
 			WorkerEvent->SleepEvent->Wait(); // State two: ((Running -> Drowsing) -> Sleeping)
 		}
 		else if(WorkerEvent->SleepState.compare_exchange_strong(RunningState, ESleepState::Drowsing, std::memory_order_relaxed))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE("Drowsing Worker");
-			SleepEventQueue.enqueue(WorkerEvent); // State one: (Running -> Drowsing)
-			FPlatformProcess::SleepNoStats(0);	
+			verifySlow(OutOfWork.Stop() == !Drowsing);
+			Drowsing = true;
+			SleepEventQueue.enqueue(WorkerEvent);
+			FPlatformProcess::SleepNoStats(0); // State one: (Running -> Drowsing)
 		}
 		else
 		{
@@ -247,22 +254,15 @@ namespace LowLevelTasks
 		FSleepEvent* WorkerEvent = SleepEventQueue.dequeue();
 		if (WorkerEvent)
 		{
-			ESleepState DrowsingState = ESleepState::Drowsing;
-			ESleepState SleepingState = ESleepState::Sleeping;
-			if (WorkerEvent->SleepState.compare_exchange_strong(DrowsingState, ESleepState::Running, std::memory_order_relaxed))
+			// Solving State : (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running OR (((Running -> Drowsing) -> Sleeping) -> Running)
+			ESleepState SleepState = WorkerEvent->SleepState.exchange(ESleepState::Running, std::memory_order_relaxed);
+			if (SleepState == ESleepState::Sleeping)
 			{
-				return true; // Solving State one: (Running -> Drowsing) -> Running
-			}
-			else if (WorkerEvent->SleepState.compare_exchange_strong(SleepingState, ESleepState::Running, std::memory_order_relaxed))
-			{
-				WorkerEvent->SleepEvent->Trigger();
-				return true; // Solving State two: (((Running -> Drowsing) -> Sleeping) -> Running)
-			}
-			else
-			{
-				checkf(false, TEXT("Worker was not sleeping or drowsing: %d"), WorkerEvent->SleepState.load(std::memory_order_relaxed));
+				WorkerEvent->SleepEvent->Trigger(); // Solving State two: (((Running -> Drowsing) -> Sleeping) -> Running)
 				return true;
-			}		
+			}
+			checkf(SleepState == ESleepState::Drowsing, TEXT("Worker was not drowsing: %d"), WorkerEvent->SleepState.load(std::memory_order_relaxed));
+			return true;
 		}
 		return false;
 	}
@@ -275,15 +275,6 @@ namespace LowLevelTasks
 	inline FScheduler::~FScheduler()
 	{
 		StopWorkers();
-	}
-
-	inline FScheduler::FSleepEvent::FSleepEvent() : SleepEvent(FPlatformProcess::GetSynchEventFromPool())
-	{
-	}
-
-	inline FScheduler::FSleepEvent::~FSleepEvent()
-	{
-		FPlatformProcess::ReturnSynchEventToPool(SleepEvent);
 	}
 }
 

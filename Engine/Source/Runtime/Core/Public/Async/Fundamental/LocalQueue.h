@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "CoreTypes.h"
 #include "Math/RandomStream.h"
 #include "Experimental/Containers/FAAArrayQueue.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #include <atomic>
 
@@ -94,7 +96,7 @@ protected:
 			{
 				return false;
 			}
-			else if (Slot == uintptr_t(ESlotState::Free) && ItemSlots[Idx].Value.compare_exchange_strong(Slot, uintptr_t(ESlotState::Taken), std::memory_order_relaxed))
+			else if (Slot == uintptr_t(ESlotState::Free) && ItemSlots[Idx].Value.compare_exchange_weak(Slot, uintptr_t(ESlotState::Taken), std::memory_order_relaxed))
 			{
 				if(IdxVer == Tail.load(std::memory_order_relaxed))
 				{
@@ -156,6 +158,64 @@ class TLocalQueueRegistry
 {
 public:
 	class TLocalQueue;
+
+	// FOutOfWork is used to track the time while a worker is waiting for work
+	// this happens after a worker was unable to aquire any task from the queues and until it finds work again or it goes into drowsing state.
+	class FOutOfWork
+	{
+	private:
+		template<typename, uint32, uint32>
+		friend class TLocalQueueRegistry;
+
+		std::atomic_int& NumWorkersLookingForWork;
+		bool ActivelyLookingForWork = false;
+
+		static uint32 WorkerLookingForWorkTraceId;
+
+		inline FOutOfWork(std::atomic_int& InNumWorkersLookingForWork) : NumWorkersLookingForWork(InNumWorkersLookingForWork)
+		{
+#if CPUPROFILERTRACE_ENABLED
+			if (WorkerLookingForWorkTraceId == 0) 
+			{
+				WorkerLookingForWorkTraceId = FCpuProfilerTrace::OutputEventType("TaskWorkerIsLookingForWork");
+			}
+#endif
+		}
+
+	public:
+		inline ~FOutOfWork()
+		{
+			Stop();
+		}
+
+		inline bool Start()
+		{
+			if (!ActivelyLookingForWork)
+			{
+#if CPUPROFILERTRACE_ENABLED
+				FCpuProfilerTrace::OutputBeginEvent(WorkerLookingForWorkTraceId);
+#endif
+				NumWorkersLookingForWork.fetch_add(1, std::memory_order_relaxed);
+				ActivelyLookingForWork = true;
+				return true;
+			}
+			return false;
+		}
+
+		inline bool Stop()
+		{
+			if (ActivelyLookingForWork)
+			{
+#if CPUPROFILERTRACE_ENABLED
+				FCpuProfilerTrace::OutputEndEvent();
+#endif
+				NumWorkersLookingForWork.fetch_sub(1, std::memory_order_release);
+				ActivelyLookingForWork = false;
+				return true;
+			}
+			return false;
+		}
+	};
 
 private:
 	using FLocalQueueType	 = LocalQueue_Impl::TWorkStealingQueue2<ItemType, NumLocalItems>;
@@ -235,7 +295,8 @@ public:
 		}
 
 		//add an item to the local queue and overflow into the global queue if full
-		inline void Enqueue(ItemType* Item, uint32 PriorityIndex)
+		// returns true if we should wake a worker
+		inline bool Enqueue(ItemType* Item, uint32 PriorityIndex)
 		{
 			checkSlow(Registry);
 			checkSlow(PriorityIndex < NumPriorities);
@@ -244,11 +305,14 @@ public:
 			if (!LocalQueues[PriorityIndex].Put(Item))
 			{
 				Registry->OverflowQueues[PriorityIndex].enqueue(Item);
+				return Registry->AnyWorkerLookingForWork();
 			}
+			return (LocalTasksSinceLastDequeue++ != 0) && Registry->AnyWorkerLookingForWork();
 		}
 
 		inline ItemType* DequeueLocal()
 		{
+			LocalTasksSinceLastDequeue = 0;
 			for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
 			{
 				ItemType* Item;
@@ -262,12 +326,15 @@ public:
 
 		inline ItemType* DequeueGlobal()
 		{
-			for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+			if (Registry->NumActiveWorkers.load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork.load(std::memory_order_relaxed) - 1))
 			{
-				ItemType* Item = Registry->OverflowQueues[PriorityIndex].dequeue(DequeueHazards[PriorityIndex]);
-				if (Item)
+				for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
 				{
-					return Item;
+					ItemType* Item = Registry->OverflowQueues[PriorityIndex].dequeue(DequeueHazards[PriorityIndex]);
+					if (Item)
+					{
+						return Item;
+					}
 				}
 			}
 			return nullptr;
@@ -275,15 +342,18 @@ public:
 
 		inline ItemType* DequeueSteal()
 		{
-			if (CachedRandomIndex == InvalidIndex)
+			if (Registry->NumActiveWorkers.load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork.load(std::memory_order_relaxed) - 1))
 			{
-				CachedRandomIndex = Random.GetUnsignedInt();
-			}
+				if (CachedRandomIndex == InvalidIndex)
+				{
+					CachedRandomIndex = Random.GetUnsignedInt();
+				}
 
-			ItemType* Result = Registry->StealItem(StealHazard, CachedRandomIndex, CachedPriorityIndex);
-			if (Result)
-			{
-				return Result;
+				ItemType* Result = Registry->StealItem(StealHazard, CachedRandomIndex, CachedPriorityIndex);
+				if (Result)
+				{
+					return Result;
+				}
 			}
 			return nullptr;
 		}
@@ -297,6 +367,7 @@ public:
 		FRandomStream			Random;
 		uint32					CachedRandomIndex = InvalidIndex;
 		uint32					CachedPriorityIndex = 0;
+		uint32					LocalTasksSinceLastDequeue = 0;
 	};
 
 	TLocalQueueRegistry()
@@ -308,6 +379,7 @@ private:
 	// add a queue to the Registry
 	void AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd)
 	{
+		NumActiveWorkers.fetch_add(1, std::memory_order_relaxed);
 		while(true)
 		{
 			FLocalQueueCollection* Previous = Hazard.Get();
@@ -328,6 +400,7 @@ private:
 	// remove a queue from the Registry
 	void DeleteLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToRemove, bool WorkerOwned)
 	{
+		NumActiveWorkers.fetch_sub(1, std::memory_order_relaxed);
 		while(true)
 		{
 			FLocalQueueCollection* Previous = Hazard.Get();
@@ -381,12 +454,15 @@ private:
 
 public:
 	// enqueue an Item directy into the Global OverflowQueue
-	void Enqueue(ItemType* Item, uint32 PriorityIndex)
+	// returns true if we should wake a worker for stealing
+	bool Enqueue(ItemType* Item, uint32 PriorityIndex)
 	{
 		check(PriorityIndex < NumPriorities);
 		check(Item != nullptr);
 
 		OverflowQueues[PriorityIndex].enqueue(Item);
+
+		return AnyWorkerLookingForWork();
 	}
 
 	// grab an Item directy from the Global OverflowQueue
@@ -403,8 +479,23 @@ public:
 		return nullptr;
 	}
 
+	inline FOutOfWork GetOutOfWorkScope()
+	{
+		return FOutOfWork(NumWorkersLookingForWork);
+	}
+
 private:
+	inline bool AnyWorkerLookingForWork() const
+	{
+		return NumWorkersLookingForWork.load(std::memory_order_acquire) == 0;
+	}
+
 	FOverflowQueueType	  OverflowQueues[NumPriorities];
 	FHazardPointerCollection		  HazardsCollection;
-	std::atomic<FLocalQueueCollection*>	QueueCollection;	
+	std::atomic<FLocalQueueCollection*>	QueueCollection;
+	std::atomic_int NumWorkersLookingForWork { 0 };
+	std::atomic_int NumActiveWorkers { 0 };
 };
+
+template<typename ItemType, uint32 NumPriorities, uint32 NumLocalItems>
+uint32 TLocalQueueRegistry<ItemType, NumPriorities, NumLocalItems>::FOutOfWork::WorkerLookingForWorkTraceId = 0;

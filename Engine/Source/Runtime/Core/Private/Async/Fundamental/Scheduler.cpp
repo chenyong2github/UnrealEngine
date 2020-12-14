@@ -102,13 +102,18 @@ namespace LowLevelTasks
 		{
 			if (LocalQueue && QueuePreference != EQueuePreference::GlobalQueuePreference)
 			{
-				LocalQueue->Enqueue(&Task, uint32(Task.GetPriority()));
+				if (LocalQueue->Enqueue(&Task, uint32(Task.GetPriority())))
+				{
+					WakeUpWorker();
+				}
 			}
 			else
 			{
-				QueueRegistry.Enqueue(&Task, uint32(Task.GetPriority()));
+				if (QueueRegistry.Enqueue(&Task, uint32(Task.GetPriority())))
+				{
+					WakeUpWorker();
+				}
 			}
-			WakeUpWorker();
 		}
 		else
 		{
@@ -122,11 +127,12 @@ namespace LowLevelTasks
 	}
 
 	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)()>
-	FORCEINLINE_DEBUGGABLE bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue)
+	FORCEINLINE_DEBUGGABLE bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork)
 	{
 		FTask* Task = (Queue->*DequeueFunction)();
 		if (Task)
 		{	
+			OutOfWork.Stop();
 			FTask* OldTask = ActiveTask;
 			ActiveTask = Task;
 			Task->ExecuteTask();
@@ -151,18 +157,22 @@ namespace LowLevelTasks
 		}
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
+		bool Drowsing = false;
 		uint32 WaitCount = 0;
+		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue))
-			{
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork))
+			{			
+				Drowsing = false;
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork))
 			{
+				Drowsing = false;
 				WaitCount = 0;
 			}
 
@@ -173,7 +183,7 @@ namespace LowLevelTasks
 
 			if (WaitCount < WorkerSpinCycles)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE("Spinning Worker");
+				OutOfWork.Start();			
 				for (uint32 i = 0; i < WaitCycles; i++)
 				{
 					FPlatformProcess::Yield();
@@ -182,7 +192,7 @@ namespace LowLevelTasks
 				continue;
 			}
 
-			TrySleeping(WorkerEvent, WaitCount);
+			TrySleeping(WorkerEvent, OutOfWork, WaitCount, Drowsing);
 		}
 
 		while (WakeUpWorker())
@@ -204,10 +214,11 @@ namespace LowLevelTasks
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
 		uint32 WaitCount = 0;
+		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork))
 			{
 				if (Conditional())
 				{
@@ -216,8 +227,8 @@ namespace LowLevelTasks
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork))
 			{
 				if (Conditional())
 				{
