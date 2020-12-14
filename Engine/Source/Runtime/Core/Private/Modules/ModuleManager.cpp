@@ -269,14 +269,18 @@ void FModuleManager::AddModule(const FName InModuleName)
 	}
 
 	ModuleInfoRef ModuleInfo(new FModuleInfo());
-	
-	// Make sure module info is added to known modules and proper delegates are fired on exit.
-	ON_SCOPE_EXIT
-	{
-		FModuleManager::Get().AddModuleToModulesList(InModuleName, ModuleInfo);
-	};
 
 #if !IS_MONOLITHIC
+	RefreshModuleFilenameFromManifest(InModuleName);
+#endif	// !IS_MONOLITHIC
+
+	// Make sure module info is added to known modules and proper delegates are fired on exit.
+	FModuleManager::Get().AddModuleToModulesList(InModuleName, ModuleInfo);
+}
+
+#if !IS_MONOLITHIC
+void FModuleManager::RefreshModuleFilenameFromManifestImpl(const FName InModuleName, FModuleInfo& ModuleInfo)
+{
 	FString ModuleNameString = InModuleName.ToString();
 
 	TMap<FName, FString> ModulePathMap;
@@ -317,11 +321,18 @@ void FModuleManager::AddModule(const FName InModuleName)
 	const FString Suffix = ModuleFilename.Right(ModuleFilename.Len() - SuffixEnd);
 
 	// Add this module to the set of modules that we know about
-	ModuleInfo->OriginalFilename = Prefix + Suffix;
-	ModuleInfo->Filename         = ModuleFilename;
-#endif	// !IS_MONOLITHIC
+	ModuleInfo.OriginalFilename = Prefix + Suffix;
+	ModuleInfo.Filename         = ModuleFilename;
 }
 
+void FModuleManager::RefreshModuleFilenameFromManifest(const FName InModuleName)
+{
+	if (ModuleInfoPtr ModuleInfoPtr = FindModule(InModuleName))
+	{
+		this->RefreshModuleFilenameFromManifestImpl(InModuleName, *ModuleInfoPtr);
+	}
+}
+#endif	// !IS_MONOLITHIC
 
 IModuleInterface* FModuleManager::LoadModule( const FName InModuleName )
 {

@@ -146,6 +146,10 @@ public:
 	 */
 	void AddModule( const FName InModuleName );
 
+#if !IS_MONOLITHIC
+	void RefreshModuleFilenameFromManifest(const FName InModuleName);
+#endif	// !IS_MONOLITHIC
+
 	/**
 	 * Gets the specified module.
 	 *
@@ -578,6 +582,9 @@ private:
 
 	/** Serialize a bootstrapping state into or from an archive. */
 	void SerializeStateForBootstrap_Impl(FArchive& Ar);
+
+	/** Refreshes the filename of a new module from the manifest */
+	void RefreshModuleFilenameFromManifestImpl(const FName InModuleName, FModuleInfo& ModuleInfo);
 #endif
 
 	/** Adds pending module initializer registrations to the StaticallyLinkedModuleInitializers map. */
