@@ -13,6 +13,7 @@ class FD3D12BasicRayTracingPipeline;
 class FD3D12RayTracingDescriptorHeapCache;
 class FD3D12RayTracingPipelineCache;
 class FD3D12TimedIntervalQueryTracker;
+class FD3D12LinearQueryHeap;
 
 class FD3D12Device : public FD3D12SingleNodeGPUObject, public FNoncopyable, public FD3D12AdapterChild
 {
@@ -152,7 +153,7 @@ protected:
 	FD3D12QueryHeap OcclusionQueryHeap;
 	FD3D12QueryHeap TimestampQueryHeap;
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	FD3D12LinearQueryHeap CmdListExecTimeQueryHeap;
+	TUniquePtr<FD3D12LinearQueryHeap> CmdListExecTimeQueryHeap;
 #endif
 
 	FD3D12DefaultBufferAllocator DefaultBufferAllocator;
