@@ -1223,7 +1223,7 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 
 		const FText PropertyTooltip = Property->GetToolTipText();
 		const FName PropertyName = Property->GetFName();
-		const FText PropertyDesc = Property->GetDisplayNameText();
+		const FText PropertyDesc = FText::FromName(PropertyName);
 
 		FText CategoryName = FObjectEditorUtils::GetCategoryText(Property);
 		FText PropertyCategory = FObjectEditorUtils::GetCategoryText(Property);
