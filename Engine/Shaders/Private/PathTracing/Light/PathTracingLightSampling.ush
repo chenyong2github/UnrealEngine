@@ -22,7 +22,7 @@ LightSampling.usf: Light sampling for next-event estimation
 // Returns float4 packed with Radiance and Pdf
 float4 TraceLight(RayDesc Ray, int LightId, float HitT)
 {
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:			return SkyLight_TraceLight(Ray, LightId, HitT);
 		case PATHTRACING_LIGHT_POINT:		return PointLight_TraceLight(Ray, LightId, HitT);
@@ -44,7 +44,7 @@ void SampleLight(
 	out float3 OutRadianceOverPdf,
 	out float OutPdf)
 {
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
@@ -75,7 +75,7 @@ void GenerateLightRay(RayDesc Ray, int LightId, float3 LightUV, inout RayDesc Ou
 {
 	OutLightRay = (RayDesc)0; // #dxr_todo: Return false in the case of no matching light type and handle case from caller rather than blindly using a degenerate ray
 
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_GenerateLightRay(Ray, LightId, LightUV, OutLightRay);
@@ -110,7 +110,7 @@ void EstimateLight(
 	OutIrradiance = 0.0f;
 	if ((GetLightingChannelMask(LightId) & PrimitiveLightingChannelMask) == 0) return;
 
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
@@ -264,7 +264,7 @@ void PdfLight(
 	float LightPdf = 0.0;
 
 	// Light sampling
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_PdfLight(Ray, LightId, LightUV, LightPdf);
@@ -297,7 +297,7 @@ void EvalLight(
 {
 	OutRadiance = float3(0.0f, 0.0f, 0.0f);
 
-	switch (SceneLightsData.Type[LightId])
+	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_EvalLight(LightId, LightUV, Ray, OutRadiance);
@@ -339,7 +339,7 @@ void SampleLight(
 	// Light sampling
 	float LightPdf = 0.0;
 
-	switch (SceneLightsData.Type[OutLightId])
+	switch (SceneLightsData.Flags[OutLightId] & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_SampleLight(Ray, Payload, RandSample, OutLightId, OutLightUV, LightPdf);

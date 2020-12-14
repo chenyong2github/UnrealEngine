@@ -224,11 +224,12 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	{
 		uint32 SkyLightIndex = 0;
 		uint8 SkyLightLightingChannelMask = 0xFF;
-		LightData.Type[SkyLightIndex] = 0;
 		LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
-		LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
-		LightData.Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
+		LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		LightData.Flags[SkyLightIndex] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		LightData.Flags[SkyLightIndex] |= PATHTRACING_LIGHT_SKY;
 		LightData.IESTextureSlice[SkyLightIndex] = -1;
+		LightData.FalloffExponent[LightData.Count] = 0;
 		LightData.Count++;
 	}
 
@@ -241,8 +242,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
-		LightData.Flags[LightData.Count] = Transmission & 0x01;
-		LightData.Flags[LightData.Count] |= (LightingChannelMask & 0x7) << 1;
+		LightData.Flags[LightData.Count] = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		LightData.Flags[LightData.Count] |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		LightData.IESTextureSlice[LightData.Count] = -1;
 
 		if (UseLightProfiles)
@@ -261,39 +262,43 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		LightData.Normal[LightData.Count] = -LightParameters.Direction;
 		LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 		LightData.dPdv[LightData.Count] = LightParameters.Tangent;
+		LightData.Attenuation[LightData.Count] = LightParameters.InvRadius;
+		LightData.FalloffExponent[LightData.Count] = 0;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
 		{
 			case LightType_Directional:
 			{
-				LightData.Type[LightData.Count] = 2;
                 LightData.Normal[LightData.Count] = LightParameters.Direction;
 				LightData.Dimensions[LightData.Count] = FVector(0.0f, 0.0f, LightParameters.SourceRadius);
-				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
+				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_DIRECTIONAL;
 				break;
 			}
 			case LightType_Rect:
 			{
-				LightData.Type[LightData.Count] = 3;
 				LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
-				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 				LightData.RectLightBarnCosAngle[LightData.Count] = LightParameters.RectLightBarnCosAngle;
 				LightData.RectLightBarnLength[LightData.Count] = LightParameters.RectLightBarnLength;
+				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
+				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_RECT;
 				break;
 			}
 			case LightType_Spot:
 			{
-				LightData.Type[LightData.Count] = 4;
 				LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
-				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
+				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
+				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_SPOT;
 				break;
 			}
 			case LightType_Point:
 			{
-				LightData.Type[LightData.Count] = 1;
 				LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
-				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
+				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
+				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_POINT;
 				break;
 			}
 			default:

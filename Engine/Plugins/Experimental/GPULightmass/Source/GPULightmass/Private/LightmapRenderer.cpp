@@ -176,13 +176,12 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	// Prepend SkyLight to light buffer
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
-	LightParameters.Type[SkyLightIndex] = 0;
 	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector(0);
-	LightParameters.Mobility[SkyLightIndex] = (LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary) ? 1 : 0;
-	uint32 Transmission = 1;
-	uint8 LightingChannelMask = 0b111;
-	LightParameters.Flags[SkyLightIndex] = Transmission & 0x01;
-	LightParameters.Flags[SkyLightIndex] |= (LightingChannelMask & 0x7) << 1;
+	LightParameters.Flags[SkyLightIndex] = PATHTRACER_FLAG_TRANSMISSION_MASK;
+	LightParameters.Flags[SkyLightIndex] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+	bool SkyLightIsStationary = LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary;
+	LightParameters.Flags[SkyLightIndex] |= SkyLightIsStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+	LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_SKY;
 	LightParameters.Count++;
 
 	uint32 MaxLightCount = RAY_TRACING_LIGHT_COUNT_MAXIMUM;
@@ -191,15 +190,16 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	{
 		if (LightParameters.Count < MaxLightCount)
 		{
-			LightParameters.Type[LightParameters.Count] = 2;
 			LightParameters.Normal[LightParameters.Count] = -Light.Direction;
 			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0f, 0.0f, FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)));
 			LightParameters.Attenuation[LightParameters.Count] = 1.0;
-			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
+			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
 
-			LightParameters.Flags[LightParameters.Count] = Transmission & 0x01;
-			LightParameters.Flags[LightParameters.Count] |= (LightingChannelMask & 0x7) << 1;
+			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_DIRECTIONAL;
 
 			LightParameters.Count++;
 		}
@@ -209,15 +209,18 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	{
 		if (LightParameters.Count < MaxLightCount)
 		{
-			LightParameters.Type[LightParameters.Count] = 1;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
 			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0, 0.0, Light.SourceRadius);
-			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
-			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
+			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
+			LightParameters.FalloffExponent[LightParameters.Count] = Light.FalloffExponent;
+			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
 
-			LightParameters.Flags[LightParameters.Count] = Transmission & 0x01;
-			LightParameters.Flags[LightParameters.Count] |= (LightingChannelMask & 0x7) << 1;
+			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_POINT;
 
 			LightParameters.Count++;
 		}
@@ -227,16 +230,19 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	{
 		if (LightParameters.Count < MaxLightCount)
 		{
-			LightParameters.Type[LightParameters.Count] = 4;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
 			LightParameters.Normal[LightParameters.Count] = Light.Direction;
 			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SpotAngles, Light.SourceRadius);
-			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
-			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
+			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
+			LightParameters.FalloffExponent[LightParameters.Count] = Light.FalloffExponent;
+			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
 
-			LightParameters.Flags[LightParameters.Count] = Transmission & 0x01;
-			LightParameters.Flags[LightParameters.Count] |= (LightingChannelMask & 0x7) << 1;
+			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_SPOT;
 
 			LightParameters.Count++;
 		}
@@ -246,7 +252,6 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	{
 		if (LightParameters.Count < MaxLightCount)
 		{
-			LightParameters.Type[LightParameters.Count] = 3;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
 			LightParameters.Normal[LightParameters.Count] = Light.Direction;
 			LightParameters.dPdu[LightParameters.Count] = FVector::CrossProduct(Light.Tangent, -Light.Direction);
@@ -257,14 +262,16 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 			LightParameters.Color[LightParameters.Count] = FVector(LightColor);
 
 			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
-			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
+			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
 			LightParameters.RectLightBarnCosAngle[LightParameters.Count] = FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle));
 			LightParameters.RectLightBarnLength[LightParameters.Count] = Light.BarnDoorLength;
 
-			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
+			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
 
-			LightParameters.Flags[LightParameters.Count] = Transmission & 0x01;
-			LightParameters.Flags[LightParameters.Count] |= (LightingChannelMask & 0x7) << 1;
+			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_RECT;
 
 			LightParameters.Count++;
 		}
@@ -1734,6 +1741,10 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 											SkyLightDataUniformBuffer = CreateUniformBufferImmediate(SetupSkyLightParameters(Scene->LightSceneRenderState), EUniformBufferUsage::UniformBuffer_SingleFrame);
 											PassParameters->SkyLight = SkyLightDataUniformBuffer;
 										}
+
+										// TODO: find a way to share IES atlas with path tracer ...
+										PassParameters->IESTexture = GWhiteTexture->TextureRHI;
+										PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 										FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 										PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
