@@ -55,7 +55,7 @@ protected:
  * Helper class created for direct link serialization of PbrMaterial in 4.26 post-feature-freeze.
  * This is a temporary class that should be removed at a later date before 4.27 is released.
  */
-static class FDatasmithUEPbrInternalHelper
+class FDatasmithUEPbrInternalHelper
 {
 public:
 	/**
