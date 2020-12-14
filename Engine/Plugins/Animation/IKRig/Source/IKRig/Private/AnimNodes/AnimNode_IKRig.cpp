@@ -124,12 +124,19 @@ void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy
 	FAnimNode_Base::OnInitializeAnimInstance(InProxy, InAnimInstance);
 }
 
-void FAnimNode_IKRig::RebuildGoalList()
+bool FAnimNode_IKRig::RebuildGoalList()
 {
 	if (RigDefinitionAsset)
 	{
-		GoalTransforms.SetNum(RigDefinitionAsset->GetGoals().Num());
+		const int32 GoalNum = RigDefinitionAsset->GetGoals().Num();
+		if (GoalTransforms.Num() != GoalNum)
+		{
+			GoalTransforms.SetNum(GoalNum);
+			return true;
+		}
 	}
+
+	return false;
 }
 
 FName FAnimNode_IKRig::GetGoalName(int32 Index) const

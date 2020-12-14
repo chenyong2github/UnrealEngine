@@ -242,6 +242,35 @@ void UIKRigController::UpdateGoal()
 	if (IKRigDefinition)
 	{
 		IKRigDefinition->UpdateGoal();
+		OnGoalModified.Broadcast();
+	}
+}
+
+FName UIKRigController::GetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector)
+{
+	if (InSolverDefinition)
+	{
+		FName* GoalName = InSolverDefinition->EffectorToGoal.Find(InEffector);
+		if (GoalName)
+		{
+			return *GoalName;
+		}
+	}
+
+	return NAME_None;
+}
+
+void UIKRigController::SetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector, const FName& NewGoalName)
+{
+	if (InSolverDefinition)
+	{
+		FName* GoalName = InSolverDefinition->EffectorToGoal.Find(InEffector);
+		if (GoalName)
+		{
+			*GoalName = NewGoalName;
+
+			UpdateGoal();
+		}
 	}
 }
 

@@ -76,7 +76,12 @@ public:
 
 	// goal operators
 	void QueryGoals(TArray<FName>& OutGoals) const;
+	// why do we need rename? @todo: remove - maybe in the fuutre when we want a tool that does rename automatically this could be useful, but for now it's not really
+	// goals are collected from solvers, so they could change name, and if it doesn't exists, it doesn't exist
 	void RenameGoal(const FName& OldName, const FName& NewName);
+
+	FName GetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector);
+	void SetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector, const FName& NewGoalName);
 
 	// this is to modify default value
 	FIKRigGoal* GetGoal(const FName& InGoalName);
@@ -90,6 +95,11 @@ public:
 	// Controller getter
 	// Use this interface to get controller 
 	static UIKRigController* GetControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition);
+
+	// delegates
+	DECLARE_MULTICAST_DELEGATE(FGoalModified);
+
+	FGoalModified OnGoalModified;
 private:
 	UIKRigDefinition* IKRigDefinition = nullptr;
 

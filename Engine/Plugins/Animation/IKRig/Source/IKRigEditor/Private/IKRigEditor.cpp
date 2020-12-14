@@ -17,6 +17,7 @@
 #include "AssetTypeActions_IKRigDefinition.h"
 #include "IKRigDefinition.h"
 #include "AnimMode/IKRigEditMode.h"
+#include "IKRigEffectorCustomization.h"
 
 IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
 
@@ -32,7 +33,7 @@ void FIKRigEditor::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(UIKRigDefinition::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRigDefinitionDetails::MakeInstance));
 
-//	PropertyModule.RegisterCustomPropertyTypeLayout("IKRigEffector", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FIKRigEffectorCustomization::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout("IKRigEffector", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FIKRigEffectorCustomization::MakeInstance));
 
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(UAnimGraphNode_IKRig::AnimModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
 }
@@ -41,9 +42,9 @@ void FIKRigEditor::ShutdownModule()
 {
 	FEditorModeRegistry::Get().UnregisterMode(UAnimGraphNode_IKRig::AnimModeName);
 
-//	PropertyModule.UnregisterCustomPropertyTypeLayout("IKRigEffector");
-
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.UnregisterCustomPropertyTypeLayout("IKRigEffector");
+
 	PropertyModule.UnregisterCustomClassLayout(UIKRigDefinition::StaticClass()->GetFName());
 
 	if (IKRigDefinitionAssetAction.IsValid())

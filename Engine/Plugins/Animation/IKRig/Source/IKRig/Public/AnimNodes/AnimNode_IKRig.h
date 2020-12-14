@@ -61,7 +61,7 @@ public:
 	// End of FAnimNode_Base interface
 
 private:
-	void RebuildGoalList();
+	bool RebuildGoalList();
 	FName GetGoalName(int32 Index) const;
 
 	friend class UAnimGraphNode_IKRig;

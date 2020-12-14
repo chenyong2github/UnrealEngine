@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_IKRig.h"
 #include "Animation/AnimInstance.h"
+#include "IKRigDefinition.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_IKRig 
@@ -35,12 +36,7 @@ void UAnimGraphNode_IKRig::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNo
 
 FEditorModeID UAnimGraphNode_IKRig::GetEditorMode() const
 {
-// we have a crash on shutting it down because it's not unregistering
-// https://epic.slack.com/archives/C024FSXHJ/p1606256645266900
-// until we know what is solution, I'm disabling it
-//	return AnimModeName;
-
-	return NAME_None;
+	return AnimModeName;
 }
 
 void UAnimGraphNode_IKRig::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -50,8 +46,10 @@ void UAnimGraphNode_IKRig::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	// Reconstruct node to show updates to PinFriendlyNames.
 	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRig, RigDefinitionAsset)))
 	{
-		Node.RebuildGoalList();
-		ReconstructNode();
+		if (Node.RebuildGoalList())
+		{
+			ReconstructNode();
+		}
 	}
 }
 
@@ -69,5 +67,24 @@ void UAnimGraphNode_IKRig::CustomizePinData(UEdGraphPin* Pin, FName SourceProper
 			Pin->PinFriendlyName = FText::FromName(Node.GetGoalName(ArrayIndex));
 		}
 	}
+}
+
+void UAnimGraphNode_IKRig::PostLoad()
+{
+	Super::PostLoad();
+
+	// resize global transforms
+	Node.RebuildGoalList();
+	// I can't reconstruct here
+}
+
+void UAnimGraphNode_IKRig::PreloadRequiredAssets()
+{
+	if (Node.RigDefinitionAsset)
+	{
+		PreloadObject(Node.RigDefinitionAsset);
+	}
+
+	Super::PreloadRequiredAssets();
 }
 #undef LOCTEXT_NAMESPACE
