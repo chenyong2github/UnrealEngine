@@ -714,9 +714,9 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		SHADER_PARAMETER(int32, bBlendCloudColor)
 		SHADER_PARAMETER(int32, TargetCubeFace)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRenderVolumetricCloudGlobalParameters, VolumetricCloudRenderViewParamsUB)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutCloudColor)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutCloudDepth)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutCloudColorCube)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColorCube)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static const int32 ThreadGroupSizeX = 8;
