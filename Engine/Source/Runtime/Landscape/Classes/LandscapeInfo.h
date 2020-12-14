@@ -9,6 +9,11 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/ScriptInterface.h"
 #include "ILandscapeSplineInterface.h"
+
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionHandle.h"
+#endif
+
 #include "LandscapeInfo.generated.h"
 
 class ALandscape;
@@ -144,6 +149,12 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
+
+	// World Partition handles to actors with the same LandscapeGuid
+	friend class FLandscapeActorDesc;
+	TSet<FWorldPartitionHandle> ProxyHandles;
+	friend class FLandscapeSplineActorDesc;
+	TSet<FWorldPartitionHandle> SplineHandles;
 #endif
 
 	TSet<ULandscapeComponent*> SelectedComponents;
@@ -162,6 +173,7 @@ public:
 	// all below.
 	LANDSCAPE_API bool AreAllComponentsRegistered() const;
 	LANDSCAPE_API void GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>& OutComponents, bool bOverlap = true) const;
+	LANDSCAPE_API bool HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2) const;
 	LANDSCAPE_API bool GetLandscapeExtent(ALandscapeProxy* Proxy, FIntRect& ProxyExtent) const;
 	LANDSCAPE_API bool GetLandscapeExtent(FIntRect& LandscapeExtent) const;
 	LANDSCAPE_API bool GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
@@ -279,9 +291,15 @@ public:
 
 	/** Returns LandscapeStreamingProxy Cell Size in WorldPartition */
 	LANDSCAPE_API uint32 GetGridSize(uint32 InGridSizeInComponents) const;
+
+	/** Returns LandscapeSplineActor WorldPartition handles */
+	const TSet<FWorldPartitionHandle>& GetSplineHandles() const { return SplineHandles; }
 #endif
-	static ULandscapeInfo* Find(UWorld* InWorld, const FGuid& LandscapeGuid);
+	LANDSCAPE_API static ULandscapeInfo* Find(UWorld* InWorld, const FGuid& LandscapeGuid);
 	static ULandscapeInfo* FindOrCreate(UWorld* InWorld, const FGuid& LandscapeGuid);
+
+	/** Called after creating object so that it can initialize its state */
+	void Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid);
 
 	/**
 	 * Runs the given function on the root landscape actor and all streaming proxies

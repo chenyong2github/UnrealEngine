@@ -5,6 +5,9 @@
 #if WITH_EDITOR
 
 #include "LandscapeSplineActor.h"
+#include "LandscapeInfo.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 void FLandscapeSplineActorDesc::Init(const AActor* InActor)
@@ -25,6 +28,30 @@ void FLandscapeSplineActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddedLandscapeSplineActorDesc)
 	{
 		Ar << LandscapeGuid;
+	}
+}
+
+void FLandscapeSplineActorDesc::OnRegister(UWorldPartition* WorldPartition)
+{
+	FWorldPartitionActorDesc::OnRegister(WorldPartition);
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
+	{
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		check(Handle.IsValid());
+		LandscapeInfo->SplineHandles.Add(MoveTemp(Handle));
+	}
+}
+
+void FLandscapeSplineActorDesc::OnUnregister(UWorldPartition* WorldPartition)
+{
+	FWorldPartitionActorDesc::OnUnregister(WorldPartition);
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
+	{
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		check(Handle.IsValid());
+		LandscapeInfo->SplineHandles.Remove(Handle);
 	}
 }
 

@@ -69,6 +69,9 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/WorldPartitionActorDescIterator.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "Misc/ScopedSlowTask.h"
@@ -3102,10 +3105,34 @@ ULandscapeInfo* ULandscapeInfo::FindOrCreate(UWorld* InWorld, const FGuid& Lands
 	{
 		LandscapeInfo = NewObject<ULandscapeInfo>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
 		LandscapeInfoMap.Modify(false);
+		LandscapeInfo->Initialize(InWorld, LandscapeGuid);
 		LandscapeInfoMap.Map.Add(LandscapeGuid, LandscapeInfo);
 	}
 	check(LandscapeInfo);
 	return LandscapeInfo;
+}
+
+void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
+{
+	LandscapeGuid = InLandscapeGuid;
+#if WITH_EDITOR
+	// If WorldPartition world get the Proxy handles
+	if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
+	{
+		for (TWorldPartitionActorDescIterator<AActor, FWorldPartitionActorDesc> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		{
+			if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))
+			{
+				ProxyHandles.Add(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+			}
+			else if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeSplineActor::StaticClass()))
+			{
+				SplineHandles.Emplace(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+			}
+
+		}
+	}
+#endif
 }
 
 void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
@@ -3128,16 +3155,15 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	// do not pass here invalid actors
 	checkSlow(Proxy);
 	check(Proxy->GetLandscapeGuid().IsValid());
-	
+	check(LandscapeGuid.IsValid());
+
 #if WITH_EDITOR
 	if (!OwningWorld->IsGameWorld())
 	{
 		// in case this Info object is not initialized yet
 		// initialized it with properties from passed actor
-		if (LandscapeGuid.IsValid() == false ||
-			(GetLandscapeProxy() == nullptr && ensure(LandscapeGuid == Proxy->GetLandscapeGuid())))
+		if (GetLandscapeProxy() == nullptr)
 		{
-			LandscapeGuid = Proxy->GetLandscapeGuid();
 			ComponentSizeQuads = Proxy->ComponentSizeQuads;
 			ComponentNumSubsections = Proxy->NumSubsections;
 			SubsectionSizeQuads = Proxy->SubsectionSizeQuads;

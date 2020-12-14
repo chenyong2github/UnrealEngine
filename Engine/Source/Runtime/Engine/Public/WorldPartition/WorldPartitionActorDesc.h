@@ -87,7 +87,7 @@ public:
 
 	AActor* GetActor() const;
 	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr) const;
-	void Unload();
+	virtual void Unload();
 
 	virtual void Init(const AActor* InActor);
 	void Init(const FWorldPartitionActorDescInitData& DescData);

@@ -60,6 +60,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
 #endif
 #include "Algo/Count.h"
 #include "Serialization/MemoryWriter.h"
@@ -2234,6 +2235,40 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 }
 
 #define MAX_LANDSCAPE_SUBSECTIONS 2
+
+bool ULandscapeInfo::HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2) const
+{
+	if (!LandscapeActor)
+	{
+		return false;
+	}
+
+	UWorld* World = LandscapeActor->GetWorld();
+
+	int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
+	ALandscape::CalcComponentIndicesOverlap(X1, Y1, X2, Y2, ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
+
+	UActorPartitionSubsystem::FCellCoord MinCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX1 * ComponentSizeQuads, ComponentIndexY1 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
+	UActorPartitionSubsystem::FCellCoord MaxCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX2 * ComponentSizeQuads, ComponentIndexY2 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
+
+	for (const FWorldPartitionHandle& Handle : ProxyHandles)
+	{
+		if (FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)Handle.Get())
+		{
+			check(LandscapeActorDesc->GridGuid == LandscapeGuid);
+			UActorPartitionSubsystem::FCellCoord ActorCoord(LandscapeActorDesc->GridIndexX, LandscapeActorDesc->GridIndexY, LandscapeActorDesc->GridIndexZ, World->PersistentLevel);
+			if (ActorCoord.X >= MinCoord.X && ActorCoord.Y >= MinCoord.Y && ActorCoord.X <= MaxCoord.X && ActorCoord.Y <= MaxCoord.Y)
+			{
+				if (!LandscapeActorDesc->GetHardRefCount() || !LandscapeActorDesc->GetActor())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
 
 void ULandscapeInfo::GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>& OutComponents, bool bOverlap) const
 {
@@ -4982,6 +5017,34 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void ALandscapeStreamingProxy::PostRegisterAllComponents()
+{
+	ALandscapeProxy::PostRegisterAllComponents();
+
+	if (LandscapeGuid.IsValid())
+	{
+		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+		check(LandscapeInfo);
+		if (GEditor && !GetWorld()->IsGameWorld())
+		{
+			const TSet<FWorldPartitionHandle>& SplineHandles = LandscapeInfo->GetSplineHandles();
+			if (SplineHandles.Num())
+			{
+				FVector ActorLocation = GetActorLocation();
+				FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
+				// Get a reference to Spline Actors that have intersecting bounds with us
+				for (const FWorldPartitionHandle& SplineHandle : LandscapeInfo->GetSplineHandles())
+				{
+					if (SplineHandle.IsValid() && Bounds.IntersectXY(SplineHandle->GetBounds()))
+					{
+						ActorDescReferences.Add(FWorldPartitionHandleHelpers::ConvertHandleToReference(SplineHandle));
+					}
+				}
+			}
+		}
+	}
 }
 
 void ALandscape::PreEditChange(FProperty* PropertyThatWillChange)

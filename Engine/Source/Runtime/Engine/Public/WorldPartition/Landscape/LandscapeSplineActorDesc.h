@@ -15,6 +15,8 @@ class ENGINE_API FLandscapeSplineActorDesc : public FWorldPartitionActorDesc
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void OnRegister(UWorldPartition* WorldPartition) override;
+	virtual void OnUnregister(UWorldPartition* WorldPartition) override;
 
 	FGuid LandscapeGuid;
 #endif

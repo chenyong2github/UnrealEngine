@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
-#include "LandscapeProxy.h"
 
 #if WITH_EDITOR
+#include "LandscapeProxy.h"
+#include "LandscapeStreamingProxy.h"
+#include "LandscapeInfo.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 
 void FLandscapeActorDesc::Init(const AActor* InActor)
 {
@@ -14,6 +18,40 @@ void FLandscapeActorDesc::Init(const AActor* InActor)
 	GridIndexX = LandscapeProxy->LandscapeSectionOffset.X / LandscapeProxy->GridSize;
 	GridIndexY = LandscapeProxy->LandscapeSectionOffset.Y / LandscapeProxy->GridSize;
 	GridIndexZ = 0;
+}
+
+void FLandscapeActorDesc::Unload()
+{
+	if (ALandscapeStreamingProxy* LandscapeStreamingProxy = Cast<ALandscapeStreamingProxy>(GetActor()))
+	{
+		LandscapeStreamingProxy->ActorDescReferences.Empty();
+	}
+
+	FPartitionActorDesc::Unload();
+}
+
+void FLandscapeActorDesc::OnRegister(UWorldPartition* WorldPartition)
+{
+	FPartitionActorDesc::OnRegister(WorldPartition);
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
+	{
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		check(Handle.IsValid());
+		LandscapeInfo->ProxyHandles.Add(MoveTemp(Handle));
+	}
+}
+
+void FLandscapeActorDesc::OnUnregister(UWorldPartition* WorldPartition)
+{
+	FPartitionActorDesc::OnUnregister(WorldPartition);
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
+	{
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		check(Handle.IsValid());
+		LandscapeInfo->ProxyHandles.Remove(Handle);
+	}
 }
 
 #endif

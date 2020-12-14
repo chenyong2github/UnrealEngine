@@ -12,7 +12,12 @@
 class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
 {
 #if WITH_EDITOR
-protected:
+public:
 	virtual void Init(const AActor* InActor) override;
+	virtual void Unload() override;
+
+protected:
+	virtual void OnRegister(UWorldPartition* WorldPartition) override;
+	virtual void OnUnregister(UWorldPartition* WorldPartition) override;
 #endif
 };
