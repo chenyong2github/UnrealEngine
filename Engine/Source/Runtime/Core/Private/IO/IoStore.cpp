@@ -250,11 +250,6 @@ public:
 		Event->Trigger();
 	}
 
-	bool IsDoneAdding() const
-	{
-		return bIsDoneAdding;
-	}
-
 	bool IsEmpty() const
 	{
 		FScopeLock _(&CriticalSection);
@@ -371,15 +366,15 @@ private:
 		for (;;)
 		{
 			FIoStoreWriteQueueEntry* Entry = CompressionQueue.DequeueOrWait();
+			if (!Entry)
+			{
+				return;
+			}
 			while (Entry)
 			{
 				FIoStoreWriteQueueEntry* Next = Entry->Next;
 				BeginCompressEntry(Entry);
 				Entry = Next;
-			}
-			if (CompressionQueue.IsDoneAdding())
-			{
-				return;
 			}
 		}
 	}
@@ -389,15 +384,15 @@ private:
 		for (;;)
 		{
 			FIoStoreWriteQueueEntry* Entry = WriteQueue.DequeueOrWait();
+			if (!Entry)
+			{
+				return;
+			}
 			while (Entry)
 			{
 				FIoStoreWriteQueueEntry* Next = Entry->Next;
 				WriteEntry(Entry);
 				Entry = Next;
-			}
-			if (WriteQueue.IsDoneAdding())
-			{
-				return;
 			}
 		}
 	}
@@ -1690,12 +1685,6 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("Outdated TOC header version while reading '") << TocFilePath << TEXT("'");
 	}
 
-	if (Header.Version < static_cast<uint8>(EIoStoreTocVersion::PartitionSize))
-	{
-		Header.PartitionCount = 1;
-		Header.PartitionSize = MAX_uint64;
-	}
-
 	const uint64 TotalTocSize = TocFileHandle->Size() - sizeof(FIoStoreTocHeader);
 	const uint64 TocMetaSize = Header.TocEntryCount * sizeof(FIoStoreTocEntryMeta);
 	const uint64 DefaultTocSize = TotalTocSize - Header.DirectoryIndexSize - TocMetaSize;
@@ -1786,6 +1775,12 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 	{
 		const FIoStoreTocEntryMeta* ChunkMetas = reinterpret_cast<const FIoStoreTocEntryMeta*>(TocMeta);
 		OutTocResource.ChunkMetas = MakeArrayView<FIoStoreTocEntryMeta const>(ChunkMetas, Header.TocEntryCount);
+	}
+
+	if (Header.Version < static_cast<uint8>(EIoStoreTocVersion::PartitionSize))
+	{
+		Header.PartitionCount = 1;
+		Header.PartitionSize = MAX_uint64;
 	}
 
 	return FIoStatus::Ok;
