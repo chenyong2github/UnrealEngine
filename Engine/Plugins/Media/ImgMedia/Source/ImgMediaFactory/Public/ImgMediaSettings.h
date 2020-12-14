@@ -44,7 +44,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Caching, meta=(ClampMin=128), AdvancedDisplay)
 	int32 CacheThreadStackSizeKB;
 
-	/** Maximum size of the global look-ahead cache (in GB; default = 1 GB). */
+	/** Maximum size of the global look-ahead cache (in GB; default = 1 GB). Must be greater or equal to CacheSizeGB. */
 	UPROPERTY(config, EditAnywhere, Category = Caching, meta = (ClampMin = 0))
 	float GlobalCacheSizeGB;
 
@@ -79,6 +79,8 @@ public:
 
 		return FString();
 	}
+
+	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -140,4 +142,9 @@ private:
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Proxies)
 	bool UseDefaultProxy;
+
+	/**
+	 * Ensures the settings are valid, and will change them if not.
+	 */
+	void ValidateSettings();
 };
