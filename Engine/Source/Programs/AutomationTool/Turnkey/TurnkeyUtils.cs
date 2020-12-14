@@ -109,6 +109,12 @@ namespace Turnkey
 			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
 			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
 
+			// use default set of platforms if none specified
+			if (PossiblePlatforms == null)
+			{
+				PossiblePlatforms = UnrealTargetPlatform.GetValidPlatforms().ToList();
+			}
+
 			// HACK UNTIL WIN32 IS GONE
 			PossiblePlatforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne).ToList();
 

@@ -48,6 +48,8 @@ namespace Turnkey
 			new UserSetting("Studio_AppleSigningCertPassword", null, "A shared password that is used across Apple Signing Certificates"),
 			new UserSetting("Studio_GoogleDriveCredentials", null, "The location of credentials file needed for GoogleDrive integration. The contents should start with: '{\"installed\":{\"client_id\":'"),
 			new UserSetting("Studio_GoogleDriveAppName", null, "The name of the application your studio needs to create (see documentation for help)"),
+			new UserSetting("Studio_FullInstallPlatforms", null, "The list of platforms your studio has support for Full Sdk installation. Note that this generally affects UI exposing of options, you can still use Turnkey commandline interface to install Sdks for unlisted platforms. This can be a comma separated list, or All."),
+			new UserSetting("Studio_AutoSdkPlatforms", null, "The list of platforms your studio has support for AutoSdk. Note that this generally affects UI exposing of options, you can still use Turnkey commandline interface to install Sdks for unlisted platforms. This can be a comma separated list, or All."),
 		};
 
 		// basically same as Turnkey variables, but this only contains ones that were loaded so we can write them back out
@@ -58,8 +60,10 @@ namespace Turnkey
 		{
 			// then load any saved settings
 			TurnkeyManifest.LoadManifestsFromProvider("file:" + TurnkeySettings.UserSettingManifestLocation);
+			TurnkeyManifest.LoadManifestsFromProvider("file:$(EngineDir)/Build/Turnkey/TurnkeyStudioSettings.xml");
 
 			// now pull out anything that was set and unset it from Turnkey
+			// Studio settings aren't special like UserSettings (read-only) so we don't have to unset them
 			foreach (UserSetting PossibleSetting in AllUserSettings)
 			{
 				string Value = TurnkeyUtils.GetVariableValue(PossibleSetting.VariableName);
@@ -70,6 +74,7 @@ namespace Turnkey
 				}
 			}
 		}
+
 		public static bool HasSetUserSetting(string VariableName)
 		{
 			return SetUserSettings.ContainsKey(VariableName);

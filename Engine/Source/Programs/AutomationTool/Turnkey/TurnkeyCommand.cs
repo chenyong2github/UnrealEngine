@@ -71,6 +71,12 @@ namespace Turnkey
 			}
 		}
 
+		static bool bExitAfterCommand = false;
+		public static void ExitTurnkeyLoopAfterCommand()
+		{
+			bExitAfterCommand = true;
+		}
+
 		public static bool ExecuteCommand(string CommandString=null)
 		{
 			TurnkeyCommand Command;
@@ -115,7 +121,7 @@ namespace Turnkey
 			}
 
 			// true if we should keep going
-			return true;
+			return !bExitAfterCommand;
 		}
 
 		private static int PromptForCommand()

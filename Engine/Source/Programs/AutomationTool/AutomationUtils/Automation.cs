@@ -14,7 +14,7 @@ namespace AutomationTool
 	/// <summary>
 	/// Command to execute info.
 	/// </summary>
-	class CommandInfo
+	public class CommandInfo
 	{
 		public string CommandName;
 		public List<string> Arguments = new List<string>();
@@ -521,7 +521,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		/// </summary>
 		/// <param name="CommandsToExecute"></param>
 		/// <param name="Commands"></param>
-		private static ExitCode Execute(List<CommandInfo> CommandsToExecute, Dictionary<string, Type> Commands)
+		public static ExitCode Execute(List<CommandInfo> CommandsToExecute, Dictionary<string, Type> Commands)
 		{
 			for (int CommandIndex = 0; CommandIndex < CommandsToExecute.Count; ++CommandIndex)
 			{

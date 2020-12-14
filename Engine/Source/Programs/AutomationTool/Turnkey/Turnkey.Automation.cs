@@ -56,11 +56,12 @@ namespace Turnkey
 
 		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
 		{
-			TurnkeyUtils.Initialize(IOProvider, CommandUtilHelper);
-			TurnkeySettings.Initialize();
-
 			// cache some settings for other classes
 			TurnkeyUtils.SetVariable("EngineDir", EngineDirectory.FullName);
+			TurnkeyUtils.SetVariable("Project", CommandUtilHelper.ParseParamValue("Project="));
+			
+			TurnkeyUtils.Initialize(IOProvider, CommandUtilHelper);
+			TurnkeySettings.Initialize();
 
 			//			Microsoft.Win32.SystemEvents.UserPreferenceChanged += new Microsoft.Win32.UserPreferenceChangedEventHandler((sender, args) => TurnkeyUtils.Log("Got a change! {0}", args.Category));
 

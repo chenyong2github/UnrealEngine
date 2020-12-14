@@ -28,9 +28,12 @@ namespace Turnkey
 			Platform_InvalidHostPrerequisites = 128,
 
 			Device_InvalidPrerequisites = 256,
-			Device_InstallSoftwareValid,
-			Device_InstallSoftwareInvalid,
-			Device_CannotConnect,
+			Device_InstallSoftwareValid = 512,
+			Device_InstallSoftwareInvalid = 1024,
+			Device_CannotConnect = 2048,
+
+			Support_FullSdk = 4096,
+			Support_AutoSdk = 8192,
 		}
 
 		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites)
@@ -101,6 +104,23 @@ namespace Turnkey
 				}
 			}
 
+
+			string FullSupportedPlatforms = TurnkeyUtils.GetVariableValue("Studio_FullInstallPlatforms");
+			string AutoSdkSupportedPlatforms = TurnkeyUtils.GetVariableValue("Studio_AutoSdkPlatforms");
+			if (!string.IsNullOrEmpty(FullSupportedPlatforms))
+			{
+				if (FullSupportedPlatforms.ToLower() == "all" || FullSupportedPlatforms.Split(",".ToCharArray()).Contains(AutomationPlatform.PlatformType.ToString(), StringComparer.InvariantCultureIgnoreCase))
+				{
+					Result |= LocalAvailability.Support_FullSdk;
+				}
+			}
+			if (!string.IsNullOrEmpty(AutoSdkSupportedPlatforms))
+			{
+				if (AutoSdkSupportedPlatforms.ToLower() == "all" || AutoSdkSupportedPlatforms.Split(",".ToCharArray()).Contains(AutomationPlatform.PlatformType.ToString(), StringComparer.InvariantCultureIgnoreCase))
+				{
+					Result |= LocalAvailability.Support_AutoSdk;
+				}
+			}
 
 			return Result;
 		}
