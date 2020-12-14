@@ -1385,8 +1385,6 @@ void FRDGBuilder::Execute()
 
 void FRDGBuilder::Clear()
 {
-	SCOPE_CYCLE_COUNTER(STAT_RDG_ClearTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_Clear, GRDGVerboseCSVStats != 0);
 	ExternalTextures.Empty();
 	ExternalBuffers.Empty();
 	ExtractedTextures.Empty();
