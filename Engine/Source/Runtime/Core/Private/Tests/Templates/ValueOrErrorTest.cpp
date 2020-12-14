@@ -8,11 +8,11 @@
 
 static_assert(!std::is_constructible<TValueOrError<int, int>>::value, "Expected no default constructor.");
 
-static_assert(!std::is_constructible<TValueOrError<int, int>, const TValueOrError<int, int>&>::value, "Expected deleted copy constructor.");
-static_assert(std::is_constructible<TValueOrError<int, int>, TValueOrError<int, int>&&>::value, "Missing move constructor.");
+static_assert(std::is_copy_constructible<TValueOrError<int, int>>::value, "Missing copy constructor.");
+static_assert(std::is_move_constructible<TValueOrError<int, int>>::value, "Missing move constructor.");
 
-static_assert(!std::is_assignable<TValueOrError<int, int>, const TValueOrError<int, int>&>::value, "Expected deleted copy assignment.");
-static_assert(std::is_assignable<TValueOrError<int, int>, TValueOrError<int, int>&&>::value, "Missing move assignment.");
+static_assert(std::is_copy_assignable<TValueOrError<int, int>>::value, "Missing copy assignment.");
+static_assert(std::is_move_assignable<TValueOrError<int, int>>::value, "Missing move assignment.");
 
 #if WITH_DEV_AUTOMATION_TESTS
 

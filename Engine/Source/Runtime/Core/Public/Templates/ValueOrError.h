@@ -86,12 +86,6 @@ public:
 	{
 	}
 
-	TValueOrError(TValueOrError&&) = default;
-	TValueOrError& operator=(TValueOrError&&) = default;
-
-	TValueOrError(const TValueOrError&) = delete;
-	TValueOrError& operator=(const TValueOrError&) = delete;
-
 	/** Check whether a value is set. Prefer HasValue and HasError to this. !IsValid() does *not* imply HasError(). */
 	inline bool IsValid() const { return Variant.template IsType<ValueType>(); }
 
