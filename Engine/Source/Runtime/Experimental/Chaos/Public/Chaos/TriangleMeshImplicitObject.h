@@ -13,6 +13,8 @@
 #include "ChaosArchive.h"
 #include "ImplicitObject.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
+#include "UObject/PhysicsObjectVersion.h"
+
 
 namespace Chaos
 {
@@ -102,13 +104,14 @@ namespace Chaos
 		using FImplicitObject::GetTypeName;
 
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
 		, MLocalBoundingBox(MParticles.X(0), MParticles.X(0))
 		, MaterialIndices(MoveTemp(InMaterialIndices))
 		, ExternalFaceIndexMap(MoveTemp(InExternalFaceIndexMap))
+		, ExternalVertexIndexMap(MoveTemp(InExternalVertexIndexMap))
 		, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
 		{
 			for (uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
@@ -239,6 +242,28 @@ namespace Chaos
 					}
 				}
 			}
+
+			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::TriangleMeshHasVertexIndexMap)
+			{
+				if (Ar.IsLoading())
+				{
+					ExternalVertexIndexMap = MakeUnique<TArray<int32>>(TArray<int32>());
+					Ar << *ExternalVertexIndexMap;
+				}
+				else
+				{
+					if (ExternalVertexIndexMap == nullptr)
+					{
+						TArray<int32> EmptyArray;
+						Ar << EmptyArray;
+					}
+					else
+					{
+						Ar << *ExternalVertexIndexMap;
+					}
+				}
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override;
@@ -267,6 +292,7 @@ namespace Chaos
 		TAABB<FReal, 3> MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
 		TUniquePtr<TArray<int32>> ExternalFaceIndexMap;
+		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
