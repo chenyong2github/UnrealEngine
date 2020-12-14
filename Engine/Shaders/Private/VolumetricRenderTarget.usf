@@ -610,13 +610,9 @@ void ComposeVolumetricRTOverScenePS(
 	uint2 VolumeCoord2 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, OffsetY));
 	uint2 VolumeCoord3 = max(0, int2(VolumeCoordUInt) + int2(0, OffsetY));
 
-	float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeCoord0);
 	float2 VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeCoord0);
-	float4 VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeCoord1);
 	float2 VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture(VolumeCoord1);
-	float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeCoord2);
 	float2 VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeCoord2);
-	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
 	// Check that all cloud medium sample are in front of the surface we are upsampling over to make sure simple bilinear upsampling will work.
@@ -640,6 +636,11 @@ void ComposeVolumetricRTOverScenePS(
 
 	if (MaxDepth4Diff > ThresholdToBilinear)
 	{
+		float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeCoord0);
+		float4 VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeCoord1);
+		float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeCoord2);
+		float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
+
 		const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
 		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth greater than that such distant depth pixel
 		if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
@@ -693,51 +694,52 @@ void ComposeVolumetricRTOverScenePS(
 		ValidSampleCount = 1.0;
 		DataAcc = SafeSampleVolumetricTexture((float2(VolumeCoord0) + 0.25 + (float2(OffsetX, OffsetY) * 0.5 + 0.5) * 0.5) * VolumetricTextureSizeAndInvSize.zw);
 		//DataAcc = float4(0, 1.0, 0, 0);
+	}
 
-		if (UvOffsetScale>0.0)
+
+	if (UvOffsetScale > 0.0 && bAllCloudSamplesInFrontOfWater)
+	{
+		// Add some jittered samples to hide upsampling and noise through TAA filtering
+		// We use only Offset0 to save ALU and go faster. Variation across pixels is enough noise for taa to soften it out.
+		float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
+		float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUV - Offset0);
+		float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUV + float2(Offset0.y, -Offset0.x));
+		float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUV - float2(Offset0.y, -Offset0.x));
+
+		// Resolve the OutputRt0 from DataAcc to know what we want to blend into for the bilaterial upsampling based on a=transmittance.
+		// Why using transmittance? Because it cause less artefact than depth for far away pixels and 
+		// pixel with similar transmittance or more likely to be a good choice to mix together to produce noise (that is our assumption here)
+		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		if (ValidSampleCount > 0.0f)
 		{
-			// Add some jittered samples to hide upsampling and noise through TAA filtering
-#if 0
-			VolumeRGBT0 = SafeLoadVolumetricTexture((VolumeUV + Offset0) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset0) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeRGBT1 = SafeLoadVolumetricTexture((VolumeUV + Offset1) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset1) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeRGBT2 = SafeLoadVolumetricTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeRGBT3 = SafeLoadVolumetricTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
-			VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
-#else
-			float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
-			float2 VolumeFrontDepth0 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset0);
-			float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUV + Offset1);
-			float2 VolumeFrontDepth1 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset1);
-			float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUV + Offset2);
-			float2 VolumeFrontDepth2 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset2);
-			float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUV + Offset3);
-			float2 VolumeFrontDepth3 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset3);
-#endif
+			OutputRt0 = DataAcc / ValidSampleCount;
+		}
 
-			PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y), max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
-			float4 depth4Diff;
-			depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
-			depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
-			depth4Diff.z = PixelDistanceFromViewKm - VolumeFrontDepth2.y;
-			depth4Diff.w = PixelDistanceFromViewKm - VolumeFrontDepth3.y;
-			depth4Diff = abs(depth4Diff);
-			float MaxDepth4Diff = max(max(depth4Diff.x, depth4Diff.y), max(depth4Diff.z, depth4Diff.w));
-			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
-			const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
-			const float ThresholdToBilinear = PixelDistanceFromViewKm * 0.1;
-			if (MaxDepth4Diff < ThresholdToBilinear && weightsSum>0)
-			{
-				weights /= weightsSum;
-				ValidSampleCount += 1;
-				DataAcc += weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
-				//	DataAcc += float4(0, 0, 0.1, 0);
-			}
+		// Now continue to accumulate in DataAcc
+		const float Extinction = 5.0;
+		{
+			const float weight = exp(-Extinction * abs(VolumeRGBT0.a - OutputRt0.a));
+			ValidSampleCount += weight;
+			DataAcc += VolumeRGBT0 * weight;
+		}
+		{
+			const float weight = exp(-Extinction * abs(VolumeRGBT1.a - OutputRt0.a));
+			ValidSampleCount += weight;
+			DataAcc += VolumeRGBT1 * weight;
+		}
+		{
+			const float weight = exp(-Extinction * abs(VolumeRGBT2.a - OutputRt0.a));
+			ValidSampleCount += weight;
+			DataAcc += VolumeRGBT2 * weight;
+		}
+		{
+			const float weight = exp(-Extinction * abs(VolumeRGBT3.a - OutputRt0.a));
+			ValidSampleCount += weight;
+			DataAcc += VolumeRGBT3 * weight;
 		}
 	}
 
+	OutputRt0 = float4(0, 0, 0, 1);
 	if (ValidSampleCount > 0.0f)
 	{
 		OutputRt0 = DataAcc / ValidSampleCount;
