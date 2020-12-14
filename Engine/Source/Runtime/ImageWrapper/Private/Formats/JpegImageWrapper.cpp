@@ -23,12 +23,36 @@ PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 #include "jpge.cpp"
 PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
+#if WITH_LIBJPEGTURBO
+THIRD_PARTY_INCLUDES_START
+#pragma push_macro("DLLEXPORT")
+#undef DLLEXPORT // libjpeg-turbo defines DLLEXPORT as well
+#include "turbojpeg.h"
+#pragma pop_macro("DLLEXPORT")
+THIRD_PARTY_INCLUDES_END
+#endif	// WITH_LIBJPEGTURBO
+
 #ifdef __clang__
 	#pragma clang diagnostic pop
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(JPEGLog, Log, All);
 
+#if WITH_LIBJPEGTURBO
+namespace
+{
+	int ConvertTJpegPixelFormat(ERGBFormat InFormat)
+	{
+		switch (InFormat)
+		{
+			case ERGBFormat::BGRA:	return TJPF_BGRA;
+			case ERGBFormat::Gray:	return TJPF_GRAY;
+			case ERGBFormat::RGBA:	return TJPF_RGBA;
+			default:				return TJPF_RGBA;
+		}
+	}
+}
+#endif	// WITH_LIBJPEGTURBO
 
 // Only allow one thread to use JPEG decoder at a time (it's not thread safe)
 FCriticalSection GJPEGSection; 
@@ -38,16 +62,39 @@ FCriticalSection GJPEGSection;
  *****************************************************************************/
 
 FJpegImageWrapper::FJpegImageWrapper(int32 InNumComponents)
-	: FImageWrapperBase(),
-	  NumComponents(InNumComponents)
+	: FImageWrapperBase()
+	, NumComponents(InNumComponents)
+#if WITH_LIBJPEGTURBO
+	, Compressor(tjInitCompress())
+	, Decompressor(tjInitDecompress())
+#endif	// WITH_LIBJPEGTURBO
 { }
 
+
+#if WITH_LIBJPEGTURBO
+FJpegImageWrapper::~FJpegImageWrapper()
+{
+	FScopeLock JPEGLock(&GJPEGSection);
+
+	if (Compressor)
+	{
+		tjDestroy(Compressor);
+	}
+	if (Decompressor)
+	{
+		tjDestroy(Decompressor);
+	}
+}
+#endif	// WITH_LIBJPEGTURBO
 
 /* FImageWrapperBase interface
  *****************************************************************************/
 
 bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
+#if WITH_LIBJPEGTURBO
+	return SetCompressedTurbo(InCompressedData, InCompressedSize);
+#else
 	// jpgd doesn't support 64-bit sizes.
 	if (InCompressedSize < 0 || InCompressedSize > MAX_uint32)
 	{
@@ -81,6 +128,7 @@ bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64 InComp
 	}
 
 	return bResult;
+#endif
 }
 
 
@@ -96,6 +144,9 @@ bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int
 
 void FJpegImageWrapper::Compress(int32 Quality)
 {
+#if WITH_LIBJPEGTURBO
+	CompressTurbo(Quality);
+#else
 	if (CompressedData.Num() == 0)
 	{
 		FScopeLock JPEGLock(&GJPEGSection);
@@ -137,11 +188,15 @@ void FJpegImageWrapper::Compress(int32 Quality)
 
 		CompressedData.RemoveAt((int64)OutBufferSize, CompressedData.Num() - (int64)OutBufferSize);
 	}
+#endif
 }
 
 
 void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 {
+#if WITH_LIBJPEGTURBO
+	UncompressTurbo(InFormat, InBitDepth);
+#else
 	// Ensure we haven't already uncompressed the file.
 	if (RawData.Num() != 0)
 	{
@@ -179,7 +234,106 @@ void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 		FMemory::Memcpy(RawData.GetData(), OutData, RawData.Num());
 		FMemory::Free(OutData);
 	}
+#endif
 }
+
+#if WITH_LIBJPEGTURBO
+bool FJpegImageWrapper::SetCompressedTurbo(const void* InCompressedData, int64 InCompressedSize)
+{
+	FScopeLock JPEGLock(&GJPEGSection);
+
+	check(Decompressor);
+
+	int ImageWidth;
+	int ImageHeight;
+	int SubSampling;
+	int ColorSpace;
+	if (tjDecompressHeader3(Decompressor, reinterpret_cast<const uint8*>(InCompressedData), InCompressedSize, &ImageWidth, &ImageHeight, &SubSampling, &ColorSpace) != 0)
+	{
+		return false;
+	}
+
+	const bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
+
+	// set after call to base SetCompressed as it will reset members
+	Width = ImageWidth;
+	Height = ImageHeight;
+	BitDepth = 8; // We don't support 16 bit jpegs
+	Format = SubSampling == TJSAMP_GRAY ? ERGBFormat::Gray : ERGBFormat::RGBA;
+
+	return bResult;
+}
+
+void FJpegImageWrapper::CompressTurbo(int32 Quality)
+{
+	if (CompressedData.Num() == 0)
+	{
+		FScopeLock JPEGLock(&GJPEGSection);
+
+		check(Compressor);
+
+		if (Quality == 0) { Quality = 85; }
+		ensure(Quality >= 1 && Quality <= 100);
+		Quality = FMath::Clamp(Quality, 1, 100);
+
+		check(RawData.Num());
+		check(Width > 0);
+		check(Height > 0);
+
+		CompressedData.Reset(RawData.Num());
+		CompressedData.AddUninitialized(RawData.Num());
+
+		const int PixelFormat = ConvertTJpegPixelFormat(RawFormat);
+		unsigned char* OutBuffer = CompressedData.GetData();
+		unsigned long OutBufferSize = static_cast<unsigned long>(CompressedData.Num());
+		const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
+
+		const bool bSuccess = tjCompress2(Compressor, RawData.GetData(), Width, 0, Height, PixelFormat, &OutBuffer, &OutBufferSize, TJSAMP_420, Quality, Flags) == 0;
+		check(bSuccess);
+
+		CompressedData.RemoveAt((int64)OutBufferSize, CompressedData.Num() - (int64)OutBufferSize);
+	}
+}
+
+void FJpegImageWrapper::UncompressTurbo(const ERGBFormat InFormat, int32 InBitDepth)
+{
+	// Ensure we haven't already uncompressed the file.
+	if (RawData.Num() != 0)
+	{
+		return;
+	}
+
+	// Get the number of channels we need to extract
+	int Channels = 0;
+	if ((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA) && InBitDepth == 8)
+	{
+		Channels = 4;
+	}
+	else if (InFormat == ERGBFormat::Gray && InBitDepth == 8)
+	{
+		Channels = 1;
+	}
+	else
+	{
+		check(false);
+	}
+
+	FScopeLock JPEGLock(&GJPEGSection);
+
+	check(Decompressor);
+	check(CompressedData.Num());
+
+	RawData.Reset(Width * Height * Channels);
+	RawData.AddUninitialized(Width * Height * Channels);
+	const int PixelFormat = ConvertTJpegPixelFormat(InFormat);
+	const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
+
+	if (tjDecompress2(Decompressor, CompressedData.GetData(), CompressedData.Num(), RawData.GetData(), Width, 0, Height, PixelFormat, Flags) != 0)
+	{
+		return;
+	}
+}
+#endif	// WITH_LIBJPEGTURBO
 
 
 #endif //WITH_JPEG

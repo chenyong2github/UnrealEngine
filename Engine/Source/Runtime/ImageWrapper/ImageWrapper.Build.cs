@@ -16,13 +16,24 @@ public class ImageWrapper : ModuleRules
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 
 		PrivateDependencyModuleNames.Add("Core");
-        PublicDependencyModuleNames.Add("CoreUObject");
+		PublicDependencyModuleNames.Add("CoreUObject");
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"zlib",
 			"UElibPNG",
 			"UElibJPG"
 		);
+
+		// Add LibJpegTurbo for supported platforms
+		// **** NOTE - Only Win64 has been tested - other platforms are usable at your own risk, but have not been tested
+		if ((Target.Platform == UnrealTargetPlatform.Win64))/* ||
+			(Target.Platform == UnrealTargetPlatform.Win32) ||
+			(Target.Platform == UnrealTargetPlatform.Mac) ||
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))*/
+		{
+			PublicDefinitions.Add("WITH_LIBJPEGTURBO=1");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "LibJpegTurbo");
+		}
 
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
