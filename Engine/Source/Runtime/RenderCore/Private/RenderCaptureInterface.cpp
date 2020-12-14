@@ -5,9 +5,16 @@
 
 namespace RenderCaptureInterface
 {
+	static FOnFrameCaptureDelegate GFrameCaptureDelegates;
 	static FOnBeginCaptureDelegate GBeginDelegates;
 	static FOnEndCaptureDelegate GEndDelegates;
-	
+
+	void RegisterCallbacks(FOnFrameCaptureDelegate InFrameCaptureDelegate)
+	{
+		check(!GFrameCaptureDelegates.IsBound());
+		GFrameCaptureDelegates = InFrameCaptureDelegate;
+	}
+
 	void RegisterCallbacks(FOnBeginCaptureDelegate InBeginDelegate, FOnEndCaptureDelegate InEndDelegate)
 	{
 		check(!GBeginDelegates.IsBound());
@@ -18,8 +25,18 @@ namespace RenderCaptureInterface
 
 	void UnregisterCallbacks()
 	{
+		GFrameCaptureDelegates.Unbind();
 		GBeginDelegates.Unbind();
 		GEndDelegates.Unbind();
+	}
+
+
+	void FrameCapture()
+	{
+		if (GFrameCaptureDelegates.IsBound())
+		{
+			GFrameCaptureDelegates.Execute();
+		}
 	}
 
 	void BeginCapture(FRHICommandListImmediate* RHICommandList, TCHAR const* Name)
