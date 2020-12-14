@@ -135,7 +135,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(U
 	TArray<FSequencerBoundObjects> BoundObjects;
 	for (FSequencerBindingProxy Binding : InBindings)
 	{
-		FMovieSceneObjectBindingID ObjectBinding(Binding.BindingID, SequenceId);
+		FMovieSceneObjectBindingID ObjectBinding = UE::MovieScene::FFixedObjectBindingID(Binding.BindingID, SequenceId);
 		BoundObjects.Add(FSequencerBoundObjects(Binding, Player->GetBoundObjects(ObjectBinding)));
 	}
 
@@ -168,7 +168,8 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 		TArray<FMovieSceneObjectBindingID> ObjectBindings = Player->GetObjectBindings(Object);
 		for (FMovieSceneObjectBindingID ObjectBinding : ObjectBindings)
 		{
-			FSequencerBindingProxy Binding(ObjectBinding.GetGuid(), Player->State.FindSequence(ObjectBinding.GetSequenceID()));
+			FMovieSceneSequenceID SequenceID = ObjectBinding.ResolveSequenceID(MovieSceneSequenceID::Root, *Player);
+			FSequencerBindingProxy Binding(ObjectBinding.GetGuid(), Player->State.FindSequence(SequenceID));
 			BoundObjects.Add(FSequencerBoundObjects(Binding, TArray<UObject*>({ Object })));
 		}
 	}

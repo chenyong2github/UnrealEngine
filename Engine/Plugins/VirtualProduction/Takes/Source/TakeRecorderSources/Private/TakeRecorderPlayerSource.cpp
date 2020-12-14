@@ -19,7 +19,7 @@ UTakeRecorderPlayerSource::UTakeRecorderPlayerSource(const FObjectInitializer& O
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	TArray<UTakeRecorderSource*> NewSources;
 

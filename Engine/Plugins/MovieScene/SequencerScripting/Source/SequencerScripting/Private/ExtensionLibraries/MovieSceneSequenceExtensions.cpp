@@ -565,28 +565,98 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 
 FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
 {
-	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
-
-	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterSequence);
-
-
-	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
-	if (Hierarchy)
+	// This function was kinda flawed before - when ::Local was passed for the Space parameter,
+	// and the sub sequence ID could not be found it would always fall back to a binding for ::Root without any Sequence ID
+	FMovieSceneObjectBindingID BindingID = GetPortableBindingID(MasterSequence, MasterSequence, InBinding);
+	if (Space == EMovieSceneObjectBindingSpace::Root)
 	{
-		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+		BindingID.ReinterpretAsFixed();
+	}
+	return BindingID;
+}
+
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetBindingID(const FSequencerBindingProxy& InBinding)
+{
+	return UE::MovieScene::FRelativeObjectBindingID(InBinding.BindingID);
+}
+
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FSequencerBindingProxy& InBinding)
+{
+	if (!MasterSequence || !DestinationSequence || !InBinding.Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Invalid sequence sepcified."), ELogVerbosity::Error);
+		return FMovieSceneObjectBindingID();
+	}
+
+	// If they are all the same sequence, we're dealing with a local binding - this requires no computation
+	if (MasterSequence == DestinationSequence && MasterSequence == InBinding.Sequence)
+	{
+		return UE::MovieScene::FRelativeObjectBindingID(InBinding.BindingID);
+	}
+
+	// Destination is the destination for the BindingID to be serialized / resolved within
+	// Target is the target sequence that contains the actual binding
+
+	TOptional<FMovieSceneSequenceID> DestinationSequenceID;
+	TOptional<FMovieSceneSequenceID> TargetSequenceID;
+
+	if (MasterSequence == DestinationSequence)
+	{
+		DestinationSequenceID = MovieSceneSequenceID::Root;
+	}
+	if (MasterSequence == InBinding.Sequence)
+	{
+		TargetSequenceID = MovieSceneSequenceID::Root;
+	}
+
+	// We know that we have at least one sequence ID to find, otherwise we would have entered the ::Local branch above
+	UMovieSceneCompiledDataManager*     CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
+	const FMovieSceneCompiledDataID     DataID              = CompiledDataManager->Compile(MasterSequence);
+	const FMovieSceneSequenceHierarchy* Hierarchy           = CompiledDataManager->FindHierarchy(DataID);
+
+	// If we have no hierarchy, the supplied MasterSequence does not have any sub-sequences so the callee has given us bogus parameters
+	if (!Hierarchy)
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Master Sequence ('%s') does not have any sub-sequences."), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		return FMovieSceneObjectBindingID();
+	}
+
+	// Find the destination and/or target sequence IDs as required.
+	// This method is flawed if there is more than one instance of the sequence within the hierarchy
+	// In this case we just pick the first one we find
+	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+	{
+		if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
 		{
-			if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
+			if (!TargetSequenceID.IsSet() && SubSequence == InBinding.Sequence)
 			{
-				if (SubSequence == InBinding.Sequence)
-				{
-					SequenceID = Pair.Key;
-					break;
-				}
+				TargetSequenceID = Pair.Key;
+			}
+			if (!DestinationSequenceID.IsSet() && SubSequence == DestinationSequence)
+			{
+				DestinationSequenceID = Pair.Key;
+			}
+
+			if (DestinationSequenceID.IsSet() && TargetSequenceID.IsSet())
+			{
+				break;
 			}
 		}
 	}
 
-	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID, Space);
+	if (!DestinationSequenceID.IsSet())
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate DestinationSequence ('%s') within Master Sequence hierarchy ('%s')."), *DestinationSequence->GetPathName(), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		return FMovieSceneObjectBindingID();
+	}
+
+	if (!TargetSequenceID.IsSet())
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate Sequence for InBinding ('%s') within Master Sequence hierarchy ('%s')."), *InBinding.Sequence->GetPathName(), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		return FMovieSceneObjectBindingID();
+	}
+
+	return UE::MovieScene::FRelativeObjectBindingID(DestinationSequenceID.GetValue(), TargetSequenceID.GetValue(), InBinding.BindingID, Hierarchy);
 }
 
 FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
@@ -598,7 +668,7 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSce
 	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
 	if (Hierarchy)
 	{
-		if (UMovieSceneSequence* SubSequence = Hierarchy->FindSubSequence(InObjectBindingID.GetSequenceID()))
+		if (UMovieSceneSequence* SubSequence = Hierarchy->FindSubSequence(InObjectBindingID.ResolveSequenceID(MovieSceneSequenceID::Root, Hierarchy)))
 		{
 			Sequence = SubSequence;
 		}

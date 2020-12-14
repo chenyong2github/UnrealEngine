@@ -6,6 +6,7 @@
 #include "Textures/SlateIcon.h"
 #include "MovieSceneSequenceID.h"
 
+class FReply;
 class SWidget;
 class UMovieSceneSequence;
 class FMenuBuilder;
@@ -16,6 +17,17 @@ struct FSlateBrush;
 struct FSequenceBindingTree;
 struct FSequenceBindingNode;
 struct FMovieSceneObjectBindingID;
+
+namespace UE
+{
+namespace MovieScene
+{
+
+struct FRelativeObjectBindingID;
+struct FFixedObjectBindingID;
+
+} // namespace MovieScene
+} // namespace UE
 
 /**
  * Helper class that is used to pick object bindings for movie scene data
@@ -76,7 +88,7 @@ protected:
 	EVisibility GetSpawnableIconOverlayVisibility() const;
 
 	/** Assign a new binding ID in response to user-input */
-	void SetBindingId(FMovieSceneObjectBindingID InBindingId);
+	void SetBindingId(UE::MovieScene::FFixedObjectBindingID InBindingId);
 
 	/** Build menu content that allows the user to choose a binding from inside the source sequence */
 	TSharedRef<SWidget> GetPickerMenu();
@@ -86,6 +98,9 @@ protected:
 
 	/** Get a widget that represents the currently chosen item */
 	TSharedRef<SWidget> GetCurrentItemWidget(TSharedRef<STextBlock> TextContent);
+
+	/** Get a widget that represents a warning/fixup button for this binding */
+	TSharedRef<SWidget> GetWarningWidget();
 
 	/** Optional sequencer ptr */
 	TWeakPtr<ISequencer> WeakSequencer;
@@ -98,14 +113,20 @@ protected:
 
 private:
 
-	/** Get the currently set binding ID, remapped to the root sequence if necessary */
-	FMovieSceneObjectBindingID GetRemappedCurrentValue() const;
+	/** Get the currently set binding ID as a fixed binding ID from the root sequence */
+	UE::MovieScene::FFixedObjectBindingID GetCurrentValueAsFixed() const;
 
-	/** Set the binding ID, remapped to the local sequence if possible */
-	void SetRemappedCurrentValue(FMovieSceneObjectBindingID InValue);
+	/** Set the binding ID */
+	void SetCurrentValueFromFixed(UE::MovieScene::FFixedObjectBindingID InValue);
 
 	/** Called when the combo box has been clicked to populate its menu content */
 	void OnGetMenuContent(FMenuBuilder& MenuBuilder, TSharedPtr<FSequenceBindingNode> Node);
+
+	/** Get the visibility for the warning/fixup button */
+	EVisibility GetFixedWarningVisibility() const;
+
+	/** Get the visibility for the warning/fixup button */
+	FReply AttemptBindingFixup();
 
 	/** Cached current text and tooltips */
 	FText CurrentText, ToolTipText;

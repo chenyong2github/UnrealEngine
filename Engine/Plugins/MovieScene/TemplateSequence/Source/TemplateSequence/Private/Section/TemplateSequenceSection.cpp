@@ -3,6 +3,7 @@
 #include "Sections/TemplateSequenceSection.h"
 #include "TemplateSequence.h"
 #include "Systems/TemplateSequenceSystem.h"
+#include "Evaluation/MovieSceneRootOverridePath.h"
 
 UTemplateSequenceSection::UTemplateSequenceSection(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)
@@ -24,15 +25,10 @@ void UTemplateSequenceSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 
 	if (UTemplateSequence* TemplateSubSequence = Cast<UTemplateSequence>(GetSequence()))
 	{
-		const FMovieSceneObjectBindingID InnerObjectBindingID(
-				TemplateSubSequence->GetRootObjectBindingID(), GetSequenceID(), EMovieSceneObjectBindingSpace::Local);
+		const FSubSequencePath      PathToRoot = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle).GetSubSequencePath();
+		const FMovieSceneSequenceID ResolvedSequenceID = PathToRoot.ResolveChildSequenceID(this->GetSequenceID());
 
-		const FSequenceInstance& SequenceInstance = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle);
-		const FMovieSceneObjectBindingID AbsoluteInnerObjectBindingID(
-				InnerObjectBindingID.ResolveLocalToRoot(SequenceInstance.GetSequenceID(), *SequenceInstance.GetPlayer()));
-
-		ComponentData.InnerOperand = FMovieSceneEvaluationOperand(
-				AbsoluteInnerObjectBindingID.GetSequenceID(), AbsoluteInnerObjectBindingID.GetGuid());
+		ComponentData.InnerOperand = FMovieSceneEvaluationOperand(ResolvedSequenceID, TemplateSubSequence->GetRootObjectBindingID());
 	}
 
 	FGuid ObjectBindingID = Params.GetObjectBindingID();

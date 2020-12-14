@@ -57,18 +57,9 @@ struct FInitializeAttachParentsTask
 
 	void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, const FMovieSceneObjectBindingID& BindingID, const UE::MovieScene::FAttachmentComponent& AttachComponent, USceneComponent*& OutAttachedParent)
 	{
-		const FSequenceInstance* TargetInstance = &InstanceRegistry->GetInstance(InstanceHandle);
+		const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
-		IMovieScenePlayer* Player = TargetInstance->GetPlayer();
-
-		FMovieSceneSequenceID ResolvedSequenceID = BindingID.GetSequenceID();
-		if (!TargetInstance->IsRootSequence())
-		{
-			ResolvedSequenceID = BindingID.ResolveLocalToRoot(TargetInstance->GetSequenceID(), *Player).GetSequenceID();
-			TargetInstance = &InstanceRegistry->GetInstance(TargetInstance->GetRootInstanceHandle());
-		}
-
-		for (TWeakObjectPtr<> WeakObject : Player->FindBoundObjects(BindingID.GetGuid(), ResolvedSequenceID))
+		for (TWeakObjectPtr<> WeakObject : BindingID.ResolveBoundObjects(TargetInstance))
 		{
 			if (AActor* ParentActor = Cast<AActor>(WeakObject.Get()))
 			{

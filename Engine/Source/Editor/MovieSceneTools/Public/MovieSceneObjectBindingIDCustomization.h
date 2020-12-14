@@ -11,7 +11,15 @@ class IPropertyHandle;
 class UMovieSceneSequence;
 class FDragDropOperation;
 class ISequencer;
-struct FMovieSceneObjectBindingID;
+
+namespace UE
+{
+namespace MovieScene
+{
+	struct FFixedObjectBindingID;
+}
+}
+
 
 
 class MOVIESCENETOOLS_API FMovieSceneObjectBindingIDCustomization

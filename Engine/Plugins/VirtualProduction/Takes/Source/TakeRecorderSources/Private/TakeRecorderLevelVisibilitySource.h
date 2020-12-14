@@ -40,7 +40,7 @@ public:
 private:
 
 	// UTakeRecorderSource
-	virtual TArray<UTakeRecorderSource*> PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
+	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentTime) override;
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	virtual FText GetDisplayTextImpl() const override;

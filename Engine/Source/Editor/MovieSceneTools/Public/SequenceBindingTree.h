@@ -19,8 +19,9 @@ class UMovieSceneSequence;
 /** Node that represents an object binding, or a sub sequence (where the guid is zero) */
 struct FSequenceBindingNode
 {
-	FSequenceBindingNode(FText InDisplayString, FMovieSceneObjectBindingID InBindingID, FSlateIcon InIcon)
+	FSequenceBindingNode(FText InDisplayString, const UE::MovieScene::FFixedObjectBindingID& InBindingID, FSlateIcon InIcon)
 		: BindingID(InBindingID)
+		, ParentID(FGuid(), MovieSceneSequenceID::Invalid)
 		, DisplayString(InDisplayString)
 		, Icon(InIcon)
 		, bIsSpawnable(false)
@@ -34,7 +35,7 @@ struct FSequenceBindingNode
 	}
 
 	/** This object's ID, and its parent's */
-	FMovieSceneObjectBindingID BindingID, ParentID;
+	UE::MovieScene::FFixedObjectBindingID BindingID, ParentID;
 	/** The display string that represents this node */
 	FText DisplayString;
 	/** A representative icon for the node */
@@ -74,7 +75,7 @@ struct MOVIESCENETOOLS_API FSequenceBindingTree
 	}
 
 	/** Find a node in the tree */
-	TSharedPtr<FSequenceBindingNode> FindNode(FMovieSceneObjectBindingID BindingID) const
+	TSharedPtr<FSequenceBindingNode> FindNode(UE::MovieScene::FFixedObjectBindingID BindingID) const
 	{
 		return Hierarchy.FindRef(BindingID);
 	}
@@ -108,7 +109,7 @@ private:
 	/** The top level (root) node in the tree */
 	TSharedPtr<FSequenceBindingNode> TopLevelNode;
 	/** Map of hierarchical information */
-	TMap<FMovieSceneObjectBindingID, TSharedPtr<FSequenceBindingNode>> Hierarchy;
+	TMap<UE::MovieScene::FFixedObjectBindingID, TSharedPtr<FSequenceBindingNode>> Hierarchy;
 	/** Map of sequence to its signature the last time we were built */
 	TMap<FObjectKey, FGuid> CachedSequenceSignatures;
 	/** Whether the tree is considered empty */

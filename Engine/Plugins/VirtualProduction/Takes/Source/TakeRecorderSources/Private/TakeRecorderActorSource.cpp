@@ -178,6 +178,8 @@ UTakeRecorderActorSource::UTakeRecorderActorSource(const FObjectInitializer& Obj
 	bReduceKeys = true;
 	bRecordParentHierarchy = true;
 
+	TargetSequenceID = MovieSceneSequenceID::Invalid;
+
 	// Build the property map on initialization so that sources created at runtime have a default map
 	RebuildRecordedPropertyMap();
 }
@@ -188,7 +190,7 @@ bool UTakeRecorderActorSource::IsValid() const
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	// Don't bother doing anything if we don't have a valid actor to record.
 	if (!Target.IsValid())
@@ -202,7 +204,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(class ULevel
 	AActor* ActorToRecord = Target.Get();
 	TargetLevelSequence = InSequence;
 	MasterLevelSequence = InMasterSequence;
-	SequenceID.Reset(); 
+	TargetSequenceID = InSequenceID;
 
 	FString ObjectBindingName = ActorToRecord->GetName();
 

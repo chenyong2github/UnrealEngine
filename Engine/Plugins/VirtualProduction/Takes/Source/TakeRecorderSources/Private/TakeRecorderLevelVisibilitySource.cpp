@@ -57,7 +57,7 @@ UTakeRecorderLevelVisibilitySource::UTakeRecorderLevelVisibilitySource(const FOb
 	: Super(ObjInit)
 {}
 
-TArray<UTakeRecorderSource*> UTakeRecorderLevelVisibilitySource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderLevelVisibilitySource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	UWorld* World = TakeRecorderSourcesUtils::GetSourceWorld(InSequence);
 

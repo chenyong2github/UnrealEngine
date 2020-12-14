@@ -71,7 +71,7 @@ public:
 		else if (ColumnName == Column_Tags)
 		{
 			TSharedRef<SWidget> TagContent = SNullWidget::NullWidget;
-			if (BindingNode->BindingID.IsValid())
+			if (BindingNode->BindingID.Guid.IsValid())
 			{
 				TagContent = GenerateTagsContent(BindingNode);
 			}
@@ -387,7 +387,7 @@ void SObjectBindingTagManager::TagSelectionAs(FName NewName)
 	MovieScene->Modify();
 	for (TSharedRef<FSequenceBindingNode> SelectedItem : TreeView->GetSelectedItems())
 	{
-		if (SelectedItem->BindingID.IsValid())
+		if (SelectedItem->BindingID.Guid.IsValid())
 		{
 			bMadeAnyChanges = true;
 			MovieScene->TagBinding(NewName, SelectedItem->BindingID);
@@ -425,7 +425,7 @@ void SObjectBindingTagManager::UntagSelection(FName TagName, TSharedPtr<FSequenc
 	MovieScene->Modify();
 	for (TSharedRef<FSequenceBindingNode> SelectedItem : TreeView->GetSelectedItems())
 	{
-		if (SelectedItem->BindingID.IsValid())
+		if (SelectedItem->BindingID.Guid.IsValid())
 		{
 			bMadeAnyChanges = true;
 			MovieScene->UntagBinding(TagName, SelectedItem->BindingID);
@@ -433,7 +433,7 @@ void SObjectBindingTagManager::UntagSelection(FName TagName, TSharedPtr<FSequenc
 	}
 	if (InstigatorNode && !TreeView->IsItemSelected(InstigatorNode.ToSharedRef()))
 	{
-		if (InstigatorNode->BindingID.IsValid())
+		if (InstigatorNode->BindingID.Guid.IsValid())
 		{
 			bMadeAnyChanges = true;
 			MovieScene->UntagBinding(TagName, InstigatorNode->BindingID);

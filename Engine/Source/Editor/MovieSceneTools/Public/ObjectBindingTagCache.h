@@ -20,7 +20,7 @@ class FObjectBindingTagCache
 {
 public:
 
-	using TagIterator = TMultiMap<FMovieSceneObjectBindingID, FName>::TConstKeyIterator;
+	using TagIterator = TMultiMap<UE::MovieScene::FFixedObjectBindingID, FName>::TConstKeyIterator;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdated, const FObjectBindingTagCache*);
 
@@ -46,7 +46,7 @@ public:
 	/*
 	 * Check whether the specified binding ID has the specified tag
 	 */
-	bool HasTag(const FMovieSceneObjectBindingID& BindingID, const FName& TagName) const
+	bool HasTag(const UE::MovieScene::FFixedObjectBindingID& BindingID, const FName& TagName) const
 	{
 		return ExposedNameReverseLUT.FindPair(BindingID, TagName) != nullptr;
 	}
@@ -55,7 +55,7 @@ public:
 	/*
 	 * Iterate all the tags for the specified binding ID
 	 */
-	TagIterator IterateTags(const FMovieSceneObjectBindingID& BindingID) const
+	TagIterator IterateTags(const UE::MovieScene::FFixedObjectBindingID& BindingID) const
 	{
 		return ExposedNameReverseLUT.CreateConstKeyIterator(BindingID);
 	}
@@ -69,5 +69,5 @@ private:
 	FGuid RootSequenceSignature;
 
 	/** Multi map (1->many) of a binding ID to any tags that are associated with it */
-	TMultiMap<FMovieSceneObjectBindingID, FName> ExposedNameReverseLUT;
+	TMultiMap<UE::MovieScene::FFixedObjectBindingID, FName> ExposedNameReverseLUT;
 };

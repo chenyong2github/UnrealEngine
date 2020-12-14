@@ -134,7 +134,7 @@ private:
 	UMovieSceneCompiledDataManager* CompiledDataManager;
 
 	/** Override path that is used to remap inner sequence IDs to the root space when evaluating with a root override */
-	FMovieSceneRootOverridePath RootOverridePath;
+	UE::MovieScene::FSubSequencePath RootOverridePath;
 
 	/** Execution tokens that are used to apply animated state */
 	FMovieSceneExecutionTokens ExecutionTokens;

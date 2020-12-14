@@ -414,16 +414,18 @@ void UMovieScene::AddNewBindingTag(const FName& NewTag)
 	BindingGroups.Add(NewTag);
 }
 
-void UMovieScene::TagBinding(const FName& NewTag, FMovieSceneObjectBindingID BindingToTag)
+void UMovieScene::TagBinding(const FName& NewTag, const UE::MovieScene::FFixedObjectBindingID& BindingToTag)
 {
-	BindingGroups.FindOrAdd(NewTag).IDs.AddUnique(BindingToTag);
+	FMovieSceneObjectBindingID SerializedID = BindingToTag;
+	BindingGroups.FindOrAdd(NewTag).IDs.AddUnique(SerializedID);
 }
 
-void UMovieScene::UntagBinding(const FName& Tag, FMovieSceneObjectBindingID Binding)
+void UMovieScene::UntagBinding(const FName& Tag, const UE::MovieScene::FFixedObjectBindingID& Binding)
 {
+	FMovieSceneObjectBindingID PredicateID = Binding;
 	if (FMovieSceneObjectBindingIDs* Array = BindingGroups.Find(Tag))
 	{
-		Array->IDs.Remove(Binding);
+		Array->IDs.Remove(PredicateID);
 		if (Array->IDs.Num() == 0)
 		{
 			BindingGroups.Remove(Tag);

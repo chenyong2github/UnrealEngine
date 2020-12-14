@@ -1135,11 +1135,11 @@ bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Seque
 
 bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Sequence, const FGatherParameters& Params, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
-	FMovieSceneRootOverridePath RootPath;
+	UE::MovieScene::FSubSequencePath RootPath;
 	return CompileHierarchyImpl(Sequence, Params, FMovieSceneEvaluationOperand(), &RootPath, InOutHierarchy);
 }
 
-bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	check(MovieScene && RootPath && InOutHierarchy);
@@ -1170,7 +1170,7 @@ bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* S
 	return bContainsSubSequences;
 }
 
-bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
 	bool bContainsSubSequences = false;
 
@@ -1199,7 +1199,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 			continue;
 		}
 
-		const FMovieSceneSequenceID InnerSequenceID = RootPath->Remap(SubSection->GetSequenceID());
+		const FMovieSceneSequenceID InnerSequenceID = RootPath->ResolveChildSequenceID(SubSection->GetSequenceID());
 
 		SectionToID.Add(SubSection, InnerSequenceID);
 
@@ -1263,9 +1263,9 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 			SubParams.Flags |= Entry.Flags;
 			SubParams.NetworkMask = NewMask;
 
-			RootPath->Push(SubData->DeterministicSequenceID);
+			RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
 			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);
-			RootPath->Pop();
+			RootPath->PopGenerations(1);
 		}
 	}
 

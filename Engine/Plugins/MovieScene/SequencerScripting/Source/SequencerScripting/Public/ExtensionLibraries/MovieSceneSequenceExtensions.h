@@ -441,9 +441,34 @@ public:
 	 * @param Space The object binding space to resolve from (Root or Local)
 	 * @return The new object binding id
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	UE_DEPRECATED(5.0, "Please migrate to GetBindingID or GetPortableBindingID depending on use-case.")
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Please migrate to GetBindingID or GetPortableBindingID depending on use-case."))
 	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
+
+	/**
+	 * Get the binding ID for a binding within a sequence.
+	 * @note: The resulting binding is only valid when applied to properties within the same sequence as this binding. Use GetPortableBindingID for bindings which live in different sub-sequences.
+	 *
+	 * @param Binding The binding proxy to generate the binding id from
+	 * @return The binding's id
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static FMovieSceneObjectBindingID GetBindingID(const FSequencerBindingProxy& InBinding);
+
+
+	/**
+	 * Get a portable binding ID for a binding that resides in a different sequence to the one where this binding will be resolved.
+	 * @note: This function must be used over GetBindingID when the target binding resides in different shots or sub-sequences.
+	 * @note: Only unique instances of sequences within a master sequences are supported
+	 *
+	 * @param MasterSequence The master sequence that contains both the destination sequence (that will resolve the binding ID) and the target sequence that contains the actual binding
+	 * @param DestinationSequence The sequence that will own or resolve the resulting binding ID. For example, if the binding ID will be applied to a camera cut section pass the sequence that contains the camera cut track to this parameter.
+	 * @param Binding The target binding to create the ID from
+	 * @return The binding's id
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static FMovieSceneObjectBindingID GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FSequencerBindingProxy& InBinding);
 
 	/**
 	 * Make a binding for the given binding ID

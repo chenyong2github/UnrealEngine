@@ -93,7 +93,7 @@ static FString MakeNewAssetName(const FString& BaseAssetPath, const FString& Bas
 	return AssetName;
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(ULevelSequence* InSequence, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 	for (auto MasterTrack : MovieScene->GetMasterTracks())

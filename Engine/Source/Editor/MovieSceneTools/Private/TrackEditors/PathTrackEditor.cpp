@@ -12,6 +12,7 @@
 #include "Components/SplineComponent.h"
 #include "MovieSceneToolHelpers.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "MovieSceneSpawnableAnnotation.h"
 
 
 #define LOCTEXT_NAMESPACE "FPathTrackEditor"
@@ -42,15 +43,7 @@ public:
 			TSharedPtr<ISequencer> Sequencer = PathTrackEditor->GetSequencer();
 			if (Sequencer.IsValid())
 			{
-				FMovieSceneSequenceID SequenceID = Sequencer->GetFocusedTemplateID();
-				if (PathSection->GetConstraintBindingID().GetSequenceID().IsValid())
-				{
-					// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-					FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, *Sequencer);
-					SequenceID = RootBindingID.GetSequenceID();
-				}
-
-				TArrayView<TWeakObjectPtr<UObject>> RuntimeObjects = Sequencer->FindBoundObjects(PathSection->GetConstraintBindingID().GetGuid(), SequenceID);
+				TArrayView<TWeakObjectPtr<UObject>> RuntimeObjects = PathSection->GetConstraintBindingID().ResolveBoundObjects(Sequencer->GetFocusedTemplateID(), *Sequencer);
 				if (RuntimeObjects.Num() == 1 && RuntimeObjects[0].IsValid())
 				{
 					if (AActor* Actor = Cast<AActor>(RuntimeObjects[0].Get()))
@@ -140,16 +133,8 @@ bool F3DPathTrackEditor::IsActorPickable(const AActor* const ParentActor, FGuid 
 	UMovieScene3DPathSection* PathSection = Cast<UMovieScene3DPathSection>(InSection);
 	if (PathSection != nullptr)
 	{
-		FMovieSceneSequenceID SequenceID = GetSequencer()->GetFocusedTemplateID();
-		if (PathSection->GetConstraintBindingID().GetSequenceID().IsValid())
-		{
-			// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-			FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, *GetSequencer());
-			SequenceID = RootBindingID.GetSequenceID();
-		}
-
-		TArrayView<TWeakObjectPtr<UObject>> RuntimeObjects = GetSequencer()->FindBoundObjects(PathSection->GetConstraintBindingID().GetGuid(), SequenceID);
-		
+		TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+		TArrayView<TWeakObjectPtr<UObject>> RuntimeObjects = PathSection->GetConstraintBindingID().ResolveBoundObjects(SequencerPtr->GetFocusedTemplateID(), *SequencerPtr);
 		if (RuntimeObjects.Contains(ParentActor))
 		{
 			return false;
@@ -187,10 +172,21 @@ void F3DPathTrackEditor::ActorSocketPicked(const FName SocketName, USceneCompone
 		{
 			ConstraintBindingID = ActorPickerID.ExistingBindingID;
 		}
-		else if (ActorPickerID.ActorPicked.IsValid())
+		else if (AActor* Actor = ActorPickerID.ActorPicked.Get())
 		{
-			FGuid ParentActorId = FindOrCreateHandleToObject(ActorPickerID.ActorPicked.Get()).Handle;
-			ConstraintBindingID = FMovieSceneObjectBindingID(ParentActorId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+			TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+
+			TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
+			if (Spawnable.IsSet())
+			{
+				// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
+				ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(SequencerPtr->GetFocusedTemplateID(), Spawnable->SequenceID, Spawnable->ObjectBindingID, *SequencerPtr);
+			}
+			else
+			{
+				FGuid ParentActorId = FindOrCreateHandleToObject(Actor).Handle;
+				ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(ParentActorId);
+			}
 		}
 
 		if (ConstraintBindingID.IsValid())
@@ -224,12 +220,24 @@ FKeyPropertyResult F3DPathTrackEditor::AddKeyInternal( FFrameNumber KeyTime, con
 	{
 		ConstraintBindingID = ActorPickerID.ExistingBindingID;
 	}
-	else if (ActorPickerID.ActorPicked.IsValid())
+	else if (AActor* Actor = ActorPickerID.ActorPicked.Get())
 	{
-		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(ActorPickerID.ActorPicked.Get());
-		FGuid ParentActorId = HandleResult.Handle;
-		KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
-		ConstraintBindingID = FMovieSceneObjectBindingID(ParentActorId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+		TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+
+		TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
+		if (Spawnable.IsSet())
+		{
+			// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
+			ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(SequencerPtr->GetFocusedTemplateID(), Spawnable->SequenceID, Spawnable->ObjectBindingID, *SequencerPtr);
+		}
+		else
+		{
+			FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(Actor);
+			FGuid ParentActorId = HandleResult.Handle;
+			KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
+
+			ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(ParentActorId);
+		}
 	}
 
 	if (!ConstraintBindingID.IsValid())

@@ -40,7 +40,7 @@ UTakeRecorderWorldSource::UTakeRecorderWorldSource(const FObjectInitializer& Obj
 	TrackTint = FColor(129, 129, 129);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderWorldSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderWorldSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	TArray<UTakeRecorderSource*> NewSources;
 

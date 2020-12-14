@@ -158,8 +158,8 @@ namespace TakeRecorderSourcesUtils
 	*/
 	static FMovieSceneSequenceID GetLevelSequenceID(const UTakeRecorderSource* InSource, class AActor* Actor, ULevelSequence* MasterLevelSequence)
 	{
-		FMovieSceneSequenceID OutSequenceID = MovieSceneSequenceID::Root;
 		UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(InSource->GetOuter());
+
 		for (UTakeRecorderSource* Source : OwningSources->GetSources())
 		{
 			if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
@@ -169,34 +169,12 @@ namespace TakeRecorderSourcesUtils
 				{
 					if (ActorSource->TargetLevelSequence != MasterLevelSequence)
 					{
-						if (!ActorSource->GetSequenceID().IsSet()) // only compile if it's not set yet this rcording.
-						{
-							UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterLevelSequence);
-
-							FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(MasterLevelSequence);
-							const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
-							if (Hierarchy)
-							{
-								for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
-								{
-									if (Pair.Value.Sequence == ActorSource->TargetLevelSequence)
-									{
-										OutSequenceID = Pair.Key;
-										ActorSource->SetSequenceID(OutSequenceID);
-										break;
-
-									}
-								}
-							}
-						}
-						else
-						{
-							OutSequenceID = ActorSource->GetSequenceID().GetValue();
-						}
+						return ActorSource->GetSequenceID();
 					}
 				}
 			}
 		}
-		return OutSequenceID;
+
+		return MovieSceneSequenceID::Root;
 	}
 }

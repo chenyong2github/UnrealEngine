@@ -288,18 +288,8 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			FMovieSceneObjectBindingID AttachBindingID = AttachKey.Object;
 			if (AttachBindingID.IsValid())
 			{
-				FMovieSceneSequenceID SequenceID = Operand.SequenceID;
-				if (AttachBindingID.GetSequenceID().IsValid())
-				{
-					// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-					FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Player);
-					SequenceID = RootBindingID.GetSequenceID();
-				}
-
 				// If the transform is set, otherwise use the bound actor's transform
-				FMovieSceneEvaluationOperand ObjectOperand(SequenceID, AttachBindingID.GetGuid());
-
-				for (TWeakObjectPtr<> WeakObject : Player.FindBoundObjects(ObjectOperand))
+				for (TWeakObjectPtr<> WeakObject : AttachBindingID.ResolveBoundObjects(Operand.SequenceID, Player))
 				{
 					AActor* AttachActor = Cast<AActor>(WeakObject.Get());
 					if (AttachActor)

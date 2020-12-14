@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "SequenceRecorderUtils.h"
 #include "MovieScene.h"
+#include "LevelSequence.h"
 
 bool FMovieScene3DAttachTrackRecorderFactory::CanRecordObject(UObject* InObjectToRecord) const
 {
@@ -55,9 +56,11 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				MovieSceneSection->TimecodeSource = MovieScene->TimecodeSource;
 				MovieSceneSection->SetRange(TRange<FFrameNumber>(CurrentFrame, CurrentFrame));
 
-				FMovieSceneSequenceID SequenceID;
-				SequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
-				MovieSceneSection->SetConstraintId(Guid, SequenceID);
+				FMovieSceneSequenceID TargetSequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
+				FMovieSceneSequenceID ThisSequenceID   = OwningTakeRecorderSource->GetSequenceID();
+
+				FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetMasterLevelSequence());
+				MovieSceneSection->SetConstraintBindingID(NewBinding);
 			}
 
 			ActorAttachedTo = AttachedToActor;
@@ -88,9 +91,11 @@ void UMovieScene3DAttachTrackRecorder::FinalizeTrackImpl()
 				UE_LOG(LogTemp, Warning, TEXT("Could not find binding to attach (%s) to its parent (%s), perhaps (%s) was not recorded?"), *ActorToRecord->GetActorLabel(), *AttachedToActor->GetActorLabel(), *AttachedToActor->GetActorLabel());
 			}
 
-			FMovieSceneSequenceID SequenceID;
-			SequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
-			MovieSceneSection->SetConstraintId(Guid, SequenceID);
+			FMovieSceneSequenceID TargetSequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
+			FMovieSceneSequenceID ThisSequenceID   = OwningTakeRecorderSource->GetSequenceID();
+
+			FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetMasterLevelSequence());
+			MovieSceneSection->SetConstraintBindingID(NewBinding);
 		}
 	}
 }

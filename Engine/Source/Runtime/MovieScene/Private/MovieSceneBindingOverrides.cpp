@@ -22,7 +22,7 @@ bool UMovieSceneBindingOverrides::LocateBoundObjects(const FGuid& InBindingId, F
 		const FMovieSceneBindingOverrideData& Data = BindingData[It.Value()];
 
 		// We have fast lookup only on GUID, so be sure to check the sequence ID before allowing overrides
-		if (Data.ObjectBindingId.GetSequenceID() != InSequenceID)
+		if (Data.ObjectBindingId.ReinterpretAsFixed().SequenceID != InSequenceID)
 		{
 			continue;
 		}

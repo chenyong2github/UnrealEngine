@@ -136,7 +136,7 @@ UMovieScene* UK2Node_GetSequenceBinding::GetObjectMovieScene() const
 		// Ensure that the sequence data is as loaded as it can be - we many only be able to partially load the structural information as part of a blueprint compile as that may happen at Preload time
 		EnsureFullyLoaded(Sequence);
 
-		FMovieSceneSequenceID SequenceID = Binding.GetSequenceID();
+		FMovieSceneSequenceID SequenceID = Binding.GetRelativeSequenceID();
 		if (SequenceID == MovieSceneSequenceID::Root)
 		{
 			// Look it up in the moviescene itself

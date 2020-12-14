@@ -23,6 +23,7 @@ namespace MovieScene
 struct ISequenceUpdater;
 struct FSequenceInstance;
 struct FCompiledDataVolatilityManager;
+struct FSubSequencePath;
 
 /**
  * A sequence instance represents a specific instance of a currently playing sequence, either as a top-level sequence in an IMovieScenePlayer, or as a sub sequence.
@@ -179,7 +180,6 @@ public:
 	 */
 	FMovieSceneEntityID FindEntity(UObject* Owner, uint32 EntityID) const;
 
-
 	/**
 	 * Retrieve the legacy evaluator for this sequence, if it is available (may return nullptr)
 	 */
@@ -187,6 +187,11 @@ public:
 	{
 		return LegacyEvaluator.Get();
 	}
+
+	/**
+	 * Retrieve a path for this sequence instance back to the root
+	 */
+	FSubSequencePath GetSubSequencePath() const;
 
 public:
 
