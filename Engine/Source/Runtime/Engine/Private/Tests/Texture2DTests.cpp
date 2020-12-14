@@ -34,6 +34,8 @@ namespace Texture2DTest
 
 		return true;
 	}
+
+	#undef TEST_NAME_ROOT
 }
 
 #endif 

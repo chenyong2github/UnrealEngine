@@ -80,7 +80,9 @@ namespace BulkDataTest
 		TestNull(TEXT("Getting a copy of BulkData object after calling ::RemoveBulkData should return nullptr!"), DataPtr);
 
 		return true;
-	}	
+	}
+
+	#undef TEST_NAME_ROOT
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
