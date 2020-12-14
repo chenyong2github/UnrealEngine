@@ -34,6 +34,7 @@ public:
 	int32 GetNumChannels() const;
 
 	bool IsComplete() const;
+	bool HasInputFile() const;
 	void ReadPixels(int32 StartY, int32 EndY);
 	void SetFrameBuffer(void* Buffer, const FIntPoint& Stride);
 
