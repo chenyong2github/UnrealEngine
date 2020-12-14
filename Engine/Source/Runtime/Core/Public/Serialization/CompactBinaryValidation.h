@@ -12,13 +12,16 @@
 /** Flags for validating compact binary data. */
 enum class ECbValidateMode : uint32
 {
+	/** Skip validation if no other validation modes are enabled. */
+	None                    = 0,
+
 	/**
 	 * Validate that the value can be read and stays inside the bounds of the memory view.
 	 *
 	 * This is the minimum level of validation required to be able to safely read a field, array,
 	 * or object without the risk of crashing or reading out of bounds.
 	 */
-	Default                 = 0,
+	Default                 = 1 << 0,
 
 	/**
 	 * Validate that object fields have unique non-empty names and array fields have no names.
@@ -27,7 +30,7 @@ enum class ECbValidateMode : uint32
 	 * cannot be looked up by name other than the first, and converting to other data formats can
 	 * fail in the presence of naming issues.
 	 */
-	Names                   = 1 << 0,
+	Names                   = 1 << 1,
 
 	/**
 	 * Validate that fields are serialized in the canonical format.
@@ -38,7 +41,7 @@ enum class ECbValidateMode : uint32
 	 * were not encoded uniformly, variable-length integers that could be encoded in fewer bytes,
 	 * or 64-bit floats that could be encoded in 32 bits without loss of precision.
 	 */
-	Format                  = 1 << 1,
+	Format                  = 1 << 2,
 
 	/**
 	 * Validate that there is no padding after the value before the end of the memory view.
@@ -46,10 +49,15 @@ enum class ECbValidateMode : uint32
 	 * Padding validation failures have no impact on the ability to read the input, but are using
 	 * more memory than necessary.
 	 */
-	Padding                 = 1 << 2,
+	Padding                 = 1 << 3,
+
+	/**
+	 * Validate that a package or attachment has the expected fields and matches its saved hashes.
+	 */
+	Package                 = 1 << 4,
 
 	/** Perform all validation described above. */
-	All                     = Default | Names | Format | Padding,
+	All                     = Default | Names | Format | Padding | Package,
 };
 
 ENUM_CLASS_FLAGS(ECbValidateMode);
@@ -95,6 +103,21 @@ enum class ECbValidateError : uint32
 
 	/** A value did not use the entire memory view given for validation. */
 	Padding                 = 1 << 10,
+
+	// Mode: Package
+
+	/** The package or attachment had missing fields or fields out of order. */
+	InvalidPackageFormat    = 1 << 11,
+	/** The object or an attachment did not match the hash stored for it. */
+	InvalidPackageHash      = 1 << 12,
+	/** The package contained more than one copy of the same attachment. */
+	DuplicateAttachments    = 1 << 13,
+	/** The package contained more than one object. */
+	MultiplePackageObjects  = 1 << 14,
+	/** The package contained an object with no fields. */
+	NullPackageObject       = 1 << 15,
+	/** The package contained a null attachment. */
+	NullPackageAttachment   = 1 << 16,
 };
 
 ENUM_CLASS_FLAGS(ECbValidateError);
@@ -124,8 +147,36 @@ CORE_API ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMod
  * does not contain a valid field will produce an OutOfBounds or InvalidType error instead of the
  * Padding error that would be produced by the single field validation function.
  *
- * \see \ref ValidateCompactBinary for more detail.
+ * @see ValidateCompactBinary
  */
 CORE_API ECbValidateError ValidateCompactBinaryRange(FMemoryView View, ECbValidateMode Mode);
+
+/**
+ * Validate the compact binary attachment pointed to by the view as specified by the mode flags.
+ *
+ * The attachment is validated with ValidateCompactBinary by using the validation mode specified.
+ * Include ECbValidateMode::Package to validate the attachment format and hash.
+ *
+ * @see ValidateCompactBinary
+ *
+ * @param View A memory view containing a package.
+ * @param Mode A combination of the flags for the types of validation to perform.
+ * @return None on success, otherwise the flags for the types of errors that were detected.
+ */
+CORE_API ECbValidateError ValidateCompactBinaryAttachment(FMemoryView View, ECbValidateMode Mode);
+
+/**
+ * Validate the compact binary package pointed to by the view as specified by the mode flags.
+ *
+ * The package, and attachments, are validated with ValidateCompactBinary by using the validation
+ * mode specified. Include ECbValidateMode::Package to validate the package format and hashes.
+ *
+ * @see ValidateCompactBinary
+ *
+ * @param View A memory view containing a package.
+ * @param Mode A combination of the flags for the types of validation to perform.
+ * @return None on success, otherwise the flags for the types of errors that were detected.
+ */
+CORE_API ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode Mode);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

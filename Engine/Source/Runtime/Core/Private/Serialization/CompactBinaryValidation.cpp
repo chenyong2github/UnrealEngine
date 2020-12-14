@@ -374,13 +374,102 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 	return FCbField(FieldView.GetData(), ExternalType);
 }
 
+static FCbField ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	if (View.IsEmpty())
+	{
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			AddError(Error, ECbValidateError::InvalidPackageFormat);
+		}
+		return FCbField();
+	}
+	if (FCbField Field = ValidateCbField(View, Mode, Error))
+	{
+		if (Field.HasName() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			AddError(Error, ECbValidateError::InvalidPackageFormat);
+		}
+		return Field;
+	}
+	return FCbField();
+}
+
+static FBlake3Hash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	const FMemoryView ValueView = Value.AsBinary();
+	if (Value.HasError() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+	{
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			AddError(Error, ECbValidateError::InvalidPackageFormat);
+		}
+	}
+	else if (ValueView.GetSize())
+	{
+		if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
+		{
+			const FBlake3Hash Hash = HashField.AsAnyReference();
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+			{
+				if (HashField.HasError())
+				{
+					AddError(Error, ECbValidateError::InvalidPackageFormat);
+				}
+				else if (Hash != FBlake3::HashBuffer(ValueView))
+				{
+					AddError(Error, ECbValidateError::InvalidPackageHash);
+				}
+			}
+			return Hash;
+		}
+	}
+	return FBlake3Hash();
+}
+
+static FBlake3Hash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	FCbObject Object = Value.AsObject();
+	if (Value.HasError())
+	{
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			AddError(Error, ECbValidateError::InvalidPackageFormat);
+		}
+	}
+	else if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
+	{
+		const FBlake3Hash Hash = HashField.AsAnyReference();
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			if (!Object.CreateIterator())
+			{
+				AddError(Error, ECbValidateError::NullPackageObject);
+			}
+			if (HashField.HasError())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageFormat);
+			}
+			else if (Hash != Value.GetHash())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+		}
+		return Hash;
+	}
+	return FBlake3Hash();
+}
+
 ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
 {
 	ECbValidateError Error = ECbValidateError::None;
-	ValidateCbField(View, Mode, Error, Type);
-	if (!View.IsEmpty() && EnumHasAnyFlags(Mode, ECbValidateMode::Padding))
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
 	{
-		AddError(Error, ECbValidateError::Padding);
+		ValidateCbField(View, Mode, Error, Type);
+		if (!View.IsEmpty() && EnumHasAnyFlags(Mode, ECbValidateMode::Padding))
+		{
+			AddError(Error, ECbValidateError::Padding);
+		}
 	}
 	return Error;
 }
@@ -388,9 +477,94 @@ ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, E
 ECbValidateError ValidateCompactBinaryRange(FMemoryView View, ECbValidateMode Mode)
 {
 	ECbValidateError Error = ECbValidateError::None;
-	while (!View.IsEmpty())
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
 	{
-		ValidateCbField(View, Mode, Error);
+		while (!View.IsEmpty())
+		{
+			ValidateCbField(View, Mode, Error);
+		}
+	}
+	return Error;
+}
+
+ECbValidateError ValidateCompactBinaryAttachment(FMemoryView View, ECbValidateMode Mode)
+{
+	ECbValidateError Error = ECbValidateError::None;
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
+	{
+		if (FCbField Value = ValidateCbPackageField(View, Mode, Error))
+		{
+			ValidateCbPackageAttachment(Value, View, Mode, Error);
+		}
+		if (!View.IsEmpty() && EnumHasAnyFlags(Mode, ECbValidateMode::Padding))
+		{
+			AddError(Error, ECbValidateError::Padding);
+		}
+	}
+	return Error;
+}
+
+ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode Mode)
+{
+	TArray<FBlake3Hash, TInlineAllocator<16>> Attachments;
+	ECbValidateError Error = ECbValidateError::None;
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
+	{
+		uint32 ObjectCount = 0;
+		while (FCbField Value = ValidateCbPackageField(View, Mode, Error))
+		{
+			if (Value.IsBinary())
+			{
+				const FBlake3Hash Hash = ValidateCbPackageAttachment(Value, View, Mode, Error);
+				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+				{
+					Attachments.Add(Hash);
+					if (Value.AsBinary().IsEmpty())
+					{
+						AddError(Error, ECbValidateError::NullPackageAttachment);
+					}
+				}
+			}
+			else if (Value.IsObject())
+			{
+				ValidateCbPackageObject(Value, View, Mode, Error);
+				if (++ObjectCount > 1 && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+				{
+					AddError(Error, ECbValidateError::MultiplePackageObjects);
+				}
+			}
+			else if (Value.IsNull())
+			{
+				break;
+			}
+			else if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+			{
+				AddError(Error, ECbValidateError::InvalidPackageFormat);
+			}
+
+			if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds))
+			{
+				break;
+			}
+		}
+
+		if (!View.IsEmpty() && EnumHasAnyFlags(Mode, ECbValidateMode::Padding))
+		{
+			AddError(Error, ECbValidateError::Padding);
+		}
+
+		if (Attachments.Num() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			Algo::Sort(Attachments);
+			for (const FBlake3Hash* It = Attachments.GetData(), *End = It + Attachments.Num() - 1; It != End; ++It)
+			{
+				if (It[0] == It[1])
+				{
+					AddError(Error, ECbValidateError::DuplicateAttachments);
+					break;
+				}
+			}
+		}
 	}
 	return Error;
 }
