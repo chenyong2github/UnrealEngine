@@ -3882,6 +3882,9 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				}
 			}
 
+			// Track the layers that we have cleared (use a TBitArray in case we get more than 64 layers!)
+			TBitArray<> ClearedLayers(0, Info->Layers.Num() + 1);
+
 			// Loop until there is no more weightmap texture to process
 			while (HasFoundWeightmapToProcess)
 			{
@@ -3900,16 +3903,24 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				if (CurrentWeightmapToProcessIndex == 0)
 				{
 					ClearLayersWeightmapTextureResource(TEXT("ClearRT"), LandscapeScratchRT1->GameThread_GetRenderTargetResource());
-
-					// Important: for performance reason we only clear the layer we will write to, the other one might contain data but they will not be read during the blend phase
+				}
+				// Important: for performance reason we only clear the layer we will write to, the other one might contain data but they will not be read during the blend phase
+				if (ClearedLayers.CountSetBits() < LayerInfoObjects.Num())
+				{
 					for (auto& ItPair : LayerInfoObjects)
 					{
-						int32 LayerIndex = ItPair.Value;
+						// Only clear the layers that we haven't already cleared
+						const int32 LayerIndex = ItPair.Value;
+						FBitReference ClearedLayerBit = ClearedLayers[LayerIndex];
+						if (!ClearedLayerBit)
+						{
+							ClearedLayerBit = true;
 
-						SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
-						DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s Clear CurrentProcLayerWeightmapAllLayersResource %d, "), *Layer.Name.ToString(), LayerIndex) : GEmptyDebugName;
+							SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
+							DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s Clear CurrentProcLayerWeightmapAllLayersResource %d, "), *Layer.Name.ToString(), LayerIndex) : GEmptyDebugName;
 
-						AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CurrentLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+							AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CurrentLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+						}
 					}
 
 					CommitDeferredCopyLayersTexture();
