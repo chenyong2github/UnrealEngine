@@ -249,10 +249,13 @@ public:
 	virtual ~UNiagaraDataInterface();
 
 	// UObject Interface
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	// UObject Interface END
 
+#if WITH_EDITOR
 	/** Does this data interface need setup and teardown for each stage when working a sim stage sim source? */
 	virtual bool SupportsSetupAndTeardownHLSL() const { return false; }
 	/** Generate the necessary HLSL to set up data when being added as a sim stage sim source. */
@@ -266,7 +269,6 @@ public:
 	/** Generate the necessary plumbing HLSL at the end of the stage where this is used as a sim stage iteration source. Note that this should inject other internal calls using the CustomHLSL node syntax. See GridCollection2D for an example.*/
 	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& InIterationSourceVariable, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
 #endif
-	// UObject Interface END
 
 	/** Initializes the per instance data for this interface. Returns false if there was some error and the simulation should be disabled. */
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) { return true; }
