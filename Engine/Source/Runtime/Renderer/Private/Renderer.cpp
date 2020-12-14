@@ -153,7 +153,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				
 				// Set the LightmapID to 0, since that's where our light map data resides for this primitive
 				FPrimitiveUniformShaderParameters PrimitiveParams = *(const FPrimitiveUniformShaderParameters*)MeshElement.PrimitiveUniformBufferResource->GetContents();
-				PrimitiveParams.LightmapDataAndUVIndex = 0;
+				PrimitiveParams.LightmapDataIndex = 0;
+				PrimitiveParams.LightmapUVIndex = 0;
 
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);

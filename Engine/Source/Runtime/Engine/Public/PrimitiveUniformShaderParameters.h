@@ -40,11 +40,15 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,  LightingChannelMask)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(uint32,  LightmapDataAndUVIndex)
+	SHADER_PARAMETER(uint32,  LightmapDataIndex)
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
 	SHADER_PARAMETER(int32, SingleCaptureIndex)			// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(uint32, OutputVelocity)
+	SHADER_PARAMETER(uint32, LightmapUVIndex)
+	SHADER_PARAMETER(uint32, Unused1)
+	SHADER_PARAMETER(uint32, Unused2)
+	SHADER_PARAMETER(uint32, Unused3)
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -109,9 +113,9 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.UseVolumetricLightmapShadowFromStationaryLights = bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.DrawsVelocity = bDrawsVelocity ? 1 : 0;
 
-	// Note: Keep UnpackLightmapDataAndUVIndex() in shader code up to date with packing layout.
-	Result.LightmapDataAndUVIndex = (8u << LightmapDataIndex) | (LightmapUVIndex & 0xFF);
-	
+	Result.LightmapDataIndex = LightmapDataIndex;
+	Result.LightmapUVIndex = LightmapUVIndex;
+
 	// If SingleCaptureIndex is invalid, set it to 0 since there will be a default cubemap at that slot
 	Result.SingleCaptureIndex = FMath::Max(SingleCaptureIndex, 0);
 	Result.OutputVelocity = (bOutputVelocity) ? 1 : 0;
@@ -253,7 +257,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { PrimitiveDataStrideInFloat4s = 36 };
+	enum { PrimitiveDataStrideInFloat4s = 37 };
 
 	FVector4 Data[PrimitiveDataStrideInFloat4s];
 

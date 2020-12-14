@@ -179,7 +179,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[23].W = *(const float*)&PrimitiveUniformShaderParameters.LightingChannelMask;
 
 	Data[24] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, 0.0f);
-	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataAndUVIndex;
+	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
 
 	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
 	Data[25].W = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
@@ -187,8 +187,11 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
 	Data[26].W = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
 
+	Data[27].X = *(const float*)&PrimitiveUniformShaderParameters.LightmapUVIndex;
+	// .yzw currently unused
+
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 27;
+	const int32 CustomPrimitiveDataStartIndex = 28;
 	for (int i = 0; i < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; i++)
 	{
 		Data[CustomPrimitiveDataStartIndex + i] = PrimitiveUniformShaderParameters.CustomPrimitiveData[i];

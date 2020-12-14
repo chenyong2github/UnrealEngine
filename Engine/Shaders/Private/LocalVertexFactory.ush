@@ -907,8 +907,8 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	uint LightmapUVIndex   = 0;
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
-	UnpackLightmapDataAndUVIndex(GetPrimitiveData(Intermediates.PrimitiveId).LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
-	LightmapDataIndex = LightmapDataIndex + LocalVF.LODLightmapDataIndex;
+	LightmapDataIndex = GetPrimitiveData(Intermediates.PrimitiveId).LightmapDataIndex + LocalVF.LODLightmapDataIndex;
+	LightmapUVIndex = GetPrimitiveData(Intermediates.PrimitiveId).LightmapUVIndex;
 #endif
 
 	float4 LightMapCoordinateScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;

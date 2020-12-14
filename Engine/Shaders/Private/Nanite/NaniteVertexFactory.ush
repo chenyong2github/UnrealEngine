@@ -294,9 +294,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
 #if NEEDS_LIGHTMAP_COORDINATE && NUM_TEX_COORD_INTERPOLATORS > 0
-		uint LightmapDataIndex = 0;
-		uint LightmapUVIndex   = 0;
-		UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
+		uint LightmapDataIndex = PrimitiveData.LightmapDataIndex;
+		uint LightmapUVIndex   = PrimitiveData.LightmapUVIndex;
+		//UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
 
 		const float2 ShadowmapUV = float2(0, 0); // TODO: Need to support going forward?
 		const float2 LightmapUV  = Result.TexCoords[LightmapUVIndex];
