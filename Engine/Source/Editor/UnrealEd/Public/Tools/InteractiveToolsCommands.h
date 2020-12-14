@@ -7,6 +7,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "InteractiveTool.h"
 #include "StandardToolModeCommands.h"
+#include "Styling/ISlateStyle.h"
 
 
 
