@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Logging/LogMacros.h"
 #include "UnrealClient.h"		// FViewport
+#include "Engine/Engine.h"      // GEngine
 #include "Engine/Canvas.h"		// FCanvas, UCanvas
 #include "TimerManager.h"		// FTimerDelegate, FTimerHandle
 
