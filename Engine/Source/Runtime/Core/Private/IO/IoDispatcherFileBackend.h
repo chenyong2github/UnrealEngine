@@ -75,6 +75,7 @@ public:
 	void AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
 	void CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
+	void ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest);
 
 private:
 	FFileIoStoreRequestAllocator& RequestAllocator;
@@ -154,8 +155,6 @@ private:
 	FFileIoStoreBlockCache BlockCache;
 	FFileIoStoreBufferAllocator BufferAllocator;
 	FFileIoStoreRequestAllocator RequestAllocator;
-	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreResolvedRequest> ResolvedRequestAllocator;
-	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreResolvedRequest::FRequestLink> LinkAllocator;
 	FFileIoStoreRequestQueue RequestQueue;
 	FFileIoStoreRequestTracker RequestTracker;
 	FFileIoStoreImpl PlatformImpl;

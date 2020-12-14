@@ -392,14 +392,12 @@ IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle(uint64 TocOf
 }
 
 FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
-	TIoDispatcherSingleThreadedSlabAllocator<FRequestLink>& InLinkAllocator,
 	FIoRequestImpl& InDispatcherRequest,
 	const FFileIoStoreContainerFile& InContainerFile,
 	uint32 InContainerFileIndex,
 	uint64 InResolvedOffset,
 	uint64 InResolvedSize)
-	: LinkAllocator(InLinkAllocator)
-	, DispatcherRequest(InDispatcherRequest)
+	: DispatcherRequest(InDispatcherRequest)
 	, ContainerFile(InContainerFile)
 	, ResolvedOffset(InResolvedOffset)
 	, ResolvedSize(InResolvedSize)
@@ -408,30 +406,18 @@ FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
 
 }
 
-FFileIoStoreResolvedRequest::~FFileIoStoreResolvedRequest()
+void FFileIoStoreResolvedRequest::AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink)
 {
-	FRequestLink* Link = ReadRequestsHead;
-	while (Link)
-	{
-		FRequestLink* Next = Link->Next;
-		LinkAllocator.Destroy(Link);
-		Link = Next;
-	}
-}
-
-void FFileIoStoreResolvedRequest::AddReadRequest(FFileIoStoreReadRequest* ReadRequest)
-{
-	FRequestLink* Link = LinkAllocator.Construct();
-	Link->ReadRequest = ReadRequest;
+	check(!ReadRequestLink->Next);
 	if (ReadRequestsTail)
 	{
-		ReadRequestsTail->Next = Link;
+		ReadRequestsTail->Next = ReadRequestLink;
 	}
 	else
 	{
-		ReadRequestsHead = Link;
+		ReadRequestsHead = ReadRequestLink;
 	}
-	ReadRequestsTail = Link;
+	ReadRequestsTail = ReadRequestLink;
 }
 
 FFileIoStoreRequestTracker::FFileIoStoreRequestTracker(FFileIoStoreRequestAllocator& InRequestAllocator, FFileIoStoreRequestQueue& InRequestQueue)
@@ -487,7 +473,9 @@ void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(FFileIoStoreCo
 	++ResolvedRequest.UnfinishedReadsCount;
 	for (FFileIoStoreReadRequest* ReadRequest : CompressedBlock->RawBlocks)
 	{
-		ResolvedRequest.AddReadRequest(ReadRequest);
+		FFileIoStoreReadRequestLink* Link = RequestAllocator.AllocRequestLink(ReadRequest);
+		++ReadRequest->RefCount;
+		ResolvedRequest.AddReadRequestLink(Link);
 		if (ResolvedRequest.GetPriority() > ReadRequest->Priority)
 		{
 			ReadRequest->Priority = ResolvedRequest.GetPriority();
@@ -503,12 +491,14 @@ void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(FFileIoStoreCo
 
 void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerAddIoRequest);
+	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerAddIoRequest);
 	FFileIoStoreReadRequest* ReadRequest = Requests.GetHead();
 	while (ReadRequest)
 	{
 		++ResolvedRequest.UnfinishedReadsCount;
-		ResolvedRequest.AddReadRequest(ReadRequest);
+		FFileIoStoreReadRequestLink* Link = RequestAllocator.AllocRequestLink(ReadRequest);
+		++ReadRequest->RefCount;
+		ResolvedRequest.AddReadRequestLink(Link);
 		check(ResolvedRequest.GetPriority() == ReadRequest->Priority);
 		ReadRequest = ReadRequest->Next;
 	}
@@ -526,13 +516,13 @@ void FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& Re
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerCancelIoRequest);
 	bool bUpdateQueueOrder = false;
-	FFileIoStoreResolvedRequest::FRequestLink* Link = ResolvedRequest.ReadRequestsHead;
+	FFileIoStoreReadRequestLink* Link = ResolvedRequest.ReadRequestsHead;
 	while (Link)
 	{
-		FFileIoStoreReadRequest* ReadRequest = Link->ReadRequest;
+		FFileIoStoreReadRequest& ReadRequest = Link->ReadRequest;
 		Link = Link->Next;
 		bool bCancelReadRequest = true;
-		for (FFileIoStoreCompressedBlock* CompressedBlock : ReadRequest->CompressedBlocks)
+		for (FFileIoStoreCompressedBlock* CompressedBlock : ReadRequest.CompressedBlocks)
 		{
 			bool bCancelCompressedBlock = true;
 			for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
@@ -553,14 +543,14 @@ void FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& Re
 		}
 		if (bCancelReadRequest)
 		{
-			if (!ReadRequest->ImmediateScatter.Request)
+			if (!ReadRequest.ImmediateScatter.Request)
 			{
-				RawBlocksMap.Remove(ReadRequest->Key);
+				RawBlocksMap.Remove(ReadRequest.Key);
 			}
-			ReadRequest->bCancelled = true;
-			if (ReadRequest->Priority != IoDispatcherPriority_Max)
+			ReadRequest.bCancelled = true;
+			if (ReadRequest.Priority != IoDispatcherPriority_Max)
 			{
-				ReadRequest->Priority = IoDispatcherPriority_Max;
+				ReadRequest.Priority = IoDispatcherPriority_Max;
 				bUpdateQueueOrder = true;
 			}
 		}
@@ -575,14 +565,14 @@ void FFileIoStoreRequestTracker::UpdatePriorityForIoRequest(FFileIoStoreResolved
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerUpdatePriorityForIoRequest);
 	bool bUpdateOrder = false;
-	FFileIoStoreResolvedRequest::FRequestLink* Link = ResolvedRequest.ReadRequestsHead;
+	FFileIoStoreReadRequestLink* Link = ResolvedRequest.ReadRequestsHead;
 	while (Link)
 	{
-		FFileIoStoreReadRequest* ReadRequest = Link->ReadRequest;
+		FFileIoStoreReadRequest& ReadRequest = Link->ReadRequest;
 		Link = Link->Next;
-		if (ResolvedRequest.GetPriority() > ReadRequest->Priority)
+		if (ResolvedRequest.GetPriority() > ReadRequest.Priority)
 		{
-			ReadRequest->Priority = ResolvedRequest.GetPriority();
+			ReadRequest.Priority = ResolvedRequest.GetPriority();
 			bUpdateOrder = true;
 		}
 	}
@@ -590,6 +580,32 @@ void FFileIoStoreRequestTracker::UpdatePriorityForIoRequest(FFileIoStoreResolved
 	{
 		RequestQueue.UpdateOrder();
 	}
+}
+
+void FFileIoStoreRequestTracker::ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest)
+{
+	FFileIoStoreReadRequestLink* Link = ResolvedRequest.ReadRequestsHead;
+	while (Link)
+	{
+		FFileIoStoreReadRequestLink* Next = Link->Next;
+		check(Link->ReadRequest.RefCount > 0);
+		if (--Link->ReadRequest.RefCount == 0)
+		{
+			for (FFileIoStoreCompressedBlock* CompressedBlock : Link->ReadRequest.CompressedBlocks)
+			{
+				check(CompressedBlock->RefCount > 0);
+				if (--CompressedBlock->RefCount == 0)
+				{
+					RequestAllocator.Free(CompressedBlock);
+				}
+			}
+			RequestAllocator.Free(&Link->ReadRequest);
+		}
+		RequestAllocator.Free(Link);
+		Link = Next;
+	}
+	ResolvedRequest.ReadRequestsHead = nullptr;
+	ResolvedRequest.ReadRequestsTail = nullptr;
 }
 
 FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent, bool bInIsMultithreaded)
@@ -687,8 +703,7 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 				ResolvedSize = FMath::Min(Request->Options.GetSize(), OffsetAndLength->GetLength() - RequestedOffset);
 			}
 
-			FFileIoStoreResolvedRequest* ResolvedRequest = ResolvedRequestAllocator.Construct(
-				LinkAllocator,
+			FFileIoStoreResolvedRequest* ResolvedRequest = RequestAllocator.AllocResolvedRequest(
 				*Request,
 				Reader->GetContainerFile(),
 				Reader->GetIndex(),
@@ -806,7 +821,6 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 	TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherScatter);
 	
 	check(!CompressedBlock->bFailed);
-	check(!CompressedBlock->bCancelled);
 
 	FFileIoStoreCompressionContext* CompressionContext = CompressedBlock->CompressionContext;
 	check(CompressionContext);
@@ -895,12 +909,15 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 void FFileIoStore::CompleteDispatcherRequest(FFileIoStoreResolvedRequest* ResolvedRequest)
 {
+	check(ResolvedRequest);
 	FIoRequestImpl* DispatcherRequest = &ResolvedRequest->DispatcherRequest;
 	if (ResolvedRequest->bFailed)
 	{
 		DispatcherRequest->SetFailed();
 	}
-	ResolvedRequestAllocator.Destroy(ResolvedRequest);
+
+	RequestTracker.ReleaseIoRequestReferences(*ResolvedRequest);
+	RequestAllocator.Free(ResolvedRequest);
 	DispatcherRequest->BackendData = nullptr;
 	if (!CompletedRequestsTail)
 	{
@@ -927,15 +944,15 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	else
 	{
 		FFileIoStoreReadRequest* RawBlock = CompressedBlock->RawBlocks[0];
-		check(RawBlock->CompressedBlocksRefCount > 0);
-		if (--RawBlock->CompressedBlocksRefCount == 0)
+		check(RawBlock->BufferRefCount > 0);
+		if (--RawBlock->BufferRefCount == 0)
 		{
 			check(RawBlock->Buffer || RawBlock->bCancelled);
 			if (RawBlock->Buffer)
 			{
 				FreeBuffer(*RawBlock->Buffer);
+				RawBlock->Buffer = nullptr;
 			}
-			RequestAllocator.Free(RawBlock);
 		}
 	}
 	check(CompressedBlock->CompressionContext || CompressedBlock->bCancelled || CompressedBlock->bFailed);
@@ -943,8 +960,9 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	{
 		FreeCompressionContext(CompressedBlock->CompressionContext);
 	}
-	for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
+	for (int32 ScatterIndex = 0, ScatterCount = CompressedBlock->ScatterList.Num(); ScatterIndex < ScatterCount; ++ScatterIndex)
 	{
+		FFileIoStoreBlockScatter& Scatter = CompressedBlock->ScatterList[ScatterIndex];
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, Scatter.Size);
 		Scatter.Request->bFailed |= CompressedBlock->bFailed;
 		check(!CompressedBlock->bCancelled || Scatter.Request->DispatcherRequest.IsCancelled());
@@ -954,7 +972,6 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 			CompleteDispatcherRequest(Scatter.Request);
 		}
 	}
-	RequestAllocator.Free(CompressedBlock);
 }
 
 FIoRequestImpl* FFileIoStore::GetCompletedRequests()
@@ -1018,8 +1035,15 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 						}
 						FMemory::Memcpy(Dst, Src, CopySize);
 					}
-					check(CompletedRequest->CompressedBlocksRefCount > 0);
-					--CompletedRequest->CompressedBlocksRefCount;
+					check(CompletedRequest->BufferRefCount > 0);
+					if (--CompletedRequest->BufferRefCount == 0)
+					{
+						if (CompletedRequest->Buffer)
+						{
+							FreeBuffer(*CompletedRequest->Buffer);
+							CompletedRequest->Buffer = nullptr;
+						}
+					}
 				}
 
 				check(CompressedBlock->UnfinishedRawBlocksCount > 0);
@@ -1038,14 +1062,6 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 					CompressedBlock->Next = nullptr;
 				}
 			}
-			if (CompletedRequest->CompressedBlocksRefCount == 0)
-			{
-				if (CompletedRequest->Buffer)
-				{
-					FreeBuffer(*CompletedRequest->Buffer);
-				}
-				RequestAllocator.Free(CompletedRequest);
-			}
 		}
 		else
 		{
@@ -1055,7 +1071,6 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 			FFileIoStoreResolvedRequest* CompletedResolvedRequest = CompletedRequest->ImmediateScatter.Request;
 			CompletedResolvedRequest->bFailed |= CompletedRequest->bFailed;
 			check(!CompletedRequest->bCancelled || CompletedResolvedRequest->DispatcherRequest.IsCancelled());
-			RequestAllocator.Free(CompletedRequest);
 			check(CompletedResolvedRequest->UnfinishedReadsCount > 0);
 			if (--CompletedResolvedRequest->UnfinishedReadsCount == 0)
 			{
@@ -1240,9 +1255,10 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 					NewBlocks.Add(RawBlock);
 				}
 				CompressedBlock->RawBlocks.Add(RawBlock);
-				RawBlock->CompressedBlocks.Add(CompressedBlock);
-				++RawBlock->CompressedBlocksRefCount;
 				++CompressedBlock->UnfinishedRawBlocksCount;
+				++CompressedBlock->RefCount;
+				RawBlock->CompressedBlocks.Add(CompressedBlock);
+				++RawBlock->BufferRefCount;
 			}
 		}
 		check(CompressedBlock->UncompressedSize > RequestStartOffsetInBlock);
