@@ -21,6 +21,8 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
+#include <atomic>
+
 class FMenuBuilder;
 
 namespace TraceServices
@@ -300,6 +302,8 @@ protected:
 
 	void StartPendingAsyncOperations();
 
+	void CancelCurrentAsyncOp();
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -406,6 +410,7 @@ protected:
 	ITableCellValueSorter* CurrentAsyncOpSorter = nullptr;
 	EColumnSortMode::Type CurrentAsyncOpColumnSortMode;
 	TSharedPtr<FTableTreeNodeTextFilter> CurrentAsyncOpTextFilter;
+	std::atomic<bool> bCancelCurrentAsyncOp { false };
 
 	//////////////////////////////////////////////////
 

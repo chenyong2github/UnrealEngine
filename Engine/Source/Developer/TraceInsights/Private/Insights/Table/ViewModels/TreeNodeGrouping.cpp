@@ -22,7 +22,7 @@ FTreeNodeGrouping::FTreeNodeGrouping(const FText& InShortName, const FText& InTi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const
+void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
 {
 	TMap<FName, FTableTreeNodePtr> GroupMap;
 
@@ -31,6 +31,11 @@ void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
 		ensure(!NodePtr->IsGroup());
+
+		if (bCancelGrouping)
+		{
+			return;
+		}
 
 		FTableTreeNodePtr GroupPtr = nullptr;
 
@@ -77,7 +82,7 @@ FTreeNodeGroupInfo FTreeNodeGroupingFlat::GetGroupForNode(const FBaseTreeNodePtr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTreeNodeGroupingFlat::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const
+void FTreeNodeGroupingFlat::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
 {
 	ParentGroup.ClearChildren(1);
 
@@ -88,6 +93,11 @@ void FTreeNodeGroupingFlat::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, F
 	GroupPtr->ClearChildren(Nodes.Num());
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
+		if (bCancelGrouping)
+		{
+			return;
+		}
+
 		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
 	}
 }

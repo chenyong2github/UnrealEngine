@@ -632,6 +632,10 @@ void STableTreeView::UpdateTree()
 			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
 			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
 	}
 	else
 	{
@@ -735,6 +739,10 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
+			if (bCancelCurrentAsyncOp)
+			{
+				break;
+			}
 			// Add a child.
 			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
 			if (ApplyFilteringForNode(ChildNodePtr))
@@ -905,6 +913,10 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 
 			InProgressAsyncOperationEvent = StartApplyFiltersTask();
 		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
 	}
 	else
 	{
@@ -968,11 +980,16 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 
 void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
+	if (bIsUpdateRunning && bCancelCurrentAsyncOp)
+	{
+		return;
+	}
+
 	ensure(Groupings.Num() > 0);
 
 	FTreeNodeGrouping& Grouping = *Groupings[GroupingDepth];
 
-	Grouping.GroupNodes(Nodes, ParentGroup, Table);
+	Grouping.GroupNodes(Nodes, ParentGroup, Table, bCancelCurrentAsyncOp);
 
 	for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
 	{
@@ -1219,6 +1236,10 @@ void STableTreeView::PostChangeGroupings()
 			FGraphEventRef CompletedEvent = StartCreateGroupsTask();
 			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
 			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
 		}
 	}
 	else
@@ -1674,6 +1695,10 @@ void STableTreeView::SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCel
 
 	for (FBaseTreeNodePtr ChildPtr : GroupNode.GetChildren())
 	{
+		if (bCancelCurrentAsyncOp)
+		{
+			break;
+		}
 		if (ChildPtr->IsGroup())
 		{
 			SortTreeNodesRec(*StaticCastSharedPtr<FTableTreeNode>(ChildPtr), Sorter, InColumnSortMode);
@@ -1709,6 +1734,10 @@ void STableTreeView::SetSortModeForColumn(const FName& ColumnId, const EColumnSo
 
 			FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
 			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
 		}
 	}
 	else
@@ -2041,6 +2070,8 @@ void STableTreeView::OnPreAsyncUpdate()
 {
 	check(!bIsUpdateRunning);
 
+	ClearInProgressAsyncOperations();
+
 	AsyncUpdateStopwatch.Restart();
 	bIsUpdateRunning = true;
 
@@ -2059,22 +2090,26 @@ void STableTreeView::OnPostAsyncUpdate()
 
 	bIsUpdateRunning = false;
 
-	TreeView->SetTreeItemsSource(&FilteredGroupNodes);
-
-	TreeView->ClearExpandedItems();
-
-	// Grouping can result in old group nodes no longer existing in the tree, so we don't keep the expanded list.
-	if (!HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp))
+	if (!bCancelCurrentAsyncOp)
 	{
-		for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
+		TreeView->SetTreeItemsSource(&FilteredGroupNodes);
+
+		TreeView->ClearExpandedItems();
+
+		// Grouping can result in old group nodes no longer existing in the tree, so we don't keep the expanded list.
+		if (!HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp))
 		{
-			TreeView->SetItemExpansion(*It, true);
+			for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
+			{
+				TreeView->SetItemExpansion(*It, true);
+			}
 		}
+
+		ClearInProgressAsyncOperations();
+		TreeView_Refresh();
 	}
 
-	ClearInProgressAsyncOperations();
-	TreeView_Refresh();
-
+	bCancelCurrentAsyncOp = false;
 	AsyncUpdateStopwatch.Stop();
 }
 
@@ -2152,6 +2187,7 @@ void STableTreeView::OnClose()
 	if (bIsUpdateRunning && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
 	{
 		bIsCloseScheduled = true;
+		CancelCurrentAsyncOp();
 
 		FGraphEventArray Prerequisites;
 		Prerequisites.Add(InProgressAsyncOperationEvent);
@@ -2179,7 +2215,8 @@ double STableTreeView::GetAllOperationsDuration()
 void STableTreeView::StartPendingAsyncOperations()
 {
 	// Check if grouping settings have changed. If they did, a full refresh (Grouping, Sorting and Filtering) is scheduled.
-	bool bGroupingsHaveChanged = CurrentGroupings.Num() != CurrentAsyncOpGroupings.Num();
+	bool bGroupingsHaveChanged = HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp);
+	bGroupingsHaveChanged |= CurrentGroupings.Num() != CurrentAsyncOpGroupings.Num();
 
 	if (!bGroupingsHaveChanged)
 	{
@@ -2205,7 +2242,8 @@ void STableTreeView::StartPendingAsyncOperations()
 	}
 
 	// Check if sorting settings have changed. If they did, a Sorting and Filtering Refresh is scheduled.
-	bool bSortingHasChanged = (CurrentSorter.IsValid() && CurrentAsyncOpSorter == nullptr) || (!CurrentSorter.IsValid() && CurrentAsyncOpSorter != nullptr);
+	bool bSortingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::SortingOp);
+	bSortingHasChanged |= (CurrentSorter.IsValid() && CurrentAsyncOpSorter == nullptr) || (!CurrentSorter.IsValid() && CurrentAsyncOpSorter != nullptr);
 	if (!bSortingHasChanged && CurrentSorter.IsValid())
 	{
 		bSortingHasChanged = CurrentSorter.Get() != CurrentAsyncOpSorter || ColumnSortMode != CurrentAsyncOpColumnSortMode;
@@ -2222,7 +2260,8 @@ void STableTreeView::StartPendingAsyncOperations()
 	}
 
 	// Check if the text filter has changed. If it has, schedule a new Filtering Refresh.
-	bool bTextFilterHasChanged = TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0;
+	bool bTextFilterHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
+	bTextFilterHasChanged |= TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0;
 	if (bTextFilterHasChanged)
 	{
 		OnPreAsyncUpdate();
@@ -2230,6 +2269,16 @@ void STableTreeView::StartPendingAsyncOperations()
 		InProgressAsyncOperationEvent = StartApplyFiltersTask();
 
 		return;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::CancelCurrentAsyncOp()
+{
+	if (bIsUpdateRunning)
+	{
+		bCancelCurrentAsyncOp = true;
 	}
 }
 
