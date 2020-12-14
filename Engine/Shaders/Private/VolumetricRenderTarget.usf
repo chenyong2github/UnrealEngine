@@ -619,6 +619,11 @@ void ComposeVolumetricRTOverScenePS(
 	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
+	// Check that all cloud medium sample are in front of the surface we are upsampling over to make sure simple bilinear upsampling will work.
+	// This is especially needed when upsampling cloud over water surface where depth is not matching the depth for which clouds have been traced for.
+	// If samples are behind, we assume clouds should not be visible (it will be a harsh transition for now)
+	const bool bAllCloudSamplesInFrontOfWater = all(float4(VolumeFrontDepth0.x, VolumeFrontDepth1.x, VolumeFrontDepth2.x, VolumeFrontDepth3.x) < PixelDistanceFromViewKm);
+
 	// clamp to the maximum of the read depth to avoid no depth matching
 	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y)));
 
@@ -636,7 +641,7 @@ void ComposeVolumetricRTOverScenePS(
 	if (MaxDepth4Diff > ThresholdToBilinear)
 	{
 		const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
-		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth great than that are far depth pixel
+		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth greater than that such distant depth pixel
 		if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
 			&& !all(Depth4 > NotRenderedPixelDistanceKm)				// ...but not all (in this case we want to fall back to bilinear filtering).
 			&& PixelDistanceFromViewKm > ConsideredFarWaterDistanceKm)	// Only treat this way pixel that are far enough to not mix up close object with far water.
@@ -670,7 +675,7 @@ void ComposeVolumetricRTOverScenePS(
 			//DataAcc = float4(1.0, 1.0, 0, 0); 
 		}
 
-		if(ValidSampleCount == 0)
+		if(ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater)
 		{
 			// Depth discontinuities edges
 			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
