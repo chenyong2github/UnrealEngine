@@ -12,6 +12,7 @@
 #include "VolumeLighting.h"
 #include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
+#include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 
 int32 GLumenDirectLighting = 1;
 FAutoConsoleVariableRef CVarLumenDirectLighting(
@@ -61,7 +62,6 @@ FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	ECVF_RenderThreadSafe
 	);
 
-
 float GOffscreenShadowingSDFSurfaceBiasScale = 6;
 FAutoConsoleVariableRef CVarOffscreenShadowingSDFSurfaceBiasScale(
 	TEXT("r.Lumen.DirectLighting.OffscreenShadowingSDFSurfaceBiasScale"),
@@ -78,13 +78,29 @@ FAutoConsoleVariableRef CVarShadowingSurfaceBias(
 	ECVF_RenderThreadSafe
 	);
 
-float GShadowingSlopeScaledSurfaceBias = 2;
+float GShadowingSlopeScaledSurfaceBias = 4.0f;
 FAutoConsoleVariableRef CVarShadowingSlopeScaledSurfaceBias(
 	TEXT("r.Lumen.DirectLighting.ShadowingSlopeScaledSurfaceBias"),
 	GShadowingSlopeScaledSurfaceBias,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 	);
+
+int32 GLumenDirectLightingVirtualShadowMap = 1;
+FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMap(
+	TEXT("r.Lumen.DirectLighting.VirtualShadowMap"),
+	GLumenDirectLightingVirtualShadowMap,
+	TEXT("Whether to sample virtual shadow when avaible."),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenDirectLightingVirtualShadowMapBias = 7.0f;
+FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMapBias(
+	TEXT("r.Lumen.DirectLighting.VirtualShadowMapBias"),
+	GLumenDirectLightingVirtualShadowMapBias,
+	TEXT("Bias for sampling virtual shadow maps."),
+	ECVF_RenderThreadSafe
+);
 
 float GLumenSceneCardDirectLightingUpdateFrequencyScale = .003f;
 FAutoConsoleVariableRef CVarLumenSceneCardDirectLightingUpdateFrequencyScale(
@@ -130,6 +146,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER(FMatrix, WorldToShadow)
 		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, StepFactor)
@@ -138,6 +155,8 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
 		SHADER_PARAMETER(float, SDFSurfaceBiasScale)
+		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
+		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>,ShadowMaskAtlas)
 	END_SHADER_PARAMETER_STRUCT()
@@ -145,11 +164,12 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FShadowed	: SHADER_PERMUTATION_BOOL("SHADOWED_LIGHT");
 	class FTraceMeshSDFs	: SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
+	class FVirtualShadowMap : SHADER_PERMUTATION_BOOL("VIRTUAL_SHADOW_MAP");
 	class FLightFunction : SHADER_PERMUTATION_BOOL("LIGHT_FUNCTION");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FRayTracingShadowPassCombine : SHADER_PERMUTATION_BOOL("HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE");
 	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FShadowed, FTraceMeshSDFs,
-								FLightFunction, FRayTracingShadowPassCombine>;
+								FVirtualShadowMap, FLightFunction, FRayTracingShadowPassCombine>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -158,6 +178,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 			PermutationVector.Set<FDynamicallyShadowed>(false);
 			PermutationVector.Set<FRayTracingShadowPassCombine>(false);
 			PermutationVector.Set<FTraceMeshSDFs>(false);
+			PermutationVector.Set<FVirtualShadowMap>(false);
 		}
 
 		if (PermutationVector.Get<FRayTracingShadowPassCombine>() || PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
@@ -168,6 +189,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		if (PermutationVector.Get<FRayTracingShadowPassCombine>())
 		{
 			PermutationVector.Set<FDynamicallyShadowed>(false);
+			PermutationVector.Set<FVirtualShadowMap>(false);
 		}
 
 		return PermutationVector;
@@ -187,6 +209,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 
 	FORCENOINLINE static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) 
 	{
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
@@ -339,6 +362,39 @@ void CullMeshSDFsForLightCards(
 		LightTileIntersectionParameters);
 }
 
+struct FLumenShadowSetup
+{
+	const FProjectedShadowInfo* VirtualShadowMap;
+	const FProjectedShadowInfo* DenseShadowMap;
+};
+
+FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo)
+{
+	FLumenShadowSetup ShadowSetup;
+	ShadowSetup.VirtualShadowMap = nullptr;
+	ShadowSetup.DenseShadowMap = nullptr;
+
+	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
+	{
+		FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
+		if (ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask 
+			&& ProjectedShadowInfo->bWholeSceneShadow 
+			&& !ProjectedShadowInfo->bRayTracedDistanceField)
+		{
+			if (ProjectedShadowInfo->HasVirtualShadowMap())
+			{
+				ShadowSetup.VirtualShadowMap = ProjectedShadowInfo;
+			}
+			else if (ProjectedShadowInfo->bAllocated)
+			{
+				ShadowSetup.DenseShadowMap = ProjectedShadowInfo;
+			}
+		}
+	}
+
+	return ShadowSetup;
+}
+
 void RenderDirectLightIntoLumenCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -351,12 +407,12 @@ void RenderDirectLightIntoLumenCards(
 	const FString& LightName,
 	const FLumenCardScatterContext& CardScatterContext,
 	int32 ScatterInstanceIndex,
-	FLumenDirectLightingHardwareRayTracingData& LumenDirectLightingHardwareRayTracingData)
+	FLumenDirectLightingHardwareRayTracingData& LumenDirectLightingHardwareRayTracingData,
+	const FVirtualShadowMapArray& VirtualShadowMapArray)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 	const ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
-	bool bDynamicallyShadowed = false;
 	bool bShadowed = LightSceneInfo->Proxy->CastsDynamicShadow();
 
 	ELumenLightType LumenLightType = ELumenLightType::MAX;
@@ -371,10 +427,10 @@ void RenderDirectLightIntoLumenCards(
 		check(LumenLightType != ELumenLightType::MAX);
 	}
 
-	extern const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(FVisibleLightInfo& VisibleLightInfo);
-	const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfos[LightSceneInfo->Id]);
+	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
+	FLumenShadowSetup ShadowSetup = GetShadowForLumenDirectLighting(VisibleLightInfo);
 
-	bDynamicallyShadowed = ProjectedShadowInfo != nullptr;
+	const bool bDynamicallyShadowed = ShadowSetup.DenseShadowMap != nullptr;
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
 	ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
@@ -385,12 +441,30 @@ void RenderDirectLightIntoLumenCards(
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
 
+
 	const bool bLumenUseHardwareRayTracedShadow = Lumen::UseHardwareRayTracedShadows(View) && bShadowed;
 	const bool bTraceMeshSDFs = bShadowed 
 		&& LumenLightType == ELumenLightType::Directional 
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
 		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
 		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
+
+	int32 VirtualShadowMapId = -1;
+	if (bDynamicallyShadowed
+		&& !bLumenUseHardwareRayTracedShadow
+		&& GLumenDirectLightingVirtualShadowMap != 0
+		&& VirtualShadowMapArray.IsAllocated())
+	{
+		if (LightType == LightType_Directional)
+		{
+			VirtualShadowMapId = VisibleLightInfo.VirtualShadowMapClipmaps[0]->GetVirtualShadowMap()->ID;
+		}
+		else if (ShadowSetup.VirtualShadowMap)
+		{
+			VirtualShadowMapId = ShadowSetup.VirtualShadowMap->VirtualShadowMap->ID;
+		}
+	}
+	const bool bUseVirtualShadowMap = VirtualShadowMapId >= 0;
 
 	if (bLumenUseHardwareRayTracedShadow)
 	{
@@ -416,7 +490,7 @@ void RenderDirectLightIntoLumenCards(
 		GetVolumeShadowingShaderParameters(
 			View,
 			LightSceneInfo,
-			ProjectedShadowInfo,
+			ShadowSetup.DenseShadowMap,
 			0,
 			bDynamicallyShadowed,
 			PassParameters->PS.VolumeShadowingShaderParameters);
@@ -435,6 +509,12 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.DeferredLightUniforms = CreateUniformBufferImmediate(DeferredLightUniforms, UniformBuffer_SingleDraw);
 		PassParameters->PS.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 		SetupLightFunctionParameters(LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
+
+		PassParameters->PS.VirtualShadowMapId = VirtualShadowMapId;
+		if (bUseVirtualShadowMap)
+		{
+			VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->PS.VirtualShadowMapSamplingParameters);
+		}
 		
 		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
@@ -456,6 +536,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->PS.SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
 		PassParameters->PS.SDFSurfaceBiasScale = FMath::Clamp(GOffscreenShadowingSDFSurfaceBiasScale, .01f, 100.0f);
+		PassParameters->PS.VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
 		PassParameters->PS.ForceOffscreenShadowing = GLumenDirectLightingForceOffscreenShadowing;
 
 		if (bLumenUseHardwareRayTracedShadow)
@@ -483,6 +564,7 @@ void RenderDirectLightIntoLumenCards(
 	PermutationVector.Set< FLumenCardDirectLightingPS::FDynamicallyShadowed >(bDynamicallyShadowed);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FShadowed >(bShadowed);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FTraceMeshSDFs >(bTraceMeshSDFs);
+	PermutationVector.Set< FLumenCardDirectLightingPS::FVirtualShadowMap >(bUseVirtualShadowMap);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightFunction >(bUseLightFunction);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FRayTracingShadowPassCombine>(bLumenUseHardwareRayTracedShadow);
 	
@@ -575,7 +657,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LightNameWithLevel,
 						VisibleCardScatterContext,
 						0,
-						LumenDirectLightingHardwareRayTracingData);
+						LumenDirectLightingHardwareRayTracingData,
+						VirtualShadowMapArray);
 				}
 				else
 				{
@@ -678,7 +761,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LightNameWithLevel,
 						CardScatterContext,
 						ScatterInstanceIndex,
-						LumenDirectLightingHardwareRayTracingData);
+						LumenDirectLightingHardwareRayTracingData,
+						VirtualShadowMapArray);
 				}
 			}
 		}

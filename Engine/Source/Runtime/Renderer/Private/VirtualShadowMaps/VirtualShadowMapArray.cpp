@@ -765,7 +765,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 	}
 }
 
-void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters)
+void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters) const
 {
 	OutParameters.CommonParameters = CommonParameters;
 	OutParameters.PageTable = GraphBuilder.CreateSRV(PageTableRDG);

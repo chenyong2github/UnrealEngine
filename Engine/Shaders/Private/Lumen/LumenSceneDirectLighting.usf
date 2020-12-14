@@ -18,6 +18,10 @@
 #define DF_SHADOW_QUALITY 2
 #include "../DistanceFieldShadowingShared.ush"
 
+#if VIRTUAL_SHADOW_MAP
+	#include "../VirtualShadowMaps/ProjectionCommon.ush"
+#endif
+
 // Must match ELumenLightType in LumenSceneDirectLighting.cpp
 #define LIGHT_TYPE_DIRECTIONAL 0
 #define LIGHT_TYPE_POINT 1
@@ -57,11 +61,73 @@ float SurfaceBias;
 float TanLightSourceAngle;
 float SlopeScaledSurfaceBias;
 float SDFSurfaceBiasScale;
+float VirtualShadowMapSurfaceBias;
 uint ForceOffscreenShadowing;
+int VirtualShadowMapId;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 Texture2D<float> ShadowMaskAtlas;
 #endif
+
+float3 GetWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasScale)
+{
+	//@todo DynamicGI - derive from card texel size
+	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * BiasScale;
+}
+
+float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
+{
+	float ShadowFactor = 1.0f;
+
+	// Offscreen shadowing, trace to light
+	float TraceDistance = MaxTraceDistance;
+
+	#if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
+		TraceDistance = min(length(ToLight), MaxTraceDistance);
+	#endif
+
+	#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
+
+	#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
+	{
+		float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, 1.0f);
+
+		uint NumIntersectingObjects = GetCulledNumObjects();
+		uint CulledDataParameter = 0;
+		GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
+
+		float SubsurfaceDensity = 0;
+		bool bUseSubsurfaceTransmission = false;
+
+		ShadowFactor = ShadowRayTraceThroughCulledObjects(
+			WorldPositionForShadowing,
+			WorldPositionForShadowing + L * TraceDistance,
+			TraceDistance,
+			0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
+			0,
+			100,
+			SubsurfaceDensity,
+			CulledDataParameter,
+			NumIntersectingObjects,
+			true,
+			true,
+			bUseSubsurfaceTransmission,
+			/*bExpandSurface*/ true);
+	}
+	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
+	{
+		float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, SDFSurfaceBiasScale);
+
+		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
+		FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
+
+		//@todo - approximate cone trace from SDF for antialiasing
+		ShadowFactor = GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
+	}
+	#endif
+
+	return ShadowFactor;
+}
 
 void LumenCardDirectLightingPS(
 	FCardVSToPS CardInterpolants,
@@ -146,36 +212,64 @@ void LumenCardDirectLightingPS(
 
 			if (dot(WorldNormal, L) > 0)
 			{
-				//@todo DynamicGI - derive from card texel size
-				float3 WorldPositionForShadowing = WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
-
 				float ShadowFactor = 1.0f;
 				bool bShadowFactorComplete = true;
 
 				#if SHADOWED_LIGHT 
+				{
 					#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
+					{
 						float2 AtlasTextureSize = LumenCardScene.AtlasSize;
-						uint2 Pos2D = CardInterpolants.AtlasCoord * AtlasTextureSize.xy - float2(0.5, 0.5)/AtlasTextureSize.xy;
-						ShadowFactor = ShadowMaskAtlas.Load(uint3(Pos2D,0));
+						uint2 Pos2D = CardInterpolants.AtlasCoord * AtlasTextureSize.xy - float2(0.5, 0.5) / AtlasTextureSize.xy;
+						ShadowFactor = ShadowMaskAtlas.Load(uint3(Pos2D, 0));
+					}
 					#else
-						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
-							#if DYNAMICALLY_SHADOWED
-								float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
-								ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowFactorComplete);
-								float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
-								// CSM's are culled so only query points inside the view are valid
-								float2 ValidTexelSize = float2(length(ddx(WorldPosition)), length(ddy(WorldPosition))) * 2;
-								bShadowFactorComplete = bShadowFactorComplete && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w && PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w);
-							#else
-								bShadowFactorComplete = true;
-								ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPositionForShadowing);
-							#endif
-						#else
-								ShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowFactorComplete);
-						#endif
-			
-						bool bOffscreenShadowing = !bShadowFactorComplete;
+					{
+						#if VIRTUAL_SHADOW_MAP
+						{
+							// Bias only ray start to maximize chances of hitting an allocated page
+							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, WorldNormal, VirtualShadowMapSurfaceBias);
 
+							bShadowFactorComplete = VirtualShadowMapSample.bValid;
+							ShadowFactor = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
+						}
+						#endif
+
+						if (ShadowFactor > 0.0f)
+						{
+							float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, 1.0f);
+
+							#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+							{
+								#if DYNAMICALLY_SHADOWED
+									float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
+
+									bool bShadowingFromValidUVArea = false;
+									#if VIRTUAL_SHADOW_MAP
+										ShadowFactor *= ComputeDirectionalLightDynamicShadowingNonNanite(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+									#else
+										ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+									#endif
+
+									float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
+									// CSM's are culled so only query points inside the view are valid
+									float2 ValidTexelSize = float2(length(ddx(WorldPosition)), length(ddy(WorldPosition))) * 2;
+									bShadowFactorComplete = bShadowFactorComplete && bShadowingFromValidUVArea && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w&& PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w);
+								#else
+									bShadowFactorComplete = true;
+									ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPositionForShadowing);
+								#endif
+							}
+							#else
+							{
+								bool bShadowingFromValidUVArea = false;
+								ShadowFactor *= ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
+								bShadowFactorComplete = bShadowFactorComplete && bShadowingFromValidUVArea;
+							}
+							#endif
+						}
+
+						bool bOffscreenShadowing = !bShadowFactorComplete;
 						if (ForceOffscreenShadowing != 0)
 						{
 							ShadowFactor = 1.0;
@@ -184,53 +278,11 @@ void LumenCardDirectLightingPS(
 
 						if (bOffscreenShadowing)
 						{
-							// Offscreen shadowing, trace to light
-							float TraceDistance = MaxTraceDistance;
-
-							#if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
-								TraceDistance = min(length(ToLight), MaxTraceDistance);
-							#endif
-
-							#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
-
-							#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
-							{
-								uint NumIntersectingObjects = GetCulledNumObjects();
-								uint CulledDataParameter = 0;
-								GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
-
-								float SubsurfaceDensity = 0;
-								bool bUseSubsurfaceTransmission = false;
-
-								ShadowFactor *= ShadowRayTraceThroughCulledObjects(
-									WorldPositionForShadowing,
-									WorldPositionForShadowing + L * TraceDistance,
-									TraceDistance,
-									0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
-									0,
-									100,
-									SubsurfaceDensity,
-									CulledDataParameter,
-									NumIntersectingObjects,
-									true,
-									true,
-									bUseSubsurfaceTransmission,
-									/*bExpandSurface*/ true);
-							}
-							#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
-							{
-								WorldPositionForShadowing = WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * SDFSurfaceBiasScale;
-
-								FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
-
-								FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
-
-								//@todo - approximate cone trace from SDF for antialiasing
-								ShadowFactor *= GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
-							}
-							#endif
+							ShadowFactor *= TraceOffscreenShadows(WorldPosition, L, ToLight, WorldNormal);
 						}
+					}
 					#endif // End hardware/software shadow selection		
+				}
 				#endif // End ShadowLight
 
 				#if LIGHT_FUNCTION
@@ -246,4 +298,3 @@ void LumenCardDirectLightingPS(
 		
 	OutColor = float4(Irradiance, 0);
 }
-

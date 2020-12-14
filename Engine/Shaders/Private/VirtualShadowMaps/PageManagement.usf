@@ -308,7 +308,7 @@ uint CalcPageOffsetFromUVMip(uint VirtualShadowMapId, float2 ShadowUv, uint MipL
 
 void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 {
-	FShadowPosition ShadowPosition = WorldToShadow(ShadowMapProjectionData[VirtualShadowMapId], Pixel.WorldPosition);
+	FShadowPosition ShadowPosition = WorldToVirtualShadowMap(ShadowMapProjectionData[VirtualShadowMapId], Pixel.WorldPosition);
 
 	// Check overlap vs the shadow map space
 	// NOTE: XY test not really needed anymore with the precise cone test in the caller, but we'll leave it for the moment

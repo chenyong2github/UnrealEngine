@@ -146,7 +146,7 @@ struct FShadowPosition
 	float Depth;
 };
 
-FShadowPosition WorldToShadow(FVirtualShadowMapProjectionShaderData ProjectionData, float3 WorldPosition)
+FShadowPosition WorldToVirtualShadowMap(FVirtualShadowMapProjectionShaderData ProjectionData, float3 WorldPosition)
 {
 	FShadowPosition ShadowPosition;
 	ShadowPosition.View = mul(float4(WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowViewMatrix).xyz;
@@ -234,7 +234,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 			int ClipmapLevelVirtualShadowMapId = VirtualShadowMapId + ClipmapIndex;
 			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelVirtualShadowMapId);
 
-			FShadowPosition Position = WorldToShadow(ProjectionData, WorldPosition);
+			FShadowPosition Position = WorldToVirtualShadowMap(ProjectionData, WorldPosition);
 			SmSample = SampleVirtualSmLevel(ClipmapLevelVirtualShadowMapId, Position.UV, 0);
 			if (SmSample.bValid)
 			{
@@ -255,7 +255,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 	}
 	else	// Spot light
 	{
-		FShadowPosition Position = WorldToShadow(BaseProjectionData, WorldPosition);
+		FShadowPosition Position = WorldToVirtualShadowMap(BaseProjectionData, WorldPosition);
 		SmSample = SampleVirtualSm(VirtualShadowMapId, Position.UV);
 		if (SmSample.bValid)
 		{

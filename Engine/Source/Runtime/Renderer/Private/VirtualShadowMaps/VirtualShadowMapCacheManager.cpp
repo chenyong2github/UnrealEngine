@@ -182,9 +182,8 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMap
 
 void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
 {
-	if (VirtualShadowMapArray.PageTableRDG != nullptr && 
-		VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr &&
-		CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+	if (VirtualShadowMapArray.IsAllocated()
+		&& CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevPageTable);
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevPageFlags);

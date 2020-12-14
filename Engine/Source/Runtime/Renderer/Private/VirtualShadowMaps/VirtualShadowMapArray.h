@@ -150,7 +150,7 @@ public:
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
-	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters);
+	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters) const;
 
 	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
 	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
@@ -163,6 +163,11 @@ public:
 		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
 		bool bPostBasePass, 
 		FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
+
+	bool IsAllocated() const
+	{
+		return PhysicalPagePoolRDG != nullptr && PageTableRDG != nullptr;
+	}
 
 	// Draw debug info into render target 'VirtSmDebug' of screen-size, the mode is controlled by 'r.Shadow.v.DebugVisualize' (defaults to not doing aught). 
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
