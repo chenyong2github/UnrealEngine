@@ -243,10 +243,10 @@ public:
 	bool RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 
 	/** Renders the view family. */
-	virtual void Render(FRHICommandListImmediate& RHICmdList) override;
+	virtual void Render(FRDGBuilder& GraphBuilder) override;
 
 	/** Render the view family's hit proxies. */
-	virtual void RenderHitProxies(FRHICommandListImmediate& RHICmdList) override;
+	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void RenderVisualizeTexturePool(FRHICommandListImmediate& RHICmdList);

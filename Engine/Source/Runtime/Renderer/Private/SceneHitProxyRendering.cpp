@@ -547,12 +547,10 @@ static void DoRenderHitProxies(
 }
 #endif
 
-void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
-	
+
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
@@ -578,21 +576,17 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 	GEngine->GetPostRenderDelegate().Broadcast();
 #endif
 
-	GraphBuilder.Execute();
-
 	if (bDeferredShading)
 	{
 		// Release the original reference on the scene render targets
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		SceneContext.AdjustGBufferRefCount(RHICmdList, -1);
+		SceneContext.AdjustGBufferRefCount(GraphBuilder.RHICmdList, -1);
 	}
 }
 
-void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
 	static const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
@@ -719,8 +713,6 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 	GEngine->GetPostRenderDelegate().Broadcast();
 
 #endif
-
-	GraphBuilder.Execute();
 }
 
 #if WITH_EDITOR

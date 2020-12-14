@@ -256,43 +256,26 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 	{
 #if WANTS_DRAW_MESH_EVENTS
 		SCOPED_DRAW_EVENTF(RHICmdList, SceneCapture, TEXT("SceneCapture %s"), *EventName);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCapture %s", *EventName));
 #else
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneCaptureContent_RenderThread);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCapture"));
 #endif
 
-		const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
-
-		// TODO: Could avoid the clear by replacing with dummy black system texture.
-		FViewInfo& View = SceneRenderer->Views[0];
-
-		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), ERenderTargetActions::DontLoad_Store);
-		RPInfo.ResolveParameters = ResolveParams;
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
-
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearSceneCaptureContent"));
-		DrawClearQuad(RHICmdList, true, FLinearColor::Black, false, 0, false, 0, Target->GetSizeXY(), View.UnscaledViewRect);
-		RHICmdList.EndRenderPass();
+		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("SceneCapture"));
+		AddClearRenderTargetPass(GraphBuilder, OutputTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
 
 		// Render the scene normally
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, RenderScene);
-			SceneRenderer->Render(RHICmdList);
+			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderScene);
+			SceneRenderer->Render(GraphBuilder);
 		}
 
-		FRDGBuilder GraphBuilder(RHICmdList);
+		if (bGenerateMips)
 		{
-			FRDGTextureRef MipTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("MipGenerationInput")));
-			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTargetTexture->TextureRHI, TEXT("MipGenerationOutput")));
-
-			if (bGenerateMips)
-			{
-				FGenerateMips::Execute(GraphBuilder, MipTexture, GenerateMipsParams);
-			}
-
-			// Note: When the ViewFamily.SceneCaptureSource requires scene textures (i.e. SceneCaptureSource != SCS_FinalColorLDR), the copy to RenderTarget 
-			// will be done in CopySceneCaptureComponentToTarget while the GBuffers are still alive for the frame.
-			AddCopyToResolveTargetPass(GraphBuilder, MipTexture, OutputTexture, ResolveParams);
+			FGenerateMips::Execute(GraphBuilder, OutputTexture, GenerateMipsParams);
 		}
+
 		GraphBuilder.Execute();
 	}
 

@@ -3648,54 +3648,66 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 
-	if(SceneRenderer->ViewFamily.EngineShowFlags.OnScreenDebug)
+	const FSceneViewFamily& ViewFamily = SceneRenderer->ViewFamily;
+
+	if(ViewFamily.EngineShowFlags.OnScreenDebug)
 	{
 		GRenderTargetPool.SetEventRecordingActive(true);
 	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
-	
-		if(SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
-		{
-			// Render the scene's hit proxies.
-			SceneRenderer->RenderHitProxies(RHICmdList);
-		}
-		else
-		{
-			// Render the scene.
-			SceneRenderer->Render(RHICmdList);
-		}
 
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
+		{
+			FRDGBuilder GraphBuilder(
+				RHICmdList,
+				RDG_EVENT_NAME("SceneRenderer_%s(ViewFamily=%s)",
+					ViewFamily.EngineShowFlags.HitProxies ? TEXT("RenderHitProxies") : TEXT("Render"),
+					ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")
+				)
+			);
 
-		// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
-		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
-		{
-			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
-		}
-		if (SceneRenderer->Scene->LumenSceneData)
-		{
-			SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Reset();
-		}
-
-		if (SceneRenderer->Views.Num() > 0 && !SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
-		{
-			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
-			if (Parameters.bHasElements)
+			if (ViewFamily.EngineShowFlags.HitProxies)
 			{
-				FRDGBuilder GraphBuilder(RHICmdList);
-				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
-				GraphBuilder.Execute();
+				// Render the scene's hit proxies.
+				SceneRenderer->RenderHitProxies(GraphBuilder);
 			}
-		}
+			else
+			{
+				// Render the scene.
+				SceneRenderer->Render(GraphBuilder);
+			}
+			
+			if (SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+			{
+				FHairStrandsBookmarkParameters& Parameters = *GraphBuilder.AllocObject<FHairStrandsBookmarkParameters>(CreateHairStrandsBookmarkParameters(SceneRenderer->Views));
+				if (Parameters.bHasElements)
+				{
+					RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
+				}
+			}
 
-		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
-		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+			GraphBuilder.Execute();
 
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-		{
-			Extension->EndFrame();
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
+
+			// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
+			for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
+			{
+				SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
+			}
+			if (SceneRenderer->Scene->LumenSceneData)
+			{
+				SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Reset();
+			}
+
+			// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->EndFrame();
+			}
 		}
 
 #if STATS
@@ -3718,7 +3730,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			SET_MEMORY_STAT(STAT_LightInteractionMemory, FLightPrimitiveInteraction::GetMemoryPoolSize());
 		}
 #endif
-		
 
 		GRenderTargetPool.SetEventRecordingActive(false);
 

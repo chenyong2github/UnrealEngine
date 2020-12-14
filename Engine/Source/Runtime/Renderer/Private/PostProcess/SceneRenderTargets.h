@@ -84,6 +84,8 @@ struct FCustomDepthTextures
 
 struct FMinimalSceneTextures
 {
+	static const FMinimalSceneTextures& Get(FRDGBuilder& GraphBuilder);
+
 	FRDGTextureMSAA Color{};
 	FRDGTextureMSAA Depth{};
 	FRDGTextureSRVRef Stencil{};
@@ -99,7 +101,6 @@ struct FMinimalSceneTextures
 struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 {
 	static FSceneTextures& Create(FRDGBuilder& GraphBuilder);
-	static FSceneTextures& CreateMinimal(FRDGBuilder& GraphBuilder);
 
 	static const FSceneTextures& Get(FRDGBuilder& GraphBuilder);
 

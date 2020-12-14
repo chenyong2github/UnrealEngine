@@ -1759,8 +1759,8 @@ public:
 
 	// FSceneRenderer interface
 
-	virtual void Render(FRHICommandListImmediate& RHICmdList) = 0;
-	virtual void RenderHitProxies(FRHICommandListImmediate& RHICmdList) {}
+	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
+	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
 
 	/** Creates a scene renderer based on the current feature level. */
 	static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
@@ -2074,9 +2074,9 @@ public:
 
 	// FSceneRenderer interface
 
-	virtual void Render(FRHICommandListImmediate& RHICmdList) override;
+	virtual void Render(FRDGBuilder& GraphBuilder) override;
 
-	virtual void RenderHitProxies(FRHICommandListImmediate& RHICmdList) override;
+	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
 
 	void RenderInverseOpacity(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 

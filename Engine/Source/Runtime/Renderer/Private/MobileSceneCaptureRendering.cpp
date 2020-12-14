@@ -319,9 +319,12 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	{
 #if WANTS_DRAW_MESH_EVENTS
 		SCOPED_DRAW_EVENTF(RHICmdList, SceneCaptureMobile, TEXT("SceneCaptureMobile %s"), *EventName);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCaptureMobile %s", *EventName));
 #else
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneCaptureContentMobile_RenderThread);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCaptureMobile"));
 #endif
+
 		FViewInfo& View = SceneRenderer->Views[0];
 
 		const bool bIsMobileHDR = IsMobileHDR();
@@ -334,40 +337,20 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		const bool bNeedsFlippedFinalColor = bNeedsFlippedCopy && !bUseSceneTextures;
 
 		// Intermediate render target that will need to be flipped (needed on !IsMobileHDR())
-		TRefCountPtr<IPooledRenderTarget> FlippedPooledRenderTarget;
+		FRDGTextureRef FlippedOutputTexture{};
 
 		const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
 		if (bNeedsFlippedFinalColor)
 		{
 			// We need to use an intermediate render target since the result will be flipped
 			auto& RenderTargetRHI = Target->GetRenderTargetTexture();
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Target->GetSizeXY(),
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(
+				Target->GetSizeXY(),
 				RenderTargetRHI.GetReference()->GetFormat(),
 				RenderTargetRHI.GetReference()->GetClearBinding(),
-				TexCreate_None,
-				TexCreate_RenderTargetable,
-				false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, FlippedPooledRenderTarget, TEXT("SceneCaptureFlipped"));
+				TexCreate_RenderTargetable));
+			FlippedOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("SceneCaptureFlipped"));
 		}
-
-		// Helper class to allow setting render target
-		struct FRenderTargetOverride : public FRenderTarget
-		{
-			FRenderTargetOverride(const FRenderTarget* TargetIn, FRHITexture2D* In)
-			{
-				RenderTargetTextureRHI = In;
-				OriginalTarget = TargetIn;
-			}
-
-			virtual FIntPoint GetSizeXY() const override { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
-			virtual float GetDisplayGamma() const override { return OriginalTarget->GetDisplayGamma(); }
-
-			FTexture2DRHIRef GetTextureParamRef() { return RenderTargetTextureRHI; }
-			const FRenderTarget* OriginalTarget;
-		} FlippedRenderTarget(Target, 
-			FlippedPooledRenderTarget.GetReference()
-			? FlippedPooledRenderTarget.GetReference()->GetRenderTargetItem().TargetableTexture->GetTexture2D()
-			: nullptr);
 
 		// We don't support screen percentage in scene capture.
 		FIntRect ViewRect = View.UnscaledViewRect;
@@ -375,13 +358,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 		if(bNeedsFlippedFinalColor)
 		{
-			auto& RenderTargetRHI = Target->GetRenderTargetTexture();
-			
-			FRHIRenderPassInfo RPInfo(RenderTargetRHI, ERenderTargetActions::DontLoad_Store);
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear"));
-			DrawClearQuad(RHICmdList, true, FLinearColor::Black, false, 0, false, 0, Target->GetSizeXY(), ViewRect);
-			RHICmdList.EndRenderPass();
+			AddClearRenderTargetPass(GraphBuilder, FlippedOutputTexture, FLinearColor::Black, ViewRect);
 		}
 
 		// Register pass for InverseOpacity for this scope
@@ -390,15 +367,33 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		
 		// Render the scene normally
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, RenderScene);
+			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderScene);
 
 			if (bNeedsFlippedFinalColor)
 			{
+				// Helper class to allow setting render target
+				struct FRenderTargetOverride : public FRenderTarget
+				{
+					FRenderTargetOverride(const FRenderTarget* TargetIn, FRHITexture2D* OverrideTexture)
+					{
+						RenderTargetTextureRHI = OverrideTexture;
+						OriginalTarget = TargetIn;
+					}
+
+					virtual FIntPoint GetSizeXY() const override { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
+					virtual float GetDisplayGamma() const override { return OriginalTarget->GetDisplayGamma(); }
+
+					FTexture2DRHIRef GetTextureParamRef() { return RenderTargetTextureRHI; }
+					const FRenderTarget* OriginalTarget;
+				};
+
 				// Hijack the render target
-				SceneRenderer->ViewFamily.RenderTarget = &FlippedRenderTarget; //-V506
+				GraphBuilder.PreallocateTexture(FlippedOutputTexture);
+				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.GetPooledTexture(FlippedOutputTexture)->GetTargetableRHI()->GetTexture2D();
+				SceneRenderer->ViewFamily.RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
 			}
 
-			SceneRenderer->Render(RHICmdList);
+			SceneRenderer->Render(GraphBuilder);
 
 			if (bNeedsFlippedFinalColor)
 			{
@@ -407,35 +402,29 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			}
 		}
 
-		FRDGBuilder GraphBuilder(RHICmdList);
-
-		FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, SceneRenderer->ViewFamily);
+		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, Target->GetRenderTargetTexture(), TEXT("OutputTexture"));
 
 		const FIntPoint TargetSize(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height());
 		if (bNeedsFlippedFinalColor)
 		{
 			// We need to flip this texture upside down (since we depended on tonemapping to fix this on the hdr path)
 			RDG_EVENT_SCOPE(GraphBuilder, "FlipCapture");
-			CopyCaptureToTarget(GraphBuilder, ViewFamilyTexture, TargetSize, View, ViewRect, GraphBuilder.RegisterExternalTexture(FlippedPooledRenderTarget), bNeedsFlippedCopy, SceneRenderer);
+			CopyCaptureToTarget(GraphBuilder, OutputTexture, TargetSize, View, ViewRect, FlippedOutputTexture, bNeedsFlippedCopy, SceneRenderer);
 		}
 		else if(bUseSceneTextures)
 		{
+			const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+
 			// Copy the captured scene into the destination texture
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
-			CopyCaptureToTarget(GraphBuilder, ViewFamilyTexture, TargetSize, View, ViewRect, GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get().GetSceneColor()), bNeedsFlippedCopy, SceneRenderer);
+			CopyCaptureToTarget(GraphBuilder, OutputTexture, TargetSize, View, ViewRect, SceneTextures.Color.Target, bNeedsFlippedCopy, SceneRenderer);
 		}
-		
+
+		if (bGenerateMips)
 		{
-			FRDGTextureRef MipTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("MipGenerationInput")));
-			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTargetTexture->TextureRHI, TEXT("MipGenerationOutput")));
-
-			if (bGenerateMips)
-			{
-				FGenerateMips::Execute(GraphBuilder, MipTexture, GenerateMipsParams);
-			}
-
-			AddCopyToResolveTargetPass(GraphBuilder, MipTexture, OutputTexture, ResolveParams);
+			FGenerateMips::Execute(GraphBuilder, OutputTexture, GenerateMipsParams);
 		}
+
 		GraphBuilder.Execute();
 	}
 	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);

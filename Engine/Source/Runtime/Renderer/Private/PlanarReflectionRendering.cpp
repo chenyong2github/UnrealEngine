@@ -355,6 +355,8 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				SCOPED_DRAW_EVENT(RHICmdList, UpdatePlanarReflectionContent_RenderThread);
 #endif
 
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"));
+
 				// Reflection view late update
 				if (SceneRenderer->Views.Num() > 1)
 				{
@@ -370,8 +372,8 @@ static void UpdatePlanarReflectionContents_RenderThread(
 
 				// Render the scene normally
 				{
-					SCOPED_DRAW_EVENT(RHICmdList, RenderScene);
-					SceneRenderer->Render(RHICmdList);
+					RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderScene);
+					SceneRenderer->Render(GraphBuilder);
 				}
 
 				SceneProxy->RenderTarget = RenderTarget;
@@ -384,14 +386,9 @@ static void UpdatePlanarReflectionContents_RenderThread(
 					SceneProxy->ViewRect[ViewIndex] = SceneRenderer->Views[ViewIndex].ViewRect;
 				}
 
-				FRDGBuilder GraphBuilder(RHICmdList);
-				FRDGSystemTextures::Create(GraphBuilder);
-
-				FRDGTextureRef ViewFamilyTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->TextureRHI, TEXT("ViewFamilyTexture")));
-
-				const FSceneTextures& SceneTextures = FSceneTextures::CreateMinimal(GraphBuilder);
-
+				FRDGTextureRef ReflectionOutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->TextureRHI, TEXT("ReflectionOutputTexture")));
 				FSceneTextureShaderParameters SceneTextureParameters = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::SceneDepth);
+				const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
@@ -399,13 +396,14 @@ static void UpdatePlanarReflectionContents_RenderThread(
 					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
-						PrefilterPlanarReflection<true>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ViewFamilyTexture);
+						PrefilterPlanarReflection<true>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ReflectionOutputTexture);
 					}
 					else
 					{
-						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ViewFamilyTexture);
+						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ReflectionOutputTexture);
 					}
 				}
+
 				GraphBuilder.Execute();
 			}
 		}

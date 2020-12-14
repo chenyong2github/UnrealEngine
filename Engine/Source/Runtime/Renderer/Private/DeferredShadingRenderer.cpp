@@ -1487,11 +1487,9 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 	} 
 }
 
-void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
-
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
@@ -1532,41 +1530,36 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_Render, FColor::Emerald);
 
 #if WITH_MGPU
-	const FRHIGPUMask RenderTargetGPUMask = ComputeGPUMasks(RHICmdList);
+	const FRHIGPUMask RenderTargetGPUMask = ComputeGPUMasks(GraphBuilder.RHICmdList);
 #endif // WITH_MGPU
 
 	// By default, limit our GPU usage to only GPUs specified in the view masks.
-	SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
-	SCOPED_GPU_MASK(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList(), AllViewsGPUMask);
+	RDG_GPU_MASK_SCOPE(GraphBuilder, AllViewsGPUMask);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	//make sure all the targets we're going to use will be safely writable.
-	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
+	GRenderTargetPool.TransitionTargetsWritable(GraphBuilder.RHICmdList);
 
 	// this way we make sure the SceneColor format is the correct one and not the one from the end of frame before
 	SceneContext.ReleaseSceneColor();
 
-	WaitOcclusionTests(RHICmdList);
+	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
 	if (!ViewFamily.EngineShowFlags.Rendering)
 	{
-		GraphBuilder.Execute();
 		return;
 	}
 
-	SCOPED_DRAW_EVENT(RHICmdList, Scene);
-
-	// Anything rendered inside Render() which isn't accounted for will fall into this stat
-	// This works because child stat events do not contribute to their parents' times (see GPU_STATS_CHILD_TIMES_INCLUDED)
-	SCOPED_GPU_STAT(RHICmdList, Unaccounted);
+	RDG_RHI_EVENT_SCOPE(GraphBuilder, Scene);
+	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, Unaccounted);
 	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_Init);
-		SCOPED_GPU_STAT(RHICmdList, AllocateRendertargets);
+		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, AllocateRendertargets);
 
 		// Initialize global system textures (pass-through if already initialized).
-		GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
+		GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
 		// Allocate the maximum scene render target space for the current view family.
 		SceneContext.Allocate(GraphBuilder, this);
@@ -1610,7 +1603,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FILCUpdatePrimTaskData ILCTaskData;
 
 	// Find the visible primitives.
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 
 	bool bDoInitViewAftersPrepass = false;
@@ -1645,7 +1638,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 #if RHI_RAYTRACING
 	// Gather mesh instances, shaders, resources, parameters, etc. and build ray tracing acceleration structure
-	GatherRayTracingWorldInstances(RHICmdList);
+	GatherRayTracingWorldInstances(GraphBuilder.RHICmdList);
 
 	if (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
 	{
@@ -1710,7 +1703,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// GBuffers are temporarily being allocated here until they are converted to RDG.
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
-		SceneContext.AllocGBufferTargets(RHICmdList);
+		SceneContext.AllocGBufferTargets(GraphBuilder.RHICmdList);
 	}
 
 	FSceneTextures& SceneTextures = FSceneTextures::Create(GraphBuilder);
@@ -1823,7 +1816,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 	});
 
-	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
+	FHairStrandsBookmarkParameters& HairStrandsBookmarkParameters = *GraphBuilder.AllocObject<FHairStrandsBookmarkParameters>();
 
 	{
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
@@ -1903,12 +1896,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		if (bDoInitViewAftersPrepass)
 		{
 			{
-				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, VisibilityCommands);
+				RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 				InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
 			}
 
 			{
-				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, GPUSceneUpdate);
+				RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 				PrepareDistanceFieldScene(GraphBuilder, false);
 			}
 
@@ -2038,7 +2031,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 
 	// NOTE: The ordering of the lights is used to select sub-sets for different purposes, e.g., those that support clustered deferred.
-	FSortedLightSetSceneInfo SortedLightSet;
+	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, SortLights);
 		GatherLightsAndComputeLightGrid(GraphBuilder, bComputeLightGrid, SortedLightSet);
@@ -2178,7 +2171,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
-	FHairStrandsRenderingData HairDatasStorage;
+	FHairStrandsRenderingData* HairDatasStorage = GraphBuilder.AllocObject<FHairStrandsRenderingData>();
 
 	FRDGTextureRef ForwardScreenSpaceShadowMaskTexture = nullptr;
 	FRDGTextureRef ForwardScreenSpaceShadowMaskHairTexture = nullptr;
@@ -2186,9 +2179,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		if (bHairEnable)
 		{
-			RenderHairPrePass(GraphBuilder, Scene, Views, HairDatasStorage);
-			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, HairDatasStorage);
-			HairDatas = &HairDatasStorage;
+			RenderHairPrePass(GraphBuilder, Scene, Views, *HairDatasStorage);
+			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, *HairDatasStorage);
+			HairDatas = HairDatasStorage;
 		}
 
 		RenderForwardShadowProjections(GraphBuilder, SceneTextures, ForwardScreenSpaceShadowMaskTexture, ForwardScreenSpaceShadowMaskHairTexture, HairDatas);
@@ -2214,7 +2207,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		InitTranslucencyLightingVolumeTextures(GraphBuilder, Views, ERDGPassFlags::AsyncCompute, TranslucencyLightingVolumeTextures);
 	}
 
-	SceneContext.AllocSceneColor(RHICmdList);
+	SceneContext.AllocSceneColor(GraphBuilder.RHICmdList);
 	SceneTextures.Color = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
 
 	{
@@ -2396,8 +2389,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Hair base pass for deferred shading
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
-		RenderHairPrePass(GraphBuilder, Scene, Views, HairDatasStorage);
-		HairDatas = &HairDatasStorage;
+		RenderHairPrePass(GraphBuilder, Scene, Views, *HairDatasStorage);
+		HairDatas = HairDatasStorage;
 	}
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
@@ -2435,24 +2428,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		check(HairDatas);
-		RenderHairBasePass(GraphBuilder, Scene,  SceneTextures, Views, HairDatasStorage);
-
-		// Disable temporarly HZB update with hair data. This is not mandatory.
-		#if 0
-		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			FViewInfo& View = Views[ViewIndex];
-			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB_HairUpdate(ViewId=%d)", ViewIndex);
-			BuildHZB(
-				GraphBuilder,
-				SceneTextureParameters.SceneTextures.Depth, 
-				/* VisBufferTexture = */ nullptr,
-				View,
-				/* OutClosestHZBTexture = */ nullptr,
-				/* OutFurthestHZBTexture = */ nullptr);
-		}
-		#endif
+		RenderHairBasePass(GraphBuilder, Scene,  SceneTextures, Views, *HairDatasStorage);
 	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
@@ -2931,9 +2907,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterFrame));
 	}
 
-	GraphBuilder.Execute();
-
-	ServiceLocalQueue();
+	AddServiceLocalQueuePass(GraphBuilder);
 }
 
 #if RHI_RAYTRACING

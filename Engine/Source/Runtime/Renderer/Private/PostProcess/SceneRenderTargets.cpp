@@ -158,7 +158,7 @@ extern int32 GUseTranslucentLightingVolumes;
 
 RDG_REGISTER_BLACKBOARD_STRUCT(FSceneTextures);
 
-FSceneTextures& FSceneTextures::CreateMinimal(FRDGBuilder& GraphBuilder)
+FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
 {
 	auto& SceneTextures = GraphBuilder.Blackboard.Create<FSceneTextures>();
 
@@ -174,26 +174,19 @@ FSceneTextures& FSceneTextures::CreateMinimal(FRDGBuilder& GraphBuilder)
 		SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
 	}
 
-	return SceneTextures;
-}
-
-FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
-{
-	auto& SceneTextures = CreateMinimal(GraphBuilder);
-
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SceneTextures.SmallDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
-	SceneTextures.ScreenSpaceAO = CreateScreenSpaceAOTexture(GraphBuilder, SceneTextures.Extent);
-
+	if (FSceneInterface::GetShadingPath(SceneTextures.FeatureLevel) == EShadingPath::Deferred)
 	{
-		FRDGTextureDesc Desc = FVelocityRendering::GetRenderTargetDesc(SceneTextures.ShaderPlatform, SceneTextures.Extent);
+		SceneTextures.SmallDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
+		SceneTextures.ScreenSpaceAO = CreateScreenSpaceAOTexture(GraphBuilder, SceneTextures.Extent);
+
+		FRDGTextureDesc VelocityDesc = FVelocityRendering::GetRenderTargetDesc(SceneTextures.ShaderPlatform, SceneTextures.Extent);
 
 		if (FVelocityRendering::BasePassCanOutputVelocity(SceneTextures.FeatureLevel))
 		{
-			Desc.Flags |= GFastVRamConfig.GBufferVelocity;
+			VelocityDesc.Flags |= GFastVRamConfig.GBufferVelocity;
 		}
 
-		SceneTextures.Velocity = GraphBuilder.CreateTexture(Desc, TEXT("SceneVelocity"));
+		SceneTextures.Velocity = GraphBuilder.CreateTexture(VelocityDesc, TEXT("SceneVelocity"));
 	}
 
 	SceneTextures.GBufferA = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
@@ -987,7 +980,6 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 		const int32 IndexC = FindGBufferTargetByName(GBufferInfo, "GBufferC");
 		const int32 IndexD = FindGBufferTargetByName(GBufferInfo, "GBufferD");
 		const int32 IndexE = FindGBufferTargetByName(GBufferInfo, "GBufferE");
-		const int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "Velocity");
 
 		if (IndexA >= 0)
 		{

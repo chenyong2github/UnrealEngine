@@ -26,7 +26,7 @@ FRDGTextureRef TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FScen
 	FRDGTextureRef Texture = nullptr;
 	if (TextureRHI)
 	{
-		Texture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(TextureRHI, TEXT("ViewFamilyTexture")));
+		Texture = RegisterExternalTexture(GraphBuilder, TextureRHI, TEXT("ViewFamilyTexture"));
 		GraphBuilder.SetTextureAccessFinal(Texture, ERHIAccess::RTV);
 	}
 	return Texture;

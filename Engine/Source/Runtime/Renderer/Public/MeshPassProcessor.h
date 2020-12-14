@@ -1564,21 +1564,25 @@ public:
 		return ViewUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.0, "SetInstancedViewUniformBuffer is deprecated. Use View.GetShaderParameters() and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE void SetInstancedViewUniformBuffer(const TUniformBufferRef<FInstancedViewUniformShaderParameters>& InViewUniformBuffer)
 	{
 		InstancedViewUniformBuffer = InViewUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.0, "GetInstancedViewUniformBuffer is deprecated. Use View.GetShaderParameters() and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE const FRHIUniformBuffer* GetInstancedViewUniformBuffer() const
 	{
 		return InstancedViewUniformBuffer != nullptr ? InstancedViewUniformBuffer : ViewUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.0, "SetPassUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE void SetPassUniformBuffer(const FUniformBufferRHIRef& InPassUniformBuffer)
 	{
 		PassUniformBuffer = InPassUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.0, "GetPassUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetPassUniformBuffer() const
 	{
 		return PassUniformBuffer;

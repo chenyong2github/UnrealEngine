@@ -578,11 +578,11 @@ class FCopyToCubeFaceVS : public FCopyToCubeFaceShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FCopyToCubeFaceVS);
-	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FCopyToCubeFaceVS, FCopyToCubeFaceShader);
 
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	END_SHADER_PARAMETER_STRUCT()
+	FCopyToCubeFaceVS() = default;
+	FCopyToCubeFaceVS(const CompiledShaderInitializerType & Initializer)
+		: FCopyToCubeFaceShader(Initializer)
+	{}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FCopyToCubeFaceVS, "/Engine/Private/ReflectionEnvironmentShaders.usf", "CopyToCubeFaceVS", SF_Vertex);
@@ -721,26 +721,26 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CubeMapCapture);
 
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"));
+
 		// Render the scene normally for one face of the cubemap
-		SceneRenderer->Render(RHICmdList);
-		check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-		check(IsInRenderingThread());
+		SceneRenderer->Render(GraphBuilder);
+
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& InRHICmdList)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_CaptureSceneToScratchCubemap_Flush);
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
 
-		// some platforms may not be able to keep enqueueing commands like crazy, this will
-		// allow them to restart their command buffers
-		RHICmdList.SubmitCommandsAndFlushGPU();
+			// some platforms may not be able to keep enqueueing commands like crazy, this will
+			// allow them to restart their command buffers
+			InRHICmdList.SubmitCommandsAndFlushGPU();
+		});
 
 		GReflectionScratchCubemaps.Allocate(RHICmdList, CubemapSize);
 
 		const FViewInfo& View = SceneRenderer->Views[0];
 
-		FRDGBuilder GraphBuilder(RHICmdList);
-
-		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(GReflectionScratchCubemaps.Color[0], TEXT("Color"));
+		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(GReflectionScratchCubemaps.Color[0]);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FCopySceneColorToCubeFacePS::FParameters>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction, 0, CubeFace);
@@ -772,21 +772,22 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 			PassParameters->SkyLightCaptureParameters = SkyLightParametersValue;
 		}
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+		const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		PassParameters->SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("ColorTexture"));
+		PassParameters->SceneColorTexture = SceneTextures.Color.Target;
 		PassParameters->SceneDepthSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		PassParameters->SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("DepthTexture"));
+		PassParameters->SceneDepthTexture = SceneTextures.Depth.Target;
 
 		const int32 EffectiveSize = CubemapSize;
+		const FIntPoint SceneTextureExtent = SceneTextures.Extent;
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CopySceneToCubeFace"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[EffectiveSize, &SceneContext, FeatureLevel, PassParameters](FRHICommandList& InRHICmdList)
+			[EffectiveSize, SceneTextureExtent, FeatureLevel, PassParameters](FRHICommandList& InRHICmdList)
 		{
 			const FIntRect ViewRect(0, 0, EffectiveSize, EffectiveSize);
 			InRHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)EffectiveSize, (float)EffectiveSize, 1.0f);
@@ -806,10 +807,6 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
-
-			FCopyToCubeFaceVS::FParameters VertexParameters;
-			VertexParameters.View = PassParameters->View;
-			SetShaderParameters(InRHICmdList, VertexShader, VertexShader.GetVertexShader(), VertexParameters);
 			SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			const int32 SupersampleCaptureFactor = FMath::Clamp(GSupersampleCaptureFactor, MinSupersampleCaptureFactor, MaxSupersampleCaptureFactor);
@@ -821,7 +818,7 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 				ViewRect.Min.X, ViewRect.Min.Y, 
 				ViewRect.Width() * SupersampleCaptureFactor, ViewRect.Height() * SupersampleCaptureFactor,
 				FIntPoint(ViewRect.Width(), ViewRect.Height()),
-				SceneContext.GetBufferSizeXY(),
+				SceneTextureExtent,
 				VertexShader);
 		});
 

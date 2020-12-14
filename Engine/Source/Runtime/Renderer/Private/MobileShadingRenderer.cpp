@@ -533,14 +533,12 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 /** 
 * Renders the view family. 
 */
-void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("MobileShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
+	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneStart));
 
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
-
-	SCOPED_DRAW_EVENT(RHICmdList, MobileSceneRender);
-	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
+	RDG_RHI_EVENT_SCOPE(GraphBuilder, MobileSceneRender);
+	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, MobileSceneRender);
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
@@ -566,22 +564,18 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_Render);
-	//FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	if (!ViewFamily.EngineShowFlags.Rendering)
 	{
-		GraphBuilder.Execute();
 		return;
 	}
 
-	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
-
-	WaitOcclusionTests(RHICmdList);
+	WaitOcclusionTests(GraphBuilder.RHICmdList);
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	// Initialize global system textures (pass-through if already initialized).
-	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
+	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 	FRDGSystemTextures::Create(GraphBuilder);
 
 	// Find the visible primitives and prepare targets and buffers for rendering
@@ -602,11 +596,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	DynamicIndexBuffer.Commit();
 	DynamicVertexBuffer.Commit();
 	DynamicReadBuffer.Commit();
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneSim));
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	FSceneTextures& SceneTextures = FSceneTextures::Create(GraphBuilder);
 
 	if (bUseVirtualTexturing)
 	{
@@ -623,7 +618,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		});
 	}
 
-	FSortedLightSetSceneInfo SortedLightSet;
+	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();
 	if (bDeferredShading)
 	{
 		GatherAndSortLights(SortedLightSet);
@@ -756,7 +751,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Post));
 
 	if (bUseVirtualTexturing)
-	{	
+	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 
 		AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureUpdate"), [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
@@ -800,18 +795,16 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
+	AddPass(GraphBuilder, [this](FRHICommandListImmediate&)
 	{
 		GEngine->GetPostRenderDelegate().Broadcast();
-
-		InRHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneEnd));
 	});
-	
-	RenderFinish(GraphBuilder, ViewFamilyTexture);
-	
-	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 
-	GraphBuilder.Execute();
+	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneEnd));
+
+	RenderFinish(GraphBuilder, ViewFamilyTexture);
+
+	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMobilePostBasePassViewExtensionParameters, )
@@ -831,7 +824,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	// Verify using both MSAA sample count AND the scene color surface sample count, since on GLES you can't have MSAA color targets,
 	// so the color target would be created without MSAA, and MSAA is achieved through magical means (the framebuffer, being MSAA,
 	// tells the GPU "execute this renderpass as MSAA, and when you're done, automatically resolve and copy into this non-MSAA texture").
-	bool bMobileMSAA = NumMSAASamples > 1 && SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
+	bool bMobileMSAA = NumMSAASamples > 1 && SceneColorMSAA.Target->Desc.NumSamples > 1;
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	const bool bIsMultiViewApplication = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
