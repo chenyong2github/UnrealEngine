@@ -45,8 +45,7 @@ uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
 float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
-int   UpscaleFactor;
-int   GlossyReflections;
+float2 UpscaleFactor;
 
 // Outputs
 RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
@@ -77,12 +76,12 @@ void GenerateReflectionRaysCS(
 	const uint  RayIndexInTile   = GroupThreadId;
 	const uint2 NumTiles         = TileAlignedResolution / TileSize;
 	const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
-	const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
+	const uint2 PixelPos         = floor(View.ViewRectMin.xy / UpscaleFactor) + TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-	FSortedReflectionRay Ray = GenerateDeferredReflectionRay(PixelPos, (uint2)UpscaleFactor, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
+	FSortedReflectionRay Ray = GenerateDeferredReflectionRay(PixelPos, UpscaleFactor, ReflectionMaxNormalBias, ReflectionSmoothBias);
 
-	uint Bin = RayDirectionToBin(Ray.Direction, uint2(NUM_DIRECTION_BINS_X,NUM_DIRECTION_BINS_Y));
-	if (any(PixelPos >= RayTracingResolution))
+	uint Bin = RayDirectionToBin(Ray.GetDirection(), uint2(NUM_DIRECTION_BINS_X,NUM_DIRECTION_BINS_Y));
+	if (any(PixelPos - View.ViewRectMin.xy >= RayTracingResolution))
 	{
 		Bin = NUM_DIRECTION_BINS - 1;
 	}

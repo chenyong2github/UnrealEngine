@@ -501,6 +501,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				GraphBuilder,
 				SceneTextures,
 				View,
+				DenoiserMode,
 				Options,
 				&DenoiserInputs);
 
