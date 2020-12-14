@@ -963,7 +963,7 @@ namespace HoloLens.Automation
 
 		private void CopyVCLibs(ProjectParams Params, DeploymentContext SC)
 		{
-			TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game).Rules;
+			TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game)?.Rules;
 
 			bool UseDebugCrt = false;
 			WindowsCompiler compiler = WindowsCompiler.VisualStudio2017;
