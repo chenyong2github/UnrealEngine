@@ -250,10 +250,20 @@ float GetRoundedBoxDistance(float2 pos, float2 center, float radius, float inset
 half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
 {
 	const float2 size = ShaderParams.zw;
-	float2 pos = size * InVertex.TextureCoordinates[0].xy;
+	float2 UV = InVertex.TextureCoordinates[0].xy;
+	float2 pos = size * UV;
 	float2 center = size / 2.0;
 
-	float radius = ShaderParams.x;	
+	//X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
+	float4 cornerRadii = ShaderParams2;
+
+	// figure out which radius to use based on which quadrant we're in
+	float2 quadrant = step(UV, float2(.5,.5));
+
+	float left = lerp(cornerRadii.y, cornerRadii.x, quadrant.x);
+	float right = lerp(cornerRadii.z, cornerRadii.w, quadrant.x);
+	float radius = lerp(right, left, quadrant.y);
+
 	float thickness = ShaderParams.y; 
 
 	// Compute the distances internal and external to the border outline
@@ -266,7 +276,7 @@ half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
 	float fi = smoothstep(spread, -spread, din);
 
 	half4 fill = GetColor(InVertex, GetUV(InVertex, 0) * GetUV(InVertex, 1)); //InVertex.Color;
-	half4 border = ShaderParams2;
+	half4 border = InVertex.SecondaryColor;
 
 	// alpha blend the external color 
 	half4 OutColor = lerp(border, fill, half(thickness > radius));

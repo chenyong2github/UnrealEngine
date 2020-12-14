@@ -268,18 +268,20 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 
 		// Set up offsets into the vertex buffer for each vertex
 		glEnableVertexAttribArray(0);
-		Offset = STRUCT_OFFSET( FSlateVertex, TexCoords );
-		glVertexAttribPointer( 0, 4, GL_FLOAT, GL_FALSE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset) );
+		Offset = STRUCT_OFFSET(FSlateVertex, TexCoords);
+		glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset));
 
 		glEnableVertexAttribArray(1);
-		Offset = STRUCT_OFFSET( FSlateVertex, Position );
-		glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset) );
+		Offset = STRUCT_OFFSET(FSlateVertex, Position);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset));
 
-		glEnableVertexAttribArray(4);
-		Offset = STRUCT_OFFSET( FSlateVertex, Color );
-		glVertexAttribPointer( 4, 4, GL_UNSIGNED_BYTE, GL_TRUE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset) );
+		glEnableVertexAttribArray(2);
+		Offset = STRUCT_OFFSET(FSlateVertex, Color);
+		glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset));
 
-
+		glEnableVertexAttribArray(3);
+		Offset = STRUCT_OFFSET(FSlateVertex, SecondaryColor);
+		glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Stride, BUFFER_OFFSET(Stride*BaseVertexIndex+Offset));
 		
 		// Bind the index buffer so glDrawRangeElements knows which one to use
 		IndexBuffer.Bind();

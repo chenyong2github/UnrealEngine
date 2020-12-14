@@ -243,7 +243,8 @@ void FSlateOpenGLShaderProgram::LinkShaders( const FSlateOpenGLVS& VertexShader,
 	// Set up attribute locations for per vertex data
 	glBindAttribLocation(ProgramID, 0, "InTexCoords");
 	glBindAttribLocation(ProgramID, 1, "InPosition");
-	glBindAttribLocation(ProgramID, 4, "InColor");
+	glBindAttribLocation(ProgramID, 2, "InColor");
+	glBindAttribLocation(ProgramID, 3, "InSecondaryColor");
 
 	// Link the shaders
 	glLinkProgram( ProgramID );
@@ -275,7 +276,8 @@ void FSlateOpenGLElementProgram::CreateProgram( const FSlateOpenGLVS& VertexShad
 	EffectsDisabledParam = glGetUniformLocation( ProgramID, "EffectsDisabled" );
 	IgnoreTextureAlphaParam = glGetUniformLocation( ProgramID, "IgnoreTextureAlpha" );
 	ShaderTypeParam = glGetUniformLocation( ProgramID, "ShaderType" );
-	MarginUVsParam = glGetUniformLocation( ProgramID, "MarginUVs" );
+	ShaderParamsParam = glGetUniformLocation( ProgramID, "ShaderParams" );
+	ShaderParams2Param = glGetUniformLocation(ProgramID, "ShaderParams2");
 	GammaValuesParam = glGetUniformLocation(ProgramID, "GammaValues");
 
 	CHECK_GL_ERRORS;
@@ -324,10 +326,14 @@ void FSlateOpenGLElementProgram::SetShaderType( uint32 InShaderType )
 	CHECK_GL_ERRORS;
 }
 
-void FSlateOpenGLElementProgram::SetMarginUVs( const FVector4& InMarginUVs )
+void FSlateOpenGLElementProgram::SetShaderParams(const FShaderParams& InShaderParams)
 {
-	const GLfloat* Params = (GLfloat*)&InMarginUVs;
-	glUniform4fv( MarginUVsParam, 1, Params );
+	const GLfloat* Params = (GLfloat*)&InShaderParams.PixelParams;
+	glUniform4fv(ShaderParamsParam, 1, Params);
+
+	const GLfloat* Params2 = (GLfloat*)&InShaderParams.PixelParams2;
+	glUniform4fv(ShaderParams2Param, 1, Params2);
+
 	CHECK_GL_ERRORS;
 }
 

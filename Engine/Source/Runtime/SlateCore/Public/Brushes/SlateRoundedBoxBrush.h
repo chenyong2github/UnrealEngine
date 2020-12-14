@@ -13,11 +13,9 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * Creates and initializes a new instance with the specified color and rounds based on height
 	 *
 	 * @param InColor 		Linear Fill Color 
-	 * @param InRadius      Corner Radius
 	 */
-
 	template<typename FillColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor,  const FVector2D& InImageSize = FVector2D::ZeroVector)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const FVector2D& InImageSize = FVector2D::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -51,10 +49,10 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * Creates and initializes a new instance with the specified color and corner radius
 	 *
 	 * @param InColor 		Linear Fill Color 
-	 * @param InRadius      Corner Radius
+	 * @param InRadius      Corner Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left
 	 */
-	template<typename FillColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, float InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	template<typename FillColorType, typename RadiusType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -70,8 +68,8 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	}
 
 
-	template<typename FillColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, float InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	template<typename FillColorType, typename RadiusType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 			InFillResourceName,
 			FMargin(0.0f),
@@ -139,12 +137,12 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * Creates and initializes a new instance with the specified color and corner radius
 	 *
 	 * @param InColor 		 Linear Fill Color 
-	 * @param InRadius       Corner Radius
+	 * @param InRadius       Corner Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left
 	 * @param InOutlineColor Outline Color 
 	 * @param InOutlineWidth Outline Width or Thickness
 	 */
-	template<typename FillColorType, typename OutlineColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, float InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	template<typename FillColorType, typename OutlineColorType, typename RadiusType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -160,15 +158,15 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	}
 
 	/**
- * Creates and initializes a new instance with the specified color and corner radius
- *
- * @param InColor 		 Linear Fill Color
- * @param InRadius       Corner Radius
- * @param InOutlineColor Outline Color
- * @param InOutlineWidth Outline Width or Thickness
- */
-	template<typename FillColorType, typename OutlineColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, float InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	 * Creates and initializes a new instance with the specified color and corner radius
+	 *
+	 * @param InColor 		 Linear Fill Color
+	 * @param InRadius      Corner Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left
+	 * @param InOutlineColor Outline Color
+	 * @param InOutlineWidth Outline Width or Thickness
+	 */
+	template<typename FillColorType, typename OutlineColorType, typename RadiusType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 					  InFillResourceName,
 					  FMargin(0.0f),

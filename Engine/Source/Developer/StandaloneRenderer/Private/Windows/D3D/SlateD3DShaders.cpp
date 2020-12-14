@@ -20,8 +20,7 @@ typedef HRESULT(WINAPI* pD3DReflect)
 	__out void** ppReflector);
 
 
-// @return pointer to the D3DCompile function
-static pD3DCompile GetD3DCompileFunc()
+static HMODULE GetCompilerModule()
 {
 	// Override default compiler path to newer dll
 	FString CompilerPath = FPaths::EngineDir();
@@ -37,40 +36,32 @@ static pD3DCompile GetD3DCompileFunc()
 	{
 		CompilerDLL = LoadLibrary(*CompilerPath);
 	}
+
+	return CompilerDLL;
+}
+
+// @return pointer to the D3DCompile function
+static pD3DCompile GetD3DCompileFunc()
+{
+	static HMODULE CompilerDLL = GetCompilerModule();
 
 	if (CompilerDLL)
 	{
 		return (pD3DCompile)(void*)GetProcAddress(CompilerDLL, "D3DCompile");
 	}
 
-	// D3D SDK we compiled with (usually D3DCompiler_43.dll from windows folder)
 	return &D3DCompile;
 }
 
 // @return pointer to the D3DCompile function
 static pD3DReflect GetD3DReflectFunc()
 {
-	// Override default compiler path to newer dll
-	FString CompilerPath = FPaths::EngineDir();
-#if !PLATFORM_64BITS
-	CompilerPath.Append(TEXT("Binaries/ThirdParty/Windows/DirectX/x86/d3dcompiler_47.dll"));
-#else
-	CompilerPath.Append(TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll"));
-#endif
-	static bool bHasCompiler = false;
-	static HMODULE CompilerDLL = 0;
-
-	if (bHasCompiler == false)
-	{
-		CompilerDLL = LoadLibrary(*CompilerPath);
-	}
-
+	static HMODULE CompilerDLL = GetCompilerModule();
 	if (CompilerDLL)
 	{
 		return (pD3DReflect)(void*)GetProcAddress(CompilerDLL, "D3DReflect");
 	}
 
-	// D3D SDK we compiled with (usually D3DCompiler_43.dll from windows folder)
 	return &D3DReflect;
 }
 
@@ -274,61 +265,6 @@ void FSlateD3DVS::BindParameters()
 		delete[] ConstantBuffers;
 	}	
 }
-void FSlateD3DGeometryShader::Create( const FString& Filename, const FString& EntryPoint, const FString& ShaderModel )
-{
-	TRefCountPtr<ID3DBlob> Blob;
-	if(CompileShader( Filename, EntryPoint, ShaderModel, Blob))
-	{
-		HRESULT Hr = GD3DDevice->CreateGeometryShader(Blob->GetBufferPointer(), Blob->GetBufferSize(), NULL, GeometryShader.GetInitReference());
-		if (FAILED(Hr))
-		{
-			LogSlateD3DRendererFailure(TEXT("FSlateD3DGeometryShader::Create() - ID3D11Device::CreateGeometryShader"), Hr);
-			GEncounteredCriticalD3DDeviceError = true;
-			return;
-		}
-
-
-		TRefCountPtr<ID3D11ShaderReflection> Reflector;
-		Hr = D3DReflect(Blob->GetBufferPointer(), Blob->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)Reflector.GetInitReference());
-		if (FAILED(Hr))
-		{
-			LogSlateD3DRendererFailure(TEXT("FSlateD3DGeometryShader::Create() - D3DReflect"), Hr);
-			GEncounteredCriticalD3DDeviceError = true;
-			return;
-		}
-
-		GetShaderBindings(Reflector, ShaderBindings);
-	}
-	else
-	{
-		GEncounteredCriticalD3DDeviceError = true;
-	}
-}
-
-
-void FSlateD3DGeometryShader::BindShader()
-{
-	GD3DDeviceContext->GSSetShader( GeometryShader, NULL, 0 );
-}
-
-void FSlateD3DGeometryShader::BindParameters()
-{
-	UpdateParameters();
-
-	if( ShaderBindings.ConstantBuffers.Num() )
-	{
-		const uint32 BufferCount = ShaderBindings.ConstantBuffers.Num();
-		ID3D11Buffer** const ConstantBuffers = new ID3D11Buffer*[ BufferCount ];
-		for( uint32 I = 0; I < BufferCount; ++I )
-		{
-			ConstantBuffers[I] = ShaderBindings.ConstantBuffers[I]->GetParameter().GetReference();
-		}
-
-		GD3DDeviceContext->GSSetConstantBuffers(0, ShaderBindings.ConstantBuffers.Num(), ConstantBuffers);
-
-		delete[] ConstantBuffers;
-	}	
-}
 
 void FSlateD3DPS::Create( const FString& Filename, const FString& EntryPoint, const FString& ShaderModel )
 {
@@ -430,6 +366,7 @@ FSlateDefaultVS::FSlateDefaultVS()
 		{ "TEXCOORD",	1, DXGI_FORMAT_R32G32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0 },
 		{ "POSITION",	0, DXGI_FORMAT_R32G32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0 },
 		{ "COLOR",		0, DXGI_FORMAT_B8G8R8A8_UNORM,		0, D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0 },
+		{ "COLOR",		1, DXGI_FORMAT_B8G8R8A8_UNORM,		0, D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0 },
 	};
 
 	Create( FString::Printf( TEXT("%s/StandaloneRenderer/D3D/SlateDefaultVertexShader.hlsl"), FPlatformProcess::ShaderDir() ), TEXT("Main"), TEXT("vs_4_0"), Layout, UE_ARRAY_COUNT(Layout) );

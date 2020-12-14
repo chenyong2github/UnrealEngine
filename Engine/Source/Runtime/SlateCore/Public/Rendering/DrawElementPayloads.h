@@ -85,11 +85,11 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 struct FSlateRoundedBoxPayload : public FSlateBoxPayload
 {
 	FLinearColor OutlineColor;
-	float Radius;
+	FVector4 Radius;
 	float OutlineWeight;
 
-	FORCEINLINE void SetRadius(float InRadius) { Radius = InRadius; }
-	FORCEINLINE float GetRadius() const { return Radius; }
+	FORCEINLINE void SetRadius(FVector4 InRadius) { Radius = InRadius; }
+	FORCEINLINE FVector4 GetRadius() const { return Radius; }
 
 	FORCEINLINE void SetOutline(const FLinearColor& InOutlineColor, float InOutlineWeight) { OutlineColor = InOutlineColor; OutlineWeight = InOutlineWeight; }
 	FORCEINLINE FLinearColor GetOutlineColor() const { return OutlineColor; }
@@ -162,9 +162,9 @@ struct FSlateGradientPayload : public FSlateDataPayload
 {
 	TArray<FSlateGradientStop> GradientStops;
 	EOrientation GradientType;
-	float CornerRadius;
+	FVector4 CornerRadius;
 
-	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, float InCornerRadius)
+	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, FVector4 InCornerRadius)
 	{
 		GradientStops = InGradientStops;
 		GradientType = InGradientType;

@@ -26,11 +26,14 @@
 #define ST_ColorFont		3
 #define ST_LineSegment		4
 #define ST_Custom			5
+#define ST_PostProcess		6
+#define ST_RoundedBox		7
 
 struct VertexToPixelInterpolants
 {
 	float4 Position : SV_POSITION;
 	half4 Color : COLOR0;
+	half4 SecondaryColor : COLOR1;
 	float4 OriginalPosition : ORIGINAL_POSITION;
 	float2 MaterialTexCoords : TEXCOORD0;
 	float4 TextureCoordinates[NUM_SLATE_TEXCOORDS] : TEXCOORD1;

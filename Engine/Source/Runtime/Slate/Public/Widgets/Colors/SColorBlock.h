@@ -45,7 +45,7 @@ public:
 		SLATE_ATTRIBUTE(const FSlateBrush*, AlphaBackgroundBrush)
 
 		/** Rounding to apply to the corners of the block */
-		SLATE_ATTRIBUTE(float, CornerRadius)
+		SLATE_ATTRIBUTE(FVector4, CornerRadius)
 
 		/** Whether the color displayed is HSV or not */
 		SLATE_ATTRIBUTE(bool, ColorIsHSV)
@@ -100,7 +100,7 @@ private:
 
 	TAttribute<const FSlateBrush*> SolidBackgroundBrush;
 
-	TAttribute<float> GradientCornerRadius;
+	TAttribute<FVector4> GradientCornerRadius;
 
 	/** Whether the color displayed is HSV or not */
 	TAttribute<bool> ColorIsHSV;

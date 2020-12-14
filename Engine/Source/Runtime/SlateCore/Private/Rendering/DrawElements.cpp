@@ -235,12 +235,13 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 	if ( ElementType == EElementType::ET_RoundedBox )
 	{
 		FSlateRoundedBoxPayload* RBoxPayload = &ElementList.CreatePayload<FSlateRoundedBoxPayload>(Element);
-		float Radius = InBrush->OutlineSettings.Radius;
+		FVector4 CornerRadii = InBrush->OutlineSettings.CornerRadii;
 		if (InBrush->OutlineSettings.RoundingType == ESlateBrushRoundingType::HalfHeightRadius)
 		{
-			Radius = PaintGeometry.GetLocalSize().Y/2.0f;
+			const float UniformRadius = PaintGeometry.GetLocalSize().Y / 2.0f;
+			CornerRadii = FVector4(UniformRadius, UniformRadius, UniformRadius, UniformRadius);
 		}
-		RBoxPayload->SetRadius(Radius);
+		RBoxPayload->SetRadius(CornerRadii);
 		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width);
 		BoxPayload = RBoxPayload;
 	}
@@ -439,7 +440,7 @@ void FSlateDrawElement::MakeShapedText(FSlateWindowElementList& ElementList, uin
 	Element.Init(ElementList, EElementType::ET_ShapedText, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects, float CornerRadius)
+void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects, FVector4 CornerRadius)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 

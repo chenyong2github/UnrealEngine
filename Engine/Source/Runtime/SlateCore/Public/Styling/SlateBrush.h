@@ -130,36 +130,50 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 	GENERATED_USTRUCT_BODY()
 
 	FSlateBrushOutlineSettings()
-		: Radius(0.0)
+		: CornerRadii(0.0)
 		, Color(FLinearColor::Transparent)
 		, Width(0.0)
 		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
 	{}
 
-	FSlateBrushOutlineSettings(float InRadius)
-		: Radius(InRadius)
+	FSlateBrushOutlineSettings(float InUniformRadius)
+		: CornerRadii(FVector4(InUniformRadius, InUniformRadius, InUniformRadius, InUniformRadius))
+		, Color(FLinearColor::Transparent)
+		, Width(0.0)
+		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+	{}
+
+	FSlateBrushOutlineSettings(FVector4 InRadius)
+		: CornerRadii(InRadius)
 		, Color(FLinearColor::Transparent)
 		, Width(0.0)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
 	{}
 
 	FSlateBrushOutlineSettings(const FSlateColor& InColor, float InWidth)
-		: Radius(0.0)
+		: CornerRadii(0.0)
 		, Color(InColor)
 		, Width(InWidth)
 		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
 	{}
 
-	FSlateBrushOutlineSettings(float InRadius, const FSlateColor& InColor, float InWidth)
-		: Radius(InRadius)
+	FSlateBrushOutlineSettings(float InUniformRadius, const FSlateColor& InColor, float InWidth)
+		: CornerRadii(FVector4(InUniformRadius, InUniformRadius, InUniformRadius, InUniformRadius))
 		, Color(InColor)
 		, Width(InWidth)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
 	{}
 
-	/** Radius in Slate Units applied to the outline. */
+	FSlateBrushOutlineSettings(FVector4 InRadius, const FSlateColor& InColor, float InWidth)
+		: CornerRadii(InRadius)
+		, Color(InColor)
+		, Width(InWidth)
+		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+	{}
+
+	/** Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
-	float Radius;
+	FVector4 CornerRadii;
 
 	/** Tinting applied to the border outline. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=(DisplayName="Outline", sRGB="true"))

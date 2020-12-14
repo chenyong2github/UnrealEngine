@@ -37,6 +37,7 @@ uniform sampler2D ElementTexture;
 varying vec4 Position;
 varying vec4 TexCoords;
 varying vec4 Color;
+varying vec4 SecondaryColor;
 
 vec3 maxWithScalar(float test, vec3 values)
 {
@@ -234,7 +235,16 @@ vec4 GetRoundedBoxElementColor()
 	vec2 pos = size * TexCoords.xy;
 	vec2 center = size / 2.0;
 
-	float radius = ShaderParams.x;	
+	//X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
+	vec4 cornerRadii = ShaderParams2;
+
+	// figure out which radius to use based on which quadrant we're in
+	vec2 quadrant = step(TexCoords.xy, vec2(.5,.5));
+
+	float left = mix(cornerRadii.y, cornerRadii.x, quadrant.x);
+	float right = mix(cornerRadii.z, cornerRadii.w, quadrant.x);
+	float radius = mix(right, left, quadrant.y);
+
 	float thickness = ShaderParams.y; 
 
 	// Compute the distances internal and external to the border outline
@@ -248,7 +258,7 @@ vec4 GetRoundedBoxElementColor()
 
 	// alpha blend the external color 
 	vec4 fill = GetDefaultElementColor();
-	vec4 border = ShaderParams2.bgra;
+	vec4 border = SecondaryColor;
 	vec4 OutColor = mix(border, fill, float(thickness > radius));
 	OutColor.a = 0.0;
 

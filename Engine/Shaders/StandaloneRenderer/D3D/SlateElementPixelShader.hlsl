@@ -35,6 +35,7 @@ struct VertexOut
 {
 	float4 Position : SV_POSITION;
 	float4 Color : COLOR0;
+	float4 SecondaryColor : COLOR1;
 	float4 TextureCoordinates : TEXCOORD0;
 };
 
@@ -149,7 +150,16 @@ float4 GetRoundedBoxElementColor( VertexOut InVertex )
 	float2 pos = size * InVertex.TextureCoordinates.xy;
 	float2 center = size / 2.0;
 
-	float radius = ShaderParams.x;	
+	//X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
+	float4 cornerRadii = ShaderParams2;
+
+	// figure out which radius to use based on which quadrant we're in
+	float2 quadrant = step(InVertex.TextureCoordinates.xy, float2(.5,.5));
+
+	float left = lerp(cornerRadii.y, cornerRadii.x, quadrant.x);
+	float right = lerp(cornerRadii.z, cornerRadii.w, quadrant.x);
+	float radius = lerp(right, left, quadrant.y);
+
 	float thickness = ShaderParams.y; 
 
 	// Compute the distances internal and external to the border outline
@@ -163,7 +173,7 @@ float4 GetRoundedBoxElementColor( VertexOut InVertex )
 
 	// alpha blend the external color 
 	float4 fill = GetColor(InVertex, InVertex.TextureCoordinates.xy * InVertex.TextureCoordinates.zw);
-	float4 border = ShaderParams2;
+	float4 border = InVertex.SecondaryColor;
 	float4 OutColor = lerp(border, fill, float(thickness > radius));
 	OutColor.a = 0.0;
 

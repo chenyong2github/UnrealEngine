@@ -209,6 +209,9 @@ struct SLATECORE_API FSlateVertex
 	/** Vertex color */
 	FColor Color;
 	
+	/** Secondary vertex color. Generally used for outlines */
+	FColor SecondaryColor;
+
 	/** Local size of the element */
 	uint16 PixelSize[2];
 
@@ -217,33 +220,33 @@ struct SLATECORE_API FSlateVertex
 public:
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D& InLocalPosition, const FVector2D& InTexCoord, const FVector2D& InTexCoord2, const FColor& InColor)
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector2D InTexCoord, const FVector2D InTexCoord2, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoord.X;
 		Vertex.TexCoords[1] = InTexCoord.Y;
 		Vertex.TexCoords[2] = InTexCoord2.X;
 		Vertex.TexCoords[3] = InTexCoord2.Y;
-		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor);
+		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor, SecondaryColor);
 
 		return Vertex;
 	}
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D& InLocalPosition, const FVector2D& InTexCoord, const FColor& InColor)
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector2D InTexCoord, const FColor& InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoord.X;
 		Vertex.TexCoords[1] = InTexCoord.Y;
 		Vertex.TexCoords[2] = 1.0f;
 		Vertex.TexCoords[3] = 1.0f;
-		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor);
+		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor, SecondaryColor);
 
 		return Vertex;
 	}
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D& InLocalPosition, const FVector4& InTexCoords, const FVector2D& InMaterialTexCoords, const FColor& InColor)
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector4 InTexCoords, const FVector2D InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -251,13 +254,13 @@ public:
 		Vertex.TexCoords[2] = InTexCoords.Z;
 		Vertex.TexCoords[3] = InTexCoords.W;
 		Vertex.MaterialTexCoords = InMaterialTexCoords;
-		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor);
+		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor, SecondaryColor);
 
 		return Vertex;
 	}
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D& InLocalPosition, const FVector2D& InLocalSize, float Scale, const FVector4& InTexCoords, const FColor& InColor)
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector2D InLocalSize, float Scale, const FVector4 InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -265,7 +268,7 @@ public:
 		Vertex.TexCoords[2] = InTexCoords.Z;
 		Vertex.TexCoords[3] = InTexCoords.W;
 		Vertex.MaterialTexCoords = FVector2D(InLocalPosition.X / InLocalSize.X, InLocalPosition.Y / InLocalSize.Y);
-		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor);
+		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor, SecondaryColor);
 
 		const int32 PixelSizeX = FMath::RoundToInt(InLocalSize.X * Scale);
 		const int32 PixelSizeY = FMath::RoundToInt(InLocalSize.Y * Scale);
@@ -283,7 +286,7 @@ public:
 		return Vertex;
 	}
 
-	void SetTexCoords(const FVector4& InTexCoords)
+	void SetTexCoords(const FVector4 InTexCoords)
 	{
 		TexCoords[0] = InTexCoords.X;
 		TexCoords[1] = InTexCoords.Y;
@@ -291,7 +294,7 @@ public:
 		TexCoords[3] = InTexCoords.W;
 	}
 
-	void SetPosition(const FVector2D& InPosition)
+	void SetPosition(const FVector2D InPosition)
 	{
 		Position = InPosition;
 	}
@@ -299,7 +302,7 @@ public:
 private:
 
 	template<ESlateVertexRounding Rounding>
-	FORCEINLINE void InitCommon(const FSlateRenderTransform& RenderTransform, const FVector2D& InLocalPosition, const FColor& InColor)
+	FORCEINLINE void InitCommon(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FColor InColor, const FColor InSecondaryColor)
 	{
 		Position = TransformPoint(RenderTransform, InLocalPosition);
 
@@ -310,6 +313,7 @@ private:
 		}
 
 		Color = InColor;
+		SecondaryColor = InSecondaryColor;
 	}
 };
 
