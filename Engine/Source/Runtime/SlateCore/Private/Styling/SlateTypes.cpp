@@ -6,14 +6,6 @@
 #include "Widgets/InvalidateWidgetReason.h"
 #include "Widgets/SWidget.h"
 
-namespace SlateTypeDefs
-{
-	// Colors
-	const static FLinearColor DefaultForeground = FLinearColor(0.72f, 0.72f, 0.72f, 1.f);
-	const static FLinearColor InvertedForeground = FLinearColor(0,0,0);
-}
-
-
 FCheckBoxStyle::FCheckBoxStyle()
 : CheckBoxType(ESlateCheckBoxType::CheckBox)
 , UncheckedImage()
@@ -256,9 +248,9 @@ FEditableTextBoxStyle::FEditableTextBoxStyle()
 	, BackgroundImageReadOnly()
 	, Padding(FMargin(4.0f, 2.0f))
 	, Font(FStyleDefaults::GetFontInfo(9))
-	, ForegroundColor(SlateTypeDefs::InvertedForeground)
+	, ForegroundColor(FSlateColor::UseForeground())
 	, BackgroundColor(FLinearColor::White)
-	, ReadOnlyForegroundColor(SlateTypeDefs::DefaultForeground)
+	, ReadOnlyForegroundColor(FSlateColor::UseForeground())
 {
 }
 
