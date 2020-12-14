@@ -574,21 +574,14 @@ struct FCrashContextExtendedWriter
  */
 struct FAdditionalCrashContextStack
 {
-	CORE_API static void PushProvider(struct FScopedAdditionalCrashContextProvider* Provider)
-	{
-		ThreadContextProvider.PushProviderInternal(Provider);
-	}
-
-	CORE_API static void PopProvider()
-	{
-		ThreadContextProvider.PopProviderInternal();
-	}
+	CORE_API static FAdditionalCrashContextStack& GetThreadContextProvider();
+	CORE_API static void PushProvider(struct FScopedAdditionalCrashContextProvider* Provider);
+	CORE_API static void PopProvider();
 
 	static void ExecuteProviders(FCrashContextExtendedWriter& Writer);
 
 private:
 	enum { MaxStackDepth = 16 };
-	static thread_local FAdditionalCrashContextStack ThreadContextProvider;
 	FAdditionalCrashContextStack* Next;
 	const FScopedAdditionalCrashContextProvider* Stack[MaxStackDepth];
 	uint32 StackIndex = 0;

@@ -1174,8 +1174,23 @@ void FGenericCrashContext::CopyPlatformSpecificFiles(const TCHAR* OutputDirector
 
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
 
-thread_local FAdditionalCrashContextStack FAdditionalCrashContextStack::ThreadContextProvider;
-static FAdditionalCrashContextStack* GProviderHead;
+static FAdditionalCrashContextStack* GProviderHead = nullptr;
+
+FAdditionalCrashContextStack& FAdditionalCrashContextStack::GetThreadContextProvider()
+{
+	static thread_local FAdditionalCrashContextStack ThreadContextProvider;
+	return ThreadContextProvider;
+}
+
+void FAdditionalCrashContextStack::PushProvider(struct FScopedAdditionalCrashContextProvider* Provider)
+{
+	GetThreadContextProvider().PushProviderInternal(Provider);
+}
+
+void FAdditionalCrashContextStack::PopProvider()
+{
+	GetThreadContextProvider().PopProviderInternal();
+}
 
 FCriticalSection* GetAdditionalProviderLock()
 {
