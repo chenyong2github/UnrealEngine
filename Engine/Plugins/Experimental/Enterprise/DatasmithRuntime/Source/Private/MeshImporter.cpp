@@ -95,7 +95,7 @@ namespace DatasmithRuntime
 #endif
 				check(StaticMesh);
 
-				StaticMesh->StaticMaterials.SetNum(MaterialSlotCount);
+				StaticMesh->GetStaticMaterials().SetNum(MaterialSlotCount);
 
 				MeshData.Object = TWeakObjectPtr< UObject >(StaticMesh);
 
