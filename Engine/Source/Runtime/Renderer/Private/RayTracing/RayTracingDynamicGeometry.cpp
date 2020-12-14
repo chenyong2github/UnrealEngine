@@ -215,6 +215,14 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 			NumCPUVertices = 1 + MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
 		}
 
+		const uint32 VertexBufferNumElements = UpdateParams.VertexBufferSize / sizeof(FVector) - MinVertexIndex;
+		if (!ensureMsgf(NumCPUVertices <= VertexBufferNumElements, 
+			TEXT("Vertex buffer contains %d vertices, but RayTracingDynamicGeometryConverterCS dispatch command expects at least %d."),
+			VertexBufferNumElements, NumCPUVertices))
+		{
+			NumCPUVertices = VertexBufferNumElements;
+		}
+
 		SingleShaderBindings.Add(Shader->UsingIndirectDraw, bUsingIndirectDraw ? 1 : 0);
 		SingleShaderBindings.Add(Shader->NumVertices, NumCPUVertices);
 		SingleShaderBindings.Add(Shader->MinVertexIndex, MinVertexIndex);
