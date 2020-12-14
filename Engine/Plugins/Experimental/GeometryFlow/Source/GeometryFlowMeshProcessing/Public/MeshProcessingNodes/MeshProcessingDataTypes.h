@@ -27,6 +27,7 @@ enum class EMeshProcessingDataTypes
 	VoxMorphologyOpSettings = (int)EDataTypes::BaseMeshProcessingTypes + 101,
 
 	SimplifySettings = (int)EDataTypes::BaseMeshProcessingTypes + 110,
+	NormalFlowSettings = (int)EDataTypes::BaseMeshProcessingTypes + 111,
 
 
 
