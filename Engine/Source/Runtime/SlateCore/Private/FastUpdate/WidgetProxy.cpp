@@ -28,9 +28,13 @@ FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
 	// Potentially unsafe to update visibility from the widget due to attribute bindings.  This is updated later when the widgets are sorted in ProcessInvalidation
 	, Visibility(EVisibility::Collapsed) 
 	, bUpdatedSinceLastInvalidate(false)
-	, bChildOrderInvalid(false)
 	, bContainedByWidgetHeap(false)
+	, bDebug_LastFrameVisible(true)
+	, bDebug_LastFrameVisibleSet(false)
 {
+#if UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE
+	WidgetName = GetWidget()->GetType();
+#endif
 }
 
 TSharedPtr<SWidget> FWidgetProxy::GetWidgetAsShared() const
@@ -307,7 +311,6 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder))
 	{
-		Proxy.bChildOrderInvalid = true;
 		GetInvalidationRoot()->InvalidateWidgetChildOrder(WidgetPtr->AsShared());
 	}
 

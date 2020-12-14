@@ -60,17 +60,6 @@ public:
 		}
 	}
 
-	/** Insert into the list at the proper order (see binary heap). */
-	void ForcePush(const FSlateInvalidationWidgetIndex WidgetIndex)
-	{
-		check(WidgetIndex != FSlateInvalidationWidgetIndex::Invalid);
-
-		FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = OwnerList[WidgetIndex];
-
-		InvalidationWidget.bContainedByWidgetHeap = true;
-		Heap.HeapPush(FElement{ WidgetIndex, FSlateInvalidationWidgetSortOrder{OwnerList, WidgetIndex} }, TWidgetOrderGreater());
-	}
-
 	/** Returns and removes the biggest WidgetIndex from the list. */
 	FSlateInvalidationWidgetIndex Pop()
 	{
