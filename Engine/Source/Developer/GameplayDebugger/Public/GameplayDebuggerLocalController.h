@@ -116,6 +116,9 @@ protected:
 	/** draw header for category */
 	void DrawCategoryHeader(int32 CategoryId, TSharedRef<FGameplayDebuggerCategory> Category, FGameplayDebuggerCanvasContext& CanvasContext);
 
+	/** sets the local player as the new debug actor */
+	void OnSelectLocalPlayer();
+
 	/** event for simulate in editor mode */
 	void OnSelectionChanged(UObject* Object);
 	void OnSelectedObject(UObject* Object);

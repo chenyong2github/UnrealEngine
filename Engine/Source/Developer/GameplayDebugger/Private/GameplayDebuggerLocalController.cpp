@@ -350,6 +350,20 @@ void UGameplayDebuggerLocalController::DrawCategoryHeader(int32 CategoryId, TSha
 	CanvasContext.Printf(FColor::Green, TEXT("[CATEGORY: %s]%s"), *Category->GetCategoryName().ToString(), *DataPackDesc);
 }
 
+void UGameplayDebuggerLocalController::OnSelectLocalPlayer()
+{
+	APlayerController* OwnerPC = CachedReplicator ? CachedReplicator->GetReplicationOwner() : nullptr;
+	// Normal game. Spectator pawns aren't considered a valid local player to debug
+	if (OwnerPC && OwnerPC->Player)
+	{
+		if (AActor* LocalPlayerActor = OwnerPC->GetPawn())
+		{
+			CachedReplicator->SetDebugActor(LocalPlayerActor, true);
+			CachedReplicator->CollectCategoryData(/*bForce=*/true);
+		}
+	}
+}
+
 void UGameplayDebuggerLocalController::BindInput(UInputComponent& InputComponent)
 {
 	TSet<FName> NewBindings;
@@ -830,6 +844,14 @@ private:
 		}
 	}
 
+	static void SelectLocalPlayer(UWorld* InWorld)
+	{
+		if (UGameplayDebuggerLocalController* Controller = GetController(InWorld))
+		{
+			Controller->OnSelectLocalPlayer();
+		}
+	}
+
 	static void SelectPreviousRow(UWorld* InWorld)
 	{
 		if (UGameplayDebuggerLocalController* Controller = GetController(InWorld))
@@ -922,6 +944,7 @@ private:
 
 	/** Various gameplay debugger commands: gdt.<command> */
 	static FAutoConsoleCommandWithWorld ToggleDebuggerCmd;
+	static FAutoConsoleCommandWithWorld SelectLocalPlayerCmd;
 	static FAutoConsoleCommandWithWorld SelectPreviousRowCmd;
 	static FAutoConsoleCommandWithWorld SelectNextRowCmd;
 	static FAutoConsoleCommandWithWorldAndArgs ToggleCategoryCmd;
@@ -938,6 +961,12 @@ FAutoConsoleCommandWithWorld FGameplayDebuggerConsoleCommands::ToggleDebuggerCmd
 	TEXT("gdt.Toggle"),
 	TEXT("Toggles Gameplay Debugger Tool"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::ToggleGameplayDebugger)
+);
+
+FAutoConsoleCommandWithWorld FGameplayDebuggerConsoleCommands::SelectLocalPlayerCmd(
+	TEXT("gdt.SelectLocalPlayer"),
+	TEXT("Selects the local player for debugging"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(FGameplayDebuggerConsoleCommands::SelectLocalPlayer)
 );
 
 FAutoConsoleCommandWithWorld FGameplayDebuggerConsoleCommands::SelectPreviousRowCmd(
