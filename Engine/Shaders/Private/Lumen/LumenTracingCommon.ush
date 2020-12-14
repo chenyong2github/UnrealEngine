@@ -714,25 +714,19 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	uint ObjectIndex = TraceMeshSDFResult.HitObject;
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
+	float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
+	float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
+
+	// Clamp hit point to a valid volume
+	SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+
+	float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+	float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DFObjectData.DistanceFieldMAD);
+
+	float3 WorldSpaceGradient = mul(LocalGradient, (float3x3) DFObjectData.VolumeToWorld);
+	float WorldSpaceGradientLength = length(WorldSpaceGradient);
+	TraceSDFData.HitNormal = WorldSpaceGradientLength > 0.001f ? WorldSpaceGradient / WorldSpaceGradientLength : -WorldRayDirection;
 	TraceSDFData.bAccurateHit = !DFObjectData.bGeneratedAsTwoSided;
-
-	if (TraceSDFData.bAccurateHit)
-	{
-		float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
-		float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
-
-		// Clamp hit point to a valid volume
-		SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
-
-		float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-		float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DFObjectData.DistanceFieldMAD);
-		TraceSDFData.HitNormal = normalize(mul(LocalGradient, (float3x3) DFObjectData.VolumeToWorld));
-	}
-	else
-	{
-		// Gradient near surface is unreliable
-		TraceSDFData.HitNormal = -WorldRayDirection;
-	}
 
 	return TraceSDFData;
 }

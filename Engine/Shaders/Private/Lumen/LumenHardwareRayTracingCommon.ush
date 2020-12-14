@@ -143,8 +143,10 @@ bool CalculateRayTracedLighting(
 			float3 RayHitWorldNormal = 0;
 			if (NormalMode == SDF_NORMAL_TYPE)
 			{
+				FDFObjectData DFObjectData = LoadDFObjectData(DFObjectIndex);
+
 				FTraceMeshSDFResult TraceMeshSDFResult;
-				TraceMeshSDFResult.HitDistance = HitDistance;
+				TraceMeshSDFResult.HitDistance = max(HitDistance - DFObjectData.LocalSurfaceBias * DFObjectData.VolumeScale, Ray.TMin);
 				TraceMeshSDFResult.HitObject = DFObjectIndex;
 
 				FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(Ray.Origin, Ray.Direction, HitDistance, TraceMeshSDFResult);
