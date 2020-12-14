@@ -1219,6 +1219,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 	DestinationActor->SetActorLabel( ImportContext.ActorsContext.UniqueNameProvider.GenerateUniqueName( SourceActor.GetActorLabel() ) );
 
 	check( DestinationActor );
+
 	{
 		// Setup the actor to allow modifications.
 		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
@@ -1259,12 +1260,13 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		{
 			HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
 		}
+	}
 
-		if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
-		{
-			FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
-			Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
-		}
+	// Need to explicitly call PostEditChange on the LandscapeMaterial property or the landscape proxy won't update its material
+	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
+	{
+		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
+		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
 	}
 
 	return DestinationActor;
