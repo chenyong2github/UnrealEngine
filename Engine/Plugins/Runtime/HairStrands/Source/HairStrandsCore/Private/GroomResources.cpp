@@ -143,8 +143,6 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const TArray<DataT
 template<typename FormatType>
 void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 InVertexCount, FRDGExternalBuffer& Out, const TCHAR* DebugName)
 {
-	FRDGBufferRef Buffer = nullptr;
-
 	const uint32 DataCount = InVertexCount;
 	const uint32 DataSizeInBytes = FormatType::SizeInByte * DataCount;
 	if (DataSizeInBytes == 0)
@@ -153,18 +151,9 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 InVertexCou
 		return;
 	}
 
-	// #hair_todo: Create this with a create+clear pass instead?
 	const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(FormatType::SizeInByte, InVertexCount);
-	TArray<uint8> InitializeData;
-	InitializeData.Init(0u, DataSizeInBytes);
-	Buffer = CreateVertexBuffer(
-		GraphBuilder,
-		DebugName,
-		Desc,
-		InitializeData.GetData(),
-		DataSizeInBytes,
-		ERDGInitialDataFlags::None);
-
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, FormatType::Format), 0u);
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
 }
 
