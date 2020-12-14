@@ -59,8 +59,9 @@ namespace DatasmithRuntime
 				};
 
 				ProcessTextureData(*ElementIdPtr);
+				ActorData.AssetId = *ElementIdPtr;
 
-				AddToQueue(NONASYNC_QUEUE, { AssignTextureFunc, *ElementIdPtr, true, { EDataType::Actor, ActorData.ElementId, 0 } });
+				AddToQueue(EQueueTask::NonAsyncQueue, { AssignTextureFunc, *ElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0 } });
 			}
 		}
 
@@ -69,7 +70,7 @@ namespace DatasmithRuntime
 			return this->CreateLightComponent(Referencer.GetId());
 		};
 
-		AddToQueue(NONASYNC_QUEUE, { CreateLightFunc, { EDataType::Actor, ActorData.ElementId, 0 } });
+		AddToQueue(EQueueTask::NonAsyncQueue, { CreateLightFunc, { EDataType::Actor, ActorData.ElementId, 0 } });
 		TasksToComplete |= EWorkerTask::LightComponentCreate;
 
 		ActorData.SetState(EAssetState::Processed);
@@ -83,7 +84,7 @@ namespace DatasmithRuntime
 
 		if (TextureProfile == nullptr)
 		{
-			ensure(Referencer.Type == EDataType::Actor);
+			ensure(Referencer.Type == (uint8)EDataType::Actor);
 			return EActionResult::Failed;
 		}
 
