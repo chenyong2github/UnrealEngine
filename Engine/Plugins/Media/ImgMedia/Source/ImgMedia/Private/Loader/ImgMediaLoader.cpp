@@ -539,7 +539,7 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 			UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
 			if (UseGlobalCache)
 			{
-				GlobalCache->AddFrame(SequenceName, FrameNumber, Frame);
+				GlobalCache->AddFrame(ImagePaths[FrameNumber], SequenceName, FrameNumber, Frame);
 			}
 			else
 			{
