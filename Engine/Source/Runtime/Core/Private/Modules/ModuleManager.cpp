@@ -271,7 +271,7 @@ void FModuleManager::AddModule(const FName InModuleName)
 	ModuleInfoRef ModuleInfo(new FModuleInfo());
 
 #if !IS_MONOLITHIC
-	RefreshModuleFilenameFromManifest(InModuleName);
+	RefreshModuleFilenameFromManifestImpl(InModuleName, ModuleInfo.Get());
 #endif	// !IS_MONOLITHIC
 
 	// Make sure module info is added to known modules and proper delegates are fired on exit.
