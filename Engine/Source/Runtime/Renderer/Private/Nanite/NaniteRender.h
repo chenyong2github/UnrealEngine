@@ -464,16 +464,16 @@ struct FRasterResults
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 
-	TRefCountPtr<FRDGPooledBuffer>		ViewsBuffer;
-	TRefCountPtr<FRDGPooledBuffer>		VisibleClustersSWHW;
+	FRDGBufferRef		ViewsBuffer{};
+	FRDGBufferRef		VisibleClustersSWHW{};
 
-	TRefCountPtr<IPooledRenderTarget>	VisBuffer64;
-	TRefCountPtr<IPooledRenderTarget>	DbgBuffer64;
-	TRefCountPtr<IPooledRenderTarget>	DbgBuffer32;
+	FRDGTextureRef	VisBuffer64{};
+	FRDGTextureRef	DbgBuffer64{};
+	FRDGTextureRef	DbgBuffer32{};
 
-	TRefCountPtr<IPooledRenderTarget>	MaterialDepth;
-	TRefCountPtr<IPooledRenderTarget>	NaniteMask;
-	TRefCountPtr<IPooledRenderTarget>	VelocityBuffer;
+	FRDGTextureRef	MaterialDepth{};
+	FRDGTextureRef	NaniteMask{};
+	FRDGTextureRef	VelocityBuffer{};
 };
 
 FCullingContext	InitCullingContext(
@@ -626,10 +626,11 @@ void EmitDepthTargets(
 	const FIntVector4& SOAStrides,
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
+	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBuffer64,
-	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
-	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
-	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer,
+	FRDGTextureRef& OutMaterialDepth,
+	FRDGTextureRef& OutNaniteMask,
+	FRDGTextureRef& OutVelocityBuffer,
 	bool bPrePass
 );
 
@@ -679,7 +680,7 @@ void GetEditorSelectionPassParameters(
 );
 
 void DrawEditorSelection(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteSelectionOutlineParameters& PassParameters
@@ -695,7 +696,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 );
 
 void DrawEditorVisualizeLevelInstance(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteVisualizeLevelInstanceParameters& PassParameters

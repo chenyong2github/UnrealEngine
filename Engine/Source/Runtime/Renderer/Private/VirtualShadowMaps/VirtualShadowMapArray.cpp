@@ -619,8 +619,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 				}
 			}
 
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 			FRDGBufferRef VirtualShadowMapIdRemapRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowMapIdRemap"), VirtualShadowMapIdRemap);
-			FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResult.VisBuffer64, GSystemTextures.BlackDummy);
+			FRDGTextureRef VisBuffer64 = NaniteRasterResult.VisBuffer64 ? NaniteRasterResult.VisBuffer64 : SystemTextures.Black;
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
 			

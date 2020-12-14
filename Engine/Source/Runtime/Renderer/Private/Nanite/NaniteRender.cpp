@@ -347,20 +347,24 @@ FAutoConsoleVariableRef CVarNaniteDebugVisualize(
 
 static bool IsVisualizingHTile()
 {
-	switch (GNaniteDebugVisualize)
+	if (GRHISupportsExplicitHTile)
 	{
-	case VISUALIZE_SCN_HTILE_MINZ:
-	case VISUALIZE_SCN_HTILE_MAXZ:
-	case VISUALIZE_SCN_HTILE_DELTAZ:
-	case VISUALIZE_SCN_HTILE_ZMASK:
-	case VISUALIZE_MAT_HTILE_MINZ:
-	case VISUALIZE_MAT_HTILE_MAXZ:
-	case VISUALIZE_MAT_HTILE_DELTAZ:
-	case VISUALIZE_MAT_HTILE_ZMASK:
-		return true;
-	default:
-		return false;
+		switch (GNaniteDebugVisualize)
+		{
+		case VISUALIZE_SCN_HTILE_MINZ:
+		case VISUALIZE_SCN_HTILE_MAXZ:
+		case VISUALIZE_SCN_HTILE_DELTAZ:
+		case VISUALIZE_SCN_HTILE_ZMASK:
+		case VISUALIZE_MAT_HTILE_MINZ:
+		case VISUALIZE_MAT_HTILE_MAXZ:
+		case VISUALIZE_MAT_HTILE_DELTAZ:
+		case VISUALIZE_MAT_HTILE_ZMASK:
+			return true;
+		default:
+			return false;
+		}
 	}
+	return false;
 }
 
 static bool ShouldExportDebugBuffers()
@@ -1594,7 +1598,7 @@ class FHTileVisualizeCS : public FNaniteShader
 	SHADER_USE_PARAMETER_STRUCT(FHTileVisualizeCS, FNaniteShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, HTileBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureMetadata, HTileBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HTileDisplay)
 		SHADER_PARAMETER(FIntVector4, HTileConfig)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -3562,14 +3566,14 @@ void ExtractResults(
 	RasterResults.MaxNodes		= Nanite::FGlobalResources::GetMaxNodes();
 	RasterResults.RenderFlags	= CullingContext.RenderFlags;
 
-	ConvertToExternalBuffer(GraphBuilder, CullingContext.ViewsBuffer, RasterResults.ViewsBuffer);
-	ConvertToExternalBuffer(GraphBuilder, CullingContext.VisibleClustersSWHW, RasterResults.VisibleClustersSWHW);
-	ConvertToExternalTexture(GraphBuilder, RasterContext.VisBuffer64, RasterResults.VisBuffer64);
+	RasterResults.ViewsBuffer = CullingContext.ViewsBuffer;
+	RasterResults.VisibleClustersSWHW = CullingContext.VisibleClustersSWHW;
+	RasterResults.VisBuffer64 = RasterContext.VisBuffer64;
 	
 	if (ShouldExportDebugBuffers())
 	{
-		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer64, RasterResults.DbgBuffer64);
-		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer32, RasterResults.DbgBuffer32);
+		RasterResults.DbgBuffer64 = RasterContext.DbgBuffer64;
+		RasterResults.DbgBuffer32 = RasterContext.DbgBuffer32;
 	}
 }
 
@@ -3588,9 +3592,11 @@ void DrawHitProxies(
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteHitProxyPass");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteEditor);
 
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,	GSystemTextures.BlackDummy);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
+	FRDGTextureRef VisBuffer64 = RasterResults.VisBuffer64 ? RasterResults.VisBuffer64 : SystemTextures.Black;
+
+	FRDGBufferRef VisibleClustersSWHW = RasterResults.VisibleClustersSWHW;
 
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FEmitHitProxyIdPS::FParameters>();
@@ -3795,10 +3801,11 @@ void EmitDepthTargets(
 	const FIntVector4& SOAStrides,
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
+	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBuffer64,
-	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
-	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
-	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer,
+	FRDGTextureRef& OutMaterialDepth,
+	FRDGTextureRef& OutNaniteMask,
+	FRDGTextureRef& OutVelocityBuffer,
 	bool bPrePass
 )
 {
@@ -3835,7 +3842,6 @@ void EmitDepthTargets(
 	FRDGTextureRef NaniteMask			= GraphBuilder.CreateTexture(NaniteMaskDesc, TEXT("NaniteMask"));
 	FRDGTextureRef VelocityBuffer		= GraphBuilder.CreateTexture(VelocityBufferDesc, TEXT("NaniteVelocity"));
 	FRDGTextureRef MaterialDepth		= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
-	FRDGTextureRef SceneDepth			= GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
 
 	if (UseComputeDepthExport())
 	{
@@ -4052,9 +4058,9 @@ void EmitDepthTargets(
 		}
 	}
 
-	ConvertToExternalTexture(GraphBuilder, NaniteMask,     OutNaniteMask);
-	ConvertToExternalTexture(GraphBuilder, VelocityBuffer, OutVelocityBuffer);
-	ConvertToExternalTexture(GraphBuilder, MaterialDepth,  OutMaterialDepth);
+	OutNaniteMask = NaniteMask;
+	OutVelocityBuffer = VelocityBuffer;
+	OutMaterialDepth = MaterialDepth;
 }
 
 struct FNaniteMaterialPassCommand
@@ -4179,15 +4185,17 @@ void DrawBasePass(
 	const int32 ViewHeight		= View.ViewRect.Max.Y - View.ViewRect.Min.Y;
 	const FIntPoint ViewSize	= FIntPoint(ViewWidth, ViewHeight);
 
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	FRenderTargetBindingSlots GBufferRenderTargets;
 	SceneTextures.GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, GBufferRenderTargets);
 
-	FRDGTextureRef MaterialDepth	= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.MaterialDepth, GSystemTextures.BlackDummy);
-	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,   GSystemTextures.BlackDummy);
-	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,   GSystemTextures.BlackDummy);
-	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,   GSystemTextures.BlackDummy);
+	FRDGTextureRef MaterialDepth	= RasterResults.MaterialDepth ? RasterResults.MaterialDepth : SystemTextures.Black;
+	FRDGTextureRef VisBuffer64		= RasterResults.VisBuffer64   ? RasterResults.VisBuffer64   : SystemTextures.Black;
+	FRDGTextureRef DbgBuffer64		= RasterResults.DbgBuffer64   ? RasterResults.DbgBuffer64   : SystemTextures.Black;
+	FRDGTextureRef DbgBuffer32		= RasterResults.DbgBuffer32   ? RasterResults.DbgBuffer32   : SystemTextures.Black;
 
-	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
+	FRDGBufferRef VisibleClustersSWHW	= RasterResults.VisibleClustersSWHW;
 
 	if (!FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(GMaxRHIShaderPlatform) &&
 		(GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2))
@@ -4395,8 +4403,6 @@ void DrawVisualization(
 	const int32 ViewHeight   = View.ViewRect.Max.Y - View.ViewRect.Min.Y;
 	const FIntPoint ViewSize = FIntPoint(ViewWidth, ViewHeight);
 
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
-
 	// Visualize Debug Views
 	if (ShouldExportDebugBuffers())
 	{
@@ -4405,13 +4411,15 @@ void DrawVisualization(
 
 		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
 
-		FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,    GSystemTextures.BlackDummy);
-		FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,    GSystemTextures.BlackDummy);
-		FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,    GSystemTextures.BlackDummy);
-		FRDGTextureRef NaniteMask		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.NaniteMask,     GSystemTextures.BlackDummy);
-		FRDGTextureRef VelocityBuffer	= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VelocityBuffer, GSystemTextures.BlackDummy);
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-		FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
+		FRDGTextureRef VisBuffer64		= RasterResults.VisBuffer64 ? RasterResults.VisBuffer64 : SystemTextures.Black;
+		FRDGTextureRef DbgBuffer64		= RasterResults.DbgBuffer64 ? RasterResults.DbgBuffer64 : SystemTextures.Black;
+		FRDGTextureRef DbgBuffer32		= RasterResults.DbgBuffer32 ? RasterResults.DbgBuffer32 : SystemTextures.Black;
+		FRDGTextureRef NaniteMask		= RasterResults.NaniteMask ? RasterResults.NaniteMask : SystemTextures.Black;
+		FRDGTextureRef VelocityBuffer	= RasterResults.VelocityBuffer ? RasterResults.VelocityBuffer : SystemTextures.Black;
+
+		FRDGBufferRef VisibleClustersSWHW = RasterResults.VisibleClustersSWHW;
 
 		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Max,
@@ -4452,12 +4460,11 @@ void DrawVisualization(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("DebugVisualize"),
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ViewSize, 8)
 		);
-
-		ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
 	}
 
 	if (IsVisualizingHTile())
@@ -4465,56 +4472,52 @@ void DrawVisualization(
 		// TODO: Don't currently support offset views.
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
-		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
+		FRDGTextureSRVRef HTileSRV = nullptr;
 
-		FShaderResourceViewRHIRef HTileBufferRef;
 		if (RasterResults.MaterialDepth)
 		{
-			FSceneRenderTargetItem& MaterialDepthRef = RasterResults.MaterialDepth->GetRenderTargetItem();
-			if (!MaterialDepthRef.HTileSRV)
+			if (GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MINZ ||
+				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MAXZ ||
+				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_DELTAZ ||
+				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_ZMASK)
 			{
-				MaterialDepthRef.HTileSRV = RHICreateShaderResourceViewHTile((FTexture2DRHIRef&)MaterialDepthRef.TargetableTexture);
+				HTileSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(RasterResults.MaterialDepth, ERDGTextureMetaDataAccess::HTile));
 			}
-			HTileBufferRef = MaterialDepthRef.HTileSRV;
 		}
-		else
+
+		if (!HTileSRV)
 		{
-			FRHITexture2D* DepthSurface = SceneTargets.GetSceneDepthSurface();
-			HTileBufferRef = RHICreateShaderResourceViewHTile(DepthSurface);
+			HTileSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
 		}
 
-		if (HTileBufferRef != nullptr)
-		{
-			FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
-				FRDGTextureDesc::Create2D(
-					SceneTargets.GetBufferSizeXY(),
-					PF_A32B32G32R32F,
-					FClearValueBinding::None,
-					TexCreate_ShaderResource | TexCreate_UAV),
-				TEXT("NaniteDebug"));
+		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(
+				SceneDepth->Desc.Extent,
+				PF_A32B32G32R32F,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV),
+			TEXT("NaniteDebug"));
 
-			FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHTileVisualizeCS::FParameters>();
+		FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHTileVisualizeCS::FParameters>();
 
-			const uint32 PixelsWide = uint32(ViewSize.X);
-			const uint32 PixelsTall = uint32(ViewSize.Y);
-			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(PixelsWide, PixelsTall);
+		const uint32 PixelsWide = uint32(ViewSize.X);
+		const uint32 PixelsTall = uint32(ViewSize.Y);
+		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(PixelsWide, PixelsTall);
 
-			PassParameters->HTileBuffer  = HTileBufferRef;
-			PassParameters->HTileDisplay = GraphBuilder.CreateUAV(DebugOutput);
-			PassParameters->HTileConfig  = FIntVector4(PlatformConfig, PixelsWide, GNaniteDebugVisualize, 0);
+		PassParameters->HTileBuffer = HTileSRV;
+		PassParameters->HTileDisplay = GraphBuilder.CreateUAV(DebugOutput);
+		PassParameters->HTileConfig = FIntVector4(PlatformConfig, PixelsWide, GNaniteDebugVisualize, 0);
 
-			auto ComputeShader = View.ShaderMap->GetShader<FHTileVisualizeCS>();
+		auto ComputeShader = View.ShaderMap->GetShader<FHTileVisualizeCS>();
 
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("HTileVisualize"),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(ViewSize, 8)
-			);
-
-			ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
-		}
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HTileVisualize"),
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(ViewSize, 8)
+		);
 	}
 }
 
@@ -4561,7 +4564,7 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
 	//FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MaterialRange));
 
-	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	// Visible material mask buffer (currently not used by Lumen, but still must be bound)
 	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, 1);
@@ -4663,8 +4666,8 @@ void DrawLumenMeshCapturePass(
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
 
 		PassParameters->VisBuffer64 = RasterContext.VisBuffer64;
-		PassParameters->DbgBuffer64 = BlackTexture;
-		PassParameters->DbgBuffer32 = BlackTexture;
+		PassParameters->DbgBuffer64 = SystemTextures.Black;
+		PassParameters->DbgBuffer32 = SystemTextures.Black;
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
@@ -4882,8 +4885,9 @@ void GetEditorSelectionPassParameters(
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
-	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	FRDGTextureRef VisBuffer64 = NaniteRasterResults->VisBuffer64 ? NaniteRasterResults->VisBuffer64 : SystemTextures.Black;
+	FRDGBufferRef VisibleClustersSWHW = NaniteRasterResults->VisibleClustersSWHW;
 
 	OutPassParameters->View						= View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -4897,7 +4901,7 @@ void GetEditorSelectionPassParameters(
 }
 
 void DrawEditorSelection(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteSelectionOutlineParameters& PassParameters
@@ -4949,9 +4953,10 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	}
 
 	LLM_SCOPE_BYTAG(Nanite);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
-	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
+	FRDGTextureRef VisBuffer64 = NaniteRasterResults->VisBuffer64 ? NaniteRasterResults->VisBuffer64 : SystemTextures.Black;
+	FRDGBufferRef VisibleClustersSWHW = NaniteRasterResults->VisibleClustersSWHW;
 
 	OutPassParameters->View = View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -4965,7 +4970,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 }
 
 void DrawEditorVisualizeLevelInstance(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteVisualizeLevelInstanceParameters& PassParameters
