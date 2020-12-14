@@ -8,9 +8,9 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
-#include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundUObjectRegistry.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
@@ -180,7 +180,7 @@ namespace Metasound
 			DetailLayout.GetObjectsBeingCustomized(Objects);
 			if (Objects.Num() > 0)
 			{
-				FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Objects[0].Get());
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Objects[0].Get());
 				check(MetasoundAsset);
 
 				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();

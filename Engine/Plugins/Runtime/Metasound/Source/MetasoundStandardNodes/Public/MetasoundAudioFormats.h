@@ -211,10 +211,12 @@ namespace Metasound
 	 * buffers within a FMultichannelAudioFormat object must contain the same 
 	 * number of audio frames.
 	 */
-	template<int32 NumChannels>
+	template<int32 TNumChannels>
 	class TStaticChannelAudioFormat : public IAudioDataType
 	{
 		public:
+			static constexpr int32 NumChannels = TNumChannels;
+
 			/** TStaticChannelAudioFormat Constructor
 			 *
 			 * @param InNumFrames - The number of frames per an audio buffer.
@@ -277,7 +279,7 @@ namespace Metasound
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferReadRef> GetBuffers() const
+			const TArrayView<FAudioBufferReadRef> GetBuffers() const
 			{
 				return ReadableBuffers;
 			}
@@ -286,7 +288,7 @@ namespace Metasound
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferWriteRef> GetBuffers() 
+			const TArrayView<FAudioBufferWriteRef> GetBuffers() 
 			{
 				return WritableBuffers;
 			}
@@ -333,8 +335,8 @@ namespace Metasound
 			}
 
 		private:
-			TArrayView<const FAudioBufferWriteRef> WritableBuffers;
-			TArrayView<const FAudioBufferReadRef> ReadableBuffers;
+			TArrayView<FAudioBufferWriteRef> WritableBuffers;
+			TArrayView<FAudioBufferReadRef> ReadableBuffers;
 
 			TArray<FAudioBufferWriteRef> WritableBufferStorage;
 			TArray<FAudioBufferReadRef> ReadableBufferStorage;
@@ -347,11 +349,6 @@ namespace Metasound
 	 */
 	class FMonoAudioFormat : public TStaticChannelAudioFormat<1>
 	{
-			// This is used to grant specific classes the ability to create FMonoAudioFormat
-			// using a FAudioBufferReadRef
-			//enum EPrivateToken { Token };
-			//static const EPrivateToken PrivateToken = EPrivateToken::Token;
-
 		public:
 			using Super = TStaticChannelAudioFormat<1>;
 
@@ -369,47 +366,12 @@ namespace Metasound
 			{
 			}
 
-			// TODO: clean up this mess.
-			// Construct a FMonoAudioFormat a readable buffer reference.
-			// 
-			// This constructor should only be used when it can be assured 
-			// that the constructed object will not provide writable access 
-			// to the passed in audio buffers. 
-			/*
-			FMonoAudioFormat(const FAudioBufferReadRef& InAudio, EPrivateToken InToken)
-			:	Super({WriteCast(InAudio)})
-			{
-			}
-			*/
-
 			/** Return writable audio buffer reference of center channel. */
 			FAudioBufferWriteRef GetCenter() { return GetBuffer<0>(); }
 
 			/** Return readable audio buffer reference of center channel. */
 			FAudioBufferReadRef GetCenter() const { return GetBuffer<0>(); }
-
-		private:
-
-
-			// Friendship with the data reference class gives it access to the 
-			// protected constructor for the scenario where a 
-			// TDataReadReference<*> is constructed with FAudioBufferReadRefs. 
-			// The constructor cannot be public as it would provide writable
-			// access to the passed in audio buffers, even though the passed 
-			// buffers explicitly were read references.
-			//friend class TDataReadReference<FMonoAudioFormat>;
 	};
-
-	// Template specialization for TDataReadReference<FMonoAudioFormat> constructor to use
-	// private token.
-	/*
-	template<>
-	template<>
-	TDataReadReference<FMonoAudioFormat>::TDataReadReference(const FAudioBufferReadRef& InReadBuffer)
-	:	FDataReference(InReadBuffer, FMonoAudioFormat::PrivateToken)
-	{
-	}
-	*/
 	
 
 	/** FStereoAudioFormat represents stereo audio containing two channels of 
@@ -449,26 +411,6 @@ namespace Metasound
 
 			/** Return readable audio buffer reference of right channel. */
 			FAudioBufferReadRef GetRight() const { return GetBuffer<1>(); }
-
-		protected:
-
-			// Friendship with the data reference class gives it access to the 
-			// protected constructor for the scenario where a 
-			// TDataReadReference<*> is constructed with FAudioBufferReadRefs. 
-			// The constructor cannot be public as it would provide writable
-			// access to the passed in audio buffers, even though the passed 
-			// buffers explicitly were read references.
-			friend class TDataReadReference<FStereoAudioFormat>;
-
-			// Construct a FStereoAudioFormat a readable buffer reference.
-			// 
-			// This constructor should only be used when it can be assured 
-			// that the constructed object will not provide writable access 
-			// to the passed in audio buffers. 
-			FStereoAudioFormat(const FAudioBufferReadRef& InLeftAudio, const FAudioBufferReadRef& InRightAudio)
-			:	Super({WriteCast(InLeftAudio), WriteCast(InRightAudio)})
-			{
-			}
 	};
 
 

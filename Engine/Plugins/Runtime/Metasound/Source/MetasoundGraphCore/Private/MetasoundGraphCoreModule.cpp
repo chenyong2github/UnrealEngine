@@ -3,10 +3,11 @@
 #include "MetasoundGraphCoreModule.h"
 
 #include "CoreMinimal.h"
+#include "MetasoundLog.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY(LogMetasoundGraphCore);
+DEFINE_LOG_CATEGORY(LogMetasound);
 
 namespace Metasound 
 {

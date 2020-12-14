@@ -2,12 +2,12 @@
 #include "MetasoundEngineModule.h"
 
 #include "Metasound.h"
-#include "MetasoundArchetypeRegistration.h"
-#include "MetasoundSource.h"
-#include "Modules/ModuleManager.h"
-#include "MetasoundWave.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundSource.h"
+#include "MetasoundUObjectRegistry.h"
+#include "MetasoundWave.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 
@@ -17,8 +17,11 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
-		Metasound::Frontend::RegisterArchetype<UMetasoundSource>();
-		Metasound::Frontend::RegisterArchetype<UMetasound>();
+		// If there is no archetype name, use UMetasound
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetasound>(TEXT(""));
+
+		// Register preferred archetypes
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetasoundSource>();
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));
 	}

@@ -139,48 +139,6 @@ namespace Metasound
 		// @returns false if the file couldn't be found or parsed into a document.
 		METASOUNDFRONTEND_API bool ImportJSONAssetToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
 
-		struct METASOUNDFRONTEND_API FMetasoundArchetypeRegistryParams_Internal
-		{
-			FMetasoundArchetype ArchetypeDescription;
-
-			// The UClass associated with this specific archetype.
-			UClass* ArchetypeUClass;
-
-			// template-generated lambdas used to safely sidecast to FMetasoundBase*.
-			TUniqueFunction<FMetasoundAssetBase* (UObject*)> SafeCast;
-			TUniqueFunction<const FMetasoundAssetBase* (const UObject*)> SafeConstCast;
-
-			// This function should construct a new UObject of the given archetype's type
-			// given a metasound document with a matching archetype.
-			// The first argument is the document to use.
-			// The second argument is the path relative to the content directory to save the soundwave to.
-			TUniqueFunction<UObject* (const FMetasoundDocument&, const FString&)> ObjectGetter;
-		};
-
-		// ಠ╭╮ಠ         ಠ╭╮ಠ           ಠ╭╮ಠ
-		// Please don't use this function.
-		// See RegisterArchetype<Class> instead, in MetasoundArchetypeRegistration.h
-		METASOUNDFRONTEND_API bool RegisterArchetype_Internal(FMetasoundArchetypeRegistryParams_Internal&& InParams);
-
-		METASOUNDFRONTEND_API TArray<FName> GetAllRegisteredArchetypes();
-
-		// Returns a new UObject, whose class corresponds to the archetype in the document.
-		// @param InDocument a fully generated metasound document, typically retrieved from ImportJSONAssetToMetasound().
-		// @param InPath, path in content directory to save the generated UAsset to (ex. "/game/MyDir/MyMetasoundAsset".
-		//                if InPath is invalid, we won't save to an asset.
-		// @returns nullptr if we couldn't find the archetype.
-		METASOUNDFRONTEND_API UObject* GetObjectForDocument(const FMetasoundDocument& InDocument, const FString& InPath);
-
-		// This returns true if the object is listed as one of our metasound archetypes.
-		// If it is, the object can be safely static cast to FMetasoundAssetBase*.
-		METASOUNDFRONTEND_API bool IsObjectAMetasoundArchetype(const UObject* InObject);
-
-		// These functions are used to safely sidecast between a UObject of a given metasound archetype
-		// and FMetasoundAssetBase*.
-		// @returns nullptr if the object wasn't a registered archetype.
-		METASOUNDFRONTEND_API FMetasoundAssetBase* GetObjectAsAssetBase(UObject* InObject);
-		METASOUNDFRONTEND_API const FMetasoundAssetBase* GetObjectAsAssetBase(const UObject* InObject);
-
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
 		struct METASOUNDFRONTEND_API FConnectability
@@ -202,7 +160,7 @@ namespace Metasound
 
 		struct METASOUNDFRONTEND_API FHandleInitParams
 		{
-			TWeakPtr<FDescriptionAccessPoint> InAccessPoint;
+			FDescriptionAccessPoint InAccessPoint;
 
 			// Path in the document to the element we're getting a handle to.
 			// for the FGraphHandle, this is a path to the graph within the graph's Class description.
@@ -303,6 +261,7 @@ namespace Metasound
 			FName GetInputType() const;
 			FString GetInputName() const;
 			FText GetInputTooltip() const;
+			int32 GetOwningNodeID() const;
 
 			FOutputHandle GetCurrentlyConnectedOutput() const;
 
@@ -381,8 +340,6 @@ namespace Metasound
 			// whether this node is an input or output to it's owning graph,
 			// an externally implemented node, or a metasound graph itself.
 			EMetasoundClassType NodeClassType;
-
-			int32 NodeID;
 		};
 
 		class METASOUNDFRONTEND_API FGraphHandle : protected ITransactable
@@ -394,7 +351,7 @@ namespace Metasound
 			// Sole constructor for FGraphHandle. Can only be used by friends of FHandleInitParams.
 			FGraphHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams);
 
-			static FGraphHandle GetHandle(UObject* InOwner, FMetasoundDocument& InRootMetasoundDocument, TSharedPtr<Metasound::Frontend::FDescriptionAccessPoint>& InAccessPoint)
+			static FGraphHandle GetHandle(UObject* InOwner, FMetasoundDocument& InRootMetasoundDocument, const Metasound::Frontend::FDescriptionAccessPoint& InAccessPoint)
 			{
 				using namespace Path;
 

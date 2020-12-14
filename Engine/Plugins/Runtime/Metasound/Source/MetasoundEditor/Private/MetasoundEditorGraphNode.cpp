@@ -13,6 +13,7 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorCommands.h"
+#include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 
@@ -85,15 +86,15 @@ const UObject& UMetasoundEditorGraphNode::GetMetasoundChecked() const
 	return EdGraph->GetMetasoundChecked();
 }
 
-Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle() const
+Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle()
 {
-	const FMetasoundAssetBase* MetasoundAsset = Metasound::Frontend::GetObjectAsAssetBase(&GetMetasoundChecked());
+	FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
 	check(MetasoundAsset);
 
 	return MetasoundAsset->GetRootGraphHandle();
 }
 
-Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle()
 {
 	return GetRootGraphHandle().GetNodeWithId(NodeID);
 }
@@ -181,8 +182,17 @@ bool UMetasoundEditorGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSche
 
 bool UMetasoundEditorGraphNode::CanUserDeleteNode() const
 {
-	const FString& NodeName = GetNodeHandle().GetNodeName();
-	Metasound::Frontend::FGraphHandle GraphHandle = GetRootGraphHandle();
+	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+
+	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
+	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
+	check(MetasoundAsset);
+
+	Metasound::Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+	Metasound::Frontend::FNodeHandle NodeHandle = GraphHandle.GetNodeWithId(NodeID);
+
+	const FString& NodeName = NodeHandle.GetNodeName();
+
 	if (GraphHandle.IsRequiredInput(NodeName))
 	{
 		return false;
@@ -215,19 +225,25 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 {
 	using namespace Metasound::Frontend;
 
-	FNodeHandle NodeHandle = GetNodeHandle();
+	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+
+	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
+	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
+	check(MetasoundAsset);
+
+	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+	FNodeHandle NodeHandle = GraphHandle.GetNodeWithId(NodeID);
+
 	switch (NodeHandle.GetNodeType())
 	{
 		case EMetasoundClassType::Input:
 		{
-			FGraphHandle GraphHandle = GetRootGraphHandle();
 			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Input {0}"), GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName()));
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			FGraphHandle GraphHandle = GetRootGraphHandle();
 			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Output {0}"), GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName()));
 		}
 		break;
@@ -312,19 +328,27 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 {
 	using namespace Metasound::Frontend;
 
-	FNodeHandle NodeHandle = GetNodeHandle();
+	using namespace Metasound::Frontend;
+
+	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+
+	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
+	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
+	check(MetasoundAsset);
+
+	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+	FNodeHandle NodeHandle = GraphHandle.GetNodeWithId(NodeID);
+
 	switch (NodeHandle.GetNodeType())
 	{
 		case EMetasoundClassType::Input:
 		{
-			FGraphHandle GraphHandle = GetRootGraphHandle();
 			return GraphHandle.GetInputToolTip(NodeHandle.GetNodeName());
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			FGraphHandle GraphHandle = GetRootGraphHandle();
 			return GraphHandle.GetOutputToolTip(NodeHandle.GetNodeName());
 		}
 		break;

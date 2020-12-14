@@ -16,7 +16,8 @@ namespace Metasound
 	struct FMetasoundGeneratorInitParams
 	{
 		TUniquePtr<Metasound::IOperator> GraphOperator;
-		FAudioBufferReadRef GraphOutputAudioRef;
+		TArrayView<TDataReadReference<FAudioBuffer>> OutputBuffers;
+		// TODO: BopOnPlayRef;
 		FBopReadRef BopOnFinishRef;
 	};
 
@@ -106,7 +107,6 @@ namespace Metasound
 		//~ End FSoundGenerator
 
 	private:
-
 		// Internal set graph after checking compatibility.
 		void SetGraph(FMetasoundGeneratorInitParams&& InParams);
 
@@ -123,7 +123,7 @@ namespace Metasound
 		int32 NumFramesPerExecute;
 		int32 NumSamplesPerExecute;
 
-		FAudioBufferReadRef GraphOutputAudioRef;
+		TArray<FAudioBufferReadRef> GraphOutputAudio;
 
 		// This will be bopped when this metasound is finished playing.
 		FBopReadRef OnFinishedBopRef;

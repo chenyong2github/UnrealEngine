@@ -321,6 +321,12 @@ struct FMetasoundArchetype
 	UPROPERTY()
 	FName ArchetypeName;
 
+	UPROPERTY()
+	int32 MajorVersion;
+
+	UPROPERTY()
+	int32 MinorVersion;
+
 	// whatever inputs are required to support this archetype.
 	// call Special Inputs
 	UPROPERTY()

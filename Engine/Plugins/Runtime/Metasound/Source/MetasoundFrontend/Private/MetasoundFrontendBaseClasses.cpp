@@ -11,8 +11,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		
-
 		TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry()
 		{
 			return FMetasoundFrontendRegistryContainer::Get()->GetExternalNodeRegistry();
@@ -508,179 +506,44 @@ namespace Metasound
 			return true;
 		}
 
-		FDescriptionAccessPoint::FDescriptionAccessPoint(FMetasoundDocument& InRootDocument)
-			: RootDocument(InRootDocument)
+		FDescriptionAccessPoint::FDescriptionAccessPoint(TAccessPtr<FMetasoundDocument> InRootDocumentPtr)
+			: RootDocumentPtr(InRootDocumentPtr)
 		{
 		}
 
-		FMetasoundDocument& FDescriptionAccessPoint::GetRoot()
+		FMetasoundDocument& FDescriptionAccessPoint::GetRootChecked() const
 		{
-			return RootDocument;
+			check(RootDocumentPtr.IsValid());
+
+			return *RootDocumentPtr;
 		}
 
-		FMetasoundClassDescription* FDescriptionAccessPoint::GetClassFromPath(const FDescPath& InPathFromRoot)
+		bool FDescriptionAccessPoint::GetDescriptionPtrFromPath(const FDescPath& InPathFromRoot, FMetasoundDescriptionPtr& OutPtr) const
 		{
-			FDescPath CurrentPath = InPathFromRoot;
-
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
+			if (!RootDocumentPtr.IsValid())
 			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
+				return false;
 			}
 
-			if (ensureAlwaysMsgf(CurrentStep.Type == Path::EDescType::Class && CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundClassDescription*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		FMetasoundNodeDescription* FDescriptionAccessPoint::GetNodeFromPath(const FDescPath& InPathFromRoot)
-		{
 			FDescPath CurrentPath = InPathFromRoot;
 			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
+			OutPtr.Set<FMetasoundDocument*>(RootDocumentPtr.Get());
+			FDescriptionUnwindStep CurrentStep = { OutPtr, Path::EDescType::Document };
 
 			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
 			{
 				CurrentStep = GoToNext(CurrentPath, CurrentStep);
 			}
 
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundNodeDescription*>();
-			}
-			else
-			{
-				return nullptr;
-			}
+			OutPtr = CurrentStep.DescriptionStructPtr;
+
+			return CurrentStep.Type != Path::EDescType::Invalid;
 		}
 
-		FMetasoundGraphDescription* FDescriptionAccessPoint::GetGraphFromPath(const FDescPath& InPathFromRoot)
+
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext) const
 		{
-			FDescPath CurrentPath = InPathFromRoot;
-			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
-			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
-			}
-
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundGraphDescription*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		FMetasoundInputDescription* FDescriptionAccessPoint::GetInputFromPath(const FDescPath& InPathFromRoot)
-		{
-			FDescPath CurrentPath = InPathFromRoot;
-			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
-			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
-			}
-
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundInputDescription*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		FMetasoundOutputDescription* FDescriptionAccessPoint::GetOutputFromPath(const FDescPath& InPathFromRoot)
-		{
-			FDescPath CurrentPath = InPathFromRoot;
-			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
-			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
-			}
-
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundOutputDescription*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		FMetasoundClassMetadata* FDescriptionAccessPoint::GetMetadataFromPath(const FDescPath& InPathFromRoot)
-		{
-			FDescPath CurrentPath = InPathFromRoot;
-			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
-			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
-			}
-
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FMetasoundClassMetadata*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		Metasound::Frontend::FClassDependencyIDs* FDescriptionAccessPoint::GetClassDependencyIDsFromPath(const FDescPath& InPathFromRoot)
-		{
-			FDescPath CurrentPath = InPathFromRoot;
-			
-			FMetasoundDescriptionPtr Ptr;
-			Ptr.Set<FMetasoundDocument*>(&RootDocument);
-			FDescriptionUnwindStep CurrentStep = { Ptr, Path::EDescType::Document };
-
-			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
-			{
-				CurrentStep = GoToNext(CurrentPath, CurrentStep);
-			}
-
-			if (ensureAlwaysMsgf(CurrentStep.Type != Path::EDescType::Invalid && CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
-			{
-				return CurrentStep.DescriptionStructPtr.Get<FClassDependencyIDs*>();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext)
-		{
+			check(RootDocumentPtr.IsValid());
 			switch (InNext.CurrentDescType)
 			{
 				case Path::EDescType::Document:
@@ -769,7 +632,7 @@ namespace Metasound
 			return FDescriptionUnwindStep::CreateInvalid();
 		}
 
-		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromClass(FMetasoundClassDescription& InClassDescription, FDescPath& InPath, const Path::FElement& InNext)
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromClass(FMetasoundClassDescription& InClassDescription, FDescPath& InPath, const Path::FElement& InNext) const
 		{
 			switch (InNext.CurrentDescType)
 			{
@@ -862,7 +725,7 @@ namespace Metasound
 		}
 
 
-		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement)
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement) const
 		{
 			if (!ensureMsgf(InPath.Path.Num() != 0, TEXT("Attempted to unwind an empty path.")))
 			{

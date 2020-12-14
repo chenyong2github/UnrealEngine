@@ -16,12 +16,14 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "IDetailsView.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Metasound.h"
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorTabFactory.h"
+#include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -33,6 +35,7 @@
 
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
+
 
 namespace Metasound
 {
@@ -96,7 +99,7 @@ namespace Metasound
 
 		Frontend::FGraphHandle FEditor::InitMetasound(UObject& InMetasound)
 		{
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
 			if (!MetasoundAsset->GetGraph())
@@ -111,10 +114,40 @@ namespace Metasound
 			return MetasoundAsset->GetRootGraphHandle();
 		}
 
+		bool FEditor::RebuildGraph() const
+		{
+			UObject* MetasoundObj = GetMetasoundObject();
+			if (nullptr != MetasoundObj)
+			{
+				if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
+				{
+					FGraphBuilder::RebuildGraph(*MetasoundObj);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool FEditor::SynchronizeGraph() const
+		{
+			UObject* MetasoundObj = GetMetasoundObject();
+			if (nullptr != MetasoundObj)
+			{
+				if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
+				{
+					FGraphBuilder::SynchronizeGraph(*MetasoundObj);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 		{
 			check(ObjectToEdit);
-			checkf(Frontend::IsObjectAMetasoundArchetype(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
+			checkf(IMetasoundUObjectRegistry::Get().IsRegisteredClass(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
 			
 			// Support undo/redo
 			ObjectToEdit->SetFlags(RF_Transactional);
@@ -233,9 +266,14 @@ namespace Metasound
 		}
 
 		void FEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
-		{
+		{	
 			if (MetasoundGraphEditor.IsValid() && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 			{
+				// If a property change event occurs outside of the metasound UEdGraph and results in the metasound document changing, 
+				// then the document and the UEdGraph need to be synchronized. There may be a better trigger for this call to reduce
+				// the number of times the graph is synchronized. 
+				SynchronizeGraph();
+
 				MetasoundGraphEditor->NotifyGraphChanged();
 			}
 		}
@@ -353,7 +391,7 @@ namespace Metasound
 
 		void FEditor::Import()
 		{
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			if (MetasoundAsset)
 			{
 				// TODO: Prompt OFD and provide path from user
@@ -366,18 +404,36 @@ namespace Metasound
 
 				if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
 				{
-					Frontend::GetObjectForDocument(MetasoundDoc, OutputPath);
+					TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(MetasoundDoc.Archetype.ArchetypeName);
+
+					if (ImportClasses.Num() < 1)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Cannot create UObject from Metasound document. No UClass supports archetype \"%s\""), *MetasoundDoc.Archetype.ArchetypeName.ToString());
+					}
+					else
+					{
+						if (ImportClasses.Num() > 1)
+						{
+							for (UClass* Cls : ImportClasses)
+							{
+								// TODO: could do a modal dialog to give user choice of import type.
+								UE_LOG(LogTemp, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.Archetype.ArchetypeName.ToString(), *Cls->GetName());
+							}
+						}
+
+						IMetasoundUObjectRegistry::Get().NewObject(ImportClasses[0], MetasoundDoc, OutputPath);
+					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Couldn't import Metasound at path: %s"), *InputPath);
+					UE_LOG(LogTemp, Warning, TEXT("Could not import Metasound at path: %s"), *InputPath);
 				}
 			}
 		}
 
 		void FEditor::Export()
 		{
-			FMetasoundAssetBase* InMetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			FMetasoundAssetBase* InMetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(InMetasoundAsset);
 
 			if (!InMetasoundAsset)
@@ -584,7 +640,7 @@ namespace Metasound
 			InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FEditor::OnNodeTitleCommitted);
 			InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::PlaySingleNode);
 
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
 
 			return SNew(SGraphEditor)
@@ -645,7 +701,7 @@ namespace Metasound
 
 			UObject* ParentMetasoundObject = Graph->ParentMetasound;
 			check(ParentMetasoundObject);
-			if (FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(ParentMetasoundObject))
+			if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ParentMetasoundObject))
 			{
 				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
@@ -742,7 +798,7 @@ namespace Metasound
 				}
 			}
 
-			FMetasoundAssetBase* MetasoundAsset = Metasound::Frontend::GetObjectAsAssetBase(Metasound);
+			FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
 			FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
@@ -829,7 +885,7 @@ namespace Metasound
 // 				Location = MetasoundGraphEditor->GetPasteLocation();
 // 			}
 // 
-// 			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+// 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 // 			check(MetasoundAsset);
 // 
 // 			UEdGraph* Graph = MetasoundAsset->GetGraph();
@@ -895,7 +951,7 @@ namespace Metasound
 // 			FString ClipboardContent;
 // 			FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
 // 
-// 			FMetasoundAssetBase* AssetBase = Frontend::GetObjectAsAssetBase(Metasound);
+// 			FMetasoundAssetBase* AssetBase = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 // 			check(AssetBase);
 // 
 // 			PastedDocument = FMetasoundDocument();

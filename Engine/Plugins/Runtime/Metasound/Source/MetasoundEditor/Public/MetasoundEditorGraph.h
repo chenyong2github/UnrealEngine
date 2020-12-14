@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
-#include "Metasound.h"
 #include "MetasoundEditor.h"
 #include "UObject/ObjectMacros.h"
 

@@ -201,116 +201,6 @@ namespace Metasound
 			return false;
 		}
 
-		// Struct used for any pertinent archetype data.
-		struct FArchetypeRegistryElement
-		{
-			FMetasoundArchetype Archetype;
-			UClass* ArchetypeUClass;
-
-			// Constructor used to generate an instance of the UObject version of this archetype from scratch.
-			TUniqueFunction<UObject* (const FMetasoundDocument&, const FString&)> ObjectConstructor;
-
-			// template-generated lambdas used to safely sidecast to FMetasoundBase*.
-			TUniqueFunction<FMetasoundAssetBase* (UObject*)> SafeCast;
-			TUniqueFunction<const FMetasoundAssetBase* (const UObject*)> SafeConstCast;
-		};
-
-		static TMap<FName, FArchetypeRegistryElement> ArchetypeRegistry;
-
-		bool RegisterArchetype_Internal(FMetasoundArchetypeRegistryParams_Internal&& InParams)
-		{
-			FName ArchetypeName = InParams.ArchetypeDescription.ArchetypeName;
-
-			if (!ArchetypeRegistry.Contains(ArchetypeName))
-			{
-				FArchetypeRegistryElement RegistryElement = 
-				{ 
-					InParams.ArchetypeDescription,
-					InParams.ArchetypeUClass,
-					MoveTemp(InParams.ObjectGetter),
-					MoveTemp(InParams.SafeCast),
-					MoveTemp(InParams.SafeConstCast)
-				};
-
-				ArchetypeRegistry.Add(ArchetypeName, MoveTemp(RegistryElement));
-
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		TArray<FName> GetAllRegisteredArchetypes()
-		{
-			TArray<FName> OutArchetypes;
-			for (auto& RegistryTuple : ArchetypeRegistry)
-			{
-				OutArchetypes.Add(RegistryTuple.Key);
-			}
-
-			return OutArchetypes;
-		}
-
-		UObject* GetObjectForDocument(const FMetasoundDocument& InDocument, const FString& InPath)
-		{
-			FName ArchetypeName = InDocument.Archetype.ArchetypeName;
-			if (ArchetypeRegistry.Contains(ArchetypeName))
-			{
-				return ArchetypeRegistry[ArchetypeName].ObjectConstructor(InDocument, InPath);
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		bool IsObjectAMetasoundArchetype(const UObject* InObject)
-		{
-			UClass* ObjectClass = InObject->GetClass();
-
-			for (auto& RegistryTuple : ArchetypeRegistry)
-			{
-				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		FMetasoundAssetBase* GetObjectAsAssetBase(UObject* InObject)
-		{
-			UClass* ObjectClass = InObject->GetClass();
-
-			for (auto& RegistryTuple : ArchetypeRegistry)
-			{
-				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
-				{
-					return RegistryTuple.Value.SafeCast(InObject);
-				}
-			}
-
-			return nullptr;
-		}
-
-		const FMetasoundAssetBase* GetObjectAsAssetBase(const UObject* InObject)
-		{
-			UClass* ObjectClass = InObject->GetClass();
-
-			for (auto& RegistryTuple : ArchetypeRegistry)
-			{
-				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
-				{
-					return RegistryTuple.Value.SafeConstCast(InObject);
-				}
-			}
-
-			return nullptr;
-		}
-
 		void FGraphHandle::FixDocumentToMatchArchetype()
 		{
 			// TODO: Also check if this is the root class.
@@ -326,19 +216,22 @@ namespace Metasound
 			TArray<FMetasoundInputDescription>& CurrentInputs = DocumentToFixUp.RootClass.Inputs;
 			for (const FMetasoundInputDescription& RequiredInput : RequiredInputs)
 			{
-				bool bFoundRequiredInput = false;
-				for (const FMetasoundInputDescription& Input : CurrentInputs)
+				auto IsEqualInputName = [&](const FMetasoundInputDescription& InputDesc)
 				{
-					if (Input.TypeName == RequiredInput.TypeName && Input.Name == RequiredInput.Name)
+					return RequiredInput.Name == InputDesc.Name;
+				};
+
+				if (const FMetasoundInputDescription* InputWithSameName = CurrentInputs.FindByPredicate(IsEqualInputName))
+				{
+					if (InputWithSameName->TypeName != RequiredInput.TypeName)
 					{
-						bFoundRequiredInput = true;
-						break;
+						// Swap existing input because types do not match.
+						RemoveInput(InputWithSameName->Name);
+						AddNewInput(RequiredInput);
 					}
 				}
-
-				if (!bFoundRequiredInput)
+				else
 				{
-					//CurrentInputs.Add(RequiredInput);
 					AddNewInput(RequiredInput);
 				}
 			}
@@ -348,19 +241,22 @@ namespace Metasound
 			TArray<FMetasoundOutputDescription>& CurrentOutputs = DocumentToFixUp.RootClass.Outputs;
 			for (const FMetasoundOutputDescription& RequiredOutput : RequiredOutputs)
 			{
-				bool bFoundRequiredOutput = false;
-				for (const FMetasoundOutputDescription& Output : CurrentOutputs)
+				auto IsEqualOutputName = [&](const FMetasoundOutputDescription& OutputDesc)
 				{
-					if (Output.TypeName == RequiredOutput.TypeName && Output.Name == RequiredOutput.Name)
+					return RequiredOutput.Name == OutputDesc.Name;
+				};
+
+				if (const FMetasoundOutputDescription* OutputWithSameName = CurrentOutputs.FindByPredicate(IsEqualOutputName))
+				{
+					if (OutputWithSameName->TypeName != RequiredOutput.TypeName)
 					{
-						bFoundRequiredOutput = true;
-						break;
+						// Swap existing input because types do not match.
+						RemoveOutput(OutputWithSameName->Name);
+						AddNewOutput(RequiredOutput);
 					}
 				}
-
-				if (!bFoundRequiredOutput)
+				else
 				{
-					//CurrentOutputs.Add(RequiredOutput);
 					AddNewOutput(RequiredOutput);
 				}
 			}
@@ -371,7 +267,7 @@ namespace Metasound
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
 			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.DependencyID))
 			, InputPtr(InParams.InAccessPoint, NodeClass.GetPath()[Path::EFromClass::ToInputs][*InputName])
-			, OutputNodePtr(nullptr, FDescPath())
+			, OutputNodePtr(TDescriptionPtr<FMetasoundOutputDescription>::CreateInvalid())
 		{
 			if (InParams.InAccessPoint.IsValid())
 			{
@@ -383,8 +279,8 @@ namespace Metasound
 		FInputHandle::FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName, EOutputNodeTag InTag)
 			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
-			, NodeClass(nullptr, FDescPath())
-			, InputPtr(nullptr, FDescPath())
+			, NodeClass(TDescriptionPtr<FMetasoundClassDescription>::CreateInvalid())
+			, InputPtr(TDescriptionPtr<FMetasoundInputDescription>::CreateInvalid())
 			, OutputNodePtr(InParams.InAccessPoint, Path::GetOutputDescriptionPath(InParams.InPath, InputName))
 		{
 			if (InParams.InAccessPoint.IsValid())
@@ -398,7 +294,7 @@ namespace Metasound
 		{
 			FDescPath NullPath = FDescPath();
 			FString NullString = FString();
-			FHandleInitParams InitParams = { nullptr, NullPath , FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
+			FHandleInitParams InitParams = { FDescriptionAccessPoint::CreateInvalid(), NullPath , FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
 			return FInputHandle(FHandleInitParams::PrivateToken, InitParams, NullString, FInputHandle::Default);
 		}
 
@@ -492,6 +388,16 @@ namespace Metasound
 			}
 		}
 
+		int32 FInputHandle::GetOwningNodeID() const
+		{
+			if (!IsValid())
+			{
+				return FMetasoundNodeDescription::InvalidID;
+			}
+
+			return NodePtr->UniqueID;
+		}
+
 		FOutputHandle FInputHandle::GetCurrentlyConnectedOutput() const
 		{
 			if (!IsValid())
@@ -513,15 +419,24 @@ namespace Metasound
 			// All node connections are in the same graph, so we just need to go up one level to the Nodes array
 			// and look up the node by it's unique ID.
 			FDescPath OutputNodePath = (NodePtr.GetPath() << 1)[OutputNodeID];
+			TDescriptionPtr<FMetasoundNodeDescription> OtherNodePtr(NodePtr.GetAccessPoint(), OutputNodePath);
 
-			if (NodeClass.IsValid())
+			int32 OutputNodeDependencyId = FMetasoundClassDescription::InvalidID;
+			EMetasoundClassType OutputNodeType = EMetasoundClassType::Invalid;
+			if (OtherNodePtr.IsValid())
 			{
-				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, FMetasoundNodeDescription::InvalidID, NodeClass->UniqueID, OwningAsset };
-				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputName, FOutputHandle::Default);
+				OutputNodeDependencyId = OtherNodePtr->DependencyID;
+				OutputNodeType = OtherNodePtr->ObjectTypeOfNode;
 			}
-			else if (OutputNodePtr.IsValid())
+
+			if (EMetasoundClassType::Input == OutputNodeType)
 			{
-				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, OwningAsset };
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, OutputNodeID, FMetasoundClassDescription::InvalidID, OwningAsset };
+				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputName, FOutputHandle::InputNode);
+			}
+			else if (EMetasoundClassType::Invalid != OutputNodeType)
+			{
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, OutputNodeID, OutputNodeDependencyId, OwningAsset };
 				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputName, FOutputHandle::Default);
 			}
 			else
@@ -710,7 +625,7 @@ namespace Metasound
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
 			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.DependencyID))
 			, OutputPtr(InParams.InAccessPoint, NodeClass.GetPath()[Path::EFromClass::ToOutputs][*InOutputName])
-			, InputNodePtr(nullptr, FDescPath())
+			, InputNodePtr(TDescriptionPtr<FMetasoundInputDescription>::CreateInvalid())
 		{
 			if (InParams.InAccessPoint.IsValid())
 			{
@@ -722,8 +637,8 @@ namespace Metasound
 		FOutputHandle::FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams, const FString& InOutputName, FOutputHandle::EInputNodeTag InTag)
 			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
-			, NodeClass(nullptr, FDescPath())
-			, OutputPtr(nullptr, FDescPath())
+			, NodeClass(TDescriptionPtr<FMetasoundClassDescription>::CreateInvalid())
+			, OutputPtr(TDescriptionPtr<FMetasoundOutputDescription>::CreateInvalid())
 			, InputNodePtr(InParams.InAccessPoint, Path::GetInputDescriptionPath(InParams.InPath, InOutputName))
 		{
 			if (InParams.InAccessPoint.IsValid())
@@ -737,7 +652,7 @@ namespace Metasound
 		{
 			FString NullString;
 			FDescPath NullPath;
-			FHandleInitParams InitParams = { nullptr, NullPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
+			FHandleInitParams InitParams = { FDescriptionAccessPoint::CreateInvalid(), NullPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
 			return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, NullString, FOutputHandle::Default);
 		}
 
@@ -862,7 +777,7 @@ namespace Metasound
 			else
 			{
 				// input nodes and output nodes don't have class descriptions.
-				return TDescriptionPtr<FMetasoundClassDescription>(nullptr, FDescPath());
+				return TDescriptionPtr<FMetasoundClassDescription>::CreateInvalid();
 			}
 		}
 
@@ -883,7 +798,7 @@ namespace Metasound
 		{
 			FDescPath InvalidPath;
 			FString InvalidClassName;
-			FHandleInitParams InitParams = { nullptr, InvalidPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
+			FHandleInitParams InitParams = { FDescriptionAccessPoint::CreateInvalid(), InvalidPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, EMetasoundClassType::Invalid);
 		}
 
@@ -1302,7 +1217,7 @@ namespace Metasound
 		{
 			FDescPath InvalidPath;
 			FString InvalidClassName;
-			FHandleInitParams InitParams = { nullptr, InvalidPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
+			FHandleInitParams InitParams = { FDescriptionAccessPoint::CreateInvalid(), InvalidPath, FMetasoundNodeDescription::InvalidID, FMetasoundClassDescription::InvalidID, nullptr };
 			return FGraphHandle(FHandleInitParams::Token, InitParams);
 		}
 
@@ -2141,7 +2056,7 @@ namespace Metasound
 			{
 				
 				TJsonStructSerializerBackend<DefaultCharType> Backend(*FileWriter, EStructSerializerBackendFlags::Default);
-				FStructSerializer::Serialize<FMetasoundClassDescription>(GraphsClassDeclaration.GetChecked(), Backend);
+				FStructSerializer::Serialize<FMetasoundDocument>(*OwningDocument, Backend);
 		
 				FileWriter->Close();
 

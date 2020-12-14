@@ -16,13 +16,10 @@
 
 namespace Metasound
 {
-	
-
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
 		: NumChannels(0)
 		, NumFramesPerExecute(0)
 		, NumSamplesPerExecute(0)
-		, GraphOutputAudioRef(InParams.GraphOutputAudioRef) // Copy audio ref here to avoid unneeded construction of unused graph output audio object.
 		, OnFinishedBopRef(InParams.BopOnFinishRef)
 	{
 		SetGraph(MoveTemp(InParams));
@@ -35,10 +32,7 @@ namespace Metasound
 	bool FMetasoundGenerator::UpdateGraphOperator(FMetasoundGeneratorInitParams&& InParams)
 	{
 		// multichannel version:
-		//const int32 GraphNumChannels = InParams.GraphOutputAudioRef->GetNumChannels();
-
-		// single channel version:
-		const int32 GraphNumChannels = 1;
+		const int32 GraphNumChannels = InParams.OutputBuffers.Num();
 
 		if (GraphNumChannels == NumChannels)
 		{
@@ -56,26 +50,34 @@ namespace Metasound
 		NumFramesPerExecute = 0;
 		NumSamplesPerExecute = 0;
 
+		GraphOutputAudio.Reset();
+		if (InParams.OutputBuffers.Num() > 0)
+		{
+			GraphOutputAudio.Append(InParams.OutputBuffers.GetData(), InParams.OutputBuffers.Num());
+		}
+
+		OnFinishedBopRef = InParams.BopOnFinishRef;
+
 		// The graph operator and graph audio output contain all the values needed
 		// by the sound generator.
 		RootExecuter.SetOperator(MoveTemp(InParams.GraphOperator));
-		GraphOutputAudioRef = InParams.GraphOutputAudioRef;
-		OnFinishedBopRef = InParams.BopOnFinishRef;
+
 
 		// Query the graph output to get the number of output audio channels.
 		// Multichannel version:
-		//NumChannels = GraphOutputAudioRef->GetNumChannels();
+		NumChannels = GraphOutputAudio.Num();
 
-		// Single channel version:
-		NumChannels = 1;
 
 		// All buffers have same number of frames, so only need to query
 		// first buffer to know number of frames.
-
-		// Multichannel version:
-		//NumFramesPerExecute = GraphOutputAudioRef->GetBuffers()[0]->Num();
-		// single channel version:
-		NumFramesPerExecute = GraphOutputAudioRef->Num();
+		if (NumChannels > 0)
+		{
+			NumFramesPerExecute = GraphOutputAudio[0]->Num();
+		}
+		else
+		{
+			NumFramesPerExecute = 0;
+		}
 
 		NumSamplesPerExecute = NumFramesPerExecute * NumChannels;
 
@@ -88,11 +90,7 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::GetNumChannels() const
 	{
-		// Multichannel version:
-		// return GraphOutputAudioRef->GetNumChannels();
-
-		// Single channel version:
-		return 1;
+		return GraphOutputAudio.Num();
 	}
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
@@ -100,6 +98,12 @@ namespace Metasound
 		if (NumSamplesRemaining <= 0)
 		{
 			return 0;
+		}
+
+		if (NumSamplesPerExecute < 1)
+		{
+			FMemory::Memset(OutAudio, 0, sizeof(float) * NumSamplesRemaining);
+			return NumSamplesRemaining;
 		}
 
 		// If we have any audio left in the internal overflow buffer from 
@@ -136,7 +140,7 @@ namespace Metasound
 				OverflowBuffer.Reset();
 				OverflowBuffer.AddUninitialized(OverflowCount);
 
-				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount);
+				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount * sizeof(float));
 			}
 		}
 
@@ -146,6 +150,7 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::GetDesiredNumSamplesToRenderPerCallback() const
 	{
+		// TODO: may improve performance if this number is increased. 
 		return NumFramesPerExecute;
 	}
 
@@ -177,11 +182,6 @@ namespace Metasound
 
 	void FMetasoundGenerator::InterleaveGeneratedAudio()
 	{
-		/**
-		// TODO: Convert MetasoundSource / MetasoundGenerator to take Multichannel Audio
-		// once we've got converter nodes up and running.
-		const FMultichannelAudioFormat& DeinterleavedAudio = *GraphOutputAudioRef;
-
 		// Prepare output buffer
 		InterleavedAudioBuffer.Reset();
 
@@ -190,12 +190,10 @@ namespace Metasound
 			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
 		}
 
-		const TArrayView<const FAudioBufferReadRef>& Buffers = DeinterleavedAudio.GetBuffers();
-
 		// Iterate over channels
 		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 		{
-			const FAudioBuffer& InputBuffer = *Buffers[ChannelIndex];
+			const FAudioBuffer& InputBuffer = *GraphOutputAudio[ChannelIndex];
 
 			const float* InputPtr = InputBuffer.GetData();
 			float* OutputPtr = &InterleavedAudioBuffer.GetData()[ChannelIndex];
@@ -207,26 +205,7 @@ namespace Metasound
 				OutputPtr += NumChannels;
 			}
 		}
-
-		*/
-
-		// Single channel version (for now):
-		const FAudioBuffer& InputAudioBuffer = *GraphOutputAudioRef;
-
-		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
-		{
-			const FAudioBuffer& InputBuffer = InputAudioBuffer;
-
-			const float* InputPtr = InputBuffer.GetData();
-			float* OutputPtr = &InterleavedAudioBuffer.GetData()[ChannelIndex];
-
-			// Assign values to output for single channel.
-			for (int32 FrameIndex = 0; FrameIndex < NumFramesPerExecute; FrameIndex++)
-			{
-				*OutputPtr = InputPtr[FrameIndex];
-				OutputPtr += NumChannels;
-			}
-		}
+		// TODO: memcpy for single channel. 
 	}
 } 
 

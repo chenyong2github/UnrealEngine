@@ -30,7 +30,15 @@ class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBas
 
 protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
-	FMetasoundDocument RootMetasoundDocument;
+	FMetasoundDocument MetasoundDocument;
+
+	Metasound::Frontend::FAccessPoint MetasoundDocumentAccessPoint;
+
+	// Returns document object responsible for serializing asset
+	Metasound::Frontend::TAccessPtr<FMetasoundDocument> GetDocument() override;
+
+	// Returns document object responsible for serializing asset
+	Metasound::Frontend::TAccessPtr<const FMetasoundDocument> GetDocument() const override;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -45,7 +53,7 @@ public:
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
 	{
-		return GET_MEMBER_NAME_CHECKED(UMetasound, RootMetasoundDocument);
+		return GET_MEMBER_NAME_CHECKED(UMetasound, MetasoundDocument);
 	}
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
@@ -62,16 +70,6 @@ public:
 	virtual void SetGraph(UEdGraph* InGraph) override;
 #endif // WITH_EDITORONLY_DATA
 
-	FMetasoundDocument& GetDocument() override
-	{
-		return RootMetasoundDocument;
-	}
-
-	const FMetasoundDocument& GetDocument() const override
-	{
-		return RootMetasoundDocument;
-	}
-
 	UObject* GetOwningAsset() const override
 	{
 		// Hack to allow handles to manipulate while providing
@@ -79,12 +77,15 @@ public:
 		return const_cast<UObject*>(CastChecked<const UObject>(this));
 	}
 
+	const TArray<FMetasoundArchetype>& GetPreferredArchetypes() const override;
+
+	bool IsArchetypeSupported(const FMetasoundArchetype& InArchetype) const override;
+
+	const FMetasoundArchetype& GetPreferredArchetype(const FMetasoundDocument& InDocument) const override;
+
 	// Updates the Metasound's metadata (name, author, etc).
 	// @param InMetadata Metadata containing corrections to the class metadata.
 	void SetMetadata(FMetasoundClassMetadata& InMetadata) override;
-
-	// Get the most up to date archetype for metasound.
-	virtual FMetasoundArchetype GetArchetype() const override;
 
 	void PostLoad() override;
 

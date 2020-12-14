@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Misc/TVariant.h"
+#include "MetasoundAccessPtr.h"
 #include "MetasoundFrontendDataLayout.h"
 #include "MetasoundFrontendRegistries.h"
-
-
 
 namespace Metasound
 {
@@ -522,69 +521,6 @@ namespace Metasound
 		 */
 		class METASOUNDFRONTEND_API FDescriptionAccessPoint
 		{
-		public:
-			FDescriptionAccessPoint() = delete;
-			FDescriptionAccessPoint(FMetasoundDocument& InRootDocument);
-
-			// Returns the root class description associated with this FDescriptionAccessPoint.
-			FMetasoundDocument& GetRoot();
-
-			// Get a descriptor element at a specific path from the root of a metasound.
-			// @see FDescPath for more details.
-			// @returns a pointer to a descriptor struct, or an invalid ptr if the path is invalid.
-			template <typename MetasoundDescriptionType>
-			MetasoundDescriptionType* GetElementAtPath(const FDescPath& InPathFromRoot)
-			{
-				if (TIsSame<MetasoundDescriptionType, FMetasoundClassDescription>::Value)
-				{
-					return (MetasoundDescriptionType*) GetClassFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FMetasoundNodeDescription>::Value)
-				{
-					return (MetasoundDescriptionType*) GetNodeFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FMetasoundGraphDescription>::Value)
-				{
-					return (MetasoundDescriptionType*) GetGraphFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FMetasoundInputDescription>::Value)
-				{
-					return (MetasoundDescriptionType*) GetInputFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FMetasoundOutputDescription>::Value)
-				{
-					return (MetasoundDescriptionType*) GetOutputFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FMetasoundClassMetadata>::Value)
-				{
-					return (MetasoundDescriptionType*) GetMetadataFromPath(InPathFromRoot);
-				}
-				else if (TIsSame<MetasoundDescriptionType, FClassDependencyIDs>::Value)
-				{
-					return (MetasoundDescriptionType*) GetClassDependencyIDsFromPath(InPathFromRoot);
-				}
-				else
-				{
-					ensureAlwaysMsgf(false, TEXT("Tried to call GetElementAtPath with an invalid type."));
-					return nullptr;
-				}
-			}
-
-		private:
-			// The root class description for all description structs
-			// accessed via this class.
-			FMetasoundDocument& RootDocument;
-
-			// These functions result in some duplicate code, but allow us to hide
-			// the implementation for GetElementAtPath.
-			FMetasoundClassDescription* GetClassFromPath(const FDescPath& InPathFromRoot);
-			FMetasoundNodeDescription* GetNodeFromPath(const FDescPath& InPathFromRoot);
-			FMetasoundGraphDescription* GetGraphFromPath(const FDescPath& InPathFromRoot);
-			FMetasoundInputDescription* GetInputFromPath(const FDescPath& InPathFromRoot);
-			FMetasoundOutputDescription* GetOutputFromPath(const FDescPath& InPathFromRoot);
-			FMetasoundClassMetadata* GetMetadataFromPath(const FDescPath& InPathFromRoot);
-			FClassDependencyIDs* GetClassDependencyIDsFromPath(const FDescPath& InPathFromRoot);
-
 			using FMetasoundDescriptionPtr = TVariant<
 				FMetasoundDocument*,
 				FMetasoundClassDescription*,
@@ -596,6 +532,45 @@ namespace Metasound
 				FClassDependencyIDs*,
 				void*>
 				;
+		public:
+			FDescriptionAccessPoint() = delete;
+			FDescriptionAccessPoint(TAccessPtr<FMetasoundDocument> InRootDocument);
+
+			static FDescriptionAccessPoint CreateInvalid()
+			{
+				return FDescriptionAccessPoint(TAccessPtr<FMetasoundDocument>::CreateInvalid());
+			}
+
+			// Returns the root class description associated with this FDescriptionAccessPoint.
+			FMetasoundDocument& GetRootChecked() const;
+
+			bool IsValid() const
+			{
+				return RootDocumentPtr.IsValid();
+			}
+
+			// Get a descriptor element at a specific path from the root of a metasound.
+			// @see FDescPath for more details.
+			// @returns a pointer to a descriptor struct, or an invalid ptr if the path is invalid.
+			template <typename MetasoundDescriptionType>
+			MetasoundDescriptionType* GetElementAtPath(const FDescPath& InPathFromRoot) const
+			{
+				FMetasoundDescriptionPtr Ptr;
+				if (ensure(GetDescriptionPtrFromPath(InPathFromRoot, Ptr)))
+				{
+					return Ptr.Get<MetasoundDescriptionType*>();
+				}
+
+				return nullptr;
+			}
+
+		private:
+			// The root class description for all description structs
+			// accessed via this class.
+			TAccessPtr<FMetasoundDocument> RootDocumentPtr;
+
+
+			bool GetDescriptionPtrFromPath(const FDescPath& InPathFromRoot, FMetasoundDescriptionPtr& OutPtr) const;
 
 			struct FDescriptionUnwindStep
 			{
@@ -614,11 +589,11 @@ namespace Metasound
 				}
 			};
 
-			FDescriptionUnwindStep GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext);
-			FDescriptionUnwindStep GoToNextFromClass(FMetasoundClassDescription& InClass, FDescPath& InPath, const Path::FElement& InNext);
+			FDescriptionUnwindStep GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext) const;
+			FDescriptionUnwindStep GoToNextFromClass(FMetasoundClassDescription& InClass, FDescPath& InPath, const Path::FElement& InNext) const;
 
 			// This function pops off elements of InPath to go to the next level down in a Metasound description.
-			FDescriptionUnwindStep GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement);
+			FDescriptionUnwindStep GoToNext(FDescPath& InPath, FDescriptionUnwindStep InElement) const;
 		};
 
 		// Utility class used by the frontend handle classes to access the underlying Description data they are modifying.
@@ -646,19 +621,24 @@ namespace Metasound
 			FMetasoundClassMetadata,
 			FMetasoundClassDescription)");
 
-			TWeakPtr<FDescriptionAccessPoint> AccessPoint;
+			FDescriptionAccessPoint AccessPoint;
 			FDescPath PathFromRoot;
 			bool bAccessFailure = false;
 
 		public:
 			TDescriptionPtr() = delete;
 
-			TDescriptionPtr(TWeakPtr<FDescriptionAccessPoint> InAccessPoint, const FDescPath& InPathFromRoot)
+			TDescriptionPtr(FDescriptionAccessPoint InAccessPoint, const FDescPath& InPathFromRoot)
 				: AccessPoint(InAccessPoint)
 				, PathFromRoot(InPathFromRoot)
 			{
 				// Test accessor
 				bAccessFailure = Get() == nullptr;
+			}
+
+			static TDescriptionPtr<MetasoundDescriptionType> CreateInvalid()
+			{
+				return TDescriptionPtr<MetasoundDescriptionType>(FDescriptionAccessPoint::CreateInvalid(), FDescPath());
 			}
 
 			TDescriptionPtr(TDescriptionPtr&& InDescriptionPtr) = default;
@@ -679,7 +659,7 @@ namespace Metasound
 				return PathFromRoot;
 			}
 
-			TWeakPtr<FDescriptionAccessPoint> GetAccessPoint() const
+			const FDescriptionAccessPoint& GetAccessPoint() const
 			{
 				return AccessPoint;
 			}
@@ -688,16 +668,9 @@ namespace Metasound
 			// Note that this is NOT thread safe- this should be called on the same thread as whomever owns the lifecycle of the underlying MetasoundDescriptionType.
 			MetasoundDescriptionType* Get() const
 			{
-				if (TSharedPtr<FDescriptionAccessPoint> PinnedAccessPoint = AccessPoint.Pin())
+				if (AccessPoint.IsValid())
 				{
-					if (TIsSame<MetasoundDescriptionType, FMetasoundDocument>::Value)
-					{
-						return (MetasoundDescriptionType*) &(PinnedAccessPoint->GetRoot());
-					}
-					else
-					{
-						return PinnedAccessPoint->GetElementAtPath<MetasoundDescriptionType>(PathFromRoot);
-					}
+					return AccessPoint.GetElementAtPath<MetasoundDescriptionType>(PathFromRoot);
 				}
 				else
 				{

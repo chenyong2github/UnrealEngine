@@ -6,6 +6,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "MetasoundGraphCoreModule.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundLog.h"
 
 /** Define which determines whether to check that the size of the audio buffer has not changed since initialization */
 #define METASOUNDGRAPHCORE_CHECKAUDIONUM !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -61,7 +62,7 @@ namespace Metasound
 			FORCEINLINE const float* GetData() const
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				UE_CLOG(InitialNum != Buffer.Num(), LogMetasoundGraphCore, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetasound, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
 #endif				
 				return Buffer.GetData();
 			}
@@ -70,7 +71,7 @@ namespace Metasound
 			FORCEINLINE float* GetData()
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				UE_CLOG(InitialNum != Buffer.Num(), LogMetasoundGraphCore, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetasound, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
 #endif				
 				return Buffer.GetData();
 			}
@@ -79,7 +80,7 @@ namespace Metasound
 			FORCEINLINE int32 Num() const
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				UE_CLOG(InitialNum != Buffer.Num(), LogMetasoundGraphCore, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetasound, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
 #endif				
 				return Buffer.Num();
 			}
@@ -88,7 +89,7 @@ namespace Metasound
 			FORCEINLINE operator const Audio::AlignedFloatBuffer& () const
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				UE_CLOG(InitialNum != Buffer.Num(), LogMetasoundGraphCore, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetasound, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
 #endif				
 				return Buffer;
 			}
@@ -100,7 +101,7 @@ namespace Metasound
 			FORCEINLINE operator Audio::AlignedFloatBuffer& ()
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				UE_CLOG(InitialNum != Buffer.Num(), LogMetasoundGraphCore, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetasound, Error, TEXT("Metasound audio buffer size change detected.  Audio Buffers should not be resized."));
 #endif				
 				return Buffer;
 			}

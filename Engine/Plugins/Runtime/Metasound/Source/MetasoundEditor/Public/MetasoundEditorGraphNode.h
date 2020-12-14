@@ -55,8 +55,8 @@ public:
 	UObject& GetMetasoundChecked();
 	const UObject& GetMetasoundChecked() const;
 
-	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
-	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
+	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
+	Metasound::Frontend::FNodeHandle GetNodeHandle();
 
 	void SetNodeID(uint32 InNodeID);
 	uint32 GetNodeID() const;

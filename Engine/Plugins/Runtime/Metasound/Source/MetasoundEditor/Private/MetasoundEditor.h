@@ -47,6 +47,8 @@ namespace Metasound
 			virtual UObject* GetMetasoundObject() const override;
 			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
 			virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
+			bool RebuildGraph() const override;
+			bool SynchronizeGraph() const override;
 
 			/** IToolkit interface */
 			virtual FName GetToolkitFName() const override;

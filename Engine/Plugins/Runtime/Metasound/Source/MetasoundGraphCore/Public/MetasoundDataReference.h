@@ -248,7 +248,7 @@ namespace Metasound
 			template <typename... ArgTypes>
 			static TDataWriteReference<DataType> CreateNew(ArgTypes&&... Args)
 			{
-				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "Tried to call TDataWriteReference::CreateNew with args that don't match any constructor for an underlying type!");
+				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "TDataWriteReference::CreateNew underlying type is not constructible with provided arguments.");
 				return TDataWriteReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
