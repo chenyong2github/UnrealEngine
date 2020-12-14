@@ -2,6 +2,8 @@
 
 
 #include "ToolSetupUtil.h"
+
+#include "Curves/CurveFloat.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
 #include "Materials/Material.h"
@@ -207,4 +209,12 @@ UMaterialInterface* ToolSetupUtil::GetDefaultLineComponentMaterial(UInteractiveT
 		return ToolManager->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
 	}
 	return Material;
+}
+
+UCurveFloat* ToolSetupUtil::GetContrastAdjustmentCurve(UInteractiveToolManager* ToolManager)
+{
+	// This curve would currently be shared across any tools that need such a curve. We'll probably want to revisit this
+	// once it is used in multiple tools.
+	UCurveFloat* Curve = LoadObject<UCurveFloat>(nullptr, TEXT("/MeshModelingToolset/Curves/ContrastAdjustmentCurve"));
+	return Curve;
 }

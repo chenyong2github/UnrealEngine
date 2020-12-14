@@ -15,6 +15,7 @@
 #include "DisplaceMeshTool.generated.h"
 
 struct FMeshDescription;
+class UCurveFloat;
 class USimpleDynamicMeshComponent;
 
 UENUM()
@@ -80,6 +81,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bInvertWeightMap = false;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowWireframe = false;
+
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (TransientToolProperty) )
 	bool bDisableSizeWarning = false;
 };
@@ -113,6 +117,16 @@ public:
 	tiling of the texture map across the mesh. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-1", UIMax = "1"))
 	FVector2D UVOffset = FVector2D(0, 0);
+
+	/** When true, applies a function to remap the values in the displacement map, which can be used 
+	 for contrast adjustment. The texture map values are converted to the range [0,1] before applying
+	 the remapping. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bApplyAdjustmentCurve = false;
+
+	/** This curve is queried in the range [0,1] to adjust contrast of the displacement map. */
+	UPROPERTY(VisibleAnywhere, Category = Options, meta = (EditCondition = "bApplyAdjustmentCurve", EditConditionHides))
+	UCurveFloat* AdjustmentCurve = nullptr;
 };
 
 

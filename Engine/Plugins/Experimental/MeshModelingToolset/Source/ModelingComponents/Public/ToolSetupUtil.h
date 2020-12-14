@@ -6,6 +6,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+class UCurveFloat;
 class UTexture;
 class UInteractiveToolManager;
 
@@ -108,4 +109,9 @@ namespace ToolSetupUtil
 	 * @return custom material suitable for use with ULineSetComponent
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested = true);
+
+	/**
+	 * @return a curve asset used for contrast adjustments when using a texture map for displacements.
+	 */
+	MODELINGCOMPONENTS_API UCurveFloat* GetContrastAdjustmentCurve(UInteractiveToolManager* ToolManager);
 }

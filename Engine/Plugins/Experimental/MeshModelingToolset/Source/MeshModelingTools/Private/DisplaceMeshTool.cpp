@@ -3,6 +3,8 @@
 #include "DisplaceMeshTool.h"
 
 #include "AssetUtils/Texture2DUtil.h"
+#include "Curves/CurveFloat.h"
+#include "Curves/RichCurve.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
@@ -175,7 +177,8 @@ namespace DisplaceMeshToolLocals{
 			TArray<FVector3d>& DisplacedPositions,
 			float DisplaceFieldBaseValue = 128.0/255, // value that corresponds to zero displacement
 			FVector2f UVScale = FVector2f(1, 1),
-			FVector2f UVOffset = FVector2f(0,0))
+			FVector2f UVOffset = FVector2f(0,0),
+			FRichCurve* AdjustmentCurve = nullptr)
 		{
 			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(0);
 
@@ -202,7 +205,12 @@ namespace DisplaceMeshToolLocals{
 					UV = UV - FVector2f(FMath::Floor(UV.X), FMath::Floor(UV.Y));
 					UV.Y *= VHeight;
 
-					double Offset = DisplaceField.BilinearSampleClamped(UV) - DisplaceFieldBaseValue;
+					double Offset = DisplaceField.BilinearSampleClamped(UV);
+					if (AdjustmentCurve)
+					{
+						Offset = AdjustmentCurve->Eval(Offset);
+					}
+					Offset -= DisplaceFieldBaseValue;
 
 					double Intensity = IntensityFunc(Positions[vid], Normals[vid]);
 					DisplacedPositions[vid] = Positions[vid] + (Offset * Intensity * Normals[vid]);
@@ -312,6 +320,9 @@ namespace DisplaceMeshToolLocals{
 		float DisplacementMapBaseValue = 128.0/255; // i.e., what constitutes no displacement
 		FVector2f UVScale = FVector2f(1,1);
 		FVector2f UVOffset = FVector2f(0, 0);
+		// This gets used by worker threads, so do not try to change an existing curve- make
+		// a new one each time.
+		TSharedPtr<FRichCurve> AdjustmentCurve;
 
 		TSharedPtr<FIndexedWeightMap> WeightMap;
 		TFunction<float(const FVector3d&, const FIndexedWeightMap)> WeightMapQueryFunc;
@@ -427,7 +438,8 @@ namespace DisplaceMeshToolLocals{
 				DisplacedPositions,
 				Parameters.DisplacementMapBaseValue,
 				Parameters.UVScale,
-				Parameters.UVOffset);
+				Parameters.UVOffset,
+				Parameters.AdjustmentCurve.Get());
 			break;
 
 		case EDisplaceMeshToolDisplaceType::SineWave:
@@ -472,7 +484,7 @@ namespace DisplaceMeshToolLocals{
 		{
 			SetIntensity(DisplaceParametersIn.DisplaceIntensity);
 			SetRandomSeed(DisplaceParametersIn.RandomSeed);
-			SetDisplacementMap(DisplaceParametersIn.DisplacementMap);
+			SetDisplacementMap(DisplaceParametersIn.DisplacementMap); // Calls UpdateMap
 			SetFrequency(DisplaceParametersIn.SineWaveFrequency);
 			SetPhaseShift(DisplaceParametersIn.SineWavePhaseShift);
 			SetSineWaveDirection(DisplaceParametersIn.SineWaveDirection);
@@ -488,12 +500,15 @@ namespace DisplaceMeshToolLocals{
 			Parameters.DisplacementMapBaseValue = DisplaceParametersIn.DisplacementMapBaseValue;
 			Parameters.UVScale = DisplaceParametersIn.UVScale;
 			Parameters.UVOffset = DisplaceParametersIn.UVOffset;
+
+			Parameters.AdjustmentCurve = DisplaceParametersIn.AdjustmentCurve;
 		}
 		void SetIntensity(float IntensityIn);
 		void SetRandomSeed(int RandomSeedIn);
 		void SetDisplacementMap(UTexture2D* DisplacementMapIn);
 		void SetDisplacementMapUVAdjustment(const FVector2f& UVScale, const FVector2f& UVOffset);
 		void SetDisplacementMapBaseValue(float DisplacementMapBaseValue);
+		void SetAdjustmentCurve(UCurveFloat* CurveFloat);
 		void SetFrequency(float FrequencyIn);
 		void SetPhaseShift(float PhaseShiftIn);
 		void SetSineWaveDirection(const FVector& Direction);
@@ -529,11 +544,11 @@ namespace DisplaceMeshToolLocals{
 
 	void FDisplaceMeshOpFactory::SetDisplacementMap(UTexture2D* DisplacementMapIn)
 	{
-		if (Parameters.DisplacementMap != DisplacementMapIn)
-		{
-			Parameters.DisplacementMap = DisplacementMapIn;
-			UpdateMap();
-		}
+		Parameters.DisplacementMap = DisplacementMapIn;
+
+		// Note that we do the update even if we got the same pointer, because the texture
+		// may have been changed in the editor.
+		UpdateMap();
 	}
 
 	void FDisplaceMeshOpFactory::SetDisplacementMapUVAdjustment(const FVector2f& UVScale, const FVector2f& UVOffset)
@@ -547,6 +562,13 @@ namespace DisplaceMeshToolLocals{
 		// We could bake this into the displacement field, but that would require calling UpdateMap with
 		// every slider change, which is slow. So we'll just pass this down to the calculation.
 		Parameters.DisplacementMapBaseValue = DisplacementMapBaseValue;
+	}
+
+	void FDisplaceMeshOpFactory::SetAdjustmentCurve(UCurveFloat* CurveFloat)
+	{
+		Parameters.AdjustmentCurve = CurveFloat ? TSharedPtr<FRichCurve>(
+			static_cast<FRichCurve*>(CurveFloat->FloatCurve.Duplicate()))
+			: nullptr;
 	}
 
 	void FDisplaceMeshOpFactory::SetFrequency(float FrequencyIn)
@@ -582,7 +604,9 @@ namespace DisplaceMeshToolLocals{
 
 		TImageBuilder<FVector4f> DisplacementMapValues;
 		FImageDimensions DisplacementMapDimensions;
-		if (!UE::AssetUtils::ReadTexture(Parameters.DisplacementMap, DisplacementMapDimensions, DisplacementMapValues))
+		if (!UE::AssetUtils::ReadTexture(Parameters.DisplacementMap, DisplacementMapDimensions, DisplacementMapValues,
+			// need bPreferPlatformData to be true to respond to non-destructive changes to the texture in the editor
+			true)) 
 		{
 			Parameters.DisplaceField = FSampledScalarField2f();
 			Parameters.DisplaceField.GridValues.AssignAll(0);
@@ -684,7 +708,25 @@ void UDisplaceMeshTool::Setup()
 	{
 		TextureMapProperties->DisplacementMap = nullptr;
 	}
+	TextureMapProperties->AdjustmentCurve = ToolSetupUtil::GetContrastAdjustmentCurve(GetToolManager());
 
+	// In editor, we can respond directly to curve updates.
+#if WITH_EDITORONLY_DATA
+	if (TextureMapProperties->AdjustmentCurve)
+	{
+		TextureMapProperties->AdjustmentCurve->OnUpdateCurve.AddWeakLambda(this,
+			[this](UCurveBase* Curve, EPropertyChangeType::Type ChangeType) {
+				if (TextureMapProperties->bApplyAdjustmentCurve)
+				{
+					FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+					DisplacerDownCast->SetAdjustmentCurve(TextureMapProperties->AdjustmentCurve);
+					bNeedsDisplaced = true;
+					StartComputation();
+				}
+			});
+	}
+#endif
+	
 	// populate weight maps list
 	TArray<FName> WeightMaps;
 	UE::WeightMaps::FindVertexWeightMaps(ComponentTarget->GetMesh(), WeightMaps);
@@ -705,6 +747,7 @@ void UDisplaceMeshTool::Setup()
 	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
+	DynamicMeshComponent->bExplicitShowWireframe = CommonProperties->bShowWireframe;
 
 	// transfer materials
 	FComponentMaterialSet MaterialSet;
@@ -777,6 +820,13 @@ void UDisplaceMeshTool::Setup()
 
 void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+#if WITH_EDITORONLY_DATA
+	if (TextureMapProperties->AdjustmentCurve)
+	{
+		TextureMapProperties->AdjustmentCurve->OnUpdateCurve.RemoveAll(this);
+	}
+#endif
+
 	CommonProperties->SaveProperties(this);
 	NoiseProperties->SaveProperties(this);
 	DirectionalFilterProperties->SaveProperties(this);
@@ -875,6 +925,10 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 		{
 			DisplacerDownCast->SetIntensity(CommonProperties->DisplaceIntensity);
 		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, bShowWireframe))
+		{
+			DynamicMeshComponent->bExplicitShowWireframe = CommonProperties->bShowWireframe;
+		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshSineWaveProperties, SineWaveFrequency))
 		{
 			DisplacerDownCast->SetFrequency(SineWaveProperties->SineWaveFrequency);
@@ -890,6 +944,11 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, DisplacementMapBaseValue))
 		{
 			DisplacerDownCast->SetDisplacementMapBaseValue(TextureMapProperties->DisplacementMapBaseValue);
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, bApplyAdjustmentCurve)
+			|| PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, AdjustmentCurve))
+		{
+			DisplacerDownCast->SetAdjustmentCurve(TextureMapProperties->bApplyAdjustmentCurve ? TextureMapProperties->AdjustmentCurve : nullptr);
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, WeightMap) 
 				 || PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, bInvertWeightMap))

@@ -47,8 +47,7 @@ static bool ReadTexture_PlatformData(
 	for (int32 i = 0; i < Num; ++i)
 	{
 		FColor ByteColor = FormattedImageData[i];
-		FLinearColor FloatColor(ByteColor);
-		DestImage.SetPixel(i, FVector4f(FloatColor));
+		DestImage.SetPixel(i, FVector4f(ByteColor.ReinterpretAsLinear()));
 	}
 
 	// restore built platform texture data to initial state
@@ -95,7 +94,7 @@ static bool ReadTexture_SourceData(
 
 			FLinearColor FloatColor = (TextureMap->SRGB) ?
 				FLinearColor::FromSRGBColor(PixelColor) :
-				FLinearColor(float(PixelColor.R), float(PixelColor.G), float(PixelColor.B), float(PixelColor.A)) / 255.0f;
+				PixelColor.ReinterpretAsLinear();
 
 			DestImage.SetPixel(i, FVector4f(FloatColor));
 		}
