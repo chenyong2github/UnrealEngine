@@ -2226,14 +2226,15 @@ void UGroomComponent::OnRegister()
 	Super::OnRegister();
 	UpdateHairSimulation();
 
-	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset;
+	// Insure the parent skeletal mesh is the same than the registered skeletal mesh, and if not reinitialized resources
+	// This can happens when the OnAttachment callback is not called, but the skeletal mesh change (e.g., the skeletal mesh get recompiled within a blueprint)
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+
+	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset || SkeletalMeshComponent != RegisteredSkeletalMeshComponent;
 	if (bNeedInitialization)
 	{
 		InitResources();
 	}
-
-	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
 
 	const EWorldType::Type WorldType = GetWorldType();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
