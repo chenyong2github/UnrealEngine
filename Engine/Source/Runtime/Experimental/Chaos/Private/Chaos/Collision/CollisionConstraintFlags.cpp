@@ -96,7 +96,7 @@ namespace Chaos
 			TArray<FGeometryParticle*> DeletionList;
 			for (auto& Elem : PendingActivations)
 			{
-				int32 DeactiveIndex = PendingDeactivations.Find(Elem.Key);
+				int32 DeactiveIndex = PendingDeactivations.Find(Elem.Key->UniqueIdx());
 				if (DeactiveIndex != INDEX_NONE)
 				{
 					DeletionList.Add(Elem.Key);
@@ -168,14 +168,7 @@ namespace Chaos
 		{
 			for (auto Index = PendingDeactivations.Num() - 1; Index >= 0; Index--)
 			{
-				if (PendingDeactivations[Index])
-				{
-					FUniqueIdx ID0 = PendingDeactivations[Index]->UniqueIdx();
-					if (IgnoreCollisionsList.Contains(ID0))
-					{
-						IgnoreCollisionsList.Remove(ID0);
-					}
-				}
+				IgnoreCollisionsList.Remove(PendingDeactivations[Index]);
 			}
 			PendingDeactivations.Empty();
 		}

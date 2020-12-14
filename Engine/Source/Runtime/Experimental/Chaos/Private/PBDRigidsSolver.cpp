@@ -474,10 +474,10 @@ namespace Chaos
 		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
 		{
 			int32 ExternalTimestamp = GetMarshallingManager().GetExternalTimestamp_External();
-			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
-			if (!PendingMap.Contains(GTParticle))
+			Chaos::FIgnoreCollisionManager::FDeactivationArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
+			if (!PendingMap.Contains(GTParticle->UniqueIdx()))
 			{
-				PendingMap.Add(GTParticle);
+				PendingMap.Add(GTParticle->UniqueIdx());
 			}
 		}
 
