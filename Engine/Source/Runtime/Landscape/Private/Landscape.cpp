@@ -1382,7 +1382,10 @@ void ULandscapeComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	LODStreamingProxy->UnlinkStreaming();
+	if (LODStreamingProxy != nullptr)
+	{
+		LODStreamingProxy->UnlinkStreaming();
+	}
 
 #if WITH_EDITOR
 	// Ask render thread to destroy EditToolRenderData
