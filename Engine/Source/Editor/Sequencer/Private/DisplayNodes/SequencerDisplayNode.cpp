@@ -1167,13 +1167,18 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
 	{
-		if (DragableNodes.Num())
-		{
+		if (DragableNodes.Num() && !bIsReadOnly)
+		{		
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("MoveTracksToNewFolder", "Move to New Folder"),
 				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
 				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("MoveTracksToFolder", "Move to Folder"),
+				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected nodes to an existing folder."),
+				FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToFolderMenu));
 		}
 
 		if (bFilterableNode && !bIsReadOnly)
