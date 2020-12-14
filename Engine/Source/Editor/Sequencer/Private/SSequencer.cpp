@@ -2485,6 +2485,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 
 		if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 		{
+			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleCleanPlaybackMode );
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleRerunConstructionScripts );
 		}
 
