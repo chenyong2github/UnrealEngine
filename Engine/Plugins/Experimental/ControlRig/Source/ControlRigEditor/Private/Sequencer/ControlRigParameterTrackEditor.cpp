@@ -2200,6 +2200,11 @@ bool FControlRigParameterTrackEditor::HandleAssetAdded(UObject* Asset, const FGu
 
 	// Spawn a skeletal mesh actor with the preview mesh
 	ASkeletalMeshActor* SkeletalMeshActor = GCurrentLevelEditingViewportClient->GetWorld()->SpawnActor<ASkeletalMeshActor>();
+	if (!SkeletalMeshActor)
+	{
+		return false;
+	}
+
 	SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMesh(SkeletalMesh);
 
 	FGuid NewGuid = GetSequencer()->MakeNewSpawnable(*SkeletalMeshActor);
