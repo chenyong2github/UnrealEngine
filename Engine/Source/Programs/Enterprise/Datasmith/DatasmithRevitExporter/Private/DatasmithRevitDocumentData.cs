@@ -604,6 +604,16 @@ namespace DatasmithRevitExporter
 				ElementData.Parent = Parent;
 			}
 
+			public void ResetMeshMaterials()
+			{
+				string HashedMeshName = FDatasmithFacadeElement.GetStringHash("M:" + GetMeshName());
+
+				if (DocumentData.MeshMaterialsMap.TryGetValue(HashedMeshName, out _))
+				{
+					DocumentData.MeshMaterialsMap[HashedMeshName].Clear();
+				}
+			}
+
 			public void InitializeElement(
 					Transform InWorldTransform,
 					FBaseElementData InElement
@@ -615,7 +625,7 @@ namespace DatasmithRevitExporter
 				InElement.ElementMesh = new FDatasmithFacadeMesh(HashedMeshName);
 				InElement.ElementMesh.SetLabel(GetActorLabel());
 
-				if(InElement.ElementActor == null)
+				if (InElement.ElementActor == null)
 				{
 					// Create a new Datasmith mesh actor.
 					// Hash the Datasmith mesh actor name to shorten it.
@@ -962,6 +972,7 @@ namespace DatasmithRevitExporter
 						ExistingActor?.ResetTags();
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
+						ElementData.ResetMeshMaterials();
 					}
 					else
 					{
