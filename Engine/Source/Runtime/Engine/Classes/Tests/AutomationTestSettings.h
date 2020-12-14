@@ -371,7 +371,7 @@ public:
 	 * Asset to test for open in automation process
 	 */
 	UPROPERTY(EditAnywhere, config, Category="Open Asset Tests")
-	TArray<FSoftObjectPath> AssetsToOpen;
+	TArray<FString> AssetsToOpen;
 
 	/**
 	 * Maps to PIE during the PIE test
