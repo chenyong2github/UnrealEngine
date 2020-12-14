@@ -529,6 +529,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static UnrealPlatformGroup Desktop = FindOrAddByName("Desktop");
 
+		/// <summary>
+		/// SDLPlatform is for platforms that use SDL for windows, cursors, etc
+		/// </summary>
+		public static UnrealPlatformGroup SDLPlatform = FindOrAddByName("SDLPlatform");
 	}
 
 	/// <summary>
