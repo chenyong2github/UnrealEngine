@@ -349,7 +349,7 @@ void FStreamingManager::InitRHI()
 	check(MaxStreamingPages + GNaniteStreamingNumInitialRootPages <= MAX_GPU_PAGES);
 
 	MaxPendingPages = GNaniteStreamingMaxPendingPages;
-	MaxPageInstallsPerUpdate = FMath::Min(GNaniteStreamingMaxPageInstallsPerFrame, MaxPendingPages);
+	MaxPageInstallsPerUpdate = (uint32)FMath::Min(GNaniteStreamingMaxPageInstallsPerFrame, GNaniteStreamingMaxPendingPages);
 
 	StreamingRequestReadbackBuffers.AddZeroed( MaxStreamingReadbackBuffers );
 
