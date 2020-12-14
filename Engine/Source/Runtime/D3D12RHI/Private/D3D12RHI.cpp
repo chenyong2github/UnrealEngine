@@ -201,7 +201,6 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	}
 
 	// Enable async compute by default
-	// #FIXME: disabling D3D12 async compute to unblock Dev-RenderPlat-Staging copy-up. #JIRA UE-97888
 	GEnableAsyncCompute = true;
 
 	// Manually enable Async BVH build for D3D12 RHI
