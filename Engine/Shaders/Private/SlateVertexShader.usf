@@ -42,7 +42,7 @@ VertexToPixelInterpolants Main(
 	FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 	VertexParameters.WorldPosition = WorldPosition.xyz;
 
-	VertexParameters.VertexColor = FinalVertexColor;
+	VertexParameters.VertexColor = VOut.Color;
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 
