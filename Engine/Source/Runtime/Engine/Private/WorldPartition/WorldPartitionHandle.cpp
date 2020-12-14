@@ -1,8 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPArtition/WorldPartition.h"
 
 #if WITH_EDITOR
+TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleBase::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+{
+	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = WorldPartition->Actors.Find(ActorGuid))
+	{
+		return *ActorDescPtr;
+	}
+
+	return nullptr;
+}
+
 void FWorldPartitionHandleImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	ActorDesc->IncSoftRefCount();
@@ -18,7 +29,12 @@ void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDe
 	if (ActorDesc->IncHardRefCount() == 1)
 	{
 		AActor* Actor = ActorDesc->Load();
-		Actor->GetLevel()->AddLoadedActor(Actor);
+		check(Actor || GIsAutomationTesting);
+
+		if (Actor)
+		{
+			Actor->GetLevel()->AddLoadedActor(Actor);
+		}
 	}
 }
 

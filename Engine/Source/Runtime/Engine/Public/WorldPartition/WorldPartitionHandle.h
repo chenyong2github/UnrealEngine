@@ -3,11 +3,19 @@
 
 #include "CoreMinimal.h"
 #include "Templates/UniquePtr.h"
-#include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
+class UWorldPartition;
+class FWorldPartitionActorDesc;
+
+class ENGINE_API FWorldPartitionHandleBase
+{
+public:
+	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid);
+};
+
 template <typename Impl>
-class TWorldPartitionHandleBase
+class ENGINE_API TWorldPartitionHandleBase : public FWorldPartitionHandleBase
 {
 	friend struct FWorldPartitionHandleHelpers;
 
@@ -16,21 +24,51 @@ public:
 		: ActorDesc(nullptr)
 	{}
 
+	TWorldPartitionHandleBase(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
+	{
+		ActorDesc = InActorDesc;
+
+		if (IsValid())
+		{
+			IncRefCount();
+		}
+	}
+
 	TWorldPartitionHandleBase(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
 	{
-		if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = WorldPartition->Actors.Find(ActorGuid))
-		{
-			ActorDesc = *ActorDescPtr;
+		ActorDesc = GetActorDesc(WorldPartition, ActorGuid);
 
-			if (IsValid())
-			{
-				IncRefCount();
-			}
-		}
-		else
+		if (IsValid())
 		{
-			ActorDesc = nullptr;
+			IncRefCount();
 		}
+	}
+
+	TWorldPartitionHandleBase(const TWorldPartitionHandleBase& Other)
+		: ActorDesc(nullptr)
+	{
+		*this = Other;
+	}
+
+	TWorldPartitionHandleBase(TWorldPartitionHandleBase&& Other)
+		: ActorDesc(nullptr)
+	{
+		*this = Other;
+	}
+
+	// Conversions
+	template <typename T>
+	TWorldPartitionHandleBase<Impl>(const TWorldPartitionHandleBase<T>& Other)
+		: ActorDesc(nullptr)
+	{
+		*this = Other;
+	}
+
+	template <typename T>
+	TWorldPartitionHandleBase<Impl>(TWorldPartitionHandleBase<T>&& Other)
+		: ActorDesc(nullptr)
+	{
+		*this = Other;
 	}
 
 	~TWorldPartitionHandleBase()
@@ -41,15 +79,66 @@ public:
 		}
 	}
 
-	template <typename T>
-	TWorldPartitionHandleBase(const TWorldPartitionHandleBase& Other)
+	TWorldPartitionHandleBase& operator=(const TWorldPartitionHandleBase& Other)
 	{
-		*this = Other;
+		if ((void*)this == (void*)&Other)
+		{
+			return *this;
+		}
+
+		if (IsValid())
+		{
+			DecRefCount();
+		}
+
+		ActorDesc = Other.ActorDesc;
+
+		if (IsValid())
+		{
+			IncRefCount();
+		}
+
+		return *this;
 	}
 
-	template <typename T>
-	TWorldPartitionHandleBase& operator=(const T& Other)
+	TWorldPartitionHandleBase<Impl>& operator=(TWorldPartitionHandleBase&& Other)
 	{
+		if ((void*)this == (void*)&Other)
+		{
+			return *this;
+		}
+
+		if (IsValid())
+		{
+			DecRefCount();
+		}
+
+		ActorDesc = Other.ActorDesc;
+
+		if (IsValid())
+		{
+			IncRefCount();
+			Other.DecRefCount();
+			Other.ActorDesc = nullptr;
+		}
+
+		return *this;
+	}
+
+	// Conversions
+	template <typename T>
+	TWorldPartitionHandleBase<Impl>& operator=(const TWorldPartitionHandleBase<T>& Other)
+	{
+		if ((void*)this == (void*)&Other)
+		{
+			return *this;
+		}
+
+		if (IsValid())
+		{
+			DecRefCount();
+		}
+
 		ActorDesc = Other.ActorDesc;
 
 		if (IsValid())
@@ -61,14 +150,18 @@ public:
 	}
 
 	template <typename T>
-	TWorldPartitionHandleBase(T&& Other)
+	TWorldPartitionHandleBase<Impl>& operator=(TWorldPartitionHandleBase<T>&& Other)
 	{
-		*this = Other;
-	}
+		if ((void*)this == (void*)&Other)
+		{
+			return *this;
+		}
 
-	template <typename T>
-	TWorldPartitionHandleBase& operator=(T&& Other)
-	{
+		if (IsValid())
+		{
+			DecRefCount();
+		}
+
 		ActorDesc = Other.ActorDesc;
 
 		if (IsValid())
@@ -82,6 +175,11 @@ public:
 	}
 
 	inline FWorldPartitionActorDesc* operator->() const
+	{
+		return Get();
+	}
+
+	inline FWorldPartitionActorDesc* operator*() const
 	{
 		return Get();
 	}
@@ -101,16 +199,28 @@ public:
 		return ::PointerHash(HandleBase.ActorDesc);
 	}
 
-	friend bool operator==(const TWorldPartitionHandleBase<Impl>& Lhs, const TWorldPartitionHandleBase<Impl>& Rhs)
+	inline bool operator==(const TWorldPartitionHandleBase& Other) const
 	{
-		return Lhs.ActorDesc == Rhs.ActorDesc;
+		return ActorDesc == Other.ActorDesc;
 	}
 
-	friend bool operator!=(const TWorldPartitionHandleBase<Impl>& Lhs, const TWorldPartitionHandleBase<Impl>& Rhs)
+	inline bool operator!=(const TWorldPartitionHandleBase& Other) const
 	{
-		return !(Lhs == Rhs);
+		return !(*this == Other);
 	}
 
+	// Conversions
+	template <typename T>
+	inline bool operator==(const TWorldPartitionHandleBase<T>& Other) const
+	{
+		return Get() == *Other;
+	}
+
+	template <typename T>
+	inline bool operator!=(const TWorldPartitionHandleBase<T>& Other) const
+	{
+		return !(*this == Other);
+	}
 
 protected:
 	inline void IncRefCount()
@@ -123,6 +233,7 @@ protected:
 		Impl::DecRefCount(ActorDesc->Get());
 	}
 
+public:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 

@@ -20,6 +20,13 @@ struct FWorldPartitionActorDescInitData
 };
 #endif
 
+#if WITH_DEV_AUTOMATION_TESTS
+namespace WorldPartitionTests
+{
+	class FWorldPartitionHandleTest;
+}
+#endif
+
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
@@ -28,6 +35,10 @@ class ENGINE_API FWorldPartitionActorDesc
 #if WITH_EDITOR
 	friend class AActor;
 	friend class UWorldPartition;
+
+#if WITH_DEV_AUTOMATION_TESTS
+	friend class WorldPartitionTests::FWorldPartitionHandleTest;
+#endif
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
