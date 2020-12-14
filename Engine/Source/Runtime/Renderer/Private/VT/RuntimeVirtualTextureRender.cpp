@@ -378,7 +378,7 @@ namespace RuntimeVirtualTexture
 				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 				const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 				const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-				const uint8 OutputAttributeMask = Material.GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread();
+				const uint8 OutputAttributeMask = FallbackMaterialRenderProxyPtr ? 0xff : Material.GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread();
 
 				if (OutputAttributeMask != 0)
 				{
