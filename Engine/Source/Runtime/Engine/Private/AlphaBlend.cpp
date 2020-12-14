@@ -234,3 +234,11 @@ FAlphaBlendArgs::FAlphaBlendArgs()
 {
 
 }
+
+FAlphaBlendArgs::FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend)
+	: CustomCurve(InAlphaBlend.GetCustomCurve())
+	, BlendTime(InAlphaBlend.GetBlendTime())
+	, BlendOption(InAlphaBlend.GetBlendOption())
+{
+
+}

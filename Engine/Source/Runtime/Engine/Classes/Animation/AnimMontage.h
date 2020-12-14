@@ -290,6 +290,29 @@ private:
 	float GetCurrSectionStartPosition_Target() const;
 };
 
+/**
+* Montage blend settings. Can be used to overwrite default Montage settings on Play/Stop
+*/
+USTRUCT(BlueprintType)
+struct ENGINE_API FMontageBlendSettings
+{
+	GENERATED_BODY()
+
+	FMontageBlendSettings();
+
+	/** Blend Profile to use for this blend */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "Blend"))
+	UBlendProfile* BlendProfile;
+
+	/** AlphaBlend options (time, curve, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "BlendMode"))
+	FAlphaBlendArgs Blend;
+
+	/** Type of blend mode (Standard vs Inertial) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend")
+	EMontageBlendMode BlendMode;
+};
+
 USTRUCT()
 struct ENGINE_API FAnimMontageInstance
 {
@@ -457,12 +480,16 @@ public:
 
 	//~ Begin montage instance Interfaces
 
-	// Fills BlendIn from the associated montage 
+	// Blend in with the supplied play rate. Other blend settings will come from the Montage asset.
 	void Play(float InPlayRate = 1.f);
-	// Use provided BlendIn
-	void Play(float InPlayRate, const FAlphaBlend& BlendIn);
+	// Blend in with the supplied blend settings
+	void Play(float InPlayRate, const FMontageBlendSettings& BlendInSettings);
 
+	// Blend out with the supplied FAlphaBlend. Other blend settings will come from the Montage asset.
 	void Stop(const FAlphaBlend& InBlendOut, bool bInterrupt=true);
+	// Blend out with the supplied blend settings
+	void Stop(const FMontageBlendSettings& InBlendOutSettings, bool bInterrupt=true);
+
 	void Pause();
 	void Initialize(class UAnimMontage * InMontage);
 
@@ -591,8 +618,11 @@ class UAnimMontage : public UAnimCompositeBase
 
 	friend struct FAnimMontageInstance;
 	
-	UPROPERTY(EditAnywhere, Category = BlendOption)
-	EMontageBlendMode BlendMode;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption)
+	EMontageBlendMode BlendModeIn;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption)
+	EMontageBlendMode BlendModeOut;
 
 	/** Blend in option. */
 	UPROPERTY(EditAnywhere, Category=BlendOption)
@@ -613,6 +643,15 @@ class UAnimMontage : public UAnimCompositeBase
 	 * >=0 means using 'SequenceEnd - BlendOutTriggerTime' to trigger blend out. */
 	UPROPERTY(EditAnywhere, Category = BlendOption)
 	float BlendOutTriggerTime;
+
+	UFUNCTION(BlueprintPure, Category = "Montage")
+	FAlphaBlendArgs GetBlendInArgs() const { return FAlphaBlendArgs(BlendIn); }
+
+	UFUNCTION(BlueprintPure, Category = "Montage")
+	FAlphaBlendArgs GetBlendOutArgs() const { return FAlphaBlendArgs(BlendOut); }
+
+	UFUNCTION(BlueprintPure, Category = "Montage")
+	float GetDefaultBlendInTime() const { return BlendIn.GetBlendTime(); }
 
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	float GetDefaultBlendOutTime() const { return BlendOut.GetBlendTime(); }
@@ -653,11 +692,11 @@ class UAnimMontage : public UAnimCompositeBase
 	bool bEnableAutoBlendOut;
 
 	/** The blend profile to use. */
-	UPROPERTY(EditAnywhere, Category = BlendOption, meta = (UseAsBlendProfile = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption, meta = (UseAsBlendProfile = true))
 	UBlendProfile* BlendProfileIn;
 
 	/** The blend profile to use. */
-	UPROPERTY(EditAnywhere, Category = BlendOption, meta = (UseAsBlendProfile = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption, meta = (UseAsBlendProfile = true))
 	UBlendProfile* BlendProfileOut;
 
 	/** Root Bone will be locked to that position when extracting root motion. DEPRECATED in 4.5 root motion is controlled by anim sequences **/

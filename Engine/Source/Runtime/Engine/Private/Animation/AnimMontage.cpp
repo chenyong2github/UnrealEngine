@@ -38,7 +38,8 @@ namespace MontageFNames
 UAnimMontage::UAnimMontage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	BlendMode = EMontageBlendMode::Standard;
+	BlendModeIn = EMontageBlendMode::Standard;
+	BlendModeOut = EMontageBlendMode::Standard;
 
 	BlendIn.SetBlendTime(0.25f);
 	BlendOut.SetBlendTime(0.25f);
@@ -1342,10 +1343,20 @@ FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
 
 void FAnimMontageInstance::Play(float InPlayRate)
 {
-	Play(InPlayRate, Montage->BlendIn);
+	FMontageBlendSettings BlendInSettings;
+
+	// Fill settings from our Montage asset
+	if (Montage)
+	{
+		BlendInSettings.Blend = Montage->BlendIn;
+		BlendInSettings.BlendMode = Montage->BlendModeIn;
+		BlendInSettings.BlendProfile = Montage->BlendProfileIn;
+	}
+
+	Play(InPlayRate, BlendInSettings);
 }
 
-void FAnimMontageInstance::Play(float InPlayRate, const FAlphaBlend& BlendIn)
+void FAnimMontageInstance::Play(float InPlayRate, const FMontageBlendSettings& BlendInSettings)
 {
 	bPlaying = true;
 	PlayRate = InPlayRate;
@@ -1353,15 +1364,28 @@ void FAnimMontageInstance::Play(float InPlayRate, const FAlphaBlend& BlendIn)
 	// if this doesn't exist, nothing works
 	check(Montage);
 	
+	// Inertialization
+	FAlphaBlendArgs BlendInArgs = BlendInSettings.Blend;
+	if (AnimInstance.IsValid() && BlendInSettings.BlendMode == EMontageBlendMode::Inertialization)
+	{
+		const float InertialBlendDuration = BlendInArgs.BlendTime;
+		// Request new inertialization for new montage's group name
+		// If there is an existing inertialization request, we overwrite that here.
+		AnimInstance->RequestMontageInertialization(Montage, InertialBlendDuration);
+
+		// When using inertialization, we need to instantly blend in.
+		BlendInArgs.BlendTime = 0.0f;
+	}
+
 	// set blend option
 	float CurrentWeight = Blend.GetBlendedValue();
-	InitializeBlend(BlendIn);	
+	InitializeBlend(FAlphaBlend(BlendInArgs));
 	BlendStartAlpha = Blend.GetAlpha();
-	Blend.SetBlendTime(BlendIn.GetBlendTime() * DefaultBlendTimeMultiplier);
+	Blend.SetBlendTime(BlendInArgs.BlendTime * DefaultBlendTimeMultiplier);
 	Blend.SetValueRange(CurrentWeight, 1.f);
 	bEnableAutoBlendOut = Montage->bEnableAutoBlendOut;
 
-	ActiveBlendProfile = Montage->BlendProfileIn;
+	ActiveBlendProfile = BlendInSettings.BlendProfile;
 }
 
 void FAnimMontageInstance::InitializeBlend(const FAlphaBlend& InAlphaBlend)
@@ -1371,7 +1395,7 @@ void FAnimMontageInstance::InitializeBlend(const FAlphaBlend& InAlphaBlend)
 	Blend.SetBlendTime(InAlphaBlend.GetBlendTime());
 }
 
-void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
+void FAnimMontageInstance::Stop(const FMontageBlendSettings& InBlendOutSettings, bool bInterrupt)
 {
 	if (Montage)
 	{
@@ -1389,15 +1413,20 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 	// if it hasn't stopped, stop now
 	if (IsStopped() == false)
 	{
-		// If we are using Inertial Blend, instantly stop the montage.
-		const bool bShouldInertialize = Montage && (Montage->BlendMode == EMontageBlendMode::Inertialization);
+		// If we are using Inertial Blend, blend time should be 0 to instantly stop the montage.
+		FAlphaBlendArgs BlendOutArgs = InBlendOutSettings.Blend;
+		const bool bShouldInertialize = InBlendOutSettings.BlendMode == EMontageBlendMode::Inertialization;
+		BlendOutArgs.BlendTime = bShouldInertialize ? 0.0f : BlendOutArgs.BlendTime;
 
 		// do not use default Montage->BlendOut 
-		// depending on situation, the BlendOut time can change 
-		InitializeBlend(bShouldInertialize ? (FAlphaBlend(InBlendOut, 0.0f)) : InBlendOut);
+		// depending on situation, the BlendOut time can change
+		InitializeBlend(FAlphaBlend(BlendOutArgs));
 		BlendStartAlpha = Blend.GetAlpha();
 		Blend.SetDesiredValue(0.f);
 		Blend.Update(0.0f);
+
+		// Only change the active blend profile if the montage isn't stopped. This is to prevent pops on a sudden blend profile switch
+		ActiveBlendProfile = InBlendOutSettings.BlendProfile;
 
 		if (Montage)
 		{
@@ -1410,7 +1439,7 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 				if (bShouldInertialize)
 				{
 					// Send the inertial blend request to the anim instance
-					Inst->RequestMontageInertialization(Montage, InBlendOut.GetBlendTime());
+					Inst->RequestMontageInertialization(Montage, InBlendOutSettings.Blend.BlendTime);
 				}
 			}
 		}
@@ -1420,12 +1449,12 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 		// it is already stopped, but new montage blendtime is shorter than what 
 		// I'm blending out, that means this needs to readjust blendtime
 		// that way we don't accumulate old longer blendtime for newer montage to play
-		if (InBlendOut.GetBlendTime() < Blend.GetBlendTime())
+		if (InBlendOutSettings.Blend.BlendTime < Blend.GetBlendTime())
 		{
 			// I don't know if also using inBlendOut is better than
 			// currently set up blend option, but it might be worse to switch between 
 			// blending out, but it is possible options in the future
-			Blend.SetBlendTime(InBlendOut.GetBlendTime());
+			Blend.SetBlendTime(InBlendOutSettings.Blend.BlendTime);
 			BlendStartAlpha = Blend.GetAlpha();
 			// have to call this again to restart blending with new blend time
 			// we don't change blend options
@@ -1444,10 +1473,24 @@ void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt)
 
 	if (Montage != nullptr)
 	{
-		ActiveBlendProfile = Montage->BlendProfileOut;
 		UE_LOG(LogAnimMontage, Verbose, TEXT("Montage.Stop After: AnimMontage: %s,  (DesiredWeight:%0.2f, Weight:%0.2f)"),
 			*Montage->GetName(), GetDesiredWeight(), GetWeight());
 	}
+}
+
+void FAnimMontageInstance::Stop(const FAlphaBlend& InBlendOut, bool bInterrupt/*=true*/)
+{
+	FMontageBlendSettings BlendOutSettings;
+	BlendOutSettings.Blend = InBlendOut;
+
+	// Fill our other settings from the montage asset
+	if (Montage)
+	{
+		BlendOutSettings.BlendMode = Montage->BlendModeOut;
+		BlendOutSettings.BlendProfile = Montage->BlendProfileOut;
+	}
+
+	Stop(BlendOutSettings, bInterrupt);
 }
 
 void FAnimMontageInstance::Pause()
@@ -3034,4 +3077,12 @@ void UAnimMontage::BakeTimeStretchCurve()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TimeStretchCurve.BakeFromFloatCurve(*TimeStretchFloatCurve, SequenceLength);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FMontageBlendSettings::FMontageBlendSettings()
+	: BlendProfile(nullptr)
+	, Blend(FAlphaBlendArgs())
+	, BlendMode(EMontageBlendMode::Standard)
+{
+
 }

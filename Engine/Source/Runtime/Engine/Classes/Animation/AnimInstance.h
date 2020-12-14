@@ -602,14 +602,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	float Montage_PlayWithBlendIn(UAnimMontage* MontageToPlay, const FAlphaBlendArgs& BlendIn, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt=0.f, bool bStopAllMontages = true);
 
+	/** Plays an animation montage. Same as Montage_Play, but you can overwrite all of the montage's default blend in settings. */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	float Montage_PlayWithBlendSettings(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt=0.f, bool bStopAllMontages = true);
+
 	/** Stops the animation montage. If reference is NULL, it will stop ALL active montages. */
 	/** Stopped montages will blend out using their montage asset's BlendOut, with InBlendOutTime as the BlendTime */
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	void Montage_Stop(float InBlendOutTime, const UAnimMontage* Montage = NULL);
 
-	/** Same as Montage_Stop, but all BlendOut settings are provided instead of using the ones on the montage asset*/
+	/** Same as Montage_Stop. Uses values from the AlphaBlendArgs. Other settings come from the montage asset*/
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	void Montage_StopWithBlendOut(const FAlphaBlendArgs& BlendOut, const UAnimMontage* Montage = nullptr);
+
+	/** Same as Montage_Stop, but all blend settings are provided instead of using the ones on the montage asset*/
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	void Montage_StopWithBlendSettings(const FMontageBlendSettings& BlendOutSettings, const UAnimMontage* Montage = nullptr);
 
 	/** Stops all active montages belonging to a group. */
 	UFUNCTION(BlueprintCallable, Category = "Montage")
@@ -843,16 +851,20 @@ protected:
 	/**  Inertialization requests gathered this frame. Gets reset in UpdateMontageEvaluationData */
 	TMap<FName, float> SlotGroupInertializationRequestMap;
 
-	/** Stop all active montages belonging to 'InGroupName' */
+	/* StopAllMontagesByGroupName needs a BlendMode and BlendProfile to function properly if using non-default ones in your montages. If you want default BlendMode/BlendProfiles, you need to update the calling code to do so. */
+	UE_DEPRECATED(5.0, "Use StopAllMontagesByGroupName with other signature.")
 	void StopAllMontagesByGroupName(FName InGroupName, const FAlphaBlend& BlendOut);
+
+	/** Stop all active montages belonging to 'InGroupName' */
+	void StopAllMontagesByGroupName(FName InGroupName, const FMontageBlendSettings& BlendOutSettings);
 
 	/** Update weight of montages  **/
 	virtual void Montage_UpdateWeight(float DeltaSeconds);
 	/** Advance montages **/
 	virtual void Montage_Advance(float DeltaSeconds);
 
-	void Montage_StopInternal(TFunctionRef<FAlphaBlend(const FAnimMontageInstance*)> AlphaBlendSelectorFunction, const UAnimMontage* Montage = nullptr);
-	float Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAlphaBlend& BlendIn, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt = 0.f, bool bStopAllMontages = true);
+	void Montage_StopInternal(TFunctionRef<FMontageBlendSettings(const FAnimMontageInstance*)> AlphaBlendSelectorFunction, const UAnimMontage* Montage = nullptr);
+	float Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate = 1.f, EMontagePlayReturnType ReturnValueType = EMontagePlayReturnType::MontageLength, float InTimeToStartMontageAt = 0.f, bool bStopAllMontages = true);
 
 public:
 

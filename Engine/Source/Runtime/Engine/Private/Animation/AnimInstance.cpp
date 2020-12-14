@@ -1859,7 +1859,7 @@ bool UAnimInstance::IsPlayingSlotAnimation(const UAnimSequenceBase* Asset, FName
 	return false;
 }
 
-float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAlphaBlend& BlendIn, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt /*= 0.f*/, bool bStopAllMontages /*= true*/)
+float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt /*= 0.f*/, bool bStopAllMontages /*= true*/)
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -1867,22 +1867,11 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 	{
 		if (CurrentSkeleton && CurrentSkeleton->IsCompatible(MontageToPlay->GetSkeleton()))
 		{
-			const float BlendDuration = BlendIn.GetBlendTime();
-			// If using inertial blend, force an instant blend in
-			const FAlphaBlend EffectiveBlendIn = (MontageToPlay->BlendMode == EMontageBlendMode::Inertialization) ? FAlphaBlend(BlendIn, 0.0f) : BlendIn;
-
 			const FName NewMontageGroupName = MontageToPlay->GetGroupName();
 			if (bStopAllMontages)
 			{
 				// Enforce 'a single montage at once per group' rule
-				StopAllMontagesByGroupName(NewMontageGroupName, EffectiveBlendIn);
-			}
-
-			if (MontageToPlay->BlendMode == EMontageBlendMode::Inertialization)
-			{
-				// Request new inertialization for new montage's group name
-				// The above montage stop may request an inertial blend. We overwrite that here.
-				RequestMontageInertialization(MontageToPlay, BlendDuration);
+				StopAllMontagesByGroupName(NewMontageGroupName, BlendInSettings);
 			}
 
 			// Enforce 'a single root motion montage at once' rule.
@@ -1891,7 +1880,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 				FAnimMontageInstance* ActiveRootMotionMontageInstance = GetRootMotionMontageInstance();
 				if (ActiveRootMotionMontageInstance)
 				{
-					ActiveRootMotionMontageInstance->Stop(EffectiveBlendIn);
+					ActiveRootMotionMontageInstance->Stop(BlendInSettings);
 				}
 			}
 
@@ -1901,7 +1890,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 			const float MontageLength = MontageToPlay->GetPlayLength();
 
 			NewInstance->Initialize(MontageToPlay);
-			NewInstance->Play(InPlayRate, EffectiveBlendIn);
+			NewInstance->Play(InPlayRate, BlendInSettings);
 			NewInstance->SetPosition(FMath::Clamp(InTimeToStartMontageAt, 0.f, MontageLength));
 			MontageInstances.Add(NewInstance);
 			ActiveMontagesMap.Add(MontageToPlay, NewInstance);
@@ -1932,16 +1921,37 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FAl
 /** Play a Montage. Returns Length of Montage in seconds. Returns 0.f if failed to play. */
 float UAnimInstance::Montage_Play(UAnimMontage* MontageToPlay, float InPlayRate/*= 1.f*/, EMontagePlayReturnType ReturnValueType, float InTimeToStartMontageAt, bool bStopAllMontages /*= true*/)
 {
-	FAlphaBlend BlendIn = MontageToPlay ? MontageToPlay->BlendIn : FAlphaBlend();
-	return Montage_PlayInternal(MontageToPlay, BlendIn, InPlayRate, ReturnValueType, InTimeToStartMontageAt, bStopAllMontages);
+	FMontageBlendSettings BlendSettings;
+	if (MontageToPlay)
+	{
+		BlendSettings.Blend = MontageToPlay->BlendIn;
+		BlendSettings.BlendMode = MontageToPlay->BlendModeIn;
+		BlendSettings.BlendProfile = MontageToPlay->BlendProfileIn;
+	}
+
+	return Montage_PlayInternal(MontageToPlay, BlendSettings, InPlayRate, ReturnValueType, InTimeToStartMontageAt, bStopAllMontages);
 }
 
 float UAnimInstance::Montage_PlayWithBlendIn(UAnimMontage* MontageToPlay, const FAlphaBlendArgs& BlendIn, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt/*=0.f*/, bool bStopAllMontages /*= true*/)
 {
-	return Montage_PlayInternal(MontageToPlay, FAlphaBlend(BlendIn), InPlayRate, ReturnValueType, InTimeToStartMontageAt, bStopAllMontages);
+	FMontageBlendSettings BlendSettings;
+	BlendSettings.Blend = BlendIn;
+
+	if (MontageToPlay)
+	{
+		BlendSettings.BlendMode = MontageToPlay->BlendModeIn;
+		BlendSettings.BlendProfile = MontageToPlay->BlendProfileIn;
+	}
+
+	return Montage_PlayInternal(MontageToPlay, BlendSettings, InPlayRate, ReturnValueType, InTimeToStartMontageAt, bStopAllMontages);
 }
 
-void UAnimInstance::Montage_StopInternal(TFunctionRef<FAlphaBlend(const FAnimMontageInstance*)> AlphaBlendSelectorFunction, const UAnimMontage* Montage /*= nullptr*/)
+float UAnimInstance::Montage_PlayWithBlendSettings(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt/*=0.f*/, bool bStopAllMontages /*= true*/)
+{
+	return Montage_PlayInternal(MontageToPlay, BlendInSettings, InPlayRate, ReturnValueType, InTimeToStartMontageAt, bStopAllMontages);
+}
+
+void UAnimInstance::Montage_StopInternal(TFunctionRef<FMontageBlendSettings(const FAnimMontageInstance*)> AlphaBlendSelectorFunction, const UAnimMontage* Montage /*= nullptr*/)
 {
 	if (Montage)
 	{
@@ -1969,8 +1979,17 @@ void UAnimInstance::Montage_Stop(float InBlendOutTime, const UAnimMontage* Monta
 {
 	auto AlphaBlendFromInstanceAndInBlendOutTime = [InBlendOutTime](const FAnimMontageInstance* InMontageInstance)
 	{
-		check(InMontageInstance->Montage);
-		return FAlphaBlend(InMontageInstance->Montage->BlendOut, InBlendOutTime);
+		FMontageBlendSettings BlendOutSettings;
+		if (const UAnimMontage* InstanceMontage = InMontageInstance->Montage)
+		{
+			//Grab all settings from the montage, except BlendTime
+			BlendOutSettings.Blend = InstanceMontage->BlendOut;
+			BlendOutSettings.Blend.BlendTime = InBlendOutTime;
+			BlendOutSettings.BlendMode = InstanceMontage->BlendModeOut;
+			BlendOutSettings.BlendProfile = InstanceMontage->BlendProfileOut;
+		}
+
+		return BlendOutSettings;
 	};
 
 	Montage_StopInternal(AlphaBlendFromInstanceAndInBlendOutTime, Montage);
@@ -1978,10 +1997,28 @@ void UAnimInstance::Montage_Stop(float InBlendOutTime, const UAnimMontage* Monta
 
 void UAnimInstance::Montage_StopWithBlendOut(const FAlphaBlendArgs& BlendOutArgs, const UAnimMontage* Montage /*= NULL*/)
 {
-	FAlphaBlend BlendOut = FAlphaBlend(BlendOutArgs);
-	auto AlphaBlendPassthrough = [BlendOut](const FAnimMontageInstance* InMontageInstance)
+	auto AlphaBlendPassthrough = [BlendOutArgs](const FAnimMontageInstance* InMontageInstance)
 	{
-		return BlendOut;
+		FMontageBlendSettings BlendOutSettings;
+		if (const UAnimMontage* InstanceMontage = InMontageInstance->Montage)
+		{
+			//Grab all settings from the montage, except the FAlphaBlend
+			BlendOutSettings.Blend = BlendOutArgs;
+			BlendOutSettings.BlendMode = InstanceMontage->BlendModeOut;
+			BlendOutSettings.BlendProfile = InstanceMontage->BlendProfileOut;
+		}
+
+		return BlendOutSettings;
+	};
+
+	Montage_StopInternal(AlphaBlendPassthrough, Montage);
+}
+
+void UAnimInstance::Montage_StopWithBlendSettings(const FMontageBlendSettings& BlendOutSettings, const UAnimMontage* Montage /*= nullptr*/)
+{
+	auto AlphaBlendPassthrough = [BlendOutSettings](const FAnimMontageInstance* InMontageInstance)
+	{
+		return BlendOutSettings;
 	};
 
 	Montage_StopInternal(AlphaBlendPassthrough, Montage);
@@ -2492,12 +2529,19 @@ void UAnimInstance::StopAllMontages(float BlendOut)
 
 void UAnimInstance::StopAllMontagesByGroupName(FName InGroupName, const FAlphaBlend& BlendOut)
 {
+	FMontageBlendSettings BlendOutSettings;
+	BlendOutSettings.Blend = BlendOut;
+	StopAllMontagesByGroupName(InGroupName, BlendOutSettings);
+}
+
+void UAnimInstance::StopAllMontagesByGroupName(FName InGroupName, const FMontageBlendSettings& BlendOutSettings)
+{
 	for (int32 InstanceIndex = MontageInstances.Num() - 1; InstanceIndex >= 0; InstanceIndex--)
 	{
 		FAnimMontageInstance* MontageInstance = MontageInstances[InstanceIndex];
 		if (MontageInstance && MontageInstance->Montage && (MontageInstance->Montage->GetGroupName() == InGroupName))
 		{
-			MontageInstances[InstanceIndex]->Stop(BlendOut, true);
+			MontageInstances[InstanceIndex]->Stop(BlendOutSettings, true);
 		}
 	}
 }

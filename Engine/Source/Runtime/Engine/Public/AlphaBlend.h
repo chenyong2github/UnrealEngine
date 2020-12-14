@@ -44,7 +44,7 @@ enum class EAlphaBlendOption : uint8
 };
 
 /**
- * Alpha Blend construction arguments. Used only for creation of an AlphaBlend.
+ * Alpha Blend construction arguments. Used for creation of an AlphaBlend.
  */
 USTRUCT(BlueprintType)
 struct ENGINE_API FAlphaBlendArgs
@@ -52,6 +52,7 @@ struct ENGINE_API FAlphaBlendArgs
 	GENERATED_BODY()
 
 	FAlphaBlendArgs();
+	FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend);
 
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta=(DisplayAfter="BlendOption"))
