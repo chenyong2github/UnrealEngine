@@ -3,6 +3,8 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "UObject/Package.h"
 
 URigVMGraph::URigVMGraph()
@@ -38,6 +40,30 @@ TArray<URigVMGraph*> URigVMGraph::GetContainedGraphs(bool bRecursive) const
 	return Graphs;
 }
 
+URigVMFunctionEntryNode* URigVMGraph::GetEntryNode() const
+{
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(Node))
+		{
+			return EntryNode;
+		}
+	}
+	return nullptr;
+}
+
+URigVMFunctionReturnNode* URigVMGraph::GetReturnNode() const
+{
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(Node))
+		{
+			return ReturnNode;
+		}
+	}
+	return nullptr;
+}
+
 TArray<FRigVMGraphVariableDescription> URigVMGraph::GetVariableDescriptions() const
 {
 	TArray<FRigVMGraphVariableDescription> Variables;
@@ -68,7 +94,16 @@ FString URigVMGraph::GetNodePath() const
 {
 	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetOuter()))
 	{
-		return CollapseNode->GetNodePath();
+		return CollapseNode->GetNodePath(true /* recursive */);
+	}
+	return FString();
+}
+
+FString URigVMGraph::GetGraphName() const
+{
+	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetOuter()))
+	{
+		return CollapseNode->GetNodePath(false /* recursive */);
 	}
 	return FString();
 }
@@ -92,9 +127,25 @@ URigVMNode* URigVMGraph::FindNodeByName(const FName& InNodeName) const
 
 URigVMNode* URigVMGraph::FindNode(const FString& InNodePath) const
 {
-	// for now we don't support encapsulation
-	// so we don't walk recursively
-	return FindNodeByName(FName(*InNodePath));
+	if (InNodePath.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	FString Left = InNodePath, Right;
+	URigVMNode::SplitNodePathAtStart(InNodePath, Left, Right);
+
+	if (Right.IsEmpty())
+	{
+		return FindNodeByName(*Left);
+	}
+
+	if (URigVMLibraryNode* LibraryNode = Cast< URigVMLibraryNode>(FindNodeByName(*Left)))
+	{
+		return LibraryNode->GetContainedGraph()->FindNode(Right);
+	}
+
+	return nullptr;
 }
 
 URigVMPin* URigVMGraph::FindPin(const FString& InPinPath) const

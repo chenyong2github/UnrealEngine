@@ -13,3 +13,8 @@ FText URigVMCollapseNode::GetToolTipText() const
 	// todo
 	return URigVMNode::GetToolTipText();
 }
+
+FString URigVMCollapseNode::GetEditorSubGraphName() const
+{
+	return FString::Printf(TEXT("%s_SubGraph"), *GetName());
+}

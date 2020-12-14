@@ -92,7 +92,7 @@ UEdGraphNode* UControlRigPrototypeNodeSpawner::Invoke(UEdGraph* ParentGraph, FBi
 		}
 #endif
 
-		UBlueprint* Blueprint = CastChecked<UBlueprint>(ParentGraph->GetOuter());
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph);
 		NewNode = SpawnNode(ParentGraph, Blueprint, PrototypeNotation, Location);
 	}
 

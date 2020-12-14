@@ -68,6 +68,7 @@
 #include "ControlRigElementDetails.h"
 #include "ControlRigCompilerDetails.h"
 #include "ControlRigDrawingDetails.h"
+#include "ControlRigGraphDetails.h"
 #include "ControlRigInfluenceMapDetails.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/SControlRigProfilingView.h"
@@ -137,6 +138,7 @@ void FControlRigEditorModule::StartupModule()
 	// Register Blueprint editor variable customization
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 	BlueprintEditorModule.RegisterVariableCustomization(FProperty::StaticClass(), FOnGetVariableCustomizationInstance::CreateStatic(&FControlRigVariableDetailsCustomization::MakeInstance));
+	BlueprintEditorModule.RegisterGraphCustomization(GetDefault<UControlRigGraphSchema>(), FOnGetGraphCustomizationInstance::CreateStatic(&FControlRigGraphDetails::MakeInstance));
 
 	// Register to fixup newly created BPs
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UControlRig::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FControlRigEditorModule::HandleNewBlueprintCreated));
@@ -246,7 +248,6 @@ void FControlRigEditorModule::StartupModule()
 	//UThumbnailManager::Get().RegisterCustomRenderer(UControlRigPoseAsset::StaticClass(), UControlRigPoseThumbnailRenderer::StaticClass());
 
 	bFilterAssetBySkeleton = true;
-
 }
 
 void FControlRigEditorModule::ShutdownModule()
@@ -292,6 +293,7 @@ void FControlRigEditorModule::ShutdownModule()
 	if (BlueprintEditorModule)
 	{
 		BlueprintEditorModule->UnregisterVariableCustomization(FProperty::StaticClass());
+		BlueprintEditorModule->UnregisterGraphCustomization(GetDefault<UControlRigGraphSchema>());
 	}
 
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");

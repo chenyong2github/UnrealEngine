@@ -34,6 +34,7 @@ DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnVMCompiledEvent, UBlueprint*, U
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRefreshEditorEvent, UControlRigBlueprint*);
 DECLARE_EVENT_FourParams(UControlRigBlueprint, FOnVariableDroppedEvent, UObject*, FProperty*, const FVector2D&, const FVector2D&);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const TArray<FRigVMExternalVariable>&);
+DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigBlueprint*, URigVMNode*);
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
@@ -64,6 +65,7 @@ public:
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PostLoad() override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void ReplaceDeprecatedNodes() override;
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return false; }
@@ -102,6 +104,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMGraph* GetModel(const UEdGraph* InEdGraph = nullptr) const;
+	URigVMGraph* GetModel(const FString& InNodePath) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	TArray<URigVMGraph*> GetAllModels() const;
@@ -115,6 +118,14 @@ public:
 	URigVMController* GetController(const UEdGraph* InEdGraph) const;
 	URigVMController* GetOrCreateController(const UEdGraph* InGraph);
 
+	URigVMGraph* GetTemplateModel();
+	URigVMController* GetTemplateController();
+
+#if WITH_EDITOR
+	UEdGraph* GetEdGraph(URigVMGraph* InModel = nullptr) const;
+	UEdGraph* GetEdGraph(const FString& InNodePath) const;
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")
 	FRigVMCompileSettings VMCompileSettings;
 
@@ -125,6 +136,16 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
 	TMap<URigVMGraph*, URigVMController*> Controllers;
+
+#if WITH_EDITORONLY_DATA
+
+	UPROPERTY(transient)
+	URigVMGraph* TemplateModel;
+
+	UPROPERTY(transient)
+	URigVMController* TemplateController;
+
+#endif
 
 public:
 
@@ -326,7 +347,7 @@ private:
 public:
 
 	FOnExternalVariablesChanged& OnExternalVariablesChanged() { return ExternalVariablesChangedEvent; }
-	
+
 	virtual void OnPreVariableChange(UObject* InObject);
 	virtual void OnPostVariableChange(UBlueprint* InBlueprint);
 	virtual void OnVariableAdded(const FName& InVarName);
@@ -334,12 +355,20 @@ public:
 	virtual void OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName);
 	virtual void OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType);
 
+	FOnNodeDoubleClicked& OnNodeDoubleClicked() { return NodeDoubleClickedEvent; }
+	void BroadcastNodeDoubleClicked(URigVMNode* InNode);
+
 private:
 
 	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
 	void BroadcastExternalVariablesChangedEvent();
 
+	FOnNodeDoubleClicked NodeDoubleClickedEvent;
+
 #endif
+
+	void CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce = false);
+	bool RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify = false);
 
 	bool bDirtyDuringLoad;
 

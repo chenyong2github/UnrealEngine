@@ -2601,6 +2601,14 @@ void SMyBlueprint::OnDeleteGraph(UEdGraph* InGraph, EEdGraphSchemaAction_K2Graph
 {
 	if (InGraph && InGraph->bAllowDeletion)
 	{
+		if (const UEdGraphSchema* Schema = InGraph->GetSchema())
+		{
+			if (Schema->TryDeleteGraph(InGraph))
+			{
+				return;
+			}
+		}
+
 		const FScopedTransaction Transaction( LOCTEXT("RemoveGraph", "Remove Graph") );
 		GetBlueprintObj()->Modify();
 

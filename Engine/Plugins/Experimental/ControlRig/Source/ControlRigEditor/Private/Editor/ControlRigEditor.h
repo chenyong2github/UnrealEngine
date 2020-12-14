@@ -305,6 +305,8 @@ private:
 
 	 void OnGraphNodeClicked(UControlRigGraphNode* InNode);
 
+	 void OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, URigVMNode* InNode);
+
 protected:
 
 	/** Toolbox hosting widget */

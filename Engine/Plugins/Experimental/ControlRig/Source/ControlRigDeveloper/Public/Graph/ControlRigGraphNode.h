@@ -200,4 +200,5 @@ private:
 	FNodeTitleDirtied NodeTitleDirtied;
 
 	friend class SControlRigGraphNode;
+	friend class FControlRigArgumentLayout;
 };

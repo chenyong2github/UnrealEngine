@@ -24,6 +24,8 @@ public:
 	// Library node interface
 	virtual URigVMGraph* GetContainedGraph() const override { return ContainedGraph; }
 
+	FString GetEditorSubGraphName() const;
+
 private:
 
 	UPROPERTY()

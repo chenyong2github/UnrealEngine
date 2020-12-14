@@ -1463,6 +1463,11 @@ void SBlueprintPaletteItem::OnNameTextCommitted(const FText& NewText, ETextCommi
 					{
 						return;
 					}
+
+					if (GraphSchema->TryRenameGraph(Graph, *NewText.ToString()))
+					{
+						return;
+					}
 				}
 			}
 

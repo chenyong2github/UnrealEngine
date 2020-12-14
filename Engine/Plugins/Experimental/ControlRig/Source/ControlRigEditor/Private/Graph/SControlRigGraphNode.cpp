@@ -17,6 +17,7 @@
 #include "Engine/Engine.h"
 #include "KismetNodes/KismetNodeInfoContext.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "PropertyPathHelpers.h"
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprint.h"
@@ -316,6 +317,23 @@ FReply SControlRigGraphNode::OnMouseButtonDown(const FGeometry& MyGeometry, cons
 	}
 
 	return Reply;
+}
+
+FReply SControlRigGraphNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (!InMouseEvent.GetModifierKeys().AnyModifiersDown())
+	{
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+		{
+			if (URigVMNode* ModelNode = RigNode->GetModelNode())
+			{
+				UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(RigNode));
+				RigBlueprint->BroadcastNodeDoubleClicked(ModelNode);
+				return FReply::Handled();
+			}
+		}
+	}
+	return SGraphNode::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 }
 
 bool SControlRigGraphNode::UseLowDetailNodeTitles() const

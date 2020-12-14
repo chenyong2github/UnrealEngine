@@ -10,6 +10,7 @@
 #include "ControlRig.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
+#include "Graph/ControlRigGraphSchema.h"
 #include "UObject/UObjectGlobals.h"
 #include "ControlRigObjectVersion.h"
 #include "ControlRigDeveloper.h"
@@ -376,15 +377,54 @@ URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
 		return Model;
 	}
 
-	ensure(false);
-	return nullptr;
+	FString ModelNodePath = RigGraph->ModelNodePath;
+	ensure(!ModelNodePath.IsEmpty());
+
+	URigVMGraph* SubModel = Model;
+	while (!ModelNodePath.IsEmpty())
+	{
+		FString NodeName = ModelNodePath;
+		if (NodeName.Contains(TEXT("|")))
+		{
+			NodeName = NodeName.Left(NodeName.Find(TEXT("|")));
+			ModelNodePath = ModelNodePath.Right(ModelNodePath.Len() - NodeName.Len() - 1);
+		}
+		else
+		{
+			ModelNodePath.Reset();
+		}
+
+		URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(SubModel->FindNodeByName(*NodeName));
+		if (CollapseNode == nullptr)
+		{
+			return nullptr;
+		}
+
+		SubModel = CollapseNode->GetContainedGraph();
+	}
+
+	return SubModel;
 }
+
+URigVMGraph* UControlRigBlueprint::GetModel(const FString& InNodePath) const
+{
+	if (!InNodePath.IsEmpty())
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(InNodePath)))
+		{
+			return LibraryNode->GetContainedGraph();
+		}
+		return nullptr;
+	}
+	return Model;
+}
+
 
 TArray<URigVMGraph*> UControlRigBlueprint::GetAllModels() const
 {
 	TArray<URigVMGraph*> Models;
 	Models.Add(GetModel());
-	Models.Append(GetModel()->GetContainedGraphs());
+	Models.Append(GetModel()->GetContainedGraphs(true /* recursive */));
 	return Models;
 }
 
@@ -488,6 +528,64 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(const UEdGraph* In
 	return GetOrCreateController(GetModel(InEdGraph));
 }
 
+URigVMGraph* UControlRigBlueprint::GetTemplateModel()
+{
+#if WITH_EDITORONLY_DATA
+	if (TemplateModel == nullptr)
+	{
+		TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
+		TemplateModel->SetFlags(RF_Transient);
+	}
+	return TemplateModel;
+#else
+	return nullptr;
+#endif
+}
+
+URigVMController* UControlRigBlueprint::GetTemplateController()
+{
+#if WITH_EDITORONLY_DATA
+	if (TemplateController == nullptr)
+	{
+		TemplateController = NewObject<URigVMController>(this, TEXT("TemplateController"));
+		TemplateController->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+		TemplateController->SetGraph(GetTemplateModel());
+		TemplateController->EnableReporting(false);
+		TemplateController->SetFlags(RF_Transient);
+	}
+	return TemplateController;
+#else
+	return nullptr;
+#endif
+}
+
+UEdGraph* UControlRigBlueprint::GetEdGraph(URigVMGraph* InModel) const
+{
+	TArray<UEdGraph*> EdGraphs;
+	GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* EdGraph : EdGraphs)
+	{
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+		{
+			if (RigGraph->ModelNodePath == InModel->GetNodePath())
+			{
+				return RigGraph;
+			}
+		}
+	}
+	return nullptr;
+}
+
+UEdGraph* UControlRigBlueprint::GetEdGraph(const FString& InNodePath) const
+{
+	if (URigVMGraph* ModelForNodePath = GetModel(InNodePath))
+	{
+		return GetEdGraph(ModelForNodePath);
+	}
+	return nullptr;
+}
+
 void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -563,6 +661,22 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 			PropagateDrawInstructionsFromBPToInstances();
 		}
 	}
+}
+
+void UControlRigBlueprint::ReplaceDeprecatedNodes()
+{
+	TArray<UEdGraph*> EdGraphs;
+	GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* EdGraph : EdGraphs)
+	{
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+		{
+			RigGraph->Schema = UControlRigGraphSchema::StaticClass();
+		}
+	}
+
+	Super::ReplaceDeprecatedNodes();
 }
 
 FRigVMGraphModifiedEvent& UControlRigBlueprint::OnModified()
@@ -1171,7 +1285,10 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	TGuardValue<bool> SelfGuard(bSuspendModelNotificationsForSelf, true);
 	check(GetOrCreateController());
 
-	for (UEdGraph* Graph : UbergraphPages)
+	TArray<UEdGraph*> EdGraphs;
+	GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* Graph : EdGraphs)
 	{
 		TArray<UEdGraphNode*> Nodes = Graph->Nodes;
 		for (UEdGraphNode* Node : Nodes)
@@ -1180,7 +1297,24 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 		}
 	}
 
-	GetController()->ResendAllNotifications();
+	TArray<URigVMGraph*> RigGraphs;
+	RigGraphs.Add(GetModel());
+
+	GetOrCreateController(RigGraphs[0])->ResendAllNotifications();
+
+	for (int32 RigGraphIndex = 0; RigGraphIndex < RigGraphs.Num(); RigGraphIndex++)
+	{
+		URigVMGraph* RigGraph = RigGraphs[RigGraphIndex];
+
+		for (URigVMNode* RigNode : RigGraph->GetNodes())
+		{
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(RigNode))
+			{
+				CreateEdGraphForCollapseNodeIfNeeded(CollapseNode, true);
+				RigGraphs.Add(CollapseNode->GetContainedGraph());
+			}
+		}
+	}
 }
 
 void UControlRigBlueprint::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
@@ -1198,6 +1332,11 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	{
 		return;
 	}
+
+	// since it's possible that a notification will be already sent / forwarded to the
+	// listening objects within the switch statement below - we keep a flag to mark
+	// the notify for still pending (or already sent)
+	bool bNotifForOthersPending = true;
 
 	if (!bSuspendModelNotificationsForSelf)
 	{
@@ -1328,6 +1467,27 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			}
 			case ERigVMGraphNotifType::NodeAdded:
 			case ERigVMGraphNotifType::NodeRemoved:
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+				{
+					if (InNotifType == ERigVMGraphNotifType::NodeAdded)
+					{
+						CreateEdGraphForCollapseNodeIfNeeded(CollapseNode);
+					}
+					else
+					{
+						bNotifForOthersPending = !RemoveEdGraphForCollapseNode(CollapseNode, true);
+					}
+
+					ClearTransientControls();
+					RequestAutoVMRecompilation();
+					MarkPackageDirty();
+					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+					break;
+				}
+
+				// fall through to the next case
+			}
 			case ERigVMGraphNotifType::LinkAdded:
 			case ERigVMGraphNotifType::LinkRemoved:
 			case ERigVMGraphNotifType::PinArraySizeChanged:
@@ -1336,9 +1496,6 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				ClearTransientControls();
 				RequestAutoVMRecompilation();
 				MarkPackageDirty();
-
-				// This is not necessarily required but due to workflow
-				// expectations we still mark the blueprint as dirty.
 				FBlueprintEditorUtils::MarkBlueprintAsModified(this);
 				break;
 			}
@@ -1381,6 +1538,44 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				MarkPackageDirty();
 				break;
 			}
+			case ERigVMGraphNotifType::NodeRenamed:
+			{
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InSubject))
+				{
+					FString NewNodePath = LibraryNode->GetNodePath(true /* recursive */);
+					FString Left, Right = NewNodePath;
+					URigVMNode::SplitNodePathAtEnd(NewNodePath, Left, Right);
+					FString OldNodePath = LibraryNode->GetPreviousFName().ToString();
+					if (!Left.IsEmpty())
+					{
+						OldNodePath = URigVMNode::JoinNodePath(Left, OldNodePath);
+					}
+
+					FString NewNodePathPrefix = NewNodePath + TEXT("|");
+					FString OldNodePathPrefix = OldNodePath + TEXT("|");
+
+					TArray<UEdGraph*> EdGraphs;
+					GetAllGraphs(EdGraphs);
+
+					for (UEdGraph* EdGraph : EdGraphs)
+					{
+						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+						{
+							if (RigGraph->ModelNodePath == OldNodePath)
+							{
+								RigGraph->ModelNodePath = NewNodePath;
+							}
+							else if (RigGraph->ModelNodePath.StartsWith(OldNodePathPrefix))
+							{
+								RigGraph->ModelNodePath = NewNodePathPrefix + RigGraph->ModelNodePath.LeftChop(OldNodePathPrefix.Len());
+							}
+						}
+					}
+
+					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+				}
+				break;
+			}
 			default:
 			{
 				break;
@@ -1388,7 +1583,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 		}
 	}
 
-	if (!bSuspendModelNotificationsForOthers)
+	// if the notification still has to be sent...
+	if (bNotifForOthersPending && !bSuspendModelNotificationsForOthers)
 	{
 		if (ModifiedEvent.IsBound())
 		{
@@ -2112,34 +2308,46 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 
 void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 {
-	if (URigVMController* Controller = GetController())
+	TArray<URigVMGraph*> AllGraphs = GetAllModels();
+	for (URigVMGraph* Graph : AllGraphs)
 	{
-		Controller->OnExternalVariableRemoved(InVarName, true);
+		if (URigVMController* Controller = GetOrCreateController(Graph))
+		{
+			Controller->OnExternalVariableRemoved(InVarName, true);
+		}
 	}
 	BroadcastExternalVariablesChangedEvent();
 }
 
 void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName)
 {
-	if (URigVMController* Controller = GetController())
+	TArray<URigVMGraph*> AllGraphs = GetAllModels();
+	for (URigVMGraph* Graph : AllGraphs)
 	{
-		Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
+		if (URigVMController* Controller = GetOrCreateController(Graph))
+		{
+			Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
+		}
 	}
 	BroadcastExternalVariablesChangedEvent();
 }
 
 void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType)
 {
-	if (URigVMController* Controller = GetController())
+	TArray<URigVMGraph*> AllGraphs = GetAllModels();
+	for (URigVMGraph* Graph : AllGraphs)
 	{
-		FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
-		if (NewVariable.IsValid(true)) // allow nullptr
+		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, true);
-		}
-		else
-		{
-			Controller->OnExternalVariableRemoved(InVarName, true);
+			FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
+			if (NewVariable.IsValid(true)) // allow nullptr
+			{
+				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, true);
+			}
+			else
+			{
+				Controller->OnExternalVariableRemoved(InVarName, true);
+			}
 		}
 	}
 	BroadcastExternalVariablesChangedEvent();
@@ -2156,7 +2364,94 @@ void UControlRigBlueprint::BroadcastExternalVariablesChangedEvent()
 	}
 }
 
+void UControlRigBlueprint::BroadcastNodeDoubleClicked(URigVMNode* InNode)
+{
+	NodeDoubleClickedEvent.Broadcast(this, InNode);
+}
+
 #endif
+
+void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce)
+{
+	check(InNode);
+
+	if (bForce)
+	{
+		RemoveEdGraphForCollapseNode(InNode, false);
+	}
+
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	{
+		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
+		{
+			bool bSubGraphExists = false;
+			for (UEdGraph* SubGraph : RigGraph->SubGraphs)
+			{
+				if (UControlRigGraph* SubRigGraph = Cast<UControlRigGraph>(SubGraph))
+				{
+					if (SubRigGraph->ModelNodePath == ContainedGraph->GetNodePath())
+					{
+						bSubGraphExists = true;
+						break;
+					}
+				}
+			}
+
+			if (!bSubGraphExists)
+			{
+				// create a sub graph
+				UControlRigGraph* SubRigGraph = NewObject<UControlRigGraph>(RigGraph, *InNode->GetEditorSubGraphName(), RF_Transactional);
+				SubRigGraph->Schema = UControlRigGraphSchema::StaticClass();
+				SubRigGraph->bAllowRenaming = 1;
+				SubRigGraph->bEditable = 1;
+				SubRigGraph->bAllowDeletion = 1;
+				SubRigGraph->ModelNodePath = InNode->GetNodePath(true);
+
+				RigGraph->SubGraphs.Add(SubRigGraph);
+
+				SubRigGraph->Initialize(this);
+
+				GetOrCreateController(ContainedGraph)->ResendAllNotifications();
+			}
+		}
+	}
+
+}
+
+bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify)
+{
+	check(InNode);
+
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	{
+		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
+		{
+			for (UEdGraph* SubGraph : RigGraph->SubGraphs)
+			{
+				if (UControlRigGraph* SubRigGraph = Cast<UControlRigGraph>(SubGraph))
+				{
+					if (SubRigGraph->ModelNodePath == ContainedGraph->GetNodePath())
+					{
+						if (URigVMController* SubController = GetController(ContainedGraph))
+						{
+							SubController->OnModified().RemoveAll(SubRigGraph);
+						}
+
+						if (ModifiedEvent.IsBound() && bNotify)
+						{
+							ModifiedEvent.Broadcast(ERigVMGraphNotifType::NodeRemoved, InNode->GetGraph(), InNode);
+						}
+
+						RigGraph->SubGraphs.Remove(SubRigGraph);
+						return bNotify;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE
 

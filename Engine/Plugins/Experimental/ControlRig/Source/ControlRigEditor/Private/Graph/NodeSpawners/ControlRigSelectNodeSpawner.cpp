@@ -14,6 +14,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ControlRigSelectNodeSpawner"
@@ -82,7 +83,7 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 	// First create a backing member for our node
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
 	check(RigGraph);
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(ParentGraph->GetOuter());
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
 	FString CPPType = "int32";

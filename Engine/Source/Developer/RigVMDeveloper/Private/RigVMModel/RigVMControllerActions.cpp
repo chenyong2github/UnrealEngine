@@ -1400,3 +1400,190 @@ bool FRigVMExpandNodeAction::Redo(URigVMController* InController)
 #endif
 	return false;
 }
+
+FRigVMRenameNodeAction::FRigVMRenameNodeAction(const FName& InOldNodeName, const FName& InNewNodeName)
+	: OldNodeName(InOldNodeName.ToString())
+	, NewNodeName(InNewNodeName.ToString())
+{
+}
+
+bool FRigVMRenameNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	if (URigVMNode* Node = InController->GetGraph()->FindNode(NewNodeName))
+	{
+		return InController->RenameNode(Node, *OldNodeName, false);
+	}
+	return false;
+}
+
+bool FRigVMRenameNodeAction::Redo(URigVMController* InController)
+{
+	if (URigVMNode* Node = InController->GetGraph()->FindNode(OldNodeName))
+	{
+		return InController->RenameNode(Node, *NewNodeName, false);
+	}
+	else
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMPushGraphAction::FRigVMPushGraphAction(const FString& InGraphName)
+	: GraphName(InGraphName)
+{
+}
+
+bool FRigVMPushGraphAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->PopGraph(false) != nullptr;
+}
+
+bool FRigVMPushGraphAction::Redo(URigVMController* InController)
+{
+	if (GraphName.IsEmpty())
+	{
+		InController->PushGraph(InController->GetTopLevelGraph(), false);
+		return FRigVMBaseAction::Redo(InController);
+	}
+	else if (URigVMNode* Node = InController->GetGraph()->FindNode(GraphName))
+	{
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		{
+			InController->PushGraph(CollapseNode->GetContainedGraph(), false);
+			return FRigVMBaseAction::Redo(InController);
+		}
+	}
+	return false;
+}
+
+FRigVMPopGraphAction::FRigVMPopGraphAction(const FString& InGraphName)
+	: GraphName(InGraphName)
+{
+}
+
+bool FRigVMPopGraphAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+
+	if (GraphName.IsEmpty())
+	{
+		InController->PushGraph(InController->GetTopLevelGraph(), false);
+		return true;
+	}
+	else if (URigVMNode* Node = InController->GetGraph()->FindNode(GraphName))
+	{
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		{
+			InController->PushGraph(CollapseNode->GetContainedGraph(), false);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FRigVMPopGraphAction::Redo(URigVMController* InController)
+{
+	if (InController->PopGraph(false) != nullptr)
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+	return false;
+}
+
+FRigVMAddExposedPinAction::FRigVMAddExposedPinAction(URigVMPin* InPin)
+	: PinName(InPin->GetName())
+	, Direction(InPin->GetDirection())
+	, CPPType(InPin->GetCPPType())
+	, CPPTypeObjectPath()
+	, DefaultValue(InPin->GetDefaultValue())
+{
+	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
+	{
+		CPPTypeObjectPath = CPPTypeObject->GetPathName();
+	}
+}
+
+bool FRigVMAddExposedPinAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveExposedPin(*PinName, false);
+}
+
+bool FRigVMAddExposedPinAction::Redo(URigVMController* InController)
+{
+	if (!InController->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+	return false;
+}
+
+FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction(URigVMPin* InPin)
+	: PinName(InPin->GetName())
+	, Direction(InPin->GetDirection())
+	, CPPType(InPin->GetCPPType())
+	, CPPTypeObjectPath()
+	, DefaultValue(InPin->GetDefaultValue())
+{
+	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
+	{
+		CPPTypeObjectPath = CPPTypeObject->GetPathName();
+	}
+}
+
+bool FRigVMRemoveExposedPinAction::Undo(URigVMController* InController)
+{
+	if(!InController->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	{
+		return FRigVMBaseAction::Undo(InController);
+	}
+	return false;
+}
+
+bool FRigVMRemoveExposedPinAction::Redo(URigVMController* InController)
+{
+	if(FRigVMBaseAction::Redo(InController))
+	{
+		return InController->RemoveExposedPin(*PinName, false);
+	}
+	return false;
+}
+
+FRigVMRenameExposedPinAction::FRigVMRenameExposedPinAction(const FName& InOldPinName, const FName& InNewPinName)
+	: OldPinName(InOldPinName.ToString())
+	, NewPinName(InNewPinName.ToString())
+{
+}
+
+bool FRigVMRenameExposedPinAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RenameExposedPin(*NewPinName, *OldPinName, false);
+}
+
+bool FRigVMRenameExposedPinAction::Redo(URigVMController* InController)
+{
+	if(!InController->RenameExposedPin(*OldPinName, *NewPinName, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}

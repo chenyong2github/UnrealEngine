@@ -934,6 +934,16 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	virtual void HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) const {}
 
+	/*
+	 * Try to delete the graph through the schema, return true if successful
+	 */
+	virtual bool TryDeleteGraph(UEdGraph* GraphToDelete) const { return false; }
+
+	/*
+	 * Try to rename a graph through the schema, return true if successful
+	 */
+	virtual bool TryRenameGraph(UEdGraph* GraphToRename, const FName& InNewName) const { return false; }
+
 	/**
 	 * Can TestNode be encapsulated into a child graph?
 	 */

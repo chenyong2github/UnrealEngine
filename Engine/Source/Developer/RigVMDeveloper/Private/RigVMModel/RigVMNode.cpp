@@ -30,10 +30,64 @@ FString URigVMNode::GetNodePath(bool bRecursive) const
 		FString ParentNodePath = GetGraph()->GetNodePath();
 		if (!ParentNodePath.IsEmpty())
 		{
-			return FString::Printf(TEXT("%s|%s"), *ParentNodePath, *GetName());
+			return JoinNodePath(ParentNodePath, GetName());
 		}
 	}
 	return GetName();
+}
+
+bool URigVMNode::SplitNodePathAtStart(const FString& InNodePath, FString& LeftMost, FString& Right)
+{
+	return InNodePath.Split(TEXT("|"), &LeftMost, &Right, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+}
+
+bool URigVMNode::SplitNodePathAtEnd(const FString& InNodePath, FString& Left, FString& RightMost)
+{
+	return InNodePath.Split(TEXT("|"), &Left, &RightMost, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+}
+
+bool URigVMNode::SplitNodePath(const FString& InNodePath, TArray<FString>& Parts)
+{
+	int32 OriginalPartsCount = Parts.Num();
+	FString NodePathRemaining = InNodePath;
+	FString Left, Right;
+	Right = NodePathRemaining;
+
+	while (SplitNodePathAtStart(NodePathRemaining, Left, Right))
+	{
+		Parts.Add(Left);
+		Left.Empty();
+		NodePathRemaining = Right;
+	}
+
+	if (!Right.IsEmpty())
+	{
+		Parts.Add(Right);
+	}
+
+	return Parts.Num() > OriginalPartsCount;
+}
+
+FString URigVMNode::JoinNodePath(const FString& Left, const FString& Right)
+{
+	ensure(!Left.IsEmpty() && !Right.IsEmpty());
+	return Left + TEXT("|") + Right;
+}
+
+FString URigVMNode::JoinNodePath(const TArray<FString>& InParts)
+{
+	if (InParts.Num() == 0)
+	{
+		return FString();
+	}
+
+	FString Result = InParts[0];
+	for (int32 PartIndex = 1; PartIndex < InParts.Num(); PartIndex++)
+	{
+		Result += TEXT("|") + InParts[PartIndex];
+	}
+
+	return Result;
 }
 
 int32 URigVMNode::GetNodeIndex() const

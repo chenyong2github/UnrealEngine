@@ -40,6 +40,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray<URigVMGraph*> GetContainedGraphs(bool bRecursive = false) const;
 
+	// Returns the entry node of this graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	URigVMFunctionEntryNode* GetEntryNode() const;
+	
+	// Returns the return node of this graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	URigVMFunctionReturnNode* GetReturnNode() const;
+
 	// Returns a list of unique Variable descriptions within this Graph.
 	// Multiple Variable Nodes can share the same description.
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
@@ -51,7 +59,12 @@ public:
 	TArray<FRigVMGraphParameterDescription> GetParameterDescriptions() const;
 
 	// Returns the path of this graph as defined by its invoking nodes
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	FString GetNodePath() const;
+
+	// Returns the name of this graph (as defined by the node path)
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	FString GetGraphName() const;
 
 	// Returns a Node given its name (or nullptr).
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)

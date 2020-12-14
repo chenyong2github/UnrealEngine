@@ -1199,3 +1199,154 @@ public:
 	UPROPERTY()
 	TArray<FString> ExpandedNodePaths;
 };
+
+/**
+ * An action renaming a node in the graph.
+ */
+USTRUCT()
+struct FRigVMRenameNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRenameNodeAction() {}
+	FRigVMRenameNodeAction(const FName& InOldNodeName, const FName& InNewNodeName);
+	virtual ~FRigVMRenameNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString OldNodeName;
+
+	UPROPERTY()
+	FString NewNodeName;
+};
+
+/**
+ * An action pushing a graph to the graph stack of the controller
+ */
+USTRUCT()
+struct FRigVMPushGraphAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMPushGraphAction() {}
+	FRigVMPushGraphAction(const FString& InGraphName);
+	virtual ~FRigVMPushGraphAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString GraphName;
+};
+
+/**
+ * An action popping a graph from the graph stack of the controller
+ */
+USTRUCT()
+struct FRigVMPopGraphAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMPopGraphAction() {}
+	FRigVMPopGraphAction(const FString& InGraphName);
+	virtual ~FRigVMPopGraphAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString GraphName;
+};
+
+
+/**
+ * An action exposing a pin as a parameter
+ */
+USTRUCT()
+struct FRigVMAddExposedPinAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddExposedPinAction() {}
+	FRigVMAddExposedPinAction(URigVMPin* InPin);
+	virtual ~FRigVMAddExposedPinAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString PinName;
+	
+	UPROPERTY()
+	ERigVMPinDirection Direction;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FString CPPTypeObjectPath;
+	
+	UPROPERTY()
+	FString DefaultValue;
+};
+
+/**
+ * An action exposing a pin as a parameter
+ */
+USTRUCT()
+struct FRigVMRemoveExposedPinAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRemoveExposedPinAction() {}
+	FRigVMRemoveExposedPinAction(URigVMPin* InPin);
+	virtual ~FRigVMRemoveExposedPinAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString PinName;
+	
+	UPROPERTY()
+	ERigVMPinDirection Direction;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FString CPPTypeObjectPath;
+
+	UPROPERTY()
+	FString DefaultValue;
+};
+
+/**
+ * An action renaming an exposed in the graph.
+ */
+USTRUCT()
+struct FRigVMRenameExposedPinAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRenameExposedPinAction() {}
+	FRigVMRenameExposedPinAction(const FName& InOldPinName, const FName& InNewPinName);
+	virtual ~FRigVMRenameExposedPinAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString OldPinName;
+
+	UPROPERTY()
+	FString NewPinName;
+};

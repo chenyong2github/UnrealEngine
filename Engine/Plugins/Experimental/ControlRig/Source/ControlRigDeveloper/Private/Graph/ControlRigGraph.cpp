@@ -47,6 +47,11 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		Schema = UControlRigGraphSchema::StaticClass();
+	}
 }
 #endif
 
@@ -143,6 +148,13 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (bSuspendModelNotifications)
+	{
+		return;
+	}
+
+	// only make sure to receive notifs for this graph - unless
+	// we are on a template graph (used by node spawners)
+	if (GetModel() != InGraph && TemplateController == nullptr)
 	{
 		return;
 	}
@@ -261,14 +273,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->SetColorFromModel(ModelNode->GetNodeColor());
 					NewNode->SetFlags(RF_Transactional);
 					NewNode->AllocateDefaultPins();
-
-					/*
-					// if we need to setup a sub graph.. we should
-					if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ModelNode))
-					{
-
-					}
-					*/
 				}
 			}
 			break;
@@ -389,8 +393,14 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				URigVMPin* SourcePin = Link->GetSourcePin();
 				URigVMPin* TargetPin = Link->GetTargetPin();
 
-				SourcePin = SourcePin->GetOriginalPinFromInjectedNode();
-				TargetPin = TargetPin->GetOriginalPinFromInjectedNode();
+				if (SourcePin)
+				{
+					SourcePin = SourcePin->GetOriginalPinFromInjectedNode();
+				}
+				if (TargetPin)
+				{
+					TargetPin = TargetPin->GetOriginalPinFromInjectedNode();
+				}
 
 				if (SourcePin && TargetPin && SourcePin != TargetPin)
 				{
@@ -507,11 +517,28 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		case ERigVMGraphNotifType::PinDirectionChanged:
 		case ERigVMGraphNotifType::PinTypeChanged:
 		case ERigVMGraphNotifType::PinBoundVariableChanged:
+		case ERigVMGraphNotifType::PinAdded:
+		case ERigVMGraphNotifType::PinRemoved:
+		case ERigVMGraphNotifType::PinRenamed:
 		{
 			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
 				{
+					RigNode->ReconstructNode_Internal(true);
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::NodeRenamed:
+		{
+			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetPreviousFName())))
+				{
+					RigNode->Rename(*ModelNode->GetName());
+					RigNode->ModelNodePath = ModelNode->GetNodePath();
+					RigNode->InvalidateNodeTitle();
 					RigNode->ReconstructNode_Internal(true);
 				}
 			}
@@ -615,20 +642,11 @@ URigVMController* UControlRigGraph::GetController() const
 
 URigVMController* UControlRigGraph::GetTemplateController()
 {
-	if (TemplateModel == nullptr)
-	{
-		TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
-	}
 	if (TemplateController == nullptr)
 	{
-		TemplateController = NewObject<URigVMController>(this, TEXT("TemplateController"));
-		TemplateController->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
-		TemplateController->SetGraph(TemplateModel);
-		TemplateController->EnableReporting(false);
+		TemplateController = GetBlueprint()->GetTemplateController();
+		TemplateController->OnModified().RemoveAll(this);
 		TemplateController->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
-
-		TemplateController->SetFlags(RF_Transient);
-		TemplateModel->SetFlags(RF_Transient);
 	}
 	return TemplateController;
 }

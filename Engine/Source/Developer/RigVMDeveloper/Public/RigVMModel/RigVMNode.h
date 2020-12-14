@@ -35,6 +35,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	FString GetNodePath(bool bRecursive = false) const;
 
+	// Splits a NodePath at the start, so for example "CollapseNodeA|CollapseNodeB|CollapseNodeC" becomes "CollapseNodeA" and "CollapseNodeB|CollapseNodeC"
+	static bool SplitNodePathAtStart(const FString& InNodePath, FString& LeftMost, FString& Right);
+
+	// Splits a NodePath at the end, so for example "CollapseNodeA|CollapseNodeB|CollapseNodeC" becomes "CollapseNodeA|CollapseNodeB" and "CollapseNodeC"
+	static bool SplitNodePathAtEnd(const FString& InNodePath, FString& Left, FString& RightMost);
+
+	// Splits a NodePath into all segments, so for example "Node.Color.R" becomes ["Node", "Color", "R"]
+	static bool SplitNodePath(const FString& InNodePath, TArray<FString>& Parts);
+
+	// Joins a NodePath from to segments, so for example "CollapseNodeA" and "CollapseNodeB|CollapseNodeC" becomes "CollapseNodeA|CollapseNodeB|CollapseNodeC"
+	static FString JoinNodePath(const FString& Left, const FString& Right);
+
+	// Joins a NodePath from to segments, so for example ["CollapseNodeA", "CollapseNodeB", "CollapseNodeC"] becomes "CollapseNodeA|CollapseNodeB|CollapseNodeC"
+	static FString JoinNodePath(const TArray<FString>& InParts);
+
 	// Returns the current index of the Node within the Graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	int32 GetNodeIndex() const;
@@ -173,6 +188,10 @@ public:
 	// Returns the number of slices for a given context
 	virtual int32 GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData);
 
+	// Returns the name of the node prior to the renaming
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	FName GetPreviousFName() const { return PreviousName; }
+
 private:
 
 	static const FString NodeColorName;
@@ -196,6 +215,9 @@ protected:
 
 	UPROPERTY()
 	FLinearColor NodeColor;
+
+	UPROPERTY(transient)
+	FName PreviousName;
 
 private:
 	UPROPERTY(transient)

@@ -55,6 +55,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void SetGraph(URigVMGraph* InGraph);
 
+	// Pushes a new graph to the stack
+	// This causes a GraphChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo = true);
+
+	// Pops the last graph off the stack
+	// This causes a GraphChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMGraph* PopGraph(bool bSetupUndoRedo = true);
+	
+	// Returns the top level graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMGraph* GetTopLevelGraph() const;
+
 	// The Modified event used to subscribe to changes
 	// happening within the Graph. This is broadcasted to 
 	// for any change happening - not only the changes 
@@ -283,6 +297,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo = true, bool bRecursive = false);
 
+	// Renames a node in the graph
+	// This causes a NodeRenamed modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RenameNode(URigVMNode* InNode, const FName& InNewName, bool bSetupUndoRedo = true);
+
 	// Selects a single node in the graph.
 	// This causes a NodeSelected / NodeDeselected modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -454,6 +473,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool BreakAllLinks(const FString& InPinPath, bool bAsInput = true, bool bSetupUndoRedo = true);
 
+	// Adds an exposed pin to the graph controlled by this
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+
+	// Removes an exposed pin from the graph controlled by this
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveExposedPin(const FName& InPinName, bool bSetupUndoRedo = true);
+
+	// Renames an exposed pin in the graph controlled by this
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RenameExposedPin(const FName& InOldPinName, const FName& InNewPinName, bool bSetupUndoRedo = true);
+
+	// Changes the type of an exposed pin in the graph controlled by this
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true);
+
 	// Sets the execute context struct type to use
 	void SetExecuteContextStruct(UStruct* InExecuteContextStruct);
 
@@ -463,8 +498,8 @@ public:
 	// A delegate to retrieve the list of external variables
 	FRigVMController_GetExternalVariablesDelegate GetExternalVariablesDelegate;
 
-	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr);
-	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr);
+	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
+	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
 
 	// Removes nodes which went stale.
@@ -475,7 +510,7 @@ public:
 	bool ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const;
 	bool ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const;
 
-	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true);
+	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true, bool bNotify = false);
 #endif
 
 	FRigVMUnitNodeCreatedContext& GetUnitNodeCreatedContext() { return UnitNodeCreatedContext; }
@@ -498,7 +533,7 @@ private:
 	bool IsValidNodeForGraph(URigVMNode* InNode);
 	bool IsValidPinForGraph(URigVMPin* InPin);
 	bool IsValidLinkForGraph(URigVMLink* InLink);
-	void AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays);
+	void AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays, bool bNotify = false);
 	void AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const TArray<FString>& InDefaultValues, bool bAutoExpandArrays);
 	void ConfigurePinFromProperty(FProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection = ERigVMPinDirection::Invalid);
 	void ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin);
@@ -508,7 +543,7 @@ private:
 	bool ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRedo);
 	static TArray<FString> SplitDefaultValue(const FString& InDefaultValue);
 	URigVMPin* InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, const FString& InDefaultValue, bool bSetupUndoRedo);
-	bool RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo);
+	bool RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo, bool bNotify);
 	FProperty* FindPropertyForPin(const FString& InPinPath);
 	bool BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bSetupUndoRedo);
 	bool MakeBindingsFromVariableNode(URigVMVariableNode* InNode, bool bSetupUndoRedo);
@@ -527,7 +562,7 @@ private:
 	static void ForEveryPinRecursively(URigVMNode* InNode, TFunction<void(URigVMPin*)> OnEachPinFunction);
 	URigVMCollapseNode* CollapseNodes(const TArray<URigVMNode*>& InNodes, const FString& InCollapseNodeName, bool bSetupUndoRedo);
 	TArray<URigVMNode*> ExpandLibraryNode(URigVMLibraryNode* InNode, bool bSetupUndoRedo);
-	void RefreshFunctionPins(URigVMNode* InNode);
+	void RefreshFunctionPins(URigVMNode* InNode, bool bNotify = true);
 
 	struct FPinState
 	{
@@ -584,7 +619,7 @@ private:
 	TArray<FRigVMExternalVariable> GetExternalVariables();
 
 	UPROPERTY(transient)
-	URigVMGraph* Graph;
+	TArray<URigVMGraph*> Graphs;
 
 	UPROPERTY()
 	UStruct* ExecuteContextStruct;
@@ -646,3 +681,24 @@ private:
 	friend class FRigVMParserAST;
 };
 
+class FRigVMControllerGraphGuard
+{
+public:
+
+	FRigVMControllerGraphGuard(URigVMController* InController, URigVMGraph* InGraph, bool bSetupUndoRedo = true)
+		: Controller(InController)
+		, bUndo(bSetupUndoRedo)
+	{
+		Controller->PushGraph(InGraph, bUndo);
+	}
+
+	~FRigVMControllerGraphGuard()
+	{
+		Controller->PopGraph(bUndo);
+	}
+
+private:
+
+	URigVMController* Controller;
+	bool bUndo;
+};

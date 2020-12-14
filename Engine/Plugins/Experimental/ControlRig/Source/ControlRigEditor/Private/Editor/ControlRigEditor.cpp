@@ -76,6 +76,8 @@
 #include "AssetEditorModeManager.h"
 #include "IPersonaEditorModeManager.h"
 #include "BlueprintEditorTabs.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -125,6 +127,7 @@ FControlRigEditor::~FControlRigEditor()
 		}
 		RigBlueprint->OnRefreshEditor().RemoveAll(this);
 		RigBlueprint->OnVariableDropped().RemoveAll(this);
+		RigBlueprint->OnNodeDoubleClicked().RemoveAll(this);
 	}
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
@@ -265,6 +268,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	// Post-layout initialization
 	PostLayoutBlueprintEditorInitialization();
 
+	// tabs opened before reload
+	FString ActiveTabNodePath;
+	TArray<FString> OpenedTabNodePaths;
+
 	if (ControlRigBlueprints.Num() > 0)
 	{
 		bool bBroughtGraphToFront = false;
@@ -282,6 +289,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 			{
 				RigGraph->OnGraphNodeClicked.AddSP(this, &FControlRigEditor::OnGraphNodeClicked);
+				ActiveTabNodePath = RigGraph->ModelNodePath;
 			}
 		}
 	}
@@ -301,6 +309,24 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			}
 			else
 			{
+				// remember all ed graphs which were visible as tabs
+				TArray<UEdGraph*> EdGraphs;
+				InControlRigBlueprint->GetAllGraphs(EdGraphs);
+
+				for (UEdGraph* EdGraph : EdGraphs)
+				{
+					if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+					{
+						TArray<TSharedPtr<SDockTab>> TabsForEdGraph;
+						FindOpenTabsContainingDocument(EdGraph, TabsForEdGraph);
+
+						if (TabsForEdGraph.Num() > 0)
+						{
+							OpenedTabNodePaths.Add(RigGraph->ModelNodePath);
+						}
+					}
+				}
+
 				InControlRigBlueprint->RebuildGraphFromModel();
 
 				// selection state does not need to be persistent, even though it is saved in the RigVM.
@@ -332,9 +358,27 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			InControlRigBlueprint->HierarchyContainer.OnElementChanged.AddSP(EditMode, &FControlRigEditMode::OnRigElementChanged);
 			InControlRigBlueprint->HierarchyContainer.ControlHierarchy.OnControlUISettingsChanged.AddSP(EditMode, &FControlRigEditMode::OnControlUISettingChanged);
 		}
+
+		InControlRigBlueprint->OnNodeDoubleClicked().AddSP(this, &FControlRigEditor::OnNodeDoubleClicked);
 	}
 
 	UpdateStaleWatchedPins();
+
+	for (const FString& OpenedTabNodePath : OpenedTabNodePaths)
+	{
+		if (UEdGraph* EdGraph = InControlRigBlueprint->GetEdGraph(OpenedTabNodePath))
+		{
+			OpenDocument(EdGraph, FDocumentTracker::RestorePreviousDocument);
+		}
+	}
+
+	if (UEdGraph* ActiveGraph = InControlRigBlueprint->GetEdGraph(ActiveTabNodePath))
+	{
+		OpenGraphAndBringToFront(ActiveGraph, true);
+	}
+
+	FControlRigBlueprintUtils::HandleRefreshAllNodes(InControlRigBlueprint);
+
 	bControlRigEditorInitialized = true;
 }
 
@@ -1069,7 +1113,29 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 		}
 		return;
 	}
-	
+	else if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Obj))
+	{
+		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(CollapseNode->GetContainedGraph());
+		if (EdGraph)
+		{
+			TArray<UObject*> Objects;
+			Objects.Add(EdGraph);
+			SetDetailObjects(Objects);
+			return;
+		}
+	}
+	else if (Cast<URigVMFunctionEntryNode>(Obj) || Cast<URigVMFunctionReturnNode>(Obj))
+	{
+		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(CastChecked<URigVMNode>(Obj)->GetGraph());
+		if (EdGraph)
+		{
+			TArray<UObject*> Objects;
+			Objects.Add(EdGraph);
+			SetDetailObjects(Objects);
+			return;
+		}
+	}
+
 	TArray<UObject*> Objects;
 	if (Obj)
 	{
@@ -1815,6 +1881,17 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 				}
 			}
 
+			break;
+		}
+		case ERigVMGraphNotifType::NodeRemoved:
+		{
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+			{
+				if (UEdGraph* EdGraph = ControlRigBlueprint->GetEdGraph(CollapseNode->GetContainedGraph()))
+				{
+					CloseDocumentTab(EdGraph);
+				}
+			}
 			break;
 		}
 		case ERigVMGraphNotifType::NodeSelectionChanged:
@@ -4041,6 +4118,19 @@ void FControlRigEditor::OnGraphNodeClicked(UControlRigGraphNode* InNode)
 		if (InNode->IsSelectedInEditor())
 		{
 			SetDetailObject(InNode->GetModelNode());
+		}
+	}
+}
+
+void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, URigVMNode* InNode)
+{
+	ensure(GetControlRigBlueprint() == InBlueprint);
+
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+	{
+		if (UEdGraph* EdGraph = InBlueprint->GetEdGraph(LibraryNode->GetContainedGraph()))
+		{
+			OpenGraphAndBringToFront(EdGraph, true);
 		}
 	}
 }

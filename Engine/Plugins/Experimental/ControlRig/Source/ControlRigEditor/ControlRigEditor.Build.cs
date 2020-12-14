@@ -75,6 +75,7 @@ namespace UnrealBuildTool.Rules
 					"AnimationEditor",
 					"MessageLog",
 					"PropertyAccessEditor",
+					"KismetWidgets",
 				}
             );
 

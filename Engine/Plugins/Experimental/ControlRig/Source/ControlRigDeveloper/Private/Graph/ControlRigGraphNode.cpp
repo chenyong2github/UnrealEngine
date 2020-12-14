@@ -654,9 +654,9 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 	{
 #if WITH_EDITOR
 
-		if (Graph->TemplateModel != nullptr)
+		if (Graph->TemplateController != nullptr)
 		{
-			return MutableThis->CachedModelNode = Graph->TemplateModel->FindNode(ModelNodePath);
+			return MutableThis->CachedModelNode = Graph->TemplateController->GetGraph()->FindNode(ModelNodePath);
 		}
 
 #endif
@@ -681,9 +681,13 @@ FName UControlRigGraphNode::GetModelNodeName() const
 
 URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath) const
 {
-	if (URigVMPin*const* CachedModelPin = CachedModelPins.Find(InPinPath))
+	if (URigVMPin*const* CachedModelPinPtr = CachedModelPins.Find(InPinPath))
 	{
-		return (URigVMPin*)*CachedModelPin;
+		URigVMPin* CachedModelPin = *CachedModelPinPtr;
+		if (!CachedModelPin->HasAnyFlags(RF_Transient) && CachedModelPin->GetNode())
+		{
+			return CachedModelPin;
+		}
 	}
 
 	if (URigVMNode* ModelNode = GetModelNode())
@@ -691,10 +695,10 @@ URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath
 		FString PinPath = InPinPath.RightChop(ModelNode->GetNodePath().Len() + 1);
 		URigVMPin* ModelPin = ModelNode->FindPin(PinPath);
 		if (ModelPin)
-	{
+		{
 			UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
-			MutableThis->CachedModelPins.Add(InPinPath, ModelPin);
-	}
+			MutableThis->CachedModelPins.FindOrAdd(InPinPath) = ModelPin;
+		}
 		return ModelPin;
 	}
 	

@@ -116,7 +116,7 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 		UControlRigGraphNode* RigNodeA = Cast<UControlRigGraphNode>(A->GetOwningNode());
 		UControlRigGraphNode* RigNodeB = Cast<UControlRigGraphNode>(B->GetOwningNode());
 
-		if (RigNodeA && RigNodeB)
+		if (RigNodeA && RigNodeB && RigNodeA != RigNodeB)
 		{
 			URigVMPin* PinA = RigNodeA->GetModelPinFromPinPath(A->GetName());
 			if (PinA)
@@ -268,6 +268,64 @@ void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D
 	}
 }
 
+void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const
+{
+	Super::GetGraphDisplayInformation(Graph, DisplayInfo);
+
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)&Graph))
+	{
+		TArray<FString> NodePathParts;
+		if(URigVMNode::SplitNodePath(RigGraph->ModelNodePath, NodePathParts))
+		{
+			DisplayInfo.DisplayName = FText::FromString(NodePathParts.Last());
+			DisplayInfo.PlainName = DisplayInfo.DisplayName;
+		}
+	}
+}
+
+bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GraphToDelete))
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+		{
+			if (URigVMGraph* Model = RigBlueprint->GetModel())
+			{
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath)))
+				{
+					if (URigVMController* Controller = RigBlueprint->GetController(LibraryNode->GetGraph()))
+					{
+						return Controller->RemoveNode(LibraryNode);
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName& InNewName) const
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GraphToRename))
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+		{
+			if (URigVMGraph* Model = RigBlueprint->GetModel())
+			{
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath)))
+				{
+					if (URigVMController* Controller = RigBlueprint->GetController(LibraryNode->GetGraph()))
+					{
+						Controller->RenameNode(LibraryNode, InNewName);
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
 UControlRigGraphNode* UControlRigGraphSchema::CreateGraphNode(UControlRigGraph* InGraph, const FName& InPropertyName) const
 {
 	const bool bSelectNewNode = true;
@@ -318,6 +376,10 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 	if (PinB->ParentPin != nullptr)
 	{
 		return false;
+	}
+
+	if (UControlRigGraphNode* GraphNode = Cast<UControlRigGraphNode>(PinB->GetOwningNode()))
+	{
 	}
 
 	// for reroute nodes - always allow it

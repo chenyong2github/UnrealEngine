@@ -101,7 +101,7 @@ UEdGraphNode* UControlRigUnitNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 		}
 #endif
 
-		UBlueprint* Blueprint = CastChecked<UBlueprint>(ParentGraph->GetOuter());
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph);
 		NewNode = SpawnNode(ParentGraph, Blueprint, StructTemplate, Location);
 	}
 
@@ -147,6 +147,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		if (URigVMUnitNode* ModelNode = Controller->AddUnitNode(StructTemplate, TEXT("Execute"), Location, Name.ToString(), bUndo))
 		{
 			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+			check(NewNode);
 
 			if (NewNode && bUndo)
 			{

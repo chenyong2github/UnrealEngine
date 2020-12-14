@@ -24,6 +24,9 @@ enum class ERigVMGraphNotifType : uint8
 	NodePositionChanged, // A node's position has changed (Subject == URigVMNode)
 	NodeSizeChanged, // A node's size has changed (Subject == URigVMNode)
 	NodeColorChanged, // A node's color has changed (Subject == URigVMNode)
+	PinAdded, // A pin has been added to a given node (Subject == URigVMPin)
+	PinRemoved, // A pin has been removed from a given node (Subject == URigVMPin)
+	PinRenamed, // A pin has been renamed (Subject == URigVMPin)
 	PinExpansionChanged, // A pin's expansion state has changed(Subject == URigVMPin)
 	PinWatchedChanged, // A pin's watch state has changed (Subject == URigVMPin)
 	PinArraySizeChanged, // An array pin's size has changed (Subject == URigVMPin)
@@ -44,6 +47,7 @@ enum class ERigVMGraphNotifType : uint8
 	InteractionBracketClosed, // A bracket has been opened (Subject == nullptr)
 	InteractionBracketCanceled, // A bracket has been canceled (Subject == nullptr)
 	PinBoundVariableChanged, // A pin has been bound or unbound to / from a variable (Subject == URigVMPin)
+	NodeRenamed, // A node has been renamed in the graph (Subject == URigVMNode)
 	Invalid // The max for this enum (used for guarding)
 };
 

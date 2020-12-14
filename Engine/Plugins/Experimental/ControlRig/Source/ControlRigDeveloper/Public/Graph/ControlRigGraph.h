@@ -57,9 +57,12 @@ public:
 	URigVMGraph* GetModel() const;
 	URigVMController* GetController() const;
 
-private:
-
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
+	UPROPERTY()
+	FString ModelNodePath;
+
+private:
 
 	template<class T>
 	void CacheNameList(const T& ElementList, TArray<TSharedPtr<FString>>& OutNameList)
@@ -94,9 +97,6 @@ private:
 
 #endif
 #if WITH_EDITORONLY_DATA
-
-	UPROPERTY(transient)
-	URigVMGraph* TemplateModel;
 
 	UPROPERTY(transient)
 	URigVMController* TemplateController;

@@ -94,7 +94,7 @@ FString URigVMPin::GetPinPath(bool bUseNodePath) const
 	FString PinPath;
 
 	URigVMPin* ParentPin = GetParentPin();
-	if(ParentPin)
+	if (ParentPin)
 	{
 		PinPath = FString::Printf(TEXT("%s.%s"), *ParentPin->GetPinPath(), *GetName());
 	}
@@ -107,7 +107,10 @@ FString URigVMPin::GetPinPath(bool bUseNodePath) const
 		}
 	}
 #if UE_BUILD_DEBUG
-	CachedPinPath = PinPath;
+	if (!bUseNodePath)
+	{
+		CachedPinPath = PinPath;
+	}
 #endif
 	return PinPath;
 }
