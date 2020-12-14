@@ -323,7 +323,12 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 		TilesToSave.Reserve(DetourNavMesh->getMaxTiles());
 		
 		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(NavMeshOwner->GetWorld());
-		if (NavMeshOwner->SupportsStreaming() && NavSys)
+
+		// Need to keep the check !IsRunningCommandlet() for the case where maps are cooked and saved from UCookCommandlet.
+		// In that flow the nav bounds are not set (no bounds means no tiles to save and the navmesh would be saved without tiles).
+		// This flow would benefit to be revisited since navmesh serialization should not be different whether it was run or not by a commandlet.
+		// Fixes missing navmesh regression (UE-103604).
+		if (NavMeshOwner->SupportsStreaming() && NavSys && !IsRunningCommandlet())
 		{
 			// We save only tiles that belongs to this level
 			GetNavMeshTilesIn(NavMeshOwner->GetNavigableBoundsInLevel(NavMeshOwner->GetLevel()), TilesToSave);
