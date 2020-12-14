@@ -153,6 +153,7 @@ private:
 	
 	uint32					MaxStreamingPages;
 	uint32					MaxPendingPages;
+	uint32					MaxPageInstallsPerUpdate;
 	uint32					MaxStreamingReadbackBuffers;
 
 	uint32					ReadbackBuffersWriteIndex;

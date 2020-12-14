@@ -14,14 +14,6 @@
 #include "Async/ParallelFor.h"
 #include "Misc/Compression.h"
 
-#define MAX_STREAMING_PAGES_BITS			12u
-#define MAX_STREAMING_PAGES					(1u << MAX_STREAMING_PAGES_BITS)
-
-#define MIN_ROOT_PAGES_CAPACITY				2048u
-
-#define MAX_PENDING_PAGES					128u
-#define MAX_INSTALLS_PER_UPDATE				128u
-
 #define MAX_LEGACY_REQUESTS_PER_UPDATE		32u		// Legacy IO requests are slow and cause lots of bubbles, so we NEED to limit them.
 
 #define MAX_REQUESTS_HASH_TABLE_SIZE		(MAX_STREAMING_REQUESTS << 1)
@@ -31,19 +23,60 @@
 #define INVALID_RUNTIME_RESOURCE_ID			0xFFFFFFFFu
 #define INVALID_PAGE_INDEX					0xFFFFFFFFu
 
-float GNaniteStreamingBandwidthLimit = -1.0f;
-static FAutoConsoleVariableRef CVarNaniteStreamingBandwidthLimit(
-	TEXT( "r.Nanite.StreamingBandwidthLimit" ),
-	GNaniteStreamingBandwidthLimit,
-	TEXT( "Streaming bandwidth limit in megabytes per second. Negatives values are interpreted as unlimited. " )
+int32 GNaniteStreamingAsync = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingAsync(
+	TEXT("r.Nanite.Streaming.Async"),
+	GNaniteStreamingAsync,
+	TEXT("Perform most of the Nanite streaming on an asynchronous worker thread instead of the rendering thread.")
 );
 
-int32 GNaniteAsyncStreaming = 1;
-static FAutoConsoleVariableRef CVarNaniteAsyncStreaming(
-	TEXT( "r.Nanite.AsyncStreaming" ),
-	GNaniteAsyncStreaming,
-	TEXT( "Perform most of the Nanite streaming on an asynchronous worker thread instead of the rendering thread." )
+float GNaniteStreamingBandwidthLimit = -1.0f;
+static FAutoConsoleVariableRef CVarNaniteStreamingBandwidthLimit(
+	TEXT("r.Nanite.Streaming.BandwidthLimit" ),
+	GNaniteStreamingBandwidthLimit,
+	TEXT("Streaming bandwidth limit in megabytes per second. Negatives values are interpreted as unlimited. ")
 );
+
+int32 GNaniteStreamingPoolSize = 512;
+static FAutoConsoleVariableRef CVarNaniteStreamingPoolSize(
+	TEXT("r.Nanite.Streaming.StreamingPoolSize"),
+	GNaniteStreamingPoolSize,
+	TEXT("Size of streaming pool in MB. Does not include memory used for root pages."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteStreamingNumInitialRootPages = 2048;
+static FAutoConsoleVariableRef CVarNaniteStreamingNumInitialRootPages(
+	TEXT("r.Nanite.Streaming.NumInitialRootPages"),
+	GNaniteStreamingNumInitialRootPages,
+	TEXT("Number of root pages in initial allocation. Allowed to grow on demand if r.Nanite.Streaming.DynamicRootPages is enabled."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteStreamingDynamicRootPages = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingDynamicRootPages(
+	TEXT("r.Nanite.Streaming.DynamicRootPages"),
+	GNaniteStreamingDynamicRootPages,
+	TEXT("Determines if root page allocation is allowed to grow dynamically initial allocation set by r.Nanite.Streaming.NumInitialRootPages."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteStreamingMaxPendingPages = 128;
+static FAutoConsoleVariableRef CVarNaniteStreamingMaxPendingPages(
+	TEXT("r.Nanite.Streaming.MaxPendingPages"),
+	GNaniteStreamingMaxPendingPages,
+	TEXT("Maximum number of pages that can be pending for installation."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteStreamingMaxPageInstallsPerFrame = 128;
+static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
+	TEXT("r.Nanite.Streaming.MaxPageInstallsPerFrame"),
+	GNaniteStreamingMaxPageInstallsPerFrame,
+	TEXT("Maximum number of pages that can be installed per frame. Limiting this can limit the overhead of streaming."),
+	ECVF_ReadOnly
+);
+
 
 DECLARE_CYCLE_STAT( TEXT("StreamingManager_Update"),STAT_NaniteStreamingManagerUpdate,	STATGROUP_Nanite );
 
@@ -285,8 +318,9 @@ private:
 };
 
 FStreamingManager::FStreamingManager() :
-	MaxStreamingPages(MAX_STREAMING_PAGES),
-	MaxPendingPages(MAX_PENDING_PAGES),
+	MaxStreamingPages(0),
+	MaxPendingPages(0),
+	MaxPageInstallsPerUpdate(0),
 	MaxStreamingReadbackBuffers(4u),
 	ReadbackBuffersWriteIndex(0),
 	ReadbackBuffersNumPending(0),
@@ -310,7 +344,13 @@ void FStreamingManager::InitRHI()
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	check( MaxStreamingPages <= MAX_GPU_PAGES );
+
+	MaxStreamingPages = (uint32)((uint64)GNaniteStreamingPoolSize * 1024 * 1024 / CLUSTER_PAGE_GPU_SIZE);
+	check(MaxStreamingPages + GNaniteStreamingNumInitialRootPages <= MAX_GPU_PAGES);
+
+	MaxPendingPages = GNaniteStreamingMaxPendingPages;
+	MaxPageInstallsPerUpdate = FMath::Min(GNaniteStreamingMaxPageInstallsPerFrame, MaxPendingPages);
+
 	StreamingRequestReadbackBuffers.AddZeroed( MaxStreamingReadbackBuffers );
 
 	// Initialize pages
@@ -345,7 +385,7 @@ void FStreamingManager::InitRHI()
 	PendingPages.SetNum( MaxPendingPages );
 
 #if !WITH_EDITOR
-	PendingPageStagingMemory.SetNumUninitialized( MAX_PENDING_PAGES * CLUSTER_PAGE_DISK_SIZE );
+	PendingPageStagingMemory.SetNumUninitialized( MaxPendingPages * CLUSTER_PAGE_DISK_SIZE );
 	for (int32 i = 0; i < PendingPages.Num(); i++)
 	{
 		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * CLUSTER_PAGE_DISK_SIZE;
@@ -354,7 +394,7 @@ void FStreamingManager::InitRHI()
 
 	if (!FPlatformProperties::SupportsHardwareLZDecompression())
 	{
-		PendingPageStagingMemoryLZ.SetNumUninitialized( MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE );
+		PendingPageStagingMemoryLZ.SetNumUninitialized( MaxPageInstallsPerUpdate * CLUSTER_PAGE_DISK_SIZE );
 	}
 
 	RequestsHashTable	= new FRequestsHashTable();
@@ -411,6 +451,11 @@ void FStreamingManager::Add( FResources* Resources )
 		INC_DWORD_STAT_BY( STAT_NaniteRootPages, 1 );
 
 		Resources->RootPageIndex = RootPages.Allocator.Allocate( 1 );
+		if (GNaniteStreamingDynamicRootPages == 0 && RootPages.Allocator.GetMaxSize() > GNaniteStreamingNumInitialRootPages)
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Out of root pages. Increase the initial root page allocation (r.Nanite.Streaming.NumInitialRootPages) or allow it to grow dynamically (r.Nanite.Streaming.DynamicRootPages)."));
+		}
+		
 		RootPages.TotalUpload++;
 
 		// Version root pages so we can disregard invalid streaming requests.
@@ -919,7 +964,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 #endif
 				uint32 PageOffset = PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
-				check(NumInstalledPages < MAX_INSTALLS_PER_UPDATE);
+				check(NumInstalledPages < MaxPageInstallsPerUpdate);
 
 				UploadTask.SrcSize = DataSize;
 				UploadTask.PendingPage = &PendingPage;
@@ -1016,7 +1061,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
-	uint32 NumAllocatedRootPages = FMath::Clamp( FMath::RoundUpToPowerOfTwo( RootPages.Allocator.GetMaxSize() ), MIN_ROOT_PAGES_CAPACITY, MaxRootPages );
+	uint32 NumAllocatedRootPages = FMath::Clamp( FMath::RoundUpToPowerOfTwo( RootPages.Allocator.GetMaxSize() ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
 	check( NumAllocatedRootPages >= (uint32)RootPages.Allocator.GetMaxSize() );	// Root pages just don't fit!
 	
 	uint32 WidthInTiles = 12;
@@ -1030,7 +1075,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
 
 	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_GPU_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
-																				// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
+																					// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
 
 	RootPageInfos.SetNum( NumAllocatedRootPages );
 
@@ -1176,7 +1221,7 @@ uint32 FStreamingManager::DetermineReadyPages()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CheckReadyPages);
 
-		for( uint32 i = 0; i < NumPendingPages && NumReadyPages < MAX_INSTALLS_PER_UPDATE; i++ )
+		for( uint32 i = 0; i < NumPendingPages && NumReadyPages < MaxPageInstallsPerUpdate; i++ )
 		{
 			uint32 PendingPageIndex = ( StartPendingPageIndex + i ) % MaxPendingPages;
 			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
@@ -1247,11 +1292,11 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
-		PageUploader->Init(MAX_INSTALLS_PER_UPDATE, MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE);
-		ClusterFixupUploadBuffer.Init(MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
+		PageUploader->Init(MaxPageInstallsPerUpdate, MaxPageInstallsPerUpdate * CLUSTER_PAGE_DISK_SIZE);
+		ClusterFixupUploadBuffer.Init(MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
 
-		ClusterPageHeaders.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
-		Hierarchy.UploadBuffer.Init(2 * MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
+		ClusterPageHeaders.UploadBuffer.Init(MaxPageInstallsPerUpdate, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
+		Hierarchy.UploadBuffer.Init(2 * MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
 	}
 
 	// Find latest most recent ready readback buffer
@@ -1284,7 +1329,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	Parameters.StreamingManager = this;
 
 	check(AsyncTaskEvents.IsEmpty());
-	if (GNaniteAsyncStreaming)
+	if (GNaniteStreamingAsync)
 	{
 		AsyncTaskEvents.Add(TGraphTask<FStreamingUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(Parameters));
 	}
@@ -1627,7 +1672,7 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 		check(AsyncState.bUpdateActive);
 
 		// Wait for async processing to finish
-		if (GNaniteAsyncStreaming)
+		if (GNaniteStreamingAsync)
 		{
 			check(!AsyncTaskEvents.IsEmpty());
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncTaskEvents, ENamedThreads::GetRenderThread_Local());
