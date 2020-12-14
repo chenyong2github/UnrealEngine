@@ -2320,7 +2320,7 @@ public:
 
 				// always save shaders in our format even if the platform will use native one. This is needed for iterative cooks (Launch On et al)
 				// to reload previously cooked shaders
-				bOk = PerChunkArchive->Finalize(SandboxDestinationPath, SandboxMetadataPath, true, &OutChunkFilenames) && bOk;
+				bOk = PerChunkArchive->Finalize(SandboxDestinationPath, SandboxMetadataPath, false, &OutChunkFilenames) && bOk;
 
 				bool bShouldWriteInNativeFormat = bOk && bNativeFormat && PerChunkArchive->GetFormat()->SupportsShaderArchives();
 				if (bShouldWriteInNativeFormat)
