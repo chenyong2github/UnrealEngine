@@ -176,7 +176,16 @@ bool FRgbaInputFile::HasInputFile() const
 
 void FRgbaInputFile::ReadPixels(int32 StartY, int32 EndY)
 {
-	((Imf::RgbaInputFile*)InputFile)->readPixels(StartY, EndY);
+	try
+	{
+		((Imf::RgbaInputFile*)InputFile)->readPixels(StartY, EndY);
+	}
+	catch (std::exception const& Exception)
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot read EXR file: %s (%s)"),
+			ANSI_TO_TCHAR(((Imf::RgbaInputFile*)InputFile)->fileName()),
+			StringCast<TCHAR>(Exception.what()).Get());
+	}
 }
 
 
