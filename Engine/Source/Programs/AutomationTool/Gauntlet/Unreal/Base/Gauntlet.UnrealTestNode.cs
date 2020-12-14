@@ -132,6 +132,39 @@ namespace Gauntlet
 			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
 		}
 
+
+		/// <summary>
+		/// Returns Errors found during tests. Including Abnornal Exit reasons
+		/// </summary>
+		public virtual IEnumerable<string> GetErrorsAndAbnornalExits()
+		{
+			IEnumerable<string> Errors = GetErrors();
+
+			Dictionary<UnrealRoleArtifacts, Tuple<int, string>> ErrorCodesAndReasons = new Dictionary<UnrealRoleArtifacts, Tuple<int, string>>();
+
+			var FailedArtifacts = SessionArtifacts.Where(
+				A => {
+					if (A.AppInstance.WasKilled)
+					{
+						return false;
+					}
+					string ExitReason;
+					int ExitCode = GetExitCodeAndReason(A, out ExitReason);
+					ErrorCodesAndReasons.Add(A, new Tuple<int, string>(ExitCode, ExitReason));
+					return ExitCode != 0;
+				}
+			);
+
+			return Errors.Union(FailedArtifacts.Select(
+				A => {
+					int ExitCode = ErrorCodesAndReasons[A].Item1;
+					string ExitReason = ErrorCodesAndReasons[A].Item2;
+					return string.Format("Abnormal Exit: Reason={0}, ExitCode={1}, Log={2}", ExitReason, ExitCode, Path.GetFileName(A.LogPath));
+				}
+			));
+		}
+
+
 		// Begin UnrealTestNode properties and members
 
 		/// <summary>
@@ -911,6 +944,44 @@ namespace Gauntlet
 		/// <param name="Build"></param>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{
+		}
+
+		/// <summary>
+		/// Generate a Simple Test Report from the results of this test
+		/// </summary>
+		/// <param name="Result"></param>
+		protected virtual HordeReport.SimpleTestReport CreateSimpleReportForHorde(TestResult Result)
+		{
+			HordeReport.SimpleTestReport HordeTestReport = new HordeReport.SimpleTestReport();
+			HordeTestReport.ReportCreatedOn = DateTime.Now.ToString();
+			HordeTestReport.TotalDurationSeconds = (float)(DateTime.Now - SessionStartTime).TotalSeconds;
+			HordeTestReport.Description = Context.ToString();
+			HordeTestReport.Status = Result.ToString();
+			HordeTestReport.Errors.AddRange(GetErrorsAndAbnornalExits());
+			HordeTestReport.Warnings.AddRange(GetWarnings());
+			HordeTestReport.HasSucceeded = !(Result == TestResult.Failed || Result == TestResult.TimedOut || HordeTestReport.Errors.Count > 0);
+			string HordeArtifactPath = string.IsNullOrEmpty(GetConfiguration().HordeArtifactPath) ? HordeReport.DefaultArtifactsDir : GetConfiguration().HordeArtifactPath;
+			HordeTestReport.SetOutputArtifactPath(HordeArtifactPath);
+			if (SessionArtifacts != null)
+			{
+				foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
+				{
+					string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
+					HordeTestReport.AttachArtifact(Artifact.LogPath, LogName);
+
+					UnrealLogParser.LogSummary LogSummary = Artifact.LogSummary;
+					if (LogSummary.Errors.Count() > 0)
+					{
+						HordeTestReport.Warnings.Add(
+							string.Format(
+								"Log Parsing: FatalErrors={0}, Ensures={1}, Errors={2}, Warnings={3}, Log={4}",
+								(LogSummary.FatalError != null ? 1 : 0), LogSummary.Ensures.Count(), LogSummary.Errors.Count(), LogSummary.Warnings.Count(), LogName
+							)
+						);
+					}
+				}
+			}
+			return HordeTestReport;
 		}
 
 		/// <summary>

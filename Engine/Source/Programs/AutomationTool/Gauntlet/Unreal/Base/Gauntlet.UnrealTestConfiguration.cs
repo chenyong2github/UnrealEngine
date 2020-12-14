@@ -507,6 +507,30 @@ namespace Gauntlet
 		public float MaxDuration { get; set; }
 
 		/// <summary>
+		/// Produce test artifacts for Horde build system
+		/// </summary>
+		[AutoParam]
+		public bool WriteTestResultsForHorde = true;
+
+		/// <summary>
+		/// Key to store Horde Test Data
+		/// </summary>
+		[AutoParam]
+		public string HordeTestDataKey = "TestPassSummary";
+
+		/// <summary>
+		/// Path to store test data for Horde build system
+		/// </summary>
+		[AutoParam]
+		public string HordeTestDataPath = "";
+
+		/// <summary>
+		/// Path to store test artifacts for Horde build system
+		/// </summary>
+		[AutoParam]
+		public string HordeArtifactPath = "";
+
+		/// <summary>
 		/// What the test result should be treated as if we reach max duration.
 		/// </summary>
 		public EMaxDurationReachedResult MaxDurationReachedResult { get; set; }
