@@ -698,10 +698,10 @@ void SPropertyEditorAsset::Tick( const FGeometry& AllottedGeometry, const double
 	}
 }
 
-bool SPropertyEditorAsset::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor )
+bool SPropertyEditorAsset::Supports(const TSharedRef<FPropertyEditor >& InPropertyEditor)
 {
-	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	if(	PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew) )
+	const TSharedRef<FPropertyNode> PropertyNode = InPropertyEditor->GetPropertyNode();
+	if (PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew))
 	{
 		return false;
 	}
@@ -709,14 +709,14 @@ bool SPropertyEditorAsset::Supports( const TSharedRef< FPropertyEditor >& InProp
 	return Supports(PropertyNode->GetProperty());
 }
 
-bool SPropertyEditorAsset::Supports( const FProperty* NodeProperty )
+bool SPropertyEditorAsset::Supports(const FProperty* NodeProperty)
 {
-	const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>( NodeProperty );
-	const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>( NodeProperty );
+	const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(NodeProperty);
+	const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>(NodeProperty);
 
-	if ( ( ObjectProperty != nullptr || InterfaceProperty != nullptr )
+	if ((ObjectProperty != nullptr || InterfaceProperty != nullptr)
 		 && !NodeProperty->IsA(FClassProperty::StaticClass()) 
-		 && !NodeProperty->IsA(FSoftClassProperty::StaticClass()) )
+		 && !NodeProperty->IsA(FSoftClassProperty::StaticClass()))
 	{
 		return true;
 	}

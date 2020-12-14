@@ -147,8 +147,7 @@ bool SPropertyEditorEditInline::Supports( const FPropertyNode* InTreeNode, int32
 {
 	return InTreeNode
 		&& InTreeNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
-		&& InTreeNode->FindObjectItemParent()
-		&& !InTreeNode->IsPropertyConst();
+		&& InTreeNode->FindObjectItemParent();
 }
 
 bool SPropertyEditorEditInline::Supports( const TSharedRef< class FPropertyEditor >& InPropertyEditor )
