@@ -13,7 +13,7 @@ namespace UnrealEditor
 	/// Default set of options for testing Editor. Options that tests can configure
 	/// should be public, external command-line driven options should be protected/private
 	/// </summary>
-	public class EditorTestConfig : AutomatedTestsConfig
+	public class EditorTestConfig : EngineTestConfig
 	{
 		/// <summary>
 		/// Filter or groups of tests to apply
@@ -82,7 +82,7 @@ namespace UnrealEditor
 		}
 	}
 
-	public class EditorTests : AutomatedTestsBase<EditorTestConfig>
+	public class EditorTests : EngineTestBase<EditorTestConfig>
 	{
 		public EditorTests(UnrealTestContext InContext) : base(InContext)
 		{
