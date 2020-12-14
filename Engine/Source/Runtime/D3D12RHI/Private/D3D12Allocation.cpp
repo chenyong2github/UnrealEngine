@@ -1404,13 +1404,10 @@ FD3D12TextureAllocator::FD3D12TextureAllocator(FD3D12Device* Device,
 		HeapSize,
 		D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT)
 {
-	// Inform the texture streaming system of this heap so that it correctly accounts for placed textures
-	FD3D12DynamicRHI::GetD3DRHI()->UpdataTextureMemorySize((DefaultPoolSize / 1024));
 }
 
 FD3D12TextureAllocator::~FD3D12TextureAllocator()
 {
-	FD3D12DynamicRHI::GetD3DRHI()->UpdataTextureMemorySize(-int32(DefaultPoolSize / 1024));
 }
 
 HRESULT FD3D12TextureAllocator::AllocateTexture(D3D12_RESOURCE_DESC Desc, const D3D12_CLEAR_VALUE* ClearValue, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
