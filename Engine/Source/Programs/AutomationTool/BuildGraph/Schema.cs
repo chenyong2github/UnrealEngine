@@ -161,6 +161,7 @@ namespace AutomationTool
 		Option,
 		EnvVar,
 		Property,
+		Counter,
 		Regex,
 		Macro,
 		MacroBody,
@@ -350,6 +351,7 @@ namespace AutomationTool
 			NewSchema.Items.Add(CreateOptionType());
 			NewSchema.Items.Add(CreateEnvVarType());
 			NewSchema.Items.Add(CreatePropertyType());
+			NewSchema.Items.Add(CreateCounterType());
 			NewSchema.Items.Add(CreateRegexType());
 			NewSchema.Items.Add(CreateMacroType());
 			NewSchema.Items.Add(CreateMacroBodyType(TaskNameToType));
@@ -495,6 +497,7 @@ namespace AutomationTool
 			GraphChoice.Items.Add(CreateSchemaElement("Option", ScriptSchemaStandardType.Option));
 			GraphChoice.Items.Add(CreateSchemaElement("EnvVar", ScriptSchemaStandardType.EnvVar));
 			GraphChoice.Items.Add(CreateSchemaElement("Property", ScriptSchemaStandardType.Property));
+			GraphChoice.Items.Add(CreateSchemaElement("Counter", ScriptSchemaStandardType.Counter));
 			GraphChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
 			GraphChoice.Items.Add(CreateSchemaElement("Macro", ScriptSchemaStandardType.Macro));
 			GraphChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
@@ -818,6 +821,28 @@ namespace AutomationTool
 
 			XmlSchemaComplexType PropertyType = new XmlSchemaComplexType();
 			PropertyType.Name = GetTypeName(ScriptSchemaStandardType.Property);
+			PropertyType.ContentModel = ContentModel;
+			return PropertyType;
+		}
+
+		/// <summary>
+		/// Creates the schema type representing a counter type
+		/// </summary>
+		/// <returns>Type definition for a counter</returns>
+		static XmlSchemaType CreateCounterType()
+		{
+			XmlSchemaSimpleContentExtension Extension = new XmlSchemaSimpleContentExtension();
+			Extension.BaseTypeName = StringTypeName;
+			Extension.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
+			Extension.Attributes.Add(CreateSchemaAttribute("File", StringTypeName, XmlSchemaUse.Optional));
+			Extension.Attributes.Add(CreateSchemaAttribute("Signature", StringTypeName, XmlSchemaUse.Optional));
+			Extension.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+
+			XmlSchemaSimpleContent ContentModel = new XmlSchemaSimpleContent();
+			ContentModel.Content = Extension;
+
+			XmlSchemaComplexType PropertyType = new XmlSchemaComplexType();
+			PropertyType.Name = GetTypeName(ScriptSchemaStandardType.Counter);
 			PropertyType.ContentModel = ContentModel;
 			return PropertyType;
 		}
