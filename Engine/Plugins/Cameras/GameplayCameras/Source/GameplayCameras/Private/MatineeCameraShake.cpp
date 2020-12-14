@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MatineeCameraShake.h"
+#include "SequenceCameraShake.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
@@ -120,7 +121,7 @@ void UMatineeCameraShake::DoStopShake(bool bImmediately)
 	ReceiveStopShake(bImmediately);
 }
 
-void UMatineeCameraShake::DoStartShake()
+void UMatineeCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 {
 	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
 
@@ -223,6 +224,30 @@ void UMatineeCameraShake::DoStartShake()
 			}
 		}
 	}
+	else if (AnimSequence != nullptr)
+	{
+		if (SequenceShakePattern == nullptr)
+		{
+			SequenceShakePattern = NewObject<USequenceCameraShakePattern>(this);
+		}
+
+		// Copy our anim parameters over to the sequence shake pattern.
+		SequenceShakePattern->Sequence = AnimSequence;
+		SequenceShakePattern->PlayRate = AnimPlayRate;
+		SequenceShakePattern->Scale = AnimScale;
+		SequenceShakePattern->BlendInTime = AnimBlendInTime;
+		SequenceShakePattern->BlendOutTime = AnimBlendOutTime;
+		SequenceShakePattern->RandomSegmentDuration = RandomAnimSegmentDuration;
+		SequenceShakePattern->bRandomSegment = bRandomAnimSegment;
+		
+		// Initialize our state tracker for the sequence shake pattern.
+		FCameraShakeInfo SequenceShakeInfo;
+		SequenceShakePattern->GetShakePatternInfo(SequenceShakeInfo);
+		SequenceShakeState.Initialize(SequenceShakeInfo);
+
+		// Start the sequence shake pattern.
+		SequenceShakePattern->StartShakePattern(Params);
+	}
 
 	ReceivePlayShake(ShakeScale);
 }
@@ -230,7 +255,7 @@ void UMatineeCameraShake::DoStartShake()
 void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	const float DeltaTime = Params.DeltaTime;
-	const float BaseShakeScale = Params.TotalScale;
+	const float BaseShakeScale = Params.GetTotalScale();
 
 	// update anims with any desired scaling
 	if (AnimInst)
@@ -300,7 +325,8 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 		float const CurrentBlendWeight = FMath::Min(BlendInWeight, BlendOutWeight);
 
 		// this is the oscillation scale, which includes oscillation fading
-		float const OscillationScale = BaseShakeScale * CurrentBlendWeight;
+		// we'll apply the general shake scale, along with the current frame's dynamic scale, a bit later.
+		float const OscillationScale = CurrentBlendWeight;
 
 		if (OscillationScale > 0.f)
 		{
@@ -339,8 +365,37 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 		}
 	}
 
-	// Apply the playspace so we have an absolute result we can pass to the legacy blueprint API.
+	// Update the sequence animation if there's one.
+	if (SequenceShakePattern != nullptr)
+	{
+		const float ChildBlendWeight = SequenceShakeState.Update(Params.DeltaTime);
+		if (SequenceShakeState.IsActive())
+		{
+			FCameraShakeUpdateParams ChildParams(Params);
+			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendWeight;
+
+			FCameraShakeUpdateResult ChildResult;
+
+			SequenceShakePattern->UpdateShakePattern(ChildParams, ChildResult);
+
+			// The sequence shake pattern returns a local, additive, unscaled result. So we should be able to
+			// just combine the two results directly.
+			check(ChildResult.Flags == ECameraShakeUpdateResultFlags::Default);
+			ApplyScale(ChildParams.BlendingWeight, ChildResult);
+			OutResult.Location += ChildResult.Location;
+			OutResult.Rotation += ChildResult.Rotation;
+			OutResult.FOV += ChildResult.FOV;
+			// We don't have anything else animating post-process settings so we can stomp them.
+			OutResult.PostProcessSettings = ChildResult.PostProcessSettings;
+			OutResult.PostProcessBlendWeight = ChildResult.PostProcessBlendWeight;
+		}
+	}
+
+	// Apply the playspace and the scaling so we have an absolute result we can pass to the legacy blueprint API.
+	const float CurShakeScale = Params.ShakeScale * Params.DynamicScale;
+	ApplyScale(CurShakeScale, OutResult);
 	ApplyPlaySpace(Params, OutResult);
+	ApplyLimits(Params.POV, OutResult);
 	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
 
 	// Call the legacy blueprint API. We need to convert back and forth.
@@ -414,9 +469,11 @@ void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FC
 
 bool UMatineeCameraShake::DoGetIsFinished() const
 {
-	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
-		((AnimInst == nullptr) || AnimInst->bFinished) &&				// anim is finished
-		ReceiveIsFinished()												// BP thinks it's finished
+	return ((OscillatorTimeRemaining <= 0.f) &&									// oscillator is finished
+		((AnimInst == nullptr) || AnimInst->bFinished) &&						// anim is finished
+		((SequenceShakePattern == nullptr) ||									// other anim is finished
+			SequenceShakeState.GetElapsedTime() >= SequenceShakeState.GetDuration()) &&
+		ReceiveIsFinished()														// BP thinks it's finished
 		);
 }
 
@@ -463,7 +520,7 @@ void UMatineeCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopPara
 void UMatineeCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
 {
 	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
-	Shake->DoStartShake();
+	Shake->DoStartShake(Params);
 }
 
 void UMatineeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
