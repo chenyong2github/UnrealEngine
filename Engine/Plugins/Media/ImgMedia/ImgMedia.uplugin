@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "Image Sequence Media Player",
-	"Description" : "Implements a media player for image sequences in DPX, EXR, and other formats.",
+	"Description" : "Implements a media player for image sequences in EXR and other formats.",
 	"Category" : "Media Players",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
