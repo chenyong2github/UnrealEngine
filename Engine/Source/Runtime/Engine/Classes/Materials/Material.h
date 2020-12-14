@@ -166,13 +166,14 @@ struct FMaterialInput
 	UPROPERTY()
 	int32 OutputIndex;
 
-#if WITH_EDITORONLY_DATA
 	/** 
 	 * Optional name of the input.  
 	 * Note that this is the only member which is not derived from the output currently connected. 
 	 */
 	UPROPERTY()
 	FName InputName;
+
+#if WITH_EDITORONLY_DATA
 
 	UPROPERTY()
 	int32 Mask;
