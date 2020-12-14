@@ -427,6 +427,7 @@ USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 	SetMinLod(FPerPlatformInt(0));
 	SetDisableBelowMinLodStripping(FPerPlatformBool(false));
+	bSupportRayTracing = true;
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)
