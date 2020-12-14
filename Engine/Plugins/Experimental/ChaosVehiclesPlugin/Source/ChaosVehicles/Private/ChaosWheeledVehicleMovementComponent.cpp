@@ -490,7 +490,14 @@ void UChaosWheeledVehicleMovementComponent::SetupSuspension()
 
 	// Calculate the mass that will rest on each of the springs
 	TArray<float> OutSprungMasses;
-	FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, TotalMass, OutSprungMasses);
+	if (!FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, TotalMass, OutSprungMasses))
+	{
+		// if the sprung mass calc fails fall back to something that will still simulate
+		for (int Index = 0; Index < OutSprungMasses.Num(); Index++)
+		{
+			OutSprungMasses[Index] = TotalMass / OutSprungMasses.Num();
+		}
+	}
 
 	// Calculate spring damping values we will use for physics simulation from the normalized damping ratio
 	for (int SpringIdx = 0; SpringIdx < PVehicle->Suspension.Num(); SpringIdx++)
