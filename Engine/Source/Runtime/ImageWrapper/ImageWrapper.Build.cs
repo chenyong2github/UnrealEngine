@@ -34,6 +34,10 @@ public class ImageWrapper : ModuleRules
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=1");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "LibJpegTurbo");
 		}
+		else
+		{
+			PublicDefinitions.Add("WITH_LIBJPEGTURBO=0");
+		}
 
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
