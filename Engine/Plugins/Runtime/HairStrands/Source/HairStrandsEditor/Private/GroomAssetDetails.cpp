@@ -704,7 +704,7 @@ FReply FGroomRenderingDetails::OnAddLODClicked(int32 GroupIndex, FProperty* Prop
 
 FReply FGroomRenderingDetails::OnRefreshCards(int32 GroupIndex, FProperty* Property)
 {
-	if (GroupIndex < GroomAsset->HairGroupsCards.Num())
+	if (GroupIndex < GroomAsset->HairGroupsCards.Num() && GroomAsset->HairGroupsCards[GroupIndex].SourceType == EHairCardsSourceType::Procedural)
 	{
 		FScopedTransaction Transaction(FText::FromString(TEXT("RefreshCards")));
 		

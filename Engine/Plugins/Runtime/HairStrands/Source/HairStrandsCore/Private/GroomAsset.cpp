@@ -2513,6 +2513,9 @@ void UGroomAsset::SaveProceduralCards(uint32 CardsGroupIndex)
 	const int32 GroupIndex = HairGroupsCards[CardsGroupIndex].GroupIndex;
 	const int32 LODIndex = HairGroupsCards[CardsGroupIndex].LODIndex;
 
+	if (HairGroupsCards[CardsGroupIndex].SourceType != EHairCardsSourceType::Procedural)
+		return;
+
 	if (GroupIndex >= HairGroupsData.Num())
 		return;
 
