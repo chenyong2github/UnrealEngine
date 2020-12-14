@@ -496,6 +496,8 @@ struct CORE_API FGenericPlatformProcess
 	static void SleepNoStats( float Seconds );
 	/** Sleep this thread infinitely. */
 	static void SleepInfinite();
+	/** Yield this thread so another may run for a while. */
+	static void YieldThread();
 
 #endif // PLATFORM_HAS_BSD_TIME
 

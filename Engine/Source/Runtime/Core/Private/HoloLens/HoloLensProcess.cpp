@@ -89,6 +89,11 @@ void FHoloLensProcess::SleepInfinite()
 	::Sleep(INFINITE);
 }
 
+void FHoloLensProcess::YieldThread()
+{
+	::SwitchToThread();
+}
+
 #include "HoloLensEvent.h"
 
 FEvent* FHoloLensProcess::CreateSynchEvent(bool bIsManualReset /*= false*/)

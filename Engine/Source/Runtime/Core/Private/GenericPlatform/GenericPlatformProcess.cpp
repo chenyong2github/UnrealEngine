@@ -343,6 +343,11 @@ void FGenericPlatformProcess::SleepInfinite()
 	pause();
 }
 
+void FGenericPlatformProcess::YieldThread()
+{
+	sched_yield();
+}
+
 #endif // PLATFORM_HAS_BSD_TIME 
 
 void FGenericPlatformProcess::ConditionalSleep(TFunctionRef<bool()> Condition, float SleepTime /*= 0.0f*/)
