@@ -85,8 +85,15 @@ public:
 			return *this;
 		}
 
+		FSlot& MinSize(float InMinSize)
+		{
+			MinSizeValue = InMinSize;
+			return *this;
+		}
+
 		TAttribute<ESizeRule> SizingRule;
 		TAttribute<float> SizeValue;
+		TOptional<float> MinSizeValue;
 		FOnSlotResized OnSlotResized_Handler;
 	};
 
@@ -277,7 +284,7 @@ protected:
 	 *
 	 * @return A size that is clamped against the minimum size allowed for children.
 	 */
-	float ClampChild( float ProposedSize );
+	float ClampChild(const FSlot& ChildSlot, float ProposedSize);
 
 	/**
 	 * Given a mouse position within the splitter, figure out which resize handle we are hovering (if any).
