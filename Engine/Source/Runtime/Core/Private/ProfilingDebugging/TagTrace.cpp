@@ -7,6 +7,7 @@
 #include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Trace/Trace.inl"
+#include "UObject/NameTypes.h"
 
 #if USE_MEMORY_TRACE_TAGS
 
@@ -53,7 +54,7 @@ FMemScope::FMemScope(ELLMTag InTag)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScope::FMemScope(FName InName)
+FMemScope::FMemScope(const FName& InName)
 {
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
 	{
@@ -129,7 +130,7 @@ public:
 	void 			AnnounceTagDeclarations();
 	static void 	OnAnnounceTagDeclaration(FLLMTagDeclaration& TagDeclaration);
 	int32			AnnounceCustomTag(int32 Tag, int32 ParentTag, const ANSICHAR* Display);
-	int32 			AnnounceFNameTag(FName TagName);
+	int32 			AnnounceFNameTag(const FName& TagName);
 
 private:
 	/**
@@ -229,7 +230,7 @@ void FTagTrace::OnAnnounceTagDeclaration(FLLMTagDeclaration& TagDeclaration)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FTagTrace::AnnounceFNameTag(FName Name)
+int32 FTagTrace::AnnounceFNameTag(const FName& Name)
 {
 	FScopeLock _(&Cs);
 	const int32 NameIndex = Name.GetDisplayIndex().ToUnstableInt();
@@ -281,7 +282,7 @@ int32 MemoryTrace_AnnounceCustomTag(int32 Tag, int32 ParentTag, const TCHAR* Dis
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 MemoryTrace_AnnounceFNameTag(FName TagName)
+int32 MemoryTrace_AnnounceFNameTag(const FName& TagName)
 {
 #if USE_MEMORY_TRACE_TAGS
 	if (GTagTrace)

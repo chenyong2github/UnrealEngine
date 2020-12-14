@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
 #include "Trace/Trace.h"
 #include "Trace/Detail/LogScope.h"
 
@@ -17,7 +16,7 @@ namespace UE {
 
 ////////////////////////////////////////////////////////////////////////////////
 CORE_API int32	MemoryTrace_AnnounceCustomTag(int32 Tag, int32 ParentTag, const TCHAR* Display);
-CORE_API int32	MemoryTrace_AnnounceFNameTag(FName TagName);
+CORE_API int32	MemoryTrace_AnnounceFNameTag(const class FName& TagName);
 CORE_API int32	MemoryTrace_GetActiveTag();
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,7 +50,7 @@ class FMemScope
 public:
 	CORE_API FMemScope(int32 InTag);
 	CORE_API FMemScope(ELLMTag InTag);
-	CORE_API FMemScope(FName InName);
+	CORE_API FMemScope(const class FName& InName);
 	CORE_API FMemScope(const UE::LLMPrivate::FTagData* TagData);
 	CORE_API ~FMemScope();
 private:
