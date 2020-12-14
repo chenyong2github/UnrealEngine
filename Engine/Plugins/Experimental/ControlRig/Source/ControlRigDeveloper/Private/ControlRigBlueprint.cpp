@@ -787,11 +787,6 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(FName);
 	}
-	else if (CPPType == TEXT("FName"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(FName);
-	}
 	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
 	{
 		Variable.TypeName = *ScriptStruct->GetStructCPPName();
