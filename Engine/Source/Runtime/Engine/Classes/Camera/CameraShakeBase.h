@@ -44,18 +44,26 @@ struct ENGINE_API FCameraShakeUpdateParams
 	/** The time elapsed since last update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DeltaTime = 0.f;
-	/** The dynamic scale being passed down from the camera manger for this shake */
+
+	/** The base scale for this shake */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float ShakeScale = 1.f;
+	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
+	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float BlendingWeight = 1.f;
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float TotalScale = 1.f;
+
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
+
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	float GetTotalScale() const
+	{
+		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+	}
 };
 
 /**
@@ -79,18 +87,26 @@ struct ENGINE_API FCameraShakeScrubParams
 	/** The time to scrub to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float AbsoluteTime = 0.f;
-	/** The dynamic scale being passed down from the camera manger for this shake */
+
+	/** The base scale for this shake */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float ShakeScale = 1.f;
+	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
+	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float BlendingWeight = 1.f;
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float TotalScale = 1.f;
+
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
+
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	float GetTotalScale() const
+	{
+		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+	}
 };
 
 /**

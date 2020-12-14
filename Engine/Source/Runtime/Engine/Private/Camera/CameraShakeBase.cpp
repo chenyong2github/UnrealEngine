@@ -159,11 +159,11 @@ bool FCameraShakeState::Stop(bool bImmediately)
 FCameraShakeUpdateParams FCameraShakeScrubParams::ToUpdateParams() const
 {
 	FCameraShakeUpdateParams UpdateParams;
-	UpdateParams.BlendingWeight = BlendingWeight;
 	UpdateParams.DeltaTime = AbsoluteTime;
+	UpdateParams.ShakeScale = ShakeScale;
 	UpdateParams.DynamicScale = DynamicScale;
+	UpdateParams.BlendingWeight = BlendingWeight;
 	UpdateParams.POV = POV;
-	UpdateParams.TotalScale = TotalScale;
 	return UpdateParams;
 }
 
@@ -238,9 +238,9 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	// Make the sub-class do the actual work.
 	FCameraShakeUpdateParams Params(InOutPOV);
 	Params.DeltaTime = DeltaTime;
+	Params.ShakeScale = ShakeScale;
 	Params.DynamicScale = Alpha;
 	Params.BlendingWeight = BlendingWeight;
-	Params.TotalScale = FMath::Max(Alpha * ShakeScale * BlendingWeight, 0.f);
 	
 	// Result object is initialized with zero values since the default flags make us handle it
 	// as an additive offset.
@@ -253,7 +253,7 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 
 	// Apply the result to the given view info.
 	FCameraShakeApplyResultParams ApplyParams;
-	ApplyParams.Scale = Params.TotalScale;
+	ApplyParams.Scale = Params.GetTotalScale();
 	ApplyParams.PlaySpace = PlaySpace;
 	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
 	ApplyParams.CameraManager = CameraManager;
@@ -278,9 +278,9 @@ void UCameraShakeBase::ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha,
 	// Make the sub-class do the actual work.
 	FCameraShakeScrubParams Params(InOutPOV);
 	Params.AbsoluteTime = AbsoluteTime;
+	Params.ShakeScale = ShakeScale;
 	Params.DynamicScale = Alpha;
 	Params.BlendingWeight = BlendingWeight;
-	Params.TotalScale = FMath::Max(Alpha * ShakeScale * BlendingWeight, 0.f);
 
 	// Result object is initialized with zero values since the default flags make us handle it
 	// as an additive offset.
@@ -293,7 +293,7 @@ void UCameraShakeBase::ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha,
 
 	// Apply the result to the given view info.
 	FCameraShakeApplyResultParams ApplyParams;
-	ApplyParams.Scale = Params.TotalScale;
+	ApplyParams.Scale = Params.GetTotalScale();
 	ApplyParams.PlaySpace = PlaySpace;
 	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
 	ApplyParams.CameraManager = CameraManager;
@@ -398,7 +398,7 @@ void UCameraShakeBase::ApplyResult(const FCameraShakeApplyResultParams& ApplyPar
 
 void UCameraShakeBase::ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const
 {
-	return ApplyScale(Params.TotalScale, InOutResult);
+	return ApplyScale(Params.GetTotalScale(), InOutResult);
 }
 
 void UCameraShakeBase::ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult)
