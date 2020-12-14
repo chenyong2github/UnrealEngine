@@ -609,6 +609,33 @@ void FUnixPlatformStackWalk::StackWalkAndDump( ANSICHAR* HumanReadableString, SI
 	}
 }
 
+void FUnixPlatformStackWalk::StackWalkAndDump(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, void* Context)
+{
+	FGenericPlatformStackWalk::StackWalkAndDump(HumanReadableString, HumanReadableStringSize, ProgramCounter, Context);
+}
+
+namespace
+{
+	/** Helper sets the ensure value in the context and guarantees it gets reset
+	 * afterwards (even if an exception is thrown) */
+	struct FLocalGuardHelper
+	{
+		FLocalGuardHelper(FUnixCrashContext* InContext, ECrashContextType NewType)
+			: Context(InContext), OldType(Context->GetType())
+		{
+			Context->SetType(NewType);
+		}
+		~FLocalGuardHelper()
+		{
+			Context->SetType(OldType);
+		}
+
+	private:
+		FUnixCrashContext* Context;
+		ECrashContextType OldType;
+	};
+} // namespace
+
 void FUnixPlatformStackWalk::StackWalkAndDumpEx(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 Flags, void* Context)
 {
 	const bool bHandlingEnsure = (Flags & EStackWalkFlags::FlagsUsedWhenHandlingEnsure) == EStackWalkFlags::FlagsUsedWhenHandlingEnsure;
@@ -624,27 +651,21 @@ void FUnixPlatformStackWalk::StackWalkAndDumpEx(ANSICHAR* HumanReadableString, S
 	}
 	else
 	{
-		/** Helper sets the ensure value in the context and guarantees it gets reset afterwards (even if an exception is thrown) */
-		struct FLocalGuardHelper
-		{
-			FLocalGuardHelper(FUnixCrashContext* InContext, ECrashContextType NewType)
-				: Context(InContext), OldType(Context->GetType())
-			{
-				Context->SetType(NewType);
-			}
-			~FLocalGuardHelper()
-			{
-				Context->SetType(OldType);
-			}
-
-		private:
-			FUnixCrashContext* Context;
-			ECrashContextType OldType;
-		};
-
 		FLocalGuardHelper Guard(reinterpret_cast<FUnixCrashContext*>(Context), HandlingType);
 		FPlatformStackWalk::StackWalkAndDump(HumanReadableString, HumanReadableStringSize, IgnoreCount, Context);
 	}
+
+	GHandlingEnsure = false;
+}
+
+void FUnixPlatformStackWalk::StackWalkAndDumpEx(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, uint32 Flags, void* Context)
+{
+	const bool bHandlingEnsure = (Flags & EStackWalkFlags::FlagsUsedWhenHandlingEnsure) == EStackWalkFlags::FlagsUsedWhenHandlingEnsure;
+	GHandlingEnsure = bHandlingEnsure;
+	ECrashContextType HandlingType = bHandlingEnsure? ECrashContextType::Ensure : ECrashContextType::Crash;
+
+	FLocalGuardHelper Guard(reinterpret_cast<FUnixCrashContext*>(Context), HandlingType);
+	FPlatformStackWalk::StackWalkAndDump(HumanReadableString, HumanReadableStringSize, ProgramCounter, Context);
 
 	GHandlingEnsure = false;
 }
