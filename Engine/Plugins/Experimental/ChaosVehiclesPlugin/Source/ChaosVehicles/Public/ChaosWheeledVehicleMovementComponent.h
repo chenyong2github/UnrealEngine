@@ -129,9 +129,11 @@ struct CHAOSVEHICLES_API FWheelStatus
 		bIsSlipping = false;
 		bIsSkidding = false;
 		SlipMagnitude = 0.f;
+		SkidMagnitude = 0.f;
 		NormalizedSuspensionLength = 1.f;
 		SpringForce = 0.f;
 		SkidNormal = FVector::ZeroVector;
+		ContactPoint = FVector::ZeroVector;
 	}
 
 	FString ToString() const;
