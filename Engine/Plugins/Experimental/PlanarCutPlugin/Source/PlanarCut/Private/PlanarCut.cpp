@@ -1328,6 +1328,7 @@ struct FDynamicMeshCollection
 		{
 			int32 GeometryIdx = Collection->TransformToGeometryIndex[MeshData.TransformIndex];
 			int32 InternalMaterialID = bSetDefaultInternalMaterialsFromCollection ? InternalSurfaceMaterials.GetDefaultMaterialIDForGeometry(*Collection, GeometryIdx) : InternalSurfaceMaterials.GlobalMaterialID;
+			ToCutIndices.Reset();
 			ParentTransformToChildren.MultiFind(MeshData.TransformIndex, ToCutIndices);
 
 			// if there's only one mesh here, i.e. it didn't get cut at all
