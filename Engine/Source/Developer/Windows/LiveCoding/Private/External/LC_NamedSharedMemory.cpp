@@ -62,6 +62,12 @@ Process::NamedSharedMemory* Process::CreateNamedSharedMemory(const wchar_t* name
 
 void Process::DestroyNamedSharedMemory(NamedSharedMemory*& memory)
 {
+	// BEGIN EPIC MOD
+	if (memory == nullptr)
+	{
+		return;
+	}
+	// END EPIC MOD
 	::UnmapViewOfFile(memory->memoryView);
 	::CloseHandle(memory->memoryMapping);
 	delete memory;
