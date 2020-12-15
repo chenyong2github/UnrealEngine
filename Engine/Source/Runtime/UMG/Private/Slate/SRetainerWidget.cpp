@@ -434,21 +434,29 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 		// Size must be a positive integer to allocate the RenderTarget
 		const uint32 RenderTargetWidth  = FMath::RoundToInt(FMath::Abs(RenderSize.X));
 		const uint32 RenderTargetHeight = FMath::RoundToInt(FMath::Abs(RenderSize.Y));
-		const bool bTextureTooLarge = FMath::Max(RenderTargetWidth, RenderTargetHeight) > GetMax2DTextureDimension();
+		const bool bTextureIsTooLarge = FMath::Max(RenderTargetWidth, RenderTargetHeight) > GetMax2DTextureDimension();
+		const bool bTextureSizeZero = (RenderTargetWidth == 0 || RenderTargetHeight == 0);
 
-		if ( bTextureTooLarge )
+		if (bTextureIsTooLarge || bTextureSizeZero)
 		{
 			// if bTextureTooLarge then the user probably have a layout issue. Warn the user.
-			if ( !bInvalidSizeLogged )
+			if (!bInvalidSizeLogged)
 			{
 				bInvalidSizeLogged = true;
-				UE_LOG(LogUMG, Error, TEXT("The requested size for SRetainerWidget is too large. W:%i H:%i"), RenderTargetWidth, RenderTargetHeight);
+				if (bTextureIsTooLarge)
+				{
+					UE_LOG(LogUMG, Error, TEXT("The requested size for SRetainerWidget is too large. W:%i H:%i"), RenderTargetWidth, RenderTargetHeight);
+				}
+				else
+				{
+					UE_LOG(LogUMG, Error, TEXT("The requested size for SRetainerWidget is 0. W:%i H:%i"), RenderTargetWidth, RenderTargetHeight);
+				}
 			}
 			return EPaintRetainedContentResult::InvalidSize;
 		}
 		bInvalidSizeLogged = false;
 
-		if ( RenderTargetWidth >= 0 && RenderTargetHeight >= 0 )
+		if (RenderTargetWidth >= 1 && RenderTargetHeight >= 1)
 		{
 			const FVector2D ViewOffset = PaintGeometry.GetAccumulatedRenderTransform().GetTranslation();
 
