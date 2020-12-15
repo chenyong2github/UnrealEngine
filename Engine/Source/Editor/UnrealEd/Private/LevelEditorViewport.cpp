@@ -4681,7 +4681,13 @@ void FLevelEditorViewportClient::OnPreBeginPIE(const bool bIsSimulating)
 bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( const FName& InSpriteCategory ) const
 {
 	const int32 ShowSpriteCommandIndex = GetLevelViewportCommands().GetShowCommandIndexForSpriteCategory( InSpriteCategory );
-	return GetSpriteCategoryVisibility( ShowSpriteCommandIndex );
+	if (ShowSpriteCommandIndex != INDEX_NONE)
+	{
+		return GetSpriteCategoryVisibility(ShowSpriteCommandIndex);
+	}
+
+	// If the given category is not registered as a visibility command, default to being visible.
+	return true;
 }
 
 bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex ) const
@@ -4693,7 +4699,10 @@ bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( int32 InShowSprite
 void FLevelEditorViewportClient::SetSpriteCategoryVisibility( const FName& InSpriteCategory, bool bVisible )
 {
 	const int32 ShowSpriteCommandIndex = GetLevelViewportCommands().GetShowCommandIndexForSpriteCategory( InSpriteCategory );
-	SetSpriteCategoryVisibility( ShowSpriteCommandIndex, bVisible );
+	if (ShowSpriteCommandIndex != INDEX_NONE)
+	{
+		SetSpriteCategoryVisibility(ShowSpriteCommandIndex, bVisible);
+	}
 }
 
 void FLevelEditorViewportClient::SetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex, bool bVisible )
