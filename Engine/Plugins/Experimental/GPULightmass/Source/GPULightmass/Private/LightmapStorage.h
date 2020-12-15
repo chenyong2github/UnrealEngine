@@ -8,9 +8,62 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "Engine/MapBuildDataRegistry.h"
+// TBB suffers from extreme fragmentation problem in editor
+#include "Core/Private/HAL/Allocators/AnsiAllocator.h"
 
 namespace GPULightmass
 {
+
+struct FTileDataLayer
+{
+	TArray<FLinearColor, FAnsiAllocator> Data;
+	TArray<uint8> CompressedData;
+
+	TDoubleLinkedList<FTileDataLayer*>::TDoubleLinkedListNode Node;
+	bool bNodeAddedToList = false;
+
+	static TDoubleLinkedList<FTileDataLayer*> AllUncompressedTiles;
+
+	FTileDataLayer() : Node(this)
+	{
+		Data.AddZeroed(GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+
+		AllUncompressedTiles.AddHead(&Node);
+		bNodeAddedToList = true;
+	}
+
+	~FTileDataLayer()
+	{
+		if (bNodeAddedToList)
+		{
+			AllUncompressedTiles.RemoveNode(&Node, false);
+		}
+	}
+
+	int64 Compress();
+	void Decompress();
+	void AllocateForWrite();
+	static void Evict();
+};
+
+struct FTileStorage
+{
+	TUniquePtr<FTileDataLayer> CPUTextureData[(int32)ELightMapVirtualTextureType::Count];
+	TUniquePtr<FTileDataLayer> CPUTextureRawData[(int32)ELightMapVirtualTextureType::Count];
+
+	FTileStorage()
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(CPUTextureData); Index++)
+		{
+			CPUTextureData[Index] = MakeUnique<FTileDataLayer>();
+		}
+
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(CPUTextureRawData); Index++)
+		{
+			CPUTextureRawData[Index] = MakeUnique<FTileDataLayer>();
+		}
+	}
+};
 
 class FLightmap
 {
@@ -186,8 +239,8 @@ public:
 	FUintVector4 LightmapVTPackedPageTableUniform[2]; // VT (1 page table, 2x uint4)
 	FUintVector4 LightmapVTPackedUniform[5]; // VT (5 layers, 1x uint4 per layer)
 
-	TArray<TArray<FLinearColor>> CPUTextureData[(int32)ELightMapVirtualTextureType::Count];
-	TArray<TArray<FLinearColor>> CPUTextureRawData[(int32)ELightMapVirtualTextureType::Count];
+	TMap<FTileVirtualCoordinates, FTileStorage> TileStorage;
+
 	FGeometryInstanceRenderStateRef GeometryInstanceRef;
 
 	TArray<FPointLightRenderStateRef> RelevantPointLights;

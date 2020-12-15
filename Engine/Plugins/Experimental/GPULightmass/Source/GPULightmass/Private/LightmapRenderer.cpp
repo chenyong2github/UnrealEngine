@@ -924,6 +924,59 @@ void FSceneRenderState::CalculateDistributionPrefixSumForAllLightmaps()
 	}
 }
 
+bool ClampTexelPositionAndOffsetTile(FIntPoint& SrcVirtualTexelPosition, FIntPoint& SrcTileToLoad, FIntPoint SizeInTiles)
+{
+	bool bLoadingOutOfBounds = false;
+
+	if (SrcVirtualTexelPosition.X < 0)
+	{
+		SrcTileToLoad.X -= 1;
+
+		if (SrcTileToLoad.X < 0)
+		{
+			bLoadingOutOfBounds = true;
+		}
+
+		SrcVirtualTexelPosition.X += GPreviewLightmapVirtualTileSize;
+	}
+	else if (SrcVirtualTexelPosition.X >= GPreviewLightmapVirtualTileSize)
+	{
+		SrcTileToLoad.X += 1;
+
+		if (SrcTileToLoad.X >= SizeInTiles.X)
+		{
+			bLoadingOutOfBounds = true;
+		}
+
+		SrcVirtualTexelPosition.X -= GPreviewLightmapVirtualTileSize;
+	}
+
+	if (SrcVirtualTexelPosition.Y < 0)
+	{
+		SrcTileToLoad.Y -= 1;
+
+		if (SrcTileToLoad.Y < 0)
+		{
+			bLoadingOutOfBounds = true;
+		}
+
+		SrcVirtualTexelPosition.Y += GPreviewLightmapVirtualTileSize;
+	}
+	else if (SrcVirtualTexelPosition.Y >= GPreviewLightmapVirtualTileSize)
+	{
+		SrcTileToLoad.Y += 1;
+
+		if (SrcTileToLoad.Y >= SizeInTiles.Y)
+		{
+			bLoadingOutOfBounds = true;
+		}
+
+		SrcVirtualTexelPosition.Y -= GPreviewLightmapVirtualTileSize;
+	}
+
+	return bLoadingOutOfBounds;
+}
+
 void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FLightmapRenderer::Finalize);
@@ -961,6 +1014,57 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 				Texture[1] = (FLinearColor*)RHICmdList.LockTexture2D(UploadTilePoolGPU->PooledRenderTargets[1]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), 0, RLM_WriteOnly, DstRowPitch, false);
 				Texture[2] = (FLinearColor*)RHICmdList.LockTexture2D(UploadTilePoolGPU->PooledRenderTargets[2]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), 0, RLM_WriteOnly, DstRowPitch, false);
 
+				TSet<FVirtualTile> TilesToDecompress;
+
+				FTileDataLayer::Evict();
+
+				for (FLightmapTileRequest& Tile : TileUploadRequests)
+				{
+					FIntPoint Positions[] = {
+						FIntPoint(0, 0),
+						FIntPoint(0, GPreviewLightmapPhysicalTileSize - 1),
+						FIntPoint(GPreviewLightmapPhysicalTileSize - 1, 0),
+						FIntPoint(GPreviewLightmapPhysicalTileSize - 1, GPreviewLightmapPhysicalTileSize - 1),
+						FIntPoint(GPreviewLightmapPhysicalTileSize / 2, GPreviewLightmapPhysicalTileSize / 2),
+						FIntPoint(GPreviewLightmapPhysicalTileSize / 2, 0),
+						FIntPoint(0, GPreviewLightmapPhysicalTileSize / 2),
+						FIntPoint(GPreviewLightmapPhysicalTileSize / 2, GPreviewLightmapPhysicalTileSize - 1),
+						FIntPoint(GPreviewLightmapPhysicalTileSize - 1, GPreviewLightmapPhysicalTileSize / 2)
+					};
+
+					for (FIntPoint Position : Positions)
+					{
+						FIntPoint SrcVirtualTexelPosition = Position - FIntPoint(GPreviewLightmapTileBorderSize, GPreviewLightmapTileBorderSize);
+						FIntPoint SrcTileToLoad = Tile.VirtualCoordinates.Position;
+
+						bool bLoadingOutOfBounds = ClampTexelPositionAndOffsetTile(SrcVirtualTexelPosition, SrcTileToLoad, Tile.RenderState->GetPaddedSizeInTilesAtMipLevel(Tile.VirtualCoordinates.MipLevel));
+
+						FTileVirtualCoordinates SrcTileCoords(SrcTileToLoad, Tile.VirtualCoordinates.MipLevel);
+
+						if (!bLoadingOutOfBounds)
+						{
+							if (!Tile.RenderState->DoesTileHaveValidCPUData(SrcTileCoords, CurrentRevision))
+							{
+								if (!bDenoiseDuringInteractiveBake)
+								{
+									bLoadingOutOfBounds = true;
+								}
+								else if (Tile.RenderState->RetrieveTileState(SrcTileCoords).OngoingReadbackRevision != CurrentRevision || !Tile.RenderState->RetrieveTileState(SrcTileCoords).bCanBeDenoised)
+								{
+									bLoadingOutOfBounds = true;
+								}
+							}
+						}
+
+						if (!bLoadingOutOfBounds)
+						{
+							Tile.RenderState->TileStorage[SrcTileCoords].CPUTextureData[0]->Decompress();
+							Tile.RenderState->TileStorage[SrcTileCoords].CPUTextureData[1]->Decompress();
+							Tile.RenderState->TileStorage[SrcTileCoords].CPUTextureData[2]->Decompress();
+						}
+					}
+				}
+
 				ParallelFor(TileUploadRequests.Num(), [&](int32 TileIndex)
 				{
 					FIntPoint SrcTilePosition(TileUploadRequests[TileIndex].VirtualCoordinates.Position);
@@ -973,17 +1077,37 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 					{
 						for (int32 X = 0; X < GPreviewLightmapPhysicalTileSize; X++)
 						{
-							FIntPoint SrcPixelPosition = SrcTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y) - FIntPoint(GPreviewLightmapTileBorderSize, GPreviewLightmapTileBorderSize);
-							SrcPixelPosition.X = FMath::Clamp(SrcPixelPosition.X, 0, TileUploadRequests[TileIndex].RenderState->GetPaddedSizeAtMipLevel(TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel).X - 1);
-							SrcPixelPosition.Y = FMath::Clamp(SrcPixelPosition.Y, 0, TileUploadRequests[TileIndex].RenderState->GetPaddedSizeAtMipLevel(TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel).Y - 1);
-							FIntPoint DstPixelPosition = DstTilePosition * GPreviewLightmapPhysicalTileSize + FIntPoint(X, Y);
+							bool bLoadingOutOfBounds = false;
 
-							int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
+							FIntPoint SrcVirtualTexelPosition = FIntPoint(X, Y) - FIntPoint(GPreviewLightmapTileBorderSize, GPreviewLightmapTileBorderSize);
+							FIntPoint SrcTileToLoad = SrcTilePosition;
+
+							bLoadingOutOfBounds = ClampTexelPositionAndOffsetTile(SrcVirtualTexelPosition, SrcTileToLoad, TileUploadRequests[TileIndex].RenderState->GetPaddedSizeInTilesAtMipLevel(TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel));
+
+							int32 SrcLinearIndex = SrcVirtualTexelPosition.Y * GPreviewLightmapVirtualTileSize + SrcVirtualTexelPosition.X;
+							FIntPoint DstPixelPosition = DstTilePosition * GPreviewLightmapPhysicalTileSize + FIntPoint(X, Y);
 							int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
-							Texture[0][DstLinearIndex] = TileUploadRequests[TileIndex].RenderState->CPUTextureData[0][TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel][SrcLinearIndex];
-							Texture[1][DstLinearIndex] = TileUploadRequests[TileIndex].RenderState->CPUTextureData[1][TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel][SrcLinearIndex];
-							Texture[2][DstLinearIndex] = TileUploadRequests[TileIndex].RenderState->CPUTextureData[2][TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel][SrcLinearIndex];
+							FTileVirtualCoordinates SrcTileCoords(SrcTileToLoad, TileUploadRequests[TileIndex].VirtualCoordinates.MipLevel);
+
+							if (!bLoadingOutOfBounds)
+							{
+								if (!TileUploadRequests[TileIndex].RenderState->DoesTileHaveValidCPUData(SrcTileCoords, CurrentRevision))
+								{
+									if (!bDenoiseDuringInteractiveBake)
+									{
+										bLoadingOutOfBounds = true;
+									}
+									else if (TileUploadRequests[TileIndex].RenderState->RetrieveTileState(SrcTileCoords).OngoingReadbackRevision != CurrentRevision || !TileUploadRequests[TileIndex].RenderState->RetrieveTileState(SrcTileCoords).bCanBeDenoised)
+									{
+										bLoadingOutOfBounds = true;
+									}
+								}
+							}
+
+							Texture[0][DstLinearIndex] = !bLoadingOutOfBounds ? TileUploadRequests[TileIndex].RenderState->TileStorage[SrcTileCoords].CPUTextureData[0]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							Texture[1][DstLinearIndex] = !bLoadingOutOfBounds ? TileUploadRequests[TileIndex].RenderState->TileStorage[SrcTileCoords].CPUTextureData[1]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							Texture[2][DstLinearIndex] = !bLoadingOutOfBounds ? TileUploadRequests[TileIndex].RenderState->TileStorage[SrcTileCoords].CPUTextureData[2]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
 						}
 					}
 				});
@@ -1272,6 +1396,16 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 			}
 		}
 
+		// All non-resident tiles need to be invalidated, whether they are successfully allocated later or not
+		for (const FVirtualTile& Tile : NonResidentTilesToAllocate)
+		{
+			if (Tile.RenderState.IsValid())
+			{
+				Tile.RenderState->RetrieveTileState(FTileVirtualCoordinates(Tile.VirtualAddress, Tile.MipLevel)).Revision = -1;
+				Tile.RenderState->RetrieveTileState(FTileVirtualCoordinates(Tile.VirtualAddress, Tile.MipLevel)).RenderPassIndex = 0;
+			}
+		}
+
 		LightmapTilePoolGPU.Lock(ResidentTilesToLock);
 
 		{
@@ -1286,8 +1420,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 				auto& Tile = PendingTileRequests[NonResidentTileRequestIndices[TileIndex]];
 				Tile.TileAddressInWorkingSet = SuccessfullyAllocatedTiles[TileIndex];
-				Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).Revision = -1;
-				Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex = 0;
 			}
 
 			// Till this point there might still be tiles with ~0u (which have failed allocation), they will be dropped later
@@ -1485,96 +1617,101 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 			{
 				if (PendingGITileRequests.Num() > 0)
 				{
-					for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
-					{
-						FRDGBuilder GraphBuilder(RHICmdList);
+					const int32 AAvsGIMultiplier = 8;
 
-						TResourceArray<FIntPoint> TilePositionsToClear;
-						for (auto& Tile : PendingGITileRequests)
+					if (SampleIndex % AAvsGIMultiplier == 0)
+					{
+						for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
 						{
-							TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
+							FRDGBuilder GraphBuilder(RHICmdList);
+
+							TResourceArray<FIntPoint> TilePositionsToClear;
+							for (auto& Tile : PendingGITileRequests)
+							{
+								TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
+							}
+
+							FRWBuffer TilePositionsBuffer;
+							TilePositionsBuffer.Initialize(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num(), PF_R32G32_UINT, 0, TEXT("TilePositionsBufferForClear"), &TilePositionsToClear);
+
+							FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
+							Parameters->NumTiles = TilePositionsToClear.Num();
+							Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
+							Parameters->TilePositions = TilePositionsBuffer.SRV;
+							Parameters->TilePool = ScratchTilePoolGPU->PooledRenderTargets[ScratchLayerIndex]->GetRenderTargetItem().UAV;
+
+							TShaderMapRef<FMultiTileClearCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+							FComputeShaderUtils::AddPass(
+								GraphBuilder,
+								RDG_EVENT_NAME("MultiTileClear"),
+								ComputeShader,
+								Parameters,
+								FComputeShaderUtils::GetGroupCount(FIntPoint(GPreviewLightmapPhysicalTileSize * TilePositionsToClear.Num(), GPreviewLightmapPhysicalTileSize), FComputeShaderUtils::kGolden2DGroupSize));
+
+							GraphBuilder.Execute();
 						}
 
-						FRWBuffer TilePositionsBuffer;
-						TilePositionsBuffer.Initialize(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num(), PF_R32G32_UINT, 0, TEXT("TilePositionsBufferForClear"), &TilePositionsToClear);
-
-						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
-						Parameters->NumTiles = TilePositionsToClear.Num();
-						Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
-						Parameters->TilePositions = TilePositionsBuffer.SRV;
-						Parameters->TilePool = ScratchTilePoolGPU->PooledRenderTargets[ScratchLayerIndex]->GetRenderTargetItem().UAV;
-
-						TShaderMapRef<FMultiTileClearCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("MultiTileClear"),
-							ComputeShader,
-							Parameters,
-							FComputeShaderUtils::GetGroupCount(FIntPoint(GPreviewLightmapPhysicalTileSize * TilePositionsToClear.Num(), GPreviewLightmapPhysicalTileSize), FComputeShaderUtils::kGolden2DGroupSize));
-
-						GraphBuilder.Execute();
-					}
-
-					for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
-					{
-						RHICmdList.Transition(FRHITransitionInfo(ScratchTilePoolGPU->PooledRenderTargets[ScratchLayerIndex]->GetRenderTargetItem().UAV, ERHIAccess::UAVGraphics, ERHIAccess::ERWBarrier));
-					}
-
-					{
-						for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
+						for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
 						{
-							SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
+							RHICmdList.Transition(FRHITransitionInfo(ScratchTilePoolGPU->PooledRenderTargets[ScratchLayerIndex]->GetRenderTargetItem().UAV, ERHIAccess::UAVGraphics, ERHIAccess::ERWBarrier));
+						}
 
-							FRHIRenderPassInfo RPInfo(FRHIRenderPassInfo::NoRenderTargets);
-							RHICmdList.BeginRenderPass(RPInfo, TEXT("LightmapGBuffer"));
+						{
+							for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
+							{
+								SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
 
-							for (const FLightmapTileRequest& Tile : PendingGITileRequests)
-							{							
-								if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples)) continue;
-								uint32 AssignedGPUIndex = (Tile.RenderState->DistributionPrefixSum + Tile.RenderState->RetrieveTileStateIndex(Tile.VirtualCoordinates)) % GNumExplicitGPUsForRendering;
-								if (AssignedGPUIndex != GPUIndex) continue;
+								FRHIRenderPassInfo RPInfo(FRHIRenderPassInfo::NoRenderTargets);
+								RHICmdList.BeginRenderPass(RPInfo, TEXT("LightmapGBuffer"));
 
-								RHICmdList.SetViewport(0, 0, 0.0f, GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize, 1.0f);
-
-								float ScaleX = Tile.RenderState->GetPaddedSizeInTiles().X * GPreviewLightmapVirtualTileSize * 1.0f / (1 << Tile.VirtualCoordinates.MipLevel) / GPreviewLightmapPhysicalTileSize;
-								float ScaleY = Tile.RenderState->GetPaddedSizeInTiles().Y * GPreviewLightmapVirtualTileSize * 1.0f / (1 << Tile.VirtualCoordinates.MipLevel) / GPreviewLightmapPhysicalTileSize;
-								float BiasX = (1.0f * (-Tile.VirtualCoordinates.Position.X * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
-								float BiasY = (1.0f * (-Tile.VirtualCoordinates.Position.Y * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
-
-								FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4(ScaleX, ScaleY, BiasX, BiasY);
-
-								TArray<FMeshBatch> MeshBatches = Tile.RenderState->GeometryInstanceRef.GetMeshBatchesForGBufferRendering(Tile.VirtualCoordinates);
-
-								for (auto& MeshBatch : MeshBatches)
+								for (const FLightmapTileRequest& Tile : PendingGITileRequests)
 								{
-									FMeshBatchElement& Element = MeshBatch.Elements[0];
+									if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples)) continue;
+									uint32 AssignedGPUIndex = (Tile.RenderState->DistributionPrefixSum + Tile.RenderState->RetrieveTileStateIndex(Tile.VirtualCoordinates)) % GNumExplicitGPUsForRendering;
+									if (AssignedGPUIndex != GPUIndex) continue;
 
-									Element.DynamicPrimitiveShaderDataIndex = Tile.RenderState->GeometryInstanceRef.GetElementId();
-								}
+									RHICmdList.SetViewport(0, 0, 0.0f, GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize, 1.0f);
 
-								DrawDynamicMeshPass(
-									*Scene->ReferenceView, RHICmdList,
-									[
-										View = Scene->ReferenceView.Get(), 
-										PassUniformBuffer, 
-										MeshBatches,
-										VirtualTexturePhysicalTileCoordinateScaleAndBias,
-										RenderPassIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex,
-										ScratchTilePoolOffset = ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch) * GPreviewLightmapPhysicalTileSize
-									](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-								{
-									FLightmapGBufferMeshProcessor MeshProcessor(nullptr, View, DynamicMeshPassContext, PassUniformBuffer, VirtualTexturePhysicalTileCoordinateScaleAndBias, RenderPassIndex, ScratchTilePoolOffset);
+									float ScaleX = Tile.RenderState->GetPaddedSizeInTiles().X * GPreviewLightmapVirtualTileSize * 1.0f / (1 << Tile.VirtualCoordinates.MipLevel) / GPreviewLightmapPhysicalTileSize;
+									float ScaleY = Tile.RenderState->GetPaddedSizeInTiles().Y * GPreviewLightmapVirtualTileSize * 1.0f / (1 << Tile.VirtualCoordinates.MipLevel) / GPreviewLightmapPhysicalTileSize;
+									float BiasX = (1.0f * (-Tile.VirtualCoordinates.Position.X * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
+									float BiasY = (1.0f * (-Tile.VirtualCoordinates.Position.Y * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
+
+									FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4(ScaleX, ScaleY, BiasX, BiasY);
+
+									TArray<FMeshBatch> MeshBatches = Tile.RenderState->GeometryInstanceRef.GetMeshBatchesForGBufferRendering(Tile.VirtualCoordinates);
 
 									for (auto& MeshBatch : MeshBatches)
 									{
-										MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
+										FMeshBatchElement& Element = MeshBatch.Elements[0];
+
+										Element.DynamicPrimitiveShaderDataIndex = Tile.RenderState->GeometryInstanceRef.GetElementId();
 									}
-								});
 
-								GPrimitiveIdVertexBufferPool.DiscardAll();
+									DrawDynamicMeshPass(
+										*Scene->ReferenceView, RHICmdList,
+										[
+											View = Scene->ReferenceView.Get(),
+											PassUniformBuffer,
+											MeshBatches,
+											VirtualTexturePhysicalTileCoordinateScaleAndBias,
+											RenderPassIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex / AAvsGIMultiplier,
+											ScratchTilePoolOffset = ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch) * GPreviewLightmapPhysicalTileSize
+										](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+									{
+										FLightmapGBufferMeshProcessor MeshProcessor(nullptr, View, DynamicMeshPassContext, PassUniformBuffer, VirtualTexturePhysicalTileCoordinateScaleAndBias, RenderPassIndex, ScratchTilePoolOffset);
+
+										for (auto& MeshBatch : MeshBatches)
+										{
+											MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
+										}
+									});
+
+									GPrimitiveIdVertexBufferPool.DiscardAll();
+								}
+
+								RHICmdList.EndRenderPass();
 							}
-
-							RHICmdList.EndRenderPass();
 						}
 					}
 
@@ -2410,6 +2547,8 @@ void FLightmapRenderer::BackgroundTick()
 	{
 		TArray<FLightmapTileDenoiseGroup> FilteredDenoiseGroups;
 
+		FTileDataLayer::Evict();
+
 		for (FLightmapTileDenoiseGroup& DenoiseGroup : OngoingDenoiseGroups)
 		{
 			bool bPipelineFinished = false;
@@ -2442,21 +2581,25 @@ void FLightmapRenderer::BackgroundTick()
 				FIntPoint SrcTilePosition(DenoiseTileProximity / 2, DenoiseTileProximity / 2);
 				FIntPoint DstTilePosition(Tile.VirtualCoordinates.Position.X, Tile.VirtualCoordinates.Position.Y);
 
-				const int32 DstRowPitchInPixels = Tile.RenderState->GetPaddedSizeAtMipLevel(Tile.VirtualCoordinates.MipLevel).X;
+				const int32 DstRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 				const int32 SrcRowPitchInPixels = DenoiseTileProximity * GPreviewLightmapVirtualTileSize;
+
+				// While the data will be overwritten immediately, we still need to decompress to inform the LRU cache management
+				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[0]->Decompress();
+				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[1]->Decompress();
 
 				for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
 				{
 					for (int32 X = 0; X < GPreviewLightmapVirtualTileSize; X++)
 					{
 						FIntPoint SrcPixelPosition = SrcTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
-						FIntPoint DstPixelPosition = DstTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
+						FIntPoint DstPixelPosition = FIntPoint(X, Y);
 
 						int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
 						int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
-						Tile.RenderState->CPUTextureData[0][Tile.VirtualCoordinates.MipLevel][DstLinearIndex] = DenoiseGroup.TextureData->Texture[0][SrcLinearIndex];
-						Tile.RenderState->CPUTextureData[1][Tile.VirtualCoordinates.MipLevel][DstLinearIndex] = DenoiseGroup.TextureData->Texture[1][SrcLinearIndex];
+						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[0]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[0][SrcLinearIndex];
+						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[1]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[1][SrcLinearIndex];
 					}
 				}
 
@@ -2480,6 +2623,8 @@ void FLightmapRenderer::BackgroundTick()
 	TArray<FLightmapReadbackGroup*> FilteredReadbackGroups;
 
 	TArray<FLightmapTileRequest> TilesWaitingForDenoising;
+
+	FTileDataLayer::Evict();
 
 	for (int32 Index = 0; Index < OngoingReadbacks.Num(); Index++)
 	{
@@ -2528,30 +2673,41 @@ void FLightmapRenderer::BackgroundTick()
 
 				check(ReadbackGroup.TextureData->RowPitchInPixels[0] == ReadbackGroup.TextureData->RowPitchInPixels[1]);
 				const int32 SrcRowPitchInPixels = ReadbackGroup.TextureData->RowPitchInPixels[0];
-				const int32 DstRowPitchInPixels = ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->GetPaddedSizeAtMipLevel(ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel).X;
+				const int32 DstRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 
 				for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
 				{
 					for (int32 X = 0; X < GPreviewLightmapVirtualTileSize; X++)
 					{
 						FIntPoint SrcPixelPosition = SrcTilePosition * GPreviewLightmapPhysicalTileSize + FIntPoint(X, Y) + FIntPoint(GPreviewLightmapTileBorderSize, GPreviewLightmapTileBorderSize);
-						FIntPoint DstPixelPosition = DstTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
+						FIntPoint DstPixelPosition = FIntPoint(X, Y);
 
 						int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
 						int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
+						if (!ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage.Contains(ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates))
+						{
+							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage.Add(ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates, FTileStorage{});
+						}
+
 						if (bDenoiseDuringInteractiveBake)
 						{
-							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->CPUTextureRawData[0][ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel][DstLinearIndex] = ReadbackGroup.TextureData->Texture[0][SrcLinearIndex];
-							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->CPUTextureRawData[1][ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel][DstLinearIndex] = ReadbackGroup.TextureData->Texture[1][SrcLinearIndex];
+							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureRawData[0]->Decompress();
+							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureRawData[1]->Decompress();
+
+							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureRawData[0]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[0][SrcLinearIndex];
+							ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureRawData[1]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[1][SrcLinearIndex];
 						}
 
 						// Always write into display data so we have something to show before denoising completes
-						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->CPUTextureData[0][ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel][DstLinearIndex] = ReadbackGroup.TextureData->Texture[0][SrcLinearIndex];
-						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->CPUTextureData[1][ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel][DstLinearIndex] = ReadbackGroup.TextureData->Texture[1][SrcLinearIndex];
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[0]->Decompress();
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[1]->Decompress();
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[0]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[0][SrcLinearIndex];
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[1]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[1][SrcLinearIndex];
 						
 						// For shadow maps, pass through
-						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->CPUTextureData[2][ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates.MipLevel][DstLinearIndex] = ReadbackGroup.TextureData->Texture[2][SrcLinearIndex];
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[2]->Decompress();
+						ReadbackGroup.ConvergedTileRequests[TileIndex].RenderState->TileStorage[ReadbackGroup.ConvergedTileRequests[TileIndex].VirtualCoordinates].CPUTextureData[2]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[2][SrcLinearIndex];
 					}
 				}
 			}
@@ -2633,6 +2789,8 @@ void FLightmapRenderer::BackgroundTick()
 		}
 	}
 
+	FTileDataLayer::Evict();
+
 	{
 		for (FLightmapTileRequest& Tile : TilesWaitingForDenoising)
 		{
@@ -2684,7 +2842,7 @@ void FLightmapRenderer::BackgroundTick()
 					SrcTilePosition.Y = FMath::Clamp(SrcTilePosition.Y, 0, Tile.RenderState->GetPaddedSizeInTilesAtMipLevel(Tile.VirtualCoordinates.MipLevel).Y - 1);
 					FIntPoint DstTilePosition(Dx + (DenoiseTileProximity / 2), Dy + (DenoiseTileProximity / 2));
 
-					const int32 SrcRowPitchInPixels = Tile.RenderState->GetPaddedSizeAtMipLevel(Tile.VirtualCoordinates.MipLevel).X;
+					const int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 					const int32 DstRowPitchInPixels = DenoiseTileProximity * GPreviewLightmapVirtualTileSize;
 
 					bool bShouldWriteZero = false;
@@ -2694,18 +2852,24 @@ void FLightmapRenderer::BackgroundTick()
 						bShouldWriteZero = true;
 					}
 
+					if (!bShouldWriteZero)
+					{
+						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[0]->Decompress();
+						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[1]->Decompress();
+					}
+
 					for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
 					{
 						for (int32 X = 0; X < GPreviewLightmapVirtualTileSize; X++)
 						{
-							FIntPoint SrcPixelPosition = SrcTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
+							FIntPoint SrcPixelPosition = FIntPoint(X, Y);
 							FIntPoint DstPixelPosition = DstTilePosition * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
 
 							int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
 							int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
-							DenoiseGroup.TextureData->Texture[0][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->CPUTextureRawData[0][Tile.VirtualCoordinates.MipLevel][SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
-							DenoiseGroup.TextureData->Texture[1][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->CPUTextureRawData[1][Tile.VirtualCoordinates.MipLevel][SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							DenoiseGroup.TextureData->Texture[0][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[0]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							DenoiseGroup.TextureData->Texture[1][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[1]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
 						}
 					}
 				}
