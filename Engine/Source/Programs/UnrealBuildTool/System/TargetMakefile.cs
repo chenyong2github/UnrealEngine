@@ -671,12 +671,13 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">Project file for the build</param>
 		/// <param name="TargetName">Name of the target being built</param>
 		/// <param name="Platform">The platform that the target is being built for</param>
+		/// <param name="Architecture">The architecture the target is being built for (can be blank to signify a default)</param>
 		/// <param name="Configuration">The configuration being built</param>
 		/// <returns>Path to the makefile</returns>
-		public static FileReference GetLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration)
+		public static FileReference GetLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, string Architecture, UnrealTargetConfiguration Configuration)
 		{
 			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuildTool.EngineDirectory;
-			return FileReference.Combine(BaseDirectory, "Intermediate", "Build", Platform.ToString(), TargetName, Configuration.ToString(), "Makefile.bin");
+			return FileReference.Combine(BaseDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "Makefile.bin");
 		}
 
 		/// <inheritdoc/>

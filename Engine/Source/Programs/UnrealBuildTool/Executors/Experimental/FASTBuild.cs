@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Linq;
 using Tools.DotNETCommon;
 using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -476,12 +477,26 @@ namespace UnrealBuildTool
 				.Replace("$(CommonProgramFiles)", "$CommonProgramFiles$");
 		}
 
-		private Dictionary<string, string> ParseCommandLineOptions(string CompilerCommandLine, string[] SpecialOptions, bool SaveResponseFile = false)
+		private Dictionary<string, string> ParseCommandLineOptions(string LocalToolName, string CompilerCommandLine, string[] SpecialOptions, bool SaveResponseFile = false)
 		{
 			Dictionary<string, string> ParsedCompilerOptions = new Dictionary<string, string>();
 
 			// Make sure we substituted the known environment variables with corresponding BFF friendly imported vars
 			CompilerCommandLine = SubstituteEnvironmentVariables(CompilerCommandLine);
+
+			// Some tools are now executed via arch so they can run natively even if UBT is under mono/rosetta. If so we
+			// need to remove the architecture from the argument list
+			if (LocalToolName.ToLower() == "arch")
+			{
+				// Action would be /usr/bin/arch -<arch> -other -flags so remove the first
+				// argument and any trailing spaces
+				Match M = Regex.Match(CompilerCommandLine, @"^\s*-.+?\s+");
+
+				if (M.Success)
+				{
+					CompilerCommandLine = CompilerCommandLine.Substring(M.Length);
+				}
+			}
 
 			// Some tricky defines /DTROUBLE=\"\\\" abc  123\\\"\" aren't handled properly by either Unreal or FASTBuild, but we do our best.
 			char[] SpaceChar = { ' ' };
@@ -1003,7 +1018,7 @@ namespace UnrealBuildTool
 			}
 
 			string[] SpecialCompilerOptions = { "/Fo", "/fo", "/Yc", "/Yu", "/Fp", "-o", "-dependencies=", "-compiler=" };
-			var ParsedCompilerOptions = ParseCommandLineOptions(Action.CommandArguments, SpecialCompilerOptions);
+			var ParsedCompilerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), Action.CommandArguments, SpecialCompilerOptions);
 
 			string OutputObjectFileName = GetOptionValue(ParsedCompilerOptions, IsMSVC() ? "/Fo" : "-o", Action, ProblemIfNotFound: !IsMSVC());
 
@@ -1123,7 +1138,7 @@ namespace UnrealBuildTool
 				CommandArgsToParse = SplitCommandArgs[0];
 			}
 
-			Dictionary<string, string> ParsedLinkerOptions = ParseCommandLineOptions(CommandArgsToParse, SpecialLinkerOptions, SaveResponseFile: true);
+			Dictionary<string, string> ParsedLinkerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), CommandArgsToParse, SpecialLinkerOptions, SaveResponseFile: true);
 
 			string OutputFile;
 

@@ -139,16 +139,48 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">The output file to look for</param>
 		/// <param name="CommandLine">Receives the command line used to produce this file</param>
-		/// <returns>True if the output item exists</returns>
+		/// <returns>True if command line has changed and is updated, false otherwise</returns>
 		public bool UpdateProducingCommandLine(FileItem File, string CommandLine)
 		{
 			byte[] NewHash = ComputeHash(CommandLine);
-			if(OutputItemToCommandLineHash.TryAdd(File, NewHash))
+
+			for (;;)
 			{
-				bModified = true;
-				return true;
-			}
-			return false;
+				byte[] OldHash;
+
+				if (OutputItemToCommandLineHash.TryAdd(File, NewHash))
+				{
+					// If this is a new entry we're done
+					bModified = true;
+					return true;
+				}
+				else
+				{
+					if (OutputItemToCommandLineHash.TryGetValue(File, out OldHash))
+					{
+						if (CompareHashes(NewHash, OldHash))
+						{
+							// hashes are the same, no update needed
+							return false;
+						}
+						else
+						{
+							// Try to update with the new value
+							if (OutputItemToCommandLineHash.TryUpdate(File, NewHash, OldHash))
+							{
+								bModified = true;
+								return true;
+							}
+							else
+							{
+								Log.TraceWarning("Failed to update cmd line hash for file");
+								OldHash = OutputItemToCommandLineHash[File];
+								Log.TraceWarning("Old/New Hashes:\n{0}\n{1}", BitConverter.ToString(OldHash), BitConverter.ToString(NewHash));
+							}
+						}
+					}
+				}				
+			}		
 		}
 
 		/// <summary>
