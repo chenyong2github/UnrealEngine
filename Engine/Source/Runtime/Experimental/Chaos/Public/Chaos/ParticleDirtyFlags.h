@@ -12,6 +12,7 @@
 #include "Chaos/KinematicTargets.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 class FName;
 
@@ -249,6 +250,7 @@ class FParticleDynamicMisc
 public:
 	void Serialize(FChaosArchive& Ar)
 	{
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		Ar << MLinearEtherDrag;
 		Ar << MAngularEtherDrag;
@@ -262,6 +264,12 @@ public:
 		{
 			MOneWayInteraction = false;
 		}
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddCollisionConstraintFlag)
+		{
+			Ar << MCollisionConstraintFlag;
+		}
+
 	}
 
 	template <typename TOther>
@@ -274,6 +282,7 @@ public:
 		SetCollisionGroup(Other.CollisionGroup());
 		SetResimType(Other.ResimType());
 		SetOneWayInteraction(Other.OneWayInteraction());
+		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
 	}
 
 	template <typename TOther>
@@ -285,7 +294,8 @@ public:
 			&& GravityEnabled() == Other.GravityEnabled()
 			&& CollisionGroup() == Other.CollisionGroup()
 			&& ResimType() == Other.ResimType()
-			&& OneWayInteraction() == Other.OneWayInteraction();
+			&& OneWayInteraction() == Other.OneWayInteraction()
+			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag();
 	}
 
 	bool operator==(const FParticleDynamicMisc& Other) const
@@ -314,6 +324,9 @@ public:
 	bool OneWayInteraction() const { return MOneWayInteraction; }
 	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
 
+	uint32 CollisionConstraintFlag() const { return MCollisionConstraintFlag; }
+	void SetCollisionConstraintFlag(uint32 InCollisionConstraintFlag) { MCollisionConstraintFlag = InCollisionConstraintFlag; }
+
 private:
 	FReal MLinearEtherDrag;
 	FReal MAngularEtherDrag;
@@ -324,6 +337,7 @@ private:
 
 	bool MGravityEnabled;
 	bool MOneWayInteraction = false;
+	uint32 MCollisionConstraintFlag = 0;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)
