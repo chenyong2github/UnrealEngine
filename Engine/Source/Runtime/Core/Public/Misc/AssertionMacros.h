@@ -55,7 +55,7 @@ struct CORE_API FDebug
 	static void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
 
 	/** Triggers a fatal error, using the error formatted to GErrorHist via a previous call to FMsg*/
-	static void ProcessFatalError();
+	static void ProcessFatalError(const FFailureInfo& Info);
 
 	// returns true if an assert has occurred
 	static bool HasAsserted();
@@ -411,7 +411,7 @@ CORE_API void VARARGS LowLevelFatalErrorHandler(const FDebug::FFailureInfo& Info
 			FDebug::FFailureInfo LlfeInfo = { "LowLevelFatalError", __FILE__, __LINE__ }; \
 			LowLevelFatalErrorHandler(LlfeInfo, Format, ##__VA_ARGS__); \
 			_DebugBreakAndPromptForRemote(); \
-			FDebug::ProcessFatalError(); \
+			FDebug::ProcessFatalError(LlfeInfo); \
 		}); \
 	}
 

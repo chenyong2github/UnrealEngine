@@ -504,7 +504,7 @@ void VARARGS FDebug::AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, in
 	va_end(Args);
 }
 
-void FDebug::ProcessFatalError()
+void FDebug::ProcessFatalError(const FFailureInfo& Info)
 {
 	// This is not perfect because another thread might crash and be handled before this assert
 	// but this static variable will report the crash as an assert. Given complexity of a thread
