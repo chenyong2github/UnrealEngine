@@ -10,13 +10,6 @@
 #define LOCTEXT_NAMESPACE "URectangleMarqueeMechanic"
 
 
-static FVector2D PlaneCoordinates(const FVector& Point, const FPlane& Plane, const FVector& UBasisVector, const FVector& VBasisVector)
-{
-	float U = FVector::DotProduct(Point - Plane.GetOrigin(), UBasisVector);
-	float V = FVector::DotProduct(Point - Plane.GetOrigin(), VBasisVector);
-	return FVector2D{ U,V };
-}
-
 FCameraRectangle::FCameraRectangle(const FViewCameraState& CachedCameraState,
 								   const FRay& DragStartWorldRay,
 								   const FRay& DragEndWorldRay)
@@ -33,19 +26,13 @@ FCameraRectangle::FCameraRectangle(const FViewCameraState& CachedCameraState,
 	FVector StartIntersection = FMath::RayPlaneIntersection(DragStartWorldRay.Origin,
 															DragStartWorldRay.Direction,
 															CameraPlane);
-	FVector2D Start2D = PlaneCoordinates(StartIntersection,
-										 CameraPlane,
-										 UBasisVector,
-										 VBasisVector);
+	FVector2D Start2D = PlaneCoordinates(StartIntersection);
 
 	FVector CurrentIntersection = FMath::RayPlaneIntersection(DragEndWorldRay.Origin,
 															  DragEndWorldRay.Direction,
 															  CameraPlane);
 
-	FVector2D Current2D = PlaneCoordinates(CurrentIntersection,
-										   CameraPlane,
-										   UBasisVector,
-										   VBasisVector);
+	FVector2D Current2D = PlaneCoordinates(CurrentIntersection);
 
 	RectangleCorners = FBox2D(Start2D, Start2D);
 	RectangleCorners += Current2D;	// Initialize this way so we don't have to care about min/max
@@ -67,7 +54,7 @@ bool FCameraRectangle::IsProjectedPointInRectangle(const FVector& Point) const
 													 CameraPlane);
 	}
 
-	FVector2D Point2D = PlaneCoordinates(ProjectedPoint, CameraPlane, UBasisVector, VBasisVector);
+	FVector2D Point2D = PlaneCoordinates(ProjectedPoint);
 	return RectangleCorners.IsInside(Point2D);
 }
 
@@ -78,8 +65,8 @@ bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& En
 	FVector ProjectedEndpoint2 = bCameraIsOrthographic ? FVector::PointPlaneProject(Endpoint2, CameraPlane)
 		: FMath::RayPlaneIntersection(CameraOrigin, Endpoint2 - CameraOrigin, CameraPlane);
 
-	FVector2D Endpoint1PlaneCoord = PlaneCoordinates(ProjectedEndpoint1, CameraPlane, UBasisVector, VBasisVector);
-	FVector2D Endpoint2PlaneCoord = PlaneCoordinates(ProjectedEndpoint2, CameraPlane, UBasisVector, VBasisVector);
+	FVector2D Endpoint1PlaneCoord = PlaneCoordinates(ProjectedEndpoint1);
+	FVector2D Endpoint2PlaneCoord = PlaneCoordinates(ProjectedEndpoint2);
 
 	// If either endpoint is inside, then definitely (at least partially) contained
 	if (RectangleCorners.IsInside(Endpoint1PlaneCoord) || RectangleCorners.IsInside(Endpoint2PlaneCoord))

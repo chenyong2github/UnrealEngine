@@ -8,6 +8,7 @@
 #include "BaseTools/BaseBrushTool.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "PropertySets/PolygroupLayersProperties.h"
+#include "Mechanics/PolyLassoMarqueeMechanic.h"
 
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
@@ -73,20 +74,6 @@ enum class EMeshGroupPaintInteractionType : uint8
 
 
 
-UCLASS()
-class MESHMODELINGTOOLS_API UGroupPaintToolProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	//UPROPERTY(EditAnywhere, Category = "GroupPaint")
-	UPROPERTY()
-	EMeshGroupPaintInteractionType SubToolType = EMeshGroupPaintInteractionType::Brush;
-};
-
-
-
-
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -101,6 +88,14 @@ enum class EMeshGroupPaintBrushType : uint8
 	LastValue UMETA(Hidden)
 };
 
+
+/** Mesh Sculpting Brush Area Types */
+UENUM()
+enum class EMeshGroupPaintBrushAreaType : uint8
+{
+	Connected,
+	Volumetric
+};
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -125,21 +120,57 @@ public:
 	UPROPERTY()
 	EMeshGroupPaintBrushType PrimaryBrushType = EMeshGroupPaintBrushType::Paint;
 
-	UPROPERTY(EditAnywhere, Category = BrushFilters, meta = (DisplayName = "Volumetric"))
-	bool bVolumetric = false;
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Action"))
+	EMeshGroupPaintInteractionType SubToolType = EMeshGroupPaintInteractionType::Brush;
 
-	UPROPERTY(EditAnywhere, Category = BrushFilters)
+	/** Relative size of brush */
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", 
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+	float BrushSize;
+
+	/** When Volumetric, all faces inside the brush sphere are selected, otherwise only connected faces are selected */
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Area Mode",
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+	EMeshGroupPaintBrushAreaType BrushAreaMode = EMeshGroupPaintBrushAreaType::Connected;
+
+	/** The group that will be assigned to triangles */
+	UPROPERTY(EditAnywhere, Category = ActionType)
+	int32 SetGroup = 1;
+
+	/** If true, only triangles with no group assigned will be painted */
+	UPROPERTY(EditAnywhere, Category = ActionType)
+	bool bOnlySetUngrouped = false;
+
+	/** Group to set as Erased value */
+	UPROPERTY(EditAnywhere, Category = ActionType)
+	int32 EraseGroup = 0;
+
+	/** When enabled, only the current group configured in the Paint brush is erased */
+	UPROPERTY(EditAnywhere, Category = ActionType)
+	bool bOnlyEraseCurrent = false;
+
+	
+	/** Control which triangles can be affected by the current operation based on visibility */
+	UPROPERTY(EditAnywhere, Category = Filters)
 	EMeshGroupPaintVisibilityType VisibilityFilter = EMeshGroupPaintVisibilityType::None;
 
-	UPROPERTY(EditAnywhere, Category = BrushFilters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "bVolumetric == false"))
+	/** The Region affected by the current operation will be bounded by edge angles larger than this threshold */
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0",
+		EditCondition = "bVolumetric == false"))
 	float AngleThreshold = 180.0f;
 
-	UPROPERTY(EditAnywhere, Category = BrushFilters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "bVolumetric == false"))
+	/** The Region affected by the current operation will be bounded by UV borders/seams */
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "bVolumetric == false"))
 	bool bUVSeams = false;
 
-	UPROPERTY(EditAnywhere, Category = BrushFilters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "bVolumetric == false"))
+	/** The Region affected by the current operation will be bounded by Hard Normal edges/seams */
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "bVolumetric == false"))
 	bool bNormalSeams = false;
 
+
+	/** Number of vertices in a triangle the Lasso must hit to be counted as "inside" */
+	UPROPERTY(EditAnywhere, Category = Filters, AdvancedDisplay, meta = (UIMin = 1, UIMax = 3, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::PolyLasso"))
+	int MinTriVertCount = 1;
 };
 
 
@@ -156,7 +187,10 @@ enum class EMeshGroupPaintToolActions
 	FreezeOthers,
 
 	GrowCurrent,
-	ShrinkCurrent
+	ShrinkCurrent,
+	ClearCurrent,
+	FloodFillCurrent,
+	ClearAll
 };
 
 
@@ -199,17 +233,38 @@ public:
 		PostAction(EMeshGroupPaintToolActions::FreezeOthers);
 	}
 
-	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 4))
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 10))
+	void ClearAll()
+	{
+		PostAction(EMeshGroupPaintToolActions::ClearAll);
+	}
+
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 11))
+	void ClearCurrent()
+	{
+		PostAction(EMeshGroupPaintToolActions::ClearCurrent);
+	}
+
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 12))
+	void FloodFillCurrent()
+	{
+		PostAction(EMeshGroupPaintToolActions::FloodFillCurrent);
+	}
+
+
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 20))
 	void GrowCurrent()
 	{
 		PostAction(EMeshGroupPaintToolActions::GrowCurrent);
 	}
 
-	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 5))
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 21))
 	void ShrinkCurrent()
 	{
 		PostAction(EMeshGroupPaintToolActions::ShrinkCurrent);
 	}
+
+
 };
 
 
@@ -228,6 +283,7 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void OnTick(float DeltaTime) override;
 
@@ -239,13 +295,12 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
+	bool IsInBrushSubMode() const;
+
 public:
 
 	UPROPERTY()
 	UPolygroupLayersProperties* PolygroupLayerProperties;
-
-	UPROPERTY()
-	UGroupPaintToolProperties* ToolProperties;
 
 	/** Filters on paint brush */
 	UPROPERTY()
@@ -255,15 +310,24 @@ public:
 private:
 	// This will be of type UGroupPaintBrushOpProps, we keep a ref so we can change active group ID on pick
 	UPROPERTY()
-	UGroupPaintBrushOpProps* PaintBrushOpOperties;
+	UGroupPaintBrushOpProps* PaintBrushOpProperties;
 
 	UPROPERTY()
-	UGroupEraseBrushOpProps* EraseBrushOpOperties;
+	UGroupEraseBrushOpProps* EraseBrushOpProperties;
 
 public:
 	void AllocateNewGroupAndSetAsCurrentAction();
 	void GrowCurrentGroupAction();
 	void ShrinkCurrentGroupAction();
+	void ClearCurrentGroupAction();
+	void FloodFillCurrentGroupAction();
+	void ClearAllGroupsAction();
+
+	void SetTrianglesToGroupID(const TSet<int32>& Triangles, int32 ToGroupID, bool bIsErase);
+
+	bool HaveVisibilityFilter() const;
+	void ApplyVisibilityFilter(const TArray<int32>& Triangles, TArray<int32>& VisibleTriangles);
+	void ApplyVisibilityFilter(TSet<int32>& Triangles, TArray<int32>& ROIBuffer, TArray<int32>& OutputBuffer);
 
 protected:
 	// UMeshSculptToolBase API
@@ -296,6 +360,18 @@ protected:
 	virtual void ApplyAction(EMeshGroupPaintToolActions ActionType);
 
 
+
+	//
+	// Marquee Support
+	//
+public:
+	UPROPERTY()
+	UPolyLassoMarqueeMechanic* PolyLassoMechanic;
+
+protected:
+	void OnPolyLassoFinished(const FCameraPolyLasso& Lasso, bool bCanceled);
+
+
 	//
 	// Internals
 	//
@@ -326,6 +402,7 @@ protected:
 
 	TArray<int> TempROIBuffer;
 	TArray<int> VertexROI;
+	TArray<bool> VisibilityFilterBuffer;
 	TSet<int> VertexSetBuffer;
 	TSet<int> TriangleROI;
 	void UpdateROI(const FSculptBrushStamp& CurrentStamp);
@@ -368,6 +445,8 @@ protected:
 
 protected:
 	virtual bool ShowWorkPlane() const override { return false; }
+
+
 };
 
 

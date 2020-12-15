@@ -40,6 +40,13 @@ struct FCameraRectangle
 
 	// TODO: Add a way to test rectangle against triangles.
 
+	FVector2D PlaneCoordinates(const FVector& Point) const
+	{
+		float U = FVector::DotProduct(Point - CameraPlane.GetOrigin(), UBasisVector);
+		float V = FVector::DotProduct(Point - CameraPlane.GetOrigin(), VBasisVector);
+		return FVector2D{ U,V };
+	}
+
 private:
 	FCameraRectangle() {};
 };

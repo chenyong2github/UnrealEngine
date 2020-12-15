@@ -44,6 +44,10 @@ public:
 
 public:
 
+	/** Controls whether Gizmo will draw visual elements. Does not currently affect AttachedComponent. */
+	UPROPERTY()
+	bool bVisible = true;
+
 	UPROPERTY()
 	float BrushRadius = 1.0f;
 

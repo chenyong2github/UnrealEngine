@@ -306,7 +306,7 @@ void UMeshSculptToolBase::SetActivePrimaryBrushType(int32 Identifier)
 	UMeshSculptBrushOpProps** FoundProps = BrushOpPropSets.Find(Identifier);
 	if (FoundProps != nullptr)
 	{
-		SetToolPropertySourceEnabled(*FoundProps, true);
+		SetToolPropertySourceEnabled(*FoundProps, bBrushOpPropsVisible);
 		PrimaryVisiblePropSet = *FoundProps;
 
 		PrimaryBrushOp->PropertySet = PrimaryVisiblePropSet;
@@ -338,7 +338,7 @@ void UMeshSculptToolBase::SetActiveSecondaryBrushType(int32 Identifier)
 	UMeshSculptBrushOpProps** FoundProps = SecondaryBrushOpPropSets.Find(Identifier);
 	if (FoundProps != nullptr)
 	{
-		SetToolPropertySourceEnabled(*FoundProps, true);
+		SetToolPropertySourceEnabled(*FoundProps, bBrushOpPropsVisible);
 		SecondaryVisiblePropSet = *FoundProps;
 
 		SecondaryBrushOp->PropertySet = SecondaryVisiblePropSet;
@@ -361,6 +361,7 @@ TUniquePtr<FMeshSculptBrushOp>& UMeshSculptToolBase::GetActiveBrushOp()
 
 void UMeshSculptToolBase::SetBrushOpPropsVisibility(bool bVisible)
 {
+	bBrushOpPropsVisible = bVisible;
 	if (PrimaryVisiblePropSet)
 	{
 		SetToolPropertySourceEnabled(PrimaryVisiblePropSet, bVisible);
@@ -889,7 +890,7 @@ void UMeshSculptToolBase::ConfigureIndicator(bool bVolumetric)
 {
 	if (bIsVolumetricIndicator == bVolumetric) return;
 	bIsVolumetricIndicator = bVolumetric;
-	BrushIndicatorMesh->SetVisible(bVolumetric);
+	BrushIndicatorMesh->SetVisible(GetIndicatorVisibility() && bIsVolumetricIndicator);
 	if (bVolumetric)
 	{
 		BrushIndicator->bDrawRadiusCircle = false;
@@ -900,6 +901,20 @@ void UMeshSculptToolBase::ConfigureIndicator(bool bVolumetric)
 	}
 }
 
+
+void UMeshSculptToolBase::SetIndicatorVisibility(bool bVisible)
+{
+	if (GetIndicatorVisibility() != bVisible)
+	{
+		BrushIndicator->bVisible = bVisible;
+		BrushIndicatorMesh->SetVisible(bVisible && bIsVolumetricIndicator);
+	}
+}
+
+bool UMeshSculptToolBase::GetIndicatorVisibility() const
+{
+	return BrushIndicator->bVisible;
+}
 
 UPreviewMesh* UMeshSculptToolBase::MakeDefaultIndicatorSphereMesh(UObject* Parent, UWorld* World, int Resolution /*= 32*/)
 {

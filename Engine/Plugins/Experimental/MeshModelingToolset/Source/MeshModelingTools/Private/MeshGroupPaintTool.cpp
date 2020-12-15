@@ -14,7 +14,11 @@
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
+#include "Selections/MeshVertexSelection.h"
 #include "Polygroups/PolygroupUtil.h"
+#include "Polygon2.h"
+#include "Intersection/IntrLine2Line2.h"
+#include "Intersection/IntrSegment2Segment2.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshPolygroupChange.h"
@@ -23,6 +27,10 @@
 #include "Sculpting/MeshGroupPaintBrushOps.h"
 #include "Sculpting/StampFalloffs.h"
 #include "Sculpting/MeshSculptUtil.h"
+
+
+#include "CanvasTypes.h"
+#include "CanvasItem.h"
 
 #include "ToolSetupUtil.h"
 
@@ -127,6 +135,13 @@ void UMeshGroupPaintTool::Setup()
 	// initialize brush radius range interval, brush properties
 	UMeshSculptToolBase::InitializeBrushSizeRange(Bounds);
 
+	// Set up control points mechanic
+	PolyLassoMechanic = NewObject<UPolyLassoMarqueeMechanic>(this);
+	PolyLassoMechanic->Setup(this);
+	PolyLassoMechanic->SetIsEnabled(false);
+	PolyLassoMechanic->SpacingTolerance = 10.0f;
+	PolyLassoMechanic->OnDrawPolyLassoFinished.AddUObject(this, &UMeshGroupPaintTool::OnPolyLassoFinished);
+
 	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
 	PolygroupLayerProperties->RestoreProperties(this);
 	PolygroupLayerProperties->InitializeGroupLayers(GetSculptMesh());
@@ -134,14 +149,15 @@ void UMeshGroupPaintTool::Setup()
 	UpdateActiveGroupLayer();
 	AddToolPropertySource(PolygroupLayerProperties);
 
-	ToolProperties = NewObject<UGroupPaintToolProperties>(this);
-	AddToolPropertySource(ToolProperties);
-	ToolProperties->WatchProperty(ToolProperties->SubToolType,
-		[this](EMeshGroupPaintInteractionType NewType) { UpdateSubToolType(NewType); });
-	ToolProperties->RestoreProperties(this);
-
 	// initialize other properties
 	FilterProperties = NewObject<UGroupPaintBrushFilterProperties>(this);
+	FilterProperties->WatchProperty(FilterProperties->SubToolType,
+		[this](EMeshGroupPaintInteractionType NewType) { UpdateSubToolType(NewType); });
+	FilterProperties->WatchProperty(FilterProperties->BrushSize,
+		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize = NewSize; });
+	FilterProperties->RestoreProperties(this);
+	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize;
+	AddToolPropertySource(FilterProperties);
 
 	InitializeIndicator();
 
@@ -149,27 +165,22 @@ void UMeshGroupPaintTool::Setup()
 	AddToolPropertySource(UMeshSculptToolBase::BrushProperties);
 	UMeshSculptToolBase::BrushProperties->bShowPerBrushProps = false;
 	UMeshSculptToolBase::BrushProperties->bShowFalloff = false;
+	UMeshSculptToolBase::BrushProperties->bShowLazyness = false;
 	CalculateBrushRadius();
-	FilterProperties->RestoreProperties(this);
 
-	PaintBrushOpOperties = NewObject<UGroupPaintBrushOpProps>(this);
+	PaintBrushOpProperties = NewObject<UGroupPaintBrushOpProps>(this);
 	RegisterBrushType((int32)EMeshGroupPaintBrushType::Paint,
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FGroupPaintBrushOp>(); }),
-		PaintBrushOpOperties);
-
-	//RegisterBrushType((int32)EMeshGroupPaintBrushType::Erase,
-	//	MakeUnique<TBasicMeshSculptBrushOpFactory<FGroupEraseBrushOp>>(),
-	//	EraseBrushOpOperties);
+		PaintBrushOpProperties);
 
 	// secondary brushes
-	EraseBrushOpOperties = NewObject<UGroupEraseBrushOpProps>(this);
-	EraseBrushOpOperties->GetCurrentGroupLambda = [this]() { return PaintBrushOpOperties->GetGroup(); };
+	EraseBrushOpProperties = NewObject<UGroupEraseBrushOpProps>(this);
+	EraseBrushOpProperties->GetCurrentGroupLambda = [this]() { return PaintBrushOpProperties->GetGroup(); };
 
 	RegisterSecondaryBrushType((int32)EMeshGroupPaintBrushType::Erase,
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FGroupEraseBrushOp>>(),
-		EraseBrushOpOperties);
+		EraseBrushOpProperties);
 
-	AddToolPropertySource(FilterProperties);
 	AddToolPropertySource(UMeshSculptToolBase::ViewProperties);
 
 	AddToolPropertySource(UMeshSculptToolBase::GizmoProperties);
@@ -185,8 +196,6 @@ void UMeshGroupPaintTool::Setup()
 
 	UpdateBrushType(FilterProperties->PrimaryBrushType);
 	SetActiveSecondaryBrushType((int32)EMeshGroupPaintBrushType::Erase);
-
-	UpdateSubToolType(ToolProperties->SubToolType);
 
 	FreezeActions = NewObject<UMeshGroupPaintToolFreezeActions>(this);
 	FreezeActions->Initialize(this);
@@ -214,6 +223,9 @@ void UMeshGroupPaintTool::Setup()
 	UpdateWireframeVisibility(false);
 	UpdateFlatShadingSetting(true);
 
+	// configure panels
+	UpdateSubToolType(FilterProperties->SubToolType);
+
 	PrecomputeFuture.Wait();
 	OctreeFuture.Wait();
 }
@@ -232,7 +244,6 @@ void UMeshGroupPaintTool::Shutdown(EToolShutdownType ShutdownType)
 	MeshElementsDisplay->Disconnect();
 
 	FilterProperties->SaveProperties(this);
-	ToolProperties->SaveProperties(this);
 	PolygroupLayerProperties->SaveProperties(this);
 
 
@@ -293,9 +304,27 @@ void UMeshGroupPaintTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 }
 
 
+bool UMeshGroupPaintTool::IsInBrushSubMode() const
+{
+	return FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Brush
+		|| FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Fill;
+}
+
+
 void UMeshGroupPaintTool::OnBeginStroke(const FRay& WorldRay)
 {
 	UpdateBrushPosition(WorldRay);
+
+	if (PaintBrushOpProperties)
+	{
+		PaintBrushOpProperties->Group = FilterProperties->SetGroup;
+		PaintBrushOpProperties->bOnlyPaintUngrouped = FilterProperties->bOnlySetUngrouped;
+	}
+	if (EraseBrushOpProperties)
+	{
+		EraseBrushOpProperties->Group = FilterProperties->EraseGroup;
+		EraseBrushOpProperties->bOnlyEraseCurrent = FilterProperties->bOnlyEraseCurrent;
+	}
 
 	// initialize first "Last Stamp", so that we can assume all stamps in stroke have a valid previous stamp
 	LastStamp.WorldFrame = GetBrushFrameWorld();
@@ -331,6 +360,7 @@ void UMeshGroupPaintTool::OnEndStroke()
 
 
 
+
 void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 {
 	SCOPE_CYCLE_COUNTER(GroupPaintTool_UpdateROI);
@@ -350,7 +380,9 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 		TriangleROI.Add(CenterTID);
 	}
 
-	if (FilterProperties->bVolumetric)
+	bool bFill = (FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Fill);
+
+	if (FilterProperties->BrushAreaMode == EMeshGroupPaintBrushAreaType::Volumetric)
 	{
 		Octree.RangeQuery(BrushBox,
 			[&](int TriIdx) {
@@ -360,6 +392,20 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 				TriangleROI.Add(TriIdx);
 			}
 		});
+
+		if (bFill)
+		{
+			TArray<int32> StartROI;
+			for (int32 tid : TriangleROI)
+			{
+				StartROI.Add(tid);
+			}
+			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI, &TempROIBuffer,
+				[&](int t1, int t2)
+			{
+				return true;
+			});
+		}
 	}
 	else
 	{
@@ -377,7 +423,7 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI, &TempROIBuffer,
 				[&](int t1, int t2) 
 			{ 
-				if ((Mesh->GetTriCentroid(t2) - BrushPos).SquaredLength() < RadiusSqr)
+				if (bFill || (Mesh->GetTriCentroid(t2) - BrushPos).SquaredLength() < RadiusSqr)
 				{
 					if (bUseAngleThreshold == false || CenterNormal.Dot(TriNormals[t2]) > DotAngleThreshold)
 					{
@@ -400,42 +446,11 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 	// apply visibility filter
 	if (FilterProperties->VisibilityFilter != EMeshGroupPaintVisibilityType::None)
 	{
-		FViewCameraState StateOut;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(ComponentTarget->GetWorldTransform().InverseTransformPosition(StateOut.Position));
-		TempROIBuffer.SetNum(0, false);
-		for (int32 tid : TriangleROI)
-		{
-			TempROIBuffer.Add(tid);
-		}
-		ParallelFor(TempROIBuffer.Num(), [&](int32 idx)
-		{
-			FVector3d Centroid = Mesh->GetTriCentroid(TempROIBuffer[idx]);
-			FVector3d FaceNormal = Mesh->GetTriNormal(TempROIBuffer[idx]);
-			if (FaceNormal.Dot((Centroid - LocalEyePosition)) > 0)
-			{
-				TempROIBuffer[idx] = -1;
-			}
-			if (FilterProperties->VisibilityFilter == EMeshGroupPaintVisibilityType::Unoccluded)
-			{
-				int32 HitTID = Octree.FindNearestHitObject(FRay3d(LocalEyePosition, (Centroid - LocalEyePosition).Normalized()));
-				if (HitTID != TempROIBuffer[idx])
-				{
-					TempROIBuffer[idx] = -1;
-				}
-			}
-		});
-		TriangleROI.Reset();
-		for (int32 tid : TempROIBuffer)
-		{
-			if (tid >= 0)
-			{
-				TriangleROI.Add(tid);
-			}
-		}
+		TArray<int32> ResultBuffer;
+		ApplyVisibilityFilter(TriangleROI, TempROIBuffer, ResultBuffer);
 	}
 
-
+	// construct ROI vertex set
 	VertexSetBuffer.Reset();
 	for (int32 tid : TriangleROI)
 	{
@@ -445,7 +460,7 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 	VertexROI.SetNum(0, false);
 	BufferUtil::AppendElements(VertexROI, VertexSetBuffer);
 
-
+	// construct ROI triangle and group buffers
 	ROITriangleBuffer.Reserve(TriangleROI.Num());
 	ROITriangleBuffer.SetNum(0, false);
 	for (int32 tid : TriangleROI)
@@ -543,11 +558,364 @@ void UMeshGroupPaintTool::SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh)
 
 
 
+template<typename RealType>
+static bool FindPolylineSelfIntersection(
+	const TArray<FVector2<RealType>>& Polyline, 
+	FVector2<RealType>& IntersectionPointOut, 
+	FIndex2i& IntersectionIndexOut,
+	bool bParallel = true)
+{
+	int32 N = Polyline.Num();
+	std::atomic<bool> bSelfIntersects(false);
+	ParallelFor(N - 1, [&](int32 i)
+	{
+		TSegment2<RealType> SegA(Polyline[i], Polyline[i + 1]);
+		for (int32 j = i + 2; j < N - 1 && bSelfIntersects == false; ++j)
+		{
+			TSegment2<RealType> SegB(Polyline[j], Polyline[j + 1]);
+			if (SegA.Intersects(SegB) && bSelfIntersects == false)		
+			{
+				bool ExpectedValue = false;
+				if (std::atomic_compare_exchange_strong(&bSelfIntersects, &ExpectedValue, true))
+				{
+					TIntrSegment2Segment2<RealType> Intersection(SegA, SegB);
+					Intersection.Find();
+					IntersectionPointOut = Intersection.Point0;
+					IntersectionIndexOut = FIndex2i(i, j);
+					return;
+				}
+			}
+		}
+	}, (bParallel) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread );
+
+	return bSelfIntersects;
+}
+
+
+
+template<typename RealType>
+static bool FindPolylineSegmentIntersection(
+	const TArray<FVector2<RealType>>& Polyline,
+	const TSegment2<RealType>& Segment,
+	FVector2<RealType>& IntersectionPointOut,
+	int& IntersectionIndexOut)
+{
+
+	int32 N = Polyline.Num();
+	for (int32 i = 0; i < N-1; ++i)
+	{
+		TSegment2<RealType> PolySeg(Polyline[i], Polyline[i + 1]);
+		if (Segment.Intersects(PolySeg))
+		{
+			TIntrSegment2Segment2<RealType> Intersection(Segment, PolySeg);
+			Intersection.Find();
+			IntersectionPointOut = Intersection.Point0;
+			IntersectionIndexOut = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+
+
+bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
+{
+	int32 N = Polyline.Num();
+
+	// handle already-closed polylines
+	if (Polyline[0].Distance(Polyline[N-1]) < 0.0001f)
+	{
+		return true;
+	}
+
+	FVector2f IntersectPoint;
+	FIndex2i IntersectionIndex(-1, -1);
+	bool bSelfIntersects = FindPolylineSelfIntersection(Polyline, IntersectPoint, IntersectionIndex);
+	if (bSelfIntersects)
+	{
+		TArray<FVector2f> NewPolyline;
+		NewPolyline.Add(IntersectPoint);
+		for (int32 i = IntersectionIndex.A; i <= IntersectionIndex.B; ++i)
+		{
+			NewPolyline.Add(Polyline[i]);
+		}
+		NewPolyline.Add(IntersectPoint);
+		Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+
+	FVector2f StartDirOut = (Polyline[0] - Polyline[1]).Normalized();
+	FLine2f StartLine(Polyline[0], StartDirOut);
+	FVector2f EndDirOut = (Polyline[N - 1] - Polyline[N - 2]).Normalized();
+	FLine2f EndLine(Polyline[N - 1], EndDirOut);
+	FIntrLine2Line2f LineIntr(StartLine, EndLine);
+	bool bIntersects = false;
+	if (LineIntr.Find())
+	{
+		bIntersects = LineIntr.IsSimpleIntersection() && (LineIntr.Segment1Parameter > 0) && (LineIntr.Segment2Parameter > 0);
+		if (bIntersects)
+		{
+			Polyline.Add(StartLine.PointAt(LineIntr.Segment1Parameter));
+			Polyline.Add(StartLine.Origin);
+			return true;
+		}
+	}
+
+
+	FAxisAlignedBox2f Bounds;
+	for (const FVector2f& P : Polyline)
+	{
+		Bounds.Contain(P);
+	}
+	float Size = Bounds.DiagonalLength();
+
+	FVector2f StartPos = Polyline[0] + 0.001 * StartDirOut;
+	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(StartPos, StartPos + 2*Size*StartDirOut), IntersectPoint, IntersectionIndex.A))
+	{
+		//TArray<FVector2f> NewPolyline;
+		//for (int32 i = 0; i <= IntersectionIndex.A; ++i)
+		//{
+		//	NewPolyline.Add(Polyline[i]);
+		//}
+		//NewPolyline.Add(IntersectPoint);
+		//NewPolyline.Add(Polyline[0]);
+		//Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+	FVector2f EndPos = Polyline[N-1] + 0.001 * EndDirOut;
+	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(EndPos, EndPos + 2*Size*EndDirOut), IntersectPoint, IntersectionIndex.A))
+	{
+		//TArray<FVector2f> NewPolyline;
+		//NewPolyline.Add(IntersectPoint);
+		//for (int32 i = IntersectionIndex.A+1; i < N; ++i)
+		//{
+		//	NewPolyline.Add(Polyline[i]);
+		//}
+		//NewPolyline.Add(Polyline[0]);
+		//NewPolyline.Add(IntersectPoint);
+		//Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+	return false;
+}
+
+
+
+void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, bool bCanceled)
+{
+	// construct polyline
+	TArray<FVector2f> Polyline;
+	for (FVector2D Pos : Lasso.Polyline)
+	{
+		Polyline.Add((FVector2f)Pos);
+	}
+	int32 N = Polyline.Num();
+	if (N < 2)
+	{
+		return;
+	}
+
+	// Try to clip polyline to be closed, or closed-enough for winding evaluation to work.
+	// If that returns false, the polyline is "too open". In that case we will extend
+	// outwards from the endpoints and then try to create a closed very large polygon
+	if (ApproxSelfClipPolyline(Polyline) == false)
+	{
+		FVector2f StartDirOut = (Polyline[0] - Polyline[1]).Normalized();
+		FLine2f StartLine(Polyline[0], StartDirOut);
+		FVector2f EndDirOut = (Polyline[N-1] - Polyline[N-2]).Normalized();
+		FLine2f EndLine(Polyline[N-1], EndDirOut);
+
+		// if we did not intersect, we are in ambiguous territory. Check if a segment along either end-direction
+		// intersects the polyline. If it does, we have something like a spiral and will be OK. 
+		// If not, make a closed polygon by interpolating outwards from each endpoint, and then in perp-directions.
+		FPolygon2f Polygon(Polyline);
+		float PerpSign = Polygon.IsClockwise() ? -1.0 : 1.0;
+
+		Polyline.Insert(StartLine.PointAt(10000.0f), 0);
+		Polyline.Insert(Polyline[0] + 1000 * PerpSign * StartDirOut.Perp(), 0);
+
+		Polyline.Add(EndLine.PointAt(10000.0f));
+		Polyline.Add(Polyline.Last() + 1000 * PerpSign * EndDirOut.Perp());
+		FVector2f StartPos = Polyline[0];
+		Polyline.Add(StartPos);		// close polyline (cannot use Polyline[0] in case Add resizes!)
+	}
+
+	N = Polyline.Num();
+
+	// project each mesh vertex to view plane and evaluate winding integral of polyline
+	const FDynamicMesh3* Mesh = GetSculptMesh();
+	TempROIBuffer.SetNum(Mesh->MaxVertexID());
+	ParallelFor(Mesh->MaxVertexID(), [&](int32 vid)
+	{
+		if (Mesh->IsVertex(vid))
+		{
+			FVector3d WorldPos = CurTargetTransform.TransformPosition(Mesh->GetVertex(vid));
+			FVector2f PlanePos = (FVector2f)Lasso.GetProjectedPoint((FVector)WorldPos);
+
+			double WindingSum = 0;
+			FVector2f a = Polyline[0] - PlanePos, b = FVector2f::Zero();
+			for (int32 i = 1; i < N; ++i)
+			{
+				b = Polyline[i] - PlanePos;
+				WindingSum += (double)FMathf::Atan2(a.X*b.Y - a.Y*b.X, a.X*b.X + a.Y*b.Y);
+				a = b;
+			}
+			WindingSum /= FMathd::TwoPi;
+			bool bInside = FMathd::Abs(WindingSum) > 0.3;
+			TempROIBuffer[vid] = bInside ? 1 : 0;
+		}
+		else
+		{
+			TempROIBuffer[vid] = -1;
+		}
+	});
+
+	// convert to vertex selection, and then select fully-enclosed faces
+	FMeshVertexSelection VertexSelection(Mesh);
+	VertexSelection.SelectByVertexID([&](int32 vid) { return TempROIBuffer[vid] == 1; });
+ 	FMeshFaceSelection FaceSelection(Mesh, VertexSelection, FilterProperties->MinTriVertCount);
+	if (FaceSelection.Num() == 0)
+	{
+		return;
+	}
+
+	int32 SetGroupID = GetInInvertStroke() ? FilterProperties->EraseGroup : FilterProperties->SetGroup;
+	SetTrianglesToGroupID(FaceSelection.AsSet(), SetGroupID, GetInInvertStroke());
+}
+
+
+
+
+void UMeshGroupPaintTool::SetTrianglesToGroupID(const TSet<int32>& Triangles, int32 ToGroupID, bool bIsErase)
+{
+	BeginChange();
+
+	TempROIBuffer.SetNum(0, false);
+	for (int32 tid : Triangles)
+	{
+		int32 CurGroupID = ActiveGroupSet->GetGroup(tid);
+		if (CurGroupID == ToGroupID || FrozenGroups.Contains(CurGroupID))		// skip frozen groups
+		{
+			continue;
+		}
+		if (bIsErase == false && FilterProperties->bOnlySetUngrouped && CurGroupID != 0)
+		{
+			continue;
+		}
+		if (bIsErase && FilterProperties->bOnlyEraseCurrent && CurGroupID != FilterProperties->SetGroup)
+		{
+			continue;
+		}
+
+		TempROIBuffer.Add(tid);
+	}
+
+	if (HaveVisibilityFilter())
+	{
+		TArray<int32> VisibleTriangles;
+		VisibleTriangles.Reserve(TempROIBuffer.Num());
+		ApplyVisibilityFilter(TempROIBuffer, VisibleTriangles);
+		TempROIBuffer = MoveTemp(VisibleTriangles);
+	}
+
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+	for (int32 tid : TempROIBuffer)
+	{
+		ActiveGroupSet->SetGroup(tid, ToGroupID);
+	}
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TempROIBuffer, EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+	EndChange();
+}
+
+
+
+bool UMeshGroupPaintTool::HaveVisibilityFilter() const
+{
+	return FilterProperties->VisibilityFilter != EMeshGroupPaintVisibilityType::None;
+}
+
+
+void UMeshGroupPaintTool::ApplyVisibilityFilter(TSet<int32>& Triangles, TArray<int32>& ROIBuffer, TArray<int32>& OutputBuffer)
+{
+	ROIBuffer.SetNum(0, false);
+	ROIBuffer.Reserve(Triangles.Num());
+	for (int32 tid : Triangles)
+	{
+		ROIBuffer.Add(tid);
+	}
+	
+	OutputBuffer.Reset();
+	ApplyVisibilityFilter(TempROIBuffer, OutputBuffer);
+
+	Triangles.Reset();
+	for (int32 tid : OutputBuffer)
+	{
+		TriangleROI.Add(tid);
+	}
+}
+
+void UMeshGroupPaintTool::ApplyVisibilityFilter(const TArray<int32>& Triangles, TArray<int32>& VisibleTriangles)
+{
+	if (!HaveVisibilityFilter())
+	{
+		VisibleTriangles = Triangles;
+		return;
+	}
+
+	FViewCameraState StateOut;
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
+	FVector3d LocalEyePosition(ComponentTarget->GetWorldTransform().InverseTransformPosition(StateOut.Position));
+
+	const FDynamicMesh3* Mesh = GetSculptMesh();
+
+	int32 NumTriangles = Triangles.Num();
+
+	VisibilityFilterBuffer.SetNum(NumTriangles, false);
+	ParallelFor(NumTriangles, [&](int32 idx)
+	{
+		VisibilityFilterBuffer[idx] = true;
+		FVector3d Centroid = Mesh->GetTriCentroid(Triangles[idx]);
+		FVector3d FaceNormal = Mesh->GetTriNormal(Triangles[idx]);
+		if (FaceNormal.Dot((Centroid - LocalEyePosition)) > 0)
+		{
+			VisibilityFilterBuffer[idx] = false;
+		}
+		if (FilterProperties->VisibilityFilter == EMeshGroupPaintVisibilityType::Unoccluded)
+		{
+			int32 HitTID = Octree.FindNearestHitObject(FRay3d(LocalEyePosition, (Centroid - LocalEyePosition).Normalized()));
+			if (HitTID != Triangles[idx])
+			{
+				VisibilityFilterBuffer[idx] = false;
+			}
+		}
+	});
+
+	VisibleTriangles.Reset();
+	for (int32 k = 0; k < NumTriangles; ++k)
+	{
+		if (VisibilityFilterBuffer[k])
+		{
+			VisibleTriangles.Add(Triangles[k]);
+		}
+	}
+}
 
 
 
 int32 UMeshGroupPaintTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 {
+	if (!IsInBrushSubMode())
+	{
+		return IndexConstants::InvalidID;
+	}
+
 	if (GetBrushCanHitBackFaces())
 	{
 		return Octree.FindNearestHitObject(LocalRay);
@@ -619,13 +987,25 @@ bool UMeshGroupPaintTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 }
 
 
+void UMeshGroupPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	if (PolyLassoMechanic)
+	{
+		PolyLassoMechanic->DrawHUD(Canvas, RenderAPI);
+	}
+}
+
 
 void UMeshGroupPaintTool::OnTick(float DeltaTime)
 {
 	UMeshSculptToolBase::OnTick(DeltaTime);
 	MeshElementsDisplay->OnTick(DeltaTime);
 
-	ConfigureIndicator(FilterProperties->bVolumetric);
+	bool bIsLasso = (FilterProperties->SubToolType == EMeshGroupPaintInteractionType::PolyLasso);
+	PolyLassoMechanic->SetIsEnabled(bIsLasso);
+
+	ConfigureIndicator(FilterProperties->BrushAreaMode == EMeshGroupPaintBrushAreaType::Volumetric);
+	SetIndicatorVisibility(bIsLasso == false);
 
 	if (bHavePendingAction)
 	{
@@ -660,7 +1040,7 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 				int32 HitGroupID = ActiveGroupSet->GetGroup(GetBrushTriangleID());
 				if (bPendingPickGroup)
 				{
-					PaintBrushOpOperties->Group = HitGroupID;
+					FilterProperties->SetGroup = HitGroupID;
 				}
 				else if (bPendingToggleFreezeGroup)
 				{
@@ -672,11 +1052,10 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 	}
 
 
-	if (ToolProperties->SubToolType == EMeshGroupPaintInteractionType::Brush)
+	if (IsInBrushSubMode())
 	{
 		if (IsStampPending())
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("dt is %.3f, tick fps %.2f - roi size %d/%d"), DeltaTime, 1.0 / DeltaTime, VertexROI.Num(), TriangleROI.Num());
 			SCOPE_CYCLE_COUNTER(GroupPaintTool_Tick_ApplyStampBlock);
 
 			ApplyStrokeFlowInTick();
@@ -720,8 +1099,7 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 
 void UMeshGroupPaintTool::AllocateNewGroupAndSetAsCurrentAction()
 {
-	int32 NewGroupID = ActiveGroupSet->AllocateNewGroupID();
-	PaintBrushOpOperties->Group = NewGroupID;
+	FilterProperties->SetGroup = ActiveGroupSet->AllocateNewGroupID();
 }
 
 
@@ -827,7 +1205,7 @@ void UMeshGroupPaintTool::GrowCurrentGroupAction()
 {
 	BeginChange();
 
-	int32 CurrentGroupID = PaintBrushOpOperties->Group;
+	int32 CurrentGroupID = FilterProperties->SetGroup;
 	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FMeshFaceSelection InitialSelection(Mesh);
 	InitialSelection.Select([&](int32 tid) { return ActiveGroupSet->GetGroup(tid) == CurrentGroupID; });
@@ -853,7 +1231,7 @@ void UMeshGroupPaintTool::ShrinkCurrentGroupAction()
 {
 	BeginChange();
 
-	int32 CurrentGroupID = PaintBrushOpOperties->Group;
+	int32 CurrentGroupID = FilterProperties->SetGroup;
 	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FMeshFaceSelection InitialSelection(Mesh);
 	InitialSelection.Select([&](int32 tid) { return ActiveGroupSet->GetGroup(tid) == CurrentGroupID; });
@@ -874,6 +1252,91 @@ void UMeshGroupPaintTool::ShrinkCurrentGroupAction()
 	GetToolManager()->PostInvalidation();
 	EndChange();
 }
+
+
+void UMeshGroupPaintTool::ClearCurrentGroupAction()
+{
+	BeginChange();
+
+	int32 CurrentGroupID = FilterProperties->SetGroup;
+	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	TempROIBuffer.SetNum(0, false);
+	for (int32 tid : Mesh->TriangleIndicesItr())
+	{
+		if (ActiveGroupSet->GetGroup(tid) == CurrentGroupID)
+		{
+			TempROIBuffer.Add(tid);
+		}
+	}
+
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+	for (int32 tid : TempROIBuffer)
+	{
+		ActiveGroupSet->SetGroup(tid, 0);
+	}
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TempROIBuffer, EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+	EndChange();
+}
+
+
+void UMeshGroupPaintTool::FloodFillCurrentGroupAction()
+{
+	BeginChange();
+
+	int32 SetGroupID = FilterProperties->SetGroup;
+	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	TempROIBuffer.SetNum(0, false);
+	for (int32 tid : Mesh->TriangleIndicesItr())
+	{
+		int32 GroupID = ActiveGroupSet->GetGroup(tid);
+		if (GroupID == 0 && GroupID != SetGroupID && FrozenGroups.Contains(GroupID) == false)
+		{
+			TempROIBuffer.Add(tid);
+		}
+	}
+
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+	for (int32 tid : TempROIBuffer)
+	{
+		ActiveGroupSet->SetGroup(tid, SetGroupID);
+	}
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TempROIBuffer, EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+	EndChange();
+}
+
+
+void UMeshGroupPaintTool::ClearAllGroupsAction()
+{
+	BeginChange();
+
+	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	TempROIBuffer.SetNum(0, false);
+	for (int32 tid : Mesh->TriangleIndicesItr())
+	{
+		if (ActiveGroupSet->GetGroup(tid) != 0)
+		{
+			TempROIBuffer.Add(tid);
+		}
+	}
+
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+	for (int32 tid : TempROIBuffer)
+	{
+		ActiveGroupSet->SetGroup(tid, 0);
+	}
+	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
+
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TempROIBuffer, EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+	EndChange();
+}
+
 
 
 
@@ -1022,10 +1485,12 @@ void UMeshGroupPaintTool::UpdateActiveGroupLayer()
 
 void UMeshGroupPaintTool::UpdateSubToolType(EMeshGroupPaintInteractionType NewType)
 {
-	bool bSculptPropsVisible = (NewType == EMeshGroupPaintInteractionType::Brush);
-	SetToolPropertySourceEnabled(FilterProperties, bSculptPropsVisible);
-	SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, bSculptPropsVisible);
-	SetBrushOpPropsVisibility(bSculptPropsVisible);
+	//bool bSculptPropsVisible = (NewType == EMeshGroupPaintInteractionType::Brush);
+	//SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, bSculptPropsVisible);
+	SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, false);
+
+	SetToolPropertySourceEnabled(FilterProperties, true);
+	SetBrushOpPropsVisibility(false);
 }
 
 
@@ -1064,11 +1529,11 @@ void UMeshGroupPaintTool::ApplyAction(EMeshGroupPaintToolActions ActionType)
 		break;
 
 	case EMeshGroupPaintToolActions::FreezeCurrent:
-		ToggleFrozenGroup(PaintBrushOpOperties->Group);
+		ToggleFrozenGroup(FilterProperties->SetGroup);
 		break;
 
 	case EMeshGroupPaintToolActions::FreezeOthers:
-		FreezeOtherGroups(PaintBrushOpOperties->Group);
+		FreezeOtherGroups(FilterProperties->SetGroup);
 		break;
 
 	case EMeshGroupPaintToolActions::GrowCurrent:
@@ -1078,8 +1543,22 @@ void UMeshGroupPaintTool::ApplyAction(EMeshGroupPaintToolActions ActionType)
 	case EMeshGroupPaintToolActions::ShrinkCurrent:
 		ShrinkCurrentGroupAction();
 		break;
+
+	case EMeshGroupPaintToolActions::ClearCurrent:
+		ClearCurrentGroupAction();
+		break;
+
+	case EMeshGroupPaintToolActions::FloodFillCurrent:
+		FloodFillCurrentGroupAction();
+		break;
+
+	case EMeshGroupPaintToolActions::ClearAll:
+		ClearAllGroupsAction();
+		break;
+
 	}
 }
+
 
 
 

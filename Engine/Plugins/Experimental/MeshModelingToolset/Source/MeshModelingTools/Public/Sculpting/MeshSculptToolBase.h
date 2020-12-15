@@ -58,12 +58,16 @@ public:
 	bool bHitBackFaces = true;
 
 
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowLazyness"))
 	float Lazyness = 0;
 
 	/**  */
 	UPROPERTY( meta = (TransientToolProperty))
 	bool bShowPerBrushProps = true;
+
+	/**  */
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowLazyness = true;
 };
 
 
@@ -238,6 +242,8 @@ private:
 
 	TUniquePtr<FMeshSculptBrushOp> SecondaryBrushOp;
 	UMeshSculptBrushOpProps* SecondaryVisiblePropSet = nullptr;
+
+	bool bBrushOpPropsVisible = true;
 protected:
 	void SetActivePrimaryBrushType(int32 Identifier);
 	void SetActiveSecondaryBrushType(int32 Identifier);
@@ -405,6 +411,9 @@ protected:
 	virtual bool GetIsVolumetricIndicator();
 
 	virtual void ConfigureIndicator(bool bVolumetric);
+
+	virtual void SetIndicatorVisibility(bool bVisible);
+	virtual bool GetIndicatorVisibility() const;
 
 protected:
 	UPROPERTY()

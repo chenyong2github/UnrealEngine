@@ -24,6 +24,11 @@ void UBrushStampIndicator::Shutdown()
 
 void UBrushStampIndicator::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	if (bVisible == false)
+	{
+		return;
+	}
+
 	if (bDrawIndicatorLines)
 	{
 		FToolDataVisualizer Draw;
