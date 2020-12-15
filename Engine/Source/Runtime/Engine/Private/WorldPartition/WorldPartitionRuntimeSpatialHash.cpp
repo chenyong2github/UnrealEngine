@@ -49,6 +49,8 @@
 #include "Engine/WorldComposition.h"
 #include "LevelUtils.h"
 
+#include "StaticMeshCompiler.h"
+
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif //WITH_EDITOR
 
@@ -1595,6 +1597,8 @@ TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpati
 					FWorldPartitionActorDesc* ActorDesc  = ActorRef.Get();
 					CellActors.Add(ActorDesc->GetActor());
 				}
+
+				FStaticMeshCompilingManager::Get().FinishAllCompilation();
 
 				if (HasExceededMaxMemory())
 				{
