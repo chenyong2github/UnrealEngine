@@ -13,7 +13,7 @@
 
 	<RibbonTab Id="ID_DatasmithTab" Title="Unreal Datasmith" KeyTip="D1">
 		<RibbonPanel x:Uid="RibbonPanel_1">
-			<RibbonPanelSource x:Uid="RibbonPanelSource_RibbonPanel_1" KeyTip="D1" Title="Datasmith export">
+			<RibbonPanelSource x:Uid="RibbonPanelSource_RibbonPanel_1" KeyTip="D1" Title="Datasmith Export">
 				<local:NWRibbonButton x:Uid="Button_Export" Id="ID_Button_Export" 
 				                      Size="Large" 
 				                      Image="../DatasmithIcon32.png" 
