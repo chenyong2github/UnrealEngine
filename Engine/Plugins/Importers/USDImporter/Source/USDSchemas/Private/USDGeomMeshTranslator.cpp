@@ -1227,6 +1227,11 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 
 void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 {
+	if ( SceneComponent )
+	{
+		SceneComponent->Modify();
+	}
+
 	if ( !bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		// The assets might have changed since our attributes are animated

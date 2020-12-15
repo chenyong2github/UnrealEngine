@@ -134,7 +134,13 @@ void SUsdStage::SetupStageActorDelegates()
 					this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
 				}
 
-				if ( this->UsdPrimInfoWidget && ViewModel.UsdStageActor.IsValid() && SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase ) )
+				const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase );
+				const bool bViewingStageProperties = SelectedPrimPath.IsEmpty() || SelectedPrimPath == TEXT("/");
+				const bool bStageUpdated = PrimPath == TEXT("/");
+
+				if ( this->UsdPrimInfoWidget &&
+					 ViewModel.UsdStageActor.IsValid() &&
+					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 				{
 					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), *PrimPath );
 				}

@@ -121,6 +121,8 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 		return;
 	}
 
+	PointInstancerRootComponent->Modify();
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdPrim Prim = GetPrim();

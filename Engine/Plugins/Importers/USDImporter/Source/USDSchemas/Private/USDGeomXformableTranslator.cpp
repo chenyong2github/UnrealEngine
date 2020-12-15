@@ -347,6 +347,8 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 {
 	if ( SceneComponent )
 	{
+		SceneComponent->Modify();
+
 		UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
 
 		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
