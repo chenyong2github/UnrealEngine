@@ -1134,11 +1134,11 @@ public:
 		Info.SourceMipIndex = Params.SourceMip; 
 		Info.DestMipIndex = Params.DestMip;
 
-		check((Info.SourcePosition.X >= 0) && (Info.SourcePosition.Y >= 0) && (Info.DestPosition.X >= 0) && (Info.DestPosition.X >= 0));
-			check(Info.SourcePosition.X + Info.Size.X <= SourceSize.X);
+		check((Info.SourcePosition.X >= 0) && (Info.SourcePosition.Y >= 0) && (Info.DestPosition.X >= 0) && (Info.DestPosition.Y >= 0));
+		check(Info.SourcePosition.X + Info.Size.X <= SourceSize.X);
 		check(Info.SourcePosition.Y + Info.Size.Y <= SourceSize.Y);
-			check(Info.DestPosition.X + Info.Size.X <= DestSize.X);
-			check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
+		check(Info.DestPosition.X + Info.Size.X <= DestSize.X);
+		check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
 
 		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, Params.SourceAccess, ERHIAccess::CopySrc));
 		InRHICmdList.Transition(FRHITransitionInfo(Params.DestResource->TextureRHI, Params.DestAccess, ERHIAccess::CopyDest));
