@@ -99,16 +99,7 @@ public partial class Project : CommandUtils
 				}
 			}
 		}
-
-		// allow all involved platforms to hook into the agenda
-		HashSet<UnrealTargetPlatform> UniquePlatforms = new HashSet<UnrealTargetPlatform>();
-		UniquePlatforms.UnionWith(Params.ClientTargetPlatforms.Select(x => x.Type));
-		UniquePlatforms.UnionWith(Params.ServerTargetPlatforms.Select(x => x.Type));
-		foreach (UnrealTargetPlatform TargetPlatform in UniquePlatforms)
-		{
-			Platform.GetPlatform(TargetPlatform).PreBuildAgenda(UE4Build, Agenda, Params);
-		}
-
+		
 		// Build any tools we need to stage
 		if ((TargetMask & ProjectBuildTargets.UnrealPak) == ProjectBuildTargets.UnrealPak && !CommandUtils.IsEngineInstalled())
 		{
@@ -211,6 +202,16 @@ public partial class Project : CommandUtils
 				}
 			}
 		}
+
+		// allow all involved platforms to hook into the agenda
+		HashSet<UnrealTargetPlatform> UniquePlatforms = new HashSet<UnrealTargetPlatform>();
+		UniquePlatforms.UnionWith(Params.ClientTargetPlatforms.Select(x => x.Type));
+		UniquePlatforms.UnionWith(Params.ServerTargetPlatforms.Select(x => x.Type));
+		foreach (UnrealTargetPlatform TargetPlatform in UniquePlatforms)
+		{
+			Platform.GetPlatform(TargetPlatform).PreBuildAgenda(UE4Build, Agenda, Params);
+		}
+
 		UE4Build.Build(Agenda, InDeleteBuildProducts: Params.Clean, InUpdateVersionFiles: WorkingCL > 0);
 
 		if (WorkingCL > 0) // only move UAT files if we intend to check in some build products
