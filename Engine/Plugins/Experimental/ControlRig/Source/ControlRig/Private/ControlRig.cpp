@@ -461,10 +461,10 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	DrawInterface.Reset();
 	Context.DrawInterface = &DrawInterface;
 	Context.DrawContainer = &DrawContainer;
+	Context.DataSourceRegistry = GetDataSourceRegistry();
 
 	if (InState == EControlRigState::Init)
 	{
-		Context.DataSourceRegistry = GetDataSourceRegistry();
 		AbsoluteTime = DeltaTime = 0.f;
 	}
 
