@@ -161,9 +161,6 @@ public:
 	FName UBTPlatformName;
 	FString UBTPlatformString;
 
-	/** If this is set, then it is used to prepare a project for debugging */
-	FString PrepareForDebuggingOptions;
-
 	/** Whether or not the platform can use Crash Reporter */
 	bool bCanUseCrashReporter;
 

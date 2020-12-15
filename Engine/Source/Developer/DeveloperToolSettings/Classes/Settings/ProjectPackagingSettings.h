@@ -91,6 +91,32 @@ enum class EProjectPackagingBlueprintNativizationMethod : uint8
 	Exclusive
 };
 
+USTRUCT()
+struct FProjectBuildSettings
+{
+	GENERATED_BODY();
+
+	/** The name for this custom build. It will be shown in menus for selection. */
+	UPROPERTY(EditAnywhere, Category="Packaging")
+	FString Name;
+
+	/** If this build step is specific to one or more platforms, add them here by name (note: use Windows, not Win64) */
+	UPROPERTY(EditAnywhere, Category="Packaging")
+	TArray<FString> SpecificPlatforms;
+
+	/**
+	 * The commandline for BuildCookRun UAT command. Some substitutions are allowed:
+	 *   {Project} - Replaced with the path to the project's .uproject file
+	 *   {Platform} - Replaced with the platform name this is run for
+	 *   {inivalue:Config:Section:Key} - Replaced with the value for Key in Config's Section. Ex: -archivedirectory={inivalue:Engine:CustomSettings:OverrideArchiveDir}
+	 *   {iniif:Token:Config:Section:Key} - Replaced with Token if the vlaue for Key in Config's Section evaluates to True. Ex: {iniif:-iostore:/Script/UnrealEd.ProjectPackagingSettings:bUseIoStore}
+	 * Because ProjectPackagingSettings is a common section to read, if Config:Section: are not specified for 'iniif' or 'inivalue', it will use the ProjectPackagingSettings settings:
+	 *   {iniif:-iostore:bUseIoStore}
+	 */
+	UPROPERTY(EditAnywhere, Category="Packaging")
+	FString BuildCookRunParams;
+};
+
 /**
  * Implements the Editor's user settings.
  */
@@ -100,6 +126,7 @@ class DEVELOPERTOOLSETTINGS_API UProjectPackagingSettings
 {
 	GENERATED_UCLASS_BODY()
 
+	
 	/**
 	 * This class was moved from UnrealEd module, but to allow it to be used by developer tools, like UFE, it has moved to this module.
 	 * However, for back-compat, we want to use the old name in the ini files, so that everything works without needing to touch every
@@ -469,6 +496,11 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Additional Non-Asset Directories To Copy for dedicated server only", RelativeToGameContentDir))
 	TArray<FDirectoryPath> DirectoriesToAlwaysStageAsNonUFSServer;	
 
+	/**
+	 * A list of custom builds that will show up in the Platforms menu to allow customized builds that make sense for your project. Will show up near Package Project in the Platforms menu.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Packaging, meta=(DisplayName = "Additional builds for this project."))
+	TArray<FProjectBuildSettings> ExtraProjectBuilds;
 
 
 	/**
@@ -489,9 +521,12 @@ private:
 	UPROPERTY(config)
 	TMap<FName, FName> PerPlatformTargetPlatformName;
 
-		/** Helper array used to mirror Blueprint asset selections across edits */
+	/** Helper array used to mirror Blueprint asset selections across edits */
 	TArray<FFilePath> CachedNativizeBlueprintAssets;
 	
+	/** THe platform to LoadConfig for to get platform-specific packaging settings */
+	FString ConfigPlatform;
+
 public:
 
 	// UObject Interface
@@ -519,6 +554,23 @@ public:
 
 	/** Gets the current build target, checking that it's valid, and the default build target if it is not */
 	const FTargetInfo* GetBuildTargetInfo() const;
+
+	/** For non-default object instances, this will LoadConfig for a specific platform,*/
+	void LoadSettingsForPlatform(FString PlatformName)
+	{
+		ConfigPlatform = PlatformName;
+		LoadConfig();
+	}
+
+	FString GetConfigPlatform() const
+	{
+		return ConfigPlatform;
+	}
+
+	virtual const TCHAR* GetConfigOverridePlatform() const override
+	{
+		return ConfigPlatform.Len() ? *ConfigPlatform : Super::GetConfigOverridePlatform();
+	}
 
 private:
 	/** Fix up cooking paths after they've been edited or laoded */

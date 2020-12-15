@@ -276,7 +276,6 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetString(IniFile, TEXT("TutorialPath"), Info.SDKTutorial);
 	DDPIGetName(IniFile, TEXT("PlatformGroupName"), Info.PlatformGroupName);
 	DDPIGetName(IniFile, TEXT("PlatformSubMenu"), Info.PlatformSubMenu);
-	DDPIGetString(IniFile, TEXT("PrepareForDebuggingOptions"), Info.PrepareForDebuggingOptions);
 
 
 	DDPIGetString(IniFile, TEXT("NormalIconPath"), Info.IconPaths.NormalPath);
@@ -439,6 +438,10 @@ const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(
 {
 	const FDataDrivenPlatformInfo* Info = GetAllPlatformInfos().Find(PlatformName);
 	static FDataDrivenPlatformInfo Empty;
+	if (Info == nullptr && PlatformName == "Win64")
+	{
+		Info = GetAllPlatformInfos().Find("Windows");
+	}
 	return Info ? *Info : Empty;
 }
 

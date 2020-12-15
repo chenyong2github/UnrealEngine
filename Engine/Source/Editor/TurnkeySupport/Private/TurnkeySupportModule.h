@@ -13,20 +13,13 @@ class FTurnkeySupportModule	: public ITurnkeySupportModule
 {
 public:
 
-	/**
-	 *
-	 * @return	The newly-created menu widget
-	 */
-	virtual TSharedRef<class SWidget> MakeTurnkeyMenu() const override;
+	virtual void MakeTurnkeyMenu(struct FToolMenuSection& MenuSection) const override;
+	virtual void MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuickLaunchSelected ExternalOnClickDelegate) const override;
+	virtual void RepeatQuickLaunch(FString DeviceId) override;
 
-	/**
-	 * @return	The newly-created menu widget
-	 */
+
+
 	virtual void UpdateSdkInfo() override;
-
-	/**
-	 * Runs Turnkey to get the Sdk information for a list of devices
-	 */
 	virtual void UpdateSdkInfoForDevices(TArray<FString> DeviceIds) override;
 
 	virtual FTurnkeySdkInfo GetSdkInfo(FName PlatformName, bool bBlockIfQuerying = true) const override;
@@ -52,4 +45,7 @@ private:
 	// Information about the validity of each connected device (by string, discovered by Turnkey)
 	TMap<FString, FTurnkeySdkInfo> PerDeviceSdkInfo;
 
+
+	// menu helpers
+	TSharedRef<SWidget> MakeTurnkeyMenuWidget() const;
 };

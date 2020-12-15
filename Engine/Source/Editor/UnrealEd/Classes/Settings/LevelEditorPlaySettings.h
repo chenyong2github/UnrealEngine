@@ -80,6 +80,9 @@ enum EPlayModeType
 	/** Simulates in viewport without possessing the player. */
 	PlayMode_Simulate,
 
+	/** Runs the last launched device (from Platforms menu) */
+	PlayMode_QuickLaunch,
+
 	/** The number of different Play Modes. */
 	PlayMode_Count,
 };

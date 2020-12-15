@@ -108,9 +108,6 @@ public:
 	TSharedPtr<FUICommandInfo> StepOut;
 	TSharedPtr<FUICommandInfo> GetMouseControl;
 
-	/** Launch on device */
-	TSharedPtr<FUICommandInfo> RepeatLastLaunch;
-
 protected:
 
 	/** A weak pointer to the current active widget that processes PIE actions */

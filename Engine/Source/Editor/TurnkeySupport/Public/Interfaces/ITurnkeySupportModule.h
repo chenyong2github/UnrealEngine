@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Modules/ModuleManager.h"
 
 class SWidget;
 
@@ -29,7 +30,13 @@ struct FTurnkeySdkInfo
 	FString AutoSDKVersion; // only valid for platform, not device
 	FString MinAllowedVersion;
 	FString MaxAllowedVersion;
+	bool bCanInstallFullSdk;
+	bool bCanInstallAutoSdk;
 };
+
+
+
+DECLARE_DELEGATE_OneParam(FOnQuickLaunchSelected, FString);
 
 
 /**
@@ -41,12 +48,22 @@ class ITurnkeySupportModule
 public:
 
 	/**
-	 * Runs Turnkey to get the Sdk information for all known platforms
+	 * Make a Platforms menu in the given MenuSection
 	 */
-	virtual TSharedRef<SWidget> MakeTurnkeyMenu() const = 0;
+	virtual void MakeTurnkeyMenu(struct FToolMenuSection& MenuSection) const = 0;
 
 	/**
-	 * @return	The newly-created menu widget
+	 * Make menu items for Quick Launch, so they can be added to the Play menu
+	 */
+	virtual void MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuickLaunchSelected ExternalOnClickDelegate) const = 0;
+
+	/**
+	 * Runs Turnkey to get the Sdk information for all known platforms
+	 */
+	virtual void RepeatQuickLaunch(FString DeviceId) = 0;
+
+	/**
+	 * Runs Turnkey to get the Sdk information for all known platforms
 	 */
 	virtual void UpdateSdkInfo() = 0;
 

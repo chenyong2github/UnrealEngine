@@ -156,11 +156,6 @@ public:
 
 	static void HandleShowSDKTutorial(FString PlatformName, FString NotInstalledDocLink);
 
-	static void RepeatLastLaunch_Clicked();
-	static bool RepeatLastLaunch_CanExecute();
-	static FText GetRepeatLastLaunchToolTip();
-	static FSlateIcon GetRepeatLastLaunchIcon();
-
 	static FSlateIcon GetResumePlaySessionImage();
 	static FText GetResumePlaySessionToolTip();
 	static void StopPlaySession_Clicked();
@@ -353,9 +348,6 @@ void FPlayWorldCommands::RegisterCommands()
 	UI_COMMAND(StepOver, "Step Over", "Step to the next node to be executed in the current graph", EUserInterfaceActionType::Button, FInputChord(EKeys::F10));
 	UI_COMMAND(StepOut, "Step Out", "Step Out to the next node to be executed in the parent graph", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::F11));
 
-	// Launch
-	UI_COMMAND(RepeatLastLaunch, "Launch", "Launches the game on the device as the last session launched from the dropdown next to the Play on Device button on the level editor toolbar", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Alt | EModifierKey::Shift))
-
 	// PIE mobile preview devices.
 	AddPIEPreviewDeviceCommands();
 }
@@ -471,15 +463,6 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 
 	ActionList.MapAction(Commands.PlayInSettings,
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::PlayInSettings_Clicked)
-	);
-
-	// Launch
-
-	ActionList.MapAction(Commands.RepeatLastLaunch,
-		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked),
-		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_CanExecute),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions)
 	);
 
 
@@ -630,34 +613,7 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 
 	if (bIncludeLaunchButtonAndOptions)
 	{
-		InSection.AddDynamicEntry("LaunchButtons", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InDynamicSection)
-		{
-			if (GetDefault<UEditorStyleSettings>()->bShowLaunchMenus)
-			{
-				// Launch
-				InDynamicSection.AddEntry(FToolMenuEntry::InitToolBarButton(
-					FPlayWorldCommands::Get().RepeatLastLaunch,
-					LOCTEXT("RepeatLastLaunch", "Launch"),
-					TAttribute< FText >::Create(TAttribute< FText >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip)),
-					TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon)),
-					FName(TEXT("RepeatLastLaunch"))
-				));
-
-				// Launch combo box
-				FUIAction LaunchMenuAction;
-				LaunchMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
-
-				InDynamicSection.AddEntry(FToolMenuEntry::InitComboButton(
-					"TurnkeyCombo",
-					LaunchMenuAction,
-					FOnGetContent::CreateLambda([] { return ITurnkeySupportModule::Get().MakeTurnkeyMenu(); }),
-					LOCTEXT("LaunchCombo_Label", "Launch Options"),
-					LOCTEXT("PlayWithTurnkeyComboToolTip", "Options for launching on a device and manage platforms"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
-					true
-				));
-			}
-		}));
+		ITurnkeySupportModule::Get().MakeTurnkeyMenu(InSection);
 	}
 
 	// Resume/pause toggle (only one will be visible, and only in PIE/SIE)
@@ -816,6 +772,33 @@ static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
 	}
 }
 
+void SetLastExecutedPlayMode(EPlayModeType PlayMode)
+{
+	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
+	PlaySettings->LastExecutedPlayModeType = PlayMode;
+
+	FPropertyChangedEvent PropChangeEvent(ULevelEditorPlaySettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, LastExecutedPlayModeType)));
+	PlaySettings->PostEditChangeProperty(PropChangeEvent);
+
+	PlaySettings->SaveConfig();
+}
+
+
+static void RememberQuickLaunch(FString DeviceId)
+{
+	// remember that clicking Play should launch
+	SetLastExecutedPlayMode(EPlayModeType::PlayMode_QuickLaunch);
+
+	// store the device name in the play settings for next click/run
+	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
+
+	PlaySettings->LastExecutedLaunchName = DeviceId;
+
+	FPropertyChangedEvent PropChangeEvent(ULevelEditorPlaySettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, LastExecutedLaunchName)));
+	PlaySettings->PostEditChangeProperty(PropChangeEvent);
+	PlaySettings->SaveConfig();
+}
+
 TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUICommandList> InCommandList)
 {
 	static const FName MenuName("UnrealEd.PlayWorldCommands.PlayMenu");
@@ -892,14 +875,18 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 			FLocal::AddPlayModeMenuEntry(Section, PlayMode_Simulate);
 		}
 
+		// quick launch on devices
+ 		ITurnkeySupportModule::Get().MakeQuickLaunchItems(Menu, FOnQuickLaunchSelected::CreateStatic(&RememberQuickLaunch));
+
 		// tip section
 		{
 			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayTip");
+			Section.AddSeparator(NAME_None);
 			Section.AddEntry(FToolMenuEntry::InitWidget(
 				"PlayIn",
 				SNew(STextBlock)
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-				.Text(LOCTEXT("PlayInTip", "Launching a game preview with a different mode will change your default 'Play' mode in the toolbar"))
+				.Text(LOCTEXT("PlayInTip", "Launching a game (preview or on device) with a different mode will change your default 'Play' mode in the toolbar"))
 				.WrapTextAt(250),
 				FText::GetEmpty()));
 		}
@@ -1151,17 +1138,6 @@ bool FInternalPlayWorldCommandCallbacks::CanShowLateJoinButton()
 	return GetDefault<UEditorExperimentalSettings>()->bAllowLateJoinInPIE && HasPlayWorld();
 }
 
-void SetLastExecutedPlayMode(EPlayModeType PlayMode)
-{
-	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-	PlaySettings->LastExecutedPlayModeType = PlayMode;
-
-	FPropertyChangedEvent PropChangeEvent(ULevelEditorPlaySettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, LastExecutedPlayModeType)));
-	PlaySettings->PostEditChangeProperty(PropChangeEvent);
-
-	PlaySettings->SaveConfig();
-}
-
 
 void FInternalPlayWorldCommandCallbacks::Simulate_Clicked()
 {
@@ -1352,32 +1328,65 @@ void SetLastExecutedLaunchMode(ELaunchModeType LaunchMode)
 
 void FInternalPlayWorldCommandCallbacks::RepeatLastPlay_Clicked()
 {
-	// Let a game have a go at settings before we play
 	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	PlaySettings->PostEditChange();
 
-	// Grab the play command and execute it
-	TSharedRef<FUICommandInfo> LastCommand = GetLastPlaySessionCommand();
-	UE_LOG(LogDebuggerCommands, Log, TEXT("Repeating last play command: %s"), *LastCommand->GetLabel().ToString());
+	// hand over to Turnkey module
+	if (PlaySettings->LastExecutedPlayModeType == EPlayModeType::PlayMode_QuickLaunch)
+	{
+		ITurnkeySupportModule::Get().RepeatQuickLaunch(PlaySettings->LastExecutedLaunchName);
+	}
+	else
+	{
+		// Grab the play command and execute it
+		TSharedRef<FUICommandInfo> LastCommand = GetLastPlaySessionCommand();
+		UE_LOG(LogDebuggerCommands, Log, TEXT("Repeating last play command: %s"), *LastCommand->GetLabel().ToString());
 
-	FPlayWorldCommands::GlobalPlayWorldActions->ExecuteAction(LastCommand);
+		FPlayWorldCommands::GlobalPlayWorldActions->ExecuteAction(LastCommand);
+	}
 }
 
 
 bool FInternalPlayWorldCommandCallbacks::RepeatLastPlay_CanExecute()
 {
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+	if (PlaySettings->LastExecutedPlayModeType == EPlayModeType::PlayMode_QuickLaunch)
+	{
+		// return true, and let Turnkey module determine if it's still usable, and show an error if not
+		return true;
+	}
+
 	return FPlayWorldCommands::GlobalPlayWorldActions->CanExecuteAction(GetLastPlaySessionCommand());
 }
 
 
 FText FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayToolTip()
 {
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+	if (PlaySettings->LastExecutedPlayModeType == EPlayModeType::PlayMode_QuickLaunch)
+	{
+		// @todo make a proper tooltip!
+		return FText::FromString(PlaySettings->LastExecutedLaunchName);
+	}
+
 	return GetLastPlaySessionCommand()->GetDescription();
 }
 
 
 FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon()
 {
+	// get platform icon for Quick Launch mode
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+	if (PlaySettings->LastExecutedPlayModeType == EPlayModeType::PlayMode_QuickLaunch)
+	{
+		FTargetDeviceId DeviceId;
+		FTargetDeviceId::Parse(PlaySettings->LastExecutedLaunchName, DeviceId);
+
+		// get platform name from DeviceId
+		
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(DeviceId.GetPlatformName()).GetIconStyleName(EPlatformIconSize::Large));
+	}
+
 	return GetLastPlaySessionCommand()->GetIcon();
 }
 
@@ -1922,367 +1931,6 @@ EPlayModeLocations FInternalPlayWorldCommandCallbacks::GetPlayModeLocation()
 
 
 
-
-
-
-
-
-
-
-
-/////// Will move these into TurnkeySupportModule soon:
-
-
-
-bool FInternalPlayWorldCommandCallbacks::CanLaunchOnDevice(const FString& DeviceName)
-{
-	if (!GUnrealEd->IsPlayingViaLauncher())
-	{
-		static TWeakPtr<ITargetDeviceProxyManager> DeviceProxyManagerPtr;
-
-		if (!DeviceProxyManagerPtr.IsValid())
-		{
-			ITargetDeviceServicesModule* TargetDeviceServicesModule = FModuleManager::Get().LoadModulePtr<ITargetDeviceServicesModule>(TEXT("TargetDeviceServices"));
-			if (TargetDeviceServicesModule)
-			{
-				DeviceProxyManagerPtr = TargetDeviceServicesModule->GetDeviceProxyManager();
-			}
-		}
-
-		TSharedPtr<ITargetDeviceProxyManager> DeviceProxyManager = DeviceProxyManagerPtr.Pin();
-		if (DeviceProxyManager.IsValid())
-		{
-			TSharedPtr<ITargetDeviceProxy> DeviceProxy = DeviceProxyManager->FindProxy(DeviceName);
-			if (DeviceProxy.IsValid() && DeviceProxy->IsConnected() && DeviceProxy->IsAuthorized())
-			{
-				return true;
-			}
-
-			// check if this is an aggregate proxy
-			TArray<TSharedPtr<ITargetDeviceProxy>> Devices;
-			DeviceProxyManager->GetProxies(FName(*DeviceName), false, Devices);
-
-			// returns true if the game can be launched al least on 1 device
-			for (auto DevicesIt = Devices.CreateIterator(); DevicesIt; ++DevicesIt)
-			{
-				TSharedPtr<ITargetDeviceProxy> DeviceAggregateProxy = *DevicesIt;
-				if (DeviceAggregateProxy.IsValid() && DeviceAggregateProxy->IsConnected() && DeviceAggregateProxy->IsAuthorized())
-				{
-					return true;
-				}
-			}
-
-		}
-	}
-
-	return false;
-}
-
-
-void FInternalPlayWorldCommandCallbacks::LaunchOnDevice(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey)
-{
-	FTargetDeviceId TargetDeviceId;
-	if (FTargetDeviceId::Parse(DeviceId, TargetDeviceId))
-	{
-		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*TargetDeviceId.GetPlatformName());
-		FString UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
-		FString IniPlatformName = PlatformInfo->IniPlatformName.ToString();
-
-		check(PlatformInfo);
-
-		if (FInstalledPlatformInfo::Get().IsPlatformMissingRequiredFile(UBTPlatformName))
-		{
-			if (!FInstalledPlatformInfo::OpenInstallerOptions())
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MissingPlatformFilesLaunch", "Missing required files to launch on this platform."));
-			}
-			return;
-		}
-
-		if (FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").ShowUnsupportedTargetWarning(*TargetDeviceId.GetPlatformName()))
-		{
-			GUnrealEd->CancelPlayingViaLauncher();
-
-			FRequestPlaySessionParams::FLauncherDeviceInfo DeviceInfo;
-			DeviceInfo.DeviceId = DeviceId;
-			DeviceInfo.DeviceName = DeviceName;
-			// @todo turnkey: we set this to false because we will kick off a Turnkey run before cooking, etc, to get an early warning. however, if it's too difficult
-			// to get an error back from CreateUatTask, then we should set this to bUseTurnkey and remove the block below, and let the code in FLauncherWorker::CreateAndExecuteTasks handle it
-			DeviceInfo.bUpdateDeviceFlash = false;
-
-			FRequestPlaySessionParams SessionParams;
-			SessionParams.SessionDestination = EPlaySessionDestinationType::Launcher;
-			SessionParams.LauncherTargetDevice = DeviceInfo;
-
-			// if we want to check device flash before we start cooking, kick it off now. we could delay this 
-			if (bUseTurnkey)
-			{
-				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex"), *UBTPlatformName, *DeviceName);
-				FText TaskName = LOCTEXT("VerifyingSDK", "Verifying SDK and Device");
-
-				IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
-					[SessionParams](FString Result, double)
-				{
-					// unfortunate string comparison for success
-					bool bWasSuccessful = Result == TEXT("Completed");
-					AsyncTask(ENamedThreads::GameThread, [SessionParams, bWasSuccessful]()
-					{
-						if (bWasSuccessful)
-						{
-							GUnrealEd->RequestPlaySession(SessionParams);
-						}
-						else
-						{
-							TSharedRef<SWindow> Win = OpenMsgDlgInt_NonModal(EAppMsgType::YesNo, LOCTEXT("SDKCheckFailed", "SDK Verification failed. Would you like to attempt the Launch On anyway?"), LOCTEXT("SDKCheckFailedTitle", "SDK Verification"),
-								FOnMsgDlgResult::CreateLambda([SessionParams](const TSharedRef<SWindow>&, EAppReturnType::Type Choice)
-							{
-								if (Choice == EAppReturnType::Yes)
-								{
-									GUnrealEd->RequestPlaySession(SessionParams);
-								}
-							}));
-							Win->ShowWindow();
-						}
-					});
-				});
-			}
-			else
-			{
-				GUnrealEd->RequestPlaySession(SessionParams);
-			}
-		}
-	}
-}
-
-
-void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		if (FParse::Param(FCommandLine::Get(), TEXT("OldLaunchOn")))
-		{
-			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
-			{
-				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, false);
-			}
-		}
-		else
-		{
-			// @todo turnkey - remove this function completely and all the platform support, and put it into Turnkey
-//			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
-			{
-				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, true);
-			}
-		}
-
-
-		break;
-
-	default:
-		break;
-	}
-}
-
-
-bool FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_CanExecute()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		return CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName);
-
-	default:
-		return false;
-	}
-}
-
-
-FText FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		if (CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName))
-		{
-			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("DeviceName"), FText::FromString(PlaySettings->LastExecutedLaunchName));
-
-			return FText::Format(LOCTEXT("RepeatLaunchTooltip", "Launch this level on {DeviceName}"), Arguments);
-		}
-
-		break;
-
-	default:
-		break;
-	}
-
-	return LOCTEXT("RepeatLaunchSelectOptionToolTip", "Select a play-on target from the combo menu");
-}
-
-
-FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	// @todo gmp: add play mode specific icons
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		break;
-	}
-
-	static FName RepeatLastLaunchIcon("PlayWorld.RepeatLastLaunch");
-
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), RepeatLastLaunchIcon);
-}
-
-bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceId)
-{
-	int32 Index = 0;
-	DeviceId.FindChar(TEXT('@'), Index);
-	FName PlatformName = FName(*DeviceId.Left(Index));
-
-	const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
-	checkf(PlatformInfo, TEXT("Unable to find PlatformInfo for %s"), *PlatformName.ToString());
-
-	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
-	bool bHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
-
-	if (ITurnkeySupportModule::Get().GetSdkInfo(PlatformName).Status!= ETurnkeyPlatformSdkStatus::Valid)
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
-		TArray<FAnalyticsEventAttribute> ParamArray;
-		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
-		FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Failed"), PlatformInfo->Name.ToString(), bHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
-		return false;
-	}
-
-	const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName);
-	if (Platform)
-	{
-		FString NotInstalledTutorialLink;
-		FString DocumentationLink;
-		FText CustomizedLogMessage;
-
-		EBuildConfiguration BuildConfiguration = GetDefault<ULevelEditorPlaySettings>()->GetLaunchBuildConfiguration();
-		bool bEnableAssetNativization = false;
-		int32 Result = Platform->CheckRequirements(bHasCode, BuildConfiguration, bEnableAssetNativization, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
-
-		// report to analytics
-		FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.LaunchOn.Failed"), PlatformName.ToString(), bHasCode, Result);
-
-		// report to message log
-		bool UnrecoverableError = false;
-
-		if ((Result & ETargetPlatformReadyStatus::SDKNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("SdkNotFoundMessage", "Software Development Kit (SDK) not found."),
-				CustomizedLogMessage.IsEmpty() ? FText::Format(LOCTEXT("SdkNotFoundMessageDetail", "Please install the SDK for the {0} target platform!"), Platform->DisplayName()) : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::LicenseNotAccepted) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("LicenseNotAcceptedMessage", "License not accepted."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("LicenseNotAcceptedMessageDetail", "License must be accepted in project settings to deploy your app to the device.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::ProvisionNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("ProvisionNotFoundMessage", "Provision not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ProvisionNotFoundMessageDetail", "A provision is required for deploying your app to the device.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::SigningKeyNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("SigningKeyNotFoundMessage", "Signing key not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("SigningKeyNotFoundMessageDetail", "The app could not be digitally signed, because the signing key is not configured.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::ManifestNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("ManifestNotFound", "Manifest not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ManifestNotFoundMessageDetail", "The generated application manifest could not be found.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::RemoveServerNameEmpty) != 0
-			&& (bHasCode || (Result & ETargetPlatformReadyStatus::CodeBuildRequired)
-				|| (!FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled())))
-		{
-			AddMessageLog(
-				LOCTEXT("RemoveServerNameNotFound", "Remote compiling requires a server name. "),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("RemoveServerNameNotFoundDetail", "Please specify one in the Remote Server Name settings field.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-			UnrecoverableError = true;
-		}
-
-		if (UnrecoverableError)
-		{
-			return false;
-		}
-
-		// report to main frame
-		if ((Result & ETargetPlatformReadyStatus::CodeUnsupported) != 0)
-		{
-			// show the message
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_CodeBased", "Sorry, launching a code-based project for the selected platform is currently not supported. This feature may be available in a future release."));
-			return false;
-		}
-		if ((Result & ETargetPlatformReadyStatus::PluginsUnsupported) != 0)
-		{
-			// show the message
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_Plugins", "Sorry, launching a project with third-party plugins is currently not supported for the selected platform. This feature may be available in a future release."));
-			return false;
-		}
-	}
-	else
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
-		return false;
-	}
-
-	return true;
-}
 
 
 

@@ -19,7 +19,8 @@
 #include "ISettingsModule.h"
 #include "ISettingsEditorModule.h"
 #include "Settings/EditorExperimentalSettings.h"
-
+#include "Interfaces/IMainFrameModule.h"
+#include "ToolMenus.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FTurnkeyEditorSupport"
@@ -42,19 +43,25 @@ FString FTurnkeyEditorSupport::GetUATOptions()
 }
 
 
-void FTurnkeyEditorSupport::AddEditorOptions(FMenuBuilder& MenuBuilder)
+void FTurnkeyEditorSupport::AddEditorOptions(FToolMenuSection& Section)
 {
 #if WITH_EDITOR
-	MenuBuilder.AddSeparator();
+	Section.AddSeparator(NAME_None);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		NAME_None,
 		LOCTEXT("OpenPackagingSettings", "Packaging Settings..."),
 		LOCTEXT("OpenPackagingSettings_ToolTip", "Opens the settings for project packaging."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon"),
 		FUIAction(FExecuteAction::CreateLambda([] { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Project", "Packaging"); }))
 	);
 
-	FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+	// use AddDynamicEntry to be able to get a MenuBuilder for external code that needs one
+	Section.AddDynamicEntry(NAME_None, FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* Menu)
+		{
+			FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+		})
+	);
 #endif
 }
 
@@ -204,6 +211,17 @@ bool FTurnkeyEditorSupport::CheckSupportedPlatforms(FName IniPlatformName)
 #endif
 
 	return true;
+}
+
+void FTurnkeyEditorSupport::ShowInstallationHelp(FName IniPlatformName, FString DocLink)
+{
+#if WITH_EDITOR
+	// broadcast this, and assume someone will pick it up
+	IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+	MainFrameModule.BroadcastMainFrameSDKNotInstalled(IniPlatformName.ToString(), DocLink);
+#else
+	unimplemented();
+#endif
 }
 
 
