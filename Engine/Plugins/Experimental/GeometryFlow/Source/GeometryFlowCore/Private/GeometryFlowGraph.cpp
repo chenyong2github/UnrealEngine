@@ -242,3 +242,60 @@ EGeometryFlowResult FGraph::SetNodeCachingStrategy(FHandle NodeHandle, ENodeCach
 	Found->CachingStrategy = Strategy;
 	return EGeometryFlowResult::Ok;
 }
+
+
+FString FGraph::DebugDumpGraph(TFunction<bool(TSafeSharedPtr<FNode>)> IncludeNodeFn) const
+{
+	// Can be used by, e.g., https://csacademy.com/app/graph_editor/
+
+	FString Out;
+
+	// First, all node names
+	for (const TPair<FHandle, FNodeInfo>& NodeHandleAndInfo : AllNodes)
+	{
+		if (!NodeHandleAndInfo.Value.Node)
+		{ 
+			return "Error"; 
+		}
+			
+		if (!IncludeNodeFn(NodeHandleAndInfo.Value.Node))
+		{ 
+			continue; 
+		}		
+
+		FString NodeName = NodeHandleAndInfo.Value.Node->GetIdentifier();
+		Out += NodeName + "\n";
+	}
+
+	// Second, connections by node name
+	for (const FConnection& Connection : Connections)
+	{
+		FHandle FromHandle = Connection.FromNode;
+		if (!AllNodes.Find(FromHandle) || !AllNodes.Find(FromHandle)->Node) 
+		{ 
+			return "Error"; 
+		}
+
+		TSafeSharedPtr<FNode> FromNode = AllNodes.Find(FromHandle)->Node;
+		if (!IncludeNodeFn(FromNode))
+		{
+			continue;
+		}
+
+		FHandle ToHandle = Connection.ToNode;
+		if (!AllNodes.Find(ToHandle) || !AllNodes.Find(ToHandle)->Node) 
+		{ 
+			return "Error"; 
+		}
+
+		TSafeSharedPtr<FNode> ToNode = AllNodes.Find(ToHandle)->Node;
+		if (!IncludeNodeFn(ToNode))
+		{ 
+			continue; 
+		}
+
+		Out += FromNode->GetIdentifier() + " " + ToNode->GetIdentifier() + "\n";
+	}
+
+	return Out;
+}

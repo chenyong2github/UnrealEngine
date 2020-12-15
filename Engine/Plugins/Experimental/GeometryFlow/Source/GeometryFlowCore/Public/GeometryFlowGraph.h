@@ -144,7 +144,8 @@ public:
 	void ConfigureCachingStrategy(ENodeCachingStrategy NewStrategy);
 	EGeometryFlowResult SetNodeCachingStrategy(FHandle NodeHandle, ENodeCachingStrategy Strategy);
 
-	
+	FString DebugDumpGraph(TFunction<bool(TSafeSharedPtr<FNode>)> IncludeNodeFn) const;
+
 protected:
 
 	friend class FGeometryFlowExecutor;

@@ -399,8 +399,6 @@ void FGenerateMeshLODGraph::BuildGraph()
 	Graph->InferConnection(BakeNormalMapSettingsNode, BakeNormalMapNode);
 
 
-	Graph->AddNodeOfType<FMeshDeleteTrianglesNode>(TEXT("TestDeleteTrisNode"));
-
 	// collision generation
 
 	FGraph::FHandle IgnoreGroupsForCollisionNode = Graph->AddNodeOfType<FIndexSetsSourceNode>(TEXT("CollisionIgnoreGroups"));
@@ -477,6 +475,14 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	FGenerateConvexHullsCollisionSettings GenConvexesSettings;
 	UpdateGenerateConvexCollisionSettings(GenConvexesSettings);
+
+
+	//FString GraphDump = Graph->DebugDumpGraph([](TSafeSharedPtr<FNode> Node)
+	//{
+	//	return !Node->GetIdentifier().EndsWith("Settings");
+	//});
+	//UE_LOG(LogTemp, Warning, TEXT("GRAPH:\n%s"), *GraphDump);
+
 }
 
 
