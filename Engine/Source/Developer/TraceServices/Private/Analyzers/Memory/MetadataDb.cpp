@@ -3,8 +3,6 @@
 #include "MetadataDb.h"
 #include "Support.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace Trace {
 namespace TraceServices {
 
