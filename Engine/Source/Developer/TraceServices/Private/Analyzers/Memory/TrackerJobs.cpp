@@ -265,7 +265,7 @@ void LaneRetireeJob(FRetireeJobData* Data)
 			return LhsDepth < RhsDepth;
 		}
 
-		return Lhs.GetBiasedSerial() < Rhs.GetBiasedSerial();
+		return Lhs.GetEndSerialBiased() < Rhs.GetEndSerialBiased();
 	};
 
 	TArrayView<FRetiree> Range(Retirees->Items, Retirees->Num);
