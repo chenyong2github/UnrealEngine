@@ -18,6 +18,7 @@
 #include "AssetData.h"
 #include "Async/ParallelFor.h"
 #include "Engine/StaticMesh.h"
+#include "HAL/PlatformFileManager.h"
 #include "IStaticMeshEditor.h"
 #include "StaticMeshAttributes.h"
 #include "Misc/FileHelper.h"
@@ -47,6 +48,19 @@ bool FCoreTechRetessellate_Impl::CanApplyOnAssets(const TArray<FAssetData>& Sele
 void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
 {
 #ifdef CAD_LIBRARY
+	TFunction<void(UStaticMesh*)> FinalizeChanges = [](UStaticMesh* StaticMesh) -> void
+	{
+		StaticMesh->PostEditChange();
+		StaticMesh->MarkPackageDirty();
+
+		// Refresh associated editor
+		TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
+		if (IStaticMeshEditor* StaticMeshEditorInUse = StaticCastSharedPtr<IStaticMeshEditor>(EditingToolkit).Get())
+		{
+			StaticMeshEditorInUse->RefreshTool();
+		}
+	};
+
 	TStrongObjectPtr<UCoreTechRetessellateActionOptions> RetessellateOptions = Datasmith::MakeOptions<UCoreTechRetessellateActionOptions>();
 
 	bool bSameOptionsForAll = false;
@@ -126,6 +140,10 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 						{
 							TessellatedMeshes.Add(StaticMesh);
 						}
+						else
+						{
+							FinalizeChanges(StaticMesh);
+						}
 					}
 				}
 			}
@@ -149,15 +167,7 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 
 	for(UStaticMesh* StaticMesh : TessellatedMeshes)
 	{
-		StaticMesh->PostEditChange();
-		StaticMesh->MarkPackageDirty();
-
-		// Refresh associated editor
-		TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
-		if (IStaticMeshEditor* StaticMeshEditorInUse = StaticCastSharedPtr<IStaticMeshEditor>(EditingToolkit).Get())
-		{
-			StaticMeshEditorInUse->RefreshTool();
-		}
+		FinalizeChanges(StaticMesh);
 	}
 
 #endif // CAD_LIBRARY
@@ -168,8 +178,10 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	bool bSuccessfulTessellation = false;
 
 #ifdef CAD_LIBRARY
-	// make a temporary file as GPure can only deal with files.
-	FString ResourceFile = CoreTechData.SourceFile.IsEmpty() ? FPaths::ProjectIntermediateDir() / "temp.ct" : CoreTechData.SourceFile;
+	// make a temporary file as CoreTech can only deal with files.
+	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
+	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.ct"), Hash));
+
 	FFileHelper::SaveArrayToFile(CoreTechData.RawData, *ResourceFile);
 
 	CADLibrary::CoreTechMeshLoader Loader;
@@ -225,6 +237,9 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 			bSuccessfulTessellation = true;
 		}
 	}
+
+	// Remove temporary file
+	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*ResourceFile);
 #endif // CAD_LIBRARY
 
 	return bSuccessfulTessellation;
