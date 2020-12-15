@@ -858,6 +858,9 @@ namespace UnrealBuildTool
 			set { bUseUnityBuildOverride = value; }
 		}
 
+		/// <summary>
+		/// Whether to unify C++ code into larger files for faster compilation.
+		/// </summary>
 		[CommandLine("-DisableUnity", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(bUseUnityBuild))]
 		bool? bUseUnityBuildOverride = null;
