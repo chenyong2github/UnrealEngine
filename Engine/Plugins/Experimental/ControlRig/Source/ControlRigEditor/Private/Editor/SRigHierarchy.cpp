@@ -1570,6 +1570,7 @@ void SRigHierarchy::HandleDeleteItem()
 						}
 						Hierarchy->BoneHierarchy.Remove(SelectedKey.Name);
 					}
+					RemovedItems.Add(SelectedKey);
 					break;
 				}
 				case ERigElementType::Control:
@@ -1578,6 +1579,7 @@ void SRigHierarchy::HandleDeleteItem()
 					{
 						Hierarchy->ControlHierarchy.Remove(SelectedKey.Name);
 					}
+					RemovedItems.Add(SelectedKey);
 					break;
 				}
 				case ERigElementType::Space:
@@ -1586,15 +1588,14 @@ void SRigHierarchy::HandleDeleteItem()
 					{
 						Hierarchy->SpaceHierarchy.Remove(SelectedKey.Name);
 					}
+					RemovedItems.Add(SelectedKey);
 					break;
 				}
 				default:
 				{
-					return;
+					break;
 				}
-			}
-
-			RemovedItems.Add(SelectedKey);
+			} 
 		}
 
 		for (const FRigElementKey& RemovedItem : RemovedItems)
