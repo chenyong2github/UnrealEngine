@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/Map.h"
 
 namespace Trace {
@@ -30,53 +31,51 @@ private:
 	struct FEntryInternal
 	{
 		bool			operator == (const FEntryInternal& Rhs) const;
-		uint32			Id;
-		uint32			Size;
-		union
-		{
-			uint64		Owner;
-			struct
-			{
-				uint8	_Padding[7];
-				uint8	Alignment_SizeTribble; // alignment = pow2
-			};
-		};
+		uint64			Owner;
+		uint64			Size;
+		uint32			Tag;
+		uint16			Alignment;
+		uint8			bIsRealloc	: 1;
+		uint8			_Padding0	: 7;
+		uint8			_Padding1;
 	};
 
-	typedef TMap<uint32, FEntryInternal> MetadataMap;
+	using MetadataMap	= TMap<uint32, uint32>;
+	using MetadataArray	= TArray<FEntryInternal>;
 
 	static uint64		Remix(uint64 Id);
 	uint32				AddInternal(uint64 Id, const FEntryInternal& Entry);
 	uint32				Collisions = 0;
 	MetadataMap			Map;
+	MetadataArray		Entries;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 inline uint64 FMetadataDb::FEntry::GetOwner() const
 {
 	const auto* Internal = (FEntryInternal*)this;
-	return Internal->Owner & 0x00ff'ffff'ffff'ffff;
+	return Internal->Owner;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline uint64 FMetadataDb::FEntry::GetSize() const
 {
 	const auto* Internal = (FEntryInternal*)this;
-	return (uint64(Internal->Size) << 3) + (Internal->Alignment_SizeTribble & 0x07);
+	return Internal->Size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline uint32 FMetadataDb::FEntry::GetAlignment() const
 {
 	const auto* Internal = (FEntryInternal*)this;
-	return 1 << (Internal->Alignment_SizeTribble >> 3) & ~1;
+	return Internal->Alignment;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline bool FMetadataDb::FEntry::IsRealloc() const
 {
 	const auto* Internal = (FEntryInternal*)this;
-	return (Internal->Alignment_SizeTribble & (1 << 3)) != 0;
+	return (Internal->bIsRealloc != 0);
 }
 
 } // namespace TraceServices
