@@ -1930,10 +1930,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			{
 				// This codes assumes strands LOD are contigus and the highest (i.e., 0...x). Change this code to something more robust
 				check(HairGroupInstance->HairGroupPublicData);
-				const uint32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->Data.CPULODScreenSize.Num();
+				const int32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->Data.CPULODScreenSize.Num();
 				const TArray<float>& LODScreenSizes = HairGroupInstance->HairGroupPublicData->GetLODScreenSizes();
 				const TArray<bool>& LODVisibilities = HairGroupInstance->HairGroupPublicData->GetLODVisibilities();
-				for (uint32 LODIt = 0; LODIt < StrandsLODCount; ++LODIt)
+				check(StrandsLODCount <= LODScreenSizes.Num());
+				check(StrandsLODCount <= LODVisibilities.Num());
+				for (int32 LODIt = 0; LODIt < StrandsLODCount; ++LODIt)
 				{ 
 					// ClusterCullingData seriazlizes only the screen size related to strands geometry. 
 					// Other type of geometry are not serizalized, and so won't match
