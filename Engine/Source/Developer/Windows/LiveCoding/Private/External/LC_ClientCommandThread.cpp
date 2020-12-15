@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ClientCommandThread.h"
 #include "LC_Event.h"
 #include "LC_CommandMap.h"
@@ -8,10 +11,11 @@
 #include "LC_DuplexPipeClient.h"
 #include "LC_Process.h"
 #include "LC_HeartBeat.h"
+#include "LC_Thread.h"
 
 
 ClientCommandThread::ClientCommandThread(DuplexPipeClient* pipeClient)
-	: m_thread(INVALID_HANDLE_VALUE)
+	: m_thread(Thread::INVALID_HANDLE)
 	, m_pipe(pipeClient)
 {
 }
@@ -22,26 +26,28 @@ ClientCommandThread::~ClientCommandThread(void)
 }
 
 
-unsigned int ClientCommandThread::Start(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
+Thread::Id ClientCommandThread::Start(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
 {
 	// spawn a thread that communicates with the server
-	m_thread = thread::Create("Live coding commands", 128u * 1024u, &ClientCommandThread::ThreadFunction, this, processGroupName, compilationEvent, waitForStartEvent, pipeAccessCS);
+	// BEGIN EPIC MOD
+	m_thread = Thread::CreateFromMemberFunction("Live coding commands", 128u * 1024u, this, &ClientCommandThread::ThreadFunction, processGroupName, compilationEvent, waitForStartEvent, pipeAccessCS);
+	// END EPIC MOD
 
-	return thread::GetId(m_thread);
+	return Thread::GetId(m_thread);
 }
 
 
 void ClientCommandThread::Join(void)
 {
-	if (m_thread != INVALID_HANDLE_VALUE)
+	if (m_thread != Thread::INVALID_HANDLE)
 	{
-		thread::Join(m_thread);
-		thread::Close(m_thread);
+		Thread::Join(m_thread);
+		Thread::Close(m_thread);
 	}
 }
 
 
-unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
+Thread::ReturnValue ClientCommandThread::ThreadFunction(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
 {
 	waitForStartEvent->Wait();
 
@@ -55,7 +61,7 @@ unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGrou
 	commandMap.RegisterAction<actions::LogOutput>();
 	commandMap.RegisterAction<actions::CompilationFinished>();
 
-	HeartBeat heartBeat(processGroupName.c_str(), process::GetId());
+	HeartBeat heartBeat(processGroupName.c_str(), Process::Current::GetId());
 
 	for (;;)
 	{
@@ -65,7 +71,7 @@ unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGrou
 			if (!m_pipe->IsValid())
 			{
 				// pipe was closed or is broken, bail out
-				return 1u;
+				return Thread::ReturnValue(1u);
 			}
 
 			heartBeat.Store();
@@ -74,7 +80,7 @@ unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGrou
 		if (!m_pipe->IsValid())
 		{
 			// pipe was closed or is broken, bail out
-			return 1u;
+			return Thread::ReturnValue(1u);
 		}
 
 		// lock critical section for accessing the pipe.
@@ -86,5 +92,7 @@ unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGrou
 		commandMap.HandleCommands(m_pipe, nullptr);
 	}
 
-	return 0u;
+	// BEGIN EPIC MOD
+	return Thread::ReturnValue(0u);
+	// END EPIC MOD
 }

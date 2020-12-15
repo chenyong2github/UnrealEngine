@@ -1,8 +1,10 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIn EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_RelocationPatcher.h"
 #include "LC_FunctionPatcher.h"
 #include "LC_ExecutablePatcher.h"

@@ -1,8 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_DirectoryCache.h"
+// BEGIN EPIC MOD
 #include "LC_Allocators.h"
-
+// END EPIC MOD
 
 DirectoryCache::DirectoryCache(size_t expectedDirectoryCount)
 {
@@ -43,7 +47,9 @@ void DirectoryCache::PrimeNotifications(void)
 	for (auto it : m_directories)
 	{
 		Directory* dir = it.second;
-		dir->hadChange = dir->changeNotification.Check(0u);
+
+		// don't throw away any changes that might have been set already
+		dir->hadChange |= dir->changeNotification.Check(0u);
 	}
 }
 

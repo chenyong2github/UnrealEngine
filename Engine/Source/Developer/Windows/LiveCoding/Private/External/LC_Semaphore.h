@@ -1,8 +1,10 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "Windows/MinimalWindowsApi.h"
+// END EPIC MOD
 
 class Semaphore
 {
@@ -24,5 +26,7 @@ public:
 	bool TryWait(void);
 
 private:
+	// BEGIN EPIC MOD
 	Windows::HANDLE m_sema;
+	// END EPIC MOD
 };

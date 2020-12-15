@@ -1,11 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Platform.h"
+// END EPIC MOD
 #include "LC_Memory.h"
+// BEGIN EPIC MOD
+#include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
 #include <string>
+// END EPIC MOD
 
 class ImmutableString;
 
@@ -179,13 +184,3 @@ private:
 
 	Data m_data;
 };
-
-namespace string
-{
-	ImmutableString ToUtf8String(const wchar_t* str);
-	ImmutableString ToUtf8String(const wchar_t* str, size_t count);
-	ImmutableString ToUtf8String(const std::wstring& str);
-
-	std::string ToAnsiString(const ImmutableString& utf8Str);
-	std::wstring ToWideString(const ImmutableString& utf8Str);
-}

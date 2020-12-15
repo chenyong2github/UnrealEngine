@@ -1,14 +1,17 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_PointerUtil.h"
-#include "LC_MemoryFile.h"
-#include "xxhash.h"
+#include "LC_MemoryMappedFile.h"
+#include "LC_Hashing.h"
+// BEGIN EPIC MOD
 #include <vector>
 #include "Windows/WindowsHWrapper.h"
-
+// END EPIC MOD
 
 namespace executable
 {
@@ -25,7 +28,7 @@ namespace executable
 		IMAGE_OPTIONAL_HEADER optionalHeader;
 	};
 
-	typedef file::MemoryFile Image;
+	typedef Filesystem::MemoryMappedFile Image;
 
 	struct ImageSection
 	{
@@ -58,7 +61,7 @@ namespace executable
 	};
 
 
-	Image* OpenImage(const wchar_t* filename, file::OpenMode::Enum openMode);
+	Image* OpenImage(const wchar_t* filename, Filesystem::OpenMode::Enum openMode);
 	void CloseImage(Image*& image);
 
 	void RebaseImage(Image* image, PreferredBase preferredBase);
@@ -109,7 +112,7 @@ namespace executable
 			return T(0);
 		}
 
-		const T* address = pointer::Offset<const T*>(image->base, fileOffset);
+		const T* address = pointer::Offset<const T*>(Filesystem::GetMemoryMappedFileData(image), fileOffset);
 		return *address;
 	}
 
@@ -125,8 +128,8 @@ namespace std
 	{
 		inline std::size_t operator()(const executable::Header& header) const
 		{
-			const uint32_t hash1 = XXH32(&header.imageHeader, sizeof(executable::Header::imageHeader), 0u);
-			const uint32_t hash2 = XXH32(&header.optionalHeader, sizeof(executable::Header::optionalHeader), hash1);
+			const uint32_t hash1 = Hashing::Hash32(&header.imageHeader, sizeof(executable::Header::imageHeader), 0u);
+			const uint32_t hash2 = Hashing::Hash32(&header.optionalHeader, sizeof(executable::Header::optionalHeader), hash1);
 
 			return hash2;
 		}

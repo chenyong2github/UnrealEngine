@@ -1,13 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "LC_Process.h"
+#include "LC_ProcessTypes.h"
+#include "LC_ThreadTypes.h"
 #include "LC_Executable.h"
 #include "LC_MemoryBlock.h"
+// BEGIN EPIC MOD
 #include "LC_Types.h"
 #include "VisualStudioDTE.h"
+// END EPIC MOD
 
 
 class DuplexPipe;
@@ -16,7 +18,7 @@ class CodeCave;
 class LiveProcess
 {
 public:
-	LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
+	LiveProcess(Process::Handle processHandle, Process::Id processId, Thread::Id commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
 		const wchar_t* imagePath, const wchar_t* commandLine, const wchar_t* workingDirectory, const void* environment, size_t environmentSize);
 
 	void ReadHeartBeatDelta(const wchar_t* const processGroupName);
@@ -40,21 +42,23 @@ public:
 
 	bool PrepareForRestart(void);
 	void WaitForExitBeforeRestart(void);
+	// BEGIN EPIC MOD
 	void Restart(void* restartJob);
+	// END EPIC MOD
 	bool WasSuccessfulRestart(void) const;
 
 
-	inline process::Handle GetProcessHandle(void) const
+	inline Process::Handle GetProcessHandle(void) const
 	{
 		return m_processHandle;
 	}
 
-	inline unsigned int GetProcessId(void) const
+	inline Process::Id GetProcessId(void) const
 	{
 		return m_processId;
 	}
 
-	inline unsigned int GetCommandThreadId(void) const
+	inline Thread::Id GetCommandThreadId(void) const
 	{
 		return m_commandThreadId;
 	}
@@ -89,9 +93,9 @@ public:
 	// END EPIC MOD
 
 private:
-	process::Handle m_processHandle;
-	unsigned int m_processId;
-	unsigned int m_commandThreadId;
+	Process::Handle m_processHandle;
+	Process::Id m_processId;
+	Thread::Id m_commandThreadId;
 	const void* m_jumpToSelf;
 	const DuplexPipe* m_pipe;
 
@@ -121,11 +125,15 @@ private:
 
 	uint64_t m_heartBeatDelta;
 
+// BEGIN EPIC MOD
 #if WITH_VISUALSTUDIO_DTE
+// END EPIC MOD
 	// for handling communication with the VS debugger
 	EnvDTE::DebuggerPtr m_vsDebugger;
 	types::vector<EnvDTE::ThreadPtr> m_vsDebuggerThreads;
+// BEGIN EPIC MOD
 #endif
+// END EPIC MOD
 
 	// fallback in case communication with the VS debugger is not possible
 	CodeCave* m_codeCave;

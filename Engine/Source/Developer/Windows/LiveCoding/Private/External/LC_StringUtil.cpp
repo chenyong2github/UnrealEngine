@@ -1,8 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_StringUtil.h"
+// BEGIN EPIC MOD
 #include "Windows/WindowsHWrapper.h"
-
+// END EPIC MOD
 
 namespace detail
 {
@@ -124,6 +128,23 @@ namespace string
 
 		result.replace(startPos, from.length(), to);
 		return result;
+	}
+
+
+	std::string ReplaceAll(const std::string& str, const std::string& from, const std::string& to)
+	{
+		std::string result(str);
+
+		for (;;)
+		{
+			const size_t pos = result.find(from);
+			if (pos == std::string::npos)
+			{
+				return result;
+			}
+
+			result.replace(pos, from.length(), to);
+		}
 	}
 
 

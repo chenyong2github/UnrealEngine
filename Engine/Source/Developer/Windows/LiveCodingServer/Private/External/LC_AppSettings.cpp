@@ -1,14 +1,24 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_AppSettings.h"
 #include "LC_Process.h"
-#include "LC_FileUtil.h"
+#include "LC_Filesystem.h"
 #include "LC_StringUtil.h"
+// BEGIN EPIC MOD
+//#include "LC_App.h"
+// END EPIC MOD
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+// END EPIC MOD
 
+// BEGIN EPIC MOD
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <ShlObj.h>
 #include "Windows/HideWindowsPlatformTypes.h"
+// END EPIC MOD
 
 namespace
 {
@@ -36,10 +46,10 @@ namespace
 	{
 		// absolute paths can be used as they are, relative paths are supposed to be relative to the Live++ executable
 		std::wstring path;
-		const bool isRelativePath = file::IsRelativePath(setting->GetValue());
+		const bool isRelativePath = Filesystem::IsRelativePath(setting->GetValue());
 		if (isRelativePath)
 		{
-			path = file::GetDirectory(process::GetImagePath());
+			path = Filesystem::GetDirectory(Process::Current::GetImagePath().GetString()).GetString();
 			path += L"\\";
 			path += setting->GetValue();
 		}
@@ -48,8 +58,8 @@ namespace
 			path = setting->GetValue();
 		}
 
-		const file::Attributes& attributes = file::GetAttributes(path.c_str());
-		if (!file::DoesExist(attributes))
+		const Filesystem::PathAttributes& attributes = Filesystem::GetAttributes(path.c_str());
+		if (!Filesystem::DoesExist(attributes))
 		{
 			if (path.length() != 0u)
 			{
@@ -58,7 +68,7 @@ namespace
 			return path;
 		}
 
-		if (!file::IsDirectory(attributes))
+		if (!Filesystem::IsDirectory(attributes))
 		{
 			// this is not a directory, but a full path
 // EPIC REMOVED			LC_SUCCESS_USER("Using %S at path %S", type, path.c_str());
@@ -66,34 +76,38 @@ namespace
 		}
 
 		// try to find the compiler/linker in the given directory or any of its child directories
-		const types::vector<std::wstring>& files = file::EnumerateFiles(path.c_str());
+		const types::vector<Filesystem::Path>& files = Filesystem::EnumerateFiles(path.c_str());
 
 		// walk over all files, grabbing only cl.exe and link.exe
 		const size_t count = files.size();
 		for (size_t i = 0u; i < count; ++i)
 		{
-			const std::wstring& originalPath = files[i];
-			const std::wstring lowerCaseFilename = string::ToLower(originalPath);
-			if (string::Contains(lowerCaseFilename.c_str(), vs2017Path))
+			Filesystem::Path originalPath;
+			originalPath = path.c_str();
+			originalPath += L"\\";
+			originalPath += files[i];
+
+			const Filesystem::Path lowerCaseFilename = originalPath.ToLower();
+			if (string::Contains(lowerCaseFilename.GetString(), vs2017Path))
 			{
 				// containing the proper sub-path is not enough, we also need to check the filename,
 				// because Visual Studio has files named cl.exe.config and link.exe.config.
-				const std::wstring filenameOnly = file::GetFilename(lowerCaseFilename);
-				if (string::Matches(filenameOnly.c_str(), exeName))
+				const Filesystem::Path filenameOnly = Filesystem::GetFilename(lowerCaseFilename.GetString());
+				if (string::Matches(filenameOnly.GetString(), exeName))
 				{
-					LC_SUCCESS_USER("Found %S at path %S", type, files[i].c_str());
-					return files[i];
+					LC_SUCCESS_USER("Found %S at path %S", type, originalPath.GetString());
+					return std::wstring(originalPath.GetString());
 				}
 			}
-			else if (string::Contains(lowerCaseFilename.c_str(), vs2015AndEarlierPath))
+			else if (string::Contains(lowerCaseFilename.GetString(), vs2015AndEarlierPath))
 			{
 				// containing the proper sub-path is not enough, we also need to check the filename,
 				// because Visual Studio has files named cl.exe.config and link.exe.config.
-				const std::wstring filenameOnly = file::GetFilename(lowerCaseFilename);
-				if (string::Matches(filenameOnly.c_str(), exeName))
+				const Filesystem::Path filenameOnly = Filesystem::GetFilename(lowerCaseFilename.GetString());
+				if (string::Matches(filenameOnly.GetString(), exeName))
 				{
-					LC_SUCCESS_USER("Found %S at path %S", type, files[i].c_str());
-					return files[i];
+					LC_SUCCESS_USER("Found %S at path %S", type, originalPath.GetString());
+					return std::wstring(originalPath.GetString());
 				}
 			}
 		}
@@ -248,6 +262,15 @@ void appSettings::Startup(const wchar_t* group)
 		0x37A	// Ctrl+Alt+F11
 	);
 
+	g_prewarmTimeout = new SettingInt
+	(
+		group,
+		L"prewarm_timeout",
+		L"Prewarm timeout",
+		L"Timeout in milliseconds when prewarming compiler/linker environments",
+		10000
+	);
+
 	g_showUndecoratedNames = new SettingBool
 	(
 		group,
@@ -383,15 +406,6 @@ void appSettings::Startup(const wchar_t* group)
 		L""
 	);	
 
-	g_forceLinkWeakSymbols = new SettingBool
-	(
-		group,
-		L"force_link_weak_symbols",
-		L"Force linking of weak symbols",
-		L"Specifies whether weak symbols should be forced to link",
-		false
-	);
-
 	g_continuousCompilationEnabled = new SettingBool
 	(
 		group,
@@ -454,7 +468,9 @@ void appSettings::Startup(const wchar_t* group)
 		L"amalgamation_split_into_single_parts",
 		L"Split into single parts",
 		L"Specifies whether amalgamated/unity files are automatically split into single files",
+		// BEGIN EPIC MOD
 		true
+		// END EPIC MOD
 	);
 
 	g_amalgamationSplitMinCppCount = new SettingInt
@@ -483,6 +499,24 @@ void appSettings::Startup(const wchar_t* group)
 		L"Specifies whether NatVis visualizers are supported by linking with a special helper library",
 		false
 	);
+
+	g_fastBuildDatabasePath = new SettingString
+	(
+		group,
+		L"fastbuild_database_path",
+		L"FASTBuild database path",
+		L"Path to the FASTBuild database to gather dependencies from",
+		L""
+	);
+
+	g_fastBuildDllName = new SettingString
+	(
+		group,
+		L"fastbuild_dll_name",
+		L"FASTBuild DLL name",
+		L"Name of the DLL used to load FASTBuild databases",
+		L"LPP_FASTBuild_1_01.dll"
+	);
 }
 
 
@@ -502,6 +536,7 @@ void appSettings::Shutdown(void)
 	delete g_playSoundOnSuccess;
 	delete g_playSoundOnError;
 	delete g_compileShortcut;
+	delete g_prewarmTimeout;
 
 	delete g_showUndecoratedNames;
 	delete g_showTimestamps;
@@ -520,7 +555,6 @@ void appSettings::Shutdown(void)
 	delete g_useLinkerOverrideAsFallback;
 	delete g_useLinkerEnvironment;
 	delete g_linkerOptions;
-	delete g_forceLinkWeakSymbols;
 
 	delete g_continuousCompilationEnabled;
 	delete g_continuousCompilationPath;
@@ -536,6 +570,9 @@ void appSettings::Shutdown(void)
 	delete g_amalgamationCppFileExtensions;
 
 	delete g_ue4EnableNatVisSupport;
+
+	delete g_fastBuildDatabasePath;
+	delete g_fastBuildDllName;
 }
 
 
@@ -573,15 +610,15 @@ std::wstring appSettings::GetUserSettingsPath(void)
 	iniPath += L"\\LPP_x86.ini";
 #endif
 
-	return file::NormalizePath(iniPath.c_str());
+	return Filesystem::NormalizePath(iniPath.c_str()).GetString();
 }
 
 
 std::wstring appSettings::GetProjectSettingsPath(void)
 {
 	// project settings are stored next to the Live++ executable
-	const std::wstring& imagePath = process::GetImagePath();
-	std::wstring iniPath(file::GetDirectory(imagePath));
+	const std::wstring& imagePath = Process::Current::GetImagePath().GetString();
+	std::wstring iniPath(Filesystem::GetDirectory(imagePath.c_str()).GetString());
 
 #if LC_64_BIT
 	iniPath += L"\\LPP_x64.ini";
@@ -589,7 +626,7 @@ std::wstring appSettings::GetProjectSettingsPath(void)
 	iniPath += L"\\LPP_x86.ini";
 #endif
 
-	return file::NormalizePath(iniPath.c_str());
+	return Filesystem::NormalizePath(iniPath.c_str()).GetString();
 }
 
 
@@ -653,7 +690,7 @@ void appSettings::UpdateAmalgamatedCppFileExtensions(void)
 
 void appSettings::ApplySettingBool(const char* const settingName, bool value)
 {
-	const unsigned int COUNT = 22u;
+	const unsigned int COUNT = 21u;
 	SettingBool* settings[COUNT] =
 	{
 		g_showFullPathInTitle,
@@ -673,7 +710,6 @@ void appSettings::ApplySettingBool(const char* const settingName, bool value)
 		g_compilerForcePchPdbs,
 		g_useLinkerOverrideAsFallback,
 		g_useLinkerEnvironment,
-		g_forceLinkWeakSymbols,
 		g_continuousCompilationEnabled,
 		g_installCompiledPatchesMultiProcess,
 		g_amalgamationSplitIntoSingleParts,
@@ -692,12 +728,13 @@ void appSettings::ApplySettingInt(const char* const settingName, int value)
 {
 	// try int settings first
 	{
-		const unsigned int COUNT = 4u;
+		const unsigned int COUNT = 5u;
 		SettingInt* settings[COUNT] =
 		{
 			g_initialWindowMode,
 			g_receiveFocusOnRecompile,
 			g_continuousCompilationTimeout,
+			g_prewarmTimeout,
 			g_amalgamationSplitMinCppCount
 		};
 
@@ -733,7 +770,7 @@ void appSettings::ApplySettingString(const char* const settingName, const wchar_
 {
 	// try string settings first
 	{
-		const unsigned int COUNT = 10u;
+		const unsigned int COUNT = 12u;
 		SettingString* settings[COUNT] =
 		{
 			g_playSoundOnSuccess,
@@ -745,7 +782,9 @@ void appSettings::ApplySettingString(const char* const settingName, const wchar_
 			g_continuousCompilationPath,
 			g_virtualDriveLetter,
 			g_virtualDrivePath,
-			g_amalgamationCppFileExtensions
+			g_amalgamationCppFileExtensions,
+			g_fastBuildDatabasePath,
+			g_fastBuildDllName
 		};
 
 		const SettingString* setting = ApplySetting(settings, COUNT, settingName, value);
@@ -801,52 +840,55 @@ void appSettings::ApplySettingString(const char* const settingName, const wchar_
 }
 
 
-extern SettingInt* appSettings::g_initialWindowMode = nullptr;
-extern SettingIntProxy* appSettings::g_initialWindowModeProxy = nullptr;
-extern SettingBool* appSettings::g_showFullPathInTitle = nullptr;
-extern SettingBool* appSettings::g_showPathFirstInTitle = nullptr;
+SettingInt* appSettings::g_initialWindowMode = nullptr;
+SettingIntProxy* appSettings::g_initialWindowModeProxy = nullptr;
+SettingBool* appSettings::g_showFullPathInTitle = nullptr;
+SettingBool* appSettings::g_showPathFirstInTitle = nullptr;
 
-extern SettingInt* appSettings::g_receiveFocusOnRecompile = nullptr;
-extern SettingIntProxy* appSettings::g_receiveFocusOnRecompileProxy = nullptr;
-extern SettingBool* appSettings::g_showNotificationOnRecompile = nullptr;
-extern SettingBool* appSettings::g_clearLogOnRecompile = nullptr;
-extern SettingBool* appSettings::g_minimizeOnClose = nullptr;
-extern SettingBool* appSettings::g_keepTrayIcon = nullptr;
+SettingInt* appSettings::g_receiveFocusOnRecompile = nullptr;
+SettingIntProxy* appSettings::g_receiveFocusOnRecompileProxy = nullptr;
+SettingBool* appSettings::g_showNotificationOnRecompile = nullptr;
+SettingBool* appSettings::g_clearLogOnRecompile = nullptr;
+SettingBool* appSettings::g_minimizeOnClose = nullptr;
+SettingBool* appSettings::g_keepTrayIcon = nullptr;
 
-extern SettingString* appSettings::g_playSoundOnSuccess = nullptr;
-extern SettingString* appSettings::g_playSoundOnError = nullptr;
-extern SettingShortcut* appSettings::g_compileShortcut = nullptr;
+SettingString* appSettings::g_playSoundOnSuccess = nullptr;
+SettingString* appSettings::g_playSoundOnError = nullptr;
+SettingShortcut* appSettings::g_compileShortcut = nullptr;
+SettingInt* appSettings::g_prewarmTimeout = nullptr;
 
-extern SettingBool* appSettings::g_showUndecoratedNames = nullptr;
-extern SettingBool* appSettings::g_showTimestamps = nullptr;
-extern SettingBool* appSettings::g_wordWrapOutput = nullptr;
-extern SettingBool* appSettings::g_enableDevLog = nullptr;
-extern SettingBool* appSettings::g_enableTelemetryLog = nullptr;
-extern SettingBool* appSettings::g_enableDevLogCompilands = nullptr;
+SettingBool* appSettings::g_showUndecoratedNames = nullptr;
+SettingBool* appSettings::g_showTimestamps = nullptr;
+SettingBool* appSettings::g_wordWrapOutput = nullptr;
+SettingBool* appSettings::g_enableDevLog = nullptr;
+SettingBool* appSettings::g_enableTelemetryLog = nullptr;
+SettingBool* appSettings::g_enableDevLogCompilands = nullptr;
 
-extern SettingString* appSettings::g_compilerPath = nullptr;
-extern SettingBool* appSettings::g_useCompilerOverrideAsFallback = nullptr;
-extern SettingBool* appSettings::g_useCompilerEnvironment = nullptr;
-extern SettingString* appSettings::g_compilerOptions = nullptr;
-extern SettingBool* appSettings::g_compilerForcePchPdbs = nullptr;
+SettingString* appSettings::g_compilerPath = nullptr;
+SettingBool* appSettings::g_useCompilerOverrideAsFallback = nullptr;
+SettingBool* appSettings::g_useCompilerEnvironment = nullptr;
+SettingString* appSettings::g_compilerOptions = nullptr;
+SettingBool* appSettings::g_compilerForcePchPdbs = nullptr;
 
-extern SettingString* appSettings::g_linkerPath = nullptr;
-extern SettingBool* appSettings::g_useLinkerOverrideAsFallback = nullptr;
-extern SettingBool* appSettings::g_useLinkerEnvironment = nullptr;
-extern SettingString* appSettings::g_linkerOptions = nullptr;
-extern SettingBool* appSettings::g_forceLinkWeakSymbols = nullptr;
+SettingString* appSettings::g_linkerPath = nullptr;
+SettingBool* appSettings::g_useLinkerOverrideAsFallback = nullptr;
+SettingBool* appSettings::g_useLinkerEnvironment = nullptr;
+SettingString* appSettings::g_linkerOptions = nullptr;
 
-extern SettingBool* appSettings::g_continuousCompilationEnabled = nullptr;
-extern SettingString* appSettings::g_continuousCompilationPath = nullptr;
-extern SettingInt* appSettings::g_continuousCompilationTimeout = nullptr;
+SettingBool* appSettings::g_continuousCompilationEnabled = nullptr;
+SettingString* appSettings::g_continuousCompilationPath = nullptr;
+SettingInt* appSettings::g_continuousCompilationTimeout = nullptr;
 
-extern SettingString* appSettings::g_virtualDriveLetter = nullptr;
-extern SettingString* appSettings::g_virtualDrivePath = nullptr;
+SettingString* appSettings::g_virtualDriveLetter = nullptr;
+SettingString* appSettings::g_virtualDrivePath = nullptr;
 
-extern SettingBool* appSettings::g_installCompiledPatchesMultiProcess = nullptr;
+SettingBool* appSettings::g_installCompiledPatchesMultiProcess = nullptr;
 
-extern SettingBool* appSettings::g_amalgamationSplitIntoSingleParts = nullptr;
-extern SettingInt* appSettings::g_amalgamationSplitMinCppCount = nullptr;
-extern SettingString* appSettings::g_amalgamationCppFileExtensions = nullptr;
+SettingBool* appSettings::g_amalgamationSplitIntoSingleParts = nullptr;
+SettingInt* appSettings::g_amalgamationSplitMinCppCount = nullptr;
+SettingString* appSettings::g_amalgamationCppFileExtensions = nullptr;
 
-extern SettingBool* appSettings::g_ue4EnableNatVisSupport = nullptr;
+SettingBool* appSettings::g_ue4EnableNatVisSupport = nullptr;
+
+SettingString* appSettings::g_fastBuildDatabasePath = nullptr;
+SettingString* appSettings::g_fastBuildDllName = nullptr;

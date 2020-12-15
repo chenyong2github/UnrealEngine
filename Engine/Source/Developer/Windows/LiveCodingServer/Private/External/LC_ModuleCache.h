@@ -1,11 +1,14 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_Symbols.h"
 #include "LC_Hook.h"
 #include "LC_CriticalSection.h"
+#include "LC_ProcessTypes.h"
 
 
 class LiveProcess;
@@ -21,8 +24,8 @@ public:
 	{
 		// all data except moduleBase is redundant and stored per cache entry, but this doesn't
 		// increase memory requirements by much. we'd rather have all information accessible fast.
-		unsigned int processId;
-		process::Handle processHandle;
+		Process::Id processId;
+		Process::Handle processHandle;
 		const DuplexPipe* pipe;
 
 		void* moduleBase;
@@ -74,7 +77,7 @@ public:
 	FindHookData FindHooksInSectionBackwards(size_t ignoreToken, const ImmutableString& sectionName) const;
 
 
-	types::vector<void*> GatherModuleBases(unsigned int processId) const;
+	types::vector<void*> GatherModuleBases(Process::Id processId) const;
 
 
 	inline size_t GetSize(void) const

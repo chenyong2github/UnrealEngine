@@ -1,11 +1,17 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_PoolAllocator.h"
 #include "LC_PointerUtil.h"
 #include "LC_VirtualMemory.h"
+#include "LC_BitUtil.h"
+// BEGIN EPIC MOD
+#include "LC_Assert.h"
 #include "LC_Platform.h"
 #include "LC_Logging.h"
-#include "LC_BitUtil.h"
+// END EPIC MOD
 
 
 namespace freeList
@@ -91,7 +97,7 @@ void* PoolAllocator<T>::Allocate(size_t size, size_t alignment)
 	if (!m_freeList)
 	{
 		// no memory left, allocate a new block
-		void* block = virtualMemory::Allocate(m_growSize);
+		void* block = VirtualMemory::Allocate(m_growSize);
 
 		// initialize free list in this block of memory
 		m_freeList = freeList::Initialize(block, m_growSize, m_maxSize, m_maxAlignment, sizeof(BlockHeader));
@@ -144,7 +150,7 @@ void PoolAllocator<T>::Purge(void)
 	{
 		BlockHeader* temp = header;
 		header = header->next;
-		virtualMemory::Free(temp);
+		VirtualMemory::Free(temp);
 
 		m_stats.UnregisterAllocation(m_growSize);
 	}

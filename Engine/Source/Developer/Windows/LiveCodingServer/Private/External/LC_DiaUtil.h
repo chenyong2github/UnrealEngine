@@ -1,11 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_DiaSymbolName.h"
 #include "LC_DiaVariant.h"
+// BEGIN EPIC MOD
 #include "LC_Types.h"
+// END EPIC MOD
 
 
 namespace dia

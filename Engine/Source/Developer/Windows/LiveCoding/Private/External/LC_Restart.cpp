@@ -1,12 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Restart.h"
 #include "LC_Event.h"
 #include "LC_PrimitiveNames.h"
 #include "LC_Process.h"
+// BEGIN EPIC MOD
 #include "LC_Memory.h"
 #include "HAL/PlatformMisc.h"
-
+// END EPIC MOD
 
 namespace
 {
@@ -18,7 +22,7 @@ namespace
 
 void restart::Startup(void)
 {
-	const unsigned int processId = process::GetId();
+	const Process::Id processId = Process::Current::GetId();
 
 	g_requestRestart = new Event(primitiveNames::RequestRestart(processId).c_str(), Event::Type::AUTO_RESET);
 	g_restartPrepared = new Event(primitiveNames::PreparedRestart(processId).c_str(), Event::Type::AUTO_RESET);

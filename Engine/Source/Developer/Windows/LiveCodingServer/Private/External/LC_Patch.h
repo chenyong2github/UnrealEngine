@@ -1,16 +1,18 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Process.h"
+// END EPIC MOD
+#include "LC_ProcessTypes.h"
 
 
 namespace patch
 {
-	void InstallNOPs(process::Handle processHandle, void* address, size_t size);
-	void InstallJumpToSelf(process::Handle processHandle, void* address);
+	void InstallNOPs(Process::Handle processHandle, void* address, uint8_t size);
+	void InstallJumpToSelf(Process::Handle processHandle, void* address);
 
-	void InstallRelativeShortJump(process::Handle processHandle, void* address, void* destination);
-	void InstallRelativeNearJump(process::Handle processHandle, void* address, void* destination);
+	void InstallRelativeShortJump(Process::Handle processHandle, void* address, void* destination);
+	void InstallRelativeNearJump(Process::Handle processHandle, void* address, void* destination);
 }

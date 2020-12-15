@@ -1,18 +1,20 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
 // https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/87fba13e-bf06-450e-83b1-9241dc81e781
 // found in <ntstatus.h>
-#define STATUS_INFO_LENGTH_MISMATCH		((windowsInternal::NTSTATUS)0xC0000004L)
+#define STATUS_INFO_LENGTH_MISMATCH		((WindowsInternals::NTSTATUS)0xC0000004L)
 
 // found in <winternl.h>
-#define NT_SUCCESS(Status)				((windowsInternal::NTSTATUS)(Status) >= 0)
+#define NT_SUCCESS(Status)				((WindowsInternals::NTSTATUS)(Status) >= 0)
 
 
-namespace windowsInternal
+namespace WindowsInternals
 {
 	// most of these types are defined in <winternl.h>, but we cannot include that header because it lacks
 	// a few undocumented values/members that we need for our purposes.

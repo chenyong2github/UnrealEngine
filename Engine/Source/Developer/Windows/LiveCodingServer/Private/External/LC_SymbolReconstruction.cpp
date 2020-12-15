@@ -1,7 +1,9 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_SymbolReconstruction.h"
-#include "LC_Allocators.h"
 
 #include "LC_StringUtil.h"
 #include "LC_PointerUtil.h"
@@ -69,8 +71,16 @@ void symbols::ReconstructFromExecutableCoff
 				}
 				else
 				{
-					LC_LOG_DEV("Unknown symbol %s", symbolName.c_str());
-					++unknownSymbolsToFind;
+					const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
+					if (coff::IsMSVCJustMyCodeSection(coffSection.name.c_str()))
+					{
+						LC_LOG_DEV("JustMyCode symbol %s", symbolName.c_str());
+					}
+					else
+					{
+						LC_LOG_DEV("Unknown symbol %s", symbolName.c_str());
+						++unknownSymbolsToFind;
+					}
 				}
 			}
 			else
@@ -100,6 +110,10 @@ void symbols::ReconstructFromExecutableCoff
 				else if (symbols::IsTlsArrayRelatedSymbol(symbolName))
 				{
 					LC_LOG_DEV("Compiler-generated symbol %s", symbolName.c_str());
+				}
+				else if (symbols::IsSectionSymbol(symbolName))
+				{
+					LC_LOG_DEV("Section symbol %s", symbolName.c_str());
 				}
 				else if (strippedSymbols.find(symbolName) != strippedSymbols.end())
 				{
@@ -175,6 +189,19 @@ walkOpenSymbols:
 		for (size_t i = 0u; i < relocationCount; ++i)
 		{
 			const coff::Relocation* relocation = symbol->relocations[i];
+
+			// ignore relocations to symbols in .msvcjmc (MSVC JustMyCode) sections
+			if (relocation->dstSectionIndex >= 0)
+			{
+				const uint32_t index = static_cast<uint32_t>(relocation->dstSectionIndex);
+				const coff::Section& section = coffDb->sections[index];
+				if (coff::IsMSVCJustMyCodeSection(section.name.c_str()))
+				{
+					LC_LOG_DEV("Ignoring relocation to symbol in section %s", section.name.c_str());
+					continue;
+				}
+			}
+
 			const ImmutableString& dstSymbolName = coff::GetRelocationDstSymbolName(coffDb, relocation);
 
 			// the symbol we are looking for might already be in the database because of the public symbols gathered from the PDB
@@ -219,6 +246,11 @@ walkOpenSymbols:
 				// NOTE: we do need the RVA of __tls_index because that is used to set the data segment register to the
 				// table used for accessing TLS variables.
 				LC_LOG_DEV("Ignoring destination symbol \"%s\"", dstSymbolName.c_str());
+				continue;
+			}
+			else if (symbols::IsSectionSymbol(dstSymbolName))
+			{
+				LC_LOG_DEV("Ignoring section symbol \"%s\"", dstSymbolName.c_str());
 				continue;
 			}
 
@@ -414,11 +446,8 @@ walkOpenSymbols:
 			}
 
 			// we found a new symbol, add it to the database
-			symbols::Symbol* newSymbol = LC_NEW(&g_symbolAllocator, symbols::Symbol) { dstSymbolName, dstRva32 };
-
 			LC_LOG_DEV("Found new symbol %s at RVA 0x%X", dstSymbolName.c_str(), dstRva32);
-			symbolDB->symbolsByName.emplace(dstSymbolName, newSymbol);
-			symbolDB->symbolsByRva.emplace(dstRva32, newSymbol);
+			symbols::CreateNewSymbol(dstSymbolName, dstRva32, symbolDB);
 
 			// walk the relocations of the new symbol as well
 			const coff::Symbol* nextSymbol = coff::GetSymbolByIndex(coffDb, relocation->dstSymbolNameIndex);
@@ -543,7 +572,7 @@ walkOpenSymbols:
 	}
 
 	// next try finding the missing symbols.
-	// NOTE: this is carefully constructed to only run into O(N²) in rare edge cases, because the original O(N²) algorithm
+	// NOTE: this is carefully constructed to only run into O(N^2) in rare edge cases, because the original O(N^2) algorithm
 	// caused a 25-30s slowdown for some users.
 	const size_t missingSymbolCount = missingSymbols.size();
 
@@ -560,6 +589,11 @@ walkOpenSymbols:
 		const uint64_t isExceptionClauseSymbol = symbols::IsExceptionClauseSymbol(missingSymbolName) ? (1ull << 32ull) : 0ull;
 
 		const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
+		if (coff::IsMSVCJustMyCodeSection(coffSection.name.c_str()))
+		{
+			LC_LOG_DEV("Ignoring JustMyCode symbol %s in section %s", missingSymbolName.c_str(), coffSection.name.c_str());
+			continue;
+		}
 
 		LC_LOG_DEV("Trying to find RVA for static symbol %s in section %s", missingSymbolName.c_str(), coffSection.name.c_str());
 		LC_LOG_INDENT_DEV;
@@ -649,6 +683,13 @@ walkOpenSymbols:
 		const coff::Symbol* symbol = missingSymbols[i];
 
 		const ImmutableString& missingSymbolName = coff::GetSymbolName(coffDb, symbol);
+		const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
+		if (coff::IsMSVCJustMyCodeSection(coffSection.name.c_str()))
+		{
+			LC_LOG_DEV("Ignoring JustMyCode symbol %s in section %s", missingSymbolName.c_str(), coffSection.name.c_str());
+			continue;
+		}
+
 		const std::string& coffUndecoratedName = symbols::UndecorateSymbolName(missingSymbolName);
 
 		auto diaNameIt = diaNameToRva.find(ImmutableString(coffUndecoratedName.c_str()));
@@ -660,10 +701,7 @@ walkOpenSymbols:
 
 			LC_LOG_DEV("Fast path, found symbol %s at 0x%X", missingSymbolName.c_str(), rva);
 
-			symbols::Symbol* newSymbol = LC_NEW(&g_symbolAllocator, symbols::Symbol) { missingSymbolName, rva };
-
-			symbolDB->symbolsByName.emplace(missingSymbolName, newSymbol);
-			symbolDB->symbolsByRva.emplace(rva, newSymbol);
+			symbols::CreateNewSymbol(missingSymbolName, rva, symbolDB);
 
 			openSymbols.push_back(symbol);
 
@@ -691,7 +729,6 @@ walkOpenSymbols:
 			types::unordered_set<const symbols::Contribution*> potentialContributions;
 			potentialContributions.reserve(contributionsForThisCompiland->size());
 
-			const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
 			const uint32_t sectionRelativeAddress = symbol->rva - coffSection.rawDataRva;
 
 			// find this section in the image
@@ -792,10 +829,7 @@ walkOpenSymbols:
 
 				LC_LOG_DEV("Slow path, found symbol %s at 0x%X", missingSymbolName.c_str(), rva);
 
-				symbols::Symbol* newSymbol = LC_NEW(&g_symbolAllocator, symbols::Symbol) { missingSymbolName, rva };
-
-				symbolDB->symbolsByName.emplace(missingSymbolName, newSymbol);
-				symbolDB->symbolsByRva.emplace(rva, newSymbol);
+				CreateNewSymbol(missingSymbolName, rva, symbolDB);
 
 				openSymbols.push_back(symbol);
 

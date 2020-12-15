@@ -1,9 +1,11 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "Windows/MinimalWindowsApi.h"
+// END EPIC MOD
 
 // named/unnamed event.
 // acts process-wide if given a name.
@@ -39,5 +41,7 @@ public:
 	bool TryWait(void);
 
 private:
+	// BEGIN EPIC MOD
 	Windows::HANDLE m_event;
+	// END EPIC MOD
 };

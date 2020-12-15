@@ -1,8 +1,10 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_Mallocator.h"
 #include "LC_PoolAllocator.h"
 #include "LC_MicroAllocator.h"
@@ -54,5 +56,8 @@ extern PoolAllocator<PoolAllocatorMultiThreadPolicy> g_amalgamatedCompilandAlloc
 extern PoolAllocator<PoolAllocatorMultiThreadPolicy> g_dependencyAllocator;
 extern PoolAllocator<PoolAllocatorMultiThreadPolicy> g_directoryAllocator;
 extern Mallocator g_objFileAllocator;
-extern Mallocator g_libFileAllocator;
 extern Mallocator g_rawCoffAllocator;
+extern Mallocator g_rawElfAllocator;
+extern Mallocator g_relocatableFileAllocator;
+extern Mallocator g_executableFileAllocator;
+extern Mallocator g_tlogFileAllocator;

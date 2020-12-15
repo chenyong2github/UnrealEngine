@@ -1,9 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
+#include "LC_ProcessTypes.h"
+// BEGIN EPIC MOD
 #include <string>
+// END EPIC MOD
+
 
 namespace primitiveNames
 {
@@ -21,11 +27,11 @@ namespace primitiveNames
 	std::wstring ExceptionPipe(const std::wstring& processGroupName);
 
 	// heart beat
-	std::wstring HeartBeatMutex(const std::wstring& processGroupName, unsigned int processId);
-	std::wstring HeartBeatNamedSharedMemory(const std::wstring& processGroupName, unsigned int processId);
+	std::wstring HeartBeatMutex(const std::wstring& processGroupName, Process::Id processId);
+	std::wstring HeartBeatNamedSharedMemory(const std::wstring& processGroupName, Process::Id processId);
 
 	// restart
-	std::wstring RequestRestart(unsigned int processId);
-	std::wstring PreparedRestart(unsigned int processId);
-	std::wstring Restart(unsigned int processId);
+	std::wstring RequestRestart(Process::Id processId);
+	std::wstring PreparedRestart(Process::Id processId);
+	std::wstring Restart(Process::Id processId);
 }

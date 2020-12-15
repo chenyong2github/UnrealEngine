@@ -1,14 +1,19 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// EPIC BEGIN MOD
+//#include PCH_INCLUDE
+// EPIC END MOD
 #include "LC_API.h"
 #include "LC_ClientStartupThread.h"
 #include "LC_CriticalSection.h"
 #include "LC_SyncPoint.h"
 #include "LC_Restart.h"
 #include "LC_RunMode.h"
-#include "LC_Logging.h"
 #include "LC_Memory.h"
 #include "LPP_API.h"
+// BEGIN EPIC MOD
+#include "LC_Logging.h"
+// END EPIC MOD
 
 namespace
 {
@@ -35,22 +40,12 @@ namespace
 }
 
 
-
-namespace
+LPP_DLL_API(void) LppStartup(void)
 {
-	// startup thread
-	static ClientStartupThread* g_mainStartupThread = nullptr;
-}
-
-
-// BEGIN EPIC MOD - Adding instance to startup function
-LPP_DLL_API(void) LppStartup(void* thisInstance)
-{
-	g_startupThread = new ClientStartupThread((HINSTANCE)thisInstance);
+	g_startupThread = new ClientStartupThread();
 
 	restart::Startup();
 }
-// END EPIC MOD
 
 
 LPP_DLL_API(void) LppShutdown(void)

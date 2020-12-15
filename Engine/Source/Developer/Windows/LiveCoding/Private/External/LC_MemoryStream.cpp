@@ -1,7 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_MemoryStream.h"
 #include "LC_PointerUtil.h"
+// BEGIN EPIC MOD
+#include "LC_Assert.h"
+// END EPIC MOD
 
 
 memoryStream::Reader::Reader(const void* data, size_t capacity)

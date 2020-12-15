@@ -1,16 +1,22 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Compiler.h"
 #include "LC_StringUtil.h"
-#include "LC_FileUtil.h"
+#include "LC_Filesystem.h"
 #include "LC_Process.h"
 #include "LC_Environment.h"
 #include "LC_CriticalSection.h"
-#include "LC_Logging.h"
 #include "LC_TimeStamp.h"
-#include "LC_MemoryFile.h"
+#include "LC_MemoryMappedFile.h"
 #include "LC_StringUtil.h"
-
+#include "LC_Thread.h"
+// BEGIN EPIC MOD
+#include "LC_Logging.h"
+#include "LC_AppSettings.h"
+// END EPIC MOD
 
 namespace
 {
@@ -27,18 +33,18 @@ namespace
 		{
 			for (auto it = m_cache.begin(); it != m_cache.end(); ++it)
 			{
-				process::Environment* env = it->second;
-				process::DestroyEnvironment(env);
+				Process::Environment env = it->second;
+				Process::DestroyEnvironment(env);
 			}
 		}
 
-		void Insert(const wchar_t* key, process::Environment* value)
+		void Insert(const wchar_t* key, const Process::Environment& value)
 		{
 	        // BEGIN EPIC MOD - Allow passing environment block for linker
 			auto it = m_cache.find(key);
 			if (it != m_cache.end())
 			{
-				process::DestroyEnvironment(it->second);
+				Process::DestroyEnvironment(it->second);
 				it->second = value;
 				return;
 			}
@@ -47,7 +53,7 @@ namespace
 			m_cache[key] = value;
 		}
 
-		const process::Environment* Fetch(const wchar_t* key)
+		Process::Environment Fetch(const wchar_t* key)
 		{
 			const auto it = m_cache.find(key);
 			if (it != m_cache.end())
@@ -55,11 +61,11 @@ namespace
 				return it->second;
 			}
 
-			return nullptr;
+			return Process::Environment { 0u, nullptr };
 		}
 
 	private:
-		types::unordered_map<std::wstring, process::Environment*> m_cache;
+		types::unordered_map<std::wstring, Process::Environment> m_cache;
 	};
 
 	static CompilerEnvironmentCache g_compilerEnvironmentCache;
@@ -130,33 +136,54 @@ namespace
 }
 
 
-const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t* absolutePathToCompilerExe)
+Process::Environment compiler::CreateEnvironmentCacheEntry(const wchar_t* absolutePathToCompilerExe)
 {
 	LC_LOG_DEV("Creating environment cache entry for %S", absolutePathToCompilerExe);
 
 	// COMPILER SPECIFIC: Visual Studio. other compilers and linkers don't need vcvars*.bat to be invoked.
 	{
 		// bail out early in case this is the LLVM/clang/lld toolchain
-		const std::wstring& toolFilename = file::GetFilename(absolutePathToCompilerExe);
-		if (string::Matches(toolFilename.c_str(), L"lld.exe"))
+		const Filesystem::Path toolFilename = Filesystem::GetFilename(absolutePathToCompilerExe);
+
+		// Clang
+		if (string::Matches(toolFilename.GetString(), L"clang.exe"))
 		{
-			return nullptr;
+			return Process::Environment { 0u, nullptr };
 		}
-		else if (string::Matches(toolFilename.c_str(), L"lld-link.exe"))
+		else if (string::Matches(toolFilename.GetString(), L"clang++.exe"))
 		{
-			return nullptr;
+			return Process::Environment { 0u, nullptr };
 		}
-		else if (string::Matches(toolFilename.c_str(), L"ld.lld.exe"))
+		else if (string::Matches(toolFilename.GetString(), L"clang-cl.exe"))
 		{
-			return nullptr;
+			return Process::Environment { 0u, nullptr };
 		}
-		else if (string::Matches(toolFilename.c_str(), L"ld64.lld.exe"))
+		else if (string::Matches(toolFilename.GetString(), L"clang-cpp.exe"))
 		{
-			return nullptr;
+			return Process::Environment { 0u, nullptr };
+		}
+
+		// LLD
+		else if (string::Matches(toolFilename.GetString(), L"lld.exe"))
+		{
+			return Process::Environment { 0u, nullptr };
+		}
+		else if (string::Matches(toolFilename.GetString(), L"lld-link.exe"))
+		{
+			return Process::Environment { 0u, nullptr };
+		}
+		else if (string::Matches(toolFilename.GetString(), L"ld.lld.exe"))
+		{
+			return Process::Environment { 0u, nullptr };
+		}
+		else if (string::Matches(toolFilename.GetString(), L"ld64.lld.exe"))
+		{
+			return Process::Environment { 0u, nullptr };
 		}
 	}
 
-	const std::wstring& path = file::GetDirectory(absolutePathToCompilerExe);
+	const double timeout = static_cast<double>(appSettings::g_prewarmTimeout->GetValue()) / 1000.0;
+	const std::wstring path = Filesystem::GetDirectory(absolutePathToCompilerExe).GetString();
 
 	// get all possible paths to vcvars*.bat files and check which one is available
 	const std::vector<const wchar_t*>& relativePathsToVcvarsFile = DetermineRelativePathToVcvarsFile(absolutePathToCompilerExe);
@@ -167,8 +194,8 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 
 		LC_LOG_DEV("Trying vcvars*.bat at %S", pathToVcvars.c_str());
 
-		const file::Attributes& attributes = file::GetAttributes(pathToVcvars.c_str());
-		if (file::DoesExist(attributes))
+		const Filesystem::PathAttributes& attributes = Filesystem::GetAttributes(pathToVcvars.c_str());
+		if (Filesystem::DoesExist(attributes))
 		{
 			// this is the correct vcvars*.bat.
 			// we need to invoke the command shell, run the .bat file, and extract the process' environment to cache it for later use.
@@ -186,25 +213,25 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 			// we can retrieve this from the environment later and check if there was an error.
 			commandLine += L"\" & call set LPP_TOOLCHAIN_EXIT_CODE=%^ERRORLEVEL% & call pause \"";
 
-			process::Context* vcvarsProcess = process::Spawn(cmdPath.c_str(), nullptr, commandLine.c_str(), nullptr, process::SpawnFlags::NO_WINDOW);
+			Process::Context* vcvarsProcess = Process::Spawn(cmdPath.c_str(), nullptr, commandLine.c_str(), nullptr, Process::SpawnFlags::NO_WINDOW);
 
 			// wait until LPP_TOOLCHAIN_EXIT_CODE shows up in the environment of the process.
 			// busy waiting like this is not very nice, but happens only once or twice during startup, and is called from a separate thread anyway.
 			const uint64_t startTimestamp = timeStamp::Get();
 			bool shownWarning = false;
 
-			process::Environment* environment = nullptr;
+			Process::Environment environment = {};
 			const wchar_t* toolchainExitCodeStr = nullptr;
 			for (;;)
 			{
 				// grab the environment from the process
-				process::Suspend(vcvarsProcess->pi.hProcess);
-				environment = process::CreateEnvironment(vcvarsProcess->pi.hProcess);
-				process::Resume(vcvarsProcess->pi.hProcess);
+				Process::Suspend(vcvarsProcess);
+				environment = Process::CreateEnvironment(vcvarsProcess);
+				Process::Resume(vcvarsProcess);
 
-				if (environment)
+				if (environment.data)
 				{
-					toolchainExitCodeStr = string::Find(static_cast<const wchar_t*>(environment->data), environment->size / sizeof(wchar_t), L"LPP_TOOLCHAIN_EXIT_CODE", wcslen(L"LPP_TOOLCHAIN_EXIT_CODE"));
+					toolchainExitCodeStr = string::Find(static_cast<const wchar_t*>(environment.data), environment.size / sizeof(wchar_t), L"LPP_TOOLCHAIN_EXIT_CODE", wcslen(L"LPP_TOOLCHAIN_EXIT_CODE"));
 					if (toolchainExitCodeStr)
 					{
 						const wchar_t* exitCodeStr = toolchainExitCodeStr + wcslen(L"LPP_TOOLCHAIN_EXIT_CODE") + 1u;
@@ -217,8 +244,8 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 				}
 
 				// the batch file hasn't finished running yet, wait a bit
-				process::DestroyEnvironment(environment);
-				thread::Sleep(20u);
+				Process::DestroyEnvironment(environment);
+				Thread::Current::SleepMilliSeconds(20u);
 
 				// show a warning in case this takes longer than 5 seconds.
 				// this can happen for some users:
@@ -230,11 +257,11 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 					shownWarning = true;
 				}
 
-				// safety net: bail out if this takes longer than 10 seconds
-				if (timeStamp::ToSeconds(delta) >= 10.0)
+				// safety net: bail out if this takes longer than the configured timeout
+				if (timeStamp::ToSeconds(delta) >= timeout)
 				{
 					LC_WARNING_USER("Prewarming compiler/linker environment for %S took too long and was aborted.", pathToVcvars.c_str());
-					return nullptr;
+					return Process::Environment { 0u, nullptr };
 				}
 			}
 
@@ -253,8 +280,8 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 				}
 			}
 
-			process::Terminate(vcvarsProcess->pi.hProcess);
-			process::Destroy(vcvarsProcess);
+			Process::Terminate(vcvarsProcess);
+			Process::Destroy(vcvarsProcess);
 
 			return environment;
 		}
@@ -265,21 +292,21 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 	}
 
 	LC_WARNING_USER("Cannot determine vcvars*.bat environment for compiler/linker %S", absolutePathToCompilerExe);
-	return nullptr;
+	return Process::Environment { 0u, nullptr };
 }
 
 
-const process::Environment* compiler::GetEnvironmentFromCache(const wchar_t* absolutePathToCompilerExe)
+Process::Environment compiler::GetEnvironmentFromCache(const wchar_t* absolutePathToCompilerExe)
 {
 	CriticalSection::ScopedLock lock(&g_compilerCacheCS);
 	return g_compilerEnvironmentCache.Fetch(absolutePathToCompilerExe);
 }
 
 
-const process::Environment* compiler::UpdateEnvironmentCache(const wchar_t* absolutePathToCompilerExe)
+Process::Environment compiler::UpdateEnvironmentCache(const wchar_t* absolutePathToCompilerExe)
 {
-	const process::Environment* environment = GetEnvironmentFromCache(absolutePathToCompilerExe);
-	if (environment)
+	Process::Environment environment = GetEnvironmentFromCache(absolutePathToCompilerExe);
+	if (environment.data)
 	{
 		return environment;
 	}
@@ -287,10 +314,60 @@ const process::Environment* compiler::UpdateEnvironmentCache(const wchar_t* abso
 	return CreateEnvironmentCacheEntry(absolutePathToCompilerExe);
 }
 
+
+compiler::CompilerType::Enum compiler::DetermineCompilerType(const wchar_t* compilerPath)
+{
+	// MSVC's cl.exe is much more common, so treat this as our default
+	const std::wstring lowerCaseCompilerPath = string::ToLower(Filesystem::GetFilename(compilerPath).GetString());
+	if (string::Contains(lowerCaseCompilerPath.c_str(), L"clang"))
+	{
+		return CompilerType::CLANG;
+	}
+	else if (string::Contains(lowerCaseCompilerPath.c_str(), L"clang++"))
+	{
+		return CompilerType::CLANG;
+	}
+	else if (string::Contains(lowerCaseCompilerPath.c_str(), L"clang-cl"))
+	{
+		return CompilerType::CLANG;
+	}
+	else if (string::Contains(lowerCaseCompilerPath.c_str(), L"clang-cpp"))
+	{
+		return CompilerType::CLANG;
+	}
+
+	return CompilerType::CL;
+}
+
+
+compiler::LinkerType::Enum compiler::DetermineLinkerType(const wchar_t* linkerPath)
+{
+	// MSVC's link.exe is much more common, so treat this as our default
+	const std::wstring lowerCaseLinkerPath = string::ToLower(Filesystem::GetFilename(linkerPath).GetString());
+	if (string::Contains(lowerCaseLinkerPath.c_str(), L"lld"))
+	{
+		return LinkerType::LLD;
+	}
+	else if (string::Contains(lowerCaseLinkerPath.c_str(), L"lld-link"))
+	{
+		return LinkerType::LLD;
+	}
+	else if (string::Contains(lowerCaseLinkerPath.c_str(), L"ld.lld"))
+	{
+		return LinkerType::LLD;
+	}
+	else if (string::Contains(lowerCaseLinkerPath.c_str(), L"ld64.lld"))
+	{
+		return LinkerType::LLD;
+	}
+
+	return LinkerType::LINK;
+}
+
 // BEGIN EPIC MOD - Allow passing environment block for linker
-void compiler::AddEnvironmentToCache(const wchar_t* absolutePathToCompilerExe, process::Environment* environment)
+void compiler::AddEnvironmentToCache(const wchar_t* absolutePathToCompilerExe, Process::Environment* environment)
 {
 	CriticalSection::ScopedLock lock(&g_compilerCacheCS);
-	g_compilerEnvironmentCache.Insert(absolutePathToCompilerExe, environment);
+	g_compilerEnvironmentCache.Insert(absolutePathToCompilerExe, *environment);
 }
 // END EPIC MOD

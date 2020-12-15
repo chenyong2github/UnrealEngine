@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ClientUserCommandThread.h"
 #include "LC_CommandMap.h"
 #include "LC_DuplexPipeClient.h"
@@ -7,12 +10,20 @@
 #include "LC_Event.h"
 #include "LC_Process.h"
 #include "LC_CriticalSection.h"
+// BEGIN EPIC MOD
+//#include "LC_ClientExceptionHandler.h"
+// END EPIC MOD
 #include "LC_StringUtil.h"
 #include "LC_Executable.h"
 #include "LC_MemoryStream.h"
+// BEGIN EPIC MOD
+#include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
+#include "LC_Thread.h"
 #include "LC_Logging.h"
 #include <deque>
 #include <unordered_set>
+// END EPIC MOD
 
 
 namespace
@@ -42,22 +53,31 @@ namespace
 		LC_DISABLE_MOVE_ASSIGNMENT(ProxyCommand);
 	};
 
+
 	// gathers module data for the given module, its import modules, the import's import modules, and so forth
-	static std::vector<commands::ModuleData> GatherImportModuleData(HMODULE mainModule)
+	// BEGIN EPIC MOD
+	static std::vector<commands::ModuleData> GatherImportModuleData(Windows::HMODULE mainModule)
+	// END EPIC MOD
 	{
+		// BEGIN EPIC MOD
 		std::vector<commands::ModuleData> moduleDatas;
+		// END EPIC MOD
 		moduleDatas.reserve(1024u);
 
+		// BEGIN EPIC MOD
 		std::unordered_set<std::wstring> loadedModules;
+		// END EPIC MOD
 		loadedModules.reserve(1024u);
 
-		std::vector<HMODULE> modules;
+		// BEGIN EPIC MOD
+		std::vector<Windows::HMODULE> modules;
+		// END EPIC MOD
 		modules.reserve(1024u);
 
 		modules.push_back(mainModule);
 		while (!modules.empty())
 		{
-			const HMODULE module = modules.back();
+			const Windows::HMODULE module = modules.back();
 			modules.pop_back();
 
 			// get the absolute path of the module.
@@ -81,7 +101,7 @@ namespace
 					moduleDatas.emplace_back(moduleData);
 				}
 
-				executable::Image* image = executable::OpenImage(fullPath, file::OpenMode::READ_ONLY);
+				executable::Image* image = executable::OpenImage(fullPath, Filesystem::OpenMode::READ);
 				if (image)
 				{
 					executable::ImageSectionDB* imageSections = executable::GatherImageSectionDB(image);
@@ -95,7 +115,9 @@ namespace
 								const char* importModulePath = importModules->modules[i].path;
 
 								// only add the import module if it is loaded into the process
-								HMODULE importModule = ::GetModuleHandleA(importModulePath);
+								// BEGIN EPIC MOD
+								Windows::HMODULE importModule = ::GetModuleHandleA(importModulePath);
+								// END EPIC MOD
 								if (importModule)
 								{
 									modules.push_back(importModule);
@@ -138,8 +160,9 @@ bool ClientUserCommandThread::BaseCommand::ExpectsResponse(void) const
 	return m_expectResponse;
 }
 
+
 ClientUserCommandThread::ClientUserCommandThread(DuplexPipeClient* pipeClient, DuplexPipeClient* exceptionPipeClient)
-	: m_thread(INVALID_HANDLE_VALUE)
+	: m_thread(Thread::INVALID_HANDLE)
 	, m_processGroupName()
 	, m_pipe(pipeClient)
 	, m_exceptionPipe(exceptionPipeClient)
@@ -155,23 +178,25 @@ ClientUserCommandThread::~ClientUserCommandThread(void)
 }
 
 
-unsigned int ClientUserCommandThread::Start(const std::wstring& processGroupName, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
+Thread::Id ClientUserCommandThread::Start(const std::wstring& processGroupName, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
 {
 	m_processGroupName = processGroupName;
 
 	// spawn a thread that does the work
-	m_thread = thread::Create("Live coding user commands", 128u * 1024u, &ClientUserCommandThread::ThreadFunction, this, waitForStartEvent, pipeAccessCS);
+	// BEGIN EPIC MOD
+	m_thread = Thread::CreateFromMemberFunction("Live coding user commands", 128u * 1024u, this, &ClientUserCommandThread::ThreadFunction, waitForStartEvent, pipeAccessCS);
+	// END EPIC MOD
 
-	return thread::GetId(m_thread);
+	return Thread::GetId(m_thread);
 }
 
 
 void ClientUserCommandThread::Join(void)
 {
-	if (m_thread != INVALID_HANDLE_VALUE)
+	if (m_thread != Thread::INVALID_HANDLE)
 	{
-		thread::Join(m_thread);
-		thread::Close(m_thread);
+		Thread::Join(m_thread);
+		Thread::Close(m_thread);
 	}
 }
 
@@ -184,12 +209,16 @@ void* ClientUserCommandThread::EnableModule(const wchar_t* nameOfExeOrDll)
 
 void* ClientUserCommandThread::EnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
 {
+	// BEGIN EPIC MOD
 	std::vector<Windows::HMODULE> loadedModules;
+	// END EPIC MOD
 	loadedModules.reserve(count);
 
 	for (unsigned int i = 0u; i < count; ++i)
 	{
+		// BEGIN EPIC MOD
 		Windows::HMODULE module = ::GetModuleHandleW(namesOfExeOrDll[i]);
+		// END EPIC MOD
 		if (module)
 		{
 			loadedModules.push_back(module);
@@ -208,13 +237,15 @@ void* ClientUserCommandThread::EnableModules(const wchar_t* namesOfExeOrDll[], u
 	}
 
 	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData) * loadedModuleCount);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	proxy->m_command.moduleCount = static_cast<unsigned int>(loadedModuleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
 	for (size_t i = 0u; i < loadedModuleCount; ++i)
 	{
+		// BEGIN EPIC MOD
 		Windows::HMODULE module = loadedModules[i];
+		// END EPIC MOD
 
 		commands::ModuleData moduleData = {};
 		moduleData.base = module;
@@ -228,20 +259,25 @@ void* ClientUserCommandThread::EnableModules(const wchar_t* namesOfExeOrDll[], u
 	return proxy->m_command.token;
 }
 
+
 void* ClientUserCommandThread::EnableAllModules(const wchar_t* nameOfExeOrDll)
 {
-	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	// BEGIN EPIC MOD
+	Windows::HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	// END EPIC MOD
 	if (!module)
 	{
 		LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", nameOfExeOrDll);
 		return nullptr;
 	}
 
+	// BEGIN EPIC MOD
 	const std::vector<commands::ModuleData>& allModuleData = GatherImportModuleData(module);
+	// END EPIC MOD
 	const size_t moduleCount = allModuleData.size();
 
 	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData) * moduleCount);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	proxy->m_command.moduleCount = static_cast<unsigned int>(moduleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
@@ -265,12 +301,16 @@ void* ClientUserCommandThread::DisableModule(const wchar_t* nameOfExeOrDll)
 
 void* ClientUserCommandThread::DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
 {
+	// BEGIN EPIC MOD
 	std::vector<Windows::HMODULE> loadedModules;
+	// END EPIC MOD
 	loadedModules.reserve(count);
 
 	for (unsigned int i = 0u; i < count; ++i)
 	{
+		// BEGIN EPIC MOD
 		Windows::HMODULE module = ::GetModuleHandleW(namesOfExeOrDll[i]);
+		// END EPIC MOD
 		if (module)
 		{
 			loadedModules.push_back(module);
@@ -289,13 +329,15 @@ void* ClientUserCommandThread::DisableModules(const wchar_t* namesOfExeOrDll[], 
 	}
 
 	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * loadedModuleCount);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	proxy->m_command.moduleCount = static_cast<unsigned int>(loadedModuleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
 	for (size_t i = 0u; i < loadedModuleCount; ++i)
 	{
-		HMODULE module = loadedModules[i];
+		// BEGIN EPIC MOD
+		Windows::HMODULE module = loadedModules[i];
+		// END EPIC MOD
 
 		commands::ModuleData moduleData = {};
 		moduleData.base = module;
@@ -312,18 +354,22 @@ void* ClientUserCommandThread::DisableModules(const wchar_t* namesOfExeOrDll[], 
 
 void* ClientUserCommandThread::DisableAllModules(const wchar_t* nameOfExeOrDll)
 {
-	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	// BEGIN EPIC MOD
+	Windows::HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	// END EPIC MOD
 	if (!module)
 	{
 		LC_ERROR_USER("Cannot disable module %S because it is not loaded by this process.", nameOfExeOrDll);
 		return nullptr;
 	}
 
+	// BEGIN EPIC MOD
 	const std::vector<commands::ModuleData>& allModuleData = GatherImportModuleData(module);
+	// END EPIC MOD
 	const size_t moduleCount = allModuleData.size();
 
 	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * moduleCount);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	proxy->m_command.moduleCount = static_cast<unsigned int>(moduleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
@@ -343,7 +389,7 @@ void ClientUserCommandThread::WaitForToken(void* token)
 {
 	Event* event = static_cast<Event*>(token);
 
-	if (m_thread != INVALID_HANDLE_VALUE)
+	if (m_thread != Thread::INVALID_HANDLE)
 	{
 		// thread was successfully initialized, wait until the command has been executed in the queue
 		event->Wait();
@@ -468,7 +514,7 @@ void ClientUserCommandThread::SetActive(bool active)
 void ClientUserCommandThread::SetBuildArguments(const wchar_t* arguments)
 {
 	ProxyCommand<commands::SetBuildArguments>* proxy = new ProxyCommand<commands::SetBuildArguments>(false, 0u);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	wcscpy_s(proxy->m_command.arguments, arguments);
 
 	PushUserCommand(proxy);
@@ -479,7 +525,7 @@ void ClientUserCommandThread::SetBuildArguments(const wchar_t* arguments)
 void* ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase)
 {
 	ProxyCommand<commands::EnableLazyLoadedModule>* proxy = new ProxyCommand<commands::EnableLazyLoadedModule>(true, 0u);
-	proxy->m_command.processId = process::GetId();
+	proxy->m_command.processId = Process::Current::GetId();
 	wcscpy_s(proxy->m_command.fileName, fileName);
 	proxy->m_command.moduleBase = moduleBase;
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
@@ -499,10 +545,10 @@ void ClientUserCommandThread::InstallExceptionHandler(void)
 }
 
 
-ClientUserCommandThread::ExceptionResult ClientUserCommandThread::HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, unsigned int threadId)
+ClientUserCommandThread::ExceptionResult ClientUserCommandThread::HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, Thread::Id threadId)
 {
 	commands::HandleException serverCommand;
-	serverCommand.processId = process::GetId();
+	serverCommand.processId = Process::Current::GetId();
 	serverCommand.threadId = threadId;
 	serverCommand.exception = *exception;
 	serverCommand.context = *context;
@@ -551,49 +597,7 @@ ClientUserCommandThread::BaseCommand* ClientUserCommandThread::PopUserCommand(vo
 }
 
 
-// BEGIN EPIC MOD - Temporarily release lock to prevent hangs
-class LeaveableScopedLock
-{
-public:
-	explicit LeaveableScopedLock(CriticalSection* cs)
-		: m_cs(cs)
-		, m_hasLock(true)
-	{
-		cs->Enter();
-	}
-
-	void Enter()
-	{
-		if (!m_hasLock)
-		{
-			m_cs->Enter();
-			m_hasLock = true;
-		}
-	}
-
-	void Leave()
-	{
-		if (m_hasLock)
-		{
-			m_cs->Leave();
-			m_hasLock = false;
-		}
-	}
-
-	~LeaveableScopedLock(void)
-	{
-		Leave();
-	}
-
-private:
-	CriticalSection* m_cs;
-	bool m_hasLock;
-};
-// END EPIC MOD
-
-
-
-unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, CriticalSection* pipeAccessCS)
+Thread::ReturnValue ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, CriticalSection* pipeAccessCS)
 {
 	// wait until we get the signal that the thread can start
 	waitForStartEvent->Wait();
@@ -620,7 +624,7 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 			// // no new item available, bail out
 			// exceptionHandler::Unregister();
 			// END EPIC MOD - Using internal CrashReporter
-			return 2u;
+			return Thread::ReturnValue(2u);
 		}
 
 		if (!m_pipe->IsValid())
@@ -629,7 +633,7 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 			// // pipe was closed or is broken, bail out
 			// exceptionHandler::Unregister();
 			// END EPIC MOD - Using internal CrashReporter
-			return 1u;
+			return Thread::ReturnValue(1u);
 		}
 
 		// lock critical section for accessing the pipe.
@@ -647,5 +651,7 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 		delete command;
 	}
 
-	return 0u;
+	// BEGIN EPIC MOD
+	return Thread::ReturnValue(0u);
+	// END EPIC MOD
 }

@@ -1,4 +1,4 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
@@ -11,9 +11,7 @@
 //#define LPP_DLL_API(_rv) extern "C" __declspec(dllexport) _rv __cdecl
 // END EPIC MOD - Internalizing API
 
-// BEGIN EPIC MOD - Adding instance to startup function
-LPP_DLL_API(void) LppStartup(void* thisInstance);
-// END EPIC MOD
+LPP_DLL_API(void) LppStartup(void);
 LPP_DLL_API(void) LppShutdown(void);
 LPP_DLL_API(const char*) LppGetVersion(void);
 LPP_DLL_API(int) LppCheckVersion(const char* apiVersion);
@@ -44,4 +42,3 @@ LPP_DLL_API(void*) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll);
 LPP_DLL_API(void) LppApplySettingBool(const char* settingName, int value);
 LPP_DLL_API(void) LppApplySettingInt(const char* settingName, int value);
 LPP_DLL_API(void) LppApplySettingString(const char* settingName, const wchar_t* value);
-

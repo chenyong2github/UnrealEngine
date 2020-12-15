@@ -1,18 +1,22 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include <type_traits>
 
 
 namespace pointer
 {
+	// BEGIN EPIC MOD
 	template <typename T>
 	T As(void* anyPointer);
 
 	template <typename T>
 	T As(const void* anyPointer);
+	// END EPIC MOD
 
 	template <typename T>
 	T AsInteger(const void* anyPointer)

@@ -1,19 +1,24 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ImmutableString.h"
 #include "LC_StringUtil.h"
+#include "LC_Hashing.h"
+// BEGIN EPIC MOD
 #include "LC_Allocators.h"
+#include "LC_Assert.h"
 #include "LC_Platform.h"
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
-#include "xxhash.h"
-
+// END EPIC MOD
 
 namespace
 {
 	static inline uint32_t Hash(const char* key, size_t length)
 	{
-		return XXH32(key, length * sizeof(char), 0u);
+		return Hashing::Hash32(key, length * sizeof(char), 0u);
 	}
 
 	static inline const char* Clone(const char* str, size_t length)
@@ -97,7 +102,7 @@ namespace string
 
 
 ImmutableString::ImmutableString(void)
-	: m_data()
+	: ImmutableString("", 0u)
 {
 }
 
@@ -192,4 +197,3 @@ void ImmutableString::Free(void)
 		LC_FREE(&g_immutableStringAllocator, const_cast<char*>(m_data.longString.str), (GetLength() + 1u) * sizeof(char));
 	}
 }
-

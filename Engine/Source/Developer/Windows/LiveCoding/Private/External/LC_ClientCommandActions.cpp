@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ClientCommandActions.h"
 #include "LC_ClientUserCommandThread.h"
 #include "LC_DuplexPipe.h"
@@ -7,7 +10,9 @@
 #include "LC_Executable.h"
 #include "LC_Event.h"
 #include "LC_Process.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+// END EPIC MOD
 
 // BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
 extern bool GHasLoadedPatch;
@@ -167,7 +172,9 @@ bool actions::CallEntryPoint::Execute(const CommandType* command, const DuplexPi
 
 bool actions::LogOutput::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void* payload, size_t)
 {
-	logging::LogNoFormat<logging::Channel::USER>(static_cast<const wchar_t*>(payload));
+	// BEGIN EPIC MOD
+	Logging::LogNoFormat<Logging::Channel::USER>(static_cast<const wchar_t*>(payload));
+	// END EPIC MOD
 	pipe->SendAck();
 
 	return true;

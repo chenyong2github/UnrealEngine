@@ -1,7 +1,10 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_FileAttributeCache.h"
-#include "LC_FileUtil.h"
+#include "LC_Filesystem.h"
 
 
 FileAttributeCache::FileAttributeCache(void)
@@ -21,9 +24,9 @@ FileAttributeCache::Data FileAttributeCache::UpdateCacheData(const std::wstring&
 	if (optional.second)
 	{
 		// value was inserted, update it with the correct data
-		const file::Attributes& attributes = file::GetAttributes(path.c_str());
-		data.exists = file::DoesExist(attributes);
-		data.lastModificationTime = file::GetLastModificationTime(attributes);
+		const Filesystem::PathAttributes& attributes = Filesystem::GetAttributes(path.c_str());
+		data.exists = Filesystem::DoesExist(attributes);
+		data.lastModificationTime = Filesystem::GetLastModificationTime(attributes);
 	}
 
 	return data;

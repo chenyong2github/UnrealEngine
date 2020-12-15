@@ -1,12 +1,19 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_COMThread.h"
-#include "LC_Platform.h"
+#include "LC_Thread.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+#include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
 #include "Windows/MinimalWindowsAPI.h"
 #include <objidl.h>
 
 #include "Windows/AllowWindowsPlatformAtomics.h"
+// END EPIC MOD
 
 namespace
 {
@@ -16,6 +23,8 @@ namespace
 	class COMMessageFilter : public IMessageFilter
 	{
 	public:
+		virtual ~COMMessageFilter(void) {}
+
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(
 			/* [in] */ REFIID riid,
 			/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
@@ -127,7 +136,7 @@ COMThread::COMThread(void)
 	, m_internalThread(nullptr)
 {
 	// launch the thread that takes care of calling COM functions
-	m_internalThread = thread::Create("Live++ COM", 65536u, &COMThread::ThreadFunction, this);
+	m_internalThread = Thread::CreateFromMemberFunction("Live++ COM", 65536u, this, &COMThread::ThreadFunction);
 }
 
 
@@ -137,12 +146,12 @@ COMThread::~COMThread(void)
 	m_leaveThreadEvent.Signal();
 	m_functionAvailableEvent.Signal();
 
-	thread::Join(m_internalThread);
-	thread::Close(m_internalThread);
+	Thread::Join(m_internalThread);
+	Thread::Close(m_internalThread);
 }
 
 
-unsigned int COMThread::ThreadFunction(void)
+Thread::ReturnValue COMThread::ThreadFunction(void)
 {
 	const HRESULT result = ::CoInitialize(NULL);
 	if (result != S_OK)
@@ -179,7 +188,9 @@ unsigned int COMThread::ThreadFunction(void)
 
 	::CoUninitialize();
 
-	return 0u;
+	return Thread::ReturnValue(0u);
 }
 
+// BEGIN EPIC MOD
 #include "Windows/HideWindowsPlatformAtomics.h"
+// END EPIC MOD

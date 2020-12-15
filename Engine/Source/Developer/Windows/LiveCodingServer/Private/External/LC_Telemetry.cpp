@@ -1,13 +1,18 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Telemetry.h"
 #include "LC_TimeStamp.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include <ratio>
 #include <inttypes.h>
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
+// END EPIC MOD
 
 namespace
 {
@@ -119,4 +124,6 @@ void telemetry::Accumulator::Print(void)
 	LC_LOG_TELEMETRY("Accumulated: %" PRId64 " (%.3f KB, %.3f MB)", m_accumulated, static_cast<double>(m_accumulated) / 1024.0, static_cast<double>(m_accumulated) / 1048576.0);
 }
 
+// BEGIN EPIC MOD
 #include "Windows/HideWindowsPlatformAtomics.h"
+// END EPIC MOD

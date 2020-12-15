@@ -1,15 +1,21 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_LiveProcess.h"
 #include "LC_HeartBeat.h"
 #include "LC_CodeCave.h"
 #include "LC_Event.h"
 #include "LC_PrimitiveNames.h"
 #include "LC_VisualStudioAutomation.h"
+#include "LC_Process.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+// END EPIC MOD
 
 
-LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
+LiveProcess::LiveProcess(Process::Handle processHandle, Process::Id processId, Thread::Id commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
 	const wchar_t* imagePath, const wchar_t* commandLine, const wchar_t* workingDirectory, const void* environment, size_t environmentSize)
 	: m_processHandle(processHandle)
 	, m_processId(processId)
@@ -22,10 +28,14 @@ LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, 
 	, m_environment(environment, environmentSize)
 	, m_imagesTriedToLoad()
 	, m_heartBeatDelta(0ull)
+// BEGIN EPIC MOD
 #if WITH_VISUALSTUDIO_DTE
+// END EPIC MOD
 	, m_vsDebugger(nullptr)
 	, m_vsDebuggerThreads()
+// BEGIN EPIC MOD
 #endif
+// END EPIC MOD
 	, m_codeCave(nullptr)
 	, m_restartState(RestartState::DEFAULT)
 {
@@ -56,7 +66,9 @@ bool LiveProcess::MadeProgress(void) const
 
 void LiveProcess::HandleDebuggingPreCompile(void)
 {
+// BEGIN EPIC MOD
 #if WITH_VISUALSTUDIO_DTE
+// END EPIC MOD
 	if (!MadeProgress())
 	{
 		// this process did not make progress.
@@ -70,22 +82,52 @@ void LiveProcess::HandleDebuggingPreCompile(void)
 			m_vsDebuggerThreads = visualStudio::EnumerateThreads(m_vsDebugger);
 			if (m_vsDebuggerThreads.size() > 0u)
 			{
-				visualStudio::FreezeThreads(m_vsDebugger, m_vsDebuggerThreads);
-				visualStudio::ThawThread(m_vsDebugger, m_vsDebuggerThreads, m_commandThreadId);
-				visualStudio::Resume(m_vsDebugger);
+				if (visualStudio::FreezeThreads(m_vsDebugger, m_vsDebuggerThreads))
+				{
+					if (visualStudio::ThawThread(m_vsDebugger, m_vsDebuggerThreads, m_commandThreadId))
+					{
+						if (visualStudio::Resume(m_vsDebugger))
+						{
+							LC_SUCCESS_USER("Automating debugger attached to process (PID: %d)", m_processId);
 
-				LC_SUCCESS_USER("Automating debugger attached to process (PID: %d)", m_processId);
-
-				return;
+							return;
+						}
+						else
+						{
+							LC_LOG_USER("Failed to resume debugger (PID: %d)", m_processId);
+						}
+					}
+					else
+					{
+						// BEGIN EPIC MOD
+						LC_LOG_USER("Failed to thaw Live coding command thread in debugger (PID: %d)", m_processId);
+						// END EPIC MOD
+					}
+				}
+				else
+				{
+					LC_LOG_USER("Failed to freeze threads in debugger (PID: %d)", m_processId);
+				}
 			}
+			else
+			{
+				LC_LOG_USER("Failed to enumerate threads in debugger (PID: %d)", m_processId);
+			}
+		}
+		else
+		{
+			LC_LOG_USER("Failed to find debugger attached to process (PID: %d)", m_processId);
 		}
 
 		// no debugger could be found or an error occurred.
 		// continue by installing a code cave.
+		m_vsDebugger = nullptr;
 		LC_LOG_USER("Failed to automate debugger attached to process (PID: %d), using fallback mechanism", m_processId);
 		LC_SUCCESS_USER("Waiting for client process (PID: %d), hit 'Continue' (F5 in Visual Studio) if being held in the debugger", m_processId);
 	}
+// BEGIN EPIC MOD
 #endif
+// END EPIC MOD
 
 	// this process either made progress and is not held in the debugger, or we failed automating the debugger.
 	// "halt" this process by installing a code cave.
@@ -100,21 +142,30 @@ void LiveProcess::HandleDebuggingPostCompile(void)
 		// we installed a code cave previously, remove it
 		UninstallCodeCave();
 	}
+// BEGIN EPIC MOD
 #if WITH_VISUALSTUDIO_DTE
+// END EPIC MOD
 	else if (m_vsDebugger)
 	{
 		// we automated the debugger previously. break into the debugger again and resume all threads.
 		// when debugging a C# project that calls into C++ code, the VS debugger sometimes creates new MTA threads in between our PreCompile and PostCompile calls.
 		// try getting a new list of threads and thaw them all as well.
-		visualStudio::Break(m_vsDebugger);
-		
-		types::vector<EnvDTE::ThreadPtr> newDebuggerThreads = visualStudio::EnumerateThreads(m_vsDebugger);
-		visualStudio::ThawThreads(m_vsDebugger, newDebuggerThreads);
-		visualStudio::ThawThreads(m_vsDebugger, m_vsDebuggerThreads);
+		if (visualStudio::Break(m_vsDebugger))
+		{
+			types::vector<EnvDTE::ThreadPtr> newDebuggerThreads = visualStudio::EnumerateThreads(m_vsDebugger);
+			if (newDebuggerThreads.size() > 0u)
+			{
+				visualStudio::ThawThreads(m_vsDebugger, newDebuggerThreads);
+			}
+
+			visualStudio::ThawThreads(m_vsDebugger, m_vsDebuggerThreads);
+		}
 	}
 
 	m_vsDebugger = nullptr;
+// BEGIN EPIC MOD
 #endif
+// END EPIC MOD
 }
 
 
@@ -186,14 +237,16 @@ void LiveProcess::WaitForExitBeforeRestart(void)
 		executeRestart.Signal();
 
 		// wait until the client terminates
-		process::Wait(m_processHandle);
+		Process::Wait(m_processHandle);
 
 		m_restartState = RestartState::SUCCESSFUL_EXIT;
 	}
 }
 
 
+// BEGIN EPIC MOD
 void LiveProcess::Restart(void* restartJob)
+// END EPIC MOD
 {
 	if (m_restartState == RestartState::SUCCESSFUL_EXIT)
 	{
@@ -208,10 +261,10 @@ void LiveProcess::Restart(void* restartJob)
 		}
 		// END EPIC MOD
 		// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
-		process::Context* context = process::Spawn(m_imagePath.c_str(), m_workingDirectory.c_str(), commandLine.c_str(), m_environment.GetData(), process::SpawnFlags::SUSPENDED);
+		Process::Context* context = Process::Spawn(m_imagePath.c_str(), m_workingDirectory.c_str(), commandLine.c_str(), m_environment.GetData(), Process::SpawnFlags::SUSPENDED);
 		void* TargetHandle;
-		DuplicateHandle(GetCurrentProcess(), restartJob, context->pi.hProcess, &TargetHandle, 0, Windows::TRUE, DUPLICATE_SAME_ACCESS);
-		ResumeThread(context->pi.hThread);
+		DuplicateHandle(GetCurrentProcess(), restartJob, +Process::GetHandle(context), &TargetHandle, 0, Windows::TRUE, DUPLICATE_SAME_ACCESS);
+		Process::ResumeMainThread(context);
 		// END EPIC MOD
 
 		m_restartState = RestartState::SUCCESSFUL_RESTART;

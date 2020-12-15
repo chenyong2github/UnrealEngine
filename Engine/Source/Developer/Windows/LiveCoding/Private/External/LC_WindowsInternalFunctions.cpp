@@ -1,11 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_WindowsInternalFunctions.h"
 
 
-windowsInternal::Function<decltype(NtSuspendProcess)> windowsInternal::NtSuspendProcess("ntdll.dll", "NtSuspendProcess");
-windowsInternal::Function<decltype(NtResumeProcess)> windowsInternal::NtResumeProcess("ntdll.dll", "NtResumeProcess");
-windowsInternal::Function<decltype(NtWriteVirtualMemory)> windowsInternal::NtWriteVirtualMemory("ntdll.dll", "NtWriteVirtualMemory");
-windowsInternal::Function<decltype(NtQuerySystemInformation)> windowsInternal::NtQuerySystemInformation("ntdll.dll", "NtQuerySystemInformation");
-windowsInternal::Function<decltype(NtQueryInformationProcess)> windowsInternal::NtQueryInformationProcess("ntdll.dll", "NtQueryInformationProcess");
-windowsInternal::Function<decltype(NtContinue)> windowsInternal::NtContinue("ntdll.dll", "NtContinue");
+WindowsInternals::Function<decltype(NtSuspendProcess)> WindowsInternals::NtSuspendProcess("ntdll.dll", "NtSuspendProcess");
+WindowsInternals::Function<decltype(NtResumeProcess)> WindowsInternals::NtResumeProcess("ntdll.dll", "NtResumeProcess");
+WindowsInternals::Function<decltype(NtReadVirtualMemory)> WindowsInternals::NtReadVirtualMemory("ntdll.dll", "NtReadVirtualMemory");
+WindowsInternals::Function<decltype(NtWriteVirtualMemory)> WindowsInternals::NtWriteVirtualMemory("ntdll.dll", "NtWriteVirtualMemory");
+WindowsInternals::Function<decltype(NtQuerySystemInformation)> WindowsInternals::NtQuerySystemInformation("ntdll.dll", "NtQuerySystemInformation");
+WindowsInternals::Function<decltype(NtQueryInformationProcess)> WindowsInternals::NtQueryInformationProcess("ntdll.dll", "NtQueryInformationProcess");
+WindowsInternals::Function<decltype(NtContinue)> WindowsInternals::NtContinue("ntdll.dll", "NtContinue");

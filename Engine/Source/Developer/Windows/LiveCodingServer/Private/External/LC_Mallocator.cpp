@@ -1,9 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Mallocator.h"
+// BEGIN EPIC MOD
+#include "LC_Assert.h"
 #include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
 namespace
 {

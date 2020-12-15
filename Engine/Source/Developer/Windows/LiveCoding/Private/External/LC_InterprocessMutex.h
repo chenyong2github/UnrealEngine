@@ -1,9 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "Windows/MinimalWindowsAPI.h"
 #include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
+// END EPIC MOD
 
 class InterprocessMutex
 {
@@ -38,5 +41,7 @@ public:
 	};
 
 private:
+	// BEGIN EPIC MOD
 	Windows::HANDLE m_mutex;
+	// END EPIC MOD
 };

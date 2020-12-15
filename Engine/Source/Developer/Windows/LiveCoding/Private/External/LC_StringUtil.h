@@ -1,9 +1,11 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include <string>
+// END EPIC MOD
 
 namespace string
 {
@@ -13,6 +15,7 @@ namespace string
 
 	std::string Replace(const std::string& str, const std::string& from, const std::string& to);
 	std::wstring Replace(const std::wstring& str, const std::wstring& from, const std::wstring& to);
+	std::string ReplaceAll(const std::string& str, const std::string& from, const std::string& to);
 	std::wstring ReplaceAll(const std::wstring& str, const std::wstring& from, const std::wstring& to);
 
 	std::string EraseAll(const std::string& str, const std::string& subString);
@@ -34,6 +37,27 @@ namespace string
 	bool StartsWith(const char* str, const char* subString);
 	bool StartsWith(const wchar_t* str, const wchar_t* subString);
 
+	inline char ToLower(char c)
+	{
+		return static_cast<char>(::tolower(c));
+	}
+
+	inline wchar_t ToLower(wchar_t c)
+	{
+		return static_cast<wchar_t>(::towlower(c));
+	}
+
+	inline char ToUpper(char c)
+	{
+		return static_cast<char>(::toupper(c));
+	}
+
+	inline wchar_t ToUpper(wchar_t c)
+	{
+		return static_cast<wchar_t>(::towupper(c));
+	}
+
+
 	std::string ToUpper(const char* str);
 	std::string ToUpper(const std::string& str);
 	std::wstring ToUpper(const wchar_t* str);
@@ -45,9 +69,34 @@ namespace string
 	// Turns invalid characters (\ / : * ? " < > | : ; , .) in file names, names for OS objects, etc. into underscores
 	std::wstring MakeSafeName(const std::wstring& name);
 
+	// Returns the length of the given string without null terminator
+	inline size_t GetLength(const char* str)
+	{
+		return strlen(str);
+	}
+
+	// Returns the length of the given string without null terminator
+	inline size_t GetLength(const wchar_t* str)
+	{
+		return wcslen(str);
+	}
+
+	// TODO: temporary fix for Orbis
+#if _WIN32
 	template <typename T>
 	inline T StringToInt(const wchar_t* str)
 	{
 		return static_cast<T>(::_wtoi(str));
 	}
+
+	template <typename T>
+	inline std::wstring IntToString(T value)
+	{
+		// ensure that the largest 64-bit integers & sign & a null-terminator fit into the buffer
+		wchar_t result[22u] = {};
+		_itow_s(static_cast<int>(value), result, 10);
+
+		return std::wstring(result);
+	}
+#endif
 }

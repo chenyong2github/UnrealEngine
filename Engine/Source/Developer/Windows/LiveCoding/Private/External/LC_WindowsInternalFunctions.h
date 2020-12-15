@@ -1,19 +1,20 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
 #include "LC_WindowsInternals.h"
+// BEGIN EPIC MODS
 #include "LC_Logging.h"
+// END EPIC MODS
 
-
-namespace windowsInternal
+namespace WindowsInternals
 {
-	// helper class that allows us to call any function in any Windows DLL, as long as it is exported and we know its signature.
-	// base template.
+	// Helper class that allows us to call any function in any Windows DLL, as long as it is exported and we know its signature.
+	// Base template.
 	template <typename T>
 	class Function {};
 
-	// partial specialization for matching any function signature.
+	// Partial specialization for matching any function signature.
 	template <typename R, typename... Args>
 	class Function<R (Args...)>
 	{
@@ -25,12 +26,12 @@ namespace windowsInternal
 		inline R operator()(Args... args) const;
 
 	private:
-		// helper for letting us check the result for arbitrary return types.
-		// base template.
+		// Helper for letting us check the result for arbitrary return types.
+		// Base template.
 		template <typename T>
 		inline void CheckResult(T) const {}
 
-		// explicit specialization for NTSTATUS return values
+		// Explicit specialization for NTSTATUS return values.
 		template <>
 		inline void CheckResult(NTSTATUS result) const
 		{
@@ -48,7 +49,7 @@ namespace windowsInternal
 
 
 template <typename R, typename... Args>
-inline windowsInternal::Function<R (Args...)>::Function(const char* moduleName, const char* functionName)
+inline WindowsInternals::Function<R (Args...)>::Function(const char* moduleName, const char* functionName)
 	: m_moduleName(moduleName)
 	, m_functionName(functionName)
 	, m_function(nullptr)
@@ -69,7 +70,7 @@ inline windowsInternal::Function<R (Args...)>::Function(const char* moduleName, 
 
 
 template <typename R, typename... Args>
-inline R windowsInternal::Function<R (Args...)>::operator()(Args... args) const
+inline R WindowsInternals::Function<R (Args...)>::operator()(Args... args) const
 {
 	const R result = m_function(args...);
 	CheckResult(result);
@@ -78,21 +79,23 @@ inline R windowsInternal::Function<R (Args...)>::operator()(Args... args) const
 }
 
 
-// these are undocumented functions found in ntdll.dll.
-// we don't call them directly, but use them for "extracting" their signature.
-extern "C" windowsInternal::NTSTATUS NtSuspendProcess(HANDLE ProcessHandle);
-extern "C" windowsInternal::NTSTATUS NtResumeProcess(HANDLE ProcessHandle);
-extern "C" windowsInternal::NTSTATUS NtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToWrite, PULONG NumberOfBytesWritten);
-extern "C" windowsInternal::NTSTATUS NtQuerySystemInformation(windowsInternal::NT_SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength);
-extern "C" windowsInternal::NTSTATUS NtQueryInformationProcess(HANDLE ProcessHandle, windowsInternal::NT_PROCESS_INFORMATION_CLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength);
-extern "C" windowsInternal::NTSTATUS NtContinue(CONTEXT* ThreadContext, BOOLEAN RaiseAlert);
+// These are undocumented functions found in ntdll.dll.
+// We don't call them directly, but use them for "extracting" their signature using decltype.
+extern "C" WindowsInternals::NTSTATUS NtSuspendProcess(HANDLE ProcessHandle);
+extern "C" WindowsInternals::NTSTATUS NtResumeProcess(HANDLE ProcessHandle);
+extern "C" WindowsInternals::NTSTATUS NtReadVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead, PULONG NumberOfBytesRead);
+extern "C" WindowsInternals::NTSTATUS NtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToWrite, PULONG NumberOfBytesWritten);
+extern "C" WindowsInternals::NTSTATUS NtQuerySystemInformation(WindowsInternals::NT_SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength);
+extern "C" WindowsInternals::NTSTATUS NtQueryInformationProcess(HANDLE ProcessHandle, WindowsInternals::NT_PROCESS_INFORMATION_CLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength);
+extern "C" WindowsInternals::NTSTATUS NtContinue(CONTEXT* ThreadContext, BOOLEAN RaiseAlert);
 
 
-// cache important undocumented functions
-namespace windowsInternal
+// Cache important undocumented functions.
+namespace WindowsInternals
 {
 	extern Function<decltype(NtSuspendProcess)> NtSuspendProcess;
 	extern Function<decltype(NtResumeProcess)> NtResumeProcess;
+	extern Function<decltype(NtReadVirtualMemory)> NtReadVirtualMemory;
 	extern Function<decltype(NtWriteVirtualMemory)> NtWriteVirtualMemory;
 	extern Function<decltype(NtQuerySystemInformation)> NtQuerySystemInformation;
 	extern Function<decltype(NtQueryInformationProcess)> NtQueryInformationProcess;

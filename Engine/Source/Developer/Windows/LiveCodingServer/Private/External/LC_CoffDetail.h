@@ -1,12 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_PointerUtil.h"
+// BEGIN EPIC MOD
 #include "LC_Platform.h"
 #include <inttypes.h>
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
 namespace coffDetail
 {
@@ -57,7 +61,7 @@ namespace coffDetail
 		// stated in the spec.
 		// e.g. some non-bigobj COFF files that have more than 32767 sections will have symbols with
 		// section numbers like 0x8000, 0x8001, etc. which need to be treated as unsigned values.
-		typedef std::make_unsigned<decltype(symbol->SectionNumber)>::type UnsignedSectionNumberType;
+		typedef typename std::make_unsigned<decltype(symbol->SectionNumber)>::type UnsignedSectionNumberType;
 
 		const uint32_t sectionIndex = static_cast<uint32_t>(static_cast<UnsignedSectionNumberType>(symbol->SectionNumber) - 1u);
 		return sectionIndex;

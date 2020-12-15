@@ -1,10 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ExecutablePatcher.h"
 #include "LC_Executable.h"
 #include "LC_PointerUtil.h"
+#include "LC_Process.h"
+// BEGIN EPIC MOD
+#include "LC_Assert.h"
 #include "LC_Logging.h"
-
+// END EPIC MOD
 
 namespace
 {
@@ -60,21 +66,21 @@ uint32_t ExecutablePatcher::DisableEntryPointInImage(executable::Image* image, e
 }
 
 
-void ExecutablePatcher::DisableEntryPoint(process::Handle processHandle, void* moduleBase, uint32_t entryPointRva)
+void ExecutablePatcher::DisableEntryPoint(Process::Handle processHandle, void* moduleBase, uint32_t entryPointRva)
 {
 	for (size_t i = 0u; i < INJECTED_CODE_SIZE; ++i)
 	{
 		uint8_t* address = pointer::Offset<uint8_t*>(moduleBase, entryPointRva + i);
-		process::WriteProcessMemory(processHandle, address, PATCH[i]);
+		Process::WriteProcessMemory(processHandle, address, PATCH[i]);
 	}
 }
 
 
-void ExecutablePatcher::RestoreEntryPoint(process::Handle processHandle, void* moduleBase, uint32_t entryPointRva)
+void ExecutablePatcher::RestoreEntryPoint(Process::Handle processHandle, void* moduleBase, uint32_t entryPointRva)
 {
 	for (size_t i = 0u; i < INJECTED_CODE_SIZE; ++i)
 	{
 		uint8_t* address = pointer::Offset<uint8_t*>(moduleBase, entryPointRva + i);
-		process::WriteProcessMemory(processHandle, address, m_originalCode[i]);
+		Process::WriteProcessMemory(processHandle, address, m_originalCode[i]);
 	}
 }

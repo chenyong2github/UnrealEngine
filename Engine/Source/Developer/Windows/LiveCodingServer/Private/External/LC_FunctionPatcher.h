@@ -1,9 +1,11 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Process.h"
+// END EPIC MOD
+#include "LC_ProcessTypes.h"
 #include "LC_Symbols.h"
 #include "LC_ModuleCache.h"
 
@@ -35,14 +37,14 @@ namespace functions
 		uint32_t patchFunctionRva,
 		const symbols::ThunkDB* thunkDb,
 		const symbols::Contribution* contribution,
-		process::Handle processHandle,
+		Process::Handle processHandle,
 		void* moduleBase,
 		uint16_t moduleIndex,
 		types::unordered_set<const void*>& patchedAddresses,
 		const types::vector<const void*>& threadIPs,
 
 		// debug only
-		unsigned int processId,
+		Process::Id processId,
 		const char* functionName
 	);
 
@@ -53,14 +55,14 @@ namespace functions
 		uint32_t srcRva,
 		uint32_t destRva,
 		const symbols::Contribution* contribution,
-		process::Handle processHandle,
+		Process::Handle processHandle,
 		uint16_t moduleIndex
 	);
 
 	void PatchFunction
 	(
 		const Record& record,
-		process::Handle processHandle,
+		Process::Handle processHandle,
 		void* processModuleBases[],
 		void* newModuleBase,
 		types::unordered_set<const void*>& patchedAddresses,
@@ -70,7 +72,7 @@ namespace functions
 	void PatchLibraryFunction
 	(
 		const LibraryRecord& record,
-		process::Handle processHandle,
+		Process::Handle processHandle,
 		void* processModuleBases[],
 		void* newModuleBase
 	);

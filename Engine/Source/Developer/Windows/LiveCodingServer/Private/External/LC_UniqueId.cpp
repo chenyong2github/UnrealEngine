@@ -1,10 +1,14 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_UniqueId.h"
+#include "LC_Hashing.h"
+// BEGIN EPIC MOD
 #include "LC_CriticalSection.h"
 #include "LC_Types.h"
-#include "xxhash.h"
-
+// END EPIC MOD
 
 namespace detail
 {
@@ -14,7 +18,7 @@ namespace detail
 		{
 			inline size_t operator()(const std::wstring& key) const
 			{
-				return XXH32(key.c_str(), key.length() * sizeof(wchar_t), 0u);
+				return Hashing::Hash32(key.c_str(), key.length() * sizeof(wchar_t), 0u);
 			}
 		};
 

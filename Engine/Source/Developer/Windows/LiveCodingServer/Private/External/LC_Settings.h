@@ -1,10 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "LC_Types.h"
 #include "LC_Platform.h"
+// END EPIC MOD
 
 namespace settings
 {

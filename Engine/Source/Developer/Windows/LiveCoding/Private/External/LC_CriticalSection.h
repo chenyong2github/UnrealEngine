@@ -1,10 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "Windows/MinimalWindowsApi.h"
 #include "LC_Platform.h"
+#include LC_PLATFORM_INCLUDE(LC_Foundation)
+// END EPIC MOD
 
 class CriticalSection
 {
@@ -39,5 +42,7 @@ public:
 	};
 
 private:
+	// BEGIN EPIC MOD
 	Windows::CRITICAL_SECTION m_cs;
+	// END EPIC MOD
 };

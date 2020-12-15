@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_DiaUtil.h"
 
 
@@ -138,10 +141,14 @@ uint32_t dia::GetSymbolOffset(IDiaSymbol* symbol)
 
 bool dia::IsFunction(IDiaSymbol* symbol)
 {
+	// BEGIN EPIC MOD
 	BOOL isFunction = Windows::FALSE;
+	// END EPIC MOD
 	symbol->get_function(&isFunction);
 
+	// BEGIN EPIC MOD
 	return (isFunction != Windows::FALSE);
+	// END EPIC MOD
 }
 
 
@@ -174,7 +181,9 @@ IDiaSymbol* dia::GetSymbolById(IDiaSession* session, uint32_t id)
 
 bool dia::WasCompiledWithLTCG(IDiaSymbol* compilandDetail)
 {
+	// BEGIN EPIC MOD
 	BOOL isLTCG = Windows::FALSE;
+	// END EPIC MOD
 	compilandDetail->get_isLTCG(&isLTCG);
 
 	return (isLTCG != 0);
@@ -183,7 +192,9 @@ bool dia::WasCompiledWithLTCG(IDiaSymbol* compilandDetail)
 
 bool dia::WasCompiledWithHotpatch(IDiaSymbol* compilandDetail)
 {
+	// BEGIN EPIC MOD
 	BOOL isHotpatch = Windows::FALSE;
+	// END EPIC MOD
 	compilandDetail->get_isHotpatchable(&isHotpatch);
 
 	return (isHotpatch != 0);

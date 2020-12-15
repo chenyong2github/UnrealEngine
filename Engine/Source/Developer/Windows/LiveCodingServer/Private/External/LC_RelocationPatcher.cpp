@@ -1,10 +1,16 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_RelocationPatcher.h"
 #include "LC_StringUtil.h"
 #include "LC_NameMangling.h"
 #include "LC_PointerUtil.h"
 #include "LC_CoffDetail.h"
+// BEGIN EPIC MOD
+#include "LC_Process.h"
+// END EPIC MOD
 
 
 bool relocations::WouldPatchRelocation(const ImmutableString& dstSymbolName)
@@ -108,15 +114,15 @@ relocations::Record relocations::PatchRelocation
 	const types::StringSet& forceRelocationSymbols,
 	const ModuleCache* moduleCache,
 	const ImmutableString& srcSymbolName,
+	const ImmutableString& dstSymbolName,
 	const symbols::Symbol* srcSymbol,
 	size_t newModuleIndex,
 	void* newModuleBases[]
 )
 {
-	Record record = { coff::Relocation::Type::UNKNOWN, 0u, 0u };
+	Record record = { coff::Relocation::Type::UNKNOWN, 0u, 0u, {} };
 
 	const coff::Relocation::Type::Enum type = relocation->type;
-	const ImmutableString& dstSymbolName = coff::GetRelocationDstSymbolName(coffDb, relocation);
 	const uint32_t characteristics = coff::GetRelocationDestinationSectionCharacteristics(coffDb, relocation);
 
 	const bool forceRelocation = (forceRelocationSymbols.find(dstSymbolName) != forceRelocationSymbols.end());
@@ -237,7 +243,7 @@ relocations::Record relocations::PatchRelocation
 			for (size_t p = 0u; p < count; ++p)
 			{
 				void* moduleBase = originalData.data->processes[p].moduleBase;
-				process::Handle processHandle = originalData.data->processes[p].processHandle;
+				Process::Handle processHandle = originalData.data->processes[p].processHandle;
 				void* newModuleBase = newModuleBases[p];
 
 				// find the address of the relocation.
@@ -270,7 +276,7 @@ relocations::Record relocations::PatchRelocation
 				const uint32_t displacement = pointer::Displacement<uint32_t>(byteFollowingRelocation, originalAddress);
 #endif
 
-				process::WriteProcessMemory(processHandle, relocationAddress, displacement);
+				Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 
 				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
 			}
@@ -298,14 +304,14 @@ relocations::Record relocations::PatchRelocation
 				const size_t count = originalData.data->processes.size();
 				for (size_t p = 0u; p < count; ++p)
 				{
-					process::Handle processHandle = originalData.data->processes[p].processHandle;
+					Process::Handle processHandle = originalData.data->processes[p].processHandle;
 					void* newModuleBase = newModuleBases[p];
 
 					// find the address of the relocation.
 					// the relocation's RVA is relative to the start of the function.
 					void* relocationAddress = pointer::Offset<void*>(newModuleBase, srcSymbol->rva + relocation->srcRva);
 
-					process::WriteProcessMemory(processHandle, relocationAddress, sectionRelativeRva);
+					Process::WriteProcessMemory(processHandle, relocationAddress, sectionRelativeRva);
 
 					LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
 				}
@@ -335,7 +341,7 @@ relocations::Record relocations::PatchRelocation
 			for (size_t p = 0u; p < count; ++p)
 			{
 				void* moduleBase = originalData.data->processes[p].moduleBase;
-				process::Handle processHandle = originalData.data->processes[p].processHandle;
+				Process::Handle processHandle = originalData.data->processes[p].processHandle;
 				void* newModuleBase = newModuleBases[p];
 
 				// find the address of the relocation.
@@ -347,7 +353,7 @@ relocations::Record relocations::PatchRelocation
 				// The target's 32-bit VA.
 				const uint32_t va = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(originalAddress));
 
-				process::WriteProcessMemory(processHandle, relocationAddress, va);
+				Process::WriteProcessMemory(processHandle, relocationAddress, va);
 
 				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
 			}
@@ -366,7 +372,7 @@ relocations::Record relocations::PatchRelocation
 			for (size_t p = 0u; p < count; ++p)
 			{
 				void* moduleBase = originalData.data->processes[p].moduleBase;
-				process::Handle processHandle = originalData.data->processes[p].processHandle;
+				Process::Handle processHandle = originalData.data->processes[p].processHandle;
 				void* newModuleBase = newModuleBases[p];
 
 				// find the address of the relocation.
@@ -381,7 +387,7 @@ relocations::Record relocations::PatchRelocation
 				const int64_t displacementToNewBase = pointer::Displacement<int64_t>(newModuleBase, originalAddress);
 				const int32_t displacement = static_cast<int32_t>(displacementToNewBase);
 
-				process::WriteProcessMemory(processHandle, relocationAddress, displacement);
+				Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 
 				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
 			}
@@ -400,7 +406,7 @@ relocations::Record relocations::PatchRelocation
 			for (size_t p = 0u; p < count; ++p)
 			{
 				void* moduleBase = originalData.data->processes[p].moduleBase;
-				process::Handle processHandle = originalData.data->processes[p].processHandle;
+				Process::Handle processHandle = originalData.data->processes[p].processHandle;
 				void* newModuleBase = newModuleBases[p];
 
 				// find the address of the relocation.
@@ -412,7 +418,7 @@ relocations::Record relocations::PatchRelocation
 				// The target's 64-bit VA.
 				const uint64_t va = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(originalAddress));
 
-				process::WriteProcessMemory(processHandle, relocationAddress, va);
+				Process::WriteProcessMemory(processHandle, relocationAddress, va);
 
 				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
 			}
@@ -433,7 +439,7 @@ relocations::Record relocations::PatchRelocation
 void relocations::PatchRelocation
 (
 	const Record& record,
-	process::Handle processHandle,
+	Process::Handle processHandle,
 	void* processModuleBases[],
 	void* newModuleBase
 )
@@ -470,13 +476,13 @@ void relocations::PatchRelocation
 			const uint32_t displacement = pointer::Displacement<uint32_t>(byteFollowingRelocation, originalAddress);
 #endif
 
-			process::WriteProcessMemory(processHandle, relocationAddress, displacement);
+			Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 		}
 		break;
 
 		case coff::Relocation::Type::SECTION_RELATIVE:
 		{
-			process::WriteProcessMemory(processHandle, relocationAddress, record.data.sectionRelativeRelocation.sectionRelativeRva);
+			Process::WriteProcessMemory(processHandle, relocationAddress, record.data.sectionRelativeRelocation.sectionRelativeRva);
 		}
 		break;
 
@@ -486,7 +492,7 @@ void relocations::PatchRelocation
 			const void* originalAddress = pointer::Offset<const void*>(moduleBase, record.data.va32Relocation.originalModuleRva);
 			const uint32_t va = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(originalAddress));
 
-			process::WriteProcessMemory(processHandle, relocationAddress, va);
+			Process::WriteProcessMemory(processHandle, relocationAddress, va);
 #endif
 		}
 		break;
@@ -497,7 +503,7 @@ void relocations::PatchRelocation
 			const int64_t displacementToNewBase = pointer::Displacement<int64_t>(newModuleBase, originalAddress);
 			const int32_t displacement = static_cast<int32_t>(displacementToNewBase);
 
-			process::WriteProcessMemory(processHandle, relocationAddress, displacement);
+			Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 		}
 		break;
 
@@ -507,7 +513,7 @@ void relocations::PatchRelocation
 			const void* originalAddress = pointer::Offset<const void*>(moduleBase, record.data.va64Relocation.originalModuleRva);
 			const uint64_t va = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(originalAddress));
 
-			process::WriteProcessMemory(processHandle, relocationAddress, va);
+			Process::WriteProcessMemory(processHandle, relocationAddress, va);
 		}
 		break;
 #endif

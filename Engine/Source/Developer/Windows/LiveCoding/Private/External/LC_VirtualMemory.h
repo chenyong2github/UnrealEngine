@@ -1,28 +1,32 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Process.h"
+// END EPIC MOD
+#include "LC_ProcessTypes.h"
+#include "LC_VirtualMemoryTypes.h"
 
 
-namespace virtualMemory
+namespace VirtualMemory
 {
-	struct PageType
-	{
-		enum Enum
-		{
-			READ_WRITE = PAGE_READWRITE,
-			EXECUTE_READ_WRITE = PAGE_EXECUTE_READWRITE
-		};
-	};
-
+	// Allocates virtual memory.
 	void* Allocate(size_t size);
+
+	// Frees virtual memory.
 	void Free(void* ptr);
 
-	void* Allocate(process::Handle handle, size_t size, PageType::Enum pageType);
-	void Free(process::Handle handle, void* ptr);
+	// Allocates virtual memory in the given process.
+	void* Allocate(Process::Handle handle, size_t size, PageType::Enum pageType);
 
+	// Frees virtual memory in the given process.
+	void Free(Process::Handle handle, void* ptr);
+
+
+	// Returns the allocation granularity of the virtual memory system.
 	uint32_t GetAllocationGranularity(void);
+
+	// Returns the page size used by the virtual memory system.
 	uint32_t GetPageSize(void);
 }

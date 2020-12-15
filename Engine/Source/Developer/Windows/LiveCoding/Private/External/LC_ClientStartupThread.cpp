@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ClientStartupThread.h"
 #include "LC_StringUtil.h"
 #include "LC_NamedSharedMemory.h"
@@ -14,10 +17,15 @@
 #include "LC_PrimitiveNames.h"
 #include "LC_Environment.h"
 #include "LC_MemoryStream.h"
+#include "LC_Thread.h"
+#include "LC_Process.h"
+#include "LPP_API.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
+// END EPIC MOD
 
 // JumpToSelf is an extern function coming from assembler source
 extern void JumpToSelf(void);
@@ -33,9 +41,8 @@ namespace
 }
 
 
-ClientStartupThread::ClientStartupThread(HINSTANCE instance)
-	: m_instance(instance)
-	, m_thread(INVALID_HANDLE_VALUE)
+ClientStartupThread::ClientStartupThread(void)
+	: m_thread(Thread::INVALID_HANDLE)
 	, m_job(nullptr)
 	, m_sharedMemory(nullptr)
 	, m_mainProcessContext(nullptr)
@@ -99,7 +106,7 @@ ClientStartupThread::~ClientStartupThread(void)
 
 	if (m_mainProcessContext)
 	{
-		process::Destroy(m_mainProcessContext);
+		Process::Destroy(m_mainProcessContext);
 	}
 
 	// close job object to make child processes close as well.
@@ -107,7 +114,7 @@ ClientStartupThread::~ClientStartupThread(void)
 	::CloseHandle(m_job);
 
 	// clean up interprocess objects
-	DeleteAndNull(m_sharedMemory);
+	Process::DestroyNamedSharedMemory(m_sharedMemory);
 }
 
 
@@ -117,16 +124,18 @@ void ClientStartupThread::Start(const char* const groupName, RunMode::Enum runMo
 	// in the context of mutexes, jobs, named shared memory, etc. object names behave similar to
 	// file names and are not allowed to contain certain characters.
 	std::wstring safeProcessGroupName = string::MakeSafeName(string::ToWideString(groupName));
-	m_thread = thread::Create("Live coding startup", 128u * 1024u, &ClientStartupThread::ThreadFunction, this, safeProcessGroupName, runMode);
+	// BEGIN EPIC MOD
+	m_thread = Thread::CreateFromMemberFunction("Live coding startup", 128u * 1024u, this, &ClientStartupThread::ThreadFunction, safeProcessGroupName, runMode);
+	// END EPIC MOD
 }
 
 
 void ClientStartupThread::Join(void)
 {
-	if (m_thread != INVALID_HANDLE_VALUE)
+	if (m_thread != Thread::INVALID_HANDLE)
 	{
-		thread::Join(m_thread);
-		thread::Close(m_thread);
+		Thread::Join(m_thread);
+		Thread::Close(m_thread);
 	}
 }
 
@@ -394,7 +403,7 @@ void ClientStartupThread::ApplySettingString(const char* settingName, const wcha
 }
 
 
-unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGroupName, RunMode::Enum runMode)
+Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& processGroupName, RunMode::Enum runMode)
 {
 	// configure all child processes associated with the job to terminate when the parent terminates.
 	// we create (or open) a process-wide job per process group and register the spawned process with that job.
@@ -418,8 +427,8 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 		InterprocessMutex initProcessMutex(primitiveNames::StartupMutex(processGroupName).c_str());
 		InterprocessMutex::ScopedLock mutexLock(&initProcessMutex);
 
-		m_sharedMemory = new NamedSharedMemory(primitiveNames::StartupNamedSharedMemory(processGroupName).c_str());
-		if (m_sharedMemory->IsOwnedByCallingProcess())
+		m_sharedMemory = Process::CreateNamedSharedMemory(primitiveNames::StartupNamedSharedMemory(processGroupName).c_str(), 4096u);
+		if (Process::Current::DoesOwnNamedSharedMemory(m_sharedMemory))
 		{
 			// BEGIN EPIC MOD - Using LiveCodeConsole
 			// we are the first DLL. spawn the console.
@@ -433,7 +442,6 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 			commandLine += L"-Group=";
 			commandLine += processGroupName;
 
-			// BEGIN EPIC MOD - Additional arguments for console app
 			extern FString GLiveCodingConsoleArguments;
 			if(GLiveCodingConsoleArguments.Len() > 0)
 			{
@@ -446,40 +454,43 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 				commandLine += FApp::GetProjectName();
 				commandLine += L"\"";
 			}
-			// END EPIC MOD
 
-			m_mainProcessContext = process::Spawn(exePath.c_str(), nullptr, commandLine.c_str(), nullptr, process::SpawnFlags::NONE);
-			if (m_mainProcessContext->pi.dwProcessId != 0)
+			m_mainProcessContext = Process::Spawn(exePath.c_str(), nullptr, commandLine.c_str(), nullptr, Process::SpawnFlags::NONE);
+			if (Process::GetId(m_mainProcessContext) != Process::Id(0u))
 			{
-				m_processHandle = m_mainProcessContext->pi.hProcess;
-				::AssignProcessToJobObject(m_job, m_processHandle);
+				m_processHandle = Process::GetHandle(m_mainProcessContext);
+				::AssignProcessToJobObject(m_job, +m_processHandle);
 
-				// share Live++ process ID with other processes
-				m_sharedMemory->Write(m_mainProcessContext->pi.dwProcessId);
+				// share Live++ process Id with other processes
+				Process::WriteNamedSharedMemory(m_sharedMemory, +Process::GetId(m_mainProcessContext));
 			}
 			// END EPIC MOD - Using LiveCodeConsole
 		}
 		else
 		{
 			// the Live++ process is already running. fetch the process ID from shared memory.
-			const DWORD processId = m_sharedMemory->Read<DWORD>();
+			const Process::Id::Type processId = Process::ReadNamedSharedMemory<Process::Id::Type>(m_sharedMemory);
+			// BEGIN EPIC MOD
 			LC_LOG_USER("Detected running instance in process group \"%S\", connecting to console process (PID: %d)", processGroupName.c_str(), processId);
+			// END EPIC MOD
 
 			if (processId != 0u)
 			{
-				m_processHandle = process::Open(processId);
-				::AssignProcessToJobObject(m_job, m_processHandle);
+				m_processHandle = Process::Open(Process::Id(processId));
+				::AssignProcessToJobObject(m_job, +m_processHandle);
 			}
 		}
 	}
 
-	if (!m_processHandle)
+	if (+m_processHandle == nullptr)
 	{
 		// we were unable to open the process, bail out
+		// BEGIN EPIC MOD
 		LC_ERROR_USER("Unable to attach to console process");
-		DeleteAndNull(m_sharedMemory);
+		// END EPIC MOD
+		Process::DestroyNamedSharedMemory(m_sharedMemory);
 
-		return 1u;
+		return Thread::ReturnValue(1u);
 	}
 
 	// wait for server to become ready
@@ -494,18 +505,22 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	if (!m_pipeClient->Connect(primitiveNames::Pipe(processGroupName).c_str()))
 	{
 		// could not connect to Live++ process
+		// BEGIN EPIC MOD
 		LC_ERROR_USER("Could not connect named pipe to console process");
+		// END EPIC MOD
 
-		return 2u;
+		return Thread::ReturnValue(2u);
 	}
 
 	// create a named duplex pipe for communicating exceptions between DLL and Live++ process
 	if (!m_exceptionPipeClient->Connect(primitiveNames::ExceptionPipe(processGroupName).c_str()))
 	{
 		// could not connect to Live++ process
+		// BEGIN EPIC MOD
 		LC_ERROR_USER("Could not connect exception pipe to console process");
+		// END EPIC MOD
 
-		return 3u;
+		return Thread::ReturnValue(3u);
 	}
 
 	m_pipeClientCS = new CriticalSection;
@@ -518,13 +533,13 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	// pipe for communicating as long as we aren't finished with it.
 	m_startEvent = new Event(nullptr, Event::Type::MANUAL_RESET);
 
-	const unsigned int commandThreadId = m_commandThread->Start(processGroupName, m_compilationEvent, m_startEvent, m_pipeClientCS);
+	const Thread::Id commandThreadId = m_commandThread->Start(processGroupName, m_compilationEvent, m_startEvent, m_pipeClientCS);
 	m_userCommandThread->Start(processGroupName, m_startEvent, m_pipeClientCS);
 
 	// register this process with Live++
 	{
 		// try getting the previous process ID from the environment in case the process was restarted
-		unsigned int restartedProcessId = 0u;
+		Process::Id restartedProcessId(0u);
 		const std::wstring& processIdStr = environment::GetVariable(L"LPP_PROCESS_RESTART_ID", nullptr);
 		if (processIdStr.length() != 0u)
 		{
@@ -536,33 +551,33 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 		// upon restart, the environment block is inherited by the new process and can be used to map the process IDs of
 		// restarted processes to their previous IDs.
 		{
-			const unsigned int processID = process::GetId();
-			environment::SetVariable(L"LPP_PROCESS_RESTART_ID", std::to_wstring(processID).c_str());
+			const Process::Id processID = Process::Current::GetId();
+			environment::SetVariable(L"LPP_PROCESS_RESTART_ID", std::to_wstring(+processID).c_str());
 		}
 
-		const std::wstring& imagePath = process::GetImagePath();
-		const std::wstring& commandLine = process::GetCommandLine();
-		const std::wstring& workingDirectory = process::GetWorkingDirectory();
-		process::Environment* environment = process::CreateEnvironment(::GetCurrentProcess());
+		const std::wstring imagePath = Process::Current::GetImagePath().GetString();
+		const std::wstring& commandLine = Process::Current::GetCommandLine();
+		const std::wstring& workingDirectory = Process::Current::GetWorkingDirectory().GetString();
+		Process::Environment environment = Process::CreateEnvironment(Process::Current::GetHandle());
 
 		const commands::RegisterProcess command =
 		{
-			process::GetBase(), process::GetId(), restartedProcessId, commandThreadId, reinterpret_cast<void*>(&JumpToSelf),
+			Process::Current::GetBase(), Process::Current::GetId(), restartedProcessId, commandThreadId, reinterpret_cast<void*>(&JumpToSelf),
 			(imagePath.size() + 1u) * sizeof(wchar_t), 
 			(commandLine.size() + 1u) * sizeof(wchar_t),
 			(workingDirectory.size() + 1u) * sizeof(wchar_t),
-			environment->size
+			environment.size
 		};
 
 		memoryStream::Writer payload(command.imagePathSize + command.commandLineSize + command.workingDirectorySize + command.environmentSize);
 		payload.Write(imagePath.data(), command.imagePathSize);
 		payload.Write(commandLine.data(), command.commandLineSize);
 		payload.Write(workingDirectory.data(), command.workingDirectorySize);
-		payload.Write(environment->data, environment->size);
+		payload.Write(environment.data, environment.size);
 
 		m_pipeClient->SendCommandAndWaitForAck(command, payload.GetData(), payload.GetSize());
 
-		process::DestroyEnvironment(environment);
+		Process::DestroyEnvironment(environment);
 	}
 
 	// handle commands until registration is finished
@@ -575,7 +590,9 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	if (!m_successfulInit)
 	{
 		// process could not be registered, bail out
+		// BEGIN EPIC MOD
 		LC_ERROR_USER("Could not register live coding process");
+		// END EPIC MOD
 
 		// close the pipe and then wait for the helper threads to finish.
 		// closing the pipe bails out the helper threads.
@@ -603,7 +620,7 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 		DeleteAndNull(m_compilationEvent);
 		DeleteAndNull(m_pipeClientCS);
 
-		return 3u;
+		return Thread::ReturnValue(3u);
 	}
 
 	LC_LOG_USER("Successfully initialized, removing startup thread");
@@ -611,5 +628,5 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	// helper threads are now allowed to run, we're finished with the pipe
 	m_startEvent->Signal();
 
-	return 0u;
+	return Thread::ReturnValue(0u);
 }

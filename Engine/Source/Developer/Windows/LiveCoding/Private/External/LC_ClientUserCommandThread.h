@@ -1,13 +1,17 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Thread.h"
+// END EPIC MOD
+#include "LC_ThreadTypes.h"
 #include "LC_CriticalSection.h"
 #include "LC_Semaphore.h"
+// BEGIN EPIC MOD
 #include <string>
 #include <deque>
+// END EPIC MOD
 
 class DuplexPipe;
 class DuplexPipeClient;
@@ -44,8 +48,7 @@ public:
 	~ClientUserCommandThread(void);
 
 	// Starts the thread that takes care of handling incoming commands on the pipe.
-	// Returns the thread ID.
-	unsigned int Start(const std::wstring& processGroupName, Event* waitForStartEvent, CriticalSection* pipeAccessCS);
+	Thread::Id Start(const std::wstring& processGroupName, Event* waitForStartEvent, CriticalSection* pipeAccessCS);
 
 	// Joins this thread.
 	void Join(void);
@@ -90,7 +93,7 @@ public:
 	void ApplySettingString(const char* settingName, const wchar_t* value);
 
 	void InstallExceptionHandler(void);
-	ExceptionResult HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, unsigned int threadId);
+	ExceptionResult HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, Thread::Id threadId);
 	void End(void);
 
 private:
@@ -101,9 +104,9 @@ private:
 	// blocks until a command becomes available.
 	BaseCommand* PopUserCommand(void);
 
-	unsigned int ThreadFunction(Event* waitForStartEvent, CriticalSection* pipeAccessCS);
+	Thread::ReturnValue ThreadFunction(Event* waitForStartEvent, CriticalSection* pipeAccessCS);
 
-	thread::Handle m_thread;
+	Thread::Handle m_thread;
 	std::wstring m_processGroupName;
 	DuplexPipeClient* m_pipe;
 	DuplexPipeClient* m_exceptionPipe;

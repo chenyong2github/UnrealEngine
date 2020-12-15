@@ -1,8 +1,11 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Settings.h"
 #include "LC_AppSettings.h"
-#include "LC_FileUtil.h"
+#include "LC_Filesystem.h"
 #include "LC_StringUtil.h"
 
 
@@ -20,8 +23,8 @@ namespace
 #else
 		// first try loading the setting from the project settings file
 		const std::wstring& projectSettingsPath = appSettings::GetProjectSettingsPath();
-		const file::Attributes& attributes = file::GetAttributes(projectSettingsPath.c_str());
-		if (file::DoesExist(attributes))
+		const Filesystem::PathAttributes& attributes = Filesystem::GetAttributes(projectSettingsPath.c_str());
+		if (Filesystem::DoesExist(attributes))
 		{
 			// a file is there, so try loading the setting
 			const UINT ILLEGAL_VALUE = static_cast<UINT>(-1);
@@ -56,8 +59,8 @@ namespace
 #else
 		// first try loading the setting from the project settings file
 		const std::wstring& projectSettingsPath = appSettings::GetProjectSettingsPath();
-		const file::Attributes& attributes = file::GetAttributes(projectSettingsPath.c_str());
-		if (file::DoesExist(attributes))
+		const Filesystem::PathAttributes& attributes = Filesystem::GetAttributes(projectSettingsPath.c_str());
+		if (Filesystem::DoesExist(attributes))
 		{
 			// a file is there, so try loading the setting
 			const wchar_t* ILLEGAL_VALUE = L"__ILLEGAL_STRING__";

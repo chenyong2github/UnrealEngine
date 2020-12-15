@@ -1,8 +1,12 @@
 // Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_DuplexPipeClient.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
-
+// END EPIC MOD
 
 bool DuplexPipeClient::Connect(const wchar_t* name)
 {

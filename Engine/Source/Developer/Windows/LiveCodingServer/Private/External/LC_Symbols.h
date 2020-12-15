@@ -1,15 +1,19 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_ImmutableString.h"
-#include "LC_Process.h"
+#include "LC_ProcessTypes.h"
 #include "LC_Types.h"
 #include "LC_Executable.h"
 #include "LC_ChangeNotification.h"
 #include "LC_DirectoryCache.h"
+// BEGIN EPIC MOD
 #include <dia2.h>
+// END EPIC MOD
 
 template <typename T> class CoffCache;
 
@@ -41,6 +45,9 @@ namespace symbols
 
 		// public function symbols that can be patched
 		types::vector<Symbol*> patchableFunctionSymbols;
+
+		// symbols that contain an anonymous namespace in their mangled name
+		types::vector<Symbol*> ansSymbols;
 	};
 
 	struct Contribution
@@ -102,7 +109,6 @@ namespace symbols
 		ImmutableString amalgamationPath;		// full path to the amalgamation .obj in case this is part of an amalgamation
 		CompilandSourceFiles* sourceFiles;
 		uint32_t uniqueId;
-		uint32_t diaSymbolIndex;				// the index to the DIA symbol from which this compiland originated
 		Type::Enum type;
 		bool isPartOfLibrary;
 		bool wasRecompiled;
@@ -117,6 +123,13 @@ namespace symbols
 		bool isSplit;
 	};
 
+	struct ModifiedObjFile
+	{
+		std::wstring objPath;
+		std::wstring amalgamatedObjPath;	// optional
+	};
+
+
 	// full path to .obj file
 	typedef ImmutableString ObjPath;
 	
@@ -130,6 +143,7 @@ namespace symbols
 		DirectoryCache::Directory* parentDirectory;
 		TimeStamp lastModification;
 		types::vector<ObjPath> objPaths;
+		bool hadInitialChange;
 	};
 
 	struct CompilandDB
@@ -143,7 +157,9 @@ namespace symbols
 		// stores an array of .obj files that need to be recompiled when a certain file changes
 		types::StringMap<Dependency*> dependencies;
 
-		// stores the real name of the .obj on disk for each original DIA compiland name
+		// stores the real name of the .obj on disk for each original DIA compiland name.
+		// this lookup table is needed because DIA compilands coming from static libraries often don't contain the full path,
+		// but a path that is relative to the project instead, e.g. obj\x64\Debug\SimpleFunction.obj
 		types::StringMap<ImmutableString> compilandNameToObjOnDisk;
 	};
 
@@ -228,6 +244,11 @@ namespace symbols
 		};
 	};
 
+
+	// TODO: helper function to make fixing and refactoring easier for now
+	Symbol* CreateNewSymbol(const ImmutableString& name, uint32_t rva, SymbolDB* db);
+
+
 	Provider* OpenEXE(const wchar_t* filename, uint32_t openOptions);
 	void Close(Provider* provider);
 
@@ -252,9 +273,6 @@ namespace symbols
 
 	// CACHE: temporary, throw away after use
 	DiaCompilandDB* GatherDiaCompilands(Provider* provider);
-
-	// gathers user-defined types for a given compiland
-	UserDefinedTypesDB* GatherUserDefinedTypes(const DiaCompilandDB* diaCompilandDb, const Compiland* compiland);
 
 
 	struct CompilandOptions
@@ -298,8 +316,6 @@ namespace symbols
 	void DestroyModuleDB(ModuleDB* db);
 
 	void DestroyCompilandDB(CompilandDB* db);
-
-	void DestroyUserDefinedTypesDB(UserDefinedTypesDB* db);
 
 	void MergeCompilandsAndDependencies(CompilandDB* existingDb, CompilandDB* mergedDb);
 
@@ -355,6 +371,18 @@ namespace symbols
 
 	const ImmutableString& GetImageSectionName(const ImageSectionDB* db, const ImageSection* imageSection);
 
+
+
+	// helper function that returns or generates the unique ID of an optional compiland.
+	// for files split off from amalgamated files, we need to use the original object path of the amalgamated file here,
+	// otherwise names of symbols would differ, leading to constructors of global instances being called again.
+	uint32_t GetCompilandId(const Compiland* compiland, const wchar_t* const objPath, const types::vector<ModifiedObjFile>& modifiedObjFiles);
+
+	ImmutableString TransformAnonymousNamespacePattern(const ImmutableString& immutableString, uint32_t uniqueId);
+
+	void TransformAnonymousNamespaceSymbols(SymbolDB* symbolDb, ContributionDB* contributionDb, CompilandDB* compilandDb, const types::vector<ModifiedObjFile>& modifiedObjFiles);
+
+
 	bool IsPchSymbol(const ImmutableString& symbolName);
 
 	bool IsVTable(const ImmutableString& symbolName);
@@ -363,8 +391,6 @@ namespace symbols
 	bool IsDynamicInitializer(const ImmutableString& functionSymbolName);
 	bool IsDynamicAtexitDestructor(const ImmutableString& functionSymbolName);
 	bool IsPointerToDynamicInitializer(const ImmutableString& symbolName);
-
-	bool IsWeakSymbol(const ImmutableString& symbolName);
 
 	bool IsStringLiteral(const ImmutableString& symbolName);
 	bool IsLineNumber(const ImmutableString& symbolName);
@@ -384,4 +410,6 @@ namespace symbols
 	bool IsTlsIndexRelatedSymbol(const ImmutableString& symbolName);
 	bool IsTlsInitRelatedSymbol(const ImmutableString& symbolName);
 	bool IsTlsStaticsRelatedSymbol(const ImmutableString& symbolName);
+
+	bool IsSectionSymbol(const ImmutableString& symbolName);
 }

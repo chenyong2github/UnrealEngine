@@ -1,8 +1,10 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_Settings.h"
 
 
@@ -75,6 +77,7 @@ namespace appSettings
 	extern SettingString* g_playSoundOnSuccess;
 	extern SettingString* g_playSoundOnError;
 	extern SettingShortcut* g_compileShortcut;
+	extern SettingInt* g_prewarmTimeout;
 
 	// logging
 	extern SettingBool* g_showUndecoratedNames;
@@ -96,7 +99,6 @@ namespace appSettings
 	extern SettingBool* g_useLinkerOverrideAsFallback;
 	extern SettingBool* g_useLinkerEnvironment;
 	extern SettingString* g_linkerOptions;
-	extern SettingBool* g_forceLinkWeakSymbols;
 
 	// continuous compilation
 	extern SettingBool* g_continuousCompilationEnabled;
@@ -117,4 +119,8 @@ namespace appSettings
 
 	// UE4-specific
 	extern SettingBool* g_ue4EnableNatVisSupport;
+
+	// FASTBuild-specific
+	extern SettingString* g_fastBuildDatabasePath;
+	extern SettingString* g_fastBuildDllName;
 }

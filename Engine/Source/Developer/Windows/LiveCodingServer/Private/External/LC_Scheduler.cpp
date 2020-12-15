@@ -1,4 +1,8 @@
 // Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Scheduler.h"
 #include "LC_SchedulerWorkerThread.h"
 #include "LC_SchedulerQueue.h"
@@ -34,7 +38,9 @@ namespace
 		SYSTEM_LOGICAL_PROCESSOR_INFORMATION* buffer = nullptr;
 		DWORD bytesNeeded = 0u;
 		BOOL result = ::GetLogicalProcessorInformation(buffer, &bytesNeeded);
-		if (result == Windows::FALSE) 
+		// BEGIN EPIC MOD
+		if (result == Windows::FALSE)
+		// END EPIC MOD 
 		{
 			if (::GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 			{
@@ -43,7 +49,9 @@ namespace
 				result = ::GetLogicalProcessorInformation(buffer, &bytesNeeded);
 
 				// return the number of logical processors in case anything went wrong
+				// BEGIN EPIC MOD
 				if ((result == Windows::FALSE) || (buffer == nullptr))
+				// END EPIC MOD
 				{
 					::free(buffer);
 					return GetLogicalProcessorCount();
@@ -148,7 +156,7 @@ void scheduler::WaitForTask(TaskBase* task)
 		else
 		{
 			// no task available
-			thread::Sleep(10u);
+			Thread::Current::SleepMilliSeconds(10u);
 		}
 	}
 }

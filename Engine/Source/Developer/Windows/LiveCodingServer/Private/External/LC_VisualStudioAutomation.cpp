@@ -1,28 +1,61 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_VisualStudioAutomation.h"
 #include "LC_COMThread.h"
 #include "LC_StringUtil.h"
+#include "LC_Thread.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/COMPointer.h"
+// END EPIC MOD
 
+// BEGIN EPIC MOD
 #if WITH_VISUALSTUDIO_DTE
+// END EPIC MOD
 
 namespace
 {
 	static COMThread* g_comThread = nullptr;
 
 
-	// helper function that waits until the debugger finished executing a command and is in break mode again
-	static void WaitUntilBreakMode(const EnvDTE::DebuggerPtr& debugger)
+	// helper function that checks whether the debugger is currently held for debugging, e.g. at a breakpoint, an exception
+	static bool IsHeldForDebugging(const EnvDTE::DebuggerPtr& debugger)
 	{
 		EnvDTE::dbgDebugMode mode = EnvDTE::dbgDesignMode;
+		debugger->get_CurrentMode(&mode);
 
+		return (mode == EnvDTE::dbgBreakMode);
+	}
+
+
+	// helper function that waits until the debugger finished executing a command and is in break mode again
+	static bool WaitUntilBreakMode(const EnvDTE::DebuggerPtr& debugger)
+	{
+		const unsigned int RETRY_WAIT_TIME = 5u;
+		const unsigned int RETRY_TIMEOUT = 500u;
+
+		EnvDTE::dbgDebugMode mode = EnvDTE::dbgDesignMode;
+		debugger->get_CurrentMode(&mode);
+
+		unsigned int msWaited = 0u;
 		while (mode != EnvDTE::dbgBreakMode)
 		{
+			Thread::Current::SleepMilliSeconds(RETRY_WAIT_TIME);
+			msWaited += RETRY_WAIT_TIME;
+
 			debugger->get_CurrentMode(&mode);
-			thread::Sleep(5u);
+
+			if (msWaited >= RETRY_TIMEOUT)
+			{
+				// enough time has passed, bail out
+				return false;
+			}
 		}
+
+		return true;
 	}
 }
 
@@ -41,10 +74,12 @@ void visualStudio::Shutdown(void)
 }
 
 
-static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
+static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(Process::Id processId)
 {
 	// get all objects from the running object table (ROT)
+	// BEGIN EPIC MOD
 	TComPtr<IRunningObjectTable> rot = nullptr;
+	// END EPIC MOD
 	HRESULT result = ::GetRunningObjectTable(0u, &rot);
 	if (FAILED(result) || (!rot))
 	{
@@ -52,7 +87,9 @@ static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
 		return nullptr;
 	}
 
+	// BEGIN EPIC MOD
 	TComPtr<IEnumMoniker> enumMoniker = nullptr;
+	// END EPIC MOD
 	result = rot->EnumRunning(&enumMoniker);
 	if (FAILED(result) || (!enumMoniker))
 	{
@@ -63,12 +100,16 @@ static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
 	enumMoniker->Reset();
 	do
 	{
+		// BEGIN EPIC MOD
 		TComPtr<IMoniker> next = nullptr;
+		// END EPIC MOD
 		result = enumMoniker->Next(1u, &next, NULL);
 
 		if (SUCCEEDED(result) && next)
 		{
+			// BEGIN EPIC MOD
 			TComPtr<IBindCtx> context = nullptr;
+			// END EPIC MOD
 			result = ::CreateBindCtx(0, &context);
 
 			if (FAILED(result) || (!context))
@@ -89,15 +130,19 @@ static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
 			if (string::Contains(displayName, L"VisualStudio.DTE."))
 			{
 				// free display name using COM allocator
+				// BEGIN EPIC MOD
 				TComPtr<IMalloc> comMalloc = nullptr;
+				// END EPIC MOD
 				result = ::CoGetMalloc(1u, &comMalloc);
 				if (SUCCEEDED(result) && comMalloc)
 				{
 					comMalloc->Free(displayName);
 				}
 
+				// BEGIN EPIC MOD
 				TComPtr<IUnknown> unknown = nullptr;
 				result = rot->GetObject(next, &unknown);
+				// END EPIC MOD
 				if (FAILED(result) || (!unknown))
 				{
 					LC_ERROR_DEV("Could not retrieve COM object from running object table. Error: 0x%X", result);
@@ -160,7 +205,7 @@ static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
 					}
 
 					// we got a valid processId
-					if (static_cast<unsigned int>(debuggerProcessId) == processId)
+					if (static_cast<unsigned int>(debuggerProcessId) == +processId)
 					{
 						// found debugger attached to our process
 						return debugger;
@@ -175,16 +220,18 @@ static EnvDTE::DebuggerPtr FindDebuggerAttachedToProcess(unsigned int processId)
 }
 
 
-EnvDTE::DebuggerPtr visualStudio::FindDebuggerAttachedToProcess(unsigned int processId)
+EnvDTE::DebuggerPtr visualStudio::FindDebuggerAttachedToProcess(Process::Id processId)
 {
 	return g_comThread->CallInThread(&::FindDebuggerAttachedToProcess, processId);
 }
 
 
-static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
+static EnvDTE::DebuggerPtr FindDebuggerForProcess(Process::Id processId)
 {
 	// get all objects from the running object table (ROT)
+	// BEGIN EPIC MOD
 	TComPtr<IRunningObjectTable> rot = nullptr;
+	// END EPIC MOD
 	HRESULT result = ::GetRunningObjectTable(0u, &rot);
 	if (FAILED(result) || (!rot))
 	{
@@ -192,7 +239,9 @@ static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
 		return nullptr;
 	}
 
+	// BEGIN EPIC MOD
 	TComPtr<IEnumMoniker> enumMoniker = nullptr;
+	// END EPIC MOD
 	result = rot->EnumRunning(&enumMoniker);
 	if (FAILED(result) || (!enumMoniker))
 	{
@@ -203,12 +252,16 @@ static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
 	enumMoniker->Reset();
 	do
 	{
+		// BEGIN EPIC MOD
 		TComPtr<IMoniker> next = nullptr;
+		// END EPIC MOD
 		result = enumMoniker->Next(1u, &next, NULL);
 
 		if (SUCCEEDED(result) && next)
 		{
+			// BEGIN EPIC MOD
 			TComPtr<IBindCtx> context = nullptr;
+			// END EPIC MOD
 			result = ::CreateBindCtx(0, &context);
 
 			if (FAILED(result) || (!context))
@@ -229,15 +282,19 @@ static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
 			if (string::Contains(displayName, L"VisualStudio.DTE."))
 			{
 				// free display name using COM allocator
+				// BEGIN EPIC MOD
 				TComPtr<IMalloc> comMalloc = nullptr;
+				// END EPIC MOD
 				result = ::CoGetMalloc(1u, &comMalloc);
 				if (SUCCEEDED(result) && comMalloc)
 				{
 					comMalloc->Free(displayName);
 				}
 
+				// BEGIN EPIC MOD
 				TComPtr<IUnknown> unknown = nullptr;
 				result = rot->GetObject(next, &unknown);
+				// END EPIC MOD
 				if (FAILED(result) || (!unknown))
 				{
 					LC_ERROR_DEV("Could not retrieve COM object from running object table. Error: 0x%X", result);
@@ -280,7 +337,7 @@ static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
 				}
 
 				// we got a valid processId
-				if (static_cast<unsigned int>(debuggerProcessId) == processId)
+				if (static_cast<unsigned int>(debuggerProcessId) == +processId)
 				{
 					// found debugger debugging our process
 					return debugger;
@@ -294,13 +351,13 @@ static EnvDTE::DebuggerPtr FindDebuggerForProcess(unsigned int processId)
 }
 
 
-EnvDTE::DebuggerPtr visualStudio::FindDebuggerForProcess(unsigned int processId)
+EnvDTE::DebuggerPtr visualStudio::FindDebuggerForProcess(Process::Id processId)
 {
 	return g_comThread->CallInThread(&::FindDebuggerForProcess, processId);
 }
 
 
-static bool AttachToProcess(const EnvDTE::DebuggerPtr& debugger, unsigned int processId)
+static bool AttachToProcess(const EnvDTE::DebuggerPtr& debugger, Process::Id processId)
 {
 	// fetch all local processes running on this machine
 	EnvDTE::ProcessesPtr allProcesses = nullptr;
@@ -340,7 +397,7 @@ static bool AttachToProcess(const EnvDTE::DebuggerPtr& debugger, unsigned int pr
 		}
 
 		// we got a valid processId
-		if (static_cast<unsigned int>(localProcessId) == processId)
+		if (static_cast<unsigned int>(localProcessId) == +processId)
 		{
 			// this is the process we want to attach to
 			result = singleProcess->Attach();
@@ -358,7 +415,7 @@ static bool AttachToProcess(const EnvDTE::DebuggerPtr& debugger, unsigned int pr
 }
 
 
-bool visualStudio::AttachToProcess(const EnvDTE::DebuggerPtr& debugger, unsigned int processId)
+bool visualStudio::AttachToProcess(const EnvDTE::DebuggerPtr& debugger, Process::Id processId)
 {
 	return g_comThread->CallInThread(&::AttachToProcess, debugger, processId);
 }
@@ -419,6 +476,12 @@ types::vector<EnvDTE::ThreadPtr> visualStudio::EnumerateThreads(const EnvDTE::De
 
 static bool FreezeThreads(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads)
 {
+	if (!IsHeldForDebugging(debugger))
+	{
+		LC_WARNING_USER("FreezeThreads: Debugger is no longer held for debugging");
+		return false;
+	}
+
 	bool success = true;
 
 	const size_t count = threads.size();
@@ -426,7 +489,17 @@ static bool FreezeThreads(const EnvDTE::DebuggerPtr& debugger, const types::vect
 	{
 		EnvDTE::ThreadPtr singleThread = threads[i];
 		const HRESULT result = singleThread->Freeze();
-		WaitUntilBreakMode(debugger);
+		if (FAILED(result))
+		{
+			LC_ERROR_USER("FreezeThreads: Failed to freeze thread");
+			return false;
+		}
+
+		if (!WaitUntilBreakMode(debugger))
+		{
+			LC_WARNING_USER("FreezeThreads: Cannot wait for debugger break mode");
+			return false;
+		}
 
 		success &= SUCCEEDED(result);
 	}
@@ -441,8 +514,14 @@ bool visualStudio::FreezeThreads(const EnvDTE::DebuggerPtr& debugger, const type
 }
 
 
-static bool FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, unsigned int threadId)
+static bool FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, Thread::Id threadId)
 {
+	if (!IsHeldForDebugging(debugger))
+	{
+		LC_WARNING_USER("FreezeThread: Debugger is no longer held for debugging");
+		return false;
+	}
+
 	const size_t count = threads.size();
 	for (size_t i = 0u; i < count; ++i)
 	{
@@ -455,11 +534,21 @@ static bool FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vecto
 			continue;
 		}
 
-		if (static_cast<unsigned int>(id) == threadId)
+		if (static_cast<unsigned int>(id) == +threadId)
 		{
 			// found the thread we're looking for
 			result = singleThread->Freeze();
-			WaitUntilBreakMode(debugger);
+			if (FAILED(result))
+			{
+				LC_ERROR_USER("FreezeThread: Failed to freeze thread");
+				return false;
+			}
+
+			if (!WaitUntilBreakMode(debugger))
+			{
+				LC_WARNING_USER("FreezeThread: Cannot wait for debugger break mode");
+				return false;
+			}
 
 			return SUCCEEDED(result);
 		}
@@ -469,7 +558,7 @@ static bool FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vecto
 }
 
 
-bool visualStudio::FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, unsigned int threadId)
+bool visualStudio::FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, Thread::Id threadId)
 {
 	return g_comThread->CallInThread(&::FreezeThread, debugger, threads, threadId);
 }
@@ -477,6 +566,12 @@ bool visualStudio::FreezeThread(const EnvDTE::DebuggerPtr& debugger, const types
 
 static bool ThawThreads(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads)
 {
+	if (!IsHeldForDebugging(debugger))
+	{
+		LC_WARNING_USER("ThawThreads: Debugger is no longer held for debugging");
+		return false;
+	}
+
 	bool success = true;
 
 	const size_t count = threads.size();
@@ -484,7 +579,17 @@ static bool ThawThreads(const EnvDTE::DebuggerPtr& debugger, const types::vector
 	{
 		EnvDTE::ThreadPtr singleThread = threads[i];
 		const HRESULT result = singleThread->Thaw();
-		WaitUntilBreakMode(debugger);
+		if (FAILED(result))
+		{
+			LC_ERROR_USER("ThawThreads: Failed to thaw thread");
+			return false;
+		}
+
+		if (!WaitUntilBreakMode(debugger))
+		{
+			LC_WARNING_USER("ThawThreads: Cannot wait for debugger break mode");
+			return false;
+		}
 
 		success &= SUCCEEDED(result);
 	}
@@ -499,8 +604,14 @@ bool visualStudio::ThawThreads(const EnvDTE::DebuggerPtr& debugger, const types:
 }
 
 
-static bool ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, unsigned int threadId)
+static bool ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, Thread::Id threadId)
 {
+	if (!IsHeldForDebugging(debugger))
+	{
+		LC_WARNING_USER("ThawThread: Debugger is no longer held for debugging");
+		return false;
+	}
+
 	const size_t count = threads.size();
 	for (size_t i = 0u; i < count; ++i)
 	{
@@ -513,11 +624,21 @@ static bool ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<
 			continue;
 		}
 
-		if (static_cast<unsigned int>(id) == threadId)
+		if (static_cast<unsigned int>(id) == +threadId)
 		{
 			// found the thread we're looking for
 			result = singleThread->Thaw();
-			WaitUntilBreakMode(debugger);
+			if (FAILED(result))
+			{
+				LC_ERROR_USER("ThawThread: Failed to thaw thread");
+				return false;
+			}
+
+			if (!WaitUntilBreakMode(debugger))
+			{
+				LC_WARNING_USER("ThawThread: Cannot wait for debugger break mode");
+				return false;
+			}
 
 			return SUCCEEDED(result);
 		}
@@ -527,7 +648,7 @@ static bool ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<
 }
 
 
-bool visualStudio::ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, unsigned int threadId)
+bool visualStudio::ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::vector<EnvDTE::ThreadPtr>& threads, Thread::Id threadId)
 {
 	return g_comThread->CallInThread(&::ThawThread, debugger, threads, threadId);
 }
@@ -535,7 +656,9 @@ bool visualStudio::ThawThread(const EnvDTE::DebuggerPtr& debugger, const types::
 
 static bool Resume(const EnvDTE::DebuggerPtr& debugger)
 {
+	// BEGIN EPIC MOD
 	const HRESULT result = debugger->Go(variant_t(Windows::FALSE));
+	// END EPIC MOD
 	return SUCCEEDED(result);
 }
 
@@ -549,7 +672,9 @@ bool visualStudio::Resume(const EnvDTE::DebuggerPtr& debugger)
 static bool Break(const EnvDTE::DebuggerPtr& debugger)
 {
 	// wait until the debugger really enters break-mode
+	// BEGIN EPIC MOD
 	const HRESULT result = debugger->Break(variant_t(Windows::TRUE));
+	// END EPIC MOD
 	return SUCCEEDED(result);
 }
 
@@ -559,4 +684,6 @@ bool visualStudio::Break(const EnvDTE::DebuggerPtr& debugger)
 	return g_comThread->CallInThread(&::Break, debugger);
 }
 
+// BEGIN EPIC MOD
 #endif
+// END EPIC MOD

@@ -1,9 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Executable.h"
+#include "LC_MemoryMappedFile.h"
+// BEGIN EPIC MOD
+#include "LC_Assert.h"
 #include "LC_Logging.h"
 #include <algorithm>
-
+// END EPIC MOD
 
 // this is the default DLL entry point, taken from the CRT. we don't need it, but can extract its signature.
 extern "C" BOOL WINAPI _DllMainCRTStartup(
@@ -23,10 +29,10 @@ namespace detail
 
 	static const IMAGE_NT_HEADERS* GetNtHeader(const executable::Image* image)
 	{
-		void* base = image->base;
+		const void* base = Filesystem::GetMemoryMappedFileData(image);
 
 		// PE image start with a DOS header
-		const IMAGE_DOS_HEADER* dosHeader = static_cast<IMAGE_DOS_HEADER*>(base);
+		const IMAGE_DOS_HEADER* dosHeader = static_cast<const IMAGE_DOS_HEADER*>(base);
 		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 		{
 			LC_ERROR_USER("Image has unknown file format");
@@ -89,7 +95,7 @@ executable::Header executable::GetHeader(const Image* image)
 		return executable::Header {};
 	}
 
-	const uint64_t sizeOnDisk = file::GetSizeOnDisk(image);
+	const uint64_t sizeOnDisk = Filesystem::GetMemoryMappedFileSizeOnDisk(image);
 	return executable::Header { sizeOnDisk, ntHeader->FileHeader, ntHeader->OptionalHeader };
 }
 
@@ -142,33 +148,33 @@ uint32_t executable::RvaToFileOffset(const ImageSectionDB* database, uint32_t rv
 
 void executable::ReadFromFileOffset(const Image* image, uint32_t offset, void* destination, size_t byteCount)
 {
-	const void* address = pointer::Offset<const void*>(image->base, offset);
+	const void* address = pointer::Offset<const void*>(Filesystem::GetMemoryMappedFileData(image), offset);
 	memcpy(destination, address, byteCount);
 }
 
 
 void executable::WriteToFileOffset(Image* image, uint32_t offset, const void* source, size_t byteCount)
 {
-	void* address = pointer::Offset<void*>(image->base, offset);
+	void* address = pointer::Offset<void*>(Filesystem::GetMemoryMappedFileData(image), offset);
 	memcpy(address, source, byteCount);
 }
 
 
-executable::Image* executable::OpenImage(const wchar_t* filename, file::OpenMode::Enum openMode)
+executable::Image* executable::OpenImage(const wchar_t* filename, Filesystem::OpenMode::Enum openMode)
 {
-	return file::Open(filename, openMode);
+	return Filesystem::OpenMemoryMappedFile(filename, openMode);
 }
 
 
 void executable::CloseImage(Image*& image)
 {
-	file::Close(image);
+	Filesystem::CloseMemoryMappedFile(image);
 }
 
 
 void executable::RebaseImage(Image* image, PreferredBase preferredBase)
 {
-	void* base = image->base;
+	void* base = Filesystem::GetMemoryMappedFileData(image);
 
 	IMAGE_NT_HEADERS* ntHeader = detail::GetNtHeader(image);
 	if (!ntHeader)
@@ -327,11 +333,11 @@ executable::ImportModuleDB* executable::GatherImportModuleDB(const Image* image,
 
 	database->modules.reserve(count);
 
-	const IMAGE_IMPORT_DESCRIPTOR* importModules = pointer::Offset<const IMAGE_IMPORT_DESCRIPTOR*>(image->base, baseImportModule);
+	const IMAGE_IMPORT_DESCRIPTOR* importModules = pointer::Offset<const IMAGE_IMPORT_DESCRIPTOR*>(Filesystem::GetMemoryMappedFileData(image), baseImportModule);
 	while (importModules->Name != 0)
 	{
 		const DWORD fileOffset = RvaToFileOffset(imageSections, importModules->Name);
-		const char* importModuleName = pointer::Offset<const char*>(image->base, fileOffset);
+		const char* importModuleName = pointer::Offset<const char*>(Filesystem::GetMemoryMappedFileData(image), fileOffset);
 
 		ImportModule module;
 		strcpy_s(module.path, importModuleName);
@@ -379,7 +385,7 @@ executable::PdbInfo* executable::GatherPdbInfo(const Image* image, const ImageSe
 		return nullptr;
 	}
 
-	const IMAGE_DEBUG_DIRECTORY* debugDirectory = pointer::Offset<const IMAGE_DEBUG_DIRECTORY*>(image->base, baseDebugDirectory);
+	const IMAGE_DEBUG_DIRECTORY* debugDirectory = pointer::Offset<const IMAGE_DEBUG_DIRECTORY*>(Filesystem::GetMemoryMappedFileData(image), baseDebugDirectory);
 	for (size_t i=0u; i < count; ++i)
 	{
 		// we are only interested in PDB files
@@ -395,7 +401,7 @@ executable::PdbInfo* executable::GatherPdbInfo(const Image* image, const ImageSe
 			};
 
 			const DWORD RSDS = 0x53445352u;
-			const PDB70Header* pdbHeader = pointer::Offset<const PDB70Header*>(image->base, debugDirectory->PointerToRawData);
+			const PDB70Header* pdbHeader = pointer::Offset<const PDB70Header*>(Filesystem::GetMemoryMappedFileData(image), debugDirectory->PointerToRawData);
 			if (pdbHeader->signature == RSDS)
 			{
 				// PDB filename follows right after the header data

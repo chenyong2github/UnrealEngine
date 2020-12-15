@@ -1,8 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_OutputFile.h"
-#include "LC_FileUtil.h"
+#include "LC_Filesystem.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+// END EPIC MOD
 
 
 OutputFile::OutputFile(const wchar_t* logFilePath)
@@ -15,7 +20,7 @@ OutputFile::OutputFile(const wchar_t* logFilePath)
 	}
 	else
 	{
-		LC_LOG_USER("Creating log file at %S", file::NormalizePath(logFilePath).c_str());
+		LC_LOG_USER("Creating log file at %S", Filesystem::NormalizePath(logFilePath).GetString());
 	}
 }
 

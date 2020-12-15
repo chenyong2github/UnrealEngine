@@ -1,36 +1,49 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "Windows/MinimalWindowsApi.h"
+// END EPIC MOD
 
-class NamedSharedMemory
+namespace Process
 {
-public:
-	explicit NamedSharedMemory(const wchar_t* name);
-	~NamedSharedMemory(void);
+	// opaque type
+	struct NamedSharedMemory;
 
-	bool IsOwnedByCallingProcess(void) const;
+	// Current/calling process.
+	namespace Current
+	{
+		// Returns whether the named shared memory is owned by the calling process.
+		bool DoesOwnNamedSharedMemory(const NamedSharedMemory* memory);
+	}
 
-	void Read(void* buffer, size_t size);
-	void Write(const void* buffer, size_t size);
+	// Creates named shared memory.
+	NamedSharedMemory* CreateNamedSharedMemory(const wchar_t* name, size_t size);
 
+	// Destroys named shared memory.
+	void DestroyNamedSharedMemory(NamedSharedMemory*& memory);
+
+	// Reads from named shared memory into the given buffer.
+	void ReadNamedSharedMemory(const NamedSharedMemory* memory, void* buffer, size_t size);
+
+	// Writes from the given buffer into named shared memory.
+	void WriteNamedSharedMemory(NamedSharedMemory* memory, const void* buffer, size_t size);
+
+	// Convenience function for reading a value of a certain type from named shared memory.
 	template <typename T>
-	T Read(void)
+	T ReadNamedSharedMemory(const NamedSharedMemory* memory)
 	{
 		T value = {};
-		Read(&value, sizeof(T));
+		ReadNamedSharedMemory(memory, &value, sizeof(T));
+
 		return value;
 	}
 
+	// Convenience function for writing a value of a certain type to named shared memory.
 	template <typename T>
-	void Write(const T& value)
+	void WriteNamedSharedMemory(NamedSharedMemory* memory, const T& value)
 	{
-		Write(&value, sizeof(T));
+		WriteNamedSharedMemory(memory, &value, sizeof(T));
 	}
-
-private:
-	Windows::HANDLE m_file;
-	void* m_view;
-	bool m_isOwned;
-};
+}

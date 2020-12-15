@@ -1,11 +1,17 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_FunctionPatcher.h"
 #include "LC_Patch.h"
 #include "LC_Disassembler.h"
 #include "LC_NameMangling.h"
 #include "LC_AppSettings.h"
+#include "LC_Process.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
+// END EPIC MOD
 
 
 namespace
@@ -25,11 +31,11 @@ namespace
 
 	// helper function that checks whether a certain number of bytes in memory are available for patching
 	template <size_t N>
-	static inline bool AreBytesAvailableForPatching(process::Handle processHandle, const void* address)
+	static inline bool AreBytesAvailableForPatching(Process::Handle processHandle, const void* address)
 	{
 		// available bytes are either 0xCC (int 3) or 0x0 (page padding)
 		uint8_t memory[N] = {};
-		process::ReadProcessMemory(processHandle, address, memory, N);
+		Process::ReadProcessMemory(processHandle, address, memory, N);
 
 		for (size_t i = 0u; i < N; ++i)
 		{
@@ -52,14 +58,14 @@ functions::Record functions::PatchFunction
 	uint32_t patchFunctionRva,
 	const symbols::ThunkDB* thunkDb,
 	const symbols::Contribution* contribution,
-	process::Handle processHandle,
+	Process::Handle processHandle,
 	void* moduleBase,
 	uint16_t moduleIndex,
 	types::unordered_set<const void*>& patchedAddresses,
 	const types::vector<const void*>& threadIPs,
 
 	// debug only
-	unsigned int processId,
+	Process::Id processId,
 	const char* functionName
 )
 {
@@ -89,7 +95,7 @@ functions::Record functions::PatchFunction
 		// instead of the ILT.
 		for (auto thunkRva : thunkTableEntries)
 		{
-			LC_LOG_DEV("Patching ILT 0x%X of function %s at 0x%p (0x%X) (PID: %d)", thunkRva, functionName, moduleBase, functionRva, processId);
+			LC_LOG_DEV("Patching ILT 0x%X of function %s at 0x%p (0x%X) (PID: %d)", thunkRva, functionName, moduleBase, functionRva, +processId);
 
 			void* incrementalLinkingThunk = pointer::Offset<char*>(moduleBase, thunkRva);
 			patch::InstallRelativeNearJump(processHandle, incrementalLinkingThunk, patchAddress);
@@ -106,12 +112,12 @@ functions::Record functions::PatchFunction
 		// disassemble the first instructions to see how many bytes we can patch.
 		while (wholeInstructionSize < 5u)
 		{
-			const size_t instructionSize = disassembler::FindInstructionSize(processHandle, originalAddress + wholeInstructionSize);
+			const uint8_t instructionSize = Disassembler::FindInstructionSize(processHandle, originalAddress + wholeInstructionSize);
 			if (instructionSize == 0u)
 			{
 				// dump raw code in case it could not be decoded
-				LC_ERROR_DEV("Failed to disassemble code for function %s at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, processId);
-				process::DumpMemory(processHandle, originalAddress, contribution->size);
+				LC_ERROR_DEV("Failed to disassemble code for function %s at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, +processId);
+				Process::DumpMemory(processHandle, originalAddress, contribution->size);
 				break;
 			}
 
@@ -148,7 +154,7 @@ functions::Record functions::PatchFunction
 	// now install a patch using the selected technique
 	if (patchTechniqueUsed == PatchTechnique::DIRECT_RELATIVE_JUMP)
 	{
-		LC_LOG_DEV("Patching function %s directly at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, processId);
+		LC_LOG_DEV("Patching function %s directly at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, +processId);
 
 		patch::InstallRelativeNearJump(processHandle, originalAddress, patchAddress);
 
@@ -156,12 +162,12 @@ functions::Record functions::PatchFunction
 		if (wholeInstructionSize > 5u)
 		{
 			// yes, overwrite those with int 3
-			process::WriteProcessMemory(processHandle, originalAddress + 5u, INT3_PADDING, wholeInstructionSize - 5u);
+			Process::WriteProcessMemory(processHandle, originalAddress + 5u, INT3_PADDING, wholeInstructionSize - 5u);
 		}
 	}
 	else if (patchTechniqueUsed == PatchTechnique::HOTPATCH_INDIRECTION)
 	{
-		const size_t instructionSize = disassembler::FindInstructionSize(processHandle, originalAddress);
+		const uint8_t instructionSize = Disassembler::FindInstructionSize(processHandle, originalAddress);
 		if (instructionSize >= 2u)
 		{
 			// we need to go via an indirection, and install the relative jump to the patch
@@ -171,7 +177,7 @@ functions::Record functions::PatchFunction
 			const bool installedPatch = (patchedAddresses.find(originalAddress - 5u) != patchedAddresses.end());
 			if (isAvailable || installedPatch)
 			{
-				LC_LOG_DEV("Hot-patching function %s at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, processId);
+				LC_LOG_DEV("Hot-patching function %s at 0x%p (0x%X) (PID: %d)", functionName, moduleBase, functionRva, +processId);
 
 				// it is safe to install the relative jump right in front of the function
 				patch::InstallRelativeNearJump(processHandle, originalAddress - 5u, patchAddress);
@@ -179,7 +185,7 @@ functions::Record functions::PatchFunction
 				// note that in very, very rare cases, the memory region in front of the function might not
 				// be executable pages. this can only happen for the function right at the start of the
 				// code segment, but it can happen.
-				process::MakePagesExecutable(processHandle, originalAddress - 5u, 5u);
+				Process::MakePagesExecutable(processHandle, originalAddress - 5u, 5u);
 
 				// jump to the relative jump we just installed using a short jump, using 2 bytes.
 				// this memory region must always be executable already.
@@ -195,11 +201,11 @@ functions::Record functions::PatchFunction
 				{
 					if (appSettings::g_showUndecoratedNames->GetValue())
 					{
-						LC_WARNING_USER("Not enough space near function '%s' at 0x%X to install patch (PID: %d). Changes to this function will not be observable.", nameMangling::UndecorateSymbol(functionName, 0u).c_str(), originalAddress, processId);
+						LC_WARNING_USER("Not enough space near function '%s' at 0x%X to install patch (PID: %d). Changes to this function will not be observable.", nameMangling::UndecorateSymbol(functionName, 0u).c_str(), originalAddress, +processId);
 					}
 					else
 					{
-						LC_WARNING_USER("Not enough space near function '%s' at 0x%X to install patch (PID: %d). Changes to this function will not be observable.", functionName, originalAddress, processId);
+						LC_WARNING_USER("Not enough space near function '%s' at 0x%X to install patch (PID: %d). Changes to this function will not be observable.", functionName, originalAddress, +processId);
 					}
 				}
 			}
@@ -212,11 +218,11 @@ functions::Record functions::PatchFunction
 			{
 				if (appSettings::g_showUndecoratedNames->GetValue())
 				{
-					LC_WARNING_USER("Instruction in function '%s' at 0x%X is too short to install patch (PID: %d). Changes to this function will not be observable.", nameMangling::UndecorateSymbol(functionName, 0u).c_str(), originalAddress, processId);
+					LC_WARNING_USER("Instruction in function '%s' at 0x%X is too short to install patch (PID: %d). Changes to this function will not be observable.", nameMangling::UndecorateSymbol(functionName, 0u).c_str(), originalAddress, +processId);
 				}
 				else
 				{
-					LC_WARNING_USER("Instruction in function '%s' at 0x%X is too short to install patch (PID: %d). Changes to this function will not be observable.", functionName, originalAddress, processId);
+					LC_WARNING_USER("Instruction in function '%s' at 0x%X is too short to install patch (PID: %d). Changes to this function will not be observable.", functionName, originalAddress, +processId);
 				}
 			}
 		}
@@ -229,7 +235,7 @@ functions::Record functions::PatchFunction
 void functions::PatchFunction
 (
 	const Record& record,
-	process::Handle processHandle,
+	Process::Handle processHandle,
 	void* processModuleBases[],
 	void* newModuleBase,
 	types::unordered_set<const void*>& patchedAddresses,
@@ -299,12 +305,12 @@ void functions::PatchFunction
 		if (record.directJumpInstructionSize > 5u)
 		{
 			// yes, overwrite those with int 3
-			process::WriteProcessMemory(processHandle, originalAddress + 5u, INT3_PADDING, record.directJumpInstructionSize - 5u);
+			Process::WriteProcessMemory(processHandle, originalAddress + 5u, INT3_PADDING, record.directJumpInstructionSize - 5u);
 		}
 	}
 	else if (patchTechniqueUsed == PatchTechnique::HOTPATCH_INDIRECTION)
 	{
-		const size_t instructionSize = disassembler::FindInstructionSize(processHandle, originalAddress);
+		const uint8_t instructionSize = Disassembler::FindInstructionSize(processHandle, originalAddress);
 		if (instructionSize >= 2u)
 		{
 			// we need to go via an indirection, and install the relative jump to the patch
@@ -320,7 +326,7 @@ void functions::PatchFunction
 				// note that in very, very rare cases, the memory region in front of the function might not
 				// be executable pages. this can only happen for the function right at the start of the
 				// code segment, but it can happen.
-				process::MakePagesExecutable(processHandle, originalAddress - 5u, 5u);
+				Process::MakePagesExecutable(processHandle, originalAddress - 5u, 5u);
 
 				// jump to the relative jump we just installed using a short jump, using 2 bytes.
 				// this memory region must always be executable already.
@@ -340,7 +346,7 @@ functions::LibraryRecord functions::PatchLibraryFunction
 	uint32_t srcRva,
 	uint32_t destRva,
 	const symbols::Contribution* contribution,
-	process::Handle processHandle,
+	Process::Handle processHandle,
 	uint16_t moduleIndex
 )
 {
@@ -361,11 +367,11 @@ functions::LibraryRecord functions::PatchLibraryFunction
 	size_t wholeInstructionSize = 0u;
 	while (wholeInstructionSize < 5u)
 	{
-		const size_t instructionSize = disassembler::FindInstructionSize(processHandle, srcAddress + wholeInstructionSize);
+		const uint8_t instructionSize = Disassembler::FindInstructionSize(processHandle, srcAddress + wholeInstructionSize);
 		if (instructionSize == 0u)
 		{
 			// dump raw code in case it could not be decoded
-			process::DumpMemory(processHandle, srcAddress, contribution->size);
+			Process::DumpMemory(processHandle, srcAddress, contribution->size);
 			break;
 		}
 
@@ -384,7 +390,7 @@ functions::LibraryRecord functions::PatchLibraryFunction
 		if (wholeInstructionSize > 5u)
 		{
 			// yes, overwrite those with int 3
-			process::WriteProcessMemory(processHandle, srcAddress + 5u, INT3_PADDING, wholeInstructionSize - 5u);
+			Process::WriteProcessMemory(processHandle, srcAddress + 5u, INT3_PADDING, wholeInstructionSize - 5u);
 		}
 	}
 
@@ -395,7 +401,7 @@ functions::LibraryRecord functions::PatchLibraryFunction
 void functions::PatchLibraryFunction
 (
 	const LibraryRecord& record,
-	process::Handle processHandle,
+	Process::Handle processHandle,
 	void* processModuleBases[],
 	void* newModuleBase
 )
@@ -418,7 +424,7 @@ void functions::PatchLibraryFunction
 		if (record.wholeInstructionSize > 5u)
 		{
 			// yes, overwrite those with int 3
-			process::WriteProcessMemory(processHandle, srcAddress + 5u, INT3_PADDING, record.wholeInstructionSize - 5u);
+			Process::WriteProcessMemory(processHandle, srcAddress + 5u, INT3_PADDING, record.wholeInstructionSize - 5u);
 		}
 	}
 }

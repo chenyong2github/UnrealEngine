@@ -1,91 +1,102 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
+#include "LC_ThreadTypes.h"
+// BEGIN EPIC MOD
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
-namespace thread
+
+namespace Thread
 {
-	typedef CONTEXT Context;
-	typedef HANDLE Handle;
-	typedef unsigned int(__stdcall *Function)(void*);
+	// Current/calling thread.
+	namespace Current
+	{
+		// Sets the name of the calling thread.
+		void SetName(const char* name);
 
-	// returns the thread ID of the calling thread
-	unsigned int GetId(void);
+		// Sleeps the calling thread for the given number of seconds.
+		void SleepSeconds(unsigned int seconds);
 
-	// returns the thread ID of the given thread
-	unsigned int GetId(Handle handle);
+		// Sleeps the calling thread for the given number of milliseconds.
+		void SleepMilliSeconds(unsigned int milliSeconds);
 
-	// raw thread creation function
+		// Yields the calling thread.
+		void Yield(void);
+
+		// Returns the thread Id of the calling thread.
+		Id GetId(void);
+	}
+
+	// Creates a raw thread.
 	Handle Create(unsigned int stackSize, Function function, void* context);
 
-	// creates a thread from a given function and provided arguments
+	// Creates a thread from a given function and provided arguments.
 	template <typename F, typename... Args>
-	inline Handle Create(const char* threadName, unsigned int stackSize, F ptrToFunction, Args&&... args);
+	inline Handle CreateFromFunction(const char* threadName, unsigned int stackSize, F ptrToFunction, Args&&... args);
 
-	// creates a thread from a given member function, instance and provided arguments
+	// Creates a thread from a given member function, instance and provided arguments.
 	template <class C, typename F, typename... Args>
-	inline Handle Create(const char* threadName, unsigned int stackSize, F ptrToMemberFunction, C* instance, Args&&... args);
+	inline Handle CreateFromMemberFunction(const char* threadName, unsigned int stackSize, C* instance, F ptrToMemberFunction, Args&&... args);
 
-
+	// Joins the given thread.
 	void Join(Handle handle);
+
+	// Terminates the given thread.
 	void Terminate(Handle handle);
 
-	void Yield(void);
-	void Sleep(unsigned int milliSeconds);
 
-	void CancelIO(Handle handle);
+	// Opens a thread with the given Id for full access.
+	Handle Open(Id threadId);
 
-
-	// opens a thread
-	Handle Open(unsigned int threadId);
-
-	// closes a thread
+	// Closes a created or opened thread.
 	void Close(Handle& handle);
 
-	// suspends a thread
+
+	// Suspends a thread.
 	void Suspend(Handle handle);
 
-	// resumes a thread
+	// Resumes a suspended thread.
 	void Resume(Handle handle);
 
-	// returns a thread's priority
-	int GetPriority(Handle handle);
-
-	// sets a thread's priority
+	// Sets a thread's priority.
 	void SetPriority(Handle handle, int priority);
 
-	// returns a thread's context.
-	// NOTE: only use on suspended threads!
+	// Returns a thread's priority.
+	int GetPriority(Handle handle);
+
+	// Sets a thread's context. Only call on suspended threads.
+	void SetContext(Handle handle, const Context* context);
+
+	// Returns a thread's context. Only call on suspended threads.
 	Context GetContext(Handle handle);
 
-	// sets a thread's context.
-	// NOTE: only use on suspended threads!
-	void SetContext(Handle handle, const Context& context);
+	// Reads a thread context's instruction pointer.
+	const void* ReadInstructionPointer(const Context* context);
 
-	// reads a context' instruction pointer
-	const void* ReadInstructionPointer(const Context& context);
-
-	// writes a context' instruction pointer
-	void WriteInstructionPointer(Context& context, const void* ip);
+	// Writes a thread context's instruction pointer.
+	void WriteInstructionPointer(Context* context, const void* ip);
 
 
-	// sets the name of the calling thread
-	void SetName(const char* name);
+	// Returns the thread Id of the given thread.
+	Id GetId(Handle handle);
 }
 
 
 template <typename F, typename... Args>
-inline thread::Handle thread::Create(const char* threadName, unsigned int stackSize, F ptrToFunction, Args&&... args)
+inline Thread::Handle Thread::CreateFromFunction(const char* threadName, unsigned int stackSize, F ptrToFunction, Args&&... args)
 {
 	// a helper lambda that calls the given functions with the provided arguments.
 	// because this lambda needs to capture, it cannot be converted to a function pointer implicitly,
 	// and therefore cannot be used as a thread function directly.
 	// however, we can solve this by another indirection.
-	auto captureLambda = [threadName, ptrToFunction, args...]() -> unsigned int
+	auto captureLambda = [threadName, ptrToFunction, args...]() -> Thread::ReturnValue
 	{
-		thread::SetName(threadName);
+		Thread::Current::SetName(threadName);
 
 		return (*ptrToFunction)(args...);
 	};
@@ -103,30 +114,29 @@ inline thread::Handle thread::Create(const char* threadName, unsigned int stackS
 	auto capturelessLambda = [](void* lambdaContext) -> unsigned int
 	{
 		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(lambdaContext);
-		const unsigned int result = (*lambdaOnHeap)();
+		const Thread::ReturnValue result = (*lambdaOnHeap)();
 		delete lambdaOnHeap;
 
-		return result;
+		return +result;
 	};
 
-	unsigned int(__stdcall *threadFunction)(void*) = capturelessLambda;
-
-	thread::Handle handle = thread::Create(stackSize, threadFunction, lambdaOnHeap);
+	Thread::Function threadFunction = capturelessLambda;
+	Thread::Handle handle = Thread::Create(stackSize, threadFunction, lambdaOnHeap);
 
 	return handle;
 }
 
 
 template <class C, typename F, typename... Args>
-inline thread::Handle thread::Create(const char* threadName, unsigned int stackSize, F ptrToMemberFunction, C* instance, Args&&... args)
+inline Thread::Handle Thread::CreateFromMemberFunction(const char* threadName, unsigned int stackSize, C* instance, F ptrToMemberFunction, Args&&... args)
 {
 	// a helper lambda that calls the given functions with the provided arguments.
 	// because this lambda needs to capture, it cannot be converted to a function pointer implicitly,
 	// and therefore cannot be used as a thread function directly.
 	// however, we can solve this by another indirection.
-	auto captureLambda = [threadName, ptrToMemberFunction, instance, args...]() -> unsigned int
+	auto captureLambda = [threadName, ptrToMemberFunction, instance, args...]() -> Thread::ReturnValue
 	{
-		thread::SetName(threadName);
+		Thread::Current::SetName(threadName);
 
 		return (instance->*ptrToMemberFunction)(args...);
 	};
@@ -144,15 +154,14 @@ inline thread::Handle thread::Create(const char* threadName, unsigned int stackS
 	auto capturelessLambda = [](void* lambdaContext) -> unsigned int
 	{
 		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(lambdaContext);
-		const unsigned int result = (*lambdaOnHeap)();
+		const Thread::ReturnValue result = (*lambdaOnHeap)();
 		delete lambdaOnHeap;
 
-		return result;
+		return +result;
 	};
 
-	unsigned int (__stdcall *threadFunction)(void*) = capturelessLambda;
-
-	thread::Handle handle = thread::Create(stackSize, threadFunction, lambdaOnHeap);
+	Thread::Function threadFunction = capturelessLambda;
+	Thread::Handle handle = Thread::Create(stackSize, threadFunction, lambdaOnHeap);
 
 	return handle;
 }

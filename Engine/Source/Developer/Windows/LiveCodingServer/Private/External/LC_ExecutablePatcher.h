@@ -1,10 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_Executable.h"
-#include "LC_Process.h"
+#include "LC_ProcessTypes.h"
 
 
 class ExecutablePatcher
@@ -27,10 +29,10 @@ public:
 	uint32_t DisableEntryPointInImage(executable::Image* image, executable::ImageSectionDB* imageSections);
 
 	// disables the entry point in memory
-	void DisableEntryPoint(process::Handle processHandle, void* moduleBase, uint32_t entryPointRva);
+	void DisableEntryPoint(Process::Handle processHandle, void* moduleBase, uint32_t entryPointRva);
 
 	// restores the entry point of a loaded image that previously had its entry point disabled
-	void RestoreEntryPoint(process::Handle processHandle, void* moduleBase, uint32_t entryPointRva);
+	void RestoreEntryPoint(Process::Handle processHandle, void* moduleBase, uint32_t entryPointRva);
 
 
 	inline const uint8_t* GetEntryPointCode(void) const

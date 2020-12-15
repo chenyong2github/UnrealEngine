@@ -1,9 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_Symbols.h"
+
+class FileAttributeCache;
 
 
 namespace amalgamation
@@ -19,6 +23,17 @@ namespace amalgamation
 	// turns C:\AbsoluteDir\Amalgamated.obj into C:\AbsoluteDir\Amalgamated.lpp_part.SourceFile.obj
 	std::wstring CreateObjPath(const std::wstring& normalizedAmalgamatedObjPath, const std::wstring& objPart);
 
+
+	void SplitAmalgamatedCompilands(
+		unsigned int splitAmalgamatedFilesThreshold,
+		symbols::CompilandDB* compilandDb,
+		symbols::Compiland* compiland,
+		const types::vector<std::wstring>& includeFiles,
+		const wchar_t* diaCompilandPath,
+		const std::wstring& compilandPath,
+		FileAttributeCache& fileCache,
+		bool generateLogs,
+		symbols::TimeStamp moduleLastModificationTime);
 
 	// dependency database handling
 	

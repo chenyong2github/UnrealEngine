@@ -10,19 +10,19 @@ IMPLEMENT_MODULE(FLiveCodingServerModule, LiveCodingServer)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLiveCodingServer, Display, All);
 
-static void ServerOutputHandler(logging::Channel::Enum Channel, logging::Type::Enum Type, const wchar_t* const Text)
+static void ServerOutputHandler(Logging::Channel::Enum Channel, Logging::Type::Enum Type, const wchar_t* const Text)
 {
 	FString TrimText = FString(Text).TrimEnd();
 	switch (Type)
 	{
-	case logging::Type::LOG_ERROR:
+	case Logging::Type::LOG_ERROR:
 		UE_LOG(LogLiveCodingServer, Error, TEXT("%s"), *TrimText);
 		break;
-	case logging::Type::LOG_WARNING:
+	case Logging::Type::LOG_WARNING:
 		// There are some warnings generated in the dev channel that aren't really actionable by the users.
 		// For example, warnings about symbols being eliminated by the linker.  It would be nice to just 
 		// filter that specific warning, but we can't.
-		if (Channel == logging::Channel::DEV)
+		if (Channel == Logging::Channel::DEV)
 		{
 			UE_LOG(LogLiveCodingServer, Verbose, TEXT("%s"), *TrimText);
 		}
@@ -36,18 +36,18 @@ static void ServerOutputHandler(logging::Channel::Enum Channel, logging::Type::E
 		break;
 	}
 
-	if (Channel == logging::Channel::USER)
+	if (Channel == Logging::Channel::USER)
 	{
 		ELiveCodingLogVerbosity Verbosity;
 		switch (Type)
 		{
-		case logging::Type::LOG_SUCCESS:
+		case Logging::Type::LOG_SUCCESS:
 			Verbosity = ELiveCodingLogVerbosity::Success;
 			break;
-		case logging::Type::LOG_ERROR:
+		case Logging::Type::LOG_ERROR:
 			Verbosity = ELiveCodingLogVerbosity::Failure;
 			break;
-		case logging::Type::LOG_WARNING:
+		case Logging::Type::LOG_WARNING:
 			Verbosity = ELiveCodingLogVerbosity::Warning;
 			break;
 		default:
@@ -60,7 +60,7 @@ static void ServerOutputHandler(logging::Channel::Enum Channel, logging::Type::E
 
 void FLiveCodingServerModule::StartupModule()
 {
-	logging::SetOutputHandler(&ServerOutputHandler);
+	Logging::SetOutputHandler(&ServerOutputHandler);
 
 	GLiveCodingServer = new FLiveCodingServer();
 
@@ -77,5 +77,5 @@ void FLiveCodingServerModule::ShutdownModule()
 		GLiveCodingServer = nullptr;
 	}
 
-	logging::SetOutputHandler(nullptr);
+	Logging::SetOutputHandler(nullptr);
 }

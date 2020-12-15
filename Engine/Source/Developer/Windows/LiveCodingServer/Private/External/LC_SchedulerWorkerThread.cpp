@@ -1,24 +1,30 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_SchedulerWorkerThread.h"
 #include "LC_SchedulerQueue.h"
 #include "LC_SchedulerTask.h"
+#include "LC_Thread.h"
 
 
 scheduler::WorkerThread::WorkerThread(TaskQueue* queue)
 	: m_thread()
 {
-	m_thread = thread::Create("Live coding worker", 128u * 1024u, &scheduler::WorkerThread::ThreadFunction, this, queue);
+	// BEGIN EPIC MOD
+	m_thread = Thread::CreateFromMemberFunction("Live coding worker", 128u * 1024u, this, &scheduler::WorkerThread::ThreadFunction, queue);
+	// END EPIC MOD
 }
 
 
 scheduler::WorkerThread::~WorkerThread(void)
 {
-	thread::Join(m_thread);
+	Thread::Join(m_thread);
 }
 
 
-unsigned int scheduler::WorkerThread::ThreadFunction(TaskQueue* queue)
+Thread::ReturnValue scheduler::WorkerThread::ThreadFunction(TaskQueue* queue)
 {
 	for (;;)
 	{
@@ -32,5 +38,5 @@ unsigned int scheduler::WorkerThread::ThreadFunction(TaskQueue* queue)
 		task->Execute();
 	}
 
-	return 0u;
+	return Thread::ReturnValue(0u);
 }

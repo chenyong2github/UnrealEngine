@@ -1,5 +1,8 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ModuleCache.h"
 #include "LC_LiveProcess.h"
 
@@ -17,7 +20,7 @@ size_t ModuleCache::Insert(const symbols::SymbolDB* symbolDb, const symbols::Con
 	CriticalSection::ScopedLock lock(&m_cs);
 
 	const size_t token = m_cache.size();
-	m_cache.push_back(Data { static_cast<uint16_t>(token), symbolDb, contributionDb, compilandDb, thunkDb, imageSectionDb });
+	m_cache.push_back(Data { static_cast<uint16_t>(token), symbolDb, contributionDb, compilandDb, thunkDb, imageSectionDb, {} });
 
 	return token;
 }
@@ -109,7 +112,7 @@ ModuleCache::FindHookData ModuleCache::FindHooksInSectionBackwards(size_t ignore
 }
 
 
-types::vector<void*> ModuleCache::GatherModuleBases(unsigned int processId) const
+types::vector<void*> ModuleCache::GatherModuleBases(Process::Id processId) const
 {
 	types::vector<void*> result;
 

@@ -20,6 +20,15 @@ public class LiveCoding : ModuleRules
             PrivateDefinitions.Add("USE_DEBUG_LIVE_CODING_CONSOLE=0");
         }
 
+        if (Target.Configuration == UnrealTargetConfiguration.Debug)
+        {
+        	PrivateDefinitions.Add("LC_DEBUG=1");
+        }
+        else
+        {
+        	PrivateDefinitions.Add("LC_DEBUG=0");
+        }
+
 		PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "Private", "External", "LC_JumpToSelf.lib"));
 	}
 }

@@ -1,36 +1,33 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_ImmutableString.h"
-#include "LC_MemoryFile.h"
+#include "LC_MemoryMappedFile.h"
+// BEGIN EPIC MOD
 #include "LC_Types.h"
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
 
 #undef RELATIVE
 #undef OPTIONAL
+// END EPIC MOD
 
 struct PoolAllocatorSingleThreadPolicy;
 template <typename T> class PoolAllocator;
+
 
 namespace coff
 {
 	struct ObjFile
 	{
 		ImmutableString filename;
-		file::MemoryFile* memoryFile;
+		Filesystem::MemoryMappedFile* memoryFile;
 
 		LC_DISABLE_ASSIGNMENT(ObjFile);
-	};
-
-	struct LibFile
-	{
-		ImmutableString filename;
-		file::MemoryFile* memoryFile;
-
-		LC_DISABLE_ASSIGNMENT(LibFile);
 	};
 
 	struct SymbolType
@@ -50,7 +47,7 @@ namespace coff
 	{
 		struct Type
 		{
-			enum Enum : uint16_t
+			enum Enum : uint8_t
 			{
 #if LC_64_BIT
 				/*
@@ -112,7 +109,7 @@ namespace coff
 					IMAGE_REL_I386_TOKEN		The CLR token.
 					IMAGE_REL_I386_SECREL7		A 7-bit offset from the base of the section that contains the target.
 					IMAGE_REL_I386_REL32		The 32-bit relative displacement to the target.
-												This supports the x86 relative branch and call instructions.				
+												This supports the x86 relative branch and call instructions.
 
 					This means that only a handful of relocation types need to be supported.
 				*/
@@ -122,7 +119,7 @@ namespace coff
 				VA_32 = IMAGE_REL_I386_DIR32,
 				RVA_32 = IMAGE_REL_I386_DIR32NB,
 #endif
-				UNKNOWN = 0xFFFFu
+				UNKNOWN = 0xFFu
 			};
 
 			static const char* ToString(Enum value)
@@ -195,6 +192,7 @@ namespace coff
 		Type::Enum type;						// type of the relocation
 		SymbolType::Enum srcSymbolType;			// symbol type of the source symbol, cached (does not increase struct size)
 		SymbolType::Enum dstSymbolType;			// symbol type of the destination symbol, cached (does not increase struct size)
+		bool dstIsSection;						// true if this relocation points to a section
 	};
 
 	struct Symbol
@@ -257,12 +255,6 @@ namespace coff
 		uint64_t offset;					// offset into the file at which the COFF is stored
 
 		LC_DISABLE_ASSIGNMENT(LibEntry);
-	};
-
-	struct LibDB
-	{
-		types::vector<ImmutableString> exportedSymbols;		// all symbols exported by the library, alphabetically sorted
-		types::vector<LibEntry> libEntries;
 	};
 
 	struct UnresolvedSymbolDB
@@ -351,16 +343,6 @@ namespace coff
 	};
 	
 
-	struct ReadFlags
-	{
-		enum Enum
-		{
-			NONE = 0,
-			GENERATE_ANS_NAME_FROM_UNIQUE_ID = 1
-		};
-	};
-
-
 	struct SymbolRemovalStrategy
 	{
 		enum Enum : SHORT
@@ -375,12 +357,9 @@ namespace coff
 	ObjFile* OpenObj(const wchar_t* filename);
 	void CloseObj(ObjFile*& file);
 
-	LibFile* OpenLib(const wchar_t* filename);
-	void CloseLib(LibFile*& file);
-
 
 	// UPDATE
-	RawCoff* ReadRaw(ObjFile* file, uint32_t uniqueId, ReadFlags::Enum readFlags);
+	RawCoff* ReadRaw(ObjFile* file, uint32_t uniqueId);
 	void WriteRaw(const wchar_t* filename, const RawCoff* rawCoff, SymbolRemovalStrategy::Enum removalStrategy);
 	void DestroyRaw(RawCoff* rawCoff);
 
@@ -391,6 +370,7 @@ namespace coff
 	size_t GetAuxSymbolCount(const RawCoff* rawCoff, size_t symbolIndex);
 	SymbolType::Enum GetSymbolType(const RawCoff* rawCoff, size_t index);
 	const ImmutableString& GetSymbolName(const RawCoff* rawCoff, size_t index);
+	ImmutableString GetSectionName(const RawCoff* rawCoff, size_t index);
 	uint32_t GetSymbolSectionIndex(const RawCoff* rawCoff, size_t index);
 
 	bool IsAbsoluteSymbol(const RawCoff* rawCoff, size_t index);
@@ -428,23 +408,17 @@ namespace coff
 
 
 	// unique ID must uniquely identify this ObjFile. each obj file with a unique name must have a unique ID
-	UnresolvedSymbolDB* GatherUnresolvedSymbolDatabase(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags);
+	UnresolvedSymbolDB* GatherUnresolvedSymbolDatabase(ObjFile* file, uint32_t uniqueId);
 	void DestroyDatabase(UnresolvedSymbolDB* db);
 
 	// unique ID must uniquely identify this ObjFile. each obj file with a unique name must have a unique ID
-	ExternalSymbolDB* GatherExternalSymbolDatabase(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags);
+	ExternalSymbolDB* GatherExternalSymbolDatabase(ObjFile* file, uint32_t uniqueId);
 	void DestroyDatabase(ExternalSymbolDB* db);
 
 
 	// unique ID must uniquely identify this ObjFile. each obj file with a unique name must have a unique ID
-	CoffDB* GatherDatabase(ObjFile* file, uint32_t uniqueId, ReadFlags::Enum readFlags);
+	CoffDB* GatherDatabase(ObjFile* file, uint32_t uniqueId);
 	void DestroyDatabase(CoffDB* db);
-
-	LibDB* GatherDatabase(LibFile* file);
-	void DestroyDatabase(LibDB* db);
-
-	// loads the COFF database from an .obj contained in a .lib
-	CoffDB* GatherDatabase(LibFile* file, const LibDB* libDb, const ImmutableString& objPath);
 
 
 	size_t GetIndexCount(const CoffDB* coffDb);
@@ -484,4 +458,5 @@ namespace coff
 
 
 	bool IsInterestingSymbol(const ImmutableString& name);
+	bool IsMSVCJustMyCodeSection(const char* sectionName);
 }

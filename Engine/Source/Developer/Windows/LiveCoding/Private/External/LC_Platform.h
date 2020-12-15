@@ -1,41 +1,40 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+// END EPIC MOD
 #include "LC_Preprocessor.h"
 
-#if DO_CHECK
-#	define LC_BREAKPOINT()						((::IsDebuggerPresent() == 0) ? (void)true : __debugbreak())
+
+// determine the platform we're compiling for
+#if defined(_WIN32)
+	// Windows
+#	if defined(_WIN64)
+		// 64-bit
+#		define LC_64_BIT	1
+#		define LC_32_BIT	0
+#	else
+		// 32-bit
+#		define LC_64_BIT	0
+#		define LC_32_BIT	1
+#	endif
+#	define LC_PLATFORM_SUFFIX _Windows.h
+#elif defined(__ORBIS__)
+	// PlayStation 4
+#	define LC_64_BIT	1
+#	define LC_32_BIT	0
+#	define LC_PLATFORM_SUFFIX _Orbis.h
 #else
-#	define LC_BREAKPOINT()						(void)true
+	#pragma error "Unknown platform"
 #endif
 
-#define LC_ASSERT(_condition, _msg)				checkf(_condition, TEXT("%s"), TEXT(_msg))
 
-#define LC_FILE									__FILE__
-#define LC_LINE									__LINE__
-#define LC_FUNCTION_NAME						__FUNCTION__
-#define LC_FUNCTION_SIGNATURE					__FUNCSIG__
-#define LC_UNUSED(_value)						(void)(_value)
+#define LC_PLATFORM_INCLUDE(_header) LC_PP_STRINGIFY(LC_PP_JOIN(_header, LC_PLATFORM_SUFFIX))
 
-#define LC_DISABLE_COPY(_name)					_name(const _name&) = delete
-#define LC_DISABLE_MOVE(_name)					_name(_name&&) = delete
-#define LC_DISABLE_ASSIGNMENT(_name)			_name& operator=(const _name&) = delete
-#define LC_DISABLE_MOVE_ASSIGNMENT(_name)		_name& operator=(_name&&) = delete
-
-#define LC_ALWAYS_INLINE						__forceinline
-#define LC_NEVER_INLINE							__declspec(noinline)
-
-#if PLATFORM_64BITS
-#	define LC_64_BIT 1
-#	define LC_32_BIT 0
-#else
-#	define LC_64_BIT 0
-#	define LC_32_BIT 1
-#endif
-
+// BEGIN EPIC MOD
 // convenience macro for referring to symbol identifiers.
 // some identifiers contain an extra leading underscore in 32-bit builds.
 #if LC_64_BIT
@@ -43,3 +42,4 @@
 #else
 #	define LC_IDENTIFIER(_name)		"_" _name
 #endif
+// END EPIC MOD

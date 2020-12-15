@@ -1,9 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Semaphore.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
-
+// END EPIC MOD
 
 Semaphore::Semaphore(unsigned int initialValue, unsigned int maximumValue) :
 	m_sema(::CreateSemaphore(nullptr, static_cast<LONG>(initialValue), static_cast<LONG>(maximumValue), nullptr))

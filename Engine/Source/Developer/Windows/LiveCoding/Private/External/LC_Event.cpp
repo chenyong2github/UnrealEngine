@@ -1,12 +1,19 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_Event.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
 
 Event::Event(const wchar_t* name, Type::Enum type)
+	// BEGIN EPIC MOD
 	: m_event(::CreateEventW(NULL, (type == Type::MANUAL_RESET) ? Windows::TRUE : Windows::FALSE, Windows::FALSE, name))
+	// END EPIC MOD
 {
 	const DWORD error = ::GetLastError();
 	if (m_event == NULL)

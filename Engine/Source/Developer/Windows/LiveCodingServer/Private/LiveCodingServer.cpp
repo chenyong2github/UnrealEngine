@@ -3,11 +3,12 @@
 #include "LiveCodingServer.h"
 #include "External/LC_Scheduler.h"
 #include "External/LC_UniqueId.h"
-#include "External/LC_FileUtil.h"
+#include "External/LC_Filesystem.h"
 #include "External/LC_AppSettings.h"
 #include "External/LC_ServerCommandThread.h"
 #include "External/LC_Compiler.h"
 #include "External/LC_Environment.h"
+#include "External/LC_Process.h"
 
 FLiveCodingServer* GLiveCodingServer = nullptr;
 
@@ -28,7 +29,7 @@ void FLiveCodingServer::Start(const wchar_t* InProcessGroupName)
 	ProcessGroupName = InProcessGroupName;
 
 	scheduler::Startup();
-	file::Startup();
+	Filesystem::Startup();
 	uniqueId::Startup();
 	appSettings::Startup(ProcessGroupName.c_str());
 
@@ -43,7 +44,7 @@ void FLiveCodingServer::Stop()
 
 	appSettings::Shutdown();
 	uniqueId::Shutdown();
-	file::Shutdown();
+	Filesystem::Shutdown();
 	scheduler::Shutdown();
 
 	ProcessGroupName.clear();
@@ -64,7 +65,7 @@ void FLiveCodingServer::SetLinkerPath(const wchar_t* LinkerPath, const TMap<FStr
 
 	if (LinkerEnvironment.Num() > 0)
 	{
-		process::Environment* environment = process::CreateEnvironmentFromMap(LinkerEnvironment);
+		Process::Environment* environment = Process::CreateEnvironmentFromMap(LinkerEnvironment);
 		compiler::AddEnvironmentToCache(LinkerPath, environment);
 	}
 }

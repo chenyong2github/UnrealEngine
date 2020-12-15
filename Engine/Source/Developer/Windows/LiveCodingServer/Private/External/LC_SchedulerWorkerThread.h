@@ -1,9 +1,11 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Thread.h"
+// END EPIC MOD
+#include "LC_ThreadTypes.h"
 
 
 namespace scheduler
@@ -18,8 +20,8 @@ namespace scheduler
 		~WorkerThread(void);
 
 	private:
-		unsigned int ThreadFunction(TaskQueue* queue);
+		Thread::ReturnValue ThreadFunction(TaskQueue* queue);
 
-		thread::Handle m_thread;
+		Thread::Handle m_thread;
 	};
 }

@@ -1,9 +1,13 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_ChangeNotification.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
-
+// END EPIC MOD
 
 ChangeNotification::ChangeNotification(void)
 	: m_handle(INVALID_HANDLE_VALUE)
@@ -19,7 +23,9 @@ ChangeNotification::~ChangeNotification(void)
 
 void ChangeNotification::Create(const wchar_t* path)
 {
+	// BEGIN EPIC MOD
 	m_handle = ::FindFirstChangeNotificationW(path, Windows::TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+	// END EPIC MOD
 	if (m_handle == INVALID_HANDLE_VALUE)
 	{
 		const DWORD error = ::GetLastError();

@@ -1,12 +1,14 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
+// END EPIC MOD
 #include "LC_CoffCache.h"
 #include "LC_ModuleCache.h"
 #include "LC_Symbols.h"
-#include "LC_Process.h"
+#include "LC_ProcessTypes.h"
 #include "LC_Commands.h"
 #include "LC_Executable.h"
 #include "LC_Semaphore.h"
@@ -18,6 +20,7 @@ class FileAttributeCache;
 class DirectoryCache;
 class ModulePatch;
 class LiveProcess;
+class VirtualMemoryRange;
 
 class LiveModule
 {
@@ -27,6 +30,7 @@ public:
 		LiveProcess* liveProcess;
 		void* originalModuleBase;
 		std::wstring modulePath;
+		VirtualMemoryRange* virtualMemoryRange;
 	};
 
 	struct ErrorType
@@ -49,12 +53,6 @@ public:
 			DEFAULT,
 			NO_CLIENT_COMMUNICATION
 		};
-	};
-
-	struct ModifiedObjFile
-	{
-		std::wstring objPath;
-		std::wstring amalgamatedObjPath;	// optional
 	};
 
 	struct CompileResult
@@ -82,7 +80,7 @@ public:
 	// in DEFAULT mode, this checks for file modifications, compiles files automatically, builds a patch containing changes, and loads them into the host application.
 	// in EXTERNAL_BUILD_SYSTEM mode, this does not compile files but builds a patch containing modified .objs, loading the patch into the host application.
 	// optionally, an array of modified or new .objs can be given in this mode, which builds a patch containing these files, not checking for any other modifications.
-	ErrorType::Enum Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const types::vector<ModifiedObjFile>& modifiedOrNewObjFiles);
+	ErrorType::Enum Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const types::vector<symbols::ModifiedObjFile>& modifiedOrNewObjFiles);
 	bool InstallCompiledPatches(LiveProcess* liveProcess, void* originalModuleBase);
 
 	const std::wstring& GetModuleName(void) const;
@@ -142,10 +140,9 @@ private:
 	symbols::ImageSectionDB* m_imageSectionDB = nullptr;
 	types::StringMap<types::vector<const symbols::Symbol*>> m_externalSymbolsPerCompilandCache;
 	types::StringMap<ImmutableString> m_pchSymbolToCompilandName;
-	types::vector<ImmutableString> m_weakSymbolsInLibs;
 
 	// patch data
-	types::unordered_map<unsigned int, types::unordered_set<const void*>> m_patchedAddressesPerProcess;
+	types::unordered_map<Process::Id, types::unordered_set<const void*>> m_patchedAddressesPerProcess;
 	unsigned int m_patchCounter = 0u;
 
 	// data pertaining to the next patch

@@ -115,7 +115,7 @@ void FLiveCodingModule::StartupModule()
 		);
 	}
 
-	LppStartup(hInstance);
+	LppStartup();
 
 	if (Settings->bEnabled && !FApp::IsUnattended())
 	{

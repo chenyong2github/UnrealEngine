@@ -1,73 +1,81 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_NamedSharedMemory.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
+//END EPIC MOD
 
-
-namespace
+namespace Process
 {
-	static const DWORD MEMORY_SIZE = 4096u;
+	struct NamedSharedMemory
+	{
+		// BEGIN EPIC MOD
+		Windows::HANDLE memoryMapping;
+		// END EPIC MOD
+		void* memoryView;
+		bool isOwned;
+	};
 }
 
 
-NamedSharedMemory::NamedSharedMemory(const wchar_t* name)
-	: m_file(nullptr)
-	, m_view(nullptr)
-	, m_isOwned(true)
+bool Process::Current::DoesOwnNamedSharedMemory(const NamedSharedMemory* memory)
 {
-	m_file = ::CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MEMORY_SIZE, name);
+	return memory->isOwned;
+}
+
+
+Process::NamedSharedMemory* Process::CreateNamedSharedMemory(const wchar_t* name, size_t size)
+{
+	::ULARGE_INTEGER integer = {};
+	integer.QuadPart = size;
+
+	// BEGIN EPIC MOD
+	Windows::HANDLE memoryMapping = ::CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, integer.HighPart, integer.LowPart, name);
+	// END EPIC MOD
 	const DWORD error = ::GetLastError();
-	if (m_file == NULL)
+	if (memoryMapping == NULL)
 	{
 		LC_ERROR_USER("Cannot create named shared memory. Error: 0x%X", error);
-	}
-	else if (error == ERROR_ALREADY_EXISTS)
-	{
-		// another process already created this file mapping. the handle points to the already existing object.
-		m_isOwned = false;
+		return nullptr;
 	}
 
-	if (m_file)
-	{
-		m_view = ::MapViewOfFile(m_file, FILE_MAP_ALL_ACCESS, 0, 0, MEMORY_SIZE);
-		if (m_view == NULL)
-		{
-			LC_ERROR_USER("Cannot map view for named shared memory. Error: 0x%X", ::GetLastError());
+	// check if another process already created this file mapping.
+	// the handle then points to the already existing object.
+	const bool isOwned = (error != ERROR_ALREADY_EXISTS);
 
-			::CloseHandle(m_file);
-			m_file = nullptr;
-		}
+	void* memoryView = ::MapViewOfFile(memoryMapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+	if (memoryView == NULL)
+	{
+		LC_ERROR_USER("Cannot map view for named shared memory. Error: 0x%X", ::GetLastError());
+
+		::CloseHandle(memoryMapping);
+		return nullptr;
 	}
+
+	return new NamedSharedMemory { memoryMapping, memoryView, isOwned };
 }
 
 
-NamedSharedMemory::~NamedSharedMemory(void)
+void Process::DestroyNamedSharedMemory(NamedSharedMemory*& memory)
 {
-	::UnmapViewOfFile(m_view);
-	::CloseHandle(m_file);
+	::UnmapViewOfFile(memory->memoryView);
+	::CloseHandle(memory->memoryMapping);
+	delete memory;
+	memory = nullptr;
 }
 
 
-bool NamedSharedMemory::IsOwnedByCallingProcess(void) const
+void Process::ReadNamedSharedMemory(const NamedSharedMemory* memory, void* buffer, size_t size)
 {
-	return m_isOwned;
+	memcpy(buffer, memory->memoryView, size);
 }
 
 
-void NamedSharedMemory::Read(void* buffer, size_t size)
+void Process::WriteNamedSharedMemory(NamedSharedMemory* memory, const void* buffer, size_t size)
 {
-	if (m_view)
-	{
-		memcpy(buffer, m_view, size);
-	}
-}
-
-
-void NamedSharedMemory::Write(const void* buffer, size_t size)
-{
-	if (m_view)
-	{
-		memcpy(m_view, buffer, size);
-	}
+	memcpy(memory->memoryView, buffer, size);
 }

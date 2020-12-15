@@ -1,15 +1,15 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "../../../LiveCodingServer/Private/External/LC_Hook.h"
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
+#include "LC_ProcessTypes.h"
+#include "LC_ThreadTypes.h"
 
-namespace hook
-{
-	typedef void (*Function)(void);
-}
 
 namespace commands
 {
@@ -22,13 +22,17 @@ namespace commands
 	struct ModuleData
 	{
 		void* base;
+		// BEGIN EPIC MOD
 		wchar_t path[WINDOWS_MAX_PATH];
+		// END EPIC MOD
 	};
 
 	// acknowledge that a command has been received
 	struct Acknowledge
 	{
+		// BEGIN EPIC MOD
 		static const uint32_t ID = 100;
+		// END EPIC MOD
 	};
 
 	// register a process with Live++
@@ -37,9 +41,9 @@ namespace commands
 		static const uint32_t ID = Acknowledge::ID + 1u;
 
 		void* processBase;
-		unsigned int processId;				// current process ID
-		unsigned int restartedProcessId;	// process ID of the previous, restarted process. 0 if non-existent
-		unsigned int threadId;				// thread ID of Live++ thread running in host
+		Process::Id processId;				// current process ID
+		Process::Id restartedProcessId;		// process ID of the previous, restarted process. 0 if non-existent
+		Thread::Id threadId;				// thread ID of Live++ thread running in host
 		const void* jumpToSelf;				// address of jump-to-self instruction in host
 
 		size_t imagePathSize;
@@ -63,7 +67,7 @@ namespace commands
 	{
 		static const uint32_t ID = RegisterProcessFinished::ID + 1u;
 
-		unsigned int processId;
+		Process::Id processId;
 		unsigned int moduleCount;
 		void* token;
 
@@ -83,7 +87,7 @@ namespace commands
 	{
 		static const uint32_t ID = EnableModulesFinished::ID + 1u;
 
-		unsigned int processId;
+		Process::Id processId;
 		unsigned int moduleCount;
 		void* token;
 
@@ -125,7 +129,9 @@ namespace commands
 	{
 		static const uint32_t ID = CallHooks::ID + 1u;
 
+		// BEGIN EPIC MOD
 		wchar_t path[WINDOWS_MAX_PATH];
+		// END EPIC MOD
 	};
 
 	// returns info about a loaded DLL to Live++
@@ -133,7 +139,9 @@ namespace commands
 	{
 		static const uint32_t ID = LoadPatch::ID + 1u;
 
+		// BEGIN EPIC MOD
 		Windows::HMODULE module;
+		// END EPIC MOD
 	};
 
 	// tell the DLL to unload a DLL
@@ -141,7 +149,9 @@ namespace commands
 	{
 		static const uint32_t ID = LoadPatchInfo::ID + 1u;
 
+		// BEGIN EPIC MOD
 		Windows::HMODULE module;
+		// END EPIC MOD
 	};
 
 	// tell the DLL to call the entry point of a DLL
@@ -216,8 +226,8 @@ namespace commands
 	{
 		static const uint32_t ID = BuildPatch::ID + 1u;
 
-		unsigned int processId;
-		unsigned int threadId;
+		Process::Id processId;
+		Thread::Id threadId;
 		EXCEPTION_RECORD exception;
 		CONTEXT context;
 		CONTEXT* clientContextPtr;
@@ -264,7 +274,7 @@ namespace commands
 	{
 		static const uint32_t ID = SetActive::ID + 1u;
 
-		unsigned int processId;
+		Process::Id processId;
 		wchar_t arguments[1024];
 	};
 	// END EPIC MOD
@@ -274,7 +284,7 @@ namespace commands
 	{
 		static const uint32_t ID = SetBuildArguments::ID + 1u;
 
-		unsigned int processId;
+		Process::Id processId;
 		wchar_t fileName[260];
 		Windows::HMODULE moduleBase;
 		void* token;

@@ -1,16 +1,23 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_SymbolResolution.h"
 #include "LC_PointerUtil.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include "Windows/WindowsHWrapper.h"
+// END EPIC MOD
 
+// BEGIN EPIC MOD
 #pragma push_macro("OPTIONAL")
 #ifndef OPTIONAL
 #define OPTIONAL
 #endif
 #include <dbghelp.h>
 #pragma pop_macro("OPTIONAL")
+// END EPIC MOD
 
 namespace symbolResolution
 {
@@ -23,7 +30,9 @@ namespace symbolResolution
 		{
 			::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_INCLUDE_32BIT_MODULES);
 			const BOOL success = ::SymInitialize(::GetCurrentProcess(), "", true);
+			// BEGIN EPIC MOD
 			if (success == Windows::FALSE)
+			// END EPIC MOD
 			{
 				const DWORD error = ::GetLastError();
 				LC_ERROR_DEV("SymInitialize failed with error 0x%X", error);
@@ -33,7 +42,9 @@ namespace symbolResolution
 		~SymbolHelper(void)
 		{
 			const BOOL success = ::SymCleanup(::GetCurrentProcess());
+			// BEGIN EPIC MOD
 			if (success == Windows::FALSE)
+			// END EPIC MOD
 			{
 				const DWORD error = ::GetLastError();
 				LC_ERROR_DEV("SymCleanup failed with error 0x%X", error);

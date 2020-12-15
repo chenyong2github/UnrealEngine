@@ -1,12 +1,17 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
+// BEGIN EPIC MOD
+//#include PCH_INCLUDE
+// END EPIC MOD
 #include "LC_AllocatorStats.h"
+// BEGIN EPIC MOD
 #include "LC_Logging.h"
 #include <inttypes.h>
 #include <intrin.h>
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
+// END EPIC MOD
 
 AllocatorStats::AllocatorStats(void)
 	: m_allocationCount(0ull)
@@ -57,4 +62,6 @@ uint64_t AllocatorStats::GetMemorySize(void) const
 	return m_memorySize;
 }
 
+// BEGIN EPIC MOD
 #include "Windows/HideWindowsPlatformAtomics.h"
+// END EPIC MOD

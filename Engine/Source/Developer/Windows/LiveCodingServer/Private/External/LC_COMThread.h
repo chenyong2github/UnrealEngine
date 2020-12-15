@@ -1,10 +1,12 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include <type_traits>
+// END EPIC MOD
 #include "LC_Event.h"
-#include "LC_Thread.h"
+#include "LC_ThreadTypes.h"
 
 
 // helper class that is the only one calling COM-related functions and methods.
@@ -68,11 +70,11 @@ public:
 	}
 
 private:
-	unsigned int ThreadFunction(void);
+	Thread::ReturnValue ThreadFunction(void);
 
 	COMFunction m_function;
 	Event m_functionAvailableEvent;
 	Event m_functionFinishedExecutingEvent;
 	Event m_leaveThreadEvent;
-	thread::Handle m_internalThread;
+	Thread::Handle m_internalThread;
 };

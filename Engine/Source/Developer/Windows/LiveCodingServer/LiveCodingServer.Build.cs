@@ -30,6 +30,15 @@ public class LiveCodingServer : ModuleRules
 			RuntimeDependencies.Add("$(TargetOutputDir)/msdia140.dll", Path.Combine(DiaSdkDir, "bin", "amd64", "msdia140.dll"));
 		}
 
+		if (Target.Configuration == UnrealTargetConfiguration.Debug)
+		{
+			PrivateDefinitions.Add("LC_DEBUG=1");
+		}
+		else
+		{
+			PrivateDefinitions.Add("LC_DEBUG=0");
+		}
+		
 		// Allow precompiling when generating project files so we can get intellisense
 		if(!Target.bGenerateProjectFiles)
 		{

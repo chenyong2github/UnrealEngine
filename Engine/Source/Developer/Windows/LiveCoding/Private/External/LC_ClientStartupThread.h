@@ -1,13 +1,18 @@
-// Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
+// Copyright 2011-2020 Molecular Matters GmbH, all rights reserved.
 
 #pragma once
 
+// BEGIN EPIC MOD
 #include "CoreTypes.h"
-#include "LC_Thread.h"
-#include "LC_Process.h"
+// END EPIC MOD
+#include "LC_ThreadTypes.h"
+#include "LC_ProcessTypes.h"
+#include "LC_NamedSharedMemoryTypes.h"
 #include "LC_RunMode.h"
+// BEGIN EPIC MOD
+#include <string>
+// END EPIC MOD
 
-class NamedSharedMemory;
 class ClientCommandThread;
 class ClientUserCommandThread;
 class DuplexPipeClient;
@@ -18,7 +23,7 @@ class Event;
 class ClientStartupThread
 {
 public:
-	explicit ClientStartupThread(HINSTANCE instance);
+	ClientStartupThread(void);
 	~ClientStartupThread(void);
 
 	// Spawns a thread that runs client initialization
@@ -69,21 +74,19 @@ public:
 	// END EPIC MOD
 
 private:
-	unsigned int ThreadFunction(const std::wstring& groupName, RunMode::Enum runMode);
+	Thread::ReturnValue ThreadFunction(const std::wstring& groupName, RunMode::Enum runMode);
 
-	HINSTANCE m_instance;
-
-	thread::Handle m_thread;
+	Thread::Handle m_thread;
 
 	// job object for associating spawned processes with main process the DLL is loaded into
 	HANDLE m_job;
 
 	// named shared memory for sharing the Live++ process ID between processes
-	NamedSharedMemory* m_sharedMemory;
+	Process::NamedSharedMemory* m_sharedMemory;
 
 	// main Live++ process. context may be empty in case we connected to an existing Live++ process
-	process::Context* m_mainProcessContext;
-	process::Handle m_processHandle;
+	Process::Context* m_mainProcessContext;
+	Process::Handle m_processHandle;
 
 	bool m_successfulInit;
 
