@@ -95,9 +95,9 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      end()         { return Bones.end();   }
 	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
 
-	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
+	bool IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage = nullptr) const;
 
-	FName GetSafeNewName(const FName& InPotentialNewName) const;
+	FName GetSafeNewName(const FString& InPotentialNewName) const;
 
 	FRigBone& Add(const FName& InNewName, const FName& InParentName = NAME_None, ERigBoneType InType = ERigBoneType::Imported, const FTransform& InInitTransform = FTransform::Identity);
 

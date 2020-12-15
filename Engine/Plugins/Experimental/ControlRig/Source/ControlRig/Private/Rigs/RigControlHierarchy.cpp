@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigControlHierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "ControlRig.h"
 #include "HelperUtil.h"
 #include "Settings/ControlRigSettings.h"
@@ -502,15 +503,26 @@ FRigControlHierarchy& FRigControlHierarchy::operator= (const FRigControlHierarch
 	return *this;
 }
 
-FName FRigControlHierarchy::GetSafeNewName(const FName& InPotentialNewName) const
+bool FRigControlHierarchy::IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage) const
 {
-	FName Name = InPotentialNewName;
-	int32 Suffix = 1;
-	while(!IsNameAvailable(Name))
+	if (Container)
 	{
-		Name = *FString::Printf(TEXT("%s_%d"), *InPotentialNewName.ToString(), ++Suffix);
+		return Container->IsNameAvailable(InPotentialNewName, ERigElementType::Control, OutErrorMessage);
 	}
-	return Name;
+
+	// if we are not part of a container, fall back to index based validation
+	if (InPotentialNewName.Len() > FRigHierarchyContainer::GetMaxNameLength())
+	{
+		return false;
+	}
+	return GetIndex(*InPotentialNewName) == INDEX_NONE;
+}
+
+FName FRigControlHierarchy::GetSafeNewName(const FString& InPotentialNewName) const
+{
+	return FRigHierarchyContainer::GetSafeNewName(InPotentialNewName, [this](const FString& InName) -> bool {
+		return IsNameAvailable(InName);
+	});
 }
 
 FRigControl& FRigControlHierarchy::Add(
@@ -526,7 +538,7 @@ FRigControl& FRigControlHierarchy::Add(
 )
 {
 	FRigControl NewControl;
-	NewControl.Name = GetSafeNewName(InNewName);
+	NewControl.Name = GetSafeNewName(InNewName.ToString());
 	NewControl.ControlType = InControlType;
 	NewControl.ParentIndex = GetIndex(InParentName);
 	NewControl.ParentName = NewControl.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
@@ -1074,7 +1086,7 @@ FName FRigControlHierarchy::Rename(const FName& InOldName, const FName& InNewNam
 		const int32 Found = GetIndex(InOldName);
 		if (Found != INDEX_NONE)
 		{
-			FName NewName = GetSafeNewName(InNewName);
+			FName NewName = GetSafeNewName(InNewName.ToString());
 
 			bool bWasSelected = IsSelected(InOldName);
 			if(bWasSelected)

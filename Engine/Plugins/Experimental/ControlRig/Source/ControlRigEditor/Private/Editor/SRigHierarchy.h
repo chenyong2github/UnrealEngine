@@ -19,8 +19,8 @@ struct FAssetData;
 class FMenuBuilder;
 class SRigHierarchyItem;
 
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRenameElement, const FRigElementKey& /*OldKey*/, const FName& /*NewName*/);
-DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FName& /*NewName*/, FText& /*OutErrorMessage*/);
+DECLARE_DELEGATE_RetVal_TwoParams(FName, FOnRenameElement, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/);
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/, FText& /*OutErrorMessage*/);
 
 /** An item in the tree */
 class FRigTreeElement : public TSharedFromThis<FRigTreeElement>
@@ -327,8 +327,8 @@ private:
 	void ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
 
 public:
-	bool RenameElement(const FRigElementKey& OldKey, const FName& NewName);
-	bool OnVerifyNameChanged(const FRigElementKey& OldKey, const FName& NewName, FText& OutErrorMessage);
+	FName RenameElement(const FRigElementKey& OldKey, const FString& NewName);
+	bool OnVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage);
 
 	friend class SRigHierarchyItem;
 };

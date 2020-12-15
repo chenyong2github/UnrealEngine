@@ -215,7 +215,7 @@ FText SRigHierarchyItem::GetName() const
 
 bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
 {
-	const FName NewName = FName(*InText.ToString());
+	FString NewName = InText.ToString();
 	if (OnVerifyElementNameChanged.IsBound())
 	{
 		return OnVerifyElementNameChanged.Execute(WeakRigTreeElement.Pin()->Key, NewName, OutErrorMessage);
@@ -231,15 +231,22 @@ void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type I
 	// because it is important to keep the unique names per pose
 	if (InCommitType == ETextCommit::OnEnter)
 	{
-		FName NewName = FName(*InText.ToString());
+		FString NewName = InText.ToString();
 		FRigElementKey OldKey = WeakRigTreeElement.Pin()->Key;
 
-		if (!OnRenameElement.IsBound() || OnRenameElement.Execute(OldKey, NewName))
+		if (OnRenameElement.IsBound())
 		{
-			if (WeakRigTreeElement.IsValid())
+			FName NewSanitizedName = OnRenameElement.Execute(OldKey, NewName);
+			if (NewSanitizedName.IsNone())
 			{
-				WeakRigTreeElement.Pin()->Key.Name = NewName;
+				return;
 			}
+			NewName = NewSanitizedName.ToString();
+		}
+
+		if (WeakRigTreeElement.IsValid())
+		{
+			WeakRigTreeElement.Pin()->Key.Name = *NewName;
 		}
 	}
 }
@@ -2355,14 +2362,18 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 	return FReply::Unhandled();
 }
 
-bool SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FName& NewName)
+FName SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FString& NewName)
 {
 	ClearDetailPanel();
 
-	if (OldKey.Name == NewName)
+	if (OldKey.Name.ToString() == NewName)
 	{
-		return true;
+		return NAME_None;
 	}
+	FString SanitizedNameStr = NewName;
+	FRigHierarchyContainer::SanitizeName(SanitizedNameStr);
+	FName SanitizedName = *SanitizedNameStr;
+	FName ResultingName = NAME_None;
 
 	// make sure there is no duplicate
 	if (ControlRigBlueprint.IsValid())
@@ -2375,35 +2386,35 @@ bool SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FName& New
 		{
 			case ERigElementType::Bone:
 			{
-				Container->BoneHierarchy.Rename(OldKey.Name, NewName);
+				ResultingName = Container->BoneHierarchy.Rename(OldKey.Name, SanitizedName);
 				break;
 			}
 			case ERigElementType::Control:
 			{
-				Container->ControlHierarchy.Rename(OldKey.Name, NewName);
+				ResultingName = Container->ControlHierarchy.Rename(OldKey.Name, SanitizedName);
 				break;
 			}
 			case ERigElementType::Space:
 			{
-				Container->SpaceHierarchy.Rename(OldKey.Name, NewName);
+				ResultingName = Container->SpaceHierarchy.Rename(OldKey.Name, SanitizedName);
 				break;
 			}
 			default:
 			{
-				return false;
+				return NAME_None;
 			}
 		}
 
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true, true);
-		return true;
+		return ResultingName;
 	}
 
-	return false;
+	return ResultingName;
 }
 
-bool SRigHierarchy::OnVerifyNameChanged(const FRigElementKey& OldKey, const FName& NewName, FText& OutErrorMessage)
+bool SRigHierarchy::OnVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage)
 {
-	if (OldKey.Name == NewName)
+	if (OldKey.Name.ToString() == NewName)
 	{
 		return true;
 	}
@@ -2412,27 +2423,15 @@ bool SRigHierarchy::OnVerifyNameChanged(const FRigElementKey& OldKey, const FNam
 	if (ControlRigBlueprint.IsValid())
 	{
 		FRigHierarchyContainer* Container = GetHierarchyContainer();
-		switch (OldKey.Type)
+
+		FString OutErrorString;
+		if (!Container->IsNameAvailable(NewName, OldKey.Type, &OutErrorString))
 		{
-		case ERigElementType::Bone:
-		{
-			return Container->BoneHierarchy.IsNameAvailable(NewName);
-		}
-		case ERigElementType::Control:
-		{
-			return Container->ControlHierarchy.IsNameAvailable(NewName);
-		}
-		case ERigElementType::Space:
-		{
-			return Container->SpaceHierarchy.IsNameAvailable(NewName);
-		}
-		default:
-		{
-			break;
-		}
+			OutErrorMessage = FText::FromString(OutErrorString);
+			return false;
 		}
 	}
-	return false;
+	return true;
 }
 
 void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)

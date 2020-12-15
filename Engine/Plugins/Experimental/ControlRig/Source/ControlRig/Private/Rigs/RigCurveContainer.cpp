@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigCurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "ControlRig.h"
 #include "HelperUtil.h"
 #include "Animation/Skeleton.h"
@@ -46,15 +47,26 @@ FRigCurveContainer& FRigCurveContainer::operator= (const FRigCurveContainer &InO
 	return *this;
 }
 
-FName FRigCurveContainer::GetSafeNewName(const FName& InPotentialNewName) const
+bool FRigCurveContainer::IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage) const
 {
-	FName Name = InPotentialNewName;
-	int32 Suffix = 1;
-	while(!IsNameAvailable(Name))
+	if (Container)
 	{
-		Name = *FString::Printf(TEXT("%s_%d"), *InPotentialNewName.ToString(), ++Suffix);
+		return Container->IsNameAvailable(InPotentialNewName, ERigElementType::Curve, OutErrorMessage);
 	}
-	return Name;
+
+	// if we are not part of a container, fall back to index based validation
+	if (InPotentialNewName.Len() > FRigHierarchyContainer::GetMaxNameLength())
+	{
+		return false;
+	}
+	return GetIndex(*InPotentialNewName) == INDEX_NONE;
+}
+
+FName FRigCurveContainer::GetSafeNewName(const FString& InPotentialNewName) const
+{
+	return FRigHierarchyContainer::GetSafeNewName(InPotentialNewName, [this](const FString& InName) -> bool {
+		return IsNameAvailable(InName);
+	});
 }
 
 FRigCurve& FRigCurveContainer::Add(const FName& InNewName, float InValue)
@@ -62,7 +74,7 @@ FRigCurve& FRigCurveContainer::Add(const FName& InNewName, float InValue)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	FRigCurve NewCurve;
-	NewCurve.Name = GetSafeNewName(InNewName);
+	NewCurve.Name = GetSafeNewName(InNewName.ToString());
 	NewCurve.Value = InValue;
 	FName NewCurveName = NewCurve.Name;
 	Curves.Add(NewCurve);
@@ -163,7 +175,7 @@ FName FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
 		const int32 Found = GetIndex(InOldName);
 		if (Found != INDEX_NONE)
 		{
-			FName NewName = GetSafeNewName(InNewName);
+			FName NewName = GetSafeNewName(InNewName.ToString());
 
 			bool bWasSelected = IsSelected(InOldName);
 			if(bWasSelected)

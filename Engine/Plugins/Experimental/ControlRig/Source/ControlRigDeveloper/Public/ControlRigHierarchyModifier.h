@@ -26,8 +26,8 @@ public:
 	// Adds a new single bone
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	FRigElementKey AddBone(
-		const FName& InNewName,
-		const FName& InParentName = NAME_None,
+		const FString& InNewName,
+		const FString& InParentName = TEXT(""),
 		ERigBoneType InType = ERigBoneType::User
 	);
 
@@ -42,11 +42,11 @@ public:
 	// Adds a new single control
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	FRigElementKey AddControl(
-		const FName& InNewName,
+		const FString& InNewName,
 		ERigControlType InControlType = ERigControlType::Transform,
-		const FName& InParentName = NAME_None,
-		const FName& InSpaceName = NAME_None,
-		const FName& InGizmoName = TEXT("Gizmo"),
+		const FString& InParentName = TEXT(""),
+		const FString& InSpaceName = TEXT(""),
+		const FString& InGizmoName = TEXT("Gizmo"),
 		const FLinearColor& InGizmoColor = FLinearColor(1.0, 0.0, 0.0, 1.0)
 	);
 
@@ -125,9 +125,9 @@ public:
 	// Adds a new single space
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	FRigElementKey AddSpace(
-		const FName& InNewName,
+		const FString& InNewName,
 		ERigSpaceType InSpaceType = ERigSpaceType::Global,
-		const FName& InParentName = NAME_None
+		const FString& InParentName = TEXT("")
 	);
 
 	// Returns a single space from provided key
@@ -140,7 +140,7 @@ public:
 
 	// Adds a new single curve
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
-	FRigElementKey AddCurve(const FName& InNewName, float InValue = 0.f);
+	FRigElementKey AddCurve(const FString& InNewName, float InValue = 0.f);
 
 	// Returns a single curve from provided key
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
@@ -156,7 +156,7 @@ public:
 
 	// Renames an existing element and returns the new element key
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
-	FRigElementKey RenameElement(const FRigElementKey& InElement, const FName& InNewName);
+	FRigElementKey RenameElement(const FRigElementKey& InElement, const FString& InNewName);
 
 	// Reparents an element to another element, returns true if successful
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")

@@ -1439,3 +1439,96 @@ void FRigHierarchyContainer::AppendToPose(FRigPose& InOutPose) const
 	CurveContainer.AppendToPose(InOutPose);
 }
 
+void FRigHierarchyContainer::SanitizeName(FString& InOutName)
+{
+	// Sanitize the name
+	for (int32 i = 0; i < InOutName.Len(); ++i)
+	{
+		TCHAR& C = InOutName[i];
+
+		const bool bGoodChar =
+			((C >= 'A') && (C <= 'Z')) || ((C >= 'a') && (C <= 'z')) ||		// A-Z (upper and lowercase) anytime
+			(C == '_') ||													// _ anytime
+			((i > 0) && (C >= '0') && (C <= '9'));							// 0-9 after the first character
+
+		if (!bGoodChar)
+		{
+			C = '_';
+		}
+	}
+
+	if (InOutName.Len() > GetMaxNameLength())
+	{
+		InOutName.LeftChopInline(InOutName.Len() - GetMaxNameLength());
+	}
+}
+
+FName FRigHierarchyContainer::GetSanitizedName(const FString& InName)
+{
+	FString Name = InName;
+	SanitizeName(Name);
+
+	if (Name.IsEmpty())
+	{
+		return NAME_None;
+	}
+
+	return *Name;
+}
+
+FName FRigHierarchyContainer::GetSafeNewName(const FString& InName, TFunction<bool(const FString&)> IsNameAvailableFunction)
+{
+	check(IsNameAvailableFunction);
+
+	FString SanitizedName = InName;
+	SanitizeName(SanitizedName);
+	FString Name = SanitizedName;
+
+	int32 Suffix = 1;
+	while (!IsNameAvailableFunction(Name))
+	{
+		FString BaseString = SanitizedName;
+		if (BaseString.Len() > GetMaxNameLength() - 4)
+		{
+			BaseString.LeftChopInline(BaseString.Len() - (GetMaxNameLength() - 4));
+		}
+		Name = *FString::Printf(TEXT("%s_%d"), *BaseString, ++Suffix);
+	}
+	return *Name;
+}
+
+bool FRigHierarchyContainer::IsNameAvailable(const FString& InName, ERigElementType InElementType, FString* OutErrorMessage)
+{
+	FString UnsanitizedName = InName;
+	if (UnsanitizedName.Len() > GetMaxNameLength())
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Name too long.");
+		}
+		return false;
+	}
+
+	FString SanitizedName = UnsanitizedName;
+	SanitizeName(SanitizedName);
+
+	if (SanitizedName != UnsanitizedName)
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Name contains invalid characters.");
+		}
+		return false;
+	}
+
+	if (GetIndex(FRigElementKey(*InName, InElementType)) != INDEX_NONE)
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Name already used.");
+		}
+		return false;
+	}
+
+	return true;
+}

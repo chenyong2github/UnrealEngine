@@ -358,6 +358,12 @@ public:
 	void SendEvent(const FRigEventContext& InEvent, bool bAsyncronous = true);
 	FRigEventDelegate OnEventReceived;
 
+	static int32 GetMaxNameLength() { return 100; }
+	static void SanitizeName(FString& InOutName);
+	static FName GetSanitizedName(const FString& InName);
+	static FName GetSafeNewName(const FString& InName, TFunction<bool(const FString&)> IsNameAvailableFunction);
+	bool IsNameAvailable(const FString& InName, ERigElementType InElementType, FString* OutErrorMessage = nullptr);
+
 protected:
 
 	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);

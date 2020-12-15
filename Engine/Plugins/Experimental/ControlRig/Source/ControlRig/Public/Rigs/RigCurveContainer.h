@@ -55,9 +55,9 @@ public:
 	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      end()         { return Curves.end();   }
 	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
 
-	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
+	bool IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage = nullptr) const;
 
-	FName GetSafeNewName(const FName& InPotentialNewName) const;
+	FName GetSafeNewName(const FString& InPotentialNewName) const;
 
 	FRigCurve& Add(const FName& InNewName, float InValue = 0.f);
 

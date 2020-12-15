@@ -477,9 +477,9 @@ struct CONTROLRIG_API FRigControlHierarchy
 	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForIteratorType      end()         { return Controls.end();   }
 	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForConstIteratorType end() const   { return Controls.end();   }
 
-	FORCEINLINE_DEBUGGABLE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
+	bool IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage = nullptr) const;
 
-	FName GetSafeNewName(const FName& InPotentialNewName) const;
+	FName GetSafeNewName(const FString& InPotentialNewName) const;
 
 	FRigControl& Add(
 		const FName& InNewName,

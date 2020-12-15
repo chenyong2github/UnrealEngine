@@ -20,11 +20,13 @@ TArray<FRigElementKey> UControlRigHierarchyModifier::GetElements() const
 	return Elements;
 }
 
-FRigElementKey UControlRigHierarchyModifier::AddBone(const FName& InNewName, const FName& InParentName, ERigBoneType InType)
+FRigElementKey UControlRigHierarchyModifier::AddBone(const FString& InNewName, const FString& InParentName, ERigBoneType InType)
 {
 	if(Container != nullptr)
 	{
-		return Container->BoneHierarchy.Add(InNewName, InParentName, InType).GetElementKey();
+		FName NewName = Container->BoneHierarchy.GetSafeNewName(InNewName);
+		FName ParentName = FRigHierarchyContainer::GetSanitizedName(InParentName);
+		return Container->BoneHierarchy.Add(NewName, ParentName, InType).GetElementKey();
 	}
 	return FRigElementKey();
 }
@@ -61,17 +63,21 @@ void UControlRigHierarchyModifier::SetBone(const FRigBone& InElement)
 }
 
 FRigElementKey UControlRigHierarchyModifier::AddControl(
-	const FName& InNewName,
+	const FString& InNewName,
 	ERigControlType InControlType,
-	const FName& InParentName,
-	const FName& InSpaceName,
-	const FName& InGizmoName,
+	const FString& InParentName,
+	const FString& InSpaceName,
+	const FString& InGizmoName,
 	const FLinearColor& InGizmoColor
 )
 {
 	if(Container != nullptr)
 	{
-		return Container->ControlHierarchy.Add(InNewName, InControlType, InParentName, InSpaceName, FTransform::Identity, FRigControlValue(), InGizmoName, FTransform::Identity, InGizmoColor).GetElementKey();
+		FName NewName = Container->ControlHierarchy.GetSafeNewName(InNewName);
+		FName ParentName = FRigHierarchyContainer::GetSanitizedName(InParentName);
+		FName SpaceName = FRigHierarchyContainer::GetSanitizedName(InSpaceName);
+		FName GizmoName = FRigHierarchyContainer::GetSanitizedName(InGizmoName);
+		return Container->ControlHierarchy.Add(NewName, InControlType, ParentName, SpaceName, FTransform::Identity, FRigControlValue(), GizmoName, FTransform::Identity, InGizmoColor).GetElementKey();
 	}
 	return FRigElementKey();
 }
@@ -310,14 +316,16 @@ void UControlRigHierarchyModifier::SetControlOffsetTransform(const FRigElementKe
 
 FRigElementKey UControlRigHierarchyModifier::AddSpace
 (
-	const FName& InNewName,
+	const FString& InNewName,
 	ERigSpaceType InSpaceType,
-	const FName& InParentName
+	const FString& InParentName
 )
 {
 	if(Container != nullptr)
 	{
-		return Container->SpaceHierarchy.Add(InNewName, InSpaceType, InParentName).GetElementKey();
+		FName NewName = Container->SpaceHierarchy.GetSafeNewName(InNewName);
+		FName ParentName = FRigHierarchyContainer::GetSanitizedName(InParentName);
+		return Container->SpaceHierarchy.Add(NewName, InSpaceType, ParentName).GetElementKey();
 	}
 	return FRigElementKey();
 }
@@ -353,11 +361,12 @@ void UControlRigHierarchyModifier::SetSpace(const FRigSpace& InElement)
 	}
 }
 
-FRigElementKey UControlRigHierarchyModifier::AddCurve(const FName& InNewName, float InValue)
+FRigElementKey UControlRigHierarchyModifier::AddCurve(const FString& InNewName, float InValue)
 {
 	if(Container != nullptr)
 	{
-		return Container->CurveContainer.Add(InNewName, InValue).GetElementKey();
+		FName NewName = Container->CurveContainer.GetSafeNewName(InNewName);
+		return Container->CurveContainer.Add(NewName, InValue).GetElementKey();
 	}
 	return FRigElementKey();
 }
@@ -436,7 +445,7 @@ bool UControlRigHierarchyModifier::RemoveElement(const FRigElementKey& InElement
 	return false;
 }
 
-FRigElementKey UControlRigHierarchyModifier::RenameElement(const FRigElementKey& InElement, const FName& InNewName)
+FRigElementKey UControlRigHierarchyModifier::RenameElement(const FRigElementKey& InElement, const FString& InNewName)
 {
 	if(Container == nullptr)
 	{
@@ -448,26 +457,28 @@ FRigElementKey UControlRigHierarchyModifier::RenameElement(const FRigElementKey&
 		return FRigElementKey();
 	}
 
+	FName SanitizedName = FRigHierarchyContainer::GetSanitizedName(InNewName);
+
 	switch (InElement.Type)
 	{
 		case ERigElementType::Bone:
 		{
-			FName NewName = Container->BoneHierarchy.Rename(InElement.Name, InNewName);
+			FName NewName = Container->BoneHierarchy.Rename(InElement.Name, SanitizedName);
 			return FRigElementKey(NewName, ERigElementType::Bone);
 		}
 		case ERigElementType::Control:
 		{
-			FName NewName = Container->ControlHierarchy.Rename(InElement.Name, InNewName);
+			FName NewName = Container->ControlHierarchy.Rename(InElement.Name, SanitizedName);
 			return FRigElementKey(NewName, ERigElementType::Control);
 		}
 		case ERigElementType::Space:
 		{
-			FName NewName = Container->SpaceHierarchy.Rename(InElement.Name, InNewName);
+			FName NewName = Container->SpaceHierarchy.Rename(InElement.Name, SanitizedName);
 			return FRigElementKey(NewName, ERigElementType::Space);
 		}
 		case ERigElementType::Curve:
 		{
-			FName NewName = Container->CurveContainer.Rename(InElement.Name, InNewName);
+			FName NewName = Container->CurveContainer.Rename(InElement.Name, SanitizedName);
 			return FRigElementKey(NewName, ERigElementType::Curve);
 		}
 		default:

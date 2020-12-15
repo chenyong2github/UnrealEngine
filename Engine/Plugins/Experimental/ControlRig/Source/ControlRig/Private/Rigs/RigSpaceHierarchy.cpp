@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigSpaceHierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "ControlRig.h"
 #include "HelperUtil.h"
 
@@ -38,21 +39,32 @@ FRigSpaceHierarchy& FRigSpaceHierarchy::operator= (const FRigSpaceHierarchy &InO
 	return *this;
 }
 
-FName FRigSpaceHierarchy::GetSafeNewName(const FName& InPotentialNewName) const
+bool FRigSpaceHierarchy::IsNameAvailable(const FString& InPotentialNewName, FString* OutErrorMessage) const
 {
-	FName Name = InPotentialNewName;
-	int32 Suffix = 1;
-	while(!IsNameAvailable(Name))
+	if (Container)
 	{
-		Name = *FString::Printf(TEXT("%s_%d"), *InPotentialNewName.ToString(), ++Suffix);
+		return Container->IsNameAvailable(InPotentialNewName, ERigElementType::Space, OutErrorMessage);
 	}
-	return Name;
+
+	// if we are not part of a container, fall back to index based validation
+	if (InPotentialNewName.Len() > FRigHierarchyContainer::GetMaxNameLength())
+	{
+		return false;
+	}
+	return GetIndex(*InPotentialNewName) == INDEX_NONE;
+}
+
+FName FRigSpaceHierarchy::GetSafeNewName(const FString& InPotentialNewName) const
+{
+	return FRigHierarchyContainer::GetSafeNewName(InPotentialNewName, [this](const FString& InName) -> bool {
+		return IsNameAvailable(InName);
+	});
 }
 
 FRigSpace& FRigSpaceHierarchy::Add(const FName& InNewName, ERigSpaceType InSpaceType, const FName& InParentName, const FTransform& InTransform)
 {
 	FRigSpace NewSpace;
-	NewSpace.Name = GetSafeNewName(InNewName);
+	NewSpace.Name = GetSafeNewName(InNewName.ToString());
 	NewSpace.ParentIndex = GetParentIndex(InSpaceType, InParentName);
 	NewSpace.SpaceType = NewSpace.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : InSpaceType;
 	NewSpace.ParentName = NewSpace.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
@@ -415,7 +427,7 @@ FName FRigSpaceHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 		const int32 Found = GetIndex(InOldName);
 		if (Found != INDEX_NONE)
 		{
-			FName NewName = GetSafeNewName(InNewName);
+			FName NewName = GetSafeNewName(InNewName.ToString());
 
 			bool bWasSelected = IsSelected(InOldName);
 			if(bWasSelected)
