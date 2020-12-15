@@ -65,8 +65,6 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, InterRigSyncBracket(0)
 {
 	VM = ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM"));
-	// create default source registry
-	DataSourceRegistry = CreateDefaultSubobject<UAnimationDataSourceRegistry>(TEXT("DataSourceRegistry"));
 
 	EventQueue.Add(FRigUnit_BeginExecution::EventName);
 }
@@ -466,7 +464,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (InState == EControlRigState::Init)
 	{
-		Context.DataSourceRegistry = DataSourceRegistry;
+		Context.DataSourceRegistry = GetDataSourceRegistry();
 		AbsoluteTime = DeltaTime = 0.f;
 	}
 
@@ -484,7 +482,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (!OuterSceneComponent.IsValid())
 	{
-		USceneComponent* SceneComponentFromRegistry = DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
+		USceneComponent* SceneComponentFromRegistry = Context.DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
 		if (SceneComponentFromRegistry)
 		{
 			OuterSceneComponent = SceneComponentFromRegistry;
@@ -991,6 +989,15 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 		OutNames.Add(Bone.Name);
 		OutNodeItems.Add(FNodeItem(Bone.ParentName, Bone.InitialTransform));
 	}
+}
+
+UAnimationDataSourceRegistry* UControlRig::GetDataSourceRegistry()
+{
+	if (DataSourceRegistry == nullptr)
+	{
+		DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this, TEXT("DataSourceRegistry"));
+	}
+	return DataSourceRegistry;
 }
 
 #if WITH_EDITORONLY_DATA

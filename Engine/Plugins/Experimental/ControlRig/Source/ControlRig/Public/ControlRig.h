@@ -282,7 +282,7 @@ public:
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
 
 	/** Data Source Registry Getter */
-	UAnimationDataSourceRegistry* GetDataSourceRegistry() { return DataSourceRegistry; }
+	UAnimationDataSourceRegistry* GetDataSourceRegistry();
 
 	virtual const TArray<FRigSpace>& AvailableSpaces() const;
 	virtual FRigSpace* FindSpace(const FName& InSpaceName);
