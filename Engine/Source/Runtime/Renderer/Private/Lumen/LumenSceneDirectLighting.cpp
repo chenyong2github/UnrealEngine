@@ -464,7 +464,16 @@ void RenderDirectLightIntoLumenCards(
 			VirtualShadowMapId = ShadowSetup.VirtualShadowMap->VirtualShadowMap->ID;
 		}
 	}
+
 	const bool bUseVirtualShadowMap = VirtualShadowMapId >= 0;
+	if (!bUseVirtualShadowMap)
+	{
+		extern const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(FVisibleLightInfo & VisibleLightInfo);
+
+		// Fallback to a complete shadow map
+		ShadowSetup.VirtualShadowMap = nullptr;
+		ShadowSetup.DenseShadowMap = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
+	}
 
 	if (bLumenUseHardwareRayTracedShadow)
 	{
