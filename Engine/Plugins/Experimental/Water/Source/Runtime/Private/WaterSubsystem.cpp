@@ -621,10 +621,13 @@ void UWaterSubsystem::SetMPCTime(float Time, float PrevTime)
 		if (MaterialParameterCollection)
 		{
 			UMaterialParameterCollectionInstance* MaterialParameterCollectionInstance = GetWorld()->GetParameterCollectionInstance(MaterialParameterCollection);
-			const static FName TimeParam(TEXT("Time"));
-			const static FName PrevTimeParam(TEXT("PrevTime"));
-			MaterialParameterCollectionInstance->SetScalarParameterValue(TimeParam, Time);
-			MaterialParameterCollectionInstance->SetScalarParameterValue(PrevTimeParam, PrevTime);
+			if (World->IsValidLowLevel())
+			{
+				const static FName TimeParam(TEXT("Time"));
+				const static FName PrevTimeParam(TEXT("PrevTime"));
+				MaterialParameterCollectionInstance->SetScalarParameterValue(TimeParam, Time);
+				MaterialParameterCollectionInstance->SetScalarParameterValue(PrevTimeParam, PrevTime);
+			}
 		}
 	}
 }
