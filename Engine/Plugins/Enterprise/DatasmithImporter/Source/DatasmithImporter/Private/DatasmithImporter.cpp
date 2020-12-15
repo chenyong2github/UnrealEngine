@@ -342,6 +342,13 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				break;
 			}
 
+			// Skip asynchronous creation for IES textures as it is not supported.
+			// The creation of such textures will synchronously happen later in the call to FDatasmithTextureImporter::CreateTexture
+			if (FilteredTextureElements[TextureIndex]->GetTextureMode() == EDatasmithTextureMode::Ies)
+			{
+				continue;
+			}
+
 			UE::Interchange::FAssetImportResultRef FutureTexture = DatasmithTextureImporter.CreateTextureAsync( FilteredTextureElements[TextureIndex] );
 
 			if ( FutureTexture->IsValid() )
