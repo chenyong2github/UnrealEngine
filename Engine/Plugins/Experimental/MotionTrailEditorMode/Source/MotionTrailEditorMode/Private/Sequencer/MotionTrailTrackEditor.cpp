@@ -63,9 +63,7 @@ void FMotionTrailTrackEditor::OnRelease()
 
 bool FMotionTrailTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 {
-	return Type == UMovieSceneControlRigParameterTrack::StaticClass() || 
-		Type == UMovieScene3DTransformTrack::StaticClass() ||
-		Type == UMovieSceneSkeletalAnimationTrack::StaticClass();
+	return false; // There is no track or section type associated with motion trails at the moment. This editor is only for setting up the context menu for motion trails.
 }
 
 void FMotionTrailTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
