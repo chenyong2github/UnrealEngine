@@ -191,6 +191,9 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 			void CopyFromImpl(FGPUDescriptorCommon const& Other);
 			TMap<FString, float> GetPerformanceStatisticsImpl() const;
 
+		public:
+			uint64 RegistryID = 0;
+
 	} FGPUDescriptor;
 
 #else
