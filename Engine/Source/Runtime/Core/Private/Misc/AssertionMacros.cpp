@@ -123,6 +123,8 @@ static void AssertFailedImplV(const FDebug::FFailureInfo& Info, const TCHAR* For
 	// look into fixing this.
 	bHasAsserted = true;
 
+	GError->SetErrorProgramCounter(Info.ProgramCounter);
+
 	TCHAR DescriptionString[4096];
 	FCString::GetVarArgs(DescriptionString, UE_ARRAY_COUNT(DescriptionString), Format, Args);
 
@@ -512,6 +514,7 @@ void FDebug::ProcessFatalError(const FFailureInfo& Info)
 	// look into fixing this.
 	bHasAsserted = true;
 
+	GError->SetErrorProgramCounter(Info.ProgramCounter);
 	GError->Logf(TEXT("%s"), GErrorHist);
 }
 
