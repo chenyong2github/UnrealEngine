@@ -192,8 +192,9 @@ void SControlHierarchy::RefreshTreeView()
 
 	if (ControlRig.IsValid())
 	{
-		FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		for (const FRigControl& Element : ControlHierarchy)
+		TArray<FRigControl> SortedControls;
+		ControlRig->GetControlsInOrder(SortedControls);
+		for (const FRigControl& Element : SortedControls)
 		{
 			if (!ControlRig->IsCurveControl(&Element))
 			{
@@ -224,6 +225,7 @@ void SControlHierarchy::RefreshTreeView()
 
 		TreeView->RequestTreeRefresh();
 
+		FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
 		TArray<FName> Selection = ControlHierarchy.CurrentSelection();
 		for (const FName& Name : Selection)
 		{
