@@ -9,6 +9,7 @@
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "Templates/SubclassOf.h"
 
 #include "SoundEffectPresetWidgetInterface.generated.h"
 
