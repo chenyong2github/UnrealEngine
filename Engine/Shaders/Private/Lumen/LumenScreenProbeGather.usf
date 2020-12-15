@@ -536,7 +536,7 @@ void ScreenProbeIndirectCS(
 
 			uint DiffuseIntegrationMethod = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID) ? IMPORTANCE_SAMPLE_BRDF : DIFFUSE_INTEGRAL_METHOD;
 			
-			#if GBUFFER_ENCODE_DIFFUSE_SAMPLE_OCCLUSION
+			#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 			if (GBufferData.GBufferAO < 1.0f)
 			{
 				DiffuseIntegrationMethod = IMPORTANCE_SAMPLE_BRDF;
@@ -563,7 +563,7 @@ void ScreenProbeIndirectCS(
 			}
 			else if (DiffuseIntegrationMethod == IMPORTANCE_SAMPLE_BRDF)
 			{
-				// This could be configurable if not for GBUFFER_ENCODE_DIFFUSE_SAMPLE_OCCLUSION
+				// This could be configurable if not for GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 				uint NumPixelSamples = INDIRECT_SAMPLE_COUNT;
 				const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
 				//@todo - calculate based on solid angle
@@ -579,7 +579,7 @@ void ScreenProbeIndirectCS(
 
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
 
-					#if GBUFFER_ENCODE_DIFFUSE_SAMPLE_OCCLUSION
+					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 						bool bIsBentNormalOccluded = (GBufferData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
 						float DirectionalOcclusion = bIsBentNormalOccluded ? 0 : 1;
 					#else
@@ -602,7 +602,7 @@ void ScreenProbeIndirectCS(
 					DiffuseLighting *= -min(-rcp(GBufferData.BaseColor), 0.0);
 				}
 
-				#if GBUFFER_ENCODE_DIFFUSE_SAMPLE_OCCLUSION
+				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 				{
 					float MaterialAO = GBufferData.GBufferAO;
 					DiffuseLighting *= AOMultiBounce(GBufferData.BaseColor, MaterialAO) * (MaterialAO > 0.0 ? rcp(MaterialAO) : 0.0);
