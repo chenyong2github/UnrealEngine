@@ -846,7 +846,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				if (WatchOperand.IsValid())
 				{
 					FRigVMOperand TargetRootOperand(Target.GetMemoryType(), Target.GetRegisterIndex(), INDEX_NONE);
-					WorkData.VM->GetByteCode().AddCopyOp(Target, WatchOperand);
+					WorkData.VM->GetByteCode().AddCopyOp(TargetRootOperand, WatchOperand);
 				}
 			}
 		}
