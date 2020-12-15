@@ -32,14 +32,6 @@ FAnimationBlueprintEditorMode::FAnimationBlueprintEditorMode(const TSharedRef<FA
 			->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				// Top toolbar
-				FTabManager::NewStack() 
-				->SetSizeCoefficient(0.186721f)
-				->SetHideTabWell(true)
-				->AddTab(InAnimationBlueprintEditor->GetToolbarTabId(), ETabState::OpenedTab )
-			)
-			->Split
-			(
 				// Main application area
 				FTabManager::NewSplitter()
 				->SetOrientation(Orient_Horizontal)

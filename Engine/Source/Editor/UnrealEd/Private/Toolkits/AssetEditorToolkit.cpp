@@ -1104,7 +1104,6 @@ void FAssetEditorToolkit::GenerateToolbar()
 			MiscWidgetsHBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(0.0f, 2.0f, 0.0f, 2.0f)
 				[
 					ToolbarWidgets[WidgetIdx]
 				];
@@ -1125,10 +1124,10 @@ void FAssetEditorToolkit::GenerateToolbar()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Bottom)
+			SNew(SBorder)
+			.VAlign(VAlign_Center)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.Padding(FMargin(0.0f))
 			[
 				MiscWidgets
 			]
@@ -1163,7 +1162,6 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 	}
 
 }
-
 
 
 void FAssetEditorToolkit::RestoreFromLayout(const TSharedRef<FTabManager::FLayout>& NewLayout)

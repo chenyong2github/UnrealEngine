@@ -38,6 +38,9 @@ public:
 	/** Gets the name of an asset that will be displayed to a user */
 	virtual FText GetAssetTypeDisplayName(UClass* InAssetClass) const = 0;
 
+	/** Gets the slate brush that represents this asset family */
+	virtual const FSlateBrush* GetAssetTypeDisplayIcon(UClass* InAssetClass) const = 0;
+
 	/** Check whether an asset is compatible with this family */
 	virtual bool IsAssetCompatible(const FAssetData& InAssetData) const = 0;
 

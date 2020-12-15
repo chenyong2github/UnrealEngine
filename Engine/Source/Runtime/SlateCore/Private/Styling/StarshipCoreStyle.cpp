@@ -1362,6 +1362,45 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetLastControlStyle(SegmentedBoxRight)
 	);
 
+	Style->Set("SegmentedCombo.Left", SegmentedBoxLeft);
+
+	const FButtonStyle SegmentedComboRightButton = FButtonStyle()
+	.SetNormal(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
+	.SetHovered(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Hover))
+	.SetPressed(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
+	.SetNormalForeground(FStyleColors::Foreground)
+	.SetHoveredForeground(FStyleColors::ForegroundHover)
+	.SetPressedForeground(FStyleColors::Primary)
+	.SetDisabledForeground(FStyleColors::Foreground)
+	.SetNormalPadding(0)
+	.SetPressedPadding(0);
+
+	FComboButtonStyle SegmentedComboRight = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+		.SetContentPadding(FMargin(6.f, 2.f))
+		.SetButtonStyle(SegmentedComboRightButton)
+		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+
+
+	Style->Set("SegmentedCombo.Right", SegmentedComboRight);
+
+	// Button that looks/behaves like a SegmentedCombo for cases where SegmentedCombos and 
+	// buttons are placed adjacent
+	const FCheckBoxStyle SegmentedBoxLeftOnly = FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage(       FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.f) )
+		.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.f))
+		.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.f))
+		.SetCheckedImage(         FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
+		.SetCheckedHoveredImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
+		.SetCheckedPressedImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
+		.SetForegroundColor(FStyleColors::Foreground)
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedForegroundColor(FStyleColors::Primary)
+		.SetCheckedHoveredForegroundColor(FStyleColors::Primary)
+		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
+		.SetPadding(DefaultMargins);
+	Style->Set("SegmentedCombo.ButtonOnly", SegmentedBoxLeftOnly);
 
 	/* Style for a toggleable button that mimics the coloring and look of a Table Row */
 	/*

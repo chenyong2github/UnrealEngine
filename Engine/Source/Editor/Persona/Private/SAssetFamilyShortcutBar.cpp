@@ -12,6 +12,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #include "EditorStyleSet.h"
 #include "IAssetFamily.h"
@@ -65,105 +66,103 @@ public:
 		TArray<FAssetData> Assets;
 		InAssetFamily->FindAssetsOfType(InAssetData.GetClass(), Assets);
 		bMultipleAssetsExist = Assets.Num() > 1;
-		AssetDirtyBrush = FEditorStyle::GetBrush("ContentBrowser.ContentDirty");
+		AssetDirtyBrush = FAppStyle::Get().GetBrush("Icons.DirtyBadge");
 
 		const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar");
 
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
+
+			// This is the fat button for when there are not multiple options
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
+
 				SAssignNew(CheckBox, SCheckBox)
-				.Style(&ToolBarStyle.ToggleButton)
-				.ForegroundColor(FSlateColor::UseForeground())
-				.Padding(0.0f)
+				.Style(FAppStyle::Get(), "SegmentedCombo.ButtonOnly")
 				.OnCheckStateChanged(this, &SAssetShortcut::HandleOpenAssetShortcut)
 				.IsChecked(this, &SAssetShortcut::GetCheckState)
-				.Visibility(this, &SAssetShortcut::GetButtonVisibility)
+				.Visibility(this, &SAssetShortcut::GetSoloButtonVisibility)
 				.ToolTipText(this, &SAssetShortcut::GetButtonTooltip)
+				.Padding(0.0)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
 					.VAlign(VAlign_Center)
-					.AutoWidth()
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(28.f, 4.f))
 					[
-						//SNew(SBorder)
-						//.Padding(4.0f)
-						//.BorderImage(FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailShadow"))
-						//[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							[
-								SAssignNew(ThumbnailBox, SBox)
-								.WidthOverride(AssetShortcutConstants::ThumbnailSize)
-								.HeightOverride(AssetShortcutConstants::ThumbnailSize)
-								.Visibility(this, &SAssetShortcut::GetThumbnailVisibility)
-								[
-									SNew(SOverlay)
-									+SOverlay::Slot()
-									[
-										AssetThumbnail->MakeThumbnailWidget()
-									]
-									+SOverlay::Slot()
-									.HAlign(HAlign_Left)
-									.VAlign(VAlign_Bottom)
-									[
-										SNew(SImage)
-										.Image(this, &SAssetShortcut::GetDirtyImage)
-									]
-								]
-							]
-							+SHorizontalBox::Slot()
-							[
-								SAssignNew(ThumbnailSmallBox, SBox)
-								.WidthOverride(AssetShortcutConstants::ThumbnailSizeSmall)
-								.HeightOverride(AssetShortcutConstants::ThumbnailSizeSmall)
-								.Visibility(this, &SAssetShortcut::GetSmallThumbnailVisibility)
-								[
-									SNew(SOverlay)
-									+SOverlay::Slot()
-									[
-										AssetThumbnailSmall->MakeThumbnailWidget()
-									]
-									+SOverlay::Slot()
-									.HAlign(HAlign_Left)
-									.VAlign(VAlign_Bottom)
-									[
-										SNew(SImage)
-										.Image(this, &SAssetShortcut::GetDirtyImage)
-									]
-								]
-							]
-						//]
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(this, &SAssetShortcut::GetAssetIcon)
 					]
-					+SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
+
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Bottom)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f, 2.f))
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(4.0f)
-						[
-							SNew(STextBlock)
-							.Text(this, &SAssetShortcut::GetAssetText)
-							.TextStyle(&ToolBarStyle.LabelStyle)
-						]
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(this, &SAssetShortcut::GetDirtyImage)
+					]
+				]
+			]
+
+			// This is the left half of the button / combo pair for when there are multiple options
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(CheckBox, SCheckBox)
+				.Style(FAppStyle::Get(), "SegmentedCombo.Left")
+				.OnCheckStateChanged(this, &SAssetShortcut::HandleOpenAssetShortcut)
+				.IsChecked(this, &SAssetShortcut::GetCheckState)
+				.Visibility(this, &SAssetShortcut::GetComboButtonVisibility)
+				.ToolTipText(this, &SAssetShortcut::GetButtonTooltip)
+				.Padding(0.0)
+				[
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(16.f, 4.f))
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(this, &SAssetShortcut::GetAssetIcon)
+					]
+
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Bottom)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f, 2.f))
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(this, &SAssetShortcut::GetDirtyImage)
 					]
 				]
 			]
 			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Fill)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SSeparator)
+				.Thickness(1.0)
+				.Orientation(EOrientation::Orient_Vertical)
+			]
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
 			[
 				SNew(SComboButton)
 				.Visibility(this, &SAssetShortcut::GetComboVisibility)
-				.ContentPadding(0)
+				.ContentPadding(FMargin(7.f, 0.f))
 				.ForegroundColor(FSlateColor::UseForeground())
-				.ButtonStyle(&ToolBarStyle.ButtonStyle)
+				.ComboButtonStyle(&FAppStyle::Get(), "SegmentedCombo.Right")
 				.OnGetMenuContent(this, &SAssetShortcut::HandleGetMenuContent)
 				.ToolTipText(LOCTEXT("AssetComboTooltip", "Find other assets of this type and perform asset operations./nShift-Click to open in new window."))
 			]
@@ -210,6 +209,11 @@ public:
 	FText GetAssetText() const
 	{
 		return AssetFamily->GetAssetTypeDisplayName(AssetData.GetClass());
+	}
+
+	const FSlateBrush* GetAssetIcon() const 
+	{
+		return AssetFamily->GetAssetTypeDisplayIcon(AssetData.GetClass());	
 	}
 
 	ECheckBoxState GetCheckState() const
@@ -316,9 +320,14 @@ public:
 		return !AssetFamily->IsAssetCompatible(InAssetData);
 	}
 
-	EVisibility GetButtonVisibility() const
+	EVisibility GetSoloButtonVisibility() const
 	{
-		return AssetData.IsValid() || bMultipleAssetsExist ? EVisibility::Visible : EVisibility::Collapsed;
+		return AssetData.IsValid() && !bMultipleAssetsExist ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	EVisibility GetComboButtonVisibility() const
+	{
+		return AssetData.IsValid() && bMultipleAssetsExist ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	EVisibility GetComboVisibility() const
@@ -514,7 +523,7 @@ void SAssetFamilyShortcutBar::Construct(const FArguments& InArgs, const TSharedR
 		FAssetData AssetData = InAssetFamily->FindAssetOfType(Class);
 		HorizontalBox->AddSlot()
 		.AutoWidth()
-		.Padding(0.0f, 0.0f, AssetTypeIndex == AssetTypes.Num() - 1 ? 0.0f: 2.0f, 0.0f)
+		.Padding(0.0f, 4.0f, 16.0f, 4.0f)
 		[
 			SNew(SAssetShortcut, InHostingApp, InAssetFamily, AssetData, ThumbnailPool.ToSharedRef())
 		];

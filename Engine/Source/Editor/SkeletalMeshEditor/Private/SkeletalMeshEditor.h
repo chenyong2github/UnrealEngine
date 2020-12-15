@@ -147,7 +147,6 @@ private:
 private:
 	void ExtendMenu();
 
-	void RegisterToolbar();
 	void ExtendToolbar();
 
 	void BindCommands();

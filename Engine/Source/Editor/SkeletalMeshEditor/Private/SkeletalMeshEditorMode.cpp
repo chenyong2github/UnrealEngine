@@ -42,13 +42,6 @@ FSkeletalMeshEditorMode::FSkeletalMeshEditorMode(TSharedRef<FWorkflowCentricAppl
 			->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(InHostingApp->GetToolbarTabId(), ETabState::OpenedTab)
-			)
-			->Split
-			(
 				FTabManager::NewSplitter()
 				->SetSizeCoefficient(0.9f)
 				->SetOrientation(Orient_Horizontal)

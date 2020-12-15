@@ -219,6 +219,35 @@ FText FPersonaAssetFamily::GetAssetTypeDisplayName(UClass* InAssetClass) const
 	return FText();
 }
 
+const FSlateBrush* FPersonaAssetFamily::GetAssetTypeDisplayIcon(UClass* InAssetClass) const
+{
+	if (InAssetClass)
+	{
+		if (InAssetClass->IsChildOf<USkeleton>())
+		{
+			return FAppStyle::Get().GetBrush("Persona.AssetClass.Skeleton");
+		}
+		else if (InAssetClass->IsChildOf<UAnimationAsset>())
+		{
+			return FAppStyle::Get().GetBrush("Persona.AssetClass.Animation");
+		}
+		else if (InAssetClass->IsChildOf<USkeletalMesh>())
+		{
+			return FAppStyle::Get().GetBrush("Persona.AssetClass.SkeletalMesh");
+		}
+		else if (InAssetClass->IsChildOf<UAnimBlueprint>())
+		{
+			return FAppStyle::Get().GetBrush("Persona.AssetClass.Blueprint");
+		}
+		else if (InAssetClass->IsChildOf<UPhysicsAsset>())
+		{
+			return FAppStyle::Get().GetBrush("Persona.AssetClass.Physics");
+		}
+	}
+
+	return nullptr;
+}	
+
 bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 {
 	UClass* Class = InAssetData.GetClass();

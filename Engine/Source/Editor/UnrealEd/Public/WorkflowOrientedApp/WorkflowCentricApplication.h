@@ -20,6 +20,7 @@ class UNREALED_API FWorkflowCentricApplication : public FAssetEditorToolkit
 {
 public:
 	// IToolkit interface
+	virtual bool UsesCustomToolbarPlacement() const { return false;  }
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	// End of IToolkit interface
