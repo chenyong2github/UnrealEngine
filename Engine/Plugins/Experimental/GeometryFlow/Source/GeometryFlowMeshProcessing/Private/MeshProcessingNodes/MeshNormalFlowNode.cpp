@@ -47,7 +47,7 @@ void FMeshNormalFlowNode::DoNormalFlow(const FMeshNormalFlowSettings& SettingsIn
 	double TargetEdgeLength = CalculateTargetEdgeLength(EditMesh, SettingsIn.TargetCount);
 	Remesher.SetTargetEdgeLength(TargetEdgeLength);
 
-	Remesher.bEnableSmoothing = (SettingsIn.SmoothingStrength > 0);
+	Remesher.bEnableSmoothing = (SettingsIn.SmoothingStrength > 0.0f);
 	Remesher.SmoothSpeedT = SettingsIn.SmoothingStrength;
 	Remesher.SmoothType = SettingsIn.SmoothingType;
 
