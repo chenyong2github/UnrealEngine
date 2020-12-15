@@ -26,3 +26,8 @@ struct FTileVirtualCoordinates
 		return Position == Rhs.Position && MipLevel == Rhs.MipLevel;
 	}
 };
+
+FORCEINLINE uint32 GetTypeHash(const FTileVirtualCoordinates& Tile)
+{
+	return HashCombine(GetTypeHash(Tile.Position), GetTypeHash(Tile.MipLevel));
+}
