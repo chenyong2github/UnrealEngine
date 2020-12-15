@@ -577,7 +577,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				FString PinHash = GetPinHash(Pin, PinExpr->To<FRigVMVarExprAST>(), true);
 				if (const FRigVMOperand* Target = WorkData.PinPathToOperand->Find(PinHash))
 				{
-					WorkData.VM->GetByteCode().AddCopyOp(Source, *Target);
+					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
+					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, *Target);
 				}
 			}
 		}
@@ -831,8 +832,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				FRigVMOperand WatchOperand = FindOrAddRegister(SourceExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
 				{
-					Source.RegisterOffset = INDEX_NONE;
-					WorkData.VM->GetByteCode().AddCopyOp(Source, WatchOperand);
+					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
+					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, WatchOperand);
 				}
 			}
 		}
@@ -844,7 +845,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				FRigVMOperand WatchOperand = FindOrAddRegister(TargetExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
 				{
-					Target.RegisterOffset = INDEX_NONE;
+					FRigVMOperand TargetRootOperand(Target.GetMemoryType(), Target.GetRegisterIndex(), INDEX_NONE);
 					WorkData.VM->GetByteCode().AddCopyOp(Target, WatchOperand);
 				}
 			}
