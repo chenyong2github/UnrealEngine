@@ -37,7 +37,7 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimNotifiesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), OnObjectsSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimMontageSectionsTabFactory(InHostingApp, AnimationEditor->GetPersonaToolkit(), AnimationEditor->OnSectionsChanged));
 
-	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.3")
+	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.4")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()

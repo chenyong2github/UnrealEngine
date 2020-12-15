@@ -209,7 +209,7 @@ FPhysicsAssetEditorMode::FPhysicsAssetEditorMode(TSharedRef<FWorkflowCentricAppl
 
 	TabFactories.RegisterFactory(MakeShared<FPhysicsAssetEditorToolsSummoner>(InHostingApp));
 
-	TabLayout = FTabManager::NewLayout("Standalone_PhysicsAssetEditor_Layout_v5.2")
+	TabLayout = FTabManager::NewLayout("Standalone_PhysicsAssetEditor_Layout_v5.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
