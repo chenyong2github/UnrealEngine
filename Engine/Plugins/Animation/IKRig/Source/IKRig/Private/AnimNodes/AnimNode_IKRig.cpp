@@ -66,23 +66,20 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		// fill up current pose
 		RigProcessor->Solve();
 
-		// get component pose from control rig
-//		FCSPose<FCompactPose> MeshPoses;
-//		MeshPoses.InitPose(SourcePose.Pose);
-
 		// now we copy back to output pose
 		for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
 		{
 			int32* Index = CompactPoseToRigIndices.Find(CPIndex);
 			if (Index)
 			{
-//				MeshPoses.SetComponentSpaceTransform(CPIndex, TransformModifier.GetGlobalTransform(*Index));
 				Output.Pose[CPIndex] = TransformModifier.GetLocalTransform(*Index);
 			}
 		}
 
-//		FCSPose<FCompactPose>::ConvertComponentPosesToLocalPosesSafe(MeshPoses, Output.Pose);
 		Output.Pose.NormalizeRotations();
+
+		// draw the interface
+		QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
 	}
 	else
 	{
@@ -199,6 +196,65 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 					}
 				}
 			}
+		}
+	}
+}
+
+void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld)
+{
+	check (RigProcessor);
+	check (AnimProxy);
+
+	for (const FControlRigDrawInstruction& Instruction : RigProcessor->GetDrawInterface())
+	{
+		if (!Instruction.IsValid())
+		{
+			continue;
+		}
+
+		FTransform InstructionTransform = Instruction.Transform * ComponentToWorld;
+		switch (Instruction.PrimitiveType)
+		{
+		case EControlRigDrawSettings::Points:
+		{
+			ensure(false);
+			// no support for points yet, but feel free to add that to AnimProxy
+// 			for (const FVector& Point : Instruction.Positions)
+// 			{
+// 				AnimProxy->Add (InstructionTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+// 			}
+ 			break;
+		}
+		case EControlRigDrawSettings::Lines:
+		{
+			const TArray<FVector>& Points = Instruction.Positions;
+			for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
+			{
+				AnimProxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(false), false, 0.f, Instruction.Thickness);
+			}
+			break;
+		}
+		case EControlRigDrawSettings::LineStrip:
+		{
+			const TArray<FVector>& Points = Instruction.Positions;
+			for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+			{
+				AnimProxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(false), false, 0.f, Instruction.Thickness);
+			}
+			break;
+		}
+
+		case EControlRigDrawSettings::DynamicMesh:
+		{
+			ensure(false);
+			// no support for this yet
+// 			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+// 			MeshBuilder.AddVertices(Instruction.MeshVerts);
+// 			MeshBuilder.AddTriangles(Instruction.MeshIndices);
+// 			MeshBuilder.Draw(PDI, InstructionTransform.ToMatrixWithScale(), Instruction.MaterialRenderProxy, SDPG_World/*SDPG_Foreground*/);
+			break;
+		}
+
 		}
 	}
 }

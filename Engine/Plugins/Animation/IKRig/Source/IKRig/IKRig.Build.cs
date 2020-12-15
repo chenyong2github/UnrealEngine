@@ -16,7 +16,8 @@ public class IKRig : ModuleRules
 				"Slate",
 				"SlateCore",
 				"AnimationCore", 
-				"AnimGraphRuntime"
+				"AnimGraphRuntime",
+				"ControlRig"
 			}
 			);
 

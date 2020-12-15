@@ -44,7 +44,6 @@ private:
 	UIKRigProcessor* RigProcessor = nullptr;
 
 	TArray<FName> GoalNames;
-
 	TMap<FCompactPoseBoneIndex, int32, FDefaultSetAllocator, TCompactPoseBoneIndexMapKeyFuncs<int32>> CompactPoseToRigIndices;
 
 public:
@@ -63,6 +62,8 @@ public:
 private:
 	bool RebuildGoalList();
 	FName GetGoalName(int32 Index) const;
+
+	void QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld);
 
 	friend class UAnimGraphNode_IKRig;
 };

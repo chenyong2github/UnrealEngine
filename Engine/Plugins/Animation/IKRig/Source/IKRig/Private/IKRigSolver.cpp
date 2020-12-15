@@ -9,7 +9,7 @@
 #include "IKRigDataTypes.h"
 
 // input hierarchy and ref pose? 
-void UIKRigSolver::Init(UIKRigSolverDefinition* InSolverDefinition, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)
+void UIKRigSolver::Init(UIKRigSolverDefinition* InSolverDefinition, const FIKRigTransformModifier& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)
 {
 	SolverDefinition = InSolverDefinition;
 
@@ -19,7 +19,7 @@ void UIKRigSolver::Init(UIKRigSolverDefinition* InSolverDefinition, FIKRigTransf
 	GoalGetter = InGoalGetter;
 	ensure(GoalGetter.IsBound());
 
-	InitInternal();
+	InitInternal(TransformModifier);
 }
 
 bool UIKRigSolver::IsSolverActive() const 
@@ -29,11 +29,11 @@ bool UIKRigSolver::IsSolverActive() const
 
 // input : goal getter or goals
 // output : modified pose - GlobalTransforms
-void UIKRigSolver::Solve(FIKRigTransformModifier& InOutGlobalTransform)
+void UIKRigSolver::Solve(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (IsSolverActive())
 	{
-		SolveInternal(InOutGlobalTransform);
+		SolveInternal(InOutGlobalTransform, InOutDrawInterface);
 	}
 }
 

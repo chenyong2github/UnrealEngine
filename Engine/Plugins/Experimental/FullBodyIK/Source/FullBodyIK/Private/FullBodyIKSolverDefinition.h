@@ -10,6 +10,7 @@
 #include "IKRigSolverDefinition.h"
 #include "FBIKShared.h"
 #include "FBIKConstraintOption.h"
+#include "FBIKDebugOption.h"
 #include "FullBodyIKSolverDefinition.generated.h"
 
 USTRUCT()
@@ -62,6 +63,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Motion)
 	FMotionProcessInput MotionProperty;
 
+	UPROPERTY(EditAnywhere, Category = Solver)
+	FFBIKDebugOption DebugOption;
 private:
 #if WITH_EDITOR
 	virtual void UpdateEffectors() override;

@@ -18,8 +18,8 @@ class IKRIG_API UTransformSolver : public UIKRigSolver
 	GENERATED_BODY()
 
 protected:
-	virtual void InitInternal() override;
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform) override;
+	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
+	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
 };
 

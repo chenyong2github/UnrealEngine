@@ -11,11 +11,13 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "IKRigDataTypes.h"
+#include "Drawing/ControlRigDrawInterface.h"
 #include "IKRigProcessor.generated.h"
 
 
 class UIKRigConstraintSolver;
 class UIKRigSolver;
+struct FControlRigDrawInterface;
 
 UCLASS(BlueprintType)
 class IKRIG_API UIKRigProcessor : public UObject
@@ -47,6 +49,7 @@ private:
 	TMap<FName, FIKRigGoal> IKGoals;
 
 	FIKRigTransformModifier TransformModifier;
+	FControlRigDrawInterface DrawInterface;
 
 	bool bInitialized = false;
 
@@ -70,6 +73,8 @@ public:
 	const FIKRigHierarchy* GetHierarchy() const;
 
 	void ResetToRefPose();
+	const FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; }
+
 private:
 	FIKRigTarget* FindGoal(const FName& GoalName);
 

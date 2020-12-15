@@ -17,6 +17,7 @@ struct FIKRigTarget;
 struct FIKRigTransform;
 struct FIKRigTransformModifier;
 class UIKRigSolverDefinition;
+struct FControlRigDrawInterface;
 
 // run time processor 
 UCLASS(Abstract, hidecategories = UObject)
@@ -40,16 +41,17 @@ public:
 	bool bEnabled = true;
 
 	// input hierarchy and ref pose? 
-	void Init(UIKRigSolverDefinition* InSolverDefinition, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter/*, FSolveConstraint& InConstraintHandler*/);
+	void Init(UIKRigSolverDefinition* InSolverDefinition, const FIKRigTransformModifier& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter/*, FSolveConstraint& InConstraintHandler*/);
 
 	// input : goal getter or goals
 	// output : modified pose - GlobalTransforms
 	// or use SolverInternal function
-	void Solve(FIKRigTransformModifier& InOutGlobalTransform);
+	void Solve(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
 
 protected:
-	virtual void InitInternal() {};
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform) {};
+	// during we don't mutate bone transform, but you can read it
+	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) {};
+	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) {};
 	virtual bool IsSolverActive() const;
 
 	bool GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const;

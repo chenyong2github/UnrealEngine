@@ -10,30 +10,30 @@ struct FFBIKDebugOption
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bDrawDebugHierarchy = false;
 
 	// use red channel
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bColorAngularMotionStrength = false;
 
 	// use green channel
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bColorLinearMotionStrength = false;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bDrawDebugAxes = false;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bDrawDebugEffector = false;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	bool bDrawDebugConstraints = false;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	FTransform DrawWorldOffset;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, Category = FFBIKDebugOption)
 	float DrawSize = 5.f;
 
 	FFBIKDebugOption()

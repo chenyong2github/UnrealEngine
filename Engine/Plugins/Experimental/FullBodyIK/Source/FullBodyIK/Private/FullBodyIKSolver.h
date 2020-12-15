@@ -25,10 +25,10 @@ class FULLBODYIK_API UFullBodyIKSolver : public UIKRigSolver
 	TMap<int32, FFBIKEffectorTarget> EffectorTargets; 
 	/** End Effector Link Indices - EndEffector index to LinkData index*/
 	TArray<int32> EffectorLinkIndices;
-	/** Map from LinkData index to Rig Hierarchy Index*/
-	TMap<int32, FRigElementKey> LinkDataToHierarchyIndices;
+	/** Map from LinkData index to Hierarchy Index*/
+	TMap<int32, int32> LinkDataToHierarchyIndices;
 	/** Map from Rig Hierarchy Index to LinkData index*/
-	TMap<FRigElementKey, int32> HierarchyToLinkDataMap;
+	TMap<int32, int32> HierarchyToLinkDataMap;
 	/** Constraints data */
 	TArray<ConstraintType> InternalConstraints;
 	/* Current Solver */
@@ -37,8 +37,8 @@ class FULLBODYIK_API UFullBodyIKSolver : public UIKRigSolver
 	TArray<FJacobianDebugData> DebugData;
 
 protected:
-	virtual void InitInternal() override;
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform) override;
+	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
+	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
 };
 

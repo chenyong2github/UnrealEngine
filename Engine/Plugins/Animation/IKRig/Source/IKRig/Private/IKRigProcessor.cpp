@@ -20,10 +20,9 @@ void UIKRigProcessor::SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool
 
 	RigDefinition = InRigDefinition;
 
-	TransformModifier = FIKRigTransformModifier(&RigDefinition->GetHierarchy());
-
 	if (RigDefinition && bInitialize)
 	{
+		TransformModifier = FIKRigTransformModifier(&RigDefinition->GetHierarchy());
 		Initialize(RigDefinition->GetReferencePose());
 	}
 }
@@ -57,7 +56,8 @@ void UIKRigProcessor::Reinitialize()
 			if (ClassType != nullptr)
 			{
 				UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(this, ClassType);
-				NewSolver->Init(SolverDefinitions[Index], UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter), 
+				// const transform modifier for hierarchy query
+				NewSolver->Init(SolverDefinitions[Index], TransformModifier, UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter),
 					UIKRigSolver::FIKRigGoalGetter::CreateUObject(this, &UIKRigProcessor::GoalGetter));
 				Solvers.Add(NewSolver);
 			}
@@ -96,9 +96,11 @@ void UIKRigProcessor::Solve()
 	{
 		check (RigDefinition);
 
+		DrawInterface.Reset();
 		for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 		{
-			Solvers[Index]->Solve(TransformModifier);
+			// Draw interface is pointer in case we want to nullify for optimization
+			Solvers[Index]->Solve(TransformModifier, &DrawInterface);
 		}
 	}
 }

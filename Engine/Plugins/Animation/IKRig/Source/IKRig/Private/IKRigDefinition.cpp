@@ -301,7 +301,7 @@ void UIKRigDefinition::EnsureSortedCorrectly(bool bReSortIfNeeded)
 						}
 
 						Iter = Iter->Sibling;
-					} while (Iter);
+					} while (Iter != nullptr);
 				}
 			}
 		};

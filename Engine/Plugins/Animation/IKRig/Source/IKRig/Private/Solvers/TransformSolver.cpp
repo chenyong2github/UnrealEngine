@@ -9,7 +9,7 @@
 #include "IKRigHierarchy.h"
 #include "Solvers/TransformSolverDefinition.h"
 
-void UTransformSolver::InitInternal()
+void UTransformSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
 {
 	
 }
@@ -27,7 +27,7 @@ bool UTransformSolver::IsSolverActive() const
 	return false;
 }
 
-void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform)
+void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (UTransformSolverDefinition* SolverDef = Cast<UTransformSolverDefinition>(SolverDefinition))
 	{
