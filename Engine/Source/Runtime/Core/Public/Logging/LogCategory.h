@@ -52,6 +52,11 @@ struct CORE_API FLogCategoryBase
 	/** Sets up the working verbosity and clamps to the compile time verbosity. **/
 	void SetVerbosity(ELogVerbosity::Type Verbosity);
 
+	/** Gets the compile time verbosity **/
+	inline ELogVerbosity::Type GetCompileTimeVerbosity() const
+	{
+		return CompileTimeVerbosity;
+	}
 private:
 	friend class FLogSuppressionImplementation;
 	friend class FLogScopedVerbosityOverride;
