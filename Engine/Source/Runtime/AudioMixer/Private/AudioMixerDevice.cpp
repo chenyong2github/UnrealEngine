@@ -130,22 +130,17 @@ namespace Audio
 
 	void FMixerDevice::ResetAudioRenderingThreadId()
 	{
-#if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		AudioPlatformThreadId = INDEX_NONE;
 		CheckAudioRenderingThread();
-#endif
 	}
 
 	void FMixerDevice::CheckAudioRenderingThread() const
 	{
-#if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		if (AudioPlatformThreadId == INDEX_NONE)
 		{
 			AudioPlatformThreadId = FPlatformTLS::GetCurrentThreadId();
 		}
 		int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-		AUDIO_MIXER_CHECK(CurrentThreadId == AudioPlatformThreadId);
-#endif
 	}
 
 	bool FMixerDevice::IsAudioRenderingThread() const
