@@ -198,7 +198,7 @@ private:
 						{ \
 							FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format, ##__VA_ARGS__); \
 							_DebugBreakAndPromptForRemote(); \
-							FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__}); \
+							FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS()}); \
 						}, \
 						{ \
 							FMsg::Logf_Internal(nullptr, 0, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format, ##__VA_ARGS__); \
@@ -229,7 +229,7 @@ private:
 					{ \
 						FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format,  ##__VA_ARGS__); \
 						_DebugBreakAndPromptForRemote(); \
-						FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__}); \
+						FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS()}); \
 						CA_ASSUME(false); \
 					}, \
 					{ \
@@ -276,7 +276,7 @@ private:
 							{ \
 								FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format, ##__VA_ARGS__); \
 								_DebugBreakAndPromptForRemote(); \
-								FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__}); \
+								FDebug::ProcessFatalError({"UE_LOG(Fatal)", __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS()}); \
 							}, \
 							{ \
 								FMsg::Logf_Internal(nullptr, 0, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format, ##__VA_ARGS__); \

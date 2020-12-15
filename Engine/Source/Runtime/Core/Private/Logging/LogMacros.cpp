@@ -2,6 +2,7 @@
 
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
+#include "HAL/Platform.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/FeedbackContext.h"
@@ -62,7 +63,7 @@ void FMsg::LogfImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Ca
 		}
 
 		const int32 NumStackFramesToIgnore = 1;
-		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line };
+		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line, PLATFORM_RETURN_ADDRESS() };
 		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false, NumStackFramesToIgnore);
 		FDebug::AssertFailed("", File, Line, Message);
 	}
@@ -110,7 +111,7 @@ void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategor
 		}
 
 		const int32 NumStackFramesToIgnore = 1;
-		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line };
+		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line, PLATFORM_RETURN_ADDRESS() };
 		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false, NumStackFramesToIgnore);
 	}
 #endif
