@@ -1050,10 +1050,53 @@ private:
 
 // Copy texture render command
 
+struct FLandscapeLayersCopyTextureParams_NEW
+{
+	FLandscapeLayersCopyTextureParams_NEW(UTexture* InSourceTexture, UTexture* InDestTexture)
+	{
+		if (InSourceTexture != nullptr)
+		{
+			SourceResourceDebugName = InSourceTexture->GetName();
+			SourceResource = InSourceTexture->Resource;
+		}
+		if (InDestTexture != nullptr)
+		{
+			DestResourceDebugName = InDestTexture->GetName();
+			DestResource = InDestTexture->Resource;
+		}
+	}
+
+	FLandscapeLayersCopyTextureParams_NEW(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource)
+		: SourceResourceDebugName(InSourceResourceDebugName)
+		, SourceResource(InSourceResource)
+		, DestResourceDebugName(InDestResourceDebugName)
+		, DestResource(InDestResource)
+	{}
+
+	FLandscapeLayersCopyTextureParams_NEW(const FLandscapeLayersCopyTextureParams_NEW&) = default;
+	FLandscapeLayersCopyTextureParams_NEW(FLandscapeLayersCopyTextureParams_NEW&&) = default;
+	FLandscapeLayersCopyTextureParams_NEW& operator=(FLandscapeLayersCopyTextureParams_NEW&&) = default;
+
+	FString SourceResourceDebugName;
+	FTextureResource* SourceResource = nullptr;
+	FString DestResourceDebugName;
+	FTextureResource* DestResource = nullptr;
+	FTextureResource* DestCPUResource = nullptr;
+	FIntPoint CopySize = FIntPoint(0, 0);
+	FIntPoint SourcePosition = FIntPoint(0, 0);
+	FIntPoint DestPosition = FIntPoint(0, 0);
+	uint8 SourceMip = 0;
+	uint8 DestMip = 0;
+	uint32 SourceArrayIndex = 0;
+	uint32 DestArrayIndex = 0;
+	ERHIAccess SourceAccess = ERHIAccess::SRVMask;
+	ERHIAccess DestAccess = ERHIAccess::SRVMask;
+};
+
 class FLandscapeLayersCopyTexture_RenderThread
 {
 public:
-	FLandscapeLayersCopyTexture_RenderThread(const FLandscapeLayersCopyTextureParams& InParams)
+	FLandscapeLayersCopyTexture_RenderThread(const FLandscapeLayersCopyTextureParams_NEW& InParams)
 		: Params(InParams)
 	{}	
 
@@ -1062,52 +1105,31 @@ public:
 		SCOPED_GPU_STAT(InRHICmdList, LandscapeLayers_CopyTexture);
 		SCOPED_DRAW_EVENTF(InRHICmdList, LandscapeLayers, TEXT("LandscapeLayers_Copy %s -> %s, Mip (%d -> %d), Array Index (%d -> %d)"), *Params.SourceResourceDebugName, *Params.DestResourceDebugName, Params.SourceMip, Params.DestMip, Params.SourceArrayIndex, Params.DestArrayIndex);
 
-		FIntPoint SourceSize(Params.SourceResource->GetSizeX(), Params.SourceResource->GetSizeY()); // SourceResource is always proper size, as it's always the good MIP we want to copy from
+		FIntPoint SourceSize(Params.SourceResource->GetSizeX() >> Params.SourceMip, Params.SourceResource->GetSizeY() >> Params.SourceMip);
 		FIntPoint DestSize(Params.DestResource->GetSizeX() >> Params.DestMip, Params.DestResource->GetSizeY() >> Params.DestMip);
 
 		FRHICopyTextureInfo Info;
 		Info.NumSlices = 1;
+		// If CopySize is passed, used that as the size (and don't adjust with the mip level : consider that the user has computed it properly) : 
+		Info.Size.X = (Params.CopySize.X > 0) ? Params.CopySize.X : SourceSize.X;
+		Info.Size.Y = (Params.CopySize.Y > 0) ? Params.CopySize.Y : SourceSize.Y;
 		Info.Size.Z = 1;
+		Info.SourcePosition.X = Params.SourcePosition.X;
+		Info.SourcePosition.Y = Params.SourcePosition.Y;
+		Info.DestPosition.X = Params.DestPosition.X;
+		Info.DestPosition.Y = Params.DestPosition.Y;
 		Info.SourceSliceIndex = Params.SourceArrayIndex;
 		Info.DestSliceIndex = Params.DestArrayIndex;
-		Info.SourceMipIndex = 0; // In my case, always assume we copy from mip 0 to something else as in my case each mips will be stored into individual texture/RT
+		Info.SourceMipIndex = Params.SourceMip; 
 		Info.DestMipIndex = Params.DestMip;
 
-		if (SourceSize.X <= DestSize.X)
-		{
-			Info.SourcePosition.X = 0;
-			Info.Size.X = SourceSize.X;
-			Info.DestPosition.X = Params.InitialPositionOffset.X >> Params.DestMip;
-			check(Info.DestPosition.X + Info.Size.X <= DestSize.X);
-		}
-		else
-		{
-			Info.SourcePosition.X = Params.InitialPositionOffset.X >> Params.SourceMip;
-			Info.Size.X = DestSize.X;
-			Info.DestPosition.X = 0;
-            check(Info.SourcePosition.X >= 0);
-			check(Info.SourcePosition.X + Info.Size.X <= SourceSize.X);
-			check(Info.DestPosition.X + Info.Size.X <= DestSize.X);
-		}
+		check((Info.SourcePosition.X >= 0) && (Info.SourcePosition.Y >= 0) && (Info.DestPosition.X >= 0) && (Info.DestPosition.Y >= 0));
+		check(Info.SourcePosition.X + Info.Size.X <= SourceSize.X);
+		check(Info.SourcePosition.Y + Info.Size.Y <= SourceSize.Y);
+		check(Info.DestPosition.X + Info.Size.X <= DestSize.X);
+		check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
 
-		if (SourceSize.Y <= DestSize.Y)
-		{
-			Info.SourcePosition.Y = 0;
-			Info.Size.Y = SourceSize.Y;
-			Info.DestPosition.Y = Params.InitialPositionOffset.Y >> Params.DestMip;
-			check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
-		}
-		else
-		{
-			Info.SourcePosition.Y = Params.InitialPositionOffset.Y >> Params.SourceMip;
-			Info.Size.Y = DestSize.Y;
-			Info.DestPosition.Y = 0;
-			check(Info.SourcePosition.Y >= 0);
-			check(Info.SourcePosition.Y + Info.Size.Y <= SourceSize.Y);
-			check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
-		}
-
-		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, Params.SrcAccess, ERHIAccess::CopySrc));
+		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, Params.SourceAccess, ERHIAccess::CopySrc));
 		InRHICmdList.Transition(FRHITransitionInfo(Params.DestResource->TextureRHI, Params.DestAccess, ERHIAccess::CopyDest));
 		InRHICmdList.CopyTexture(Params.SourceResource->TextureRHI, Params.DestResource->TextureRHI, Info);
 
@@ -1117,12 +1139,12 @@ public:
 			InRHICmdList.CopyTexture(Params.SourceResource->TextureRHI, Params.DestCPUResource->TextureRHI, Info);
 			InRHICmdList.Transition(FRHITransitionInfo(Params.DestCPUResource->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		}
-		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, ERHIAccess::CopySrc, Params.SrcAccess));
+		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, ERHIAccess::CopySrc, Params.SourceAccess));
 		InRHICmdList.Transition(FRHITransitionInfo(Params.DestResource->TextureRHI, ERHIAccess::CopyDest, Params.DestAccess));
 	}
 
 private:
-	FLandscapeLayersCopyTextureParams Params;
+	FLandscapeLayersCopyTextureParams_NEW Params;
 };
 
 // Clear command
@@ -1873,37 +1895,34 @@ void ALandscapeProxy::InitializeProxyLayersWeightmapUsage()
 
 void ALandscape::AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource, const FIntPoint& InInitialPositionOffset, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
 {
-	if (InSourceTexture != nullptr && InDestTexture != nullptr)
-	{
-		FString SourceDebugName = CVarOutputLayersDebugDrawCallName.GetValueOnGameThread() == 1 ? InSourceTexture->GetName() : GEmptyDebugName;
-		FString DestDebugName = CVarOutputLayersDebugDrawCallName.GetValueOnGameThread() == 1 ? InDestTexture->GetName() : GEmptyDebugName;
-
-		AddDeferredCopyLayersTexture(SourceDebugName, InSourceTexture->Resource, DestDebugName, InDestTexture->Resource, InDestCPUResource, InInitialPositionOffset, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex);
-	}
+	check(false); // Deprecated for 4.26.1, use ExecuteCopyLayersTexture
 }
 
 void ALandscape::AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource, const FIntPoint& InInitialPositionOffset,
 											  uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex, ERHIAccess SrcAccess, ERHIAccess DestAccess)
 {
-	check(InSourceResource != nullptr);
-	check(InDestResource != nullptr);
-
-	PendingCopyTextures.Add(FLandscapeLayersCopyTextureParams(InSourceDebugName, InSourceResource, InDestDebugName, InDestResource, InDestCPUResource, InInitialPositionOffset, SubsectionSizeQuads, NumSubsections, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex, SrcAccess, DestAccess));
+	check(false); // Deprecated for 4.26.1, use ExecuteCopyLayersTexture
 }
 
 void ALandscape::CommitDeferredCopyLayersTexture()
 {
-	TArray<FLandscapeLayersCopyTextureParams> LocalParams = MoveTemp(PendingCopyTextures);
+	check(false); // Deprecated for 4.26.1, use ExecuteCopyLayersTexture
+}
 
+void ExecuteCopyLayersTexture(TArray<FLandscapeLayersCopyTextureParams_NEW>&& InCopyTextureParams)
+{
 	ENQUEUE_RENDER_COMMAND(LandscapeLayers_Cmd_CopyTexture)(
-		[LocalParams](FRHICommandListImmediate& RHICmdList) mutable
+		[CopyTextureParams = MoveTemp(InCopyTextureParams)](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RT_CopyTexture);
 
-		for (const FLandscapeLayersCopyTextureParams& Params : LocalParams)
+		for (const FLandscapeLayersCopyTextureParams_NEW& Params : CopyTextureParams)
 		{
-			FLandscapeLayersCopyTexture_RenderThread CopyTexture(Params);
-			CopyTexture.Copy(RHICmdList);
+			if ((Params.SourceResource != nullptr) && (Params.DestResource != nullptr))
+			{
+				FLandscapeLayersCopyTexture_RenderThread CopyTexture(Params);
+				CopyTexture.Copy(RHICmdList);
+			}
 		}
 	});
 }
@@ -1951,29 +1970,13 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 
 void ALandscape::CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource, const FIntPoint& InFirstComponentSectionBase, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex) const
 {
-	if (InSourceTexture != nullptr && InDestTexture != nullptr)
-	{
-		FString SourceDebugName = CVarOutputLayersDebugDrawCallName.GetValueOnGameThread() == 1 ? InSourceTexture->GetName() : GEmptyDebugName;
-		FString DestDebugName = CVarOutputLayersDebugDrawCallName.GetValueOnGameThread() == 1 ? InDestTexture->GetName() : GEmptyDebugName;
-
-		CopyLayersTexture(SourceDebugName, InSourceTexture->Resource, DestDebugName, InDestTexture->Resource, InDestCPUResource, InFirstComponentSectionBase, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex);
-	}
+	check(false); // Deprecated for 4.26.1, use ExecuteCopyLayersTexture
 }
 
 void ALandscape::CopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource, const FIntPoint& InInitialPositionOffset,
 									uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex) const
 {
-	check(InSourceResource != nullptr);
-	check(InDestResource != nullptr);
-
-	FLandscapeLayersCopyTexture_RenderThread CopyTexture(FLandscapeLayersCopyTextureParams(InSourceDebugName, InSourceResource, InDestDebugName, InDestResource, InDestCPUResource, InInitialPositionOffset, SubsectionSizeQuads, NumSubsections, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex));
-
-	ENQUEUE_RENDER_COMMAND(LandscapeLayers_Cmd_CopyTexture)(
-		[CopyTexture](FRHICommandListImmediate& RHICmdList) mutable
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RT_CopyTexture);
-		CopyTexture.Copy(RHICmdList);
-	});
+	check(false); // Deprecated for 4.26.1, use ExecuteCopyLayersTexture
 }
 
 void ALandscape::DrawWeightmapComponentsToRenderTarget(const FString& InDebugName, const TArray<FIntPoint>& InSectionBaseList, const FVector2D& InScaleBias, TArray<FVector2D>* InScaleBiasPerSection, UTexture* InWeightmapRTRead, UTextureRenderTarget2D* InOptionalWeightmapRTRead2, UTextureRenderTarget2D* InWeightmapRTWrite,
@@ -2854,25 +2857,32 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			return 0;
 		}
 
-		// Use to compute TopLeft Component per Heightmap
-		struct FHeightmapTopLeft
+		// Use to compute top-left vertex position per Heightmap and the actual size to copy : 
+		struct FHeightmapCopyInfo
 		{
-			FHeightmapTopLeft(UTexture2D* InTexture, FIntPoint InTopLeftSectionBase, FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadback = nullptr) 
+			FHeightmapCopyInfo(UTexture2D* InTexture, const FIntPoint& InComponentVertexPosition, int32 InComponentSizeVerts, FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadback = nullptr)
 			: Texture(InTexture)
-			, TopLeftSectionBase(InTopLeftSectionBase)
+				, ComponentSizeVerts(InComponentSizeVerts)
+				, SectionRect(InComponentVertexPosition, InComponentVertexPosition + FIntPoint(InComponentSizeVerts, InComponentSizeVerts))
 			, CPUReadback(InCPUReadback)
 			{}
 
-			FHeightmapTopLeft(FHeightmapTopLeft&&) = default;
-			FHeightmapTopLeft& operator=(FHeightmapTopLeft&&) = default;
+			FHeightmapCopyInfo(FHeightmapCopyInfo&&) = default;
+			FHeightmapCopyInfo& operator=(FHeightmapCopyInfo&&) = default;
+
+			void Union(const FIntPoint& InComponentVertexPosition)
+			{
+				SectionRect.Union(FIntRect(InComponentVertexPosition, InComponentVertexPosition + FIntPoint(ComponentSizeVerts, ComponentSizeVerts)));
+			}
 
 			UTexture2D* Texture;
-			FIntPoint TopLeftSectionBase;
+			int32 ComponentSizeVerts;
+			FIntRect SectionRect;
 			FLandscapeLayersTexture2DCPUReadBackResource* CPUReadback;
 		};
 
 		// Calculate Top Left Lambda
-		auto GetUniqueHeightmaps = [&](const TArray<ULandscapeComponent*>& InLandscapeComponents, TArray<FHeightmapTopLeft>& OutHeightmaps, const FIntPoint& LandscapeBaseQuads, const FGuid& InLayerGuid = FGuid())
+		auto GetUniqueHeightmaps = [&](const TArray<ULandscapeComponent*>& InLandscapeComponents, TArray<FHeightmapCopyInfo>& OutHeightmaps, const FIntPoint& LandscapeBaseQuads, const FGuid& InLayerGuid = FGuid())
 		{
 			FScopedSetLandscapeEditingLayer Scope(this, InLayerGuid);
 			
@@ -2882,7 +2892,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			{
 				UTexture2D* ComponentHeightmap = Component->GetHeightmap(true);
 		
-				int32 Index = OutHeightmaps.IndexOfByPredicate([=](const FHeightmapTopLeft& LayerHeightmap) { return LayerHeightmap.Texture == ComponentHeightmap; });
+				int32 Index = OutHeightmaps.IndexOfByPredicate([=](const FHeightmapCopyInfo& LayerHeightmap) { return LayerHeightmap.Texture == ComponentHeightmap; });
 
 				FIntPoint ComponentSectionBase = Component->GetSectionBase() - LandscapeBaseQuads;
 				FVector2D SourcePositionOffset(FMath::RoundToInt(ComponentSectionBase.X / ComponentSizeQuad), FMath::RoundToInt(ComponentSectionBase.Y / ComponentSizeQuad));
@@ -2892,12 +2902,11 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 				if (Index == INDEX_NONE)
 				{
 					FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Proxy->HeightmapsCPUReadBack.Find(ComponentHeightmap);
-					OutHeightmaps.Add(FHeightmapTopLeft(ComponentHeightmap, ComponentVertexPosition, CPUReadback != nullptr ? *CPUReadback : nullptr));
+					OutHeightmaps.Add(FHeightmapCopyInfo(ComponentHeightmap, ComponentVertexPosition, ComponentSizeVerts, CPUReadback != nullptr ? *CPUReadback : nullptr));
 				}
 				else
 				{
-					OutHeightmaps[Index].TopLeftSectionBase.X = FMath::Min(OutHeightmaps[Index].TopLeftSectionBase.X, ComponentVertexPosition.X);
-					OutHeightmaps[Index].TopLeftSectionBase.Y = FMath::Min(OutHeightmaps[Index].TopLeftSectionBase.Y, ComponentVertexPosition.Y);
+					OutHeightmaps[Index].Union(ComponentVertexPosition);
 				}
 			}
 		};
@@ -2935,14 +2944,19 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			}
 
 			{
-				TArray<FHeightmapTopLeft> LayerHeightmaps;
+				TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
+				TArray<FHeightmapCopyInfo> LayerHeightmaps;
 				GetUniqueHeightmaps(InLandscapeComponentsToRender, LayerHeightmaps, LandscapeExtent.Min, Layer.Guid);
-				for (const FHeightmapTopLeft& LayerHeightmap : LayerHeightmaps)
+				for (const FHeightmapCopyInfo& LayerHeightmap : LayerHeightmaps)
 				{
-					AddDeferredCopyLayersTexture(LayerHeightmap.Texture, LandscapeScratchRT1, nullptr, LayerHeightmap.TopLeftSectionBase);
+					FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(LayerHeightmap.Texture, LandscapeScratchRT1));
+					// Only copy the size that's actually needed : 
+					CopyTextureParams.CopySize = LayerHeightmap.SectionRect.Size();
+					// Copy from the heightmap's top-left corner to the composited texture's position :
+					CopyTextureParams.DestPosition = LayerHeightmap.SectionRect.Min;
 				}
+				ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 			}
-			CommitDeferredCopyLayersTexture();
 
 			// NOTE: From this point on, we always work in non atlas, we'll convert back at the end to atlas only
 			DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s += -> NonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName(), *LandscapeScratchRT2->GetName()) : GEmptyDebugName,
@@ -2979,12 +2993,12 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s %s -> BrushNonAtlas %s"), *Layer.Name.ToString(), *LandscapeBrush->GetName(), *BrushOutputNonAtlasRT->GetName()) : GEmptyDebugName, BrushOutputNonAtlasRT);
 
 					// Resolve back to Combined heightmap
-					CopyLayersTexture(BrushOutputNonAtlasRT, CombinedHeightmapNonAtlasRT);
+					ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams_NEW(BrushOutputNonAtlasRT, CombinedHeightmapNonAtlasRT) });
 					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s Component %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *BrushOutputNonAtlasRT->GetName(), *CombinedHeightmapNonAtlasRT->GetName()) : GEmptyDebugName, CombinedHeightmapNonAtlasRT);
 				}
 			}
 
-			CopyLayersTexture(CombinedHeightmapNonAtlasRT, LandscapeScratchRT3);
+			ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams_NEW(CombinedHeightmapNonAtlasRT, LandscapeScratchRT3) });
 			PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s Component %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *CombinedHeightmapNonAtlasRT->GetName(), *LandscapeScratchRT3->GetName()) : GEmptyDebugName, LandscapeScratchRT3);
 
 			FirstLayer = false;
@@ -3011,33 +3025,46 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 
 		// Copy back all Mips to original heightmap data
 		{
-			TArray<FHeightmapTopLeft> Heightmaps;
+			TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
+			TArray<FHeightmapCopyInfo> Heightmaps;
 			GetUniqueHeightmaps(InLandscapeComponentsToResolve, Heightmaps, LandscapeExtent.Min);
-			for (const FHeightmapTopLeft& Heightmap : Heightmaps)
+			for (const FHeightmapCopyInfo& Heightmap : Heightmaps)
 			{
-				FIntPoint TextureTopLeftSectionBase = Heightmap.TopLeftSectionBase;
-				uint8 MipIndex = 0;
-
 				check(Heightmap.CPUReadback);
 
+				const FIntPoint Mip0CopySize = Heightmap.SectionRect.Size();
+				const FIntPoint Mip0SourcePosition = Heightmap.SectionRect.Min;
 				// Mip 0
-				AddDeferredCopyLayersTexture(CombinedHeightmapAtlasRT, Heightmap.Texture, Heightmap.CPUReadback, TextureTopLeftSectionBase, MipIndex, MipIndex);
-				++MipIndex;
+				{
+					FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(CombinedHeightmapAtlasRT, Heightmap.Texture));
+					CopyTextureParams.DestCPUResource = Heightmap.CPUReadback;
+					// Only copy the size that's actually needed : 
+					CopyTextureParams.CopySize = Mip0CopySize;
+					// Copy from the composited texture's position to the top-left corner of the heightmap
+					CopyTextureParams.SourcePosition = Mip0SourcePosition;
+				}
 
 				// Other Mips
-				for (int32 MipRTIndex = EHeightmapRTType::HeightmapRT_Mip1; MipRTIndex < EHeightmapRTType::HeightmapRT_Count; ++MipRTIndex)
+				uint8 MipIndex = 1;
+				for (int32 MipRTIndex = (int32)EHeightmapRTType::HeightmapRT_Mip1; MipRTIndex < (int32)EHeightmapRTType::HeightmapRT_Count; ++MipRTIndex)
 				{
 					UTextureRenderTarget2D* RenderTargetMip = HeightmapRTList[MipRTIndex];
-
 					if (RenderTargetMip != nullptr)
 					{
-						AddDeferredCopyLayersTexture(RenderTargetMip, Heightmap.Texture, Heightmap.CPUReadback, TextureTopLeftSectionBase, MipIndex, MipIndex);
+						FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(RenderTargetMip, Heightmap.Texture));
+						CopyTextureParams.DestCPUResource = Heightmap.CPUReadback;
+						CopyTextureParams.CopySize.X = Mip0CopySize.X >> MipIndex;
+						CopyTextureParams.CopySize.Y = Mip0CopySize.Y >> MipIndex;
+						CopyTextureParams.SourcePosition.X = Mip0SourcePosition.X >> MipIndex;
+						CopyTextureParams.SourcePosition.Y = Mip0SourcePosition.Y >> MipIndex;
+						CopyTextureParams.DestMip = MipIndex;
+
 						++MipIndex;
 					}
 				}
 			}
+			ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 		}
-		CommitDeferredCopyLayersTexture();
 	}
 
 	if (HeightmapUpdateModes)
@@ -3101,7 +3128,7 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 	{
 		HeightmapsToResolve.FindOrAdd(Component->GetHeightmap(false)).Add(Component);
 	}
-	
+
 	// Dirty Delegate
 	const bool HeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 1) != 0;
 	auto DirtyDelegate = [&](UTexture2D* Heightmap, FColor* OldData, FColor* NewData)
@@ -3116,10 +3143,10 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 			for (ULandscapeComponent* Component : *Components)
 			{
 				if (CVarLandscapeTrackDirty.GetValueOnAnyThread())
-				{
+			{
 					UpdateHeightDirtyData(Component, Heightmap, OldData, NewData);
-				}
-
+			}
+						
 				if (HeightmapDiff)
 				{
 					FString LevelName = FPackageName::GetShortName(Component->GetOutermost());
@@ -3135,12 +3162,12 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 					FFileHelper::CreateBitmap(*(FilePattern + "-Pre.bmp"), Heightmap->Source.GetSizeX(), Heightmap->Source.GetSizeY(), OldData, &SubRegion, &IFileManager::Get(), nullptr, true);
 					FFileHelper::CreateBitmap(*(FilePattern + "-Post.bmp"), Heightmap->Source.GetSizeX(), Heightmap->Source.GetSizeY(), NewData, &SubRegion, &IFileManager::Get(), nullptr, true);
 				}
-			}
+		}
 		}
 	};
-
+		
 	for (const auto& HeightmapToResolve : HeightmapsToResolve)
-	{
+		{
 		UTexture2D* Heightmap = HeightmapToResolve.Key;
 		ALandscapeProxy* LandscapeProxy = Heightmap->GetTypedOuter<ALandscapeProxy>();
 		check(LandscapeProxy);
@@ -3153,7 +3180,7 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 			}
 		}
 	}
-		
+
 	const bool bInvalidateLightingCache = true;
 	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);
 }
@@ -3175,15 +3202,15 @@ void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
 	const int32 X2 = X1 + ComponentSizeQuads;
 	const int32 Y1 = InLandscapeComponent->GetSectionBase().Y;
 	const int32 Y2 = Y1 + ComponentSizeQuads;
-	const int32 ComponentWidth = (SubsectionSizeQuads + 1) * NumSubsections;
+	const int32 ComponentWidth = (SubsectionSizeQuads + 1)*NumSubsections;
 	const int32 DirtyDataSize = ComponentWidth * ComponentWidth;
 	TUniquePtr<uint8[]> DirtyData = MakeUnique<uint8[]>(DirtyDataSize);
 	FMemory::Memzero(DirtyData.Get(), DirtyDataSize);
 	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
 }
-
+	
 void ALandscape::UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData, uint8 Channel)
-{
+	{
 	check(InOldData && InNewData);
 
 	FLandscapeEditDataInterface LandscapeEdit(GetLandscapeInfo());
@@ -3202,17 +3229,17 @@ void ALandscape::UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent
 	LandscapeEdit.GetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
 
 	for (int32 Index = 0; Index < DirtyDataSize; ++Index)
-	{
+		{
 		uint8* OldChannelValue = (uint8*)&InOldData[Index] + ChannelOffsets[Channel];
 		uint8* NewChannelValue = (uint8*)&InNewData[Index] + ChannelOffsets[Channel];
 		if (*OldChannelValue != *NewChannelValue)
-		{
+			{
 			DirtyData[Index] |= DirtyWeight;
+			}
 		}
-	}
 
 	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
-}
+	}
 
 void ALandscape::UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData)
 {
@@ -3242,7 +3269,7 @@ void ALandscape::UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent
 			int32 TexIndex = TexX + TexY * SizeU;
 			check(TexIndex < SizeU * SizeV);
 			if (InOldData[TexIndex] != InNewData[TexIndex])
-			{
+	{
 				DirtyData[X + Y * ComponentWidth] |= DirtyHeight;
 			}
 		}
@@ -3292,7 +3319,7 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	}
 
 	bool bChanged = false;
-	const bool bUpdateHash = !bIntermediateRender;
+    const bool bUpdateHash = !bIntermediateRender;
 	for (int8 MipIndex = 0; MipIndex < OutMipsData.Num(); ++MipIndex)
 	{
 		if (OutMipsData[MipIndex].Num() > 0)
@@ -3327,6 +3354,8 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 		return;
 	}
 
+	TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
+
 	const int32 LocalComponentSizeQuad = SubsectionSizeQuads * NumSubsections;
 	const int32 LocalComponentSizeVerts = (SubsectionSizeQuads + 1) * NumSubsections;
 	for (ULandscapeComponent* Component : InLandscapeComponents)
@@ -3347,7 +3376,12 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 				FVector2D SourcePositionOffset(FMath::RoundToInt(ComponentSectionBase.X / LocalComponentSizeQuad), FMath::RoundToInt(ComponentSectionBase.Y / LocalComponentSizeQuad));
 				FIntPoint SourceComponentVertexPosition = FIntPoint(SourcePositionOffset.X * LocalComponentSizeVerts, SourcePositionOffset.Y * LocalComponentSizeVerts);
 
-				AddDeferredCopyLayersTexture(InOutputDebugName ? *LayerWeightmap->GetName() : GEmptyDebugName, LayerWeightmap->Resource, InOutputDebugName ? FString::Printf(TEXT("%s WeightmapScratchTexture"), *InLayer.Name.ToString()) : GEmptyDebugName, InOutTextureData, nullptr, SourceComponentVertexPosition, 0);
+				FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(*LayerWeightmap->GetName(), LayerWeightmap->Resource, FString::Printf(TEXT("%s WeightmapScratchTexture"), *InLayer.Name.ToString()), InOutTextureData));
+				// Only copy the size that's actually needed : 
+				CopyTextureParams.CopySize.X = LayerWeightmap->Resource->GetSizeX();
+				CopyTextureParams.CopySize.Y = LayerWeightmap->Resource->GetSizeY();
+				// Copy from the top-left corner of the weightmap to the composited texture's position
+				CopyTextureParams.DestPosition = SourceComponentVertexPosition;
 				PrintLayersDebugTextureResource(InOutputDebugName ? FString::Printf(TEXT("LS Weight: %s WeightmapScratchTexture %s"), *InLayer.Name.ToString(), TEXT("WeightmapScratchTextureResource")) : GEmptyDebugName, InOutTextureData, 0, false);
 
 				for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : ComponentLayerData->WeightmapData.LayerAllocations)
@@ -3398,7 +3432,7 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 		}
 	}
 	
-	CommitDeferredCopyLayersTexture();
+	ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 }
 
 void ALandscape::PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, TArray<UTexture2D*>& OutProcessedWeightmaps,
@@ -3838,15 +3872,21 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 		ClearLayersWeightmapTextureResource(TEXT("ClearRT RGBA"), EmptyRT->GameThread_GetRenderTargetResource());
 		ClearLayersWeightmapTextureResource(TEXT("ClearRT R"), LandscapeScratchRT1->GameThread_GetRenderTargetResource());
 
-		for (int32 LayerIndex = 0; LayerIndex < LayerCount; ++LayerIndex)
 		{
-			SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
-			DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: Clear CombinedProcLayerWeightmapAllLayersResource %d, "), LayerIndex) : GEmptyDebugName;
+			TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
+			for (int32 LayerIndex = 0; LayerIndex < LayerCount; ++LayerIndex)
+			{
+				SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
+				DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: Clear CombinedProcLayerWeightmapAllLayersResource %d, "), LayerIndex) : GEmptyDebugName;
 
-			AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex, ERHIAccess::SRVMask, ERHIAccess::UAVMask);
+				FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource));
+				CopyTextureParams.DestArrayIndex = LayerIndex;
+				CopyTextureParams.SourceAccess = ERHIAccess::SRVMask;
+				CopyTextureParams.DestAccess = ERHIAccess::UAVMask;
+			}
+
+			ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 		}
-
-		CommitDeferredCopyLayersTexture();
 
 		bool bHasWeightmapData = false;
 		bool bFirstLayer = true;
@@ -3888,7 +3928,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				SourceDebugName = OutputDebugName ? EmptyRT->GetName() : GEmptyDebugName;
 				DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s Clear WeightmapScratchExtractLayerTextureResource"), *Layer.Name.ToString()) : GEmptyDebugName;
 
-				CopyLayersTexture(SourceDebugName, EmptyRT->GameThread_GetRenderTargetResource(), DestDebugName, WeightmapScratchExtractLayerTextureResource);
+				ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams_NEW(SourceDebugName, EmptyRT->GameThread_GetRenderTargetResource(), DestDebugName, WeightmapScratchExtractLayerTextureResource) });
 
 				// Prepare compute shader data
 				TArray<FLandscapeLayerWeightmapExtractMaterialLayersComponentData> ComponentsData;
@@ -3900,7 +3940,8 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				if (CurrentWeightmapToProcessIndex == 0)
 				{
 					ClearLayersWeightmapTextureResource(TEXT("ClearRT"), LandscapeScratchRT1->GameThread_GetRenderTargetResource());
-
+				
+					TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
 					// Important: for performance reason we only clear the layer we will write to, the other one might contain data but they will not be read during the blend phase
 					for (auto& ItPair : LayerInfoObjects)
 					{
@@ -3909,10 +3950,11 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 						SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
 						DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s Clear CurrentProcLayerWeightmapAllLayersResource %d, "), *Layer.Name.ToString(), LayerIndex) : GEmptyDebugName;
 
-						AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CurrentLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+						FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CurrentLayersWeightmapAllMaterialLayersResource));
+						CopyTextureParams.DestArrayIndex = LayerIndex;
 					}
 
-					CommitDeferredCopyLayersTexture();
+					ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 				}
 
 				// Perform the compute shader
@@ -3954,7 +3996,11 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 					SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s, CurrentProcLayerWeightmapAllLayersResource"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString()) : GEmptyDebugName;
 					DestDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
 
-					CopyLayersTexture(SourceDebugName, CurrentLayersWeightmapAllMaterialLayersResource, DestDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), nullptr, FIntPoint(0, 0), 0, 0, LayerIndex, 0);
+					{
+						FLandscapeLayersCopyTextureParams_NEW CopyTextureParams(SourceDebugName, CurrentLayersWeightmapAllMaterialLayersResource, DestDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource());
+						CopyTextureParams.SourceArrayIndex = LayerIndex;
+						ExecuteCopyLayersTexture({ MoveTemp(CopyTextureParams) });
+					}
 					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s CurrentProcLayerWeightmapAllLayersResource -> Paint Layer RT %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName()) : GEmptyDebugName, LandscapeScratchRT1, 0, false);
 
 					PSShaderParams.ApplyLayerModifiers = true;
@@ -3970,7 +4016,11 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 					SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s CombinedProcLayerWeightmap"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString()) : GEmptyDebugName;
 					DestDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
 
-					CopyLayersTexture(SourceDebugName, CombinedLayersWeightmapAllMaterialLayersResource, DestDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), nullptr, FIntPoint(0, 0), 0, 0, LayerIndex, 0);
+					{
+						FLandscapeLayersCopyTextureParams_NEW CopyTextureParams(SourceDebugName, CombinedLayersWeightmapAllMaterialLayersResource, DestDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource());
+						CopyTextureParams.SourceArrayIndex = LayerIndex;
+						ExecuteCopyLayersTexture({ MoveTemp(CopyTextureParams) });
+					}
 					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s CombinedProcLayerWeightmap -> Paint Layer RT %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName()) : GEmptyDebugName, LandscapeScratchRT1, 0, false);
 
 					// Combine with current status and copy back to the combined 2d resource array
@@ -4023,22 +4073,26 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 							SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s Brush: %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *BrushOutputRT->GetName()) : GEmptyDebugName;
 							DestDebugName = OutputDebugName ? LandscapeScratchRT3->GetName() : GEmptyDebugName;
 
-							CopyLayersTexture(SourceDebugName, BrushOutputRT->GameThread_GetRenderTargetResource(), DestDebugName, LandscapeScratchRT3->GameThread_GetRenderTargetResource());
+							ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams_NEW(SourceDebugName, BrushOutputRT->GameThread_GetRenderTargetResource(), DestDebugName, LandscapeScratchRT3->GameThread_GetRenderTargetResource()) });
 							PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s Component %s += -> Combined %s"), *Layer.Name.ToString(), *BrushOutputRT->GetName(), *LandscapeScratchRT3->GetName()) : GEmptyDebugName, LandscapeScratchRT3);
 						}
 
 						PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s CombinedPostBrushProcLayerWeightmap -> Paint Layer RT %s"), *Layer.Name.ToString(), *LandscapeScratchRT3->GetName()) : GEmptyDebugName, LandscapeScratchRT3, 0, false);
 
-						SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *LandscapeScratchRT3->GetName()) : GEmptyDebugName;
-						DestDebugName = OutputDebugName ? TEXT("CombinedProcLayerWeightmap") : GEmptyDebugName;
-						CopyLayersTexture(SourceDebugName, LandscapeScratchRT3->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+						SourceDebugName = FString::Printf(TEXT("Weight: %s PaintLayer: %s %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *LandscapeScratchRT3->GetName());
+						DestDebugName = TEXT("CombinedProcLayerWeightmap");
+
+						FLandscapeLayersCopyTextureParams_NEW CopyTextureParams(SourceDebugName, LandscapeScratchRT3->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource);
+						CopyTextureParams.DestArrayIndex = LayerIndex;
+						ExecuteCopyLayersTexture({ MoveTemp(CopyTextureParams) });
 					}
 
 					DrawWeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s Combined Scratch No Border to %s Combined Scratch with Border"), *LandscapeScratchRT3->GetName(), *LandscapeScratchRT1->GetName()) : GEmptyDebugName,
 						InLandscapeComponentsToRender, LandscapeExtent.Min, LandscapeScratchRT3, nullptr, LandscapeScratchRT1, ERTDrawingType::RTNonAtlasToAtlas, true, PSShaderParams, 0);
 
-
-					CopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+					FLandscapeLayersCopyTextureParams_NEW CopyTextureParams(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource);
+					CopyTextureParams.DestArrayIndex = LayerIndex;
+					ExecuteCopyLayersTexture({ MoveTemp(CopyTextureParams) });
 				}
 
 				PSShaderParams.ApplyLayerModifiers = false;
@@ -4167,6 +4221,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 
 					int32 StartTextureIndex = NextTextureIndexToProcess;
 
+					TArray<FLandscapeLayersCopyTextureParams_NEW> DeferredCopyTextures;
 					for (; NextTextureIndexToProcess < ProcessedWeightmaps.Num(); ++NextTextureIndexToProcess)
 					{
 						UTexture2D* WeightmapTexture = ProcessedWeightmaps[NextTextureIndexToProcess];
@@ -4179,7 +4234,8 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 						FIntPoint TextureTopLeftPositionInAtlas(WeightmapTextureOutputOffset[NextTextureIndexToProcess - StartTextureIndex].X, WeightmapTextureOutputOffset[NextTextureIndexToProcess - StartTextureIndex].Y);
 
 						int32 CurrentMip = 0;
-
+						const int32 TextureSizeX = WeightmapTexture->Resource->GetSizeX();
+						const int32 TextureSizeY = WeightmapTexture->Resource->GetSizeY();
 						for (int32 MipRTIndex = EWeightmapRTType::WeightmapRT_Mip0; MipRTIndex < EWeightmapRTType::WeightmapRT_Count; ++MipRTIndex)
 						{
 							CurrentRT = WeightmapRTList[MipRTIndex];
@@ -4189,13 +4245,20 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 								SourceDebugName = OutputDebugName ? CurrentRT->GetName() : GEmptyDebugName;
 								DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weightmap Mip: %d"), CurrentMip) : GEmptyDebugName;
 
-								AddDeferredCopyLayersTexture(SourceDebugName, CurrentRT->GameThread_GetRenderTargetResource(), DestDebugName, WeightmapTexture->Resource, WeightmapCPUReadBack, TextureTopLeftPositionInAtlas, CurrentMip, CurrentMip);
+								FLandscapeLayersCopyTextureParams_NEW& CopyTextureParams = DeferredCopyTextures.Add_GetRef(FLandscapeLayersCopyTextureParams_NEW(SourceDebugName, CurrentRT->GameThread_GetRenderTargetResource(), DestDebugName, WeightmapTexture->Resource));
+								CopyTextureParams.DestCPUResource = WeightmapCPUReadBack;
+								// Only copy the size that's actually needed : 
+								CopyTextureParams.CopySize.X = TextureSizeX >> CurrentMip;
+								CopyTextureParams.CopySize.Y = TextureSizeY >> CurrentMip;
+								// Copy from the composited texture's position to the top-left corner of the heightmap
+								CopyTextureParams.SourcePosition.X = TextureTopLeftPositionInAtlas.X >> CurrentMip;
+								CopyTextureParams.SourcePosition.Y = TextureTopLeftPositionInAtlas.Y >> CurrentMip;
+								CopyTextureParams.DestMip = CurrentMip;
 								++CurrentMip;
 							}
 						}
 					}
-
-					CommitDeferredCopyLayersTexture();
+					ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 				}
 
 				++CurrentWeightmapToProcessIndex;
@@ -4486,9 +4549,9 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 
 	const bool WeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 2) != 0;
 	auto DirtyDelegate = [&](UTexture2D* Weightmap, FColor* OldData, FColor* NewData)
-	{
-		if (!WeightmapDiff && !CVarLandscapeTrackDirty.GetValueOnAnyThread())
 		{
+		if (!WeightmapDiff && !CVarLandscapeTrackDirty.GetValueOnAnyThread())
+			{
 			return;
 		}
 
@@ -4500,7 +4563,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 				{
 					UpdateWeightDirtyData(Pair.Key, Weightmap, OldData, NewData, Pair.Value->WeightmapTextureChannel);
 				}
-				
+								
 				if (WeightmapDiff)
 				{
 					size_t ChannelOffset = ChannelOffsets[Pair.Value->WeightmapTextureChannel];
@@ -4508,7 +4571,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 					FString FilePattern = FString::Format(TEXT("LandscapeLayers/{0}-{1}-{2}-WM"), { LevelName, Pair.Key->GetName(), Pair.Value->GetLayerName().ToString() });
 					FFileHelper::CreateBitmap(*(FilePattern + "-Pre.bmp"), Weightmap->Source.GetSizeX(), Weightmap->Source.GetSizeY(), OldData, nullptr, &IFileManager::Get(), nullptr, true, (FFileHelper::EChannelMask)ChannelOffset);
 					FFileHelper::CreateBitmap(*(FilePattern + "-Post.bmp"), Weightmap->Source.GetSizeX(), Weightmap->Source.GetSizeY(), NewData, nullptr, &IFileManager::Get(), nullptr, true, (FFileHelper::EChannelMask)ChannelOffset);
-				}
+			}
 			}
 		}
 	};
@@ -4530,7 +4593,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 			}
 		}
 	}
-		
+
 	// Weightmaps shouldn't invalidate lighting
 	const bool bInvalidateLightingCache = false;
 	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);	
