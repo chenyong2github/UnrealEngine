@@ -702,24 +702,25 @@ FReply FGroomRenderingDetails::OnAddLODClicked(int32 GroupIndex, FProperty* Prop
 	return FReply::Handled();
 }
 
-FReply FGroomRenderingDetails::OnRefreshCards(int32 GroupIndex, FProperty* Property)
+// Hair_TODO: rename into OnReloadCards
+FReply FGroomRenderingDetails::OnRefreshCards(int32 DescIndex, FProperty* Property)
 {
-	if (GroupIndex < GroomAsset->HairGroupsCards.Num() && GroomAsset->HairGroupsCards[GroupIndex].SourceType == EHairCardsSourceType::Procedural)
+	if (DescIndex < GroomAsset->HairGroupsCards.Num() && GroomAsset->HairGroupsCards[DescIndex].SourceType == EHairCardsSourceType::Procedural)
 	{
 		FScopedTransaction Transaction(FText::FromString(TEXT("RefreshCards")));
 		
 		FPropertyChangedEvent PropertyChangedEvent(Property);
-		GroomAsset->HairGroupsCards[GroupIndex].ProceduralSettings.Version++;
 		GroomAsset->PostEditChangeProperty(PropertyChangedEvent);
 	}
 	return FReply::Handled();
 }
 
-FReply FGroomRenderingDetails::OnSaveCards(int32 GroupIndex, FProperty* Property)
+// Hair_TODO: rename into OnGenerageCards
+FReply FGroomRenderingDetails::OnSaveCards(int32 DescIndex, FProperty* Property)
 {
-	if (GroupIndex < GroomAsset->HairGroupsCards.Num())
+	if (DescIndex < GroomAsset->HairGroupsCards.Num())
 	{
-		GroomAsset->SaveProceduralCards(GroupIndex);
+		GroomAsset->SaveProceduralCards(DescIndex);
 	}
 	return FReply::Handled();
 }
@@ -977,6 +978,9 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 				ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef());
 				if (GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsCards.Num() && (PanelType == EMaterialPanelType::Cards))
 				{
+					FText ToolTipTextForGeneration(FText::FromString(TEXT("Generate procedural cards data (meshes and textures) based on current procedural settings. Cards generation needs to run prior to the (re)loading of the cards data.")));
+					FText ToolTipTextForReloading(FText::FromString(TEXT("(Re)Load generated cards data (meshes and textures) into the groom asset. The data need to be generated with the save/generated button prior to reloading.")));
+
 					ChildrenBuilder.AddCustomRow(LOCTEXT("HairCardsButtons", "HairCardsButtons"))
 					.ValueContent()
 					.HAlign(HAlign_Fill)
@@ -990,10 +994,11 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 							.VAlign(VAlign_Center)
 							.HAlign(HAlign_Center)
 							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.OnClicked(this, &FGroomRenderingDetails::OnRefreshCards, GroupIndex, Property)
+							.ToolTipText(ToolTipTextForGeneration)
+							.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+								.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset.Greyscale"))
 							]
 						]
 						+ SHorizontalBox::Slot()
@@ -1003,10 +1008,11 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 							.VAlign(VAlign_Center)
 							.HAlign(HAlign_Center)
 							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
+							.ToolTipText(ToolTipTextForReloading)
+							.OnClicked(this, &FGroomRenderingDetails::OnRefreshCards, GroupIndex, Property)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset.Greyscale"))
+								.Image(FEditorStyle::GetBrush("Icons.Refresh"))
 							]
 						]
 					];
