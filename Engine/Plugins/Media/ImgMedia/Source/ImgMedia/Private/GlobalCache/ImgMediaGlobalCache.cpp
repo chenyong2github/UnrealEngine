@@ -4,6 +4,7 @@
 #include "IImgMediaReader.h"
 #include "ImgMediaPrivate.h"
 #include "ImgMediaSettings.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 
