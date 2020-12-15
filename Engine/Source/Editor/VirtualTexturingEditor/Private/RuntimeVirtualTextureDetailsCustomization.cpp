@@ -295,14 +295,15 @@ FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
 
 EVisibility FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildWarningIconVisible() const
 {
-	return RuntimeVirtualTextureComponent->IsStreamingTextureValid() ? EVisibility::Hidden : EVisibility::Visible;
+	bool bVisible = RuntimeVirtualTextureComponent->GetVirtualTexture() != nullptr && !RuntimeVirtualTextureComponent->IsStreamingTextureValid();
+	return bVisible ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()
 {
 	// Create a new asset if none is already bound
 	UVirtualTextureBuilder* CreatedTexture = nullptr;
-	if (RuntimeVirtualTextureComponent->GetStreamingTexture() == nullptr)
+	if (RuntimeVirtualTextureComponent->GetVirtualTexture() != nullptr && RuntimeVirtualTextureComponent->GetStreamingTexture() == nullptr)
 	{
 		FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 
