@@ -22,7 +22,7 @@
 void SGraphPinClass::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
-	bAllowAbstractClasses = false;
+	bAllowAbstractClasses = true;
 }
 
 FReply SGraphPinClass::OnClickUse()
