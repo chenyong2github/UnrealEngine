@@ -259,6 +259,7 @@ bool Lumen::ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& 
 {
 	return ShouldRenderLumenForView(Scene, View)
 		&& Scene
+		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0
 		&& Scene->LumenSceneData
 		&& Scene->LumenSceneData->VisibleCardsIndices.Num() > 0;
 }
