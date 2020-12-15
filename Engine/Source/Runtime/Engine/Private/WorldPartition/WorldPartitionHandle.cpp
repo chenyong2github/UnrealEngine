@@ -49,30 +49,4 @@ void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDe
 		}
 	}
 }
-
-FWorldPartitionReference FWorldPartitionHandleHelpers::ConvertHandleToReference(const FWorldPartitionHandle& Handle)
-{
-	FWorldPartitionReference Reference;
-
-	if (Handle.IsValid())
-	{
-		Reference.ActorDesc = Handle.ActorDesc;
-		Reference.IncRefCount();
-	}
-
-	return Reference;
-}
-
-FWorldPartitionHandle FWorldPartitionHandleHelpers::ConvertReferenceToHandle(const FWorldPartitionReference& Reference)
-{
-	FWorldPartitionHandle Handle;
-
-	if (Reference.IsValid())
-	{
-		Handle.ActorDesc = Reference.ActorDesc;
-		Handle.IncRefCount();
-	}
-
-	return Handle;
-}
 #endif

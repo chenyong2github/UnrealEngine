@@ -251,10 +251,4 @@ struct ENGINE_API FWorldPartitionReferenceImpl
 
 typedef TWorldPartitionHandleBase<FWorldPartitionHandleImpl> FWorldPartitionHandle;
 typedef TWorldPartitionHandleBase<FWorldPartitionReferenceImpl> FWorldPartitionReference;
-
-struct ENGINE_API FWorldPartitionHandleHelpers
-{
-	static FWorldPartitionReference ConvertHandleToReference(const FWorldPartitionHandle& Handle);
-	static FWorldPartitionHandle ConvertReferenceToHandle(const FWorldPartitionReference& Handle);
-};
 #endif

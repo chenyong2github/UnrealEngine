@@ -5039,7 +5039,7 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 				{
 					if (SplineHandle.IsValid() && Bounds.IntersectXY(SplineHandle->GetBounds()))
 					{
-						ActorDescReferences.Add(FWorldPartitionHandleHelpers::ConvertHandleToReference(SplineHandle));
+						ActorDescReferences.Add(SplineHandle);
 					}
 				}
 			}

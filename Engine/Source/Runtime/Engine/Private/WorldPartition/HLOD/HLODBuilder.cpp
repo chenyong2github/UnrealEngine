@@ -44,7 +44,7 @@ public:
 		FWorldPartitionHandle HLODActorHandle;
 		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
 		{
-			HLODActorRefIndex = Context->ActorReferences.Add(FWorldPartitionHandleHelpers::ConvertHandleToReference(HLODActorHandle));
+			HLODActorRefIndex = Context->ActorReferences.Add(HLODActorHandle);
 			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
 		}
 
