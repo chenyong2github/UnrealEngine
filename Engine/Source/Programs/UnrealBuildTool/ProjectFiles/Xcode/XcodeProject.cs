@@ -166,6 +166,16 @@ namespace UnrealBuildTool
 		string AppName = "";
 
 		/// <summary>
+		/// Architectures supported for Mac
+		/// </summary>
+		string[] SupportedMacArchitectures = { "x86_64", "arm64" };
+
+		/// <summary>
+		/// Architectures supported for iOS
+		/// </summary>
+		string[] SupportedIOSArchitectures = { "arm64" };
+
+		/// <summary>
 		/// Gets Xcode file category based on its extension
 		/// </summary>
 		private string GetFileCategory(string Extension)
@@ -945,10 +955,9 @@ namespace UnrealBuildTool
 				Content.Append("\t\t\t\t\t\"" + Path + "\"," + ProjectFileGenerator.NewLine);
 			}
 			Content.Append("\t\t\t\t);" + ProjectFileGenerator.NewLine);
-
+			Content.Append("\t\t\t\tONLY_ACTIVE_ARCH = YES;" + ProjectFileGenerator.NewLine);
 			if (ConfigName == "Debug")
 			{
-				Content.Append("\t\t\t\tONLY_ACTIVE_ARCH = YES;" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tENABLE_TESTABILITY = YES;" + ProjectFileGenerator.NewLine);
 			}
 			Content.Append("\t\t\t\tALWAYS_SEARCH_USER_PATHS = NO;" + ProjectFileGenerator.NewLine);
@@ -970,10 +979,11 @@ namespace UnrealBuildTool
 			IOSRunTimeVersion = null;
 			TVOSRunTimeVersion = null;
 
+
 			// shortcut for mac only
 			if (bSupportMac && !bSupportIOS && !bSupportTVOS)
 			{
-				Content.Append("\t\t\t\tVALID_ARCHS = \"x86_64\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", this.SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"macosx\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tPRODUCT_NAME = \"" + MacExecutableFileName + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tCONFIGURATION_BUILD_DIR = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
@@ -987,7 +997,7 @@ namespace UnrealBuildTool
 
 				string IOSRunTimeDevices = null;
 				string TVOSRunTimeDevices = null;
-				string ValidArchs = bSupportMac ? "x86_64" : "";
+				IEnumerable<string> ValidArchs = bSupportMac ? this.SupportedMacArchitectures : new[] {""};
 				string SupportedPlatforms = bSupportMac ? "macosx" : "";
 
 				bool bAutomaticSigning = false;
@@ -1006,7 +1016,7 @@ namespace UnrealBuildTool
 					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs += " arm64";
+					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " iphoneos";
 					bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 					if (!bAutomaticSigning)
@@ -1025,6 +1035,7 @@ namespace UnrealBuildTool
 					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
+					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " appletvos";
 					if (!bAutomaticSigning)
 					{
@@ -1035,7 +1046,7 @@ namespace UnrealBuildTool
 					TVOS_BUNDLE = ProjectSettings.BundleIdentifier;
                 }
 
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + ValidArchs.Trim() + "\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", ValidArchs) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"" + SupportedPlatforms.Trim() + "\";" + ProjectFileGenerator.NewLine);
 				if (bAutomaticSigning)
 				{
@@ -1323,27 +1334,24 @@ namespace UnrealBuildTool
 			Content.Append("\t\t\tbuildSettings = {" + ProjectFileGenerator.NewLine);
 			if (bMacOnly)
 			{
-				Content.Append("\t\t\t\tVALID_ARCHS = \"x86_64\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", this.SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"macosx\";" + ProjectFileGenerator.NewLine);
 			}
 			else
 			{
-				string ValidArchs = "x86_64";
+				IEnumerable<string> ValidArchs = this.SupportedMacArchitectures;
 				string SupportedPlatforms = "macosx";
 				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.IOS, EProjectType.Code))
 				{
-					ValidArchs += " arm64";
+					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " iphoneos";
 				}
 				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.TVOS, EProjectType.Code))
 				{
-					if (ValidArchs == "x86_64")
-					{
-						ValidArchs += " arm64";
-					}
+					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " appletvos";
 				}
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + ValidArchs + "\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", ValidArchs) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"" + SupportedPlatforms + "\";" + ProjectFileGenerator.NewLine);
 			}
 			Content.Append("\t\t\t\tGCC_PREPROCESSOR_DEFINITIONS = ();" + ProjectFileGenerator.NewLine);

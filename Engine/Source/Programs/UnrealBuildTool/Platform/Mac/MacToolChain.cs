@@ -108,27 +108,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		MacToolChainOptions Options;
 
-		/// <summary>
-		/// Architectures to build for
-		/// </summary>
-		public List<string> Architectures = new List<string>();
-
-		public MacToolChain(FileReference InProjectFile, MacToolChainOptions InOptions, IReadOnlyList<string> InArchitectures)
+		public MacToolChain(FileReference InProjectFile, MacToolChainOptions InOptions)
 			: base(InProjectFile)
 		{
-			this.Options = InOptions;
-
-			// Mac-Arm todo: Change this to the host architecture? Should it be different for local tools vs UE targets?
-			const string DefaultArchitecture = "x86_64";
-
-			if (InArchitectures.Any())
-			{
-				Architectures.AddRange(InArchitectures);
-			}
-			else
-			{
-				Architectures.Add(DefaultArchitecture);			
-			}
+			this.Options = InOptions;			
 		}
 
 		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false));
@@ -173,7 +156,34 @@ namespace UnrealBuildTool
 		{
 			base.SetUpGlobalEnvironment(Target);
 
+			// validation, because sometimes this is called from a shell script and quoting messes up		
+			if (!Target.Architecture.All(C => char.IsLetterOrDigit(C) || C == '_' || C == '+'))
+			{
+				Log.TraceError("Architecture '{0}' contains invalid characters", Target.Architecture);
+			}			
+
 			SetupXcodePaths(true);
+		}
+
+		/// <summary>
+		/// Takes an architecture string as provided by UBT for the target and formats it for Clang. Supports
+		/// multiple architectures joined with '+'
+		/// </summary>
+		/// <param name="InArchitectures"></param>
+		/// <returns></returns>
+		protected string FormatArchitectureArg(string InArchitectures)
+		{
+			string ArchArg = "-arch ";
+			if (InArchitectures.Contains("+"))
+			{
+				return ArchArg + string.Join(" -arch ", InArchitectures.Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries));
+			}
+			else
+			{
+				ArchArg += InArchitectures;
+			}
+
+			return ArchArg;
 		}
 
 		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
@@ -212,7 +222,7 @@ namespace UnrealBuildTool
 			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
 			if (GetClangVersion().Major >= 12)
 			{
-				Result += " -Wno-range-loop-analysis";
+				Result += " -Wno-range-loop-analysis ";
 			}			
 
 			//Result += " -Wsign-compare"; // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
@@ -229,9 +239,8 @@ namespace UnrealBuildTool
 
 			Result += " -c";
 
-			// Pass through the list of architectures			
-			Result += string.Format(" -arch {0}", string.Join(" -arch ", Architectures));				
-
+			// Pass through architecture and OS info
+			Result += " " + FormatArchitectureArg(CompileEnvironment.Architecture);	
 			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
 
@@ -379,9 +388,8 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 
-			// Pass through the list of architectures			
-			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));
-
+			// Pass through architecture and OS info		
+			Result += " " + FormatArchitectureArg(LinkEnvironment.Architecture);
 			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
@@ -583,6 +591,7 @@ namespace UnrealBuildTool
 				}
 
 				string AllArgs = Arguments + FileArguments + EscapedAdditionalArgs;
+
 				string CompilerPath = Settings.ToolchainDir + MacCompiler;
 				
 				// Analyze and then compile using the shell to perform the indirection
@@ -595,8 +604,22 @@ namespace UnrealBuildTool
 				}
 
 				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
-				CompileAction.CommandPath = new FileReference(CompilerPath);
-				CompileAction.CommandArguments = AllArgs;
+
+				if (MacExports.IsRunningUnderRosetta)
+				{
+					string ArchPath = "/usr/bin/arch";
+					CompileAction.CommandPath = new FileReference(ArchPath);
+					CompileAction.CommandArguments = string.Format("-{0} {1} {2}", MacExports.HostArchitecture, CompilerPath, AllArgs);
+
+				}
+				else
+				{
+					CompileAction.CommandPath = new FileReference(CompilerPath);
+					CompileAction.CommandArguments = AllArgs;
+				}
+
+				// For compilation we delete everything we produce
+				CompileAction.DeleteItems.AddRange(CompileAction.ProducedItems);
 				CompileAction.CommandDescription = "Compile";
 				CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 				CompileAction.bIsGCCCompiler = true;
@@ -724,10 +747,15 @@ namespace UnrealBuildTool
 			string Linker = bIsBuildingLibrary ? MacArchiver : MacLinker;
 			string LinkCommand = Settings.ToolchainDir + Linker + VersionArg + " " + (bIsBuildingLibrary ? GetArchiveArguments_Global(LinkEnvironment) : GetLinkArguments_Global(LinkEnvironment));
 
+			if (MacExports.IsRunningUnderRosetta)
+			{
+				LinkCommand = string.Format("/usr/bin/arch -{0} {1}", MacExports.HostArchitecture, LinkCommand);
+			}
+
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
 			LinkAction.bProducesImportLibrary = !Utils.IsRunningOnMono && (bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL);
-
+			
 			// Add the output file as a production of the link action.
 			FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 
@@ -917,6 +945,9 @@ namespace UnrealBuildTool
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
 			LinkAction.ProducedItems.Add(OutputFile);
+
+			// Delete all items we produce
+			LinkAction.DeleteItems.AddRange(LinkAction.ProducedItems);
 
 			if (!DirectoryReference.Exists(LinkEnvironment.IntermediateDirectory))
 			{
