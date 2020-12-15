@@ -105,11 +105,6 @@ void FMacTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBu
 	FSimpleDelegate OnUpdateShaderStandardWarning = FSimpleDelegate::CreateSP(this, &FMacTargetSettingsDetails::UpdateShaderStandardWarning);
 	
 	ITargetPlatform* TargetPlatform = FModuleManager::GetModuleChecked<ITargetPlatformModule>("MacTargetPlatform").GetTargetPlatforms()[0];
-	
-    // Hide this for now. Not yet mapped to UAT arguments
-    IDetailCategoryBuilder& PackagingCategory = DetailBuilder.EditCategory(TEXT("Packaging"));
-    PackagingCategory.SetCategoryVisibility(false);
-    
     
 	// Setup the supported/targeted RHI property view
 	TargetShaderFormatsDetails = MakeShareable(new FShaderFormatsPropertyDetails(&DetailBuilder, TEXT("TargetedRHIs"), TEXT("Targeted RHIs")));
