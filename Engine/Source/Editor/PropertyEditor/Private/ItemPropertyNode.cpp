@@ -571,7 +571,14 @@ FText FItemPropertyNode::GetDisplayName() const
 
 					if (FinalDisplayName.IsEmpty())
 					{
-						FinalDisplayName = FText::AsNumber(GetArrayIndex());
+						if (ArraySizeEnum == nullptr)
+						{
+							FinalDisplayName = FText::AsNumber(GetArrayIndex());
+						}
+						else
+						{
+							FinalDisplayName = ArraySizeEnum->GetDisplayNameTextByIndex(GetArrayIndex());
+						}
 					}
 				}
 				// This item is a member of an array, its display name is its index 
