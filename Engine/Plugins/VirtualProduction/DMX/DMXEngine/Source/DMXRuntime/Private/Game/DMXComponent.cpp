@@ -13,6 +13,16 @@ class FDMXSharedListener
 public:
 	static TSharedPtr<FDMXSharedListener> Create(UDMXComponent* InOwner, UDMXEntityFixturePatch* FixturePatch)
 	{
+		// Since the patch may have no changed data, we get latest data here, then forward that to the component.
+		// That alike, latest data is broadcast instantly when the user sets the patch.
+		if (InOwner && InOwner->IsValidLowLevel() && FixturePatch && FixturePatch->IsValidLowLevel())
+		{
+			FDMXNormalizedAttributeValueMap LatestAttributeValues;
+			FixturePatch->GetNormalizedAttributesValues(LatestAttributeValues);
+			InOwner->OnFixturePatchReceivedDMX(FixturePatch, LatestAttributeValues);
+		}
+
+		// Create the actual object
 		TSharedPtr<FDMXSharedListener> NewSharedListener = MakeShared<FDMXSharedListener>();
 
 		NewSharedListener->Owner = InOwner;
@@ -122,8 +132,13 @@ void UDMXComponent::SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch)
 {
 	FixturePatchRef.SetEntity(InFixturePatch);
 
-#if !WITH_EDITOR
-	UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
-	SharedListener = FDMXSharedListener::Create(this, FixturePatch);
-#endif
+	// The condition that is not met here is !GIsPlayInEditorWorld && GIsEditor.In other words: We're in Editor but not playing.
+	//
+	// We do not need to create a new listener under this condition - No listener ever was created and we do not expect an editor time listener.
+	// It would cause significant pointless overhead when not PIE, given DMXFixtureActor isn't supporting editor time visualization.
+	if (GIsPlayInEditorWorld || !GIsEditor)
+	{
+		UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
+		SharedListener = FDMXSharedListener::Create(this, FixturePatch);
+	}
 }
