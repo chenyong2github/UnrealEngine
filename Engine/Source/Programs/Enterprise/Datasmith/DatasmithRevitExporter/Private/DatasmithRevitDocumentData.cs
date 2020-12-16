@@ -1010,10 +1010,10 @@ namespace DatasmithRevitExporter
 
 			ElementData.bIsModified = true;
 
+			ElementId ElemId = ElementData.CurrentElement.Id;
+
 			if (ElementDataStack.Count == 0)
 			{
-				ElementId ElemId = ElementData.CurrentElement.Id;
-
 				if (ActorMap.ContainsKey(ElemId) && ActorMap[ElemId] != ElementData)
 				{
 					// Handle the spurious case of Revit Custom Exporter calling back more than once for the same element.
@@ -1029,8 +1029,12 @@ namespace DatasmithRevitExporter
 			}
 			else
 			{
-				// Add the element mesh actor to the Datasmith actor hierarchy.
-				ElementDataStack.Peek().AddChildActor(ElementData);
+				if (!ActorMap.ContainsKey(ElemId))
+				{
+					// Add the element mesh actor to the Datasmith actor hierarchy.
+					ElementDataStack.Peek().AddChildActor(ElementData);
+					ActorMap[ElemId] = ElementData;
+				}
 			}
 		}
 
