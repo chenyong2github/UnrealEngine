@@ -19,6 +19,9 @@
 
 #define LOCTEXT_NAMESPACE "SFilterConfiguratorRow"
 
+namespace Insights
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -304,7 +307,7 @@ FText SFilterConfiguratorRow::AvailableFilterOperators_GetSelectionText() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<TSharedPtr<FFilterGroupOperator>>* SFilterConfiguratorRow::GetFilterGroupOperators()
+const TArray<TSharedPtr<FFilterGroupOperator>>* SFilterConfiguratorRow::GetFilterGroupOperators()
 {
 	return &FilterConfiguratorNodePtr->GetFilterGroupOperators();
 }
@@ -401,5 +404,7 @@ void SFilterConfiguratorRow::OnTextBoxValueCommitted(const FText& InNewText, ETe
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

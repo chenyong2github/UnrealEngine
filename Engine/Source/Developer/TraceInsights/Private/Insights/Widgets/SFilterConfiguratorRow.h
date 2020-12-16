@@ -10,6 +10,9 @@
 // Insights
 #include "Insights/ViewModels/FilterConfiguratorNode.h"
 
+namespace Insights
+{
+
 /** Widget that represents a table row in the Filter's tree control. Generates widgets for each column on demand. */
 class SFilterConfiguratorRow : public SMultiColumnTableRow<FFilterConfiguratorNodePtr>
 {
@@ -43,7 +46,7 @@ private:
 
 	FText AvailableFilterOperators_GetSelectionText() const;
 
-	TArray<TSharedPtr<struct FFilterGroupOperator>>* GetFilterGroupOperators();
+	const TArray<TSharedPtr<struct FFilterGroupOperator>>* GetFilterGroupOperators();
 
 	TSharedRef<SWidget> FilterGroupOperators_OnGenerateWidget(TSharedPtr<struct FFilterGroupOperator> InFilter);
 
@@ -69,3 +72,5 @@ private:
 
 	TSharedPtr<SComboBox<TSharedPtr<struct FFilterGroupOperator>>> FilterGroupOperatorComboBox;
 };
+
+} // namnespace Insights

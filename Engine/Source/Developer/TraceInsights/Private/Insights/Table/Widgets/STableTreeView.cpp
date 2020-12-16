@@ -29,6 +29,8 @@
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
 #include "Insights/TimingProfilerCommon.h"
+#include "Insights/ViewModels/Filters.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
@@ -118,11 +120,28 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
-					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search"))
-					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
-					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0)
+					.VAlign(VAlign_Center)
+					[
+						SAssignNew(SearchBox, SSearchBox)
+						.HintText(LOCTEXT("SearchBoxHint", "Search"))
+						.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
+						.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
+						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
+					]
+
+					+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("AdvancedFilters", "Advanced Filters"))
+							.ToolTipText(LOCTEXT("AdvancedFilters", "Opens the filter configurator window."))
+							.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
+						]
 				]
 
 				// Group by
@@ -728,7 +747,7 @@ void STableTreeView::ApplyFiltering()
 
 bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 {
-	const bool bIsNodeVisible = Filters->PassesAllFilters(NodePtr);
+	bool bIsNodeVisible = Filters->PassesAllFilters(NodePtr);
 
 	if (NodePtr->IsGroup())
 	{
@@ -768,6 +787,7 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 	}
 	else
 	{
+		bIsNodeVisible &= ApplyAdvancedFilters(NodePtr);
 		return bIsNodeVisible;
 	}
 }
@@ -2279,6 +2299,85 @@ void STableTreeView::CancelCurrentAsyncOp()
 	if (bIsUpdateRunning)
 	{
 		bCancelCurrentAsyncOp = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STableTreeView::OnAdvancedFiltersClicked()
+{
+	if (!FilterConfigurator.IsValid())
+	{
+		FilterConfigurator = MakeShared<FFilterConfigurator>();
+		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+
+		for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
+		{
+			switch (Column->GetDataType())
+			{
+				case ETableCellDataType::Int64:
+				{
+					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+					break;
+				}
+				case ETableCellDataType::Double:
+				{
+					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+					break;
+				}
+			}
+		}
+
+		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommited);
+	}
+
+	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
+
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
+{
+	if (!FilterConfigurator.IsValid())
+	{
+		return true;
+	}
+
+	FFilterContext Context;
+	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
+	{
+		switch (Column->GetDataType())
+		{
+			case ETableCellDataType::Int64:
+			{
+				Context.AddFilterData<int64>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsInt64());
+				break;
+			}
+			case ETableCellDataType::Double:
+			{
+				Context.AddFilterData<double>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsDouble());
+				break;
+			}
+		}
+	}
+
+	return FilterConfigurator->ApplyFilters(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnAdvancedFiltersChangesCommited()
+{
+	if (!bIsUpdateRunning)
+	{
+		OnPreAsyncUpdate();
+		InProgressAsyncOperationEvent = StartApplyFiltersTask();
+	}
+	else
+	{
+		CancelCurrentAsyncOp();
 	}
 }
 

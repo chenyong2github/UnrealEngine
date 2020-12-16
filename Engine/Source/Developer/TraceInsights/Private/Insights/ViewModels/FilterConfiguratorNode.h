@@ -8,6 +8,9 @@
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 #include "Insights/ViewModels/Filters.h"
 
+namespace Insights
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum class EFilterConfiguratorNodeType
@@ -62,8 +65,7 @@ public:
 
 	void SetSelectedFilterOperator(TSharedPtr<class IFilterOperator> InSelectedFilterOperator) { SelectedFilterOperator = InSelectedFilterOperator; }
 	TSharedPtr<IFilterOperator> GetSelectedFilterOperator() const { return SelectedFilterOperator;	}
-
-	TArray<TSharedPtr<struct FFilterGroupOperator>>& GetFilterGroupOperators();
+	const TArray<TSharedPtr<struct FFilterGroupOperator>>& GetFilterGroupOperators();
 
 	void SetSelectedFilterGroupOperator(TSharedPtr<struct FFilterGroupOperator> InSelectedFilterGroupOperator) { SelectedFilterGroupOperator = InSelectedFilterGroupOperator; }
 	TSharedPtr<struct FFilterGroupOperator> GetSelectedFilterGroupOperator() const { return SelectedFilterGroupOperator; }
@@ -97,3 +99,5 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights

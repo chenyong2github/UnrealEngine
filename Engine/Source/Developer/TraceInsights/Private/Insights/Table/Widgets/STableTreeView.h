@@ -304,6 +304,10 @@ protected:
 
 	void CancelCurrentAsyncOp();
 
+	FReply OnAdvancedFiltersClicked();
+	void OnAdvancedFiltersChangesCommited();
+	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -413,6 +417,8 @@ protected:
 	std::atomic<bool> bCancelCurrentAsyncOp { false };
 
 	//////////////////////////////////////////////////
+	TSharedPtr<class FFilterConfigurator> FilterConfigurator;
+	FDelegateHandle OnFilterChangesCommitedHandle;
 
 	double StatsStartTime;
 	double StatsEndTime;

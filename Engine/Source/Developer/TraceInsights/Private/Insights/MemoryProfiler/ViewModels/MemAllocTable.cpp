@@ -104,7 +104,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocEndTime"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(1);
 
 		Column.SetShortName(LOCTEXT("EndTimeColumnName", "End Time"));
 		Column.SetTitleName(LOCTEXT("EndTimeColumnTitle", "End Time"));
@@ -145,7 +145,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocDuration"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(2);
 
 		Column.SetShortName(LOCTEXT("DurationColumnName", "Duration"));
 		Column.SetTitleName(LOCTEXT("DurationColumnTitle", "Duration"));
@@ -186,7 +186,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocAddress"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(3);
 
 		Column.SetShortName(LOCTEXT("AddressColumnName", "Address"));
 		Column.SetTitleName(LOCTEXT("AddressColumnTitle", "Address"));
@@ -227,7 +227,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocSize"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(4);
 
 		Column.SetShortName(LOCTEXT("SizeColumnName", "Size"));
 		Column.SetTitleName(LOCTEXT("SizeColumnTitle", "Size"));
@@ -268,7 +268,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocLlmTag"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(5);
 
 		Column.SetShortName(LOCTEXT("LlmTagColumnName", "LLM Tag"));
 		Column.SetTitleName(LOCTEXT("LlmTagColumnTitle", "LLM Tag"));
@@ -346,7 +346,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocBacktrace"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(6);
 
 		Column.SetShortName(LOCTEXT("BacktraceColumnName", "Backtrace"));
 		Column.SetTitleName(LOCTEXT("BacktraceColumnTitle", "Backtrace"));

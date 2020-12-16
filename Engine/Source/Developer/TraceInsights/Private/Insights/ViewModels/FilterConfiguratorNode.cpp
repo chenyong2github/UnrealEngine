@@ -7,6 +7,9 @@
 
 #define LOCTEXT_NAMESPACE "FilterConfiguratorNode"
 
+namespace Insights
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FName FFilterConfiguratorNode::TypeName(TEXT("FFilterConfiguratorNode"));
@@ -53,7 +56,7 @@ FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfigu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<TSharedPtr<struct FFilterGroupOperator>>& FFilterConfiguratorNode::GetFilterGroupOperators()
+const TArray<TSharedPtr<struct FFilterGroupOperator>>& FFilterConfiguratorNode::GetFilterGroupOperators()
 {
 	return FFilterService::Get()->GetFilterGroupOperators();
 }
@@ -125,7 +128,7 @@ void FFilterConfiguratorNode::ProcessFilter()
 		}
 		case EFilterDataType::Int64:
 		{
-			FilterValue.Set<double>(FCString::Atoi64(*TextBoxValue));
+			FilterValue.Set<int64>(FCString::Atoi64(*TextBoxValue));
 			break;
 		}
 		}
@@ -194,5 +197,7 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

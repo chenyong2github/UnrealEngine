@@ -9,9 +9,12 @@
 
 #define LOCTEXT_NAMESPACE "Filters"
 
+namespace Insights
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum class EFilterField : uint32
+enum class EFilterField : int32
 {
 	StartTime = 0,
 	EndTime = 1,
@@ -102,7 +105,7 @@ struct FFilter
 {
 	typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
 
-	FFilter(EFilterField InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
+	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
 		: Key(InKey)
 		, Name(InName)
 		, Desc(InDesc)
@@ -112,7 +115,7 @@ struct FFilter
 
 	SupportedOperatorsArrayPtr GetSupportedOperators() { return SupportedOperators;	}
 
-	EFilterField Key;
+	int32 Key;
 	FText Name;
 	FText Desc;
 	EFilterDataType DataType;
@@ -126,35 +129,34 @@ class FFilterStorage
 public:
 	FFilterStorage()
 	{
-		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> DoubleOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		DoubleOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
 		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
 		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lte, TEXT("<="), std::less_equal<>())));
 		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
 		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
 		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gte, TEXT(">="), std::greater_equal<>())));
 
-		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> IntegerOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		IntegerOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lte, TEXT("<="), std::less_equal<>())));
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gte, TEXT(">="), std::greater_equal<>())));
 
-		AllAvailableFilters.Add(EFilterField::StartTime, MakeShared<FFilter>(EFilterField::StartTime, LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, DoubleOperators));
-		AllAvailableFilters.Add(EFilterField::EndTime, MakeShared<FFilter>(EFilterField::EndTime, LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, DoubleOperators));
-		AllAvailableFilters.Add(EFilterField::Duration, MakeShared<FFilter>(EFilterField::Duration, LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, DoubleOperators));
-		AllAvailableFilters.Add(EFilterField::EventType, MakeShared<FFilter>(EFilterField::EventType, LOCTEXT("Type", "Type"), LOCTEXT("Type", "Type"), EFilterDataType::Int64, IntegerOperators));
-
 		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::And, LOCTEXT("AllOf", "All Of"), LOCTEXT("AllOfDesc", "All of the children must be true for the group to return true. Equivalent to an AND operation.")));
 		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::Or, LOCTEXT("AnyOf", "Any Of"), LOCTEXT("AnyOfDesc", "Any of the children must be true for the group to return true. Equivalent to an OR operation.")));
 	}
 
-	TSharedPtr<FFilter> GetFilter(EFilterField FilterKey) { return *AllAvailableFilters.Find(FilterKey); }
-	TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterGroupOperators; }
+	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterGroupOperators; }
+
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return DoubleOperators; }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return IntegerOperators; }
 
 private:
-	TMap<EFilterField, TSharedPtr<FFilter>> AllAvailableFilters;
 	TArray<TSharedPtr<FFilterGroupOperator>> FilterGroupOperators;
+
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> DoubleOperators;
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> IntegerOperators;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,8 +173,10 @@ public:
 	void RegisterTabSpawner();
 	TSharedRef<class SDockTab> SpawnTab(const class FSpawnTabArgs& Args);
 
-	TSharedPtr<FFilter> GetFilter(EFilterField FilterKey) { return FilterStorage.GetFilter(FilterKey); }
-	TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterStorage.GetFilterGroupOperators(); }
+	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterStorage.GetFilterGroupOperators(); }
+
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return FilterStorage.GetDoubleOperators(); }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return FilterStorage.GetIntegerOperators(); }
 
 	TSharedPtr<class SWidget> CreateFilterConfiguratorWidget(TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel);
 
@@ -187,14 +191,13 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 class FFilterContext
 {
 public:
 	typedef TVariant<double, int64> ContextData;
 
 	template<typename T>
-	void AddFilterData(EFilterField Key, const T& InData)
+	void AddFilterData(int32 Key, const T& InData)
 	{
 		ContextData VariantData;
 		VariantData.Set<T>(InData);
@@ -202,13 +205,13 @@ public:
 	}
 
 	template<typename T>
-	void SetFilterData(EFilterField Key, const T& InData)
+	void SetFilterData(int32 Key, const T& InData)
 	{
 		DataMap[Key].Set<T>(InData);
 	}
 
 	template<typename T>
-	void GetFilterData(EFilterField Key, T& OutData) const
+	void GetFilterData(int32 Key, T& OutData) const
 	{
 		const ContextData* Data = DataMap.Find(Key);
 		check(Data);
@@ -218,9 +221,11 @@ public:
 	}
 
 private:
-	TMap<EFilterField, ContextData> DataMap;
+	TMap<int32, ContextData> DataMap;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

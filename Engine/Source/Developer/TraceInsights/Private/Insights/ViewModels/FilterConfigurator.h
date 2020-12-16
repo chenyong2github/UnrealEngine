@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfiguratorNode.h"
+
+namespace Insights
+{
  
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -18,14 +21,11 @@ public:
 
 	~FFilterConfigurator();
 
-	void AddFilter(EFilterField FilterKey)
-	{
-		AvailableFilters->Add(FFilterService::Get()->GetFilter(FilterKey));
-	}
-
 	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }
 
 	bool ApplyFilters(const FFilterContext& Context) const;
+
+	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& GetAvailableFilters() { return AvailableFilters; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnDestroyedEvent
@@ -57,3 +57,5 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights

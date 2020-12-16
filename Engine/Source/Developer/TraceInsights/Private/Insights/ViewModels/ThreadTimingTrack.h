@@ -18,6 +18,11 @@ class FCpuTimingTrack;
 class STimingView;
 struct FSlateBrush;
 
+namespace Insights
+{
+	class FFilterConfigurator;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FThreadTimingSharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FThreadTimingSharedState>
@@ -164,7 +169,7 @@ private:
 	uint32 TimelineIndex;
 	uint32 ThreadId;
 
-	TSharedPtr<class FFilterConfigurator> FilterConfigurator;
+	TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator;
 	FDelegateHandle OnFilterChangesCommitedHandle;
 
 	// Search cache
