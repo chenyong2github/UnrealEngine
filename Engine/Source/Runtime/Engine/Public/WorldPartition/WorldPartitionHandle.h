@@ -188,6 +188,11 @@ public:
 		return ActorDesc && ActorDesc->IsValid();
 	}
 
+	FORCEINLINE bool IsLoaded() const
+	{
+		return IsValid() && (*ActorDesc)->GetActor();
+	}
+
 	FORCEINLINE FWorldPartitionActorDesc* Get() const
 	{
 		return IsValid() ? ActorDesc->Get() : nullptr;
