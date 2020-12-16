@@ -460,6 +460,15 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	FRigUnitContext Context;
 	DrawInterface.Reset();
 	Context.DrawInterface = &DrawInterface;
+
+	// draw container contains persistent draw instructions, 
+	// so we cannot call Reset(), which will clear them,
+	// instead, we re-initialize them from the CDO
+	if (UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+	{
+		DrawContainer = CDO->DrawContainer;
+	}
+
 	Context.DrawContainer = &DrawContainer;
 	Context.DataSourceRegistry = GetDataSourceRegistry();
 
