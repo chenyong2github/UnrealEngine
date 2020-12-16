@@ -6314,10 +6314,10 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// abort
 			CancelTravel();			
 		}
-		else if ( LoadedWorld->PersistentLevel == nullptr)
+		else if ( LoadedWorld == nullptr || LoadedWorld->PersistentLevel == nullptr)
 		{
 			// Package isn't a level
-			FString Error = FString::Printf(TEXT("Unable to travel to '%s' - package is not a level"), *LoadedPackage->GetName());
+			FString Error = FString::Printf(TEXT("Unable to travel to '%s' - package is not a level"), LoadedPackage ? *LoadedPackage->GetName() : *LoadedWorld->GetName());
 			UE_LOG(LogWorld, Error, TEXT("%s"), *Error);
 			// abort
 			CancelTravel();
