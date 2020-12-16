@@ -533,16 +533,16 @@ private:
 	/**
 	 * Toggles sprite category visibility in this viewport
 	 *
-	 * @param ShowSpriteCommandIndex	Index of the visibility command that corresponds to a sprite category
+	 * @param CategoryID				Index of the category
 	 */
-	void ToggleSpriteCategory( int32 ShowSpriteCommandIndex );
+	void ToggleSpriteCategory( int32 CategoryID );
 
 	/**
-	 * Checks if a sprite category is visible in this viewport
+	 * Checks if sprite category is visible in this viewport
 	 *
-	 * @param ShowSpriteCommandIndex	Index of the visibility command that corresponds to a sprite category
+	 * @param CategoryID				Index of the category
 	 */
-	bool IsSpriteCategoryVisible( int32 ShowSpriteCommandIndex ) const;
+	bool IsSpriteCategoryVisible( int32 CategoryID ) const;
 
 	/**
 	 * Toggles all Stat commands visibility

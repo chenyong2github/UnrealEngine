@@ -191,12 +191,6 @@ void SLevelViewport::Construct(const FArguments& InArgs, const FAssetEditorViewp
 	StartingSimulateBorder = FEditorStyle::GetBrush( "LevelViewport.StartingSimulateBorder" );
 	ReturningToEditorBorder = FEditorStyle::GetBrush( "LevelViewport.ReturningToEditorBorder" );
 
-	// Register/update viewport commands that are somewhat dynamic (can grow in size) based on loaded assets.
-	// Note: This needs to happen prior to constructing the viewport client and SEditorViewport instances below.
-	FLevelViewportCommands& LevelViewportCommands = FLevelViewportCommands::Get();
-	LevelViewportCommands.RegisterShowSpriteCommands();
-	LevelViewportCommands.RegisterShowVolumeCommands();
-
 	// Default level viewport client values for settings that could appear in layout config ini
 	FLevelEditorViewportInstanceSettings ViewportInstanceSettings;
 	ViewportInstanceSettings.ViewportType = InConstructionArguments.ViewportType;
@@ -1570,7 +1564,8 @@ void SLevelViewport::BindShowCommands( FUICommandList& OutCommandList )
 			LevelViewportCommands.HideAllVolumes,
 			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllVolumeActors, false ) );
 		
-		// Note: This list is somewhat dynamic and is registered/updated at viewport construction time, @see Construct().
+
+		LevelViewportCommands.RegisterShowVolumeCommands();
 		const TArray<FLevelViewportCommands::FShowMenuCommand>& ShowVolumeCommands = LevelViewportCommands.ShowVolumeCommands;
 		for (int32 VolumeCommandIndex = 0; VolumeCommandIndex < ShowVolumeCommands.Num(); ++VolumeCommandIndex)
 		{
@@ -1623,7 +1618,7 @@ void SLevelViewport::BindShowCommands( FUICommandList& OutCommandList )
 			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllSpriteCategories, false ) );
 
 		// Bind each show flag to the same delegate.  We use the delegate payload system to figure out what show flag we are dealing with
-		// Note: This list is somewhat dynamic and is registered/updated at viewport construction time, @see Construct().
+		LevelViewportCommands.RegisterShowSpriteCommands();
 		const TArray<FLevelViewportCommands::FShowMenuCommand>& ShowSpriteCommands = LevelViewportCommands.ShowSpriteCommands;
 		for (int32 SpriteCommandIndex = 0; SpriteCommandIndex < ShowSpriteCommands.Num(); ++SpriteCommandIndex)
 		{
@@ -2201,16 +2196,16 @@ void SLevelViewport::OnToggleAllSpriteCategories( bool bVisible )
 }
 
 /** Called when the user toggles a category from the sprite sub-menu. **/
-void SLevelViewport::ToggleSpriteCategory( int32 ShowSpriteCommandIndex )
+void SLevelViewport::ToggleSpriteCategory( int32 CategoryID )
 {
-	LevelViewportClient->SetSpriteCategoryVisibility( ShowSpriteCommandIndex, !LevelViewportClient->GetSpriteCategoryVisibility( ShowSpriteCommandIndex ) );
+	LevelViewportClient->SetSpriteCategoryVisibility( CategoryID, !LevelViewportClient->GetSpriteCategoryVisibility( CategoryID ) );
 	LevelViewportClient->Invalidate();
 }
 
 /** Called to determine if a category from the sprite sub-menu is visible. **/
-bool SLevelViewport::IsSpriteCategoryVisible( int32 ShowSpriteCommandIndex ) const
+bool SLevelViewport::IsSpriteCategoryVisible( int32 CategoryID ) const
 {
-	return LevelViewportClient->GetSpriteCategoryVisibility( ShowSpriteCommandIndex );
+	return LevelViewportClient->GetSpriteCategoryVisibility( CategoryID );
 }
 
 void SLevelViewport::OnToggleAllStatCommands( bool bVisible )

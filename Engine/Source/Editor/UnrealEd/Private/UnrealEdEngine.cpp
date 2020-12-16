@@ -147,6 +147,18 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 		}
 	}
 
+	// Populate the data structures related to the sprite category visibility feature for use elsewhere in the editor later
+	TArray<FSpriteCategoryInfo> SortedSpriteInfo;
+	UUnrealEdEngine::MakeSortedSpriteInfo(SortedSpriteInfo);
+
+	// Iterate over the sorted list, constructing a mapping of unlocalized categories to the index the localized category
+	// resides in. This is an optimization to prevent having to localize values repeatedly.
+	for( int32 InfoIndex = 0; InfoIndex < SortedSpriteInfo.Num(); ++InfoIndex )
+	{
+		const FSpriteCategoryInfo& SpriteInfo = SortedSpriteInfo[InfoIndex];
+		SpriteIDToIndexMap.Add( SpriteInfo.Category, InfoIndex );
+	}
+
 	if (FPaths::IsProjectFilePathSet() && GIsEditor && !FApp::IsUnattended())
 	{
 		AutoReimportManager = NewObject<UAutoReimportManager>();
@@ -371,7 +383,6 @@ void UUnrealEdEngine::PreExit()
 }
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UUnrealEdEngine::~UUnrealEdEngine()
 {
 	if (this == GUnrealEd)
@@ -379,7 +390,6 @@ UUnrealEdEngine::~UUnrealEdEngine()
 		GUnrealEd = NULL; 
 	}
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 void UUnrealEdEngine::FinishDestroy()
@@ -1041,6 +1051,17 @@ void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 		TArray<class ULevel*> SelectedLevelsList(&LevelToMakeCurrent, 1);
 		LevelToMakeCurrent->GetWorld()->SetSelectedLevels(SelectedLevelsList);
 	}
+}
+
+
+int32 UUnrealEdEngine::GetSpriteCategoryIndex( const FName& InSpriteCategory )
+{
+	// Find the sprite category in the unlocalized to index map, if possible
+	const int32* CategoryIndexPtr = SpriteIDToIndexMap.Find( InSpriteCategory );
+	
+	const int32 CategoryIndex = CategoryIndexPtr ? *CategoryIndexPtr : INDEX_NONE;
+
+	return CategoryIndex;
 }
 
 

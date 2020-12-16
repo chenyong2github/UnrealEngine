@@ -354,11 +354,11 @@ public:
 	/**
 	 * Returns whether the sprite category specified by the provided index is visible in the viewport or not
 	 *
-	 * @param	InShowSpriteCommandIndex	Index of the visibility command that corresponds to a sprite category
+	 * @param	Index	Index of the sprite category to check
 	 *
 	 * @return	true if the category specified by the index is visible in the viewport; false if it is not
 	 */
-	bool GetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex ) const;
+	bool GetSpriteCategoryVisibility( int32 Index ) const;
 
 	/**
 	 * Sets the visibility of the provided unlocalized category to the provided value
@@ -371,10 +371,10 @@ public:
 	/**
 	 * Sets the visibility of the category specified by the provided index to the provided value
 	 *
-	 * @param	InShowSpriteCommandIndex	Index of the visibility command that corresponds to a sprite category
-	 * @param	bVisible					true if the category should be made visible, false if it should be hidden
+	 * @param	Index		Index of the sprite category to set the visibility of
+	 * @param	bVisible	true if the category should be made visible, false if it should be hidden
 	 */
-	void SetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex, bool bVisible );
+	void SetSpriteCategoryVisibility( int32 Index, bool bVisible );
 
 	/**
 	 * Sets the visibility of all sprite categories to the provided value

@@ -278,7 +278,8 @@ void FLevelViewportCommands::RegisterShowVolumeCommands()
 
 void FLevelViewportCommands::RegisterShowSpriteCommands()
 {
-	// Get all the known layers.
+	// get all the known layers
+	// Get a fresh list as GUnrealEd->SortedSpriteInfo may not yet be built.
 	TArray<FSpriteCategoryInfo> SortedSpriteInfo;
 	UUnrealEdEngine::MakeSortedSpriteInfo(SortedSpriteInfo);
 
@@ -300,25 +301,9 @@ void FLevelViewportCommands::RegisterShowSpriteCommands()
 				= FUICommandInfoDecl(this->AsShared(), CommandName, LocalizedName, SpriteInfo.Description)
 				.UserInterfaceType(EUserInterfaceActionType::ToggleButton);
 
-			const int32 ShowSpriteCommandIndex = ShowSpriteCommands.Add(FLevelViewportCommands::FShowMenuCommand(ShowSpriteCommand, SpriteInfo.DisplayName));
-
-			// Map the unlocalized category name to the index of the command in the list.
-			SpriteCategoryToCommandIndexMap.Add(SpriteInfo.Category, ShowSpriteCommandIndex);
+			ShowSpriteCommands.Add(FLevelViewportCommands::FShowMenuCommand(ShowSpriteCommand, SpriteInfo.DisplayName));
 		}
 	}
-
-	// These should both end up being the same size when we're done.
-	check(ShowSpriteCommands.Num() == SpriteCategoryToCommandIndexMap.Num());
-}
-
-int32 FLevelViewportCommands::GetShowCommandIndexForSpriteCategory(const FName& InSpriteCategoryName) const
-{
-	if (const int32* ValuePtr = SpriteCategoryToCommandIndexMap.Find(InSpriteCategoryName))
-	{
-		return *ValuePtr;
-	}
-
-	return INDEX_NONE;
 }
 
 PRAGMA_ENABLE_OPTIMIZATION

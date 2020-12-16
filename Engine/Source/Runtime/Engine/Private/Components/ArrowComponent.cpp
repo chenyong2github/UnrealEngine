@@ -57,9 +57,9 @@ public:
 		bWillEverBeLit = false;
 #if WITH_EDITOR
 		// If in the editor, extract the sprite category from the component
-		if (GIsEditor)
+		if ( GIsEditor )
 		{
-			SpriteCategoryName = Component->SpriteInfo.Category;
+			SpriteCategoryIndex = GEngine->GetSpriteCategoryIndex( Component->SpriteInfo.Category );
 		}
 #endif	//WITH_EDITOR
 
@@ -175,7 +175,7 @@ public:
 #if WITH_EDITOR
 		if (bTreatAsASprite)
 		{
-			if ( GIsEditor && !View->GetSpriteCategoryVisibility(SpriteCategoryName) )
+			if ( GIsEditor && SpriteCategoryIndex != INDEX_NONE && SpriteCategoryIndex < View->SpriteCategoryVisibility.Num() && !View->SpriteCategoryVisibility[ SpriteCategoryIndex ] )
 			{
 				Result.bDrawRelevance = false;
 			}
@@ -209,7 +209,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	bool bLightAttachment;
 	bool bTreatAsASprite;
-	FName SpriteCategoryName;
+	int32 SpriteCategoryIndex;
 	bool bUseInEditorScaling;
 	float EditorScale;
 #endif // #if WITH_EDITORONLY_DATA

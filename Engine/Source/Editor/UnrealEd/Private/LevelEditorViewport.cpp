@@ -1686,13 +1686,6 @@ void FTrackingTransaction::OnEditorSelectionChanged(UObject* NewSelection)
 
 }
 
-static const FLevelViewportCommands& GetLevelViewportCommands()
-{
-	static FName LevelEditorName("LevelEditor");
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
-	return LevelEditor.GetLevelViewportCommands();
-}
-
 
 FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelViewport>& InLevelViewport)
 	: FEditorViewportClient(&GLevelEditorModeTools(), nullptr, StaticCastSharedPtr<SEditorViewport>(InLevelViewport))
@@ -1813,8 +1806,8 @@ void FLevelEditorViewportClient::InitializeVisibilityFlags()
 	UUnrealEdEngine::GetSortedVolumeClasses(&VolumeClasses);
 	VolumeActorVisibility.Init(true, VolumeClasses.Num());
 
-	// Initialize all sprite categories to visible (one per registered "show sprite" command)
-	SpriteCategoryVisibility.Init(true, GetLevelViewportCommands().ShowSpriteCommands.Num());
+	// Initialize all sprite categories to visible
+	SpriteCategoryVisibility.Init(true, GUnrealEd->SpriteIDToIndexMap.Num());
 }
 
 void FLevelEditorViewportClient::InitializeViewportInteraction()
@@ -1882,12 +1875,9 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 	FSceneView* View = FEditorViewportClient::CalcSceneView(ViewFamily, StereoPass);
 
 	View->ViewActor = ActorLocks.GetLock().GetLockedActor();
+	View->SpriteCategoryVisibility = SpriteCategoryVisibility;
 	View->bCameraCut = bEditorCameraCut;
 	View->bHasSelectedComponents = GEditor->GetSelectedComponentCount() > 0;
-	View->GetSpriteCategoryVisibilityOverride().BindLambda([this](const FName& InCategoryName)
-	{
-		return this->GetSpriteCategoryVisibility(InCategoryName);
-	});
 
 #if RHI_RAYTRACING
 	View->SetupRayTracedRendering();
@@ -2713,6 +2703,13 @@ static bool CommandAcceptsInput( FLevelEditorViewportClient& ViewportClient, FKe
 			&& Chord.Key == Key;
 	}
 	return bAccepted;
+}
+
+static const FLevelViewportCommands& GetLevelViewportCommands()
+{
+	static FName LevelEditorName("LevelEditor");
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>( LevelEditorName );
+	return LevelEditor.GetLevelViewportCommands();
 }
 
 void FLevelEditorViewportClient::SetCurrentViewport()
@@ -4680,35 +4677,30 @@ void FLevelEditorViewportClient::OnPreBeginPIE(const bool bIsSimulating)
 
 bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( const FName& InSpriteCategory ) const
 {
-	const int32 ShowSpriteCommandIndex = GetLevelViewportCommands().GetShowCommandIndexForSpriteCategory( InSpriteCategory );
-	if (ShowSpriteCommandIndex != INDEX_NONE)
-	{
-		return GetSpriteCategoryVisibility(ShowSpriteCommandIndex);
-	}
+	const int32 CategoryIndex = GEngine->GetSpriteCategoryIndex( InSpriteCategory );
+	check( CategoryIndex != INDEX_NONE && CategoryIndex < SpriteCategoryVisibility.Num() );
 
-	// If the given category is not registered as a visibility command, default to being visible.
-	return true;
+	return SpriteCategoryVisibility[ CategoryIndex ];
 }
 
-bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex ) const
+bool FLevelEditorViewportClient::GetSpriteCategoryVisibility( int32 Index ) const
 {
-	check( InShowSpriteCommandIndex >= 0 && InShowSpriteCommandIndex < SpriteCategoryVisibility.Num() );
-	return SpriteCategoryVisibility[ InShowSpriteCommandIndex ];
+	check( Index >= 0 && Index < SpriteCategoryVisibility.Num() );
+	return SpriteCategoryVisibility[ Index ];
 }
 
 void FLevelEditorViewportClient::SetSpriteCategoryVisibility( const FName& InSpriteCategory, bool bVisible )
 {
-	const int32 ShowSpriteCommandIndex = GetLevelViewportCommands().GetShowCommandIndexForSpriteCategory( InSpriteCategory );
-	if (ShowSpriteCommandIndex != INDEX_NONE)
-	{
-		SetSpriteCategoryVisibility(ShowSpriteCommandIndex, bVisible);
-	}
+	const int32 CategoryIndex = GEngine->GetSpriteCategoryIndex( InSpriteCategory );
+	check( CategoryIndex != INDEX_NONE && CategoryIndex < SpriteCategoryVisibility.Num() );
+
+	SpriteCategoryVisibility[ CategoryIndex ] = bVisible;
 }
 
-void FLevelEditorViewportClient::SetSpriteCategoryVisibility( int32 InShowSpriteCommandIndex, bool bVisible )
+void FLevelEditorViewportClient::SetSpriteCategoryVisibility( int32 Index, bool bVisible )
 {
-	check( InShowSpriteCommandIndex >= 0 && InShowSpriteCommandIndex < SpriteCategoryVisibility.Num() );
-	SpriteCategoryVisibility[ InShowSpriteCommandIndex ] = bVisible;
+	check( Index >= 0 && Index < SpriteCategoryVisibility.Num() );
+	SpriteCategoryVisibility[ Index ] = bVisible;
 }
 
 void FLevelEditorViewportClient::SetAllSpriteCategoryVisibility( bool bVisible )
