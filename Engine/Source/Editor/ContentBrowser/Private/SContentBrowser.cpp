@@ -326,10 +326,18 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				]
 			]
 		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SSeparator)
+			.Thickness(2.0f)
+		]
+
 		// Assets/tree
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f,2.0f, 0.0f, 0.0f)
+		.Padding(0.0f)
 		[
 			// The tree/assets splitter
 			SAssignNew(PathAssetSplitterPtr, SSplitter)
@@ -339,53 +347,57 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			+ SSplitter::Slot()
 			.Value(0.15f)
 			[
-				SNew(SBorder)
-				.Padding(FMargin(0,0))
-				.BorderImage(FEditorStyle::GetBrush("Brushes.Background"))
-				.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
+				SNew(SBox)
+				.Padding(FMargin(4.f))
 				[
-					// Note: If adding more widgets here, fix ContentBrowserSourcesWidgetSwitcherIndex and the code that uses it!
-					SAssignNew(SourcesWidgetSwitcher, SWidgetSwitcher)
-
-					// Paths View
-					+SWidgetSwitcher::Slot()
+					SNew(SBorder)
+					.Padding(FMargin(0))
+					.BorderImage(FEditorStyle::GetBrush("Brushes.Recessed"))
+					.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
 					[
-						SAssignNew(PathFavoriteSplitterPtr, SSplitter)
-						.Clipping(EWidgetClipping::ClipToBounds)
-						.PhysicalSplitterHandleSize(3.0f)
-						.HitDetectionSplitterHandleSize(3.0f)
-						.Orientation(EOrientation::Orient_Vertical)
-						.MinimumSlotHeight(26.0f)
-						.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
-						+SSplitter::Slot()
-						.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetFavoritesAreaSizeRule))
-						.Value(0.2f)
+						// Note: If adding more widgets here, fix ContentBrowserSourcesWidgetSwitcherIndex and the code that uses it!
+						SAssignNew(SourcesWidgetSwitcher, SWidgetSwitcher)
+
+						// Paths View
+						+SWidgetSwitcher::Slot()
 						[
-							CreateFavoritesView(Config)
-						]
-							
-						+SSplitter::Slot()
-						.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetPathAreaSizeRule))
-						.Value(0.8f)
-						[
-							CreatePathView(Config)
+							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
+							.Clipping(EWidgetClipping::ClipToBounds)
+							.PhysicalSplitterHandleSize(3.0f)
+							.HitDetectionSplitterHandleSize(3.0f)
+							.Orientation(EOrientation::Orient_Vertical)
+							.MinimumSlotHeight(26.0f)
+							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
+							+SSplitter::Slot()
+							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetFavoritesAreaSizeRule))
+							.Value(0.2f)
+							[
+								CreateFavoritesView(Config)
+							]
+								
+							+SSplitter::Slot()
+							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetPathAreaSizeRule))
+							.Value(0.8f)
+							[
+								CreatePathView(Config)
+							]
+
+							+SSplitter::Slot()
+							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetCollectionsAreaSizeRule))
+							.Value(0.4f)
+							[
+								CreateDockedCollectionsView(Config)
+							]
 						]
 
-						+SSplitter::Slot()
-						.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetCollectionsAreaSizeRule))
-						.Value(0.4f)
+						// Collections View
+						+SWidgetSwitcher::Slot()
 						[
-							CreateDockedCollectionsView(Config)
-						]
-					]
-
-					// Collections View
-					+SWidgetSwitcher::Slot()
-					[
-						SNew(SBox)
-						.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
-						[
-							CollectionViewPtr.ToSharedRef()
+							SNew(SBox)
+							.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
+							[
+								CollectionViewPtr.ToSharedRef()
+							]
 						]
 					]
 				]
@@ -717,8 +729,8 @@ TSharedRef<SWidget> SContentBrowser::CreateFavoritesView(const FContentBrowserCo
 {
 	return
 		SAssignNew(FavoritesArea, SExpandableArea)
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
-		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.HeaderPadding(FMargin(5.0f, 3.0f))
 		.Visibility(this, &SContentBrowser::GetFavoriteFolderVisibility)
 		.AllowAnimatedTransition(false)
@@ -748,8 +760,8 @@ TSharedRef<SWidget> SContentBrowser::CreatePathView(const FContentBrowserConfig*
 {	
 	return
 		SAssignNew(PathArea, SExpandableArea)
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
-		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.HeaderPadding(FMargin(5.0f, 3.0f))
 		.AllowAnimatedTransition(false)
 		.HeaderContent()
@@ -791,8 +803,8 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 {
 	return
 		SAssignNew(CollectionArea, SExpandableArea)
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
-		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.HeaderPadding(FMargin(5.0f, 3.0f))
 		.Visibility(this, &SContentBrowser::GetDockedCollectionsVisibility)
 		.AllowAnimatedTransition(false)

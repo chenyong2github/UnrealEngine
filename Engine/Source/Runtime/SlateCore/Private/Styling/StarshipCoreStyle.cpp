@@ -1634,10 +1634,10 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 	const FSlateColor SelectorColor = Style->GetSlateColor("SelectorColor");
 
 	const FTableRowStyle DefaultTableRowStyle = FTableRowStyle()
-		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
 
-		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
 
 		.SetSelectorFocusedBrush(BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), SelectorColor))
@@ -1706,7 +1706,7 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetLastColumnStyle(TableLastColumnHeaderStyle)
 		.SetColumnSplitterStyle(TableHeaderSplitterStyle)
 		.SetSplitterHandleSize(1.0)
-		.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHorizontalSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetHorizontalSeparatorThickness(2.0f)

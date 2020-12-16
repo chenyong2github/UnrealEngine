@@ -160,14 +160,29 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 	VerticalBox->AddSlot()
 	.AutoHeight()
-	.Padding( 8.0f, 4.0f, 4.0f, 2.0f )
+	.Padding( 8.0f, 8.0f, 8.0f, 4.0f )
 	[
 		Toolbar
 	];
 
+	TSharedRef<SVerticalBox> InnerBox = SNew(SVerticalBox);
+
 	VerticalBox->AddSlot()
 	.FillHeight( 1.0f )
+	.Padding(4.0, 4.0)
 	[
+		SNew(SBorder)
+		.BorderImage( FAppStyle::Get().GetBrush("Brushes.Recessed") )
+		.Padding(0.0)
+		[
+			InnerBox
+		]
+	];	
+
+	InnerBox->AddSlot()
+	.FillHeight(1.0)
+	[
+
 		SNew( SOverlay )
 		+SOverlay::Slot()
 		.HAlign( HAlign_Center )
@@ -180,7 +195,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 		+SOverlay::Slot()
 		[
-			SNew(SBorder).BorderImage( FAppStyle::Get().GetBrush("Brushes.Background") )
+			SNew(SBorder).BorderImage( FAppStyle::Get().GetBrush("Brushes.Recessed") )
 		]
 
 		+SOverlay::Slot()
@@ -229,16 +244,14 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	// Bottom panel status bar, if enabled by the mode
 	if (Mode->ShowStatusBar())
 	{
-		VerticalBox->AddSlot()
+		InnerBox->AddSlot()
 		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
-
-			// Asset count
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
+			SNew(SBorder)
+			.BorderImage( FAppStyle::Get().GetBrush("Brushes.Header") )
 			.VAlign(VAlign_Center)
-			.Padding(14, 9)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(14, 9))
 			[
 				SNew( STextBlock )
 				.Text(this, &SSceneOutliner::GetFilterStatusText)
