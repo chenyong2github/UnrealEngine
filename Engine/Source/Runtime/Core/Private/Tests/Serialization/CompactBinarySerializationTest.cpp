@@ -141,7 +141,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 				TestTrue(FString::Printf(TEXT("SaveCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr))))
 			{
 				FMemoryReader ReadAr(WriteAr);
-				FCbFieldRef Field = LoadCompactBinary(ReadAr, [](uint64 Size) { return FSharedBuffer::Alloc(Size); });
+				FCbFieldRef Field = LoadCompactBinary(ReadAr);
 				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetView()));
 			}
 		}
@@ -161,20 +161,20 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 	// Field
 	{
 		const uint8 Payload[] = { uint8(ECbFieldType::IntegerPositive), 42 };
-		TestSave(TEXT("Field"), FCbFieldRef(FCbField(Payload), FSharedBufferConstPtr()), MakeMemoryView(Payload));
+		TestSave(TEXT("Field"), FCbFieldRef(FCbField(Payload), FSharedBuffer()), MakeMemoryView(Payload));
 	}
 	{
 		const uint8 Payload[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'A', 42 };
-		TestSave(TEXT("Field, Name"), FCbFieldRef(FCbField(Payload), FSharedBufferConstPtr()), MakeMemoryView(Payload));
+		TestSave(TEXT("Field, Name"), FCbFieldRef(FCbField(Payload), FSharedBuffer()), MakeMemoryView(Payload));
 	}
 	{
 		const uint8 Payload[] = { 42 };
-		TestSave(TEXT("Field, NoType"), FCbFieldRef(FCbField(Payload, ECbFieldType::IntegerPositive), FSharedBufferConstPtr()),
+		TestSave(TEXT("Field, NoType"), FCbFieldRef(FCbField(Payload, ECbFieldType::IntegerPositive), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::IntegerPositive), 42 }));
 	}
 	{
 		const uint8 Payload[] = { 1, 'I', 42 };
-		TestSave(TEXT("Field, NoType, Name"), FCbFieldRef(FCbField(Payload, ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), FSharedBufferConstPtr()),
+		TestSave(TEXT("Field, NoType, Name"), FCbFieldRef(FCbField(Payload, ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 }));
 	}
 
@@ -182,25 +182,25 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array"), FCbArrayRef(FCbArray(Payload), FSharedBufferConstPtr()),
+		TestSave(TEXT("Array"), FCbArrayRef(FCbArray(Payload), FSharedBuffer()),
 			MakeMemoryView(Payload));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, Name"), FCbArrayRef(FCbArray(Payload), FSharedBufferConstPtr()),
+		TestSave(TEXT("Array, Name"), FCbArrayRef(FCbArray(Payload), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, NoType"), FCbArrayRef(FCbArray(Payload, ECbFieldType::UniformArray), FSharedBufferConstPtr()),
+		TestSave(TEXT("Array, NoType"), FCbArrayRef(FCbArray(Payload, ECbFieldType::UniformArray), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, NoType, Name"), FCbArrayRef(FCbArray(Payload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName), FSharedBufferConstPtr()),
+		TestSave(TEXT("Array, NoType, Name"), FCbArrayRef(FCbArray(Payload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 
@@ -208,25 +208,25 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object"), FCbObjectRef(FCbObject(Payload), FSharedBufferConstPtr()),
+		TestSave(TEXT("Object"), FCbObjectRef(FCbObject(Payload), FSharedBuffer()),
 			MakeMemoryView(Payload));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { uint8(ECbFieldType::UniformObject | ECbFieldType::HasFieldName), 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, Name"), FCbObjectRef(FCbObject(Payload), FSharedBufferConstPtr()),
+		TestSave(TEXT("Object, Name"), FCbObjectRef(FCbObject(Payload), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, NoType"), FCbObjectRef(FCbObject(Payload, ECbFieldType::UniformObject), FSharedBufferConstPtr()),
+		TestSave(TEXT("Object, NoType"), FCbObjectRef(FCbObject(Payload, ECbFieldType::UniformObject), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, NoType, Name"), FCbObjectRef(FCbObject(Payload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName), FSharedBufferConstPtr()),
+		TestSave(TEXT("Object, NoType, Name"), FCbObjectRef(FCbObject(Payload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 

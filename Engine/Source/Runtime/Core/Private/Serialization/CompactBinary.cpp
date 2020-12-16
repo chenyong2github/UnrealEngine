@@ -792,39 +792,24 @@ template class TCbFieldIterator<FCbFieldRef>;
 
 FCbFieldRefIterator FCbFieldRefIterator::CloneRange(const FCbFieldIterator& It)
 {
-	FSharedBufferPtr Buffer;
 	FMemoryView View;
 	if (It.TryGetSerializedRangeView(View))
 	{
-		Buffer = FSharedBuffer::Clone(View);
+		return MakeRange(FSharedBuffer::Clone(View));
 	}
 	else
 	{
-		Buffer = FSharedBuffer::Alloc(It.GetRangeSize());
-		It.CopyRangeTo(*Buffer);
+		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(It.GetRangeSize());
+		It.CopyRangeTo(Buffer);
+		return MakeRange(FSharedBuffer(MoveTemp(Buffer)));
 	}
-	return MakeRange(MoveTemp(Buffer));
 }
 
-FSharedBufferConstPtr FCbFieldRefIterator::GetRangeBuffer() const
+FSharedBuffer FCbFieldRefIterator::GetRangeBuffer() const
 {
 	const FMemoryView RangeView = GetRangeView();
-	const FSharedBufferConstPtr& OuterBuffer = GetOuterBuffer();
-	if (OuterBuffer)
-	{
-		if (OuterBuffer->GetView() == RangeView)
-		{
-			return OuterBuffer;
-		}
-		else
-		{
-			return FSharedBuffer::MakeView(RangeView, *OuterBuffer);
-		}
-	}
-	else
-	{
-		return FSharedBuffer::MakeView(RangeView);
-	}
+	const FSharedBuffer& OuterBuffer = GetOuterBuffer();
+	return OuterBuffer.GetView() == RangeView ? OuterBuffer : FSharedBuffer::MakeView(RangeView, OuterBuffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -22,7 +22,7 @@ FVirtualizationManager::FVirtualizationManager()
 	LoadSettingsFromConfigFiles();
 }
 
-bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, const FGuid& Guid)
+bool FVirtualizationManager::PushData(const FSharedBuffer& Payload, const FGuid& Guid)
 {
 	checkf(Guid.IsValid(), TEXT("VirtualizationManager::PushData called with an invalid guid (%s)."), *Guid.ToString());
 
@@ -33,13 +33,13 @@ bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, cons
 	}
 
 	// Early out if we have no payload
-	if (!Payload.IsValid() || Payload->GetSize() == 0)
+	if (Payload.GetSize() == 0)
 	{
 		return false;
 	}
 
 	// Early out if the payload length is below our minimum required length
-	if ((int64)Payload->GetSize() < MinPayloadLength)
+	if ((int64)Payload.GetSize() < MinPayloadLength)
 	{
 		return false;
 	}
@@ -52,9 +52,9 @@ bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, cons
 		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*FilePath));
 		check(FileAr);
 
-		uint64 PayloadLength = Payload->GetSize();
+		uint64 PayloadLength = Payload.GetSize();
 		// Cast away the const because FArchive requires a non-const pointer even if we are only reading from it (saving)
-		void* PayloadPtr = const_cast<void*>(Payload->GetData());
+		void* PayloadPtr = const_cast<void*>(Payload.GetData());
 
 		*FileAr << PayloadLength;
 		FileAr->Serialize(PayloadPtr, PayloadLength);
@@ -63,7 +63,7 @@ bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, cons
 	return true;
 }
 
-FSharedBufferConstPtr FVirtualizationManager::PullData(const FGuid& Guid)
+FSharedBuffer FVirtualizationManager::PullData(const FGuid& Guid)
 {
 	checkf(Guid.IsValid(), TEXT("VirtualizationManager::PullData called with an invalid guid (%s)."), *Guid.ToString());
 
@@ -78,10 +78,9 @@ FSharedBufferConstPtr FVirtualizationManager::PullData(const FGuid& Guid)
 	int64 DataLength = 0;
 	*FileAr << DataLength;
 
-	uint8* DataPtr = (uint8*)FMemory::Malloc(DataLength, DEFAULT_ALIGNMENT);
-	FileAr->Serialize(DataPtr, DataLength);
-
-	return FSharedBuffer::TakeOwnership(DataPtr, DataLength, FMemory::Free);
+	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(DataLength);
+	FileAr->Serialize(Buffer.GetData(), DataLength);
+	return FSharedBuffer(MoveTemp(Buffer));
 }
 
 void FVirtualizationManager::LoadSettingsFromConfigFiles()

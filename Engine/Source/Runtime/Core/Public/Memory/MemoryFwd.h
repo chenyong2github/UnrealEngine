@@ -15,9 +15,6 @@ using FMutableMemoryView = TMemoryView<void>;
 
 // SharedBuffer
 
-class FSharedBufferRef;
-class FSharedBufferConstRef;
-class FSharedBufferPtr;
-class FSharedBufferConstPtr;
-class FSharedBufferWeakPtr;
-class FSharedBufferConstWeakPtr;
+class FUniqueBuffer;
+class FSharedBuffer;
+class FWeakSharedBuffer;

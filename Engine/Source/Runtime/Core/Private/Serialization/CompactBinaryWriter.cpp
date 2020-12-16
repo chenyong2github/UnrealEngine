@@ -87,9 +87,9 @@ void FCbWriter::Reset()
 FCbFieldRefIterator FCbWriter::Save() const
 {
 	const uint64 Size = GetSaveSize();
-	FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
-	const FCbFieldIterator Output = Save(Buffer->GetView());
-	return FCbFieldRefIterator::MakeRangeView(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
+	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Size);
+	const FCbFieldIterator Output = Save(Buffer);
+	return FCbFieldRefIterator::MakeRangeView(Output, FSharedBuffer(MoveTemp(Buffer)));
 }
 
 FCbFieldIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
@@ -367,12 +367,9 @@ void FCbWriter::Binary(const void* const Value, const uint64 Size)
 	EndField(ECbFieldType::Binary);
 }
 
-void FCbWriter::Binary(const FSharedBufferConstPtr& Buffer)
+void FCbWriter::Binary(const FSharedBuffer& Buffer)
 {
-	if (Buffer)
-	{
-		Binary(Buffer->GetData(), Buffer->GetSize());
-	}
+	Binary(Buffer.GetData(), Buffer.GetSize());
 }
 
 void FCbWriter::String(const FAnsiStringView Value)

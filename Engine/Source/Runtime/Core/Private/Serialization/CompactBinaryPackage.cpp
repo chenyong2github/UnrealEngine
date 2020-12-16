@@ -39,24 +39,25 @@ FCbAttachment::FCbAttachment(FCbFieldRefIterator InValue, const FBlake3Hash* con
 	}
 }
 
-FCbAttachment::FCbAttachment(FSharedBufferConstPtr InBuffer, const FBlake3Hash* const InHash)
-	: Buffer(FSharedBuffer::MakeReadOnly(MoveTemp(InBuffer)))
+FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FBlake3Hash* const InHash)
+	: Buffer(MoveTemp(InBuffer))
 {
+	Buffer.MakeOwned();
 	if (InHash)
 	{
 		Hash = *InHash;
-		if (Buffer && Buffer->GetSize())
+		if (Buffer.GetSize())
 		{
-			checkSlow(Hash == FBlake3::HashBuffer(*Buffer));
+			checkSlow(Hash == FBlake3::HashBuffer(Buffer));
 		}
 		else
 		{
 			checkfSlow(Hash == FBlake3Hash(), TEXT("A null or empty buffer must use a hash of zero."));
 		}
 	}
-	else if (Buffer && Buffer->GetSize())
+	else if (Buffer.GetSize())
 	{
-		Hash = FBlake3::HashBuffer(*Buffer);
+		Hash = FBlake3::HashBuffer(Buffer);
 	}
 	else
 	{
@@ -64,7 +65,7 @@ FCbAttachment::FCbAttachment(FSharedBufferConstPtr InBuffer, const FBlake3Hash* 
 	}
 }
 
-FSharedBufferConstPtr FCbAttachment::AsBinary() const
+FSharedBuffer FCbAttachment::AsBinary() const
 {
 	if (!CompactBinary)
 	{
@@ -74,7 +75,7 @@ FSharedBufferConstPtr FCbAttachment::AsBinary() const
 	FMemoryView SerializedView;
 	if (CompactBinary.TryGetSerializedRangeView(SerializedView))
 	{
-		return SerializedView == Buffer->GetView() ? Buffer : FSharedBuffer::MakeView(SerializedView, *Buffer);
+		return SerializedView == Buffer.GetView() ? Buffer : FSharedBuffer::MakeView(SerializedView, Buffer);
 	}
 
 	return FCbFieldRefIterator::CloneRange(CompactBinary).GetRangeBuffer();
@@ -91,27 +92,21 @@ void FCbAttachment::Load(FCbFieldRefIterator& Fields)
 	const FMemoryView View = Fields.AsBinary();
 	if (View.GetSize() > 0)
 	{
-		if (FSharedBufferConstPtr OuterBuffer = Fields.GetOuterBuffer())
-		{
-			Buffer = FSharedBuffer::MakeReadOnly(FSharedBuffer::MakeView(View, *OuterBuffer));
-		}
-		else
-		{
-			Buffer = FSharedBuffer::MakeReadOnly(FSharedBuffer::Clone(View));
-		}
+		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer());
+		Buffer.MakeOwned();
 		++Fields;
 		Hash = Fields.AsAnyReference();
 		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 		if (Fields.IsReference())
 		{
-			CompactBinary = FCbFieldIterator::MakeRange(*Buffer);
+			CompactBinary = FCbFieldIterator::MakeRange(Buffer);
 		}
 		++Fields;
 	}
 	else
 	{
 		++Fields;
-		Buffer = FSharedBufferConstPtr();
+		Buffer = FSharedBuffer();
 		CompactBinary = FCbFieldIterator();
 		Hash = FBlake3Hash();
 	}
@@ -124,25 +119,27 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 	const FMemoryView View = BufferField.AsBinary();
 	if (View.GetSize() > 0)
 	{
-		Buffer = FSharedBuffer::MakeReadOnly(FSharedBuffer::MakeView(View, *BufferField.GetOuterBuffer()));
+		Buffer = FSharedBuffer::MakeView(View, BufferField.GetOuterBuffer());
+		Buffer.MakeOwned();
 		CompactBinary = FCbFieldIterator();
 
 		TArray<uint8, TInlineAllocator<64>> HashBuffer;
-		FCbFieldRef HashField = LoadCompactBinary(Ar, [&HashBuffer](uint64 Size)
+		FCbFieldRef HashField = LoadCompactBinary(Ar,
+			[&HashBuffer](uint64 Size) -> FUniqueBuffer
 			{
 				HashBuffer.SetNumUninitialized(int32(Size));
-				return FSharedBuffer::MakeView(HashBuffer.GetData(), Size);
+				return FUniqueBuffer::MakeView(HashBuffer.GetData(), Size);
 			});
 		Hash = HashField.AsAnyReference();
 		checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 		if (HashField.IsReference())
 		{
-			CompactBinary = FCbFieldIterator::MakeRange(*Buffer);
+			CompactBinary = FCbFieldIterator::MakeRange(Buffer);
 		}
 	}
 	else
 	{
-		Buffer = FSharedBufferConstPtr();
+		Buffer = FSharedBuffer();
 		CompactBinary = FCbFieldIterator();
 		Hash = FBlake3Hash();
 	}
@@ -163,7 +160,7 @@ void FCbAttachment::Save(FCbWriter& Writer) const
 		}
 		Writer.Reference(Hash);
 	}
-	else if (Buffer && Buffer->GetSize())
+	else if (Buffer.GetSize())
 	{
 		Writer.Binary(Buffer);
 		Writer.BinaryReference(Hash);
@@ -262,7 +259,7 @@ void FCbPackage::GatherAttachments(const FCbFieldIterator& Fields, FAttachmentRe
 	Fields.IterateRangeReferences([this, &Resolver](FCbField Field)
 		{
 			const FBlake3Hash& Hash = Field.AsAnyReference();
-			if (FSharedBufferConstPtr Buffer = Resolver(Hash))
+			if (FSharedBuffer Buffer = Resolver(Hash))
 			{
 				if (Field.IsReference())
 				{
@@ -315,9 +312,9 @@ void FCbPackage::Load(FCbFieldRefIterator& Fields)
 void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 {
 	uint8 StackBuffer[64];
-	const auto StackAllocator = [&Allocator, &StackBuffer](uint64 Size)
+	const auto StackAllocator = [&Allocator, &StackBuffer](uint64 Size) -> FUniqueBuffer
 	{
-		return Size <= sizeof(StackBuffer) ? FSharedBuffer::MakeView(StackBuffer, Size) : Allocator(Size);
+		return Size <= sizeof(StackBuffer) ? FUniqueBuffer::MakeView(StackBuffer, Size) : Allocator(Size);
 	};
 
 	*this = FCbPackage();
@@ -333,7 +330,8 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			const FMemoryView View = ValueField.AsBinary();
 			if (View.GetSize() > 0)
 			{
-				FSharedBufferConstPtr Buffer = FSharedBuffer::MakeReadOnly(FSharedBuffer::MakeView(View, *ValueField.GetOuterBuffer()));
+				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer());
+				Buffer.MakeOwned();
 				FCbFieldRef HashField = LoadCompactBinary(Ar, StackAllocator);
 				const FBlake3Hash& Hash = HashField.AsAnyReference();
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));

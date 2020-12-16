@@ -35,10 +35,10 @@ public:
 	~FVirtualizationManager() = default;
 
 	/** Push a payload to the backends*/
-	bool PushData(const FSharedBufferConstPtr& Payload, const FGuid& Guid);
+	bool PushData(const FSharedBuffer& Payload, const FGuid& Guid);
 
 	/** Pull a payload from the backends*/
-	FSharedBufferConstPtr PullData(const FGuid& Guid);
+	FSharedBuffer PullData(const FGuid& Guid);
 
 private:
 

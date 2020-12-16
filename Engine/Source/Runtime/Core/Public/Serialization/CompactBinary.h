@@ -38,7 +38,7 @@
  *
  * void BeginBuild(FCbObjectRef Params)
  * {
- *     if (FSharedBufferConstPtr Data = Storage().Load(Params["Data"].AsBinaryReference()))
+ *     if (FSharedBuffer Data = Storage().Load(Params["Data"].AsBinaryReference()))
  *     {
  *         SetData(Data);
  *     }
@@ -900,7 +900,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** A reference to a function that is used to allocate buffers for compact binary data. */
-using FCbBufferAllocator = TFunctionRef<FSharedBufferPtr (uint64 Size)>;
+using FCbBufferAllocator = TFunctionRef<FUniqueBuffer (uint64 Size)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -918,23 +918,23 @@ public:
 	 * @param ValueBuffer A buffer that exactly contains the value.
 	 * @param Type HasFieldType means that ValueBuffer contains the type. Otherwise, use the given type.
 	 */
-	inline explicit TCbBufferRef(FSharedBufferConstPtr ValueBuffer, ECbFieldType Type = ECbFieldType::HasFieldType)
+	inline explicit TCbBufferRef(FSharedBuffer ValueBuffer, ECbFieldType Type = ECbFieldType::HasFieldType)
 	{
 		if (ValueBuffer)
 		{
-			BaseType::operator=(BaseType(ValueBuffer->GetData(), Type));
-			check(ValueBuffer->GetView().Contains(BaseType::GetView()));
+			BaseType::operator=(BaseType(ValueBuffer.GetData(), Type));
+			check(ValueBuffer.GetView().Contains(BaseType::GetView()));
 			Buffer = MoveTemp(ValueBuffer);
 		}
 	}
 
 	/** Construct a value that holds a reference to the buffer that contains it. */
-	inline TCbBufferRef(const BaseType& Value, FSharedBufferConstPtr OuterBuffer)
+	inline TCbBufferRef(const BaseType& Value, FSharedBuffer OuterBuffer)
 		: BaseType(Value)
 	{
 		if (OuterBuffer)
 		{
-			check(OuterBuffer->GetView().Contains(BaseType::GetView()));
+			check(OuterBuffer.GetView().Contains(BaseType::GetView()));
 			Buffer = MoveTemp(OuterBuffer);
 		}
 	}
@@ -947,66 +947,37 @@ public:
 	}
 
 	/** Whether this reference has ownership of the memory in its buffer. */
-	inline bool IsOwned() const { return Buffer && Buffer->IsOwned(); }
+	inline bool IsOwned() const { return Buffer.IsOwned(); }
 
 	/** Clone the value, if necessary, to a buffer that this reference has ownership of. */
 	inline void MakeOwned()
 	{
 		if (!IsOwned())
 		{
-			FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(BaseType::GetSize());
-			BaseType::CopyTo(*MutableBuffer);
-			BaseType::operator=(BaseType(MutableBuffer->GetData()));
-			Buffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
-		}
-	}
-
-	/** Whether this reference is backed by a read-only buffer. */
-	inline bool IsReadOnly() const { return Buffer && Buffer->IsReadOnly(); }
-
-	/** Clone the value, if necessary, to a read-only buffer. */
-	inline void MakeReadOnly()
-	{
-		if (!IsReadOnly())
-		{
-			FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(BaseType::GetSize());
-			BaseType::CopyTo(*MutableBuffer);
-			BaseType::operator=(BaseType(MutableBuffer->GetData()));
-			Buffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
+			FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(BaseType::GetSize());
+			BaseType::CopyTo(MutableBuffer);
+			BaseType::operator=(BaseType(MutableBuffer.GetData()));
+			Buffer = MoveTemp(MutableBuffer);
 		}
 	}
 
 	/** Returns a buffer that exactly contains this value. */
-	inline FSharedBufferConstPtr GetBuffer() const
+	inline FSharedBuffer GetBuffer() const
 	{
 		const FMemoryView View = BaseType::GetView();
-		const FSharedBufferConstPtr& OuterBuffer = GetOuterBuffer();
-		if (OuterBuffer)
-		{
-			if (OuterBuffer->GetView() == View)
-			{
-				return OuterBuffer;
-			}
-			else
-			{
-				return FSharedBuffer::MakeView(View, *OuterBuffer);
-			}
-		}
-		else
-		{
-			return FSharedBuffer::MakeView(View);
-		}
+		const FSharedBuffer& OuterBuffer = GetOuterBuffer();
+		return View == OuterBuffer.GetView() ? OuterBuffer : FSharedBuffer::MakeView(View, OuterBuffer);
 	}
 
 	/** Returns the outer buffer (if any) that contains this value. */
-	inline const FSharedBufferConstPtr& GetOuterBuffer() const & { return Buffer; }
-	inline FSharedBufferConstPtr GetOuterBuffer() && { return MoveTemp(Buffer); }
+	inline const FSharedBuffer& GetOuterBuffer() const & { return Buffer; }
+	inline FSharedBuffer GetOuterBuffer() && { return MoveTemp(Buffer); }
 
 private:
 	template <typename OtherType>
 	friend class TCbBufferRef;
 
-	FSharedBufferConstPtr Buffer;
+	FSharedBuffer Buffer;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1036,13 +1007,13 @@ public:
 	}
 
 	/** Construct a value from a read-only view of its memory and its optional outer buffer. */
-	static inline RefType MakeView(const void* const Data, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
+	static inline RefType MakeView(const void* const Data, FSharedBuffer OuterBuffer = FSharedBuffer())
 	{
 		return MakeView(BaseType(Data), MoveTemp(OuterBuffer));
 	}
 
 	/** Construct a value from a read-only view of its memory and its optional outer buffer. */
-	static inline RefType MakeView(const BaseType& Value, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
+	static inline RefType MakeView(const BaseType& Value, FSharedBuffer OuterBuffer = FSharedBuffer())
 	{
 		return RefType(Value, MoveTemp(OuterBuffer));
 	}
@@ -1107,18 +1078,18 @@ public:
 	 * @param Buffer A buffer containing zero or more valid fields.
 	 * @param Type HasFieldType means that Buffer contains the type. Otherwise, use the given type.
 	 */
-	static inline FCbFieldRefIterator MakeRange(FSharedBufferConstPtr Buffer, ECbFieldType Type = ECbFieldType::HasFieldType)
+	static inline FCbFieldRefIterator MakeRange(FSharedBuffer Buffer, ECbFieldType Type = ECbFieldType::HasFieldType)
 	{
-		if (Buffer && Buffer->GetSize())
+		if (Buffer.GetSize())
 		{
-			const void* const DataEnd = Buffer->GetView().GetDataEnd();
+			const void* const DataEnd = Buffer.GetView().GetDataEnd();
 			return FCbFieldRefIterator(FCbFieldRef(MoveTemp(Buffer), Type), DataEnd);
 		}
 		return FCbFieldRefIterator();
 	}
 
 	/** Construct a field range from an iterator and its optional outer buffer. */
-	static inline FCbFieldRefIterator MakeRangeView(const FCbFieldIterator& It, FSharedBufferConstPtr OuterBuffer = FSharedBufferConstPtr())
+	static inline FCbFieldRefIterator MakeRangeView(const FCbFieldIterator& It, FSharedBuffer OuterBuffer = FSharedBuffer())
 	{
 		return FCbFieldRefIterator(FCbFieldRef(It, MoveTemp(OuterBuffer)), GetFieldsEnd(It));
 	}
@@ -1136,7 +1107,7 @@ public:
 	}
 
 	/** Returns a buffer that exactly contains the field range. */
-	CORE_API FSharedBufferConstPtr GetRangeBuffer() const;
+	CORE_API FSharedBuffer GetRangeBuffer() const;
 
 private:
 	using TCbFieldIterator::TCbFieldIterator;

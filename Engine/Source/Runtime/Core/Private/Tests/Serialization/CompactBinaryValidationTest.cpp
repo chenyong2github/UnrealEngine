@@ -287,6 +287,9 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 		return ValidateCompactBinaryAttachment(MakeMemoryView(Data), Mode);
 	};
 
+	const uint8 BinaryValue[] = { 0, 1, 2, 3 };
+	const FMemoryView BinaryView = MakeMemoryView(BinaryValue);
+
 	// Test Null
 	{
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(Null)"), Validate({uint8(ECbFieldType::Binary), 0}), ECbValidateError::None);
@@ -348,8 +351,8 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		FCbWriter Writer;
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
-		Writer.Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
+		Writer.Binary(BinaryView);
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(HashBeforeValue)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat | ECbValidateError::Padding);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(HashBeforeValue, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::Padding);
@@ -357,8 +360,8 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		FCbWriter Writer;
-		Writer.Name("Name"_ASV).Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
+		Writer.Name("Name"_ASV).Binary(BinaryView);
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnValue)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnValue, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::None);
@@ -366,8 +369,8 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		FCbWriter Writer;
-		Writer.Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Name("Name"_ASV).Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
+		Writer.Binary(BinaryView);
+		Writer.Name("Name"_ASV).Reference(FBlake3::HashBuffer(BinaryView));
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnHash)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnHash, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::None);
@@ -381,6 +384,9 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbValidatePackageTest, "System.Core.Serialization.ValidateCompactBinaryPackage", CompactBinaryValidationTestFlags)
 bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 {
+	const uint8 BinaryValue[] = { 0, 1, 2, 3 };
+	const FMemoryView BinaryView = MakeMemoryView(BinaryValue);
+
 	// Test Null
 	{
 		TestEqual(TEXT("ValidateCompactBinaryPackage(Null)"), ValidateCompactBinaryPackage(MakeMemoryView<uint8>({uint8(ECbFieldType::Null)}), ECbValidateMode::All), ECbValidateError::None);
@@ -425,8 +431,8 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 		Writer.EndObject();
 		Writer.Reference(Writer.Save().GetHash());
 		const uint64 AttachmentOffset = Writer.GetSaveSize();
-		Writer.Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
+		Writer.Binary(BinaryView);
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
 		Writer.Null();
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryPackage(Object+Attachment)"), ValidateCompactBinaryPackage(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None);
@@ -486,8 +492,8 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 		Writer << "Field" << 42;
 		Writer.EndObject();
 		Writer.Reference(Writer.Save().GetHash());
-		Writer.Name("Name"_ASV).Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
+		Writer.Name("Name"_ASV).Binary(BinaryView);
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
 		Writer.Null();
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryPackage(NameOnAttachment)"), ValidateCompactBinaryPackage(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
@@ -513,10 +519,10 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		TCbWriter<256> Writer;
-		Writer.Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
-		Writer.Binary(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		Writer.Reference(FBlake3::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3})));
+		Writer.Binary(BinaryView);
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
+		Writer.Binary(BinaryView);
+		Writer.Reference(FBlake3::HashBuffer(BinaryView));
 		Writer.Null();
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryPackage(DuplicateAttachments)"), ValidateCompactBinaryPackage(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::DuplicateAttachments);

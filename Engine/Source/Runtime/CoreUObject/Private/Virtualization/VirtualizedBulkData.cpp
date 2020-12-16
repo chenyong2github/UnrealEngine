@@ -93,7 +93,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 			if (!bIsVirtualized)
 			{
 				// Need to load the payload so that we can write it out
-				FSharedBufferConstPtr PayloadToSerialize = GetDataInternal();
+				FSharedBuffer PayloadToSerialize = GetDataInternal();
 
 				// Need to update the flag before it is written out
 				bIsDataStoredAsCompressed = !bIsVirtualized && bShouldCompressData;
@@ -183,10 +183,10 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FVirtualizedUntypedBulkData::CalculateKey()
 {
-	if (Payload.IsValid())
+	if (Payload)
 	{
 		uint32 Hash[5] = {};
-		FSHA1::HashBuffer(Payload->GetData(), GetBulkDataSize(), (uint8*)Hash);
+		FSHA1::HashBuffer(Payload.GetData(), GetBulkDataSize(), (uint8*)Hash);
 
 		Key = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 	}
@@ -196,11 +196,11 @@ void FVirtualizedUntypedBulkData::CalculateKey()
 	}
 }
 
-FSharedBufferConstPtr FVirtualizedUntypedBulkData::LoadFromDisk() const
+FSharedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromDisk);
 
-	FSharedBufferConstPtr PayloadFromDisk;
+	FSharedBuffer PayloadFromDisk;
 
 	// Open a reader to the file
 	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
@@ -221,20 +221,25 @@ FSharedBufferConstPtr FVirtualizedUntypedBulkData::LoadFromDisk() const
 	return PayloadFromDisk;
 }
 
-bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBufferConstPtr& InPayload) const
+bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBuffer& InPayload) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::SerializeData);
 
-	const int64 PayloadSize = Ar.IsSaving() ? InPayload->GetSize() : GetBulkDataSize();
+	const int64 PayloadSize = Ar.IsSaving() ? InPayload.GetSize() : GetBulkDataSize();
 
 	if (PayloadSize > 0)
 	{
+		FUniqueBuffer LoadPayload;
+
+		if (Ar.IsLoading())
+		{
+			LoadPayload = FUniqueBuffer::Alloc(PayloadSize);
+		}
+
 		// Our serialization methods require a non-const pointer even when we are only reading from it
 		// as the methods themselves are bi-directional. This means if we are saving we need to cast 
 		// away the const qualifier.
-		void* DataPtr = Ar.IsLoading() ?
-						FMemory::Malloc(PayloadSize, DEFAULT_ALIGNMENT) :
-						const_cast<void*>(InPayload->GetData());
+		void* DataPtr = Ar.IsLoading() ? LoadPayload.GetData() : const_cast<void*>(InPayload.GetData());
 
 		checkf(DataPtr != nullptr, TEXT("Attempting to serialize to/from an invalid shared buffer!"));
 
@@ -249,7 +254,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBufferConst
 
 		if (Ar.IsLoading())
 		{
-			InPayload = FSharedBuffer::TakeOwnership(DataPtr, PayloadSize, FMemory::Free);
+			InPayload = FSharedBuffer(MoveTemp(LoadPayload));
 		}
 
 		return true;
@@ -268,7 +273,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBufferConst
 
 void FVirtualizedUntypedBulkData::PushData()
 {
-	checkf(bIsVirtualized == false || Payload.IsValid() == false, TEXT("Cannot have a valid payload in memory if the payload is virtualized!")); // Sanity check
+	checkf(bIsVirtualized == false || Payload.IsNull(), TEXT("Cannot have a valid payload in memory if the payload is virtualized!")); // Sanity check
 
 	// We only need to push if the payload is not currently virtualized (either we have an updated
 	// payload in memory or the payload is currently non-virtualized and stored on disk)
@@ -280,7 +285,7 @@ void FVirtualizedUntypedBulkData::PushData()
 		// a non-virtualized payload to a virtualized one. If the bulkdata is merely being
 		// edited then we should have the payload in memory already and are just accessing a
 		// reference to it.
-		FSharedBufferConstPtr PayloadToPush = GetDataInternal();
+		FSharedBuffer PayloadToPush = GetDataInternal();
 
 		if (FVirtualizationManager::Get().PushData(PayloadToPush, Key))
 		{
@@ -289,18 +294,18 @@ void FVirtualizedUntypedBulkData::PushData()
 	}	
 }
 
-FSharedBufferConstPtr FVirtualizedUntypedBulkData::PullData() const
+FSharedBuffer FVirtualizedUntypedBulkData::PullData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::PullData);
 
-	FSharedBufferConstPtr PulledPayload = FVirtualizationManager::Get().PullData(Key);
+	FSharedBuffer PulledPayload = FVirtualizationManager::Get().PullData(Key);
 
-	if (PulledPayload.IsValid())
+	if (PulledPayload)
 	{
-		checkf(	PayloadLength == PulledPayload->GetSize(),	
-				TEXT("Mismatch between serialized length (%d) and virtualized data length (%d)"), 
+		checkf(	PayloadLength == PulledPayload.GetSize(),
+				TEXT("Mismatch between serialized length (%" INT64_FMT ") and virtualized data length (%" UINT64_FMT ")"),
 				PayloadLength,
-				PulledPayload->GetSize());
+				PulledPayload.GetSize());
 	}
 	else
 	{
@@ -352,44 +357,44 @@ void FVirtualizedUntypedBulkData::UnloadData()
 	Payload.Reset();
 }
 
-FSharedBufferConstPtr FVirtualizedUntypedBulkData::GetDataInternal() const
+FSharedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::GetDataInternal);
 
 	// Early out there isn't any data to actually load
 	if (GetBulkDataSize() == 0)
 	{
-		return FSharedBufferConstPtr();
+		return FSharedBuffer();
 	}
 
 	// Check if we already have the data in memory
-	if (Payload.IsValid())
+	if (Payload)
 	{
 		return Payload;
 	}
 
 	if (bIsVirtualized)
 	{
-		FSharedBufferConstPtr Buffer = PullData();
-		check(!Payload.IsValid()); //Make sure that we did not assign the buffer internally
+		FSharedBuffer Buffer = PullData();
+		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
 		return Buffer;
 	}
 	else
 	{
-		FSharedBufferConstPtr Buffer = LoadFromDisk();
-		check(!Payload.IsValid()); //Make sure that we did not assign the buffer internally
+		FSharedBuffer Buffer = LoadFromDisk();
+		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
 		return Buffer;
 	}
 }
 
-TFuture<FSharedBufferConstPtr> FVirtualizedUntypedBulkData::GetData() const
+TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetData() const
 {
-	TPromise<FSharedBufferConstPtr> Promise;
+	TPromise<FSharedBuffer> Promise;
 
-	FSharedBufferConstPtr SharedBuffer = GetDataInternal();
+	FSharedBuffer SharedBuffer = GetDataInternal();
 
 	// TODO: Not actually async yet!
-	Promise.SetValue(SharedBuffer);
+	Promise.SetValue(MoveTemp(SharedBuffer));
 
 	return Promise.GetFuture();
 }
@@ -399,15 +404,16 @@ void FVirtualizedUntypedBulkData::GetData(OnDataReadyCallback&& Callback) const
 	Callback(GetDataInternal());
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayload(const FSharedBufferConstRef& InPayload)
+void FVirtualizedUntypedBulkData::UpdatePayload(const FSharedBuffer& InPayload)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayload);
 
 	UnloadData();
 
 	// Make sure that we own the memory in the shared buffer
-	Payload = FSharedBuffer::MakeOwned(InPayload);
-	PayloadLength = (int64)InPayload->GetSize();
+	Payload = InPayload;
+	Payload.MakeOwned();
+	PayloadLength = (int64)Payload.GetSize();
 
 	bIsVirtualized = false;
 	bIsDataStoredAsCompressed = false;

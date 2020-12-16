@@ -170,18 +170,18 @@ FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	}
 
 	// Allocate the buffer, copy the header, and read the remainder of the field.
-	FSharedBufferPtr Buffer = Allocator(FieldSize);
-	checkf(Buffer && Buffer->GetSize() == FieldSize,
+	FUniqueBuffer Buffer = Allocator(FieldSize);
+	checkf(Buffer.GetSize() == FieldSize,
 		TEXT("Allocator returned a buffer of size %" UINT64_FMT " bytes when %" UINT64_FMT " bytes were requested."),
-		Buffer ? Buffer->GetSize() : 0, FieldSize);
-	FMutableMemoryView View = Buffer->GetView();
+		Buffer.GetSize(), FieldSize);
+	FMutableMemoryView View = Buffer.GetView();
 	FMemory::Memcpy(View.GetData(), HeaderBytes.GetData(), HeaderBytes.Num());
 	View += HeaderBytes.Num();
 	if (!View.IsEmpty())
 	{
 		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
 	}
-	return FCbFieldRef(MoveTemp(Buffer));
+	return FCbFieldRef(FSharedBuffer(MoveTemp(Buffer)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,8 +211,7 @@ static FArchive& SerializeCompactBinary(FArchive& Ar, T& Value, ConvertType&& Co
 {
 	if (Ar.IsLoading())
 	{
-		Value = Invoke(Forward<ConvertType>(Convert),
-			LoadCompactBinary(Ar, [](uint64 Size) { return FSharedBuffer::Alloc(Size); }));
+		Value = Invoke(Forward<ConvertType>(Convert), LoadCompactBinary(Ar));
 	}
 	else if (Ar.IsSaving())
 	{

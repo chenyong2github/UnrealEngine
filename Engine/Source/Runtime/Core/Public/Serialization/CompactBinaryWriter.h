@@ -4,12 +4,12 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "Memory/MemoryFwd.h"
 #include "Serialization/CompactBinary.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FArchive;
-class FSharedBufferConstPtr;
 struct FBlake3Hash;
 struct FDateTime;
 struct FGuid;
@@ -141,7 +141,7 @@ public:
 	/** Write a binary field by copying the view. */
 	inline void Binary(FMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
 	/** Write a binary field by copying the buffer. Holds a reference if owned. */
-	CORE_API void Binary(const FSharedBufferConstPtr& Buffer);
+	CORE_API void Binary(const FSharedBuffer& Buffer);
 
 	/** Write a string field by copying the UTF-8 value. */
 	CORE_API void String(FAnsiStringView Value);

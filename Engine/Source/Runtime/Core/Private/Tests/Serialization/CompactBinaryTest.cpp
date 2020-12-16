@@ -451,7 +451,7 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().GetName()"), Field.GetName(), "F"_ASV);
 			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().AsInt32()"), Field.AsInt32(), 8);
 			TestTrue(TEXT("FCbObjectRef::CreateRefIterator().IsOwned()"), Field.IsOwned());
-			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().GetBuffer()"), Field.GetBuffer()->GetView(), Field.GetView());
+			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().GetBuffer()"), Field.GetBuffer().GetView(), Field.GetView());
 		}
 		for (FCbFieldRefIterator It = ObjectClone.CreateRefIterator(), End; It != End; ++It)
 		{
@@ -615,7 +615,7 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 			FCbFieldRef Field = *It;
 			TestEqual(TEXT("FCbArrayRef::CreateRefIterator().AsInt32()"), Field.AsInt32(), 8);
 			TestTrue(TEXT("FCbArrayRef::CreateRefIterator().IsOwned()"), Field.IsOwned());
-			TestEqual(TEXT("FCbArrayRef::CreateRefIterator().GetBuffer()"), Field.GetBuffer()->GetView(), Field.GetView());
+			TestEqual(TEXT("FCbArrayRef::CreateRefIterator().GetBuffer()"), Field.GetBuffer().GetView(), Field.GetView());
 		}
 		for (FCbFieldRefIterator It = ArrayClone.CreateRefIterator(), End; It != End; ++It)
 		{
@@ -1252,7 +1252,7 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 		Fields = Writer.Save();
 	}
 
-	TestEqual(TEXT("FCbField::IterateReferences Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
+	TestEqual(TEXT("FCbField::IterateReferences Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
 
 	uint32 ReferenceIndex = 0;
 	Fields.IterateRangeReferences([this, &ReferenceIndex, &MakeTestHash](FCbField Field)
@@ -1271,29 +1271,16 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldRefTest, FCbFieldTestBase, "System.Core.Serialization.CbFieldRef", CompactBinaryTestFlags)
 bool FCbFieldRefTest::RunTest(const FString& Parameters)
 {
-	static_assert(std::is_constructible<FCbFieldRef, const FSharedBufferRef&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FSharedBufferPtr&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FSharedBufferConstRef&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, const FSharedBuffer&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, FSharedBuffer&&>::value, "Missing constructor for FCbFieldRef");
 
-	static_assert(std::is_constructible<FCbFieldRef, FSharedBufferRef&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, FSharedBufferPtr&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, FSharedBufferConstRef&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbFieldRef");
-
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferRef&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferPtr&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferConstRef&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBuffer&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbFieldRef&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbArrayRef&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbObjectRef&>::value, "Missing constructor for FCbFieldRef");
 
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferRef&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferPtr&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferConstRef&&>::value, "Missing constructor for FCbFieldRef");
-	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBuffer&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbFieldRef&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbArrayRef&&>::value, "Missing constructor for FCbFieldRef");
@@ -1304,82 +1291,59 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 		FCbFieldRef DefaultField;
 		TestFalse(TEXT("FCbFieldRef().HasValue()"), DefaultField.HasValue());
 		TestFalse(TEXT("FCbFieldRef().IsOwned()"), DefaultField.IsOwned());
-		TestFalse(TEXT("FCbFieldRef().IsReadOnly()"), DefaultField.IsReadOnly());
 		DefaultField.MakeOwned();
 		TestTrue(TEXT("FCbFieldRef().MakeOwned().IsOwned()"), DefaultField.IsOwned());
-		TestTrue(TEXT("FCbFieldRef().MakeOwned().IsReadOnly()"), DefaultField.IsReadOnly());
 	}
 
 	// Test Field w/ Type from Shared Buffer
 	{
-		uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		FSharedBufferPtr ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Payload));
-		FSharedBufferPtr OwnedBuffer = FSharedBuffer::MakeOwned(ViewBuffer);
-		FSharedBufferConstPtr ViewBufferPtr = ViewBuffer;
-		FSharedBufferConstPtr OwnedBufferPtr = OwnedBuffer;
+		const uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		FSharedBuffer ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		FSharedBuffer OwnedBuffer = FSharedBuffer::Clone(ViewBuffer);
 
-		FCbFieldRef ViewRef(ViewBuffer);
-		FCbFieldRef ViewPtr(ViewBufferPtr);
-		FCbFieldRef ViewPtrMove{FSharedBufferConstPtr(ViewBufferPtr)};
-		FCbFieldRef ViewOuterFieldRef(ImplicitConv<FCbField>(ViewPtr), ViewPtrMove);
-		FCbFieldRef ViewOuterBufferRef(ImplicitConv<FCbField>(ViewRef), ViewPtr);
-		FCbFieldRef OwnedRef(OwnedBuffer);
-		FCbFieldRef OwnedPtr(OwnedBufferPtr);
-		FCbFieldRef OwnedPtrMove{FSharedBufferConstPtr(OwnedBufferPtr)};
-		FCbFieldRef OwnedOuterFieldRef(ImplicitConv<FCbField>(OwnedPtr), OwnedPtrMove);
-		FCbFieldRef OwnedOuterBufferRef(ImplicitConv<FCbField>(OwnedRef), OwnedPtr);
+		FCbFieldRef View(ViewBuffer);
+		FCbFieldRef ViewMove{FSharedBuffer(ViewBuffer)};
+		FCbFieldRef ViewOuterField(ImplicitConv<FCbField>(View), ViewBuffer);
+		FCbFieldRef ViewOuterBuffer(ImplicitConv<FCbField>(View), View);
+		FCbFieldRef Owned(OwnedBuffer);
+		FCbFieldRef OwnedMove{FSharedBuffer(OwnedBuffer)};
+		FCbFieldRef OwnedOuterField(ImplicitConv<FCbField>(Owned), OwnedBuffer);
+		FCbFieldRef OwnedOuterBuffer(ImplicitConv<FCbField>(Owned), Owned);
 
 		// These lines are expected to assert when uncommented.
-		//FCbFieldRef InvalidOuterBuffer(ImplicitConv<FCbField>(OwnedRef), ViewBufferPtr);
-		//FCbFieldRef InvalidOuterBufferMove(ImplicitConv<FCbField>(OwnedRef), FSharedBufferConstPtr(ViewBufferPtr));
+		//FCbFieldRef InvalidOuterBuffer(ImplicitConv<FCbField>(Owned), ViewBuffer);
+		//FCbFieldRef InvalidOuterBufferMove(ImplicitConv<FCbField>(Owned), FSharedBuffer(ViewBuffer));
 
-		Payload[UE_ARRAY_COUNT(Payload) - 1] = 4;
+		TestEqual(TEXT("FCbFieldRef(ViewBuffer)"), View.AsBinary(), ViewBuffer.GetView().Right(3));
+		TestEqual(TEXT("FCbFieldRef(ViewBuffer&&)"), ViewMove.AsBinary(), View.AsBinary());
+		TestEqual(TEXT("FCbFieldRef(ViewOuterField)"), ViewOuterField.AsBinary(), View.AsBinary());
+		TestEqual(TEXT("FCbFieldRef(ViewOuterBuffer)"), ViewOuterBuffer.AsBinary(), View.AsBinary());
+		TestEqual(TEXT("FCbFieldRef(OwnedBuffer)"), Owned.AsBinary(), OwnedBuffer.GetView().Right(3));
+		TestEqual(TEXT("FCbFieldRef(OwnedBuffer&&)"), OwnedMove.AsBinary(), Owned.AsBinary());
+		TestEqual(TEXT("FCbFieldRef(OwnedOuterField)"), OwnedOuterField.AsBinary(), Owned.AsBinary());
+		TestEqual(TEXT("FCbFieldRef(OwnedOuterBuffer)"), OwnedOuterBuffer.AsBinary(), Owned.AsBinary());
 
-		TestEqualBytes(TEXT("FCbFieldRef(ViewBufferRef)"), ViewRef.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef(ViewBufferPtr)"), ViewPtr.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef(ViewBufferPtr&&)"), ViewPtrMove.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef(ViewOuterFieldRef)"), ViewOuterFieldRef.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef(ViewOuterBufferRef)"), ViewOuterBufferRef.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef(OwnedBufferRef)"), OwnedRef.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef(OwnedBufferPtr)"), OwnedPtr.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef(OwnedBufferPtr&&)"), OwnedPtrMove.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef(OwnedOuterFieldRef)"), OwnedOuterFieldRef.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef(OwnedOuterBufferRef)"), OwnedOuterBufferRef.AsBinary(), {4, 5, 6});
+		TestFalse(TEXT("FCbFieldRef(ViewBuffer).IsOwned()"), View.IsOwned());
+		TestFalse(TEXT("FCbFieldRef(ViewBuffer&&).IsOwned()"), ViewMove.IsOwned());
+		TestFalse(TEXT("FCbFieldRef(ViewOuterField).IsOwned()"), ViewOuterField.IsOwned());
+		TestFalse(TEXT("FCbFieldRef(ViewOuterBuffer).IsOwned()"), ViewOuterBuffer.IsOwned());
+		TestTrue(TEXT("FCbFieldRef(OwnedBuffer).IsOwned()"), Owned.IsOwned());
+		TestTrue(TEXT("FCbFieldRef(OwnedBuffer&&).IsOwned()"), OwnedMove.IsOwned());
+		TestTrue(TEXT("FCbFieldRef(OwnedOuterField).IsOwned()"), OwnedOuterField.IsOwned());
+		TestTrue(TEXT("FCbFieldRef(OwnedOuterBuffer).IsOwned()"), OwnedOuterBuffer.IsOwned());
 
-		TestFalse(TEXT("FCbFieldRef(ViewBufferRef).IsOwned()"), ViewRef.IsOwned());
-		TestFalse(TEXT("FCbFieldRef(ViewBufferPtr).IsOwned()"), ViewPtr.IsOwned());
-		TestFalse(TEXT("FCbFieldRef(ViewBufferPtr&&).IsOwned()"), ViewPtrMove.IsOwned());
-		TestFalse(TEXT("FCbFieldRef(ViewOuterFieldRef).IsOwned()"), ViewOuterFieldRef.IsOwned());
-		TestFalse(TEXT("FCbFieldRef(ViewOuterBufferRef).IsOwned()"), ViewOuterBufferRef.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(OwnedBufferRef).IsOwned()"), OwnedRef.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(OwnedBufferPtr).IsOwned()"), OwnedPtr.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(OwnedBufferPtr&&).IsOwned()"), OwnedPtrMove.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(OwnedOuterFieldRef).IsOwned()"), OwnedOuterFieldRef.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(OwnedOuterBufferRef).IsOwned()"), OwnedOuterBufferRef.IsOwned());
-
-		ViewRef.MakeOwned();
-		OwnedRef.MakeOwned();
-		static_cast<uint8*>(OwnedBuffer->GetData())[UE_ARRAY_COUNT(Payload) - 1] = 5;
-		TestEqualBytes(TEXT("FCbFieldRef(View).MakeOwned()"), ViewRef.AsBinary(), {4, 5, 4});
-		TestTrue(TEXT("FCbFieldRef(View).MakeOwned().IsOwned()"), ViewRef.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(View).MakeOwned().IsReadOnly()"), ViewRef.IsReadOnly());
-		TestEqualBytes(TEXT("FCbFieldRef(Owned).MakeOwned()"), OwnedRef.AsBinary(), {4, 5, 5});
-		TestTrue(TEXT("FCbFieldRef(Owned).MakeOwned().IsOwned()"), OwnedRef.IsOwned());
-		TestFalse(TEXT("FCbFieldRef(Owned).MakeOwned().IsReadOnly()"), OwnedRef.IsReadOnly());
-
-		OwnedRef.MakeReadOnly();
-		TestEqualBytes(TEXT("FCbFieldRef(Owned).MakeReadOnly()"), OwnedRef.AsBinary(), {4, 5, 5});
-		TestTrue(TEXT("FCbFieldRef(Owned).MakeReadOnly().IsOwned()"), OwnedRef.IsOwned());
-		TestTrue(TEXT("FCbFieldRef(Owned).MakeReadOnly().IsReadOnly()"), OwnedRef.IsReadOnly());
+		View.MakeOwned();
+		Owned.MakeOwned();
+		TestNotEqual(TEXT("FCbFieldRef(View).MakeOwned()"), View.AsBinary(), ViewBuffer.GetView().Right(3));
+		TestTrue(TEXT("FCbFieldRef(View).MakeOwned().IsOwned()"), View.IsOwned());
+		TestEqual(TEXT("FCbFieldRef(Owned).MakeOwned()"), Owned.AsBinary(), OwnedBuffer.GetView().Right(3));
+		TestTrue(TEXT("FCbFieldRef(Owned).MakeOwned().IsOwned()"), Owned.IsOwned());
 	}
 
 	// Test Field w/ Type
 	{
-		uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		uint8* PayloadCopy = static_cast<uint8*>(FMemory::Malloc(sizeof(Payload)));
-		FMemory::Memcpy(PayloadCopy, Payload, sizeof(Payload));
-
-		FCbField Field(Payload);
+		const uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		const FCbField Field(Payload);
 
 		FCbFieldRef VoidView = FCbFieldRef::MakeView(Payload);
 		FCbFieldRef VoidClone = FCbFieldRef::Clone(Payload);
@@ -1387,53 +1351,42 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 		FCbFieldRef FieldClone = FCbFieldRef::Clone(Field);
 		FCbFieldRef FieldRefClone = FCbFieldRef::Clone(FieldView);
 
-		Payload[UE_ARRAY_COUNT(Payload) - 1] = 4;
-
-		TestEqualBytes(TEXT("FCbFieldRef::MakeView(Void)"), VoidView.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef::Clone(Void)"), VoidClone.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef::MakeView(Field)"), FieldView.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef::Clone(Field)"), FieldClone.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef::Clone(FieldRef)"), FieldRefClone.AsBinary(), {4, 5, 6});
+		TestEqual(TEXT("FCbFieldRef::MakeView(Void)"), VoidView.AsBinary(), MakeMemoryView(Payload).Right(3));
+		TestNotEqual(TEXT("FCbFieldRef::Clone(Void)"), VoidClone.AsBinary(), MakeMemoryView(Payload).Right(3));
+		TestTrue(TEXT("FCbFieldRef::Clone(Void)->EqualBytes"), VoidClone.AsBinary().EqualBytes(VoidView.AsBinary()));
+		TestEqual(TEXT("FCbFieldRef::MakeView(Field)"), FieldView.AsBinary(), MakeMemoryView(Payload).Right(3));
+		TestNotEqual(TEXT("FCbFieldRef::Clone(Field)"), FieldClone.AsBinary(), MakeMemoryView(Payload).Right(3));
+		TestTrue(TEXT("FCbFieldRef::Clone(Field)->EqualBytes"), FieldClone.AsBinary().EqualBytes(VoidView.AsBinary()));
+		TestNotEqual(TEXT("FCbFieldRef::Clone(FieldRef)"), FieldRefClone.AsBinary(), FieldView.AsBinary());
+		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef)->EqualBytes"), FieldRefClone.AsBinary().EqualBytes(VoidView.AsBinary()));
 
 		TestFalse(TEXT("FCbFieldRef::MakeView(Void).IsOwned()"), VoidView.IsOwned());
-		TestFalse(TEXT("FCbFieldRef::MakeView(Void).IsReadOnly()"), VoidView.IsReadOnly());
 		TestTrue(TEXT("FCbFieldRef::Clone(Void).IsOwned()"), VoidClone.IsOwned());
-		TestTrue(TEXT("FCbFieldRef::Clone(Void).IsReadOnly()"), VoidClone.IsReadOnly());
 		TestFalse(TEXT("FCbFieldRef::MakeView(Field).IsOwned()"), FieldView.IsOwned());
-		TestFalse(TEXT("FCbFieldRef::MakeView(Field).IsReadOnly()"), FieldView.IsReadOnly());
 		TestTrue(TEXT("FCbFieldRef::Clone(Field).IsOwned()"), FieldClone.IsOwned());
-		TestTrue(TEXT("FCbFieldRef::Clone(Field).IsReadOnly()"), FieldClone.IsReadOnly());
 		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef).IsOwned()"), FieldRefClone.IsOwned());
-		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef).IsReadOnly()"), FieldRefClone.IsReadOnly());
 	}
 
 	// Test Field w/o Type
 	{
-		uint8 Payload[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		FCbField Field(Payload, ECbFieldType::Binary);
+		const uint8 Payload[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		const FCbField Field(Payload, ECbFieldType::Binary);
 
 		FCbFieldRef FieldView = FCbFieldRef::MakeView(Field);
 		FCbFieldRef FieldClone = FCbFieldRef::Clone(Field);
 		FCbFieldRef FieldRefClone = FCbFieldRef::Clone(FieldView);
 
-		Payload[UE_ARRAY_COUNT(Payload) - 1] = 4;
-
-		TestEqualBytes(TEXT("FCbFieldRef::MakeView(Field, NoType)"), FieldView.AsBinary(), {4, 5, 4});
-		TestEqualBytes(TEXT("FCbFieldRef::Clone(Field, NoType)"), FieldClone.AsBinary(), {4, 5, 6});
-		TestEqualBytes(TEXT("FCbFieldRef::Clone(FieldRef, NoType)"), FieldRefClone.AsBinary(), {4, 5, 6});
+		TestEqual(TEXT("FCbFieldRef::MakeView(Field, NoType)"), FieldView.AsBinary(), MakeMemoryView(Payload).Right(3));
+		TestTrue(TEXT("FCbFieldRef::Clone(Field, NoType)"), FieldClone.AsBinary().EqualBytes(FieldView.AsBinary()));
+		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef, NoType)"), FieldRefClone.AsBinary().EqualBytes(FieldView.AsBinary()));
 
 		TestFalse(TEXT("FCbFieldRef::MakeView(Field, NoType).IsOwned()"), FieldView.IsOwned());
 		TestTrue(TEXT("FCbFieldRef::Clone(Field, NoType).IsOwned()"), FieldClone.IsOwned());
 		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef, NoType).IsOwned()"), FieldRefClone.IsOwned());
 
-		TestFalse(TEXT("FCbFieldRef::MakeView(Field, NoType).IsReadOnly()"), FieldView.IsReadOnly());
-		TestTrue(TEXT("FCbFieldRef::Clone(Field, NoType).IsReadOnly()"), FieldClone.IsReadOnly());
-		TestTrue(TEXT("FCbFieldRef::Clone(FieldRef, NoType).IsReadOnly()"), FieldRefClone.IsReadOnly());
-
 		FieldView.MakeOwned();
-		TestEqualBytes(TEXT("FCbFieldRef::MakeView(NoType).MakeOwned()"), FieldView.AsBinary(), {4, 5, 4});
+		TestTrue(TEXT("FCbFieldRef::MakeView(NoType).MakeOwned()"), FieldView.AsBinary().EqualBytes(MakeMemoryView(Payload).Right(3)));
 		TestTrue(TEXT("FCbFieldRef::MakeView(NoType).MakeOwned().IsOwned()"), FieldView.IsOwned());
-		TestTrue(TEXT("FCbFieldRef::MakeView(NoType).MakeOwned().IsReadOnly()"), FieldView.IsReadOnly());
 	}
 
 	return true;
@@ -1444,13 +1397,13 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbArrayRefTest, "System.Core.Serialization.CbArrayRef", CompactBinaryTestFlags)
 bool FCbArrayRefTest::RunTest(const FString& Parameters)
 {
-	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbArrayRef");
+	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FSharedBuffer&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbFieldRef&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbArrayRef&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbObjectRef&>::value, "Missing constructor for FCbArrayRef");
 
-	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbArrayRef");
+	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FSharedBuffer&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbFieldRef&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbArrayRef&&>::value, "Missing constructor for FCbArrayRef");
@@ -1460,10 +1413,8 @@ bool FCbArrayRefTest::RunTest(const FString& Parameters)
 	{
 		FCbArrayRef DefaultArray;
 		TestFalse(TEXT("FCbArrayRef().IsOwned()"), DefaultArray.IsOwned());
-		TestFalse(TEXT("FCbArrayRef().IsReadOnly()"), DefaultArray.IsReadOnly());
 		DefaultArray.MakeOwned();
 		TestTrue(TEXT("FCbArrayRef().MakeOwned().IsOwned()"), DefaultArray.IsOwned());
-		TestTrue(TEXT("FCbArrayRef().MakeOwned().IsReadOnly()"), DefaultArray.IsReadOnly());
 	}
 
 	return true;
@@ -1474,13 +1425,13 @@ bool FCbArrayRefTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbObjectRefTest, "System.Core.Serialization.CbObjectRef", CompactBinaryTestFlags)
 bool FCbObjectRefTest::RunTest(const FString& Parameters)
 {
-	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbObjectRef");
+	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FSharedBuffer&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbFieldRef&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbArrayRef&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbObjectRef&>::value, "Missing constructor for FCbObjectRef");
 
-	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbObjectRef");
+	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FSharedBuffer&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbFieldRef&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbArrayRef&&>::value, "Missing constructor for FCbObjectRef");
@@ -1490,10 +1441,8 @@ bool FCbObjectRefTest::RunTest(const FString& Parameters)
 	{
 		FCbObjectRef DefaultObject;
 		TestFalse(TEXT("FCbObjectRef().IsOwned()"), DefaultObject.IsOwned());
-		TestFalse(TEXT("FCbObjectRef().IsReadOnly()"), DefaultObject.IsReadOnly());
 		DefaultObject.MakeOwned();
 		TestTrue(TEXT("FCbObjectRef().MakeOwned().IsOwned()"), DefaultObject.IsOwned());
-		TestTrue(TEXT("FCbObjectRef().MakeOwned().IsReadOnly()"), DefaultObject.IsReadOnly());
 	}
 
 	return true;
@@ -1531,17 +1480,17 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { T, 0, T, 1, T, 2, T, 3 };
 
-		const FSharedBufferConstPtr View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
-		const FSharedBufferConstPtr Clone = FSharedBuffer::Clone(MakeMemoryView(Payload));
+		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const FSharedBuffer Clone = FSharedBuffer::Clone(View);
 
 		const FMemoryView EmptyView;
-		const FSharedBufferConstPtr NullBuffer;
+		const FSharedBuffer NullBuffer;
 
-		const FCbFieldIterator FieldIt = FCbFieldIterator::MakeRange(*View);
+		const FCbFieldIterator FieldIt = FCbFieldIterator::MakeRange(View);
 		const FCbFieldRefIterator FieldRefIt = FCbFieldRefIterator::MakeRange(View);
 
-		TestEqual(TEXT("FCbFieldIterator::GetRangeHash()"), FieldIt.GetRangeHash(), FBlake3::HashBuffer(*View));
-		TestEqual(TEXT("FCbFieldRefIterator::GetRangeHash()"), FieldRefIt.GetRangeHash(), FBlake3::HashBuffer(*View));
+		TestEqual(TEXT("FCbFieldIterator::GetRangeHash()"), FieldIt.GetRangeHash(), FBlake3::HashBuffer(View));
+		TestEqual(TEXT("FCbFieldRefIterator::GetRangeHash()"), FieldRefIt.GetRangeHash(), FBlake3::HashBuffer(View));
 
 		TestEqual(TEXT("FCbFieldIterator::GetRangeView()"), FieldIt.GetRangeView(), MakeMemoryView(Payload));
 		TestEqual(TEXT("FCbFieldRefIterator::GetRangeView()"), FieldRefIt.GetRangeView(), MakeMemoryView(Payload));
@@ -1560,18 +1509,18 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(EmptyView)"), GetCount(FCbFieldIterator::MakeRange(EmptyView)), 0);
 		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferNullL)"), GetCount(FCbFieldRefIterator::MakeRange(NullBuffer)), 0);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferNullR)"), GetCount(FCbFieldRefIterator::MakeRange(FSharedBufferConstPtr(NullBuffer))), 0);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferNullR)"), GetCount(FCbFieldRefIterator::MakeRange(FSharedBuffer(NullBuffer))), 0);
 
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(BufferView)"), GetCount(FCbFieldIterator::MakeRange(MakeMemoryView(Payload))), 4);
 		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferCloneL)"), GetCount(FCbFieldRefIterator::MakeRange(Clone)), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferCloneR)"), GetCount(FCbFieldRefIterator::MakeRange(FSharedBufferConstPtr(Clone))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(BufferCloneR)"), GetCount(FCbFieldRefIterator::MakeRange(FSharedBuffer(Clone))), 4);
 
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferNullL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), NullBuffer)), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferNullR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), FSharedBufferConstPtr(NullBuffer))), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferViewL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), View)), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferViewR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), FSharedBufferConstPtr(View))), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferCloneL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*Clone), Clone)), 4);
-		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferCloneR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*Clone), FSharedBufferConstPtr(Clone))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferNullL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(View), NullBuffer)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferNullR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(View), FSharedBuffer(NullBuffer))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferViewL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(View), View)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferViewR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(View), FSharedBuffer(View))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferCloneL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(Clone), Clone)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, BufferCloneR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(Clone), FSharedBuffer(Clone))), 4);
 
 		TestEqual(TEXT("FCbFieldIterator(FieldRefItL)"), GetCount(FCbFieldIterator(FieldRefIt)), 4);
 		TestEqual(TEXT("FCbFieldIterator(FieldRefItR)"), GetCount(FCbFieldIterator(FCbFieldRefIterator(FieldRefIt))), 4);
@@ -1582,7 +1531,7 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(Uniform).GetRangeHash()"), UniformFieldIt.GetRangeHash(), FieldIt.GetRangeHash());
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(Uniform).GetRangeView()"), UniformFieldIt.GetRangeView(), MakeMemoryView(UniformPayload));
 		TestFalse(TEXT("FCbFieldIterator::MakeRange(Uniform).TryGetSerializedRangeView()"), UniformFieldIt.TryGetSerializedRangeView(SerializedView));
-		const FSharedBufferConstPtr UniformView = FSharedBuffer::MakeView(MakeMemoryView(UniformPayload));
+		const FSharedBuffer UniformView = FSharedBuffer::MakeView(MakeMemoryView(UniformPayload));
 		const FCbFieldRefIterator UniformFieldRefIt = FCbFieldRefIterator::MakeRange(UniformView, ECbFieldType::IntegerPositive);
 		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(Uniform).GetRangeHash()"), UniformFieldRefIt.GetRangeHash(), FieldIt.GetRangeHash());
 		TestEqual(TEXT("FCbFieldRefIterator::MakeRange(Uniform).GetRangeView()"), UniformFieldRefIt.GetRangeView(), MakeMemoryView(UniformPayload));
@@ -1629,9 +1578,9 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		TestNotEqual(TEXT("FCbFieldRefIterator::GetRangeBuffer(Short)"), UniformShortFieldRefIt.GetRangeBuffer(), UniformView);
 
 		// These lines are expected to assert when uncommented.
-		//const FSharedBufferConstPtr ShortView = FSharedBuffer::MakeView(MakeMemoryView(Payload).LeftChop(2));
+		//const FSharedBuffer ShortView = FSharedBuffer::MakeView(MakeMemoryView(Payload).LeftChop(2));
 		//TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, InvalidBufferL)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), ShortView)), 4);
-		//TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, InvalidBufferR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), FSharedBufferConstPtr(ShortView))), 4);
+		//TestEqual(TEXT("FCbFieldRefIterator::MakeRangeView(FieldIt, InvalidBufferR)"), GetCount(FCbFieldRefIterator::MakeRangeView(FCbFieldIterator::MakeRange(*View), FSharedBuffer(ShortView))), 4);
 	}
 
 	// Test FCbField[Ref]Iterator(Scalar)
@@ -1639,8 +1588,8 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
 		const uint8 Payload[] = { T, 0 };
 
-		const FSharedBufferConstPtr View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
-		const FSharedBufferConstPtr Clone = FSharedBuffer::Clone(MakeMemoryView(Payload));
+		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const FSharedBuffer Clone = FSharedBuffer::Clone(View);
 
 		const FCbField Field(Payload);
 		const FCbFieldRef FieldRef(View);

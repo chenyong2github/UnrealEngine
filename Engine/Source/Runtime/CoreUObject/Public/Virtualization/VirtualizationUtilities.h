@@ -17,16 +17,16 @@ public:
 		SetIsSaving(true);
 		SetIsPersistent(bIsPersistent);
 
-		FSharedBufferConstPtr Payload = InBulkData.GetData().Get();
+		FSharedBuffer Payload = InBulkData.GetData().Get();
 
-		if (Payload.IsValid())
+		if (Payload)
 		{
-			const int64 CurrentDataLength = Payload->GetSize();
+			const int64 CurrentDataLength = Payload.GetSize();
 
 			// Clone the payload so that we have a local copy that we can
 			// append additional data to.
 			Buffer = FMemory::Malloc(CurrentDataLength, DEFAULT_ALIGNMENT);
-			FMemory::Memcpy(Buffer, Payload->GetData(), CurrentDataLength);
+			FMemory::Memcpy(Buffer, Payload.GetData(), CurrentDataLength);
 
 			BufferLength = CurrentDataLength;
 
@@ -48,7 +48,7 @@ public:
 	{
 		// Remove the slack from the allocated bulk data
 		Buffer = FMemory::Realloc(Buffer, DataLength, DEFAULT_ALIGNMENT);
-		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(Buffer, DataLength, FMemory::Free).ToSharedRef());
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(Buffer, DataLength, FMemory::Free));
 	}
 
 	virtual void Serialize(void* Data, int64 Num)
@@ -136,26 +136,19 @@ namespace UE4VirtualizedBulkData_Private
 
 		void* GetData() const
 		{
-			if(Payload.IsValid())
-			{
-				// It's okay to remove the const qualifier here as it will only be passed
-				// on to FBufferReaderBase, which will not change the data at all, but takes a non-const
-				// pointer so that it can free the memory if requested, which we don't.
-				return const_cast<void*>(Payload->GetData());
-			}
-			else
-			{
-				return nullptr;
-			}
+			// It's okay to remove the const qualifier here as it will only be passed
+			// on to FBufferReaderBase, which will not change the data at all, but takes a non-const
+			// pointer so that it can free the memory if requested, which we don't.
+			return const_cast<void*>(Payload.GetData());
 		}
 
 		int64 GetDataLength() const
 		{
-			return Payload.IsValid() ? Payload->GetSize() : 0;
+			return Payload.GetSize();
 		}
 
 	private:
-		FSharedBufferConstPtr Payload;
+		FSharedBuffer Payload;
 	};
 }
 

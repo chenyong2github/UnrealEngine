@@ -46,7 +46,7 @@ class UObject;
 class COREUOBJECT_API FVirtualizedUntypedBulkData
 {
 public:
-	using OnDataReadyCallback = TUniqueFunction<void(FSharedBufferConstPtr)>;
+	using OnDataReadyCallback = TUniqueFunction<void(FSharedBuffer)>;
 
 	FVirtualizedUntypedBulkData() = default;
 	~FVirtualizedUntypedBulkData();
@@ -80,7 +80,7 @@ public:
 	// needs to be loaded in order to be able to run on a background thread. Since FVirtualizedUntypedBulkData 
 	// will aim to be thread safe we could change TextureDerivedData and remove this.
 	/** Returns if the data is being held in memory (true) or will be loaded from disk (false) */
-	bool IsDataLoaded() const { return Payload.IsValid(); }
+	bool IsDataLoaded() const { return !Payload.IsNull(); }
 
 	/** 
 	 * Enable/Disable if the payload should be compressed if it ends up being serialized to disk on the local
@@ -95,7 +95,7 @@ public:
 	 * To convert to a mutable reference call'FSharedBufferRef Mutable = MakeSharedBuffer(FSharedBuffer::Clone, Immutable->GetView());'
 	 * which will return a newly allocated clone of the payload which the caller will have full ownership over.
 	 */
-	TFuture<FSharedBufferConstPtr> GetData() const;
+	TFuture<FSharedBuffer> GetData() const;
 
 	/** Returns an immutable FSharedBuffer reference to the payload data via the OnDataReadyCallback */
 	void GetData(OnDataReadyCallback&& Callback) const;
@@ -110,19 +110,19 @@ public:
 	 * by using 'FSharedBuffer::Wrap') then a clone of the data will be created internally and assigned to
 	 * the bulkdata object.
 	 */
-	void UpdatePayload(const FSharedBufferConstRef& InPayload);
+	void UpdatePayload(const FSharedBuffer& InPayload);
 
 private:
 
-	FSharedBufferConstPtr GetDataInternal() const;
+	FSharedBuffer GetDataInternal() const;
 
 	void CalculateKey();
 
-	FSharedBufferConstPtr LoadFromDisk() const;
-	bool SerializeData(FArchive& Ar, FSharedBufferConstPtr& Payload) const;
+	FSharedBuffer LoadFromDisk() const;
+	bool SerializeData(FArchive& Ar, FSharedBuffer& Payload) const;
 
 	void PushData();
-	FSharedBufferConstPtr PullData() const;
+	FSharedBuffer PullData() const;
 
 	FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const;
 
@@ -132,7 +132,7 @@ private:
 	FGuid Key;
 
 	/** Pointer to the payload if it is held in memory (it has been updated but not yet saved to disk for example) */
-	FSharedBufferConstPtr Payload;
+	FSharedBuffer Payload;
 
 	/** Length of the payload in bytes */
 	int64 PayloadLength = 0;

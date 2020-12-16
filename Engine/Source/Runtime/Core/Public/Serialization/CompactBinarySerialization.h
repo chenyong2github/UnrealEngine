@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Memory/MemoryView.h"
+#include "Memory/SharedBuffer.h"
 #include "Serialization/CompactBinary.h"
 
 class FArchive;
@@ -61,7 +62,7 @@ CORE_API bool TryMeasureCompactBinary(
  * @param Allocator Allocator for the buffer that the field is loaded into.
  * @return A field with a reference to the provided buffer if it is owned.
  */
-CORE_API FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator);
+CORE_API FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 /** Save a compact binary value to an archive. */
 CORE_API void SaveCompactBinary(FArchive& Ar, const FCbField& Field);

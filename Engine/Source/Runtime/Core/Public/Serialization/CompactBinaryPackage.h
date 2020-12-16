@@ -29,26 +29,26 @@ public:
 	/** Construct a null attachment. */
 	FCbAttachment() = default;
 
-	/** Construct a compact binary attachment. Value is cloned unless read-only. */
+	/** Construct a compact binary attachment. Value is cloned if not owned. */
 	inline explicit FCbAttachment(FCbFieldRefIterator Value)
 		: FCbAttachment(MoveTemp(Value), nullptr)
 	{
 	}
 
-	/** Construct a compact binary attachment. Value is cloned unless read-only. Hash must match Value. */
+	/** Construct a compact binary attachment. Value is cloned if not owned. Hash must match Value. */
 	inline explicit FCbAttachment(FCbFieldRefIterator Value, const FBlake3Hash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
 
-	/** Construct a binary attachment. Value is cloned unless read-only. */
-	inline explicit FCbAttachment(FSharedBufferConstPtr Value)
+	/** Construct a binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(FSharedBuffer Value)
 		: FCbAttachment(MoveTemp(Value), nullptr)
 	{
 	}
 
-	/** Construct a binary attachment. Value is cloned unless read-only. Hash must match Value. */
-	inline explicit FCbAttachment(FSharedBufferConstPtr Value, const FBlake3Hash& Hash)
+	/** Construct a binary attachment. Value is cloned if not owned. Hash must match Value. */
+	inline explicit FCbAttachment(FSharedBuffer Value, const FBlake3Hash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
@@ -60,13 +60,13 @@ public:
 	inline bool IsNull() const { return !Buffer; }
 
 	/** Access the attachment as binary. Defaults to a null buffer on error. */
-	CORE_API FSharedBufferConstPtr AsBinary() const;
+	CORE_API FSharedBuffer AsBinary() const;
 
 	/** Access the attachment as compact binary. Defaults to a field iterator with no value on error. */
 	CORE_API FCbFieldRefIterator AsCompactBinary() const;
 
 	/** Returns whether the attachment is binary or compact binary. */
-	inline bool IsBinary() const { return Buffer.IsValid(); }
+	inline bool IsBinary() const { return !Buffer.IsNull(); }
 
 	/** Returns whether the attachment is compact binary. */
 	inline bool IsCompactBinary() const { return CompactBinary.HasValue(); }
@@ -82,8 +82,7 @@ public:
 	/**
 	 * Load the attachment from compact binary as written by Save.
 	 *
-	 * The attachment will hold a reference to the input iterator, if it is read-only and owned, and
-	 * otherwise clones the attachment to make a read-only copy.
+	 * The attachment references the input iterator if it is owned, and otherwise clones the value.
 	 *
 	 * The iterator is advanced as attachment fields are consumed from it.
 	 */
@@ -92,9 +91,12 @@ public:
 	/**
 	 * Load the attachment from compact binary as written by Save.
 	 *
-	 * The attachment will be read into a read-only, owned buffer.
+	 * The attachments value will be loaded into an owned buffer.
+	 *
+	 * @param Allocator Allocator for the attachment value buffer.
+	 * @note Allocated buffers will be cloned if they are not owned.
 	 */
-	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator);
+	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 	/** Save the attachment into the writer as a stream of compact binary fields. */
 	CORE_API void Save(FCbWriter& Writer) const;
@@ -104,10 +106,10 @@ public:
 
 private:
 	CORE_API FCbAttachment(FCbFieldRefIterator Value, const FBlake3Hash* Hash);
-	CORE_API FCbAttachment(FSharedBufferConstPtr Value, const FBlake3Hash* Hash);
+	CORE_API FCbAttachment(FSharedBuffer Value, const FBlake3Hash* Hash);
 
-	/** A read-only owned buffer containing the binary or compact binary data. */
-	FSharedBufferConstPtr Buffer;
+	/** An owned buffer containing the binary or compact binary data. */
+	FSharedBuffer Buffer;
 	/** A field iterator that is valid only for compact binary attachments. */
 	FCbFieldIterator CompactBinary;
 	/** A hash of the attachment value. */
@@ -151,7 +153,7 @@ public:
 	 *
 	 * The resolver may return a null buffer to skip resolving an attachment for the hash.
 	 */
-	using FAttachmentResolver = TFunctionRef<FSharedBufferConstPtr (const FBlake3Hash& Hash)>;
+	using FAttachmentResolver = TFunctionRef<FSharedBuffer (const FBlake3Hash& Hash)>;
 
 	/** Construct a null package. */
 	FCbPackage() = default;
@@ -159,7 +161,7 @@ public:
 	/**
 	 * Construct a package from a root object without gathering attachments.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 */
 	inline explicit FCbPackage(FCbObjectRef InObject)
 	{
@@ -169,7 +171,7 @@ public:
 	/**
 	 * Construct a package from a root object and gather attachments using the resolver.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
 	inline explicit FCbPackage(FCbObjectRef InObject, FAttachmentResolver InResolver)
@@ -180,7 +182,7 @@ public:
 	/**
 	 * Construct a package from a root object without gathering attachments.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
 	inline explicit FCbPackage(FCbObjectRef InObject, const FBlake3Hash& InObjectHash)
@@ -191,7 +193,7 @@ public:
 	/**
 	 * Construct a package from a root object and gather attachments using the resolver.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
@@ -218,7 +220,7 @@ public:
 	/**
 	 * Set the root object without gathering attachments.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 */
 	inline void SetObject(FCbObjectRef InObject)
 	{
@@ -228,7 +230,7 @@ public:
 	/**
 	 * Set the root object and gather attachments using the resolver.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
 	inline void SetObject(FCbObjectRef InObject, FAttachmentResolver InResolver)
@@ -239,7 +241,7 @@ public:
 	/**
 	 * Set the root object without gathering attachments.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
 	inline void SetObject(FCbObjectRef InObject, const FBlake3Hash& InObjectHash)
@@ -250,7 +252,7 @@ public:
 	/**
 	 * Set the root object and gather attachments using the resolver.
 	 *
-	 * @param InObject The root object, which will be cloned unless it is read-only.
+	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
@@ -304,19 +306,22 @@ public:
 	/**
 	 * Load the object and attachments from compact binary as written by Save.
 	 *
-	 * The object and attachments will hold a reference to the input package, if it is read-only and
-	 * owned, and otherwise individually clones the object and attachments to make read-only copies.
+	 * The object and attachments reference the input iterator, if it is owned, and otherwise clones
+	 * the object and attachments individually to make owned copies.
 	 *
-	 * The iterator is advanced as package and attachment fields are consumed from it.
+	 * The iterator is advanced as object and attachment fields are consumed from it.
 	 */
 	CORE_API void Load(FCbFieldRefIterator& Fields);
 
 	/**
 	 * Load the object and attachments from compact binary as written by Save.
 	 *
-	 * The object and attachments will be individually read into read-only, owned buffers.
+	 * The object and attachments will be individually loaded into owned buffers.
+	 *
+	 * @param Allocator Allocator for object and attachment buffers.
+	 * @note Allocated buffers will be cloned if they are not owned.
 	 */
-	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator);
+	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 	/** Save the object and attachments into the writer as a stream of compact binary fields. */
 	CORE_API void Save(FCbWriter& Writer) const;

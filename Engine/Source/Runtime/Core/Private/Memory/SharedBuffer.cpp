@@ -2,89 +2,239 @@
 
 #include "Memory/SharedBuffer.h"
 
-FSharedBufferRef FSharedBuffer::NewBuffer(
-	void* const Data,
-	const uint64 Size,
-	const ESharedBufferFlags Flags,
-	const uint32 OwnerSize)
+#include "HAL/UnrealMemory.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace BufferOwnerPrivate
 {
-	checkf((OwnerSize > 0) == EnumHasAnyFlags(Flags, ESharedBufferFlags::HasBufferOwner),
-		TEXT("Mismatch between OwnerSize %u and Flags."), OwnerSize);
 
-	void* const BufferMemory = FMemory::Malloc(sizeof(FSharedBuffer) + OwnerSize, alignof(FSharedBuffer));
-
-	FSharedBuffer* const Buffer = new(BufferMemory) FSharedBuffer;
-	Buffer->Data = Data;
-	Buffer->Size = Size;
-	Buffer->ReferenceCountAndFlags = SetFlags(Flags);
-
-	return FSharedBufferRef(SharedBufferPrivate::TSharedBufferPtr</*bAllowNull*/ false, /*bIsConst*/ false, /*bIsWeak*/ false>(Buffer));
-}
-
-void FSharedBuffer::DeleteBuffer(FSharedBuffer* const Buffer)
+template <typename FOps>
+inline TBufferOwnerPtr<FOps>::TBufferOwnerPtr(FBufferOwner* const InOwner)
+	: Owner(InOwner)
 {
-	checkSlow(!Buffer->Data && !Buffer->Size);
-	checkSlow(Buffer->ReferenceCountAndFlags == 0);
-	Buffer->~FSharedBuffer();
-	FMemory::Free(Buffer);
-}
-
-void FSharedBuffer::ReleaseData()
-{
-	const ESharedBufferFlags Flags = GetFlags(ReferenceCountAndFlags);
-	if (EnumHasAnyFlags(Flags, ESharedBufferFlags::HasBufferOwner))
+	if (InOwner)
 	{
-		FBufferOwner& BufferOwner = *reinterpret_cast<FBufferOwner*>(this + 1);
-		BufferOwner.Free(Data, Size);
-		BufferOwner.~FBufferOwner();
-	}
-	else if (EnumHasAnyFlags(Flags, ESharedBufferFlags::Owned))
-	{
-		FMemory::Free(Data);
-	}
-	Data = nullptr;
-	Size = 0;
-	ReferenceCountAndFlags.fetch_and(~SetFlags(~ESharedBufferFlags::None));
-}
-
-bool FSharedBuffer::TryMakeReadOnly() const
-{
-	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
-	{
-		if (EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::ReadOnly))
-		{
-			return true;
-		}
-		if (GetSharedRefCount(Value) != 1 || GetWeakRefCount(Value) != 1 ||
-			!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Owned))
-		{
-			return false;
-		}
-		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value | SetFlags(ESharedBufferFlags::ReadOnly),
-			std::memory_order_relaxed, std::memory_order_relaxed))
-		{
-			return true;
-		}
+		checkf(!FOps::HasRef(*InOwner), TEXT("FBufferOwner is referenced by another TBufferOwnerPtr. ")
+			TEXT("Construct this from an existing pointer instead of a raw pointer."));
+		FOps::AddRef(*InOwner);
 	}
 }
 
-bool FSharedBuffer::TryMakeWritable() const
+template <typename FOps>
+inline void TBufferOwnerPtr<FOps>::Reset()
 {
-	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
+	FOps::Release(Owner);
+	Owner = nullptr;
+}
+
+class FBufferOwnerHeap final : public FBufferOwner
+{
+public:
+	inline explicit FBufferOwnerHeap(uint64 Size)
+		: FBufferOwner(FMemory::Malloc(Size), Size)
 	{
-		if (GetSharedRefCount(Value) != 1 || GetWeakRefCount(Value) != 1 ||
-			!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Owned))
+		SetIsMaterialized();
+		SetIsOwned();
+	}
+
+protected:
+	virtual void FreeBuffer() final
+	{
+		FMemory::Free(GetData());
+	}
+};
+
+class FBufferOwnerView final : public FBufferOwner
+{
+public:
+	inline FBufferOwnerView(void* Data, uint64 Size)
+		: FBufferOwner(Data, Size)
+	{
+		SetIsMaterialized();
+	}
+
+protected:
+	virtual void FreeBuffer() final
+	{
+	}
+};
+
+class FBufferOwnerOuterView final : public FBufferOwner
+{
+public:
+	inline FBufferOwnerOuterView(void* Data, uint64 Size, FSharedBuffer InOuterBuffer)
+		: FBufferOwner(Data, Size)
+		, OuterBuffer(MoveTemp(InOuterBuffer))
+	{
+		check(OuterBuffer.GetView().Contains(MakeMemoryView(Data, Size)));
+		SetIsMaterialized();
+		if (OuterBuffer.IsOwned())
 		{
-			return false;
-		}
-		if (!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::ReadOnly))
-		{
-			return true;
-		}
-		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value & ~SetFlags(ESharedBufferFlags::ReadOnly),
-			std::memory_order_relaxed, std::memory_order_relaxed))
-		{
-			return true;
+			SetIsOwned();
 		}
 	}
+
+protected:
+	virtual void FreeBuffer() final
+	{
+		OuterBuffer.Reset();
+	}
+
+private:
+	FSharedBuffer OuterBuffer;
+};
+
+} // BufferOwnerPrivate
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUniqueBuffer FUniqueBuffer::Alloc(uint64 InSize)
+{
+	return FUniqueBuffer(new BufferOwnerPrivate::FBufferOwnerHeap(InSize));
 }
+
+FUniqueBuffer FUniqueBuffer::Clone(FMemoryView View)
+{
+	return Clone(View.GetData(), View.GetSize());
+}
+
+FUniqueBuffer FUniqueBuffer::Clone(const void* Data, uint64 Size)
+{
+	FUniqueBuffer Buffer = Alloc(Size);
+	FMemory::Memcpy(Buffer.GetData(), Data, Size);
+	return Buffer;
+}
+
+FUniqueBuffer FUniqueBuffer::MakeView(FMutableMemoryView View)
+{
+	return MakeView(View.GetData(), View.GetSize());
+}
+
+FUniqueBuffer FUniqueBuffer::MakeView(void* Data, uint64 Size)
+{
+	return FUniqueBuffer(new BufferOwnerPrivate::FBufferOwnerView(Data, Size));
+}
+
+FUniqueBuffer::FUniqueBuffer(FBufferOwner* InOwner)
+	: Owner(InOwner)
+{
+}
+
+void FUniqueBuffer::Reset()
+{
+	Owner.Reset();
+}
+
+void FUniqueBuffer::MakeOwned()
+{
+	if (!IsOwned())
+	{
+		*this = Clone(GetView());
+	}
+}
+
+void FUniqueBuffer::Materialize() const
+{
+	if (Owner)
+	{
+		Owner->Materialize();
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSharedBuffer FSharedBuffer::Clone(FMemoryView View)
+{
+	return FSharedBuffer(FUniqueBuffer::Clone(View));
+}
+
+FSharedBuffer FSharedBuffer::Clone(const void* Data, uint64 Size)
+{
+	return FSharedBuffer(FUniqueBuffer::Clone(Data, Size));
+}
+
+FSharedBuffer FSharedBuffer::MakeView(FMemoryView View)
+{
+	return MakeView(View.GetData(), View.GetSize());
+}
+
+FSharedBuffer FSharedBuffer::MakeView(FMemoryView View, FSharedBuffer OuterBuffer)
+{
+	if (OuterBuffer.IsNull())
+	{
+		return MakeView(View);
+	}
+	if (View == OuterBuffer.GetView())
+	{
+		return MoveTemp(OuterBuffer);
+	}
+	return FSharedBuffer(new BufferOwnerPrivate::FBufferOwnerOuterView(
+		const_cast<void*>(View.GetData()), View.GetSize(), MoveTemp(OuterBuffer)));
+}
+
+FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size)
+{
+	return FSharedBuffer(new BufferOwnerPrivate::FBufferOwnerView(const_cast<void*>(Data), Size));
+}
+
+FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size, FSharedBuffer OuterBuffer)
+{
+	return MakeView(MakeMemoryView(Data, Size), MoveTemp(OuterBuffer));
+}
+
+FSharedBuffer::FSharedBuffer(FBufferOwner* InOwner)
+	: Owner(InOwner)
+{
+}
+
+FSharedBuffer::FSharedBuffer(const BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>& WeakOwner)
+	: Owner(WeakOwner)
+{
+}
+
+void FSharedBuffer::Reset()
+{
+	Owner.Reset();
+}
+
+void FSharedBuffer::MakeOwned()
+{
+	if (!IsOwned())
+	{
+		*this = FSharedBuffer::Clone(GetView());
+	}
+}
+
+void FSharedBuffer::Materialize() const
+{
+	if (Owner)
+	{
+		Owner->Materialize();
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FWeakSharedBuffer::FWeakSharedBuffer(const FSharedBuffer& Buffer)
+	: Owner(ToPrivateOwnerPtr(Buffer))
+{
+}
+
+FWeakSharedBuffer& FWeakSharedBuffer::operator=(const FSharedBuffer& Buffer)
+{
+	Owner = ToPrivateOwnerPtr(Buffer);
+	return *this;
+}
+
+void FWeakSharedBuffer::Reset()
+{
+	Owner.Reset();
+}
+
+FSharedBuffer FWeakSharedBuffer::Pin() const
+{
+	return FSharedBuffer(Owner);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
