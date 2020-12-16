@@ -224,5 +224,13 @@ void FTurnkeyEditorSupport::ShowInstallationHelp(FName IniPlatformName, FString 
 #endif
 }
 
+bool FTurnkeyEditorSupport::IsPIERunning()
+{
+#if WITH_EDITOR
+	return GEditor->PlayWorld != NULL;
+#endif
+	return false;
+}
+
 
 #undef LOCTEXT_NAMESPACE

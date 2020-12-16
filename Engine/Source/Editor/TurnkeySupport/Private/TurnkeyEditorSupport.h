@@ -22,5 +22,5 @@ public:
 	static void ShowRestartToast();
 	static bool CheckSupportedPlatforms(FName IniPlatformName);
 	static void ShowInstallationHelp(FName IniPlatformName, FString DocLink);
-
+	static bool IsPIERunning();
 };

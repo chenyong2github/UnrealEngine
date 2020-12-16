@@ -1453,9 +1453,16 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 	ITargetDeviceServicesModule* TargetDeviceServicesModule = static_cast<ITargetDeviceServicesModule*>(FModuleManager::Get().LoadModule(TEXT("TargetDeviceServices")));
 	TargetDeviceServicesModule->GetDeviceProxyManager();
 
+	// hide during PIE
+	FUIAction PlatformMenuShownDelegate;
+	PlatformMenuShownDelegate.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([]() 
+	{
+		return !FTurnkeyEditorSupport::IsPIERunning();
+	});
+
  	MenuSection.AddEntry(FToolMenuEntry::InitComboButton(
 		"PlatformsMenu",
-		FUIAction(),
+		PlatformMenuShownDelegate,
 		FOnGetContent::CreateLambda([this] { return MakeTurnkeyMenuWidget(); }),
 		LOCTEXT("PlatformMenu", "Platforms"),
 		LOCTEXT("PlatformMenu_Tooltip", "Platform related actions and settings (Launching, Packaging, custom builds, etc)"),
