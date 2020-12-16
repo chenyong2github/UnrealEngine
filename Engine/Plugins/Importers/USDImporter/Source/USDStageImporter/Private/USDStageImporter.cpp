@@ -375,9 +375,15 @@ namespace UsdStageImporterImpl
 			}
 		}
 
-		if (Component && !Component->IsRegistered())
+		if ( Component )
 		{
-			Component->RegisterComponent();
+			// LightComponents specifically need this to setup static lighting
+			Component->PostEditChange();
+
+			if ( !Component->IsRegistered() )
+			{
+				Component->RegisterComponent();
+			}
 		}
 	}
 
