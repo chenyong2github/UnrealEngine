@@ -31,6 +31,9 @@ public:
 	uint32 GetAllocCount() const { return Allocs.Num(); }
 	void AddAlloc(const FAllocationItem* Alloc);
 
+	uint32 GetMinStartEventIndex() const { return MinStartEventIndex; }
+	uint32 GetMaxEndEventIndex() const { return MaxEndEventIndex; }
+
 	double GetMinStartTime() const { return MinStartTime; }
 	double GetMaxEndTime() const { return MaxEndTime; }
 
@@ -63,22 +66,39 @@ public:
 	uint32 GetColumnWidth() const { return 1 << ColumnShift; }
 	uint32 GetCurrentColumn() const { return CurrentColumn; }
 
-	int32 GetColumnAtTime(double Time) const;
-
 	void Query(TArray<const FSbTreeCell*>& OutCells, const IAllocationsProvider::FQueryParams& Params) const;
 
 	void IterateCells(TArray<const FSbTreeCell*>& OutCells, int32 Column) const;
 	void IterateCells(TArray<const FSbTreeCell*>& OutCells, int32 StartColumn, int32 EndColumn) const;
 
 	void DebugPrint() const;
+	void Validate() const;
+
+private:
+	int32 GetColumnsAtTime(double Time, int32* StartColumnPtr, int32* EndColumnPtr) const;
 
 private:
 	ILinearAllocator& Allocator;
+
+	// Normal cells.
 	TArray<FSbTreeCell*> Cells;
+
+	// Offsetted cells. Note: Depth 0 doesn't use offseted cells. Those will always be empty.
 	TArray<FSbTreeCell*> OffsettedCells;
+
+	// Array with time values of the first event in each column.
+	// Because multiple columns can have same time, CST[i] can also be assumed the time of the last event in previous column (i-1).
+	// Time range for events in column i is inclusive interval [CST[i], CST[i+1]], with CST[N] = infinity.
 	TArray<double> ColumnStartTimes;
-	uint32 ColumnShift; // ColumnWidth = 1 << ColumnShift
+
+	// It defines the width of a column (as number of events).
+	// ColumnWidth = 1 << ColumnShift
+	uint32 ColumnShift;
+
+	// Index of the current (last) column.
 	uint32 CurrentColumn;
+
+	double LastAllocEndTime = 0.0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

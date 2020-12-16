@@ -299,7 +299,7 @@ void FSbTree::SetTimeForEvent(uint32 EventIndex, double Time)
 	// Detect the first event of each new column.
 	if ((EventIndex & ((1 << ColumnShift) - 1)) == 0)
 	{
-		check((uint32)ColumnStartTimes.Num() == (EventIndex >> ColumnShift));
+		check(static_cast<uint32>(ColumnStartTimes.Num()) == (EventIndex >> ColumnShift));
 		ColumnStartTimes.Add(Time);
 	}
 }
@@ -310,13 +310,16 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 {
 	check(Alloc != nullptr);
 
+	check(Alloc->EndTime >= LastAllocEndTime);
+	LastAllocEndTime = Alloc->EndTime;
+
 	uint32 StartColumn = Alloc->StartEventIndex >> ColumnShift;
 	uint32 EndColumn = Alloc->EndEventIndex >> ColumnShift;
 
 	if (EndColumn > CurrentColumn)
 	{
-		check((uint32)Cells.Num() > (CurrentColumn << 1));
-		check((uint32)ColumnStartTimes.Num() == EndColumn + 1);
+		check(static_cast<uint32>(Cells.Num()) > (CurrentColumn << 1));
+		check(static_cast<uint32>(ColumnStartTimes.Num()) == EndColumn + 1);
 
 		// Adds 2 cells for each new column.
 		uint32 CellsToAdd = (EndColumn - CurrentColumn) << 1;
@@ -333,11 +336,39 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 	}
 
 #if USE_OFFSETTED_CELLS
+	uint32 Depth;
+	uint32 CellIndex;
+	bool bUseOffsettedCells;
+
 	const uint32 DeltaColumns = EndColumn - StartColumn;
-	const uint32 Depth = 32 - FMath::CountLeadingZeros(DeltaColumns);
-	const uint32 HalfCellWidth = (1 << Depth) >> 1;
-	const uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(StartColumn & ~HalfCellWidth, Depth);
-	const bool bUseOffsettedCells = ((StartColumn & HalfCellWidth) != 0);
+	if (DeltaColumns == 0)
+	{
+		Depth = 0;
+		CellIndex = StartColumn << 1;
+		bUseOffsettedCells = false;
+	}
+	else
+	{
+		Depth = 32 - FMath::CountLeadingZeros(DeltaColumns);
+		uint32 HalfCellWidth = (1 << Depth) >> 1;
+
+		// In a cell, each alloc has start event column only in the first half of the cell and the end event column in the second half of the cell.
+		// For a column, the bit indicating the "type of the half cell" at a certain depth ("start columns half cell" or "end columns half cell")
+		// is Column & HalfCellWidth. This is also true for offsetted cells (just that for normal cells 0 means "start columns half cell"
+		// while in offsetted cells 1 means "start columns half cell").
+
+		// If the "type of the half cell" bit is the same for StartColumn and for EndColumn on the min depth (computed based on the column width for this alloc)
+		// it means that the alloc doesn't fit in the (alligned) cells on this depth (neither in offsetted cells on this depth).
+		// Those allocs are pushed to the next depth.
+		if ((StartColumn & HalfCellWidth) == (EndColumn & HalfCellWidth))
+		{
+			++Depth;
+			HalfCellWidth <<= 1;
+		}
+
+		CellIndex = FSbTreeUtils::GetCellAtDepth(StartColumn & ~HalfCellWidth, Depth);
+		bUseOffsettedCells = ((StartColumn & HalfCellWidth) != 0);
+	}
 #else // USE_OFFSETTED_CELLS
 	const uint32 Depth = FSbTreeUtils::GetCommonDepth(StartColumn, EndColumn);
 	const uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(StartColumn, Depth);
@@ -348,7 +379,7 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 
 	if (!bUseOffsettedCells)
 	{
-		check(CellIndex < (uint32)Cells.Num());
+		check(CellIndex < static_cast<uint32>(Cells.Num()));
 		CellPtr = Cells[CellIndex];
 		if (CellPtr == nullptr)
 		{
@@ -362,7 +393,7 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 	{
 		check((CellIndex & 1) != 0); // depth 0 doesn't use offsetted cells
 
-		check(CellIndex < (uint32)OffsettedCells.Num());
+		check(CellIndex < static_cast<uint32>(OffsettedCells.Num()));
 		CellPtr = OffsettedCells[CellIndex];
 		if (CellPtr == nullptr)
 		{
@@ -378,10 +409,29 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 FSbTree::GetColumnAtTime(double Time) const
+int32 FSbTree::GetColumnsAtTime(double Time, int32* StartColumnPtr, int32* EndColumnPtr) const
 {
-	const int32 Index = Algo::UpperBound(ColumnStartTimes, Time);
-	return Index - 1;
+	// Returns the first column with T >= Time.
+	// [0 .. N]
+	const int32 LowerBoundColumn = Algo::LowerBound(ColumnStartTimes, Time);
+
+	if (StartColumnPtr)
+	{
+		*StartColumnPtr = LowerBoundColumn - 1; // [-1 .. N-1]
+	}
+
+	if (EndColumnPtr)
+	{
+		int32 Column = LowerBoundColumn - 1; // [-1 .. N-1]
+		const int32 Last = ColumnStartTimes.Num() - 1; // N-1
+		while (Column < Last && ColumnStartTimes[Column + 1] == Time)
+		{
+			++Column;
+		}
+		*EndColumnPtr = Column; // [-1 .. N-1]
+	}
+
+	return LowerBoundColumn;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -392,83 +442,99 @@ void FSbTree::Query(TArray<const FSbTreeCell*>& OutCells, const IAllocationsProv
 	{
 		case IAllocationsProvider::EQueryRule::aAf: // active allocs at A
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			IterateCells(OutCells, ColumnA);
+			int32 Column1, Column2;
+			GetColumnsAtTime(Params.TimeA, &Column1, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
 
 		case IAllocationsProvider::EQueryRule::afA: // before
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			IterateCells(OutCells, 0, ColumnA);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeA, nullptr, &Column2);
+			IterateCells(OutCells, 0, Column2);
 		}
 		break;
 
 		case IAllocationsProvider::EQueryRule::Aaf: // after
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			IterateCells(OutCells, ColumnA, CurrentColumn);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
 		}
 		break;
-	
+
 		case IAllocationsProvider::EQueryRule::aAfB: // decline
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			IterateCells(OutCells, ColumnA);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeB, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
-	
+
 		case IAllocationsProvider::EQueryRule::AaBf: // growth
 		{
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			IterateCells(OutCells, ColumnB);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeB, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
 		}
 		break;
 
 		case IAllocationsProvider::EQueryRule::AafB: // short living allocs
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			IterateCells(OutCells, ColumnA, ColumnB);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeB, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
 
 		case IAllocationsProvider::EQueryRule::aABf: // long living allocs
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			IterateCells(OutCells, ColumnA, ColumnB);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeB, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
 		}
 		break;
-	
+
 		case IAllocationsProvider::EQueryRule::AaBCf: // memory leaks
 		{
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			const int32 ColumnC = GetColumnAtTime(Params.TimeC);
-			IterateCells(OutCells, ColumnB, ColumnC);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeC, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
 		}
 		break;
 
 		case IAllocationsProvider::EQueryRule::AaBfC: // limited lifetime
 		{
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			IterateCells(OutCells, ColumnB);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeB, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeC, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
-	
+
 		case IAllocationsProvider::EQueryRule::aABfC: // decline of long living allocs
 		{
-			const int32 ColumnA = GetColumnAtTime(Params.TimeA);
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			IterateCells(OutCells, ColumnA, ColumnB);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeB, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeC, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
-	
+
 		case IAllocationsProvider::EQueryRule::AaBCfD: // specific lifetime
 		{
-			const int32 ColumnB = GetColumnAtTime(Params.TimeB);
-			const int32 ColumnC = GetColumnAtTime(Params.TimeC);
-			IterateCells(OutCells, ColumnB, ColumnC);
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeC, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeD, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
 		}
 		break;
 	}
@@ -484,12 +550,15 @@ void FSbTree::IterateCells(TArray<const FSbTreeCell*>& OutCells, int32 Column) c
 		return;
 	}
 
+	const uint32 LocalColumn = static_cast<uint32>(Column);
+
 	const uint32 MaxDepth = FSbTreeUtils::GetMaxDepth(CurrentColumn);
 
+	const uint32 NumCells = static_cast<uint32>(Cells.Num());
 	for (uint32 Depth = 0; Depth <= MaxDepth; ++Depth)
 	{
-		const uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(Column, Depth);
-		if (CellIndex < (uint32)Cells.Num())
+		const uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(LocalColumn, Depth);
+		if (CellIndex < NumCells)
 		{
 			const FSbTreeCell* CellPtr = Cells[CellIndex];
 			if (CellPtr)
@@ -497,70 +566,90 @@ void FSbTree::IterateCells(TArray<const FSbTreeCell*>& OutCells, int32 Column) c
 				OutCells.Add(CellPtr);
 			}
 		}
+	}
 
 #if USE_OFFSETTED_CELLS
+	const uint32 NumOffsettedCells = static_cast<uint32>(OffsettedCells.Num());
+	for (uint32 Depth = 1; Depth <= MaxDepth; ++Depth) // offsetted cells doesn't exist on Depth 0
+	{
 		const uint32 HalfCellWidth = (1 << Depth) >> 1;
-		const uint32 OffsettedCellIndex = FSbTreeUtils::GetCellAtDepth(Column & ~HalfCellWidth, Depth);
-		if (OffsettedCellIndex < (uint32)OffsettedCells.Num())
+		if (HalfCellWidth > LocalColumn)
 		{
-			const FSbTreeCell* CellPtr = OffsettedCells[OffsettedCellIndex];
+			break;
+		}
+		const uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(LocalColumn - HalfCellWidth, Depth);
+		if (CellIndex < NumOffsettedCells)
+		{
+			const FSbTreeCell* CellPtr = OffsettedCells[CellIndex];
 			if (CellPtr)
 			{
 				OutCells.Add(CellPtr);
 			}
 		}
-#endif // USE_OFFSETTED_CELLS
 	}
+#endif // USE_OFFSETTED_CELLS
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSbTree::IterateCells(TArray<const FSbTreeCell*> & OutCells, int32 StartColumn, int32 EndColumn) const
 {
+	if (StartColumn == EndColumn)
+	{
+		IterateCells(OutCells, StartColumn);
+		return;
+	}
+
 	if (EndColumn < 0 || StartColumn > (int32)CurrentColumn || StartColumn > EndColumn)
 	{
 		// not an error; just early out
 		return;
 	}
 
-	const uint32 LocalStartColumn = (StartColumn < 0) ? 0 : (uint32)StartColumn;
-	const uint32 LocalEndColumn = ((uint32)EndColumn > CurrentColumn) ? CurrentColumn : (uint32)EndColumn;
+	const uint32 LocalStartColumn = (StartColumn < 0) ? 0 : static_cast<uint32>(StartColumn);
+	const uint32 LocalEndColumn = (static_cast<uint32>(EndColumn) > CurrentColumn) ? CurrentColumn : static_cast<uint32>(EndColumn);
 	check(LocalStartColumn <= LocalEndColumn);
 
 	const uint32 MaxDepth = FSbTreeUtils::GetMaxDepth(CurrentColumn);
 
+	const uint32 NumCells = static_cast<uint32>(Cells.Num());
 	for (uint32 Depth = 0; Depth <= MaxDepth; ++Depth)
 	{
-		const uint32 CellOffset = 1 << (Depth + 1);
-
 		const uint32 FirstCellIndex = FSbTreeUtils::GetCellAtDepth(LocalStartColumn, Depth);
-		const uint32 LastCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(LocalEndColumn, Depth) + 1, (uint32)Cells.Num());
-		for (uint32 CellIndex = FirstCellIndex; CellIndex < LastCellIndex; CellIndex += CellOffset)
+		const uint32 LastCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(LocalEndColumn, Depth) + 1, NumCells);
+		const uint32 CellIncrement = 1 << (Depth + 1);
+		for (uint32 CellIndex = FirstCellIndex; CellIndex < LastCellIndex; CellIndex += CellIncrement)
 		{
-			FSbTreeCell* CellPtr = Cells[CellIndex];
+			const FSbTreeCell* CellPtr = Cells[CellIndex];
 			if (CellPtr)
 			{
 				OutCells.Add(CellPtr);
 			}
 		}
+	}
 
 #if USE_OFFSETTED_CELLS
-		if (Depth > 0) // offsetted cells doesn't exist on Depth 0
+	const uint32 NumOffsettedCells = static_cast<uint32>(OffsettedCells.Num());
+	for (uint32 Depth = 1; Depth <= MaxDepth; ++Depth) // offsetted cells doesn't exist on Depth 0
+	{
+		uint32 HalfCellWidth = (1 << Depth) >> 1;
+		if (HalfCellWidth > LocalStartColumn)
 		{
-			uint32 HalfCellWidth = (1 << Depth) >> 1;
-			uint32 FirstOffsettedCellIndex = FSbTreeUtils::GetCellAtDepth(LocalStartColumn & ~HalfCellWidth, Depth);
-			uint32 LastOffsettedCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(LocalEndColumn & ~HalfCellWidth, Depth) + 1, (uint32)OffsettedCells.Num());
-			for (uint32 CellIndex = FirstOffsettedCellIndex; CellIndex < LastOffsettedCellIndex; CellIndex += CellOffset)
+			break;
+		}
+		uint32 FirstCellIndex = FSbTreeUtils::GetCellAtDepth(LocalStartColumn - HalfCellWidth, Depth);
+		uint32 LastCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(LocalEndColumn - HalfCellWidth, Depth) + 1, NumOffsettedCells);
+		const uint32 CellIncrement = 1 << (Depth + 1);
+		for (uint32 CellIndex = FirstCellIndex; CellIndex < LastCellIndex; CellIndex += CellIncrement)
+		{
+			const FSbTreeCell* CellPtr = OffsettedCells[CellIndex];
+			if (CellPtr)
 			{
-				FSbTreeCell* CellPtr = OffsettedCells[CellIndex];
-				if (CellPtr)
-				{
-					OutCells.Add(CellPtr);
-				}
+				OutCells.Add(CellPtr);
 			}
 		}
-#endif // USE_OFFSETTED_CELLS
 	}
+#endif // USE_OFFSETTED_CELLS
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -574,14 +663,14 @@ void FSbTree::DebugPrint() const
 	uint32 LocalMaxAllocCountPerCell = 0;
 
 	uint32 NotEmptyCellCount = 0;
-	const uint32 CellCount = (uint32)Cells.Num();
+	const uint32 CellCount = static_cast<uint32>(Cells.Num());
 	for (uint32 CellIndex = 0; CellIndex < CellCount; ++CellIndex)
 	{
 		const FSbTreeCell* CellPtr = Cells[CellIndex];
 		if (CellPtr != nullptr)
 		{
 			++NotEmptyCellCount;
-			uint32 CellAllocCount = CellPtr->GetAllocCount();
+			const uint32 CellAllocCount = CellPtr->GetAllocCount();
 			TotalAllocs += CellAllocCount;
 			if (CellAllocCount > LocalMaxAllocCountPerCell)
 			{
@@ -594,14 +683,14 @@ void FSbTree::DebugPrint() const
 
 #if USE_OFFSETTED_CELLS
 	uint32 NotEmptyOffsettedCellCount = 0;
-	const uint32 OffsettedCellCount = (uint32)OffsettedCells.Num();
+	const uint32 OffsettedCellCount = static_cast<uint32>(OffsettedCells.Num());
 	for (uint32 CellIndex = 0; CellIndex < OffsettedCellCount; ++CellIndex)
 	{
 		const FSbTreeCell* CellPtr = OffsettedCells[CellIndex];
 		if (CellPtr != nullptr)
 		{
 			++NotEmptyOffsettedCellCount;
-			uint32 CellAllocCount = CellPtr->GetAllocCount();
+			const uint32 CellAllocCount = CellPtr->GetAllocCount();
 			TotalAllocs += CellAllocCount;
 			if (CellAllocCount > LocalMaxAllocCountPerCell)
 			{
@@ -685,6 +774,64 @@ void FSbTree::DebugPrint() const
 
 	#undef SbTreePrint
 	#undef SbTreePrintF
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FSbTree::Validate() const
+{
+	const uint32 MaxDepth = FSbTreeUtils::GetMaxDepth(CurrentColumn);
+
+	const uint32 NumCells = static_cast<uint32>(Cells.Num());
+	for (uint32 Depth = 0; Depth <= MaxDepth; ++Depth)
+	{
+		uint32 EventIndex = 0;
+		double Time = 0.0;
+		const uint32 CellIncrement = 1 << (Depth + 1);
+		uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(0, Depth);
+		while (CellIndex < NumCells)
+		{
+			const FSbTreeCell* CellPtr = Cells[CellIndex];
+			if (CellPtr)
+			{
+				check(CellPtr->GetMaxEndEventIndex() > CellPtr->GetMinStartEventIndex());
+				check(CellPtr->GetMinStartEventIndex() >= EventIndex);
+				EventIndex = CellPtr->GetMaxEndEventIndex() + 1;
+
+				check(CellPtr->GetMaxEndTime() >= CellPtr->GetMinStartTime());
+				check(CellPtr->GetMinStartTime() >= Time);
+				Time = CellPtr->GetMinStartTime();
+			}
+			CellIndex += CellIncrement;
+		}
+	}
+
+#if USE_OFFSETTED_CELLS
+	const uint32 NumOffsettedCells = static_cast<uint32>(OffsettedCells.Num());
+	for (uint32 Depth = 0; Depth <= MaxDepth; ++Depth)
+	{
+		uint32 EventIndex = 0;
+		double Time = 0.0;
+		const uint32 CellIncrement = 1 << (Depth + 1);
+		uint32 CellIndex = FSbTreeUtils::GetCellAtDepth(0, Depth);
+		while (CellIndex < NumOffsettedCells)
+		{
+			const FSbTreeCell* CellPtr = OffsettedCells[CellIndex];
+			if (CellPtr)
+			{
+				check(CellPtr->GetMaxEndEventIndex() > CellPtr->GetMinStartEventIndex());
+				check(CellPtr->GetMinStartEventIndex() >= EventIndex);
+				EventIndex = CellPtr->GetMaxEndEventIndex() + 1;
+
+				check(CellPtr->GetMaxEndTime() >= CellPtr->GetMinStartTime());
+				check(CellPtr->GetMinStartTime() >= Time);
+				Time = CellPtr->GetMinStartTime();
+			}
+			CellIndex += CellIncrement;
+		}
+	}
+	check(NumCells == NumOffsettedCells);
+#endif // USE_OFFSETTED_CELLS
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

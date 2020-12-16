@@ -33,15 +33,25 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Alloc,        "Memory", "Alloc");
 	Builder.RouteEvent(RouteId_Free,         "Memory", "Free");
 	Builder.RouteEvent(RouteId_ReallocAlloc, "Memory", "ReallocAlloc");
-	Builder.RouteEvent(RouteId_Marker,	     "Memory", "Marker");
+	Builder.RouteEvent(RouteId_Marker,       "Memory", "Marker");
+	Builder.RouteEvent(RouteId_TagSpec,      "Memory", "TagSpec");
+
+	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FAllocationsAnalyzer::OnAnalysisEnd()
 {
+	double SessionTime;
+	{
+		FAnalysisSessionEditScope _(Session);
+		SessionTime = Session.GetDurationSeconds();
+	}
+	const double Time = FMath::Max(SessionTime, LastMarkerSeconds);
+
 	FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-	AllocationsProvider.EditOnAnalysisCompleted();
+	AllocationsProvider.EditOnAnalysisCompleted(Time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,10 +107,12 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint64 Address = EventData.GetValue<uint64>("Address");
 			const uint32 Size = EventData.GetValue<uint32>("Size");
 			const uint8 Alignment_SizeLower = EventData.GetValue<uint8>("Alignment_SizeLower");
-			const uint32 Tag = 0; //TODO
+
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
+			const uint8 Tracker = 0; // We only care about the default tracker for now.
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment_SizeLower, Tag);
+			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment_SizeLower, ThreadId, Tracker);
 			break;
 		}
 		case RouteId_Free:
@@ -117,6 +129,53 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		{
 			const uint64 LastCycle = BaseCycle + EventData.GetValue<uint32>("Cycle");
 			LastMarkerSeconds = Context.EventTime.AsSeconds(LastCycle);
+			break;
+		}
+		case RouteId_TagSpec:
+		{
+			const int32 Tag = Context.EventData.GetValue<int32>("Tag");
+			const int32 Parent = Context.EventData.GetValue<int32>("Parent");
+
+			FString Display;
+			Context.EventData.GetString("Display", Display);
+			const TCHAR* DisplayString = Session.StoreString(*Display);
+
+			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			AllocationsProvider.EditAddTagSpec(Tag, Parent, DisplayString);
+			break;
+		}
+		case RouteId_MemScope:
+		{
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
+			const uint8 Tracker = 0; // We only care about the default tracker for now.
+
+			if (Style == EStyle::EnterScope)
+			{
+				if (FCStringAnsi::Strlen(Context.EventData.GetTypeInfo().GetName()) == 11) // "MemoryScope"
+				{
+					const int32 Tag = Context.EventData.GetValue<int32>("Tag");
+					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+					AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
+				}
+				else // "MemoryScopeRealloc"
+				{
+					const uint64 Ptr = Context.EventData.GetValue<int32>("Ptr");
+					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+					AllocationsProvider.EditPushRealloc(ThreadId, Tracker, Ptr);
+				}
+			}
+			else // EStyle::LeaveScope
+			{
+				FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+				if (AllocationsProvider.HasReallocScope(ThreadId, Tracker)) // Is realloc scope active?
+				{
+					AllocationsProvider.EditPopRealloc(ThreadId, Tracker);
+				}
+				else
+				{
+					AllocationsProvider.EditPopTag(ThreadId, Tracker);
+				}
+			}
 			break;
 		}
 	}

@@ -75,6 +75,114 @@ void FAllocationsProviderLock::EndWrite()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTagTracker
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::AddTagSpec(uint32 InTag, uint32 InParentTag, const TCHAR* InDisplay)
+{
+	if (ensure(!TagMap.Contains(InTag)))
+	{
+		TagMap.Emplace(InTag, TagEntry{ InDisplay, InParentTag });
+	}
+	else
+	{
+		++NumErrors;
+		//TODO: error message
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::PushTag(uint32 InThreadId, uint8 InTracker, uint32 InTag)
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
+	State.TagStack.Push(InTag);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::PopTag(uint32 InThreadId, uint8 InTracker)
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	if (ensure(State && !State->TagStack.IsEmpty()))
+	{
+		State->TagStack.Pop();
+	}
+	else
+	{
+		++NumErrors;
+		//TODO: error message
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	if (!State || State->TagStack.IsEmpty())
+	{
+		return 0; // Untagged
+	}
+	return State->TagStack.Top();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TCHAR* FTagTracker::GetTagString(uint32 InTag) const
+{
+	const TagEntry* Entry = TagMap.Find(InTag);
+	return Entry ? Entry->Display : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::PushRealloc(uint32 InThreadId, uint8 InTracker, uint64 InPtr)
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
+	State.ReallocPtr.Push(InPtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::PopRealloc(uint32 InThreadId, uint8 InTracker)
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	if (ensure(State && !State->ReallocPtr.IsEmpty()))
+	{
+		State->ReallocPtr.Pop();
+	}
+	else
+	{
+		++NumErrors;
+		//TODO: error message
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTagTracker::HasReallocScope(uint32 InThreadId, uint8 InTracker) const
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	return State && !State->ReallocPtr.IsEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTagTracker::IsReallocScope(uint64 InSourcePtr, uint32 InThreadId, uint8 InTracker) const
+{
+	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
+	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	return State && !State->ReallocPtr.IsEmpty() && State->ReallocPtr.Contains(InSourcePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // IAllocationsProvider::FAllocation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -268,7 +376,7 @@ void FAllocationsProvider::EditRemoveCore(double Time, uint64 Owner, uint64 Base
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint32 InSize, uint8 InAlignmentAndSizeLower, uint32 Tag)
+void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint32 InSize, uint8 InAlignmentAndSizeLower, uint32 ThreadId, uint8 Tracker)
 {
 	Lock.WriteAccessCheck();
 
@@ -297,6 +405,8 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 		const uint8 AlignmentMask = ~SizeLowerMask;
 
 		const uint64 Size = (static_cast<uint64>(InSize) << SizeShift) | static_cast<uint64>(InAlignmentAndSizeLower & SizeLowerMask);
+
+		const uint32 Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
 
 		FAllocationItem Allocation =
 		{
@@ -432,10 +542,8 @@ void FAllocationsProvider::UpdateHistogramByEventDistance(uint32 EventDistance)
 
 void FAllocationsProvider::AdvanceTimelines(double Time)
 {
-	constexpr double SampleGranularity = 0.001; // 1ms
-
 	// If enough time has passed (since the current sample is started)...
-	if (Time - SampleStartTimestamp > SampleGranularity)
+	if (Time - SampleStartTimestamp > DefaultTimelineSampleGranularity)
 	{
 		// Add the current sample to the timelines.
 		Timeline.EmplaceBack(SampleStartTimestamp);
@@ -457,7 +565,7 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 		SampleFreeEvents = 0;
 
 		// If the previous sample is well distanced in time...
-		if (Time - SampleEndTimestamp > SampleGranularity) 
+		if (Time - SampleEndTimestamp > DefaultTimelineSampleGranularity)
 		{
 			// Add an intermediate "flat region" sample.
 			Timeline.EmplaceBack(SampleEndTimestamp);
@@ -475,7 +583,7 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditOnAnalysisCompleted()
+void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 {
 	Lock.WriteAccessCheck();
 
@@ -484,9 +592,50 @@ void FAllocationsProvider::EditOnAnalysisCompleted()
 		return;
 	}
 
+#if 0
+	const bool bResetTimelineAtEnd = false;
+
+	// Add all live allocs to SbTree (with infinite end time).
+	uint64 LiveAllocsTotalSize = 0;
+	for (TPair<uint64, FAllocationItem>& KV : LiveAllocs)
+	{
+		FAllocationItem* AllocationPtr = &KV.Value;
+
+		LiveAllocsTotalSize += AllocationPtr->GetSize();
+
+		// Assign same event index to all live allocs at the end of the session.
+		AllocationPtr->EndEventIndex = EventIndex;
+
+		SbTree->AddAlloc(AllocationPtr);
+
+		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
+		UpdateHistogramByEventDistance(EventDistance);
+	}
+	check(TotalAllocatedMemory == LiveAllocsTotalSize);
+
+	if (bResetTimelineAtEnd)
+	{
+		AdvanceTimelines(Time + 10 * DefaultTimelineSampleGranularity);
+
+		const uint32 LiveAllocsTotalCount = (uint32)LiveAllocs.Num();
+		LiveAllocs.Empty();
+
+		// Update stats for the last timeline sample (reset to zero).
+		TotalAllocatedMemory = 0;
+		SampleMinTotalAllocatedMemory = 0;
+		SampleMinLiveAllocations = 0;
+		SampleFreeEvents += LiveAllocsTotalCount;
+	}
+#endif
+
+	// Flush the last cached timeline sample.
 	AdvanceTimelines(std::numeric_limits<double>::infinity());
 
-	//DebugPrint();
+#if 0
+	DebugPrint();
+#endif
+
+	SbTree->Validate();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

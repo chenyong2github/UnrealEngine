@@ -16,10 +16,7 @@ class ILinearAllocator;
 
 struct FAllocationsImpl
 {
-	FAllocationsImpl(uint32 NumItems);
-	~FAllocationsImpl();
-
-	FAllocationsImpl* Next;
+	FAllocationsImpl* Next = nullptr;
 	TArray<const FAllocationItem*> Items;
 };
 
@@ -35,6 +32,7 @@ public:
 
 private:
 	void Run();
+	void QueryLiveAllocs(TArray<const FAllocationItem*>& OutAllocs) const;
 
 private:
 	const FAllocationsProvider& Provider;

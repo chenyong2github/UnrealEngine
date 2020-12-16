@@ -94,9 +94,6 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 	const int32 PreviousNodeCount = TableTreeNodes.Num();
 
-	//check(Table->Is<Insights::FMemAllocTable>());
-	//TSharedPtr<Insights::FMemAllocTable> MemAllocTable = StaticCastSharedPtr<Insights::FMemAllocTable>(Table);
-
 	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 
 	SyncStopwatch.Start();
@@ -107,6 +104,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 		if (QueryStatus == TraceServices::IAllocationsProvider::EQueryStatus::Done)
 		{
+			UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Rebuilding tree..."));
 			TArray<FMemoryAlloc>& Allocs = MemAllocTable->GetAllocs();
 
 			const int32 TotalAllocCount = Allocs.Num();
@@ -242,7 +240,6 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 		return;
 	}
 	const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
-	TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
 
 	constexpr double MaxPollTime = 0.03; // Stop getting results after 30 ms so we don't tank the frame rate too much.
 	FStopwatch TotalStopwatch;
@@ -251,8 +248,8 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 	do
 	{
 		TraceServices::IAllocationsProvider::FQueryStatus Status = Provider.PollQuery(Query);
-
 		OutStatus = Status.Status;
+
 		if (Status.Status <= TraceServices::IAllocationsProvider::EQueryStatus::Done)
 		{
 			UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query completed."));
@@ -261,27 +258,38 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 			return;
 		}
 
+		if (Status.Status == IAllocationsProvider::EQueryStatus::Working)
+		{
+			break;
+		}
+
+		check(Status.Status == IAllocationsProvider::EQueryStatus::Available);
+
 		TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 		if (MemAllocTable)
 		{
+			TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
+
 			TArray<FMemoryAlloc>& Allocs = MemAllocTable->GetAllocs();
 
 			FStopwatch ResultStopwatch;
 			FStopwatch PageStopwatch;
 			ResultStopwatch.Start();
 			uint32 PageCount = 0;
-			uint32 TotatAllocCount = 0;
+			uint32 TotalAllocCount = 0;
 
 			// Multiple 'pages' of results will be returned. No guarantees are made
 			// about the order of pages or the allocations they report.
 			TraceServices::IAllocationsProvider::FQueryResult Result = Status.NextResult();
 			while (Result.IsValid())
 			{
+				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Page with %u allocs..."), Result->Num());
+
 				++PageCount;
 				PageStopwatch.Restart();
 
 				const uint32 AllocCount = Result->Num();
-				TotatAllocCount += AllocCount;
+				TotalAllocCount += AllocCount;
 #if 0
 				Allocs.Reserve(Allocs.Num() + AllocCount);
 
@@ -330,13 +338,14 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 			const double TotalTime = ResultStopwatch.GetAccumulatedTime();
 			if (TotalTime > 0.01)
 			{
-				const double Speed = (TotalTime * 1000000.0) / TotatAllocCount;
-				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query results (%u pages, %u allocs, slack=%u) retrieved in %.3fs (speed: %.3f seconds per 1M allocs)."), PageCount, TotatAllocCount, Allocs.GetSlack(), TotalTime, Speed);
+				const double Speed = (TotalTime * 1000000.0) / TotalAllocCount;
+				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query results (%u pages, %u allocs, slack=%u) retrieved in %.3fs (speed: %.3f seconds per 1M allocs)."), PageCount, TotalAllocCount, Allocs.GetSlack(), TotalTime, Speed);
 			}
 		}
 
 		TotalStopwatch.Update();
-	} while (OutStatus == TraceServices::IAllocationsProvider::EQueryStatus::Available && TotalStopwatch.GetAccumulatedTime() < MaxPollTime);
+	}
+	while (OutStatus == TraceServices::IAllocationsProvider::EQueryStatus::Available && TotalStopwatch.GetAccumulatedTime() < MaxPollTime);
 
 	TotalStopwatch.Stop();
 }
@@ -414,7 +423,7 @@ TSharedRef<ITableCellValueFormatter> SMemAllocTableTreeView::CreateCachedLlmTagV
 				{
 					return FText::FromString(FString::Printf(TEXT("%lli (%s)"), MemTagId, *TagIdToStatNameMap[MemTagId]));
 				}
-				
+
 				return FText::FromString(FString::Printf(TEXT("%lli ()"), MemTagId));
 			}
 			return FText::GetEmpty();

@@ -24,6 +24,8 @@ private:
 		RouteId_ReallocAlloc,
 		RouteId_ReallocFree,
 		RouteId_Marker,
+		RouteId_TagSpec,
+		RouteId_MemScope,
 	};
 
 public:
@@ -37,7 +39,6 @@ public:
 private:
 	IAnalysisSession& Session;
 	FAllocationsProvider& AllocationsProvider;
-	uint64 EventCount = 0; // debug
 	uint64 BaseCycle;
 	uint32 MarkerPeriod;
 	double LastMarkerSeconds;
