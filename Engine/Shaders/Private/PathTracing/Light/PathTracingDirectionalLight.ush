@@ -56,55 +56,6 @@ bool DirectionalLight_SampleLight(
 	return true;
 }
 
-void DirectionalLight_GenerateLightRay(
-	RayDesc Ray,
-	int LightId,
-	float3 LightUV,
-	out RayDesc OutLightRay
-)
-{
-	OutLightRay.Origin = Ray.Origin;
-	OutLightRay.TMin = 0.0;
-	OutLightRay.Direction = LightUV;
-	OutLightRay.TMax = 1.0e27;
-}
-
-void DirectionalLight_PdfLight(
-	RayDesc Ray,
-	int LightId,
-	float3 LightUV,
-	out float OutPdf
-)
-{
-	OutPdf = 0.0;
-}
-
-void DirectionalLight_EvalLight(
-	int LightId,
-	float3 LightUV,
-	RayDesc Ray,
-	out float3 OutRadiance
-)
-{
-	float3 Color = GetColor(LightId);
-	float Radius = GetRadius(LightId);
-	if (Radius == 0)
-	{
-		OutRadiance = Color;
-	}
-	else
-	{
-		// #dxr_todo: Merge Eval/Sample to avoid redundant computation
-		float SinThetaMax = Radius; // currently sin(Angle / 2)
-
-		// See logic in UniformSampleConeRobust
-		// #dxr_todo: unify the sample and eval methods into one to avoid redundant calculations
-		float SinThetaMax2 = SinThetaMax * SinThetaMax;
-		float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
-		OutRadiance = Color * 1.0 / (2 * PI * OneMinusCosThetaMax);
-	}
-}
-
 void DirectionalLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,

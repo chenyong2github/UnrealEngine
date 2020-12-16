@@ -150,12 +150,19 @@ float ComputeAttenuationFalloff(float DistanceSquared, int LightId)
 }
 
 
+#ifndef USE_IES_TERM
+#define USE_IES_TERM 1
+#endif
+
+#if USE_IES_TERM
 Texture2DArray<float> IESTexture;
 SamplerState          IESTextureSampler;
+#endif
 
 float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 {
 	float Result = 1.f;
+#if USE_IES_TERM
 	if (SceneLightsData.IESTextureSlice[LightId] >= 0)
 	{
 		float3 LightDirection = normalize(GetPosition(LightId) - WorldPosition);
@@ -171,6 +178,7 @@ float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 		const float3 UVW = float3(NormAngle, NormTangentAngle, SceneLightsData.IESTextureSlice[LightId]);
 		Result = IESTexture.SampleLevel(IESTextureSampler, UVW, 0);
 	}
+#endif
 	return Result;
 }
 

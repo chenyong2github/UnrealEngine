@@ -141,16 +141,6 @@ void SpotLight_GenerateLightRay(
 	OutLightRay.TMax = RayLength * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
 }
 
-void SpotLight_PdfLight(
-	RayDesc Ray,
-	int LightId,
-	float3 LightUV,
-	out float OutPdf
-)
-{
-	OutPdf = 0.0;
-}
-
 void SpotLight_EvalLight(
 	int LightId,
 	float3 LightUV,

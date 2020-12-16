@@ -9,6 +9,8 @@
 #define DIM_DEFERRED_MATERIAL_MODE DEFERRED_MATERIAL_MODE_NONE
 #endif
 
+#define USE_IES_TERM 0 // this shader doesn't bind the IES atlas, so disable the IES term from path tracer lights
+
 #include "../Common.ush"
 #include "../RectLight.ush"
 #include "../DeferredShadingCommon.ush"
@@ -127,7 +129,7 @@ bool ShouldTraceRay(uint2 DispatchThreadId, FGBufferData GBufferData)
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(View.ViewRectMin.xy) + uint2(RenderTileOffsetX, RenderTileOffsetY);
 
 	FDeferredMaterialPayload DeferredMaterialPayload;
 	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
@@ -238,7 +240,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 	}
 	else
 	{
-		DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
+		DispatchThreadId = DispatchRaysIndex().xy + uint2(View.ViewRectMin.xy) + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	}
 
 	uint GatherPointsIndex = DispatchThreadIdToLinearIndex(DispatchThreadId);
@@ -379,17 +381,25 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 			{
 				// Light selection
 				int LightId;
-				float3 LightUV;
+				float3 LightRadianceOverPdf = 0;
 				float NeePdf = 0.0;
 
 				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
 
-				SampleLight(Ray, Payload, RandSample4, LightId, LightUV, NeePdf);
-
-				if (NeePdf > 0.0)
+				RayDesc LightRay;
+				if (SampleLight(RandSample4,
+								Position,
+								Normal,
+								Payload.PrimitiveLightingChannelMask,
+								ENABLE_TRANSMISSION,
+								LightId,
+								LightRay.Direction,
+								LightRay.TMax,
+								LightRadianceOverPdf,
+								NeePdf))
 				{
-					RayDesc LightRay;
-					GenerateLightRay(Ray, LightId, LightUV, LightRay);
+					LightRay.Origin = Position;
+					LightRay.TMin = 0;
 					LightRay.TMax = min(LightRay.TMax, MaxShadowDistance);
 					bool bTransmission = HasTransmission(LightId);
 					float3 BiasNormal = Payload.WorldNormal;
@@ -417,10 +427,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 					// No hit indicates successful next-event connection
 					if (NeePayload.IsMiss())
 					{
-						// Evaluate radiance
-						float3 Radiance;
-						EvalLight(LightId, LightUV, LightRay, Radiance);
-
 						// Evaluate material
 						half3 N = Payload.WorldNormal;
 						half3 V = -Ray.Direction;
@@ -435,7 +441,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 						}
 
 						// Record the contribution
-						float3 ExitantRadianceSample = Radiance * MaterialThroughput * SplitFactor / NeePdf;
+						float3 ExitantRadianceSample = LightRadianceOverPdf * MaterialThroughput * SplitFactor;
 						Irradiance += isfinite(ExitantRadianceSample) ? ExitantRadianceSample : 0.0;
 					}
 				}
