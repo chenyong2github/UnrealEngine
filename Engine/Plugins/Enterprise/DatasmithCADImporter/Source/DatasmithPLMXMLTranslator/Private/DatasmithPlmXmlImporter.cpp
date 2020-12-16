@@ -855,14 +855,25 @@ namespace PlmXml
 
 			FMatrix Matrix = FMatrix::Identity;
 			float InverseScaling = M[15];
-			float Scaling = InverseScaling < KINDA_SMALL_NUMBER ? 1.0f : 1.f / InverseScaling;
+			float ScalingScalar = FMath::Abs(InverseScaling) < KINDA_SMALL_NUMBER ? FMath::Sign(InverseScaling) : 1.f / InverseScaling;
 			FVector Axis0 = FVector(M[0], M[1], M[2]);
 			FVector Axis1 = FVector(M[4], M[5], M[6]);
 			FVector Axis2 = FVector(M[8], M[9], M[10]);
+
+			FVector Scaling(ScalingScalar, ScalingScalar, ScalingScalar);
+
+			// In case Axis basis is not LeftHanded(i.e. can't be represented as rotation in Unreal left-handed coordinate system)
+			// Make it left-handed by flipping one axis and negating scaling for that axis
+			if (FVector::DotProduct(FVector::CrossProduct(Axis0, Axis1), Axis2) < 0.0f)
+			{
+				Axis2 = -Axis2;
+				Scaling[2] = -Scaling[2];
+			}
+
 			FVector Origin = FVector(M[12], M[13], M[14]) * 100.f; //TODO: what units we have here?
 			Matrix.SetAxes(&Axis0, &Axis1, &Axis2, &Origin);
 			Transform.SetFromMatrix(Matrix);
-			Transform.SetScale3D(FVector(Scaling, Scaling, Scaling));
+			Transform.SetScale3D(Scaling);
 
 			Transform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Transform);
 		}
