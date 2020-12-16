@@ -57,10 +57,19 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		const uint32 RoundToValue = 4u;
 		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
 
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable);
-		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("StrataClassificationTexture"));
-		GraphBuilder.PreallocateTexture(Texture);
-		StrataSceneData.ClassificationTexture = GraphBuilder.GetPooledTexture(Texture);
+		// Classification texture
+		{
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("StrataClassificationTexture"));
+			GraphBuilder.PreallocateTexture(Texture);
+			StrataSceneData.ClassificationTexture = GraphBuilder.GetPooledTexture(Texture);
+		}
+
+		// Top layer texture
+		{
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("StrataTopLayerTexture"));
+			GraphBuilder.PreallocateTexture(Texture);
+			StrataSceneData.TopLayerTexture = GraphBuilder.GetPooledTexture(Texture);
+		}
 	}
 	else
 	{
@@ -116,6 +125,7 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		StrataUniformParameters.MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
 		StrataUniformParameters.MaterialLobesBuffer = View.StrataSceneData->MaterialLobesBuffer.SRV;
 		StrataUniformParameters.ClassificationTexture = View.StrataSceneData->ClassificationTexture->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.TopLayerTexture = View.StrataSceneData->TopLayerTexture->GetRenderTargetItem().ShaderResourceTexture;
 
 		View.StrataSceneData->StrataGlobalUniformParameters = CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleFrame);
 		return View.StrataSceneData->StrataGlobalUniformParameters;
@@ -126,6 +136,7 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		StrataUniformParameters.MaxBytesPerPixel = 0;
 		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
 		StrataUniformParameters.ClassificationTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.TopLayerTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 	}
 }
@@ -262,6 +273,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const TArray
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);		
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(View.StrataSceneData->ClassificationTexture), ERenderTargetLoadAction::EClear);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(View.StrataSceneData->TopLayerTexture), ERenderTargetLoadAction::EClear);
 
 		if (ShaderDrawDebug::IsShaderDrawDebugEnabled())
 		{

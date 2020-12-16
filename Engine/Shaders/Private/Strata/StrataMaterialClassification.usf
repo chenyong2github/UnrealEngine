@@ -6,56 +6,188 @@
 #define STRATA_INLINE_SHADING 0
 #include "/Engine/Private/Strata/Strata.ush"
 
+// Note: 
+// This code is partial copy of PackStrataOut in Strata.ush. 
+// The command part will progressively be removed as we remove data from the gbuffer.
+void ComputePostProcessBSDFData(
+	const FStrataPixelHeader Header,
+	const FStrataBSDF BSDF,
+	float3 V,
+	inout FStrataClassification Classification,
+	inout FStrataSubsurfaceData SSS,
+	inout FStrataTopLayerData TopLayer)
+{
+	const float OpaqueBSDFThroughput = 0.0f;
+	const float FullThroughput = 1.0f;
+	const float FullyRough = 1.0f;
+
+	const float3 BSDFCoverage = BSDF.Weight;
+	const float  BSDFCoverageAvg = dot(BSDF.Weight,1.0f/3.0f);
+
+	// STRATA_TODO apply the same normal transform as for the material
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis(Header, BSDF);
+	float3 N = TangentBasis[2];
+	//N = normalize(N);
+
+	TopLayer.Normal += N;
+
+	BxDFContext ContextNoLight = (BxDFContext)0;
+	const float3 FakeL = float3(0, 0, 1);
+	Init(ContextNoLight, N, V, FakeL);
+
+	const bool bTopLayer = BSDF_GETISTOPLAYER(BSDF);
+
+	Classification.ShadingModels |= StrataShadingModelBit(BSDF_GETTYPE(BSDF));
+
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_DIFFUSE:
+	{
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+		}
+
+		// Select the first/toppest layer with subsurface scattering
+		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !SSS.bHasSubsurface)
+		{
+			SSS.bHasSubsurface = true;
+			SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
+			SSS.Profile		= DIFFUSE_SSSPROFILEID(BSDF);
+			SSS.RadiusScale	= DIFFUSE_SSSPROFILERADIUS(BSDF);
+			SSS.BaseColor	= DIFFUSE_ALBEDO(BSDF);
+			SSS.DMFPAlbedo	= DIFFUSE_SSSDMFPALBEDO(BSDF);
+			SSS.DMFPRadius	= DIFFUSE_SSSDMFPRADIUS(BSDF);
+		}
+		break;
+	}
+
+	case STRATA_BSDF_TYPE_DIELECTRIC:
+	{
+		if (BSDF_GETHASSCATTERING(BSDF))
+		{
+			Classification.bHasSubsurface = true;
+			if (BSDF_GETHASSSSPROFILE(BSDF))
+			{
+				Classification.bHasSubsurfaceProfile = true;
+			}
+		}
+
+		float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
+		float3 F = F_Schlick(F0, ContextNoLight.VoH);
+
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += DIELECTRIC_ROUGHNESS0(BSDF);
+			TopLayer.AccumRoughnessCount += 1.0f;
+
+			const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDF));
+			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+		}
+		break;
+	}
+
+	case STRATA_BSDF_TYPE_CONDUCTOR:
+	{
+		float3 F = F_Schlick(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), ContextNoLight.VoH);
+
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += CONDUCTOR_ROUGHNESS0(BSDF);
+			TopLayer.AccumRoughnessCount += 1.0f;
+
+			const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDF));
+			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, saturate(ContextNoLight.NoV));;
+		}
+		break;
+	}
+
+	case STRATA_BSDF_TYPE_VOLUME:
+	{
+		const float3 Albedo					= VOLUME_ALBEDO(BSDF);
+		const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
+		const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
+		const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
+		const float  Thickness				= VOLUME_THICKNESS(BSDF);
+
+		const float3 SafeExtinctionThreshold = 0.000001f;
+		const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+
+		const float PathLength = Thickness / max(0.0001f, abs(ContextNoLight.NoV));
+		const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+				
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+		}
+		break;
+	}
+
+	case STRATA_BSDF_TYPE_SHEEN:
+	{
+		const float3 F0  = SHEEN_ALBEDO(BSDF);
+		const float3 F   = F_Schlick(F0, ContextNoLight.VoH);
+
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += SHEEN_ROUGHNESS(BSDF);
+			TopLayer.AccumRoughnessCount += 1.0f;
+
+			const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDF));
+			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+		}
+		break;
+	}
+
+	case STRATA_BSDF_TYPE_HAIR:
+	{
+		Classification.bHasTransmission = true;
+
+		// No SSR
+		if (bTopLayer)
+		{
+			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+		}
+		break;
+	}
+
+	} // switch		
+}
+
 void MainPS(
 	float4 SVPos : SV_POSITION, 
-	out uint OutColor0 : SV_Target0)
+	out uint OutColor0 : SV_Target0,
+	out uint2 OutColor1 : SV_Target1)
 {
 	const uint2 PixelPos = uint2(SVPos.xy);
 
 	// Sample scene textures.
-	float2 BufferUV = SvPositionToBufferUV(float4(PixelPos, SVPos.zw));
+	float2 BufferUV		 = SvPositionToBufferUV(float4(PixelPos, SVPos.zw));
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 	bool bStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
 	
-	FStrataClassification Out = (FStrataClassification)0;
+	FStrataClassification ClassificationData	= (FStrataClassification)0;
+	FStrataSubsurfaceData SSSData				= (FStrataSubsurfaceData)0;
+	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
+
 	if (bStrataMaterial)
 	{
-		Out.bIsStrataMaterial = true;
+		const float3 V = float3(0,0,1); // TODO
+
 		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
 		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
 			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-			Out.ShadingModels |= StrataShadingModelBit(BSDF_GETTYPE(BSDF));
-
-			switch (BSDF_GETTYPE(BSDF))
-			{
-			case STRATA_BSDF_TYPE_DIFFUSE:
-				if (BSDF_GETHASSCATTERING(BSDF))
-				{
-					Out.bHasSubsurface = true;
-					if (BSDF_GETHASSSSPROFILE(BSDF))
-					{
-						Out.bHasSubsurfaceProfile = true;
-					}
-				}
-				break;
-			case STRATA_BSDF_TYPE_HAIR:
-				Out.bHasTransmission = true;
-				break;
-			case STRATA_BSDF_TYPE_DIELECTRIC:
-				break;
-			case STRATA_BSDF_TYPE_CONDUCTOR:
-				break;
-			case STRATA_BSDF_TYPE_VOLUME:	
-				break;
-			case STRATA_BSDF_TYPE_SHEEN:	
-				break;
-			}
+			ComputePostProcessBSDFData(Header, BSDF, V, ClassificationData, SSSData, TopLayerData);
 		}
+
+		FinalizeTopLayerData(TopLayerData);
 	}
 
-	OutColor0 = StrataPackClassificationData(Out);
+	OutColor0 = StrataPackClassificationData(ClassificationData);
+	OutColor1 = StrataPackTopLayerData(TopLayerData);
 }
-
-

@@ -143,6 +143,13 @@ struct FStrataBSDF
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
+uint   PackR11G11B10F(float3 rgb);
+float3 UnpackR11G11B10F(uint rgb);
+uint   PackAlbedoLinearToGamma2AlphaLinear(float4 rgba);
+float4 UnpackAlbedoGamma2ToLinearAlphaLinear(uint rgba);
+uint   StrataPackNormal(in float3 Normal);
+float3 StrataUnpackNormal(uint PackedNormal);
+
 struct FStrataClassification
 {
 	uint ShadingModels;
@@ -154,22 +161,74 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
-	return 
-		(In.ShadingModels & 0xFF) | 
-		((In.bIsStrataMaterial		? 1 : 0) << 8) |
-		((In.bHasSubsurface			? 1 : 0) << 9) | 
-		((In.bHasSubsurfaceProfile	? 1 : 0) << 10)|
-		((In.bHasTransmission		? 1 : 0) << 11);
+	return
+		(In.ShadingModels & 0xFF) |
+		((In.bIsStrataMaterial ? 1 : 0) << 8) |
+		((In.bHasSubsurface ? 1 : 0) << 9) |
+		((In.bHasSubsurfaceProfile ? 1 : 0) << 10) |
+		((In.bHasTransmission ? 1 : 0) << 11);
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
 	FStrataClassification Out;
-	Out.ShadingModels			= (In & 0xFF);
-	Out.bIsStrataMaterial		= (In >>  8) & 0x1;
-	Out.bHasSubsurface			= (In >>  9) & 0x1;
-	Out.bHasSubsurfaceProfile	= (In >> 10) & 0x1;
-	Out.bHasTransmission		= (In >> 11) & 0x1;
+	Out.ShadingModels = (In & 0xFF);
+	Out.bIsStrataMaterial = (In >> 8) & 0x1;
+	Out.bHasSubsurface = (In >> 9) & 0x1;
+	Out.bHasSubsurfaceProfile = (In >> 10) & 0x1;
+	Out.bHasTransmission = (In >> 11) & 0x1;
+	return Out;
+}
+
+struct FStrataTopLayerData
+{
+	float3 Normal;
+	float3 BaseColor;
+	float  Roughness;
+	float3 EnvBRDF;
+
+	// transient data when accumulating top layer data
+	float AccumRoughnessCount;
+};
+
+struct FStrataSubsurfaceData
+{
+	bool   bHasSubsurface;
+	bool   bHasProfile;
+	float  RadiusScale;
+
+	float3 BaseColor;
+	uint   Profile;
+
+	float3 DMFPAlbedo;
+	float  DMFPRadius;
+};
+
+void FinalizeTopLayerData(inout FStrataTopLayerData Out)
+{
+	Out.Normal = normalize(Out.Normal);
+	Out.BaseColor = saturate(Out.BaseColor);
+	Out.Roughness = Out.AccumRoughnessCount > 0.0f ? saturate(Out.Roughness / Out.AccumRoughnessCount) : 1.f;
+	Out.EnvBRDF = Out.BaseColor; // Strata_todo: better approximation
+}
+
+uint2 StrataPackTopLayerData(FStrataTopLayerData In)
+{
+	uint2 Out = 0;
+	Out.x = PackAlbedoLinearToGamma2AlphaLinear(float4(In.BaseColor, In.Roughness));
+	Out.y = StrataPackNormal(In.Normal);
+	return Out;
+}
+
+FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
+{
+	const float4 BaseColorAndRoughness = UnpackAlbedoGamma2ToLinearAlphaLinear(In.x);
+
+	FStrataTopLayerData Out = (FStrataTopLayerData)0;
+	Out.Normal = StrataUnpackNormal(In.y);
+	Out.BaseColor = BaseColorAndRoughness.xyz;
+	Out.Roughness = BaseColorAndRoughness.w;
+	Out.EnvBRDF = Out.BaseColor; // Strata_todo: better approximation
 	return Out;
 }
 
@@ -1003,14 +1062,8 @@ void PackStrataOut(
 	// We clamp the layer count to the maximum one according to our byte per pixel budget (removing the bottom layer first)
 	Strata.LayerCount = STRATA_CLAMPED_LAYER_COUNT;
 
-	// Subsurface scattering parameters
-	bool   bHasSubsurfaceScattering = false;
-	bool   bHasSubsurfaceProfile = false;
-	float  SubsurfaceProfile = 0;
-	float  SubsurfaceRadiusScale = 0;
-	float3 SubsurfaceBaseColor = 0;
-	float3 SubsurfaceDMFPAlbedo = 0;
-	float  SubsurfaceDMFPRadius = 0;
+	FStrataTopLayerData TopLayer = (FStrataTopLayerData)0;
+	FStrataSubsurfaceData SSS = (FStrataSubsurfaceData)0;
 
 	// For each of the BSDF, we evaluated their combined weight/throughput according to the material operation performed (layering, mixing, etc.).
 	int l;
@@ -1020,10 +1073,6 @@ void PackStrataOut(
 		float3 LayerThroughput = 0.0f;
 		float3 LayerCoverage = 0.0f;
 
-		float3 AccumTopNormal = 0.0f;
-		float  AccumRoughness = 0.0f;
-		float  AccumRoughnessCount = 0.0f;
-		float3 AccumBaseColor = 0.0f;
 		const bool bTopLayer = l == 0;
 
 		UNROLL
@@ -1042,7 +1091,7 @@ void PackStrataOut(
 			float3 N = TangentBasis[2];
 			//N = normalize(N);
 
-			AccumTopNormal += N;
+			TopLayer.Normal += N;
 
 			BxDFContext ContextNoLight = (BxDFContext)0;
 			const float3 FakeL = float3(0, 0, 1);
@@ -1054,20 +1103,20 @@ void PackStrataOut(
 			{
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-					AccumRoughnessCount += BSDFCoverageAvg;
+					TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 				}
 
 				// Select the first/toppest layer with subsurface scattering
-				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !bHasSubsurfaceScattering)
+				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !SSS.bHasSubsurface)
 				{
-					bHasSubsurfaceScattering = true;
-					bHasSubsurfaceProfile	= BSDF_GETHASSSSPROFILE(BSDF);
-					SubsurfaceProfile		= DIFFUSE_SSSPROFILEID(BSDF);
-					SubsurfaceRadiusScale	= DIFFUSE_SSSPROFILERADIUS(BSDF);
-					SubsurfaceBaseColor		= DIFFUSE_ALBEDO(BSDF);
-					SubsurfaceDMFPAlbedo	= DIFFUSE_SSSDMFPALBEDO(BSDF);
-					SubsurfaceDMFPRadius	= DIFFUSE_SSSDMFPRADIUS(BSDF);
+					SSS.bHasSubsurface = true;
+					SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
+					SSS.Profile		= DIFFUSE_SSSPROFILEID(BSDF);
+					SSS.RadiusScale	= DIFFUSE_SSSPROFILERADIUS(BSDF);
+					SSS.BaseColor	= DIFFUSE_ALBEDO(BSDF);
+					SSS.DMFPAlbedo	= DIFFUSE_SSSDMFPALBEDO(BSDF);
+					SSS.DMFPRadius	= DIFFUSE_SSSDMFPRADIUS(BSDF);
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1082,11 +1131,11 @@ void PackStrataOut(
 
 				if (bTopLayer)
 				{
-					AccumRoughness		+= DIELECTRIC_ROUGHNESS0(BSDF);
-					AccumRoughnessCount += 1.0f;
+					TopLayer.Roughness += DIELECTRIC_ROUGHNESS0(BSDF);
+					TopLayer.AccumRoughnessCount += 1.0f;
 
 					const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDF));
-					AccumBaseColor		+= BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1100,11 +1149,11 @@ void PackStrataOut(
 
 				if (bTopLayer)
 				{
-					AccumRoughness		+= CONDUCTOR_ROUGHNESS0(BSDF);
-					AccumRoughnessCount += 1.0f;
+					TopLayer.Roughness += CONDUCTOR_ROUGHNESS0(BSDF);
+					TopLayer.AccumRoughnessCount += 1.0f;
 
 					const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDF));
-					AccumBaseColor		+= BSDFCoverage * EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, saturate(ContextNoLight.NoV));;
+					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, saturate(ContextNoLight.NoV));;
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1128,8 +1177,8 @@ void PackStrataOut(
 				
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-					AccumRoughnessCount += BSDFCoverageAvg;
+					TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1144,11 +1193,11 @@ void PackStrataOut(
 
 				if (bTopLayer)
 				{
-					AccumRoughness		+= SHEEN_ROUGHNESS(BSDF);
-					AccumRoughnessCount += 1.0f;
+					TopLayer.Roughness += SHEEN_ROUGHNESS(BSDF);
+					TopLayer.AccumRoughnessCount += 1.0f;
 
 					const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDF));
-					AccumBaseColor      += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1161,8 +1210,8 @@ void PackStrataOut(
 				// No SSR
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-					AccumRoughnessCount += BSDFCoverageAvg;
+					TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 				}
 				// Hair are considered opaque
 				LayerCoverage	+= BSDFCoverage;
@@ -1182,12 +1231,14 @@ void PackStrataOut(
 		// Now modify the gbuffer according to the top layer information
 		if (bTopLayer)
 		{
+			FinalizeTopLayerData(TopLayer);
+
 			// Normal is needed for some AO techniques
-			GBuffer.WorldNormal = normalize(AccumTopNormal);
+			GBuffer.WorldNormal = normalize(TopLayer.Normal);
 
 			// Roughness is needed for SSR, base color represents EnvBRDF
-			GBuffer.Roughness = AccumRoughnessCount > 0.0f ? saturate(AccumRoughness / AccumRoughnessCount) : FullyRough;
-			GBuffer.BaseColor = saturate(AccumBaseColor);
+			GBuffer.Roughness = TopLayer.Roughness;
+			GBuffer.BaseColor = TopLayer.BaseColor;
 			
 			// Approximative way to be able to have SSR produce colored specular reflections
 			GBuffer.Specular = 1;
@@ -1203,19 +1254,19 @@ void PackStrataOut(
 
 	// Patch Gbuffer data with SSS data if enabled
 	GBuffer.CustomData = 0;
-	if (bHasSubsurfaceScattering)
+	if (SSS.bHasSubsurface)
 	{
-		if (bHasSubsurfaceProfile)
+		if (SSS.bHasProfile)
 		{
-			GBuffer.BaseColor      = SubsurfaceBaseColor;
-			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
-			GBuffer.CustomData.a   = SubsurfaceRadiusScale;
+			GBuffer.BaseColor      = SSS.BaseColor;
+			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SSS.Profile);
+			GBuffer.CustomData.a   = SSS.RadiusScale;
 		}
 		else
 		{
-			GBuffer.BaseColor      = SubsurfaceBaseColor;
-			GBuffer.CustomData.rgb = sqrt(SubsurfaceDMFPAlbedo);
-			GBuffer.CustomData.a   = saturate(SubsurfaceDMFPRadius / SSS_PROFILE_PERPIXEL_MAXRADIUS);
+			GBuffer.BaseColor      = SSS.BaseColor;
+			GBuffer.CustomData.rgb = sqrt(SSS.DMFPAlbedo);
+			GBuffer.CustomData.a   = saturate(SSS.DMFPRadius / SSS_PROFILE_PERPIXEL_MAXRADIUS);
 		}
 	}
 
@@ -1451,3 +1502,4 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 
 	return OutBSDF;
 }
+
