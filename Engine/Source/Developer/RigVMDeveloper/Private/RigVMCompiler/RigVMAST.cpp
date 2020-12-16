@@ -1824,7 +1824,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 		URigVMPin* PinForDefaultValue = RootPin;
 		while (PinForDefaultValue != PinToCompute && SegmentNames.Num() > 0)
 		{
-			TArray<FString> SplitDefaultValues = URigVMController::SplitDefaultValue(DefaultValue);
+			TArray<FString> SplitDefaultValues = URigVMPin::SplitDefaultValue(DefaultValue);
 
 			if (PinForDefaultValue->IsArray())
 			{

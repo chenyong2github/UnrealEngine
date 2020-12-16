@@ -9,6 +9,28 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
+#include "Misc/OutputDevice.h"
+#include "Misc/DefaultValueHelper.h"
+#include "Logging/LogScopedVerbosityOverride.h"
+
+
+class FRigVMPinDefaultValueImportErrorContext : public FOutputDevice
+{
+public:
+
+	int32 NumErrors;
+
+	FRigVMPinDefaultValueImportErrorContext()
+		: FOutputDevice()
+		, NumErrors(0)
+	{
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		NumErrors++;
+	}
+};
 
 URigVMGraph* URigVMInjectionInfo::GetGraph() const
 {
@@ -70,6 +92,68 @@ FString URigVMPin::JoinPinPath(const TArray<FString>& InParts)
 	}
 
 	return Result;
+}
+
+TArray<FString> URigVMPin::SplitDefaultValue(const FString& InDefaultValue)
+{
+	TArray<FString> Parts;
+	if (InDefaultValue.IsEmpty())
+	{
+		return Parts;
+	}
+
+	ensure(InDefaultValue[0] == TCHAR('('));
+	ensure(InDefaultValue[InDefaultValue.Len() - 1] == TCHAR(')')); 
+
+	FString Content = InDefaultValue.Mid(1, InDefaultValue.Len() - 2);
+	int32 BraceCount = 0;
+	int32 QuoteCount = 0;
+
+	int32 LastPartStartIndex = 0;
+	for (int32 CharIndex = 0; CharIndex < Content.Len(); CharIndex++)
+	{
+		TCHAR Char = Content[CharIndex];
+		if (QuoteCount > 0)
+		{
+			if (Char == TCHAR('"'))
+			{
+				QuoteCount = 0;
+			}
+		}
+		else if (Char == TCHAR('"'))
+		{
+			QuoteCount = 1;
+		}
+
+		if (Char == TCHAR('('))
+		{
+			if (QuoteCount == 0)
+			{
+				BraceCount++;
+			}
+		}
+		else if (Char == TCHAR(')'))
+		{
+			if (QuoteCount == 0)
+			{
+				BraceCount--;
+				BraceCount = FMath::Max<int32>(BraceCount, 0);
+			}
+		}
+		else if (Char == TCHAR(',') && BraceCount == 0 && QuoteCount == 0)
+		{
+			// ignore whitespaces
+			Parts.Add(Content.Mid(LastPartStartIndex, CharIndex - LastPartStartIndex).Replace(TEXT(" "), TEXT("")));
+			LastPartStartIndex = CharIndex + 1;
+		}
+	}
+
+	if (!Content.IsEmpty())
+	{
+		// ignore whitespaces
+		Parts.Add(Content.Mid(LastPartStartIndex).Replace(TEXT(" "), TEXT("")));
+	}
+	return Parts;
 }
 
 URigVMPin::URigVMPin()
@@ -356,6 +440,90 @@ FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOv
 	}
 
 	return DefaultValue;
+}
+
+bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
+{
+	TArray<FString> DefaultValues; 
+
+	if (IsArray())
+	{
+		DefaultValues = URigVMPin::SplitDefaultValue(InDefaultValue);
+	}
+	else
+	{
+		DefaultValues.Add(InDefaultValue);
+	}
+
+	FString BaseCPPType = GetCPPType().Replace(TEXT("TArray<"), TEXT("")).Replace(TEXT(">"), TEXT(""));
+
+	for (const FString& Value : DefaultValues)
+	{
+		// perform single value validation
+		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(GetCPPTypeObject()))
+		{
+			FRigVMPinDefaultValueImportErrorContext ErrorPipe;
+			TArray<uint8> TempStructBuffer;
+			TempStructBuffer.AddUninitialized(ScriptStruct->GetStructureSize());
+
+			{
+				// force logging to the error pipe for error detection
+				LOG_SCOPE_VERBOSITY_OVERRIDE(LogExec, ELogVerbosity::Verbose); 
+				ScriptStruct->ImportText(*Value, TempStructBuffer.GetData(), nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName()); 
+			}
+
+			if (ErrorPipe.NumErrors > 0)
+			{
+				return false;
+			}
+		} 
+		else if (UEnum* EnumType = Cast<UEnum>(GetCPPTypeObject()))
+		{
+			FName EnumName(EnumType->GenerateFullEnumName(*Value));
+			if (!EnumType->IsValidEnumName(EnumName))
+			{
+				return false;
+			}
+			else
+			{
+				if (EnumType->HasMetaData(TEXT("Hidden"), EnumType->GetIndexByName(EnumName)))
+				{
+					return false;
+				}
+			}
+		} 
+		else if (BaseCPPType == TEXT("float"))
+		{ 
+			if (!FDefaultValueHelper::IsStringValidFloat(Value))
+			{
+				return false;
+			}
+		}
+		else if (BaseCPPType == TEXT("int32"))
+		{ 
+			if (!FDefaultValueHelper::IsStringValidInteger(Value))
+			{
+				return false;
+			}
+		}
+		else if (BaseCPPType == TEXT("bool"))
+		{
+			if (Value != TEXT("True") && Value != TEXT("False"))
+			{
+				return false;
+			}
+		}
+		else if (BaseCPPType == TEXT("FString"))
+		{ 
+			// anything is allowed
+		}
+		else if (BaseCPPType == TEXT("FName"))
+		{
+			// anything is allowed
+		}
+	}
+
+	return true;
 }
 
 FName URigVMPin::GetCustomWidgetName() const

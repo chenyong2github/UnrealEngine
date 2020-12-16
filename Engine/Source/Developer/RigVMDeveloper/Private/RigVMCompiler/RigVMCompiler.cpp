@@ -1353,7 +1353,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 				int32 DesiredArraySize = VMStruct->GetArraySize(Pin->GetFName(), WorkData.RigVMUserData);
 
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 
 				if (DefaultValues.Num() != DesiredArraySize)
 				{
@@ -1372,7 +1372,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else
 			{
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 			}
 
 			while (DefaultValues.Num() < Pin->GetSubPins().Num())

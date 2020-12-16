@@ -95,6 +95,9 @@ public:
 	// Joins a PinPath from to segments, so for example ["Node", "Color", "R"] becomes "Node.Color.R"
 	static FString JoinPinPath(const TArray<FString>& InParts);
 
+	// Splits the default value into name-value pairs
+	static TArray<FString> SplitDefaultValue(const FString& InDefaultValue);
+
 	// Default constructor
 	URigVMPin();
 
@@ -186,6 +189,9 @@ public:
 
 	// Returns the default value with an additional override ma
 	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const;
+
+	// Returns true if the default value provided is valid
+	bool IsValidDefaultValue(const FString& InDefaultValue) const;
 
 	// Returns the name of a custom widget to be used
 	// for editing the Pin.

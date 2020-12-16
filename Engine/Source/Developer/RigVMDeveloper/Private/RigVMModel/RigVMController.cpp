@@ -3715,24 +3715,36 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 		}
 	}
 
-	SetPinDefaultValue(Pin, InDefaultValue, bResizeArrays, bSetupUndoRedo, bMergeUndoAction);
+	if (!SetPinDefaultValue(Pin, InDefaultValue, bResizeArrays, bSetupUndoRedo, bMergeUndoAction))
+	{
+		return false;
+	}
+
 	URigVMPin* PinForLink = Pin->GetPinForLink();
 	if (PinForLink != Pin)
 	{
-		SetPinDefaultValue(PinForLink, InDefaultValue, bResizeArrays, false, bMergeUndoAction);
+		if (!SetPinDefaultValue(PinForLink, InDefaultValue, bResizeArrays, false, bMergeUndoAction))
+		{
+			return false;
+		}
 	}
 
 	return true;
 }
 
-void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction)
+bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction)
 {
 	check(InPin);
 	ensure(!InDefaultValue.IsEmpty());
 
 	if (InPin->GetDirection() == ERigVMPinDirection::Hidden)
 	{
-		return;
+		return false;
+	}
+	
+	if (!InPin->IsValidDefaultValue(InDefaultValue))
+	{
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -3751,7 +3763,7 @@ void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	{
 		if (ShouldPinBeUnfolded(InPin))
 		{
-			TArray<FString> Elements = SplitDefaultValue(InDefaultValue);
+			TArray<FString> Elements = URigVMPin::SplitDefaultValue(InDefaultValue);
 
 			if (bResizeArrays)
 			{
@@ -3783,7 +3795,7 @@ void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	}
 	else if (InPin->IsStruct())
 	{
-		TArray<FString> MemberValuePairs = SplitDefaultValue(InDefaultValue);
+		TArray<FString> MemberValuePairs = URigVMPin::SplitDefaultValue(InDefaultValue);
 
 		for (const FString& MemberValuePair : MemberValuePairs)
 		{
@@ -3821,6 +3833,8 @@ void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	{
 		ActionStack->EndAction(Action, bMergeUndoAction);
 	}
+
+	return true;
 }
 
 bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetupUndoRedo)
@@ -3919,65 +3933,7 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 	return false;
 }
 
-TArray<FString> URigVMController::SplitDefaultValue(const FString& InDefaultValue)
-{
-	TArray<FString> Parts;
-	if (InDefaultValue.IsEmpty())
-	{
-		return Parts;
-	}
 
-	ensure(InDefaultValue[0] == TCHAR('('));
-	ensure(InDefaultValue[InDefaultValue.Len() - 1] == TCHAR(')'));
-
-	FString Content = InDefaultValue.Mid(1, InDefaultValue.Len() - 2);
-	int32 BraceCount = 0;
-	int32 QuoteCount = 0;
-
-	int32 LastPartStartIndex = 0;
-	for (int32 CharIndex = 0; CharIndex < Content.Len(); CharIndex++)
-	{
-		TCHAR Char = Content[CharIndex];
-		if (QuoteCount > 0)
-		{
-			if (Char == TCHAR('"'))
-			{
-				QuoteCount = 0;
-			}
-		}
-		else if (Char == TCHAR('"'))
-		{
-			QuoteCount = 1;
-		}
-		
-		if (Char == TCHAR('('))
-		{
-			if (QuoteCount == 0)
-			{
-				BraceCount++;
-			}
-		}
-		else if (Char == TCHAR(')'))
-		{
-			if (QuoteCount == 0)
-			{
-				BraceCount--;
-				BraceCount = FMath::Max<int32>(BraceCount, 0);
-			}
-		}
-		else if (Char == TCHAR(',') && BraceCount == 0 && QuoteCount == 0)
-		{
-			Parts.Add(Content.Mid(LastPartStartIndex, CharIndex - LastPartStartIndex));
-			LastPartStartIndex = CharIndex + 1;
-		}
-	}
-
-	if (!Content.IsEmpty())
-	{
-		Parts.Add(Content.Mid(LastPartStartIndex));
-	}
-	return Parts;
-}
 
 FString URigVMController::AddArrayPin(const FString& InArrayPinPath, const FString& InDefaultValue, bool bSetupUndoRedo)
 {
@@ -4097,7 +4053,7 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 		FArrayProperty * ArrayProperty = CastField<FArrayProperty>(FindPropertyForPin(Pin->GetPinPath()));
 		if (ArrayProperty)
 		{
-			TArray<FString> ElementDefaultValues = SplitDefaultValue(InDefaultValue);
+			TArray<FString> ElementDefaultValues = URigVMPin::SplitDefaultValue(InDefaultValue);
 			AddPinsForArray(ArrayProperty, Pin->GetNode(), Pin, Pin->Direction, ElementDefaultValues, false);
 		}
 	}
@@ -5917,7 +5873,7 @@ bool URigVMController::IsValidLinkForGraph(URigVMLink* InLink)
 
 void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays, bool bNotify)
 {
-	TArray<FString> MemberNameValuePairs = SplitDefaultValue(InDefaultValue);
+	TArray<FString> MemberNameValuePairs = URigVMPin::SplitDefaultValue(InDefaultValue);
 	TMap<FName, FString> MemberValues;
 	for (const FString& MemberNameValuePair : MemberNameValuePairs)
 	{
@@ -5975,7 +5931,7 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 			{
 				if (ShouldPinBeUnfolded(Pin))
 				{
-					TArray<FString> ElementDefaultValues = SplitDefaultValue(*DefaultValuePtr);
+					TArray<FString> ElementDefaultValues = URigVMPin::SplitDefaultValue(*DefaultValuePtr);
 					AddPinsForArray(ArrayProperty, InNode, Pin, Pin->Direction, ElementDefaultValues, bAutoExpandArrays);
 				}
 				else
@@ -6044,7 +6000,7 @@ void URigVMController::AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNo
 		{
 			if (ShouldPinBeUnfolded(Pin))
 			{
-				TArray<FString> ElementDefaultValues = SplitDefaultValue(DefaultValue);
+				TArray<FString> ElementDefaultValues = URigVMPin::SplitDefaultValue(DefaultValue);
 				AddPinsForArray(ArrayProperty, InNode, Pin, Pin->Direction, ElementDefaultValues, bAutoExpandArrays);
 			}
 			else if (!DefaultValue.IsEmpty())
