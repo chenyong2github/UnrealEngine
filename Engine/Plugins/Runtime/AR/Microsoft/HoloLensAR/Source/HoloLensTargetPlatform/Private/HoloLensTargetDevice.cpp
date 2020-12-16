@@ -172,7 +172,7 @@ FHoloLensTargetDevice::~FHoloLensTargetDevice()
 	if (!Info.IsLocal)
 	{
 #if WITH_ENGINE
-		if (TimerHandle.IsValid())
+		if ((GWorld != nullptr) && TimerHandle.IsValid())
 		{
 			GWorld->GetTimerManager().ClearTimer(TimerHandle);
 		}
