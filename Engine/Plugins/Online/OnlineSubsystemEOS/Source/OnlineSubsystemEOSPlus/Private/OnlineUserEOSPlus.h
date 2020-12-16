@@ -32,6 +32,16 @@ public:
 	virtual bool IsValid() const override;
 // ~FUniqueNetId interface
 
+	TSharedPtr<const FUniqueNetId> GetBaseNetId() const
+	{
+		return BaseUniqueNetId;
+	}
+
+	TSharedPtr<const FUniqueNetId> GetEOSNetId() const
+	{
+		return EOSUniqueNetId;
+	}
+
 private:
 	TSharedPtr<const FUniqueNetId> BaseUniqueNetId;
 	TSharedPtr<const FUniqueNetId> EOSUniqueNetId;
@@ -336,6 +346,10 @@ PACKAGE_SCOPE:
 	void OnInviteAborted(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 	void OnFriendRemoved(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 
+	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
+	TSharedPtr<const FUniqueNetId> GetBaseNetId(const FString& SourceId);
+	TSharedPtr<const FUniqueNetId> GetEOSNetId(const FString& SourceId);
+
 private:
 	void AddPlayer(int32 LocalUserNum);
 	void RemovePlayer(int32 LocalUserNum);
@@ -345,7 +359,6 @@ private:
 	TSharedRef<FOnlineRecentPlayer> GetRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player);
 	TSharedRef<FOnlineBlockedPlayer> AddBlockedPlayer(TSharedRef<FOnlineBlockedPlayer> Player);
 	TSharedRef<FOnlineBlockedPlayer> GetBlockedPlayer(TSharedRef<FOnlineBlockedPlayer> Player);
-	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
 
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;

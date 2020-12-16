@@ -153,6 +153,24 @@ TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::GetNetIdPlus(const FString& 
 	return nullptr;
 }
 
+TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId)
+{
+	if (NetIdPlusToBaseNetId.Contains(SourceId))
+	{
+		return NetIdPlusToBaseNetId[SourceId];
+	}
+	return nullptr;
+}
+
+TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId)
+{
+	if (NetIdPlusToEOSNetId.Contains(SourceId))
+	{
+		return NetIdPlusToEOSNetId[SourceId];
+	}
+	return nullptr;
+}
+
 bool FOnlineUserEOSPlus::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId>>& UserIds)
 {
 	if (GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect)
