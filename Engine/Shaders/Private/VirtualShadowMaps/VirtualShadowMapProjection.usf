@@ -345,7 +345,6 @@ void VirtualShadowMapProjectionDirectionalPS(
 				HitDistance);
 		}
 
-		/*
 		if (ContactShadowLengthWorld > 0.0f)
 		{
 			// TODO: Unify this with the random sampling inside SMRT
@@ -362,7 +361,6 @@ void VirtualShadowMapProjectionDirectionalPS(
 				HitDistance = ContactShadowLengthWorld;
 			}
 		}
-		*/
 	}
 
 	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION in SSDSignalBufferEncoding.ush

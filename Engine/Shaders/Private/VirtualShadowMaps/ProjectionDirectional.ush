@@ -234,7 +234,7 @@ float TraceDirectional(
 		bool bHit = ShadowRayCastDirectional(
 			VirtualShadowMapId,
 			ViewPosition,
-			RayStart + RayStartOffset,
+			RayStart,
 			RayDir * RayLength,
 			SamplesPerRay,
 			StepOffset,
