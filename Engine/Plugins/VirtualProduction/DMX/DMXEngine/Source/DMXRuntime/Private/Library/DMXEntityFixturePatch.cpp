@@ -53,10 +53,12 @@ void UDMXEntityFixturePatch::UpdateDMXCache()
 	// If a listener is bound, this is already updated on tick
 	if (!OnFixturePatchReceivedDMX.IsBound())
 	{
-		if (UpdateCachedDMXValues())
-		{
-			UpdateCachedNormalizedAttributeValues();
-		}
+		UpdateCachedDMXValues();
+		
+		// Unlike on tick, we always want to update the cache as well. Like this, 
+		// if the fixture is not in sync with the cached DMX values for any reason, 
+		// it still gets the most recent values.
+		UpdateCachedNormalizedAttributeValues();
 	}
 }
 
