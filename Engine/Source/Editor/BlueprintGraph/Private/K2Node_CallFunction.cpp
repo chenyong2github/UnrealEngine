@@ -3436,9 +3436,8 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 
 				for (UEdGraphPin* Pin : DependentPins)
 				{
-					// #TODO Maps need special validation for the key/value together, not just one pin type. 
-					// otherwise you will end up with false failures. 
-					if (OtherPin->PinType.IsMap() && !Pin->PinType.IsMap())
+					// If the pins are both containers, then ArePinTypesCompatible will fail incorrectly.
+					if (OtherPin->PinType.ContainerType != Pin->PinType.ContainerType)
 					{
 						continue;
 					}
