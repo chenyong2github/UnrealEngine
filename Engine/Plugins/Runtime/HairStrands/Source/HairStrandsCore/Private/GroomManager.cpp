@@ -564,7 +564,7 @@ void RunHairStrandsDebug(
 // HairStrands Bookmark API
 
 void ProcessHairStrandsBookmark(
-	FRDGBuilder& GraphBuilder,
+	FRDGBuilder* GraphBuilder,
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters)
 {
@@ -580,7 +580,8 @@ void ProcessHairStrandsBookmark(
 
 		if (bHasHairStardsnProcess)
 		{
-			RunHairStrandsProcess(GraphBuilder, Parameters.ShaderMap, Parameters.DebugShaderData);
+			check(GraphBuilder);
+			RunHairStrandsProcess(*GraphBuilder, Parameters.ShaderMap, Parameters.DebugShaderData);
 		}
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessLODSelection)
@@ -606,8 +607,9 @@ void ProcessHairStrandsBookmark(
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessGuideInterpolation)
 	{
+		check(GraphBuilder);
 		RunHairStrandsInterpolation(
-			GraphBuilder,
+			*GraphBuilder,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -623,8 +625,9 @@ void ProcessHairStrandsBookmark(
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation)
 	{
+		check(GraphBuilder);
 		RunHairStrandsInterpolation(
-			GraphBuilder,
+			*GraphBuilder,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -634,8 +637,9 @@ void ProcessHairStrandsBookmark(
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessDebug)
 	{
+		check(GraphBuilder);
 		RunHairStrandsDebug(
-			GraphBuilder,
+			*GraphBuilder,
 			Parameters.ShaderMap,
 			Parameters.WorldType,
 			*Parameters.View,

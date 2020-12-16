@@ -3677,19 +3677,18 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 				// Render the scene.
 				SceneRenderer->Render(GraphBuilder);
 			}
-			
-			if (SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
-			{
-				FHairStrandsBookmarkParameters& Parameters = *GraphBuilder.AllocObject<FHairStrandsBookmarkParameters>(CreateHairStrandsBookmarkParameters(SceneRenderer->Views));
-				if (Parameters.bHasElements)
-				{
-					RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
-				}
-			}
-
 			GraphBuilder.Execute();
 
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
+			
+			if (SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+			{
+				FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
+				if (Parameters.bHasElements)
+				{
+					RunHairStrandsBookmark(EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
+				}
+			}
 
 			// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 			for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)

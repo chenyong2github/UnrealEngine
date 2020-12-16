@@ -385,5 +385,5 @@ struct FHairStrandsBookmarkParameters
 };
 
 typedef void (*THairStrandsParameterFunction)(FHairStrandsBookmarkParameters& Parameters);
-typedef void (*THairStrandsBookmarkFunction)(FRDGBuilder& GraphBuilder, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters);
+typedef void (*THairStrandsBookmarkFunction)(FRDGBuilder* GraphBuilder, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters);
 RENDERER_API void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark, THairStrandsParameterFunction Parameters);

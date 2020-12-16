@@ -11,7 +11,7 @@
 IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
 
 void ProcessHairStrandsBookmark(
-	FRDGBuilder& GraphBuilder,
+	FRDGBuilder* GraphBuilder,
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters);
 

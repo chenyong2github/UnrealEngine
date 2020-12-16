@@ -323,7 +323,15 @@ void RunHairStrandsBookmark(FRDGBuilder& GraphBuilder, EHairStrandsBookmark Book
 {
 	if (GHairStrandsBookmarkFunction)
 	{
-		GHairStrandsBookmarkFunction(GraphBuilder, Bookmark, Parameters);
+		GHairStrandsBookmarkFunction(&GraphBuilder, Bookmark, Parameters);
+	}
+}
+
+void RunHairStrandsBookmark(EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters)
+{
+	if (GHairStrandsBookmarkFunction)
+	{
+		GHairStrandsBookmarkFunction(nullptr, Bookmark, Parameters);
 	}
 }
 
