@@ -1180,7 +1180,6 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				if(TranslatorMeshKeys.IsValidIndex(0))
 				{
 					int32 MeshLodIndex = 0;
-					SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
 
 					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(TranslatorMeshKeys[MeshLodIndex].ToString());
 					if (!LodMeshPayload.IsSet())
@@ -1194,6 +1193,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					FElementIDRemappings ElementIDRemappings;
 					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
 					UE::Interchange::Private::CopyMeshDescriptionToSkeletalMeshImportData(LodMeshPayload->LodMeshDescription, SkeletalMeshImportData);
+					SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
 
 					//Pipeline can remove names from the list to control which blendshapes they import
 					TArray<FName> BlendShapeToImport;
