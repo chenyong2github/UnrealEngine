@@ -26,6 +26,7 @@
 #include "Misc/Parse.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Algo/Find.h"
+#include "Algo/ForEach.h"
 #include "EngineUtils.h"
 
 #include "DistanceFieldAtlas.h"
@@ -1886,11 +1887,18 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// Create HLODs generation context
 	FHLODGenerationContext Context;
+	TArray<FWorldPartitionHandle> InvalidHLODActors;
 	for (TWorldPartitionActorDescIterator<AWorldPartitionHLOD, FHLODActorDesc> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
+		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
+
 		if (HLODIterator->GetCellHash())
 		{
-			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), FWorldPartitionHandle(WorldPartition, HLODIterator->GetGuid()));
+			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), HLODActorHandle);
+		}
+		else
+		{
+			InvalidHLODActors.Add(HLODActorHandle);
 		}
 	}
 
@@ -1966,15 +1974,23 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 		GenerateHLODs(HLODGrids[HLODGridName], GridsDepth[HLODGridName] + 1, HLODActorClusters);
 	}
 
+	auto DeleteHLODActor = [&SourceControlHelper](FWorldPartitionHandle ActorHandle)
+	{
+		FWorldPartitionActorDesc* HLODActorDesc = ActorHandle.Get();
+		check(HLODActorDesc);
+
+		const FString ActorPackageFilename = SourceControlHelper->GetFilename(HLODActorDesc->GetActorPackage().ToString());
+		SourceControlHelper->Delete(ActorPackageFilename);
+	};
+
 	// Destroy all unreferenced HLOD actors
 	for (const auto& HLODActorPair: Context.HLODActorDescs)
 	{
-		FWorldPartitionActorDesc* HLODActorDesc = HLODActorPair.Value.Get();
-		check(HLODActorDesc);
-
-		const FString ActorPackageFilename = SourceControlHelper->GetFilename(HLODActorDesc->GetActorPackage().ToString());		
-		SourceControlHelper->Delete(ActorPackageFilename);
+		DeleteHLODActor(HLODActorPair.Value);
 	}
+
+	// Destroy all invalid HLOD actors
+	Algo::ForEach(InvalidHLODActors, DeleteHLODActor);
 
 	// Create/destroy HLOD grid actors
 	UpdateHLODGridsActors(GetWorld(), HLODGrids);
