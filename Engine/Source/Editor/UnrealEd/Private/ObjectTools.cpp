@@ -3749,6 +3749,12 @@ namespace ObjectTools
 				Object->SetFlags(RF_Standalone);
 			}
 
+			// The object must be fully loaded to realize latent thumbnail data
+			EnsureLoadingComplete(Object->GetOutermost());
+
+			// Look for a thumbnail for this asset before we rename it
+			FObjectThumbnail* Thumbnail = ThumbnailTools::GetThumbnailForObject(Object);
+
 			FString OldObjectFullName = Object->GetFullName();
 			FString OldObjectPathName = Object->GetPathName();
 			GEditor->RenameObject( Object, NewPackage, *ObjName, bLeaveRedirector ? REN_None : REN_DontCreateRedirectors );
@@ -3761,6 +3767,12 @@ namespace ObjectTools
 
 				// Remove any metadata from old package pointing to moved objects
 				OldPackage->MetaData->RemoveMetaDataOutsidePackage();
+			}
+
+			// Migrate any thumbnail from the old package to the new one
+			if (Thumbnail)
+			{
+				ThumbnailTools::CacheThumbnail(Object->GetFullName(), Thumbnail, NewPackage);
 			}
 
 			// Notify the asset registry of the rename

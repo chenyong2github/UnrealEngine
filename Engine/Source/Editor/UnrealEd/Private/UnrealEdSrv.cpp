@@ -354,7 +354,7 @@ UPackage* UUnrealEdEngine::GeneratePackageThumbnailsIfRequired( const TCHAR* Str
 					if( ThumbnailTools::ConditionallyLoadThumbnailsForObjects( ObjectFullNames, LoadedThumbnails ) )
 					{
 						//store off the names of the thumbnails that were loaded as part of a save so we can delete them after the save
-					GeneratedThumbNamesList.Add(ObjectFullNameFName.ToString());
+						GeneratedThumbNamesList.Add(ObjectFullNameFName.ToString());
 
 						if (bPrintThumbnailDiagnostics)
 						{
