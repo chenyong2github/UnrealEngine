@@ -18,7 +18,8 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture);
+	FRDGTextureRef SignalTexture,
+	bool& bOutUseTemporalDenoising);
 
 void RenderVirtualShadowMapProjectionForDenoising(
 	FProjectedShadowInfo* ShadowInfo,
@@ -26,7 +27,8 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture);
+	FRDGTextureRef SignalTexture,
+	bool& bOutUseTemporalDenoising);
 
 void RenderVirtualShadowMapProjection(
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,

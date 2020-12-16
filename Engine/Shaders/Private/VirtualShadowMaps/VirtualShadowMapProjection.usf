@@ -13,6 +13,7 @@
 #include "../LightShaderParameters.ush"
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
+#include "ProjectionDirectional.ush"
 
 // See VirtualShadowMapProjection.cpp
 // 0 = Output to denoiser
@@ -26,36 +27,28 @@ int VirtualShadowMapId;		// For the first layer for clipmaps
 int DebugOutputType;
 float ContactShadowLength;
 
-// TODO: Share LOD visualization color logic between Debug.usf and here (and possibly Nanite debug)
-float3 IntToColor(uint Index)
-{
-	const float3 ColorTable[8] = {
-		float3(1.0f, 0.0f, 0.0f),
-		float3(0.0f, 1.0f, 0.0f),
-		float3(0.0f, 0.0f, 1.0f),
+int SMRTRayCount;	// 0 = off
+int SMRTSamplesPerRay;
+float SMRTRayLengthScale;
 
-		float3(1.0f, 1.0f, 0.0f),
-		float3(0.0f, 1.0f, 1.0f),
-		float3(1.0f, 0.0f, 1.0f),
 
-		float3(0.5f, 0.7f, 0.1f),
-		float3(1.0f, 1.0f, 1.0f)
-	};
-	return ColorTable[Index % 8];
-}
-
-float ShadowRayCast(
+float VirtualShadowMapScreenRayCast(
 	float3 RayOriginTranslatedWorld, float3 RayDirection, float RayLength,
-	int NumSteps, float StepOffset
-)
+	int NumSteps, float StepOffset)
 {
+	// Just to make calling code a bit cleaner
+	if (RayLength == 0.0f)
+	{
+		return 0.0f;
+	}
+
 	float4 RayStartClip	= mul( float4( RayOriginTranslatedWorld, 1 ), View.TranslatedWorldToClip );
 	float4 RayDirClip	= mul( float4( RayDirection * RayLength, 0 ), View.TranslatedWorldToClip );
 	float4 RayEndClip	= RayStartClip + RayDirClip;
 
 	float3 RayStartScreen = RayStartClip.xyz / RayStartClip.w;
 	float3 RayEndScreen = RayEndClip.xyz / RayEndClip.w;
-	
+
 	float3 RayStepScreen = RayEndScreen - RayStartScreen;
 
 	float3 RayStartUVz = float3( RayStartScreen.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz, RayStartScreen.z );
@@ -86,14 +79,66 @@ float ShadowRayCast(
 		SampleTime += Step;
 	}
 
-	float Shadow = FirstHitTime > 0.0 ? 1.0 : 0.0;
+	float Shadow = FirstHitTime > 0.0f ? 1.0f : 0.0f;
 
 	// Off screen masking
-	float2 Vignette = max(6.0 * abs(RayStartScreen.xy + RayStepScreen.xy * FirstHitTime) - 5.0, 0.0);
-	Shadow *= saturate( 1.0 - dot( Vignette, Vignette ) );
+	bool bValidUV = all( abs( RayStartScreen.xy + RayStepScreen.xy * FirstHitTime ) < 1.0f );
+	Shadow = bValidUV ? Shadow : 0.0f;	
 
-	return 1 - Shadow;
+	return 1.0f - Shadow;
 }
+
+
+float ProjectSingleSample(
+	FLightShaderParameters Light,
+	float3 L,
+	uint LightType,
+	const float4 SvPosition,
+	const float SceneDepth,
+	float3 TranslatedWorldPosition,
+	float3 EstimatedGeoWorldNormal,
+	float ContactShadowLengthWorld,
+	inout float3 DebugOutput,
+	out float OutHitDistance)
+{
+	float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+	// NOTE: Could skip most of the rest of the shader if contact shadows say we're shadowed, but likely to be small, incoherent branching
+
+	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+
+	// Offset ray to start at the end of the contact shadow trace
+	FVirtualShadowMapSampleResult VirtualShadowMapSample =
+		SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, EstimatedGeoWorldNormal, ContactShadowLengthWorld);
+
+#if OUTPUT_TYPE != 2		// Don't kill pixels in debug output mode
+	if (!VirtualShadowMapSample.bValid)
+	{
+		// Generally shouldn't occur if PT allocation is conservative
+		discard;
+	}
+#endif
+
+	float RayMissFactor = VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
+	float HitDistance = VirtualShadowMapSample.OccluderDistance;
+
+	if (DebugOutputType == 1)	// Invalid page
+	{
+		DebugOutput = VirtualShadowMapSample.bValid ? (0.25f * RayMissFactor) : float3(1, 0, 1);
+	}
+	else if (DebugOutputType == 2)	// ClipmapIndex/Mip
+	{
+		DebugOutput = lerp(RayMissFactor, VirtualShadowMapDebugIntToColor(VirtualShadowMapSample.ClipmapIndexOrMipLevel), 0.75f);
+	}
+	else if (DebugOutputType == 3) // Occluder distance
+	{
+		DebugOutput = lerp(RayMissFactor, HitDistance.xxx / 1000.0f, 0.75f);
+	}
+
+	OutHitDistance = HitDistance;
+	return RayMissFactor;
+}
+
 
 float4 EncodeLightAttenuationFromMask(float ShadowMask)
 {
@@ -109,51 +154,23 @@ float4 EncodeLightAttenuationFromMask(float ShadowMask)
 	return EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
 }
 
-void VirtualShadowMapProjectionPS(
-	in float4 SvPosition : SV_Position,
-	out float4 OutputTarget : SV_Target
-	)
+float4 EncodeOuput(float4 OutputSignal, float3 DebugOutput)
 {
-	// TODO: Unify this with the logic in PageManagement.usf - we need to get the same values in both passes
-	const float2 ScreenUV = SvPositionToBufferUV(SvPosition);
-	const float DeviceZ = LookupDeviceZ(ScreenUV);
-	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-	
-	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0f));
-		
-	// TODO: Early out on sky, etc.
-	bool bInLightRegion = true;
+#if OUTPUT_TYPE == 0
+	// Output feeds into denoiser
+	return OutputSignal;
+#elif OUTPUT_TYPE == 1
+	// Output to screen shadow mask
+	return EncodeLightAttenuationFromMask(OutputSignal.r);
+#elif OUTPUT_TYPE == 2
+	// Output debug for "vis".
+	return float4(DebugOutput, 1.0f);
+#endif // OUTPUT_TYPE
+}
 
-	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-	uint LightType = ProjectionData.LightType;
 
-	FLightShaderParameters Light = GetRootLightShaderParameters();
-	float3 ToLight = Light.Direction;
-	if (ProjectionData.LightType == LIGHT_TYPE_SPOT)
-	{
-		// Early out if we're outside the spot light cone		
-		ToLight = Light.Position - (TranslatedWorldPosition - View.PreViewTranslation);
-		bool bInLightRadius = length(ToLight) <= rcp(Light_InvRadius);
-		ToLight = normalize(ToLight);
-		bool bInLightCone = dot(ToLight, Light.Direction) >= Light.SpotAngles.x;
-		bInLightRegion = bInLightRegion && bInLightRadius && bInLightCone;
-	}
-	if (!bInLightRegion)
-	{
-		discard;
-	}
-	
-	float ContactShadow = 1.0f;
-	float ContactShadowLengthWorld = 0.0f;
-	if (ContactShadowLength > 0.0f)
-	{
-		ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
-		float StepOffset = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
-		ContactShadow = ShadowRayCast( TranslatedWorldPosition, ToLight, ContactShadowLengthWorld, 12, StepOffset );
-	}
-
-	// NOTE: Could skip most of the rest of the shader if contact shadows say we're shadowed, but likely to be small, incoherent branching
-
+float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float2 ScreenUV)
+{
 	// Figure out slope, we do world space since that is the space where we might override using the shading normal...
 	float3 TranslatedWorldPositionDDX = DDX(TranslatedWorldPosition);
 	float3 TranslatedWorldPositionDDY = DDY(TranslatedWorldPosition);
@@ -168,70 +185,209 @@ void VirtualShadowMapProjectionPS(
 	}
 #endif
 
-	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
-	// Offset ray to start at the end of the contact shadow trace
-	float RayStartDistance = ContactShadowLengthWorld;
-	FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, EstimatedGeoWorldNormal, RayStartDistance);
+	return EstimatedGeoWorldNormal;
+}
+
+
+void VirtualShadowMapProjectionSpotPS(
+	in float4 SvPosition : SV_Position,
+	out float4 OutputTarget : SV_Target)
+{
+	// TODO: Unify this with the logic in PageManagement.usf - we need to get the same values in both passes
+	const float2 ScreenUV = SvPositionToBufferUV(SvPosition);
+	const float DeviceZ = LookupDeviceZ(ScreenUV);
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);	
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0f));
 	
-#if OUTPUT_TYPE != 2		// Don't kill pixels in debug output mode
-	if (!VirtualShadowMapSample.bValid)
+	FLightShaderParameters Light = GetRootLightShaderParameters();
+
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	// Early out if we're outside the spot light cone		
+	float3 ToLight = Light.Position - (TranslatedWorldPosition - View.PreViewTranslation);
+	bool bInLightRadius = length(ToLight) <= rcp(Light_InvRadius);
+	float3 ToLightDir = normalize(ToLight);
+	bool bInLightCone = dot(ToLightDir, Light.Direction) >= Light.SpotAngles.x;
+	bool bInLightRegion = bInLightRadius && bInLightCone;
+
+	float3 DebugOutput = float3(0, 0, 0);
+	int SampleCount = 1;
+	float HitDistance = 100000;	// TODO
+	float RayMissFactor = 1.0f;
+
+	if (bInLightRadius && bInLightCone)
 	{
-		// Generally shouldn't occur if PT allocation is conservative
-		discard;
-	}
+		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
+#if 0
+		if (SMRTRayCount > 0)
+		{
+			OutputSignal = TraceSpotLight(
+				Light,
+				SvPosition,
+				SceneDepth,
+				TranslatedWorldPosition,
+				DebugOutput);
+		}
+		else
 #endif
+		{
+			float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
 
-	float RayMissFactor = VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
-	float HitDistance = VirtualShadowMapSample.OccluderDistance;
-	if (ContactShadow < 1.0f)
+			RayMissFactor = ProjectSingleSample(
+				Light,
+				ToLightDir,
+				LIGHT_TYPE_SPOT,
+				SvPosition,
+				SceneDepth,
+				TranslatedWorldPosition,
+				EstimatedGeoWorldNormal,
+				ContactShadowLengthWorld,
+				/* out */ DebugOutput,
+				HitDistance);
+		}
+
+		if (ContactShadowLengthWorld > 0.0f)
+		{
+			// TODO: Unify this with the random sampling inside SMRT
+			uint2 SobolBase = SobolPixel(SvPosition.xy);
+			uint2 SobolFrame = SobolIndex(SobolBase, View.StateFrameIndexMod8, 3);
+			float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+			float2 E = float2(SobolIndex(SobolFrame, 8 << 3)) / 0x10000;	// TODO
+
+			float ContactShadow = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, ToLightDir, ContactShadowLengthWorld, 12, StepOffset);		
+			if (ContactShadow < 1.0f)
+			{
+				RayMissFactor *= ContactShadow;
+				HitDistance = ContactShadowLengthWorld;
+			}
+		}
+	}
+	else
 	{
-		RayMissFactor *= ContactShadow;
-		HitDistance = ContactShadowLengthWorld;
+		//discard;
 	}
 
-	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY in SSDSignalBufferEncoding.ush
-	// We fuse that logic in here to avoid needing another pass, but it's hard to call the functions directly as they depend on a large
-	// number of preprocessor defines and logic that we don't want to mirror here.
-	// Unfortunately that means this logic can get out of date when the denoiser changes, but that's the trade-off for now.
 	float4 OutputSignal = float4(0, 0, 0, 0);
-	float SampleCount = 1.0f;
-	float TransmissionDistance = RayMissFactor; // As per RayTracingOcclusionRGS.usf
 	if (RayMissFactor < 1.0f)
 	{
-		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, HitDistance);
-
-		OutputSignal = float4(
-			RayMissFactor,
-			SampleCount,
-			WorldBluringRadius,
-			TransmissionDistance);
+		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, HitDistance);
+		OutputSignal = float4(RayMissFactor, SampleCount, WorldBluringRadius, RayMissFactor);
 	}
 	else
 	{
 		// Miss
-		OutputSignal = float4(RayMissFactor, SampleCount, WORLD_RADIUS_MISS, TransmissionDistance);
+		OutputSignal = float4(1, SampleCount, WORLD_RADIUS_MISS, 1);
 	}
 
-	
-
-#if OUTPUT_TYPE == 0
-	// Output feeds into denoiser
-	OutputTarget = OutputSignal;
-#elif OUTPUT_TYPE == 1
-	// Output to screen shadow mask
-	OutputTarget = EncodeLightAttenuationFromMask(OutputSignal.r);
-#elif OUTPUT_TYPE == 2
-	// Output debug for "vis".
-	float3 Color = float3(0, 0, 0);
-
-	if (DebugOutputType == 1)	// Invalid page
-	{
-		Color = VirtualShadowMapSample.bValid ? (0.25f * OutputSignal.rrr) : float3(1, 0, 1);
-	}
-
-	OutputTarget = float4(Color, 1.0f);	
-#endif // OUTPUT_TYPE
+	OutputTarget = EncodeOuput(OutputSignal, DebugOutput);
 }
+
+
+void VirtualShadowMapProjectionDirectionalPS(
+	in float4 SvPosition : SV_Position,
+	out float4 OutputTarget : SV_Target
+)
+{
+	// TODO: Unify this with the logic in PageManagement.usf - we need to get the same values in both passes
+	const float2 ScreenUV = SvPositionToBufferUV(SvPosition);
+	const float DeviceZ = LookupDeviceZ(ScreenUV);
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0f));
+
+	FLightShaderParameters Light = GetRootLightShaderParameters();
+		
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	float3 ToLightDir = normalize(Light.Direction);
+	bool bFrontFace = dot(ToLightDir, GBufferData.WorldNormal) > 0.0f;
+	
+	float3 DebugOutput = float3(0, 0, 0);
+	int SampleCount = 1;
+	float HitDistance = 100000;	// TODO
+	float RayMissFactor = 1.0f;
+
+	if (bFrontFace)
+	{
+		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
+
+		if (SMRTRayCount > 0)
+		{
+			SampleCount = SMRTRayCount;
+			RayMissFactor = TraceDirectional(
+				VirtualShadowMapId,
+				Light,
+				SvPosition,
+				SceneDepth,
+				TranslatedWorldPosition,
+				ContactShadowLengthWorld,
+				SMRTRayCount,
+				SMRTSamplesPerRay,
+				SMRTRayLengthScale,
+				DebugOutputType,
+				DebugOutput,
+				HitDistance);
+		}
+		else
+		{
+			float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
+
+			SampleCount = 1;
+			RayMissFactor = ProjectSingleSample(
+				Light,
+				Light.Direction,
+				LIGHT_TYPE_DIRECTIONAL,
+				SvPosition,
+				SceneDepth,
+				TranslatedWorldPosition,
+				EstimatedGeoWorldNormal,
+				ContactShadowLengthWorld,
+				/* out */ DebugOutput,
+				HitDistance);
+		}
+
+		/*
+		if (ContactShadowLengthWorld > 0.0f)
+		{
+			// TODO: Unify this with the random sampling inside SMRT
+			uint2 SobolBase = SobolPixel(SvPosition.xy);
+			uint2 SobolFrame = SobolIndex(SobolBase, View.StateFrameIndexMod8, 3);
+			float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+			float2 E = float2(SobolIndex(SobolFrame, 8 << 3)) / 0x10000;	// TODO
+
+			float ContactShadow = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, ToLightDir, ContactShadowLengthWorld, 12, StepOffset);		
+			if (ContactShadow < 1.0f)
+			{
+				RayMissFactor *= ContactShadow;
+				HitDistance = ContactShadowLengthWorld;
+			}
+		}
+		*/
+	}
+
+	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION in SSDSignalBufferEncoding.ush
+	// We fuse that logic in here to avoid needing another pass, but it's hard to call the functions directly as they depend on a large
+	// number of preprocessor defines and logic that we don't want to mirror here.
+	// Unfortunately that means this logic can get out of date when the denoiser changes, but that's the trade-off for now.
+	float4 OutputSignal = float4(0, 0, 0, 0);
+	if (RayMissFactor < 1.0f)
+	{
+		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LIGHT_TYPE_DIRECTIONAL, Light, HitDistance);
+		OutputSignal = float4(RayMissFactor, SampleCount, WorldBluringRadius, RayMissFactor);
+	}
+	else
+	{
+		// Miss
+		OutputSignal = float4(1, SampleCount, WORLD_RADIUS_MISS, 1);
+	}
+
+	OutputTarget = EncodeOuput(OutputSignal, DebugOutput);
+}
+
+
+
+
+
 
 Texture2D<float4> InputSignal;
 

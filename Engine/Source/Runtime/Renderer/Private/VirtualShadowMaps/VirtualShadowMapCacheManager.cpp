@@ -28,7 +28,11 @@ static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 );
 
 
-void FVirtualShadowMapCacheEntry::UpdateClipmap(int32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth)
+void FVirtualShadowMapCacheEntry::UpdateClipmap(
+	int32 VirtualShadowMapId,
+	const FMatrix &WorldToLight,
+	FIntPoint PageSpaceLocation,
+	float GlobalDepth)
 {
 	// Swap previous frame data over.
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
@@ -46,80 +50,25 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(int32 VirtualShadowMapId, const 
 	CurrentShadowMapGlobalDepth = GlobalDepth;
 }
 
-void FVirtualShadowMapCacheEntry::Update(int32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
-	const FVector &SubjectWorldSpacePosition, bool bIsViewDependent, const FWholeSceneProjectedShadowInitializer &InCacheValidKey, 
-	FVector &SnappedSubjectWorldSpacePosition)
+void FVirtualShadowMapCacheEntry::Update(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey)
 {
 	// Swap previous frame data over.
 	PrevPageSpaceLocation = CurrentPageSpaceLocation;
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
 	PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth;
-	SnappedSubjectWorldSpacePosition = SubjectWorldSpacePosition;
 
 	// Check cache validity based of shadow setup
-	if (!bIsViewDependent)
+	if (!CacheValidKey.IsCachedShadowValid(InCacheValidKey))
 	{
-		if (!CacheValidKey.IsCachedShadowValid(InCacheValidKey))
-		{
-			// Mark as invalid
-			PrevVirtualShadowMapId = INDEX_NONE;
-		}
-	}
-	else
-	{
-		bool bCachedValid =	CacheValidKey.WorldToLight == InCacheValidKey.WorldToLight
-							&& CacheValidKey.Scales == InCacheValidKey.Scales
-							&& CacheValidKey.SubjectBounds.Origin == InCacheValidKey.SubjectBounds.Origin
-							&& CacheValidKey.SubjectBounds.BoxExtent == InCacheValidKey.SubjectBounds.BoxExtent
-							&& CacheValidKey.SubjectBounds.SphereRadius == InCacheValidKey.SubjectBounds.SphereRadius
-							&& CacheValidKey.WAxis == InCacheValidKey.WAxis
-							&& CacheValidKey.MinLightW == InCacheValidKey.MinLightW
-							&& CacheValidKey.MaxDistanceToCastInLightW == InCacheValidKey.MaxDistanceToCastInLightW
-							&& CacheValidKey.bRayTracedDistanceField == InCacheValidKey.bRayTracedDistanceField;
-
-		if (!bCachedValid)
-		{ 
-			// Mark as invalid
-			PrevVirtualShadowMapId = INDEX_NONE;
-			//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
-		}
+		PrevVirtualShadowMapId = INDEX_NONE;
+		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
 	}
 
-	// Update key data
 	CacheValidKey = InCacheValidKey;
 
-	// Compute new
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
-
-	// E.g., CSMs
-	if (bIsViewDependent)
-	{
-		FMatrix ScaleAndBiasToSmPage = FScaleMatrix(FVector(FVirtualShadowMapArrayCacheManager::EffectiveCacheResolutionPages, FVirtualShadowMapArrayCacheManager::EffectiveCacheResolutionPages, 1.0f)) * FScaleMatrix(FVector(0.5f, -0.5f, 1.0f)) * FTranslationMatrix(FVector(0.5f, 0.5f, 0.0f));
-		FMatrix WorldToGlobalShadowPage = ShadowPreTranslatedWorldToShadowClip * ScaleAndBiasToSmPage;
-		
-		FVector ShadowMapLocationInGlobalPageSpace = WorldToGlobalShadowPage.TransformPosition(SubjectWorldSpacePosition);
-
-		FVector MinPageSpace((ShadowMapLocationInGlobalPageSpace.X - float(FVirtualShadowMapArrayCacheManager::EffectiveCacheResolutionPages) / 2.0f),
-			(ShadowMapLocationInGlobalPageSpace.Y - float(FVirtualShadowMapArrayCacheManager::EffectiveCacheResolutionPages) / 2.0f),
-			0.0f
-		);
-			
-		float MinX = FMath::FloorToFloat(MinPageSpace.X / FVirtualShadowMapArrayCacheManager::AlignmentPages);
-		float MinY = FMath::FloorToFloat(MinPageSpace.Y / FVirtualShadowMapArrayCacheManager::AlignmentPages);
-
-		FVector MinPageSpaceAligned = FVector(MinX, MinY, 0.0f) * FVirtualShadowMapArrayCacheManager::AlignmentPages;
-		FVector SmLocPsAligned = MinPageSpaceAligned + FVector(FVirtualShadowMap::Level0DimPagesXY / 2, FVirtualShadowMap::Level0DimPagesXY / 2, ShadowMapLocationInGlobalPageSpace.Z);
-
-		CurrentPageSpaceLocation = FIntPoint(SmLocPsAligned.X, SmLocPsAligned.Y);
-		CurrentShadowMapGlobalDepth = ShadowMapLocationInGlobalPageSpace.Z;
-
-		SnappedSubjectWorldSpacePosition = WorldToGlobalShadowPage.InverseFast().TransformPosition(SmLocPsAligned);
-	}
-	else
-	{
-		PrevPageSpaceLocation = CurrentPageSpaceLocation = FIntPoint(0, 0);
-		PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth = 0.0f;
-	}
+	PrevPageSpaceLocation = CurrentPageSpaceLocation = FIntPoint(0, 0);
+	PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth = 0.0f;
 }
 
 

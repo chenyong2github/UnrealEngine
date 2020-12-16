@@ -194,6 +194,12 @@ static TAutoConsoleVariable<int32> CVarVirtualSmDenoiser(
 	TEXT("Apply denoiser on virtual shadow map masks."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserTemporal(
+	TEXT("r.Shadow.v.Denoiser.Temporal"),
+	1,
+	TEXT("Use temporal reprojection (when applicable)."),
+	ECVF_RenderThreadSafe);
+
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
 
 // 0:off, 1:low, 2:med, 3:high, 4:very high, 5:max
@@ -1834,6 +1840,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						}
 
 						// Project virtual shadow maps
+						bool bUseTemporal = false;
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
 							check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 1);
@@ -1843,7 +1850,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
-								SignalTexture);
+								SignalTexture,
+								bUseTemporal);
 						}
 						else
 						{
@@ -1854,8 +1862,11 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
-								SignalTexture);
+								SignalTexture,
+								bUseTemporal);
 						}
+
+						bUseTemporal = bUseTemporal && (CVarVirtualSmDenoiserTemporal.GetValueOnRenderThread() != 0);
 
 						// Shadow filtering via denoiser
 						FSSDSignalTextures DenoisedSignal;
@@ -1874,7 +1885,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								SceneTextureParameters,
 								LightSceneInfo,
 								ScissorRect,
-								Inputs);
+								Inputs,
+								bUseTemporal);
 						}
 
 						// Composite into light's screen shadow mask

@@ -76,14 +76,21 @@ static TAutoConsoleVariable<float> CVarResolutionPixelCountPercent(
 	ECVF_RenderThreadSafe
 );
 
-FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(
+FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
 	const FMatrix& ViewToClip)
 {
 	FMatrix TranslatedWorldToShadowClip = TranslatedWorldToShadowView * ViewToClip;
-	FMatrix ScaleAndBiasToSmUv = FScaleMatrix(FVector(0.5f, -0.5f, 1.0f)) * FTranslationMatrix(FVector(0.5f, 0.5f, 0.0f));
-	FMatrix TranslatedWorldToShadowUv = TranslatedWorldToShadowClip * ScaleAndBiasToSmUv;
-	return TranslatedWorldToShadowUv.GetTransposed().Inverse();
+	FMatrix ScaleAndBiasToSmUV = FScaleMatrix(FVector(0.5f, -0.5f, 1.0f)) * FTranslationMatrix(FVector(0.5f, 0.5f, 0.0f));
+	FMatrix TranslatedWorldToShadowUv = TranslatedWorldToShadowClip * ScaleAndBiasToSmUV;
+	return TranslatedWorldToShadowUv;
+}
+
+FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(
+	const FMatrix& TranslatedWorldToShadowView,
+	const FMatrix& ViewToClip)
+{
+	return CalcTranslatedWorldToShadowUVMatrix(TranslatedWorldToShadowView, ViewToClip).GetTransposed().Inverse();
 }
 
 FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo)
@@ -105,11 +112,11 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 	}
 
 	FMatrix ViewToClip = ShadowInfo->ViewToClipInner;
-		
+	
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = ShadowInfo->TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = ViewToClip;
-	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
+	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
+	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
 	Data.ShadowPreViewTranslation = FVector(ShadowInfo->PreShadowTranslation);
 	Data.VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
 	Data.LightType = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType();

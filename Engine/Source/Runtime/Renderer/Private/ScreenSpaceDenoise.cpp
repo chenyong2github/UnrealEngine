@@ -3046,7 +3046,8 @@ FSSDSignalTextures IScreenSpaceDenoiser::DenoiseVirtualShadowMapMask(
 	const FSceneTextureParameters& SceneTextures,
 	const FLightSceneInfo* LightSceneInfo,
 	FIntRect LightScissorRect,
-	const FVirtualShadowMapMaskInputs& InputParameters)
+	const FVirtualShadowMapMaskInputs& InputParameters,
+	bool bUseTemporal)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualShadowsDenoiser);
 	const FLightSceneProxy* Proxy = LightSceneInfo->Proxy;
@@ -3057,7 +3058,7 @@ FSSDSignalTextures IScreenSpaceDenoiser::DenoiseVirtualShadowMapMask(
 	Settings.SignalProcessing = ESignalProcessing::VirtualShadowMapMask;
 	Settings.ReconstructionSamples = CVarVirtualShadowReconstructionSampleCount.GetValueOnRenderThread();
 	Settings.PreConvolutionCount = CVarVirtualShadowPreConvolutionCount.GetValueOnRenderThread();
-	Settings.bUseTemporalAccumulation = false;
+	Settings.bUseTemporalAccumulation = bUseTemporal;
 	
 	Settings.LightSceneInfo[0] = LightSceneInfo;
 	Settings.SignalScissor[0] = LightScissorRect;
@@ -3069,8 +3070,13 @@ FSSDSignalTextures IScreenSpaceDenoiser::DenoiseVirtualShadowMapMask(
 	// No temporal reprojection
 	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
 	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
-	PrevHistories[0] = nullptr;
+	PrevHistories[0] = PreviousViewInfos->VirtualShadowHistories.Find(LightSceneInfo->Proxy->GetLightComponent());
 	NewHistories[0] = nullptr;
+	if (!View.bStatePrevViewInfoIsReadOnly)
+	{
+		check(View.ViewState);
+		NewHistories[0] = &View.ViewState->PrevFrameViewInfo.VirtualShadowHistories.FindOrAdd(LightSceneInfo->Proxy->GetLightComponent());
+	}
 
 	FSSDSignalTextures InputSignal;
 	InputSignal.Textures[0] = InputParameters.Signal;

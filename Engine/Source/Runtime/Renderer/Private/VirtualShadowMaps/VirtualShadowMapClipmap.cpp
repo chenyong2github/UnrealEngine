@@ -24,7 +24,6 @@ static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapFirstLevel(
 	ECVF_RenderThreadSafe
 );
 
-
 // "Virtual" clipmap level to clipmap radius
 static float GetLevelRadius(int32 Level)
 {
@@ -103,9 +102,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
 		const float SnappedLevelRadius = 0.5f * (PageSizeInWorldSpace * DimPages);
-				
-		// NOTE: Any ZScale/ZOffset change probably needs to invalidate the page cache...
-		// For now they should be stable for a given (absolute) clipmap level
+
 		const float ZScale = 0.5f / RawLevelRadius;
 		const float ZOffset = RawLevelRadius;
 
@@ -153,11 +150,12 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 {
 	check(ClipmapIndex >= 0 && ClipmapIndex < LevelData.Num());
 	const FLevelData& Level = LevelData[ClipmapIndex];
-
+	
+	// NOTE: Some shader logic (projection, etc) assumes some of these parameters are constant across all levels in a clipmap
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = WorldToViewRotationMatrix;
 	Data.ShadowViewToClipMatrix = Level.ViewToClip;
-	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(WorldToViewRotationMatrix, Level.ViewToClip);
+	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(WorldToViewRotationMatrix, Level.ViewToClip);
+	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(WorldToViewRotationMatrix, Level.ViewToClip);
 	Data.ShadowPreViewTranslation = -Level.WorldCenter;
 	Data.VirtualShadowMapId = Level.VirtualShadowMap->ID;
 	Data.LightType = ELightComponentType::LightType_Directional;

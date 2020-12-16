@@ -78,13 +78,9 @@ public:
 // as well as cached shadow maps
 struct FVirtualShadowMapProjectionShaderData
 {
-	/**
-	 * Transform from shadow-pre-translated world space to shadow view space, example use: (WorldSpacePos + ShadowPreViewTranslation) * TranslatedWorldToShadowViewMatrix
-	 * TODO: Why don't we call it a rotation and store in a 3x3? Does it ever have translation in?
-	 */
-	FMatrix TranslatedWorldToShadowViewMatrix;
 	FMatrix ShadowViewToClipMatrix;
-	FMatrix TranslatedWorldToShadowUvNormalMatrix;
+	FMatrix TranslatedWorldToShadowUVMatrix;
+	FMatrix TranslatedWorldToShadowUVNormalMatrix;
 	/**
 	 * Translation from world space to shadow space (add before transform by TranslatedWorldToShadowViewMatrix).
 	 */
@@ -105,7 +101,8 @@ static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtu
 
 FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo);
 
-FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
+FMatrix CalcTranslatedWorldToShadowUVMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
+FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapCommonParameters, )
 	SHADER_PARAMETER_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])

@@ -1,0 +1,251 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+ProjectionDirectional.ush: 
+=============================================================================*/
+#pragma once
+
+#include "../DeferredShadingCommon.ush"
+#include "../SceneTexturesCommon.ush"
+#include "../LightShaderParameters.ush"
+#include "PageAccessCommon.ush"
+#include "ProjectionCommon.ush"
+
+bool ShadowRayCastDirectional(
+	int VirtualShadowMapId,
+	float3 ViewPosition,
+	float3 RayStart,
+	float3 RayVector,	// RayEnd - RayStart
+	int NumSteps,
+	float StepOffset,
+	int DebugOutputType,
+	inout float3 DebugOutput,
+	inout float OccluderDistance)
+{	
+	const FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	// The page at RayStart has a high chance of being mapped since that is close to the receiver point
+	// Thus we start our clipmap sampling around that page even as we walk through the depth space
+	// TODO: Branch out if beyond max clipmap range somewhere
+	const float ClipmapLevelFloat = CalcClipmapLevelFloat(BaseProjectionData, RayStart);	
+	const int ClipmapIndex = max(0, int(floor(ClipmapLevelFloat)) - BaseProjectionData.ClipmapLevel);
+	const float ClipmapLevelFrac = frac(ClipmapLevelFloat);
+
+	int ClipmapIndexAdjacent = ClipmapIndex + (ClipmapLevelFrac > 0.5f ? 1 : -1);
+	ClipmapIndexAdjacent = clamp(ClipmapIndexAdjacent, 0, BaseProjectionData.ClipmapLevelCount - 1);
+
+	int AbsoluteClipmapIndex = VirtualShadowMapId + ClipmapIndex;
+	int AbsoluteClipmapIndexAdjacent = VirtualShadowMapId + ClipmapIndexAdjacent;
+
+	// TODO: Experiment with perf of this, etc.
+	bool bSampleTwoClipmapLevels = (ClipmapIndexAdjacent != ClipmapIndex) && (abs(ClipmapLevelFrac - 0.5f) > 0.4f);
+#if 0
+	bSampleTwoClipmapLevels = false;
+#endif
+
+	const FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(AbsoluteClipmapIndex);
+
+	const float3 RayStartUV = mul(float4(RayStart + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
+	const float3 RayStepUV  = mul(float4(RayVector, 0.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
+
+	const float LevelDims = float(CalcLevelDimsTexels(0));
+	float3 RayStartShadowTexelsZ = float3(LevelDims, LevelDims, 1.0f) * RayStartUV.xyz;
+	float3 RayStepShadowTexelsZ  = float3(LevelDims, LevelDims, 1.0f) * RayStepUV.xyz;
+
+	// Z scale is consistent across clipmap levels
+	const float CompareScale = RayStepShadowTexelsZ.z * 2.0f / Pow2(NumSteps);
+	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
+
+	float FirstHitTime = 2;
+	float DepthHistory = -1;
+	int SampleMissCount = 0;
+
+	// Work out scale/bias to convert to the adjacent UVs from the regular UVs
+	// NOTE: Since depth function is constant, probably worth refactoring the clipmap mappings to be scale/bias in general rather than
+	// a full transform matrix.
+	float2 AdjacentTexelScale = 1.0f;
+	float2 AdjacentTexelBias = 0.0f;
+	float AdjacentToBaseDepthScale = 1.0f;
+	float AdjacentToBaseDepthBias = 0.0f;
+	if (bSampleTwoClipmapLevels)
+	{
+		const FVirtualShadowMapProjectionShaderData ProjectionDataAdjacent = GetVirtualShadowMapProjectionData(AbsoluteClipmapIndexAdjacent);
+
+		AdjacentTexelScale = (ProjectionDataAdjacent.ShadowViewToClipMatrix._11_22 / ProjectionData.ShadowViewToClipMatrix._11_22);
+
+		// TranslatedWorldToShadowViewMatrix is identical for each of the cascades; only the pre-view translation changes
+		float3 UVz         = mul(float4(ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
+		float3 UVzAdjacent = mul(float4(ProjectionDataAdjacent.ShadowPreViewTranslation, 1.0f), ProjectionDataAdjacent.TranslatedWorldToShadowUVMatrix).xyz;
+
+		AdjacentTexelBias = (UVzAdjacent.xy - AdjacentTexelScale * UVz.xy);
+		AdjacentTexelBias *= float(CalcLevelDimsTexels(0));
+
+		// Always rescale adjacent samples back to the same depth mapping as the regular clipmap level to ensure
+		// precision is maintained and DepthHistory remains well defined.
+		AdjacentToBaseDepthScale = (ProjectionData.ShadowViewToClipMatrix._33 / ProjectionDataAdjacent.ShadowViewToClipMatrix._33);
+		AdjacentToBaseDepthBias = (UVz.z - AdjacentToBaseDepthScale * UVzAdjacent.z);
+	}
+
+	for (int i = 0; i < NumSteps; i++)
+	{
+		const float SampleTime = Pow2(saturate((-1.0f / NumSteps) * i + 1.0f - (StepOffset - 0.5f) / NumSteps));
+		const float3 SampleTexelsZ = RayStartShadowTexelsZ + RayStepShadowTexelsZ * SampleTime;
+
+		uint2 PhysicalTexelAddress = uint2(0, 0);
+		bool bValid = VirtualToPhysicalTexel(AbsoluteClipmapIndex, 0, uint2(SampleTexelsZ.xy), PhysicalTexelAddress);
+		
+		float ToBaseDepthScale = 1.0f;
+		float ToBaseDepthBias = 0.0f;
+		if (bSampleTwoClipmapLevels && !bValid)
+		{
+			// Replace with adjacent level sample
+			float2 AdjacentTexels = SampleTexelsZ.xy * AdjacentTexelScale + AdjacentTexelBias;
+			bValid = VirtualToPhysicalTexel(AbsoluteClipmapIndexAdjacent, 0, uint2(AdjacentTexels), PhysicalTexelAddress);
+			ToBaseDepthScale = AdjacentToBaseDepthScale;
+			ToBaseDepthBias  = AdjacentToBaseDepthBias;
+		}
+
+		if (bValid)
+		{
+			const float SampleDepth = ToBaseDepthScale * asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))) + ToBaseDepthBias;
+			const float ReferenceDepth = SampleTexelsZ.z;
+			if (DepthHistory < 0)
+			{
+				// First valid sample we've seen. Do a regular depth compare.
+				DepthHistory = SampleDepth;
+				FirstHitTime = SampleDepth - ReferenceDepth > 0 ? SampleTime : 2;
+			}
+			else
+			{
+				const float CompareTolerance = abs(CompareScale * i + CompareBias);
+
+				bool bBehind = (SampleDepth - ReferenceDepth) > (2*CompareTolerance);
+				//bBehind = false;
+
+				float DepthSample = bBehind ? DepthHistory : SampleDepth;
+				DepthHistory = DepthSample;
+
+				float DepthDiff = ReferenceDepth - DepthSample;
+				bool bHit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
+
+				if (bHit)
+				{
+					FirstHitTime = SampleTime;
+				}
+			}
+		}
+		else
+		{
+			++SampleMissCount;
+		}
+	}
+
+	bool bValidHit = FirstHitTime < 2;
+	if (bValidHit)
+	{
+		OccluderDistance = length(RayVector) * FirstHitTime;
+	}
+
+	float OutputDebugSignal = bValidHit ? 0.0f : 1.0f;
+	if (DebugOutputType == 1)	// Invalid page
+	{
+		DebugOutput = lerp(OutputDebugSignal.xxx, lerp(float3(0, 1, 0), float3(1, 0, 1), saturate(SampleMissCount / 4.0f)), 0.75f);
+	}
+	else if (DebugOutputType == 2)	// ClipmapIndex
+	{
+		DebugOutput = lerp(OutputDebugSignal.xxx, VirtualShadowMapDebugIntToColor(ClipmapIndex), 0.75f);
+	}
+	else if (DebugOutputType == 3)	// Two levels
+	{
+		DebugOutput = bSampleTwoClipmapLevels ? float3(1, 0, 0) : float3(0, 1, 0);
+	}
+
+	return bValidHit;
+}
+
+#define USE_RANDOM_SEQUENCE 1
+
+#if USE_RANDOM_SEQUENCE
+#include "/Engine/Private/PathTracing/Utilities/PathTracingRandomSequence.ush"
+#endif
+
+float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
+{
+	float3 RayDir = Light.Direction;
+	{
+		float2 DiskUV = UniformSampleDiskConcentric(E) * Light.SourceRadius;
+		float3 N = RayDir;
+		float3 dPdu = cross(N, (abs(N.x) > 1e-6f) ? float3(1, 0, 0) : float3(0, 1, 0));
+		float3 dPdv = cross(dPdu, N);
+		RayDir += dPdu * DiskUV.x + dPdv * DiskUV.y;
+	}
+	return normalize(RayDir);
+}
+
+float TraceDirectional(
+	int VirtualShadowMapId,
+	FLightShaderParameters Light,
+	float4 SvPosition,
+	const float SceneDepth,
+	float3 TranslatedWorldPosition,
+	float RayStartOffset,
+	int RayCount,
+	int SamplesPerRay,
+	float RayLengthScale,
+	int DebugOutputType,
+	inout float3 DebugOutput,
+	out float OutHitDistance)
+{
+	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
+	float DistanceFromViewOrigin = length(ViewPosition);
+
+	// Compute max ray length based on view depth
+	// This affects both how far we are willing to trace across the shadow map (for clipmaps this is related to view depth)
+	// and the maximum size a penumbra can be.
+	// Too high values will cause shadows to detach from their contact points (unless more samples are used).
+	// Too low values will greatly restrict how large penumbras can be in screen space.
+	float RayLength = RayLengthScale * DistanceFromViewOrigin;		// TODO: Parameterize
+
+#if USE_RANDOM_SEQUENCE
+	uint Seed = uint(SvPosition.y * View.BufferSizeAndInvSize.x + SvPosition.x);
+	RandomSequence RandSequence;
+	RandomSequence_Initialize(RandSequence, Seed, View.StateFrameIndex);
+#else
+	uint2 SobolBase = SobolPixel(SvPosition.xy);
+	uint2 SobolFrame = SobolIndex(SobolBase, View.StateFrameIndexMod8, 3);
+#endif
+
+	float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+	float HitDistance = 500000;		// TODO
+	float RayMissFactor = 0;
+	for (int i = 0; i < RayCount; ++i)
+	{
+#if USE_RANDOM_SEQUENCE
+		float2 E = RandomSequence_GenerateSample2D(RandSequence);
+#else
+		float2 E = float2(SobolIndex(SobolFrame, i << 3)) / 0x10000;
+#endif
+
+		float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
+		float3 RayStart = WorldPosition;// + RayDir * ContactShadowLengthWorld;
+
+		bool bHit = ShadowRayCastDirectional(
+			VirtualShadowMapId,
+			ViewPosition,
+			RayStart + RayStartOffset,
+			RayDir * RayLength,
+			SamplesPerRay,
+			StepOffset,
+			DebugOutputType,
+			DebugOutput,
+			HitDistance);
+
+		RayMissFactor += bHit ? 0 : 1;
+	}
+	RayMissFactor /= float(RayCount);
+
+	OutHitDistance = HitDistance;
+	return RayMissFactor;
+}

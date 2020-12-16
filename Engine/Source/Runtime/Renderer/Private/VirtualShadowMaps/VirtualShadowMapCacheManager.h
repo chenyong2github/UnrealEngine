@@ -22,12 +22,10 @@ public:
 	bool IsValid() { return PrevVirtualShadowMapId != INDEX_NONE; }
 
 
-	void Update(int32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
-		const FVector &SubjectWorldSpacePosition, bool bIsViewDependent, 
-		const FWholeSceneProjectedShadowInitializer &InCacheValidKey, 
-		FVector &SnappedSubjectWorldSpacePosition);
+	void Update(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey);
 
-	void UpdateClipmap(int32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth);
+	void UpdateClipmap(int32 VirtualShadowMapId, const FMatrix &WorldToLight,
+		FIntPoint PageSpaceLocation, float GlobalDepth);
 
 	/**
 	 * Returns the PrevVirtualShadowMapId if cached data is valid (bValidData), or INDEX_NONE otherwise. 

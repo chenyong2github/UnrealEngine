@@ -799,25 +799,9 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	
 	if ( VirtualSmCacheEntry != nullptr )
 	{
+		check(DependentView == nullptr);		// Directional lights use clipmaps instead
 		check(BorderSize == 0);
-		FVector SnappedSubjectWorldSpacePosition = -Initializer.PreShadowTranslation;
-		VirtualSmCacheEntry->Update(VirtualShadowMap->ID, TranslatedWorldToClipInnerMatrix, -Initializer.PreShadowTranslation, DependentView != nullptr, Initializer, SnappedSubjectWorldSpacePosition);
-
-		// Ignore viewport if not a view-dependent SM.
-		if (DependentView != nullptr)
-		{
-			PreShadowTranslation = -SnappedSubjectWorldSpacePosition;
-			
-			FVector2D AdjustedScales = Initializer.Scales * FVirtualShadowMapArrayCacheManager::ClipSpaceScaleFactor;
-			// Warning! Re-set up a bunch of things as the scales are changed
-			InnerScaleMatrix = OuterScaleMatrix = FScaleMatrix( FVector(AdjustedScales.X, AdjustedScales.Y, 1.0f ) );
-			WorldToViewScaledInner = TranslatedWorldToView * InnerScaleMatrix;
-			ViewToClipInner = ViewToClipOuter = InnerScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
-			TranslatedWorldToClipInnerMatrix = TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipInner;
-
-			ResolutionX = FVirtualShadowMap::VirtualMaxResolutionXY;
-			ResolutionY = FVirtualShadowMap::VirtualMaxResolutionXY;
-		}
+		VirtualSmCacheEntry->Update(VirtualShadowMap->ID, Initializer);
 	}
 	
 	// Nothing to do with subject depth. Just a scale factor to map z to 0-1.

@@ -162,12 +162,7 @@ bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddr
 
 	uint2 PhysicalPageEntry = PageTable[CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY))];
 	PhysicalTexelAddress = PhysicalPageEntry * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
-	if (PhysicalPageEntry.x == VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
-	{
-		return false;
-	}
-	
-	return true;
+	return (PhysicalPageEntry.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
 }
 
 // TODO: this surely needs some special handling of cases that contain the near plane etc.

@@ -348,7 +348,8 @@ public:
 		const FSceneTextureParameters& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FIntRect LightScissorRect,
-		const FVirtualShadowMapMaskInputs& InputParameters);
+		const FVirtualShadowMapMaskInputs& InputParameters,
+		bool bUseTemporal);
 
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();

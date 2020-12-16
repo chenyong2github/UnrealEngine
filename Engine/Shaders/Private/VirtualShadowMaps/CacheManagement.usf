@@ -51,8 +51,15 @@ void VirtualSmInvalidateInstancePagesCS(
 
 			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
 			LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;
-			// TODO: put mat mul in pre-computed
-			float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowViewMatrix, ProjectionData.ShadowViewToClipMatrix));
+			
+			// Go back to clip space
+			float4x4 UVToClip;
+			UVToClip[0] = float4( 2,  0, 0, 0);
+			UVToClip[1] = float4( 0, -2, 0, 0);
+			UVToClip[2] = float4( 0,  0, 1, 0);
+			UVToClip[3] = float4(-1,  1, 0, 1);
+
+			float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowUVMatrix, UVToClip));
 
 			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, !bDirectionalLight, false);
 
