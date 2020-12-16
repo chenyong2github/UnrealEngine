@@ -83,7 +83,7 @@ public:
 				*BufferDataVector++ = Mesh.MinLocalBounds;
 				*BufferDataVector++ = Mesh.MaxLocalBounds;
 			}
-			RHIUnlockVertexBuffer(BufferMeshDataRHI);
+			RHIUnlockBuffer(BufferMeshDataRHI);
 
 			BufferMeshDataSRV = RHICreateShaderResourceView(BufferMeshDataRHI, sizeof(float), PF_R32_FLOAT);
 		}
