@@ -159,6 +159,16 @@ namespace DatasmithRevitExporter
 				MeshActor.SetMesh(ElementMesh.GetName());
 				bOptimizeHierarchy = false;
 			}
+
+			public void ResetMeshMaterials()
+			{
+				string HashedMeshName = ElementMesh?.GetName() ?? "";
+
+				if (DocumentData.MeshMaterialsMap.TryGetValue(HashedMeshName, out _))
+				{
+					DocumentData.MeshMaterialsMap[HashedMeshName].Clear();
+				}
+			}
 		}
 
 		public class FElementData : FBaseElementData
@@ -390,7 +400,7 @@ namespace DatasmithRevitExporter
 				return PivotTransform;
 			}
 
-			public void PushInstance(
+			public FBaseElementData PushInstance(
 				ElementType InInstanceType,
 				Transform InWorldTransform
 			)
@@ -403,6 +413,8 @@ namespace DatasmithRevitExporter
 
 				// The Datasmith instance actor is a component in the hierarchy.
 				InstanceData.ElementActor.SetIsComponent(true);
+
+				return InstanceData;
 			}
 
 			public FBaseElementData PopInstance()
@@ -602,16 +614,6 @@ namespace DatasmithRevitExporter
 
 				Parent.ChildElements.Add(ElementData);
 				ElementData.Parent = Parent;
-			}
-
-			public void ResetMeshMaterials()
-			{
-				string HashedMeshName = FDatasmithFacadeElement.GetStringHash("M:" + GetMeshName());
-
-				if (DocumentData.MeshMaterialsMap.TryGetValue(HashedMeshName, out _))
-				{
-					DocumentData.MeshMaterialsMap[HashedMeshName].Clear();
-				}
 			}
 
 			public void InitializeElement(
@@ -1076,7 +1078,13 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
-			ElementDataStack.Peek().PushInstance(InInstanceType, InWorldTransform);
+			FElementData CurrentElementData = ElementDataStack.Peek();
+			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform);
+
+			if (DirectLink?.IsElementCached(CurrentElementData.CurrentElement) ?? false)
+			{
+				NewInstance.ResetMeshMaterials();
+			}
 		}
 
 		public void PopInstance()
