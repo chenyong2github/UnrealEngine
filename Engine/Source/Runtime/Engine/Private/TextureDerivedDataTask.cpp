@@ -492,6 +492,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 		if (bSucceeded && bForVirtualTextureStreamingBuild && CVarVTValidateCompressionOnLoad.GetValueOnAnyThread())
 		{
+			check(DerivedData->VTData);
 			bSucceeded = DerivedData->VTData->ValidateCompression(Texture.GetPathName());
 			if (!bSucceeded)
 			{
