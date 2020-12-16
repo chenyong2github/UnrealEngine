@@ -325,7 +325,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
+	FDMXProtocolUniverseSACNPtr Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
 	if (!Universe.IsValid())
 	{
 		return EDMXSendResult::ErrorGetUniverse;
@@ -336,7 +336,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 		return EDMXSendResult::ErrorSetBuffer;
 	}
 
-	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetOutputDMXBuffer());
+	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetNextSequenceNumber(), Universe->GetOutputDMXBuffer());
 
 	if (Result == EDMXSendResult::Success)
 	{
@@ -375,7 +375,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragmentCreate(uint16 InUniverseID, cons
 		return EDMXSendResult::ErrorSetBuffer;
 	}
 
-	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetOutputDMXBuffer());
+	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetNextSequenceNumber(), Universe->GetOutputDMXBuffer());
 	return Result;
 }
 
@@ -389,7 +389,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXZeroUniverse(uint16 InUniverseID, bool b
 
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
+	FDMXProtocolUniverseSACNPtr Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
 	if (!Universe.IsValid())
 	{
 		return EDMXSendResult::ErrorGetUniverse;
@@ -399,7 +399,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXZeroUniverse(uint16 InUniverseID, bool b
 
 	if (bForceSendDMX)
 	{
-		return SendDMXInternal(FinalSendUniverseID, Universe->GetOutputDMXBuffer());
+		return SendDMXInternal(FinalSendUniverseID, Universe->GetNextSequenceNumber(), Universe->GetOutputDMXBuffer());
 	}
 
 	return EDMXSendResult::Success;
@@ -426,7 +426,7 @@ uint16 FDMXProtocolSACN::GetMaxUniverses() const
 	return ACN_MAX_UNIVERSES;
 }
 
-EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMXBufferPtr& DMXBuffer) const
+EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, uint8 InSequenceNumber, const FDMXBufferPtr& DMXBuffer) const
 {
 	check(bShouldSendDMX);
 
@@ -439,9 +439,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMX
 	FMemory::Memcpy(RootLayer.CID, &Guid, ACN_CIDBYTES);
 
 	FDMXProtocolE131FramingLayerPacket FramingLayer;
-	// To detect duplicate or out of order packets. This is using on physical controllers
-	static uint8 SequenceNumber = 0;
-	FramingLayer.SequenceNumber = SequenceNumber++;
+	FramingLayer.SequenceNumber = InSequenceNumber;
 	FramingLayer.Universe = InUniverseID;
 
 	FDMXProtocolE131DMPLayerPacket DMPLayer;

@@ -31,6 +31,9 @@ FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(TWeakPtr<FDMXProtocolSACN, ES
 	// Set online subsustem
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	check(SocketSubsystem);
+
+	Priority = 100;
+
 	// Set listener address
 	ListenerInternetAddr = SocketSubsystem->CreateInternetAddr();
 
@@ -103,6 +106,11 @@ bool FDMXProtocolUniverseSACN::SetDMXFragment(const IDMXFragmentMap& DMXFragment
 uint8 FDMXProtocolUniverseSACN::GetPriority() const
 {
 	return Priority;
+}
+
+uint8 FDMXProtocolUniverseSACN::GetNextSequenceNumber()
+{
+	return SequenceNumber.Increment();
 }
 
 uint32 FDMXProtocolUniverseSACN::GetUniverseID() const
