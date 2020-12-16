@@ -138,10 +138,18 @@ void UHLODProxy::DeletePackage()
 {
 	UPackage* Package = GetOutermost();
 
-	ForEachObjectWithOuter(Package, [this](UObject* InObject)
+	// Must not destroy objects during iteration, so gather a list
+	TArray<UObject*> ObjectsToDestroy;
+	ForEachObjectWithOuter(Package, [&ObjectsToDestroy](UObject* InObject)
 	{
-		DestroyObject(InObject);
+		ObjectsToDestroy.Add(InObject);
 	});
+
+	// Perform destruction
+	for (UObject* ObjectToDestroy : ObjectsToDestroy)
+	{
+		DestroyObject(ObjectToDestroy);
+	}
 
 	ObjectTools::DeleteObjectsUnchecked({ Package });
 }
@@ -572,16 +580,19 @@ void UHLODProxy::PostLoad()
 
 void UHLODProxy::DestroyObject(UObject* InObject)
 {
-	check(InObject->GetOutermost() == GetOutermost());
-	
-	InObject->MarkPackageDirty();
-
-	InObject->ClearFlags(RF_Public | RF_Standalone);
-	InObject->SetFlags(RF_Transient);
-
-	if (InObject->IsRooted())
+	if (!InObject->IsPendingKill())
 	{
-		InObject->RemoveFromRoot();
+		InObject->MarkPackageDirty();
+
+		InObject->ClearFlags(RF_Public | RF_Standalone);
+		InObject->SetFlags(RF_Transient);
+		InObject->Rename(nullptr, GetTransientPackage());
+		InObject->MarkPendingKill();
+	
+		if (InObject->IsRooted())
+		{
+			InObject->RemoveFromRoot();
+		}
 	}
 }
 
