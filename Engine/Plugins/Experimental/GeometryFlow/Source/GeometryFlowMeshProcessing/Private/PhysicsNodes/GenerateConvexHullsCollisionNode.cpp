@@ -6,7 +6,7 @@
 #include "Operations/MeshConvexHull.h"
 
 #include "Async/ParallelFor.h"
-
+#include "ProfilingDebugging/ScopedTimers.h"
 
 using namespace UE::GeometryFlow;
 
@@ -32,31 +32,51 @@ void FGenerateConvexHullsCollisionNode::Evaluate(
 
 				const FDynamicMesh3& Mesh = MeshArg->GetDataConstRef<FDynamicMesh3>((int)EMeshProcessingDataTypes::DynamicMesh);
 				const FIndexSets& IndexData = TriSetsArg->GetDataConstRef<FIndexSets>((int)EMeshProcessingDataTypes::IndexSets);
+				FCollisionGeometry Result;
 
-				int32 NumShapes = IndexData.IndexSets.Num();
-				TArray<FConvexShape3d> Convexes;
-				TArray<bool> ConvexOk;
-				Convexes.SetNum(NumShapes);
-				ConvexOk.SetNum(NumShapes);
-				ParallelFor(NumShapes, [&](int32 k)
+				if (Settings.bPrefilterVertices)
 				{
-					ConvexOk[k] = false;
+					// TODO: Combine prefiltering and mesh segmentation, they are not mutually exclusive
+
+					//FScopedDurationTimeLogger Time(TEXT(" @@@@@@@ Convex hull with prefiltering"));
+
 					FMeshConvexHull Hull(&Mesh);
-					MeshIndexUtil::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], Hull.VertexSet);
+					FMeshConvexHull::GridSample(Mesh, Settings.PrefilterGridResolution, Hull.VertexSet);
 					Hull.bPostSimplify = Settings.SimplifyToTriangleCount > 0;
-					Hull.MaxTargetFaceCount = FMath::Max(1, Settings.SimplifyToTriangleCount);
+					Hull.MaxTargetFaceCount = Settings.SimplifyToTriangleCount;
 					if (Hull.Compute())
 					{
 						FConvexShape3d NewConvex;
 						NewConvex.Mesh = MoveTemp(Hull.ConvexHull);
-						Convexes[k] = MoveTemp(NewConvex);
-						ConvexOk[k] = true;
+						Result.Geometry.Convexes.Add(MoveTemp(NewConvex));
 					}
-				});
+				}
+				else
+				{
+					//FScopedDurationTimeLogger Time(TEXT(" @@@@@@@ Convex hull with mesh segmentation"));
 
-				FCollisionGeometry Result;
-				Result.Geometry.Convexes = MoveTemp(Convexes);
-
+					int32 NumShapes = IndexData.IndexSets.Num();
+					TArray<FConvexShape3d> Convexes;
+					TArray<bool> ConvexOk;
+					Convexes.SetNum(NumShapes);
+					ConvexOk.SetNum(NumShapes);
+					ParallelFor(NumShapes, [&](int32 k)
+					{
+						ConvexOk[k] = false;
+						FMeshConvexHull Hull(&Mesh);
+						MeshIndexUtil::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], Hull.VertexSet);
+						Hull.bPostSimplify = Settings.SimplifyToTriangleCount > 0;
+						Hull.MaxTargetFaceCount = Settings.SimplifyToTriangleCount;
+						if (Hull.Compute())
+						{
+							FConvexShape3d NewConvex;
+							NewConvex.Mesh = MoveTemp(Hull.ConvexHull);
+							Convexes[k] = MoveTemp(NewConvex);
+							ConvexOk[k] = true;
+						}
+					});
+					Result.Geometry.Convexes = MoveTemp(Convexes);
+				}
 				SetOutput(OutParamGeometry(), MakeMovableData<FCollisionGeometry>(MoveTemp(Result)));
 				EvaluationInfo->CountCompute(this);
 			}

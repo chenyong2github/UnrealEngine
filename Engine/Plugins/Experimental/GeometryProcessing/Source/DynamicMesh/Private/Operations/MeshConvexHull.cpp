@@ -5,7 +5,7 @@
 #include "MeshSimplification.h"
 #include "MeshNormals.h"
 #include "ConvexHull3.h"
-
+#include "Util/GridIndexing3.h"
 
 bool FMeshConvexHull::Compute()
 {
@@ -26,6 +26,7 @@ bool FMeshConvexHull::Compute()
 
 	if (bPostSimplify)
 	{
+		check(MaxTargetFaceCount > 0);
 		bool bSimplified = false;
 		if (ConvexHull.TriangleCount() > MaxTargetFaceCount)
 		{
@@ -131,4 +132,63 @@ bool FMeshConvexHull::Compute_VertexSubset()
 	});
 
 	return true;
+}
+
+
+FVector3i FMeshConvexHull::DebugGetCellIndex(const FDynamicMesh3& Mesh,
+											 int GridResolutionMaxAxis,
+											 int VertexIndex)
+{
+	FAxisAlignedBox3d Bounds = Mesh.GetBounds();
+	Bounds.Min = Bounds.Min - 1e-4;			// Pad to avoid problems with vertices lying exactly on bounding box
+	Bounds.Max = Bounds.Max + 1e-4;
+
+	const double GridCellSize = Bounds.MaxDim() / (double)GridResolutionMaxAxis;
+
+	FBoundsGridIndexer3d Indexer(Bounds, GridCellSize);
+
+	return Indexer.ToGrid(Mesh.GetVertex(VertexIndex));
+}
+
+
+void FMeshConvexHull::GridSample(const FDynamicMesh3& Mesh, 
+								 int GridResolutionMaxAxis, 
+								 TArray<int32>& OutSamples)
+{
+	// Simple spatial hash to find a representative vertex for each occupied grid cell
+
+	FAxisAlignedBox3d Bounds = Mesh.GetBounds();
+	Bounds.Min = Bounds.Min - 1e-4;			// Pad to avoid problems with vertices lying exactly on bounding box
+	Bounds.Max = Bounds.Max + 1e-4;
+	const double GridCellSize = Bounds.MaxDim() / (double)GridResolutionMaxAxis;
+
+	FBoundsGridIndexer3d Indexer(Bounds, GridCellSize);
+	const FVector3i GridResolution = Indexer.GridResolution();
+
+	// TODO: If the grid resolution is too high, use a TMap from grid cell index to vertex index instead of an array.
+	// For smallish grids the array is more efficient.
+	int TotalNumberGridCells = GridResolution.X * GridResolution.Y * GridResolution.Z;
+	TArray<int32> GridCellVertex;
+	GridCellVertex.Init(-1, TotalNumberGridCells);
+
+	for (int VertexIndex : Mesh.VertexIndicesItr())
+	{
+		FVector3i CellIndex = Indexer.ToGrid(Mesh.GetVertex(VertexIndex));
+		check(CellIndex.X >= 0 && CellIndex.X < GridResolution.X);
+		check(CellIndex.Y >= 0 && CellIndex.Y < GridResolution.Y);
+		check(CellIndex.Z >= 0 && CellIndex.Z < GridResolution.Z);
+
+		int Key = CellIndex.X + CellIndex.Y * GridResolution.X + CellIndex.Z * GridResolution.X * GridResolution.Y;
+
+		GridCellVertex[Key] = VertexIndex;
+	}
+
+	for (const int32 VertexIndex : GridCellVertex)
+	{
+		if (VertexIndex >= 0)
+		{
+			OutSamples.Add(VertexIndex);
+		}
+	}
+
 }

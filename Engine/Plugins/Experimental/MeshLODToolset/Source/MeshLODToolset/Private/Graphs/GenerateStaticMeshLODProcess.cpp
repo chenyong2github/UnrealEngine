@@ -267,11 +267,14 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateBakeCacheSettings(NewBakeSettings);
 	}
 
-
-	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount)
+	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
+		NewSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
+		NewSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution)
 	{
 		UE::GeometryFlow::FGenerateConvexHullsCollisionSettings NewGenConvexSettings = Generator->GetCurrentGenerateConvexCollisionSettings();
 		NewGenConvexSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
+		NewGenConvexSettings.bPrefilterVertices = NewSettings.bPrefilterVertices;
+		NewGenConvexSettings.PrefilterGridResolution = NewSettings.PrefilterGridResolution;
 		Generator->UpdateGenerateConvexCollisionSettings(NewGenConvexSettings);
 	}
 

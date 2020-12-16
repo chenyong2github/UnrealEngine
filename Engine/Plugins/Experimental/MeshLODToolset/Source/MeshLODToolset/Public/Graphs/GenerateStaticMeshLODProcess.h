@@ -82,6 +82,14 @@ struct FGenerateStaticMeshLODProcessSettings
 
 	UPROPERTY(EditAnywhere, Category = ConvexCollision, meta = (DisplayName = "Convex Tri Count"))
 	int ConvexTriangleCount = 50;
+
+	UPROPERTY(EditAnywhere, Category = ConvexCollision)
+	bool bPrefilterVertices = false;
+
+	/** Grid resolution (along the maximum-length axis) */
+	UPROPERTY(EditAnywhere, Category = ConvexCollision, meta = (EditCondition = "bPrefilterVertices", UIMin = 1, UIMax = 30))
+	int PrefilterGridResolution = 10;
+
 };
 
 

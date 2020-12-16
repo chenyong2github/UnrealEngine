@@ -5,7 +5,7 @@
 #pragma once
 
 #include "VectorTypes.h"
-
+#include "BoxTypes.h"
 
 /**
  * Convert between integer grid coordinates and scaled real-valued coordinates (ie assumes integer grid origin == real origin)
@@ -99,4 +99,35 @@ typedef TShiftGridIndexer3<float> FShiftGridIndexer3f;
 typedef TShiftGridIndexer3<double> FShiftGridIndexer3d;
 
 
+template<typename RealType>
+struct TBoundsGridIndexer3 : public TShiftGridIndexer3<RealType>
+{
+	using TShiftGridIndexer3<RealType>::CellSize;
+	using TShiftGridIndexer3<RealType>::Origin;
+
+	FVector3<RealType> BoundsMax;
+
+	TBoundsGridIndexer3(const TAxisAlignedBox3<RealType>& Bounds, RealType CellSize)
+		: TShiftGridIndexer3<RealType>(Bounds.Min, CellSize),
+		BoundsMax(Bounds.Max)
+	{}
+
+	FVector3i GridResolution() const
+	{
+		const RealType InvCellSize = 1.0 / CellSize;
+		const FVector3<RealType> Extents = BoundsMax - Origin;
+		return CeilInt(Extents * InvCellSize);
+	}
+
+	static FVector3i CeilInt(const FVector3<RealType>& V)
+	{
+		return FVector3i{ (int)TMathUtil<RealType>::Ceil(V[0]),
+			(int)TMathUtil<RealType>::Ceil(V[1]),
+			(int)TMathUtil<RealType>::Ceil(V[2]) };
+	}
+
+};
+
+typedef TBoundsGridIndexer3<float> FBoundsGridIndexer3f;
+typedef TBoundsGridIndexer3<double> FBoundsGridIndexer3d;
 
