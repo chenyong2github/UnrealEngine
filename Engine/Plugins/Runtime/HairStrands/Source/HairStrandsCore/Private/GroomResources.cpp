@@ -512,8 +512,8 @@ void FHairStrandsRestResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData, bool bInDynamic) :
-	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData), bDynamic(bInDynamic)
+FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData, bool bInDynamic, const FVector& InDefaultOffset) :
+	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData), bDynamic(bInDynamic), DefaultOffset(InDefaultOffset)
 {}
 
 void FHairStrandsDeformedResource::InitRHI()
@@ -542,6 +542,11 @@ void FHairStrandsDeformedResource::InitRHI()
 	}
 	InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, VertexCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, TEXT("HairStrandsDeformed_TangentBuffer"));
 
+	TArray<FVector4> DefaultOffsets;
+	DefaultOffsets.Add(DefaultOffset);
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], TEXT("HairStrandsDeformed_DeformedOffsetBuffer0"));
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], TEXT("HairStrandsDeformed_DeformedOffsetBuffer1"));
+
 	GraphBuilder.Execute();
 }
 
@@ -553,6 +558,9 @@ void FHairStrandsDeformedResource::ReleaseRHI()
 		DeformedPositionBuffer[1].Release();
 	}
 	TangentBuffer.Release();
+
+	DeformedOffsetBuffer[0].Release();
+	DeformedOffsetBuffer[1].Release();
 }
 
 bool FHairStrandsDeformedResource::NeedsToUpdateTangent()

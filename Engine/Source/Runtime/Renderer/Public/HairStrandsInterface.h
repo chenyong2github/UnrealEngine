@@ -196,6 +196,10 @@ public:
 
 			FVector PositionOffset = FVector::ZeroVector;
 			FVector PrevPositionOffset = FVector::ZeroVector;
+
+			FShaderResourceViewRHIRef PositionOffsetBuffer = nullptr;
+			FShaderResourceViewRHIRef PrevPositionOffsetBuffer = nullptr;
+
 			uint32 VertexCount = 0;
 			float HairRadius = 0;
 			float HairLength = 0;

@@ -5,11 +5,11 @@
 #include "HairStrandsMeshRBF.ush"
 
 float3 SimRestOffset;
-float3 SimDeformedOffset;
 uint VertexCount;
 uint IterationCount;
 uint DispatchCountX; 
 
+Buffer<float4> SimDeformedOffsetBuffer;
 Buffer<uint4> SimRestPosePositionBuffer;
 RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
@@ -67,6 +67,8 @@ Buffer<float4>  MeshSampleWeightsBuffer;
 
 float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 {
+	const float3 OutSimHairPositionOffset = SimDeformedOffsetBuffer[0];
+
 // By pass
 #if PERMUTATION_DEFORMATION == DEFORMATION_BYPASS
 	return Pos;
@@ -86,7 +88,7 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 #endif
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE
-	return Pos + (SimRestOffset - SimDeformedOffset);
+	return Pos + (SimRestOffset - OutSimHairPositionOffset);
 #endif
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
@@ -96,13 +98,13 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
 	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
 
-	return DeformGuideByTriangle(VertexIndex, RestTriangle, DeformedTriangle, RootBarycentric) - SimDeformedOffset;
+	return DeformGuideByTriangle(VertexIndex, RestTriangle, DeformedTriangle, RootBarycentric) - OutSimHairPositionOffset;
 #endif
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_GLOBAL
 	const float3 RestControlPoint = Pos + SimRestOffset;
 	const float3 ControlPoint = ApplyRBF(RestControlPoint, SampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
-	return ControlPoint - SimDeformedOffset;
+	return ControlPoint - OutSimHairPositionOffset;
 #endif
 }
 

@@ -81,6 +81,7 @@ float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_VertexCount;
 float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
+Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 
 #if PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
@@ -274,9 +275,11 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 
 	ResolvedView = ResolveView();
 
+	const float3 PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
+
 	const FHairControlPoint CP0 = UnpackHairControlPoint(
 		HairStrandsVF_PositionBuffer[VertexIndex0],
-		HairStrandsVF_PositionOffset,
+		PositionOffset,
 		HairStrandsVF_Radius * LodRadiusScale0,
 		HairStrandsVF_Length);
 
@@ -285,7 +288,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 
 	const FHairControlPoint CP1 = UnpackHairControlPoint(
 		HairStrandsVF_PositionBuffer[VertexIndex1],
-		HairStrandsVF_PositionOffset,
+		PositionOffset,
 		HairStrandsVF_Radius * LodRadiusScale1,
 		HairStrandsVF_Length);
 

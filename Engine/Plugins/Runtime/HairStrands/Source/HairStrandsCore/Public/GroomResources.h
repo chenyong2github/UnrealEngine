@@ -204,7 +204,7 @@ struct FHairStrandsRestResource : public FRenderResource
 struct FHairStrandsDeformedResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData, bool bDynamic);
+	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData, bool bDynamic, const FVector& InDefaultOffset);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -228,6 +228,9 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	/* Strand hair deformed position buffer (previous and current) */
 	FRDGExternalBuffer DeformedPositionBuffer[2];
 
+	/* Strand hair deformed position buffer (previous and current) */
+	FRDGExternalBuffer DeformedOffsetBuffer[2];
+
 	/* Strand hair tangent buffer */
 	FRDGExternalBuffer TangentBuffer;
 
@@ -246,6 +249,7 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	/* Whether the underlying resource is dynamic not (single or double buffer allocated) */
 	const bool bDynamic = true; 
 	bool bInitializedTangent = true;
+	FVector DefaultOffset = FVector::ZeroVector;
 
 	enum EFrameType
 	{
@@ -257,6 +261,7 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	inline uint32 GetIndex(EFrameType T) const					{ return (!bDynamic || T == EFrameType::Current) ? CurrentIndex : 1u - CurrentIndex; }
 	inline FRDGExternalBuffer& GetBuffer(EFrameType T)			{ return DeformedPositionBuffer[GetIndex(T)];  }
 	inline FVector& GetPositionOffset(EFrameType T)				{ return PositionOffset[GetIndex(T)]; }
+	inline FRDGExternalBuffer& GetPositionOffsetBuffer(EFrameType T) { return DeformedOffsetBuffer[GetIndex(T)]; }
 	inline const FVector& GetPositionOffset(EFrameType T) const { return PositionOffset[GetIndex(T)]; }
 	inline void SwapBuffer()									{ if (bDynamic) { CurrentIndex = 1u - CurrentIndex; } }
 	bool NeedsToUpdateTangent();
