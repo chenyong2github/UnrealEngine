@@ -8,9 +8,10 @@
 class UWorldPartition;
 class FWorldPartitionActorDesc;
 
-struct ENGINE_API FWorldPartitionSoftRefUtils
+struct ENGINE_API FWorldPartitionHandleUtils
 {
 	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid);
+	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 
 template <typename Impl>
@@ -35,7 +36,7 @@ public:
 
 	FORCEINLINE TWorldPartitionHandle(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
 	{
-		ActorDesc = FWorldPartitionSoftRefUtils::GetActorDesc(WorldPartition, ActorGuid);
+		ActorDesc = FWorldPartitionHandleUtils::GetActorDesc(WorldPartition, ActorGuid);
 
 		if (IsValid())
 		{
@@ -190,7 +191,7 @@ public:
 
 	FORCEINLINE bool IsLoaded() const
 	{
-		return IsValid() && (*ActorDesc)->GetActor();
+		return IsValid() && FWorldPartitionHandleUtils::IsActorDescLoaded(ActorDesc->Get());
 	}
 
 	FORCEINLINE FWorldPartitionActorDesc* Get() const

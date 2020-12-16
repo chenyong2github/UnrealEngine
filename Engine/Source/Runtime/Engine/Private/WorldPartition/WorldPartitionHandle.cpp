@@ -4,7 +4,7 @@
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
-TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionSoftRefUtils::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = WorldPartition->Actors.Find(ActorGuid))
 	{
@@ -12,6 +12,11 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionSoftRefUtils::GetActorDesc(
 	}
 
 	return nullptr;
+}
+
+bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
+{
+	return !!ActorDesc->GetActor();
 }
 
 void FWorldPartitionSoftRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
