@@ -28,6 +28,7 @@ THIRD_PARTY_INCLUDES_START
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
+#include <Eigen/SVD>
 THIRD_PARTY_INCLUDES_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
@@ -49,7 +50,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomBindingBuilder, Log, All);
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("1");
+	return TEXT("1c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,21 +266,20 @@ namespace GroomBinding_RBFWeighting
 
 				EntryIndex += PolyColumns;
 				LocalEntries[EntryIndex] = SourcePositions[RowIndex].Z;
-
-				const float REGUL_VALUE = 1e-4;
-				EntryIndex = NumRows * PolyColumns + NumColumns;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
 			});
+		const float REGUL_VALUE = 1e-4;
+		int32 EntryIndex = NumRows * PolyColumns + NumColumns;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns + 1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns + 1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns + 1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
 		ComputeWeights(PolyRows, PolyColumns);
 	}
 
@@ -288,7 +288,14 @@ namespace GroomBinding_RBFWeighting
 		EigenMatrix WeightsMatrix(MatrixEntries.GetData(), NumRows, NumColumns);
 		EigenMatrix WeightsInverse(InverseEntries.GetData(), NumColumns, NumRows);
 
-		WeightsInverse = WeightsMatrix.inverse();
+		auto MatrixSvd = WeightsMatrix.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
+		const Eigen::VectorXf& SingularValues = MatrixSvd.singularValues();
+		if (SingularValues.size() > 0)
+		{
+			const float Tolerance = FLT_EPSILON * SingularValues.array().abs()(0);
+			WeightsInverse = MatrixSvd.matrixV() * (SingularValues.array().abs() > Tolerance).select(
+				SingularValues.array().inverse(), 0).matrix().asDiagonal() * MatrixSvd.matrixU().adjoint();
+		}
 	}
 
 	void UpdateInterpolationWeights(const FWeightsBuilder& InterpolationWeights, const FPointsSampler& PointsSampler, const uint32 LODIndex, FHairStrandsRootData& RootDatas)
