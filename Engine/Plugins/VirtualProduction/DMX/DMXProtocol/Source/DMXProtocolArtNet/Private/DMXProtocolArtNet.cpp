@@ -552,6 +552,7 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 	//Set Packet Data
 	ArtNetDMXPacket.Physical = PortID;
 	ArtNetDMXPacket.Universe = UniverseID;
+	ArtNetDMXPacket.Sequence = 0x00; // As per Standard: The Sequence field is set to 0x00 to disable this feature.
 	Packager.AddToPackage(&ArtNetDMXPacket);
 
 	// Sending

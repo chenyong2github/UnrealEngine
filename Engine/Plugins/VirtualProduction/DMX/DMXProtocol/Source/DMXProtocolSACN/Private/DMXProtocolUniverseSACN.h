@@ -6,6 +6,7 @@
 
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolSACN.h"
+#include "DMXProtocolSACNTypes.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
@@ -78,6 +79,9 @@ public:
 	/** Receiving for the universe incoming data updates */
  	void ReceiveIncomingData();
 
+	/** Increments sequence number and gets it */
+	uint8 GetNextSequenceNumber();
+
 private:
 
 	/** Parse incoming DMX packet into the SACN layers */
@@ -93,6 +97,7 @@ private:
 	FDMXBufferPtr OutputDMXBuffer;
 	FDMXBufferPtr InputDMXBuffer;
 	uint8 Priority;
+	FDMXProtocolSACNSequenceNumber SequenceNumber;
 	uint32 UniverseID;
 	bool bIsRDMSupport;
 	TSharedPtr<FJsonObject> Settings;
