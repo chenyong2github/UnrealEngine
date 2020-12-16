@@ -10,6 +10,7 @@
 #include "Stats/StatsData.h"
 #include "BufferVisualizationData.h"
 #include "Bookmarks/BookmarkUI.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportActions"
 
@@ -301,7 +302,13 @@ void FLevelViewportCommands::RegisterShowSpriteCommands()
 				= FUICommandInfoDecl(this->AsShared(), CommandName, LocalizedName, SpriteInfo.Description)
 				.UserInterfaceType(EUserInterfaceActionType::ToggleButton);
 
-			ShowSpriteCommands.Add(FLevelViewportCommands::FShowMenuCommand(ShowSpriteCommand, SpriteInfo.DisplayName));
+			const int32 ShowSpriteCommandIndex = ShowSpriteCommands.Add(FLevelViewportCommands::FShowMenuCommand(ShowSpriteCommand, SpriteInfo.DisplayName));
+
+			// Update the global table that maps each sprite category to its corresponding visibility command.
+			if (GUnrealEd)
+			{
+				GUnrealEd->SpriteIDToIndexMap.Add(SpriteInfo.Category, ShowSpriteCommandIndex);
+			}
 		}
 	}
 }
