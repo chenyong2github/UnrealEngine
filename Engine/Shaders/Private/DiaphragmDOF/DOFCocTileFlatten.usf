@@ -235,11 +235,11 @@ void CocFlattenMainCS(
 
 		// Perform wave flattening first.
 		#if CONFIG_FLATTEN_METHOD == FLATTEN_METHOD_WAVE_MINMAX
-			TileSample.FgdMinCoc = WaveActiveAllMin(TileSample.FgdMinCoc);
-			TileSample.FgdMaxCoc = WaveActiveAllMax(TileSample.FgdMaxCoc);
-			TileSample.BgdMinCoc = WaveActiveAllMin(TileSample.BgdMinCoc);
-			TileSample.BgdMaxCoc = WaveActiveAllMax(TileSample.BgdMaxCoc);
-			TileSample.BgdMinIntersectableCoc = WaveActiveAllMin(TileSample.BgdMinIntersectableCoc);
+			TileSample.FgdMinCoc = WaveActiveMin(TileSample.FgdMinCoc);
+			TileSample.FgdMaxCoc = WaveActiveMax(TileSample.FgdMaxCoc);
+			TileSample.BgdMinCoc = WaveActiveMin(TileSample.BgdMinCoc);
+			TileSample.BgdMaxCoc = WaveActiveMax(TileSample.BgdMaxCoc);
+			TileSample.BgdMinIntersectableCoc = WaveActiveMin(TileSample.BgdMinIntersectableCoc);
 
 			if (WaveGetLaneCount() == DEFAULT_GROUP_BORDER_SIZE * DEFAULT_GROUP_BORDER_SIZE)
 			{

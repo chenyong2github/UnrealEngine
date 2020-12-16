@@ -855,7 +855,7 @@ void RecombineMainCS(
 			}
 			#elif NEIGHBORHOOD_ANALISIS_METHOD == NEIGHBORHOOD_ANALISIS_WAVE
 			{
-				TileMaxConsideredAbsCocRadius = WaveActiveAllMax(MaxConsideredAbsCocRadius);
+				TileMaxConsideredAbsCocRadius = WaveActiveMax(MaxConsideredAbsCocRadius);
 			}
 			#else
 				#error Unknown neighborhood analisis method to use.

@@ -361,7 +361,7 @@ void CastScreenSpaceRay(
 
 		// TODO: Get the biggest from the wave to avoid increasing VGPR pressure.
 		#if COMPILER_SUPPORTS_WAVE_MINMAX && 0
-			MaxIteration = ToScalarMemory(WaveActiveAllMax(UsefulMaxIteration));
+			MaxIteration = ToScalarMemory(WaveActiveMax(UsefulMaxIteration));
 		#else
 			MaxIteration = UsefulMaxIteration;
 		#endif

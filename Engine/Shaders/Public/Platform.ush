@@ -390,12 +390,12 @@
 #endif
 
 // Whether the compiler exposes min max instructions across all lane of the wave.
-//	WaveActiveAllMin(MyFloat)
-//	WaveActiveAllMin(MyInt)
-//	WaveActiveAllMin(MyUint)
-//	WaveActiveAllMax(MyFloat)
-//	WaveActiveAllMax(MyInt)
-//	WaveActiveAllMax(MyUint)
+//	WaveActiveMin(MyFloat)
+//	WaveActiveMin(MyInt)
+//	WaveActiveMin(MyUint)
+//	WaveActiveMax(MyFloat)
+//	WaveActiveMax(MyInt)
+//	WaveActiveMax(MyUint)
 #ifndef COMPILER_SUPPORTS_WAVE_MINMAX
 #define COMPILER_SUPPORTS_WAVE_MINMAX 0
 #endif

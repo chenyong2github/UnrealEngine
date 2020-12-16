@@ -135,11 +135,11 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 		GroupMemoryBarrierWithGroupSync();
 
-		const float TileMinSceneDepth = WaveActiveAllMin(SceneDepthValue);
-		const float TileMaxSceneDepth = WaveActiveAllMax(SceneDepthValue);
+		const float TileMinSceneDepth = WaveActiveMin(SceneDepthValue);
+		const float TileMaxSceneDepth = WaveActiveMax(SceneDepthValue);
 
-		const float TileMinMaterialDepth = WaveActiveAllMin(MaterialDepthValue);
-		const float TileMaxMaterialDepth = WaveActiveAllMax(MaterialDepthValue);
+		const float TileMinMaterialDepth = WaveActiveMin(MaterialDepthValue);
+		const float TileMaxMaterialDepth = WaveActiveMax(MaterialDepthValue);
 
 		if (WaveIsFirstLane())
 		{
