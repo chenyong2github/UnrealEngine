@@ -3123,11 +3123,11 @@ void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 		{
 			if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))
 			{
-				ProxyHandles.Add(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+				ProxyHandles.Add(FWorldPartitionSoftRef(WorldPartition, ActorDescIterator->GetGuid()));
 			}
 			else if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeSplineActor::StaticClass()))
 			{
-				SplineHandles.Emplace(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+				SplineHandles.Emplace(FWorldPartitionSoftRef(WorldPartition, ActorDescIterator->GetGuid()));
 			}
 
 		}

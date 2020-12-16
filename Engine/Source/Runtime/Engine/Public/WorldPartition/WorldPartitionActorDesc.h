@@ -23,7 +23,7 @@ struct FWorldPartitionActorDescInitData
 #if WITH_DEV_AUTOMATION_TESTS
 namespace WorldPartitionTests
 {
-	class FWorldPartitionHandleTest;
+	class FWorldPartitionSoftRefTest;
 }
 #endif
 
@@ -37,7 +37,7 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class UWorldPartition;
 
 #if WITH_DEV_AUTOMATION_TESTS
-	friend class WorldPartitionTests::FWorldPartitionHandleTest;
+	friend class WorldPartitionTests::FWorldPartitionSoftRefTest;
 #endif
 
 public:

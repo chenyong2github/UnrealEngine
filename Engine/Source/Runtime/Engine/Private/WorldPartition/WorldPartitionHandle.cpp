@@ -4,7 +4,7 @@
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
-TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleBase::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionSoftRefUtils::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = WorldPartition->Actors.Find(ActorGuid))
 	{
@@ -14,17 +14,17 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleBase::GetActorDesc(UW
 	return nullptr;
 }
 
-void FWorldPartitionHandleImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionSoftRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	ActorDesc->IncSoftRefCount();
 }
 
-void FWorldPartitionHandleImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionSoftRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	ActorDesc->DecSoftRefCount();
 }
 
-void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionHardRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	if (ActorDesc->IncHardRefCount() == 1)
 	{
@@ -39,7 +39,7 @@ void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDe
 	}
 }
 
-void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionHardRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	if (!ActorDesc->DecHardRefCount())
 	{
@@ -51,6 +51,32 @@ void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDe
 				ActorDesc->Unload();
 			}
 		}
+	}
+}
+
+void FWorldPartitionPinRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
+{
+	bIsReference = ActorDesc->GetHardRefCount() > 0;
+
+	if (bIsReference)
+	{
+		FWorldPartitionHardRefImpl::IncRefCount(ActorDesc);
+	}
+	else
+	{
+		FWorldPartitionSoftRefImpl::IncRefCount(ActorDesc);
+	}
+}
+
+void FWorldPartitionPinRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
+{
+	if (bIsReference)
+	{
+		FWorldPartitionHardRefImpl::DecRefCount(ActorDesc);
+	}
+	else
+	{
+		FWorldPartitionSoftRefImpl::DecRefCount(ActorDesc);
 	}
 }
 #endif

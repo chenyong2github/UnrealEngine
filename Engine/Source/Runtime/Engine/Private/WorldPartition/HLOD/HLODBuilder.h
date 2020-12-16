@@ -15,8 +15,8 @@ class AWorldPartitionHLOD;
 
 struct ENGINE_API FHLODGenerationContext
 {
-	TMap<uint64, FWorldPartitionHandle> HLODActorDescs;
-	TArray<FWorldPartitionReference> ActorReferences;
+	TMap<uint64, FWorldPartitionSoftRef> HLODActorDescs;
+	TArray<FWorldPartitionHardRef> ActorReferences;
 	
 	// Everything needed to build the cell hash
 	int64 GridIndexX;

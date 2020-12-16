@@ -8,23 +8,22 @@
 class UWorldPartition;
 class FWorldPartitionActorDesc;
 
-class ENGINE_API FWorldPartitionHandleBase
+struct ENGINE_API FWorldPartitionSoftRefUtils
 {
-public:
 	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid);
 };
 
 template <typename Impl>
-class ENGINE_API TWorldPartitionHandleBase : public FWorldPartitionHandleBase
+class ENGINE_API TWorldPartitionHandle : protected Impl
 {
-	friend struct FWorldPartitionHandleHelpers;
+	friend struct FWorldPartitionSoftRefHelpers;
 
 public:
-	FORCEINLINE TWorldPartitionHandleBase()
+	FORCEINLINE TWorldPartitionHandle()
 		: ActorDesc(nullptr)
 	{}
 
-	FORCEINLINE TWorldPartitionHandleBase(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
+	FORCEINLINE TWorldPartitionHandle(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
 	{
 		ActorDesc = InActorDesc;
 
@@ -34,9 +33,9 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandleBase(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+	FORCEINLINE TWorldPartitionHandle(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
 	{
-		ActorDesc = GetActorDesc(WorldPartition, ActorGuid);
+		ActorDesc = FWorldPartitionSoftRefUtils::GetActorDesc(WorldPartition, ActorGuid);
 
 		if (IsValid())
 		{
@@ -44,13 +43,13 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandleBase(const TWorldPartitionHandleBase& Other)
+	FORCEINLINE TWorldPartitionHandle(const TWorldPartitionHandle& Other)
 		: ActorDesc(nullptr)
 	{
 		*this = Other;
 	}
 
-	FORCEINLINE TWorldPartitionHandleBase(TWorldPartitionHandleBase&& Other)
+	FORCEINLINE TWorldPartitionHandle(TWorldPartitionHandle&& Other)
 		: ActorDesc(nullptr)
 	{
 		*this = Other;
@@ -58,20 +57,20 @@ public:
 
 	// Conversions
 	template <typename T>
-	FORCEINLINE TWorldPartitionHandleBase<Impl>(const TWorldPartitionHandleBase<T>& Other)
+	FORCEINLINE TWorldPartitionHandle<Impl>(const TWorldPartitionHandle<T>& Other)
 		: ActorDesc(nullptr)
 	{
 		*this = Other;
 	}
 
 	template <typename T>
-	FORCEINLINE TWorldPartitionHandleBase<Impl>(TWorldPartitionHandleBase<T>&& Other)
+	FORCEINLINE TWorldPartitionHandle<Impl>(TWorldPartitionHandle<T>&& Other)
 		: ActorDesc(nullptr)
 	{
 		*this = Other;
 	}
 
-	FORCEINLINE ~TWorldPartitionHandleBase()
+	FORCEINLINE ~TWorldPartitionHandle()
 	{
 		if (IsValid())
 		{
@@ -79,7 +78,7 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandleBase& operator=(const TWorldPartitionHandleBase& Other)
+	FORCEINLINE TWorldPartitionHandle& operator=(const TWorldPartitionHandle& Other)
 	{
 		if ((void*)this == (void*)&Other)
 		{
@@ -101,7 +100,7 @@ public:
 		return *this;
 	}
 
-	FORCEINLINE TWorldPartitionHandleBase<Impl>& operator=(TWorldPartitionHandleBase&& Other)
+	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(TWorldPartitionHandle&& Other)
 	{
 		if ((void*)this == (void*)&Other)
 		{
@@ -127,7 +126,7 @@ public:
 
 	// Conversions
 	template <typename T>
-	FORCEINLINE TWorldPartitionHandleBase<Impl>& operator=(const TWorldPartitionHandleBase<T>& Other)
+	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(const TWorldPartitionHandle<T>& Other)
 	{
 		if ((void*)this == (void*)&Other)
 		{
@@ -150,7 +149,7 @@ public:
 	}
 
 	template <typename T>
-	FORCEINLINE TWorldPartitionHandleBase<Impl>& operator=(TWorldPartitionHandleBase<T>&& Other)
+	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(TWorldPartitionHandle<T>&& Other)
 	{
 		if ((void*)this == (void*)&Other)
 		{
@@ -194,30 +193,30 @@ public:
 		return IsValid() ? ActorDesc->Get() : nullptr;
 	}
 		
-	friend FORCEINLINE uint32 GetTypeHash(const TWorldPartitionHandleBase<Impl>& HandleBase)
+	friend FORCEINLINE uint32 GetTypeHash(const TWorldPartitionHandle<Impl>& HandleBase)
 	{
 		return ::PointerHash(HandleBase.ActorDesc);
 	}
 
-	FORCEINLINE bool operator==(const TWorldPartitionHandleBase& Other) const
+	FORCEINLINE bool operator==(const TWorldPartitionHandle& Other) const
 	{
 		return ActorDesc == Other.ActorDesc;
 	}
 
-	FORCEINLINE bool operator!=(const TWorldPartitionHandleBase& Other) const
+	FORCEINLINE bool operator!=(const TWorldPartitionHandle& Other) const
 	{
 		return !(*this == Other);
 	}
 
 	// Conversions
 	template <typename T>
-	FORCEINLINE bool operator==(const TWorldPartitionHandleBase<T>& Other) const
+	FORCEINLINE bool operator==(const TWorldPartitionHandle<T>& Other) const
 	{
 		return Get() == *Other;
 	}
 
 	template <typename T>
-	FORCEINLINE bool operator!=(const TWorldPartitionHandleBase<T>& Other) const
+	FORCEINLINE bool operator!=(const TWorldPartitionHandle<T>& Other) const
 	{
 		return !(*this == Other);
 	}
@@ -237,18 +236,44 @@ public:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 
-struct ENGINE_API FWorldPartitionHandleImpl
+struct ENGINE_API FWorldPartitionSoftRefImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
 };
 
-struct ENGINE_API FWorldPartitionReferenceImpl
+struct ENGINE_API FWorldPartitionHardRefImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
 };
 
-typedef TWorldPartitionHandleBase<FWorldPartitionHandleImpl> FWorldPartitionHandle;
-typedef TWorldPartitionHandleBase<FWorldPartitionReferenceImpl> FWorldPartitionReference;
+struct ENGINE_API FWorldPartitionPinRefImpl
+{
+	FWorldPartitionPinRefImpl() : bIsReference(false) {}
+	void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
+	void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
+	bool bIsReference;
+};
+
+/**
+ * FWorldPartitionSoftRef will increment/decrement the soft reference count on the actor descriptor.
+ * This won't trigger any loading, but will prevent cleanup of the actor descriptor when destroying an
+ * actor in the editor.
+ */
+typedef TWorldPartitionHandle<FWorldPartitionSoftRefImpl> FWorldPartitionSoftRef;
+
+/**
+ * FWorldPartitionHardRef will increment/decrement the hard reference count on the actor descriptor.
+ * This will trigger actor loading/unloading when the hard reference counts gets to one/zero.
+ */
+typedef TWorldPartitionHandle<FWorldPartitionHardRefImpl> FWorldPartitionHardRef;
+
+/**
+ * FWorldPartitionPinRef will act as a softref when there's not hard reference count to the actor descriptor,
+ * and like a hardref when there is. This is useful when you want to keep an actor loaded during special
+ * operations, and don't trigger loading when the actor is not loaded. Mainly intended to be on stack, as a
+ * scoped operation.
+ */
+typedef TWorldPartitionHandle<FWorldPartitionPinRefImpl> FWorldPartitionPinRef;
 #endif

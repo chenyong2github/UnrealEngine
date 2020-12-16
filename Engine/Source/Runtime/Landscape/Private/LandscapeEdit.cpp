@@ -2251,7 +2251,7 @@ bool ULandscapeInfo::HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2,
 	UActorPartitionSubsystem::FCellCoord MinCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX1 * ComponentSizeQuads, ComponentIndexY1 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
 	UActorPartitionSubsystem::FCellCoord MaxCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX2 * ComponentSizeQuads, ComponentIndexY2 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
 
-	for (const FWorldPartitionHandle& Handle : ProxyHandles)
+	for (const FWorldPartitionSoftRef& Handle : ProxyHandles)
 	{
 		if (FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)Handle.Get())
 		{
@@ -5029,13 +5029,13 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 		check(LandscapeInfo);
 		if (GEditor && !GetWorld()->IsGameWorld())
 		{
-			const TSet<FWorldPartitionHandle>& SplineHandles = LandscapeInfo->GetSplineHandles();
+			const TSet<FWorldPartitionSoftRef>& SplineHandles = LandscapeInfo->GetSplineHandles();
 			if (SplineHandles.Num())
 			{
 				FVector ActorLocation = GetActorLocation();
 				FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
 				// Get a reference to Spline Actors that have intersecting bounds with us
-				for (const FWorldPartitionHandle& SplineHandle : LandscapeInfo->GetSplineHandles())
+				for (const FWorldPartitionSoftRef& SplineHandle : LandscapeInfo->GetSplineHandles())
 				{
 					if (SplineHandle.IsValid() && Bounds.IntersectXY(SplineHandle->GetBounds()))
 					{

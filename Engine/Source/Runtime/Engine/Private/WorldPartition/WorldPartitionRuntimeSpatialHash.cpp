@@ -1594,7 +1594,7 @@ TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpati
 				TArray<AActor*> CellActors;
 				for (const FGuid& ActorGuid: GridCellDataChunk->GetActors())
 				{
-					FWorldPartitionReference& ActorRef = Context.ActorReferences.Emplace_GetRef(WorldPartition, ActorGuid);
+					FWorldPartitionHardRef& ActorRef = Context.ActorReferences.Emplace_GetRef(WorldPartition, ActorGuid);
 					FWorldPartitionActorDesc* ActorDesc  = ActorRef.Get();
 					CellActors.Add(ActorDesc->GetActor());
 				}
@@ -1887,10 +1887,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// Create HLODs generation context
 	FHLODGenerationContext Context;
-	TArray<FWorldPartitionHandle> InvalidHLODActors;
+	TArray<FWorldPartitionSoftRef> InvalidHLODActors;
 	for (TWorldPartitionActorDescIterator<AWorldPartitionHLOD, FHLODActorDesc> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
-		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
+		FWorldPartitionSoftRef HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
 
 		if (HLODIterator->GetCellHash())
 		{
@@ -1974,7 +1974,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 		GenerateHLODs(HLODGrids[HLODGridName], GridsDepth[HLODGridName] + 1, HLODActorClusters);
 	}
 
-	auto DeleteHLODActor = [&SourceControlHelper](FWorldPartitionHandle ActorHandle)
+	auto DeleteHLODActor = [&SourceControlHelper](FWorldPartitionSoftRef ActorHandle)
 	{
 		FWorldPartitionActorDesc* HLODActorDesc = ActorHandle.Get();
 		check(HLODActorDesc);
