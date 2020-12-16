@@ -54,6 +54,7 @@ namespace UnrealBuildTool.Rules
 						"Projects",
                         "HeadMountedDisplay",
                         "D3D11RHI",
+						"RHICore",
                         "Slate",
                         "SlateCore",
                         "MRMesh",
