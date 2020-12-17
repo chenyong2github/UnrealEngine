@@ -33,44 +33,44 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	FName AddNode(UInterchangeBaseNode* Node);
+	FString AddNode(UInterchangeBaseNode* Node);
 
 	/** Return true if the node unique ID exist in the container */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool IsNodeUIDValid(FName NodeUniqueID) const;
+	bool IsNodeUIDValid(const FString& NodeUniqueID) const;
 
 	/** Unordered iteration of the all nodes */
-	void IterateNodes(TFunctionRef<void(FName, UInterchangeBaseNode*)> IterationLambda);
+	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda);
 
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetRoots(TArray<FName>& RootNodes);
+	void GetRoots(TArray<FString>& RootNodes);
 
 	/** Get an node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeBaseNode* GetNode(FName NodeUniqueID);
+	UInterchangeBaseNode* GetNode(const FString& NodeUniqueID);
 
 	/** Get an node pointer */
-	const UInterchangeBaseNode* GetNode(FName NodeUniqueID) const;
+	const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
 
 	/** Set node ParentUID */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool SetNodeParentUID(FName NodeUniqueID, FName NewParentNodeUID);
+	bool SetNodeParentUID(const FString& NodeUniqueID, const FString& NewParentNodeUID);
 
 	/** Get the node children count */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	int32 GetNodeChildrenCount(FName NodeUniqueID) const;
+	int32 GetNodeChildrenCount(const FString& NodeUniqueID) const;
 
 	/** Get all children UID */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	TArray<FName> GetNodeChildrenUIDs(FName NodeUniqueID) const;
+	TArray<FString> GetNodeChildrenUIDs(const FString& NodeUniqueID) const;
 
 	/** Get the node nth const children */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeBaseNode* GetNodeChildren(FName NodeUniqueID, int32 ChildIndex);
+	UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex);
 
 	/** Get the node nth const children. Const version */
-	const UInterchangeBaseNode* GetNodeChildren(FName NodeUniqueID, int32 ChildIndex) const;
+	const UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex) const;
 
 	/**
 	 * This function serialize the node container and all node sub-objects point by it.
@@ -89,9 +89,9 @@ public:
 
 private:
 
-	UInterchangeBaseNode* GetNodeChildrenInternal(FName NodeUniqueID, int32 ChildIndex);
+	UInterchangeBaseNode* GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex);
 
 	/** Flat List of the nodes. Since the nodes are variable size, we store a pointer. */
 	UPROPERTY()
-	TMap<FName, UInterchangeBaseNode* > Nodes;
+	TMap<FString, UInterchangeBaseNode* > Nodes;
 };

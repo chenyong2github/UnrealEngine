@@ -20,7 +20,7 @@ namespace UE
 
 		struct FAttributeKey
 		{
-			FName Key = NAME_None;
+			FString Key;
 
 			FAttributeKey() = default;
 		
@@ -31,28 +31,28 @@ namespace UE
 
 			explicit FAttributeKey(const FName& Other)
 			{
-				Key = Other;
+				Key = Other.ToString();
 			}
 
 			explicit FAttributeKey(const FString& Other)
 			{
-				Key = Other.IsEmpty() ? NAME_None : FName(*Other);
+				Key = Other;
 			}
 
 			explicit FAttributeKey(const FText& Other)
 			{
-				Key = Other.IsEmpty() ? NAME_None : FName(*(Other.ToString()));
+				Key = Other.ToString();
 			}
 
 			explicit FAttributeKey(const TCHAR* Other)
 			{
 				const FString Helper(Other);
-				Key = Helper.IsEmpty() ? NAME_None : FName(Other);
+				Key = Helper;
 			}
 
 			FORCEINLINE const TCHAR* operator*() const
 			{
-				return *(Key.ToString());
+				return *(Key);
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const FAttributeKey& Other)
@@ -63,26 +63,26 @@ namespace UE
 
 			FORCEINLINE FAttributeKey& operator=(const FName& Other)
 			{
-				Key = Other;
+				Key = Other.ToString();
 				return *this;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const FString& Other)
 			{
-				Key = Other.IsEmpty() ? NAME_None : FName(*Other);
+				Key = Other;
 				return *this;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const FText& Other)
 			{
-				Key = Other.IsEmpty() ? NAME_None : FName(*(Other.ToString()));
+				Key = Other.ToString();
 				return *this;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const TCHAR* Other)
 			{
 				const FString Helper(Other);
-				Key = Helper.IsEmpty() ? NAME_None : FName(Other);
+				Key = Helper;
 				return *this;
 			}
 		
@@ -98,7 +98,7 @@ namespace UE
 
 			FORCEINLINE bool operator<(const FAttributeKey& Other) const
 			{
-				return Key.LexicalLess(Other.Key);
+				return Key < Other.Key;
 			}
 
 			FORCEINLINE bool operator<=(const FAttributeKey& Other) const
@@ -108,7 +108,7 @@ namespace UE
 
 			FORCEINLINE bool operator>(const FAttributeKey& Other) const
 			{
-				return Other.Key.LexicalLess(Key);
+				return Key > Other.Key;
 			}
 
 			FORCEINLINE bool operator>=(const FAttributeKey& Other) const
@@ -118,18 +118,13 @@ namespace UE
 
 			friend FArchive& operator<<(FArchive& Ar, FAttributeKey& AttributeKey)
 			{
-				FString KeyString = AttributeKey.Key.ToString();
-				Ar << KeyString;
-				if(Ar.IsLoading())
-				{
-					AttributeKey.Key = FName(*KeyString);
-				}
+				Ar << AttributeKey.Key;
 				return Ar;
 			}
 
 			FORCEINLINE FString ToString() const
 			{
-				return Key.ToString();
+				return Key;
 			}
 		};
 
@@ -350,7 +345,7 @@ namespace UE
 			public:
 				TAttributeHandle()
 				: AttributeStorage(nullptr)
-				, Key(NAME_None)
+				, Key()
 				{}
 
 				/**

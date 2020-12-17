@@ -90,7 +90,7 @@ public:
 	 * @param InAssetClass - The class the material factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	void InitializeMaterialNode(const FName& UniqueID, const FName& DisplayLabel, const FString& InAssetClass)
+	void InitializeMaterialNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
 	{
 		bIsMaterialNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
@@ -199,7 +199,7 @@ public:
 	 * @note - A parameter name can have only one of the 3 type of input set, the last input type set is the one that will be created.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	void AddTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, const FName TextureUID, const int32 UVSetIndex, const float ScaleU, const float ScaleV)
+	void AddTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, const FString& TextureUID, const int32 UVSetIndex, const float ScaleU, const float ScaleV)
 	{
 		FParameterData& ParameterData = ParameterDatas.FindOrAdd(ParameterName);
 		ParameterData.bIsTextureParameter = true;
@@ -212,7 +212,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, FName& OutTextureUID, int32& OutUVSetIndex, float& OutScaleU, float& OutScaleV) const
+	bool GetTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, FString& OutTextureUID, int32& OutUVSetIndex, float& OutScaleU, float& OutScaleV) const
 	{
 		if (const FParameterData* ParameterData = ParameterDatas.Find(ParameterName))
 		{
@@ -353,7 +353,7 @@ private:
 	struct FParameterData
 	{
 		bool bIsTextureParameter = false;
-		FName TextureUID = NAME_None;
+		FString TextureUID;
 		int32 UVSetIndex = 0; //The "UV set" index we use to set the material sampler input default is channel 0
 		float ScaleU = 1.0f;
 		float ScaleV = 1.0f;

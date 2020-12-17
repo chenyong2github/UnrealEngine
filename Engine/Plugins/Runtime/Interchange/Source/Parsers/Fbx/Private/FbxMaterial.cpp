@@ -18,10 +18,10 @@ namespace UE
 		{
 			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages)
 			{
-				FName NodeUID(*NodeName);
+				FString NodeUID(NodeName);
 				FString MaterialNameNoSkin = UE::Interchange::Material::RemoveSkinFromName(NodeName);
 
-				FName DisplayLabel = *MaterialNameNoSkin;
+				FString DisplayLabel = MaterialNameNoSkin;
 				UInterchangeMaterialNode* MaterialNode = NewObject<UInterchangeMaterialNode>(&NodeContainer, NAME_None);
 				if (!ensure(MaterialNode))
 				{
@@ -37,8 +37,8 @@ namespace UE
 
 			UInterchangeTextureNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel = *FPaths::GetBaseFilename(TextureFilePath);
-				FName NodeUID(*TextureFilePath);
+				FString DisplayLabel = FPaths::GetBaseFilename(TextureFilePath);
+				FString NodeUID(TextureFilePath);
 				UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&NodeContainer, NAME_None);
 				if (!ensure(TextureNode))
 				{
@@ -56,7 +56,7 @@ namespace UE
 			{
 				//Create a material node
 				FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
-				FName NodeUID(*MaterialName);
+				FString NodeUID(MaterialName);
 				UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(NodeContainer.GetNode(NodeUID));
 				if (!MaterialNode)
 				{
@@ -94,7 +94,7 @@ namespace UE
 									}
 									//Create a texture node and make it child of the material node
 									TArray<FString> JsonErrorMessage;
-									FName NodeUID(*TextureFilename);
+									FString NodeUID(TextureFilename);
 									UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUID));
 									if (!TextureNode)
 									{

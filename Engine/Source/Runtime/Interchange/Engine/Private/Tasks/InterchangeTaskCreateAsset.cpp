@@ -28,7 +28,7 @@ namespace UE
 			{
 				const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 				check(SourceData);
-				FString NodeDisplayName = Node->GetDisplayLabel().ToString();
+				FString NodeDisplayName = Node->GetDisplayLabel();
 				const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
 
 				//Set the asset name and the package name
@@ -123,7 +123,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 			AssetInfo.ImportAsset = NodeAsset;
 			AssetInfo.Factory = Factory;
-			AssetInfo.NodeUniqueId = Node->GetUniqueID().ToString();
+			AssetInfo.NodeUniqueId = Node->GetUniqueID();
 			Node->ReferenceObject = FSoftObjectPath(NodeAsset);
 		}
 	}
@@ -214,7 +214,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 			AssetInfo.ImportAsset = NodeAsset;
 			AssetInfo.Factory = Factory;
-			AssetInfo.NodeUniqueId = Node->GetUniqueID().ToString();
+			AssetInfo.NodeUniqueId = Node->GetUniqueID();
 		}
 
 		Node->ReferenceObject = FSoftObjectPath(NodeAsset);

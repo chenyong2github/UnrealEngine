@@ -51,7 +51,7 @@ public:
 	 * @param InAssetClass - The class the SkeletalMesh factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	void InitializeSkeletalMeshNode(const FName& UniqueID, const FName& DisplayLabel, const FString& InAssetClass)
+	void InitializeSkeletalMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
 	{
 		bIsNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
@@ -109,19 +109,19 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	void GetLodDataUniqueIds(TArray<FName>& OutLodDataUniqueIds) const
+	void GetLodDataUniqueIds(TArray<FString>& OutLodDataUniqueIds) const
 	{
 		LodDependencies.GetNames(OutLodDataUniqueIds);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool AddLodDataUniqueId(FName LodDataUniqueId)
+	bool AddLodDataUniqueId(const FString& LodDataUniqueId)
 	{
 		return LodDependencies.AddName(LodDataUniqueId);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool RemoveLodDataUniqueId(FName LodDataUniqueId)
+	bool RemoveLodDataUniqueId(const FString& LodDataUniqueId)
 	{
 		return LodDependencies.RemoveName(LodDataUniqueId);
 	}

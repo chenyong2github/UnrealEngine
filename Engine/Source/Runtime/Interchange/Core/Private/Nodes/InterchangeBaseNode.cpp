@@ -10,7 +10,7 @@
 
 
 
-void UInterchangeBaseNode::InitializeNode(const FName& UniqueID, const FName& DisplayLabel)
+void UInterchangeBaseNode::InitializeNode(const FString& UniqueID, const FString& DisplayLabel)
 {
 	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FBaseNodeStaticData::UniqueIDKey(), UniqueID, UE::Interchange::EAttributeProperty::NoHash);
 	if (!IsAttributeStorageResultSuccess(Result))
@@ -41,43 +41,43 @@ bool UInterchangeBaseNode::HasAttribute(const UE::Interchange::FAttributeKey& No
 }
 
 
-FName UInterchangeBaseNode::GetUniqueID() const
+FString UInterchangeBaseNode::GetUniqueID() const
 {
 	ensure(bIsInitialized);
-	FName UniqueID = NAME_None;
-	Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::UniqueIDKey()).Get(UniqueID);
+	FString UniqueID;
+	Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::UniqueIDKey()).Get(UniqueID);
 	return UniqueID;
 }
 
-FName UInterchangeBaseNode::GetDisplayLabel() const
+FString UInterchangeBaseNode::GetDisplayLabel() const
 {
 	ensure(bIsInitialized);
 	checkSlow(Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()));
-	FName DisplayLabel = NAME_None;
-	Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()).Get(DisplayLabel);
+	FString DisplayLabel;
+	Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()).Get(DisplayLabel);
 	return DisplayLabel;
 }
 
-bool UInterchangeBaseNode::SetDisplayLabel(FName DisplayLabel)
+bool UInterchangeBaseNode::SetDisplayLabel(const FString& DisplayLabel)
 {
 	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey(), DisplayLabel);
 	if (IsAttributeStorageResultSuccess(Result))
 	{
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FName> Handle = Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey());
 		return Handle.IsValid();
 	}
 	return false;
 }
 
-FName UInterchangeBaseNode::GetParentUID() const
+FString UInterchangeBaseNode::GetParentUID() const
 {
 	if (!Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::ParentIDKey()))
 	{
 		return InvalidNodeUID();
 	}
 
-	FName ParentUniqueID = NAME_None;
-	UE::Interchange::FAttributeStorage::TAttributeHandle<FName> Handle = Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::ParentIDKey());
+	FString ParentUniqueID;
+	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::ParentIDKey());
 	if(Handle.IsValid())
 	{
 		Handle.Get(ParentUniqueID);
@@ -86,12 +86,12 @@ FName UInterchangeBaseNode::GetParentUID() const
 	return InvalidNodeUID();
 }
 
-bool UInterchangeBaseNode::SetParentUID(FName ParentUID)
+bool UInterchangeBaseNode::SetParentUID(const FString& ParentUID)
 {
 	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FBaseNodeStaticData::ParentIDKey(), ParentUID);
 	if(IsAttributeStorageResultSuccess(Result))
 	{
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FName> Handle = Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::ParentIDKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::ParentIDKey());
 		return Handle.IsValid();
 	}
 	return false;
@@ -102,17 +102,17 @@ int32 UInterchangeBaseNode::GetDependeciesCount() const
 	return Dependencies.GetCount();
 }
 
-void UInterchangeBaseNode::GetDependecies(TArray<FName>& OutDependencies ) const
+void UInterchangeBaseNode::GetDependecies(TArray<FString>& OutDependencies ) const
 {
 	Dependencies.GetNames(OutDependencies);
 }
 
-bool UInterchangeBaseNode::SetDependencyUID(FName DependencyUID)
+bool UInterchangeBaseNode::SetDependencyUID(const FString& DependencyUID)
 {
 	return Dependencies.AddName(DependencyUID);
 }
 
-bool UInterchangeBaseNode::RemoveDependencyUID(FName DependencyUID)
+bool UInterchangeBaseNode::RemoveDependencyUID(const FString& DependencyUID)
 {
 	return Dependencies.RemoveName(DependencyUID);
 }
@@ -150,9 +150,9 @@ class UClass* UInterchangeBaseNode::GetAssetClass() const
 	return nullptr;
 }
 
-FName UInterchangeBaseNode::InvalidNodeUID()
+FString UInterchangeBaseNode::InvalidNodeUID()
 {
-	return NAME_None;
+	return FString();
 }
 
 void UInterchangeBaseNode::ApplyAllCustomAttributeToAsset(UObject* Object) const
@@ -198,8 +198,8 @@ void UInterchangeBaseNode::Serialize(FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		//The node is consider Initialize if the UniqueID and the Display label are set properly
-		bIsInitialized = (Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::UniqueIDKey()).IsValid() &&
-						  Attributes->GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()).IsValid());
+		bIsInitialized = (Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::UniqueIDKey()).IsValid() &&
+						  Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()).IsValid());
 
 	}
 }

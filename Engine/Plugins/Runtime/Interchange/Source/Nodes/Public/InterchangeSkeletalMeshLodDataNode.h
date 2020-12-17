@@ -62,15 +62,15 @@ public:
 public:
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool GetCustomSkeletonID(FName& AttributeValue) const
+	bool GetCustomSkeletonID(FString& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletonID, FName);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletonID, FString);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool SetCustomSkeletonID(const FName& AttributeValue)
+	bool SetCustomSkeletonID(const FString& AttributeValue)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonID, FName)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonID, FString)
 	}
 
 	/* Translator mesh keys*/
@@ -82,19 +82,19 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	void GetTranslatorMeshKeys(TArray<FName>& OutTranslatorMeshKeys) const
+	void GetTranslatorMeshKeys(TArray<FString>& OutTranslatorMeshKeys) const
 	{
 		TranslatorMeshKeys.GetNames(OutTranslatorMeshKeys);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool AddTranslatorMeshKey(FName TranslatorMeshKey)
+	bool AddTranslatorMeshKey(const FString& TranslatorMeshKey)
 	{
 		return TranslatorMeshKeys.AddName(TranslatorMeshKey);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool RemoveTranslatorMeshKey(FName TranslatorMeshKey)
+	bool RemoveTranslatorMeshKey(const FString& TranslatorMeshKey)
 	{
 		return TranslatorMeshKeys.RemoveName(TranslatorMeshKey);
 	}
@@ -108,19 +108,19 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	void GetBlendShapes(TArray<FName>& OutBlendShapeNames) const
+	void GetBlendShapes(TArray<FString>& OutBlendShapeNames) const
 	{
 		BlendShapesNames.GetNames(OutBlendShapeNames);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool AddBlendShape(FName BlendShapeName)
+	bool AddBlendShape(const FString& BlendShapeName)
 	{
 		return BlendShapesNames.AddName(BlendShapeName);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool RemoveBlendShape(FName BlendShapeName)
+	bool RemoveBlendShape(const FString& BlendShapeName)
 	{
 		return BlendShapesNames.RemoveName(BlendShapeName);
 	}

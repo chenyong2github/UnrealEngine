@@ -181,7 +181,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 			UInterchangeBaseNode* PreviousNode = nullptr;
 			if (InterchangeAssetImportData)
 			{
-				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(FName(*InterchangeAssetImportData->NodeUniqueID));
+				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
 			}
 			UInterchangeTextureNode* CurrentNode = NewObject<UInterchangeTextureNode>();
 			UInterchangeBaseNode::CopyStorage(TextureNode, CurrentNode);

@@ -33,10 +33,10 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	//Parse each graph and prepare import task data, we will then be able to create all the task with the correct dependencies
 	struct FTaskData
 	{
-		FName UniqueID;
+		FString UniqueID;
 		int32 SourceIndex;
 		UInterchangeBaseNode* Node;
-		TArray<FName> Dependencies;
+		TArray<FString> Dependencies;
 		FGraphEventRef GraphEventRef;
 		FGraphEventArray Prerequistes;
 		UInterchangeFactoryBase* Factory;
@@ -60,7 +60,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			{
 				continue;
 			}
-			BaseNodeContainer->IterateNodes([&](const FName NodeUID, UInterchangeBaseNode* Node)
+			BaseNodeContainer->IterateNodes([&](const FString& NodeUID, UInterchangeBaseNode* Node)
 			{
 				if (Node->GetAssetClass() != nullptr)
 				{

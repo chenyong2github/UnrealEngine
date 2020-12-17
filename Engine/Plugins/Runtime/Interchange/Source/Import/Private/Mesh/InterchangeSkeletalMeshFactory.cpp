@@ -37,12 +37,12 @@ namespace UE
 		{
 			struct FJointInfo
 			{
-				FName Name;
+				FString Name;
 				int32 ParentIndex;  // 0 if this is the root bone.  
 				FTransform	LocalTransform; // local transform
 			};
 
-			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, FName JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
+			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
 				const UInterchangeJointNode* JointNode = Cast<UInterchangeJointNode>(NodeContainer->GetNode(JointNodeId));
 				if (!JointNode)
@@ -58,7 +58,7 @@ namespace UE
 				Info.ParentIndex = ParentIndex;
 
 				SkeletalMeshImportData::FBone& Bone = RefBonesBinary.AddZeroed_GetRef();
-				Bone.Name = Info.Name.ToString();
+				Bone.Name = Info.Name;
 				Bone.BonePos.Transform = Info.LocalTransform;
 				Bone.ParentIndex = ParentIndex;
 				//Fill the scrap we do not need
@@ -67,7 +67,7 @@ namespace UE
 				Bone.BonePos.YSize = 1.0f;
 				Bone.BonePos.ZSize = 1.0f;
 				
-				const TArray<FName> ChildrenIds = NodeContainer->GetNodeChildrenUIDs(JointNodeId);
+				const TArray<FString> ChildrenIds = NodeContainer->GetNodeChildrenUIDs(JointNodeId);
 				Bone.NumChildren = ChildrenIds.Num();
 				for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
 				{
@@ -75,7 +75,7 @@ namespace UE
 				}
 			}
 
-			bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, FName RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
+			bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, const FString& RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
 				auto FixupBoneName = [](FString BoneName)
 				{
@@ -96,8 +96,8 @@ namespace UE
 				{
 					const FJointInfo& BinaryBone = JointInfos[b];
 
-					const FString BoneName = FixupBoneName(BinaryBone.Name.ToString());
-					const FMeshBoneInfo BoneInfo(FName(*BoneName, FNAME_Add), BinaryBone.Name.ToString(), BinaryBone.ParentIndex);
+					const FString BoneName = FixupBoneName(BinaryBone.Name);
+					const FMeshBoneInfo BoneInfo(FName(*BoneName, FNAME_Add), BinaryBone.Name, BinaryBone.ParentIndex);
 					const FTransform BoneTransform(BinaryBone.LocalTransform);
 					if (RefSkeleton.FindRawBoneIndex(BoneInfo.Name) != INDEX_NONE)
 					{
@@ -702,11 +702,11 @@ namespace UE
 				return true;
 			}
 
-			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TArray<FName>& BlendShapeToImport, const TMap<FString, FMeshDescription>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TArray<FString>& BlendShapeToImport, const TMap<FString, FMeshDescription>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
 				for (const TPair<FString, FMeshDescription>& Pair : LodBlendShapeMeshDescriptions)
 				{
-					FName BlendShapeName(*(Pair.Key));
+					FString BlendShapeName(Pair.Key);
 					//Skip blend shape that is not define in the BlendShapeToImport array
 					if (!BlendShapeToImport.Contains(BlendShapeName))
 					{
@@ -754,7 +754,7 @@ namespace UE
 			 * Fill the Materials array using the raw skeletalmesh geometry data (using material imported name)
 			 * Find the material from the dependencies of the skeletalmesh before searching in all package.
 			 */
-			void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData, TMap<FName, UMaterialInterface*>& AvailableMaterials)
+			void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData, TMap<FString, UMaterialInterface*>& AvailableMaterials)
 			{
 				TArray <SkeletalMeshImportData::FMaterial>& ImportedMaterials = ImportData.Materials;
 				// If direct linkup of materials is requested, try to find them here - to get a texture name from a 
@@ -794,15 +794,14 @@ namespace UE
 					if(!Material)
 					{
 						//Try to find the material in the skeletal mesh node dependencies (Materials are import before skeletal mesh when there is a dependency)
-						const FName MaterialFName = FName(*ImportedMaterial.MaterialImportName);
-						if (AvailableMaterials.Contains(FName(MaterialFName)))
+						const FString MaterialName = ImportedMaterial.MaterialImportName;
+						if (AvailableMaterials.Contains(MaterialName))
 						{
-							Material = AvailableMaterials.FindChecked(MaterialFName);
+							Material = AvailableMaterials.FindChecked(MaterialName);
 						}
 						else
 						{
 							//We did not found any material in the dependencies so try to find material everywhere
-							FString MaterialName = ImportedMaterial.MaterialImportName;
 							Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *MaterialName);
 							if (Material == nullptr && MaterialNameNoSkin.Len() < MaterialName.Len())
 							{
@@ -1119,20 +1118,20 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 			}
 			USkeleton* SkeletonReference = nullptr;
 			int32 LodCount = SkeletalMeshNode->GetLodDataCount();
-			TArray<FName> LodDataUniqueIds;
+			TArray<FString> LodDataUniqueIds;
 			SkeletalMeshNode->GetLodDataUniqueIds(LodDataUniqueIds);
 			ensure(LodDataUniqueIds.Num() == LodCount);
 			int32 CurrentLodIndex = 0;
 			for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 			{
-				FName LodUniqueId = LodDataUniqueIds[LodIndex];
+				FString LodUniqueId = LodDataUniqueIds[LodIndex];
 				const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(Arguments.NodeContainer->GetNode(LodUniqueId));
 				if (!LodDataNode)
 				{
 					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
-				FName SkeletonNodeId = NAME_None;
+				FString SkeletonNodeId;
 				if (!LodDataNode->GetCustomSkeletonID(SkeletonNodeId))
 				{
 					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
@@ -1159,7 +1158,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					}
 				}
 
-				FName RootJointNodeId = NAME_None;
+				FString RootJointNodeId;
 				if (!SkeletonNode->GetCustomRootJointID(RootJointNodeId))
 				{
 					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
@@ -1172,7 +1171,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 				//Add the lod mesh data to the skeletalmesh
 				FSkeletalMeshImportData SkeletalMeshImportData;
-				TArray<FName> TranslatorMeshKeys;
+				TArray<FString> TranslatorMeshKeys;
 				LodDataNode->GetTranslatorMeshKeys(TranslatorMeshKeys);
 				//We should have only one key per LOD
 				ensure(TranslatorMeshKeys.Num() == 1);
@@ -1181,10 +1180,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				{
 					int32 MeshLodIndex = 0;
 
-					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(TranslatorMeshKeys[MeshLodIndex].ToString());
+					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(TranslatorMeshKeys[MeshLodIndex]);
 					if (!LodMeshPayload.IsSet())
 					{
-						UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *TranslatorMeshKeys[MeshLodIndex].ToString(), *Arguments.AssetName);
+						UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *TranslatorMeshKeys[MeshLodIndex], *Arguments.AssetName);
 						break;
 					}
 					//TODO use the mesh description as the source import data for skeletalmesh
@@ -1196,7 +1195,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
 
 					//Pipeline can remove names from the list to control which blendshapes they import
-					TArray<FName> BlendShapeToImport;
+					TArray<FString> BlendShapeToImport;
 					LodDataNode->GetBlendShapes(BlendShapeToImport);
 					//Copy also the blend shapes data
 					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
@@ -1205,8 +1204,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
 				FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];
 
-				TMap<FName, UMaterialInterface*> AvailableMaterials;
-				TArray<FName> Dependencies;
+				TMap<FString, UMaterialInterface*> AvailableMaterials;
+				TArray<FString> Dependencies;
 				SkeletalMeshNode->GetDependecies(Dependencies);
 				for (int32 DependencyIndex = 0; DependencyIndex < Dependencies.Num(); ++DependencyIndex)
 				{

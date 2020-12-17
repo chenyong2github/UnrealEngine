@@ -387,7 +387,7 @@ bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 		return false;
 	}
 
-	TArray< FName > Nodes;
+	TArray< FString > Nodes;
 	BaseNodeContainer->GetRoots( Nodes );
 
 	if ( Nodes.Num() <= 0)

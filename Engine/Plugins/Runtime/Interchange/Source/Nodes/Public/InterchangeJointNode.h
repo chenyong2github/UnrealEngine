@@ -49,15 +49,15 @@ public:
 	//Joint name attribute, all joints in a skeleton must have unique name
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomName(FName& AttributeValue) const
+	bool GetCustomName(FString& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(Name, FName);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(Name, FString);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomName(const FName& AttributeValue)
+	bool SetCustomName(const FString& AttributeValue)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(Name, FName)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(Name, FString)
 	}
 
 	//Local transform attribute

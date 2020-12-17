@@ -132,7 +132,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 			{
 				auto ApplyInputParameter = [&MaterialNode, &Material, &Arguments](EInterchangeMaterialNodeParameterName ParameterName, FExpressionInput& MaterialInput, const FVector2D& Location)
 				{
-					FName OutTextureUID = NAME_None;
+					FString OutTextureUID;
 					int32 OutUVSetIndex = 0;
 					float ScaleU = 0.0f;
 					float ScaleV = 0.0f;
@@ -143,8 +143,8 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 						UTexture* TextureReference = nullptr;
 						if (Arguments.NodeContainer)
 						{
-							FName NodeUniqueID = MaterialNode->GetUniqueID();
-							TArray<FName> MaterialDependencies;
+							FString NodeUniqueID = MaterialNode->GetUniqueID();
+							TArray<FString> MaterialDependencies;
 							MaterialNode->GetDependecies(MaterialDependencies);
 							int32 DependenciesCount = MaterialDependencies.Num();
 							for (int32 DependIndex = 0; DependIndex < DependenciesCount; ++DependIndex)

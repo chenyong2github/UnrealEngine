@@ -71,8 +71,8 @@ namespace UE
 
 			UInterchangeSceneNode* FFbxScene::CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel(*NodeName);
-				FName NodeUID(*NodeUniqueID);
+				FString DisplayLabel(NodeName);
+				FString NodeUID(NodeUniqueID);
 				UInterchangeSceneNode* TransformNode = NewObject<UInterchangeSceneNode>(&NodeContainer, NAME_None);
 				if (!ensure(TransformNode))
 				{

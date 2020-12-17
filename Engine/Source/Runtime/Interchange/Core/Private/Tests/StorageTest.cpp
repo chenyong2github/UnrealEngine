@@ -16,14 +16,13 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::Interchange;
 
-	FString KeyPrefixString = TEXT("TestKey");
-	FName KeyPrefix(*KeyPrefixString);
+	FString KeyPrefix = TEXT("TestKey");
 	int32 KeySuffixCounter = 1;
 	auto CreateUniqueKey = [&KeyPrefix, &KeySuffixCounter]()->FAttributeKey
 	{
 		check(IsInGameThread());
-		KeyPrefix.SetNumber(KeySuffixCounter++);
-		const FAttributeKey UniqueKeyRet = FAttributeKey(KeyPrefix);
+		FString KeyFinal = KeyPrefix + TEXT("_") + FString::FromInt(KeySuffixCounter++);
+		const FAttributeKey UniqueKeyRet = FAttributeKey(KeyFinal);
 		return UniqueKeyRet;
 	};
 

@@ -186,14 +186,6 @@ namespace UE
 
 					UInterchangeSkeletalMeshNode* SkeletalMeshNode = nullptr;
 
-					bool bOverrideSkeletalMeshName = false;
-					FString OverrideSkeletalMeshName;
-					if (SkeletalMeshCount == 1)
-					{
-						bOverrideSkeletalMeshName = true;
-						OverrideSkeletalMeshName = FPaths::GetBaseFilename(SourceFilename);
-					}
-
 					for (int32 LODIndex = 0; LODIndex < MaxNumberOfLOD; LODIndex++)
 					{
 						//Array use to retrieve the payload data, so we easily find the request payload data
@@ -242,7 +234,7 @@ namespace UE
 						{
 							continue;
 						}
-						FString SkeletonName = (bOverrideSkeletalMeshName ? OverrideSkeletalMeshName : FFbxHelper::GetFbxObjectName(SkelMeshNodeArray[0])) + TEXT("_Skeleton");
+						FString SkeletonName = FFbxHelper::GetFbxObjectName(SortedJoints[0]) + TEXT("_Skeleton");
 						if (LODIndex > 0)
 						{
 							SkeletonName += TEXT("_") + FString::FromInt(LODIndex);
@@ -261,7 +253,7 @@ namespace UE
 						FbxNode* RootNode = SkelMeshNodeArray[0];
 						if (LODIndex == 0)
 						{
-							FString SkeletalMeshName = (bOverrideSkeletalMeshName ? OverrideSkeletalMeshName : FFbxHelper::GetFbxObjectName(RootNode));
+							FString SkeletalMeshName = FFbxHelper::GetFbxObjectName(RootNode);
 							FString SkeletalMeshUniqueID = TEXT("\\SkeletalMesh\\") + FFbxHelper::GetFbxNodeHierarchyName(RootNode);
 							SkeletalMeshNode = CreateSkeletalMeshNode(NodeContainer, SkeletalMeshName, SkeletalMeshUniqueID, JSonErrorMessages);
 						}
@@ -296,7 +288,7 @@ namespace UE
 								}
 								//Find an existing material node
 								FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
-								FName NodeUID(*MaterialName);
+								FString NodeUID(MaterialName);
 								UInterchangeBaseNode* MaterialNode = NodeContainer.GetNode(NodeUID);
 								if (MaterialNode != nullptr && Cast<UInterchangeMaterialNode>(MaterialNode))
 								{
@@ -398,8 +390,8 @@ namespace UE
 
 			UInterchangeSkeletalMeshNode* FFbxSkeletalMesh::CreateSkeletalMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel(*NodeName);
-				FName NodeUID(*NodeUniqueID);
+				FString DisplayLabel(NodeName);
+				FString NodeUID(NodeUniqueID);
 				UInterchangeSkeletalMeshNode* SkeletalMeshNode = NewObject<UInterchangeSkeletalMeshNode>(&NodeContainer, NAME_None);
 				if (!ensure(SkeletalMeshNode))
 				{
@@ -414,8 +406,8 @@ namespace UE
 
 			UInterchangeSkeletalMeshLodDataNode* FFbxSkeletalMesh::CreateSkeletalMeshLodDataNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel(*NodeName);
-				FName NodeUID(*NodeUniqueID);
+				FString DisplayLabel(NodeName);
+				FString NodeUID(NodeUniqueID);
 				UInterchangeSkeletalMeshLodDataNode* SkeletalMeshLodDataNode = NewObject<UInterchangeSkeletalMeshLodDataNode>(&NodeContainer, NAME_None);
 				if (!ensure(SkeletalMeshLodDataNode))
 				{

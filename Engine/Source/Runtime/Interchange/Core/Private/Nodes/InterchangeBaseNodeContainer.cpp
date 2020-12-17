@@ -12,13 +12,13 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 
-FName UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
+FString UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 {
 	if (!Node)
 	{
 		return UInterchangeBaseNode::InvalidNodeUID();
 	}
-	FName NodeUniqueID = Node->GetUniqueID();
+	FString NodeUniqueID = Node->GetUniqueID();
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
 	{
 		return UInterchangeBaseNode::InvalidNodeUID();
@@ -30,12 +30,12 @@ FName UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 		return NodeUniqueID;
 	}
 
-	if (Node->GetDisplayLabel() == NAME_None)
+	if (Node->GetDisplayLabel().IsEmpty())
 	{
 		//Replace None by Null, since None name will be interpret like NAME_None which will not work with UObject creation
 		//UObject Creation will name it ClassName_X instead of None
 		//TODO Log an warning to the user
-		Node->SetDisplayLabel(FName("Null"));
+		Node->SetDisplayLabel(FString(TEXT("Null")));
 	}
 
 	//Copy the node
@@ -43,7 +43,7 @@ FName UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 	return NodeUniqueID;
 }
 
-bool UInterchangeBaseNodeContainer::IsNodeUIDValid(FName NodeUniqueID) const
+bool UInterchangeBaseNodeContainer::IsNodeUIDValid(const FString& NodeUniqueID) const
 {
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
 	{
@@ -52,17 +52,17 @@ bool UInterchangeBaseNodeContainer::IsNodeUIDValid(FName NodeUniqueID) const
 	return Nodes.Contains(NodeUniqueID);
 }
 
-void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(FName, UInterchangeBaseNode*)> IterationLambda)
+void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda)
 {
-	for (TPair<FName, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	for (TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
 	{
 		IterationLambda(NodeKeyValue.Key, NodeKeyValue.Value);
 	}
 }
 
-void UInterchangeBaseNodeContainer::GetRoots(TArray<FName>& RootNodes)
+void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
 {
-	for (TPair<FName, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	for (TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
 	{
 		if (NodeKeyValue.Value->GetParentUID() == UInterchangeBaseNode::InvalidNodeUID())
 		{
@@ -71,7 +71,7 @@ void UInterchangeBaseNodeContainer::GetRoots(TArray<FName>& RootNodes)
 	}
 }
 
-UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(FName NodeUniqueID)
+UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID)
 {
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
 	{
@@ -85,12 +85,12 @@ UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(FName NodeUniqueID)
 	return Node;
 }
 
-const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(FName NodeUniqueID) const
+const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID) const
 {
 	return const_cast<UInterchangeBaseNodeContainer*>(this)->GetNode(NodeUniqueID);
 }
 
-bool UInterchangeBaseNodeContainer::SetNodeParentUID(FName NodeUniqueID, FName NewParentNodeUID)
+bool UInterchangeBaseNodeContainer::SetNodeParentUID(const FString& NodeUniqueID, const FString& NewParentNodeUID)
 {
 	if (!Nodes.Contains(NodeUniqueID))
 	{
@@ -105,16 +105,16 @@ bool UInterchangeBaseNodeContainer::SetNodeParentUID(FName NodeUniqueID, FName N
 	return true;
 }
 
-int32 UInterchangeBaseNodeContainer::GetNodeChildrenCount(FName NodeUniqueID) const
+int32 UInterchangeBaseNodeContainer::GetNodeChildrenCount(const FString& NodeUniqueID) const
 {
-	TArray<FName> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
+	TArray<FString> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
 	return ChildrenUIDs.Num();
 }
 
-TArray<FName> UInterchangeBaseNodeContainer::GetNodeChildrenUIDs(FName NodeUniqueID) const
+TArray<FString> UInterchangeBaseNodeContainer::GetNodeChildrenUIDs(const FString& NodeUniqueID) const
 {
-	TArray<FName> OutChildrenUIDs;
-	for (const TPair<FName, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	TArray<FString> OutChildrenUIDs;
+	for (const TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
 	{
 		if (NodeKeyValue.Value->GetParentUID() == NodeUniqueID)
 		{
@@ -124,12 +124,12 @@ TArray<FName> UInterchangeBaseNodeContainer::GetNodeChildrenUIDs(FName NodeUniqu
 	return OutChildrenUIDs;
 }
 
-UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(FName NodeUniqueID, int32 ChildIndex)
+UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex)
 {
 	return GetNodeChildrenInternal(NodeUniqueID, ChildIndex);
 }
 
-const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(FName NodeUniqueID, int32 ChildIndex) const
+const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex) const
 {
 	return const_cast<UInterchangeBaseNodeContainer*>(this)->GetNodeChildrenInternal(NodeUniqueID, ChildIndex);
 }
@@ -153,7 +153,7 @@ void UInterchangeBaseNodeContainer::SerializeNodeContainerData(FArchive& Ar)
 			BaseNode->Serialize(Ar);
 		};
 
-		for (TPair<FName, UInterchangeBaseNode*> NodePair : Nodes)
+		for (TPair<FString, UInterchangeBaseNode*> NodePair : Nodes)
 		{
 			SerializeNodePair(NodePair.Value);
 		}
@@ -218,9 +218,9 @@ void UInterchangeBaseNodeContainer::LoadFromFile(const FString& Filename)
 	SerializeNodeContainerData(Ar);
 }
 
-UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildrenInternal(FName NodeUniqueID, int32 ChildIndex)
+UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex)
 {
-	TArray<FName> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
+	TArray<FString> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
 	if (!ChildrenUIDs.IsValidIndex(ChildIndex))
 	{
 		return nullptr;

@@ -188,7 +188,7 @@ namespace UE
 				Attributes = InAttributes;
 				check(Attributes.IsValid());
 				FString BaseTryName = TEXT("__") + BaseKeyName;
-				KeyCount = FName(*BaseTryName);
+				KeyCount = BaseTryName;
 			}
 
 			int32 GetCount() const
@@ -211,7 +211,7 @@ namespace UE
 				return NameCount;
 			}
 
-			void GetNames(TArray<FName>& OutNames) const
+			void GetNames(TArray<FString>& OutNames) const
 			{
 				//The Class must be initialise properly before we can use it
 				TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributePtr = Attributes.Pin();
@@ -239,17 +239,17 @@ namespace UE
 				for (int32 NameIndex = 0; NameIndex < NameCount; ++NameIndex)
 				{
 					FAttributeKey DepIndexKey = GetIndexKey(NameIndex);
-					FAttributeStorage::TAttributeHandle<FName> HandleName = AttributePtr->GetAttributeHandle<FName>(DepIndexKey);
+					FAttributeStorage::TAttributeHandle<FString> HandleName = AttributePtr->GetAttributeHandle<FString>(DepIndexKey);
 					if (!HandleName.IsValid())
 					{
 						continue;
 					}
-					FName& OutName = OutNames.AddDefaulted_GetRef();
+					FString& OutName = OutNames.AddDefaulted_GetRef();
 					HandleName.Get(OutName);
 				}
 			}
 
-			bool AddName(FName Name)
+			bool AddName(const FString& Name)
 			{
 				//The Class must be initialise properly before we can use it
 				TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributePtr = Attributes.Pin();
@@ -280,7 +280,7 @@ namespace UE
 				NameIndex++;
 				Handle.Set(NameIndex);
 
-				EAttributeStorageResult AddNameResult = AttributePtr->RegisterAttribute<FName>(NameIndexKey, Name);
+				EAttributeStorageResult AddNameResult = AttributePtr->RegisterAttribute<FString>(NameIndexKey, Name);
 				if (!IsAttributeStorageResultSuccess(AddNameResult))
 				{
 					LogAttributeStorageErrors(AddNameResult, TEXT("FNameAttributeArrayHelper.AddName"), NameIndexKey);
@@ -289,7 +289,7 @@ namespace UE
 				return true;
 			}
 
-			bool RemoveName(FName NameToDelete)
+			bool RemoveName(const FString& NameToDelete)
 			{
 				//The Class must be initialise properly before we can use it
 				TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributePtr = Attributes.Pin();
@@ -313,12 +313,12 @@ namespace UE
 				for (int32 NameIndex = 0; NameIndex < NameCount; ++NameIndex)
 				{
 					FAttributeKey DepIndexKey = GetIndexKey(NameIndex);
-					FAttributeStorage::TAttributeHandle<FName> HandleName = AttributePtr->GetAttributeHandle<FName>(DepIndexKey);
+					FAttributeStorage::TAttributeHandle<FString> HandleName = AttributePtr->GetAttributeHandle<FString>(DepIndexKey);
 					if (!HandleName.IsValid())
 					{
 						continue;
 					}
-					FName Name;
+					FString Name;
 					HandleName.Get(Name);
 					if (Name == NameToDelete)
 					{
@@ -334,7 +334,7 @@ namespace UE
 						EAttributeStorageResult UnregisterResult = AttributePtr->UnregisterAttribute(DepIndexKey);
 						if (IsAttributeStorageResultSuccess(UnregisterResult))
 						{
-							EAttributeStorageResult RegisterResult = AttributePtr->RegisterAttribute<FName>(NewDepIndexKey, Name);
+							EAttributeStorageResult RegisterResult = AttributePtr->RegisterAttribute<FString>(NewDepIndexKey, Name);
 							if (!IsAttributeStorageResultSuccess(RegisterResult))
 							{
 								LogAttributeStorageErrors(RegisterResult, TEXT("FNameAttributeArrayHelper.RemoveName"), NewDepIndexKey);
@@ -388,7 +388,7 @@ namespace UE
 			TWeakPtr<FAttributeStorage, ESPMode::ThreadSafe> Attributes = nullptr;
 
 			FAttributeKey KeyCount; //Assign in Initialize function, it will ensure if its the default value (NAME_None) when using the class
-			FAttributeKey GetKeyCount() const { ensure(KeyCount.Key != NAME_None); return KeyCount; }
+			FAttributeKey GetKeyCount() const { ensure(!KeyCount.Key.IsEmpty()); return KeyCount; }
 
 			FAttributeKey GetIndexKey(int32 Index) const
 			{
@@ -464,7 +464,7 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void InitializeNode(const FName& UniqueID, const FName& DisplayLabel);
+	void InitializeNode(const FString& UniqueID, const FString& DisplayLabel);
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
@@ -524,33 +524,33 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FName GetUniqueID() const;
+	FString GetUniqueID() const;
 
 	/**
 	 * Return the display label.
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FName GetDisplayLabel() const;
+	FString GetDisplayLabel() const;
 
 	/**
 	 * Change the display label.
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetDisplayLabel(FName DisplayName);
+	bool SetDisplayLabel(const FString& DisplayName);
 
 	/**
 	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUID()
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FName GetParentUID() const;
+	FString GetParentUID() const;
 
 	/**
 	 * Set the parent unique id.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetParentUID(FName ParentUID);
+	bool SetParentUID(const FString& ParentUID);
 
 	/**
 	 * This function allow to retrieve the number of dependencies for this object.
@@ -564,19 +564,19 @@ public:
 	 * 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetDependecies(TArray<FName>& OutDependencies ) const;
+	void GetDependecies(TArray<FString>& OutDependencies ) const;
 
 	/**
 	 * Add one dependency to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetDependencyUID(FName DependencyUID);
+	bool SetDependencyUID(const FString& DependencyUID);
 
 	/**
 	 * Remove one dependency from this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveDependencyUID(FName DependencyUID);
+	bool RemoveDependencyUID(const FString& DependencyUID);
 
 	/**
 	 * IsEnable true mean that the node will be import/export, if false it will be discarded.
@@ -608,7 +608,7 @@ public:
 	virtual class UClass* GetAssetClass() const;
 
 	/** Return the invalid unique ID */
-	static FName InvalidNodeUID();
+	static FString InvalidNodeUID();
 
 	/**
 	 * Each Attribute that was set and have a delegate set for the specified UObject->UClass will

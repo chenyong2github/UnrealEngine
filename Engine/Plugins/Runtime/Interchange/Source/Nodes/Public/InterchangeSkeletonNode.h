@@ -32,7 +32,7 @@ public:
 	 * @param InAssetClass - The class the Skeleton factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
-	void InitializeSkeletonNode(const FName& UniqueID, const FName& DisplayLabel, const FString& InAssetClass)
+	void InitializeSkeletonNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
 	{
 		bIsNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);
@@ -83,15 +83,15 @@ public:
 public:
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
-	bool GetCustomRootJointID(FName& AttributeValue) const
+	bool GetCustomRootJointID(FString& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(RootJointID, FName);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(RootJointID, FString);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
-	bool SetCustomRootJointID(const FName& AttributeValue)
+	bool SetCustomRootJointID(const FString& AttributeValue)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(RootJointID, FName)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(RootJointID, FString)
 	}
 
 private:

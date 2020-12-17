@@ -51,7 +51,7 @@ public:
 	 * @param InAssetClass - The class the texture factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	void InitializeTextureNode(const FName& UniqueID, const FName& DisplayLabel, const FString& InAssetClass)
+	void InitializeTextureNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
 	{
 		bIsTextureNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel);

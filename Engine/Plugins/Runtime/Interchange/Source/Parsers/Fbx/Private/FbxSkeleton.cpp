@@ -43,14 +43,6 @@ namespace UE
 						}
 					}
 
-					bool bOverrideSkeletalMeshName = false;
-					FString OverrideSkeletalMeshName;
-					if (SkeletalMeshCount == 1)
-					{
-						bOverrideSkeletalMeshName = true;
-						OverrideSkeletalMeshName = FPaths::GetBaseFilename(SourceFilename);
-					}
-
 					for (int32 LODIndex = 0; LODIndex < MaxNumberOfLOD; LODIndex++)
 					{
 						TArray<FbxNode*> SkelMeshNodeArray;
@@ -96,7 +88,7 @@ namespace UE
 						{
 							continue;
 						}
-						FString SkeletonName = (bOverrideSkeletalMeshName ? OverrideSkeletalMeshName : FFbxHelper::GetFbxObjectName(SkelMeshNodeArray[0])) + TEXT("_Skeleton");
+						FString SkeletonName = FFbxHelper::GetFbxObjectName(SortedJoints[0]) + TEXT("_Skeleton");
 						if(LODIndex > 0)
 						{
 							SkeletonName += TEXT("_") + FString::FromInt(LODIndex);
@@ -153,11 +145,11 @@ namespace UE
 								JointNode->SetParentUID(*ParentJointUniqueID);
 							}
 						}
-						FName SkeletonRootJointIDValidator;
+						FString SkeletonRootJointIDValidator;
 						if (SkeletonNode->GetCustomRootJointID(SkeletonRootJointIDValidator))
 						{
 							UInterchangeBaseNode* RootNode = NodeContainer.GetNode(SkeletonRootJointIDValidator);
-							FName RootNodeDisplayLabel = RootNode->GetDisplayLabel();
+							FString RootNodeDisplayLabel = RootNode->GetDisplayLabel();
 						}
 					}
 				}
@@ -165,8 +157,8 @@ namespace UE
 
 			UInterchangeSkeletonNode* FFbxSkeleton::CreateSkeletonNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& UniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel = *NodeName;
-				FName NodeUID(*UniqueID);
+				FString DisplayLabel = NodeName;
+				FString NodeUID(UniqueID);
 
 				UInterchangeBaseNode* ExistingNode = NodeContainer.GetNode(NodeUID);
 				if (ExistingNode)
@@ -189,8 +181,8 @@ namespace UE
 
 			UInterchangeJointNode* FFbxSkeleton::CreateJointNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& UniqueID, TArray<FString>& JSonErrorMessages)
 			{
-				FName DisplayLabel = *NodeName;
-				FName NodeUID(*UniqueID);
+				FString DisplayLabel = NodeName;
+				FString NodeUID(UniqueID);
 				UInterchangeJointNode* JointNode = NewObject<UInterchangeJointNode>(&NodeContainer, NAME_None);
 				if (!ensure(JointNode))
 				{

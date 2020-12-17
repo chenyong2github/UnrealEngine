@@ -17,8 +17,8 @@ bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(con
 		return false;
 	}
 
-	FName DisplayLabel = *FPaths::GetBaseFilename(Filename);
-	FName NodeUID(*Filename);
+	FString DisplayLabel = FPaths::GetBaseFilename(Filename);
+	FString NodeUID(Filename);
 	UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&BaseNodeContainer, NAME_None);
 	if (!ensure(TextureNode))
 	{
