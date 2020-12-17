@@ -127,7 +127,7 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 
 	const bool bIsPseudoRoot = UsdPrim.GetStage().GetPseudoRoot() == UsdPrim;
 
-	RowData->Name = FText::FromName( bIsPseudoRoot ? TEXT("Root") : UsdPrim.GetName() );
+	RowData->Name = FText::FromName( bIsPseudoRoot ? TEXT("Stage") : UsdPrim.GetName() );
 	RowData->bHasCompositionArcs = UsdUtils::HasCompositionArcs( UsdPrim );
 
 	RowData->Type = bIsPseudoRoot ? FText::GetEmpty() : FText::FromName( UsdPrim.GetTypeName() );

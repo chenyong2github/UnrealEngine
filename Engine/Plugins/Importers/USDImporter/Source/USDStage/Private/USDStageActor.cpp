@@ -838,7 +838,7 @@ void AUsdStageActor::OpenUsdStage()
 	UsdUtils::StartMonitoringErrors();
 
 	FString AbsPath;
-	if ( FPaths::IsRelative( RootLayer.FilePath ) )
+	if ( !RootLayer.FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) && FPaths::IsRelative( RootLayer.FilePath ) )
 	{
 		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
 		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );

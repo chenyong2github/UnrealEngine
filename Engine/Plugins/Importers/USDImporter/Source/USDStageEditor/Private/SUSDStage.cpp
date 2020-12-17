@@ -304,7 +304,7 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 	MenuBuilder.BeginSection( "File", LOCTEXT("File", "File") );
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("New", "New..."),
+			LOCTEXT("New", "New"),
 			LOCTEXT("New_ToolTip", "Creates a new layer and opens the stage with it at its root"),
 			FSlateIcon(),
 			FUIAction(
