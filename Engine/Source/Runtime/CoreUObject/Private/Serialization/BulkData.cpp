@@ -1919,6 +1919,10 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		{
 			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 		}
+		else if (IsOptional())
+		{
+			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
+		}
 		else
 		{
 			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
