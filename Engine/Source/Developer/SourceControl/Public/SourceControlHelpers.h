@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "ISourceControlRevision.h"
+#include "ISourceControlProvider.h"
 #include "UObject/TextProperty.h"
 #include "SourceControlHelpers.generated.h"
 
@@ -475,9 +476,10 @@ public:
 	 * Helper function to branch/integrate packages from one location to another
 	 * @param	DestPackage			The destination package
 	 * @param	SourcePackage		The source package
+	 * @Param	StateCacheUsage		Whether to use the source control state cache
 	 * @return true if the file packages were successfully branched.
 	 */
-	static bool BranchPackage(UPackage* DestPackage, UPackage* SourcePackage );
+	static bool BranchPackage(UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage = EStateCacheUsage::ForceUpdate);
 
 	/**
 	 * Helper function to get the ini filename for storing source control settings
