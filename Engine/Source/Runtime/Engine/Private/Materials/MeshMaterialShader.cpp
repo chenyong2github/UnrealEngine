@@ -41,6 +41,17 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 
 	const FMaterialShaderParameters MaterialParameters(Material);
 
+	// 4.26.x Hotfix - This allows to propagate the shader frequency to the vertex factory so that 
+	// vertex factory shader code can be changed without invalidating all shaders
+	if (IsConsolePlatform(Platform) && FGenericDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform))
+	{
+		static FName HairCardsVFName = (TEXT("FHairCardsVertexFactory"));
+		if (GetFrequency() == SF_RayHitGroup && VertexFactoryType->GetFName() == HairCardsVFName)
+		{
+			ShaderEnvironment.SetDefine(TEXT("RT_CHS_FREQUENCY"), 1);
+		}
+	}
+
 	// apply the vertex factory changes to the compile environment
 	check(VertexFactoryType);
 	VertexFactoryType->ModifyCompilationEnvironment(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, PermutationFlags), ShaderEnvironment);
