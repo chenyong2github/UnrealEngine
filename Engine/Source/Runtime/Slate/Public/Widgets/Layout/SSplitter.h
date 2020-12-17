@@ -25,8 +25,11 @@ namespace ESplitterResizeMode
 {
 	enum Type
 	{
+		/** Resize the selected slot. If space is needed, then resize the next resizable slot. */
 		FixedPosition,
+		/** Resize the selected slot. If space is needed, then resize the last resizable slot. */
 		FixedSize,
+		/** Resize the selected slot by redistributing the available space with the following resizable slots. */
 		Fill,
 	};
 }
@@ -67,34 +70,57 @@ public:
 		{
 		}
 
+		/** When the RuleSize is set to FractionOfParent, the size of the slot is the Value percentage of its parent size. */
 		FSlot& Value( const TAttribute<float>& InValue )
 		{
 			SizeValue = InValue;
 			return *this;
 		}
+
+		/**
+		 * Can the slot be resize by the user.
+		 * @see CanBeResized()
+		 */
+		FSlot& Resizable(bool bInIsResizable)
+		{
+			bIsResizable = bInIsResizable;
+			return *this;
+		}
+
+		/** Minimun slot size when resizing. */
+		FSlot& MinSize(float InMinSize)
+		{
+			MinSizeValue = InMinSize;
+			return *this;
+		}
 		
+		/**
+		 * Callback when the slot is resized.
+		 * @see CanBeResized()
+		 */
 		FSlot& OnSlotResized( const FOnSlotResized& InHandler )
 		{
 			OnSlotResized_Handler = InHandler;
 			return *this;
 		}
 
+		/** The size rule used by the slot. */
 		FSlot& SizeRule( const TAttribute<ESizeRule>& InSizeRule ) 
 		{
 			SizingRule = InSizeRule;
 			return *this;
 		}
 
-		FSlot& MinSize(float InMinSize)
-		{
-			MinSizeValue = InMinSize;
-			return *this;
-		}
+	public:
+		/** A slot can be resize if bIsResizable and the SizeRule is a FractionOfParent or the OnSlotResized delegate is set. */
+		bool CanBeResized() const;
 
+	public:
 		TAttribute<ESizeRule> SizingRule;
 		TAttribute<float> SizeValue;
 		TOptional<float> MinSizeValue;
 		FOnSlotResized OnSlotResized_Handler;
+		TOptional<bool> bIsResizable;
 	};
 
 	/** @return a new SSplitter::FSlot() */
@@ -265,7 +291,7 @@ protected:
 	 */
 	static int32 FindResizeableSlotAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children );
 
-	static void FindAllResizeableSlotsAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children, TArray< int32 >& OutSlotIndicies );
+	static void FindAllResizeableSlotsAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children, TArray<int32, TMemStackAllocator<>>& OutSlotIndicies );
 
 	/**
 	 * Resizes the children based on user input. The template parameter Orientation corresponds to the splitter being horizontal or vertical.
