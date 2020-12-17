@@ -590,6 +590,25 @@ enum class EErrorReportUI
 
 /** This lock is to prevent an ensure and a crash to concurrently report to CrashReportClient (CRC) when CRC is running in background and waiting for crash/ensure (monitor mode). */
 static FCriticalSection GMonitorLock;
+/**
+ * Guard against additional context callbacks crashing
+ */
+void GuardedDumpAdditionalContext(const TCHAR* CrashDirectoryAbsolute)
+{
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		FGenericCrashContext::DumpAdditionalContext(CrashDirectoryAbsolute);
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except (TRUE)
+	{
+		// do nothing in case of an error
+		FPlatformMisc::LowLevelOutputDebugString(TEXT("An error occurred while executing addtional crash contexts"));
+	}
+#endif
+}
 
 /**
  * Write required information about the crash to the shared context, and then signal the crash reporter client 
@@ -645,6 +664,7 @@ int32 ReportCrashForMonitor(
 	if (FCommandLine::IsInitialized())
 	{
 		bNoDialog |= FApp::IsUnattended();
+		bNoDialog |= IsRunningDedicatedServer();
 	}
 
 	if (GConfig)
@@ -751,6 +771,9 @@ int32 ReportCrashForMonitor(
 		FCString::Strcpy(SharedContext->CrashFilesDirectory, *CrashDirectoryAbsolute);
 		// Copy the log file to output
 		FGenericCrashContext::DumpLog(CrashDirectoryAbsolute);
+
+		// Dump additional context
+		GuardedDumpAdditionalContext(*CrashDirectoryAbsolute);
 	}
 
 	// Allow the monitor process to take window focus
@@ -1699,6 +1722,7 @@ FORCENOINLINE void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToI
 
 	ReportEnsureInner(ErrorMessage, NumStackFramesToIgnore + 1);
 }
+
 
 #if !IS_PROGRAM && 0
 namespace {
