@@ -137,9 +137,8 @@ void FWindowsStylusInputInterface::Tick()
 			if (CurrentPlugin == nullptr)
 			{
 				CreateStylusPluginForHWND(Hwnd);
+				Window->GetOnWindowClosedEvent().AddRaw(this, &FWindowsStylusInputInterface::RemovePluginForWindow);
 			}
-
-			Window->GetOnWindowClosedEvent().AddRaw(this, &FWindowsStylusInputInterface::RemovePluginForWindow);
 		}
 	}
 }
