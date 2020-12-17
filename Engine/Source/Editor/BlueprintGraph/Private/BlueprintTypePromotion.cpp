@@ -243,24 +243,6 @@ FEdGraphPinType FTypePromotion::GetPromotedType_Internal(const TArray<UEdGraphPi
 	return HighestPinType;
 }
 
-bool FTypePromotion::PromotePin(FEdGraphPinType& InTypeA, const FEdGraphPinType& TypeB)
-{
-	return FTypePromotion::Get().PromotePin_Internal(InTypeA, TypeB);
-}
-
-bool FTypePromotion::PromotePin_Internal(FEdGraphPinType& InTypeA, const FEdGraphPinType& TypeB)
-{
-	// If type B is not the higher type, than we shouldn't do anything
-	if(GetHigherType(InTypeA, TypeB) != ETypeComparisonResult::TypeBHigher)
-	{
-		return false;
-	}
-
-	InTypeA = TypeB;
-
-	return true;
-}
-
 UFunction* FTypePromotion::FindBestMatchingFunc(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider)
 {
 	return FTypePromotion::Get().FindBestMatchingFunc_Internal(Operation, PinsToConsider);
