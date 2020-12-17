@@ -50,19 +50,44 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetRootLayer(const FString& RootFilePath );
+	USDSTAGE_API void SetRootLayer(const FString& RootFilePath );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
+	USDSTAGE_API void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetPurposesToLoad( int32 NewPurposesToLoad );
+	USDSTAGE_API void SetPurposesToLoad( int32 NewPurposesToLoad );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	float GetTime() const { return Time; }
+	USDSTAGE_API float GetTime() const { return Time; }
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetTime(float InTime);
+	USDSTAGE_API void SetTime(float InTime);
+
+	/**
+	 * Gets the transient component that was generated for a prim with a given prim path.
+	 * Warning: The lifetime of the component is managed by the AUsdStageActor, and it may be force-destroyed at any time (e.g. when closing the stage)
+	 * @param PrimPath - Full path to the source prim, e.g. "/root_prim/my_prim"
+	 * @return The corresponding spawned component. It may correspond to a parent prim, if the prim at PrimPath was collapsed. Nullptr if path is invalid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API USceneComponent* GetGeneratedComponent( const FString& PrimPath );
+
+	/**
+	 * Gets the transient assets that were generated for a prim with a given prim path. Likely one asset (e.g. UStaticMesh), but can be multiple (USkeletalMesh, USkeleton, etc.)
+	 * @param PrimPath - Full path to the source prim, e.g. "/root_prim/my_mesh"
+	 * @return The corresponding generated assets. May be empty if path is invalid or if that prim led to no generated assets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API TArray<UObject*> GetGeneratedAssets( const FString& PrimPath );
+
+	/**
+	 * Gets the path to the prim that was parsed to generate the given `Object`.
+	 * @param Object - UObject to query with. Can be one of the transient components generated when a stage was opened, or something like a UStaticMesh.
+	 * @return The path to the source prim, e.g. "/root_prim/some_prim". May be empty in case we couldn't find the source prim.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API FString GetSourcePrimPath( UObject* Object );
 
 private:
 	UPROPERTY(Category = UsdStageActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))

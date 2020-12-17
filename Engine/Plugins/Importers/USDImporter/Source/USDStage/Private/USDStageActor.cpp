@@ -3,6 +3,7 @@
 #include "USDStageActor.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshTranslator.h"
@@ -174,6 +175,48 @@ struct FUsdStageActorImpl
 
 		UnrealUSDWrapper::EraseStageFromCache( Stage );
 	}
+
+	static UE::FSdfPath UnwindToNonCollapsedPrim( AUsdStageActor* StageActor, const FString& InPrimPath, FUsdSchemaTranslator::ECollapsingType CollapsingType )
+	{
+		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
+
+		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( StageActor, InPrimPath );
+
+		UE::FSdfPath UsdPrimPath( *InPrimPath );
+		UE::FUsdPrim UsdPrim = StageActor->GetUsdStage().GetPrimAtPath( UsdPrimPath );
+
+		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim ) ) )
+		{
+			while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
+			{
+				UE::FSdfPath ParentUsdPrimPath = UsdPrimPath.GetParentPath();
+				UE::FUsdPrim ParentUsdPrim = StageActor->GetUsdStage().GetPrimAtPath( ParentUsdPrimPath );
+				if ( ParentUsdPrim.IsPseudoRoot() )
+				{
+					// It doesn't matter if we're collapsed when our parent is the root: We'll be a separate component/asset anyway.
+					// At that point we don't want to return "/" from this function though, so break here
+					break;
+				}
+
+				UsdPrimPath = ParentUsdPrimPath;
+				UsdPrim = ParentUsdPrim;
+
+				TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( StageActor, UsdPrimPath.GetString() );
+				TSharedPtr< FUsdSchemaTranslator > ParentSchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim ) );
+
+				// Note how we continue looping with the child translator when the parent has an invalid translator.
+				// This is intentional: If our parent here has no valid translator, it will always be collapsed, so we need to check
+				// whether we have a valid schema translator for our grandparent. If that one is valid and collapses, both us and our parent will
+				// be collapsed into the grandparent, and that's the path we need to return
+				if ( ParentSchemaTranslator.IsValid() )
+				{
+					SchemaTranslator = ParentSchemaTranslator;
+				}
+			}
+		}
+
+		return UsdPrimPath;
+	};
 };
 
 AUsdStageActor::AUsdStageActor()
@@ -342,35 +385,6 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 			bDeselected = true;
 		}
 
-		auto UnwindToNonCollapsedPrim = [ &PrimChangedInfo, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> UE::FSdfPath
-		{
-			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-
-			TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimChangedInfo.Key );
-
-			UE::FSdfPath UsdPrimPath( *PrimChangedInfo.Key );
-			UE::FUsdPrim UsdPrim = GetUsdStage().GetPrimAtPath( UsdPrimPath );
-
-			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim ) ) )
-			{
-				while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
-				{
-					UsdPrimPath = UsdPrimPath.GetParentPath();
-					UsdPrim = GetUsdStage().GetPrimAtPath( UsdPrimPath );
-
-					TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdPrimPath.GetString() );
-					SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim ) );
-
-					if ( !SchemaTranslator.IsValid() )
-					{
-						break;
-					}
-				}
-			}
-
-			return UsdPrimPath;
-		};
-
 		// Return if the path or any of its higher level paths are already processed
 		auto IsPathAlreadyProcessed = []( TSet< FString >& PathsProcessed, FString PathToProcess ) -> bool
 		{
@@ -399,7 +413,7 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 
 		// Reload assets
 		{
-			UE::FSdfPath AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
+			UE::FSdfPath AssetsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimChangedInfo.Key, FUsdSchemaTranslator::ECollapsingType::Assets );
 
 			TSet< FString >& RefreshedAssets = bIsResync ? ResyncedAssets : UpdatedAssets;
 
@@ -425,7 +439,7 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 
 		// Update components
 		{
-			UE::FSdfPath ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
+			UE::FSdfPath ComponentsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimChangedInfo.Key, FUsdSchemaTranslator::ECollapsingType::Components );
 
 			TSet< FString >& RefreshedComponents = bIsResync ? ResyncedComponents : UpdatedComponents;
 
@@ -734,6 +748,74 @@ void AUsdStageActor::SetTime(float InTime)
 	Time = InTime;
 
 	Refresh();
+}
+
+USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath )
+{
+	FString UncollapsedPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimPath, FUsdSchemaTranslator::ECollapsingType::Components ).GetString();
+
+	if ( UUsdPrimTwin* UsdPrimTwin = RootUsdTwin->Find( UncollapsedPath ) )
+	{
+		return UsdPrimTwin->GetSceneComponent();
+	}
+
+	return nullptr;
+}
+
+TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
+{
+	FString UncollapsedPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimPath, FUsdSchemaTranslator::ECollapsingType::Assets ).GetString();
+
+	TSet<UObject*> Result;
+
+	if ( UObject** FoundAsset = PrimPathsToAssets.Find( UncollapsedPath ) )
+	{
+		Result.Add( *FoundAsset );
+	}
+
+	for ( const TPair<FString, UObject*>& HashToAsset : AssetsCache )
+	{
+		if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( HashToAsset.Value ) )
+		{
+			if ( ImportData->PrimPath == UncollapsedPath )
+			{
+				Result.Add( HashToAsset.Value );
+			}
+		}
+	}
+
+	return Result.Array();
+}
+
+FString AUsdStageActor::GetSourcePrimPath( UObject* Object )
+{
+	if ( USceneComponent* Component = Cast<USceneComponent>( Object ) )
+	{
+		if ( UUsdPrimTwin* UsdPrimTwin = RootUsdTwin->Find( Component ) )
+		{
+			return UsdPrimTwin->PrimPath;
+		}
+	}
+
+	for ( const TPair<FString, UObject*>& PrimPathToAsset : PrimPathsToAssets )
+	{
+		if ( PrimPathToAsset.Value == Object )
+		{
+			return PrimPathToAsset.Key;
+		}
+	}
+	for ( const TPair<FString, UObject*>& HashToAsset : AssetsCache )
+	{
+		if ( HashToAsset.Value == Object )
+		{
+			if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( HashToAsset.Value ) )
+			{
+				return ImportData->PrimPath;
+			}
+		}
+	}
+
+	return FString();
 }
 
 void AUsdStageActor::Clear()
