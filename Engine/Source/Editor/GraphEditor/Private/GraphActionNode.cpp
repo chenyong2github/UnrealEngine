@@ -573,7 +573,7 @@ void FGraphActionNode::InsertChild(TSharedPtr<FGraphActionNode> NodeToAdd)
 			NewSection->Children.Add(NodeToAdd);
 			if (NodeToAdd->IsCategoryNode())
 			{
-				CategoryNodes.Add(NodeToAdd->DisplayText.ToString(), NodeToAdd);
+				NewSection->CategoryNodes.Add(NodeToAdd->DisplayText.ToString(), NodeToAdd);
 			}
 			return;
 		}
@@ -612,9 +612,4 @@ void FGraphActionNode::InsertChild(TSharedPtr<FGraphActionNode> NodeToAdd)
 		CategoryNodes.Add(NodeToAdd->DisplayText.ToString(), NodeToAdd);
 	}
 }
-
-
-
-
-
 
