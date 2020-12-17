@@ -717,13 +717,32 @@ void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCo
 
 				USDViewModels::FPrimPropertyValue AttributeValue;
 				bool bAttrReadOnly = false;
-				const bool bHasAttribute = UsdToUnreal::ConvertVtValue( VtValue, AttributeValue, bAttrReadOnly );
-				if ( !bHasAttribute )
+				const bool bHasValue = UsdToUnreal::ConvertVtValue( VtValue, AttributeValue, bAttrReadOnly );
+
+				if ( bHasValue )
 				{
-					continue;
+					CreatePrimAttribute( AttributeName, AttributeValue, bAttrReadOnly );
 				}
 
-				CreatePrimAttribute( AttributeName, AttributeValue, bAttrReadOnly );
+				if ( PrimAttribute.HasAuthoredConnections() )
+				{
+					const FString ConnectionAttributeName = AttributeName + TEXT(":connect");
+
+					pxr::SdfPathVector ConnectedSources;
+					PrimAttribute.GetConnections( &ConnectedSources );
+
+					for ( pxr::SdfPath& ConnectedSource : ConnectedSources )
+					{
+						USDViewModels::FPrimPropertyValue ConnectionPropertyValue;
+						ConnectionPropertyValue.SourceType = USDViewModels::EUsdBasicDataTypes::String;
+
+						USDViewModels::FPrimPropertyValueComponent ConnectionValueComponent;
+						ConnectionPropertyValue.Components.Emplace( TInPlaceType< FString >(), UsdToUnreal::ConvertPath( ConnectedSource ) );
+
+						const bool bConnectionValueReadOnly = true;
+						CreatePrimAttribute( ConnectionAttributeName, ConnectionPropertyValue, bConnectionValueReadOnly );
+					}
+				}
 			}
 		}
 	}

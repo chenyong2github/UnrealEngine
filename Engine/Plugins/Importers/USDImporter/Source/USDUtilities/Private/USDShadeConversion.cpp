@@ -340,6 +340,7 @@ namespace UsdShadeConversionImpl
 	{
 		UTexture* Texture;
 		int32 UVIndex;
+		int32 OutputIndex = 0;
 	};
 	using FParameterValue = TVariant<float, FVector, FTextureParameterValue>;
 
@@ -422,6 +423,32 @@ namespace UsdShadeConversionImpl
 						FTextureParameterValue OutTextureValue;
 						OutTextureValue.Texture = Texture;
 						OutTextureValue.UVIndex = UVIndex;
+
+						if ( AttributeType == pxr::UsdShadeAttributeType::Output )
+						{
+							const FName OutputName( UsdToUnreal::ConvertToken( SourceName ) );
+
+							if ( OutputName == TEXT("rgb") )
+							{
+								OutTextureValue.OutputIndex = 0;
+							}
+							else if ( OutputName == TEXT("r") )
+							{
+								OutTextureValue.OutputIndex = 1;
+							}
+							else if ( OutputName == TEXT("g") )
+							{
+								OutTextureValue.OutputIndex = 2;
+							}
+							else if ( OutputName == TEXT("b") )
+							{
+								OutTextureValue.OutputIndex = 3;
+							}
+							else if ( OutputName == TEXT("a") )
+							{
+								OutTextureValue.OutputIndex = 4;
+							}
+						}
 
 						OutValue.Set<FTextureParameterValue>( OutTextureValue );
 					}
@@ -585,7 +612,7 @@ namespace UsdShadeConversionImpl
 #endif // WITH_EDITOR
 	}
 
-	void SetVectorParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, FVector ParameterValue )
+	void SetVectorParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, FLinearColor ParameterValue )
 	{
 		FMaterialParameterInfo Info;
 		Info.Name = ParameterName;
@@ -1206,6 +1233,32 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	UsdShadeConversionImpl::FParameterValue ParameterValue;
 
+	auto SetTextureComponentParamForScalarInput = [ &Material ]( const UsdShadeConversionImpl::FParameterValue& InParameterValue, const TCHAR* ParamName )
+	{
+		if ( const UsdShadeConversionImpl::FTextureParameterValue* TextureParameterValue = InParameterValue.TryGet< UsdShadeConversionImpl::FTextureParameterValue >() )
+		{
+			FLinearColor ComponentMask;
+			switch( TextureParameterValue->OutputIndex )
+			{
+			case 0: // RGB, since we are handling scalars here plug red when RGB is requested
+			case 1: // R
+				ComponentMask = FLinearColor{ 1.f, 0.f, 0.f, 0.f };
+				break;
+			case 2: // G
+				ComponentMask = FLinearColor{ 0.f, 1.f, 0.f, 0.f };
+				break;
+			case 3: // B
+				ComponentMask = FLinearColor{ 0.f, 0.f, 1.f, 0.f };
+				break;
+			case 4: // A
+				ComponentMask = FLinearColor{ 0.f, 0.f, 0.f, 1.f };
+				break;
+			}
+
+			UsdShadeConversionImpl::SetVectorParameterValue( Material, ParamName, ComponentMask );
+		}
+	};
+
 	// Base color
 	{
 		const bool bIsNormalMap = false;
@@ -1221,6 +1274,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Metallic" ), ParameterValue );
+			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "MetallicTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1230,6 +1284,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Roughness" ), ParameterValue );
+			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "RoughnessTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1239,6 +1294,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Opacity" ), ParameterValue );
+			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "OpacityTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1280,6 +1336,14 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	UsdShadeConversionImpl::FParameterValue ParameterValue;
 
+	auto SetOutputIndex = []( const UsdShadeConversionImpl::FParameterValue& InParameterValue, int32& OutputIndexToSet )
+	{
+		if ( const UsdShadeConversionImpl::FTextureParameterValue* TextureParameterValue = InParameterValue.TryGet< UsdShadeConversionImpl::FTextureParameterValue >() )
+		{
+			OutputIndexToSet = TextureParameterValue->OutputIndex;
+		}
+	};
+
 	// Base color
 	{
 		const bool bIsNormalMap = false;
@@ -1287,6 +1351,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.BaseColor.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.BaseColor.OutputIndex );
+			
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1297,6 +1363,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Metallic.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.Metallic.OutputIndex );
+
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1307,6 +1375,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Roughness.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.Roughness.OutputIndex );
+
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1317,6 +1387,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Opacity.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.Opacity.OutputIndex );
+
 			Material.BlendMode = BLEND_Translucent;
 			bHasMaterialInfo = true;
 		}
@@ -1329,6 +1401,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Normal.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.Normal.OutputIndex );
+
 			bHasMaterialInfo = true;
 		}
 	}
