@@ -50,10 +50,10 @@ static FAutoConsoleVariableRef CVarNiagaraFailStaticMeshDataInterface(
 	ECVF_Default
 );
 
-static int32 GNDISkelMesh_UseInlineLODsOnly = 0;
-static FAutoConsoleVariableRef CVarNDISkelMesh_UseInlineLODsOnly(
-	TEXT("fx.Niagara.NDISkelMesh.UseInlineLODsOnly"),
-	GNDISkelMesh_UseInlineLODsOnly,
+static int32 GNDIStaticMesh_UseInlineLODsOnly = 1;
+static FAutoConsoleVariableRef CVarNDIStaticMesh_UseInlineLODsOnly(
+	TEXT("fx.Niagara.NDIStaticMesh.UseInlineLODsOnly"),
+	GNDIStaticMesh_UseInlineLODsOnly,
 	TEXT("When enabled Niagara will never use streaming LOD levels, only inline LODs."),
 	ECVF_Default
 );
@@ -333,7 +333,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 #endif
 
 	    MinLOD = Mesh->GetMinLOD().GetValue();
-		if ( GNDISkelMesh_UseInlineLODsOnly )
+		if ( GNDIStaticMesh_UseInlineLODsOnly )
 		{
 			MinLOD = Mesh->GetNumLODs() - Mesh->GetRenderData()->NumInlinedLODs;
 		}
