@@ -233,12 +233,15 @@ public:
 #endif // WITH_EDITOR
 
 private:
+	void ReportError(const FString& InMessage) const;
 
 	FRigHierarchyContainer* Container;
 	FRigBone InvalidBone;
 	FRigControl InvalidControl;
 	FRigSpace InvalidSpace;
 	FRigCurve InvalidCurve;
+
+	bool bReportWarningsAndErrors;
 
 	friend class UControlRigBlueprint;
 };
