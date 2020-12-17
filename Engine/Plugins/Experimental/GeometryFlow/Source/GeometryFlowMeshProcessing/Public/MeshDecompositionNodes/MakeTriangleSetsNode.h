@@ -5,7 +5,7 @@
 #include "GeometryFlowNodeUtil.h"
 #include "DataTypes/DynamicMeshData.h"
 #include "DataTypes/IndexSetsData.h"
-
+#include "Selections/MeshConnectedComponents.h"
 
 namespace UE
 {
@@ -149,6 +149,24 @@ public:
 
 };
 
+
+class FMakeTriangleSetsFromConnectedComponentsNode : public FMakeTriangleSetsFromMeshNode
+{
+
+public:
+
+	virtual void ComputeIndexSets(const FNamedDataMap& DatasIn, const FDynamicMesh3& Mesh, FIndexSets& SetsOut) override
+	{
+		FMeshConnectedComponents MeshRegions(&Mesh);
+		MeshRegions.FindConnectedTriangles();
+
+		for (const FMeshConnectedComponents::FComponent& Component : MeshRegions.Components)
+		{
+			SetsOut.AppendSet(Component.Indices);
+		}
+	}
+
+};
 
 
 
