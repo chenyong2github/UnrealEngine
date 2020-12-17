@@ -19,6 +19,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/ScopeLock.h"
 #include "Stats/Stats.h"
 #include "Internationalization/Regex.h"
 #include "Internationalization/TextLocalizationManager.h"
