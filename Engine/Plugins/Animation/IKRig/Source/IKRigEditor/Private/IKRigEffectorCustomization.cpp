@@ -8,7 +8,6 @@
 #include "IKRigController.h"
 #include "IKRigSolverDefinition.h"
  
-#include "ScopedTransaction.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "SSearchableComboBox.h"
@@ -193,8 +192,6 @@ void FIKRigEffectorCustomization::SetNewGoalName(FName Name)
 	// I have to change the mapping of SolverDefinition
 	if (UIKRigSolverDefinition* SolverDef = IKRigSolverDefinition.Get())
 	{
-		FScopedTransaction Transaction(LOCTEXT("ApplyAdditiveSetting_Transaciton", "Apply Additive Setting"));
-		SolverDef->Modify();
 		IKRigController->SetGoalName(SolverDef, *Effector, Name);
 	}
 }
