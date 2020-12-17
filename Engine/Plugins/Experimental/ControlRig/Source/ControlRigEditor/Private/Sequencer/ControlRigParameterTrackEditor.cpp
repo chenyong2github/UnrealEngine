@@ -175,7 +175,8 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FControlRigParameterTrackEditor::HandleActorAdded);
 	OnTreeViewChangedHandle = InSequencer->OnTreeViewChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnTreeViewChanged);
 
-	InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
+	//REMOVE ME IN UE5
+	//InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
 	{
 		//we check for two things, one if the control rig has been replaced if so we need to switch.
 		//the other is if bound object on the edit mode is null we request a re-evaluate which will reset it up.
@@ -219,7 +220,8 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 						UControlRig* OldControlRig = Track->GetControlRig();
 						UControlRig** NewControlRig = OldToNewControlRigs.Find(OldControlRig);
 						if (NewControlRig)
-						{
+						{  
+							OldControlRig->ClearControlSelection();
 							OldControlRig->ControlModified().RemoveAll(this);
 							OldControlRig->OnInitialized_AnyThread().RemoveAll(this);
 							OldControlRig->ControlSelected().RemoveAll(this);
@@ -284,6 +286,7 @@ FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 {
 	if (GetSequencer().IsValid())
 	{
+		//REMOVE ME IN UE5
 		GetSequencer()->GetObjectChangeListener().GetOnPropagateObjectChanges().RemoveAll(this);
 	}
 }
@@ -1553,8 +1556,11 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	}
 }
 
+//REMOVE ME IN UE5
 void FControlRigParameterTrackEditor::OnPropagateObjectChanges(UObject* InChangedObject)
 {
+	//not needed
+	/*
 	if (AActor* Actor = Cast<AActor>(InChangedObject))
 	{
 		if (UMovieScene* MovieScene = GetFocusedMovieScene())
@@ -1584,6 +1590,7 @@ void FControlRigParameterTrackEditor::OnPropagateObjectChanges(UObject* InChange
 			}
 		}
 	}
+	*/
 }
 
 void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRig, const EControlRigState InState, const FName& InEventName)
