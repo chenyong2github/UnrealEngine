@@ -225,7 +225,7 @@ public class Core : ModuleRules
         }
 
 		// temporary thing.
-		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig() ? "1" : "0"));
+		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig(Target) ? "1" : "0"));
 
         PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));
 
@@ -236,8 +236,8 @@ public class Core : ModuleRules
 		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
 
-	protected virtual bool SupportsBinaryConfig()
+	protected virtual bool SupportsBinaryConfig(ReadOnlyTargetRules Target)
 	{
-		return true;
+		return Target.Platform != UnrealTargetPlatform.Android;
 	}
 }
