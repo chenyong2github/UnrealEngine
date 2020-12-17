@@ -211,7 +211,7 @@ void UBlueprintEditorLibrary::UpgradeOperatorNodes(UBlueprint* Blueprint)
 				ensure(OwningGraph == Graph);
 				
 				// Don't bother with non-promotable functions or things that are already promotable operators
-				if (!FTypePromotion::IsPromotableFunction(Func) || OldOpNode->IsA<UK2Node_PromotableOperator>())
+				if (!FTypePromotion::IsFunctionPromotionReady(Func) || OldOpNode->IsA<UK2Node_PromotableOperator>())
 				{
 					continue;
 				}
