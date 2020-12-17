@@ -249,13 +249,11 @@ public:
 	virtual ~UNiagaraDataInterface();
 
 	// UObject Interface
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	// UObject Interface END
 
-#if WITH_EDITOR
 	/** Does this data interface need setup and teardown for each stage when working a sim stage sim source? */
 	virtual bool SupportsSetupAndTeardownHLSL() const { return false; }
 	/** Generate the necessary HLSL to set up data when being added as a sim stage sim source. */

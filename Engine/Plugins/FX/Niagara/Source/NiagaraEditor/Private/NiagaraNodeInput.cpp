@@ -132,7 +132,7 @@ void UNiagaraNodeInput::AllocateDefaultPins()
 		check(Class->IsChildOf(UNiagaraDataInterface::StaticClass()));
 		if (!DataInterface)
 		{
-			DataInterface = NewObject<UNiagaraDataInterface>(this, Class, NAME_None, RF_Transactional);
+			DataInterface = NewObject<UNiagaraDataInterface>(this, Class, NAME_None, RF_Transactional | RF_Public);
 		}
 	}
 

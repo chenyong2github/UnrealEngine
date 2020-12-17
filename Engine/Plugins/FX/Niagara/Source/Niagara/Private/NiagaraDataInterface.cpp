@@ -38,6 +38,12 @@ bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisi
 	return true;
 }
 
+void UNiagaraDataInterface::PostLoad()
+{
+	Super::PostLoad();
+	SetFlags(RF_Public);
+}
+
 #if WITH_EDITOR
 void UNiagaraDataInterface::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -45,22 +51,6 @@ void UNiagaraDataInterface::PostEditChangeProperty(struct FPropertyChangedEvent&
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
-
-void UNiagaraDataInterface::Serialize(FStructuredArchive::FRecord Record)
-{
-	Super::Serialize(Record);
-	if (Record.GetUnderlyingArchive().IsLoading())
-	{
-		if(GetOuter()->HasAnyFlags(RF_Public))
-		{
-			SetFlags(RF_Public);
-		}
-		else
-		{
-			ClearFlags(RF_Public);
-		}
-	}
-}
 
 bool UNiagaraDataInterface::CopyTo(UNiagaraDataInterface* Destination) const 
 {

@@ -2408,7 +2408,6 @@ void UNiagaraComponent::Serialize(FStructuredArchive::FRecord Record)
 	if (Record.GetUnderlyingArchive().IsLoading())
 	{
 		FixDataInterfaceOuters();
-		FixDataInterfaceObjectFlags();
 
 		// Check the the event handler here as well as in post load since post load isn't always called due to how components are managed when spawning
 		// actors with templates.
@@ -2852,50 +2851,6 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 			OverrideParameterDataInterface->CopyTo(FixedDataInterface);
 			OverrideParameters.SetDataInterface(FixedDataInterface, i);
 		}
-	}
-}
-
-void SetDataInterfaceFlags(UNiagaraDataInterface* DataInterface, bool bComponentIsPublic)
-{
-	if (DataInterface != nullptr)
-	{
-		bool bDataInterfaceIsPublic = DataInterface->HasAnyFlags(RF_Public);
-		if (bDataInterfaceIsPublic != bComponentIsPublic)
-		{
-			if (bComponentIsPublic)
-			{
-				DataInterface->SetFlags(RF_Public);
-			}
-			else
-			{
-				DataInterface->ClearFlags(RF_Public);
-			}
-		}
-	}
-}
-
-void UNiagaraComponent::FixDataInterfaceObjectFlags()
-{
-	bool bComponentIsPublic = HasAnyFlags(RF_Public);
-	auto FixParameterOverrides = [](TMap<FNiagaraVariableBase, FNiagaraVariant>& ParameterOverrides, bool bComponentIsPublic)
-	{
-		for (TPair<FNiagaraVariableBase, FNiagaraVariant>& VariableValuePair : ParameterOverrides)
-		{
-			if (VariableValuePair.Key.IsDataInterface())
-			{
-				SetDataInterfaceFlags(VariableValuePair.Value.GetDataInterface(), bComponentIsPublic);
-			}
-		}
-	};
-
-	// Fix data interfaces in the template and instance overrides.
-	FixParameterOverrides(TemplateParameterOverrides, bComponentIsPublic);
-	FixParameterOverrides(InstanceParameterOverrides, bComponentIsPublic);
-
-	// Fix any additional data interfaces in the override parameters which are still incorrect.
-	for (int32 i = 0; i < OverrideParameters.Num(); i++)
-	{
-		SetDataInterfaceFlags(OverrideParameters.GetDataInterface(i), bComponentIsPublic);
 	}
 }
 
