@@ -201,6 +201,18 @@ void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 	OutEnvironment.SetDefine(TEXT("VF_CARDS_HAIR"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bUseGPUSceneAndPrimitiveIdStream && GPUSceneUseTexture2D(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), RHISupportsManualVertexFetch(Parameters.Platform) ? TEXT("1") : TEXT("0"));
+	
+	// 4.26.x Hotfix - Patch for raytracing shader on Ps5 without touching the vertex factory shader
+	if (IsConsolePlatform(Parameters.Platform) && FGenericDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Parameters.Platform))
+	{
+		if (const FString* IsRTCHS = OutEnvironment.GetDefinitions().Find(TEXT("RT_CHS_FREQUENCY")))
+		{
+			// In order to fix a miss usage of the keyword 'Triangle' within the HarCardsVertexFactory.ush shader, 
+			// we inject some code to replace the Triangle token with a Tri token. This is done only for RayHitGroup 
+			// Shader by injectin the following macro
+			OutEnvironment.SetDefine(TEXT("Triangle"), TEXT("Tri"));
+		}
+	}
 }
 
 void FHairCardsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
