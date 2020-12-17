@@ -351,14 +351,18 @@ uint32 GetPointBudget(float DeltaTime, int64 NumPointsInFrustum)
 					AcumulatedFrameTime.RemoveAt(0);
 				}
 
+				const float MaxTickRate = GEngine->GetMaxTickRate(0.001f, false);
+				const float RequestedTargetFPS = CVarTargetFPS.GetValueOnAnyThread();
+				const float TargetFPS = MaxTickRate > 0 ? FMath::Min(RequestedTargetFPS, MaxTickRate) : RequestedTargetFPS;
+
 				// The -0.5f is to prevent the system treating values as unachievable (as the frame time is usually just under)
-				const float TargetFPS = FMath::Max(FMath::Min(CVarTargetFPS.GetValueOnAnyThread(), GEngine->GetMaxTickRate(0.001f, false)) - 0.5f, 1.0f);
+				const float AdjustedTargetFPS = FMath::Max(TargetFPS - 0.5f, 1.0f);
 
 				TArray<float> CurrentFrameTimes = AcumulatedFrameTime;
 				CurrentFrameTimes.Sort();
 				const float AvgFrameTime = CurrentFrameTimes[CurrentFrameTimes.Num() / 2];
 
-				const int32 DeltaBudget = (1 / TargetFPS - AvgFrameTime) * 10000000;
+				const int32 DeltaBudget = (1 / AdjustedTargetFPS - AvgFrameTime) * 10000000;
 
 				// Not having enough points in frustum to fill the requested budget would otherwise continually increase the value
 				if (DeltaBudget < 0 || NumPointsInFrustum >= CurrentPointBudget)
