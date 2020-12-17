@@ -1367,10 +1367,13 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				}
 			}
 
-			OldVolumeData->VolumeTexture.Release();
+			if (OldVolumeData)
+			{
+				OldVolumeData->VolumeTexture.Release();
 
-			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
-			BeginCleanup(OldVolumeData);
+				// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
+				BeginCleanup(OldVolumeData);
+			}
 
 			{
 				TArray<uint8> DerivedData;
