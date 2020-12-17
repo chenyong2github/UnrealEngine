@@ -16,8 +16,10 @@
 #include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
+#ifdef CADKERNELLIB
 #include "CADKernel/Mesh/Structure/SurfaceMesh.h"
 #include "CADKernel/Math/Point.h"
+#endif
 
 namespace CADLibrary 
 {
@@ -572,10 +574,14 @@ void FCoreTechFileParser::ReadMaterials()
 FCoreTechFileParser::FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath, const FString& InCachePath)
 	: CachePath(InCachePath)
 	, ImportParameters(ImportParams)
+#ifdef CADKERNELLIB
 	, CoreTechBridge()
+#endif
 {
 	CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
+#ifdef CADKERNELLIB
 	CoreTechBridge.InitializeCADKernel(0.00001 / ImportParams.MetricUnit);
+#endif
 }
 
 bool FCoreTechFileParser::FindFile(FFileDescription& File)
@@ -818,7 +824,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	return EProcessResult::ProcessOk;
 }
 
-	CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption()
+CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption()
 {
 	// Set import option
 	CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
@@ -1131,6 +1137,7 @@ uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet)
 	return size;
 }
 
+#ifdef CADKERNELLIB
 void FCoreTechFileParser::DefineMeshCriteria(FIdent MeshModelId)
 {
 	TArray<FIdent> Criteria;
@@ -1254,6 +1261,7 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID CTBodyId, CT_OBJECT_I
 		FaceIndex++;
 	}
 }
+#endif
 
 void FCoreTechFileParser::GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair)
 {
@@ -1394,6 +1402,7 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, u
 	CT_FLAGS BodyProperties;
 	CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
+#ifdef CADKERNELLIB
 	if (ImportParameters.bEnableKernelIOTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
 	{
 		GetKioBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair);
@@ -1402,6 +1411,9 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, u
 	{
 		GetBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair, BodyFile);
 	}
+#else
+	GetKioBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair);
+#endif
 	SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMeshes[BodyMeshIndex].ColorSet;
 	SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMeshes[BodyMeshIndex].MaterialSet;
 	

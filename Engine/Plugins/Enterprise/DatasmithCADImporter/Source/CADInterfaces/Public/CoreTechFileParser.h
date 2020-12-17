@@ -19,7 +19,9 @@
 #endif // CAD_INTERFACE
 
 #ifdef CAD_INTERFACE // temporary in the wait of a full integration in UE
+#ifdef CADKERNELLIB
 #include "CADKernel/CADInterface/CoreTech/CoreTechBridge.h"
+#endif
 #endif // CAD_INTERFACE
 
 struct FFileStatData;
@@ -69,9 +71,11 @@ public:
 
 	void GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair);
 
+#ifdef CADKERNELLIB
 	void GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair, FString BodyFile);
 	uint32 GetFaceTessellation(FIdent FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams);
 	void DefineMeshCriteria(FIdent MeshModelId);
+#endif	
 
 	TSet<FFileDescription>& GetExternalRefSet()
 	{
@@ -143,7 +147,9 @@ protected:
 
 	const FImportParameters& ImportParameters;
 
+#ifdef CADKERNELLIB
 	CADKernel::FCoreTechBridge CoreTechBridge;
+#endif
 };
 
 #endif // CAD_INTERFACE
