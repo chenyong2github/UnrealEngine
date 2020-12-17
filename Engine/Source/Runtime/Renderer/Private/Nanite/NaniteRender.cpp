@@ -4005,7 +4005,7 @@ void EmitDepthTargets(
 					TStaticBlendState<>::GetRHI(),
 					TStaticRasterizerState<>::GetRHI(),
 					TStaticDepthStencilState<false, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
-					StencilDecalMask
+					StencilDecalMask | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1)
 				);
 			}
 		}

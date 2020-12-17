@@ -37,7 +37,7 @@ static const int32 NumTranslucencyShadowSurfaces = 2;
 *		BIT ID    | USE
 *		[0]       | sandbox bit (bit to be use by any rendering passes, but must be properly reset to 0 after using)
 *		[1]       | unallocated
-*		[2]       | unallocated
+*		[2]       | Distance Field Representation
 *		[3]       | Temporal AA mask for translucent object.
 *		[4]       | Lighting channels
 *		[5]       | Lighting channels
@@ -47,6 +47,8 @@ static const int32 NumTranslucencyShadowSurfaces = 2;
 * After deferred decals, stencil is cleared to 0 and no longer packed in this way, to ensure use of fast hardware clears and HiStencil.
 */
 #define STENCIL_SANDBOX_BIT_ID				0
+// Must match usf
+#define STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID 2
 #define STENCIL_TEMPORAL_RESPONSIVE_AA_BIT_ID 3
 #define STENCIL_LIGHTING_CHANNELS_BIT_ID	4
 #define STENCIL_RECEIVE_DECAL_BIT_ID		7

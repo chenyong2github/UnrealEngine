@@ -161,6 +161,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeRelativeSpeedDifferenceToConsiderLig
 	ECVF_RenderThreadSafe
 	);
 
+float GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback = 2;
+FAutoConsoleVariableRef CVarLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.ThicknessScaleWhenNoFallback"),
+	GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback,
+	TEXT("Larger scales effectively treat depth buffer surfaces as thicker for screen traces when there is no Distance Field present to resume the occluded ray."),
+	ECVF_RenderThreadSafe
+	);
+
 int32 GLumenScreenProbeSpatialFilter = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeFilter(
 	TEXT("r.Lumen.ScreenProbeGather.SpatialFilterProbes"),
@@ -727,6 +735,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
+	FRDGTextureRef LightingChannelsTexture,
 	const FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
 	bool bSSGI,
@@ -739,6 +748,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	check(ShouldRenderLumenDiffuseGI(View));
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+
+	if (!LightingChannelsTexture)
+	{
+		LightingChannelsTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	}
 
 	if (!GLumenScreenProbeGather)
 	{
@@ -771,6 +785,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
 	ScreenProbeParameters.ScreenProbeGatherMaxMip = GLumenScreenProbeGatherNumMips - 1;
 	ScreenProbeParameters.RelativeSpeedDifferenceToConsiderLightingMoving = GLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving;
+	ScreenProbeParameters.ScreenTraceNoFallbackThicknessScale = Lumen::UseHardwareRayTracedScreenProbeGather() ? 1.0f : GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback;
 	ScreenProbeParameters.AdaptiveScreenTileSampleResolution = GLumenScreenProbeGatherAdaptiveScreenTileSampleResolution;
 	ScreenProbeParameters.NumUniformScreenProbes = ScreenProbeParameters.ScreenProbeViewSize.X * ScreenProbeParameters.ScreenProbeViewSize.Y;
 	ScreenProbeParameters.MaxNumAdaptiveProbes = FMath::TruncToInt(ScreenProbeParameters.NumUniformScreenProbes * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
@@ -923,6 +938,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GLumenGatherCvars.TraceCards != 0,
 		SceneTexturesUniformBuffer,
 		PrevSceneColorMip,
+		LightingChannelsTexture,
 		TracingInputs,
 		RadianceCacheParameters,
 		ScreenProbeParameters,
@@ -938,7 +954,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	if (LumenScreenProbeGather::UseScreenSpaceBentNormal())
 	{
-		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, ScreenProbeParameters);
+		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, LightingChannelsTexture, ScreenProbeParameters);
 	}
 
 	FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);

@@ -85,6 +85,9 @@ void ScreenProbeTraceScreenTexturesCS(
 
 			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
+			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
+			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
+
 			{
 				float TraceDistance = MaxTraceDistance;
 				bool bCoveredByRadianceCache = false;
@@ -106,7 +109,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					TraceDistance,
 					HZBUvFactorAndInvFactor,
 					MaxHierarchicalScreenTraceIterations, 
-					UncertainTraceRelativeDepthThreshold,
+					UncertainTraceRelativeDepthThreshold * DepthThresholdScale,
 					NumThicknessStepsToDetermineCertainty,
 					bHit,
 					bUncertain,
@@ -142,7 +145,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					WorldPosition + View.PreViewTranslation, WorldConeDirection,
 					/* WorldTMax = */ TraceDistance,
 					/* SceneDepth = */ SceneDepth,
-					/* SlopeCompareToleranceScale */ 2.0f,
+					/* SlopeCompareToleranceScale */ 2.0f * DepthThresholdScale,
 					/* bExtendRayToScreenBorder = */ false,
 					/* out */ bRayWasClipped);
 

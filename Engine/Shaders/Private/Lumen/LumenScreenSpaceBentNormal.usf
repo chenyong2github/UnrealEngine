@@ -44,6 +44,7 @@ void ScreenSpaceBentNormalCS(
 			uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 			float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 			float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
+			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
 
 			uint NumPixelSamples = 4;
 
@@ -82,7 +83,7 @@ void ScreenSpaceBentNormalCS(
 						WorldPosition + View.PreViewTranslation, RayDirection,
 						/* WorldTMax = */ TraceDistance,
 						/* SceneDepth = */ SceneDepth,
-						/* SlopeCompareToleranceScale */ 2.0f,
+						/* SlopeCompareToleranceScale */ 2.0f * DepthThresholdScale,
 						/* bExtendRayToScreenBorder = */ false,
 						/* out */ bRayWasClipped);
 

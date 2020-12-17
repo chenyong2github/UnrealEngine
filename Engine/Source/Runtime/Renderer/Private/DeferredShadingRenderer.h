@@ -428,6 +428,7 @@ private:
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,
+		FRDGTextureRef LightingChannelsTexture,
 		FHairStrandsRenderingData* HairDatas,
 		bool bIsVisualizePass);
 
@@ -477,6 +478,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
+		FRDGTextureRef LightingChannelsTexture,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		bool bSSGI,

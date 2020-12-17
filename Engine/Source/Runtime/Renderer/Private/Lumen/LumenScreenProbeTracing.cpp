@@ -94,6 +94,7 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonScreenSpaceRayParameters, ScreenSpaceRayParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
 		SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
 		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
@@ -518,6 +519,7 @@ void TraceScreenProbes(
 	bool bTraceCards,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
+	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
@@ -565,6 +567,7 @@ void TraceScreenProbes(
 		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
 		PassParameters->ClosestHZBTexture = View.ClosestHZB;
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
+		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;

@@ -537,7 +537,7 @@ void ScreenProbeIndirectCS(
 			uint DiffuseIntegrationMethod = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID) ? IMPORTANCE_SAMPLE_BRDF : DIFFUSE_INTEGRAL_METHOD;
 			
 			#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-			if (GBufferData.GBufferAO < 1.0f)
+			if (GBufferData.DiffuseIndirectSampleOcclusion != 0)
 			{
 				DiffuseIntegrationMethod = IMPORTANCE_SAMPLE_BRDF;
 			}
@@ -581,22 +581,21 @@ void ScreenProbeIndirectCS(
 
 					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 						bool bIsBentNormalOccluded = (GBufferData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
-						float DirectionalOcclusion = bIsBentNormalOccluded ? 0 : 1;
+						float DirectionVisibility = bIsBentNormalOccluded ? 0 : 1;
 					#else
-						float DirectionalOcclusion = 1.0f;
+						float DirectionVisibility = 1.0f;
 					#endif
 
 					#if SCREEN_SPACE_BENT_NORMAL
 						float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
-						DirectionalOcclusion *= LVisibility < VisibilityThreshold ? 0 : 1;
+						DirectionVisibility *= LVisibility < VisibilityThreshold ? 0 : 1;
 					#endif
 
-					DiffuseLighting += InterpolatedRadiance * BxDFSample.Weight * DirectionalOcclusion;
+					DiffuseLighting += InterpolatedRadiance * BxDFSample.Weight * DirectionVisibility;
 				}
 
 				DiffuseLighting = DiffuseLighting * PI / ((float)NumPixelSamples * AO);
 
-				BRANCH
 				if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
 				{
 					DiffuseLighting *= -min(-rcp(GBufferData.BaseColor), 0.0);

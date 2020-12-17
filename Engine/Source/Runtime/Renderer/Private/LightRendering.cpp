@@ -2663,23 +2663,25 @@ IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/Downs
 
 FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureSRVRef SceneStencilTexture)
 {
-	bool bAnyViewUsesLightingChannels = false;
+	static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
+	// Lumen uses a bit in stencil
+	bool bNeedToCopyStencilToTexture = CVarLumen->GetInt() > 0;
 
 	for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
 	{
-		bAnyViewUsesLightingChannels = bAnyViewUsesLightingChannels || Views[ViewIndex].bUsesLightingChannels;
+		bNeedToCopyStencilToTexture = bNeedToCopyStencilToTexture || Views[ViewIndex].bUsesLightingChannels;
 	}
 
 	FRDGTextureRef LightingChannelsTexture = nullptr;
 
-	if (bAnyViewUsesLightingChannels)
+	if (bNeedToCopyStencilToTexture)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "CopyStencilToLightingChannels");
 
 		{
 			check(SceneStencilTexture && SceneStencilTexture->Desc.Texture);
 			const FIntPoint TextureExtent = SceneStencilTexture->Desc.Texture->Desc.Extent;
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(TextureExtent, PF_R16_UINT, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(TextureExtent, PF_R8_UINT, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 			LightingChannelsTexture = GraphBuilder.CreateTexture(Desc, TEXT("LightingChannels"));
 		}
 

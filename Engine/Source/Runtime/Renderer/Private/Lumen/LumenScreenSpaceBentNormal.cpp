@@ -22,6 +22,7 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
 		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
@@ -50,6 +51,7 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
+	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters)
 {
 	FScreenSpaceBentNormalParameters OutParameters;
@@ -64,6 +66,7 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
 
 		const FVector2D ViewportUVToHZBBufferUV(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),

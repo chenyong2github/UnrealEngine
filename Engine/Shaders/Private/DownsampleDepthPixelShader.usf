@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Common.ush"
+#include "DeferredShadingCommon.ush"
 #include "SceneTexturesCommon.ush"
 
 // This must match EDownsampleDepthFilter
@@ -84,7 +85,8 @@ void Main(
 #define STENCIL_LIGHTING_CHANNELS_SHIFT 0
 #endif
 
-Texture2D<uint2> SceneStencilTexture;
+// Must match C++
+#define STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID 2
 
 void CopyStencilToLightingChannelsPS(  
 	noperspective float4 InUV : TEXCOORD0,
@@ -96,5 +98,6 @@ void CopyStencilToLightingChannelsPS(
 	uint ShiftedStencil = Stencil >> STENCIL_LIGHTING_CHANNELS_SHIFT;
 	// Flip the lowest channel bit, it was stored inverted so we can clear stencil to 0 as a default
 	uint LightingChannels = (ShiftedStencil & 0x6) | (~ShiftedStencil & 0x1);
-	OutValue = LightingChannels;
+	uint HasDistanceFieldRepresentationMask = ((Stencil >> STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID) & 0x1) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+	OutValue = LightingChannels | HasDistanceFieldRepresentationMask;
 }

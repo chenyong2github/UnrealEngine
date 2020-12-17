@@ -879,3 +879,5 @@ float3 AOMultiBounce(float3 BaseColor, float AO)
 	float3 c = 2.7552 * BaseColor + 0.6903;
 	return max(AO, ((AO * a + b) * AO + c) * AO);
 }
+
+#define LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT 3

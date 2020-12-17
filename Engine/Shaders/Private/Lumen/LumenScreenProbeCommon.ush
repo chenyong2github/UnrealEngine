@@ -28,6 +28,7 @@ uint2 ScreenProbeGatherBufferSize;
 
 float ScreenProbeGatherMaxMip;
 float RelativeSpeedDifferenceToConsiderLightingMoving;
+float ScreenTraceNoFallbackThicknessScale;
 
 // Downsample factor from full res to Screen Probe res
 uint ScreenProbeDownsampleFactor;
@@ -286,4 +287,11 @@ void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout u
 	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
 	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
 	TraceHitDistance = asfloat(TraceTexelData.y);
+}
+
+Texture2D<uint> LightingChannelsTexture;
+
+bool HasDistanceFieldRepresentation(float2 ScreenUV)
+{
+	return (LightingChannelsTexture[(int2)(ScreenUV * View.BufferSizeAndInvSize.xy)] & (1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT)) != 0;
 }

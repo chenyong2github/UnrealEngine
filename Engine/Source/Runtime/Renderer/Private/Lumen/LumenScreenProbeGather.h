@@ -57,6 +57,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(FIntPoint, ScreenProbeGatherBufferSize)
 	SHADER_PARAMETER(float, ScreenProbeGatherMaxMip)
 	SHADER_PARAMETER(float, RelativeSpeedDifferenceToConsiderLightingMoving)
+	SHADER_PARAMETER(float, ScreenTraceNoFallbackThicknessScale)
 	SHADER_PARAMETER(uint32, AdaptiveScreenTileSampleResolution)
 	SHADER_PARAMETER(uint32, NumUniformScreenProbes)
 	SHADER_PARAMETER(uint32, MaxNumAdaptiveProbes)
@@ -111,6 +112,7 @@ extern void TraceScreenProbes(
 	bool bTraceCards,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
+	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
@@ -144,4 +146,5 @@ extern FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters);

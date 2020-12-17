@@ -207,6 +207,9 @@ void EmitSceneDepthStencilPS
 		{
 			OutStencil = StencilClear;
 		}
+
+		//@todo - proper support
+		OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
 	}
 	else
 	{

@@ -689,6 +689,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
+	FRDGTextureRef LightingChannelsTexture,
 	FHairStrandsRenderingData* InHairDatas,
 	bool bIsVisualizePass)
 {
@@ -770,6 +771,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				GraphBuilder, 
 				SceneTextures.UniformBuffer,
 				PrevSceneColorMip, 
+				LightingChannelsTexture,
 				View,
 				&View.PrevViewInfo,
 				ViewPipelineState.bEnableSSGI,
