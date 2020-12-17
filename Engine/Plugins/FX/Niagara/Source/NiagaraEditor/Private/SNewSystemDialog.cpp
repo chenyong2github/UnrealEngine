@@ -23,6 +23,17 @@ typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 void SNewSystemDialog::Construct(const FArguments& InArgs)
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	
+	FNiagaraAssetPickerListViewOptions TemplateOnlyViewOptions;
+	TemplateOnlyViewOptions.SetOnlyShowTemplatesAndCategorizeByAssetPath(true);
+	TemplateOnlyViewOptions.SetExpandTemplateAndLibraryAssets(true);
+	TemplateOnlyViewOptions.SetCategorizeTemplateAssets(true);
+	TemplateOnlyViewOptions.SetCategorizeLibraryAssets(true);
+
+	FNiagaraAssetPickerListViewOptions DisplayAllViewOptions;
+	DisplayAllViewOptions.SetExpandTemplateAndLibraryAssets(true);
+	DisplayAllViewOptions.SetCategorizeTemplateAssets(true);
+	DisplayAllViewOptions.SetCategorizeLibraryAssets(true);
 
 	SNiagaraNewAssetDialog::Construct(SNiagaraNewAssetDialog::FArguments(), UNiagaraSystem::StaticClass()->GetFName(), LOCTEXT("AssetTypeName", "system"),
 		{
@@ -38,7 +49,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(EmitterAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
 					.OnTemplateAssetActivated(this, &SNewSystemDialog::OnEmitterAssetsActivated)
-					.bTemplateOnly(false)
+					.ViewOptions(DisplayAllViewOptions)
 					.bAllowMultiSelect(true)
 				]
 				+ SVerticalBox::Slot()
@@ -92,7 +103,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedSystemTemplateAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(TemplateAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.bTemplateOnly(true)),
+				.ViewOptions(TemplateOnlyViewOptions)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherSystemLabel", "Copy existing system"),
 				LOCTEXT("CreateFromOtherSystemDescription", "Copies an existing system from your project content and maintains any inheritance of the included emitters"),
@@ -100,7 +111,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectSystemAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.bTemplateOnly(false)),
+				.ViewOptions(DisplayAllViewOptions)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create empty system"),
 				LOCTEXT("CreateEmptyDescription", "Create an empty system with no emitters or emitter templates"),

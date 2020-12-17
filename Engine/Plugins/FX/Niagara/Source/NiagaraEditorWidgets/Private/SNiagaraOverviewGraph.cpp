@@ -11,8 +11,6 @@
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraObjectSelection.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorCommands.h"
@@ -26,6 +24,8 @@
 #include "EdGraph/EdGraphNode.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
+#include "Widgets/SItemSelector.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
@@ -305,21 +305,10 @@ void SNiagaraOverviewGraph::OnNodeTitleCommitted(const FText& NewText, ETextComm
 
 void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph)
 {
-	FAssetPickerConfig AssetPickerConfig;
-	{
-		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateLambda([this, InGraph](const FAssetData& AssetData)
-		{
-			FSlateApplication::Get().DismissAllMenus();
-			ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
-		});
-		AssetPickerConfig.bAllowNullSelection = false;
-		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
-		AssetPickerConfig.OnShouldFilterAsset.BindSP(this, &SNiagaraOverviewGraph::ShouldFilterEmitter);
-		AssetPickerConfig.RefreshAssetViewDelegates.Add(&RefreshAssetView);
-	}
-
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	TArray<FRefreshItemSelectorDelegate*> RefreshItemSelectorDelegates;
+	RefreshItemSelectorDelegates.Add(&RefreshItemSelector);
+	FNiagaraAssetPickerListViewOptions ViewOptions;
+	ViewOptions.SetCategorizeUserDefinedCategory(true);
 
 	TSharedRef<SWidget> EmitterAddSubMenu =
 		SNew(SBorder)
@@ -367,7 +356,15 @@ void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilde
 				.WidthOverride(300.0f)
 				.HeightOverride(300.0f)
 				[
-					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+					SNew(SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+					.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
+					.ViewOptions(ViewOptions)
+					.OnDoesAssetPassCustomFilter(this, &SNiagaraOverviewGraph::ShouldFilterEmitter)
+					.RefreshItemSelectorDelegates(RefreshItemSelectorDelegates)
+					.OnTemplateAssetActivated_Lambda([this, InGraph](const FAssetData& AssetData) {
+						FSlateApplication::Get().DismissAllMenus();
+						ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
+					})
 				]
 			]
 		];
@@ -429,7 +426,7 @@ void SNiagaraOverviewGraph::OnDistributeNodesV()
 void SNiagaraOverviewGraph::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
 {
 	SNiagaraOverviewGraph::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshAssetView.ExecuteIfBound(true);
+	RefreshItemSelector.ExecuteIfBound();
 }
 
 ECheckBoxState SNiagaraOverviewGraph::GetLibraryCheckBoxState() const
@@ -440,7 +437,7 @@ ECheckBoxState SNiagaraOverviewGraph::GetLibraryCheckBoxState() const
 void SNiagaraOverviewGraph::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
 {
 	SNiagaraOverviewGraph::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshAssetView.ExecuteIfBound(true);
+	RefreshItemSelector.ExecuteIfBound();
 }
 
 ECheckBoxState SNiagaraOverviewGraph::GetTemplateCheckBoxState() const
@@ -490,7 +487,7 @@ bool SNiagaraOverviewGraph::ShouldFilterEmitter(const FAssetData& AssetData)
 		bScriptAllowed &= bIsTemplate;
 	}
 
-	return !bScriptAllowed;
+	return bScriptAllowed;
 }
 
 
