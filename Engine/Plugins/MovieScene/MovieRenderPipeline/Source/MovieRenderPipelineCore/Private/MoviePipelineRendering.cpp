@@ -157,6 +157,7 @@ void UMoviePipeline::RenderFrame()
 	check(OutputSettings);
 
 	FIntPoint TileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
+	FIntPoint OriginalTileCount = TileCount;
 	FIntPoint OutputResolution = OutputSettings->OutputResolution;
 
 	int32 NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
@@ -339,7 +340,7 @@ void UMoviePipeline::RenderFrame()
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
 
-				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputSettings->OutputResolution.X / TileCount.X), FMath::CeilToInt(OutputSettings->OutputResolution.Y / TileCount.Y));
+				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputSettings->OutputResolution.X / OriginalTileCount.X), FMath::CeilToInt(OutputSettings->OutputResolution.Y / OriginalTileCount.Y));
 				FIntPoint TileResolution = BackbufferResolution;
 
 				// Apply size padding.
