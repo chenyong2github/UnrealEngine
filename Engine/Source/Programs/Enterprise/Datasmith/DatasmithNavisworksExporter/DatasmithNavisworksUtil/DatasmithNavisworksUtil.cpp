@@ -4,6 +4,8 @@
 
 #include "TriangleReaderNative.h"
 
+#include <clocale>
+
 
 DatasmithNavisworksUtil::GeometrySettings::GeometrySettings()
 	: Handle(new DatasmithNavisworksUtilImpl::FGeometrySettings)
@@ -245,3 +247,26 @@ void DatasmithNavisworksUtil::TriangleReader::ReleaseGeometry(Geometry^ Geometry
 	}
 }
 
+DatasmithNavisworksUtil::UnrealLocale::UnrealLocale()
+{
+	// Store current numeric locale and install default, which has '.'(dot) as decimal separator
+	wchar_t* LocaleNamePtr = _wsetlocale(LC_NUMERIC, nullptr);
+	StoredLocale = _wcsdup(LocaleNamePtr);
+	_wsetlocale(LC_NUMERIC, L"C");
+}
+
+DatasmithNavisworksUtil::UnrealLocale::~UnrealLocale()
+{
+	this->!UnrealLocale();
+	StoredLocale = nullptr;
+}
+
+DatasmithNavisworksUtil::UnrealLocale::!UnrealLocale()
+{
+	free(StoredLocale);
+}
+
+void DatasmithNavisworksUtil::UnrealLocale::RestoreLocale()
+{
+	_wsetlocale(LC_NUMERIC, StoredLocale);
+}

@@ -99,7 +99,10 @@ static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 
 
 	TCHAR ErrorString[MAX_SPRINTF];
 	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Expr));
-	GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, DescriptionString);
+	if (GError)
+	{
+		GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, DescriptionString);
+	}
 }
 
 /**
