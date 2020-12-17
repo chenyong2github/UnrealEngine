@@ -148,6 +148,73 @@ namespace WorldPartitionTests
 		TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
 		TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
 		TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
+
+		// Move tests
+		{
+			// Handle move
+			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
+			TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
+			{
+				FWorldPartitionSoftRef HandleCopy(MoveTemp(Handle));
+				TestTrue(TEXT("Handle move src not valid"), !Handle.IsValid());
+				TestTrue(TEXT("Handle move dst valid"), HandleCopy.IsValid());
+				TestTrue(TEXT("Handle soft refcount"), HandleCopy->GetSoftRefCount() == 1);
+				TestTrue(TEXT("Handle hard refcount"), HandleCopy->GetHardRefCount() == 0);
+
+				Handle = MoveTemp(HandleCopy);
+				TestTrue(TEXT("Handle move src not valid"), !HandleCopy.IsValid());
+				TestTrue(TEXT("Handle move dst valid"), Handle.IsValid());
+				TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
+				TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
+			}
+
+			// Reference move
+			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
+			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
+			{
+				FWorldPartitionHardRef ReferenceCopy(MoveTemp(Reference));
+				TestTrue(TEXT("Reference move src not valid"), !Reference.IsValid());
+				TestTrue(TEXT("Reference move dst valid"), ReferenceCopy.IsValid());
+				TestTrue(TEXT("Reference soft refcount"), ReferenceCopy->GetSoftRefCount() == 0);
+				TestTrue(TEXT("Reference hard refcount"), ReferenceCopy->GetHardRefCount() == 1);
+
+				Reference = MoveTemp(ReferenceCopy);
+				TestTrue(TEXT("Reference move src not valid"), !ReferenceCopy.IsValid());
+				TestTrue(TEXT("Reference move dst valid"), Reference.IsValid());
+				TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
+				TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
+			}
+
+			// Handle reference move
+			{
+				FWorldPartitionSoftRef HandleFromReference(MoveTemp(Reference));
+				TestTrue(TEXT("Handle move src not valid"), !Reference.IsValid());
+				TestTrue(TEXT("Handle move dst valid"), HandleFromReference.IsValid());
+				TestTrue(TEXT("Handle soft refcount"), HandleFromReference->GetSoftRefCount() == 1);
+				TestTrue(TEXT("Handle hard refcount"), HandleFromReference->GetHardRefCount() == 0);
+
+				Reference = MoveTemp(HandleFromReference);
+				TestTrue(TEXT("Handle move src not valid"), !HandleFromReference.IsValid());
+				TestTrue(TEXT("Handle move dst valid"), Reference.IsValid());
+				TestTrue(TEXT("Handle soft refcount"), Reference->GetSoftRefCount() == 0);
+				TestTrue(TEXT("Handle hard refcount"), Reference->GetHardRefCount() == 1);
+			}
+
+			// Reference handle move
+			{
+				FWorldPartitionHardRef ReferenceFromHandle(MoveTemp(Handle));
+				TestTrue(TEXT("Reference move src not valid"), !Handle.IsValid());
+				TestTrue(TEXT("Reference move dst valid"), ReferenceFromHandle.IsValid());
+				TestTrue(TEXT("Reference soft refcount"), ReferenceFromHandle->GetSoftRefCount() == 0);
+				TestTrue(TEXT("Reference hard refcount"), ReferenceFromHandle->GetHardRefCount() == 1);
+
+				Handle = MoveTemp(ReferenceFromHandle);
+				TestTrue(TEXT("Reference move src not valid"), !ReferenceFromHandle.IsValid());
+				TestTrue(TEXT("Reference move dst valid"), Handle.IsValid());
+				TestTrue(TEXT("Reference soft refcount"), Handle->GetSoftRefCount() == 1);
+				TestTrue(TEXT("Reference hard refcount"), Handle->GetHardRefCount() == 0);
+			}
+		}
 #endif
 		return true;
 	}

@@ -53,7 +53,7 @@ public:
 	FORCEINLINE TWorldPartitionHandle(TWorldPartitionHandle&& Other)
 		: ActorDesc(nullptr)
 	{
-		*this = Other;
+		*this = MoveTemp(Other);
 	}
 
 	// Conversions
@@ -68,7 +68,7 @@ public:
 	FORCEINLINE TWorldPartitionHandle<Impl>(TWorldPartitionHandle<T>&& Other)
 		: ActorDesc(nullptr)
 	{
-		*this = Other;
+		*this = MoveTemp(Other);
 	}
 
 	FORCEINLINE ~TWorldPartitionHandle()
@@ -81,21 +81,19 @@ public:
 
 	FORCEINLINE TWorldPartitionHandle& operator=(const TWorldPartitionHandle& Other)
 	{
-		if ((void*)this == (void*)&Other)
+		if (this != &Other)
 		{
-			return *this;
-		}
+			if (IsValid())
+			{
+				DecRefCount();
+			}
 
-		if (IsValid())
-		{
-			DecRefCount();
-		}
+			ActorDesc = Other.ActorDesc;
 
-		ActorDesc = Other.ActorDesc;
-
-		if (IsValid())
-		{
-			IncRefCount();
+			if (IsValid())
+			{
+				IncRefCount();
+			}
 		}
 
 		return *this;
@@ -103,22 +101,14 @@ public:
 
 	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(TWorldPartitionHandle&& Other)
 	{
-		if ((void*)this == (void*)&Other)
+		if (this != &Other)
 		{
-			return *this;
-		}
+			if (IsValid())
+			{
+				DecRefCount();
+			}
 
-		if (IsValid())
-		{
-			DecRefCount();
-		}
-
-		ActorDesc = Other.ActorDesc;
-
-		if (IsValid())
-		{
-			IncRefCount();
-			Other.DecRefCount();
+			ActorDesc = Other.ActorDesc;
 			Other.ActorDesc = nullptr;
 		}
 
@@ -129,11 +119,6 @@ public:
 	template <typename T>
 	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(const TWorldPartitionHandle<T>& Other)
 	{
-		if ((void*)this == (void*)&Other)
-		{
-			return *this;
-		}
-
 		if (IsValid())
 		{
 			DecRefCount();
@@ -152,11 +137,6 @@ public:
 	template <typename T>
 	FORCEINLINE TWorldPartitionHandle<Impl>& operator=(TWorldPartitionHandle<T>&& Other)
 	{
-		if ((void*)this == (void*)&Other)
-		{
-			return *this;
-		}
-
 		if (IsValid())
 		{
 			DecRefCount();
@@ -227,7 +207,7 @@ public:
 		return !(*this == Other);
 	}
 
-protected:
+public:
 	FORCEINLINE void IncRefCount()
 	{
 		Impl::IncRefCount(ActorDesc->Get());
@@ -238,7 +218,6 @@ protected:
 		Impl::DecRefCount(ActorDesc->Get());
 	}
 
-public:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 
