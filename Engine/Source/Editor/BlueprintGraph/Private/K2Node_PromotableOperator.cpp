@@ -136,38 +136,6 @@ void UK2Node_PromotableOperator::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 			)
 		);
 	}
-
-	// If there are possible function conversions that can happen 
-	if (Context->Pin && PossibleConversions.Num() > 0 && !Context->bIsDebugging && HasAnyConnectionsOrDefaults())
-	{
-		FToolMenuSection& Section = Menu->AddSection("K2NodePromotableOperator", LOCTEXT("ConvFunctionHeader", "Convert Function"));
-		const UFunction* CurFunction = GetTargetFunction();
-
-		for (const UFunction* Func : PossibleConversions)
-		{
-			// Don't need to convert to a function if we are already set to it
-			if (Func == CurFunction)
-			{
-				continue;
-			}
-
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("TargetName"), GetUserFacingFunctionName(Func));
-			FText ConversionName = FText::Format(LOCTEXT("CallFunction_Tooltip", "Convert node to function '{TargetName}'"), Args);
-
-			const FText Tooltip = FText::FromString(GetDefaultTooltipForFunction(Func));
-
-			Section.AddMenuEntry(
-				Func->GetFName(),
-				ConversionName,
-				Tooltip,
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateUObject(const_cast<UK2Node_PromotableOperator*>(this), &UK2Node_PromotableOperator::ConvertNodeToFunction, Func, const_cast<UEdGraphPin*>(Context->Pin))
-				)
-			);
-		}
-	}
 }
 
 FText UK2Node_PromotableOperator::GetTooltipText() const
@@ -884,8 +852,6 @@ void UK2Node_PromotableOperator::ResetNodeToWildcard()
 		}
 	}
 
-	// Clear out any possible function matches, since we are removing connections
-	PossibleConversions.Empty();
 	GetGraph()->NotifyGraphChanged();
 }
 
@@ -986,21 +952,6 @@ void UK2Node_PromotableOperator::GetPinsToConsider(TArray<UEdGraphPin*>& OutArra
 			}
 		}
 	}
-}
-
-void UK2Node_PromotableOperator::ConvertNodeToFunction(const UFunction* Function, UEdGraphPin* ChangedPin)
-{
-	const FScopedTransaction Transaction(LOCTEXT("ConvertPromotableOpToFunction", "Change the function signature of a promotable operator node."));
-	Modify();
-	RecombineAllSplitPins();
-
-	// If we convert the node to a function, then just get rid of the additional pins
-	NumAdditionalInputs = 0;
-
-	UpdatePinsFromFunction(Function, ChangedPin);
-
-	// Reconstruct this node to fix any default values that may be invalid now
-	ReconstructNode();
 }
 
 void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Function, UEdGraphPin* ChangedPin /* = nullptr */)
@@ -1141,40 +1092,6 @@ void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Functio
 	// We need to notify the graph that the node has changed to get 
 	// the correct default value text boxes on the node
 	GetGraph()->NotifyGraphChanged();
-}
-
-void UK2Node_PromotableOperator::UpdatePossibleConversionFuncs()
-{
-	// Pins can be empty if we are doing this during reconstruction
-	if (Pins.Num() <= 0)
-	{
-		return;
-	}
-
-	bool bAllPinTypesEqual = true;
-	FEdGraphPinType CurType = Pins[0]->PinType;
-
-	for (UEdGraphPin* Pin : Pins)
-	{
-		if (Pin->PinType != CurType)
-		{
-			bAllPinTypesEqual = false;
-			break;
-		}
-	}
-
-	UpdateOpName();
-
-	// We don't want to have a menu that is full of every possible function for an operator, that is way 
-	// to overwhelming to the user. Instead, only display conversion functions that when types are not 
-	// all the same. 
-	if (!bAllPinTypesEqual)
-	{
-		// #TODO_BH We need up change how these conversions work to be on a per-pin basis instead of via a function
-		// which will be a more consistent experience, and work better with additional pins
-		// The node has changed, so lets find the lowest matching function with the newly updated types
-		FEdGraphPinType HighestType = FTypePromotion::GetPromotedType(GetInputPins());
-	}
 }
 
 UEdGraphPin* UK2Node_PromotableOperator::GetOutputPin() const

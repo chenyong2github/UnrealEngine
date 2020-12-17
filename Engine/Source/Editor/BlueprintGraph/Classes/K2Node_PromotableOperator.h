@@ -113,12 +113,6 @@ private:
 	*/
 	void UpdatePinsFromFunction(const UFunction* Function, UEdGraphPin* ChangedPin = nullptr);
 
-	/** Called when the user attempts conversion from the context menu. Records a transaction and calls UpdatePinsFromFunction */
-	void ConvertNodeToFunction(const UFunction* Function, UEdGraphPin* ChangedPin);
-
-	/** Updates the PossibleConversions function array based on the current pin types */
-	void UpdatePossibleConversionFuncs();
-
 	/**
 	* Returns all pins that have the EGPD_Input direction
 	* @param bIncludeLinks	If true, than this will also include all the pins that are linked to the inputs.
@@ -136,10 +130,6 @@ private:
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;
-
-	/** Array of functions that we could possibly convert this node to via the right-click context menu */
-	UPROPERTY(Transient)
-	TArray<UFunction*> PossibleConversions;
 
 	/** The current number of additional pins on this node */
 	UPROPERTY()
