@@ -123,6 +123,7 @@
 #include "AnimGraphNode_Root.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetRegistryModule.h"
+#include "Misc/FeedbackContext.h"
 
 #include "AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
