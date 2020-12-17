@@ -651,6 +651,7 @@ private:
 
 	void ReoptimizeTree()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TAABBTree::ReoptimizeTree);
 		TArray<FElement> AllElements;
 
 		SIZE_T ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
