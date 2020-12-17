@@ -164,6 +164,11 @@ public:
 
 		MaterialRelevance = Component->GetMaterialRelevance(GetScene().GetFeatureLevel());
 	}
+	virtual ~FLidarPointCloudSceneProxy()
+	{
+		// Proxy is accessed only via RT, so there should not be any concurrency issues here
+		ProxyWrapper->Proxy = nullptr;
+	}
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
