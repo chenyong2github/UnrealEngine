@@ -3,7 +3,7 @@
 
 #include "FractureToolClusterCutter.h"
 
-#include "FractureEditorStyle.h"
+#include "FractureToolContext.h"
 
 #define LOCTEXT_NAMESPACE "FractureClustered"
 
@@ -44,19 +44,19 @@ TArray<UObject*> UFractureToolClusterCutter::GetSettingsObjects() const
 	return ReturnSettings;
 }
 
-void UFractureToolClusterCutter::GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites)
+void UFractureToolClusterCutter::GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites)
 {
- 	FRandomStream RandStream(Context.RandomSeed);
+ 	FRandomStream RandStream(Context.GetSeed());
 	const int32 SiteCount = RandStream.RandRange(ClusterSettings->NumberClustersMin, ClusterSettings->NumberClustersMax);
 
-	const FVector Extent(Context.Bounds.Max - Context.Bounds.Min);
+	const FVector Extent(Context.GetBounds().Max - Context.GetBounds().Min);
 
 	TArray<FVector> CenterSites;
 
 	Sites.Reserve(Sites.Num() + SiteCount);
 	for (int32 ii = 0; ii < SiteCount; ++ii)
 	{
-		CenterSites.Emplace(Context.Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
+		CenterSites.Emplace(Context.GetBounds().Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
 	}
 
 	for (int32 kk = 0, nk = CenterSites.Num(); kk < nk; ++kk)
@@ -67,7 +67,7 @@ void UFractureToolClusterCutter::GenerateVoronoiSites(const FFractureToolContext
 		{
 			FVector V(RandStream.VRand());
 			V.Normalize();
-			V *= ClusterSettings->ClusterRadius + (RandStream.FRandRange(ClusterSettings->ClusterRadiusPercentageMin, ClusterSettings->ClusterRadiusPercentageMax) * Context.Bounds.GetExtent().GetAbsMax());
+			V *= ClusterSettings->ClusterRadius + (RandStream.FRandRange(ClusterSettings->ClusterRadiusPercentageMin, ClusterSettings->ClusterRadiusPercentageMax) * Context.GetBounds().GetExtent().GetAbsMax());
 			V += CenterSites[kk];
 			Sites.Emplace(V);
 		}

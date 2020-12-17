@@ -2,6 +2,8 @@
 
 #include "FractureToolClustering.h"
 
+#include "FractureToolContext.h"
+
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
@@ -34,52 +36,36 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 {
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
 		{
-			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
-			if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+			Context.ConvertSelectionToClusterNodes();
+
+			for (int32 ClusterIndex : Context.GetSelection())
 			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					AddAdditionalAttributesIfRequired(GCObject);
-
-					AddSingleRootNodeIfRequired(GCObject);
-
-					int32 NumElements = GCObject->NumElements(FGeometryCollection::TransformGroup);
-					TArray<int32> Elements;
-					Elements.Reserve(NumElements);
-
-					for (int32 Element = 0; Element < NumElements; ++Element)
-					{
-						if (GeometryCollection->Parent[Element] != FGeometryCollection::Invalid)
-						{
-							Elements.Add(Element);
-						}
-					}
-
-					if (Elements.Num() > 0)
-					{
-						FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingRoot(GeometryCollection, Elements);
-					}
-
-					FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
-
-					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-					EditBoneColor.ResetBoneSelection();
-
-					InToolkit.Pin()->OnSetLevelViewValue(1);
-
-					GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-					GeometryCollectionComponent->MarkRenderStateDirty();
-				}
+				TArray<int32> LeafBones;
+				FGeometryCollectionClusteringUtility::GetLeafBones(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
+				FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
+				CurrentLevelView = Levels[ClusterIndex] + 1;
 			}
+
+			Refresh(Context, Toolkit);
 		}
 
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
-	}	
+		if (CurrentLevelView != Toolkit->GetLevelViewValue())
+		{
+			Toolkit->OnSetLevelViewValue(CurrentLevelView);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
 }
 
 
@@ -107,59 +93,60 @@ void UFractureToolCluster::RegisterUICommand(FFractureEditorCommands* BindingCon
 
 void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
+	
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
 		{
-			const TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
+			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+			
+			Context.Sanitize();
+			TMap<int32, TArray<int32>> ClusteredSelection = Context.GetClusteredSelections();
 
-			if (SelectedBones.Num() > 1)
+			for (TPair<int32, TArray<int32>>& Group : ClusteredSelection)
 			{
-				FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
-				if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+				const TArray<int32>& CurrentSelection = Group.Value;
+
+				// sort the selection list so ClusterBonesUnderNewNode() happens in the correct order for leaf nodes
+				TArray<int32> SortedSelectedBones;
+				SortedSelectedBones.Reserve(CurrentSelection.Num());
+				for (int32 SelectedBone : CurrentSelection)
 				{
-					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
-					if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+					if (Children[SelectedBone].Num() > 0)
 					{
-						const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-
-						// sort the selection list so ClusterBonesUnderNewNode() happens in the correct order for leaf nodes
-						TArray<int32> SortedSelectedBones;
-						SortedSelectedBones.Reserve(SelectedBones.Num());
-						for (int32 SelectedBone : SelectedBones)
-						{
-							if (Children[SelectedBone].Num() > 0)
-							{
-								SortedSelectedBones.Insert(SelectedBone, 0);
-							}
-							else
-							{
-								SortedSelectedBones.Add(SelectedBone);
-							}
-						}
-						// cluster Selected Bones under the first selected bone
-						int32 InsertAtIndex = SortedSelectedBones[0];
-
-						FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(GeometryCollection, InsertAtIndex, SortedSelectedBones, false);
-						FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
-
-						FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-						EditBoneColor.ResetBoneSelection();
-						EditBoneColor.ResetHighlightedBones();
-						GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-						GeometryCollectionComponent->MarkRenderStateDirty();
-						InToolkit.Pin()->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+						SortedSelectedBones.Insert(SelectedBone, 0);
+					}
+					else
+					{
+						SortedSelectedBones.Add(SelectedBone);
 					}
 				}
+
+				// cluster Selected Bones under the first selected bone
+				int32 InsertAtIndex = SortedSelectedBones[0];
+				CurrentLevelView = Levels[InsertAtIndex];
+
+				FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), InsertAtIndex, SortedSelectedBones, false);
 			}
+
+			Refresh(Context, Toolkit);
 		}
 
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
-	}
-}
+		if (CurrentLevelView != Toolkit->GetLevelViewValue())
+		{
+			Toolkit->OnSetLevelViewValue(CurrentLevelView);
+		}
 
+		SetOutlinerComponents(Contexts, Toolkit);
+	}	
+}
 
 
 FText UFractureToolUncluster::GetDisplayText() const
@@ -187,34 +174,45 @@ void UFractureToolUncluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTool
 {
 	if (InToolkit.IsValid())
 	{
-		int32 FractureLevel = InToolkit.Pin()->GetLevelViewValue();
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
-		{
-			// scoped edit of collection
-			FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
-			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
-					FGeometryCollectionClusteringUtility::CollapseSelectedHierarchy(FractureLevel, GeometryCollectionComponent->GetSelectedBones(), GeometryCollection);
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-					EditBoneColor.ResetBoneSelection();
-					EditBoneColor.ResetHighlightedBones();
-					GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-					GeometryCollectionComponent->MarkRenderStateDirty();
-					InToolkit.Pin()->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
-				}
+		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+			Context.ConvertSelectionToClusterNodes();
+			Context.RemoveRootNodes();
+
+			// Once the operation is complete, we'll select the children that were re-leveled
+			TArray<int32> NewSelection;
+			for (int32 Cluster : Context.GetSelection())
+			{
+				NewSelection.Append(Children[Cluster].Array());
 			}
+
+			FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
+			Context.SetSelection(NewSelection);
+			if (NewSelection.Num() > 0)
+			{
+				CurrentLevelView = Levels[NewSelection.Last()];
+			}
+			
+			Refresh(Context, Toolkit);
 		}
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
+
+		if (CurrentLevelView != Toolkit->GetLevelViewValue())
+		{
+			Toolkit->OnSetLevelViewValue(CurrentLevelView);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
 }
-
 
 
 
@@ -243,26 +241,18 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 {
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context: Contexts)
 		{
-			FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
-			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					TArray<int32> Selected = GeometryCollectionComponent->GetSelectedBones();
-					FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(GeometryCollection, Selected);
-
-					GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-					GeometryCollectionComponent->MarkRenderStateDirty();
-				}
-			}
+			Context.Sanitize();
+			FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
+			Refresh(Context, Toolkit);
 		}
-
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
+		
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
 }
 

@@ -11,6 +11,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "PlanarCut.h"
+#include "FractureToolContext.h"
 
 #define LOCTEXT_NAMESPACE "FractureBrick"
 
@@ -195,20 +196,14 @@ void UFractureToolBrick::GenerateBrickTransforms(const FBox& Bounds)
 
 void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	FFractureToolContext FractureContext;
-
-	FractureContext.Bounds = FBox(ForceInitToZero);
+	
+	FBox Bounds(ForceInitToZero);
 
 	USelection* SelectionSet = GEditor->GetSelectedActors();
 
 	TArray<AActor*> SelectedActors;
 	SelectedActors.Reserve(SelectionSet->Num());
 
-	FractureContext.RandomSeed = FMath::Rand();
-	if (CutterSettings->RandomSeed > -1)
-	{
-		FractureContext.RandomSeed = CutterSettings->RandomSeed;
-	}
 
 	FBox SelectedMeshBounds(ForceInit);
 
@@ -222,30 +217,29 @@ void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChai
 		Actor->GetComponents(PrimitiveComponents);
 		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 		{
-			FractureContext.OriginalActor = Actor;
-			FractureContext.OriginalPrimitiveComponent = PrimitiveComponent;
-			FractureContext.Transform = Actor->GetTransform();
 			FVector Origin;
 			FVector BoxExtent;
 			Actor->GetActorBounds(false, Origin, BoxExtent);
+
 			if (CutterSettings->bGroupFracture)
 			{
-				FractureContext.Bounds += FBox::BuildAABB(Origin, BoxExtent);
+				Bounds += FBox::BuildAABB(Origin, BoxExtent);
 			}
 			else
 			{
-				FractureContext.Bounds = FBox::BuildAABB(Origin, BoxExtent);
-				GenerateBrickTransforms(FractureContext.Bounds);
+				GenerateBrickTransforms(FBox::BuildAABB(Origin, BoxExtent));
 			}
 		}
 	}
 
 	if (CutterSettings->bGroupFracture)
 	{
-		GenerateBrickTransforms(FractureContext.Bounds);
+		GenerateBrickTransforms(Bounds);
 	}
 
 }
+
+
 
 void UFractureToolBrick::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
@@ -286,45 +280,43 @@ void UFractureToolBrick::AddBoxEdges(const FVector& Min, const FVector& Max)
 	Edges.Emplace(MakeTuple(FVector(Min.X, Max.Y, Max.Z), Max));
 }
 
-void UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureContext)
+int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
-	if (FractureContext.FracturedGeometryCollection != nullptr)
+	if (FractureContext.IsValid())
 	{
- 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
- 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
- 		{
-			BrickTransforms.Empty();
-			GenerateBrickTransforms(FractureContext.Bounds);
+ 		BrickTransforms.Empty();
+		GenerateBrickTransforms(FractureContext.GetBounds());
 
-			const FQuat HeaderRotation(FVector::UpVector, 1.5708);
+		const FQuat HeaderRotation(FVector::UpVector, 1.5708);
 
-			const float HalfHeight = BrickSettings->BrickHeight * 0.5f;
-			const float HalfDepth = BrickSettings->BrickDepth * 0.5f;
-			const float HalfLength = BrickSettings->BrickLength * 0.5f;
+		const float HalfHeight = BrickSettings->BrickHeight * 0.5f;
+		const float HalfDepth = BrickSettings->BrickDepth * 0.5f;
+		const float HalfLength = BrickSettings->BrickLength * 0.5f;
 
-			FVector Max(HalfLength, HalfDepth, HalfHeight);
-			TArray<FBox> BricksToCut;
+		FVector Max(HalfLength, HalfDepth, HalfHeight);
+		TArray<FBox> BricksToCut;
 
-			for (const FTransform& Trans : BrickTransforms)
-			{
-				BricksToCut.Add(FBox(-Max * 0.95f, Max * 0.95f).TransformBy(Trans));
-			}
+		for (const FTransform& Trans : BrickTransforms)
+		{
+			BricksToCut.Add(FBox(-Max * 0.95f, Max * 0.95f).TransformBy(Trans));
+		}
 
- 			FPlanarCells VoronoiPlanarCells = FPlanarCells(BricksToCut);
+ 		FPlanarCells VoronoiPlanarCells = FPlanarCells(BricksToCut);
 
-			FNoiseSettings NoiseSettings;
-			if (CutterSettings->Amplitude > 0.0f)
-			{
-				NoiseSettings.Amplitude = CutterSettings->Amplitude;
-				NoiseSettings.Frequency = CutterSettings->Frequency;
-				NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-				NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
-				VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-			}
+		FNoiseSettings NoiseSettings;
+		if (CutterSettings->Amplitude > 0.0f)
+		{
+			NoiseSettings.Amplitude = CutterSettings->Amplitude;
+			NoiseSettings.Frequency = CutterSettings->Frequency;
+			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
+			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
+		}
 
-			CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeometryCollection, FractureContext.SelectedBones);
- 		}
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection());
 	}
+
+	return INDEX_NONE;
 }
 
 #undef LOCTEXT_NAMESPACE

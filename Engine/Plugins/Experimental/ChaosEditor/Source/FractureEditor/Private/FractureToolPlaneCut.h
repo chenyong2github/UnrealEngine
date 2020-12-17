@@ -6,6 +6,8 @@
 
 #include "FractureToolPlaneCut.generated.h"
 
+class FFractureToolContext;
+
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFracturePlaneCutSettings : public UFractureToolSettings
@@ -48,7 +50,7 @@ public:
 	virtual TArray<UObject*> GetSettingsObjects() const override;
 
 	virtual void FractureContextChanged() override;
-	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 private:
 	// Slicing

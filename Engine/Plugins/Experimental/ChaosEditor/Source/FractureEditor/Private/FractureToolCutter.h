@@ -6,6 +6,7 @@
 
 #include "FractureToolCutter.generated.h"
 
+class FFractureToolContext;
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
 UCLASS(config = EditorPerProjectUserSettings)
@@ -80,16 +81,11 @@ public:
 
 	virtual bool CanExecute() const override;
 
-	virtual void GetFractureContexts(TArray<FFractureToolContext>& FractureContexts) const;
-
-	TArray<int32> FilterBones(const TArray<int32>& SelectedBonesOriginal, const FGeometryCollection* const GeometryCollection) const override;
+	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	UFractureCutterSettings* CutterSettings;
-
-private:
-	static bool IsLeafBoneSelected();
 
 };
 
@@ -105,7 +101,7 @@ public:
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void FractureContextChanged() override;
-	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 protected:
 	virtual void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) {}

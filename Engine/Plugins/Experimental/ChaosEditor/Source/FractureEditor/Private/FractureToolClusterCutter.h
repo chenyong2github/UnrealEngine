@@ -7,6 +7,7 @@
 
 #include "FractureToolClusterCutter.generated.h"
 
+class FFractureToolContext;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureClusterCutterSettings : public UFractureToolSettings
@@ -75,6 +76,6 @@ public:
 	UFractureClusterCutterSettings* ClusterSettings;
 
 protected:
-	void GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites) override;
+	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;
 
 };

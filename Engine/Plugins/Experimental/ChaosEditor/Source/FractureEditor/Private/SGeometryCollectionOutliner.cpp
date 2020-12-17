@@ -12,9 +12,15 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "FractureEditorMode.h"
 #include "ScopedTransaction.h"
+#include "FractureSettings.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
+
+UOutlinerSettings::UOutlinerSettings(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+	, ItemText(EOutlinerItemNameEnum::BoneIndex)
+{}
 
 void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 {
@@ -31,6 +37,11 @@ void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 		.AllowInvisibleItemSelection(true)
 		.OnSetExpansionRecursive(this, &SGeometryCollectionOutliner::ExpandRecursive)
 	];
+}
+
+void SGeometryCollectionOutliner::RegenerateItems()
+{
+	TreeView->RebuildList();
 }
 
 TSharedRef<ITableRow> SGeometryCollectionOutliner::MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InItem, const TSharedRef<STableViewBase>& InOwnerTable)
@@ -140,6 +151,23 @@ void SGeometryCollectionOutliner::ExpandRecursive(TSharedPtr<FGeometryCollection
 	for (auto& Child : ItemChildren)
 	{
 		ExpandRecursive(Child, bInExpansionState);
+	}
+}
+
+void SGeometryCollectionOutliner::SetHistogramSelection(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)
+{
+	// Find the matching component
+	for (TSharedPtr<FGeometryCollectionTreeItemComponent> RootNode : RootNodes)
+	{
+		if (RootNode->GetComponent() == RootComponent)
+		{
+			// Copy the histogram selection.
+			RootNode->SetHistogramSelection(SelectedBones);
+			RootNode->RegenerateChildren();
+			TreeView->RequestTreeRefresh();
+			ExpandAll();
+			return;
+		}
 	}
 }
 
@@ -328,26 +356,85 @@ void FGeometryCollectionTreeItemComponent::RegenerateChildren()
 			// Add a sub item to the outliner tree for each of the bones/chunks in this GeometryCollection
 			for (int32 Index = 0; Index < NumElements; Index++)
 			{
-				TSharedRef<FGeometryCollectionTreeItemBone> NewItem = MakeShared<FGeometryCollectionTreeItemBone>(Guids[Index], Index, *this);
-				if (Parents[Index] == RootIndex)
+				if (FilterBoneIndex(Index))
 				{
-					// The actual children directly beneath this node are the ones without a parent.  The rest are children of children
-					MyChildren.Add(NewItem);
-				}
+					TSharedRef<FGeometryCollectionTreeItemBone> NewItem = MakeShared<FGeometryCollectionTreeItemBone>(Guids[Index], Index, *this);
+					if (Parents[Index] == RootIndex)
+					{
+						// The actual children directly beneath this node are the ones without a parent.  The rest are children of children
+						MyChildren.Add(NewItem);
+					}
 
-				NodesMap.Add(Guids[Index], NewItem);
-				GuidIndexMap.Add(Guids[Index], Index);
+					NodesMap.Add(Guids[Index], NewItem);
+					GuidIndexMap.Add(Guids[Index], Index);
+				}			
 			}
+
 		}
 	}
 }
 
+void FGeometryCollectionTreeItemComponent::SetHistogramSelection(TArray<int32>& SelectedBones)
+{
+	HistogramSelection = SelectedBones;
+}
+
+bool FGeometryCollectionTreeItemComponent::FilterBoneIndex(int32 BoneIndex) const
+{
+	FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
+	TManagedArray<TSet<int32>>& Children = Collection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+
+	if (Children[BoneIndex].Num() == 0)
+	{
+		// We don't display leaf nodes deeper than the view level.
+		UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+
+		if (FractureSettings->FractureLevel >= 0)
+		{
+			TManagedArray<int32>& Level = Collection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
+			if (Level[BoneIndex] != FractureSettings->FractureLevel)
+			{
+				return false;
+			}
+		}
+
+		// If anything is selected int the Histogram, we filter by that selection.
+		if (HistogramSelection.Num() > 0)
+		{
+			if (!HistogramSelection.Contains(BoneIndex))
+			{
+				return false;
+			}
+		}		
+	}
+
+	return true;	
+}
+
 TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
 {
+	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+	FText ItemText = ParentComponentItem->GetDisplayNameForBone(Guid);
+	if (OutlinerSettings->ItemText == EOutlinerItemNameEnum::BoneIndex)
+	{
+		ItemText = FText::FromString(FString::FromInt(GetBoneIndex()));
+	}
+
+	// Cyan indicates cluster, Gray is leaf node	
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = ParentComponentItem->GetComponent()->GetRestCollection()->GetGeometryCollection();
+	const TManagedArray<TSet<int32>>& Children = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+	FSlateColor TextColor(FLinearColor::Gray);
+	if (Children[GetBoneIndex()].Num() > 0)
+	{
+		TextColor = FColor::Cyan;
+	}
+	
 	return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
 		.Content()
-		[
-			SNew(STextBlock).Text(ParentComponentItem->GetDisplayNameForBone(Guid))
+		[			
+			SNew(STextBlock)
+			.Text(ItemText)
+			.ColorAndOpacity(TextColor)
 		];
 }
 

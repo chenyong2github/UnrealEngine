@@ -7,6 +7,7 @@
 
 #include "FractureToolBrick.generated.h"
 
+class FFractureToolContext;
 
 /** Brick Projection Directions*/
 UENUM()
@@ -93,7 +94,7 @@ public:
 	virtual TArray<UObject*> GetSettingsObjects() const override;
 	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 	void GenerateBrickTransforms(const FBox& Bounds);
 

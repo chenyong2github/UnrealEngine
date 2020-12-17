@@ -45,12 +45,17 @@
 #include "PlanarCut.h"
 #include "FractureToolAutoCluster.h" 
 #include "SGeometryCollectionOutliner.h"
+#include "SGeometryCollectionHistogram.h"
 #include "FractureSelectionTools.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+
+#include "Chaos/TriangleMesh.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "Chaos/MassProperties.h"
 
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
@@ -150,6 +155,39 @@ FFractureViewSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	];
 };
 
+FHistogramSettingsCustomization::FHistogramSettingsCustomization(FFractureEditorModeToolkit* InToolkit)
+	: Toolkit(InToolkit)
+{
+
+}
+
+TSharedRef<IDetailCustomization> FHistogramSettingsCustomization::MakeInstance(FFractureEditorModeToolkit* InToolkit)
+{
+	return MakeShareable(new FHistogramSettingsCustomization(InToolkit));
+}
+
+void
+FHistogramSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+};
+
+FOutlinerSettingsCustomization::FOutlinerSettingsCustomization(FFractureEditorModeToolkit* InToolkit)
+	: Toolkit(InToolkit)
+{
+
+}
+
+TSharedRef<IDetailCustomization> FOutlinerSettingsCustomization::MakeInstance(FFractureEditorModeToolkit* InToolkit)
+{
+	return MakeShareable(new FOutlinerSettingsCustomization(InToolkit));
+}
+
+void
+FOutlinerSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+};
+
+
 
 FFractureEditorModeToolkit::FFractureEditorModeToolkit()
 	: ActiveTool(nullptr)
@@ -190,8 +228,51 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	Settings.Add(GetMutableDefault<UFractureSettings>());
 	DetailsView->SetObjects(Settings);
 
+	HistogramDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	EditModule.RegisterCustomClassLayout("HistogramSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FHistogramSettingsCustomization::MakeInstance, this));
+	HistogramDetailsView->SetObject(GetMutableDefault<UHistogramSettings>());
+
+	OutlinerDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	EditModule.RegisterCustomClassLayout("OutlinerSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FOutlinerSettingsCustomization::MakeInstance, this));
+	OutlinerDetailsView->SetObject(GetMutableDefault<UOutlinerSettings>());
+
 	float Padding = 4.0f;
 	FMargin MorePadding = FMargin(10.0f, 2.0f);
+
+	TSharedRef<SExpandableArea> HistogramExpander = SNew(SExpandableArea)
+	.AreaTitle(FText(LOCTEXT("Histogram", "Histogram")))
+	.HeaderPadding(FMargin(2.0, 2.0))
+	.Padding(MorePadding)
+	.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+	.BodyBorderBackgroundColor(FLinearColor(1.0, 0.0, 0.0))
+	.AreaTitleFont(FEditorStyle::Get().GetFontStyle("HistogramDetailsView.CategoryFontStyle"))
+	.InitiallyCollapsed(true)
+	.BodyContent()
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			HistogramDetailsView.ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SButton)
+			//.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+			.TextStyle(FAppStyle::Get(), "ButtonText")
+			.HAlign(HAlign_Center)
+			.ContentPadding(FMargin(10.f, Padding))
+			.OnClicked(this, &FFractureEditorModeToolkit::ResetHistogramSelection)
+			.IsEnabled(this, &FFractureEditorModeToolkit::CanResetFilter)
+			.Text(LOCTEXT("ResetFilterButton", "Reset Filter"))
+		]
+		+ SVerticalBox::Slot()
+		[
+			SAssignNew(HistogramView, SGeometryCollectionHistogram)
+			.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged)
+		]
+	];
 
 	TSharedRef<SExpandableArea> OutlinerExpander = SNew(SExpandableArea)
 	.AreaTitle(FText(LOCTEXT("Outliner", "Outliner")))
@@ -203,8 +284,36 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 	.BodyContent()
 	[
-		SAssignNew(OutlinerView, SGeometryCollectionOutliner )
-		.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		[
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+ SSplitter::Slot()
+			.SizeRule(TAttribute<SSplitter::ESizeRule>::Create([this, HistogramExpander]() {
+				return HistogramExpander->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent;
+				}))
+			.Value(1.f)
+			[
+				HistogramExpander
+			]
+			+ SSplitter::Slot()
+			.SizeRule(SSplitter::ESizeRule::FractionOfParent)
+			.Value(1.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					OutlinerDetailsView.ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(OutlinerView, SGeometryCollectionOutliner)
+					.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
+				]
+			]
+		]	
 	];
 
 	TSharedRef<SExpandableArea> StatisticsExpander = SNew(SExpandableArea)
@@ -325,6 +434,22 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		{
 			OnLevelViewValueChanged();
 		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, bSorted))
+		{
+			UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
+			HistogramView->RefreshView(HistogramSettings->bSorted);
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, InspectedAttribute))
+		{
+			UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
+			HistogramView->InspectAttribute(HistogramSettings->InspectedAttribute);
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ItemText))
+		{
+			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+			OutlinerView->RegenerateItems();
+		}
+
 	}
 }
 
@@ -800,11 +925,17 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 			UpdateExplodedVectors(Component);
 		}
 
+		UpdateGeometryComponentAttributes(Component);
 	}
 
 	if (OutlinerView)
 	{
 		OutlinerView->SetComponents(InNewComponents);
+	}
+
+	if (HistogramView)
+	{
+		HistogramView->SetComponents(InNewComponents);
 	}
 
 	if (ActiveTool != nullptr)
@@ -856,6 +987,17 @@ bool FFractureEditorModeToolkit::CanExecuteModal() const
 	}
 	
 	return false;
+}
+
+FReply FFractureEditorModeToolkit::ResetHistogramSelection()
+{
+	HistogramView->ClearSelection();
+	return FReply::Handled();
+}
+
+bool FFractureEditorModeToolkit::CanResetFilter() const 
+{
+	return HistogramView->IsSelected();
 }
 
 void FFractureEditorModeToolkit::GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection)
@@ -923,6 +1065,94 @@ bool FFractureEditorModeToolkit::IsSelectedActorsInEditorWorld()
 	return true;
 }
 
+
+void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryCollectionComponent* Component)
+{
+	if (Component)
+	{
+		const UGeometryCollection* RestCollection = Component->GetRestCollection();
+		if (RestCollection)
+		{
+			FGeometryCollectionPtr GeometryCollection = RestCollection->GetGeometryCollection();
+
+			if (!GeometryCollection->HasAttribute("Volume", FTransformCollection::TransformGroup))
+			{
+				GeometryCollection->AddAttribute<Chaos::FReal>("Volume", FTransformCollection::TransformGroup);
+				UE_LOG(LogFractureTool, Warning, TEXT("Added Volume attribute to GeometryCollection."));
+			}
+
+			TArray<FTransform> Transform;
+			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transform);
+
+			const TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
+			const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
+
+			Chaos::TParticles<float, 3> MassSpaceParticles;
+			MassSpaceParticles.AddParticles(Vertex.Num());
+			for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+			{
+				MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
+			}
+
+			// recalculate mass recursively from root nodes
+			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
+			for (int32 Idx = 0; Idx < Parent.Num(); ++Idx)
+			{
+				if (Parent[Idx] == INDEX_NONE)
+				{
+					UpdateVolumes(GeometryCollection, MassSpaceParticles, Idx);
+				}
+			}
+		}
+	}
+	
+}
+
+void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<float, 3>& MassSpaceParticles, int32 TransformIndex)
+{
+	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<bool>& Visible = GeometryCollection->Visible;
+	const TManagedArray<int32>& FaceCount = GeometryCollection->FaceCount;
+	const TManagedArray<int32>& FaceStart = GeometryCollection->FaceStart;
+	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
+	const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
+	TManagedArray<float>& Volumes = GeometryCollection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
+
+	if (Children[TransformIndex].Num() == 0) // leaf node
+	{
+		int32 GeometryIndex = TransformToGeometryIndex[TransformIndex];
+
+		if (ensureMsgf(GeometryIndex > INDEX_NONE, TEXT("Leaf node %d expected to map to geometry but did not."), TransformIndex))
+		{
+			TUniquePtr<Chaos::TTriangleMesh<float>> TriMesh(
+				CreateTriangleMesh(
+					FaceStart[GeometryIndex],
+					FaceCount[GeometryIndex],
+					Visible,
+					Indices,
+					true));
+
+			float Volume = 0.0;
+			Chaos::TVector<Chaos::FReal, 3> CenterOfMass;
+			Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), Volume, CenterOfMass);
+
+			// Since we're only interested in relative mass, we assume density = 1.0
+			Volumes[TransformIndex] = Volume;
+		}	
+	}
+	else
+	{
+		// Recurse to children and sum the volumes for this node
+		float LocalVolume = 0.0;
+		for (int32 ChildIndex : Children[TransformIndex])
+		{
+			UpdateVolumes(GeometryCollection, MassSpaceParticles, ChildIndex);
+			LocalVolume += Volumes[ChildIndex];
+		}
+
+		Volumes[TransformIndex] = LocalVolume;
+	}
+}
 
 bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {
@@ -1066,12 +1296,18 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 	}
 }
 
+void FFractureEditorModeToolkit::RegenerateHistogram()
+{
+	HistogramView->RegenerateNodes();
+}
+
 void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)
 {
 	FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), RootComponent);
 
 	if(SelectedBones.Num())
 	{
+			
 		FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true);
 		OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
 	}
@@ -1087,6 +1323,12 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 
 	RootComponent->MarkRenderStateDirty();
 	RootComponent->MarkRenderDynamicDataDirty();
+}
+
+void FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)
+{
+	// If anything is selected in the Histogram, filter the appropriate Outliner component
+	OutlinerView->SetHistogramSelection(RootComponent, SelectedBones);
 }
 
 FText FFractureEditorModeToolkit::GetStatisticsSummary() const

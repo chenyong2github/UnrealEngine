@@ -89,7 +89,7 @@ public:
 	static void CollapseSelectedHierarchy(int8 Level, const TArray<int32>& SelectedBones, FGeometryCollection* GeometryCollection);
 
 	/** reparent source bones under root bone */
-	static void ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements);
+	static void ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
 
 	/** moved the selected bones closer to the root */
 	static void CollapseHierarchyOneLevel(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements);

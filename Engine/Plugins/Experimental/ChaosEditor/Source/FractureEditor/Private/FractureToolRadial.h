@@ -7,6 +7,7 @@
 
 #include "FractureToolRadial.generated.h"
 
+class FFractureToolContext;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureRadialSettings : public UFractureToolSettings
@@ -76,6 +77,6 @@ public:
 	UFractureRadialSettings* RadialSettings;
 
 protected:
-	void GenerateVoronoiSites(const FFractureToolContext &Context, TArray<FVector>& Sites) override;
+	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;
 
 };

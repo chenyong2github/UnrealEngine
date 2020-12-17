@@ -23,7 +23,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	int32 SourceBoneIndex = InsertAtIndex;
 	int32 OriginalParentIndex = Parents[SourceBoneIndex];
 	BoneNames[NewBoneIndex] = BoneNames[SourceBoneIndex];
-	Parents[NewBoneIndex] = Parents[SourceBoneIndex];
+	Parents[NewBoneIndex] = OriginalParentIndex;
 	Children[NewBoneIndex] = TSet<int32>(SelectedBones);
 
 	Transforms[NewBoneIndex] = FTransform::Identity;
@@ -148,7 +148,7 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 }
 
 
-void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements)
+void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements)
 {
 	check(GeometryCollection);
 	bool CalcNewLocalTransform = true;
@@ -224,8 +224,10 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(FGeomet
 	TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 	TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
 	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
-	TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-	TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+
+	// These attributes are apparently deprecated?
+	//TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+	//TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
 
 	// remove Merge Node if it's in the list - happens due to the way selection works
 	TArray<int32> SourceElements;
@@ -258,17 +260,17 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(FGeomet
 				ParentsToUpdateNames.AddUnique(Parents[SourceElement]);
 			}
 
-			ResetSliderTransforms(ExplodedTransforms, Transforms);
+			//ResetSliderTransforms(ExplodedTransforms, Transforms);
 
 			// re-parent all the geometry nodes under existing merge node
 			GeometryCollectionAlgo::ParentTransforms(GeometryCollection, MergeNode, SourceElements);
 
 			// update source levels and transforms in our custom attributes
-			for (int32 Element : SourceElements)
-			{
-				ExplodedTransforms[Element] = Transforms[Element];
-				ExplodedVectors[Element] = Transforms[Element].GetLocation();
-			}
+			//for (int32 Element : SourceElements)
+			//{
+			//	ExplodedTransforms[Element] = Transforms[Element];
+			//	ExplodedVectors[Element] = Transforms[Element].GetLocation();
+			//}
 
 			UpdateHierarchyLevelOfChildren(GeometryCollection, MergeNode);
 

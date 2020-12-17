@@ -13,17 +13,40 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectKey.h"
 
-// #include "GeometryCollection/GeometryCollectionComponent.h"
-// #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
+
+#include "SGeometryCollectionOutliner.generated.h"
 
 class FGeometryCollection;
 class FGeometryCollectionTreeItem;
 class FGeometryCollectionTreeItemBone;
-class UGeometryCollectionComponent;
 
 typedef TArray<TSharedPtr<FGeometryCollectionTreeItem>> FGeometryCollectionTreeItemList;
 typedef TSharedPtr<FGeometryCollectionTreeItem> FGeometryCollectionTreeItemPtr;
+
+
+UENUM(BlueprintType)
+enum class EOutlinerItemNameEnum : uint8
+{
+	BoneName = 0					UMETA(DisplayName = "Bone Name"),
+	BoneIndex = 1					UMETA(DisplayName = "Bone Index"),
+};
+
+/** Settings for Outliner configuration. **/
+UCLASS()
+class UOutlinerSettings : public UObject
+{
+
+	GENERATED_BODY()
+public:
+	UOutlinerSettings(const FObjectInitializer& ObjInit);
+
+	/** What is displayed in Outliner text */
+	UPROPERTY(EditAnywhere, Category = OutlinerSettings, meta = (DisplayName = "Item Text"))
+	EOutlinerItemNameEnum ItemText;
+};
+
 
 class FGeometryCollectionTreeItem : public TSharedFromThis<FGeometryCollectionTreeItem>
 {
@@ -59,6 +82,11 @@ public:
 	void ExpandAll(TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> TreeView);
 	void RegenerateChildren();
 
+	void SetHistogramSelection(TArray<int32>& SelectedBones);
+
+private:
+	bool FilterBoneIndex(int32 BoneIndex) const;
+
 private:
 	TWeakObjectPtr<UGeometryCollectionComponent> Component;
 
@@ -69,6 +97,8 @@ private:
 	TMap<FGuid, int32> GuidIndexMap;
 	FGuid RootGuid;
 	int32 RootIndex;
+
+	TArray<int32> HistogramSelection;
 };
 
 class FGeometryCollectionTreeItemBone : public FGeometryCollectionTreeItem
@@ -112,6 +142,8 @@ class SGeometryCollectionOutliner: public SCompoundWidget
 public:
 	void Construct(const FArguments& InArgs);
 
+	void RegenerateItems();
+
 	TSharedRef<ITableRow> MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildren(TSharedPtr<FGeometryCollectionTreeItem> InInfo, TArray< TSharedPtr<FGeometryCollectionTreeItem> >& OutChildren);
 
@@ -121,6 +153,9 @@ public:
 
 	void ExpandAll();
 	void ExpandRecursive(TSharedPtr<FGeometryCollectionTreeItem> TreeItem, bool bInExpansionState) const;
+
+	// Set the histogram filter on the component matching RootComponent.
+	void SetHistogramSelection(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 
 private:
 	// void GetItemParentsForGuid(int32 Guid);

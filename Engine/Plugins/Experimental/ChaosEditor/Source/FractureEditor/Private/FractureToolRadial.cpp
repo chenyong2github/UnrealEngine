@@ -2,7 +2,8 @@
 
 #include "FractureToolRadial.h"
 
-#include "FractureEditorStyle.h"
+#include "FractureToolContext.h"
+
 
 #define LOCTEXT_NAMESPACE "FractureRadial"
 
@@ -43,13 +44,13 @@ TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const
 	return Settings;
 }
 
-void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext&Context, TArray<FVector>& Sites)
+void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites)
 {
  	float RadialStep = RadialSettings->Radius / RadialSettings->RadialSteps;
 
-	const FVector Center(Context.Bounds.GetCenter() + RadialSettings->Center);
+	const FVector Center(Context.GetBounds().GetCenter() + RadialSettings->Center);
 
-	FRandomStream RandStream(Context.RandomSeed);
+	FRandomStream RandStream(Context.GetSeed());
 	FVector UpVector(RadialSettings->Normal);
 	UpVector.Normalize();
 	FVector PerpVector(UpVector[2], UpVector[0], UpVector[1]);

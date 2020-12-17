@@ -7,6 +7,9 @@
 #include "FractureToolSlice.generated.h"
 
 
+class FFractureToolContext;
+
+
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureSliceSettings : public UFractureToolSettings
 {
@@ -62,7 +65,7 @@ public:
 	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void FractureContextChanged() override;
-	virtual void ExecuteFracture(const FFractureToolContext& Context) override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& Context) override;
 
 	void GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 
