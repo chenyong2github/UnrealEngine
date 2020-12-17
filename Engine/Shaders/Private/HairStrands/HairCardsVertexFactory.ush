@@ -156,10 +156,10 @@ struct FVertexFactoryInput
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	// #hair_todo
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
-	Input.VertexId = Triangle.Indices[VertexIndex];
+	Input.VertexId = Tri.Indices[VertexIndex];
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	Input.PrimitiveId = GetInstanceUserData();
 #endif
