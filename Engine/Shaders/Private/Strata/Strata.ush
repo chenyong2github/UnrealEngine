@@ -43,7 +43,7 @@ struct FStrataBSDF
 #define STATE_BITS_HASSCATTERING		1
 #define STATE_BITS_HASSSSPROFILE		1
 #define STATE_BITS_GREYWEIGHT			1
-#define STATE_BITS___UNUSED___			13
+#define STATE_BITS___UNUSED___			12
 #define STATE_BITS_WEIGHT10F			10
 
 // Bit offset of each component store in BSDF state 
@@ -821,10 +821,10 @@ uint PackRGBA8(float4 rgba)
 float4 UnpackRGBA8(uint rgba)
 {
 	float4 Out;
-	Out.r = float((rgba >> 0)  & 0xFF);
-	Out.g = float((rgba >> 8)  & 0xFF);
-	Out.b = float((rgba >> 16) & 0xFF);
-	Out.a = float((rgba >> 24) & 0xFF);
+	Out.r = float((rgba >> 0)  & 0xFF) * (1.0f/255.0f);
+	Out.g = float((rgba >> 8)  & 0xFF) * (1.0f/255.0f);
+	Out.b = float((rgba >> 16) & 0xFF) * (1.0f/255.0f);
+	Out.a = float((rgba >> 24) & 0xFF) * (1.0f/255.0f);
 	return Out;
 }
 

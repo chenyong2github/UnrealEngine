@@ -167,13 +167,13 @@ void MainPS(
 	// Sample scene textures.
 	float2 BufferUV		 = SvPositionToBufferUV(float4(PixelPos, SVPos.zw));
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-	bool bStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
 	
 	FStrataClassification ClassificationData	= (FStrataClassification)0;
 	FStrataSubsurfaceData SSSData				= (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
 
-	if (bStrataMaterial)
+	ClassificationData.bIsStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
+	if (ClassificationData.bIsStrataMaterial)
 	{
 		const float3 V = float3(0,0,1); // TODO
 
