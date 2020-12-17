@@ -19,10 +19,7 @@ struct IKRIG_API FIKRigConstraintProfile
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category=FIKRigConstraintProfile)
-	FName Name;
-
-	UPROPERTY(EditAnywhere, Category=FIKRigConstraintProfile)
+	UPROPERTY(EditAnywhere, instanced, Category=FIKRigConstraintProfile)
 	TMap<FName, UIKRigConstraint*> Constraints;
 };
 
@@ -38,6 +35,7 @@ private:
 	// at least one profile always exists - Default
 	UPROPERTY(EditAnywhere, Category = "Profile")
 	TMap<FName, FIKRigConstraintProfile> ConstraintProfiles;
-
+	friend class UIKRigConstraintSolver;
+public:
 	static const FName DefaultProfileName;
 };

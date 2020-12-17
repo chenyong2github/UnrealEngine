@@ -6,11 +6,12 @@
 
 #include "IKRigDefinition.h"
 #include "IKRigSolverDefinition.h"
+#include "IKRigConstraintDefinition.h"
 
 UIKRigDefinition::UIKRigDefinition()
 {
 	// we create constraint definition for them
-	//ConstraintDefinitions = NewObject<UIKRigConstraintDefinition>(this, TEXT("ConstraintDefinition"));
+//	ConstraintDefinitions = CreateDefaultSubobject<UIKRigConstraintDefinition>(TEXT("ConstraintDefinition"));
 }
 
 #if WITH_EDITOR
@@ -301,7 +302,7 @@ void UIKRigDefinition::EnsureSortedCorrectly(bool bReSortIfNeeded)
 						}
 
 						Iter = Iter->Sibling;
-					} while (Iter != nullptr);
+					} while (true);
 				}
 			}
 		};

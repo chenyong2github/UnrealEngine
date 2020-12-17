@@ -187,6 +187,7 @@ public:
 
 // allows transform to be modified 
 // use this class to modify transform
+// @todo: ref pose getter 
 struct IKRIG_API FIKRigTransformModifier
 {
 	FIKRigTransformModifier()

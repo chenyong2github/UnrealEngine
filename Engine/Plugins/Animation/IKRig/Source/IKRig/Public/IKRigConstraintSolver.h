@@ -8,32 +8,49 @@
 #pragma once
 
 #include "IKRigSolver.h"
+#include "IKRigConstraintDefinition.h"
 #include "IKRigConstraintSolver.generated.h"
 
 class UIKRigConstraint;
 
+
 // run time processor 
-UCLASS(config = Engine, hidecategories = UObject)
+UCLASS(config = Engine, Transient, hidecategories = UObject)
 class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
 	DECLARE_DELEGATE_TwoParams(FIKRigQueryConstraint, const FName& InConstraintName, UIKRigConstraint& OutConstraint);
 
-public: 
-	// input hierarchy and ref pose? 
-	//virtual void Init(UIKRigSolverDefinition* InSolverDefinition, const FIKRigTransform& InRefPose, FIKRigGoalGetter& InGoalGetter, FSolveConstraint& InConstraintHandler) override;
+	UPROPERTY(transient)
+	UIKRigConstraintDefinition* ConstraintDefinition;
 
-	// input : goal getter or goals
-	// output : modified pose - GlobalTransforms
-	//virtual void Solve(FIKRigTransform& OutGlobalTransform) override;
+public: 
+	// during we don't mutate bone transform, but you can read it
+	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
+	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual bool IsSolverActive() const override;
+
+	// this can be utilized for just subset of constraints
+	void SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
 
 	// register/unregister query function
 	void RegisterQueryConstraintHandler(const FIKRigQueryConstraint& InQueryConstraintHandler);
 	void UnregisterQueryConstraintHandler();
 
+	void SetConstraintDefinition(UIKRigConstraintDefinition* InConstraintDefinition);
+
 private:
 	// delegate
 	FIKRigQueryConstraint QueryConstraintHandler;
+
+	// current active profile
+	UPROPERTY(transient)
+	FName ActiveProfile;
+
+	// instanced information you can mutate from ConstraintDefinition
+	// we want uproperty, so that it doesn't GC-ed
+	UPROPERTY(transient)
+	TMap<FName, FIKRigConstraintProfile> ConstraintProfiles;
 };
 

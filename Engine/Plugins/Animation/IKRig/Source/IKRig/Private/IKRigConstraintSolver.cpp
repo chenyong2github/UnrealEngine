@@ -5,6 +5,7 @@
  *
  */
 #include "IKRigConstraintSolver.h"
+#include "IKRigConstraint.h"
 
 // register/unregister query function
 void UIKRigConstraintSolver::RegisterQueryConstraintHandler(const FIKRigQueryConstraint& InQueryConstraintHandler)
@@ -15,4 +16,78 @@ void UIKRigConstraintSolver::RegisterQueryConstraintHandler(const FIKRigQueryCon
 void UIKRigConstraintSolver::UnregisterQueryConstraintHandler()
 {
 
+}
+
+void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
+{
+	if (ConstraintDefinition)
+	{
+		// we duplicate and create a copy of the objects, so that we can mutate
+		ConstraintProfiles = ConstraintDefinition->ConstraintProfiles;
+		for (auto Iter = ConstraintProfiles.CreateIterator(); Iter; ++Iter)
+		{
+			FIKRigConstraintProfile& CurrentProfile = Iter.Value();
+			for (auto InnerIter = CurrentProfile.Constraints.CreateIterator(); InnerIter; ++InnerIter)
+			{
+				UIKRigConstraint*& Template = InnerIter.Value();
+				UIKRigConstraint* CopyConstraint = NewObject<UIKRigConstraint>(this, Template->GetClass(), TEXT("IKRigConstraint"), RF_NoFlags, Template);
+				// replace value
+				Template = CopyConstraint;
+			}
+		}
+
+		// go through all UIKRigConstraint and create copy
+		ActiveProfile = UIKRigConstraintDefinition::DefaultProfileName;
+	}
+}
+
+void UIKRigConstraintSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+{
+	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);
+
+	if (Current)
+	{
+		for (auto Iter = Current->Constraints.CreateIterator(); Iter; ++Iter)
+		{
+			UIKRigConstraint* Constraint = Iter.Value();
+			if (Constraint)
+			{
+				// @todo: later add inoutdrawinterface
+				Constraint->Apply(InOutGlobalTransform, InOutDrawInterface);
+			}
+		}
+	}
+}
+
+void UIKRigConstraintSolver::SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+{
+	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);
+
+	if (Current)
+	{
+		for (const FName& ConstraintName : ConstraintsList)
+		{
+			UIKRigConstraint** Constraint = Current->Constraints.Find(ConstraintName);
+			if (Constraint)
+			{
+				// @todo: later add inoutdrawinterface
+				(*Constraint)->Apply(InOutGlobalTransform, InOutDrawInterface);
+			}
+		}
+	}
+}
+
+bool UIKRigConstraintSolver::IsSolverActive() const
+{	
+// later we can do more elaborated version
+	return Super::IsSolverActive();
+}
+
+void UIKRigConstraintSolver::SetConstraintDefinition(UIKRigConstraintDefinition* InConstraintDefinition)
+{
+	ConstraintDefinition = InConstraintDefinition;
+	// reset instanced data
+
+	ConstraintProfiles.Reset();
+	ActiveProfile = UIKRigConstraintDefinition::DefaultProfileName;
 }

@@ -12,5 +12,4 @@ const FName UIKRigConstraintDefinition::DefaultProfileName = FName(TEXT("Default
 UIKRigConstraintDefinition::UIKRigConstraintDefinition()
 {
 	FIKRigConstraintProfile& DefaultProfile = ConstraintProfiles.Add(DefaultProfileName);
-	DefaultProfile.Name = DefaultProfileName;
 }

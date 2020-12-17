@@ -7,8 +7,18 @@
 
 #include "IKRigConstraint.h"
 
-// UIKRigConstraint::UIKRigConstraint(const FObjectInitializer& ObjectInitializer)
-// 	: Super(ObjectInitializer)
-// {
-// 
-// }
+void UIKRigConstraint::Setup(FIKRigTransformModifier& InOutTransformModifier)
+{
+	SetupInternal(InOutTransformModifier);
+	bInitialized = true;
+}
+
+void UIKRigConstraint::SetAndApplyConstraint(FIKRigTransformModifier& InOutTransformModifier)
+{
+	if (!bInitialized)
+	{
+		Setup(InOutTransformModifier);
+	}
+
+	Apply(InOutTransformModifier, nullptr);
+}
