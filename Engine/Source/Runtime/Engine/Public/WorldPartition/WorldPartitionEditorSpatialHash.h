@@ -212,8 +212,8 @@ public:
 	virtual FName GetWorldPartitionEditorName() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	virtual void HashActor(FWorldPartitionActorDesc* InActorDesc) override;
-	virtual void UnhashActor(FWorldPartitionActorDesc* InActorDesc) override;
+	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
+	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) override;
 
 	virtual void OnCellLoaded(const UWorldPartitionEditorCell* Cell) override;
 	virtual void OnCellUnloaded(const UWorldPartitionEditorCell* Cell) override;
@@ -230,8 +230,8 @@ private:
 	int32 ForEachIntersectingUnloadedRegion(const FBox& Box, TFunctionRef<void(const FCellCoord&)> InOperation);
 	int32 ForEachIntersectingUnloadedRegionInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(const FCellCoord&)> InOperation);
 
-	FBox GetActorBounds(FWorldPartitionActorDesc* InActorDesc) const;
-	bool IsActorAlwaysLoaded(FWorldPartitionActorDesc* InActorDesc) const;
+	FBox GetActorBounds(const FWorldPartitionHandle& InActorHandle) const;
+	bool IsActorAlwaysLoaded(const FWorldPartitionHandle& InActorHandle) const;
 	int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation);
 
 	UPROPERTY(Config)

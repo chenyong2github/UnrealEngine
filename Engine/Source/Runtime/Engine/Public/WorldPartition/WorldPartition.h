@@ -66,6 +66,7 @@ class ENGINE_API UWorldPartition final : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	friend class FWorldPartitionActorDesc;
 	friend class UWorldPartitionEditorCell;
 	friend class FWorldPartitionEditorModule;
 	friend class FUnrealEdMisc;
@@ -91,11 +92,11 @@ private:
 
 	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
 	TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptor(const FAssetData& InAssetData);
-
-	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);
 #endif
 
+	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
 
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);
 
@@ -139,6 +140,9 @@ public:
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
 	void Uninitialize();
+
+	void CleanupWorldPartition();
+
 	const FTransform& GetInstanceTransform() const { return InstanceTransform; }
 
 	void Tick(float DeltaSeconds);
@@ -168,9 +172,6 @@ public:
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
 	
-	DECLARE_EVENT_TwoParams(UWorldPartition, FWorldPartitionActorRegisteredEvent, AActor&, bool);
-	FWorldPartitionActorRegisteredEvent OnActorRegisteredEvent;
-
 	bool bIgnoreAssetRegistryEvents;
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
@@ -192,10 +193,6 @@ private:
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;
 #endif
-
-	// Actor registration
-	AActor* RegisterActor(FWorldPartitionActorDesc* ActorDesc);
-	void UnregisterActor(AActor* Actor);
 
 	bool IsMainWorldPartition() const;
 

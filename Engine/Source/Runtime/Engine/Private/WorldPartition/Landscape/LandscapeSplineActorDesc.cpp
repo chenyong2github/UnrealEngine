@@ -31,9 +31,9 @@ void FLandscapeSplineActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
-void FLandscapeSplineActorDesc::OnRegister(UWorldPartition* WorldPartition)
+void FLandscapeSplineActorDesc::OnRegister()
 {
-	FWorldPartitionActorDesc::OnRegister(WorldPartition);
+	FWorldPartitionActorDesc::OnRegister();
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
 	{
@@ -43,9 +43,9 @@ void FLandscapeSplineActorDesc::OnRegister(UWorldPartition* WorldPartition)
 	}
 }
 
-void FLandscapeSplineActorDesc::OnUnregister(UWorldPartition* WorldPartition)
+void FLandscapeSplineActorDesc::OnUnregister()
 {
-	FWorldPartitionActorDesc::OnUnregister(WorldPartition);
+	FWorldPartitionActorDesc::OnUnregister();
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
 	{

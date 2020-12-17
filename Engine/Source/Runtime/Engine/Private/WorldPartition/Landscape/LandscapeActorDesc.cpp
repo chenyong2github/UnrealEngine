@@ -30,9 +30,9 @@ void FLandscapeActorDesc::Unload()
 	FPartitionActorDesc::Unload();
 }
 
-void FLandscapeActorDesc::OnRegister(UWorldPartition* WorldPartition)
+void FLandscapeActorDesc::OnRegister()
 {
-	FPartitionActorDesc::OnRegister(WorldPartition);
+	FPartitionActorDesc::OnRegister();
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
 	{
@@ -42,9 +42,9 @@ void FLandscapeActorDesc::OnRegister(UWorldPartition* WorldPartition)
 	}
 }
 
-void FLandscapeActorDesc::OnUnregister(UWorldPartition* WorldPartition)
+void FLandscapeActorDesc::OnUnregister()
 {
-	FPartitionActorDesc::OnUnregister(WorldPartition);
+	FPartitionActorDesc::OnUnregister();
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
 	{

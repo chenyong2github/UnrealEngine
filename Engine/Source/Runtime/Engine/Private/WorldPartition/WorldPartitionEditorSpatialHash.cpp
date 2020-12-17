@@ -99,16 +99,16 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 }
 
 // In the editor, actors are always using their bounds for grid placement, which makes more sense from a user standpoint.
-FBox UWorldPartitionEditorSpatialHash::GetActorBounds(FWorldPartitionActorDesc* InActorDesc) const
+FBox UWorldPartitionEditorSpatialHash::GetActorBounds(const FWorldPartitionHandle& InActorHandle) const
 {
 	FBox ActorBounds;
 
-	switch(InActorDesc->GetGridPlacement())
+	switch(InActorHandle->GetGridPlacement())
 	{
 	case EActorGridPlacement::Location:
 	case EActorGridPlacement::Bounds:
 	{
-		ActorBounds = InActorDesc->GetBounds();
+		ActorBounds = InActorHandle->GetBounds();
 		break;
 	}
 	}
@@ -117,30 +117,30 @@ FBox UWorldPartitionEditorSpatialHash::GetActorBounds(FWorldPartitionActorDesc* 
 	return ActorBounds;
 }
 
-bool UWorldPartitionEditorSpatialHash::IsActorAlwaysLoaded(FWorldPartitionActorDesc* InActorDesc) const
+bool UWorldPartitionEditorSpatialHash::IsActorAlwaysLoaded(const FWorldPartitionHandle& InActorHandle) const
 {
-	if (InActorDesc->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)
+	if (InActorHandle->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)
 	{
 		return true;
 	}
 
 	// If an actor covers more that 4 levels in the octree (which means 32K cells), treat it as always loaded
-	const FBox ActorBounds = GetActorBounds(InActorDesc);
+	const FBox ActorBounds = GetActorBounds(InActorHandle);
 	const int32 ActorLevel = GetLevelForBox(ActorBounds);
 	return (ActorLevel > 4);
 }
 
-void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InActorDesc)
+void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorHandle)
 {
-	check(InActorDesc);
+	check(InActorHandle.IsValid());
 
-	if (IsActorAlwaysLoaded(InActorDesc))
+	if (IsActorAlwaysLoaded(InActorHandle))
 	{
-		AlwaysLoadedCell->AddActor(InActorDesc);
+		AlwaysLoadedCell->AddActor(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = GetActorBounds(InActorDesc);
+		const FBox ActorBounds = GetActorBounds(InActorHandle);
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
 
 		ForEachIntersectingCells(ActorBounds, 0, [&](const FCellCoord& CellCoord)
@@ -180,7 +180,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 			}
 
 			check(EditorCell);
-			EditorCell->AddActor(InActorDesc);
+			EditorCell->AddActor(InActorHandle);
 		});
 
 		const int32 NewLevel = GetLevelForBox(Bounds);
@@ -239,24 +239,24 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 	}
 }
 
-void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InActorDesc)
+void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActorHandle)
 {
-	check(InActorDesc);
+	check(InActorHandle.IsValid());
 
-	if (IsActorAlwaysLoaded(InActorDesc))
+	if (IsActorAlwaysLoaded(InActorHandle))
 	{
-		AlwaysLoadedCell->RemoveActor(InActorDesc);
+		AlwaysLoadedCell->RemoveActor(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = GetActorBounds(InActorDesc);
+		const FBox ActorBounds = GetActorBounds(InActorHandle);
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
 
 		ForEachIntersectingCells(ActorBounds, 0, [&](const FCellCoord& CellCoord)
 		{
 			UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
 
-			EditorCell->RemoveActor(InActorDesc);
+			EditorCell->RemoveActor(InActorHandle);
 
 			if (!EditorCell->Actors.Num())
 			{
@@ -345,6 +345,11 @@ void UWorldPartitionEditorSpatialHash::OnCellLoaded(const UWorldPartitionEditorC
 
 void UWorldPartitionEditorSpatialHash::OnCellUnloaded(const UWorldPartitionEditorCell* Cell)
 {
+	if (Cell == AlwaysLoadedCell)
+	{
+		return;
+	}
+
 	check(!Cell->bLoaded);
 
 	const FCellCoord CellCoord = GetCellCoords(Cell->Bounds.GetCenter(), 0);
@@ -376,13 +381,13 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 
 	ForEachIntersectingCell(Box, [&](UWorldPartitionEditorCell* EditorCell)
 	{
-		for(FWorldPartitionActorDesc* ActorDesc: EditorCell->Actors)
+		for(FWorldPartitionHandle& ActorDesc: EditorCell->Actors)
 		{
 			if (ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag)
 			{
 				if (Box.Intersect(ActorDesc->GetBounds()))
 				{
-					InOperation(ActorDesc);
+					InOperation(*ActorDesc);
 					NumIntersecting++;
 				}
 
@@ -391,13 +396,13 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 		}
 	});
 
-	for(FWorldPartitionActorDesc* ActorDesc: AlwaysLoadedCell->Actors)
+	for(FWorldPartitionHandle& ActorDesc: AlwaysLoadedCell->Actors)
 	{
 		check(ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag);
 
 		if (Box.Intersect(ActorDesc->GetBounds()))
 		{
-			InOperation(ActorDesc);
+			InOperation(*ActorDesc);
 			NumIntersecting++;
 		}
 
@@ -525,6 +530,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingUnloadedRegion(const 
 
 int32 UWorldPartitionEditorSpatialHash::ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation)
 {
+	InOperation(AlwaysLoadedCell);
 	for (UWorldPartitionEditorCell* Cell: Cells)
 	{
 		InOperation(Cell);

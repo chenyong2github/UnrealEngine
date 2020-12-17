@@ -35,6 +35,9 @@ class ENGINE_API FWorldPartitionActorDesc
 #if WITH_EDITOR
 	friend class AActor;
 	friend class UWorldPartition;
+	friend struct FWorldPartitionHandleImpl;
+	friend struct FWorldPartitionReferenceImpl;
+	friend struct FWorldPartitionHandleUtils;
 
 #if WITH_DEV_AUTOMATION_TESTS
 	friend class WorldPartitionTests::FWorldPartitionSoftRefTest;
@@ -57,6 +60,7 @@ public:
 	inline FName GetActorPath() const { return ActorPath; }
 	FBox GetBounds() const;
 
+protected:
 	inline uint32 IncSoftRefCount() const
 	{
 		return ++SoftRefCount;
@@ -89,6 +93,7 @@ public:
 		return HardRefCount;
 	}
 
+public:
 	const TArray<FGuid>& GetReferences() const
 	{
 		return References;
@@ -97,18 +102,22 @@ public:
 	FString ToString() const;
 
 	AActor* GetActor() const;
-	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr) const;
+	AActor* Load() const;
 	virtual void Unload();
 
+	void RegisterActor();
+	void UnregisterActor();
+
 	virtual void Init(const AActor* InActor);
-	void Init(const FWorldPartitionActorDescInitData& DescData);
+	void Init(UWorldPartition* InWorldPartition, const FWorldPartitionActorDescInitData& DescData);
 
 	void SerializeTo(TArray<uint8>& OutData);
 
-	void TransformInstance(const FString& From, const FString& To, const FTransform& Transform);
-
 protected:
 	FWorldPartitionActorDesc();
+
+	void TransformInstance(const FString& From, const FString& To, const FTransform& Transform);
+	void ApplyActorTransform(const FTransform& InTransform);
 
 	inline void TransferRefCounts(const FWorldPartitionActorDesc* From) const
 	{
@@ -117,9 +126,11 @@ protected:
 	}
 
 	virtual void Serialize(FArchive& Ar);
-	virtual void OnRegister(UWorldPartition* WorldPartition) {}
-	virtual void OnUnregister(UWorldPartition* WorldPartition) {}
 
+	virtual void OnRegister() {}
+	virtual void OnUnregister() {}
+
+	// Persistent
 	FGuid							Guid;
 	FName							Class;
 	FName							ActorPackage;
@@ -133,12 +144,12 @@ protected:
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	
+	// Transient
 	mutable uint32					SoftRefCount;
 	mutable uint32					HardRefCount;
-
-	// Cached values
 	UClass*							ActorClass;
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
+	UWorldPartition*				WorldPartition;
 
 public:
 	// Tagging

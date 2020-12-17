@@ -217,13 +217,13 @@ public:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 
-struct ENGINE_API FWorldPartitionSoftRefImpl
+struct ENGINE_API FWorldPartitionHandleImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
 };
 
-struct ENGINE_API FWorldPartitionHardRefImpl
+struct ENGINE_API FWorldPartitionReferenceImpl
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
@@ -234,13 +234,13 @@ struct ENGINE_API FWorldPartitionHardRefImpl
  * This won't trigger any loading, but will prevent cleanup of the actor descriptor when destroying an
  * actor in the editor.
  */
-typedef TWorldPartitionHandle<FWorldPartitionSoftRefImpl> FWorldPartitionHandle;
+typedef TWorldPartitionHandle<FWorldPartitionHandleImpl> FWorldPartitionHandle;
 
 /**
  * FWorldPartitionReference will increment/decrement the hard reference count on the actor descriptor.
  * This will trigger actor loading/unloading when the hard reference counts gets to one/zero.
  */
-typedef TWorldPartitionHandle<FWorldPartitionHardRefImpl> FWorldPartitionReference;
+typedef TWorldPartitionHandle<FWorldPartitionReferenceImpl> FWorldPartitionReference;
 
 /**
  * FWorldPartitionHandlePinRefScope will keep a reference if the actor is already loaded. This is useful 

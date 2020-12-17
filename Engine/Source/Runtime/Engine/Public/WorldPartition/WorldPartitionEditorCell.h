@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionEditorCell.generated.h"
 
 class FWorldPartitionActorDesc;
@@ -19,17 +20,15 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
-	UWorldPartition* GetWorldPartition();
-
-	void AddActor(FWorldPartitionActorDesc* InActorDesc);
-	void RemoveActor(FWorldPartitionActorDesc* InActorDesc);
+	void AddActor(const FWorldPartitionHandle& ActorHandle);
+	void RemoveActor(const FWorldPartitionHandle& ActorHandle);
 
 	FBox						Bounds;
 
 	/** Tells if the cell was manually loaded in the editor */
 	bool						bLoaded : 1;
 
-	TSet<FWorldPartitionActorDesc*> Actors;
-	TSet<FWorldPartitionActorDesc*> LoadedActors;
+	TSet<FWorldPartitionHandle> Actors;
+	TSet<FWorldPartitionReference> LoadedActors;
 #endif
 };

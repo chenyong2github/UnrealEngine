@@ -17,15 +17,11 @@
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "LevelUtils.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Editor/GroupActor.h"
-#include "EditorLevelUtils.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
-#include "Misc/Base64.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
@@ -329,7 +325,7 @@ void UWorldPartition::Uninitialize()
 		{
 			CleanupForPIE();
 		}
-		else if (IsMainWorldPartition())
+		else
 		{
 			if (!IsEngineExitRequested())
 			{
@@ -356,6 +352,11 @@ void UWorldPartition::Uninitialize()
 
 		InitState = EWorldPartitionInitState::Uninitialized;
 	}
+}
+
+void UWorldPartition::CleanupWorldPartition()
+{
+	Uninitialize();
 }
 
 bool UWorldPartition::IsInitialized() const
@@ -398,17 +399,6 @@ void UWorldPartition::UnregisterDelegates()
 
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
 		FEditorDelegates::EndPIE.RemoveAll(this);
-	}
-}
-
-void UWorldPartition::ApplyActorTransform(AActor* InActor, const FTransform& InTransform)
-{
-	if (!InTransform.Equals(FTransform::Identity))
-	{
-		FLevelUtils::FApplyLevelTransformParams TransformParams(InActor->GetLevel(), InTransform);
-		TransformParams.Actor = InActor;
-		TransformParams.bDoPostEditMove = true;
-		FLevelUtils::ApplyLevelTransform(TransformParams);
 	}
 }
 
@@ -481,7 +471,6 @@ bool UWorldPartition::RefreshLoadedEditorCells()
 {
 	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
 	{
-		CellsToRefresh.Add(EditorHash->GetAlwaysLoadedCell());
 		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
 		{
 			if (Cell->bLoaded)
@@ -520,11 +509,11 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 
 	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
 	{
-		for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
+		for (const FWorldPartitionReference& ActorDesc : Cell->LoadedActors)
 		{
-			if (!bIsCellShouldBeLoaded || !ShouldActorBeLoaded(ActorDesc))
+			if (!bIsCellShouldBeLoaded || !ShouldActorBeLoaded(*ActorDesc))
 			{
-				UnloadCount.FindOrAdd(ActorDesc, 0)++;
+				UnloadCount.FindOrAdd(*ActorDesc, 0)++;
 			}
 		}
 	}
@@ -636,81 +625,36 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 
 	Cell->Modify(false);
 
-	auto UnloadActor = [this](FWorldPartitionActorDesc* ActorDesc, AActor* Actor)
-	{
-		check(Actor);
-
-		const uint32 ActorRefCount = ActorDesc->DecHardRefCount();
-		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartition::UpdateLoadingEditorCell]"), *Actor->GetFullName(), ActorRefCount);
-
-		if (!ActorRefCount)
-		{
-			UnregisterActor(Actor);
-		}
-	};
+	bool bPotentiallyUnloadedActors = false;
 
 	if (!bShouldBeLoaded)
 	{
-		for (FWorldPartitionActorDesc* ActorDesc: Cell->LoadedActors.Array())
-		{
-			// Here we test for null Actor only for when UpdateLoadingEditorCell is called by UWorldPartition::Uninitialize() when exiting the editor (see StaticExit() / GExitPurge).
-			AActor* Actor = ActorDesc->GetActor();
-			check(Actor || GExitPurge);
-			if (Actor)
-			{
-				UnloadActor(ActorDesc, Actor);
-			}
-		}
-
 		Cell->LoadedActors.Empty();
+		bPotentiallyUnloadedActors = true;
 	}
 	else
 	{
 		TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 
 		TArray<FWorldPartitionActorDesc*> ActorsToUnload;
-		for (FWorldPartitionActorDesc* ActorDesc: Cell->Actors.Array())
+		for (FWorldPartitionHandle& ActorHandle: Cell->Actors.Array())
 		{
-			AActor* Actor = ActorDesc->GetActor();
+			AActor* Actor = ActorHandle->GetActor();
 
 			// The actor could be either loaded but with no cells loaded (in the case of a reference from another actor, for example)
 			// or directly referenced by a loaded cell.
-			check(Actor || !ActorDesc->GetHardRefCount());
+			check(Actor || !ActorHandle->GetHardRefCount());
 
 			// Filter actor against DataLayers
-			if (ShouldActorBeLoaded(ActorDesc))
+			if (ShouldActorBeLoaded(*ActorHandle))
 			{
 				bool bIsAlreadyInLoadedActors = false;
-				Cell->LoadedActors.Add(ActorDesc, &bIsAlreadyInLoadedActors);
-
-				if (bIsAlreadyInLoadedActors)
-				{
-					// We already hold a reference to this actor
-					check(Actor);
-					check(ActorDesc->GetHardRefCount());
-					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
-				}
-				else
-				{
-					const uint32 ActorRefCount = ActorDesc->IncHardRefCount();
-
-					if (ActorRefCount == 1)
-					{
-						// Register actor
-						Actor = RegisterActor(ActorDesc);
-					}
-					else
-					{
-						check(Actor);
-						UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced unloaded actor %s(%d)"), *Actor->GetFullName(), ActorRefCount);
-					}
-
-					check(Actor && Actor->GetActorGuid() == ActorDesc->GetGuid());
-				}
+				Cell->LoadedActors.Add(ActorHandle, &bIsAlreadyInLoadedActors);
 			}
-			else if (Cell->LoadedActors.Remove(ActorDesc))
+			else
 			{
-				UnloadActor(ActorDesc, Actor);
+				Cell->LoadedActors.Remove(ActorHandle);
+				bPotentiallyUnloadedActors = true;
 			}
 		}
 	}
@@ -728,66 +672,14 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			EditorHash->OnCellUnloaded(Cell);
 		}
 	}
-}
 
-#endif
-
-AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
-{
-#if WITH_EDITOR
-	check(ActorDesc);
-	AActor* Actor = ActorDesc->GetActor();
-
-	if (!Actor)
+	if (bPotentiallyUnloadedActors)
 	{
-		Actor = ActorDesc->Load(InstancingContext.IsInstanced() ? &InstancingContext : nullptr);
-		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Loaded %s"), *Actor->GetFullName());
+		bForceGarbageCollection = true;
+		bForceGarbageCollectionPurge = true;
 	}
-
-	check(Actor);
-	check(Actor->IsPackageExternal());
-	check(ActorDesc->GetActor() == Actor);
-
-	ApplyActorTransform(Actor, InstanceTransform);
-
-	TGuardValue<ITransaction*> TransGuard(GUndo, nullptr);
-	Actor->GetLevel()->AddLoadedActor(Actor);
-
-	OnActorRegisteredEvent.Broadcast(*Actor, true);
-
-	UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Registered loaded actor %s"), *Actor->GetFullName());
-
-	return Actor;
-#else
-	return nullptr;
-#endif	
 }
 
-void UWorldPartition::UnregisterActor(AActor* Actor)
-{
-#if WITH_EDITOR
-	FWorldPartitionActorDesc* ActorDesc = GetActorDesc(Actor->GetActorGuid());
-	check(ActorDesc);
-
-	if (!Actor->IsPendingKill())
-	{
-		OnActorRegisteredEvent.Broadcast(*Actor, false);
-
-		Actor->GetLevel()->RemoveLoadedActor(Actor);
-	}
-
-	ActorDesc->Unload();
-
-	ApplyActorTransform(Actor, InstanceTransform.Inverse());
-
-	bForceGarbageCollection = true;
-	bForceGarbageCollectionPurge = true;
-
-	UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unregistered loaded actor %s"), *Actor->GetFullName());
-#endif
-}
-
-#if WITH_EDITOR
 void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 {
 	if (ShouldHandleAssetEvent(InAssetData))
@@ -800,7 +692,7 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 
 		HashActorDesc(NewActorDesc->Get());
 
-		(*NewActorDesc)->OnRegister(this);
+		(*NewActorDesc)->OnRegister();
 	}
 }
 
@@ -815,7 +707,7 @@ void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 
 		UnhashActorDesc(ExistingActorDesc->Get());
 
-		(*ExistingActorDesc)->OnUnregister(this);
+		(*ExistingActorDesc)->OnUnregister();
 
 		Actors.Remove((*ExistingActorDesc)->GetGuid());
 		ExistingActorDesc->Release();
@@ -828,12 +720,16 @@ void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
 		check(NewActorDesc.IsValid());
-			
+
 		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+
+		// Pin the actor handle on the actor to prevent unloading it when unhashing
+		FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
+		FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
 
 		UnhashActorDesc(ExistingActorDesc->Get());
 
-		// This is required to support external load references
+		// Transfer any reference count from external sources
 		NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
 
 		*ExistingActorDesc = MoveTemp(NewActorDesc);
@@ -903,7 +799,7 @@ TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const F
 			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
 			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
-			NewActorDesc->Init(ActorDescInitData);
+			NewActorDesc->Init(this, ActorDescInitData);
 			return NewActorDesc;
 		}
 	}
@@ -915,14 +811,16 @@ void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
 	check(EditorHash);
-	EditorHash->HashActor(ActorDesc);
+	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
+	EditorHash->HashActor(ActorHandle);
 }
 
 void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
 	check(EditorHash);
-	EditorHash->UnhashActor(ActorDesc);
+	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
+	EditorHash->UnhashActor(ActorHandle);
 }
 #endif
 
@@ -1060,7 +958,7 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 			
 		ForEachActorDesc(AActor::StaticClass(), [LogFile, &LineEntry](const FWorldPartitionActorDesc* ActorDesc)
 		{
-				LineEntry = FString::Printf(
+			LineEntry = FString::Printf(
 				TEXT("%s, %s, %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f") LINE_TERMINATOR, 
 				*ActorDesc->GetGuid().ToString(), 
 				*ActorDesc->GetClass().ToString(), 

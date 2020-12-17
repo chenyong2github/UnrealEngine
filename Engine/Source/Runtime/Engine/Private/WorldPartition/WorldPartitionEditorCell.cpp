@@ -20,39 +20,34 @@ void UWorldPartitionEditorCell::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-void UWorldPartitionEditorCell::AddActor(FWorldPartitionActorDesc* InActorDesc)
+void UWorldPartitionEditorCell::AddActor(const FWorldPartitionHandle& ActorHandle)
 {
-	check(InActorDesc);
+	check(ActorHandle.IsValid());
+	
 	bool bIsAlreadyInSet = false;
-	Actors.Add(InActorDesc, &bIsAlreadyInSet);
+	Actors.Add(ActorHandle, &bIsAlreadyInSet);
+	check(!bIsAlreadyInSet);
 
-	if (!bIsAlreadyInSet && bLoaded)
+	if (ActorHandle.IsLoaded())
 	{
-		if (AActor* Actor = InActorDesc->GetActor())
-		{
-			check(!Actor->IsChildActor());
-
-			bIsAlreadyInSet = false;
-			LoadedActors.Add(InActorDesc, &bIsAlreadyInSet);
-			check(!bIsAlreadyInSet);
-
-			const uint32 ActorRefCount = InActorDesc->IncHardRefCount();
-			UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced loaded actor %s(%d) [UWorldPartitionEditorCell::AddActor]"), *Actor->GetFullName(), ActorRefCount);
-		}
+		bIsAlreadyInSet = false;
+		LoadedActors.Add(ActorHandle, &bIsAlreadyInSet);
+		check(!bIsAlreadyInSet);
 	}
 }
 
-void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDesc)
+void UWorldPartitionEditorCell::RemoveActor(const FWorldPartitionHandle& ActorHandle)
 {
-	check(InActorDesc);
-	verify(Actors.Remove(InActorDesc));
+	check(ActorHandle.IsValid());
+	verify(Actors.Remove(ActorHandle));
 
-	if (LoadedActors.Remove(InActorDesc))
+	if (ActorHandle.IsLoaded())
 	{
-		check(bLoaded);
-
-		const uint32 ActorRefCount = InActorDesc->DecHardRefCount();
-		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartitionEditorCell::RemoveActor]"), *InActorDesc->GetActor()->GetFullName(), ActorRefCount);
+		verify(LoadedActors.Remove(ActorHandle));
+	}
+	else
+	{
+		check(!LoadedActors.Contains(ActorHandle));
 	}
 }
 #endif

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
@@ -26,17 +27,17 @@ bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* Act
 	return !!ActorDesc->GetActor();
 }
 
-void FWorldPartitionSoftRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionHandleImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	ActorDesc->IncSoftRefCount();
 }
 
-void FWorldPartitionSoftRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionHandleImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	ActorDesc->DecSoftRefCount();
 }
 
-void FWorldPartitionHardRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	if (ActorDesc->IncHardRefCount() == 1)
 	{
@@ -46,20 +47,21 @@ void FWorldPartitionHardRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc
 
 		if (Actor)
 		{
-			Actor->GetLevel()->AddLoadedActor(Actor);
+			ActorDesc->RegisterActor();
 		}
 	}
 }
 
-void FWorldPartitionHardRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
 	if (!ActorDesc->DecHardRefCount())
 	{
 		if (!IsEngineExitRequested())
 		{
+			// We can still hold a reference to an actor that was manually deleted in the editor
 			if (AActor* Actor = ActorDesc->GetActor())
 			{
-				Actor->GetLevel()->RemoveLoadedActor(Actor);
+				ActorDesc->UnregisterActor();
 				ActorDesc->Unload();
 			}
 		}

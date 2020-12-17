@@ -56,6 +56,7 @@ Level.cpp: Level-related functions
 #include "AssetData.h"
 #include "Misc/ArchiveMD5.h"
 #endif
+#include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "Components/ModelComponent.h"
@@ -376,6 +377,11 @@ void ULevel::CleanupLevel()
 			}, false);
 		}
 	}
+
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		WorldPartition->CleanupWorldPartition();
+	}
 }
 
 void ULevel::PostInitProperties()
@@ -632,6 +638,7 @@ void ULevel::RemoveLoadedActor(AActor* Actor)
 {
 	check(Actor);
 	check(Actor->GetLevel() == this);
+	check(!Actor->IsPendingKill());
 
 	Actor->UnregisterAllComponents();
 	Actor->RegisterAllActorTickFunctions(false, true);	

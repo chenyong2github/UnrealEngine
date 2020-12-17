@@ -17,7 +17,7 @@ public:
 	virtual void Unload() override;
 
 protected:
-	virtual void OnRegister(UWorldPartition* WorldPartition) override;
-	virtual void OnUnregister(UWorldPartition* WorldPartition) override;
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 #endif
 };

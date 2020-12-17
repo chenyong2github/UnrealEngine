@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 #if WITH_EDITOR
+#include "LevelUtils.h"
 #include "Misc/HashBuilder.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
@@ -24,6 +25,7 @@ uint32 FWorldPartitionActorDesc::GlobalTag = 0;
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: SoftRefCount(0)
 	, HardRefCount(0)
+	, WorldPartition(nullptr)
 	, Tag(0)
 {}
 
@@ -37,6 +39,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	// Get the first native class in the hierarchy
 	ActorClass = GetParentNativeClass(InActor->GetClass());
 	Class = ActorClass->GetFName();
+
+	ActorPtr = (AActor*)InActor;
 
 	FVector NewBoundsLocation;
 	FVector NewBoundsExtent;
@@ -72,9 +76,12 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 			References.Add(ActorReference->GetActorGuid());
 		}
 	}
+
+	WorldPartition = InActor->GetLevel()->GetWorldPartition();
+	check(WorldPartition);
 }
 
-void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
+void FWorldPartitionActorDesc::Init(UWorldPartition* InWorldPartition, const FWorldPartitionActorDescInitData& DescData)
 {
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
@@ -98,6 +105,8 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	{
 		GridPlacement = DefaultGridPlacement;
 	}
+
+	WorldPartition = InWorldPartition;
 }
 
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
@@ -134,6 +143,21 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 		NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 	}
 }
+
+void FWorldPartitionActorDesc::ApplyActorTransform(const FTransform& InTransform)
+{
+	AActor* Actor = GetActor();
+	check(Actor);
+
+	if (!InTransform.Equals(FTransform::Identity))
+	{
+		FLevelUtils::FApplyLevelTransformParams TransformParams(Actor->GetLevel(), InTransform);
+		TransformParams.Actor = Actor;
+		TransformParams.bDoPostEditMove = true;
+		FLevelUtils::ApplyLevelTransform(TransformParams);
+	}
+}
+
 
 FString FWorldPartitionActorDesc::ToString() const
 {
@@ -189,12 +213,15 @@ AActor* FWorldPartitionActorDesc::GetActor() const
 	return Actor;
 }
 
-AActor* FWorldPartitionActorDesc::Load(const FLinkerInstancingContext* InstancingContext) const
+AActor* FWorldPartitionActorDesc::Load() const
 {
 	AActor* Actor = GetActor();
 
 	if (!Actor)
 	{
+		check(WorldPartition || GIsAutomationTesting);
+		const FLinkerInstancingContext* InstancingContext = WorldPartition ? &WorldPartition->InstancingContext : nullptr;
+
 		UPackage* Package = nullptr;
 
 		if (InstancingContext)
@@ -233,6 +260,27 @@ void FWorldPartitionActorDesc::Unload()
 		}, false);
 
 		ActorPtr = nullptr;
+	}
+}
+
+void FWorldPartitionActorDesc::RegisterActor()
+{
+	AActor* Actor = GetActor();
+	check(Actor);
+
+	ApplyActorTransform(WorldPartition->InstanceTransform);
+	Actor->GetLevel()->AddLoadedActor(Actor);
+}
+
+void FWorldPartitionActorDesc::UnregisterActor()
+{
+	AActor* Actor = GetActor();
+	check(Actor);
+
+	if (!Actor->IsPendingKill())
+	{
+		Actor->GetLevel()->RemoveLoadedActor(Actor);
+		ApplyActorTransform(WorldPartition->InstanceTransform.Inverse());
 	}
 }
 #endif
