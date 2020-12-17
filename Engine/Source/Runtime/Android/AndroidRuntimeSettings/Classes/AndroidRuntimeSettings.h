@@ -585,6 +585,11 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = GraphicsDebugger)
 	FDirectoryPath MaliGraphicsDebuggerPath;
 
+	// If checked, this will disable the security.perf_harden flag on the Android device when launching or installing your app via the generated batch file.
+	// Disabling security.perf_harden is necessary for HWCPipe to be able to report performance counters on Mali devices.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = GraphicsDebugger)
+	bool bEnableMaliPerfCounters;
+
 	/** Include ETC2 textures when packaging with the Android (Multi) variant. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = MultiTextureFormats, meta = (DisplayName = "Include ETC2 textures"))
 	bool bMultiTargetFormat_ETC2;
