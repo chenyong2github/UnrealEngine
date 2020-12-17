@@ -309,12 +309,9 @@ void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Us
 	int32 LODIndex = 0;
 
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
-	if ( ensure(SkelComp) )
+	if (SkelComp && SkelComp->SkeletalMesh)
 	{
-		if (SkelComp->SkeletalMesh != nullptr)
-		{
-			LODIndex = Usage.GetLODIndex();
-		}
+		LODIndex = Usage.GetLODIndex();
 	}
 
 	if ( ensure(LODData.IsValidIndex(LODIndex)) )
