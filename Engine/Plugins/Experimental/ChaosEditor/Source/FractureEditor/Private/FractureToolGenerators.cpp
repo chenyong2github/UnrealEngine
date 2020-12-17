@@ -81,6 +81,7 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 		.AssetFilenameSuffix(TEXT("GeometryCollection"))
 		.HeadingText(LOCTEXT("CreateGeometryCollection_Heading", "Geometry Collection Name"))
 		.CreateButtonText(LOCTEXT("CreateGeometryCollection_ButtonLabel", "Create Geometry Collection"))
+		.AssetPath(AssetPath)
 		.OnCreateAssetAction(FOnPathChosen::CreateUObject(this, &UFractureToolGenerateAsset::OnGenerateAssetPathChosen, Actors))
 	);
 
@@ -99,7 +100,14 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAssetPath, TArray<AActor*> Actors)
 {
 		
-	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;//  = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
+	//Record the path
+	int32 LastSlash = INDEX_NONE;
+	if (InAssetPath.FindLastChar('/', LastSlash))
+	{
+		AssetPath = InAssetPath.LeftChop(LastSlash);
+	}
+
+	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 
 	if (Actors.Num() > 0)
 	{

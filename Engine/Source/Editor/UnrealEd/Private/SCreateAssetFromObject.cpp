@@ -28,8 +28,17 @@ void SCreateAssetFromObject::Construct(const FArguments& InArgs, TSharedPtr<SWin
 	CreateButtonText = InArgs._CreateButtonText;
 	OnCreateAssetAction = InArgs._OnCreateAssetAction;
 
+	if (InArgs._AssetPath.IsEmpty())
+	{
+		AssetPath = FString("/Game");
+	}
+	else
+	{
+		AssetPath = InArgs._AssetPath;
+	}
+
 	bIsReportingError = false;
-	AssetPath = FString("/Game");
+
 	FPathPickerConfig PathPickerConfig;
 	PathPickerConfig.DefaultPath = AssetPath;
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateRaw(this, &SCreateAssetFromObject::OnSelectAssetPath);
