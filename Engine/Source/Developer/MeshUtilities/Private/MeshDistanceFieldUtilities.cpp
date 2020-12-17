@@ -324,7 +324,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
-	const TArray<EBlendMode>& MaterialBlendModes,
+	const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 	const FBoxSphereBounds& Bounds,
 	float DistanceFieldResolutionScale,
 	bool bGenerateAsIfTwoSided,
@@ -424,7 +424,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 						{
 							if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
 							{
-								bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
+								bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex].BlendMode);
 							}
 
 							break;
@@ -489,6 +489,23 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
 			}
 
+			bool bTriangleIsTwoSided = false;
+
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+				if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
+				{
+					if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+					{
+						bTriangleIsTwoSided = MaterialBlendModes[Section.MaterialIndex].bTwoSided;
+					}
+
+					break;
+				}
+			}
+
 			if (bUseEmbree)
 			{
 				EmbreeIndices[FilteredTriangleIndex * 3 + 0] = I0;
@@ -501,14 +518,14 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 				FEmbreeTriangleDesc Desc;
 				// Store bGenerateAsIfTwoSided in material index
-				Desc.ElementIndex = bGenerateAsIfTwoSided ? 1 : 0;
+				Desc.ElementIndex = bGenerateAsIfTwoSided || bTriangleIsTwoSided ? 1 : 0;
 				Geometry.TriangleDescs.Add(Desc);
 			}
 			else
 			{
 				BuildTriangles.Add(FkDOPBuildCollisionTriangle<uint32>(
 					// Store bGenerateAsIfTwoSided in material index
-					bGenerateAsIfTwoSided,
+					bGenerateAsIfTwoSided || bTriangleIsTwoSided ? 1 : 0,
 					V0,
 					V1,
 					V2));
@@ -796,7 +813,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
-	const TArray<EBlendMode>& MaterialBlendModes,
+	const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 	const FBoxSphereBounds& Bounds,
 	float DistanceFieldResolutionScale,
 	bool bGenerateAsIfTwoSided,

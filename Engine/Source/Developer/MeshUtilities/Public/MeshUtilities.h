@@ -50,6 +50,13 @@ struct FBoneVertInfo
 	TArray<FVector>	Normals;
 };
 
+class FSignedDistanceFieldBuildMaterialData
+{
+public:
+	EBlendMode BlendMode;
+	bool bTwoSided;
+};
+
 struct FOverlappingCorners;
 
 class IMeshUtilities : public IModuleInterface
@@ -209,7 +216,7 @@ public:
 		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
-		const TArray<EBlendMode>& MaterialBlendModes,
+		const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 		const FBoxSphereBounds& Bounds,
 		float DistanceFieldResolutionScale,
 		bool bGenerateAsIfTwoSided,

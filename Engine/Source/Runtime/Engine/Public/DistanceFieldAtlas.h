@@ -18,6 +18,10 @@
 #include "DerivedMeshDataTaskUtils.h"
 #include "Async/AsyncWork.h"
 
+#if WITH_EDITOR
+#include "MeshUtilities.h"
+#endif
+
 class FDistanceFieldVolumeData;
 class UStaticMesh;
 class UTexture2D;
@@ -407,7 +411,9 @@ class FAsyncDistanceFieldTask
 public:
 	FAsyncDistanceFieldTask();
 
-	TArray<EBlendMode> MaterialBlendModes;
+#if WITH_EDITOR
+	TArray<FSignedDistanceFieldBuildMaterialData> MaterialBlendModes;
+#endif
 	FSourceMeshDataForDerivedDataTask SourceMeshData;
 	UStaticMesh* StaticMesh;
 	UStaticMesh* GenerateSource;

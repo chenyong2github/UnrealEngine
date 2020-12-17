@@ -512,7 +512,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuild
 
 				if (!BlockAllocator.AddElement((uint32&)Texture->AtlasAllocationMin.X, (uint32&)Texture->AtlasAllocationMin.Y, (uint32&)Texture->AtlasAllocationMin.Z, Size.X, Size.Y, Size.Z))
 				{
-					UE_LOG(LogStaticMesh, Warning, TEXT("Failed to allocate %ux%ux%u in distance field atlas. Moved mesh distance field to FailedAllocations list"), Size.X, Size.Y, Size.Z);
+					UE_LOG(LogStaticMesh, Warning, TEXT("Failed to allocate %ux%ux%u for %s in distance field atlas. Moved mesh distance field to FailedAllocations list"), Size.X, Size.Y, Size.Z, *Texture->GetStaticMesh()->GetName());
 					LocalPendingAllocations->RemoveAt(AllocationIndex);
 					FailedAllocations.Add(Texture);
 					FailedAllocatedPixels += Size.X * Size.Y * Size.Z;
@@ -890,7 +890,7 @@ FDistanceFieldAsyncQueue* GDistanceFieldAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for distance field data, must be changed when modifying the generation code or data format
-#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("CD4A6506-C64C-A019-AA56-2B0A412AE96A")
+#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("CD4A6506-C64C-A029-AA56-2B0A412AE96A")
 
 FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 {
@@ -954,15 +954,18 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, const I
 
 		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
 		{
+			FSignedDistanceFieldBuildMaterialData MaterialData;
 			// Default material blend mode
-			EBlendMode BlendMode = BLEND_Opaque;
+			MaterialData.BlendMode = BLEND_Opaque;
+			MaterialData.bTwoSided = false;
 
 			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
 			{
-				BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
+				MaterialData.BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
+				MaterialData.bTwoSided = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->IsTwoSided();
 			}
 
-			NewTask->MaterialBlendModes.Add(BlendMode);
+			NewTask->MaterialBlendModes.Add(MaterialData);
 		}
 
 		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
