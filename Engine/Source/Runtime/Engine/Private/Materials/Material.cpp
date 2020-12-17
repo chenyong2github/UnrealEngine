@@ -4563,6 +4563,12 @@ void UMaterial::RebuildShadingModelField()
 			ShadingModel = MSM_Hair;
 			BlendMode = EBlendMode::BLEND_Opaque;
 		}
+		else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SingleLayerWater))
+		{
+			MaterialDomain = EMaterialDomain::MD_Surface;
+			ShadingModel = MSM_SingleLayerWater;
+			BlendMode = EBlendMode::BLEND_Opaque; // STRATA_TODO water can also be masked: check Mask input from the main node to automatically enabled that?
+		}
 
 		// Also update the ShadingModels for remaining pipeline operation
 		ShadingModels.AddShadingModel(ShadingModel);

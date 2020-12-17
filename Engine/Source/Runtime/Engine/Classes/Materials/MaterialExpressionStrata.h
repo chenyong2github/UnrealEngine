@@ -322,10 +322,10 @@ class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* EmissiveColor (type = float3, unit = Luminance, default = 0)
+	* Emissive (type = float3, unit = Luminance, default = 0)
 	*/
 	UPROPERTY()
-	FExpressionInput EmissiveColor;
+	FExpressionInput Emissive;
 
 	/**
 	 * The amount of transmitted light from the back side of the surface to the front side of the surface ()
@@ -391,6 +391,89 @@ class UMaterialExpressionStrataHairBSDF : public UMaterialExpression
 	 */
 	UPROPERTY()
 	FExpressionInput Emissive;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
+
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	 * Surface base color resulting from single and multiple scattering combined. (type = float3, unit = unitless, defaults to black)
+	 */
+	UPROPERTY()
+	FExpressionInput BaseColor;
+
+	/**
+	 * TODO. (type = float3, unit = unitless, defaults to black)
+	 */
+	UPROPERTY()
+	FExpressionInput Metallic;
+
+	/**
+	 * Specular (type = float, unit = unitless, defaults to 0.5)
+	 */
+	UPROPERTY()
+	FExpressionInput Specular;
+
+	/**
+	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse (type = float, unit = unitless, defaults to 0.5)
+	 */
+	UPROPERTY()
+	FExpressionInput Roughness;
+
+	/**
+	 * Tangent (type = float3, unit = unitless, defaults to +Z vector)
+	 */
+	UPROPERTY()
+	FExpressionInput Normal;
+
+	/**
+	 * Emissive (type = float3, unit = luminance, defaults to 0.0)
+	 */
+	UPROPERTY()
+	FExpressionInput Emissive;
+
+	/**
+	 * Opacity of the material layered on top of the water (type = float3, unit = unitless, defaults to 0.0)
+	 */
+	UPROPERTY()
+	FExpressionInput TopMaterialOpacity;
+
+	/**
+	 * TODO. (type = float3, unit = unitless, defaults to black)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterAlbedo;
+
+	/**
+	 * TODO. (type = float3, unit = 1/cm, defaults to black)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterExtinction;
+
+	/**
+	 * TODO. (type = float3, unit = unitless, defaults to 0)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterPhaseG;
+
+	/**
+	 * TODO. (type = float3, unit = unitless, defaults to white)
+	 */
+	UPROPERTY()
+	FExpressionInput ColorScaleBehindWater;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

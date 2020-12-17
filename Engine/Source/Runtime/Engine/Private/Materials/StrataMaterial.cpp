@@ -33,6 +33,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_HAIR:
 		return TEXT("HAIR");
 		break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+		return TEXT("SINGLELAYERWATER");
+		break;
 	}
 	check(false);
 	return "";
@@ -204,6 +207,21 @@ bool StrataIsHairOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilat
 	return true;
 }
 
+bool StrataIsSingleLayerWaterOnly(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material)
+{
+	if (!StrataIsSingleBSDF(Compiler, Material))
+	{
+		return false;
+	}
+	if (Material.Layers[0].BSDFs[0].Type != STRATA_BSDF_TYPE_SINGLELAYERWATER)
+	{
+		Compiler->Error(TEXT("The single BSDF resulting from the graph is not of type SingleLayerWater."));
+		return false;
+	}
+
+	return true;
+}
+
 bool StrataMaterialContainsAnyBSDF(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material, uint8 BSDFType)
 {
 	for (uint32 LayerIt = 0; LayerIt < Material.LayerCount; ++LayerIt)
@@ -304,6 +322,12 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				break;
 			}
 			case STRATA_BSDF_TYPE_HAIR:
+			{
+				Result.RequestedByteCount += UintByteSize;
+				Result.RequestedByteCount += UintByteSize;
+				break;
+			}
+			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 			{
 				Result.RequestedByteCount += UintByteSize;
 				Result.RequestedByteCount += UintByteSize;

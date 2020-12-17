@@ -545,6 +545,7 @@ enum EStrataShadingModel
 	SSM_SubsurfaceLit			UMETA(DisplayName = "SubsurfaceLit"),
 	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
 	SSM_Hair					UMETA(DisplayName = "Hair"),
+	SSM_SingleLayerWater		UMETA(DisplayName = "SingleLayerWater"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
 };

@@ -20163,7 +20163,7 @@ UMaterialExpressionStrataUnlitBSDF::UMaterialExpressionStrataUnlitBSDF(const FOb
 int32 UMaterialExpressionStrataUnlitBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
-		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f));
 
 	uint8 FakeSharedNormalIndex = 0;
@@ -20296,6 +20296,111 @@ bool UMaterialExpressionStrataHairBSDF::IsResultStrataMaterial(int32 OutputIndex
 void UMaterialExpressionStrataHairBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	StrataMaterialInfo.AddShadingModel(SSM_Hair);
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataSingleLayerWaterBSDF::UMaterialExpressionStrataSingleLayerWaterBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataSingleLayerWaterBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
+	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
+
+	int32 OutputCodeChunk = Compiler->StrataSingleLayerWaterBSDF(
+		CompileWithDefaultFloat3(Compiler, BaseColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
+		CompileWithDefaultFloat1(Compiler, Roughness, 0.5f),
+		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, TopMaterialOpacity, 0.0f),
+		CompileWithDefaultFloat3(Compiler, WaterAlbedo, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, WaterExtinction, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, WaterPhaseG, 0.0f),
+		CompileWithDefaultFloat3(Compiler, ColorScaleBehindWater, 1.0f, 1.0f, 1.0f),
+		NormalCodeChunk,
+		SharedNormalIndex);
+
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SINGLELAYERWATER);
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataSingleLayerWaterBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Single Layer Water BSDF"));
+}
+
+uint32 UMaterialExpressionStrataSingleLayerWaterBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataSingleLayerWaterBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3; // BaseColor
+		break;
+	case 1:
+		return MCT_Float1; // Metallic
+		break;
+	case 2:
+		return MCT_Float1; // Specular
+		break;
+	case 3:
+		return MCT_Float1; // Roughness
+		break;
+	case 4:
+		return MCT_Float3; // Normal
+		break;
+	case 5:
+		return MCT_Float3; // Emissive
+		break;
+	case 6:
+		return MCT_Float1; // TopMaterialOpacity
+		break;
+	case 7:
+		return MCT_Float3; // WaterAlbedo
+		break;
+	case 8:
+		return MCT_Float3; // WaterExtinction
+		break;
+	case 9:
+		return MCT_Float1; // WaterPhaseG
+		break;
+	case 10:
+		return MCT_Float3; // ColorScaleBehindWater
+		break;
+	}
+	
+	check(false);
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataSingleLayerWaterBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataSingleLayerWaterBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	StrataMaterialInfo.AddShadingModel(SSM_SingleLayerWater);
 }
 #endif // WITH_EDITOR
 

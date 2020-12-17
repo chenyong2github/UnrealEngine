@@ -29,6 +29,7 @@
 #define STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD	5
 #define STRATA_BSDF_TYPE_UNLIT				6
 #define STRATA_BSDF_TYPE_HAIR				7
-// When more than 8 BSDF must exists, please update STATE_BITS_BSDF in Strata.ush
+#define STRATA_BSDF_TYPE_SINGLELAYERWATER	8
+// When more than 16 BSDF must exists, please update STATE_BITS_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
 

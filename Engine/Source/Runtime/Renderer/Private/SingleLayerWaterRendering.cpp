@@ -16,6 +16,7 @@
 #include "SceneRendering.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneTextureParameters.h"
+#include "Strata/Strata.h"
 
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
 
@@ -137,6 +138,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 	SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+	SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 END_SHADER_PARAMETER_STRUCT()
 
 class FSingleLayerWaterCompositePS : public FGlobalShader
@@ -147,7 +149,8 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 	class FScreenSpaceReflections : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_REFLECTION");
 	class FHasBoxCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_BOX_CAPTURES");
 	class FHasSphereCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES");
-	using FPermutationDomain = TShaderPermutationDomain<FScreenSpaceReflections, FHasBoxCaptures, FHasSphereCaptures>;
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	using FPermutationDomain = TShaderPermutationDomain<FScreenSpaceReflections, FHasBoxCaptures, FHasSphereCaptures, FStrata>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCommonShaderParameters, CommonParameters)
@@ -176,7 +179,8 @@ class FWaterTileCategorisationCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FWaterTileCategorisationCS);
 	SHADER_USE_PARAMETER_STRUCT(FWaterTileCategorisationCS, FGlobalShader)
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
 
 	static int32 GetTileSize()
 	{
@@ -404,12 +408,24 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				Parameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 			}
 			Parameters.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+			if (Strata::IsStrataEnabled())
+			{
+				Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
+			}
 		};
 
 		const bool bRunTiled = UseSingleLayerWaterIndirectDraw(View.GetShaderPlatform()) && CVarWaterSingleLayerTiledComposite.GetValueOnRenderThread();
 		FTiledScreenSpaceReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, nullptr, nullptr, 8};
 		FIntVector ViewRes(View.ViewRect.Width(), View.ViewRect.Height(), 1);
 		FIntVector TiledViewRes = FIntVector::DivideAndRoundUp(ViewRes, TiledScreenSpaceReflection.TileSize);
+
+		// We need to update the classification texture once again because the GBuffer has been patched with single layer water data.
+		if (Strata::IsStrataEnabled() && bRunTiled)
+		{
+			Strata::AddStrataMaterialClassificationPass(GraphBuilder, Views);
+		}
+
+
 		if (bRunTiled)
 		{
 			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("WaterIndirectDrawParameters"));
@@ -424,6 +440,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			// Categorization based on SHADING_MODEL_ID
 			{
 				FWaterTileCategorisationCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FWaterTileCategorisationCS::FStrata>(Strata::IsStrataEnabled());
 				TShaderMapRef<FWaterTileCategorisationCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 				FWaterTileCategorisationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileCategorisationCS::FParameters>();
@@ -569,6 +586,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			PermutationVector.Set<FSingleLayerWaterCompositePS::FScreenSpaceReflections>(bEnableSSR || bComposeLumenReflections);
 			PermutationVector.Set<FSingleLayerWaterCompositePS::FHasBoxCaptures>(bHasBoxCaptures);
 			PermutationVector.Set<FSingleLayerWaterCompositePS::FHasSphereCaptures>(bHasSphereCaptures);
+			PermutationVector.Set<FSingleLayerWaterCompositePS::FStrata>(Strata::IsStrataEnabled());
 			TShaderMapRef<FSingleLayerWaterCompositePS> PixelShader(View.ShaderMap, PermutationVector);
 
 			FWaterCompositeParameters* PassParameters = GraphBuilder.AllocParameters<FWaterCompositeParameters>();

@@ -22,6 +22,10 @@
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0
 #include "ReflectionEnvironmentComposite.ush"
 
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#include "Strata/StrataEvaluation.ush"
+#endif
 
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
@@ -37,7 +41,7 @@ struct SingleLayerWaterCompositeOutput
 	float  Clip;
 };
 
-SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float2 ScreenPosition)
+SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float2 ScreenPosition, float4 SvPosition)
 {
 	// Sample scene textures.
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
@@ -58,7 +62,17 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #else
 	const float PreExposure = 1.f;
 #endif
-	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
+
+	bool bIsStrataSLW = false;
+#if STRATA_ENABLED
+	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(SvPosition.xy, 0)));
+	if (StrataData.bIsStrataMaterial)
+	{
+		bIsStrataSLW = StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
+	}
+#endif
+
+	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER || bIsStrataSLW)
 	{
 		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
@@ -107,7 +121,25 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 			// Apply the BRDF reflection integral to reflection. 
 			// BRDF/Fresnel is already applied for the under water part in the scene.
-			float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
+			float3 EnvBrdf = 0.0;
+#if STRATA_ENABLED
+			if (bIsStrataSLW)
+			{
+				// Water is using the higher quality EnvBRDF instead of EnvBRDFApprox using during the base pass.
+				// So we load the water BSDF here to make sure we compute the accurate reflection for water.
+				// STRATA_TODO use EnvBRDF and remove EnvBRDFApprox, or use a better approximation...
+				uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(SvPosition.xy, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+				const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+
+				const float3 F0 = ComputeF0(SLW_SPECULAR(BSDF), SLW_BASECOLOR(BSDF), SLW_METALLIC(BSDF));
+				EnvBrdf = EnvBRDF(F0, SLW_ROUGHNESS(BSDF), NoV);
+			}
+			else
+#endif
+			{
+				EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
+			}
 			Reflection *= EnvBrdf;
 
 			// Soft fading near shor to avoid seeing triangles.
@@ -181,6 +213,14 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
 				bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
+
+			#if STRATA_ENABLED
+				const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos,0)));
+				if (StrataData.bIsStrataMaterial)
+				{
+					bContainsWater = bContainsWater || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
+				}
+			#endif
 			}
 		}
 		if (bContainsWater)
@@ -200,6 +240,14 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 		float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
 		FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 		bContainsWater = GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
+
+	#if STRATA_ENABLED
+		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos, 0)));
+		if (StrataData.bIsStrataMaterial)
+		{
+			bContainsWater = bContainsWater || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
+		}
+	#endif
 	}
 
 	const int LinearIndex = GroupThreadId.y * WORK_TILE_SIZE + GroupThreadId.x;
@@ -280,7 +328,7 @@ void SingleLayerWaterCompositePS(
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 
 	// TODO use dual source blending to apply TransmittanceToScene
-	SingleLayerWaterCompositeOutput Result = SingleLayerWaterComposite(BufferUV, ScreenPosition);
+	SingleLayerWaterCompositeOutput Result = SingleLayerWaterComposite(BufferUV, ScreenPosition, SvPosition);
 
 	clip(Result.Clip); // Since this shader does not write to depth or stencil it should still benefit from EarlyZ (See AMD depth-in-depth documentation)
 	OutColor = Result.LuminanceTransmittance;

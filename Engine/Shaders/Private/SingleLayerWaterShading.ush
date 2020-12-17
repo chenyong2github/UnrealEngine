@@ -110,16 +110,27 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		const float BehindWaterDeltaDepth = CameraIsUnderWater ? WaterDepth : max(0.0f, SceneDepth - WaterDepth);
 
+#if STRATA_INLINE_SINGLELAYERWATER
+		FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+		const float3 Albedo = SLW_WATERALBEDO(SLWBSDF);
+		const float3 ExtinctionCoeff = SLW_WATEREXTINCTION(SLWBSDF);
+		const float3 ScatteringCoeff = Albedo * ExtinctionCoeff;
+		const float3 AbsorptionCoeff = max(0.0, ExtinctionCoeff - ScatteringCoeff);
+		const float PhaseG = SLW_WATERPHASEG(SLWBSDF);
+		//Sample the optional Material Input ColorScaleBehindWater and fade it out at shorelines to avoid hard edge intersections
+		float3 ColorScaleBehindWater = lerp(1.0f, SLW_COLORSCALEBEHINDWATER(SLWBSDF), saturate(BehindWaterDeltaDepth * 0.02f));
+#else
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
 		//Sample the optional Material Input ColorScaleBehindWater and fade it out at shorelines to avoid hard edge intersections
 		float3 ColorScaleBehindWater = lerp(1.0f, max(0.0f, GetSingleLayerWaterMaterialOutput3(MaterialParameters)), saturate(BehindWaterDeltaDepth * 0.02f));
+		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff;
+#endif
 		
-		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff; 
 		// Max to avoid division by 0 with the analytical integral below.
 		// 1e-5 is high enough to avoid denorms on mobile
-		const float3 ExtinctionCoeffSafe = max(ScatteringCoeff + AbsorptionCoeff, 1e-5); 
+		const float3 ExtinctionCoeffSafe = max(ExtinctionCoeff, 1e-5);
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{

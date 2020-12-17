@@ -1154,6 +1154,17 @@ bool FHLSLMaterialTranslator::Translate()
 				}
 			}
 
+			// SingleLayerWater must be used in isolation
+			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_SINGLELAYERWATER))
+			{
+				// If the unlit node is used, it must be the only one used
+				if (!StrataIsSingleLayerWaterOnly(this, StrataCompilationInfo))
+				{
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains hair BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+					Error(*ErrorMsg);
+				}
+			}
+
 			// Output some debug info as comment in code and in the material stat window
 			static const auto CVarStrataBytePerPixel = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.BytesPerPixel"));
 			check(CVarStrataBytePerPixel)
@@ -7603,16 +7614,16 @@ int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor)
+int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 Emissive, int32 TransmittanceColor)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s)"),
-		*GetParameterCode(EmissiveColor),
+		*GetParameterCode(Emissive),
 		*GetParameterCode(TransmittanceColor)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 Emissive, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %u) /* %s */"),
@@ -7621,9 +7632,30 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 		*GetParameterCode(Specular),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(Backlit),
-		*GetParameterCode(EmissiveColor),
+		*GetParameterCode(Emissive),
 		SharedNormalIndex,
 		*GetParameterCode(Tangent)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
+	int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 Emissive, int32 TopMaterialOpacity,
+	int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, uint8 SharedNormalIndex)
+{
+	return AddCodeChunk(
+		MCT_Strata, TEXT("GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %u) /* %s */"),
+		*GetParameterCode(BaseColor),
+		*GetParameterCode(Metallic),
+		*GetParameterCode(Specular),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Emissive),
+		*GetParameterCode(TopMaterialOpacity),
+		*GetParameterCode(WaterAlbedo),
+		*GetParameterCode(WaterExtinction),
+		*GetParameterCode(WaterPhaseG),
+		*GetParameterCode(ColorScaleBehindWater),
+		SharedNormalIndex,
+		*GetParameterCode(Normal)
 	);
 }
 

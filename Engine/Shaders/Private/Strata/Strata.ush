@@ -19,7 +19,11 @@
 #define STRATA_CLAMPED_LAYER_COUNT 1
 #endif
 
+#ifndef MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#define MATERIAL_SHADINGMODEL_SINGLELAYERWATER 0 
+#endif
 
+#define STRATA_INLINE_SINGLELAYERWATER (PROJECT_STRATA && MATERIAL_IS_STRATA && STRATA_INLINE_SHADING && MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs representation
@@ -32,18 +36,24 @@ struct FStrataBSDF
 	float3				Emissive;	// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
 #endif
 
+	// Water has too many parameters to be stores in the extra VGPRs below. So we extend this structure for the case where it is evaluated inline only.
+	// This is fine because when water is used, it is the only BSDF that can be used and it is only used to do in line shading.
+#if STRATA_INLINE_SINGLELAYERWATER
+	float4 InlineVGPRs[3];
+#endif
+
 	float4 VGPRs[2];
 };
 
 // Num bits for each component store in BSDF state
-#define STATE_BITS_BSDF					3
+#define STATE_BITS_BSDF					4
 #define STATE_BITS_SHAREDNORMALID		2
 #define STATE_BITS_ANISOTROPY			1
 #define STATE_BITS_TOPLAYER				1
 #define STATE_BITS_HASSCATTERING		1
 #define STATE_BITS_HASSSSPROFILE		1
 #define STATE_BITS_GREYWEIGHT			1
-#define STATE_BITS___UNUSED___			12
+#define STATE_BITS___UNUSED___			11
 #define STATE_BITS_WEIGHT10F			10
 
 // Bit offset of each component store in BSDF state 
@@ -141,6 +151,20 @@ struct FStrataBSDF
 #define HAIR_SPECULAR(X)				X.VGPRs[1].y
 #define HAIR_BACKLIT(X)					X.VGPRs[1].z
 
+#define SLW_BASECOLOR(X)				X.VGPRs[0].xyz
+#define SLW_METALLIC(X)					X.VGPRs[1].x
+#define SLW_SPECULAR(X)					X.VGPRs[1].y
+#define SLW_ROUGHNESS(X)				X.VGPRs[1].z
+#define SLW_TOPMATERIALOPACITY(X)		X.VGPRs[1].w
+#if STRATA_INLINE_SINGLELAYERWATER
+#define SLW_WATERALBEDO(X)				X.InlineVGPRs[0].xyz
+#define SLW_WATEREXTINCTION(X)			X.InlineVGPRs[1].xyz
+#define SLW_WATERPHASEG(X)				X.InlineVGPRs[0].w
+#define SLW_COLORSCALEBEHINDWATER(X)	X.InlineVGPRs[2].xyz
+#endif
+
+
+
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
 uint   PackR11G11B10F(float3 rgb);
@@ -161,22 +185,22 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
-	return
-		(In.ShadingModels & 0xFF) |
-		((In.bIsStrataMaterial ? 1 : 0) << 8) |
-		((In.bHasSubsurface ? 1 : 0) << 9) |
-		((In.bHasSubsurfaceProfile ? 1 : 0) << 10) |
-		((In.bHasTransmission ? 1 : 0) << 11);
+	return 
+		(In.ShadingModels & 0xFFFF) | 
+		((In.bIsStrataMaterial		? 1 : 0) << 16) |
+		((In.bHasSubsurface			? 1 : 0) << 17) | 
+		((In.bHasSubsurfaceProfile	? 1 : 0) << 18)|
+		((In.bHasTransmission		? 1 : 0) << 19);
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
 	FStrataClassification Out;
-	Out.ShadingModels = (In & 0xFF);
-	Out.bIsStrataMaterial = (In >> 8) & 0x1;
-	Out.bHasSubsurface = (In >> 9) & 0x1;
-	Out.bHasSubsurfaceProfile = (In >> 10) & 0x1;
-	Out.bHasTransmission = (In >> 11) & 0x1;
+	Out.ShadingModels			= (In & 0xFFFF);
+	Out.bIsStrataMaterial		= (In >> 16) & 0x1;
+	Out.bHasSubsurface			= (In >> 17) & 0x1;
+	Out.bHasSubsurfaceProfile	= (In >> 18) & 0x1;
+	Out.bHasTransmission		= (In >> 19) & 0x1;
 	return Out;
 }
 
@@ -424,32 +448,32 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 	StrataData.Layers[0].BSDFCount++;
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD);
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 	VOLUMETRICFOGCLOUD_ALBEDO		(StrataData.Layers[0].BSDFs[0]) = Albedo;
 	VOLUMETRICFOGCLOUD_EXTINCTION	(StrataData.Layers[0].BSDFs[0]) = Extinction;
 	VOLUMETRICFOGCLOUD_AO			(StrataData.Layers[0].BSDFs[0]) = AmbientOcclusion;
-	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 
 	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
 
 	return StrataData;
 }
 
-FStrataData GetStrataUnlitBSDF(float3 EmissiveColor, float3 TransmittanceColor)
+FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
 	StrataData.Layers[0].BSDFCount++;
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_UNLIT);
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 	UNLIT_TRANSMITTANCE				(StrataData.Layers[0].BSDFs[0]) = TransmittanceColor;
-	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], EmissiveColor);
 
 	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
 
 	return StrataData;
 }
 
-FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 EmissiveColor, uint SharedNormalIndex)
+FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 Emissive, uint SharedNormalIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
@@ -457,12 +481,40 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_HAIR);
 	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 	HAIR_BASECOLOR					(StrataData.Layers[0].BSDFs[0]) = BaseColor;
 	HAIR_SCATTER					(StrataData.Layers[0].BSDFs[0]) = Scatter;
 	HAIR_ROUGHNESS					(StrataData.Layers[0].BSDFs[0]) = Roughness;
 	HAIR_SPECULAR					(StrataData.Layers[0].BSDFs[0]) = Specular;
 	HAIR_BACKLIT					(StrataData.Layers[0].BSDFs[0]) = Backlit;
-	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], EmissiveColor);
+
+	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataSingleLayerWaterBSDF(
+	float3 BaseColor, float Metallic, float Specular, float Roughness, float3 Emissive, float TopMaterialOpacity,
+	float3 WaterAlbedo, float3 WaterExtinction, float WaterPhaseG, float3 ColorScaleBehindWater, uint SharedNormalIndex)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+	StrataData.Layers[0].BSDFCount++;
+
+	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_SINGLELAYERWATER);
+	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
+	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
+	SLW_BASECOLOR					(StrataData.Layers[0].BSDFs[0]) = BaseColor;
+	SLW_METALLIC					(StrataData.Layers[0].BSDFs[0]) = Metallic;
+	SLW_SPECULAR					(StrataData.Layers[0].BSDFs[0]) = Specular;
+	SLW_ROUGHNESS					(StrataData.Layers[0].BSDFs[0]) = Roughness;
+	SLW_TOPMATERIALOPACITY			(StrataData.Layers[0].BSDFs[0]) = TopMaterialOpacity;
+#if STRATA_INLINE_SINGLELAYERWATER
+	SLW_WATERALBEDO					(StrataData.Layers[0].BSDFs[0]) = WaterAlbedo;
+	SLW_WATEREXTINCTION				(StrataData.Layers[0].BSDFs[0]) = WaterExtinction;
+	SLW_WATERPHASEG					(StrataData.Layers[0].BSDFs[0]) = WaterPhaseG;
+	SLW_COLORSCALEBEHINDWATER		(StrataData.Layers[0].BSDFs[0]) = ColorScaleBehindWater;
+#endif
 
 	StrataData.Layers[0].BSDFs[0].Weight = 1.0f;
 
@@ -680,13 +732,31 @@ void SanitizeStrataSheen(inout FStrataBSDF BSDF)
 
 void SanitizeStrataHair(inout FStrataBSDF BSDF)
 {
+	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
 	HAIR_BASECOLOR(BSDF) = saturate(HAIR_BASECOLOR(BSDF));
 	HAIR_SCATTER(BSDF) = saturate(HAIR_SCATTER(BSDF));
 	HAIR_ROUGHNESS(BSDF) = saturate(HAIR_ROUGHNESS(BSDF));
 	HAIR_SPECULAR(BSDF) = saturate(HAIR_SPECULAR(BSDF));
 	HAIR_BACKLIT(BSDF) = saturate(HAIR_BACKLIT(BSDF));
-	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
 }
+
+void SanitizeStrataSingleLayerWater(inout FStrataBSDF BSDF)
+{
+	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
+	SLW_BASECOLOR(BSDF) = saturate(SLW_BASECOLOR(BSDF));
+	SLW_METALLIC(BSDF) = saturate(SLW_METALLIC(BSDF));
+	SLW_SPECULAR(BSDF) = saturate(SLW_SPECULAR(BSDF));
+	SLW_ROUGHNESS(BSDF) = saturate(SLW_ROUGHNESS(BSDF));
+	SLW_TOPMATERIALOPACITY(BSDF) = saturate(SLW_TOPMATERIALOPACITY(BSDF));
+#if STRATA_INLINE_SINGLELAYERWATER
+	SLW_WATERALBEDO(BSDF) = saturate(SLW_WATERALBEDO(BSDF));
+	SLW_WATEREXTINCTION(BSDF) = clamp(SLW_WATEREXTINCTION(BSDF), 0.0f, Max10BitsFloat);
+	SLW_WATERPHASEG(BSDF) = clamp(SLW_WATERPHASEG(BSDF), -1.0f, 1.0f);
+	SLW_COLORSCALEBEHINDWATER(BSDF) = clamp(SLW_COLORSCALEBEHINDWATER(BSDF), 0.0f, Max10BitsFloat);
+#endif
+}
+
+
 
 void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 {
@@ -722,6 +792,12 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 			SanitizeStrataHair(BSDF);
 			break;
 		}
+		case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+		{
+			SanitizeStrataSingleLayerWater(BSDF);
+			break;
+		}
+		
 	}
 }
 
@@ -1219,6 +1295,27 @@ void PackStrataOut(
 				break;
 			}
 
+			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+			{
+				if (bTopLayer)
+				{
+					const float Roughness = SLW_ROUGHNESS(BSDF);
+
+					TopLayer.Roughness += BSDFCoverageAvg * Roughness;
+					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+
+					// The specular over the water in completely in the hand of the user. We do not fade out metallness for instance.
+					const float3 F0 = ComputeF0(SLW_SPECULAR(BSDF), SLW_BASECOLOR(BSDF), SLW_METALLIC(BSDF));
+					const float SafeRoughness = MakeRoughnessSafe(Roughness);
+					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+				}
+
+				// Water is considered opaque, it has a custom process to simulate translucency
+				LayerCoverage += BSDFCoverage;
+				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
+				break;
+			}
+
 			} // switch
 
 			// Update the weights to take into account throughput towards the view from layers above
@@ -1375,6 +1472,12 @@ void PackStrataOut(
 				// 8 bytes
 			}
 			break;
+			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+			{
+				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
+				STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
+			}
+			break;
 			}
 
 			// Stop writing if above budget.
@@ -1495,6 +1598,17 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	{
 		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, HAIR_BASECOLOR(OutBSDF), HAIR_ROUGHNESS(OutBSDF));
 		StrataLoad_R11_G11_B10F(StrataBuffer, ByteOffset, HAIR_SCATTER(OutBSDF), HAIR_SPECULAR(OutBSDF), HAIR_BACKLIT(OutBSDF));
+		// 8 bytes
+	}
+	break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+	{
+		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLW_BASECOLOR(OutBSDF), DummyFloat);
+		float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
+		SLW_METALLIC(OutBSDF) = Data.x;
+		SLW_SPECULAR(OutBSDF) = Data.y;
+		SLW_ROUGHNESS(OutBSDF) = Data.z;
+		SLW_TOPMATERIALOPACITY(OutBSDF) = Data.w;
 		// 8 bytes
 	}
 	break;

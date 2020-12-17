@@ -957,6 +957,35 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
+#if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
+	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
+
+	// Initialise a Strata header with normal in registers
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	UNROLL
+		for (int l = 0; l < Strata.LayerCount; ++l)
+		{
+			StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
+		}
+	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
+#endif
+
+#if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
+	// Override GBuffer data with Strata SLW water BSDF
+	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0]);
+	FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+
+	BaseColor = SLW_BASECOLOR(SLWBSDF);
+	Metallic = SLW_METALLIC(SLWBSDF);
+	Specular = SLW_SPECULAR(SLWBSDF);
+	Roughness = SLW_ROUGHNESS(SLWBSDF);
+	Opacity = SLW_TOPMATERIALOPACITY(SLWBSDF);
+	MaterialParameters.WorldNormal = StrataPixelHeader.SharedNormals.Normals[BSDF_GETNORMALID(SLWBSDF)];
+	MaterialParameters.TangentToWorld[2] = MaterialParameters.WorldNormal;
+	Anisotropy = 0.0f;
+	ShadingModel = MATERIAL_SHADINGMODEL_SINGLELAYERWATER;
+#endif
+
 	float DBufferOpacity = 1.0f;
 #if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// apply decals from the DBuffer
@@ -1462,26 +1491,18 @@ void FPixelShaderInOut_MainPS(
 	bool bSubsurfaceEnable = true;
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
 
-	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
-
-	// Initialise a Strata header with normal in registers
-	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-	UNROLL
-	for (int l = 0; l < Strata.LayerCount; ++l)
-	{
-		StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
-	}
-	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
-
 #if STRATA_OPAQUE_ENABLED
 
-	// Need to cancel that to make sure strata material are only lit using Strata lighting passes
+#if STRATA_INLINE_SINGLELAYERWATER==0
+	// Need to reset color to make sure strata material are only lit using Strata lighting passes.
+	// Except for water doing some specialised and simplified lighting during the base pass
 	Color = 0;
+#endif
 	// Clear only what should be and keep the rest
-	GBuffer.Roughness = 0;
 	GBuffer.DiffuseColor = 0;
 	GBuffer.SpecularColor = 0;
 	GBuffer.BaseColor = 0;
+	GBuffer.Roughness = 0;
 	GBuffer.Specular = 0;
 	GBuffer.Metallic = 0;
 	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;

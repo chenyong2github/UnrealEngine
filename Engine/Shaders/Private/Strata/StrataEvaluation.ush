@@ -85,6 +85,11 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 		R = HAIR_ROUGHNESS(BSDF);
 		break;
 	}
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+	{
+		R = SLW_ROUGHNESS(BSDF);
+		break;
+	}
 	}
 }
 
@@ -281,6 +286,12 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			Sample.Throughput			= OpaqueBSDFThroughput; 
 		}
 		break;
+
+		//case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
+		//case STRATA_BSDF_TYPE_UNLIT:
+		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
+		//break;
 	}
 
 	return Sample;
@@ -377,6 +388,12 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			UniformSampleSphere(E);
 			break;
 		}
+
+		//case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
+		//case STRATA_BSDF_TYPE_UNLIT:
+		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
+		//break;
 	}
 
 	//StrataUpdateBSDFContext(BSDFContext, Sample.Direction);
@@ -498,6 +515,12 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			// No specular environment contribution as of today if not using the special HairStrand render path
 			break;
 		}
+
+		//case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
+		//case STRATA_BSDF_TYPE_UNLIT:
+		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
+		//break;
 	}
 
 	return StrataEnvLightResult;
