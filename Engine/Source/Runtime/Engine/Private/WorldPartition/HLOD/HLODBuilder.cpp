@@ -41,7 +41,7 @@ public:
 		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
 
 		int32 HLODActorRefIndex = INDEX_NONE;
-		FWorldPartitionSoftRef HLODActorHandle;
+		FWorldPartitionHandle HLODActorHandle;
 		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
 		{
 			HLODActorRefIndex = Context->ActorReferences.Add(HLODActorHandle);
@@ -75,7 +75,7 @@ public:
 		{
 			if (HLODActorRefIndex != INDEX_NONE)
 			{
-				Context->HLODActorDescs.Add(CellHash, FWorldPartitionSoftRef(WorldPartition, HLODActor->GetActorGuid()));
+				Context->HLODActorDescs.Add(CellHash, FWorldPartitionHandle(WorldPartition, HLODActor->GetActorGuid()));
 				Context->ActorReferences.RemoveAtSwap(HLODActorRefIndex);
 			}
 			else

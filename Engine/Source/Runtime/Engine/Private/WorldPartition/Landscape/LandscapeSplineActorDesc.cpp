@@ -37,7 +37,7 @@ void FLandscapeSplineActorDesc::OnRegister(UWorldPartition* WorldPartition)
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
 	{
-		FWorldPartitionSoftRef Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->SplineHandles.Add(MoveTemp(Handle));
 	}
@@ -49,7 +49,7 @@ void FLandscapeSplineActorDesc::OnUnregister(UWorldPartition* WorldPartition)
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
 	{
-		FWorldPartitionSoftRef Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->SplineHandles.Remove(Handle);
 	}

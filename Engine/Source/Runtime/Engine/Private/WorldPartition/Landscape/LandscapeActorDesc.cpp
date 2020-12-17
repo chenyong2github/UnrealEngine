@@ -36,7 +36,7 @@ void FLandscapeActorDesc::OnRegister(UWorldPartition* WorldPartition)
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
 	{
-		FWorldPartitionSoftRef Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->ProxyHandles.Add(MoveTemp(Handle));
 	}
@@ -48,7 +48,7 @@ void FLandscapeActorDesc::OnUnregister(UWorldPartition* WorldPartition)
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
 	{
-		FWorldPartitionSoftRef Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->ProxyHandles.Remove(Handle);
 	}

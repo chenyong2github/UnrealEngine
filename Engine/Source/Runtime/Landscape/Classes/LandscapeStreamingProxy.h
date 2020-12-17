@@ -28,7 +28,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** hard refs to actors that need to be loaded when this proxy is loaded */
-	TSet<FWorldPartitionHardRef> ActorDescReferences;
+	TSet<FWorldPartitionReference> ActorDescReferences;
 #endif
 
 	//~ Begin UObject Interface

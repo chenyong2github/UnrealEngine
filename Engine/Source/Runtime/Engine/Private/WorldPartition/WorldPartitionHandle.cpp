@@ -16,6 +16,13 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(U
 
 bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
 {
+#if WITH_DEV_AUTOMATION_TESTS
+	if (GIsAutomationTesting)
+	{
+		return ActorDesc->GetHardRefCount() > 0;
+	}
+#endif
+
 	return !!ActorDesc->GetActor();
 }
 
@@ -56,32 +63,6 @@ void FWorldPartitionHardRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc
 				ActorDesc->Unload();
 			}
 		}
-	}
-}
-
-void FWorldPartitionPinRefImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
-{
-	bIsReference = ActorDesc->GetHardRefCount() > 0;
-
-	if (bIsReference)
-	{
-		FWorldPartitionHardRefImpl::IncRefCount(ActorDesc);
-	}
-	else
-	{
-		FWorldPartitionSoftRefImpl::IncRefCount(ActorDesc);
-	}
-}
-
-void FWorldPartitionPinRefImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
-{
-	if (bIsReference)
-	{
-		FWorldPartitionHardRefImpl::DecRefCount(ActorDesc);
-	}
-	else
-	{
-		FWorldPartitionSoftRefImpl::DecRefCount(ActorDesc);
 	}
 }
 #endif

@@ -15,19 +15,16 @@ struct ENGINE_API FWorldPartitionHandleUtils
 };
 
 template <typename Impl>
-class ENGINE_API TWorldPartitionHandle : protected Impl
+class ENGINE_API TWorldPartitionHandle
 {
-	friend struct FWorldPartitionSoftRefHelpers;
-
 public:
 	FORCEINLINE TWorldPartitionHandle()
 		: ActorDesc(nullptr)
 	{}
 
 	FORCEINLINE TWorldPartitionHandle(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
+		: ActorDesc(InActorDesc)
 	{
-		ActorDesc = InActorDesc;
-
 		if (IsValid())
 		{
 			IncRefCount();
@@ -35,9 +32,8 @@ public:
 	}
 
 	FORCEINLINE TWorldPartitionHandle(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+		: ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(WorldPartition, ActorGuid))
 	{
-		ActorDesc = FWorldPartitionHandleUtils::GetActorDesc(WorldPartition, ActorGuid);
-
 		if (IsValid())
 		{
 			IncRefCount();
@@ -233,32 +229,33 @@ struct ENGINE_API FWorldPartitionHardRefImpl
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
 };
 
-struct ENGINE_API FWorldPartitionPinRefImpl
-{
-	FWorldPartitionPinRefImpl() : bIsReference(false) {}
-	void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
-	void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
-	bool bIsReference;
-};
-
 /**
- * FWorldPartitionSoftRef will increment/decrement the soft reference count on the actor descriptor.
+ * FWorldPartitionHandle will increment/decrement the soft reference count on the actor descriptor.
  * This won't trigger any loading, but will prevent cleanup of the actor descriptor when destroying an
  * actor in the editor.
  */
-typedef TWorldPartitionHandle<FWorldPartitionSoftRefImpl> FWorldPartitionSoftRef;
+typedef TWorldPartitionHandle<FWorldPartitionSoftRefImpl> FWorldPartitionHandle;
 
 /**
- * FWorldPartitionHardRef will increment/decrement the hard reference count on the actor descriptor.
+ * FWorldPartitionReference will increment/decrement the hard reference count on the actor descriptor.
  * This will trigger actor loading/unloading when the hard reference counts gets to one/zero.
  */
-typedef TWorldPartitionHandle<FWorldPartitionHardRefImpl> FWorldPartitionHardRef;
+typedef TWorldPartitionHandle<FWorldPartitionHardRefImpl> FWorldPartitionReference;
 
 /**
- * FWorldPartitionPinRef will act as a softref when there's not hard reference count to the actor descriptor,
- * and like a hardref when there is. This is useful when you want to keep an actor loaded during special
- * operations, and don't trigger loading when the actor is not loaded. Mainly intended to be on stack, as a
- * scoped operation.
+ * FWorldPartitionHandlePinRefScope will keep a reference if the actor is already loaded. This is useful 
+ * when you want to keep an actor loaded during special operations, but don't trigger loading when the 
+ * actor is not loaded. Intended to be on stack, as a scoped operation.
  */
-typedef TWorldPartitionHandle<FWorldPartitionPinRefImpl> FWorldPartitionPinRef;
+struct FWorldPartitionHandlePinRefScope
+{
+	FWorldPartitionHandlePinRefScope(const FWorldPartitionHandle& Handle)
+	{
+		if (Handle.IsLoaded())
+		{
+			Reference = Handle;
+		}
+	}
+	FWorldPartitionReference Reference;
+};
 #endif

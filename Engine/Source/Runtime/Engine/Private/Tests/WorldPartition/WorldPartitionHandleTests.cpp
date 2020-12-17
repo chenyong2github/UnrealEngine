@@ -16,27 +16,30 @@ namespace WorldPartitionTests
 	bool FWorldPartitionSoftRefTest::RunTest(const FString& Parameters)
 	{
 #if WITH_EDITOR
-		TestTrue(TEXT("SoftRef sizeof"), sizeof(FWorldPartitionSoftRef) == sizeof(void*));
-		TestTrue(TEXT("HardRef sizeof"), sizeof(FWorldPartitionHardRef) == sizeof(void*));
+		TestTrue(TEXT("SoftRef sizeof"), sizeof(FWorldPartitionHandle) == sizeof(void*));
+		TestTrue(TEXT("HardRef sizeof"), sizeof(FWorldPartitionReference) == sizeof(void*));
 
 		TUniquePtr<FWorldPartitionActorDesc> ActorDescPtr1(new FWorldPartitionActorDesc());
 		TUniquePtr<FWorldPartitionActorDesc> ActorDescPtr2(new FWorldPartitionActorDesc());
 
-		FWorldPartitionSoftRef Handle(&ActorDescPtr1);
-		FWorldPartitionHardRef Reference(&ActorDescPtr2);
+		FWorldPartitionHandle Handle(&ActorDescPtr1);
+		FWorldPartitionReference Reference(&ActorDescPtr2);
 
-		// Auto reference tests
+		TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
+		TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
+		TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
+		TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
+
+		// Pin handle scope test
 		{
-			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
-			TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
-			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
-			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
-
-			FWorldPartitionPinRef AutoRefToHandle(Handle);
-			FWorldPartitionPinRef AutoRefToReference(Reference);
-
-			TestTrue(TEXT("Pin to Handle soft refcount"), Handle->GetSoftRefCount() == 2);
+			FWorldPartitionHandlePinRefScope PinRefScopeHandle(Handle);
+			TestTrue(TEXT("Pin to Handle soft refcount"), Handle->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Pin to Handle hard refcount"), Handle->GetHardRefCount() == 0);
+		}
+
+		// Pin reference scope test
+		{
+			FWorldPartitionHandlePinRefScope PinRefScopeReference(Reference);
 			TestTrue(TEXT("Pin to Reference soft refcount"), Reference->GetSoftRefCount() == 0);
 			TestTrue(TEXT("Pin to Reference hard refcount"), Reference->GetHardRefCount() == 2);
 		}
@@ -51,13 +54,13 @@ namespace WorldPartitionTests
 
 		// Conversions
 		{
-			FWorldPartitionSoftRef HandleToReference = Reference;
+			FWorldPartitionHandle HandleToReference = Reference;
 			TestTrue(TEXT("Handle/Reference equality"), HandleToReference == Reference);
 			TestTrue(TEXT("Reference/Handle equality"), Reference == HandleToReference);
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
 
-			FWorldPartitionHardRef ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle;
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 1);
@@ -71,13 +74,13 @@ namespace WorldPartitionTests
 
 		// inplace new test
 		{
-			uint8 Buffer[sizeof(FWorldPartitionSoftRef)];
-			FWorldPartitionSoftRef* HandlePtr = new (Buffer) FWorldPartitionSoftRef(Reference);
+			uint8 Buffer[sizeof(FWorldPartitionHandle)];
+			FWorldPartitionHandle* HandlePtr = new (Buffer) FWorldPartitionHandle(Reference);
 
 			TestTrue(TEXT("Handle array soft refcount"), Reference->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Handle array hard refcount"), Reference->GetHardRefCount() == 1);
 
-			HandlePtr->~FWorldPartitionSoftRef();
+			HandlePtr->~FWorldPartitionHandle();
 
 			TestTrue(TEXT("Handle array soft refcount"), Reference->GetSoftRefCount() == 0);
 			TestTrue(TEXT("Handle array hard refcount"), Reference->GetHardRefCount() == 1);
@@ -85,13 +88,13 @@ namespace WorldPartitionTests
 
 		// TArray test
 		{
-			TArray<FWorldPartitionSoftRef> HandleList;
+			TArray<FWorldPartitionHandle> HandleList;
 			HandleList.Add(Handle);
 
 			TestTrue(TEXT("Handle array soft refcount"), Handle->GetSoftRefCount() == 2);
 			TestTrue(TEXT("Handle array hard refcount"), Handle->GetHardRefCount() == 0);
 
-			FWorldPartitionHardRef ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle;
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 2);
@@ -122,13 +125,13 @@ namespace WorldPartitionTests
 
 		// TSet test
 		{
-			TSet<FWorldPartitionSoftRef> HandleSet;
+			TSet<FWorldPartitionHandle> HandleSet;
 			HandleSet.Add(Handle);
 
 			TestTrue(TEXT("Handle set soft refcount"), Handle->GetSoftRefCount() == 2);
 			TestTrue(TEXT("Handle set hard refcount"), Handle->GetHardRefCount() == 0);
 
-			FWorldPartitionHardRef ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle;
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 2);
@@ -155,7 +158,7 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
 			{
-				FWorldPartitionSoftRef HandleCopy(MoveTemp(Handle));
+				FWorldPartitionHandle HandleCopy(MoveTemp(Handle));
 				TestTrue(TEXT("Handle move src not valid"), !Handle.IsValid());
 				TestTrue(TEXT("Handle move dst valid"), HandleCopy.IsValid());
 				TestTrue(TEXT("Handle soft refcount"), HandleCopy->GetSoftRefCount() == 1);
@@ -172,7 +175,7 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);
 			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
 			{
-				FWorldPartitionHardRef ReferenceCopy(MoveTemp(Reference));
+				FWorldPartitionReference ReferenceCopy(MoveTemp(Reference));
 				TestTrue(TEXT("Reference move src not valid"), !Reference.IsValid());
 				TestTrue(TEXT("Reference move dst valid"), ReferenceCopy.IsValid());
 				TestTrue(TEXT("Reference soft refcount"), ReferenceCopy->GetSoftRefCount() == 0);
@@ -187,7 +190,7 @@ namespace WorldPartitionTests
 
 			// Handle reference move
 			{
-				FWorldPartitionSoftRef HandleFromReference(MoveTemp(Reference));
+				FWorldPartitionHandle HandleFromReference(MoveTemp(Reference));
 				TestTrue(TEXT("Handle move src not valid"), !Reference.IsValid());
 				TestTrue(TEXT("Handle move dst valid"), HandleFromReference.IsValid());
 				TestTrue(TEXT("Handle soft refcount"), HandleFromReference->GetSoftRefCount() == 1);
@@ -202,7 +205,7 @@ namespace WorldPartitionTests
 
 			// Reference handle move
 			{
-				FWorldPartitionHardRef ReferenceFromHandle(MoveTemp(Handle));
+				FWorldPartitionReference ReferenceFromHandle(MoveTemp(Handle));
 				TestTrue(TEXT("Reference move src not valid"), !Handle.IsValid());
 				TestTrue(TEXT("Reference move dst valid"), ReferenceFromHandle.IsValid());
 				TestTrue(TEXT("Reference soft refcount"), ReferenceFromHandle->GetSoftRefCount() == 0);

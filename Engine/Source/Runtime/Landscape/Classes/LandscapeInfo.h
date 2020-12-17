@@ -152,9 +152,9 @@ private:
 
 	// World Partition handles to actors with the same LandscapeGuid
 	friend class FLandscapeActorDesc;
-	TSet<FWorldPartitionSoftRef> ProxyHandles;
+	TSet<FWorldPartitionHandle> ProxyHandles;
 	friend class FLandscapeSplineActorDesc;
-	TSet<FWorldPartitionSoftRef> SplineHandles;
+	TSet<FWorldPartitionHandle> SplineHandles;
 #endif
 
 	TSet<ULandscapeComponent*> SelectedComponents;
@@ -293,7 +293,7 @@ public:
 	LANDSCAPE_API uint32 GetGridSize(uint32 InGridSizeInComponents) const;
 
 	/** Returns LandscapeSplineActor WorldPartition handles */
-	const TSet<FWorldPartitionSoftRef>& GetSplineHandles() const { return SplineHandles; }
+	const TSet<FWorldPartitionHandle>& GetSplineHandles() const { return SplineHandles; }
 #endif
 	LANDSCAPE_API static ULandscapeInfo* Find(UWorld* InWorld, const FGuid& LandscapeGuid);
 	static ULandscapeInfo* FindOrCreate(UWorld* InWorld, const FGuid& LandscapeGuid);
