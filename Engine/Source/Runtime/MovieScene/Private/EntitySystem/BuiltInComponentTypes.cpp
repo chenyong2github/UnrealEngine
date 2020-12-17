@@ -66,6 +66,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&CustomPropertyIndex,   TEXT("Custom Property Index"));			// Not EComponentTypeFlags::Preserved because the system property manager will always ensure that the component is added to the correct entity
 	ComponentRegistry->NewComponentType(&FastPropertyOffset,    TEXT("Fast Property Offset"));			// Not EComponentTypeFlags::Preserved because the system property manager will always ensure that the component is added to the correct entity
 	ComponentRegistry->NewComponentType(&SlowProperty,          TEXT("Slow Property Binding"));			// Not EComponentTypeFlags::Preserved because the system property manager will always ensure that the component is added to the correct entity
+	ComponentRegistry->NewComponentType(&BoolResult,            TEXT("Bool Result"));
 	ComponentRegistry->NewComponentType(&FloatResult[0],        TEXT("Float Result 0"));
 	ComponentRegistry->NewComponentType(&FloatResult[1],        TEXT("Float Result 1"));
 	ComponentRegistry->NewComponentType(&FloatResult[2],        TEXT("Float Result 2"));
@@ -169,6 +170,12 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			}
 		};
 		ComponentRegistry->Factories.DefineChildComponent(FParentEntityInitializer(ParentEntity));
+	}
+	
+	// Bool channel relationships
+	{
+		ComponentRegistry->Factories.DuplicateChildComponent(BoolResult);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(BoolResult, EvalTime);
 	}
 
 	// Float channel relationships

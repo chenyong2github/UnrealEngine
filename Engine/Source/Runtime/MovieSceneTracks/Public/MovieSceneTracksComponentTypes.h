@@ -113,6 +113,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 {
 	~FMovieSceneTracksComponentTypes();
 
+	TPropertyComponents<bool> Bool;
 	TPropertyComponents<float> Float;
 	TPropertyComponents<FTransform, FIntermediate3DTransform> Transform;
 	TPropertyComponents<FEulerTransform, FIntermediate3DTransform> EulerTransform;
@@ -125,6 +126,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 
 	struct
 	{
+		TCustomPropertyRegistration<bool> Bool;
 		TCustomPropertyRegistration<float> Float;
 		TCustomPropertyRegistration<FIntermediate3DTransform> ComponentTransform;
 	} Accessors;
