@@ -27,6 +27,7 @@ namespace SlateInsights
 class FSlateProvider;
 namespace Private { struct FWidgetUniqueInvalidatedInfo; }
 namespace Private { struct FWidgetUpdateInfo; }
+namespace Private { class SSlateWidgetSearch; }
 
 class SSlateFrameSchematicView : public SCompoundWidget
 {
@@ -69,6 +70,7 @@ private:
 	TSharedPtr<SListView<TSharedPtr<Private::FWidgetUpdateInfo>>> WidgetUpdateInfoListView;
 	TArray<TSharedPtr<Private::FWidgetUpdateInfo>> WidgetUpdateInfos;
 
+	TSharedPtr<Private::SSlateWidgetSearch> WidgetSearchBox;
 	TSharedPtr<STextBlock> InvalidationSummary;
 	TSharedPtr<STextBlock> UpdateSummary;
 	TSharedPtr<SMultiLineEditableTextBox> ScriptAndCallStackTextBox;

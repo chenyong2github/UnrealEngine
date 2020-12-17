@@ -116,8 +116,8 @@ void FSlateProvider::AddWidget(double Seconds, uint64 WidgetId)
 
 	Message::FWidgetInfo Info;
 	Info.WidgetId = WidgetId;
-	Message::FWidgetInfo& InfoRef = WidgetInfos.Emplace(Info.WidgetId, MoveTemp(Info));
-	InfoRef.EventIndex = WidgetTimelines.EmplaceBeginEvent(Seconds, Info.WidgetId);
+	Info.EventIndex = WidgetTimelines.EmplaceBeginEvent(Seconds, WidgetId);
+	WidgetInfos.Emplace(Info.WidgetId, MoveTemp(Info));
 }
 
 void FSlateProvider::SetWidgetInfo(double Seconds, Message::FWidgetInfo Info)
@@ -126,12 +126,13 @@ void FSlateProvider::SetWidgetInfo(double Seconds, Message::FWidgetInfo Info)
 
 	if (Message::FWidgetInfo* FoundInfo = WidgetInfos.Find(Info.WidgetId))
 	{
+		Info.EventIndex = FoundInfo->EventIndex;
 		*FoundInfo = MoveTemp(Info);
 	}
 	else
 	{
-		Message::FWidgetInfo& InfoRef = WidgetInfos.Emplace(Info.WidgetId, MoveTemp(Info));
-		InfoRef.EventIndex = WidgetTimelines.EmplaceBeginEvent(Seconds, Info.WidgetId);
+		Info.EventIndex = WidgetTimelines.EmplaceBeginEvent(Seconds, Info.WidgetId);
+		WidgetInfos.Emplace(Info.WidgetId, MoveTemp(Info));
 	}
 }
 

@@ -5,15 +5,20 @@
 #include "SSlateTraceFlags.h"
 
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/ITimingEvent.h"
 #include "Widgets/InvalidateWidgetReason.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
+#include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SHeader.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -39,6 +44,7 @@ namespace Private
 	const FName ColumnNumber("Number");
 	const FName ColumnFlag("Flag");
 
+	/** */
 	struct FWidgetUniqueInvalidatedInfo
 	{
 		FWidgetUniqueInvalidatedInfo(Message::FWidgetId InWidgetId, EInvalidateWidgetReason InReason)
@@ -54,6 +60,7 @@ namespace Private
 		FString Callstack;
 	};
 
+	/** */
 	struct FWidgetUpdateInfo
 	{
 		FWidgetUpdateInfo(Message::FWidgetId InWidgetId, EWidgetUpdateFlags InUpdateFlags)
@@ -64,6 +71,7 @@ namespace Private
 		uint32 Count;
 	};
 
+	/** */
 	class FWidgetUniqueInvalidatedInfoRow : public SMultiColumnTableRow<TSharedPtr<FWidgetUniqueInvalidatedInfo>>
 	{
 	public:
@@ -129,6 +137,7 @@ namespace Private
 		}
 	};
 
+	/** */
 	struct FWidgetUpdateInfoRow : public SMultiColumnTableRow<TSharedPtr<FWidgetUpdateInfo>>
 	{
 		SLATE_BEGIN_ARGS(FWidgetUpdateInfoRow) {}
@@ -186,6 +195,142 @@ namespace Private
 		}
 		return FText::GetEmpty();
 	}
+
+	/** */
+	class SSlateWidgetSearch : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(SSlateWidgetSearch) {}
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs)
+		{
+			NumericInterface = MakeUnique<TDefaultNumericTypeInterface<uint64>>();
+
+			TSharedRef<SGridPanel> GridPanel = SNew(SGridPanel)
+				.FillColumn(1, 1.0f);
+			{
+				int32 SlotCount = 0;
+				auto BuildLabelAndValue = [GridPanel, &SlotCount](const FText& Label, TSharedPtr<STextBlock>& ValueWidget)
+				{
+					GridPanel->AddSlot(0, SlotCount)
+						[
+							SNew(STextBlock)
+							.Text(Label)
+						];
+
+					GridPanel->AddSlot(1, SlotCount)
+						.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+						[
+							SAssignNew(ValueWidget, STextBlock)
+						];
+
+					++SlotCount;
+				};
+
+				BuildLabelAndValue(LOCTEXT("WidgetID", "Widget ID"), WidgetIdWidget);
+				BuildLabelAndValue(LOCTEXT("Path", "Path"), PathWidget);
+				BuildLabelAndValue(LOCTEXT("DebugInfo", "Debug Info"), DebugInfoWidget);
+				BuildLabelAndValue(LOCTEXT("CreatedTime", "Created Time"), CreatedTimeWidget);
+				BuildLabelAndValue(LOCTEXT("DestroyedTime", "Destroyed Time"), DestroyedTimeWidget);
+			}
+
+			ChildSlot
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(0.f, 4.f))
+				[
+					SAssignNew(SearchBoxWidget, SSearchBox)
+					.HintText(LOCTEXT("WidgetSearchBoxHint", "Search Widget ID"))
+					.OnTextChanged(this, &SSlateWidgetSearch::HandleSearchBox_OnTextChanged)
+					.IsEnabled(this, &SSlateWidgetSearch::HandleSearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type a Widget ID here to search for the widget"))
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					GridPanel
+				]
+			];
+		}
+
+		void SetSession(const TraceServices::IAnalysisSession* InAnalysisSession)
+		{
+			AnalysisSession = InAnalysisSession;
+			Search();
+		}
+
+		bool HandleSearchBox_IsEnabled() const
+		{
+			return AnalysisSession != nullptr;
+		}
+
+		void HandleSearchBox_OnTextChanged(const FText& InText)
+		{
+			TOptional<uint64> Result = NumericInterface->FromString(InText.ToString(), WidgetId);
+			if (Result.IsSet())
+			{
+				WidgetId = Result.GetValue();
+				Search();
+				SearchBoxWidget->SetError(FText::GetEmpty());
+			}
+			else
+			{
+				SearchBoxWidget->SetError(LOCTEXT("NotAValidId", "Not a valid Widget Id. Widget Ids are numbers."));
+			}
+		}
+
+		void Search()
+		{
+			bool bClearText = true;
+			if (AnalysisSession && PathWidget && WidgetId != 0)
+			{
+				const FSlateProvider* SlateProvider = AnalysisSession->ReadProvider<FSlateProvider>(FSlateProvider::ProviderName);
+				if (SlateProvider)
+				{
+					TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+					if (const Message::FWidgetInfo* WidgetInfo = SlateProvider->FindWidget(WidgetId))
+					{
+						bClearText = false;
+
+						WidgetIdWidget->SetText(FText::FromString(NumericInterface->ToString(WidgetInfo->WidgetId.GetValue())));
+						PathWidget->SetText(FText::FromString(WidgetInfo->Path));
+						DebugInfoWidget->SetText(FText::FromString(WidgetInfo->DebugInfo));
+
+						const double StartTime = SlateProvider->GetWidgetTimeline().GetEventStartTime(WidgetInfo->EventIndex);
+						CreatedTimeWidget->SetText(FText::FromString(TimeUtils::FormatTime(StartTime, TimeUtils::Milisecond)));
+						const double EndTime = SlateProvider->GetWidgetTimeline().GetEventEndTime(WidgetInfo->EventIndex);
+						DestroyedTimeWidget->SetText(FText::FromString(TimeUtils::FormatTime(EndTime, TimeUtils::Milisecond)));
+					}
+				}
+			}
+			
+			if (bClearText)
+			{
+				WidgetIdWidget->SetText(FText::GetEmpty());
+				PathWidget->SetText(FText::GetEmpty());
+				DebugInfoWidget->SetText(FText::GetEmpty());
+				CreatedTimeWidget->SetText(FText::GetEmpty());
+				DestroyedTimeWidget->SetText(FText::GetEmpty());
+			}
+		}
+
+		const TraceServices::IAnalysisSession* AnalysisSession = nullptr;
+		uint64 WidgetId = 0;
+
+		TSharedPtr<SSearchBox> SearchBoxWidget;
+		TSharedPtr<STextBlock> WidgetIdWidget;
+		TSharedPtr<STextBlock> PathWidget;
+		TSharedPtr<STextBlock> DebugInfoWidget;
+		TSharedPtr<STextBlock> CreatedTimeWidget;
+		TSharedPtr<STextBlock> DestroyedTimeWidget;
+		TUniquePtr<INumericTypeInterface<uint64>> NumericInterface;
+	};
 } //namespace Private
 
 void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
@@ -197,6 +342,23 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(2.0f))
+		[
+			SNew(SExpandableArea)
+			.InitiallyCollapsed(true)
+			.HeaderContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SearchWidget", "Search Widget"))
+			]
+			.BodyContent()
+			[
+				SAssignNew(WidgetSearchBox, Private::SSlateWidgetSearch)
+			]
+		]
+		
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(FMargin(2.0f))
@@ -309,6 +471,8 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 		]
 	];
 
+	WidgetSearchBox->SetSession(AnalysisSession);
+
 	RefreshNodes();
 }
 
@@ -339,6 +503,11 @@ void SSlateFrameSchematicView::SetSession(Insights::ITimingViewSession* InTiming
 		InTimingViewSession->OnTimeMarkerChanged().AddSP(this, &SSlateFrameSchematicView::HandleTimeMarkerChanged);
 		InTimingViewSession->OnSelectionChanged().AddSP(this, &SSlateFrameSchematicView::HandleSelectionChanged);
 		TimingViewSession->OnSelectedEventChanged().AddSP(this, &SSlateFrameSchematicView::HandleSelectionEventChanged);
+	}
+
+	if (WidgetSearchBox)
+	{
+		WidgetSearchBox->SetSession(InAnalysisSession);
 	}
 
 	RefreshNodes();
