@@ -343,6 +343,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
 	static void EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex);
 
+	/**
+	 * Sets the material slot for a specific LOD.
+	 * @param	StaticMesh			Static mesh to Enables/disables shadow casting from.
+	 * @param	MaterialSlotIndex	Index of the material slot to use.
+	 * @param	LODIndex			Index of the StaticMesh LOD.
+	 * @param	SectionIndex		Index of the StaticMesh Section.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static void SetLODMaterialSlot(UStaticMesh* StaticMesh, int32 MaterialSlotIndex, int32 LODIndex, int32 SectionIndex);
+
 	/** Check whether a static mesh has vertex colors */
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh")
 	static bool HasVertexColors(UStaticMesh* StaticMesh);
