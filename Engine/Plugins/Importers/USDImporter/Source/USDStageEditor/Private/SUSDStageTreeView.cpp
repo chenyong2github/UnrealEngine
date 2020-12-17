@@ -275,7 +275,8 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 			SelectedPrimPath = UsdToUnreal::ConvertPath( UsdStageTreeItem->UsdPrim.GetPrimPath() );
 		}
 
-		this->OnPrimSelected.ExecuteIfBound( SelectedPrimPath );
+		TArray<FString> SelectedPrimPaths = GetSelectedPrims();
+		this->OnPrimSelectionChanged.ExecuteIfBound( SelectedPrimPaths );
 	} );
 
 	OnExpansionChanged = FOnExpansionChanged::CreateLambda([this]( const FUsdPrimViewModelPtr& UsdPrimViewModel, bool bIsExpanded)
@@ -294,7 +295,7 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 		TreeItemExpansionStates.Add( Prim.GetPrimPath().GetString(), bIsExpanded );
 	});
 
-	OnPrimSelected = InArgs._OnPrimSelected;
+	OnPrimSelectionChanged = InArgs._OnPrimSelectionChanged;
 
 	Refresh( InUsdStageActor );
 }
@@ -340,6 +341,41 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 }
 
 void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
+{
+	FScopedUnrealAllocs UnrealAllocs; // RefreshPrim can be called by a delegate for which we don't know the active allocator
+
+	FUsdPrimViewModelPtr FoundItem = GetItemFromPrimPath(PrimPath);
+
+	if ( FoundItem.IsValid() )
+	{
+		FoundItem->RefreshData( true );
+
+		// Item doesn't match any prim, needs to be removed
+		if ( !FoundItem->UsdPrim )
+		{
+			if ( FoundItem->ParentItem )
+			{
+				FoundItem->ParentItem->RefreshData( true );
+			}
+			else
+			{
+				RootItems.Remove( FoundItem.ToSharedRef() );
+			}
+		}
+	}
+	// We couldn't find the target prim, do a full refresh instead
+	else
+	{
+		Refresh( UsdStageActor.Get() );
+	}
+
+	if ( bResync )
+	{
+		RequestTreeRefresh();
+	}
+}
+
+FUsdPrimViewModelPtr SUsdStageTreeView::GetItemFromPrimPath( const FString& PrimPath )
 {
 	FScopedUnrealAllocs UnrealAllocs; // RefreshPrim can be called by a delegate for which we don't know the active allocator
 
@@ -392,33 +428,43 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 		}
 	}
 
-	if ( FoundItem.IsValid() )
-	{
-		FoundItem->RefreshData( true );
+	return FoundItem;
+}
 
-		// Item doesn't match any prim, needs to be removed
-		if ( !FoundItem->UsdPrim )
+void SUsdStageTreeView::SelectPrims( const TArray<FString>& PrimPaths )
+{
+	ClearSelection();
+
+	TArray< FUsdPrimViewModelRef > ItemsToSelect;
+	ItemsToSelect.Reserve( PrimPaths.Num() );
+
+	for ( const FString& PrimPath : PrimPaths )
+	{
+		if ( FUsdPrimViewModelPtr FoundItem = GetItemFromPrimPath( PrimPath ) )
 		{
-			if ( FoundItem->ParentItem )
-			{
-				FoundItem->ParentItem->RefreshData( true );
-			}
-			else
-			{
-				RootItems.Remove( FoundItem.ToSharedRef() );
-			}
+			ItemsToSelect.Add( FoundItem.ToSharedRef() );
 		}
 	}
-	// We couldn't find the target prim, do a full refresh instead
-	else
+
+	if ( ItemsToSelect.Num() > 0 )
 	{
-		Refresh( UsdStageActor.Get() );
+		const bool bSelected = true;
+		SetItemSelection( ItemsToSelect, bSelected );
+		ScrollItemIntoView( ItemsToSelect.Last() );
+	}
+}
+
+TArray<FString> SUsdStageTreeView::GetSelectedPrims()
+{
+	TArray<FString> SelectedPrimPaths;
+	SelectedPrimPaths.Reserve( GetNumItemsSelected() );
+
+	for ( FUsdPrimViewModelRef SelectedItem : GetSelectedItems() )
+	{
+		SelectedPrimPaths.Add( SelectedItem->UsdPrim.GetPrimPath().GetString() );
 	}
 
-	if ( bResync )
-	{
-		RequestTreeRefresh();
-	}
+	return SelectedPrimPaths;
 }
 
 void SUsdStageTreeView::SetupColumns()

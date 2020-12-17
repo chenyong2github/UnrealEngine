@@ -10,6 +10,7 @@
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
 #include "USDStageActor.h"
+#include "USDStageEditorSettings.h"
 #include "USDStageImportContext.h"
 #include "USDStageImporter.h"
 #include "USDStageImporterModule.h"
@@ -29,6 +30,7 @@
 #include "ScopedTransaction.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Engine/Selection.h"
 
 #define LOCTEXT_NAMESPACE "SUsdStage"
 
@@ -39,13 +41,62 @@ namespace SUSDStageConstants
 	static const FMargin SectionPadding( 1.f, 4.f, 1.f, 1.f );
 }
 
+namespace SUSDStageImpl
+{
+	void SelectGeneratedComponentsAndActors( AUsdStageActor* StageActor, const TArray<FString>& PrimPaths )
+	{
+		if ( !StageActor )
+		{
+			return;
+		}
+
+		TSet<USceneComponent*> ComponentsToSelect;
+		for ( const FString& PrimPath : PrimPaths )
+		{
+			if ( USceneComponent* GeneratedComponent = StageActor->GetGeneratedComponent( PrimPath ) )
+			{
+				ComponentsToSelect.Add( GeneratedComponent );
+			}
+		}
+
+		TSet<AActor*> ActorsToSelect;
+		for ( USceneComponent* ComponentToSelect : ComponentsToSelect )
+		{
+			if ( AActor* Owner = ComponentToSelect->GetOwner() )
+			{
+				// We always need the parent actor selected to select a component
+				ActorsToSelect.Add( Owner );
+			}
+		}
+
+		const bool bSelected = true;
+		const bool bNotifySelectionChanged = true;
+		const bool bDeselectBSPSurfs = true;
+		GEditor->SelectNone( bNotifySelectionChanged, bDeselectBSPSurfs );
+
+		for ( AActor* Actor : ActorsToSelect )
+		{
+			GEditor->SelectActor( Actor, bSelected, bNotifySelectionChanged );
+		}
+
+		for ( USceneComponent* Component : ComponentsToSelect )
+		{
+			GEditor->SelectComponent( Component, bSelected, bNotifySelectionChanged );
+		}
+	}
+}
+
 void SUsdStage::Construct( const FArguments& InArgs )
 {
 	OnStageActorPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP( SharedThis( this ), &SUsdStage::OnStageActorPropertyChanged );
 	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::OnStageActorLoaded );
 
+	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw( this, &SUsdStage::OnViewportSelectionChanged );
+
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 	ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+
+	bUpdatingViewportSelection = false;
 
 	UE::FUsdStage UsdStage;
 
@@ -88,7 +139,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 						.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 						[
 							SAssignNew( UsdStageTreeView, SUsdStageTreeView, ViewModel.UsdStageActor.Get() )
-							.OnPrimSelected( this, &SUsdStage::OnPrimSelected )
+							.OnPrimSelectionChanged( this, &SUsdStage::OnPrimSelectionChanged )
 						]
 					]
 
@@ -213,6 +264,7 @@ SUsdStage::~SUsdStage()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove( OnStageActorPropertyChangedHandle );
 	AUsdStageActor::OnActorLoaded.Remove( OnActorLoadedHandle );
+	USelection::SelectionChangedEvent.Remove( OnViewportSelectionChangedHandle );
 
 	ClearStageActorDelegates();
 }
@@ -342,8 +394,6 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("Payloads_ToolTip", "What to do with payloads when initially opening the stage"),
 			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPayloadsSubMenu));
 
-		MenuBuilder.AddMenuSeparator();
-
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("PurposesToLoad", "Purposes to load"),
 			LOCTEXT("PurposesToLoad_ToolTip", "Only load prims with these specific purposes from the USD stage"),
@@ -351,6 +401,13 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			false,
 			FSlateIcon(),
 			false);
+
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "SelectionText", "Selection" ),
+			LOCTEXT( "SelectionText_ToolTip", "How the selection of prims, actors and components should behave" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillSelectionSubMenu ) );
 	}
 	MenuBuilder.EndSection();
 }
@@ -478,6 +535,58 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 	AddPurposeEntry(EUsdPurpose::Guide,  LOCTEXT("GuidePurpose",  "Guide"));
 }
 
+void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "SynchronizeText", "Synchronize with Editor" ),
+		FText::GetEmpty(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if ( UUsdStageEditorSettings* Settings = GetMutableDefault<UUsdStageEditorSettings>() )
+				{
+					Settings->bSelectionSynced = !Settings->bSelectionSynced;
+					Settings->SaveConfig();
+				}
+
+				// Immediately sync the selection, but only if the results are obvious (i.e. either our prim selection or viewport selection are empty)
+				if ( GEditor )
+				{
+					int32 NumPrimsSelected = UsdStageTreeView->GetNumItemsSelected();
+					int32 NumViewportSelected = FMath::Max( GEditor->GetSelectedComponentCount(), GEditor->GetSelectedActorCount() );
+
+					if ( NumPrimsSelected == 0 )
+					{
+						USelection* Selection = GEditor->GetSelectedComponentCount() > 0
+							? GEditor->GetSelectedComponents()
+							: GEditor->GetSelectedActors();
+
+						OnViewportSelectionChanged(Selection);
+					}
+					else if ( NumViewportSelected == 0 )
+					{
+						TGuardValue<bool> SelectionLoopGuard( bUpdatingViewportSelection, true );
+
+						SUSDStageImpl::SelectGeneratedComponentsAndActors( ViewModel.UsdStageActor.Get(), UsdStageTreeView->GetSelectedPrims() );
+					}
+				}
+			}),
+			FCanExecuteAction::CreateLambda([]()
+			{
+				return true;
+			}),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
+				return Settings && Settings->bSelectionSynced;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::Check
+	);
+}
+
 void SUsdStage::OnNew()
 {
 	ViewModel.NewStage( nullptr );
@@ -547,19 +656,28 @@ void SUsdStage::OnImport()
 	ViewModel.ImportStage();
 }
 
-void SUsdStage::OnPrimSelected( FString PrimPath )
+void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 {
+	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( !StageActor )
+	{
+		return;
+	}
+
 	if ( UsdPrimInfoWidget )
 	{
-		UE::FUsdStage UsdStage;
+		UE::FUsdStage UsdStage = StageActor->GetUsdStage();
 
-		if ( ViewModel.UsdStageActor.IsValid() )
-		{
-			UsdStage = ViewModel.UsdStageActor->GetUsdStage();
-		}
+		SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
+		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );
+	}
 
-		SelectedPrimPath = PrimPath;
-		UsdPrimInfoWidget->SetPrimPath( UsdStage, *PrimPath );
+	const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
+	if ( Settings && Settings->bSelectionSynced && GEditor )
+	{
+		TGuardValue<bool> SelectionLoopGuard( bUpdatingViewportSelection, true );
+
+		SUSDStageImpl::SelectGeneratedComponentsAndActors( StageActor, PrimPaths );
 	}
 }
 
@@ -643,6 +761,46 @@ void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FProp
 			UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
 		}
 	}
+}
+
+void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
+{
+	const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
+	if ( !Settings || !Settings->bSelectionSynced || bUpdatingViewportSelection )
+	{
+		return;
+	}
+
+	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	USelection* Selection = Cast<USelection>( NewSelection );
+	if ( !Selection || !StageActor )
+	{
+		return;
+	}
+
+	TArray<USceneComponent*> SelectedComponents;
+	{
+		Selection->GetSelectedObjects<USceneComponent>( SelectedComponents );
+
+		TArray<AActor*> SelectedActors;
+		Selection->GetSelectedObjects<AActor>( SelectedActors );
+
+		for ( AActor* SelectedActor : SelectedActors )
+		{
+			if ( SelectedActor )
+			{
+				SelectedComponents.Add( SelectedActor->GetRootComponent() );
+			}
+		}
+	}
+
+	TArray<FString> PrimPaths;
+	for ( USceneComponent* Component : SelectedComponents )
+	{
+		PrimPaths.Add( StageActor->GetSourcePrimPath( Component ) );
+	}
+
+	UsdStageTreeView->SelectPrims( PrimPaths );
 }
 
 #endif // #if USE_USD_SDK
