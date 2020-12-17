@@ -11,6 +11,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/TextureCube.h"
 
@@ -21,6 +22,7 @@
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
 	#include "pxr/usd/usdLux/rectLight.h"
+	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
 #include "USDIncludesEnd.h"
 
@@ -44,7 +46,7 @@ bool UsdToUnreal::ConvertLight( const pxr::UsdLuxLight& Light, ULightComponentBa
 	{
 		return false;
 	}
-
+	
 	// Calculate the light intensity: this is equivalent to UsdLuxLight::ComputeBaseEmission() without the color term
 	float LightIntensity = 1.f;
 	LightIntensity *= UsdUtils::GetUsdValue< float >( Light.GetIntensityAttr(), TimeCode );
@@ -119,12 +121,30 @@ bool UsdToUnreal::ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr:
 		return false;
 	}
 
-	const float Radius = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( SphereLight.GetRadiusAttr(), TimeCode ) );
-	LightComponent.SourceRadius = Radius;
+	float Radius = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( SphereLight.GetRadiusAttr(), TimeCode ) );
 
-	const float AreaInSqMeters = 4.f * PI * FMath::Square( Radius / 100.f );
-	LightComponent.Intensity *= 4.f * PI * AreaInSqMeters; // Lumen = Nits * (4PI sr for point light) * Area
-	LightComponent.IntensityUnits = ELightUnits::Lumens;
+	float SolidAngle = 4.f * PI;
+
+	if ( USpotLightComponent* SpotLightComponent = Cast< USpotLightComponent >( &LightComponent ) )
+	{
+		SolidAngle = 2.f * PI * FMath::Sin( SpotLightComponent->GetHalfConeAngle() );
+	}
+
+	if ( UsdUtils::GetUsdValue< bool >( SphereLight.GetTreatAsPointAttr(), TimeCode ) == true )
+	{
+		Radius = 0.f;
+
+		LightComponent.Intensity *= SolidAngle; // Lumen = Nits * SolidAngle
+		LightComponent.IntensityUnits = ELightUnits::Lumens;
+	}
+	else
+	{
+		const float AreaInSqMeters = SolidAngle * FMath::Square( Radius / 100.f );
+		LightComponent.Intensity *= SolidAngle * AreaInSqMeters; // Lumen = Nits * (4PI sr for point light) * Area
+		LightComponent.IntensityUnits = ELightUnits::Lumens;
+	}
+
+	LightComponent.SourceRadius = Radius;
 
 	return true;
 }
@@ -156,6 +176,21 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 		LightComponent.Cubemap = Cubemap;
 		LightComponent.SourceType = ESkyLightSourceType::SLS_SpecifiedCubemap;
 	}
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertLuxShapingAPI( const FUsdStageInfo& StageInfo, const pxr::UsdLuxShapingAPI& ShapingAPI, USpotLightComponent& LightComponent, double TimeCode )
+{
+	if ( !ShapingAPI )
+	{
+		return false;
+	}
+
+	const float ConeAngle = UsdUtils::GetUsdValue< float >( ShapingAPI.GetShapingConeAngleAttr(), TimeCode );
+
+	LightComponent.SetInnerConeAngle( ConeAngle );
+	LightComponent.SetOuterConeAngle( ConeAngle );
 
 	return true;
 }
@@ -398,6 +433,23 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 				Attr.Set<pxr::SdfAssetPath>( pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *FilePath ).Get() }, TimeCode );
 			}
 		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertSpotLightComponent( const USpotLightComponent& LightComponent, pxr::UsdPrim& Prim, double TimeCode )
+{
+	pxr::UsdLuxShapingAPI ShapingAPI = pxr::UsdLuxShapingAPI::Apply( Prim );
+
+	if ( !ShapingAPI )
+	{
+		return false;
+	}
+
+	if ( pxr::UsdAttribute ConeAngleAttr = ShapingAPI.CreateShapingConeAngleAttr() )
+	{
+		ConeAngleAttr.Set<float>( LightComponent.InnerConeAngle, TimeCode );
 	}
 
 	return true;

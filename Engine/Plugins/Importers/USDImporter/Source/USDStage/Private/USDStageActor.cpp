@@ -31,6 +31,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Light.h"
@@ -1322,6 +1323,11 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 						else if ( UPointLightComponent* PointLight = Cast<UPointLightComponent>( LightComponent ) )
 						{
 							UnrealToUsd::ConvertPointLightComponent( *PointLight, UsdPrim, Time );
+
+							if ( USpotLightComponent* SpotLight = Cast<USpotLightComponent>( LightComponent ) )
+							{
+								UnrealToUsd::ConvertSpotLightComponent( *SpotLight, UsdPrim, Time );
+							}
 						}
 					}
 				}

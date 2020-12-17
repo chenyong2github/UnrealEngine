@@ -19,12 +19,14 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/RectLight.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkyLight.h"
+#include "Engine/SpotLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "GeometryCache.h"
@@ -53,6 +55,7 @@
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
 	#include "pxr/usd/usdLux/rectLight.h"
+	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
 	#include "pxr/usd/usdSkel/root.h"
 	#include "pxr/usd/usdSkel/binding.h"
@@ -221,6 +224,7 @@ template USDUTILITIES_API pxr::SdfAssetPath				UsdUtils::GetUsdValue< pxr::SdfAs
 template USDUTILITIES_API pxr::VtArray< pxr::GfVec3f >	UsdUtils::GetUsdValue< pxr::VtArray< pxr::GfVec3f > >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 template USDUTILITIES_API pxr::VtArray< float >			UsdUtils::GetUsdValue< pxr::VtArray< float > >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 template USDUTILITIES_API pxr::VtArray< int >			UsdUtils::GetUsdValue< pxr::VtArray< int > >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
+template USDUTILITIES_API pxr::SdfAssetPath				UsdUtils::GetUsdValue< pxr::SdfAssetPath >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 
 pxr::TfToken UsdUtils::GetUsdStageAxis( const pxr::UsdStageRefPtr& Stage )
 {
@@ -274,7 +278,14 @@ UClass* UsdUtils::GetActorTypeForPrim( const pxr::UsdPrim& Prim )
 	}
 	else if ( Prim.IsA< pxr::UsdLuxSphereLight >() )
 	{
-		return APointLight::StaticClass();
+		if ( Prim.HasAPI< pxr::UsdLuxShapingAPI >() )
+		{
+			return ASpotLight::StaticClass();
+		}
+		else
+		{
+			return APointLight::StaticClass();
+		}
 	}
 	else if ( Prim.IsA< pxr::UsdLuxDomeLight >() )
 	{
@@ -310,7 +321,14 @@ UClass* UsdUtils::GetComponentTypeForPrim( const pxr::UsdPrim& Prim )
 	}
 	else if ( Prim.IsA< pxr::UsdLuxSphereLight >() )
 	{
-		return UPointLightComponent::StaticClass();
+		if ( Prim.HasAPI< pxr::UsdLuxShapingAPI >() )
+		{
+			return USpotLightComponent::StaticClass();
+		}
+		else
+		{
+			return UPointLightComponent::StaticClass();
+		}
 	}
 	else if ( Prim.IsA< pxr::UsdLuxDomeLight >() )
 	{
