@@ -46,7 +46,7 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 	if (IsConsolePlatform(Platform) && FGenericDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform))
 	{
 		static FName HairCardsVFName = (TEXT("FHairCardsVertexFactory"));
-		if (GetFrequency() == SF_RayHitGroup && VertexFactoryType->GetFName() == HairCardsVFName)
+		if (ShaderType->GetFrequency() == SF_RayHitGroup && VertexFactoryType->GetFName() == HairCardsVFName)
 		{
 			ShaderEnvironment.SetDefine(TEXT("RT_CHS_FREQUENCY"), 1);
 		}
