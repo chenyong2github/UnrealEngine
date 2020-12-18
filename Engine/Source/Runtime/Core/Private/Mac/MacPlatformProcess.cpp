@@ -319,6 +319,32 @@ FProcHandle FMacPlatformProcess::CreateProcInternal(const TCHAR* URL, const TCHA
 		ProcessPath = FPaths::ConvertRelativePathToFull(ProcessPath);
 	}
 
+	// For programs that are wrapped in an App container
+	{
+		NSString* nsProcessPath = ProcessPath.GetNSString();
+		if (![[NSFileManager defaultManager] fileExistsAtPath: nsProcessPath])
+		{
+			NSString* AppName = [[nsProcessPath lastPathComponent] stringByDeletingPathExtension];
+			nsProcessPath = [[NSWorkspace sharedWorkspace] fullPathForApplication:AppName];
+		}
+		
+		if ([[NSFileManager defaultManager] fileExistsAtPath: nsProcessPath])
+		{
+			if([[NSWorkspace sharedWorkspace] isFilePackageAtPath: nsProcessPath])
+			{
+				NSBundle* Bundle = [NSBundle bundleWithPath:nsProcessPath];
+				if(Bundle != nil)
+				{
+					nsProcessPath = [Bundle executablePath];
+					if(nsProcessPath != nil)
+					{
+						ProcessPath = nsProcessPath;
+					}
+				}
+			}
+		}
+	}
+
 	if (!FPaths::FileExists(ProcessPath))
 	{
 		return FProcHandle();
