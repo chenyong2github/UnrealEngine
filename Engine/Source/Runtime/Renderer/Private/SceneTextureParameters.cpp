@@ -8,7 +8,11 @@
 
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)
 {
-	const auto& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	return GetSceneTextureParameters(GraphBuilder, FSceneTextures::Get(GraphBuilder));
+}
+
+FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
+{
 	const auto& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FSceneTextureParameters Parameters;
