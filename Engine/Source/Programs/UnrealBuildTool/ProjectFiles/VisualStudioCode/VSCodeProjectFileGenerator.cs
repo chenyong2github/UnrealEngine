@@ -779,8 +779,7 @@ namespace UnrealBuildTool
 
 								OutFile.AddUnnamedField("--configuration");
 								OutFile.AddUnnamedField(BuildProduct.Config.ToString());
-								OutFile.AddUnnamedField("--output");
-								OutFile.AddUnnamedField(MakePathString(BuildProduct.OutputFile.Directory));
+								OutFile.AddUnnamedField(MakeUnquotedPathString(BuildProduct.CSharpInfo.ProjectPath, EPathType.Absolute));
 							}
 							OutFile.EndArray();
 						}
