@@ -233,7 +233,7 @@ void FinalizeTopLayerData(inout FStrataTopLayerData Out)
 	Out.Normal = normalize(Out.Normal);
 	Out.BaseColor = saturate(Out.BaseColor);
 	Out.Roughness = Out.AccumRoughnessCount > 0.0f ? saturate(Out.Roughness / Out.AccumRoughnessCount) : 1.f;
-	Out.EnvBRDF = Out.BaseColor; // Strata_todo: better approximation
+	Out.EnvBRDF = Out.BaseColor; // When not subsurface, BaseColor stores the split-sum approximation EnvBRDF. STRATA_TODO better approximation
 }
 
 uint2 StrataPackTopLayerData(FStrataTopLayerData In)
@@ -252,7 +252,7 @@ FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
 	Out.Normal = StrataUnpackNormal(In.y);
 	Out.BaseColor = BaseColorAndRoughness.xyz;
 	Out.Roughness = BaseColorAndRoughness.w;
-	Out.EnvBRDF = Out.BaseColor; // Strata_todo: better approximation
+	Out.EnvBRDF = Out.BaseColor; // When not subsurface, BaseColor stores the split-sum approximation EnvBRDF. STRATA_TODO better approximation
 	return Out;
 }
 

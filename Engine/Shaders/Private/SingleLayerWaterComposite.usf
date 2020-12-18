@@ -125,15 +125,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #if STRATA_ENABLED
 			if (bIsStrataSLW)
 			{
-				// Water is using the higher quality EnvBRDF instead of EnvBRDFApprox using during the base pass.
-				// So we load the water BSDF here to make sure we compute the accurate reflection for water.
-				// STRATA_TODO use EnvBRDF and remove EnvBRDFApprox, or use a better approximation...
-				uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(SvPosition.xy, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-				const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-
-				const float3 F0 = ComputeF0(SLW_SPECULAR(BSDF), SLW_BASECOLOR(BSDF), SLW_METALLIC(BSDF));
-				EnvBrdf = EnvBRDF(F0, SLW_ROUGHNESS(BSDF), NoV);
+				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SvPosition.xy, 0)));
+				EnvBrdf = TopLayerData.EnvBRDF;
 			}
 			else
 #endif
