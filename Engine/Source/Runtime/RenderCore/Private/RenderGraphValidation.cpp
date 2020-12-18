@@ -511,7 +511,6 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 	const ERDGPassFlags PassFlags = Pass->GetFlags();
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();
 
-
 	const TCHAR* PassName = Pass->GetName();
 	const bool bIsRaster = EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster);
 	const bool bIsCopy = EnumHasAnyFlags(PassFlags, ERDGPassFlags::Copy);
@@ -785,6 +784,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 					 *  target pool. Instead, the user should create a new texture instance. An exception to this rule are untracked render targets,
 					 *  which are not actually managed by the render target pool and likely represent the frame buffer.
 					 */
+					if (!bSkipRenderPass)
 					{
 						const bool bIsLoadAction = RenderTarget.GetLoadAction() == ERenderTargetLoadAction::ELoad;
 

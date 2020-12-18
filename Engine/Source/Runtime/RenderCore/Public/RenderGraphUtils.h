@@ -26,6 +26,11 @@ inline FRDGBufferRef GetIfProduced(FRDGBufferRef Buffer, FRDGBufferRef FallbackB
 	return HasBeenProduced(Buffer) ? Buffer : FallbackBuffer;
 }
 
+inline ERenderTargetLoadAction GetLoadActionIfProduced(FRDGTextureRef Texture, ERenderTargetLoadAction ActionIfNotProduced)
+{
+	return HasBeenProduced(Texture) ? ERenderTargetLoadAction::ELoad : ActionIfNotProduced;
+}
+
 /** Fetches the RHI texture from an RDG texture or null if the RDG texture is null. */
 inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 {
@@ -816,7 +821,8 @@ private:
 #define RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, bCondition) FRDGWaitForTasksScope PREPROCESSOR_JOIN(RDGWaitForTasksScope, __LINE__){ GraphBuilder, bCondition }
 #define RDG_WAIT_FOR_TASKS(GraphBuilder) RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, true)
 
-RENDERCORE_API void GetPooledFreeBuffer(
+// Allocates an RDG pooled buffer instance. Attempts to reuse allocation if Out has a value. Returns true a new instance was allocated, or false if the existing allocation was reused.
+RENDERCORE_API bool GetPooledFreeBuffer(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,

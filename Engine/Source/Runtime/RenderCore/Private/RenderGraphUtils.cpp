@@ -916,11 +916,19 @@ FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 	}
 }
 
-void GetPooledFreeBuffer(
+bool GetPooledFreeBuffer(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,
 	const TCHAR* InDebugName)
 {
+	if (Out && Out->Desc == Desc)
+	{
+		// Kept current allocation.
+		return false;
+	}
+
+	// New allocation.
 	Out = GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, InDebugName);
+	return true;
 }
