@@ -3179,7 +3179,7 @@ namespace VulkanRHI
 		VULKAN_LOGMEMORY(TEXT("Binned Alloc Used/Max %d/%d %.2f%%"), UsedBinnedTotal, AllocBinnedTotal, AllocBinnedTotal > 0 ? 100.0f * (float)UsedBinnedTotal / (float)AllocBinnedTotal : 0.0f);
 		{
 			FResourceHeapStats& DedicatedStats = Summary[DedicatedAllocatorSummary];
-			uint32 HeapIndex = 0;
+			int32 HeapIndex = 0;
 
 			for(FVulkanResourceHeap* Heap : ResourceTypeHeaps)
 			{				
