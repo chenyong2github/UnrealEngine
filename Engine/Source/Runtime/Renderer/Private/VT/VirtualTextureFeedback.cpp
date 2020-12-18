@@ -2,6 +2,9 @@
 
 #include "VT/VirtualTextureFeedback.h"
 
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+
 #if PLATFORM_WINDOWS
 // Use Query objects until RHI has a good fence on D3D11
 #define USE_RHI_FENCES 0
@@ -179,8 +182,6 @@ void FVirtualTextureFeedback::ReleaseRHI()
 
 void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_VirtualTextureFeedback_TransferGPUToCPU);
-
 	if (NumPending >= MaxTransfers)
 	{
 		// If we have too many pending transfers, start throwing away the oldest in the ring buffer.
@@ -205,6 +206,25 @@ void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdL
 	// Increment the ring buffer write position.
 	WriteIndex = (WriteIndex + 1) % MaxTransfers;
 	++NumPending;
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVirtualTextureFeedbackCopyParameters, )
+	RDG_BUFFER_ACCESS(Input, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+void FVirtualTextureFeedback::TransferGPUToCPU(FRDGBuilder& GraphBuilder, FRDGBuffer* Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
+{
+	FVirtualTextureFeedbackCopyParameters* Parameters = GraphBuilder.AllocParameters<FVirtualTextureFeedbackCopyParameters>();
+	Parameters->Input = Buffer;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("VirtualTextureFeedbackCopy"),
+		Parameters,
+		ERDGPassFlags::Readback,
+		[this, Buffer, Desc](FRHICommandListImmediate& InRHICmdList)
+	{
+		TransferGPUToCPU(InRHICmdList, Buffer->GetRHI(), Desc);
+	});
 }
 
 bool FVirtualTextureFeedback::CanMap(FRHICommandListImmediate& RHICmdList)

@@ -20,6 +20,7 @@ public:
 
 	/** Commit a RHIBuffer to be transferred for later CPU analysis. */
 	void TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc);
+	void TransferGPUToCPU(FRDGBuilder& GraphBuilder, class FRDGBuffer* Buffer, FVirtualTextureFeedbackBufferDesc const& Desc);
 
 	/** Returns true if there are any pending transfer results that are ready so that we can call Map(). */
 	bool CanMap(FRHICommandListImmediate& RHICmdList);

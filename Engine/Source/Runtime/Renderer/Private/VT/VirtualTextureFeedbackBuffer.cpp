@@ -44,3 +44,9 @@ void SubmitVirtualTextureFeedbackBuffer(FRHICommandListImmediate& RHICmdList, FV
 {
 	GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Buffer, Desc);
 }
+
+void SubmitVirtualTextureFeedbackBuffer(class FRDGBuilder& GraphBuilder, FRDGBuffer* Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
+{
+	GVirtualTextureFeedback.TransferGPUToCPU(GraphBuilder, Buffer, Desc);
+}
+
