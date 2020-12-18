@@ -17,7 +17,7 @@
 	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__), Condition)
 #elif RDG_EVENTS == RDG_EVENTS_NONE
 	#define RDG_EVENT_NAME(Format, ...) FRDGEventName()
-	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) 
+	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...)
 	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...)
 #else
 	#error "RDG_EVENTS is not a valid value."
@@ -50,10 +50,10 @@ class TRDGScopeStack final
 {
 	static constexpr uint32 kScopeStackDepthMax = 8;
 public:
-	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
-	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
+	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
+	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
 
-	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction);
+	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction, bool bRDGEvent);
 	~TRDGScopeStack();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -102,6 +102,9 @@ private:
 
 	/** Stacks of scopes pushed to the RHI command list during execution. */
 	TStaticArray<const TScopeType*, kScopeStackDepthMax> ScopeStack;
+
+	/** Are RDG Events enabled for these scopes */
+	bool bRDGEvents;
 };
 
 class FRDGPass;

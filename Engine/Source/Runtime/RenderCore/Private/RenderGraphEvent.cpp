@@ -81,29 +81,38 @@ FRDGEventScopeGuard::~FRDGEventScopeGuard()
 	}
 }
 
-static void OnPushEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope)
+static void OnPushEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope, bool bRDGEvents)
 {
-	SCOPED_GPU_MASK(RHICmdList, Scope->GPUMask);
-	RHICmdList.PushEvent(Scope->Name.GetTCHAR(), FColor(0));
+#if RDG_EVENTS == RDG_EVENTS_STRING_COPY
+	RHICmdList.PushBreadcrumb_Dynamic(Scope->Name.GetTCHAR());
+#else
+	RHICmdList.PushBreadcrumb_Static(Scope->Name.GetTCHAR());
+#endif
+
+	if (bRDGEvents)
+	{
+		SCOPED_GPU_MASK(RHICmdList, Scope->GPUMask);
+		RHICmdList.PushEvent(Scope->Name.GetTCHAR(), FColor(0));
+	}
 }
 
-static void OnPopEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope)
+static void OnPopEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope, bool bRDGEvents)
 {
-	SCOPED_GPU_MASK(RHICmdList, Scope->GPUMask);
-	RHICmdList.PopEvent();
+	if (bRDGEvents)
+	{
+		SCOPED_GPU_MASK(RHICmdList, Scope->GPUMask);
+		RHICmdList.PopEvent();
+	}
+	RHICmdList.PopBreadcrumb();
 }
 
 bool FRDGEventScopeStack::IsEnabled()
 {
-#if RDG_EVENTS
-	return GetEmitRDGEvents();
-#else
-	return false;
-#endif
+	return true;
 }
 
 FRDGEventScopeStack::FRDGEventScopeStack(FRHIComputeCommandList& InRHICmdList)
-	: ScopeStack(InRHICmdList, &OnPushEvent, &OnPopEvent)
+	: ScopeStack(InRHICmdList, &OnPushEvent, &OnPopEvent, GetEmitRDGEvents())
 {}
 
 void FRDGEventScopeStack::BeginScope(FRDGEventName&& EventName)
@@ -176,7 +185,7 @@ FRDGGPUStatScopeGuard::~FRDGGPUStatScopeGuard()
 	GraphBuilder.GPUScopeStacks.EndStatScope();
 }
 
-static void OnPushGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatScope* Scope)
+static void OnPushGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatScope* Scope, bool bRDGEvents)
 {
 #if HAS_GPU_STATS
 	// GPU stats are currently only supported on the immediate command list.
@@ -187,7 +196,7 @@ static void OnPushGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatS
 #endif
 }
 
-static void OnPopGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatScope* Scope)
+static void OnPopGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatScope* Scope, bool bRDGEvents)
 {
 #if HAS_GPU_STATS
 	// GPU stats are currently only supported on the immediate command list.
@@ -208,7 +217,7 @@ bool FRDGGPUStatScopeStack::IsEnabled()
 }
 
 FRDGGPUStatScopeStack::FRDGGPUStatScopeStack(FRHIComputeCommandList& InRHICmdList)
-	: ScopeStack(InRHICmdList, &OnPushGPUStat, &OnPopGPUStat)
+	: ScopeStack(InRHICmdList, &OnPushGPUStat, &OnPopGPUStat, GetEmitRDGEvents())
 {}
 
 void FRDGGPUStatScopeStack::BeginScope(const FName& Name, const FName& StatName, int32* DrawCallCounter)
