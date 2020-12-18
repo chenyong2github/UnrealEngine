@@ -160,6 +160,11 @@ namespace Chaos
 		template<typename Lambda>
 		void ForEachPhysicsProxy(Lambda InCallable)
 		{
+			// Compact is not strictly required here, but will offer the same performance characteristics as the multithreaded version
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ProxiesSetCompaction);
+				GeometryParticlePhysicsProxies.Compact();
+			}
 			for (FGeometryParticlePhysicsProxy* Obj : GeometryParticlePhysicsProxies)
 			{
 				InCallable(Obj);
@@ -193,9 +198,15 @@ namespace Chaos
 		template<typename Lambda>
 		void ForEachPhysicsProxyParallel(Lambda InCallable)
 		{
+			// Make sure all elements are contiguous so we can use the set like an array.
+			// This only requires work if GeometryParticlePhysicsProxies has been dirtied since our last call.
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ProxiesSetCompaction);
+				GeometryParticlePhysicsProxies.Compact();
+			}
 			Chaos::PhysicsParallelFor(GeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
 			{
-				FGeometryParticlePhysicsProxy* Obj = GeometryParticlePhysicsProxies[Index];
+				FGeometryParticlePhysicsProxy* Obj = GeometryParticlePhysicsProxies[FSetElementId::FromInteger(Index)];
 				InCallable(Obj);
 			});
 			Chaos::PhysicsParallelFor(KinematicGeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
@@ -432,7 +443,7 @@ namespace Chaos
 		// Proxies
 		//
 		TSharedPtr<FCriticalSection> MCurrentLock;
-		TArray< FGeometryParticlePhysicsProxy* > GeometryParticlePhysicsProxies;
+		TSet< FGeometryParticlePhysicsProxy* > GeometryParticlePhysicsProxies;
 		TArray< FKinematicGeometryParticlePhysicsProxy* > KinematicGeometryParticlePhysicsProxies;
 		TArray< FRigidParticlePhysicsProxy* > RigidParticlePhysicsProxies;
 		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep

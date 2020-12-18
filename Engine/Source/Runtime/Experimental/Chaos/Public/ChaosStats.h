@@ -72,6 +72,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Object Parameter Update"), STAT_ParamUpdateObjec
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Field Parameter Update"), STAT_ParamUpdateField, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Sync Events - Game Thread"), STAT_SyncEvents_GameThread, STATGROUP_Chaos, CHAOS_API);
 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Proxies Set Compaction"), STAT_ProxiesSetCompaction, STATGROUP_Chaos, CHAOS_API);
+
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Physics Thread Stat Update"), STAT_PhysicsStatUpdate, STATGROUP_ChaosThread, CHAOS_API);
 DECLARE_FLOAT_COUNTER_STAT_EXTERN(TEXT("Physics Thread Time Actual (ms)"), STAT_PhysicsThreadTime, STATGROUP_ChaosThread, CHAOS_API);
 DECLARE_FLOAT_COUNTER_STAT_EXTERN(TEXT("Physics Thread Time Effective (ms)"), STAT_PhysicsThreadTimeEff, STATGROUP_ChaosThread, CHAOS_API);
