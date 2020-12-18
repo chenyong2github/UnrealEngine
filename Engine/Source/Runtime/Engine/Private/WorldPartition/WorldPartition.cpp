@@ -142,7 +142,7 @@ FName UWorldPartition::GetWorldPartitionEditorName()
 
 void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 {
-	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition, Log);
+	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition);
 	
 	check(!World || (World == InWorld));
 	if (!ensure(!IsInitialized()))

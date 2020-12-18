@@ -55,7 +55,7 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, FBox& OutWorldBounds)
 {
 	auto WaitForShaderCompilation = [](){
-		UE_SCOPED_TIMER(TEXT("Shader Compilation"), LogWorldPartitionMiniMapHelper, Display);
+		UE_SCOPED_TIMER(TEXT("Shader Compilation"), LogWorldPartitionMiniMapHelper);
 		auto RemainingShaders = GShaderCompilingManager->GetNumRemainingJobs();
 		if (RemainingShaders > 0)
 		{
@@ -64,7 +64,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 	};
 	auto WaitForTextureBuilding = []()
 	{
-		UE_SCOPED_TIMER(TEXT("Building Textures"), LogWorldPartitionMiniMapHelper, Display);
+		UE_SCOPED_TIMER(TEXT("Building Textures"), LogWorldPartitionMiniMapHelper);
 		auto RemainingTextures = FTextureCompilingManager::Get().GetNumRemainingTextures();
 		if (RemainingTextures > 0)
 		{
@@ -72,7 +72,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 		}
 	};
 	auto WaitForDistanceMeshFieldBuilding = []() {
-		UE_SCOPED_TIMER(TEXT("Building Mesh Distance Fields"), LogWorldPartitionMiniMapHelper, Display);
+		UE_SCOPED_TIMER(TEXT("Building Mesh Distance Fields"), LogWorldPartitionMiniMapHelper);
 		if (GDistanceFieldAsyncQueue && GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
 		{
 			GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();

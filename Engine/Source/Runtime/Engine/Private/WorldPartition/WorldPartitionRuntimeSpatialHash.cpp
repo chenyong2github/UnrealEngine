@@ -730,7 +730,7 @@ struct FSquare2DGridHelper
 	// Validates that actor is not referenced by multiple cells
 	void ValidateSingleActorReferer()
 	{
-		UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartitionRuntimeSpatialHash, Log);
+		UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartitionRuntimeSpatialHash);
 
 		TSet<FGuid> ActorUsage;
 		for (int32 Level = 0; Level < Levels.Num() - 1; Level++)
@@ -1059,7 +1059,7 @@ static FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCell
 
 static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors)
 {
-	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash, Log);
+	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash);
 
 	//
 	// Create the hierarchical grids for the game
@@ -1249,7 +1249,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartitionRuntimeSpatialHash, Log);
+	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartitionRuntimeSpatialHash);
 	
 	if (!Grids.Num())
 	{

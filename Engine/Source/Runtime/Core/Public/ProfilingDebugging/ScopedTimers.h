@@ -206,20 +206,20 @@ public:
 class FScopedDurationTimeCustomLogger
 {
 public:
-	explicit FScopedDurationTimeCustomLogger(FString InMsg, TFunction<void(const FString&)> InOutputFunction)
-		: Msg(MoveTemp(InMsg))
-		, OutputFunction(InOutputFunction)
+	explicit FScopedDurationTimeCustomLogger(const TCHAR* InMsg, const FLogCategoryBase& InLogCategory)
+		: Msg(InMsg)
+		, LogCategory(InLogCategory)
 		, Accumulator(0.0)
 		, Timer(Accumulator)
 	{
-		OutputFunction(FString::Printf(TEXT("%s started..."), *Msg));
+		UE_LOG_REF(LogCategory, Display, TEXT("%s"), *Msg);
 		Timer.Start();
 	}
 
 	~FScopedDurationTimeCustomLogger()
 	{
 		Timer.Stop();
-		OutputFunction(FString::Printf(TEXT("%s took %s"), *Msg, *SecondsToString(Accumulator)));
+		UE_LOG_REF(LogCategory, Display, TEXT("%s took %s"), *Msg, *SecondsToString(Accumulator));
 	}
 
 private:
@@ -258,10 +258,10 @@ private:
 	}
 
 	FString Msg;
-	TFunction<void(const FString&)> OutputFunction;
+	const FLogCategoryBase& LogCategory;
 	double Accumulator;
 	FDurationTimer Timer;
 };
 
-#define UE_SCOPED_TIMER(Title, Category, Verbosity) \
-	FScopedDurationTimeCustomLogger BODY_MACRO_COMBINE(Scoped,Timer,_,__LINE__)(Title, [](const FString& Msg) { UE_LOG(Category, Verbosity, TEXT("%s"), *Msg); });
+#define UE_SCOPED_TIMER(Title, Category) \
+	FScopedDurationTimeCustomLogger BODY_MACRO_COMBINE(Scoped,Timer,_,__LINE__)(Title, Category)
