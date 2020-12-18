@@ -5499,12 +5499,6 @@ void RecompileShadersForRemote(
 			// Only compile for the desired platform if requested
 			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
 			{
-				// Warn about outdated shader platforms.
-				if (IsDeprecatedShaderPlatform(ShaderPlatform))
-				{
-					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
-				}
-
 				if (bCompileChangedShaders)
 				{
 					// Kick off global shader recompiles
