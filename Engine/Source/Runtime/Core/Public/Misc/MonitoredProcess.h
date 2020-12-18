@@ -192,16 +192,16 @@ private:
 
 
 	// Whether the process is being canceled. */
-	bool Canceling;
+	bool Canceling = false;
 
 	// Holds the time at which the process ended. */
 	FDateTime EndTime;
 
 	// Whether the window of the process should be hidden. */
-	bool Hidden;
+	bool Hidden = false;
 
 	// Whether to kill the entire process tree when cancelling this process. */
-	bool KillTree;
+	bool KillTree = false;
 
 	// Holds the command line parameters. */
 	FString Params;
@@ -210,19 +210,19 @@ private:
 	FProcHandle ProcessHandle;
 
 	// Holds the read pipe. */
-	void* ReadPipe;
+	void* ReadPipe = nullptr;
 
 	// Holds the return code. */
-	int ReturnCode;
+	int ReturnCode = 0;
 
 	// Holds the time at which the process started. */
-	FDateTime StartTime;
+	FDateTime StartTime { 0 };
 
 	// Holds the monitoring thread object. */
-	FRunnableThread* Thread;
+	FRunnableThread* Thread = nullptr;
 
 	// Is the thread running? 
-	TSAN_ATOMIC(bool) bIsRunning;
+	TSAN_ATOMIC(bool) bIsRunning = false;
 
 	// Holds the URL of the executable to launch. */
 	FString URL;
@@ -231,13 +231,13 @@ private:
 	FString WorkingDir;
 
 	// Holds the write pipe. */
-	void* WritePipe;
+	void* WritePipe = nullptr;
 
 	// Holds if we should create pipes
-	bool bCreatePipes;
+	bool bCreatePipes = false;
 
 	// Sleep interval to use
-	float SleepInterval;
+	float SleepInterval = 0.01f;
 
 	// Buffered output text which does not contain a newline
 	FString OutputBuffer;

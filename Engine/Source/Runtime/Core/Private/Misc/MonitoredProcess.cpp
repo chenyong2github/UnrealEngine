@@ -3,31 +3,24 @@
 #include "Misc/MonitoredProcess.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/Paths.h"
+#include <atomic>
 
 /* FMonitoredProcess structors
  *****************************************************************************/
 
 FMonitoredProcess::FMonitoredProcess( const FString& InURL, const FString& InParams, bool InHidden, bool InCreatePipes )
 	: FMonitoredProcess(InURL, InParams, FPaths::RootDir(), InHidden, InCreatePipes)
-{ }
+{ 
+}
 
 FMonitoredProcess::FMonitoredProcess( const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool InCreatePipes )
-	: Canceling(false)
-	, EndTime(0)
-	, Hidden(InHidden)
-	, KillTree(false)
+	: Hidden(InHidden)
 	, Params(InParams)
-	, ReadPipe(nullptr)
-	, ReturnCode(0)
-	, StartTime(0)
-	, Thread(nullptr)
-	, bIsRunning(false)
 	, URL(InURL)
 	, WorkingDir(InWorkingDir)
-	, WritePipe(nullptr)
 	, bCreatePipes(InCreatePipes)
-	, SleepInterval(0.0f)
-{ }
+{ 
+}
 
  
 FMonitoredProcess::~FMonitoredProcess()
@@ -80,9 +73,8 @@ bool FMonitoredProcess::Launch()
 		return false;
 	}
 
-	static int32 MonitoredProcessIndex = 0;
-	const FString MonitoredProcessName = FString::Printf( TEXT( "FMonitoredProcess %d" ), MonitoredProcessIndex );
-	MonitoredProcessIndex++;
+	static std::atomic_uint32_t MonitoredProcessIndex { 0 };
+	const FString MonitoredProcessName = FString::Printf( TEXT( "FMonitoredProcess %d" ), MonitoredProcessIndex.fetch_add(1) );
 
 	bIsRunning = true;
 	Thread = FRunnableThread::Create(this, *MonitoredProcessName, 128 * 1024, TPri_AboveNormal);
