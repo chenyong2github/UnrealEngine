@@ -104,38 +104,23 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 
 		for (FFractureToolContext& Context : Contexts)
 		{
-			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-			
+			Context.RemoveRootNodes();
 			Context.Sanitize();
-			TMap<int32, TArray<int32>> ClusteredSelection = Context.GetClusteredSelections();
 
-			for (TPair<int32, TArray<int32>>& Group : ClusteredSelection)
+			// Cluster selected bones beneath common parent
+			int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(Context.GetGeometryCollection().Get(), Context.GetSelection());
+
+			if (LowestCommonAncestor != INDEX_NONE)
 			{
-				const TArray<int32>& CurrentSelection = Group.Value;
-
-				// sort the selection list so ClusterBonesUnderNewNode() happens in the correct order for leaf nodes
-				TArray<int32> SortedSelectedBones;
-				SortedSelectedBones.Reserve(CurrentSelection.Num());
-				for (int32 SelectedBone : CurrentSelection)
+				// ClusterBonesUnderNewNode expects a sibling of the new cluster so we require a child node of the common ancestor.
+				const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+				TArray<int32> Siblings = Children[LowestCommonAncestor].Array();
+				if (Siblings.Num() > 0)
 				{
-					if (Children[SelectedBone].Num() > 0)
-					{
-						SortedSelectedBones.Insert(SelectedBone, 0);
-					}
-					else
-					{
-						SortedSelectedBones.Add(SelectedBone);
-					}
+					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), Siblings[0], Context.GetSelection(), false);
 				}
-
-				// cluster Selected Bones under the first selected bone
-				int32 InsertAtIndex = SortedSelectedBones[0];
-				CurrentLevelView = Levels[InsertAtIndex];
-
-				FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), InsertAtIndex, SortedSelectedBones, false);
 			}
-
+			
 			Refresh(Context, Toolkit);
 		}
 

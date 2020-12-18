@@ -109,6 +109,9 @@ public:
 	/** move the selected node up a level in direction of root */
 	static void MoveUpOneHierarchyLevel(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
 
+	/** Find the lowest common ancestor index of currently selected nodes. Returns INDEX_NODE if there is no common ancestor. */
+	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
+
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
 private:
 	static int32 PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
@@ -117,5 +120,5 @@ private:
 	
 	static void RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<int32>& Levels, const TManagedArray<TSet<int32>>& Children, int32 ParentElement);
 
-
+	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1);
 };

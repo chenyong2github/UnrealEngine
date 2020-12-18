@@ -798,3 +798,52 @@ void FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(FGeometryColl
 }
 
 
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones)
+{
+	const int32 SelectionCount = SelectedBones.Num();
+	if (SelectionCount == 0)
+	{
+		return INDEX_NONE;
+	}
+
+	int32 LCA = SelectedBones[0];
+	for (int32 Index = 1; Index < SelectionCount; ++Index)
+	{
+		if (LCA == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+		LCA = FindLowestCommonAncestor(GeometryCollection, LCA, SelectedBones[Index]);
+	}
+	return LCA;
+}
+
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1)
+{
+	const TManagedArray<int32>& Parent = GeometryCollection->GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+
+	// Record the path to root from the first 
+	TArray<int32> PathToRoot0;
+	PathToRoot0.Add(N0);
+	while (PathToRoot0.Last() != INDEX_NONE)
+	{
+		PathToRoot0.Add(Parent[PathToRoot0.Last()]);
+	}
+
+	// Traverse from the second node to root and return the first node found that is in the first path.
+	int32 LCA = N1;
+	while (LCA != INDEX_NONE)
+	{
+		if (PathToRoot0.Contains(LCA))
+		{
+			return LCA;
+		}
+		LCA = Parent[LCA];
+	}
+
+	// No common ancestor
+	return INDEX_NONE;
+}
+
+
+
