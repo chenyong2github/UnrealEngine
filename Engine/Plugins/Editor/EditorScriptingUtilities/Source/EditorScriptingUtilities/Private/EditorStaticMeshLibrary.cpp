@@ -1239,7 +1239,7 @@ void UEditorStaticMeshLibrary::SetLODMaterialSlot(UStaticMesh* StaticMesh, int32
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -1262,9 +1262,9 @@ void UEditorStaticMeshLibrary::SetLODMaterialSlot(UStaticMesh* StaticMesh, int32
 		return;
 	}
 
-	if (MaterialSlotIndex >= StaticMesh->StaticMaterials.Num())
+	if (MaterialSlotIndex >= StaticMesh->GetStaticMaterials().Num())
 	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SetLODMaterialSlot: Invalid slot index %d (of %d)."), MaterialSlotIndex, StaticMesh->StaticMaterials.Num());
+		UE_LOG(LogEditorScripting, Error, TEXT("SetLODMaterialSlot: Invalid slot index %d (of %d)."), MaterialSlotIndex, StaticMesh->GetStaticMaterials().Num());
 		return;
 	}
 
