@@ -439,9 +439,6 @@ public:
 		{
 			AssetThumbnail = MakeShareable(new FAssetThumbnail(AssetData, AssetShortcutConstants::ThumbnailSize, AssetShortcutConstants::ThumbnailSize, ThumbnailPoolPtr.Pin()));
 			AssetThumbnailSmall = MakeShareable(new FAssetThumbnail(AssetData, AssetShortcutConstants::ThumbnailSizeSmall, AssetShortcutConstants::ThumbnailSizeSmall, ThumbnailPoolPtr.Pin()));
-
-			ThumbnailBox->SetContent(AssetThumbnail->MakeThumbnailWidget());
-			ThumbnailSmallBox->SetContent(AssetThumbnailSmall->MakeThumbnailWidget());
 		}
 	}
 
@@ -484,10 +481,6 @@ private:
 	/** Our asset thumbnails */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 	TSharedPtr<FAssetThumbnail> AssetThumbnailSmall;
-
-	/** Thumbnail widget containers */
-	TSharedPtr<SBox> ThumbnailBox;
-	TSharedPtr<SBox> ThumbnailSmallBox;
 
 	/** The asset editor we are embedded in */
 	TWeakPtr<class FWorkflowCentricApplication> HostingApp;
