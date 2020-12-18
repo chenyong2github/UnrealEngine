@@ -38,9 +38,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// The command lines used to produce files, keyed by the absolute file paths.
+		/// The Attributes used to produce files, keyed by the absolute file paths.
 		/// </summary>
-		ConcurrentDictionary<FileItem, byte[]> OutputItemToCommandLineHash = new ConcurrentDictionary<FileItem, byte[]>();
+		ConcurrentDictionary<FileItem, byte[]> OutputItemToAttributeHash = new ConcurrentDictionary<FileItem, byte[]>();
 
 		/// <summary>
 		/// Whether the dependency cache is dirty and needs to be saved.
@@ -77,7 +77,7 @@ namespace UnrealBuildTool
 						return;
 					}
 
-					OutputItemToCommandLineHash = new ConcurrentDictionary<FileItem, byte[]>(Reader.ReadDictionary(() => Reader.ReadFileItem(), () => Reader.ReadFixedSizeByteArray(HashLength)));
+					OutputItemToAttributeHash = new ConcurrentDictionary<FileItem, byte[]>(Reader.ReadDictionary(() => Reader.ReadFileItem(), () => Reader.ReadFixedSizeByteArray(HashLength)));
 				}
 			}
 			catch(Exception Ex)
@@ -98,7 +98,7 @@ namespace UnrealBuildTool
 				using (BinaryArchiveWriter Writer = new BinaryArchiveWriter(Location))
 				{
 					Writer.WriteInt(CurrentVersion);
-					Writer.WriteDictionary(OutputItemToCommandLineHash, Key => Writer.WriteFileItem(Key), Value => Writer.WriteFixedSizeByteArray(Value));
+					Writer.WriteDictionary(OutputItemToAttributeHash, Key => Writer.WriteFileItem(Key), Value => Writer.WriteFixedSizeByteArray(Value));
 				}
 				bModified = false;
 			}
@@ -135,20 +135,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Gets the producing command line for the given file
+		/// Gets the producing attributes for the given file
 		/// </summary>
 		/// <param name="File">The output file to look for</param>
-		/// <param name="CommandLine">Receives the command line used to produce this file</param>
-		/// <returns>True if command line has changed and is updated, false otherwise</returns>
-		public bool UpdateProducingCommandLine(FileItem File, string CommandLine)
+		/// <param name="Attributes">Receives the Attributes  used to produce this file</param>
+		/// <returns>True if Attributes have changed and is updated, false otherwise</returns>
+		public bool UpdateProducingCommandLine(FileItem File, string Attributes)
 		{
-			byte[] NewHash = ComputeHash(CommandLine);
+			byte[] NewHash = ComputeHash(Attributes);
 
 			for (;;)
 			{
 				byte[] OldHash;
 
-				if (OutputItemToCommandLineHash.TryAdd(File, NewHash))
+				if (OutputItemToAttributeHash.TryAdd(File, NewHash))
 				{
 					// If this is a new entry we're done
 					bModified = true;
@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					if (OutputItemToCommandLineHash.TryGetValue(File, out OldHash))
+					if (OutputItemToAttributeHash.TryGetValue(File, out OldHash))
 					{
 						if (CompareHashes(NewHash, OldHash))
 						{
@@ -166,15 +166,15 @@ namespace UnrealBuildTool
 						else
 						{
 							// Try to update with the new value
-							if (OutputItemToCommandLineHash.TryUpdate(File, NewHash, OldHash))
+							if (OutputItemToAttributeHash.TryUpdate(File, NewHash, OldHash))
 							{
 								bModified = true;
 								return true;
 							}
 							else
 							{
-								Log.TraceWarning("Failed to update cmd line hash for file");
-								OldHash = OutputItemToCommandLineHash[File];
+								Log.TraceWarning("Failed to update attribute hash for file");
+								OldHash = OutputItemToAttributeHash[File];
 								Log.TraceWarning("Old/New Hashes:\n{0}\n{1}", BitConverter.ToString(OldHash), BitConverter.ToString(NewHash));
 							}
 						}
@@ -275,9 +275,9 @@ namespace UnrealBuildTool
 		/// Attempt to update the producing commandline for the given file
 		/// </summary>
 		/// <param name="File">The file to update</param>
-		/// <param name="CommandLine">The new command line</param>
-		/// <returns>True if the command line was updated, false otherwise</returns>
-		public bool UpdateProducingCommandLine(FileItem File, string CommandLine)
+		/// <param name="Attributes">The new attributes</param>
+		/// <returns>True if the attributes were updated, false otherwise</returns>
+		public bool UpdateProducingAttributes(FileItem File, string Attributes)
 		{
 			FileReference LayerLocation = GetLayerLocationForFile(File.Location);
 
@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			return Layer.UpdateProducingCommandLine(File, CommandLine);
+			return Layer.UpdateProducingCommandLine(File, Attributes);
 		}
 
 		/// <summary>
@@ -431,15 +431,15 @@ namespace UnrealBuildTool
 		/// Gets the producing command line for the given file
 		/// </summary>
 		/// <param name="File">The output file to look for</param>
-		/// <param name="CommandLine">Receives the command line used to produce this file</param>
+		/// <param name="Attributes">Receives the Attributes used to produce this file</param>
 		/// <returns>True if the output item exists</returns>
-		public bool UpdateProducingCommandLine(FileItem File, string CommandLine)
+		public bool UpdateProducingAttributes(FileItem File, string Attributes)
 		{
 			foreach (ActionHistoryPartition Partition in Partitions)
 			{
 				if (File.Location.IsUnderDirectory(Partition.BaseDir))
 				{
-					return Partition.UpdateProducingCommandLine(File, CommandLine);
+					return Partition.UpdateProducingAttributes(File, Attributes);
 				}
 			}
 
