@@ -142,11 +142,6 @@ public:
 	*
 	*/
 	static void LogFormattedMessageWithCallstack(const FName& LogName, const ANSICHAR* File, int32 Line, const TCHAR* Heading, const TCHAR* Message, ELogVerbosity::Type Verbosity);
-
-private:
-	/* Temporary workaround for link errors in the precompiled cadkernel.lib */
-	static void VARARGS CheckVerifyFailedImpl(const ANSICHAR*, const ANSICHAR*, int, const TCHAR*, ...) {}
-	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool, const ANSICHAR*, const ANSICHAR*, int, const TCHAR*, ...) { return false; }
 };
 
 /*----------------------------------------------------------------------------
