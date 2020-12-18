@@ -35,6 +35,7 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 	SystemTextures.DefaultNormal8Bit = Register(GSystemTextures.DefaultNormal8Bit);
 	SystemTextures.MidGrey = Register(GSystemTextures.MidGreyDummy);
 	SystemTextures.VolumetricBlack = Register(GSystemTextures.VolumetricBlackDummy);
+	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SystemTextures.DepthDummy, PF_X24_G8));
 	return SystemTextures;
 }
 

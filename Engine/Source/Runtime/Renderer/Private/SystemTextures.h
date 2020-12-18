@@ -27,6 +27,8 @@ struct FRDGSystemTextures
 	FRDGTextureRef DefaultNormal8Bit{};
 	FRDGTextureRef MidGrey{};
 	FRDGTextureRef VolumetricBlack{};
+
+	FRDGTextureSRVRef StencilDummySRV{};
 };
 
 /**
