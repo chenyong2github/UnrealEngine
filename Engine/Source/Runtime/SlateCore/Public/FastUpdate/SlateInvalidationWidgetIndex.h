@@ -16,6 +16,7 @@ public:
 	static const FSlateInvalidationWidgetIndex Invalid;
 	bool operator== (FSlateInvalidationWidgetIndex Other) const { return ArrayIndex == Other.ArrayIndex && ElementIndex == Other.ElementIndex; }
 	bool operator!= (FSlateInvalidationWidgetIndex Other) const { return ArrayIndex != Other.ArrayIndex || ElementIndex != Other.ElementIndex; }
+	FString ToString() const { return FString::Printf(TEXT("{%d, %d}"), ArrayIndex, ElementIndex); }
 	
 private:
 	using IndexType = uint16;
