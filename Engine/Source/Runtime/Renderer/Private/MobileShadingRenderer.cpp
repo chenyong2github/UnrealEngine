@@ -590,7 +590,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
 
-	GEngine->GetPreRenderDelegate().Broadcast();
+	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBuffer.Commit();
@@ -795,10 +795,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandListImmediate&)
-	{
-		GEngine->GetPostRenderDelegate().Broadcast();
-	});
+	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneEnd));
 

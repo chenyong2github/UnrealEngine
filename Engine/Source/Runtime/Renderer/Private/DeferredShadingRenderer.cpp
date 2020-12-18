@@ -1774,9 +1774,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bIsOcclusionTesting = DoOcclusionQueries(FeatureLevel) && (!ViewFamily.EngineShowFlags.Wireframe || bIsViewFrozen || bHasViewParent);
 	const bool bNeedsPrePass = NeedsPrePass(this);
 
-	// Dynamic vertex and index buffers need to be committed before rendering.
-	GEngine->GetPreRenderDelegate().Broadcast();
+	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
+	// Dynamic vertex and index buffers need to be committed before rendering.
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
 		DynamicIndexBufferForInitViews.Commit();
@@ -2850,10 +2850,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ShaderDrawDebug::EndView(Views[ViewIndex]);
 	}
 
+	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
+
 	AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->GetPostRenderDelegate().Broadcast();
-
 		SceneContext.AdjustGBufferRefCount(InRHICmdList, -1);
 
 #if RHI_RAYTRACING

@@ -783,6 +783,12 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 	#endif
+
+	// Relay to deprecated delegates
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PreRenderDelegateEx.AddLambda([this](FRDGBuilder&) { PreRenderDelegate.Broadcast(); });
+	PostRenderDelegateEx.AddLambda([this](FRDGBuilder&){ PostRenderDelegate.Broadcast(); });
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

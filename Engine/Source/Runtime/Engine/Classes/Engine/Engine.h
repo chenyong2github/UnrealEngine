@@ -625,9 +625,10 @@ enum class EFrameHitchType : uint8;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FEngineHitchDetectedDelegate, EFrameHitchType /*HitchType*/, float /*HitchDurationInSeconds*/);
 
-
 DECLARE_MULTICAST_DELEGATE(FPreRenderDelegate);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPreRenderDelegateEx, class FRDGBuilder&);
 DECLARE_MULTICAST_DELEGATE(FPostRenderDelegate);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPostRenderDelegateEx, class FRDGBuilder&);
 
 /**
  * Abstract base class of all Engine classes, responsible for management of systems critical to editor or game systems.
@@ -1551,13 +1552,21 @@ public:
 	void RegisterEndStreamingPauseRenderingDelegate( FEndStreamingPauseDelegate* InDelegate );
 	FEndStreamingPauseDelegate* EndStreamingPauseDelegate;
 
-
+private:
 	/** Delegate called just prior to rendering. */
 	FPreRenderDelegate PreRenderDelegate;
-	FPreRenderDelegate& GetPreRenderDelegate() { return PreRenderDelegate; }
+	FPreRenderDelegateEx PreRenderDelegateEx;
 	/** Delegate called just after to rendering. */
 	FPostRenderDelegate PostRenderDelegate;
+	FPostRenderDelegateEx PostRenderDelegateEx;
+
+public:
+	UE_DEPRECATED(5.0, "Please use GetPreRenderDelegateEx().")
+	FPreRenderDelegate& GetPreRenderDelegate() { return PreRenderDelegate; }
+	FPreRenderDelegateEx& GetPreRenderDelegateEx() { return PreRenderDelegateEx; }
+	UE_DEPRECATED(5.0, "Please use GetPostRenderDelegateEx().")
 	FPostRenderDelegate& GetPostRenderDelegate() { return PostRenderDelegate; }
+	FPostRenderDelegateEx& GetPostRenderDelegateEx() { return PostRenderDelegateEx; }
 
 	/** 
 	 * Error message event relating to server travel failures 

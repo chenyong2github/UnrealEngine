@@ -562,7 +562,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	// Find the visible primitives.
 	InitViews(GraphBuilder);
 
-	GEngine->GetPreRenderDelegate().Broadcast();
+	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBuffer.Commit();
@@ -573,7 +573,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults);
 
-	GEngine->GetPostRenderDelegate().Broadcast();
+	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 #endif
 
 	if (bDeferredShading)
@@ -642,7 +642,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 	}
 
-	GEngine->GetPreRenderDelegate().Broadcast();
+	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBufferForInitViews.Commit();
@@ -710,7 +710,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		ShaderPrint::EndView(Views[ViewIndex]);
 	}
 
-	GEngine->GetPostRenderDelegate().Broadcast();
+	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
 #endif
 }
