@@ -86,7 +86,7 @@ private:
 };
 
 
-void BakeToControlRigDialog::GetBakeParams(FBakeToControlDelegate& InDelegate)
+void BakeToControlRigDialog::GetBakeParams(FBakeToControlDelegate& InDelegate, const FOnWindowClosed& OnClosedDelegate)
 {
 	const FText TitleText = NSLOCTEXT("ControlRig", "BakeToControlRig", "Bake To Control Rig");
 
@@ -102,6 +102,7 @@ void BakeToControlRigDialog::GetBakeParams(FBakeToControlDelegate& InDelegate)
 	TSharedRef<SBakeToControlRigDialog> DialogWidget = SNew(SBakeToControlRigDialog);
 	DialogWidget->SetDelegate(InDelegate);
 	Window->SetContent(DialogWidget);
+	Window->SetOnWindowClosed(OnClosedDelegate);
 
 	FSlateApplication::Get().AddWindow(Window);
 
