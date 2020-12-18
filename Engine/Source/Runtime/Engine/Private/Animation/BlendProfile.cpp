@@ -191,7 +191,10 @@ void UBlendProfile::FillBoneScalesArray(TArray<float>& OutBoneBlendProfileFactor
 	{
 		const int32 SkeletonBoneIndex = ProfileEntries[Index].BoneReference.BoneIndex;
 		const FCompactPoseBoneIndex PoseBoneIndex = BoneContainer.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
-		OutBoneBlendProfileFactors[PoseBoneIndex.GetInt()] = GetEntryBlendScale(Index);
+		if (PoseBoneIndex.IsValid())
+		{
+			OutBoneBlendProfileFactors[PoseBoneIndex.GetInt()] = GetEntryBlendScale(Index);
+		}
 	}
 }
 
