@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
- MetalVertexBuffer.cpp: Metal texture RHI implementation.
+ MetalTexture.cpp: Metal texture RHI implementation.
  =============================================================================*/
 
 #include "MetalRHIPrivate.h"
@@ -2804,7 +2804,7 @@ void FMetalRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHI
 	}
 }
 
-void FMetalRHICommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DstBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SrcBufferRHI, uint64 SrcOffset, uint64 NumBytes)
+void FMetalRHICommandContext::RHICopyBufferRegion(FRHIBuffer* DstBufferRHI, uint64 DstOffset, FRHIBuffer* SrcBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {
 	if (!DstBufferRHI || !SrcBufferRHI || DstBufferRHI == SrcBufferRHI || !NumBytes)
 	{
@@ -2812,13 +2812,13 @@ void FMetalRHICommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DstBufferRHI
 	}
 
 	@autoreleasepool {
-		FMetalVertexBuffer* DstVertexBuffer = ResourceCast(DstBufferRHI);
-		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SrcBufferRHI);
+		FMetalResourceMultiBuffer* DstBuffer = ResourceCast(DstBufferRHI);
+		FMetalResourceMultiBuffer* SrcBuffer = ResourceCast(SrcBufferRHI);
 
-		check(DstVertexBuffer && SrcVertexBuffer);
-		check(!DstVertexBuffer->Data && !SrcVertexBuffer->Data);
+		check(DstBuffer && SrcBuffer);
+		check(!DstBuffer->Data && !SrcBuffer->Data);
 		check(DstOffset + NumBytes <= DstBufferRHI->GetSize() && SrcOffset + NumBytes <= SrcBufferRHI->GetSize());
 
-		GetInternalContext().CopyFromBufferToBuffer(SrcVertexBuffer->GetCurrentBuffer(), SrcOffset, DstVertexBuffer->GetCurrentBuffer(), DstOffset, NumBytes);
+		GetInternalContext().CopyFromBufferToBuffer(SrcBuffer->GetCurrentBuffer(), SrcOffset, DstBuffer->GetCurrentBuffer(), DstOffset, NumBytes);
 	}
 }

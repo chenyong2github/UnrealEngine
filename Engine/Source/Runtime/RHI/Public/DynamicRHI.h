@@ -530,9 +530,9 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) = 0;
 
-	/** Copies the contents of one vertex buffer to another vertex buffer.  They must have identical sizes. */
+	/** Copies the contents of one buffer to another buffer. They must have identical sizes. */
 	// FlushType: Flush Immediate (seems dangerous)
-	virtual void RHICopyVertexBuffer(FRHIVertexBuffer* SourceBuffer, FRHIVertexBuffer* DestBuffer) = 0;
+	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) = 0;
 
 	/**
 	 * Transfer metadata and underlying resource from src to dest and release any resource owned by dest.

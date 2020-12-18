@@ -142,7 +142,7 @@ public:
 		return new FRHIVertexBuffer(Size, InUsage, 0); 
 	}
 
-	virtual void RHICopyVertexBuffer(FRHIVertexBuffer* SourceBuffer, FRHIVertexBuffer* DestBuffer) final override
+	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) final override
 	{
 
 	}

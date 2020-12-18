@@ -378,9 +378,9 @@ public:
 
 	/** Copies the contents of one vertex buffer to another vertex buffer.  They must have identical sizes. */
 	// FlushType: Flush Immediate (seems dangerous)
-	virtual void RHICopyVertexBuffer(FRHIVertexBuffer* SourceBuffer, FRHIVertexBuffer* DestBuffer) override final
+	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) override final
 	{
-		RHI->RHICopyVertexBuffer(SourceBuffer, DestBuffer);
+		RHI->RHICopyBuffer(SourceBuffer, DestBuffer);
 	}
 
 	/**

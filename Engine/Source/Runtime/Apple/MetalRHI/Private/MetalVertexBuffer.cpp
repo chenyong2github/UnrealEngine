@@ -795,34 +795,34 @@ void FMetalDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICm
 	}
 }
 
-void FMetalDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
+void FMetalDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* DestBufferRHI)
 {
 	@autoreleasepool {
-		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SourceBufferRHI);
-		FMetalVertexBuffer* DstVertexBuffer = ResourceCast(DestBufferRHI);
+		FMetalResourceMultiBuffer* SrcBuffer = ResourceCast(SourceBufferRHI);
+		FMetalResourceMultiBuffer* DstBuffer = ResourceCast(DestBufferRHI);
 		
-		const FMetalBuffer& TheSrcBuffer = SrcVertexBuffer->GetCurrentBuffer();
-		const FMetalBuffer& TheDstBuffer = DstVertexBuffer->GetCurrentBuffer();
+		const FMetalBuffer& TheSrcBuffer = SrcBuffer->GetCurrentBuffer();
+		const FMetalBuffer& TheDstBuffer = DstBuffer->GetCurrentBuffer();
 	
 		if (TheSrcBuffer && TheDstBuffer)
 		{
-			GetMetalDeviceContext().CopyFromBufferToBuffer(TheSrcBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
+			GetMetalDeviceContext().CopyFromBufferToBuffer(TheSrcBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcBuffer->GetSize(), DstBuffer->GetSize()));
 		}
 		else if (TheDstBuffer)
 		{
-			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), SrcVertexBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), SrcBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
 			FMetalBuffer TempBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
-			FMemory::Memcpy(TempBuffer.GetContents(), SrcVertexBuffer->Data->Data, SrcVertexBuffer->GetSize());
-			GetMetalDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
+			FMemory::Memcpy(TempBuffer.GetContents(), SrcBuffer->Data->Data, SrcBuffer->GetSize());
+			GetMetalDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcBuffer->GetSize(), DstBuffer->GetSize()));
 			SafeReleaseMetalBuffer(TempBuffer);
 		}
 		else
 		{
-			void const* SrcData = SrcVertexBuffer->Lock(true, RLM_ReadOnly, 0);
-			void* DstData = DstVertexBuffer->Lock(true, RLM_WriteOnly, 0);
-			FMemory::Memcpy(DstData, SrcData, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
-			SrcVertexBuffer->Unlock();
-			DstVertexBuffer->Unlock();
+			void const* SrcData = SrcBuffer->Lock(true, RLM_ReadOnly, 0);
+			void* DstData = DstBuffer->Lock(true, RLM_WriteOnly, 0);
+			FMemory::Memcpy(DstData, SrcData, FMath::Min(SrcBuffer->GetSize(), DstBuffer->GetSize()));
+			SrcBuffer->Unlock();
+			DstBuffer->Unlock();
 		}
 	}
 }

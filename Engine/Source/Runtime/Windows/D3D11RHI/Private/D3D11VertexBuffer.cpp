@@ -126,7 +126,7 @@ FVertexBufferRHIRef FD3D11DynamicRHI::CreateVertexBuffer_RenderThread(
 	return RHICreateVertexBuffer(Size, InUsage, InResourceState, CreateInfo);
 }
 
-void FD3D11DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
+void FD3D11DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* DestBufferRHI)
 {
 	FD3D11Buffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FD3D11Buffer* DestBuffer = ResourceCast(DestBufferRHI);
