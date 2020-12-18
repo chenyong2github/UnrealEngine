@@ -174,10 +174,10 @@ private:
 // MSVC (v19.00.24215.1 at time of writing) ignores no-inline attributes on
 // lambdas. This can be worked around by calling the lambda from inside this
 // templated (and correctly non-inlined) function.
-template <typename RetType=void, class InnerType>
-RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner)
+template <typename RetType=void, class InnerType, typename... ArgTypes>
+RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, ArgTypes const&... Args)
 {
-	return Inner();
+	return Inner(Args...);
 }
 
 #if !UE_BUILD_SHIPPING
