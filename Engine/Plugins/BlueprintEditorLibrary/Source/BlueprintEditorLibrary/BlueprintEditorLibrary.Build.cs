@@ -35,6 +35,7 @@ public class BlueprintEditorLibrary : ModuleRules
 				"SlateCore",
 				"UnrealEd",
 				"Kismet",
+				"AnimGraph"
 			}
 		);
 	}

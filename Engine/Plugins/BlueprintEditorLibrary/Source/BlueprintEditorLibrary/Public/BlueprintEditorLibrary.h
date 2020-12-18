@@ -96,6 +96,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
 	static void RemoveFunctionGraph(UBlueprint* Blueprint, FName FuncName);
 
+	/**
+	* Remove any nodes in this blueprint that have no connections made to them.
+	*
+	* @param Blueprint		The blueprint to remove the nodes from
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
+	static void RemoveUnusedNodes(UBlueprint* Blueprint);
+
 	/** 
 	* Removes the given graph from the blueprint if possible 
 	* 
