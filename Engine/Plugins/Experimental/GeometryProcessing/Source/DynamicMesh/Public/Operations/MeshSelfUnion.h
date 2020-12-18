@@ -39,7 +39,7 @@ public:
 	double SnapTolerance = FMathf::ZeroTolerance * 1.0;
 
 	/** Amount we nudge samples off the surface when evaluating winding number, to avoid numerical issues */
-	double NormalOffset = FMathd::ZeroTolerance;
+	double NormalOffset = FMathf::ZeroTolerance * 1.0;
 
 	/** Threshold to determine whether triangle in one mesh is inside or outside of the other */
 	double WindingThreshold = .5;
