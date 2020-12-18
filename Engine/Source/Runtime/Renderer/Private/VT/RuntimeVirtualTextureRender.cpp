@@ -1132,7 +1132,6 @@ namespace RuntimeVirtualTexture
 
 	void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "RuntimeVirtualTextureRenderPages");
 		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
 
 		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)

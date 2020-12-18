@@ -1711,11 +1711,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Note, should happen after the GPU-Scene update to ensure rendering to runtime virtual textures is using the correctly updated scene
 	if (bUseVirtualTexturing)
 	{
+		RDG_EVENT_SCOPE(GraphBuilder, "VirtualTextureUpdate");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 
 		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
 
-		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureFeedbackClear"), [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 		{
 			// Clear virtual texture feedback to default value
 			FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
@@ -2707,7 +2708,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureUpdate"), [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
+		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 		{
 			InRHICmdList.EndUAVOverlap(SceneContext.VirtualTextureFeedbackUAV);
 

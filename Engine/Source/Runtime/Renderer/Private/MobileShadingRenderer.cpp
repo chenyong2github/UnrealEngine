@@ -605,10 +605,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bUseVirtualTexturing)
 	{
+		RDG_EVENT_SCOPE(GraphBuilder, "VirtualTextureUpdate");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
+
 		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
 
-		AddPass(GraphBuilder, [&SceneContext](FRHICommandList& InRHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureFeedbackClear"), [&SceneContext](FRHICommandList& InRHICmdList)
 		{
 			// Clear virtual texture feedback to default value
 			FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
@@ -754,7 +756,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureUpdate"), [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
+		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 		{
 			// No pass after this should make VT page requests
 			InRHICmdList.Transition(FRHITransitionInfo(SceneContext.VirtualTextureFeedbackUAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
