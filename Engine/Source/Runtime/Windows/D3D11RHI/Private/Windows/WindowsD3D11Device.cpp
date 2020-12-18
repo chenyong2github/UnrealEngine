@@ -258,9 +258,7 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
  */
 static D3D_FEATURE_LEVEL GetMinAllowedD3DFeatureLevel()
 {
-	// Default to 11.0
-	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-	return AllowedFeatureLevel;
+	return D3D_FEATURE_LEVEL_11_0;
 }
 
 /**
@@ -269,9 +267,7 @@ static D3D_FEATURE_LEVEL GetMinAllowedD3DFeatureLevel()
  */
 static D3D_FEATURE_LEVEL GetMaxAllowedD3DFeatureLevel()
 {
-	// Default to 11.0
-	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-	return AllowedFeatureLevel;
+	return D3D_FEATURE_LEVEL_11_1;
 }
 
 /**
@@ -802,11 +798,9 @@ bool FD3D11DynamicRHIModule::IsSupported()
 		FindAdapter();
 	}
 
-	// The hardware must support at least 10.0 (usually 11_0, 10_0 or 10_1).
+	// The hardware must support at least 11_0.
 	return ChosenAdapter.IsValid()
-		&& ChosenAdapter.MaxSupportedFeatureLevel != D3D_FEATURE_LEVEL_9_1
-		&& ChosenAdapter.MaxSupportedFeatureLevel != D3D_FEATURE_LEVEL_9_2
-		&& ChosenAdapter.MaxSupportedFeatureLevel != D3D_FEATURE_LEVEL_9_3;
+		&& ChosenAdapter.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_11_0;
 }
 
 

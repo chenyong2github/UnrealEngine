@@ -96,7 +96,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GConfig->GetInt( TEXT( "TextureStreaming" ), TEXT( "PoolSizeVRAMPercentage" ), GPoolSizeVRAMPercentage, GEngineIni );	
 
 	// Initialize the RHI capabilities.
-	check(FeatureLevel == D3D_FEATURE_LEVEL_11_1 || FeatureLevel == D3D_FEATURE_LEVEL_11_0);
+	check(FeatureLevel >= D3D_FEATURE_LEVEL_11_0);
 
    	
 	TRefCountPtr<IDXGIFactory5> Factory5;
@@ -120,7 +120,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
 		}
 	}
-	else if(FeatureLevel == D3D_FEATURE_LEVEL_11_0 || FeatureLevel == D3D_FEATURE_LEVEL_11_1)
+	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
@@ -208,15 +208,12 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GPixelFormats[PF_NV12].PlatformFormat = DXGI_FORMAT_NV12;
 	GPixelFormats[PF_NV12].Supported = true;
 
-	if (FeatureLevel >= D3D_FEATURE_LEVEL_11_0)
-	{
-		GSupportsSeparateRenderTargetBlendState = true;
-		GMaxTextureDimensions = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-		GMaxCubeTextureDimensions = D3D11_REQ_TEXTURECUBE_DIMENSION;
-		GMaxTextureArrayLayers = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
-		GRHISupportsMSAADepthSampleAccess = true;
-		GRHISupportsRHIThread = !!EXPERIMENTAL_D3D11_RHITHREAD;
-	}
+	GSupportsSeparateRenderTargetBlendState = true;
+	GMaxTextureDimensions = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+	GMaxCubeTextureDimensions = D3D11_REQ_TEXTURECUBE_DIMENSION;
+	GMaxTextureArrayLayers = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+	GRHISupportsMSAADepthSampleAccess = true;
+	GRHISupportsRHIThread = !!EXPERIMENTAL_D3D11_RHITHREAD;
 
 	GMaxTextureMipCount = FMath::CeilLogTwo( GMaxTextureDimensions ) + 1;
 	GMaxTextureMipCount = FMath::Min<int32>( MAX_TEXTURE_MIP_COUNT, GMaxTextureMipCount );
@@ -466,12 +463,9 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 		}
 	}
 
-	if (FeatureLevel >= D3D_FEATURE_LEVEL_11_0)
-	{
-		GFormatSupportsTypedUAVLoad[PF_R32_FLOAT] = true;
-		GFormatSupportsTypedUAVLoad[PF_R32_UINT] = true;
-		GFormatSupportsTypedUAVLoad[PF_R32_SINT] = true;
-	}
+	GFormatSupportsTypedUAVLoad[PF_R32_FLOAT] = true;
+	GFormatSupportsTypedUAVLoad[PF_R32_UINT] = true;
+	GFormatSupportsTypedUAVLoad[PF_R32_SINT] = true;
 }
 
 bool FD3D11DynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)

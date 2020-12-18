@@ -752,9 +752,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		check(SizeZ <= GetMaxTextureArrayLayers());
 	}
 
-	// Render target allocation with UAV flag will silently fail in feature level 10
-	check(FeatureLevel >= D3D_FEATURE_LEVEL_11_0 || !(Flags & TexCreate_UAV));
-
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);
 
 	const bool bSRGB = (Flags & TexCreate_SRGB) != 0;
