@@ -328,7 +328,7 @@ FRDGScopedCsvStatExclusiveConditional::~FRDGScopedCsvStatExclusiveConditional()
 
 #endif
 
-static void OnPushCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope)
+static void OnPushCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope, bool bRDGEvents)
 {
 #if CSV_PROFILER
 	FCsvProfiler::BeginExclusiveStat(Scope->StatName);
@@ -338,7 +338,7 @@ static void OnPushCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope
 #endif
 }
 
-static void OnPopCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope)
+static void OnPopCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope, bool bRDGEvents)
 {
 #if CSV_PROFILER
 #if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
