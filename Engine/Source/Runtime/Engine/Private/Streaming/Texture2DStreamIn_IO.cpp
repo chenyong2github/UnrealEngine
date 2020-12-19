@@ -14,14 +14,6 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ContentStreaming.h"
 
-static int32 GForceComputeTextureMipSizeOnStreaming = 1;
-static FAutoConsoleVariableRef CVarForceComputeTextureMipSizeOnStreaming(
-	TEXT("android.ForceComputeTextureMipSizeOnStreaming"),
-	GForceComputeTextureMipSizeOnStreaming,
-	TEXT("Forces computation of a mip size when streaming instead of using BulkData info."),
-	ECVF_Default
-);
-
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn(InTexture)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
@@ -40,17 +32,19 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 #endif
 }
 
-static int64 ComputeTexSize(EPixelFormat PixelFormat, int32 InMipIndex, uint32 SizeX, uint32 SizeY)
+static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipIndex, int64& BulkDataSize)
 {
-	const uint32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
-	const uint32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
-	const uint32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
-	const uint32 MipSizeX = FMath::Max(SizeX >> InMipIndex, BlockSizeX);
-	const uint32 MipSizeY = FMath::Max(SizeY >> InMipIndex, BlockSizeY);
-	const uint32 NumBlocksX = (MipSizeX + BlockSizeX - 1) / BlockSizeX;
-	const uint32 NumBlocksY = (MipSizeY + BlockSizeY - 1) / BlockSizeY;
-	const int64 MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
-	return MipBytes;
+	const int64 ExpectedMipSize = CalcTextureMipMapSize(Texture.GetSizeX(), Texture.GetSizeY(), Texture.GetPixelFormat(), MipIndex);
+	if (BulkDataSize != ExpectedMipSize)
+	{
+#if !UE_BUILD_SHIPPING
+		// Fatal error in non-shipping configurations
+		UE_LOG(LogTexture, Fatal, TEXT("Mip (%d) has an unexpected size %lld, expected size %lld. %s, Pixel format %s"), 
+			MipIndex, BulkDataSize, ExpectedMipSize, *Texture.GetFullName(), GPixelFormats[Texture.GetPixelFormat()].Name);
+#endif
+		// Make sure we don't overrun buffer allocated for this mip
+		BulkDataSize = FMath::Min(BulkDataSize, ExpectedMipSize);
+	}
 }
 
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
@@ -69,20 +63,8 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 			TaskSynchronization.Increment();
 
-#if PLATFORM_ANDROID
-			if (GForceComputeTextureMipSizeOnStreaming)
-			{
-				const EPixelFormat PixelFormat = Context.Texture->GetPixelFormat();
-				const int32 X = Context.Texture->GetSizeX();
-				const int32 Y = Context.Texture->GetSizeY();
-				const int32 ComputedTexSize = ComputeTexSize(PixelFormat, MipIndex, X, Y);
-				if (ComputedTexSize < BulkDataSize)
-				{
-					// A workaround for some textures who's BulkDataSize is bigger than actual data size
-					BulkDataSize = ComputedTexSize;
-				}
-			}
-#endif 
+			// Validate buffer size for the mip, so we don't overrun it on streaming
+			ValidateMipBulkDataSize(*Context.Texture, MipIndex, BulkDataSize);
 
 			IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
 				0,

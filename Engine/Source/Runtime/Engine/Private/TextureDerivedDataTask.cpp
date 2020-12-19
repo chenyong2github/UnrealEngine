@@ -45,6 +45,35 @@ public:
 	}
 };
 
+static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureData, const UTexture2D& Texture, bool bFromDDC)
+{
+	bool bValid = true;
+	for (int32 MipIndex = 0; MipIndex < TextureData.Mips.Num(); ++MipIndex)
+	{
+		const FTexture2DMipMap& MipMap = TextureData.Mips[MipIndex];
+		const int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
+		if (BulkDataSize > 0)
+		{
+			const int64 ExpectedMipSize = CalcTextureMipMapSize(TextureData.SizeX, TextureData.SizeY, TextureData.PixelFormat, MipIndex);
+			if (BulkDataSize != ExpectedMipSize)
+			{
+				UE_LOG(LogTexture,Warning,TEXT("Invalid mip data. Texture will be rebuilt. MipIndex %d [%dx%d], Expected size %lld, BulkData size %lld, PixelFormat %s, LoadedFromDDC %d, Texture %s"), 
+					MipIndex, 
+					MipMap.SizeX, 
+					MipMap.SizeY, 
+					ExpectedMipSize, 
+					BulkDataSize, 
+					GPixelFormats[TextureData.PixelFormat].Name, 
+					bFromDDC ? 1 : 0,
+					*Texture.GetFullName());
+				
+				bValid = false;
+			}
+		}
+	}
+
+	return bValid;
+}
 
 void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading)
 {
@@ -476,6 +505,16 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		}
 		bLoadedFromDDC = true;
 
+		if (bSucceeded)
+		{
+			const UTexture2D* Texture2D = ExactCast<UTexture2D>(&Texture);
+			if (Texture2D)
+			{
+				// force texture rebuild if one of the mips got invalid data from the DDC
+				bSucceeded = ValidateTexture2DPlatformData(*DerivedData, *Texture2D, bLoadedFromDDC);
+			}
+		}
+		
 		// Reset everything derived data so that we can do a clean load from the source data
 		if (!bSucceeded)
 		{
@@ -485,6 +524,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				delete DerivedData->VTData;
 				DerivedData->VTData = nullptr;
 			}
+			
+			bLoadedFromDDC = false;
 		}
 	}
 	
@@ -533,6 +574,19 @@ void FTextureCacheDerivedDataWorker::Finalize()
 	if (BuildSettingsPerLayer[0].bVirtualStreamable) // Texture.VirtualTextureStreaming is more a hint that might be overruled by the buildsettings
 	{
 		check((DerivedData->VTData != nullptr) == Texture.VirtualTextureStreaming); 
+	}
+
+	const UTexture2D* Texture2D = ExactCast<UTexture2D>(&Texture);
+	if (Texture2D)
+	{
+		if (!ValidateTexture2DPlatformData(*DerivedData, *Texture2D, bLoadedFromDDC))
+		{
+			// FTexture2DStreamIn_IO::SetIORequests will try to write BulkDataSize bytes into a buffer of ExpectedMipSize allocated inside RHI
+			// if BulkDataSize is bigger than expected size it will cause memory corruption at runtime
+			// Log an error to fail the cook
+			UE_LOG(LogTexture,Error,TEXT("Texture %s has invalid mip data"), *Texture.GetFullName());
+
+		}
 	}
 }
 
