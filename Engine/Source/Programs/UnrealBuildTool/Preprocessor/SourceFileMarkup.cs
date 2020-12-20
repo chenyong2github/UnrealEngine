@@ -110,7 +110,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The tokens parsed for this markup. Set for directives.
 		/// </summary>
-		public List<Token> Tokens;
+		public List<Token>? Tokens;
 
 		/// <summary>
 		/// Construct the annotation with the given range
@@ -118,7 +118,7 @@ namespace UnrealBuildTool
 		/// <param name="Type">The type of this directive</param>
 		/// <param name="LineNumber">The line number of this markup</param>
 		/// <param name="Tokens">List of tokens</param>
-		public SourceFileMarkup(SourceFileMarkupType Type, int LineNumber, List<Token> Tokens)
+		public SourceFileMarkup(SourceFileMarkupType Type, int LineNumber, List<Token>? Tokens)
 		{
 			this.Type = Type;
 			this.LineNumber = LineNumber;
@@ -236,7 +236,7 @@ namespace UnrealBuildTool
 						{
 							if(Reader.Current.Type == TokenType.Identifier)
 							{
-								Identifier Directive = Reader.Current.Identifier;
+								Identifier Directive = Reader.Current.Identifier!;
 								if(Directive == Identifiers.Include)
 								{
 									Type = SourceFileMarkupType.Include;

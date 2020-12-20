@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -20,12 +21,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The project file
 		/// </summary>
-		public FileReference ProjectFile;
+		public FileReference? ProjectFile;
 
 		/// <summary>
 		/// Output location for the version file
 		/// </summary>
-		public FileReference VersionFile;
+		public FileReference? VersionFile;
 
 		/// <summary>
 		/// Output location for the target file
@@ -50,7 +51,7 @@ namespace UnrealBuildTool
 		/// <param name="ReceiptFile"></param>
 		/// <param name="Receipt"></param>
 		/// <param name="FileToManifest"></param>
-		public WriteMetadataTargetInfo(FileReference ProjectFile, FileReference VersionFile, FileReference ReceiptFile, TargetReceipt Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest)//string EngineManifestName, string ProjectManifestName, Dictionary<string, FileReference> ModuleNameToLocation)
+		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, FileReference ReceiptFile, TargetReceipt Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest)//string EngineManifestName, string ProjectManifestName, Dictionary<string, FileReference> ModuleNameToLocation)
 		{
 			this.ProjectFile = ProjectFile;
 			this.VersionFile = VersionFile;
@@ -112,7 +113,7 @@ namespace UnrealBuildTool
 			if(String.IsNullOrEmpty(Receipt.Version.BuildId))
 			{
 				// Check if there's an existing version file. If it exists, try to merge in any manifests that are valid (and reuse the existing build id)
-				BuildVersion PreviousVersion;
+				BuildVersion? PreviousVersion;
 				if(TargetInfo.VersionFile != null && BuildVersion.TryRead(TargetInfo.VersionFile, out PreviousVersion))
 				{
 					// Check if we can reuse the existing manifests. This prevents unnecessary builds when switching between projects.
@@ -142,7 +143,7 @@ namespace UnrealBuildTool
 				// Read all the manifests and merge them into the new ones, if they have the same build id
 				foreach(KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
 				{
-					ModuleManifest SourceManifest;
+					ModuleManifest? SourceManifest;
 					if(TryReadManifest(Pair.Key, out SourceManifest) && SourceManifest.BuildId == Receipt.Version.BuildId)
 					{
 						MergeManifests(SourceManifest, Pair.Value);
@@ -224,12 +225,12 @@ namespace UnrealBuildTool
 		/// <param name="ManifestFiles">List of new manifest files</param>
 		/// <param name="RecycleFileToManifest">If successful, is populated with a map of filename to existing manifests that can be merged with the new manifests.</param>
 		/// <returns>True if the manifests can be recycled (and fills RecycleFileToManifest)</returns>
-		bool TryRecyclingManifests(string BuildId, IEnumerable<FileReference> ManifestFiles, Dictionary<FileReference, ModuleManifest> RecycleFileToManifest)
+		bool TryRecyclingManifests(string? BuildId, IEnumerable<FileReference> ManifestFiles, Dictionary<FileReference, ModuleManifest> RecycleFileToManifest)
 		{
 			bool bCanRecycleManifests = true;
 			foreach(FileReference ManifestFileName in ManifestFiles)
 			{
-				ModuleManifest Manifest;
+				ModuleManifest? Manifest;
 				if(ManifestFileName.IsUnderDirectory(UnrealBuildTool.EngineDirectory) && TryReadManifest(ManifestFileName, out Manifest))
 				{
 					if(Manifest.BuildId == BuildId)
@@ -252,7 +253,7 @@ namespace UnrealBuildTool
 		/// <param name="ManifestFileName">Path to the manifest</param>
 		/// <param name="Manifest">If successful, receives the manifest that was read</param>
 		/// <returns>True if the manifest was read correctly, false otherwise</returns>
-		public static bool TryReadManifest(FileReference ManifestFileName, out ModuleManifest Manifest)
+		public static bool TryReadManifest(FileReference ManifestFileName, [NotNullWhen(true)] out ModuleManifest? Manifest)
 		{
 			if(FileReference.Exists(ManifestFileName))
 			{

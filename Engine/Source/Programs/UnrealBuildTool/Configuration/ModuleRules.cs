@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -213,7 +214,7 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// The initial location for this file. It will be copied to Path at build time, ready for staging.
 			/// </summary>
-			public string SourcePath;
+			public string? SourcePath;
 
 			/// <summary>
 			/// How to stage this file.
@@ -361,7 +362,7 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// 
 			/// </summary>
-			internal string CopyBundledAssets = null;
+			internal string? CopyBundledAssets = null;
 
 			/// <summary>
 			/// Copy the framework to the target's Framework directory
@@ -375,7 +376,7 @@ namespace UnrealBuildTool
 			/// <param name="Path">Path to a zip file containing the framework or a framework on disk</param>
 			/// <param name="CopyBundledAssets"></param>
 			/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
-			public Framework(string Name, string Path, string CopyBundledAssets = null, bool bCopyFramework = false)
+			public Framework(string Name, string Path, string? CopyBundledAssets = null, bool bCopyFramework = false)
 			{
 				this.Name = Name;
 				this.Path = Path;
@@ -404,7 +405,7 @@ namespace UnrealBuildTool
 			/// <param name="Name">Name of the framework</param>
 			/// <param name="ZipPath">Path to a zip file containing the framework</param>
 			/// <param name="CopyBundledAssets"></param>
-			public UEBuildFramework(string Name, string ZipPath, string CopyBundledAssets = null)
+			public UEBuildFramework(string Name, string ZipPath, string? CopyBundledAssets = null)
 				: base(Name, ZipPath, CopyBundledAssets)
 			{
 			}
@@ -418,12 +419,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// 
 			/// </summary>
-			public string ResourcePath = null;
+			public string? ResourcePath = null;
 
 			/// <summary>
 			/// 
 			/// </summary>
-			public string BundleContentsSubdir = null;
+			public string? BundleContentsSubdir = null;
 
 			/// <summary>
 			/// 
@@ -508,18 +509,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// File containing this module
 		/// </summary>
-		internal FileReference File;
+		internal FileReference File { get; set; }
 
 		/// <summary>
 		/// Directory containing this module
 		/// </summary>
-		internal DirectoryReference Directory;
+		internal DirectoryReference Directory { get; set; }
 
 		/// <summary>
 		/// Additional directories that contribute to this module (likely in UnrealBuildTool.EnginePlatformExtensionsDirectory). 
 		/// The dictionary tracks module subclasses 
 		/// </summary>
-		internal Dictionary<Type, DirectoryReference> DirectoriesForModuleSubClasses;
+		internal Dictionary<Type, DirectoryReference>? DirectoriesForModuleSubClasses;
 
 		/// <summary>
 		/// Additional directories that contribute to this module but are not based on a subclass (NotForLicensees, etc)
@@ -529,7 +530,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Plugin containing this module
 		/// </summary>
-		internal PluginInfo Plugin;
+		internal PluginInfo? Plugin;
 
 		/// <summary>
 		/// True if a Plugin contains this module
@@ -545,7 +546,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The rules context for this instance
 		/// </summary>
-		internal ModuleRulesContext Context;
+		internal ModuleRulesContext Context { get; set; }
 
 		/// <summary>
 		/// Rules for the target that this module belongs to
@@ -626,18 +627,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Explicit private PCH for this module. Implies that this module will not use a shared PCH.
 		/// </summary>
-		public string PrivatePCHHeaderFile;
+		public string? PrivatePCHHeaderFile;
 
 		/// <summary>
 		/// Header file name for a shared PCH provided by this module.  Must be a valid relative path to a public C++ header file.
 		/// This should only be set for header files that are included by a significant number of other C++ modules.
 		/// </summary>
-		public string SharedPCHHeaderFile;
-		
+		public string? SharedPCHHeaderFile;
+
 		/// <summary>
 		/// Specifies an alternate name for intermediate directories and files for intermediates of this module. Useful when hitting path length limitations.
 		/// </summary>
-		public string ShortName = null;
+		public string? ShortName = null;
 
 		/// <summary>
 		/// Precompiled header usage for this module
@@ -651,16 +652,16 @@ namespace UnrealBuildTool
 					// Use the override
 					return PCHUsagePrivate.Value;
 				}
-				else if(Target.bEnableCppModules)
+				else if (Target.bEnableCppModules)
 				{
 					return PCHUsageMode.NoPCHs;
 				}
-				else if(Target.bIWYU || DefaultBuildSettings >= BuildSettingsVersion.V2)
+				else if (Target.bIWYU || DefaultBuildSettings >= BuildSettingsVersion.V2)
 				{
 					// Use shared or explicit PCHs, and enable IWYU
 					return PCHUsageMode.UseExplicitOrSharedPCHs;
 				}
-				else if(Plugin != null)
+				else if (Plugin != null)
 				{
 					// Older plugins use shared PCHs by default, since they aren't typically large enough to warrant their own PCH.
 					return PCHUsageMode.UseSharedPCHs;
@@ -699,7 +700,7 @@ namespace UnrealBuildTool
 		public bool bUseBackwardsCompatibleDefaults
 		{
 			get { return DefaultBuildSettings != BuildSettingsVersion.Latest; }
-			set { DefaultBuildSettings = bUseBackwardsCompatibleDefaults? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest; }
+			set { DefaultBuildSettings = bUseBackwardsCompatibleDefaults ? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest; }
 		}
 
 		/// <summary>
@@ -1015,7 +1016,7 @@ namespace UnrealBuildTool
 		public void AppendStringToPublicDefinition(string Definition, string Text)
 		{
 			string WithEquals = Definition + "=";
-			for (int Index=0; Index < PublicDefinitions.Count; Index++)
+			for (int Index = 0; Index < PublicDefinitions.Count; Index++)
 			{
 				if (PublicDefinitions[Index].StartsWith(WithEquals))
 				{
@@ -1070,7 +1071,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Subclass rules files which invalidate the makefile if modified.
 		/// </summary>
-		public List<string> SubclassRules;
+		public List<string>? SubclassRules;
 
 		/// <summary>
 		/// Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE4 modules require this, since we use the IMPLEMENT_MODULE macro
@@ -1085,7 +1086,7 @@ namespace UnrealBuildTool
 		public bool bLegacyPublicIncludePaths
 		{
 			set { bLegacyPublicIncludePathsPrivate = value; }
-			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2)? Target.bLegacyPublicIncludePaths : false); }
+			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2) ? Target.bLegacyPublicIncludePaths : false); }
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
 
@@ -1102,11 +1103,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The AutoSDK directory for the active host platform
 		/// </summary>
-		public string AutoSdkDirectory
+		public string? AutoSdkDirectory
 		{
 			get
 			{
-				DirectoryReference AutoSdkDir;
+				DirectoryReference? AutoSdkDir;
 				return UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir) ? AutoSdkDir.FullName : null;
 			}
 		}
@@ -1129,7 +1130,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(Plugin == null)
+				if (Plugin == null)
 				{
 					throw new BuildException("Module '{0}' does not belong to a plugin; PluginDirectory property is invalid.", Name);
 				}
@@ -1159,6 +1160,11 @@ namespace UnrealBuildTool
 		public ModuleRules(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
+
+			Name = Name!;
+			File = File!;
+			Directory = Directory!;
+			Context = Context!;
 		}
 
 		/// <summary>
@@ -1406,14 +1412,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Type">typeof the subclass</param>
 		/// <returns>Directory where the subclass's .Build.cs lives, or null if not found</returns>
-		public DirectoryReference GetModuleDirectoryForSubClass(Type Type)
+		public DirectoryReference? GetModuleDirectoryForSubClass(Type Type)
 		{
 			if (DirectoriesForModuleSubClasses == null)
 			{
 				return null;
 			}
 
-			DirectoryReference Directory;
+			DirectoryReference? Directory;
 			if (DirectoriesForModuleSubClasses.TryGetValue(Type, out Directory))
 			{
 				return Directory;

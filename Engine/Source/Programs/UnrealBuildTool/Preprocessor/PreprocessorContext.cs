@@ -16,13 +16,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The outer context
 		/// </summary>
-		public readonly PreprocessorContext Outer;
+		public readonly PreprocessorContext? Outer;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Outer">The outer context</param>
-		public PreprocessorContext(PreprocessorContext Outer)
+		public PreprocessorContext(PreprocessorContext? Outer)
 		{
 			this.Outer = Outer;
 		}

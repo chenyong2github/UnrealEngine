@@ -108,7 +108,7 @@ namespace UnrealBuildTool
 
 		static void WriteFieldUDN(XmlDocument InputDocumentation, FieldInfo Field, TextWriter Writer)
 		{
-			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
+			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType!.FullName, Field.Name));
 			if (Node != null)
 			{
 				// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
@@ -185,7 +185,7 @@ namespace UnrealBuildTool
 
 		static void WriteFieldHTML(XmlDocument InputDocumentation, FieldInfo Field, TextWriter Writer)
 		{
-			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
+			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType!.FullName, Field.Name));
 			if(Node != null)
 			{
 				// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line

@@ -134,8 +134,8 @@ namespace UnrealBuildTool
 				List<FileCollection> Result = UnityFiles;
 
 				// Null everything to ensure that failure will occur if you accidentally reuse this object.
-				CurrentCollection = null;
-				UnityFiles = null;
+				CurrentCollection = null!;
+				UnityFiles = null!;
 
 				return Result;
 			}

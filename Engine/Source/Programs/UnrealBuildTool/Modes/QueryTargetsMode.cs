@@ -19,13 +19,13 @@ namespace UnrealBuildTool
 		/// Path to the project file to query
 		/// </summary>
 		[CommandLine("-Project=")]
-		FileReference ProjectFile = null;
+		FileReference? ProjectFile = null;
 
 		/// <summary>
 		/// Path to the output file to receive information about the targets
 		/// </summary>
 		[CommandLine("-Output=")]
-		FileReference OutputFile = null;
+		FileReference? OutputFile = null;
 
 		/// <summary>
 		/// Execute the mode
@@ -69,7 +69,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Project file being queried</param>
 		/// <returns>Path to the output file</returns>
-		public static FileReference GetDefaultOutputFile(FileReference ProjectFile)
+		public static FileReference GetDefaultOutputFile(FileReference? ProjectFile)
 		{
 			if (ProjectFile == null)
 			{
@@ -88,7 +88,7 @@ namespace UnrealBuildTool
 		/// <param name="Assembly">The rules assembly for this target</param>
 		/// <param name="OutputFile">Output file to write to</param>
 		/// <param name="Arguments"></param>
-		public static void WriteTargetInfo(FileReference ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments)
+		public static void WriteTargetInfo(FileReference? ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments)
 		{
 			// Construct all the targets in this assembly
 			List<string> TargetNames = new List<string>();
@@ -126,7 +126,7 @@ namespace UnrealBuildTool
 					// Write the target info
 					Writer.WriteObjectStart();
 					Writer.WriteValue("Name", TargetName);
-					Writer.WriteValue("Path", Assembly.GetTargetFileName(TargetName).ToString());
+					Writer.WriteValue("Path", Assembly.GetTargetFileName(TargetName)?.ToString());
 					Writer.WriteValue("Type", TargetRules.Type.ToString());
 					Writer.WriteObjectEnd();
 				}

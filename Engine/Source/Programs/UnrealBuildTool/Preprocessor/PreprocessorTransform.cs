@@ -27,7 +27,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Map of macro name to their required value
 		/// </summary>
-		public Dictionary<Identifier, PreprocessorMacro> RequiredMacros;
+		public Dictionary<Identifier, PreprocessorMacro?> RequiredMacros;
 
 		/// <summary>
 		/// List of new branches that will be pushed onto the stack
@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of new macros that will be defined
 		/// </summary>
-		public Dictionary<Identifier, PreprocessorMacro> NewMacros;
+		public Dictionary<Identifier, PreprocessorMacro?> NewMacros;
 
 		/// <summary>
 		/// This fragment contains a pragma once directive
@@ -50,9 +50,9 @@ namespace UnrealBuildTool
 		public PreprocessorTransform()
 		{
 			RequiredBranches = new List<PreprocessorBranch>();
-			RequiredMacros = new Dictionary<Identifier, PreprocessorMacro>();
+			RequiredMacros = new Dictionary<Identifier, PreprocessorMacro?>();
 			NewBranches = new List<PreprocessorBranch>();
-			NewMacros = new Dictionary<Identifier, PreprocessorMacro>();
+			NewMacros = new Dictionary<Identifier, PreprocessorMacro?>();
 		}
 
 		/// <summary>
@@ -67,9 +67,9 @@ namespace UnrealBuildTool
 			}
 
 			RequiredBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte());
-			RequiredMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
+			RequiredMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
 			NewBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte());
-			NewMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
+			NewMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
 			bHasPragmaOnce = Reader.ReadBool();
 		}
 
@@ -86,9 +86,9 @@ namespace UnrealBuildTool
 			}
 
 			Writer.WriteList(RequiredBranches, x => Writer.WriteByte((byte)x));
-			Writer.WriteDictionary(RequiredMacros, k => Writer.WriteIdentifier(k), v => Writer.WriteObjectReference(v, () => v.Write(Writer)));
+			Writer.WriteDictionary(RequiredMacros, k => Writer.WriteIdentifier(k), v => Writer.WriteObjectReference(v, () => v!.Write(Writer)));
 			Writer.WriteList(NewBranches, x => Writer.WriteByte((byte)x));
-			Writer.WriteDictionary(NewMacros, k => Writer.WriteIdentifier(k), v => Writer.WriteObjectReference(v, () => v.Write(Writer)));
+			Writer.WriteDictionary(NewMacros, k => Writer.WriteIdentifier(k), v => Writer.WriteObjectReference(v, () => v!.Write(Writer)));
 			Writer.WriteBool(bHasPragmaOnce);
 		}
 	}

@@ -110,7 +110,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If this token is identifier, contains the identifier name
 		/// </summary>
-		public Identifier Identifier
+		public Identifier? Identifier
 		{
 			get;
 		}
@@ -118,7 +118,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If this token is a literal, contains the raw utf-8 representation of it.
 		/// </summary>
-		public byte[] Literal
+		public byte[]? Literal
 		{
 			get;
 		}
@@ -194,7 +194,7 @@ namespace UnrealBuildTool
 			Writer.WriteByte((byte)Flags);
 			if(Type == TokenType.Identifier)
 			{
-				Writer.WriteIdentifier(Identifier);
+				Writer.WriteIdentifier(Identifier!);
 			}
 			else if(IsLiteral(Type))
 			{
@@ -207,7 +207,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Other">The object to compare against</param>
 		/// <returns>True if the objects are equal, false otherwise</returns>
-		public override bool Equals(object Other)
+		public override bool Equals(object? Other)
 		{
 			return Equals(Other as Token);
 		}
@@ -217,9 +217,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Other">The object to compare against</param>
 		/// <returns>True if the tokens are equal, false otherwise</returns>
-		public bool Equals(Token Other)
+		public bool Equals(Token? Other)
 		{
-			if((object)Other == null)
+			if(ReferenceEquals(Other, null))
 			{
 				return false;
 			}

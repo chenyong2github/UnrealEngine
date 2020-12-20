@@ -10,6 +10,8 @@ using Tools.DotNETCommon;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	static class ActionGraph

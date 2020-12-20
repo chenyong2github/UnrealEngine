@@ -32,15 +32,15 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Additional restricted folders for this platform.
 			/// </summary>
-			public string[] AdditionalRestrictedFolders = null;
+			public string[]? AdditionalRestrictedFolders = null;
 
 			/// <summary>
 			/// Entire ini parent chain, ending with this platform
 			/// </summary>
-			public string[] IniParentChain = null;
+			public string[]? IniParentChain = null;
 		};
 
-		static Dictionary<string, ConfigDataDrivenPlatformInfo> PlatformInfos = null;
+		static Dictionary<string, ConfigDataDrivenPlatformInfo>? PlatformInfos = null;
 
 		/// <summary>
 		/// Return all data driven infos found
@@ -67,12 +67,12 @@ namespace UnrealBuildTool
 						if (FileRef.IsUnderDirectory(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Config")))
 						{
 							// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
-							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath));
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath))!;
 						}
 						else
 						{
 							// Foo/Engine/Platforms/<Platform>/Config/DataDrivenPlatformInfo.ini
-							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)));
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)))!;
 						}
 
 						// load the DataDrivenPlatformInfo from the path (with Add support in a file that doesn't use +'s in the arrays for C++ usage)
@@ -81,20 +81,20 @@ namespace UnrealBuildTool
 
 
 						// we must have the key section 
-						ConfigFileSection Section = null;
+						ConfigFileSection? Section = null;
 						if (Config.TryGetSection("DataDrivenPlatformInfo", out Section))
 						{
 							ConfigHierarchySection ParsedSection = new ConfigHierarchySection(new List<ConfigFileSection>() { Section });
 
 							// get string values
-							string IniParent;
+							string? IniParent;
 							if (ParsedSection.TryGetValue("IniParent", out IniParent))
 							{
 								IniParents[IniPlatformName] = IniParent;
 							}
 
 							// slightly nasty bool parsing for bool values
-							string Temp;
+							string? Temp;
 							if (ParsedSection.TryGetValue("bIsConfidential", out Temp))
 							{
 								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential);
@@ -108,7 +108,7 @@ namespace UnrealBuildTool
 							}
 
 							// get a list of additional restricted folders
-							IReadOnlyList<string> AdditionalRestrictedFolders;
+							IReadOnlyList<string>? AdditionalRestrictedFolders;
 							if(ParsedSection.TryGetValues("AdditionalRestrictedFolders", out AdditionalRestrictedFolders) && AdditionalRestrictedFolders.Count > 0)
 							{
 								NewInfo.AdditionalRestrictedFolders = AdditionalRestrictedFolders.Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
@@ -123,7 +123,7 @@ namespace UnrealBuildTool
 				// now that all are read in, calculate the ini parent chain, starting with parent-most
 				foreach (KeyValuePair<string, ConfigDataDrivenPlatformInfo> Pair in PlatformInfos)
 				{
-					string CurrentPlatform;
+					string? CurrentPlatform;
 
 					// walk up the chain and build up the ini chain
 					List<string> Chain = new List<string>();
@@ -156,11 +156,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="PlatformName"></param>
 		/// <returns></returns>
-		public static ConfigDataDrivenPlatformInfo GetDataDrivenInfoForPlatform(string PlatformName)
+		public static ConfigDataDrivenPlatformInfo? GetDataDrivenInfoForPlatform(string PlatformName)
 		{
 
 			// lookup the platform name (which is not guaranteed to be there)
-			ConfigDataDrivenPlatformInfo Info;
+			ConfigDataDrivenPlatformInfo? Info;
 			GetAllPlatformInfos().TryGetValue(PlatformName, out Info);
 
 			// return what we found of null if nothing

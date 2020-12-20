@@ -27,7 +27,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Key name to search for
 		/// </summary>
-		public string KeyName;
+		public string? KeyName;
 
 		/// <summary>
 		/// Constructor
@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 		/// <param name="ConfigType">Type of the config hierarchy to read from</param>
 		/// <param name="SectionName">Section containing the setting</param>
 		/// <param name="KeyName">Key name to search for. Optional; uses the name of the field if not set.</param>
-		public ConfigFileAttribute(ConfigHierarchyType ConfigType, string SectionName, string KeyName = null)
+		public ConfigFileAttribute(ConfigHierarchyType ConfigType, string SectionName, string? KeyName = null)
 		{
 			this.ConfigType = ConfigType;
 			this.SectionName = SectionName;

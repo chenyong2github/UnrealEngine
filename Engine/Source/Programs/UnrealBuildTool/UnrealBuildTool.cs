@@ -10,6 +10,8 @@ using System.Text;
 using System.Threading;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	static class UnrealBuildTool

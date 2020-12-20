@@ -179,7 +179,7 @@ namespace UnrealBuildTool
 			Dictionary<string, PluginInfo> NameToPluginInfo = new Dictionary<string, PluginInfo>(StringComparer.InvariantCultureIgnoreCase);
 			foreach(PluginInfo Plugin in Plugins)
 			{
-				PluginInfo ExistingPluginInfo;
+				PluginInfo? ExistingPluginInfo;
 				if(!NameToPluginInfo.TryGetValue(Plugin.Name, out ExistingPluginInfo))
 				{
 					NameToPluginInfo.Add(Plugin.Name, Plugin);
@@ -233,7 +233,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <returns>List of project files</returns>
-		public static IEnumerable<FileReference> EnumeratePlugins(FileReference ProjectFile)
+		public static IEnumerable<FileReference> EnumeratePlugins(FileReference? ProjectFile)
 		{
 			List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
 			BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Plugins"));
@@ -318,7 +318,7 @@ namespace UnrealBuildTool
 		private static void TryMergeWithParent(PluginInfo Child, FileReference Filename)
 		{
 			// find the parent
-			PluginInfo Parent = null;
+			PluginInfo? Parent = null;
 
 			string[] Tokens = Filename.GetFileNameWithoutAnyExtensions().Split("_".ToCharArray());
 			if (Tokens.Length == 2)
@@ -486,7 +486,7 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				List<PluginInfo> Plugins;
+				List<PluginInfo>? Plugins;
 				if (!PluginInfoCache.TryGetValue(Dir, out Plugins))
 				{
 					Plugins = new List<PluginInfo>();
@@ -526,7 +526,7 @@ namespace UnrealBuildTool
 		/// <param name="ParentDirectory">Parent directory to look in. Plugins will be found in any *subfolders* of this directory.</param>
 		public static IEnumerable<FileReference> EnumeratePlugins(DirectoryReference ParentDirectory)
 		{
-			List<FileReference> FileNames;
+			List<FileReference>? FileNames;
 			if (!PluginFileCache.TryGetValue(ParentDirectory, out FileNames))
 			{
 				FileNames = new List<FileReference>();

@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The project containing the target
 		/// </summary>
-		public readonly FileReference ProjectFile;
+		public readonly FileReference? ProjectFile;
 
 		/// <summary>
 		/// The current build version
@@ -51,7 +51,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Additional command line arguments for this target
 		/// </summary>
-		public CommandLineArguments Arguments;
+		public CommandLineArguments? Arguments;
 
 		/// <summary>
 		/// Constructs a TargetInfo for passing to the TargetRules constructor.
@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 		/// <param name="Architecture">The architecture being built for</param>
 		/// <param name="ProjectFile">Path to the project file containing the target</param>
 		/// <param name="Arguments">Additional command line arguments for this target</param>
-		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference ProjectFile, CommandLineArguments Arguments)
+		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference? ProjectFile, CommandLineArguments? Arguments)
 		{
 			this.Name = Name;
 			this.Platform = Platform;
@@ -105,7 +105,7 @@ namespace UnrealBuildTool
 			Writer.WriteString(Configuration.ToString());
 			Writer.WriteString(Architecture);
 			Writer.WriteFileReference(ProjectFile);
-			Writer.WriteArray(Arguments.GetRawArray(), Item => Writer.WriteString(Item));
+			Writer.WriteArray(Arguments?.GetRawArray(), Item => Writer.WriteString(Item));
 		}
 	}
 }

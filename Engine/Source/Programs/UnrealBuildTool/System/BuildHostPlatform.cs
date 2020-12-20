@@ -32,7 +32,7 @@ namespace UnrealBuildTool
 	/// </summary>
 	public abstract class BuildHostPlatform
 	{
-		private static BuildHostPlatform CurrentPlatform;
+		private static BuildHostPlatform? CurrentPlatform;
 		private static bool bIsMac = File.Exists("/System/Library/CoreServices/SystemVersion.plist");
 
 		/// <summary>
@@ -75,6 +75,10 @@ namespace UnrealBuildTool
 					else if (RuntimePlatform == UnrealTargetPlatform.Linux)
 					{
 						CurrentPlatform = new LinuxBuildHostPlatform();
+					}
+					else
+					{
+						throw new NotImplementedException();
 					}
 				}
 				return CurrentPlatform;
@@ -177,7 +181,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name">Name of the process to get information for.</param>
 		/// <returns></returns>
-		public virtual ProcessInfo GetProcessByName(string Name)
+		public virtual ProcessInfo? GetProcessByName(string Name)
 		{
 			ProcessInfo[] AllProcess = GetProcesses();
 			foreach (ProcessInfo Info in AllProcess)
@@ -364,7 +368,7 @@ namespace UnrealBuildTool
 		}
 		private void ProcessVMMapOutput(Process Proc, HashSet<string> Modules)
 		{
-			for (string Line = Proc.StandardOutput.ReadLine(); Line != null; Line = Proc.StandardOutput.ReadLine())
+			for (string? Line = Proc.StandardOutput.ReadLine(); Line != null; Line = Proc.StandardOutput.ReadLine())
 			{
 				Line = Line.Trim();
 				if (Line.EndsWith(".dylib"))

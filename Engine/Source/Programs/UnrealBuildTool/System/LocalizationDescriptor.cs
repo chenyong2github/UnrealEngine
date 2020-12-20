@@ -100,7 +100,7 @@ namespace UnrealBuildTool
 		/// <param name="Writer">The Json writer to output to</param>
 		/// <param name="Name">Name of the array</param>
 		/// <param name="Targets">Array of targets</param>
-		public static void WriteArray(JsonWriter Writer, string Name, LocalizationTargetDescriptor[] Targets)
+		public static void WriteArray(JsonWriter Writer, string Name, LocalizationTargetDescriptor[]? Targets)
 		{
 			if (Targets != null && Targets.Length > 0)
 			{

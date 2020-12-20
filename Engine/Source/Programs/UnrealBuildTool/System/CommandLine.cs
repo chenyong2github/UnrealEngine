@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -34,6 +35,19 @@ namespace UnrealBuildTool
 			/// The attribute containing this argument's info
 			/// </summary>
 			public CommandLineAttribute Attribute;
+
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="Prefix"></param>
+			/// <param name="FieldInfo"></param>
+			/// <param name="Attribute"></param>
+			public Parameter(string Prefix, FieldInfo FieldInfo, CommandLineAttribute Attribute)
+			{
+				this.Prefix = Prefix;
+				this.FieldInfo = FieldInfo;
+				this.Attribute = Attribute;
+			}
 		}
 
 		/// <summary>
@@ -48,7 +62,7 @@ namespace UnrealBuildTool
 
 		private static Type NonNullableType(Type type)
 		{
-			Type UnderlyingType = Nullable.GetUnderlyingType(type);
+			Type? UnderlyingType = Nullable.GetUnderlyingType(type);
 			if (UnderlyingType != null)
 			{
 				return UnderlyingType;
@@ -65,7 +79,7 @@ namespace UnrealBuildTool
 		{
 			// Build a mapping from name to field and attribute for this object
 			Dictionary<string, Parameter> PrefixToParameter = new Dictionary<string, Parameter>(StringComparer.InvariantCultureIgnoreCase);
-			for(Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType)
+			for(Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType!)
 			{
 				foreach(FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
 				{
@@ -91,7 +105,7 @@ namespace UnrealBuildTool
 								Prefix = Prefix + "=";
 							}
 						}
-						PrefixToParameter.Add(Prefix, new Parameter { Prefix = Prefix, Attribute = Attribute, FieldInfo = FieldInfo });
+						PrefixToParameter.Add(Prefix, new Parameter(Prefix, FieldInfo, Attribute));
 					}
 				}
 			}
@@ -108,7 +122,7 @@ namespace UnrealBuildTool
 					string Prefix = (EqualsIdx == -1)? Argument : Argument.Substring(0, EqualsIdx + 1);
 
 					// Check if there's a matching argument registered
-					Parameter Parameter;
+					Parameter? Parameter;
 					if(PrefixToParameter.TryGetValue(Prefix, out Parameter))
 					{
 						int NextIdx = Idx + 1;
@@ -196,7 +210,7 @@ namespace UnrealBuildTool
 		static void AssignValue(Parameter Parameter, string Text, object TargetObject, Dictionary<FieldInfo, Parameter> AssignedFieldToParameter)
 		{
 			// Check if the field type implements ICollection<>. If so, we can take multiple values.
-			Type CollectionType = null;
+			Type? CollectionType = null;
 			foreach (Type InterfaceType in Parameter.FieldInfo.FieldType.GetInterfaces())
 			{
 				if (InterfaceType.IsGenericType && InterfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
@@ -210,7 +224,7 @@ namespace UnrealBuildTool
 			if (CollectionType == null)
 			{
 				// Try to parse the value
-				object Value;
+				object? Value;
 				if(!TryParseValue(Parameter.FieldInfo.FieldType, Text, out Value))
 				{
 					Log.WriteLine(LogEventType.Warning, "Invalid value for {0}... - ignoring {1}", Parameter.Prefix, Text);
@@ -218,11 +232,11 @@ namespace UnrealBuildTool
 				}
 
 				// Check if this field has already been assigned to. Output a warning if the previous value is in conflict with the new one.
-				Parameter PreviousParameter;
+				Parameter? PreviousParameter;
 				if(AssignedFieldToParameter.TryGetValue(Parameter.FieldInfo, out PreviousParameter))
 				{
-					object PreviousValue = Parameter.FieldInfo.GetValue(TargetObject);
-					if(!PreviousValue.Equals(Value))
+					object? PreviousValue = Parameter.FieldInfo.GetValue(TargetObject);
+					if(!Object.Equals(PreviousValue, Value))
 					{
 						if(PreviousParameter.Prefix == Parameter.Prefix)
 						{
@@ -256,7 +270,7 @@ namespace UnrealBuildTool
 				// Parse each of the argument values separately
 				foreach(string Item in ItemArray)
 				{
-					object Value;
+					object? Value;
 					if(TryParseValue(CollectionType.GenericTypeArguments[0], Item, out Value))
 					{
 						CollectionType.InvokeMember("Add", BindingFlags.InvokeMethod, null, Parameter.FieldInfo.GetValue(TargetObject), new object[] { Value });
@@ -276,7 +290,7 @@ namespace UnrealBuildTool
 		/// <param name="Text">The value text</param>
 		/// <param name="Value">On success, contains the parsed object</param>
 		/// <returns>True if the text could be parsed, false otherwise</returns>
-		static bool TryParseValue(Type FieldType, string Text, out object Value)
+		static bool TryParseValue(Type FieldType, string Text, [NotNullWhen(true)] out object? Value)
 		{
 			FieldType = NonNullableType(FieldType);
 			if(FieldType.IsEnum)

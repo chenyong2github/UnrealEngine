@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Storage
 		/// <summary>
 		/// Accessor for the read stream
 		/// </summary>
-		Stream Stream { get; }
+		Stream? Stream { get; }
 
 		/// <summary>
 		/// Whether the reader contains any data
@@ -37,7 +37,7 @@ namespace UnrealBuildTool.Storage
 		/// <summary>
 		/// Accessor for the write stream
 		/// </summary>
-		Stream Stream { get; }
+		Stream? Stream { get; }
 
 		/// <summary>
 		/// Commits the written data to the cache

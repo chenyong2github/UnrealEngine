@@ -182,14 +182,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
 
-		private string NameOverride;
+		private string? NameOverride;
 
 		private readonly string DefaultName;
 
 		/// <summary>
 		/// File containing this target
 		/// </summary>
-		internal FileReference File;
+		internal FileReference File { get; set; }
 
 		/// <summary>
 		/// Platform that this target is being built for.
@@ -209,7 +209,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Path to the project file for the project containing this target.
 		/// </summary>
-		public readonly FileReference ProjectFile;
+		public readonly FileReference? ProjectFile;
 
 		/// <summary>
 		/// The current build version
@@ -1187,7 +1187,7 @@ namespace UnrealBuildTool
 		/// Bundle version for Mac apps.
 		/// </summary>
 		[CommandLine("-BundleVersion")]
-		public string BundleVersion = null;
+		public string? BundleVersion = null;
 
 		/// <summary>
 		/// Whether to deploy the executable after compilation on platforms that require deployment.
@@ -1253,7 +1253,7 @@ namespace UnrealBuildTool
 		/// Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
 		/// </summary>
 		[CommandLine("-ToolChain")]
-		public string ToolChainName = null;
+		public string? ToolChainName = null;
 
 		/// <summary>
 		/// Whether to allow engine configuration to determine if we can load unverified certificates.
@@ -1298,7 +1298,7 @@ namespace UnrealBuildTool
 		/// The build version string
 		/// </summary>
 		[CommandLine("-BuildVersion")]
-		public string BuildVersion;
+		public string? BuildVersion;
 
 		/// <summary>
 		/// Specifies how to link modules in this target (monolithic or modular). This is currently protected for backwards compatibility. Call the GetLinkType() accessor
@@ -1340,7 +1340,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Specifies the name of the launch module. For modular builds, this is the module that is compiled into the target's executable.
 		/// </summary>
-		public string LaunchModuleName
+		public string? LaunchModuleName
 		{
 			get
 			{
@@ -1355,12 +1355,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Backing storage for the LaunchModuleName property.
 		/// </summary>
-		private string LaunchModuleNamePrivate;
+		private string? LaunchModuleNamePrivate;
 
 		/// <summary>
 		/// Specifies the path to write a header containing public definitions for this target. Useful when building a DLL to be consumed by external build processes.
 		/// </summary>
-		public string ExportPublicHeader;
+		public string? ExportPublicHeader;
 
 		/// <summary>
 		/// List of additional modules to be compiled into the target.
@@ -1451,38 +1451,38 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-CompilerArguments=")]
-		public string AdditionalCompilerArguments;
+		public string? AdditionalCompilerArguments;
 
 		/// <summary>
 		/// Additional arguments to pass to the linker
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-LinkerArguments=")]
-		public string AdditionalLinkerArguments;
+		public string? AdditionalLinkerArguments;
 
 
 		/// <summary>
 		/// List of modules to disable unity builds for
 		/// </summary>
 		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableUnityBuild")]
-		public string[] DisableUnityBuildForModules = null;
+		public string[]? DisableUnityBuildForModules = null;
 
 		/// <summary>
 		///  List of modules to enable optimizations for
 		/// </summary>
 		[XmlConfigFile(Category = "ModuleConfiguration", Name = "EnableOptimizeCode")]
-		public string[] EnableOptimizeCodeForModules = null;
+		public string[]? EnableOptimizeCodeForModules = null;
 
 		/// <summary>
 		/// List of modules to disable optimizations for
 		/// </summary>
 		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableOptimizeCode")]
-		public string[] DisableOptimizeCodeForModules = null;
+		public string[]? DisableOptimizeCodeForModules = null;
 
 		/// <summary>
 		/// When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 		/// </summary>
-		public string GeneratedProjectName;
+		public string? GeneratedProjectName;
 
 		/// <summary>
 		/// Android-specific target settings.
@@ -1559,6 +1559,9 @@ namespace UnrealBuildTool
 			this.WindowsPlatform = new WindowsTargetRules(this);
 			this.HoloLensPlatform = new HoloLensTargetRules(Target);
 
+			// Suppress nullable warnings (initialized before constructor is run)
+			File = File!;
+
 			// Read settings from config files
 			foreach (object ConfigurableObject in GetConfigurableObjects())
 			{
@@ -1592,7 +1595,7 @@ namespace UnrealBuildTool
 			// Get the directory to use for crypto settings. We can build engine targets (eg. UHT) with 
 			// a project file, but we can't use that to determine crypto settings without triggering
 			// constant rebuilds of UHT.
-			DirectoryReference CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
+			DirectoryReference? CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
 			if (CryptoSettingsDir != null && File != null && !File.IsUnderDirectory(CryptoSettingsDir))
 			{
 				CryptoSettingsDir = null;
@@ -1661,7 +1664,7 @@ namespace UnrealBuildTool
 		internal UnrealTargetPlatform[] GetSupportedPlatforms()
 		{
 			// Otherwise take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
-			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
+			for (Type? CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
 				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
 				if (Attributes.Length > 0)
@@ -1692,7 +1695,7 @@ namespace UnrealBuildTool
 		internal UnrealTargetConfiguration[] GetSupportedConfigurations()
 		{
 			// Otherwise take the SupportedConfigurationsAttribute from the first type in the inheritance chain that supports it
-			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
+			for (Type? CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
 				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedConfigurationsAttribute), false);
 				if (Attributes.Length > 0)
@@ -1724,7 +1727,11 @@ namespace UnrealBuildTool
 			{
 				if(Field.GetCustomAttribute<ConfigSubObjectAttribute>() != null)
 				{
-					yield return Field.GetValue(this);
+					object? Value = Field.GetValue(this);
+					if(Value != null)
+					{
+						yield return Value;
+					}
 				}
 			}
 		}
@@ -1849,7 +1856,7 @@ namespace UnrealBuildTool
 			get { return Inner.Architecture; }
 		}
 
-		public FileReference ProjectFile
+		public FileReference? ProjectFile
 		{
 			get { return Inner.ProjectFile; }
 		}
@@ -2493,7 +2500,7 @@ namespace UnrealBuildTool
 			get { return Inner.bAllowRuntimeSymbolFiles; }
 		}
 
-		public string BundleVersion
+		public string? BundleVersion
 		{
 			get { return Inner.BundleVersion; }
 		}
@@ -2554,7 +2561,7 @@ namespace UnrealBuildTool
 			get { return Inner.bPublicSymbolsByDefault; }
 		}
 
-		public string ToolChainName
+		public string? ToolChainName
 		{
 			get { return Inner.ToolChainName; }
 		}
@@ -2574,7 +2581,7 @@ namespace UnrealBuildTool
 			get { return Inner.bNoManifestChanges; }
 		}
 
-		public string BuildVersion
+		public string? BuildVersion
 		{
 			get { return Inner.BuildVersion; }
 		}
@@ -2594,12 +2601,12 @@ namespace UnrealBuildTool
 			get { return Inner.ProjectDefinitions.AsReadOnly(); }
 		}
 
-		public string LaunchModuleName
+		public string? LaunchModuleName
 		{
 			get { return Inner.LaunchModuleName; }
 		}
 
-		public string ExportPublicHeader
+		public string? ExportPublicHeader
 		{
 			get { return Inner.ExportPublicHeader; }
 		}
@@ -2649,17 +2656,17 @@ namespace UnrealBuildTool
 			get { return Inner.AdditionalBuildProducts; }
 		}
 
-		public string AdditionalCompilerArguments
+		public string? AdditionalCompilerArguments
 		{
 			get { return Inner.AdditionalCompilerArguments; }
 		}
 
-		public string AdditionalLinkerArguments
+		public string? AdditionalLinkerArguments
 		{
 			get { return Inner.AdditionalLinkerArguments; }
 		}
 
-		public string GeneratedProjectName
+		public string? GeneratedProjectName
 		{
 			get { return Inner.GeneratedProjectName; }
 		}
@@ -2740,17 +2747,17 @@ namespace UnrealBuildTool
 		}
 
 
-		public IReadOnlyList<string> DisableUnityBuildForModules
+		public IReadOnlyList<string>? DisableUnityBuildForModules
 		{
 			get { return Inner.DisableUnityBuildForModules; }
 		}
 
-		public IReadOnlyList<string> EnableOptimizeCodeForModules
+		public IReadOnlyList<string>? EnableOptimizeCodeForModules
 		{
 			get { return Inner.EnableOptimizeCodeForModules; }
 		}
 
-		public IReadOnlyList<string> DisableOptimizeCodeForModules
+		public IReadOnlyList<string>? DisableOptimizeCodeForModules
 		{
 			get { return Inner.DisableOptimizeCodeForModules; }
 		}

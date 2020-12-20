@@ -67,52 +67,52 @@ namespace UnrealBuildTool
 		/// Name of the version for this plugin.  This is the front-facing part of the version number.  It doesn't need to match
 		/// the version number numerically, but should be updated when the version number is increased accordingly.
 		/// </summary>
-		public string VersionName;
+		public string? VersionName;
 
 		/// <summary>
 		/// Friendly name of the plugin
 		/// </summary>
-		public string FriendlyName;
+		public string? FriendlyName;
 
 		/// <summary>
 		/// Description of the plugin
 		/// </summary>
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// The name of the category this plugin
 		/// </summary>
-		public string Category;
+		public string? Category;
 
 		/// <summary>
 		/// The company or individual who created this plugin.  This is an optional field that may be displayed in the user interface.
 		/// </summary>
-		public string CreatedBy;
+		public string? CreatedBy;
 
 		/// <summary>
 		/// Hyperlink URL string for the company or individual who created this plugin.  This is optional.
 		/// </summary>
-		public string CreatedByURL;
+		public string? CreatedByURL;
 
 		/// <summary>
 		/// Documentation URL string.
 		/// </summary>
-		public string DocsURL;
+		public string? DocsURL;
 
 		/// <summary>
 		/// Marketplace URL for this plugin. This URL will be embedded into projects that enable this plugin, so we can redirect to the marketplace if a user doesn't have it installed.
 		/// </summary>
-		public string MarketplaceURL;
+		public string? MarketplaceURL;
 
 		/// <summary>
 		/// Support URL/email for this plugin.
 		/// </summary>
-		public string SupportURL;
+		public string? SupportURL;
 
 		/// <summary>
 		/// Sets the version of the engine that this plugin is compatible with.
 		/// </summary>
-		public string EngineVersion;
+		public string? EngineVersion;
 
 		/// <summary>4
 		/// If true, this plugin from a platform extension extending another plugin */
@@ -122,22 +122,22 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of platforms supported by this plugin. This list will be copied to any plugin reference from a project file, to allow filtering entire plugins from staged builds.
 		/// </summary>
-		public List<UnrealTargetPlatform> SupportedTargetPlatforms;
+		public List<UnrealTargetPlatform>? SupportedTargetPlatforms;
 
 		/// <summary>
 		/// List of programs supported by this plugin.
 		/// </summary>
-		public string[] SupportedPrograms;
+		public string[]? SupportedPrograms;
 
 		/// <summary>
 		/// List of all modules associated with this plugin
 		/// </summary>
-		public List<ModuleDescriptor> Modules;
+		public List<ModuleDescriptor>? Modules;
 
 		/// <summary>
 		/// List of all localization targets associated with this plugin
 		/// </summary>
-		public LocalizationTargetDescriptor[] LocalizationTargets;
+		public LocalizationTargetDescriptor[]? LocalizationTargets;
 
 		/// <summary>
 		/// Whether this plugin should be enabled by default for all projects
@@ -177,17 +177,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of pre-build steps to execute, keyed by host platform name.
 		/// </summary>
-		public CustomBuildSteps PreBuildSteps;
+		public CustomBuildSteps? PreBuildSteps;
 
 		/// <summary>
 		/// Set of post-build steps to execute, keyed by host platform name.
 		/// </summary>
-		public CustomBuildSteps PostBuildSteps;
+		public CustomBuildSteps? PostBuildSteps;
 
 		/// <summary>
 		/// Additional plugins that this plugin depends on
 		/// </summary>
-		public List<PluginReferenceDescriptor> Plugins;
+		public List<PluginReferenceDescriptor>? Plugins;
 
 		/// <summary>
 		/// Private constructor. This object should not be created directly; read it from disk using FromFile() instead.

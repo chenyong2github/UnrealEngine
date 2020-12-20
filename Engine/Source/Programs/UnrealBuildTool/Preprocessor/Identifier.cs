@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <returns>New Identifier instance</returns>
 		public static Identifier FindOrAdd(string Name)
 		{
-			Identifier Result;
+			Identifier? Result;
 			if(!NameToIdentifier.TryGetValue(Name, out Result))
 			{
 				Identifier NewIdentifier = new Identifier(Name);
@@ -62,9 +62,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Other">Identifier to compare to</param>
 		/// <returns>Value indicating which identifier should sort first</returns>
-		public int CompareTo(Identifier Other)
+		public int CompareTo(Identifier? Other)
 		{
-			return Name.CompareTo(Other.Name);
+			return ReferenceEquals(Other, null)? 1 : Name.CompareTo(Other.Name);
 		}
 
 		/// <summary>
@@ -127,9 +127,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Writer">Writer to serialize data to</param>
 		/// <param name="Identifier">Identifier to write</param>
-		public static void WriteIdentifier(this BinaryArchiveWriter Writer, Identifier Identifier)
+		public static void WriteIdentifier(this BinaryArchiveWriter Writer, Identifier? Identifier)
 		{
-			Writer.WriteObjectReference<Identifier>(Identifier, () => Writer.WriteString(Identifier.ToString()));
+			Writer.WriteObjectReference<Identifier?>(Identifier, () => Writer.WriteString(Identifier!.ToString()));
 		}
 	}
 }

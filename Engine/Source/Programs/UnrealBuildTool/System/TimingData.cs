@@ -55,8 +55,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructs a new instance of <see cref="TimingData"/>.
 		/// </summary>
-		public TimingData()
+		public TimingData(string Name, TimingDataType Type)
 		{
+			this.Name = Name;
+			this.Type = Type;
 		}
 
 		/// <summary>
@@ -105,7 +107,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If this event is a sub-event, the parent is the event it is the sub-event to.
 		/// </summary>
-		public TimingData Parent { get; set; }
+		public TimingData? Parent { get; set; }
 
 		/// <summary>
 		/// Any sub-events of this event.
@@ -119,7 +121,7 @@ namespace UnrealBuildTool
 		/// <param name="ChildData">The sub-event to add to this event.</param>
 		public void AddChild(TimingData ChildData)
 		{
-			TimingData MatchingData;
+			TimingData? MatchingData;
 			if (Children.TryGetValue(ChildData.Name, out MatchingData))
 			{
 				MatchingData.ExclusiveDuration += ChildData.ExclusiveDuration;
@@ -140,10 +142,8 @@ namespace UnrealBuildTool
 		/// <returns>A deep clone of this event.</returns>
 		public TimingData Clone()
 		{
-			TimingData ClonedTimingData = new TimingData()
+			TimingData ClonedTimingData = new TimingData(Name, Type)
 			{
-				Name = Name,
-				Type = Type,
 				ExclusiveDuration = ExclusiveDuration,
 			};
 

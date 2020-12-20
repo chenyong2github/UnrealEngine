@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Format">Formatting string for the error message</param>
 		/// <param name="Arguments">Arguments for the formatting string</param>
-		public BuildException(string Format, params object[] Arguments) 
+		public BuildException(string Format, params object?[] Arguments) 
 			: base(String.Format(Format, Arguments))
 		{
 		}
@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 		/// <param name="InnerException">The inner exception being wrapped</param>
 		/// <param name="Format">Format for the message string</param>
 		/// <param name="Arguments">Format arguments</param>
-		public BuildException(Exception InnerException, string Format, params object[] Arguments) 
+		public BuildException(Exception InnerException, string Format, params object?[] Arguments) 
 			: base(String.Format(Format, Arguments), InnerException)
 		{
 		}

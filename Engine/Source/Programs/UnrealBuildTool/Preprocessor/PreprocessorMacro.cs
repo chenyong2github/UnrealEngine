@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Parameter names for the macro. The '...' placeholder is represented by the __VA_ARGS__ string.
 		/// </summary>
-		public List<Identifier> Parameters;
+		public List<Identifier>? Parameters;
 
 		/// <summary>
 		/// Raw list of tokens for this macro
@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the macro</param>
 		/// <param name="Parameters">Parameter list for the macro. Should be null for object macros. Ownership of this list is transferred.</param>
 		/// <param name="Tokens">Tokens for the macro. Ownership of this list is transferred.</param>
-		public PreprocessorMacro(Identifier Name, List<Identifier> Parameters, List<Token> Tokens)
+		public PreprocessorMacro(Identifier Name, List<Identifier>? Parameters, List<Token> Tokens)
 		{
 			this.Name = Name;
 			this.Parameters = Parameters;
@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 		/// <returns>Index of the parameter, or -1 if it's not found.</returns>
 		public int FindParameterIndex(Identifier Parameter)
 		{
-			for (int Idx = 0; Idx < Parameters.Count; Idx++)
+			for (int Idx = 0; Idx < Parameters!.Count; Idx++)
 			{
 				if (Parameters[Idx] == Parameter)
 				{
@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public int MinRequiredParameters
 		{
-			get { return HasVariableArgumentList? (Parameters.Count - 1) : Parameters.Count; }
+			get { return HasVariableArgumentList? (Parameters!.Count - 1) : Parameters!.Count; }
 		}
 
 		/// <summary>
@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool HasVariableArgumentList
 		{
-			get { return Parameters.Count > 0 && Parameters[Parameters.Count - 1] == Identifiers.__VA_ARGS__; }
+			get { return Parameters!.Count > 0 && Parameters[Parameters.Count - 1] == Identifiers.__VA_ARGS__; }
 		}
 
 		/// <summary>

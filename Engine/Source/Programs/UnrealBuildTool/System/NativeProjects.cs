@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,17 +24,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The native project base directories
 		/// </summary>
-		static HashSet<DirectoryReference> CachedBaseDirectories;
+		static HashSet<DirectoryReference>? CachedBaseDirectories;
 
 		/// <summary>
 		/// Cached list of project files within all the base directories
 		/// </summary>
-		static HashSet<FileReference> CachedProjectFiles;
+		static HashSet<FileReference>? CachedProjectFiles;
 
 		/// <summary>
 		/// Cached map of target names to the project file they belong to
 		/// </summary>
-		static Dictionary<string, FileReference> CachedTargetNameToProjectFile;
+		static Dictionary<string, FileReference>? CachedTargetNameToProjectFile;
 
 		/// <summary>
 		/// Clear our cached properties. Generally only needed if your script has modified local files...
@@ -128,7 +129,7 @@ namespace UnrealBuildTool
 		/// <param name="InTargetName">Name of the target of interest</param>
 		/// <param name="OutProjectFileName">The project filename</param>
 		/// <returns>True if the target was found</returns>
-		public static bool TryGetProjectForTarget(string InTargetName, out FileReference OutProjectFileName)
+		public static bool TryGetProjectForTarget(string InTargetName, [NotNullWhen(true)] out FileReference? OutProjectFileName)
 		{
 			if(CachedTargetNameToProjectFile == null)
 			{
@@ -199,7 +200,7 @@ namespace UnrealBuildTool
 		public static bool IsNativeProject(FileReference ProjectFile)
 		{
 			EnumerateProjectFiles();
-			return CachedProjectFiles.Contains(ProjectFile);
+			return CachedProjectFiles!.Contains(ProjectFile);
 		}
 	}
 }

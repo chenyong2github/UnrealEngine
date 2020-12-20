@@ -81,17 +81,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The array of command-line arguments. The makefile will be invalidated whenever these change.
 		/// </summary>
-		public string[] AdditionalArguments;
+		public string[]? AdditionalArguments;
 
 		/// <summary>
 		/// Scripts which should be run before building anything
 		/// </summary>
-		public FileReference[] PreBuildScripts;
+		public FileReference[] PreBuildScripts = Array.Empty<FileReference>();
 
 		/// <summary>
 		/// Targets which should be build before building anything
 		/// </summary>
-		public TargetInfo[] PreBuildTargets;
+		public TargetInfo[] PreBuildTargets = Array.Empty<TargetInfo>();
 
 		/// <summary>
 		/// Every action in the action graph
@@ -303,7 +303,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments for this target</param>
 		/// <param name="ReasonNotLoaded">If the function returns null, this string will contain the reason why</param>
 		/// <returns>The loaded makefile, or null if it failed for some reason.  On failure, the 'ReasonNotLoaded' variable will contain information about why</returns>
-		public static TargetMakefile Load(FileReference MakefilePath, FileReference ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string ReasonNotLoaded)
+		public static TargetMakefile? Load(FileReference MakefilePath, FileReference? ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string? ReasonNotLoaded)
 		{
 			FileInfo MakefileInfo;
 			using(Timeline.ScopeEvent("Checking dependent timestamps"))
@@ -464,7 +464,7 @@ namespace UnrealBuildTool
 		/// <param name="WorkingSet">The current working set of source files</param>
 		/// <param name="ReasonNotLoaded">If the makefile is not valid, is set to a message describing why</param>
 		/// <returns>True if the makefile is valid, false otherwise</returns>
-		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string ReasonNotLoaded)
+		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference? ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string? ReasonNotLoaded)
 		{
 			using(Timeline.ScopeEvent("TargetMakefile.IsValidForSourceFiles()"))
 			{
@@ -673,7 +673,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">The platform that the target is being built for</param>
 		/// <param name="Configuration">The configuration being built</param>
 		/// <returns>Path to the makefile</returns>
-		public static FileReference GetLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration)
+		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration)
 		{
 			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuildTool.EngineDirectory;
 			return FileReference.Combine(BaseDirectory, "Intermediate", "Build", Platform.ToString(), TargetName, Configuration.ToString(), "Makefile.bin");

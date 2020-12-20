@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,7 +15,7 @@ namespace UnrealBuildTool
 	/// </summary>
 	class TargetDescriptor
 	{
-		public FileReference ProjectFile;
+		public FileReference? ProjectFile;
 		public string Name;
 		public UnrealTargetPlatform Platform;
 		public UnrealTargetConfiguration Configuration;
@@ -25,7 +26,7 @@ namespace UnrealBuildTool
 		/// Foreign plugin to compile against this target
 		/// </summary>
 		[CommandLine("-Plugin=")]
-		public FileReference ForeignPlugin = null;
+		public FileReference? ForeignPlugin = null;
 
 		/// <summary>
 		/// Set of module names to compile.
@@ -56,13 +57,13 @@ namespace UnrealBuildTool
 		/// Path to a file containing a list of modules that may be modified for live coding.
 		/// </summary>
 		[CommandLine("-LiveCodingModules=")]
-		public FileReference LiveCodingModules = null;
+		public FileReference? LiveCodingModules = null;
 
 		/// <summary>
 		/// Path to the manifest for passing info about the output to live coding
 		/// </summary>
 		[CommandLine("-LiveCodingManifest=")]
-		public FileReference LiveCodingManifest = null;
+		public FileReference? LiveCodingManifest = null;
 
 		/// <summary>
 		/// If a non-zero value, a live coding request will be terminated if more than the given number of actions are required.
@@ -85,7 +86,7 @@ namespace UnrealBuildTool
 		/// <param name="Configuration">Configuration to build</param>
 		/// <param name="Architecture">Architecture to build for</param>
 		/// <param name="Arguments">Other command-line arguments for the target</param>
-		public TargetDescriptor(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, CommandLineArguments Arguments)
+		public TargetDescriptor(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, CommandLineArguments? Arguments)
 		{
 			this.ProjectFile = ProjectFile;
 			this.Name = TargetName;
@@ -208,7 +209,7 @@ namespace UnrealBuildTool
 			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
 			List<UnrealTargetConfiguration> Configurations = new List<UnrealTargetConfiguration>();
 			List<string> TargetNames = new List<string>();
-			FileReference ProjectFile = Arguments.GetFileReferenceOrDefault("-Project=", null);
+			FileReference? ProjectFile = Arguments.GetFileReferenceOrDefault("-Project=", null);
 
 			// Settings for creating/using static libraries for the engine
 			for (int ArgumentIndex = 0; ArgumentIndex < Arguments.Count; ArgumentIndex++)
@@ -363,7 +364,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">The command line arguments</param>
 		/// <param name="ProjectFile">The project file that was parsed</param>
 		/// <returns>True if the project file was parsed, false otherwise</returns>
-		public static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference ProjectFile)
+		public static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference? ProjectFile)
 		{
 			FileReference ExplicitProjectFile;
 			if(Arguments.TryGetValue("-Project=", out ExplicitProjectFile))
@@ -399,7 +400,7 @@ namespace UnrealBuildTool
 		/// <param name="Prefix">The argument prefix, eg. "-Foo="</param>
 		/// <param name="Value">Receives the value of the argument</param>
 		/// <returns>True if the argument could be parsed, false otherwise</returns>
-		private static bool ParseArgumentValue(string Argument, string Prefix, out string Value)
+		private static bool ParseArgumentValue(string Argument, string Prefix, [NotNullWhen(true)] out string? Value)
 		{
 			if(Argument.StartsWith(Prefix, StringComparison.InvariantCultureIgnoreCase))
 			{
@@ -438,16 +439,16 @@ namespace UnrealBuildTool
 
 		public override int GetHashCode()
 		{
-			return ProjectFile.GetHashCode() + 
+			return String.GetHashCode(ProjectFile?.FullName) + 
 				Name.GetHashCode() + 
 				Platform.GetHashCode() + 
 				Configuration.GetHashCode() + 
 				Architecture.GetHashCode();
 		}
 
-		public override bool Equals(object Obj) 
+		public override bool Equals(object? Obj) 
 		{
-			TargetDescriptor Other = Obj as TargetDescriptor;
+			TargetDescriptor? Other = Obj as TargetDescriptor;
 			if (Other != null)
 			{
 				return

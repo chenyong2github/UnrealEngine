@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -50,7 +51,7 @@ namespace UnrealBuildTool
 		/// <param name="Types">Array of valid types. Used to resolve serialized type names to concrete types.</param>
 		/// <param name="Data">On success, receives the parsed data</param>
 		/// <returns>True if the data was read and is valid</returns>
-		public static bool TryRead(FileReference Location, IEnumerable<Type> Types, out XmlConfigData Data)
+		public static bool TryRead(FileReference Location, IEnumerable<Type> Types, [NotNullWhen(true)] out XmlConfigData? Data)
 		{
 			// Check the file exists first
 			if(!FileReference.Exists(Location))
@@ -95,7 +96,7 @@ namespace UnrealBuildTool
 						string FieldName = Reader.ReadString();
 
 						// Find the matching field on the output type
-						FieldInfo Field = Type.GetField(FieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+						FieldInfo? Field = Type.GetField(FieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
 						if(Field == null || Field.GetCustomAttribute<XmlConfigFileAttribute>() == null)
 						{
 							Data = null;

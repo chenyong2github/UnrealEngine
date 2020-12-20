@@ -36,7 +36,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The directory for this module's generated code
 		/// </summary>
-		public readonly DirectoryReference GeneratedCodeDirectory;
+		public readonly DirectoryReference? GeneratedCodeDirectory;
 
 		/// <summary>
 		/// Set for modules that have generated code
@@ -46,17 +46,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Paths containing *.gen.cpp files for this module.  If this is null then this module doesn't have any generated code.
 		/// </summary>
-		public List<string> GeneratedCppDirectories;
+		public List<string>? GeneratedCppDirectories;
 
 		/// <summary>
 		/// List of invalid include directives. These are buffered up and output before we start compiling.
 		/// </summary>
-		public List<string> InvalidIncludeDirectiveMessages;
+		public List<string>? InvalidIncludeDirectiveMessages;
 
 		/// <summary>
 		/// Set of source directories referenced during a build
 		/// </summary>
-		HashSet<DirectoryReference> SourceDirectories;
+		HashSet<DirectoryReference>? SourceDirectories;
 
 		protected override void GetReferencedDirectories(HashSet<DirectoryReference> Directories)
 		{
@@ -170,7 +170,7 @@ namespace UnrealBuildTool
         };
 
 
-		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference GeneratedCodeDirectory)
+		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference? GeneratedCodeDirectory)
 			: base(Rules, IntermediateDirectory)
 		{
 			this.GeneratedCodeDirectory = GeneratedCodeDirectory;
@@ -283,7 +283,7 @@ namespace UnrealBuildTool
 		/// Sets up the environment for compiling any module that includes the public interface of this module.
 		/// </summary>
 		public override void AddModuleToCompileEnvironment(
-			UEBuildBinary SourceBinary,
+			UEBuildBinary? SourceBinary,
 			HashSet<DirectoryReference> IncludePaths,
 			HashSet<DirectoryReference> SystemIncludePaths,
 			HashSet<DirectoryReference> ModuleInterfacePaths,
@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 			// to search it so we can pick up generated code definitions after UHT is run for the first time.
 			if(bAddGeneratedCodeIncludePath || (ProjectFileGenerator.bGenerateProjectFiles && GeneratedCodeDirectory != null))
 			{
-				IncludePaths.Add(GeneratedCodeDirectory);
+				IncludePaths.Add(GeneratedCodeDirectory!);
 
 				if (Rules.AdditionalCodeGenDirectories != null)
 				{
@@ -641,7 +641,7 @@ namespace UnrealBuildTool
 		/// <param name="ModuleCompileEnvironment"></param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
 		/// <returns>The created PCH instance.</returns>
-		private PrecompiledHeaderInstance CreatePrivatePCH(UEToolChain ToolChain, FileItem HeaderFile, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
+		private PrecompiledHeaderInstance CreatePrivatePCH(UEToolChain? ToolChain, FileItem HeaderFile, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
 		{
 			// Create the wrapper file, which sets all the definitions needed to compile it
 			FileReference WrapperLocation = FileReference.Combine(IntermediateDirectory, String.Format("PCH.{0}.h", Name));
@@ -675,9 +675,9 @@ namespace UnrealBuildTool
 		/// <param name="ModuleCompileEnvironment">Compile environment for the current module</param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
 		/// <returns>Instance of a PCH</returns>
-		public PrecompiledHeaderInstance FindOrCreateSharedPCH(UEToolChain ToolChain, PrecompiledHeaderTemplate Template, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
+		public PrecompiledHeaderInstance FindOrCreateSharedPCH(UEToolChain? ToolChain, PrecompiledHeaderTemplate Template, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
 		{
-			PrecompiledHeaderInstance Instance = Template.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment));
+			PrecompiledHeaderInstance? Instance = Template.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment));
 			if(Instance == null)
 			{
 				// Create a suffix to distinguish this shared PCH variant from any others. Currently only optimized and non-optimized shared PCHs are supported.
@@ -1023,7 +1023,7 @@ namespace UnrealBuildTool
 		/// <param name="CompileEnvironment">The current compile environment</param>
 		/// <param name="LinkInputFiles">List of files that will be linked for the target</param>
 		/// <param name="Graph">List of build actions</param>
-		CppCompileEnvironment SetupPrecompiledHeaders(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> LinkInputFiles, IActionGraphBuilder Graph)
+		CppCompileEnvironment SetupPrecompiledHeaders(ReadOnlyTargetRules Target, UEToolChain? ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> LinkInputFiles, IActionGraphBuilder Graph)
 		{
 			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
 			{
@@ -1099,7 +1099,7 @@ namespace UnrealBuildTool
 		/// <param name="IntermediateDirectory">Directory to create the intermediate file</param>
 		/// <param name="HeaderSuffix">Suffix for the included file</param>
 		/// <param name="Graph">The action graph being built</param>
-		static void CreateHeaderForDefinitions(CppCompileEnvironment CompileEnvironment, DirectoryReference IntermediateDirectory, string HeaderSuffix, IActionGraphBuilder Graph)
+		static void CreateHeaderForDefinitions(CppCompileEnvironment CompileEnvironment, DirectoryReference IntermediateDirectory, string? HeaderSuffix, IActionGraphBuilder Graph)
 		{
 			if(CompileEnvironment.Definitions.Count > 0)
 			{
@@ -1219,14 +1219,14 @@ namespace UnrealBuildTool
 					{
 						foreach (FileItem CppFile in CppFiles)
 						{
-							string FirstInclude = ModuleCompileEnvironment.MetadataCache.GetFirstInclude(CppFile);
+							string? FirstInclude = ModuleCompileEnvironment.MetadataCache.GetFirstInclude(CppFile);
 							if(FirstInclude != null)
 							{
 								string IncludeName = Path.GetFileNameWithoutExtension(FirstInclude);
 								string ExpectedName = CppFile.Location.GetFileNameWithoutExtension();
 								if (String.Compare(IncludeName, ExpectedName, StringComparison.OrdinalIgnoreCase) != 0)
 								{
-									FileReference HeaderFile;
+									FileReference? HeaderFile;
 									if (NameToHeaderFile.TryGetValue(ExpectedName, out HeaderFile) && !IgnoreMismatchedHeader(ExpectedName))
 									{
 										InvalidIncludeDirectiveMessages.Add(String.Format("{0}(1): error: Expected {1} to be first header included.", CppFile.Location, HeaderFile.GetFileName()));
@@ -1415,11 +1415,11 @@ namespace UnrealBuildTool
 		public override void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
 		{
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
-			AllDependencyModules.AddRange(PrivateDependencyModules);
-			AllDependencyModules.AddRange(PublicDependencyModules);
+			AllDependencyModules.AddRange(PrivateDependencyModules!);
+			AllDependencyModules.AddRange(PublicDependencyModules!);
 			if (bIncludeDynamicallyLoaded)
 			{
-				AllDependencyModules.AddRange(DynamicallyLoadedModules);
+				AllDependencyModules.AddRange(DynamicallyLoadedModules!);
 			}
 
 			foreach (UEBuildModule DependencyModule in AllDependencyModules)

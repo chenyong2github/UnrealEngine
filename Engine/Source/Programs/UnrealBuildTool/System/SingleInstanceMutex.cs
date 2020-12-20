@@ -19,7 +19,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The global mutex instance
 		/// </summary>
-		Mutex GlobalMutex;
+		Mutex? GlobalMutex;
 
 		/// <summary>
 		/// Constructor. Attempts to acquire the global mutex

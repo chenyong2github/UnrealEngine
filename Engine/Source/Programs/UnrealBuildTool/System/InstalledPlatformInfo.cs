@@ -120,12 +120,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static List<InstalledPlatformConfiguration> InstalledPlatformConfigurations;
+		private static List<InstalledPlatformConfiguration>? InstalledPlatformConfigurations;
 
 		static InstalledPlatformInfo()
 		{
-			List<string> InstalledPlatforms;
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, BuildHostPlatform.Current.Platform);
+			List<string>? InstalledPlatforms;
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference?)null, BuildHostPlatform.Current.Platform);
 
 			bool bHasInstalledPlatformInfo;
 			if(Ini.TryGetValue("InstalledPlatforms", "HasInstalledPlatformInfo", out bHasInstalledPlatformInfo) && bHasInstalledPlatformInfo)
@@ -227,7 +227,7 @@ namespace UnrealBuildTool
 
 			if (bCanCreateEntry)
 			{
-				InstalledPlatformConfigurations.Add(new InstalledPlatformConfiguration(Configuration, UnrealTargetPlatform.Parse(PlatformName), PlatformType, Architecture, RequiredFile, ProjectType, bCanBeDisplayed));
+				InstalledPlatformConfigurations!.Add(new InstalledPlatformConfiguration(Configuration, UnrealTargetPlatform.Parse(PlatformName), PlatformType, Architecture, RequiredFile, ProjectType, bCanBeDisplayed));
 			}
 		}
 

@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Macro which is defined as part of the header guard. If this macro is defined, we don't need to include the header more than once.
 		/// </summary>
-		public Identifier HeaderGuardMacro;
+		public Identifier? HeaderGuardMacro;
 
 		/// <summary>
 		/// Parsed fragments in this file. Only set for files which are being optimized.
@@ -61,18 +61,20 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">Location of the file</param>
 		public SourceFile(FileItem File)
-			: this(ReadFileWithNullTerminator(File.Location))
+			: this(File, ReadFileWithNullTerminator(File.Location))
 		{
-			this.File = File;
 			this.LastWriteTimeUtc = File.LastWriteTimeUtc.Ticks;
 		}
 
 		/// <summary>
 		/// Construct a SourceFile from a raw byte array
 		/// </summary>
+		/// <param name="File">Location of the file</param>
 		/// <param name="Data">Contents of the file</param>
-		public SourceFile(byte[] Data)
+		public SourceFile(FileItem File, byte[] Data)
 		{
+			this.File = File;
+
 			// Compute the hash
 			Hash = ContentHash.MD5(Data);
 
@@ -201,14 +203,14 @@ namespace UnrealBuildTool
 				int MinIdx = 0;
 
 				// Get the define used for the header guard
-				Identifier PossibleHeaderGuardMacro;
-				if(Markup[MinIdx].Type == SourceFileMarkupType.Ifndef && Markup[MinIdx].Tokens.Count == 1 && Markup[MinIdx].Tokens[0].Type == TokenType.Identifier)
+				Identifier? PossibleHeaderGuardMacro;
+				if(Markup[MinIdx].Type == SourceFileMarkupType.Ifndef && Markup[MinIdx].Tokens!.Count == 1 && Markup[MinIdx].Tokens![0].Type == TokenType.Identifier)
 				{
-					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens[0].Identifier;
+					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens![0].Identifier!;
 				}
-				else if(Markup[MinIdx].Type == SourceFileMarkupType.If && Markup[MinIdx].Tokens.Count == 3 && Markup[MinIdx].Tokens[0].Type == TokenType.LogicalNot && Markup[MinIdx].Tokens[1].Identifier == Identifiers.Defined && Markup[MinIdx].Tokens[2].Type == TokenType.Identifier)
+				else if(Markup[MinIdx].Type == SourceFileMarkupType.If && Markup[MinIdx].Tokens!.Count == 3 && Markup[MinIdx].Tokens![0].Type == TokenType.LogicalNot && Markup[MinIdx].Tokens![1].Identifier == Identifiers.Defined && Markup[MinIdx].Tokens![2].Type == TokenType.Identifier)
 				{
-					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens[2].Identifier;
+					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens![2].Identifier!;
 				}
 				else
 				{
@@ -216,7 +218,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check it starts with an #if or #ifdef
-				if (Markup[MinIdx + 1].Type == SourceFileMarkupType.Define && Markup[MinIdx + 1].Tokens.Count == 1 && Markup[MinIdx + 1].Tokens[0].Identifier == PossibleHeaderGuardMacro)
+				if (Markup[MinIdx + 1].Type == SourceFileMarkupType.Define && Markup[MinIdx + 1].Tokens!.Count == 1 && Markup[MinIdx + 1].Tokens![0].Identifier == PossibleHeaderGuardMacro)
 				{
 					// Find the point at which the include depth goes back to zero
 					int MaxIdx = MinIdx + 1;

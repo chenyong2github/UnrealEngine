@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -38,7 +39,7 @@ namespace UnrealBuildTool
 		/// <param name="FieldName">Name of the field to read</param>
 		/// <param name="OutBuildSteps">Output variable to store the sorted dictionary that was read</param>
 		/// <returns>True if the field was read (and OutBuildSteps is set), false otherwise.</returns>
-		public static bool TryRead(JsonObject RawObject, string FieldName, out CustomBuildSteps OutBuildSteps)
+		public static bool TryRead(JsonObject RawObject, string FieldName, [NotNullWhen(true)] out CustomBuildSteps? OutBuildSteps)
 		{
 			JsonObject BuildStepsObject;
 			if(RawObject.TryGetObjectField(FieldName, out BuildStepsObject))
@@ -80,9 +81,9 @@ namespace UnrealBuildTool
 		/// <param name="HostPlatform">The host platform to look for</param>
 		/// <param name="OutCommands">Array of commands</param>
 		/// <returns>True if a list of commands was generated</returns>
-		public bool TryGetCommands(UnrealTargetPlatform HostPlatform, out string[] OutCommands)
+		public bool TryGetCommands(UnrealTargetPlatform HostPlatform, [NotNullWhen(true)] out string[]? OutCommands)
 		{
-			string[] Commands;
+			string[]? Commands;
 			if(HostPlatformToCommands.TryGetValue(HostPlatform, out Commands) && Commands.Length > 0)
 			{
 				OutCommands = Commands;

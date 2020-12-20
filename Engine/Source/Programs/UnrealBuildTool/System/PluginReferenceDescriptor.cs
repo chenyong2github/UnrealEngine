@@ -34,47 +34,47 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Description of the plugin for users that do not have it installed.
 		/// </summary>
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// URL for this plugin on the marketplace, if the user doesn't have it installed.
 		/// </summary>
-		public string MarketplaceURL;
+		public string? MarketplaceURL;
 
 		/// <summary>
 		/// If enabled, list of platforms for which the plugin should be enabled (or all platforms if blank).
 		/// </summary>
-		public List<UnrealTargetPlatform> WhitelistPlatforms;
+		public List<UnrealTargetPlatform>? WhitelistPlatforms;
 
 		/// <summary>
 		/// If enabled, list of platforms for which the plugin should be disabled.
 		/// </summary>
-		public List<UnrealTargetPlatform> BlacklistPlatforms;
+		public List<UnrealTargetPlatform>? BlacklistPlatforms;
 
 		/// <summary>
 		/// If enabled, list of target configurations for which the plugin should be enabled (or all target configurations if blank).
 		/// </summary>
-		public UnrealTargetConfiguration[] WhitelistTargetConfigurations;
+		public UnrealTargetConfiguration[]? WhitelistTargetConfigurations;
 
 		/// <summary>
 		/// If enabled, list of target configurations for which the plugin should be disabled.
 		/// </summary>
-		public UnrealTargetConfiguration[] BlacklistTargetConfigurations;
+		public UnrealTargetConfiguration[]? BlacklistTargetConfigurations;
 
 		/// <summary>
 		/// If enabled, list of targets for which the plugin should be enabled (or all targets if blank).
 		/// </summary>
-		public TargetType[] WhitelistTargets;
+		public TargetType[]? WhitelistTargets;
 
 		/// <summary>
 		/// If enabled, list of targets for which the plugin should be disabled.
 		/// </summary>
-		public TargetType[] BlacklistTargets;
+		public TargetType[]? BlacklistTargets;
 
 		/// <summary>
 		/// The list of supported platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's whitelisted and blacklisted platforms.
 		/// </summary>
-		public List<UnrealTargetPlatform> SupportedTargetPlatforms;
+		public List<UnrealTargetPlatform>? SupportedTargetPlatforms;
 
 		/// <summary>
 		/// Constructor
@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 		/// <param name="InName">Name of the plugin</param>
 		/// <param name="InMarketplaceURL">The marketplace URL for plugins which are not installed</param>
 		/// <param name="bInEnabled">Whether the plugin is enabled</param>
-		public PluginReferenceDescriptor(string InName, string InMarketplaceURL, bool bInEnabled)
+		public PluginReferenceDescriptor(string InName, string? InMarketplaceURL, bool bInEnabled)
 		{
 			Name = InName;
 			MarketplaceURL = InMarketplaceURL;
@@ -147,7 +147,7 @@ namespace UnrealBuildTool
 		/// <param name="Writer">The Json writer to output to</param>
 		/// <param name="Name">Name of the array</param>
 		/// <param name="Plugins">Array of plugins</param>
-		public static void WriteArray(JsonWriter Writer, string Name, PluginReferenceDescriptor[] Plugins)
+		public static void WriteArray(JsonWriter Writer, string Name, PluginReferenceDescriptor[]? Plugins)
 		{
 			if (Plugins != null && Plugins.Length > 0)
 			{
@@ -167,9 +167,9 @@ namespace UnrealBuildTool
 		/// <returns>New PluginReferenceDescriptor object</returns>
 		public static PluginReferenceDescriptor FromJsonObject(JsonObject RawObject)
 		{
-			string[] WhitelistPlatformNames = null;
-			string[] BlacklistPlatformNames = null;
-			string[] SupportedTargetPlatformNames = null;
+			string[]? WhitelistPlatformNames = null;
+			string[]? BlacklistPlatformNames = null;
+			string[]? SupportedTargetPlatformNames = null;
 
 			PluginReferenceDescriptor Descriptor = new PluginReferenceDescriptor(RawObject.GetStringField("Name"), null, RawObject.GetBoolField("Enabled"));
 			RawObject.TryGetBoolField("Optional", out Descriptor.bOptional);

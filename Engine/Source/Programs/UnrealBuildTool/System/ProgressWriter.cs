@@ -27,12 +27,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The inner scope object
 		/// </summary>
-		LogStatusScope Status;
+		LogStatusScope? Status;
 
 		/// <summary>
 		/// The current progress message
 		/// </summary>
-		string CurrentProgressString;
+		string? CurrentProgressString;
 
 		/// <summary>
 		/// Constructor

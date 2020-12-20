@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -52,10 +53,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Obj">Object to compare against</param>
 		/// <returns>True if the objects are equal, false otherwise.</returns>
-		public override bool Equals(object Obj)
+		public override bool Equals(object? Obj)
 		{
-			VersionNumber Version = Obj as VersionNumber;
-			return Version != null && this == Version;
+			VersionNumber? Version = Obj as VersionNumber;
+			return !ReferenceEquals(Version, null) && this == Version;
 		}
 
 		/// <summary>
@@ -150,9 +151,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Other">Other version number to compare to</param>
 		/// <returns>A negative value if this version is before Other, a positive value if this version is after Other, and zero otherwise.</returns>
-		public int CompareTo(VersionNumber Other)
+		public int CompareTo(VersionNumber? Other)
 		{
-			return Compare(this, Other);
+			return ReferenceEquals(Other, null)? 1 : Compare(this, Other);
 		}
 
 		/// <summary>
@@ -211,7 +212,7 @@ namespace UnrealBuildTool
 		/// <param name="Text">The string to parse</param>
 		/// <param name="OutNumber">Variable to receive the parsed version number</param>
 		/// <returns>A version number object</returns>
-		public static bool TryParse(string Text, out VersionNumber OutNumber)
+		public static bool TryParse(string Text, [NotNullWhen(true)] out VersionNumber? OutNumber)
 		{
 			List<int> Components = new List<int>();
 			foreach(string TextElement in Text.Split(Delimiters))

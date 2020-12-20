@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,11 +24,11 @@ namespace UnrealBuildTool
 		class DependencyInfo
 		{
 			public long LastWriteTimeUtc;
-			public string ProducedModule;
-			public List<string> ImportedModules;
+			public string? ProducedModule;
+			public List<string>? ImportedModules;
 			public List<FileItem> Files;
 
-			public DependencyInfo(long LastWriteTimeUtc, string ProducedModule, List<string> ImportedModules, List<FileItem> Files)
+			public DependencyInfo(long LastWriteTimeUtc, string? ProducedModule, List<string>? ImportedModules, List<FileItem> Files)
 			{
 				this.LastWriteTimeUtc = LastWriteTimeUtc;
 				this.ProducedModule = ProducedModule;
@@ -71,7 +72,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The parent cache.
 		/// </summary>
-		CppDependencyCache Parent;
+		CppDependencyCache? Parent;
 
 		/// <summary>
 		/// Map from file item to dependency info
@@ -94,7 +95,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">File to store the cache</param>
 		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
 		/// <param name="Parent">The parent cache to use</param>
-		private CppDependencyCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache Parent)
+		private CppDependencyCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache? Parent)
 		{
 			this.Location = Location;
 			this.BaseDir = BaseDir;
@@ -112,9 +113,9 @@ namespace UnrealBuildTool
 		/// <param name="InputFile">The dependencies file</param>
 		/// <param name="OutModule">The produced module name</param>
 		/// <returns>True if a produced module was found</returns>
-		public bool TryGetProducedModule(FileItem InputFile, out string OutModule)
+		public bool TryGetProducedModule(FileItem InputFile, [NotNullWhen(true)] out string? OutModule)
 		{
-			DependencyInfo Info;
+			DependencyInfo? Info;
 			if (TryGetDependencyInfo(InputFile, out Info) && Info.ProducedModule != null)
 			{
 				OutModule = Info.ProducedModule;
@@ -133,13 +134,13 @@ namespace UnrealBuildTool
 		/// <param name="InputFile">The dependency file to query</param>
 		/// <param name="OutImportedModules">List of imported modules</param>
 		/// <returns>True if a list of imported modules was obtained</returns>
-		public bool TryGetImportedModules(FileItem InputFile, out List<string> OutImportedModules)
+		public bool TryGetImportedModules(FileItem InputFile, [NotNullWhen(true)] out List<string>? OutImportedModules)
 		{
-			DependencyInfo Info;
+			DependencyInfo? Info;
 			if (TryGetDependencyInfo(InputFile, out Info))
 			{
 				OutImportedModules = Info.ImportedModules;
-				return true;
+				return OutImportedModules != null;
 			}
 			else
 			{
@@ -154,9 +155,9 @@ namespace UnrealBuildTool
 		/// <param name="InputFile">File to be read</param>
 		/// <param name="OutDependencyItems">Receives a list of output items</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		public bool TryGetDependencies(FileItem InputFile, out List<FileItem> OutDependencyItems)
+		public bool TryGetDependencies(FileItem InputFile, [NotNullWhen(true)] out List<FileItem>? OutDependencyItems)
 		{
-			DependencyInfo Info;
+			DependencyInfo? Info;
 			if (TryGetDependencyInfo(InputFile, out Info))
 			{
 				OutDependencyItems = Info.Files;
@@ -175,7 +176,7 @@ namespace UnrealBuildTool
 		/// <param name="InputFile">File to be read</param>
 		/// <param name="OutInfo">The dependency info</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		private bool TryGetDependencyInfo(FileItem InputFile, out DependencyInfo OutInfo)
+		private bool TryGetDependencyInfo(FileItem InputFile, [NotNullWhen(true)] out DependencyInfo? OutInfo)
 		{
 			if (!InputFile.Exists)
 			{
@@ -201,7 +202,7 @@ namespace UnrealBuildTool
 		/// <param name="InputFile">File to be read</param>
 		/// <param name="OutInfo">The dependency info</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		private bool TryGetDependencyInfoInternal(FileItem InputFile, out DependencyInfo OutInfo)
+		private bool TryGetDependencyInfoInternal(FileItem InputFile, [NotNullWhen(true)] out DependencyInfo? OutInfo)
 		{
 			if (Parent != null && !InputFile.Location.IsUnderDirectory(BaseDir))
 			{
@@ -209,7 +210,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				DependencyInfo Info;
+				DependencyInfo? Info;
 				if (!DependencyFileToInfo.TryGetValue(InputFile, out Info) || InputFile.LastWriteTimeUtc.Ticks > Info.LastWriteTimeUtc)
 				{
 					Info = ReadDependencyInfo(InputFile);
@@ -232,9 +233,9 @@ namespace UnrealBuildTool
 		/// <param name="TargetType">The target type</param>
 		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static CppDependencyCache CreateHierarchy(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
+		public static CppDependencyCache CreateHierarchy(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
 		{
-			CppDependencyCache Cache = null;
+			CppDependencyCache Cache = null!;
 
 			if (ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
@@ -268,11 +269,11 @@ namespace UnrealBuildTool
 		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
 		/// <param name="Parent">The parent cache to use</param>
 		/// <returns>Reference to a dependency cache with the given settings</returns>
-		static CppDependencyCache FindOrAddCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache Parent)
+		static CppDependencyCache FindOrAddCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache? Parent)
 		{
 			lock (Caches)
 			{
-				CppDependencyCache Cache;
+				CppDependencyCache? Cache;
 				if (Caches.TryGetValue(Location, out Cache))
 				{
 					Debug.Assert(Cache.BaseDir == BaseDir);

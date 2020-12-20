@@ -49,7 +49,7 @@ namespace UnrealBuildTool
 		/// Specifies the file to use for logging.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public string BaseLogFileName;
+		public string? BaseLogFileName;
 
 		/// <summary>
 		/// Whether to skip checking for files identified by the junk manifest.
@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 		/// Whether we should just export the outdated actions list
 		/// </summary>
 		[CommandLine("-WriteOutdatedActions=")]
-		public FileReference WriteOutdatedActionsFile = null;
+		public FileReference? WriteOutdatedActionsFile = null;
 
 		/// <summary>
 		/// Main entry point
@@ -248,7 +248,7 @@ namespace UnrealBuildTool
 		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
 		/// <param name="bSkipPreBuildTargets">If true then only the current target descriptors will be built.</param>
 		/// <returns>Result from the compilation</returns>
-		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile, bool bSkipPreBuildTargets = false)
+		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference? WriteOutdatedActionsFile, bool bSkipPreBuildTargets = false)
 		{
 
 			List<TargetMakefile> TargetMakefiles = new List<TargetMakefile>();
@@ -270,7 +270,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Build(TargetMakefiles.ToArray(), TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile);
+			Build(TargetMakefiles.ToArray(), TargetDescriptors, BuildConfiguration, Options, WriteOutdatedActionsFile);
 		}
 
 		/// <summary>
@@ -279,11 +279,10 @@ namespace UnrealBuildTool
 		/// <param name="Makefiles">Makefiles created with CreateMakefiles</param>
 		/// <param name="TargetDescriptors">Target descriptors</param>
 		/// <param name="BuildConfiguration">Current build configuration</param>
-		/// <param name="WorkingSet">The source file working set</param>
 		/// <param name="Options">Additional options for the build</param>
 		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
 		/// <returns>Result from the compilation</returns>
-		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile)
+		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, BuildOptions Options, FileReference? WriteOutdatedActionsFile)
 		{
 			// Execute the build
 			if ((Options & BuildOptions.SkipBuild) == 0)
@@ -388,10 +387,10 @@ namespace UnrealBuildTool
 						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 						foreach(LinkedAction PrerequisiteAction in PrerequisiteActions)
 						{
-							ICppCompileAction CppModulesAction = PrerequisiteAction.Inner as ICppCompileAction;
+							ICppCompileAction? CppModulesAction = PrerequisiteAction.Inner as ICppCompileAction;
 							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
 							{
-								string ProducedModule;
+								string? ProducedModule;
 								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile, out ProducedModule))
 								{
 									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
@@ -405,12 +404,12 @@ namespace UnrealBuildTool
 						{
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
 							{
-								List<string> ImportedModules;
+								List<string>? ImportedModules;
 								if(CppDependencies.TryGetImportedModules(PrerequisiteAction.DependencyListFile, out ImportedModules))
 								{
 									foreach (string ImportedModule in ImportedModules)
 									{
-										FileItem ModuleOutput;
+										FileItem? ModuleOutput;
 										if (ModuleOutputs.TryGetValue(ImportedModule, out ModuleOutput))
 										{
 											Action NewAction = new Action(PrerequisiteAction.Inner);
@@ -429,7 +428,7 @@ namespace UnrealBuildTool
 							{
 								foreach(FileItem PrerequisiteItem in PrerequisiteAction.PrerequisiteItems)
 								{
-									string ModuleName;
+									string? ModuleName;
 									if(ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
 									{
 										Action NewAction = new Action(PrerequisiteAction.Inner);
@@ -630,19 +629,19 @@ namespace UnrealBuildTool
 		static TargetMakefile CreateMakefile(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, ISourceFileWorkingSet WorkingSet)
 		{
 			// Get the path to the makefile for this target
-			FileReference MakefileLocation = null;
+			FileReference? MakefileLocation = null;
 			if(BuildConfiguration.bUseUBTMakefiles && TargetDescriptor.SpecificFilesToCompile.Count == 0)
 			{
 				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration);
 			}
 
 			// Try to load an existing makefile
-			TargetMakefile Makefile = null;
+			TargetMakefile? Makefile = null;
 			if(MakefileLocation != null)
 			{
 				using(Timeline.ScopeEvent("TargetMakefile.Load()"))
 				{
-					string ReasonNotLoaded;
+					string? ReasonNotLoaded;
 					Makefile = TargetMakefile.Load(MakefileLocation, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, TargetDescriptor.AdditionalArguments.GetRawArray(), out ReasonNotLoaded);
 					if (Makefile == null)
 					{
@@ -666,7 +665,7 @@ namespace UnrealBuildTool
 				bHasRunPreBuildScripts = true;
 
 				// Check that the makefile is still valid
-				string Reason;
+				string? Reason;
 				if(!TargetMakefile.IsValidForSourceFiles(Makefile, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, WorkingSet, out Reason))
 				{
 					Log.TraceInformation("Invalidating makefile for {0} ({1})", TargetDescriptor.Name, Reason);
@@ -708,9 +707,12 @@ namespace UnrealBuildTool
 				Makefile.AdditionalArguments = TargetDescriptor.AdditionalArguments.GetRawArray();
 
 				// Save the environment variables
-				foreach (System.Collections.DictionaryEntry EnvironmentVariable in Environment.GetEnvironmentVariables())
+				foreach (System.Collections.DictionaryEntry? EnvironmentVariable in Environment.GetEnvironmentVariables())
 				{
-					Makefile.EnvironmentVariables.Add(Tuple.Create((string)EnvironmentVariable.Key, (string)EnvironmentVariable.Value));
+					if (EnvironmentVariable != null)
+					{
+						Makefile.EnvironmentVariables.Add(Tuple.Create((string)EnvironmentVariable.Value.Key, (string)EnvironmentVariable.Value.Value!));
+					}
 				}
 
 				// Save the makefile for next time
@@ -765,7 +767,7 @@ namespace UnrealBuildTool
 				// Find the output items for this module
 				foreach(string OnlyModuleName in TargetDescriptor.OnlyModuleNames)
 				{
-					FileItem[] OutputItemsForModule;
+					FileItem[]? OutputItemsForModule;
 					if(!Makefile.ModuleNameToOutputItems.TryGetValue(OnlyModuleName, out OutputItemsForModule))
 					{
 						throw new BuildException("Unable to find output items for module '{0}'", OnlyModuleName);
@@ -797,7 +799,7 @@ namespace UnrealBuildTool
 				{
 					FileItem ProducedItem = TargetAction.ProducedItems.First();
 
-					LinkedAction ExistingAction;
+					LinkedAction? ExistingAction;
 					if(!OutputItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
 						ExistingAction = new LinkedAction(TargetAction);

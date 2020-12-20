@@ -24,7 +24,7 @@ namespace UnrealBuildTool.Storage.Impl
 		/// </summary>
 		class StorageReader : IStorageReader
 		{
-			public Stream Stream
+			public Stream? Stream
 			{
 				get;
 				private set;
@@ -55,10 +55,10 @@ namespace UnrealBuildTool.Storage.Impl
 		/// </summary>
 		class StorageWriter : IStorageWriter
 		{
-			FileReference TempLocation;
+			FileReference? TempLocation;
 			FileReference FinalLocation;
 
-			public Stream Stream
+			public Stream? Stream
 			{
 				get;
 				private set;
@@ -80,7 +80,7 @@ namespace UnrealBuildTool.Storage.Impl
 					throw new InvalidOperationException("Item has already been committed");
 				}
 
-				Stream.Close();
+				Stream?.Close();
 
 				try
 				{

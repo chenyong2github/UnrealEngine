@@ -9,6 +9,7 @@ using System.Xml.Serialization;
 using System.ComponentModel;
 using System.Runtime.Serialization;
 using Tools.DotNETCommon;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -74,6 +75,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private BuildProduct()
 		{
+			Path = null!;
 		}
 
 		/// <summary>
@@ -154,6 +156,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private RuntimeDependency()
 		{
+			Path = null!;
 		}
 
 		/// <summary>
@@ -258,12 +261,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Path to the project file for this target
 		/// </summary>
-		public FileReference ProjectFile;
+		public FileReference? ProjectFile;
 
 		/// <summary>
 		/// The project directory
 		/// </summary>
-		public DirectoryReference ProjectDir;
+		public DirectoryReference? ProjectDir;
 
 		/// <summary>
 		/// The name of this target
@@ -298,7 +301,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The exectuable to launch for this target
 		/// </summary>
-		public FileReference Launch;
+		public FileReference? Launch;
 
 		/// <summary>
 		/// The build products which are part of this target
@@ -321,13 +324,6 @@ namespace UnrealBuildTool
 		public List<ReceiptProperty> AdditionalProperties = new List<ReceiptProperty>();
 
 		/// <summary>
-		/// Default constructor
-		/// </summary>
-		public TargetReceipt()
-		{
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InProjectFile">Path to the project file for this target</param>
@@ -337,7 +333,7 @@ namespace UnrealBuildTool
 		/// <param name="InConfiguration">Configuration of the target being compiled</param>
 		/// <param name="InVersion">Version information for the target</param>
 		/// <param name="InArchitecture">Architecture information for the target</param>
-		public TargetReceipt(FileReference InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, string InArchitecture)
+		public TargetReceipt(FileReference? InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, string InArchitecture)
 		{
 			ProjectFile = InProjectFile;
 			ProjectDir = DirectoryReference.FromFile(InProjectFile);
@@ -347,31 +343,6 @@ namespace UnrealBuildTool
 			TargetType = InTargetType;
 			Version = InVersion;
 			Architecture = InArchitecture;
-		}
-
-		/// <summary>
-		/// Copy constructor
-		/// </summary>
-		/// <param name="Other">Receipt to copy from</param>
-		public TargetReceipt(TargetReceipt Other)
-		{
-			Launch = Other.Launch;
-			foreach (BuildProduct OtherBuildProduct in Other.BuildProducts)
-			{
-				BuildProducts.Add(new BuildProduct(OtherBuildProduct));
-			}
-			foreach (RuntimeDependency OtherRuntimeDependency in Other.RuntimeDependencies)
-			{
-				RuntimeDependencies.Add(new RuntimeDependency(OtherRuntimeDependency));
-			}
-			foreach (KeyValuePair<string, bool> Pair in Other.PluginNameToEnabledState)
-			{
-				if (!PluginNameToEnabledState.ContainsKey(Pair.Key))
-				{
-					PluginNameToEnabledState.Add(Pair.Key, Pair.Value);
-				}
-			}
-			AdditionalProperties.AddRange(Other.AdditionalProperties);
 		}
 
 		/// <summary>
@@ -420,7 +391,7 @@ namespace UnrealBuildTool
 		/// <param name="EngineDir">Value of the $(EngineDir) variable.</param>
 		/// <param name="ProjectDir">Value of the $(ProjectDir) variable.</param>
 		/// <returns>Converted path for the file.</returns>
-		static string InsertPathVariables(FileReference File, DirectoryReference EngineDir, DirectoryReference ProjectDir)
+		static string InsertPathVariables(FileReference File, DirectoryReference EngineDir, DirectoryReference? ProjectDir)
 		{
 			if (File.IsUnderDirectory(EngineDir))
 			{
@@ -443,7 +414,7 @@ namespace UnrealBuildTool
 		/// <param name="EngineDir">Value of the $(EngineDir) variable.</param>
 		/// <param name="ProjectDir">Value of the $(ProjectDir) variable.</param>
 		/// <returns>Converted path for the file.</returns>
-		static FileReference ExpandPathVariables(string Path, DirectoryReference EngineDir, DirectoryReference ProjectDir)
+		static FileReference ExpandPathVariables(string Path, DirectoryReference EngineDir, DirectoryReference? ProjectDir)
 		{
 			const string EnginePrefix = "$(EngineDir)";
 			if(Path.StartsWith(EnginePrefix, StringComparison.InvariantCultureIgnoreCase))
@@ -549,14 +520,14 @@ namespace UnrealBuildTool
 			UnrealTargetConfiguration Configuration = RawObject.GetEnumField<UnrealTargetConfiguration>("Configuration");
 
 			// Try to read the build version
-			BuildVersion Version;
+			BuildVersion? Version;
 			if (!BuildVersion.TryParse(RawObject.GetObjectField("Version"), out Version))
 			{
 				throw new JsonParseException("Invalid 'Version' field");
 			}
 
 			// Read the project path
-			FileReference ProjectFile;
+			FileReference? ProjectFile;
 
 			string RelativeProjectFile;
 			if(RawObject.TryGetStringField("Project", out RelativeProjectFile))
@@ -580,7 +551,7 @@ namespace UnrealBuildTool
 			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
 
 			// Get the project directory
-			DirectoryReference ProjectDir = Receipt.ProjectDir;
+			DirectoryReference? ProjectDir = Receipt.ProjectDir;
 
 			// Read the launch executable
 			string Launch;
@@ -682,7 +653,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">Filename to read from</param>
 		/// <param name="Receipt">If successful, the receipt that was read</param>
 		/// <returns>True if successful</returns>
-		public static bool TryRead(FileReference Location, out TargetReceipt Receipt)
+		public static bool TryRead(FileReference Location, [NotNullWhen(true)] out TargetReceipt? Receipt)
 		{
 			return TryRead(Location, UnrealBuildTool.EngineDirectory, out Receipt);
 		}
@@ -694,7 +665,7 @@ namespace UnrealBuildTool
 		/// <param name="EngineDir">Engine directory for expanded paths</param>
 		/// <param name="Receipt">If successful, the receipt that was read</param>
 		/// <returns>True if successful</returns>
-		public static bool TryRead(FileReference Location, DirectoryReference EngineDir, out TargetReceipt Receipt)
+		public static bool TryRead(FileReference Location, DirectoryReference EngineDir, [NotNullWhen(true)] out TargetReceipt? Receipt)
 		{
 			if (!FileReference.Exists(Location))
 			{

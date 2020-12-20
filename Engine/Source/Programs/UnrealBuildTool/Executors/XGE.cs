@@ -16,6 +16,8 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class XGE : ActionExecutor

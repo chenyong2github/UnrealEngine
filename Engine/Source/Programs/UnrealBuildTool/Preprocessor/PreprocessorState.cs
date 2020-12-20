@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -68,7 +69,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current transform. Any queries or state modifications will be recorded in this.
 		/// </summary>
-		PreprocessorTransform Transform;
+		PreprocessorTransform? Transform;
 
 		/// <summary>
 		/// Enumerates the current branches. Do not use this for decision logic; any dependencies will not be tracked.
@@ -126,9 +127,9 @@ namespace UnrealBuildTool
 		/// Detach the current transform
 		/// </summary>
 		/// <returns>The transform object</returns>
-		public PreprocessorTransform EndCapture()
+		public PreprocessorTransform? EndCapture()
 		{
-			PreprocessorTransform PrevTransform = Transform;
+			PreprocessorTransform? PrevTransform = Transform;
 			Transform = null;
 			return PrevTransform;
 		}
@@ -166,7 +167,7 @@ namespace UnrealBuildTool
 		public bool IsMacroDefined(Identifier Name)
 		{
 			// Could account for the fact that we don't need the full definition later...
-			PreprocessorMacro Macro;
+			PreprocessorMacro? Macro;
 			return TryGetMacro(Name, out Macro);
 		}
 
@@ -190,7 +191,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the macro</param>
 		/// <param name="Macro">Receives the macro definition, or null if it's not defined</param>
 		/// <returns>True if the macro is defined, otherwise false</returns>
-		public bool TryGetMacro(Identifier Name, out PreprocessorMacro Macro)
+		public bool TryGetMacro(Identifier Name, [NotNullWhen(true)] out PreprocessorMacro? Macro)
 		{
 			bool bResult = NameToMacro.TryGetValue(Name, out Macro);
 
@@ -199,7 +200,7 @@ namespace UnrealBuildTool
 				Transform.RequiredMacros[Name] = Macro;
 			}
 
-			return bResult;
+			return Macro != null;
 		}
 
 		/// <summary>
@@ -305,9 +306,9 @@ namespace UnrealBuildTool
 			}
 
 			// Check all the required macros match
-			foreach(KeyValuePair<Identifier, PreprocessorMacro> RequiredPair in Transform.RequiredMacros)
+			foreach(KeyValuePair<Identifier, PreprocessorMacro?> RequiredPair in Transform.RequiredMacros)
 			{
-				PreprocessorMacro Macro;
+				PreprocessorMacro? Macro;
 				if(NameToMacro.TryGetValue(RequiredPair.Key, out Macro))
 				{
 					if(RequiredPair.Value == null || !Macro.IsEquivalentTo(RequiredPair.Value))
@@ -344,7 +345,7 @@ namespace UnrealBuildTool
 			Branches.AddRange(Transform.NewBranches);
 
 			// Update the macro definitions
-			foreach(KeyValuePair<Identifier, PreprocessorMacro> NewMacro in Transform.NewMacros)
+			foreach(KeyValuePair<Identifier, PreprocessorMacro?> NewMacro in Transform.NewMacros)
 			{
 				if(NewMacro.Value == null)
 				{

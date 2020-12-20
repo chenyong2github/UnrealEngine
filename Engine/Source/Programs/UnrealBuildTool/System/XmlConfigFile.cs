@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,7 +36,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Interface to the LineInfo on the active XmlReader
 		/// </summary>
-		IXmlLineInfo LineInfo;
+		IXmlLineInfo LineInfo = null!;
 
 		/// <summary>
 		/// Set to true if the reader encounters an error
@@ -65,7 +66,7 @@ namespace UnrealBuildTool
 		/// <param name="Schema">The schema to validate against</param>
 		/// <param name="OutConfigFile">If successful, the document that was read</param>
 		/// <returns>True if the document could be read, false otherwise</returns>
-		public static bool TryRead(FileReference File, XmlSchema Schema, out XmlConfigFile OutConfigFile)
+		public static bool TryRead(FileReference File, XmlSchema Schema, [NotNullWhen(true)] out XmlConfigFile? OutConfigFile)
 		{
 			XmlConfigFile ConfigFile = new XmlConfigFile(File);
 

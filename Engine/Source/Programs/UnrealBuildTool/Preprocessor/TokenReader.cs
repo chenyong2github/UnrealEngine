@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current token
 		/// </summary>
-		Token CurrentToken;
+		Token? CurrentToken;
 
 		/// <summary>
 		/// Constructor
@@ -183,7 +183,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public Token Current
 		{
-			get { return CurrentToken; }
+			get { return CurrentToken!; }
 		}
 
 		/// <summary>
@@ -446,7 +446,7 @@ namespace UnrealBuildTool
 		public bool MoveNextIncludePath()
 		{
 			bool bResult = MoveNext();
-			if(bResult && CurrentToken.Type == TokenType.CompareLess)
+			if(bResult && Current.Type == TokenType.CompareLess)
 			{
 				int StartOffset = Offset - 1;
 				for(int EndOffset = Offset; Data[EndOffset] != 0 && Data[EndOffset] != '\n'; EndOffset++)

@@ -11,6 +11,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -33,12 +35,12 @@ namespace UnrealBuildTool
 			string[] ParsedFileNames = FileReference.ReadAllLines(ManifestFile);
 
 			// Load all the file timing data and summarize them for the aggregate.
-			FileTimingData = new TimingData() { Name = "Files", Type = TimingDataType.Summary };
+			FileTimingData = new TimingData("Files", TimingDataType.Summary);
 			Parallel.ForEach(ParsedFileNames, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, ParseTimingDataFile);
 
 			// Create aggregate summary. Duration is the duration of the files in the aggregate.
 			string AggregateName = Arguments.GetString("-Name=");
-			TimingData AggregateData = new TimingData() { Name = AggregateName, Type = TimingDataType.Aggregate };
+			TimingData AggregateData = new TimingData(AggregateName, TimingDataType.Aggregate);
 			AggregateData.AddChild(FileTimingData);
 
 			// Group the includes, classes, and functions by name and sum them up then add to the aggregate.
@@ -91,11 +93,11 @@ namespace UnrealBuildTool
 		private void GroupTimingDataOnName(TimingData AggregateData, string TimingName, IEnumerable<TimingData> UngroupedData)
 		{
 			string GroupName = TimingName;
-			TimingData GroupedTimingData = new TimingData() { Name = GroupName, Type = TimingDataType.Summary };
+			TimingData GroupedTimingData = new TimingData(GroupName, TimingDataType.Summary);
 			IEnumerable<IGrouping<string, TimingData>> Groups = UngroupedData.GroupBy(i => i.Name).OrderByDescending(g => g.Sum(d => d.ExclusiveDuration)).ToList();
 			foreach (IGrouping<string, TimingData> Group in Groups)
 			{
-				TimingData GroupedData = new TimingData() { Name = Group.Key, ExclusiveDuration = Group.Sum(d => d.ExclusiveDuration), Count = Group.Sum(d => d.Count) };
+				TimingData GroupedData = new TimingData(Group.Key, TimingDataType.None){ ExclusiveDuration = Group.Sum(d => d.ExclusiveDuration), Count = Group.Sum(d => d.Count) };
 				GroupedTimingData.Children.Add(Group.Key, GroupedData);
 			}
 
@@ -126,7 +128,7 @@ namespace UnrealBuildTool
 					}
 				});
 
-				TimingData SummarizedTimingData = new TimingData() { Name = ParsedTimingData.Name, Parent = FileTimingData, Type = TimingDataType.Summary };
+				TimingData SummarizedTimingData = new TimingData(ParsedTimingData.Name, TimingDataType.Summary){ Parent = FileTimingData };
 				foreach (TimingData Include in ParsedTimingData.Children["IncludeTimings"].Children.Values)
 				{
 					SummarizedTimingData.AddChild(Include.Clone());
@@ -153,7 +155,7 @@ namespace UnrealBuildTool
 					IEnumerable<TimingData> CollapsedClasses = GroupChildren(ParsedTimingData.Children["ClassTimings"].Children.Values, TimingDataType.Class);
 					foreach (TimingData Class in CollapsedClasses)
 					{
-						AggregateClasses.Add(new TimingData() { Name = Class.Name, Type = TimingDataType.Class, ExclusiveDuration = Class.InclusiveDuration });
+						AggregateClasses.Add(new TimingData(Class.Name, TimingDataType.Class){ ExclusiveDuration = Class.InclusiveDuration });
 					}
 				});
 
@@ -163,7 +165,7 @@ namespace UnrealBuildTool
 					IEnumerable<TimingData> CollapsedFunctions = GroupChildren(ParsedTimingData.Children["FunctionTimings"].Children.Values, TimingDataType.Function);
 					foreach (TimingData Function in CollapsedFunctions)
 					{
-						AggregateFunctions.Add(new TimingData() { Name = Function.Name, Type = TimingDataType.Function, ExclusiveDuration = Function.InclusiveDuration });
+						AggregateFunctions.Add(new TimingData(Function.Name, TimingDataType.Function){ ExclusiveDuration = Function.InclusiveDuration });
 					}
 				});
 
@@ -201,7 +203,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					Includes.Add(Include.Name, new TimingData() { Name = Include.Name, Type = TimingDataType.Include, ExclusiveDuration = Include.ExclusiveDuration });
+					Includes.Add(Include.Name, new TimingData(Include.Name, TimingDataType.Include){ ExclusiveDuration = Include.ExclusiveDuration });
 				}
 
 				FlattenIncludes(Includes, Include.Children.Values);
@@ -250,15 +252,11 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				TimingData NewViewModel = new TimingData()
-				{
-					Name = Group.Key,
-					Type = Type,
-				};
+				TimingData NewViewModel = new TimingData(Group.Key, Type);
 
 				foreach (TimingData Child in Group.Value)
 				{
-					TimingData NewChild = new TimingData() { Name = Child.Name, Type = Child.Type, Parent = NewViewModel, ExclusiveDuration = Child.ExclusiveDuration };
+					TimingData NewChild = new TimingData(Child.Name, Child.Type){ Parent = NewViewModel, ExclusiveDuration = Child.ExclusiveDuration };
 					NewViewModel.AddChild(NewChild);
 				}
 

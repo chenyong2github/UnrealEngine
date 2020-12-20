@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -112,7 +113,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the line you want to get</param>
 		/// <param name="OutLine">The result of the operation</param>
 		/// <returns>return true if the line is retrieved return false and null OutLine if Name isn't found in this section</returns>
-		public bool TryGetLine(string Name, out ConfigLine OutLine)
+		public bool TryGetLine(string Name, out ConfigLine? OutLine)
 		{
 			foreach ( ConfigLine Line in Lines)
 			{
@@ -154,12 +155,17 @@ namespace UnrealBuildTool
 		{
 			using (StreamReader Reader = new StreamReader(Location.FullName))
 			{
-				ConfigFileSection CurrentSection = null;
-				while(!Reader.EndOfStream)
+				ConfigFileSection? CurrentSection = null;
+				for(; ;)
 				{
+					string? Line = Reader.ReadLine();
+					if (Line == null)
+					{
+						break;
+					}
+
 					// Find the first non-whitespace character
-					string Line = Reader.ReadLine();
-					for(int StartIdx = 0; StartIdx < Line.Length; StartIdx++)
+					for (int StartIdx = 0; StartIdx < Line.Length; StartIdx++)
 					{
 						if (Line[StartIdx] != ' ' && Line[StartIdx] != '\t')
 						{
@@ -169,7 +175,7 @@ namespace UnrealBuildTool
 							{
 								if(Line[EndIdx - 1] == '\\')
 								{
-									string NextLine = Reader.ReadLine();
+									string? NextLine = Reader.ReadLine();
 									if(NextLine == null)
 									{
 										break;
@@ -246,7 +252,7 @@ namespace UnrealBuildTool
 				string SectionName = Setting.Remove(Setting.IndexOf(':')).Trim(new char[] { '[', ']' });
 				if (SectionName.Length > 0)
 				{
-					ConfigFileSection CurrentSection = null;
+					ConfigFileSection? CurrentSection = null;
 					if (!Sections.TryGetValue(SectionName, out CurrentSection))
 					{
 						CurrentSection = new ConfigFileSection(SectionName);
@@ -361,7 +367,7 @@ namespace UnrealBuildTool
 		/// <returns>The config section</returns>
 		public ConfigFileSection FindOrAddSection(string SectionName)
 		{
-			ConfigFileSection Section;
+			ConfigFileSection? Section;
 			if(!Sections.TryGetValue(SectionName, out Section))
 			{
 				Section = new ConfigFileSection(SectionName);
@@ -376,7 +382,7 @@ namespace UnrealBuildTool
 		/// <param name="SectionName">Name of the section to look for</param>
 		/// <param name="RawSection">On success, the config section that was found</param>
 		/// <returns>True if the section was found, false otherwise</returns>
-		public bool TryGetSection(string SectionName, out ConfigFileSection RawSection)
+		public bool TryGetSection(string SectionName, [NotNullWhen(true)] out ConfigFileSection? RawSection)
 		{
 			return Sections.TryGetValue(SectionName, out RawSection);
 		}

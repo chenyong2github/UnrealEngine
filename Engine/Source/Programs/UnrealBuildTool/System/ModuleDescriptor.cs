@@ -170,47 +170,47 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of allowed platforms
 		/// </summary>
-		public List<UnrealTargetPlatform> WhitelistPlatforms;
+		public List<UnrealTargetPlatform>? WhitelistPlatforms;
 
 		/// <summary>
 		/// List of disallowed platforms
 		/// </summary>
-		public List<UnrealTargetPlatform> BlacklistPlatforms;
+		public List<UnrealTargetPlatform>? BlacklistPlatforms;
 
 		/// <summary>
 		/// List of allowed targets
 		/// </summary>
-		public TargetType[] WhitelistTargets;
+		public TargetType[]? WhitelistTargets;
 
 		/// <summary>
 		/// List of disallowed targets
 		/// </summary>
-		public TargetType[] BlacklistTargets;
+		public TargetType[]? BlacklistTargets;
 
 		/// <summary>
 		/// List of allowed target configurations
 		/// </summary>
-		public UnrealTargetConfiguration[] WhitelistTargetConfigurations;
+		public UnrealTargetConfiguration[]? WhitelistTargetConfigurations;
 
 		/// <summary>
 		/// List of disallowed target configurations
 		/// </summary>
-		public UnrealTargetConfiguration[] BlacklistTargetConfigurations;
+		public UnrealTargetConfiguration[]? BlacklistTargetConfigurations;
 
 		/// <summary>
 		/// List of allowed programs
 		/// </summary>
-		public string[] WhitelistPrograms;
+		public string[]? WhitelistPrograms;
 
 		/// <summary>
 		/// List of disallowed programs
 		/// </summary>
-		public string[] BlacklistPrograms;
+		public string[]? BlacklistPrograms;
 
 		/// <summary>
 		/// List of additional dependencies for building this module.
 		/// </summary>
-		public string[] AdditionalDependencies;
+		public string[]? AdditionalDependencies;
 
 		/// <summary>
 		/// Constructor
@@ -423,7 +423,7 @@ namespace UnrealBuildTool
 		/// <param name="Writer">The Json writer to output to</param>
 		/// <param name="Name">Name of the array</param>
 		/// <param name="Modules">Array of modules</param>
-		public static void WriteArray(JsonWriter Writer, string Name, ModuleDescriptor[] Modules)
+		public static void WriteArray(JsonWriter Writer, string Name, ModuleDescriptor[]? Modules)
 		{
 			if (Modules != null && Modules.Length > 0)
 			{

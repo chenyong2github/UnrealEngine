@@ -106,7 +106,7 @@ namespace UnrealBuildTool
 		/// <param name="AdditionalVariables">Lookup of variable names to values</param>
 		/// <param name="bUseAdditionalVariablesOnly">If true, then Environment.GetEnvironmentVariable will not be used if the var is not found in AdditionalVariables</param>
 		/// <returns>String with all variables replaced</returns>
-		public static string ExpandVariables(string InputString, Dictionary<string, string> AdditionalVariables = null, bool bUseAdditionalVariablesOnly = false)
+		public static string ExpandVariables(string InputString, Dictionary<string, string>? AdditionalVariables = null, bool bUseAdditionalVariablesOnly = false)
 		{
 			string Result = InputString;
 			for (int Idx = Result.IndexOf("$("); Idx != -1; Idx = Result.IndexOf("$(", Idx))
@@ -122,7 +122,7 @@ namespace UnrealBuildTool
 				string Name = Result.Substring(Idx + 2, EndIdx - (Idx + 2));
 
 				// Find the value for it, either from the dictionary or the environment block
-				string Value = null;
+				string? Value = null;
 				if (AdditionalVariables == null || !AdditionalVariables.TryGetValue(Name, out Value))
 				{
 					if (bUseAdditionalVariablesOnly == false)
@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 		/// <returns>the value of the environment variable if found and the default value if missing</returns>
 		public static bool GetEnvironmentVariable(string VarName, bool bDefault)
 		{
-			string Value = Environment.GetEnvironmentVariable(VarName);
+			string? Value = Environment.GetEnvironmentVariable(VarName);
 			if (Value != null)
 			{
 				// Convert the string to its boolean value
@@ -216,7 +216,7 @@ namespace UnrealBuildTool
 		/// <returns>the value of the environment variable if found and the default value if missing</returns>
 		public static string GetStringEnvironmentVariable(string VarName, string Default)
 		{
-			string Value = Environment.GetEnvironmentVariable(VarName);
+			string? Value = Environment.GetEnvironmentVariable(VarName);
 			if (Value != null)
 			{
 				return Value;
@@ -232,7 +232,7 @@ namespace UnrealBuildTool
 		/// <returns>the value of the environment variable if found and the default value if missing</returns>
 		public static double GetEnvironmentVariable(string VarName, double Default)
 		{
-			string Value = Environment.GetEnvironmentVariable(VarName);
+			string? Value = Environment.GetEnvironmentVariable(VarName);
 			if (Value != null)
 			{
 				return Convert.ToDouble(Value);
@@ -248,7 +248,7 @@ namespace UnrealBuildTool
 		/// <returns>the value of the environment variable if found and the default value if missing</returns>
 		public static string GetEnvironmentVariable(string VarName, string Default)
 		{
-			string Value = Environment.GetEnvironmentVariable(VarName);
+			string? Value = Environment.GetEnvironmentVariable(VarName);
 			if (Value != null)
 			{
 				return Value;
@@ -431,7 +431,7 @@ namespace UnrealBuildTool
 		/// <param name="Args">Arguments to Command</param>
 		/// <param name="ExitCode">The return code from the process after it exits</param>
 		/// <param name="LogOutput">Whether to also log standard output and standard error</param>
-		public static string RunLocalProcessAndReturnStdOut(string Command, string Args, out int ExitCode, bool LogOutput = false)
+		public static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode, bool LogOutput = false)
 		{
 			// Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
@@ -592,7 +592,7 @@ namespace UnrealBuildTool
 		/// <returns>File path with consistent separators</returns>
 		public static string CleanDirectorySeparators(string FilePath, char UseDirectorySeparatorChar = '\0')
 		{
-			StringBuilder CleanPath = null;
+			StringBuilder? CleanPath = null;
 			if (UseDirectorySeparatorChar == '\0')
 			{
 				UseDirectorySeparatorChar = Environment.OSVersion.Platform == PlatformID.Unix ? '/' : '\\';
@@ -837,7 +837,7 @@ namespace UnrealBuildTool
 		static public T ReadClass<T>(string FileName) where T : new()
 		{
 			T Instance = new T();
-			StreamReader XmlStream = null;
+			StreamReader? XmlStream = null;
 			try
 			{
 				// Get the XML data stream to read from
@@ -879,7 +879,7 @@ namespace UnrealBuildTool
 		static public bool WriteClass<T>(T Data, string FileName, string DefaultNameSpace)
 		{
 			bool bSuccess = true;
-			StreamWriter XmlStream = null;
+			StreamWriter? XmlStream = null;
 			try
 			{
 				FileInfo Info = new FileInfo(FileName);
@@ -976,7 +976,7 @@ namespace UnrealBuildTool
 		{
 			if (!String.IsNullOrEmpty(Path.GetExtension(Filename)))
 			{
-				return Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename));
+				return Path.Combine(Path.GetDirectoryName(Filename)!, Path.GetFileNameWithoutExtension(Filename));
 			}
 			else
 			{
@@ -1017,7 +1017,7 @@ namespace UnrealBuildTool
 		/// NOTE: This function may return null. Some accounts (eg. the SYSTEM account on Windows) do not have a personal folder, and Jenkins
 		/// runs using this account by default.
 		/// </summary>
-		public static DirectoryReference GetUserSettingDirectory()
+		public static DirectoryReference? GetUserSettingDirectory()
 		{
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{

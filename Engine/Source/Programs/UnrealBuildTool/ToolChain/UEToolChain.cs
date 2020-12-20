@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	abstract class UEToolChain

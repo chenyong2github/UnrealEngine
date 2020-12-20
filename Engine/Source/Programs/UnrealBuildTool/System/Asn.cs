@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -118,7 +119,7 @@ namespace UnrealBuildTool
 
 		public static string GetObjectIdentifierName(int[] Values)
 		{
-			string Description;
+			string? Description;
 			if(!TryGetObjectIdentifierName(Values, out Description))
 			{
 				Description = String.Format("Unknown ({0})", String.Join(", ", Values.Select(x => x.ToString())));
@@ -126,7 +127,7 @@ namespace UnrealBuildTool
 			return Description;
 		}
 
-		public static bool TryGetObjectIdentifierName(int[] Values, out string Name)
+		public static bool TryGetObjectIdentifierName(int[] Values, [NotNullWhen(true)] out string? Name)
 		{
 			foreach(KeyValuePair<int[], string> KnownObjectIdentifier in KnownObjectIdentifiers)
 			{

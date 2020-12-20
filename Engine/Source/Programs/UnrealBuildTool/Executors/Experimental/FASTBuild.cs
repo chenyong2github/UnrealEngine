@@ -21,6 +21,8 @@ using System.Linq;
 using Tools.DotNETCommon;
 using System.Runtime.Serialization;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 

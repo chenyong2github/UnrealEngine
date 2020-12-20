@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The directory containing this file
 		/// </summary>
-		DirectoryItem CachedDirectory;
+		DirectoryItem? CachedDirectory;
 
 		/// <summary>
 		/// Location of this file
@@ -168,7 +168,7 @@ namespace UnrealBuildTool
 		{
 			FileReference Location = new FileReference(Info);
 
-			FileItem Result;
+			FileItem? Result;
 			if (!UniqueSourceFileMap.TryGetValue(Location, out Result))
 			{
 				FileItem NewFileItem = new FileItem(Location, Info);
@@ -191,7 +191,7 @@ namespace UnrealBuildTool
 		/// <returns>The FileItem that represents the given a full file path.</returns>
 		public static FileItem GetItemByFileReference(FileReference Location)
 		{
-			FileItem Result;
+			FileItem? Result;
 			if (!UniqueSourceFileMap.TryGetValue(Location, out Result))
 			{
 				FileItem NewFileItem = new FileItem(Location, Location.ToFileInfo());

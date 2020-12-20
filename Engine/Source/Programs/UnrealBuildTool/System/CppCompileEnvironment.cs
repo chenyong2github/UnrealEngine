@@ -80,7 +80,7 @@ namespace UnrealBuildTool
 		public List<FileItem> ObjectFiles = new List<FileItem>();
 		public List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
-		public FileItem PrecompiledHeaderFile = null;
+		public FileItem? PrecompiledHeaderFile = null;
 	}
 
 	/// <summary>
@@ -116,7 +116,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of the header file which is precompiled.
 		/// </summary>
-		public FileReference PrecompiledHeaderIncludeFilename = null;
+		public FileReference? PrecompiledHeaderIncludeFilename = null;
 
 		/// <summary>
 		/// Whether the compilation should create, use, or do nothing with the precompiled header.
@@ -299,12 +299,12 @@ namespace UnrealBuildTool
         /// <summary>
         /// Platform specific directory where PGO profiling data is stored.
         /// </summary>
-        public string PGODirectory;
+        public string? PGODirectory;
 
         /// <summary>
         /// Platform specific filename where PGO profiling data is saved.
         /// </summary>
-        public string PGOFilenamePrefix;
+        public string? PGOFilenamePrefix;
 
 		/// <summary>
 		/// Whether to log detailed timing info from the compiler
@@ -370,7 +370,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The file containing the precompiled header data.
 		/// </summary>
-		public FileItem PrecompiledHeaderFile = null;
+		public FileItem? PrecompiledHeaderFile = null;
 
 		/// <summary>
 		/// Whether or not UHT is being built

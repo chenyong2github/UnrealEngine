@@ -52,7 +52,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the project uses the default build configuration</returns>
 		public static bool HasDefaultBuildConfig(FileReference ProjectFile, UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlat);
+			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform? BuildPlat);
 			return (BuildPlat == null)? true : BuildPlat.HasDefaultBuildConfig(Platform, ProjectFile.Directory);
 		}
 
@@ -64,7 +64,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the project requires a build for the platform</returns>
 		public static bool RequiresBuild(FileReference ProjectFile, UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlat);
+			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform? BuildPlat);
 			return (BuildPlat == null) ? false : BuildPlat.RequiresBuild(Platform, ProjectFile.Directory);
 		}
 

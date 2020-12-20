@@ -27,7 +27,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Recursive
 		/// </summary>
-		public HashSet<UEBuildPlugin> Dependencies;
+		public HashSet<UEBuildPlugin>? Dependencies;
 
 		/// <summary>
 		/// Whether the descriptor for this plugin is needed at runtime; because it has modules or content which is used, or because it references another module that does.

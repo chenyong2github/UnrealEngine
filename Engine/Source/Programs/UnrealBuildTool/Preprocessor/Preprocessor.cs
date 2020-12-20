@@ -10,6 +10,7 @@ using System.IO;
 using System.Collections;
 using System.Collections.Concurrent;
 using Tools.DotNETCommon;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -21,7 +22,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The context when the error was encountered
 		/// </summary>
-		PreprocessorContext Context;
+		PreprocessorContext? Context;
 
 		/// <summary>
 		/// Constructor
@@ -29,7 +30,7 @@ namespace UnrealBuildTool
 		/// <param name="Context">The current preprocesor context</param>
 		/// <param name="Format">Format string, to be passed to String.Format</param>
 		/// <param name="Args">Optional argument list for the format string</param>
-		public PreprocessorException(PreprocessorContext Context, string Format, params object[] Args)
+		public PreprocessorException(PreprocessorContext? Context, string Format, params object[] Args)
 			: base(String.Format(Format, Args))
 		{
 			this.Context = Context;
@@ -123,7 +124,7 @@ namespace UnrealBuildTool
 			}
 			if(Tokens[0].Type != TokenType.Identifier)
 			{
-				throw new PreprocessorException(null, "'{0}' is not a valid macro name", Tokens[0].ToString());
+				throw new PreprocessorException(null, "'{0}' is not a valid macro name", Tokens[0].ToString()!);
 			}
 
 			List<Token> ValueTokens = new List<Token>();
@@ -140,7 +141,7 @@ namespace UnrealBuildTool
 				ValueTokens.AddRange(Tokens.Skip(2));
 			}
 
-			PreprocessorMacro Macro = new PreprocessorMacro(Tokens[0].Identifier, null, Tokens);
+			PreprocessorMacro Macro = new PreprocessorMacro(Tokens[0].Identifier!, null, Tokens);
 			State.DefineMacro(Macro);
 		}
 
@@ -215,7 +216,7 @@ namespace UnrealBuildTool
 		/// <param name="Type">Specifies rules for how to resolve the include path (normal/system)</param>
 		/// <param name="File">If found, receives the resolved file</param>
 		/// <returns>True if the The resolved file</returns>
-		public bool TryResolveIncludePath(PreprocessorContext Context, string IncludePath, IncludePathType Type, out FileItem File)
+		public bool TryResolveIncludePath(PreprocessorContext Context, string IncludePath, IncludePathType Type, [NotNullWhen(true)] out FileItem? File)
 		{
 			// From MSDN (https://msdn.microsoft.com/en-us/library/36k2cdd4.aspx?f=255&MSPPError=-2147217396)
 			//
@@ -254,12 +255,12 @@ namespace UnrealBuildTool
 			// Try to match the include path against any of the included directories
 			if(Type == IncludePathType.Normal)
 			{
-				for(PreprocessorContext OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
+				for(PreprocessorContext? OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
 				{
-					PreprocessorFileContext OuterFileContext = OuterContext as PreprocessorFileContext;
+					PreprocessorFileContext? OuterFileContext = OuterContext as PreprocessorFileContext;
 					if(OuterFileContext != null)
 					{
-						FileItem ResolvedFile;
+						FileItem? ResolvedFile;
 						if(TryResolveRelativeIncludePath(OuterFileContext.Directory, Fragments, out ResolvedFile))
 						{
 							File = ResolvedFile;
@@ -272,7 +273,7 @@ namespace UnrealBuildTool
 			// Try to match the include path against any of the system directories
 			foreach(DirectoryItem BaseDirectory in IncludeDirectories)
 			{
-				FileItem ResolvedFile;
+				FileItem? ResolvedFile;
 				if(TryResolveRelativeIncludePath(BaseDirectory, Fragments, out ResolvedFile))
 				{
 					File = ResolvedFile;
@@ -292,9 +293,9 @@ namespace UnrealBuildTool
 		/// <param name="Fragments">Fragments of the relative path to follow</param>
 		/// <param name="File">The file that was found, if successful</param>
 		/// <returns>True if the The resolved file</returns>
-		public bool TryResolveRelativeIncludePath(DirectoryItem BaseDirectory, string[] Fragments, out FileItem File)
+		public bool TryResolveRelativeIncludePath(DirectoryItem BaseDirectory, string[] Fragments, [NotNullWhen(true)] out FileItem? File)
 		{
-			DirectoryItem Directory = BaseDirectory;
+			DirectoryItem? Directory = BaseDirectory;
 			for(int Idx = 0; Idx < Fragments.Length - 1; Idx++)
 			{
 				if(!Directory.TryGetDirectory(Fragments[Idx], out Directory))
@@ -380,7 +381,7 @@ namespace UnrealBuildTool
 		{
 			// Expand macros in the given tokens
 			List<Token> ExpandedTokens = new List<Token>();
-			ExpandMacros(Markup.Tokens, ExpandedTokens, false, Context);
+			ExpandMacros(Markup.Tokens!, ExpandedTokens, false, Context);
 						
 			// Convert the string to a single token
 			string IncludeToken = Token.Format(ExpandedTokens);
@@ -404,7 +405,7 @@ namespace UnrealBuildTool
 			string IncludePath = IncludeToken.Substring(1, IncludeToken.Length - 2);
 
 			// Resolve the included file
-			FileItem IncludedFile;
+			FileItem? IncludedFile;
 			if(!TryResolveIncludePath(Context, IncludePath, Type, out IncludedFile))
 			{
 				throw new PreprocessorException(Context, "Couldn't resolve include '{0}'", IncludePath);
@@ -435,9 +436,9 @@ namespace UnrealBuildTool
 						for(; Context.MarkupIdx < Fragment.MarkupMax; Context.MarkupIdx++)
 						{
 							SourceFileMarkup Markup = SourceFile.Markup[Context.MarkupIdx];
-							ParseMarkup(Markup.Type, Markup.Tokens, Context);
+							ParseMarkup(Markup.Type, Markup.Tokens!, Context);
 						}
-						Transform = State.EndCapture();
+						Transform = State.EndCapture()!;
 
 						// Add it to the fragment for future fragments
 						PreprocessorTransform[] NewTransforms = new PreprocessorTransform[Fragment.Transforms.Length + 1];
@@ -479,7 +480,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the macro</param>
 		/// <param name="Parameters">Parameter list for the macro</param>
 		/// <param name="Tokens">List of tokens</param>
-		void AddMacro(PreprocessorContext Context, Identifier Name, List<Identifier> Parameters, List<Token> Tokens)
+		void AddMacro(PreprocessorContext Context, Identifier Name, List<Identifier>? Parameters, List<Token> Tokens)
 		{
 			if(Tokens.Count == 0)
 			{
@@ -578,11 +579,11 @@ namespace UnrealBuildTool
 				}
 
 				// Read the macro name
-				Identifier Name = Tokens[0].Identifier;
+				Identifier Name = Tokens[0].Identifier!;
 				int TokenIdx = 1;
 
 				// Read the macro parameter list, if there is one
-				List<Identifier> Parameters = null;
+				List<Identifier>? Parameters = null;
 				if (TokenIdx < Tokens.Count && !Tokens[TokenIdx].HasLeadingSpace && Tokens[TokenIdx].Type == TokenType.LeftParen)
 				{
 					Parameters = new List<Identifier>();
@@ -619,12 +620,12 @@ namespace UnrealBuildTool
 								{
 									throw new PreprocessorException(Context, "Invalid preprocessor token: {0}", NameToken);
 								}
-								if (Parameters.Contains(NameToken.Identifier))
+								if (Parameters.Contains(NameToken.Identifier!))
 								{
 									throw new PreprocessorException(Context, "'{0}' has already been used as an argument name", NameToken);
 								}
 							}
-							Parameters.Add(NameToken.Identifier);
+							Parameters.Add(NameToken.Identifier!);
 
 							// Read the separator
 							Token SeparatorToken = Tokens[TokenIdx];
@@ -666,7 +667,7 @@ namespace UnrealBuildTool
 				}
 
 				// Remove the macro from the list of definitions
-				State.UndefMacro(Tokens[0].Identifier);
+				State.UndefMacro(Tokens[0].Identifier!);
 			}
 		}
 
@@ -711,7 +712,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check if the macro is defined
-				if(State.IsMacroDefined(Tokens[0].Identifier))
+				if(State.IsMacroDefined(Tokens[0].Identifier!))
 				{
 					Branch |= PreprocessorBranch.Active | PreprocessorBranch.Taken;
 				}
@@ -736,7 +737,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check if the macro is defined
-				if(!State.IsMacroDefined(Tokens[0].Identifier))
+				if(!State.IsMacroDefined(Tokens[0].Identifier!))
 				{
 					Branch |= PreprocessorBranch.Active | PreprocessorBranch.Taken;
 				}
@@ -842,7 +843,7 @@ namespace UnrealBuildTool
 			{
 				if(Tokens.Count == 1 && Tokens[0].Identifier == Identifiers.Once)
 				{
-					SourceFile SourceFile = GetCurrentSourceFile(Context);
+					SourceFile SourceFile = GetCurrentSourceFile(Context)!;
 					PragmaOnceFiles.Add(SourceFile.File);
 					State.MarkPragmaOnce();
 				}
@@ -949,7 +950,7 @@ namespace UnrealBuildTool
 				}
 
 				// Insert a token for whether it's defined or not
-				OutputTokens.Add(new Token(TokenType.Number, TokenFlags.None, State.IsMacroDefined(NameToken.Identifier)? OneLiteral : ZeroLiteral));
+				OutputTokens.Add(new Token(TokenType.Number, TokenFlags.None, State.IsMacroDefined(NameToken.Identifier!)? OneLiteral : ZeroLiteral));
 				bMoveNext = InputEnumerator.MoveNext();
 			}
 			else
@@ -958,8 +959,8 @@ namespace UnrealBuildTool
 				while(OutputTokens[OutputTokens.Count - 1].Type == TokenType.Identifier && !OutputTokens[OutputTokens.Count - 1].Flags.HasFlag(TokenFlags.DisableExpansion))
 				{
 					// Try to get a macro for the current token
-					PreprocessorMacro Macro;
-					if (!State.TryGetMacro(OutputTokens[OutputTokens.Count - 1].Identifier, out Macro) || IgnoreMacros.Contains(Macro))
+					PreprocessorMacro? Macro;
+					if (!State.TryGetMacro(OutputTokens[OutputTokens.Count - 1].Identifier!, out Macro) || IgnoreMacros.Contains(Macro))
 					{
 						break;
 					}
@@ -1020,7 +1021,7 @@ namespace UnrealBuildTool
 		/// <returns>String representing the current context</returns>
 		string GetCurrentFileMacroValue(PreprocessorContext Context)
 		{
-			SourceFile SourceFile = GetCurrentSourceFile(Context);
+			SourceFile? SourceFile = GetCurrentSourceFile(Context);
 			if(SourceFile == null)
 			{
 				return "<unknown>";
@@ -1036,12 +1037,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Context">Context to scan to find the current file</param>
 		/// <returns>Current source file being parsed</returns>
-		SourceFile GetCurrentSourceFile(PreprocessorContext Context)
+		SourceFile? GetCurrentSourceFile(PreprocessorContext Context)
 		{
-			SourceFile SourceFile = null;
-			for(PreprocessorContext OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
+			SourceFile? SourceFile = null;
+			for(PreprocessorContext? OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
 			{
-				PreprocessorFileContext OuterFileContext = OuterContext as PreprocessorFileContext;
+				PreprocessorFileContext? OuterFileContext = OuterContext as PreprocessorFileContext;
 				if(OuterFileContext != null)
 				{
 					SourceFile = OuterFileContext.SourceFile;
@@ -1058,9 +1059,9 @@ namespace UnrealBuildTool
 		/// <returns>Line number in the first file encountered</returns>
 		int GetCurrentLine(PreprocessorContext Context)
 		{
-			for(PreprocessorContext OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
+			for(PreprocessorContext? OuterContext = Context; OuterContext != null; OuterContext = OuterContext.Outer)
 			{
-				PreprocessorFileContext OuterFileContext = OuterContext as PreprocessorFileContext;
+				PreprocessorFileContext? OuterFileContext = OuterContext as PreprocessorFileContext;
 				if(OuterFileContext != null)
 				{
 					return OuterFileContext.SourceFile.Markup[OuterFileContext.MarkupIdx].LineNumber;
@@ -1147,7 +1148,7 @@ namespace UnrealBuildTool
 			{
 				for(int Idx = 1;;Idx++)
 				{
-					if (!Macro.HasVariableArgumentList || Arguments.Count < Macro.Parameters.Count)
+					if (!Macro.HasVariableArgumentList || Arguments.Count < Macro.Parameters!.Count)
 					{
 						Arguments.Add(new List<Token>());
 					}
@@ -1199,7 +1200,7 @@ namespace UnrealBuildTool
 						throw new PreprocessorException(Context, "Expected ',' between arguments");
 					}
 
-					if (Macro.HasVariableArgumentList && Arguments.Count == Macro.Parameters.Count && Idx < ArgumentListTokens.Count - 1)
+					if (Macro.HasVariableArgumentList && Arguments.Count == Macro.Parameters!.Count && Idx < ArgumentListTokens.Count - 1)
 					{
 						Arguments[Arguments.Count - 1].Add(ArgumentListTokens[Idx]);
 					}
@@ -1207,13 +1208,13 @@ namespace UnrealBuildTool
 			}
 
 			// Add an empty variable argument if one was not specified
-			if (Macro.HasVariableArgumentList && Arguments.Count == Macro.Parameters.Count - 1)
+			if (Macro.HasVariableArgumentList && Arguments.Count == Macro.Parameters!.Count - 1)
 			{
 				Arguments.Add(new List<Token> { new Token(TokenType.Placemarker, TokenFlags.None) });
 			}
 
 			// Validate the argument list
-			if (Arguments.Count != Macro.Parameters.Count)
+			if (Arguments.Count != Macro.Parameters!.Count)
 			{
 				throw new PreprocessorException(Context, "Incorrect number of arguments to macro");
 			}
@@ -1235,7 +1236,7 @@ namespace UnrealBuildTool
 				if(Token.Type == TokenType.Hash && Idx + 1 < Macro.Tokens.Count)
 				{
 					// Stringizing operator
-					int ParamIdx = Macro.FindParameterIndex(Macro.Tokens[++Idx].Identifier);
+					int ParamIdx = Macro.FindParameterIndex(Macro.Tokens[++Idx].Identifier!);
 					if (ParamIdx == -1)
 					{
 						throw new PreprocessorException(Context, "{0} is not an argument name", Macro.Tokens[Idx].Text);
@@ -1262,7 +1263,7 @@ namespace UnrealBuildTool
 				else if (Token.Type == TokenType.Identifier)
 				{
 					// Expand a parameter
-					int ParamIdx = Macro.FindParameterIndex(Token.Identifier);
+					int ParamIdx = Macro.FindParameterIndex(Token.Identifier!);
 					if(ParamIdx == -1)
 					{
 						ExpandedTokens.Add(Token);

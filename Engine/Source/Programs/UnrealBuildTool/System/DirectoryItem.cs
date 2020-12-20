@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,12 +30,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cached map of name to subdirectory item
 		/// </summary>
-		Dictionary<string, DirectoryItem> Directories;
+		Dictionary<string, DirectoryItem>? Directories;
 
 		/// <summary>
 		/// Cached map of name to file
 		/// </summary>
-		Dictionary<string, FileItem> Files;
+		Dictionary<string, FileItem>? Files;
 
 		/// <summary>
 		/// Global map of location to item
@@ -87,7 +88,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the parent directory item
 		/// </summary>
-		public DirectoryItem GetParentDirectoryItem()
+		public DirectoryItem? GetParentDirectoryItem()
 		{
 			if(Info.Parent == null)
 			{
@@ -127,7 +128,7 @@ namespace UnrealBuildTool
 		/// <returns>The directory item for this location</returns>
 		public static DirectoryItem GetItemByDirectoryReference(DirectoryReference Location)
 		{
-			DirectoryItem Result;
+			DirectoryItem? Result;
 			if(!LocationToItem.TryGetValue(Location, out Result))
 			{
 				DirectoryItem NewItem = new DirectoryItem(Location, new DirectoryInfo(Location.FullName));
@@ -152,7 +153,7 @@ namespace UnrealBuildTool
 		{
 			DirectoryReference Location = new DirectoryReference(Info);
 
-			DirectoryItem Result;
+			DirectoryItem? Result;
 			if(!LocationToItem.TryGetValue(Location, out Result))
 			{
 				DirectoryItem NewItem = new DirectoryItem(Location, Info);
@@ -175,7 +176,7 @@ namespace UnrealBuildTool
 		{
 			Info = new DirectoryInfo(Info.FullName);
 
-			Dictionary<string, DirectoryItem> PrevDirectories = Directories;
+			Dictionary<string, DirectoryItem>? PrevDirectories = Directories;
 			if(PrevDirectories != null)
 			{
 				foreach(DirectoryItem SubDirectory in PrevDirectories.Values)
@@ -185,7 +186,7 @@ namespace UnrealBuildTool
 				Directories = null;
 			}
 
-			Dictionary<string, FileItem> PrevFiles = Files;
+			Dictionary<string, FileItem>? PrevFiles = Files;
 			if(PrevFiles != null)
 			{
 				foreach(FileItem File in PrevFiles.Values)
@@ -247,7 +248,7 @@ namespace UnrealBuildTool
 		public IEnumerable<DirectoryItem> EnumerateDirectories()
 		{
 			CacheDirectories();
-			return Directories.Values;
+			return Directories!.Values;
 		}
 
 		/// <summary>
@@ -256,7 +257,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the directory</param>
 		/// <param name="OutDirectory">If successful receives the matching directory item with this name</param>
 		/// <returns>True if the file exists, false otherwise</returns>
-		public bool TryGetDirectory(string Name, out DirectoryItem OutDirectory)
+		public bool TryGetDirectory(string Name, [NotNullWhen(true)] out DirectoryItem? OutDirectory)
 		{
 			if(Name.Length > 0 && Name[0] == '.')
 			{
@@ -273,7 +274,7 @@ namespace UnrealBuildTool
 			}
 
 			CacheDirectories();
-			return Directories.TryGetValue(Name, out OutDirectory);
+			return Directories!.TryGetValue(Name, out OutDirectory);
 		}
 
 		/// <summary>
@@ -304,7 +305,7 @@ namespace UnrealBuildTool
 		public IEnumerable<FileItem> EnumerateFiles()
 		{
 			CacheFiles();
-			return Files.Values;
+			return Files!.Values;
 		}
 
 		/// <summary>
@@ -314,10 +315,10 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the file</param>
 		/// <param name="OutFile">If successful receives the matching file item with this name</param>
 		/// <returns>True if the file exists, false otherwise</returns>
-		public bool TryGetFile(string Name, out FileItem OutFile)
+		public bool TryGetFile(string Name, [NotNullWhen(true)] out FileItem? OutFile)
 		{
 			CacheFiles();
-			return Files.TryGetValue(Name, out OutFile);
+			return Files!.TryGetValue(Name, out OutFile);
 		}
 
 		/// <summary>

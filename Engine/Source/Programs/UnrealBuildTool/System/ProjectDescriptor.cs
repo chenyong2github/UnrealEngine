@@ -58,27 +58,27 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The engine to open this project with.
 		/// </summary>
-		public string EngineAssociation;
+		public string? EngineAssociation;
 
 		/// <summary>
 		/// Category to show under the project browser
 		/// </summary>
-		public string Category;
+		public string? Category;
 
 		/// <summary>
 		/// Description to show in the project browser
 		/// </summary>
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// List of all modules associated with this project
 		/// </summary>
-		public ModuleDescriptor[] Modules;
+		public ModuleDescriptor[]? Modules;
 
 		/// <summary>
 		/// List of plugins for this project (may be enabled/disabled)
 		/// </summary>
-		public PluginReferenceDescriptor[] Plugins;
+		public PluginReferenceDescriptor[]? Plugins;
 
 		/// <summary>
 		/// Array of additional root directories
@@ -93,7 +93,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Array of platforms that this project is targeting
 		/// </summary>
-		public string[] TargetPlatforms;
+		public string[]? TargetPlatforms;
 
 		/// <summary>
 		/// A hash that is used to determine if the project was forked from a sample
@@ -103,12 +103,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Steps to execute before building targets in this project
 		/// </summary>
-		public CustomBuildSteps PreBuildSteps;
+		public CustomBuildSteps? PreBuildSteps;
 
 		/// <summary>
 		/// Steps to execute before building targets in this project
 		/// </summary>
-		public CustomBuildSteps PostBuildSteps;
+		public CustomBuildSteps? PostBuildSteps;
 
 		/// <summary>
 		/// Indicates if this project is an Enterprise project

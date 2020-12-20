@@ -27,7 +27,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The plugin that this module belongs to
 		/// </summary>
-		public PluginInfo Plugin;
+		public PluginInfo? Plugin;
 
 		/// <summary>
 		/// Whether this module should be included in the default hot reload set

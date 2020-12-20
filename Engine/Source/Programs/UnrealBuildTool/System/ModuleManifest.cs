@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -95,7 +96,7 @@ namespace UnrealBuildTool
 		/// <param name="FileName">The filename that was read</param>
 		/// <param name="Result">If successful, the receipt that was read. Null otherwise.</param>
 		/// <returns>True if the file was read succesfully.</returns>
-		public static bool TryRead(FileReference FileName, out ModuleManifest Result)
+		public static bool TryRead(FileReference FileName, [NotNullWhen(true)] out ModuleManifest? Result)
 		{
 			if (!FileReference.Exists(FileName))
 			{

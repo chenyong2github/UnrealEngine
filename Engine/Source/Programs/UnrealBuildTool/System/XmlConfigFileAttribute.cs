@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -17,11 +17,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The category for this config value. Optional; defaults to the declaring type name.
 		/// </summary>
-		public string Category = null;
+		public string? Category = null;
 
 		/// <summary>
 		/// Name of the key to read. Optional; defaults to the field name.
 		/// </summary>
-		public string Name = null;
+		public string? Name = null;
 	}
 }

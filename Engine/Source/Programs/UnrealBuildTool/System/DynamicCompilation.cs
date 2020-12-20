@@ -157,7 +157,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static Assembly CompileAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string> ReferencedAssembies, List<string> PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
+		private static Assembly? CompileAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string>? ReferencedAssembies, List<string>? PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
 		{
 			CSharpParseOptions ParseOptions = new CSharpParseOptions(
 				languageVersion:LanguageVersion.Latest, 
@@ -283,7 +283,7 @@ namespace UnrealBuildTool
 		/// <param name="DoNotCompile"></param>
 		/// <param name="TreatWarningsAsErrors"></param>
 		/// <returns>The assembly that was loaded</returns>
-		public static Assembly CompileAndLoadAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string> ReferencedAssembies = null, List<string> PreprocessorDefines = null, bool DoNotCompile = false, bool TreatWarningsAsErrors = false)
+		public static Assembly? CompileAndLoadAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string>? ReferencedAssembies = null, List<string>? PreprocessorDefines = null, bool DoNotCompile = false, bool TreatWarningsAsErrors = false)
 		{
 			// Check to see if the resulting assembly is compiled and up to date
 			FileReference AssemblyManifestFilePath = FileReference.Combine(OutputAssemblyPath.Directory, Path.GetFileNameWithoutExtension(OutputAssemblyPath.FullName) + "Manifest.json");
@@ -295,7 +295,7 @@ namespace UnrealBuildTool
 			}
 
 			// Load the assembly to ensure it is correct
-			Assembly CompiledAssembly = null;
+			Assembly? CompiledAssembly = null;
 			if (!bNeedsCompilation)
 			{
 				try

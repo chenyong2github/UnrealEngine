@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 				using (StreamReader reader = new StreamReader(ManifestPath))
 				{
 					string CurrentToRootDir = ".." + Path.DirectorySeparatorChar + "..";
-					string LineRead;
+					string? LineRead;
 					while ((LineRead = reader.ReadLine()) != null)
 					{
 						string JunkEntry = LineRead.Trim();
@@ -104,7 +104,7 @@ namespace UnrealBuildTool
 					if (FileName.Contains('*'))
 					{
 						// Wildcard search and delete
-						string DirectoryToLookIn = Path.GetDirectoryName(Junk);
+						string DirectoryToLookIn = Path.GetDirectoryName(Junk)!;
 						if (Directory.Exists(DirectoryToLookIn))
 						{
 							// Delete all files within the specified folder

@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using Tools.DotNETCommon;
 using System.Diagnostics;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -54,17 +55,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Name of the current branch, with '/' characters escaped as '+'
 		/// </summary>
-		public string BranchName;
+		public string? BranchName;
 
 		/// <summary>
 		/// The current build id. This will be generated automatically whenever engine binaries change if not set in the default Engine/Build/Build.version.
 		/// </summary>
-		public string BuildId;
+		public string? BuildId;
 
 		/// <summary>
 		/// The build version string
 		/// </summary>
-		public string BuildVersionString;
+		public string? BuildVersionString;
 
 		/// <summary>
 		/// Returns the value which can be used as the compatible changelist. Requires that the regular changelist is also set, and defaults to the 
@@ -81,7 +82,7 @@ namespace UnrealBuildTool
 		/// <param name="FileName">Path to the version file</param>
 		/// <param name="Version">The version information</param>
 		/// <returns>True if the version was read successfully, false otherwise</returns>
-		public static bool TryRead(FileReference FileName, out BuildVersion Version)
+		public static bool TryRead(FileReference FileName, [NotNullWhen(true)] out BuildVersion? Version)
 		{
 			JsonObject Object;
 			if (!JsonObject.TryRead(FileName, out Object))
@@ -136,7 +137,7 @@ namespace UnrealBuildTool
 		/// <param name="Object">The object to read from</param>
 		/// <param name="Version">The resulting version field</param>
 		/// <returns>True if the build version could be read, false otherwise</returns>
-		public static bool TryParse(JsonObject Object, out BuildVersion Version)
+		public static bool TryParse(JsonObject Object, [NotNullWhen(true)] out BuildVersion? Version)
 		{
 			BuildVersion NewVersion = new BuildVersion();
 			if (!Object.TryGetIntegerField("MajorVersion", out NewVersion.MajorVersion) || !Object.TryGetIntegerField("MinorVersion", out NewVersion.MinorVersion) || !Object.TryGetIntegerField("PatchVersion", out NewVersion.PatchVersion))
@@ -229,7 +230,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cached copy of the current build version
 		/// </summary>
-		private static ReadOnlyBuildVersion CurrentCached;
+		private static ReadOnlyBuildVersion? CurrentCached;
 
 		/// <summary>
 		/// Constructor
@@ -255,7 +256,7 @@ namespace UnrealBuildTool
 						throw new BuildException("Version file is missing ({0})", File);
 					}
 
-					BuildVersion Version;
+					BuildVersion? Version;
 					if(!BuildVersion.TryRead(File, out Version))
 					{
 						throw new BuildException("Unable to read version file ({0}). Check that this file is present and well-formed JSON.", File);
@@ -315,12 +316,12 @@ namespace UnrealBuildTool
 			get { return Inner.IsPromotedBuild; }
 		}
 
-		public string BranchName
+		public string? BranchName
 		{
 			get { return Inner.BranchName; }
 		}
 
-		public string BuildVersionString
+		public string? BuildVersionString
 		{
 			get { return Inner.BuildVersionString; }
 		}

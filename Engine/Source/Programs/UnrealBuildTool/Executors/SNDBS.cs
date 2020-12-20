@@ -9,6 +9,8 @@ using System.Linq;
 using System.ServiceProcess;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	sealed class SNDBS : ActionExecutor

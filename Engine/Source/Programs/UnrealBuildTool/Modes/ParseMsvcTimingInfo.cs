@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -99,7 +101,7 @@ namespace UnrealBuildTool
 			}
 
 			// Build the summary.
-			TimingData Summary = new TimingData() { Name = InputFile.FullName.Replace(".timing.txt", string.Empty), Type = TimingDataType.Summary };
+			TimingData Summary = new TimingData(InputFile.FullName.Replace(".timing.txt", string.Empty), TimingDataType.Summary);
 			Summary.AddChild(SummarizeParsedTimingData("IncludeTimings", TimingDataType.Include, Includes));
 			Summary.AddChild(SummarizeParsedTimingData("ClassTimings", TimingDataType.Class, Classes));
 			Summary.AddChild(SummarizeParsedTimingData("FunctionTimings", TimingDataType.Function, Functions));
@@ -115,7 +117,7 @@ namespace UnrealBuildTool
 
 		TimingData SummarizeParsedTimingData(string SummaryName, TimingDataType TimingType,  IEnumerable<string> Lines)
 		{
-			TimingData Summary = new TimingData() { Name = SummaryName, Type = TimingDataType.Summary };
+			TimingData Summary = new TimingData(SummaryName, TimingDataType.Summary);
 			List<TimingData> ParsedTimingData = ParseTimingDataFromLines(TimingType, Lines);
 			foreach (TimingData Data in ParsedTimingData)
 			{
@@ -196,12 +198,8 @@ namespace UnrealBuildTool
 
 			LineDepth = TimingDataMatch.Groups["Indent"].Success ? TimingDataMatch.Groups["Indent"].Value.Count() : 0;
 
-			TimingData ParsedTimingData = new TimingData()
-			{
-				Name = TimingDataMatch.Groups["Name"].Value,
-				Type = TimingType,
-				ExclusiveDuration = float.Parse(TimingDataMatch.Groups["Duration"].Value),
-			};
+			TimingData ParsedTimingData = new TimingData(TimingDataMatch.Groups["Name"].Value, TimingType);
+			ParsedTimingData.ExclusiveDuration = float.Parse(TimingDataMatch.Groups["Duration"].Value);
 
 			return ParsedTimingData;
 		}

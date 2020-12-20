@@ -229,7 +229,7 @@ namespace UnrealBuildTool
 					Idx++;
 					return ~EvaluateUnary(Context, Tokens, ref Idx);
 				case TokenType.Identifier:
-					Identifier Text = Tokens[Idx].Identifier;
+					Identifier Text = Tokens[Idx].Identifier!;
 					if(Text == Identifiers.Sizeof)
 					{
 						throw new NotImplementedException();
@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 			}
 			else if(Tokens[Idx].Type == TokenType.Number)
 			{
-				return ParseNumericLiteral(Context, Tokens[Idx++].Literal);
+				return ParseNumericLiteral(Context, Tokens[Idx++].Literal!);
 			}
 			else
 			{

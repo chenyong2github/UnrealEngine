@@ -13,6 +13,8 @@ using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 using System.Security.Cryptography.X509Certificates;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

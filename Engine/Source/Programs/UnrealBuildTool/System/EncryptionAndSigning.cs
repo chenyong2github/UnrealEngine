@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

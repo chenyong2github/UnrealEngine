@@ -10,6 +10,8 @@ using System.Diagnostics;
 using System.IO;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/* UnrealPluginLanguage (UPL) is a simple XML-based language for manipulating XML and returning

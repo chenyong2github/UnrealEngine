@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -26,17 +27,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// All the platform folder names
 		/// </summary>
-		private static string[] CachedPlatformFolderNames;
+		private static string[]? CachedPlatformFolderNames;
 
 		/// <summary>
 		/// Cached copy of the list of folders to include for this platform
 		/// </summary>
-		private ReadOnlyHashSet<string> CachedIncludedFolderNames;
+		private ReadOnlyHashSet<string>? CachedIncludedFolderNames;
 
 		/// <summary>
 		/// Cached copy of the list of folders to exclude for this platform
 		/// </summary>
-		private ReadOnlyHashSet<string> CachedExcludedFolderNames;
+		private ReadOnlyHashSet<string>? CachedExcludedFolderNames;
 
 		/// <summary>
 		/// Constructor.
@@ -49,7 +50,7 @@ namespace UnrealBuildTool
 
 			// check DDPI to see if the platform is enabled on this host platform
 			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
-			bool bIsEnabled = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName).bIsEnabled;
+			bool bIsEnabled = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName)?.bIsEnabled ?? true;
 
 			// set up the SDK if the platform is enabled
 			UEBuildPlatformSDK.RegisterSDKForPlatform(SDK, Platform.ToString(), bIsEnabled);
@@ -89,7 +90,7 @@ namespace UnrealBuildTool
 						Log.TraceVerbose("    Registering build platform: {0}", CheckType.ToString());
 						using(Timeline.ScopeEvent(CheckType.Name))
 						{
-							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType);
+							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType)!;
 							
 							if(bHostPlatformOnly && TempInst.TargetPlatform != BuildHostPlatform.Current.Platform)
 							{
@@ -191,7 +192,7 @@ namespace UnrealBuildTool
 		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
 		/// </summary>
 		/// <param name="ProjectFile">Optional project to read settings from </param>
-		public virtual string GetDefaultArchitecture(FileReference ProjectFile)
+		public virtual string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
 			return "";
@@ -354,7 +355,7 @@ namespace UnrealBuildTool
 		/// <param name="Rules">The target rules</param>
 		/// <param name="OutputFiles">List of executable output files</param>
 		/// <returns>Path to the bundle directory</returns>
-		public virtual DirectoryReference GetBundleDirectory(ReadOnlyTargetRules Rules, List<FileReference> OutputFiles)
+		public virtual DirectoryReference? GetBundleDirectory(ReadOnlyTargetRules Rules, List<FileReference> OutputFiles)
 		{
 			return null;
 		}
@@ -395,7 +396,7 @@ namespace UnrealBuildTool
 		public static void RegisterPlatformWithGroup(UnrealTargetPlatform InPlatform, UnrealPlatformGroup InGroup)
 		{
 			// find or add the list of groups for this platform
-			List<UnrealTargetPlatform> Platforms;
+			List<UnrealTargetPlatform>? Platforms;
 			if(!PlatformGroupDictionary.TryGetValue(InGroup, out Platforms))
 			{
 				Platforms = new List<UnrealTargetPlatform>();
@@ -409,8 +410,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static List<UnrealTargetPlatform> GetPlatformsInGroup(UnrealPlatformGroup InGroup)
 		{
-			List<UnrealTargetPlatform> PlatformList;
-			PlatformGroupDictionary.TryGetValue(InGroup, out PlatformList);
+			List<UnrealTargetPlatform>? PlatformList;
+			if (!PlatformGroupDictionary.TryGetValue(InGroup, out PlatformList))
+			{
+				PlatformList = new List<UnrealTargetPlatform>();
+			}
 			return PlatformList;
 		}
 
@@ -431,22 +435,22 @@ namespace UnrealBuildTool
 		/// <returns>UEBuildPlatform  The instance of the build platform</returns>
 		public static UEBuildPlatform GetBuildPlatform(UnrealTargetPlatform InPlatform)
 		{
-			UEBuildPlatform Platform;
-			if (!TryGetBuildPlatform(InPlatform, out Platform))
+			UEBuildPlatform? Platform;
+			if(!TryGetBuildPlatform(InPlatform, out Platform))
 			{
 				throw new BuildException("GetBuildPlatform: No BuildPlatform found for {0}", InPlatform.ToString());
 			}
 			return Platform;
-		}
+			}
 
 		/// <summary>
 		/// Retrieve the IUEBuildPlatform instance for the given TargetPlatform
 		/// </summary>
 		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
-		/// <param name="Platform">The build platform</param>
+		/// <param name="Platform"></param>
 		/// <returns>UEBuildPlatform  The instance of the build platform</returns>
-		public static bool TryGetBuildPlatform(UnrealTargetPlatform InPlatform, out UEBuildPlatform Platform)
-		{
+		public static bool TryGetBuildPlatform(UnrealTargetPlatform InPlatform, [NotNullWhen(true)] out UEBuildPlatform? Platform)
+			{
 			return BuildPlatformDictionary.TryGetValue(InPlatform, out Platform);
 		}
 
@@ -541,7 +545,7 @@ namespace UnrealBuildTool
 		public static bool PlatformRequiresMonolithicBuilds(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
 		{
 			// Some platforms require monolithic builds...
-			UEBuildPlatform BuildPlatform;
+			UEBuildPlatform? BuildPlatform;
 			if (TryGetBuildPlatform(InPlatform, out BuildPlatform))
 			{
 				return BuildPlatform.ShouldCompileMonolithicBinary(InPlatform);
@@ -604,7 +608,7 @@ namespace UnrealBuildTool
 		/// For platforms that need to output multiple files per binary (ie Android "fat" binaries)
 		/// this will emit multiple paths. By default, it simply makes an array from the input
 		/// </summary>
-		public virtual List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
+		public virtual List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> TempList = new List<FileReference>() { BinaryName };
 			return TempList;
@@ -629,10 +633,10 @@ namespace UnrealBuildTool
 			return Configurations;
 		}
 
-		protected static bool DoProjectSettingsMatchDefault(UnrealTargetPlatform Platform, DirectoryReference ProjectDirectoryName, string Section, string[] BoolKeys, string[] IntKeys, string[] StringKeys)
+		protected static bool DoProjectSettingsMatchDefault(UnrealTargetPlatform Platform, DirectoryReference ProjectDirectoryName, string Section, string[] BoolKeys, string[]? IntKeys, string[]? StringKeys)
 		{
 			ConfigHierarchy ProjIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectoryName, Platform);
-			ConfigHierarchy DefaultIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, Platform);
+			ConfigHierarchy DefaultIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference?)null, Platform);
 
 			// look at all bool values
 			if (BoolKeys != null) foreach (string Key in BoolKeys)
@@ -663,7 +667,7 @@ namespace UnrealBuildTool
 			// look for all string values
 			if (StringKeys != null) foreach (string Key in StringKeys)
 				{
-					string Default = "", Project = "";
+					string? Default = "", Project = "";
 					DefaultIni.GetString(Section, Key, out Default);
 					ProjIni.GetString(Section, Key, out Project);
 					if (Default != Project)
@@ -779,7 +783,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file being built</param>
 		/// <returns>String describing the current build metadata</returns>
-		public string GetExternalBuildMetadata(FileReference ProjectFile)
+		public string GetExternalBuildMetadata(FileReference? ProjectFile)
 		{
 			StringBuilder Result = new StringBuilder();
 			GetExternalBuildMetadata(ProjectFile, Result);
@@ -791,7 +795,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file being built</param>
 		/// <param name="Metadata">String builder to contain build metadata</param>
-		public virtual void GetExternalBuildMetadata(FileReference ProjectFile, StringBuilder Metadata)
+		public virtual void GetExternalBuildMetadata(FileReference? ProjectFile, StringBuilder Metadata)
 		{
 		}
 
@@ -817,7 +821,7 @@ namespace UnrealBuildTool
 		/// <returns>True if platform is part of a platform group</returns>
 		internal static bool IsPlatformInGroup(UnrealTargetPlatform Platform, UnrealPlatformGroup PlatformGroup)
 		{
-			List<UnrealTargetPlatform> Platforms = UEBuildPlatform.GetPlatformsInGroup(PlatformGroup);
+			List<UnrealTargetPlatform>? Platforms = UEBuildPlatform.GetPlatformsInGroup(PlatformGroup);
 			if (Platforms != null)
 			{
 				return Platforms.Contains(Platform);

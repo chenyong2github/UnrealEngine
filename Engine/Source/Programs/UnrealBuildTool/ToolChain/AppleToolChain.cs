@@ -9,6 +9,8 @@ using System.Text;
 using Tools.DotNETCommon;
 using System.Text.RegularExpressions;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	abstract class AppleToolChainSettings

@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 		/// <param name="Directories">The directories to cache</param>
 		private static void PrefetchRulesFiles(IEnumerable<DirectoryReference> Directories)
 		{
-			ThreadPoolWorkQueue Queue = null;
+			ThreadPoolWorkQueue? Queue = null;
 			try
 			{
 				foreach(DirectoryReference Directory in Directories)
@@ -213,7 +213,7 @@ namespace UnrealBuildTool
 		private static IReadOnlyList<FileReference> FindAllRulesFiles(DirectoryReference Directory, RulesFileType Type)
 		{
 			// Check to see if we've already cached source files for this folder
-			RulesFileCache Cache;
+			RulesFileCache? Cache;
 			if (!RootFolderToRulesFileCache.TryGetValue(Directory, out Cache))
 			{
 				Cache = new RulesFileCache();
@@ -330,7 +330,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The cached rules assembly for engine modules and targets.
 		/// </summary>
-		private static RulesAssembly EngineRulesAssembly;
+		private static RulesAssembly? EngineRulesAssembly;
 
 		/// <summary>
 		/// Map of assembly names we've already compiled and loaded to their Assembly and list of game folders.  This is used to prevent
@@ -371,7 +371,7 @@ namespace UnrealBuildTool
 		/// <param name="bSkipCompile">Whether to skip compilation for this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
 		/// <returns>New rules assembly</returns>
-		private static RulesAssembly CreateEngineRulesAssemblyInternal(RulesScope Scope, List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		private static RulesAssembly CreateEngineRulesAssemblyInternal(RulesScope Scope, List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly? Parent)
 		{
 			// Scope hierarchy
 			RulesScope PluginsScope = new RulesScope(Scope.Name + " Plugins", Scope);
@@ -447,7 +447,7 @@ namespace UnrealBuildTool
 		public static RulesAssembly CreateProjectRulesAssembly(FileReference ProjectFileName, bool bUsePrecompiled, bool bSkipCompile)
 		{
 			// Check if there's an existing assembly for this project
-			RulesAssembly ProjectRulesAssembly;
+			RulesAssembly? ProjectRulesAssembly;
 			if (!LoadedAssemblyMap.TryGetValue(ProjectFileName, out ProjectRulesAssembly))
 			{
 				ProjectDescriptor Project = ProjectDescriptor.FromFile(ProjectFileName);
@@ -538,7 +538,7 @@ namespace UnrealBuildTool
         public static RulesAssembly CreatePluginRulesAssembly(FileReference PluginFileName, bool bSkipCompile, RulesAssembly Parent, bool bContainsEngineModules)
 		{
 			// Check if there's an existing assembly for this project
-			RulesAssembly PluginRulesAssembly;
+			RulesAssembly? PluginRulesAssembly;
 			if (!LoadedAssemblyMap.TryGetValue(PluginFileName, out PluginRulesAssembly))
 			{
 				// Find all the rules source files
@@ -547,7 +547,7 @@ namespace UnrealBuildTool
 
 				// Create a list of plugins for this assembly. If it already exists in the parent assembly, just create an empty assembly.
 				List<PluginInfo> ForeignPlugins = new List<PluginInfo>();
-				if (Parent == null || !Parent.EnumeratePlugins().Any(x => x.File == PluginFileName))
+				if (!Parent.EnumeratePlugins().Any(x => x.File == PluginFileName))
 				{
 					ForeignPlugins.Add(new PluginInfo(PluginFileName, PluginType.External));
 				}
@@ -577,7 +577,7 @@ namespace UnrealBuildTool
 		/// <param name="bUsePrecompiled">Whether to use a precompiled engine build</param>
 		/// <param name="ForeignPlugin">Foreign plugin to be compiled</param>
 		/// <returns>The compiled rules assembly</returns>
-		public static RulesAssembly CreateTargetRulesAssembly(FileReference ProjectFile, string TargetName, bool bSkipRulesCompile, bool bUsePrecompiled, FileReference ForeignPlugin)
+		public static RulesAssembly CreateTargetRulesAssembly(FileReference? ProjectFile, string TargetName, bool bSkipRulesCompile, bool bUsePrecompiled, FileReference? ForeignPlugin)
 		{
 			RulesAssembly RulesAssembly;
 			if (ProjectFile != null)
@@ -628,9 +628,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ExistingType">The type to search for.</param>
 		/// <returns>The filename that declared the given type, or null</returns>
-		public static string GetFileNameFromType(Type ExistingType)
+		public static string? GetFileNameFromType(Type ExistingType)
 		{
-			FileReference FileName;
+			FileReference? FileName;
 			if (EngineRulesAssembly != null && EngineRulesAssembly.TryGetFileNameFromType(ExistingType, out FileName))
 			{
 				return FileName.FullName;
