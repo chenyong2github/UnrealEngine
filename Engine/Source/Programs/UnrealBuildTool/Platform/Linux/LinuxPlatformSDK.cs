@@ -6,6 +6,8 @@ using System.IO;
 using Tools.DotNETCommon;
 using System.Text.RegularExpressions;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class LinuxPlatformSDK : UEBuildPlatformSDK

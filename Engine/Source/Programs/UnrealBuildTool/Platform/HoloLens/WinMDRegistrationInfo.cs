@@ -8,6 +8,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

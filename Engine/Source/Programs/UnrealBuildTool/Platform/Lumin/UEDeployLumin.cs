@@ -12,6 +12,8 @@ using System.Xml;
 using System.Xml.Serialization;
 using System.Xml.Linq;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class UEDeployLumin : UEBuildDeploy, ILuminDeploy

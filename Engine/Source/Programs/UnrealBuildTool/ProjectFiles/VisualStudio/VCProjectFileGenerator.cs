@@ -9,6 +9,8 @@ using System.Text;
 using System.Xml.Linq;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -355,8 +357,8 @@ namespace UnrealBuildTool
 				// Allow the SDKs to override
 				foreach (UnrealTargetPlatform SupportedPlatform in SupportedPlatforms)
 				{
-					UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(SupportedPlatform, true);
-					if (BuildPlatform != null)
+					UEBuildPlatform BuildPlatform;
+					if (UEBuildPlatform.TryGetBuildPlatform(SupportedPlatform, out BuildPlatform))
 					{
 						// Don't worry about platforms that we're missing SDKs for
 						if (BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid)

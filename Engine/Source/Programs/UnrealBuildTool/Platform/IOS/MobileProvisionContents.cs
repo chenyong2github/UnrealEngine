@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Xml;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

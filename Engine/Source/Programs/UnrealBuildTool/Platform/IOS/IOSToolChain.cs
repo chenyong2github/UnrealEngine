@@ -16,6 +16,8 @@ using Ionic.Zlib;
 using Tools.DotNETCommon;
 using System.Security.Cryptography.X509Certificates;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class IOSToolChainSettings : AppleToolChainSettings

@@ -7,6 +7,8 @@ using Tools.DotNETCommon;
 using System.Text.RegularExpressions;
 using System.Linq;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class AndroidPlatformSDK : UEBuildPlatformSDK

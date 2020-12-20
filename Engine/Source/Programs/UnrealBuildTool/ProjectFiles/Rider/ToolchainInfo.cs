@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	sealed class ToolchainInfo : IEquatable<ToolchainInfo>

@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using System.Diagnostics;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	internal class ApplePlatformSDK : UEBuildPlatformSDK

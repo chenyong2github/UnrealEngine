@@ -8,6 +8,8 @@ using System.IO;
 using Tools.DotNETCommon;
 using System.Text.RegularExpressions;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/** Architecture as stored in the ini. */

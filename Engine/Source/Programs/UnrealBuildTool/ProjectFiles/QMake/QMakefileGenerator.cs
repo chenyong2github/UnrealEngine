@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -6,6 +6,8 @@ using System.Text;
 using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
+
+#nullable disable
 
 namespace UnrealBuildTool
 {

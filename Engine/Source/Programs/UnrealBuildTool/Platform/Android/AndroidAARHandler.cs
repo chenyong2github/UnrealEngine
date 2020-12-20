@@ -12,6 +12,8 @@ using Tools.DotNETCommon;
 
 using Ionic.Zip;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class AndroidAARHandler

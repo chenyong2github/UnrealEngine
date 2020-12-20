@@ -13,6 +13,8 @@ using System.Diagnostics;
 using System.Security;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -178,8 +180,8 @@ namespace UnrealBuildTool
 				}
 			}
 
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, true);
-			if (BuildPlatform == null)
+			UEBuildPlatform BuildPlatform;
+			if (!UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform))
 			{
 				return false;
 			}
@@ -620,8 +622,8 @@ namespace UnrealBuildTool
 							{
 								continue;
 							}
-							UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, true);
-							if ((BuildPlatform != null) && (BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid))
+							UEBuildPlatform BuildPlatform;
+							if (UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform) && (BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid))
 							{
 								// Now go through all of the target types for this project
 								if (ProjectTargets.Count == 0)

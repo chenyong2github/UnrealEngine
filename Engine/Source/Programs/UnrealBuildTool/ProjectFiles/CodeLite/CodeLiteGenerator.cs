@@ -8,6 +8,8 @@ using System.Xml;
 using System.Xml.Linq;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	// Represents a folder within the master project. TODO Not using at the moment.

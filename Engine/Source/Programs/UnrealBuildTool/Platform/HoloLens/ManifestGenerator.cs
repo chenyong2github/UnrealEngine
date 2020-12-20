@@ -10,6 +10,8 @@ using System.Resources;
 using System.Xml;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

@@ -8,6 +8,8 @@ using System.Xml;
 using System.Xml.Linq;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class CodeLiteProject : ProjectFile

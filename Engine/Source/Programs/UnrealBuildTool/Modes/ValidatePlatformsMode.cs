@@ -53,7 +53,7 @@ namespace UnrealBuildTool
 			// Output a line for each registered platform
 			foreach (UnrealTargetPlatform Platform in Platforms)
 			{
-				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, true);
+				UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlatform);
 				string PlatformSDKString = "";
 				if (bOutputSDKs)
 				{

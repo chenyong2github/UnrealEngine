@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using Tools.DotNETCommon;
 using System.Linq;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -25,8 +27,8 @@ namespace UnrealBuildTool
 		public void RegisterPlatformProjectGenerator(UnrealTargetPlatform InPlatform, PlatformProjectGenerator InProjectGenerator)
 		{
 			// Make sure the build platform is legal
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(InPlatform, true);
-			if (BuildPlatform != null)
+			UEBuildPlatform BuildPlatform;
+			if(UEBuildPlatform.TryGetBuildPlatform(InPlatform, out BuildPlatform))
 			{
 				if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
 				{

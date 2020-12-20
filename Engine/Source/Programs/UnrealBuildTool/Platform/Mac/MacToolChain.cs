@@ -13,6 +13,8 @@ using Tools.DotNETCommon;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class MacToolChainSettings : AppleToolChainSettings

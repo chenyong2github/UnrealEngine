@@ -428,19 +428,26 @@ namespace UnrealBuildTool
 		/// Retrieve the IUEBuildPlatform instance for the given TargetPlatform
 		/// </summary>
 		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
-		/// <param name="bInAllowFailure"> If true, do not throw an exception and return null</param>
 		/// <returns>UEBuildPlatform  The instance of the build platform</returns>
-		public static UEBuildPlatform GetBuildPlatform(UnrealTargetPlatform InPlatform, bool bInAllowFailure = false)
+		public static UEBuildPlatform GetBuildPlatform(UnrealTargetPlatform InPlatform)
 		{
-			if (BuildPlatformDictionary.ContainsKey(InPlatform) == true)
+			UEBuildPlatform Platform;
+			if (!TryGetBuildPlatform(InPlatform, out Platform))
 			{
-				return BuildPlatformDictionary[InPlatform];
+				throw new BuildException("GetBuildPlatform: No BuildPlatform found for {0}", InPlatform.ToString());
 			}
-			if (bInAllowFailure == true)
-			{
-				return null;
-			}
-			throw new BuildException("GetBuildPlatform: No BuildPlatform found for {0}", InPlatform.ToString());
+			return Platform;
+		}
+
+		/// <summary>
+		/// Retrieve the IUEBuildPlatform instance for the given TargetPlatform
+		/// </summary>
+		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
+		/// <param name="Platform">The build platform</param>
+		/// <returns>UEBuildPlatform  The instance of the build platform</returns>
+		public static bool TryGetBuildPlatform(UnrealTargetPlatform InPlatform, out UEBuildPlatform Platform)
+		{
+			return BuildPlatformDictionary.TryGetValue(InPlatform, out Platform);
 		}
 
 		/// <summary>
@@ -534,8 +541,8 @@ namespace UnrealBuildTool
 		public static bool PlatformRequiresMonolithicBuilds(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
 		{
 			// Some platforms require monolithic builds...
-			UEBuildPlatform BuildPlatform = GetBuildPlatform(InPlatform, true);
-			if (BuildPlatform != null)
+			UEBuildPlatform BuildPlatform;
+			if (TryGetBuildPlatform(InPlatform, out BuildPlatform))
 			{
 				return BuildPlatform.ShouldCompileMonolithicBinary(InPlatform);
 			}

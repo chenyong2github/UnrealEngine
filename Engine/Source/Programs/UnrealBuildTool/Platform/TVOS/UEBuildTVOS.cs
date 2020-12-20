@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class TVOSProjectSettings : IOSProjectSettings

@@ -8,6 +8,8 @@ using Tools.DotNETCommon;
 using System.Diagnostics;
 using System.Linq;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class VSCodeProjectFolder : MasterProjectFolder
@@ -461,7 +463,7 @@ namespace UnrealBuildTool
 
 						foreach (UnrealTargetPlatform Platform in Platforms)
 						{
-							var BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, true);
+							UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlatform);
 							if (SupportedPlatforms.Contains(Platform) && (BuildPlatform != null) && (BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid))
 							{
 								foreach (UnrealTargetConfiguration Config in Configs)

@@ -10,6 +10,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	static class Extension

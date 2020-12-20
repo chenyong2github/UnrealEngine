@@ -587,7 +587,7 @@ namespace UnrealBuildTool
 			UHTModuleInfo[] ModuleInfoArray = new UHTModuleInfo[ModulesSortedByType.Count];
 			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
-				ReadOnlyHashSet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform, true).GetExcludedFolderNames();
+				ReadOnlyHashSet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 				for(int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];

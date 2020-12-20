@@ -10,6 +10,8 @@ using Microsoft.Win32;
 using System.Text;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class VCToolChain : ISPCToolChain

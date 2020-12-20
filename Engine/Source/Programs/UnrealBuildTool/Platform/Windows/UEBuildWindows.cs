@@ -11,6 +11,8 @@ using Tools.DotNETCommon;
 using Microsoft.VisualStudio.Setup.Configuration;
 using System.Runtime.InteropServices;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

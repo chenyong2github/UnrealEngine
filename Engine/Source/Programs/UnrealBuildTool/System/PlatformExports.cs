@@ -52,7 +52,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the project uses the default build configuration</returns>
 		public static bool HasDefaultBuildConfig(FileReference ProjectFile, UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform BuildPlat = UEBuildPlatform.GetBuildPlatform(Platform, true);
+			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlat);
 			return (BuildPlat == null)? true : BuildPlat.HasDefaultBuildConfig(Platform, ProjectFile.Directory);
 		}
 
@@ -64,7 +64,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the project requires a build for the platform</returns>
 		public static bool RequiresBuild(FileReference ProjectFile, UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform BuildPlat = UEBuildPlatform.GetBuildPlatform(Platform, true);
+			UEBuildPlatform.TryGetBuildPlatform(Platform, out UEBuildPlatform BuildPlat);
 			return (BuildPlat == null) ? false : BuildPlat.RequiresBuild(Platform, ProjectFile.Directory);
 		}
 
@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 		/// <returns>All platform folder names</returns>
 		public static string[] GetIncludedFolderNames(UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, false);
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
 			return BuildPlatform.GetIncludedFolderNames().ToArray();
 		}
 
@@ -95,7 +95,7 @@ namespace UnrealBuildTool
 		/// <returns>Array of folder names</returns>
 		public static string[] GetExcludedFolderNames(UnrealTargetPlatform Platform)
 		{
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, false);
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
 			return BuildPlatform.GetExcludedFolderNames().ToArray();
 		}
 

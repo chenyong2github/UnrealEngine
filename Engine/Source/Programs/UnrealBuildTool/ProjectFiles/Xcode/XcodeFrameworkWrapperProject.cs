@@ -7,6 +7,8 @@ using System.Linq;
 using System.Collections.Generic;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool.ProjectFiles.Xcode
 {
 	/// <summary>

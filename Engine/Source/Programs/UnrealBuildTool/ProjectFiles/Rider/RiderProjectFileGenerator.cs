@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class RiderMasterProjectFolder : MasterProjectFolder
@@ -390,7 +392,7 @@ namespace UnrealBuildTool
 						ProjectFilePath = ProjectFilePath,
 						UnrealProjectFilePath = CheckProjectFile,
 						SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms()
-							.Where(x => UEBuildPlatform.GetBuildPlatform(x, true) != null).ToArray(),
+							.Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).ToArray(),
 						CreateRulesDelegate = (Platform, Configuration) =>
 							RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile,
 								null)

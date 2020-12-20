@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	internal class MicrosoftPlatformSDK : UEBuildPlatformSDK

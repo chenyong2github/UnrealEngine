@@ -64,7 +64,7 @@ namespace UnrealBuildTool
 										// if the platform is valid, then we want to keep the files, which means that we don't want to apply the junk line
 										if (UnrealTargetPlatform.TryParse(InnerTokens[1], out ParsedPlatform))
 										{
-											if (UEBuildPlatform.GetBuildPlatform(ParsedPlatform, bInAllowFailure: true) != null)
+											if (UEBuildPlatform.TryGetBuildPlatform(ParsedPlatform, out _))
 											{
 												// this is a good platform, so don't delete any files!
 												bIsValidJunkLine = false;

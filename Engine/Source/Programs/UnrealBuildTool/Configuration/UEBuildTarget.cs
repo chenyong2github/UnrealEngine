@@ -3031,7 +3031,7 @@ namespace UnrealBuildTool
 			List<UnrealTargetPlatform> MissingPlatforms = new List<UnrealTargetPlatform>();
 			foreach (UnrealTargetPlatform TargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
-				if (UEBuildPlatform.GetBuildPlatform(TargetPlatform, true) == null)
+				if (!UEBuildPlatform.TryGetBuildPlatform(TargetPlatform, out _))
 				{
 					MissingPlatforms.Add(TargetPlatform);
 				}

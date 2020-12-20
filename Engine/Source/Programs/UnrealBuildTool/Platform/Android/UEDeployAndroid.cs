@@ -12,6 +12,8 @@ using System.Xml.Linq;
 using Tools.DotNETCommon;
 using System.Security.Cryptography;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class UEDeployAndroid : UEBuildDeploy, IAndroidDeploy

@@ -10,6 +10,8 @@ using System.IO;
 using Ionic.Zip;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class UEDeployMac : UEBuildDeploy

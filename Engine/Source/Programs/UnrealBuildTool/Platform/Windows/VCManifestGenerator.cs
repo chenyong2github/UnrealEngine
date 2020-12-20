@@ -11,6 +11,8 @@ using System.Xml.Linq;
 using System.Text;
 using System.Diagnostics;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
     abstract class VCManifestGenerator

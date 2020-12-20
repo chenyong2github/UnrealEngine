@@ -6,6 +6,8 @@ using System.Text;
 using System.IO;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>

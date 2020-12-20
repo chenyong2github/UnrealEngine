@@ -12,6 +12,8 @@ using Tools.DotNETCommon;
 using System.Xml.Linq;
 using System.Xml;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -1810,8 +1812,8 @@ namespace UnrealBuildTool
 				if (bInProjectPlatformsList && (IncludeAllPlatforms || IsRequiredPlatform))
 				{
 					// If there is a build platform present, add it to the SupportedPlatforms list
-					UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform( Platform, true );
-					if( BuildPlatform != null )
+					UEBuildPlatform BuildPlatform;
+					if(UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform))
 					{
 						if (InstalledPlatformInfo.IsValidPlatform(Platform, EProjectType.Code))
 						{
@@ -2338,7 +2340,7 @@ namespace UnrealBuildTool
 							TargetFilePath = TargetFilePath,
 							ProjectFilePath = ProjectFilePath,
 							UnrealProjectFilePath = CheckProjectFile,
-							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(x => UEBuildPlatform.GetBuildPlatform(x, true) != null).ToArray(),
+							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).ToArray(),
 							CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)))
                         };
 

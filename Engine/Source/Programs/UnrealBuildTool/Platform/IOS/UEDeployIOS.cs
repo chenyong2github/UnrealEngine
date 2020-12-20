@@ -11,6 +11,8 @@ using System.Diagnostics;
 using System.Xml.Linq;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class UEDeployIOS : UEBuildDeploy

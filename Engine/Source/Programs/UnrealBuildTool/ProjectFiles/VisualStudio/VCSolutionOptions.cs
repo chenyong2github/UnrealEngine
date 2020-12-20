@@ -14,6 +14,8 @@ using System.Diagnostics;
 using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	class VCBinarySetting

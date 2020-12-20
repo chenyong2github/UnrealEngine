@@ -13,6 +13,8 @@ using System.Xml;
 using System.Xml.Serialization;
 using Tools.DotNETCommon;
 
+#nullable disable
+
 namespace UnrealBuildTool
 {
 	/// <summary>
