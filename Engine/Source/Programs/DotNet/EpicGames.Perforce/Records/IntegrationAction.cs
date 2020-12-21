@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tools.DotNETCommon.Perforce
+namespace EpicGames.Perforce
 {
 	/// <summary>
 	/// Describes the action performed by the user when resolving the integration

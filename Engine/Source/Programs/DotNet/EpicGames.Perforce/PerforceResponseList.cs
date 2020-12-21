@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tools.DotNETCommon.Perforce
+namespace EpicGames.Perforce
 {
 	/// <summary>
 	/// Represents a list of responses from the Perforce server. Within the list, individual responses

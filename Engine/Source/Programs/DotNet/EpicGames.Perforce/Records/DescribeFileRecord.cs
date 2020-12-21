@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tools.DotNETCommon.Perforce
+namespace EpicGames.Perforce
 {
 	/// <summary>
 	/// Contains information about an individual file in a returned DescribeRecord
