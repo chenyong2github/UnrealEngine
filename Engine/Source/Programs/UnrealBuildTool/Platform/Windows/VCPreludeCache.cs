@@ -7,8 +7,6 @@ using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -52,7 +50,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Path to the file used to generate prelude headers
 		/// </summary>
-		static FileReference PreludeGeneratorFile;
+		static FileReference? PreludeGeneratorFile;
 
 		/// <summary>
 		/// Cached mapping from compiler filename to its version string
@@ -68,7 +66,7 @@ namespace UnrealBuildTool
 		public static FileReference GetPreludeHeader(FileReference Compiler, List<string> Arguments)
 		{
 			// Cache the compiler version
-			string CompilerVersion;
+			string? CompilerVersion;
 			lock (CompilerExeToVersion)
 			{
 				if (!CompilerExeToVersion.TryGetValue(Compiler, out CompilerVersion))

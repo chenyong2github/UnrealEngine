@@ -79,7 +79,7 @@ namespace UnrealBuildTool
 		/// <param name="Lhs">The first version number</param>
 		/// <param name="Rhs">The second version number</param>
 		/// <returns>True if the versions are equal.</returns>
-		public static bool operator==(VersionNumber Lhs, VersionNumber Rhs)
+		public static bool operator==(VersionNumber? Lhs, VersionNumber? Rhs)
 		{
 			if(Object.ReferenceEquals(Lhs, null))
 			{
@@ -97,7 +97,7 @@ namespace UnrealBuildTool
 		/// <param name="Lhs">The first version number</param>
 		/// <param name="Rhs">The second version number</param>
 		/// <returns>True if the versions are not equal.</returns>
-		public static bool operator!=(VersionNumber Lhs, VersionNumber Rhs)
+		public static bool operator!=(VersionNumber? Lhs, VersionNumber? Rhs)
 		{
 			return !(Lhs == Rhs);
 		}

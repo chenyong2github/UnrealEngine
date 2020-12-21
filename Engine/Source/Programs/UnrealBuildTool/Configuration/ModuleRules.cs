@@ -1152,6 +1152,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+#nullable disable
 		/// <summary>
 		/// Constructor. For backwards compatibility while the parameterless constructor is being phased out, initialization which would happen here is done by 
 		/// RulesAssembly.CreateModulRules instead.
@@ -1160,12 +1161,8 @@ namespace UnrealBuildTool
 		public ModuleRules(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
-
-			Name = Name!;
-			File = File!;
-			Directory = Directory!;
-			Context = Context!;
 		}
+#nullable restore
 
 		/// <summary>
 		/// Add the given Engine ThirdParty modules as static private dependencies

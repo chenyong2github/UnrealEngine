@@ -11,8 +11,6 @@ using System.Threading;
 using System.Linq;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class ActionThread
@@ -70,7 +68,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void ThreadFunc()
 		{
-			string Args = Action.CommandArguments;
+			string? Args = Action.CommandArguments;
 			// TODO: Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
 			// see https://github.com/dotnet/runtime/issues/29857
@@ -106,7 +104,7 @@ namespace UnrealBuildTool
 			}
 
 			// Try to launch the action's process, and produce a friendly error message if it fails.
-			Process ActionProcess = null;
+			Process? ActionProcess = null;
 			try
 			{
 				try
@@ -295,7 +293,7 @@ namespace UnrealBuildTool
 			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
 			Log.TraceInformation("Performing {0} actions ({1} in parallel)", Actions.Count, NumParallelProcesses);
 
-			Dictionary<LinkedAction, ActionThread> ActionThreadDictionary = new Dictionary<LinkedAction, ActionThread>();
+			Dictionary<LinkedAction, ActionThread?> ActionThreadDictionary = new Dictionary<LinkedAction, ActionThread?>();
 			int JobNumber = 1;
 			using (ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false))
 			{
@@ -307,7 +305,7 @@ namespace UnrealBuildTool
 					int NumExecutingActions = 0;
 					foreach (LinkedAction Action in Actions)
 					{
-						ActionThread ActionThread = null;
+						ActionThread? ActionThread = null;
 						bool bFoundActionProcess = ActionThreadDictionary.TryGetValue(Action, out ActionThread);
 						if (bFoundActionProcess == false)
 						{
@@ -341,7 +339,7 @@ namespace UnrealBuildTool
 					// prerequisites.
 					foreach (LinkedAction Action in Actions)
 					{
-						ActionThread ActionProcess = null;
+						ActionThread? ActionProcess = null;
 						bool bFoundActionProcess = ActionThreadDictionary.TryGetValue(Action, out ActionProcess);
 						if (bFoundActionProcess == false)
 						{
@@ -354,7 +352,7 @@ namespace UnrealBuildTool
 								{
 									if (Actions.Contains(PrerequisiteAction))
 									{
-										ActionThread PrerequisiteProcess = null;
+										ActionThread? PrerequisiteProcess = null;
 										bool bFoundPrerequisiteProcess = ActionThreadDictionary.TryGetValue(PrerequisiteAction, out PrerequisiteProcess);
 										if (bFoundPrerequisiteProcess == true)
 										{
@@ -413,10 +411,10 @@ namespace UnrealBuildTool
 
 			// Check whether any of the tasks failed and log action stats if wanted.
 			bool bSuccess = true;
-			foreach (KeyValuePair<LinkedAction, ActionThread> ActionProcess in ActionThreadDictionary)
+			foreach (KeyValuePair<LinkedAction, ActionThread?> ActionProcess in ActionThreadDictionary)
 			{
 				LinkedAction Action = ActionProcess.Key;
-				ActionThread ActionThread = ActionProcess.Value;
+				ActionThread? ActionThread = ActionProcess.Value;
 
 				// Check for pending actions, preemptive failure
 				if (ActionThread == null)

@@ -9,8 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -32,6 +30,11 @@ namespace UnrealBuildTool
 
 			public List<string> LogLines = new List<string>();
 			public int ExitCode = -1;
+
+			public BuildAction(LinkedAction Inner)
+			{
+				this.Inner = Inner;
+			}
 		}
 
 		/// <summary>
@@ -106,9 +109,8 @@ namespace UnrealBuildTool
 			List<BuildAction> Actions = new List<BuildAction>();
 			for(int Idx = 0; Idx < InputActions.Count; Idx++)
 			{
-				BuildAction Action = new BuildAction();
+				BuildAction Action = new BuildAction(InputActions[Idx]);
 				Action.SortIndex = Idx;
-				Action.Inner = InputActions[Idx];
 
 				if (!Action.Inner.StatusDescription.EndsWith(".ispc"))
 				{
@@ -124,7 +126,7 @@ namespace UnrealBuildTool
 			{
 				foreach(LinkedAction PrerequisiteAction in Action.Inner.PrerequisiteActions)
 				{
-					BuildAction Dependency;
+					BuildAction? Dependency;
 					if(LinkedActionToBuildAction.TryGetValue(PrerequisiteAction, out Dependency))
 					{
 						Action.Dependencies.Add(Dependency);

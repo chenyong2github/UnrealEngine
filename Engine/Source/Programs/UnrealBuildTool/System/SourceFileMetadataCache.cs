@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Project file for the target being built</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile)
+		public static IEnumerable<FileReference> GetFilesToClean(FileReference? ProjectFile)
 		{
 			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{

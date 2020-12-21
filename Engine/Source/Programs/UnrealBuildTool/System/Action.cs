@@ -9,8 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -64,7 +62,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
 		/// </summary>
-		FileItem DependencyListFile { get; }
+		FileItem? DependencyListFile { get; }
 
 		/// <summary>
 		/// Directory from which to execute the program to create produced items
@@ -150,27 +148,27 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
 		/// </summary>
-		public FileItem DependencyListFile { get; set; }
+		public FileItem? DependencyListFile { get; set; }
 
 		/// <summary>
 		/// Directory from which to execute the program to create produced items
 		/// </summary>
-		public DirectoryReference WorkingDirectory { get; set; } = null;
+		public DirectoryReference WorkingDirectory { get; set; } = null!;
 
 		/// <summary>
 		/// The command to run to create produced items
 		/// </summary>
-		public FileReference CommandPath { get; set; } = null;
+		public FileReference CommandPath { get; set; } = null!;
 
 		/// <summary>
 		/// Command-line parameters to pass to the program
 		/// </summary>
-		public string CommandArguments { get; set; } = null;
+		public string CommandArguments { get; set; } = null!;
 
 		/// <summary>
 		/// Optional friendly description of the type of command being performed, for example "Compile" or "Link".  Displayed by some executors.
 		/// </summary>
-		public string CommandDescription { get; set; } = null;
+		public string CommandDescription { get; set; } = null!;
 
 		/// <summary>
 		/// Human-readable description of this action that may be displayed as status while invoking the action.  This is often the name of the file being compiled, or an executable file name being linked.  Displayed by some executors.
@@ -364,7 +362,7 @@ namespace UnrealBuildTool
 				Action.DeleteItems.AddRange(DeleteItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
-			string DependencyListFile;
+			string? DependencyListFile;
 			if (Object.TryGetStringField("DependencyListFile", out DependencyListFile))
 			{
 				Action.DependencyListFile = FileItem.GetItemByPath(DependencyListFile);
@@ -473,7 +471,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.
 		/// </summary>
-		public HashSet<LinkedAction> PrerequisiteActions;
+		public HashSet<LinkedAction> PrerequisiteActions = null!;
 
 		/// <summary>
 		/// Total number of actions depending on this one.
@@ -491,7 +489,7 @@ namespace UnrealBuildTool
 		public IEnumerable<FileItem> PrerequisiteItems => Inner.PrerequisiteItems;
 		public IEnumerable<FileItem> ProducedItems => Inner.ProducedItems;
 		public IEnumerable<FileItem> DeleteItems => Inner.DeleteItems;
-		public FileItem DependencyListFile => Inner.DependencyListFile;
+		public FileItem? DependencyListFile => Inner.DependencyListFile;
 		public DirectoryReference WorkingDirectory => Inner.WorkingDirectory;
 		public FileReference CommandPath => Inner.CommandPath;
 		public string CommandArguments => Inner.CommandArguments;

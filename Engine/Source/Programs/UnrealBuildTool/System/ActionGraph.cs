@@ -10,8 +10,6 @@ using Tools.DotNETCommon;
 using System.Text;
 using System.Threading.Tasks;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	static class ActionGraph
@@ -41,7 +39,7 @@ namespace UnrealBuildTool
 				Action.PrerequisiteActions = new HashSet<LinkedAction>();
 				foreach(FileItem PrerequisiteItem in Action.PrerequisiteItems)
 				{
-					LinkedAction PrerequisiteAction;
+					LinkedAction? PrerequisiteAction;
 					if(ItemToProducingAction.TryGetValue(PrerequisiteItem, out PrerequisiteAction))
 					{
 						Action.PrerequisiteActions.Add(PrerequisiteAction);
@@ -66,7 +64,7 @@ namespace UnrealBuildTool
 			{
 				foreach(FileItem ProducedItem in Action.ProducedItems)
 				{
-					IExternalAction ExistingAction;
+					IExternalAction? ExistingAction;
 					if(ItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
 						bResult &= CheckForConflicts(ExistingAction, Action);
@@ -336,7 +334,7 @@ namespace UnrealBuildTool
 						bool bActionOnlyDependsOnNonCyclicalActions = true;
 						foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
 						{
-							LinkedAction ProducingAction;
+							LinkedAction? ProducingAction;
 							if (ItemToProducingAction.TryGetValue(PrerequisiteItem, out ProducingAction))
 							{
 								if (!ActionIsNonCyclical.ContainsKey(ProducingAction))
@@ -497,7 +495,7 @@ namespace UnrealBuildTool
 			}
 
 			// Determine the last time the action was run based on the write times of its produced files.
-			string LatestUpdatedProducedItemName = null;
+			string? LatestUpdatedProducedItemName = null;
 			DateTimeOffset LastExecutionTimeUtc = DateTimeOffset.MaxValue;
 			foreach (FileItem ProducedItem in RootAction.ProducedItems)
 			{
@@ -590,7 +588,7 @@ namespace UnrealBuildTool
 			// Check the dependency list
 			if(!bIsOutdated && RootAction.DependencyListFile != null)
 			{
-				List<FileItem> DependencyFiles;
+				List<FileItem>? DependencyFiles;
 				if(!CppDependencies.TryGetDependencies(RootAction.DependencyListFile, out DependencyFiles))
 				{
 					Log.TraceLog("{0}: Missing dependency list file \"{1}\"", RootAction.StatusDescription, RootAction.DependencyListFile);
@@ -683,7 +681,7 @@ namespace UnrealBuildTool
 						Dependencies.Add(Action.DependencyListFile);
 					}
 				}
-				Parallel.ForEach(Dependencies, File => { List<FileItem> Temp; CppDependencies.TryGetDependencies(File, out Temp); });
+				Parallel.ForEach(Dependencies, File => { List<FileItem>? Temp; CppDependencies.TryGetDependencies(File, out Temp); });
 			}
 
 			using(Timeline.ScopeEvent("Cache outdated actions"))
@@ -769,11 +767,12 @@ namespace UnrealBuildTool
 				Writer.WriteObjectStart();
 
 				Writer.WriteObjectStart("Environment");
-				foreach (System.Collections.DictionaryEntry Pair in Environment.GetEnvironmentVariables())
+				foreach (object? Object in Environment.GetEnvironmentVariables())
 				{
-					if (!UnrealBuildTool.InitialEnvironment.Contains(Pair.Key) || (string)(UnrealBuildTool.InitialEnvironment[Pair.Key]) != (string)(Pair.Value))
+					System.Collections.DictionaryEntry Pair = (System.Collections.DictionaryEntry)Object!;
+					if (!UnrealBuildTool.InitialEnvironment!.Contains(Pair.Key) || (string)(UnrealBuildTool.InitialEnvironment![Pair.Key]!) != (string)(Pair.Value!))
 					{
-						Writer.WriteValue((string)Pair.Key, (string)Pair.Value);
+						Writer.WriteValue((string)Pair!.Key, (string)Pair.Value!);
 					}
 				}
 				Writer.WriteObjectEnd();

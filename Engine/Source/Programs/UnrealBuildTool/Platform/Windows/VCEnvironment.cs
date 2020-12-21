@@ -10,8 +10,6 @@ using Microsoft.Win32;
 using System.Text;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -437,7 +435,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add the NETFXSDK include path. We need this for SwarmInterface.
-			DirectoryReference NetFxSdkDir;
+			DirectoryReference? NetFxSdkDir;
 			if(WindowsPlatform.TryGetNetFxSdkInstallDir(out NetFxSdkDir))
 			{
 				IncludePaths.Add(DirectoryReference.Combine(NetFxSdkDir, "include", "um"));
@@ -483,11 +481,11 @@ namespace UnrealBuildTool
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
 		/// <returns>New environment object with paths for the given settings</returns>
-		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string CompilerVersion, string WindowsSdkVersion, string SuppliedSdkDirectoryForVersion)
+		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
 		{
 			// Get the compiler version info
-			VersionNumber SelectedCompilerVersion;
-			DirectoryReference SelectedCompilerDir;
+			VersionNumber? SelectedCompilerVersion;
+			DirectoryReference? SelectedCompilerDir;
 			if(!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedCompilerVersion, out SelectedCompilerDir))
 			{
 				throw new BuildException("{0}{1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(Compiler), String.IsNullOrEmpty(CompilerVersion)? "" : String.Format(" ({0})", CompilerVersion));
@@ -495,8 +493,8 @@ namespace UnrealBuildTool
 
 			// Get the toolchain info
 			WindowsCompiler ToolChain;
-			VersionNumber SelectedToolChainVersion;
-			DirectoryReference SelectedToolChainDir;
+			VersionNumber? SelectedToolChainVersion;
+			DirectoryReference? SelectedToolChainDir;
 			if(Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.Intel)
 			{
 				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir))
@@ -520,12 +518,12 @@ namespace UnrealBuildTool
 			}
 
 			// Get the actual Windows SDK directory
-			VersionNumber SelectedWindowsSdkVersion;
-			DirectoryReference SelectedWindowsSdkDir;
+			VersionNumber? SelectedWindowsSdkVersion;
+			DirectoryReference? SelectedWindowsSdkDir;
 			if (SuppliedSdkDirectoryForVersion != null)
 			{
 				SelectedWindowsSdkDir = new DirectoryReference(SuppliedSdkDirectoryForVersion);
-				SelectedWindowsSdkVersion = VersionNumber.Parse(WindowsSdkVersion);
+				SelectedWindowsSdkVersion = VersionNumber.Parse(WindowsSdkVersion!);
 
 				if (!DirectoryReference.Exists(SelectedWindowsSdkDir))
 				{

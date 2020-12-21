@@ -352,7 +352,7 @@ namespace UnrealBuildTool
 				if (ModuleDependencyActions.Count > 0)
 				{
 					Dictionary<LinkedAction, bool> PreprocessActionToOutdatedFlag = new Dictionary<LinkedAction, bool>();
-					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, null, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, null!, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
 					List<LinkedAction> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 					if (PreprocessActions.Count > 0)
@@ -391,7 +391,7 @@ namespace UnrealBuildTool
 							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
 							{
 								string? ProducedModule;
-								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile, out ProducedModule))
+								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile!, out ProducedModule))
 								{
 									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
 								}
@@ -405,7 +405,7 @@ namespace UnrealBuildTool
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
 							{
 								List<string>? ImportedModules;
-								if(CppDependencies.TryGetImportedModules(PrerequisiteAction.DependencyListFile, out ImportedModules))
+								if(CppDependencies.TryGetImportedModules(PrerequisiteAction.DependencyListFile!, out ImportedModules))
 								{
 									foreach (string ImportedModule in ImportedModules)
 									{

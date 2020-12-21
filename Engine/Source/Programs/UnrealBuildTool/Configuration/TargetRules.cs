@@ -1544,6 +1544,7 @@ namespace UnrealBuildTool
 		[ConfigSubObject]
 		public HoloLensTargetRules HoloLensPlatform;
 
+#nullable disable
 		/// <summary>
 		/// Constructor.
 		/// </summary>
@@ -1558,9 +1559,6 @@ namespace UnrealBuildTool
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
 			this.HoloLensPlatform = new HoloLensTargetRules(Target);
-
-			// Suppress nullable warnings (initialized before constructor is run)
-			File = File!;
 
 			// Read settings from config files
 			foreach (object ConfigurableObject in GetConfigurableObjects())
@@ -1595,7 +1593,7 @@ namespace UnrealBuildTool
 			// Get the directory to use for crypto settings. We can build engine targets (eg. UHT) with 
 			// a project file, but we can't use that to determine crypto settings without triggering
 			// constant rebuilds of UHT.
-			DirectoryReference? CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
+			DirectoryReference CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
 			if (CryptoSettingsDir != null && File != null && !File.IsUnderDirectory(CryptoSettingsDir))
 			{
 				CryptoSettingsDir = null;
@@ -1621,6 +1619,7 @@ namespace UnrealBuildTool
 				ProjectDefinitions.Add("IMPLEMENT_SIGNING_KEY_REGISTRATION()=");
 			}
 		}
+#nullable restore
 
 		/// <summary>
 		/// Formats an array of bytes as a sequence of values

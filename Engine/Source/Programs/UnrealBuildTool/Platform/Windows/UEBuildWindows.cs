@@ -10,8 +10,7 @@ using System.Linq;
 using Tools.DotNETCommon;
 using Microsoft.VisualStudio.Setup.Configuration;
 using System.Runtime.InteropServices;
-
-#nullable disable
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -145,14 +144,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-CompilerVersion")]
-		public string CompilerVersion = null;
+		public string? CompilerVersion = null;
 
 		/// <summary>
 		/// The specific Windows SDK version to use. This may be a specific version number (for example, "8.1", "10.0" or "10.0.10150.0"), or the string "Latest", to select the newest available version.
 		/// By default, and if it is available, we use the Windows SDK version indicated by WindowsPlatform.DefaultWindowsSdkVersion (otherwise, we use the latest version).
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
-		public string WindowsSdkVersion = null;
+		public string? WindowsSdkVersion = null;
 
 		/// <summary>
 		/// Value for the WINVER macro, defining the minimum supported Windows version.
@@ -181,19 +180,19 @@ namespace UnrealBuildTool
 		/// The name of the company (author, provider) that created the project.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Game, "/Script/EngineSettings.GeneralProjectSettings", "CompanyName")]
-		public string CompanyName;
+		public string? CompanyName;
 
 		/// <summary>
 		/// The project's copyright and/or trademark notices.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Game, "/Script/EngineSettings.GeneralProjectSettings", "CopyrightNotice")]
-		public string CopyrightNotice;
+		public string? CopyrightNotice;
 
 		/// <summary>
 		/// The product name.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Game, "/Script/EngineSettings.GeneralProjectSettings", "ProjectName")]
-		public string ProductName;
+		public string? ProductName;
 
 		/// <summary>
 		/// The static analyzer to use.
@@ -207,19 +206,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile]
 		[CommandLine("-ObjSrcMap")]
-		public string ObjSrcMapFile = null;
+		public string? ObjSrcMapFile = null;
 
 		/// <summary>
 		/// Provides a Module Definition File (.def) to the linker to describe various attributes of a DLL.
 		/// Necessary when exporting functions by ordinal values instead of by name.
 		/// </summary>
-		public string ModuleDefinitionFile;
+		public string? ModuleDefinitionFile;
 
 		/// <summary>
 		/// Specifies the path to a manifest file for the linker to embed. Defaults to the manifest in Engine/Build/Windows/Resources. Can be assigned to null
 		/// if the target wants to specify its own manifest.
 		/// </summary>
-		public string ManifestFile;
+		public string? ManifestFile;
 
 		/// <summary>
 		/// Enables strict standard conformance mode (/permissive-) in VS2017+.
@@ -329,12 +328,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The Visual C++ environment to use for this target. Only initialized after all the target settings are finalized, in ValidateTarget().
 		/// </summary>
-		internal VCEnvironment Environment;
+		internal VCEnvironment? Environment;
 
 		/// <summary>
 		/// Directory containing the toolchain
 		/// </summary>
-		public string ToolChainDir
+		public string? ToolChainDir
 		{
 			get { return (Environment == null)? null : Environment.ToolChainDir.FullName; }
 		}
@@ -342,7 +341,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number of the toolchain
 		/// </summary>
-		public string ToolChainVersion
+		public string? ToolChainVersion
 		{
 			get { return (Environment == null)? null : Environment.ToolChainVersion.ToString(); }
 		}
@@ -350,7 +349,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Root directory containing the Windows Sdk
 		/// </summary>
-		public string WindowsSdkDir
+		public string? WindowsSdkDir
 		{
 			get { return (Environment == null)? null : Environment.WindowsSdkDir.FullName; }
 		}
@@ -360,7 +359,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string DiaSdkDir
 		{
-			get { return WindowsPlatform.FindDiaSdkDirs(Environment.Compiler).Select(x => x.FullName).FirstOrDefault(); }
+			get { return WindowsPlatform.FindDiaSdkDirs(Environment!.Compiler).Select(x => x.FullName).FirstOrDefault(); }
 		}
 
 		/// <summary>
@@ -372,7 +371,7 @@ namespace UnrealBuildTool
 			{
 				try
 				{
-					return WindowsPlatform.FindVisualStudioInstallations(Environment.Compiler).Select(x => x.BaseDir.FullName).FirstOrDefault();
+					return WindowsPlatform.FindVisualStudioInstallations(Environment!.Compiler).Select(x => x.BaseDir.FullName).FirstOrDefault();
 				}
 				catch(Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
 				{
@@ -451,12 +450,12 @@ namespace UnrealBuildTool
 			get { return Inner.Architecture; }
 		}
 
-		public string CompilerVersion
+		public string? CompilerVersion
 		{
 			get { return Inner.CompilerVersion; }
 		}
 
-		public string WindowsSdkVersion
+		public string? WindowsSdkVersion
 		{
 			get { return Inner.WindowsSdkVersion; }
 		}
@@ -481,17 +480,17 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableRayTracing; }
 		}
 
-		public string CompanyName
+		public string? CompanyName
 		{
 			get { return Inner.CompanyName; }
 		}
 
-		public string CopyrightNotice
+		public string? CopyrightNotice
 		{
 			get { return Inner.CopyrightNotice; }
 		}
 
-		public string ProductName
+		public string? ProductName
 		{
 			get { return Inner.ProductName; }
 		}
@@ -501,17 +500,17 @@ namespace UnrealBuildTool
 			get { return Inner.StaticAnalyzer; }
 		}
 
-		public string ObjSrcMapFile
+		public string? ObjSrcMapFile
 		{
 			get { return Inner.ObjSrcMapFile; }
 		}
 
-		public string ModuleDefinitionFile
+		public string? ModuleDefinitionFile
 		{
 			get { return Inner.ModuleDefinitionFile; }
 		}
 
-		public string ManifestFile
+		public string? ManifestFile
 		{
 			get { return Inner.ManifestFile; }
 		}
@@ -596,22 +595,22 @@ namespace UnrealBuildTool
 			get; private set;
 		}
 
-		internal VCEnvironment Environment
+		internal VCEnvironment? Environment
 		{
 			get { return Inner.Environment; }
 		}
 
-		public string ToolChainDir
+		public string? ToolChainDir
 		{
 			get { return Inner.ToolChainDir; }
 		}
 
-		public string ToolChainVersion
+		public string? ToolChainVersion
 		{
 			get { return Inner.ToolChainVersion; }
 		}
 
-		public string WindowsSdkDir
+		public string? WindowsSdkDir
 		{
 			get { return Inner.WindowsSdkDir; }
 		}
@@ -740,12 +739,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cache of Windows SDK installation directories
 		/// </summary>
-		private static IReadOnlyDictionary<VersionNumber, DirectoryReference> CachedWindowsSdkDirs;
+		private static IReadOnlyDictionary<VersionNumber, DirectoryReference>? CachedWindowsSdkDirs;
 
 		/// <summary>
 		/// Cache of Universal CRT installation directories
 		/// </summary>
-		private static IReadOnlyDictionary<VersionNumber, DirectoryReference> CachedUniversalCrtDirs;
+		private static IReadOnlyDictionary<VersionNumber, DirectoryReference>? CachedUniversalCrtDirs;
 
 		/// <summary>
 		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, otherwise we use the MSVC linker
@@ -916,7 +915,7 @@ namespace UnrealBuildTool
 		/// Gets the default compiler which should be used, if it's not set explicitly by the target, command line, or config file.
 		/// </summary>
 		/// <returns>The default compiler version</returns>
-		internal static WindowsCompiler GetDefaultCompiler(FileReference ProjectFile)
+		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile)
 		{
 			// If there's no specific compiler set, try to pick the matching compiler for the selected IDE
 			if(ProjectFileGeneratorSettings.Format != null)
@@ -935,7 +934,7 @@ namespace UnrealBuildTool
 			}
 
 			// Also check the default format for the Visual Studio project generator
-			object ProjectFormatObject;
+			object? ProjectFormatObject;
 			if (XmlConfig.TryGetValue(typeof(VCProjectFileGenerator), "Version", out ProjectFormatObject))
 			{
 				VCProjectFileFormat ProjectFormat = (VCProjectFileFormat)ProjectFormatObject;
@@ -974,7 +973,7 @@ namespace UnrealBuildTool
 			}
 
 			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
-			DirectoryReference VSInstallDir;
+			DirectoryReference? VSInstallDir;
 			if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
 			{
 				Log.TraceWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"VC++ 2019 toolset\" component is selected in the Visual Studio 2019 installation options.");
@@ -1019,7 +1018,7 @@ namespace UnrealBuildTool
 		/// <param name="Compiler">Version of the toolchain to look for.</param>
 		/// <param name="InstallDir">On success, the directory that Visual Studio is installed to.</param>
 		/// <returns>True if the directory was found, false otherwise.</returns>
-		public static bool TryGetVSInstallDir(WindowsCompiler Compiler, out DirectoryReference InstallDir)
+		public static bool TryGetVSInstallDir(WindowsCompiler Compiler, [NotNullWhen(true)] out DirectoryReference? InstallDir)
 		{
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64 && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32)
 			{
@@ -1048,7 +1047,7 @@ namespace UnrealBuildTool
 		/// <returns>List of directories containing Visual Studio installations</returns>
 		public static List<VisualStudioInstallation> FindVisualStudioInstallations(WindowsCompiler Compiler)
 		{
-			List<VisualStudioInstallation> Installations;
+			List<VisualStudioInstallation>? Installations;
 			if(!CachedVisualStudioInstallations.TryGetValue(Compiler, out Installations))
 			{
 				Installations = new List<VisualStudioInstallation>();
@@ -1057,7 +1056,7 @@ namespace UnrealBuildTool
 				    if(Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
 				    {
 					    // VS2015 just installs one toolchain; use that.
-					    DirectoryReference InstallDir;
+					    DirectoryReference? InstallDir;
 					    if(TryReadInstallDirRegistryKey32("Microsoft\\VisualStudio\\SxS\\VS7", "14.0", out InstallDir))
 					    {
 						    Installations.Add(new VisualStudioInstallation(InstallDir));
@@ -1086,7 +1085,7 @@ namespace UnrealBuildTool
 								{
 									string VersionString = Instance.GetInstallationVersion();
 
-									VersionNumber Version;
+									VersionNumber? Version;
 									if (VersionNumber.TryParse(VersionString, out Version))
 									{
 										VersionNumber Version2019 = new VersionNumber(16);
@@ -1100,7 +1099,7 @@ namespace UnrealBuildTool
 										}
 									}
 
-									ISetupInstanceCatalog Catalog = Instance as ISetupInstanceCatalog;
+									ISetupInstanceCatalog? Catalog = Instance as ISetupInstanceCatalog;
 
 									VisualStudioInstallation Installation = new VisualStudioInstallation(new DirectoryReference(Instance.GetInstallationPath()));
 									if (Catalog != null && Catalog.IsPrerelease())
@@ -1140,7 +1139,7 @@ namespace UnrealBuildTool
 		/// <returns>Map of version number to directories</returns>
 		static Dictionary<VersionNumber, ToolChainInstallation> FindToolChainInstallations(WindowsCompiler Compiler)
 		{
-			Dictionary<VersionNumber, ToolChainInstallation> ToolChainInstallations;
+			Dictionary<VersionNumber, ToolChainInstallation>? ToolChainInstallations;
 			if(!CachedToolChainInstallations.TryGetValue(Compiler, out ToolChainInstallations))
 			{
 				ToolChainInstallations = new Dictionary<VersionNumber, ToolChainInstallation>();
@@ -1170,7 +1169,7 @@ namespace UnrealBuildTool
 							{
 								foreach(DirectoryReference ToolChainDir in DirectoryReference.EnumerateDirectories(ClangBaseDir))
 								{
-									VersionNumber Version;
+									VersionNumber? Version;
 									if(VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out Version) && IsValidToolChainDirClang(ToolChainDir))
 									{
 										ToolChainInstallations[Version] = new ToolChainInstallation(ToolChainDir, false);
@@ -1180,7 +1179,7 @@ namespace UnrealBuildTool
 						}
 
 						// Check for LLVM_PATH environment variable.
-						string LLVMPath = Environment.GetEnvironmentVariable("LLVM_PATH");
+						string? LLVMPath = Environment.GetEnvironmentVariable("LLVM_PATH");
 						if (!String.IsNullOrEmpty(LLVMPath))
 						{
 							DirectoryReference LLVMPathDir = new DirectoryReference(LLVMPath);
@@ -1267,7 +1266,7 @@ namespace UnrealBuildTool
 			{
 				foreach (DirectoryReference ToolChainDir in DirectoryReference.EnumerateDirectories(BaseDir))
 				{
-					VersionNumber Version;
+					VersionNumber? Version;
 					if (IsValidToolChainDir2017or2019(ToolChainDir, out Version))
 					{
 						
@@ -1278,7 +1277,7 @@ namespace UnrealBuildTool
 							ToolChainInstallations[Version] = new ToolChainInstallation(ToolChainDir, bPreview);
 						}
 
-						VersionNumber VersionFolder;
+						VersionNumber? VersionFolder;
 						if ( (VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out VersionFolder)) && (VersionFolder != Version) && (!ToolChainInstallations.ContainsKey(VersionFolder)))
 						{
 							//Add VS installation based on the version number in the installation path
@@ -1317,7 +1316,7 @@ namespace UnrealBuildTool
 		/// <param name="ToolChainDir">The toolchain directory</param>
 		/// <param name="Version">The version number for the toolchain</param>
 		/// <returns>True if the path is a valid version</returns>
-		static bool IsValidToolChainDir2017or2019(DirectoryReference ToolChainDir, out VersionNumber Version)
+		static bool IsValidToolChainDir2017or2019(DirectoryReference ToolChainDir, [NotNullWhen(true)] out VersionNumber? Version)
 		{
 			FileReference CompilerExe = FileReference.Combine(ToolChainDir, "bin", "Hostx86", "x64", "cl.exe");
 			if(!FileReference.Exists(CompilerExe))
@@ -1377,7 +1376,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the toolchain is compatible with UE4</returns>
 		static bool IsCompatibleVisualCppToolChain(VersionNumber Version)
 		{
-			string Message;
+			string? Message;
 			return IsCompatibleVisualCppToolChain(Version, out Message);
 		}
 
@@ -1387,7 +1386,7 @@ namespace UnrealBuildTool
 		/// <param name="Version">The version number to check</param>
 		/// <param name="Message">Receives a message describing why the toolchain is not compatible</param>
 		/// <returns>True if the toolchain is compatible with UE4</returns>
-		static bool IsCompatibleVisualCppToolChain(VersionNumber Version, out string Message)
+		static bool IsCompatibleVisualCppToolChain(VersionNumber Version, [NotNullWhen(false)] out string? Message)
 		{
 			if (Version >= new VersionNumber(14, 23, 0) && Version < new VersionNumber(14, 23, 28107))
 			{
@@ -1409,13 +1408,13 @@ namespace UnrealBuildTool
 		/// <param name="OutToolChainVersion">Receives the chosen toolchain version</param>
 		/// <param name="OutToolChainDir">Receives the directory containing the toolchain</param>
 		/// <returns>True if the toolchain directory was found correctly</returns>
-		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string CompilerVersion, out VersionNumber OutToolChainVersion, out DirectoryReference OutToolChainDir)
+		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string? CompilerVersion, [NotNullWhen(true)] out VersionNumber? OutToolChainVersion, [NotNullWhen(true)] out DirectoryReference? OutToolChainDir)
 		{
 			// Find all the installed toolchains
 			Dictionary<VersionNumber, ToolChainInstallation> ToolChainInstallations = FindToolChainInstallations(Compiler);
 
 			// Figure out the actual version number that we want
-			VersionNumber ToolChainVersion = null;
+			VersionNumber? ToolChainVersion = null;
 			if(CompilerVersion != null)
 			{
 				if(String.Compare(CompilerVersion, "Latest", StringComparison.InvariantCultureIgnoreCase) == 0 && ToolChainInstallations.Count > 0)
@@ -1453,7 +1452,7 @@ namespace UnrealBuildTool
 
 				foreach (VersionNumber PreferredToolchain in PotentialToolchains)
 				{
-					ToolChainInstallation DefaultToolChain;
+					ToolChainInstallation? DefaultToolChain;
 					if (ToolChainInstallations.TryGetValue(PreferredToolchain, out DefaultToolChain) && (Compiler == WindowsCompiler.Clang || Has64BitToolChain(DefaultToolChain.BaseDir)))
 					{
 						ToolChainVersion = PreferredToolchain;
@@ -1469,14 +1468,14 @@ namespace UnrealBuildTool
 			}
 
 			// Check it's valid
-			string Message;
+			string? Message;
 			if (ToolChainVersion != null && !IsCompatibleVisualCppToolChain(ToolChainVersion, out Message))
 			{
 				throw new BuildException(Message);
 			}
 
 			// Get the actual directory for this version
-			ToolChainInstallation Installation;
+			ToolChainInstallation? Installation;
 			if (ToolChainVersion != null && ToolChainInstallations.TryGetValue(ToolChainVersion, out Installation))
 			{
 				OutToolChainVersion = ToolChainVersion;
@@ -1505,7 +1504,7 @@ namespace UnrealBuildTool
 		/// <param name="ValueName">Value to be read.</param>
 		/// <param name="InstallDir">On success, the directory corresponding to the value read.</param>
 		/// <returns>True if the key was read, false otherwise.</returns>
-		static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, out DirectoryReference InstallDir)
+		static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, [NotNullWhen(true)] out DirectoryReference? InstallDir)
 		{
 			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots)
 			{
@@ -1555,9 +1554,9 @@ namespace UnrealBuildTool
 		/// <param name="ValueName">Value within the key to read</param>
 		/// <param name="Value">The directory read from the registry key</param>
 		/// <returns>True if the key was read, false if it was missing or empty</returns>
-		static bool TryReadDirRegistryKey(string KeyName, string ValueName, out DirectoryReference Value)
+		static bool TryReadDirRegistryKey(string KeyName, string ValueName, [NotNullWhen(true)] out DirectoryReference? Value)
 		{
-			string StringValue = Registry.GetValue(KeyName, ValueName, null) as string;
+			string? StringValue = Registry.GetValue(KeyName, ValueName, null) as string;
 			if (String.IsNullOrEmpty(StringValue))
 			{
 				Value = null;
@@ -1575,7 +1574,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutLocation">On success, receives the path to the MSBuild executable.</param>
 		/// <returns>True on success.</returns>
-		public static bool TryGetMsBuildPath(out FileReference OutLocation)
+		public static bool TryGetMsBuildPath([NotNullWhen(true)] out FileReference? OutLocation)
 		{
 			// Get the Visual Studio 2019 install directory
 			List<DirectoryReference> InstallDirs2019 = WindowsPlatform.FindVisualStudioInstallations(WindowsCompiler.VisualStudio2019).ConvertAll(x => x.BaseDir);
@@ -1602,7 +1601,7 @@ namespace UnrealBuildTool
 			}
 
 			// Try to get the MSBuild 14.0 path directly (see https://msdn.microsoft.com/en-us/library/hh162058(v=vs.120).aspx)
-			FileReference ToolPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "MSBuild", "14.0", "bin", "MSBuild.exe");
+			FileReference? ToolPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "MSBuild", "14.0", "bin", "MSBuild.exe");
 			if(FileReference.Exists(ToolPath))
 			{
 				OutLocation = ToolPath;
@@ -1636,7 +1635,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to MSBuild</returns>
 		public static FileReference GetMsBuildToolPath()
 		{
-			FileReference Location;
+			FileReference? Location;
 			if(!TryGetMsBuildPath(out Location))
 			{
 				throw new BuildException("Unable to find installation of MSBuild.");
@@ -1671,7 +1670,7 @@ namespace UnrealBuildTool
 		/// This mirrors the logic in GetMSBuildPath.bat.
 		/// </summary>
 		/// <returns></returns>
-		static bool TryReadMsBuildInstallPath(string KeyRelativePath, string KeyName, string MsBuildRelativePath, out FileReference OutMsBuildPath)
+		static bool TryReadMsBuildInstallPath(string KeyRelativePath, string KeyName, string MsBuildRelativePath, [NotNullWhen(true)] out FileReference? OutMsBuildPath)
 		{
 			string[] KeyBasePaths =
 			{
@@ -1683,7 +1682,7 @@ namespace UnrealBuildTool
 
 			foreach (string KeyBasePath in KeyBasePaths)
 			{
-				string Value = Registry.GetValue(KeyBasePath + KeyRelativePath, KeyName, null) as string;
+				string? Value = Registry.GetValue(KeyBasePath + KeyRelativePath, KeyName, null) as string;
 				if (Value != null)
 				{
 					FileReference MsBuildPath = FileReference.Combine(new DirectoryReference(Value), MsBuildRelativePath);
@@ -1706,7 +1705,7 @@ namespace UnrealBuildTool
 		/// <returns>Map of version number to directories</returns>
 		public static List<DirectoryReference> FindDiaSdkDirs(WindowsCompiler Compiler)
 		{
-			List<DirectoryReference> DiaSdkDirs;
+			List<DirectoryReference>? DiaSdkDirs;
 			if(!CachedDiaSdkDirs.TryGetValue(Compiler, out DiaSdkDirs))
 			{
 				DiaSdkDirs = new List<DirectoryReference>();
@@ -1753,7 +1752,7 @@ namespace UnrealBuildTool
 			Dictionary<VersionNumber, DirectoryReference> UniversalCrtDirs = new Dictionary<VersionNumber, DirectoryReference>();
 
 			// Enumerate the Windows 8.1 SDK, if present
-			DirectoryReference InstallDir_8_1;
+			DirectoryReference? InstallDir_8_1;
 			if(TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\Windows\\v8.1", "InstallationFolder", out InstallDir_8_1))
 			{
 				if(FileReference.Exists(FileReference.Combine(InstallDir_8_1, "Include", "um", "windows.h")))
@@ -1776,7 +1775,7 @@ namespace UnrealBuildTool
 				{
 					foreach(DirectoryReference IncludeDir in DirectoryReference.EnumerateDirectories(IncludeRootDir))
 					{
-						VersionNumber IncludeVersion;
+						VersionNumber? IncludeVersion;
 						if(VersionNumber.TryParse(IncludeDir.GetDirectoryName(), out IncludeVersion))
 						{
 							if(FileReference.Exists(FileReference.Combine(IncludeDir, "um", "windows.h")))
@@ -1809,7 +1808,7 @@ namespace UnrealBuildTool
 			{
 				UpdateCachedWindowsSdks();
 			}
-			return CachedWindowsSdkDirs;
+			return CachedWindowsSdkDirs!;
 		}
 
 		/// <summary>
@@ -1822,7 +1821,7 @@ namespace UnrealBuildTool
 			{
 				UpdateCachedWindowsSdks();
 			}
-			return CachedUniversalCrtDirs;
+			return CachedUniversalCrtDirs!;
 		}
 
 		/// <summary>
@@ -1831,7 +1830,7 @@ namespace UnrealBuildTool
 		/// <param name="RootDirs">Receives all the Windows 10 sdk root directories</param>
 		private static void EnumerateSdkRootDirs(List<DirectoryReference> RootDirs)
 		{
-			DirectoryReference RootDir;
+			DirectoryReference? RootDir;
 			if(TryReadInstallDirRegistryKey32("Microsoft\\Windows Kits\\Installed Roots", "KitsRoot10", out RootDir))
 			{
 				Log.TraceLog("Found Windows 10 SDK root at {0} (1)", RootDir);
@@ -1862,16 +1861,16 @@ namespace UnrealBuildTool
 		/// <param name="OutSdkVersion">Receives the version number of the selected Windows SDK</param>
 		/// <param name="OutSdkDir">Receives the root directory for the selected SDK</param>
 		/// <returns>True if the toolchain directory was found correctly</returns>
-		public static bool TryGetWindowsSdkDir(string DesiredVersion, out VersionNumber OutSdkVersion, out DirectoryReference OutSdkDir)
+		public static bool TryGetWindowsSdkDir(string? DesiredVersion, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
 		{
 			// Get a map of Windows SDK versions to their root directories
 			/*IReadOnlyDictionary<VersionNumber, DirectoryReference> WindowsSdkDirs =*/ FindWindowsSdkDirs();
 
 			// Figure out which version number to look for
-			VersionNumber WindowsSdkVersion = null;
+			VersionNumber? WindowsSdkVersion = null;
 			if(!string.IsNullOrEmpty(DesiredVersion))
 			{
-				if(String.Compare(DesiredVersion, "Latest", StringComparison.InvariantCultureIgnoreCase) == 0 && CachedWindowsSdkDirs.Count > 0)
+				if(String.Compare(DesiredVersion, "Latest", StringComparison.InvariantCultureIgnoreCase) == 0 && CachedWindowsSdkDirs!.Count > 0)
 				{
 					WindowsSdkVersion = CachedWindowsSdkDirs.OrderBy(x => x.Key).Last().Key;
 				}
@@ -1882,16 +1881,16 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				WindowsSdkVersion = PreferredWindowsSdkVersions.FirstOrDefault(x => CachedWindowsSdkDirs.ContainsKey(x));
-				if(WindowsSdkVersion == null && CachedWindowsSdkDirs.Count > 0)
+				WindowsSdkVersion = PreferredWindowsSdkVersions.FirstOrDefault(x => CachedWindowsSdkDirs!.ContainsKey(x));
+				if(WindowsSdkVersion == null && CachedWindowsSdkDirs!.Count > 0)
 				{
 					WindowsSdkVersion = CachedWindowsSdkDirs.OrderBy(x => x.Key).Last().Key;
 				}
 			}
 
 			// Get the actual directory for this version
-			DirectoryReference SdkDir;
-			if(WindowsSdkVersion != null && CachedWindowsSdkDirs.TryGetValue(WindowsSdkVersion, out SdkDir))
+			DirectoryReference? SdkDir;
+			if(WindowsSdkVersion != null && CachedWindowsSdkDirs!.TryGetValue(WindowsSdkVersion, out SdkDir))
 			{
 				OutSdkDir = SdkDir;
 				OutSdkVersion = WindowsSdkVersion;
@@ -1910,7 +1909,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutInstallDir">Receives the installation directory on success</param>
 		/// <returns>True if the directory was found, false otherwise</returns>
-		public static bool TryGetNetFxSdkInstallDir(out DirectoryReference OutInstallDir)
+		public static bool TryGetNetFxSdkInstallDir([NotNullWhen(true)] out DirectoryReference? OutInstallDir)
 		{
 			DirectoryReference HostAutoSdkDir;
 			if(UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out HostAutoSdkDir))
@@ -1941,11 +1940,11 @@ namespace UnrealBuildTool
 			}
 
 			// If we didn't find one of our preferred versions for NetFXSDK, use the max version present on the system
-			Version MaxVersion = null;
-			string MaxVersionString = null;
+			Version? MaxVersion = null;
+			string? MaxVersionString = null;
 			foreach (string ExistingVersionString in ReadInstallDirSubKeys32(NetFxSDKKeyName))
 			{
-				Version ExistingVersion;
+				Version? ExistingVersion;
 				if (!Version.TryParse(ExistingVersionString, out ExistingVersion))
 				{
 					continue;
@@ -2370,7 +2369,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file being built</param>
 		/// <param name="Metadata">String builder to contain build metadata</param>
-		public override void GetExternalBuildMetadata(FileReference ProjectFile, StringBuilder Metadata)
+		public override void GetExternalBuildMetadata(FileReference? ProjectFile, StringBuilder Metadata)
 		{
 			base.GetExternalBuildMetadata(ProjectFile, Metadata);
 

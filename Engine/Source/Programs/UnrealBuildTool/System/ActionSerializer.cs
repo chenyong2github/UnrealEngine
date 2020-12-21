@@ -8,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -96,7 +94,7 @@ namespace UnrealBuildTool
 			{
 				if (Type.IsClass && !Type.IsAbstract && typeof(IActionSerializer).IsAssignableFrom(Type))
 				{
-					IActionSerializer Serializer = (IActionSerializer)Activator.CreateInstance(Type);
+					IActionSerializer Serializer = (IActionSerializer)Activator.CreateInstance(Type)!;
 					TypeToSerializer[Serializer.Type] = Serializer;
 					NameToSerializer[Type.Name] = Serializer;
 				}
@@ -123,7 +121,7 @@ namespace UnrealBuildTool
 		{
 			string Name = Reader.ReadString();
 
-			IActionSerializer Serializer;
+			IActionSerializer? Serializer;
 			if (!NameToSerializer.TryGetValue(Name, out Serializer))
 			{
 				throw new BuildException("Unable to find action type '{0}'", Name);
@@ -141,7 +139,7 @@ namespace UnrealBuildTool
 		{
 			Type Type = Action.GetType();
 
-			IActionSerializer Serializer;
+			IActionSerializer? Serializer;
 			if (!TypeToSerializer.TryGetValue(Type, out Serializer))
 			{
 				throw new BuildException("Unable to find serializer for action type '{0}'", Type.Name);

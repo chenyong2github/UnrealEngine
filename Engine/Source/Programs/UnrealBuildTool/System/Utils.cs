@@ -333,7 +333,7 @@ namespace UnrealBuildTool
 				{
 					if (!Directory.Exists(LogDir))
 					{
-						string IniPath = UnrealBuildTool.GetRemoteIniPath();
+						string? IniPath = UnrealBuildTool.GetRemoteIniPath();
 						if(string.IsNullOrEmpty(IniPath))
 						{
 							break;

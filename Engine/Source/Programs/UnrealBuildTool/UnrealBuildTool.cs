@@ -10,8 +10,6 @@ using System.Text;
 using System.Threading;
 using Tools.DotNETCommon;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	static class UnrealBuildTool
@@ -25,7 +23,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The environment at boot time.
 		/// </summary>
-		static public System.Collections.IDictionary InitialEnvironment;
+		static public System.Collections.IDictionary? InitialEnvironment;
 
 		/// <summary>
 		/// Whether we're running with engine installed
@@ -40,12 +38,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If we are running with an installed project, specifies the path to it
 		/// </summary>
-		static FileReference InstalledProjectFile;
+		static FileReference? InstalledProjectFile;
 
 		/// <summary>
 		/// Directory for saved application settings (typically Engine/Programs)
 		/// </summary>
-		static DirectoryReference CachedEngineProgramSavedDirectory;
+		static DirectoryReference? CachedEngineProgramSavedDirectory;
 
 		/// <summary>
 		/// The path to UBT
@@ -137,7 +135,7 @@ namespace UnrealBuildTool
 		/// <returns>List of extension directories, including the given base directory</returns>
 		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
 		{
-			Tuple<List<DirectoryReference>, List<DirectoryReference>> CachedDirs;
+			Tuple<List<DirectoryReference>, List<DirectoryReference>>? CachedDirs;
 			if (!CachedExtensionDirectories.TryGetValue(BaseDir, out CachedDirs))
 			{
 				CachedDirs = Tuple.Create(new List<DirectoryReference>(), new List<DirectoryReference>());
@@ -209,7 +207,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The Remote Ini directory.  This should always be valid when compiling using a remote server.
 		/// </summary>
-		static string RemoteIniPath = null;
+		static string? RemoteIniPath = null;
 
 		/// <summary>
 		/// Returns true if UnrealBuildTool is running using installed Engine components
@@ -251,7 +249,7 @@ namespace UnrealBuildTool
 		/// Gets the installed project file
 		/// </summary>
 		/// <returns>Location of the installed project file</returns>
-		static public FileReference GetInstalledProjectFile()
+		static public FileReference? GetInstalledProjectFile()
 		{
 			if(IsProjectInstalled())
 			{
@@ -274,7 +272,7 @@ namespace UnrealBuildTool
 			{
 				return true;
 			}
-			if(IsProjectInstalled() && File.IsUnderDirectory(InstalledProjectFile.Directory))
+			if(IsProjectInstalled() && File.IsUnderDirectory(InstalledProjectFile!.Directory))
 			{
 				return true;
 			}
@@ -294,7 +292,7 @@ namespace UnrealBuildTool
 		/// The Unreal remote tool ini directory.  This should be valid if compiling using a remote server
 		/// </summary>
 		/// <returns>The directory path</returns>
-		static public string GetRemoteIniPath()
+		static public string? GetRemoteIniPath()
 		{
 			return RemoteIniPath;
 		}
@@ -320,7 +318,7 @@ namespace UnrealBuildTool
 			/// Specifies the path to a log file to write. Note that the default mode (eg. building, generating project files) will create a log file by default if this not specified.
 			/// </summary>
 			[CommandLine(Prefix = "-Log")]
-			public FileReference LogFileName = null;
+			public FileReference? LogFileName = null;
 
 			/// <summary>
 			/// Whether to include timestamps in the log
@@ -376,7 +374,7 @@ namespace UnrealBuildTool
 			[CommandLine("-VSMac", Value="GenerateProjectFiles")]
 			[CommandLine("-CLion", Value="GenerateProjectFiles")]
 			[CommandLine("-Rider", Value="GenerateProjectFiles")]
-			public string Mode = null;
+			public string? Mode = null;
 
 			/// <summary>
 			/// Initialize the options with the given commnad line arguments
@@ -399,7 +397,7 @@ namespace UnrealBuildTool
 		/// <returns>Zero on success, non-zero on error</returns>
 		private static int Main(string[] ArgumentsArray)
 		{
-			SingleInstanceMutex Mutex = null;
+			SingleInstanceMutex? Mutex = null;
 			try
 			{
 				// Start capturing performance info
@@ -440,7 +438,7 @@ namespace UnrealBuildTool
 				Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 				// Get the type of the mode to execute, using a fast-path for the build mode.
-				Type ModeType = typeof(BuildMode);
+				Type? ModeType = typeof(BuildMode);
 				if(Options.Mode != null)
 				{
 					// Find all the valid modes
@@ -449,7 +447,7 @@ namespace UnrealBuildTool
 					{
 						if(Type.IsClass && !Type.IsAbstract && Type.IsSubclassOf(typeof(ToolMode)))
 						{
-							ToolModeAttribute Attribute = Type.GetCustomAttribute<ToolModeAttribute>();
+							ToolModeAttribute? Attribute = Type.GetCustomAttribute<ToolModeAttribute>();
 							if(Attribute == null)
 							{
 								throw new BuildException("Class '{0}' should have a ToolModeAttribute", Type.Name);
@@ -467,7 +465,7 @@ namespace UnrealBuildTool
 				}
 
 				// Get the options for which systems have to be initialized for this mode
-				ToolModeOptions ModeOptions = ModeType.GetCustomAttribute<ToolModeAttribute>().Options;
+				ToolModeOptions ModeOptions = ModeType.GetCustomAttribute<ToolModeAttribute>()!.Options;
 
 				// if we don't care about the trace listener, toss it now
 				if ((ModeOptions & ToolModeOptions.UseStartupTraceListener) == 0)
@@ -489,7 +487,7 @@ namespace UnrealBuildTool
 				{
 					using(Timeline.ScopeEvent("XmlConfig.ReadConfigFiles()"))
 					{
-						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().CodeBase);
+						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().CodeBase!);
 						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
 						{
 							FileReference XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
@@ -503,7 +501,7 @@ namespace UnrealBuildTool
 				{
 					using(Timeline.ScopeEvent("SingleInstanceMutex.Acquire()"))
 					{
-						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase);
+						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase!);
 						Mutex = new SingleInstanceMutex(MutexName, Options.bWaitMutex);
 					}
 				}
@@ -532,7 +530,7 @@ namespace UnrealBuildTool
 				}
 
 				// Create the appropriate handler
-				ToolMode Mode = (ToolMode)Activator.CreateInstance(ModeType);
+				ToolMode Mode = (ToolMode)Activator.CreateInstance(ModeType)!;
 
 				// Execute the mode
 				int Result = Mode.Execute(Arguments);

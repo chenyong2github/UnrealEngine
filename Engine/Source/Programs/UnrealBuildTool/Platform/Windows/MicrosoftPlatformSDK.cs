@@ -7,8 +7,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	internal class MicrosoftPlatformSDK : UEBuildPlatformSDK
@@ -25,13 +23,13 @@ namespace UnrealBuildTool
 			MaxVersion = "10.9.99999";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			// @todo we may want to split this for Win64 vs other things
 			MinVersion = MaxVersion = null;
 		}
 
-		public override string GetInstalledSDKVersion()
+		public override string? GetInstalledSDKVersion()
 		{
 			if (Utils.IsRunningOnMono)
 			{

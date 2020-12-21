@@ -303,9 +303,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Writer">Writer to serialize data to</param>
 		/// <param name="FileItem">File item to write</param>
-		public static void WriteFileItem(this BinaryArchiveWriter Writer, FileItem FileItem)
+		public static void WriteFileItem(this BinaryArchiveWriter Writer, FileItem? FileItem)
 		{
-			Writer.WriteObjectReference<FileItem>(FileItem, () => Writer.WriteFileReference(FileItem.Location));
+			Writer.WriteObjectReference<FileItem>(FileItem!, () => Writer.WriteFileReference(FileItem!.Location));
 		}
 
 		/// <summary>
