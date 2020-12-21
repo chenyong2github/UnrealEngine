@@ -6,11 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using Tools.DotNETCommon;
+using System.Text.Json.Serialization;
 
 namespace UnrealBuildTool
 {
@@ -327,18 +329,19 @@ namespace UnrealBuildTool
 	{
 		public class Module
 		{
-			public string Name;
-			public string ModuleType;
-			public string OverrideModuleType;
-			public string BaseDirectory;
-			public string IncludeBase;     // The include path which all UHT-generated includes should be relative to
-			public string OutputDirectory;
-			public List<string> ClassesHeaders;
-			public List<string> PublicHeaders;
-			public List<string> PrivateHeaders;
-			public string? GeneratedCPPFilenameBase;
-			public bool SaveExportedHeaders;
-			public EGeneratedCodeVersion UHTGeneratedCodeVersion;
+			public string Name { get; set; }
+			public string ModuleType { get; set; }
+			public string OverrideModuleType { get; set; }
+			public string BaseDirectory { get; set; }
+			public string IncludeBase { get; set; }     // The include path which all UHT-generated includes should be relative to
+			public string OutputDirectory { get; set; }
+			public List<string> ClassesHeaders { get; set; }
+			public List<string> PublicHeaders { get; set; }
+			public List<string> PrivateHeaders { get; set; }
+			public string? GeneratedCPPFilenameBase { get; set; }
+			public bool SaveExportedHeaders { get; set; }
+			[JsonConverter(typeof(JsonStringEnumConverter))]
+			public EGeneratedCodeVersion UHTGeneratedCodeVersion { get; set; }
 
 			public Module(UHTModuleInfo Info)
 			{
@@ -362,11 +365,11 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public bool IsGameTarget;     // True if the current target is a game target
-		public string RootLocalPath;    // The engine path on the local machine
-		public string TargetName;       // Name of the target currently being compiled
-		public string ExternalDependenciesFile; // File to contain additional dependencies that the generated code depends on
-		public List<Module> Modules;
+		public bool IsGameTarget { get; set; }     // True if the current target is a game target
+		public string RootLocalPath { get; set; }    // The engine path on the local machine
+		public string TargetName { get; set; }       // Name of the target currently being compiled
+		public string ExternalDependenciesFile { get; set; } // File to contain additional dependencies that the generated code depends on
+		public List<Module> Modules { get; set; }
 
 		public UHTManifest(string InTargetName, TargetType InTargetType, string InRootLocalPath, string InExternalDependenciesFile, List<Module> InModules)
 		{
@@ -1186,7 +1189,7 @@ namespace UnrealBuildTool
 
 					// Disable extensions when serializing to remove the $type fields
 					Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
-					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, fastJSON.JSON.Instance.ToJSON(Manifest, new fastJSON.JSONParameters { UseExtensions = false }));
+					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest));
 
 					string CmdLine = (ProjectFile != null) ? "\"" + ProjectFile.FullName + "\"" : TargetName;
 					CmdLine += " \"" + ModuleInfoFileName + "\" -LogCmds=\"loginit warning, logexit warning, logdatabase error\" -Unattended -WarningsAsErrors";
