@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.ServiceProcess;
+using System.Text.Json;
 using Tools.DotNETCommon;
 
 #nullable disable
@@ -65,7 +66,7 @@ namespace UnrealBuildTool
 
 			// Build the json script file to describe all the actions and their dependencies
 			var ActionIds = Actions.ToDictionary(a => a, a => Guid.NewGuid().ToString());
-			File.WriteAllText(ScriptFile.FullName, Json.Serialize(new Dictionary<string, object>()
+			File.WriteAllText(ScriptFile.FullName, JsonSerializer.Serialize(new Dictionary<string, object>()
 			{
 				["jobs"] = Actions.ToDictionary(a => ActionIds[a], a =>
 				{
