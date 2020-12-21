@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Tools.DotNETCommon.Jupiter
@@ -114,7 +115,7 @@ namespace Tools.DotNETCommon.Jupiter
 						TreeHash = TreeHashString,
 						Metadata = Metadata,
 					};
-					string PutTreeRootString = Json.Serialize(TreeRoot, JsonSerializeOptions.None);
+					string PutTreeRootString = JsonSerializer.Serialize(TreeRoot);
 					StringContent PutTreeRootContent = new StringContent(PutTreeRootString, Encoding.UTF8, "application/json");
 					// upload tree information
 					HttpResponseMessage PutTreeResult = await JupiterClient.PutAsync(string.Format("api/v1/c/tree-root/{0}", JupiterNamespace), PutTreeRootContent);
@@ -137,7 +138,7 @@ namespace Tools.DotNETCommon.Jupiter
 								SHA1Utils.FormatAsHexString(JupiterTree.CalculateTreeHash())),
 							Blobs = Tree.ContentHashes,
 						};
-					string PutTreeString = Json.Serialize(PutTreesRequest, JsonSerializeOptions.None);
+					string PutTreeString = JsonSerializer.Serialize(PutTreesRequest);
 					StringContent PutTreeContent = new StringContent(PutTreeString, Encoding.UTF8, "application/json");
 					HttpResponseMessage PutTreeContentResult = await JupiterClient.PutAsync(string.Format("api/v1/c/tree/{0}", JupiterNamespace), PutTreeContent);
 					if (!PutTreeContentResult.IsSuccessStatusCode)
@@ -163,7 +164,7 @@ namespace Tools.DotNETCommon.Jupiter
 							}
 					};
 
-					string FilterBlobString = Json.Serialize(FilterBlobRequest, JsonSerializeOptions.None);
+					string FilterBlobString = JsonSerializer.Serialize(FilterBlobRequest);
 					StringContent FilterBlobContent = new StringContent(FilterBlobString, Encoding.UTF8, "application/json");
 					HttpResponseMessage FilterBlobResponse = await JupiterClient.PostAsync("api/v1/s", FilterBlobContent);
 					if (!FilterBlobResponse.IsSuccessStatusCode)
@@ -173,7 +174,7 @@ namespace Tools.DotNETCommon.Jupiter
 					}
 
 					string ResponseString = await FilterBlobResponse.Content.ReadAsStringAsync();
-					List<string> UnknownBlobs = Json.Deserialize<List<string>>(ResponseString);
+					List<string> UnknownBlobs = JsonSerializer.Deserialize<List<string>>(ResponseString);
 					FoundBlobs = BlobIdentifiers.Where(Blob => !UnknownBlobs.Contains(Blob)).ToList();
 
 					Log.TraceInformation("Determined that build consist of \"{0}\" chunks of which \"{1}\" where already present. Thus uploading \"{2}\" blobs", BlobIdentifiers.Count, FoundBlobs.Count, BlobIdentifiers.Count - FoundBlobs.Count);
@@ -244,7 +245,7 @@ namespace Tools.DotNETCommon.Jupiter
 						throw new Exception(string.Format("Failed to download tree root with key {0}. Response: {1}", JupiterTreeKey, GetTreeRootResultString));
 					}
 
-					TreeRootContents TreeRoot = Json.Deserialize<TreeRootContents>(GetTreeRootResultString);
+					TreeRootContents TreeRoot = JsonSerializer.Deserialize<TreeRootContents>(GetTreeRootResultString);
 
 					TopTreeHash = TreeRoot.treeHash;
 				}
@@ -260,7 +261,7 @@ namespace Tools.DotNETCommon.Jupiter
 						throw new Exception(string.Format("Failed to download flattened tree {0}. Response: {1}", TopTreeHash, GetFlattenTreeResultString));
 					}
 
-					FlattendTreeContents FlattenedTree = Json.Deserialize<FlattendTreeContents>(GetFlattenTreeResultString);
+					FlattendTreeContents FlattenedTree = JsonSerializer.Deserialize<FlattendTreeContents>(GetFlattenTreeResultString);
 
 					List<string> TreesToDownload = new List<string>(FlattenedTree.allTrees);
 					TreesToDownload.Add(TopTreeHash);
@@ -277,7 +278,7 @@ namespace Tools.DotNETCommon.Jupiter
 						}
 
 
-						TreeContents TreeContents = Json.Deserialize<TreeContents>(GetTreeResultString);
+						TreeContents TreeContents = JsonSerializer.Deserialize<TreeContents>(GetTreeResultString);
 						TreeMapping.Add(Tree, TreeContents);
 					}
 				}
@@ -631,7 +632,7 @@ namespace Tools.DotNETCommon.Jupiter
 
 			public JupiterTree AsTree()
 			{
-				string JsonFiles = Json.Serialize(Data, JsonSerializeOptions.None);
+				string JsonFiles = JsonSerializer.Serialize(Data);
 				byte[] ManifestBytes = Encoding.ASCII.GetBytes(JsonFiles);
 				byte[] Hash = SHA1Utils.GetSHA1(ManifestBytes);
 				JupiterInMemoryContentProvider ContentProvider = new JupiterInMemoryContentProvider();
@@ -645,13 +646,13 @@ namespace Tools.DotNETCommon.Jupiter
 				string FirstHash = ManifestTree.ContentHashes.First();
 				byte[] Content = ManifestTree.GetContent(FirstHash).Result;
 				string JsonContent = Encoding.ASCII.GetString(Content);
-				ManifestData Data = Json.Deserialize<ManifestData>(JsonContent);
+				ManifestData Data = JsonSerializer.Deserialize<ManifestData>(JsonContent);
 				return new Manifest(BaseDir, Data);
 			}
 
 			public static Manifest CreateFromFileReference(DirectoryReference BaseDir, FileReference FileReference)
 			{
-				ManifestData Data = Json.Load<ManifestData>(FileReference);
+				ManifestData Data = JsonSerializer.Deserialize<ManifestData>(FileReference.ReadAllText(FileReference));
 				return new Manifest(BaseDir, Data);
 			}
 
@@ -666,7 +667,7 @@ namespace Tools.DotNETCommon.Jupiter
 					SchemaVersion = Data.SchemaVersion,
 					Files = EscapedFiles
 				};
-				Json.Save(LocalManifestReference, EscapedData);
+				FileReference.WriteAllText(LocalManifestReference, JsonSerializer.Serialize(EscapedData));
 			}
 		}
 	}
