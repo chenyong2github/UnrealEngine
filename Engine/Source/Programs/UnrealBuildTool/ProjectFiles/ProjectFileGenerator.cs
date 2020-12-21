@@ -427,6 +427,36 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Adds all the DotNet folder to the solution.
+		/// </summary>
+		void AddSharedDotNetModules(MasterProjectFolder ProgramsFolder)
+		{
+			if (SupportsDotnetCoreProjects())
+			{
+				DirectoryInfo DotNetDir = new DirectoryInfo(DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", "DotNet").FullName);
+				if (DotNetDir.Exists)
+				{
+					List<FileInfo> ProjectFiles = new List<FileInfo>();
+					foreach (DirectoryInfo ProjectDir in DotNetDir.EnumerateDirectories())
+					{
+						ProjectFiles.AddRange(ProjectDir.EnumerateFiles("*.csproj"));
+					}
+					if (ProjectFiles.Count > 0)
+					{
+						MasterProjectFolder Folder = ProgramsFolder.AddSubFolder("DotNet");
+						foreach (FileInfo ProjectFile in ProjectFiles)
+						{
+							VCSharpProjectFile Project = new VCSharpProjectFile(new FileReference(ProjectFile));
+							Project.ShouldBuildForAllSolutionTargets = false;
+							AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
+							Folder.ChildProjects.Add(Project);
+						}
+					}
+				}
+			}
+		}
+
 		protected virtual bool SupportsDotnetCoreProjects()
 		{
 			return true;
@@ -914,6 +944,9 @@ namespace UnrealBuildTool
 
 					// Add automation.csproj files to the master project
 					AddAutomationModules(AllGameProjects, ProgramsFolder);
+
+					// Add shared projects
+					AddSharedDotNetModules(ProgramsFolder);
 
 					// Discover C# programs which should additionally be included in the solution.
 					DiscoverCSharpProgramProjects(ProgramsFolder);
@@ -1453,7 +1486,7 @@ namespace UnrealBuildTool
 						SubFolder.SubFolders.Count == 0 )
 					{
 						// 3)
-						if (SubFolder.FolderName.Equals(SubFolder.ChildProjects[0].ProjectFilePath.GetFileNameWithoutAnyExtensions(), StringComparison.InvariantCultureIgnoreCase))
+						if (SubFolder.FolderName.Equals(SubFolder.ChildProjects[0].ProjectFilePath.GetFileNameWithoutExtension(), StringComparison.InvariantCultureIgnoreCase))
 						{
 							CanCollapseFolder = true;
 						}
@@ -1520,7 +1553,7 @@ namespace UnrealBuildTool
 				{
 					if (CurChildProject != OtherChildProject)
 					{
-						if (CurChildProject.ProjectFilePath.GetFileNameWithoutAnyExtensions().Equals(OtherChildProject.ProjectFilePath.GetFileNameWithoutAnyExtensions(), StringComparison.InvariantCultureIgnoreCase))
+						if (CurChildProject.ProjectFilePath.GetFileName().Equals(OtherChildProject.ProjectFilePath.GetFileNameWithoutExtension(), StringComparison.InvariantCultureIgnoreCase))
 						{
 							throw new BuildException("Detected collision between two project files with the same path in the same master project folder, " + OtherChildProject.ProjectFilePath.FullName + " and " + CurChildProject.ProjectFilePath.FullName + " (master project folder: " + MasterProjectFolderPath + ")");
 						}
@@ -1535,7 +1568,7 @@ namespace UnrealBuildTool
 				// with project file names or file items, as that's not supported in Visual Studio.)
 				foreach (ProjectFile CurChildProject in Folder.ChildProjects)
 				{
-					if (CurChildProject.ProjectFilePath.GetFileNameWithoutAnyExtensions().Equals(SubFolder.FolderName, StringComparison.InvariantCultureIgnoreCase))
+					if (CurChildProject.ProjectFilePath.GetFileNameWithoutExtension().Equals(SubFolder.FolderName, StringComparison.InvariantCultureIgnoreCase))
 					{
 						throw new BuildException("Detected collision between a master project sub-folder " + SubFolder.FolderName + " and a project within the outer folder " + CurChildProject.ProjectFilePath + " (master project folder: " + MasterProjectFolderPath + ")");
 					}
