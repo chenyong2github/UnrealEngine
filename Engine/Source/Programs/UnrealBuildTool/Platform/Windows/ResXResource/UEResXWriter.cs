@@ -7,9 +7,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace Tools.DotNETCommon
+#nullable disable
+
+namespace UnrealBuildTool
 {
-	public class UEResXWriter
+	class UEResXWriter
 	{
 		public UEResXWriter(string InPath)
 		{
