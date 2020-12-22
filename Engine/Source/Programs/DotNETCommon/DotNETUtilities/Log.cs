@@ -14,7 +14,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Log Event Type
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public enum LogEventType
 	{
 		/// <summary>
@@ -56,7 +56,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Options for formatting messages
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	[Flags]
 	public enum LogFormatOptions
 	{
@@ -88,7 +88,7 @@ namespace Tools.DotNETCommon
 	///   2. We have a verbose filter we would like to apply to all logs without having to have each listener filter individually, which would require our string formatting code to run every time.
 	///   3. We possibly want to ensure severity prefixes are logged, but Trace.WriteXXX does not allow any severity info to be passed down.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	static public class Log
 	{
 		/// <summary>

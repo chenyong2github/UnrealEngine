@@ -13,7 +13,7 @@ namespace Tools.DotNETCommon
 	/// Reads data from a binary output stream. Similar to the NET Framework BinaryReader class, but supports fast serialization of object graphs and container types, and supports nullable objects.
 	/// Significantly faster than BinaryReader due to the expectation that the whole stream is in memory before deserialization.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class BinaryArchiveReader : IDisposable
 	{
 		/// <summary>

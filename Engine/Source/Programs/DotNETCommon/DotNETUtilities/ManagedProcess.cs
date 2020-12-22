@@ -17,7 +17,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Tracks a set of processes, and destroys them when the object is disposed.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class ManagedProcessGroup : IDisposable
 	{
 		const UInt32 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
@@ -136,7 +136,7 @@ namespace Tools.DotNETCommon
 	/// Uses job objects to ensure that the process will be terminated automatically by the O/S if the current process is terminated, and polls pipe reads to avoid blocking on unmanaged code
 	/// if the calling thread is terminated. Currently only implemented for Windows; makes heavy use of P/Invoke.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public sealed class ManagedProcess : IDisposable
 	{
 		[StructLayout(LayoutKind.Sequential)]

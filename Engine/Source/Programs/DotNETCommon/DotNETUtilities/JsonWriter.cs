@@ -12,7 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Specifies how to format JSON output
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public enum JsonWriterStyle
 	{
 		/// <summary>
@@ -29,7 +29,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Writer for JSON data, which indents the output text appropriately, and adds commas and newlines between fields
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class JsonWriter : IDisposable
 	{
 		TextWriter Writer;

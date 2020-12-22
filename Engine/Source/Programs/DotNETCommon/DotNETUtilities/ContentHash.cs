@@ -13,7 +13,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Stores the hash value for a piece of content as a byte array, allowing it to be used as a dictionary key
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class ContentHash : IEquatable<ContentHash>
 	{
 		public const int LengthMD5 = 16;

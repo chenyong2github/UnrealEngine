@@ -13,7 +13,7 @@ namespace Tools.DotNETCommon
 	/// Wrapper around the HashSet container that only allows read operations
 	/// </summary>
 	/// <typeparam name="T">Type of element for the hashset</typeparam>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class ReadOnlyHashSet<T> : IReadOnlyCollection<T>
 	{
 		/// <summary>

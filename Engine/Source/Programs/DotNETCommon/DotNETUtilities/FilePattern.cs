@@ -11,7 +11,7 @@ using Tools.DotNETCommon;
 
 namespace Tools.DotNETCommon
 {
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class FilePatternException : Exception
 	{
 		public FilePatternException(string Message)
@@ -33,7 +33,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Encapsulates a pattern containing the '?', '*', and '...' wildcards.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class FilePattern
 	{
 		/// <summary>

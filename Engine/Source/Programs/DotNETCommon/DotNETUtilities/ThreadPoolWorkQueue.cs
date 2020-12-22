@@ -12,7 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Allows queuing a large number of tasks to a thread pool and waiting for them all to complete.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class ThreadPoolWorkQueue : IDisposable
 	{
 		/// <summary>

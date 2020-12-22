@@ -12,7 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Representation of an absolute file path. Allows fast hashing and comparisons.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	[Serializable]
 	public class FileReference : FileSystemReference, IEquatable<FileReference>
 	{

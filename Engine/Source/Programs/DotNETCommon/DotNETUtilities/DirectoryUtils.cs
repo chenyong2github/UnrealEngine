@@ -12,7 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Utility functions for manipulating directories
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class DirectoryUtils
 	{
 		/// <summary>

@@ -14,7 +14,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Indicates whether files which match a pattern should be included or excluded
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public enum FileFilterType
 	{
 		/// <summary>
@@ -33,7 +33,7 @@ namespace Tools.DotNETCommon
 	/// The rules are merged into a tree with nodes for each path fragments and rule numbers in each leaf, allowing tree traversal in an arbitrary order 
 	/// to how they are applied.
 	/// </summary>
-	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Core namespace and assembly instead.")]
 	public class FileFilter
 	{
 		/// <summary>
