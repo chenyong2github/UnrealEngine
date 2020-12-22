@@ -1291,7 +1291,7 @@ namespace AutomationTool
 						"AutomationTool.exe",
 						"UnrealBuildTool.exe",
 						"AutomationUtils.Automation.dll",
-						"DotNETUtilities.dll",
+						"EpicGames.Core.dll",
 						"BuildUtilities.dll",
 					});
 
