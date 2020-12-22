@@ -10,7 +10,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Reflection;
 using Tools.DotNETCommon;
-
+using AutomationTool;
 
 namespace Turnkey
 {
@@ -151,7 +151,7 @@ namespace Turnkey
 
 		static void SerializeObject(SavedCache Object, string Filename)
 		{
-			string Str = Json.Serialize(Object);
+			string Str = Json_DEPRECATED.Serialize(Object);
 			File.WriteAllText(Filename, Str);
 
 // 			using (FileStream Stream = new FileStream(Filename, FileMode.Create))
@@ -172,7 +172,7 @@ namespace Turnkey
 				string Str = File.ReadAllText(Filename);
 				if (!string.IsNullOrEmpty(Str))
 				{
-					return Json.Deserialize<SavedCache>(Str);
+					return Json_DEPRECATED.Deserialize<SavedCache>(Str);
 				}
 
 // 				if (File.Exists(Filename))

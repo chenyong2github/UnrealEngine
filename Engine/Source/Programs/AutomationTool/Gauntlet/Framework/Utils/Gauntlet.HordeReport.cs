@@ -351,7 +351,7 @@ namespace Gauntlet
 					string TestResultFilePath = Path.Combine(OutputArtifactPath, OutputTestResult.ArtifactName);
 					try
 					{
-						Json.Save(new FileReference(TestResultFilePath), OutputTestResultDetailed);
+						Json_DEPRECATED.Save(new FileReference(TestResultFilePath), OutputTestResultDetailed);
 						ArtifactsCount++;
 					}
 					catch (Exception Ex)
@@ -470,7 +470,7 @@ namespace Gauntlet
 				Log.Verbose("Writing Test Data Collection for Horde at {0}", OutputTestDataFilePath);
 				try
 				{
-					Json.Save(new FileReference(OutputTestDataFilePath), this);
+					Json_DEPRECATED.Save(new FileReference(OutputTestDataFilePath), this);
 				}
 				catch (Exception Ex)
 				{

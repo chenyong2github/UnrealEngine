@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using AutomationTool;
 using System.Collections.Generic;
 using Tools.DotNETCommon;
 
@@ -66,7 +67,7 @@ namespace Gauntlet
 		/// <param name="FilePath"></param>
 		public static UnrealAutomatedTestPassResults LoadFromJson(string FilePath)
 		{
-			UnrealAutomatedTestPassResults JsonTestPassResults = Json.Load<UnrealAutomatedTestPassResults>(new FileReference(FilePath));
+			UnrealAutomatedTestPassResults JsonTestPassResults = Json_DEPRECATED.Load<UnrealAutomatedTestPassResults>(new FileReference(FilePath));
 			return JsonTestPassResults;
 		}
 	}

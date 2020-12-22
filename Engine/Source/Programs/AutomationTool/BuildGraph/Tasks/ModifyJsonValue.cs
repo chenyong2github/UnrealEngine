@@ -70,7 +70,7 @@ namespace BuildGraph.Tasks
 
 				CurrObj[Keys[Keys.Length - 1]] = Parameters.NewValue;
 
-				var NewContents = Json.Serialize(ParamObj, JsonSerializeOptions.PrettyPrint);
+				var NewContents = Json_DEPRECATED.Serialize(ParamObj, JsonSerializeOptions_DEPRECATED.PrettyPrint);
 				File.WriteAllText(JsonFile, NewContents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 			}
 		}

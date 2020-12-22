@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,7 +84,7 @@ namespace UnrealBuildTool
 				{
 					CompileTimes.Add(Json.EscapeString(TimingData.Key), TimingData.Value.InclusiveDuration);
 				}
-				string JsonCompileTimes = Json.Serialize(CompileTimes);
+				string JsonCompileTimes = JsonSerializer.Serialize(CompileTimes);
 				FileReference.WriteAllText(CompileTimingFile, JsonCompileTimes);
 			}
 
