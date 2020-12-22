@@ -12,6 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Attribute to indicate the name of a command line argument
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
 	public class CommandLineAttribute : Attribute
 	{

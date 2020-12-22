@@ -12,6 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Base class for file system objects (files or directories).
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	[Serializable]
 	public abstract class FileSystemReference
 	{

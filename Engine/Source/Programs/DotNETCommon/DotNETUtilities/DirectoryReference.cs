@@ -13,6 +13,7 @@ namespace Tools.DotNETCommon
 	/// Representation of an absolute directory path. Allows fast hashing and comparisons.
 	/// </summary>
 	[Serializable]
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class DirectoryReference : FileSystemReference, IEquatable<DirectoryReference>
 	{
 		/// <summary>

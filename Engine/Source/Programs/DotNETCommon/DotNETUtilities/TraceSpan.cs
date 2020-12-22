@@ -15,6 +15,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Interface for a trace span
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public interface ITraceSpan : IDisposable
 	{
 		/// <summary>
@@ -28,6 +29,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Methods for creating ITraceScope instances
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class TraceSpan
 	{
 		/// <summary>

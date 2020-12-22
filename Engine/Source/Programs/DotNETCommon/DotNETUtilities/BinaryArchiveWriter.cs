@@ -13,6 +13,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Writes data to a binary output stream. Similar to the NET Framework BinaryWriter class, but supports fast serialization of object graphs and container types, and supports nullable objects.
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class BinaryArchiveWriter : IDisposable
 	{
 		/// <summary>

@@ -11,6 +11,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Writes a status message to the log, which can be updated with a progress indicator as a slow task is being performed.
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class LogStatusScope : IDisposable
 	{
 		/// <summary>

@@ -14,6 +14,7 @@ namespace Tools.DotNETCommon
 	/// derived objects will have a constructor taking a single BinaryReader argument (similar to how the system ISerializable
 	/// interface assumes a specific constructor)
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public interface IBinarySerializable
 	{
 		void Write(BinaryWriter Writer);
@@ -22,6 +23,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Extension methods for BinaryWriter class
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class BinaryWriterExtensions
 	{
 		/// <summary>

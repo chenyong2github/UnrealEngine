@@ -12,6 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Options for serializing an object to JSON
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public enum JsonSerializeOptions
 	{
 		/// <summary>
@@ -28,6 +29,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Wrapper class around fastJSON methods.
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class Json
 	{
 		/// <summary>

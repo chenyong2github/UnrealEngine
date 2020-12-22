@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace Tools.DotNETCommon
 {
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class StringUtils
 	{
 		/// <summary>

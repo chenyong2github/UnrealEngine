@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Exception thrown for errors parsing JSON files
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class JsonParseException : Exception
 	{
 		/// <summary>
@@ -27,6 +28,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Stores a JSON object in memory
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class JsonObject
 	{
 		Dictionary<string, object> RawObject;

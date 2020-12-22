@@ -11,6 +11,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Class to apply a log indent for the lifetime of an object 
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class LogIndentScope : IDisposable
 	{
 		/// <summary>

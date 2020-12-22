@@ -15,6 +15,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Helper class to visualize an argument list
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	class CommandLineArgumentListView
 	{
 		/// <summary>
@@ -36,6 +37,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Exception thrown for invalid command line arguments
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public class CommandLineArgumentException : Exception
 	{
 		/// <summary>

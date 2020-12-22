@@ -12,6 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Utility functions for showing help for objects
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class HelpUtils
 	{
 		/// <summary>

@@ -14,6 +14,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Exception used to represent caught file/directory exceptions.
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	class WrappedFileOrDirectoryException : Exception
 	{
 		/// <summary>
@@ -38,6 +39,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Utility functions for manipulating files. Where these methods have similar functionality to those in the NET Framework, they generally go the extra mile to produce concise, specific error messages where possible.
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class FileUtils
 	{
 		/// <summary>

@@ -15,6 +15,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Includes utilities for managing processes
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	public static class ProcessUtils
 	{
 		[StructLayout(LayoutKind.Sequential)]

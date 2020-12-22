@@ -12,6 +12,7 @@ namespace Tools.DotNETCommon
 	/// <summary>
 	/// Wrapper for Win32Exception which includes the error code in the exception message
 	/// </summary>
+	[Obsolete("Functionality in the Tools.DotNETCommon namespace is deprecated. Please reference the EpicGames.Common namespace and assembly instead.")]
 	class Win32ExceptionWithCode : Win32Exception
 	{
 		/// <summary>
