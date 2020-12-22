@@ -28,7 +28,8 @@ void LaneInputJob(FLaneJobData* Data)
 	Algo::Sort(Allocs);
 	Algo::Sort(Frees);
 
-	auto* Retirees = FTrackerBuffer::CallocTemp<FRetirees>(Frees.Num());
+	// +1 so we can null terminate
+	auto* Retirees = FTrackerBuffer::CallocTemp<FRetirees>(Frees.Num() + 1);
 
 	struct FLaneItemIter
 	{
@@ -247,6 +248,8 @@ void LaneRetireeJob(FRetireeJobData* Data)
 
 	TArrayView<FRetiree> Range(Retirees->Items, Retirees->Num);
 	Algo::Sort(Range, Predicate);
+
+	Retirees->Items[Retirees->Num] = {};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
