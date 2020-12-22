@@ -10,7 +10,7 @@ using System.Xml.Serialization;
 using System.Linq;
 using Tools.DotNETCommon;
 
-namespace Tools.DotNETCommon
+namespace AutomationTool
 {
 
 	/// <summary>
@@ -247,6 +247,41 @@ namespace Tools.DotNETCommon
 
 				File.WriteAllText(OutPath, String);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for CsProject support
+	/// </summary>
+	public static class CsProjectInfoExtensionMethods
+	{
+		/// <summary>
+		/// Adds aall input/output properties of a CSProject to a hash collection
+		/// </summary>
+		/// <param name="Hasher"></param>
+		/// <param name="Project"></param>
+		/// <returns></returns>
+		public static bool AddCsProjectInfo(this HashCollection Hasher, CsProjectInfo Project, HashCollection.HashType HashType)
+		{
+			// Get the output assembly and pdb file
+			FileReference OutputFile;
+			if (!Project.TryGetOutputFile(out OutputFile))
+			{
+				throw new Exception(String.Format("Unable to get output file for {0}", Project.ProjectPath));
+			}
+			FileReference DebugFile = OutputFile.ChangeExtension("pdb");
+
+			// build a list of all input and output files from this module
+			List<FileReference> DependentFiles = new List<FileReference> { Project.ProjectPath, OutputFile, DebugFile };
+
+			DependentFiles.AddRange(Project.CompileReferences);
+
+			if (!Hasher.AddFiles(DependentFiles, HashType))
+			{
+				return false;
+			}
+
+			return true;
 		}
 	}
 }
