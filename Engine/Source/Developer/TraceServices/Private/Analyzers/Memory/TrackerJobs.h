@@ -46,7 +46,14 @@ struct FRetirees
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+struct FBaseJobData
+{
+	FBaseJobData*		Next;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 struct FRetireeJobData
+	: public FBaseJobData
 {
 	FRetirees*			Retirees;
 	uint32				SerialBias;
@@ -57,7 +64,6 @@ struct FRetireeJobData
 struct FLaneJobData
 	: public FRetireeJobData
 {
-	FLaneJobData*		Next;
 	FLane*				Lane;
 	FLaneInput*			Input;
 	FLaneItemView		SetUpdates;
@@ -67,7 +73,6 @@ struct FLaneJobData
 struct FLeakJobData
 	: public FRetireeJobData
 {
-	FLeakJobData*		Next;
 	const FLaneItemSet* ActiveSet;
 };
 

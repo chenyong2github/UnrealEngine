@@ -175,7 +175,7 @@ void FTracker::Finalize()
 			ProcessRetirees(JobData);
 		}
 
-		FLeakJobData* NextData = JobData->Next;
+		auto* NextData = (FLeakJobData*)(JobData->Next);
 		FTrackerBuffer::FreeTemp(JobData->Retirees);
 		FTrackerBuffer::FreeTemp(JobData);
 		JobData = NextData;
@@ -245,7 +245,7 @@ void FTracker::FinalizeWork(FLaneJobData* Data)
 			ProcessRetirees(Data);
 		}
 
-		FLaneJobData* NextData = Data->Next;
+		auto* NextData = (FLaneJobData*)(Data->Next);
 		FTrackerBuffer::FreeTemp(Data->Input);
 		FTrackerBuffer::FreeTemp(Data->Retirees);
 		FTrackerBuffer::FreeTemp(Data);
