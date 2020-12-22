@@ -93,6 +93,7 @@ void FTracker::AddAlloc(uint64 Address, const FMetadata& Metadata)
 		Metadata.Owner,
 		Metadata.Size,
 		Metadata.Alignment,
+		Metadata.Tag,
 		Metadata.bIsRealloc
 	);
 

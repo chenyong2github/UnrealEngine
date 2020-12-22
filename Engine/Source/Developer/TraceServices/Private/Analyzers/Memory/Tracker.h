@@ -22,8 +22,10 @@ public:
 	{
 		uint64				Owner;
 		uint64				Size; 
-		uint32				Alignment;
+		uint32				Tag;
+		uint16				Alignment;
 		bool				bIsRealloc;
+		uint8				_Padding0;
 	};
 
 							FTracker(ISbifBuilder* InSbifBuilder);

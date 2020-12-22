@@ -23,7 +23,7 @@ public:
 						~FMetadataDb();
 	uint32				GetNum() const;
 	uint32				GetCollisionNum() const;
-	uint32				Add(uint64 Owner, uint64 Size, uint32 Alignment, bool bRealloc);
+	uint32				Add(uint64 Owner, uint64 Size, uint32 Alignment, uint32 Tag, bool bRealloc);
 	const FEntry*		Get(uint32 Id) const;
 
 private:

@@ -39,7 +39,7 @@ uint32 FMetadataDb::GetCollisionNum() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 FMetadataDb::Add(uint64 Owner, uint64 Size, uint32 Alignment, bool bRealloc)
+uint32 FMetadataDb::Add(uint64 Owner, uint64 Size, uint32 Alignment, uint32 Tag, bool bRealloc)
 {
 	static const uint64 Mix = 0x00000100000001b3;
 
@@ -47,6 +47,7 @@ uint32 FMetadataDb::Add(uint64 Owner, uint64 Size, uint32 Alignment, bool bReall
 	Id ^= Owner;		Id *= Mix;
 	Id ^= Size;			Id *= Mix;
 	Id ^= Alignment;	Id *= Mix;
+	Id ^= Tag;			Id *= Mix;
 	Id ^= !!bRealloc;	Id *= Mix;
 
 	FEntryInternal Entry = {};
