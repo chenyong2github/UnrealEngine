@@ -89,10 +89,6 @@ uint32 FTracker::GetCurrentSerial() const
 ////////////////////////////////////////////////////////////////////////////////
 void FTracker::AddAlloc(uint64 Address, const FMetadata& Metadata)
 {
-#if defined(PROF_ON)
-	++AllocDelta;
-#endif
-
 	uint32 MetadataId = MetadataDb.Add(
 		Metadata.Owner,
 		Metadata.Size,
@@ -108,10 +104,6 @@ void FTracker::AddAlloc(uint64 Address, const FMetadata& Metadata)
 ////////////////////////////////////////////////////////////////////////////////
 void FTracker::AddFree(uint64 Address)
 {
-#if defined(PROF_ON)
-	++FreeDelta;
-#endif
-
 	FLaneInput* Input = GetLaneInput(Address);
 	bool bLaneFull = Input->AddFree(Address, Serial);
 	Update(bLaneFull);
@@ -229,8 +221,6 @@ FLaneJobData* FTracker::Sync()
 		return nullptr;
 	}
 
-	PROF_SCOPE("Sync");
-
 	auto* Data = FTrackerScheduler::Wait<FLaneJobData>(SyncWait);
 	SyncWait = 0;
 	return Data;
@@ -347,8 +337,6 @@ void FTracker::RetireAllocs(
 ////////////////////////////////////////////////////////////////////////////////
 void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 {
-	PROF_SCOPE("ProcessRetirees");
-
 	const FRetiree* __restrict Cursor = Data->Retirees->Items;
 	const FRetiree* __restrict End = Cursor + Data->Retirees->Num;
 
@@ -435,22 +423,6 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 ////////////////////////////////////////////////////////////////////////////////
 void FTracker::Dispatch(bool bDoRehash)
 {
-#if defined(PROF_ON)
-	Running += AllocDelta - FreeDelta;
-	PROF_COUNTER("stats", {
-		{ "allocs", AllocDelta },
-		{ "frees", FreeDelta },
-		{ "alive", Running },
-	});
-
-	PROF_COUNTER("metadata", {
-		{ "#", int64(MetadataDb.GetNum()) },
-		{ "collisions", int64(MetadataDb.GetCollisionNum()) },
-	});
-
-	AllocDelta = FreeDelta = 0;
-#endif
-
 	FTrackerScheduler::FJobHandle LaneJobs[FTrackerConfig::NumLanes] = {};
 	if (bDoRehash)
 	{

@@ -15,10 +15,7 @@ void LaneRehashJob(void* Data)
 	UPTRINT Ptr = UPTRINT(Data) ^ (bGrow ? ~0ull : 0ull);
 	FLane* Lane = (FLane*)Ptr;
 
-	{
-		PROF_SCOPE(bGrow ? "Grow" : "Rehash");
-		Lane->GetActiveSet().Rehash(bGrow ? FTrackerConfig::ActiveSetPageSize : 0);
-	}
+	Lane->GetActiveSet().Rehash(bGrow ? FTrackerConfig::ActiveSetPageSize : 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,14 +25,8 @@ void LaneInputJob(FLaneJobData* Data)
 	FLaneItemView Frees = Data->Input->GetFrees();
 
 	// Get everything in address order.
-	{
-		PROF_SCOPE("AllocSort", {{"#", Allocs.Num}});
-		Algo::Sort(Allocs);
-	}
-	{
-		PROF_SCOPE("FreeSort", {{"#", Frees.Num}});
-		Algo::Sort(Frees);
-	}
+	Algo::Sort(Allocs);
+	Algo::Sort(Frees);
 
 	auto* Retirees = FTrackerBuffer::CallocTemp<FRetirees>(Frees.Num());
 
@@ -53,8 +44,6 @@ void LaneInputJob(FLaneJobData* Data)
 
 	if (Allocs.Num() && Frees.Num())
 	{
-		PROF_SCOPE("Short allocs");
-
 		while (true)
 		{
 			const FLaneItem& AllocItem = *(Iters[0].Cursor);
@@ -117,8 +106,6 @@ void LaneInputJob(FLaneJobData* Data)
 	{
 		uint32 FreesNum = uint32(UPTRINT(FreeWrite - Frees.GetData()));
 
-		PROF_SCOPE("RemainingFrees");
-
 		FLaneItemSet& ActiveSet = Data->Lane->GetActiveSet();
 
 		for (uint32 i = 0, n = FreesNum; i < n; ++i)
@@ -163,28 +150,19 @@ void LaneUpdateJob(FLaneJobData* Data)
 		return;
 	}
 
+	auto Predicate = [] (const FLaneItem& Lhs, const FLaneItem& Rhs)
 	{
-		PROF_SCOPE("UpdateSort");
-
-		auto Predicate = [] (const FLaneItem& Lhs, const FLaneItem& Rhs)
+		if (Lhs.IsSameAddress(Rhs))
 		{
-			if (Lhs.IsSameAddress(Rhs))
-			{
-				return Rhs.HasMetadata();
-			}
+			return Rhs.HasMetadata();
+		}
 
-			return Lhs < Rhs;
-		};
-		Algo::Sort(SetUpdates, Predicate);
-	}
+		return Lhs < Rhs;
+	};
+	Algo::Sort(SetUpdates, Predicate);
 
 	FLaneItemSet& ActiveSet = Data->Lane->GetActiveSet();
 	const FLaneItem* __restrict Ptr = SetUpdates.GetData();
-
-	PROF_SCOPE("SetUpdate", {
-		{"update", SetUpdates.Num()},
-		{"set", ActiveSet.GetNum()},
-	});
 
 	auto ApplyToSet = [&ActiveSet, Data] (const FLaneItem& Item)
 	{
@@ -304,7 +282,6 @@ void LaneLeaksJob(FLeakJobData* Data)
 		SetItem = ActiveSet->NextItem(SetItem);
 	}
 
-	PROF_SCOPE("Retirees");
 	LaneRetireeJob(Data);
 }
 

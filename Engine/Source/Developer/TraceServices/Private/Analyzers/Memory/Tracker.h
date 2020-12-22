@@ -54,12 +54,6 @@ private:
 	uint32					ColumnShift;
 	uint32					ColumnMask;
 	uint32					NumColumns;
-
-#if defined(PROF_ON)
-	int32					AllocDelta = 0;
-	int32					FreeDelta = 0;
-	int32					Running = 0;
-#endif
 };
 
 } // namespace TraceServices

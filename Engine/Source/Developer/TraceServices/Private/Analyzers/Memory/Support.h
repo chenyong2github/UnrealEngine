@@ -21,8 +21,6 @@ inline uint32 UnsafeCountLeadingZeros(uint32 Value)
 #endif
 }
 
-#define PROF_SCOPE(...)
-
 ////////////////////////////////////////////////////////////////////////////////
 class FTrackerBuffer
 {
