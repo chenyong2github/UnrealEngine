@@ -4,7 +4,6 @@
 
 #include "Support.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,6 +50,5 @@ inline void Sbif_GetColumnDepthFromCell(uint32 CellIndex, uint32* Column, uint32
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */
