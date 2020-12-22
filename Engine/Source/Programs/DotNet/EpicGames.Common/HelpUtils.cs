@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tools.DotNETCommon
+namespace EpicGames.Common
 {
 	/// <summary>
 	/// Utility functions for showing help for objects
