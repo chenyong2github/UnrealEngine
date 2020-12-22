@@ -40,7 +40,6 @@ private:
 	FLaneInput*				GetLaneInput(uint64 Address);
 	void					Update(bool bDispatch);
 	void					ProcessRetirees(const FRetireeJobData* JobData);
-	void					RetireAllocs(const FRetireeJobData* Data, uint32 Column, uint32 Depth, const FRetiree* __restrict Left, const FRetiree* __restrict Right);
 	FLaneJobData*			Sync();
 	void					Dispatch(bool bDoRehash=true);
 	void					Provision();

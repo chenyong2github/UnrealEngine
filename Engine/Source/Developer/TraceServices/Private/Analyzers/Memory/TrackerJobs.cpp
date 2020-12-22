@@ -226,23 +226,8 @@ void LaneRetireeJob(FRetireeJobData* Data)
 {
 	FRetirees* Retirees = Data->Retirees;
 
-	auto GetDepth = [Data] (const FRetiree& Retiree)
+	auto Predicate = [] (const FRetiree& Lhs, const FRetiree& Rhs)
 	{
-		return Sbif_GetCommonDepth(
-			Retiree.GetStartSerial() >> Data->ColumnShift,
-			Retiree.GetEndSerial(Data->SerialBias) >> Data->ColumnShift
-		);
-	};
-
-	auto Predicate = [&GetDepth] (const FRetiree& Lhs, const FRetiree& Rhs)
-	{
-		uint32 LhsDepth = GetDepth(Lhs);
-		uint32 RhsDepth = GetDepth(Rhs);
-		if (LhsDepth != RhsDepth)
-		{
-			return LhsDepth < RhsDepth;
-		}
-
 		return Lhs.GetEndSerialBiased() < Rhs.GetEndSerialBiased();
 	};
 
