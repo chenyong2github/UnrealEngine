@@ -7,7 +7,7 @@ using System.Linq;
 using System.Xml;
 using System.IO;
 using System.Text;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace BuildGraph.Tasks
 {

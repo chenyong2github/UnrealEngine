@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {
@@ -155,7 +155,7 @@ namespace AutomationTool
 								{
 									lock (this)
 									{
-										Tools.DotNETCommon.Log.WriteLine(Tools.DotNETCommon.LogEventType.Warning, Tools.DotNETCommon.LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: Code should not be in this branch: '{2}'", FileToCheck.FullName, LineNumber, Line.Trim());
+										EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, EpicGames.Core.LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: Code should not be in this branch: '{2}'", FileToCheck.FullName, LineNumber, Line.Trim());
 									}
 								}
 							}

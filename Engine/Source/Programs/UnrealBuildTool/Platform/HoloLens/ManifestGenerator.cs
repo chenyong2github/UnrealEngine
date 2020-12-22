@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Resources;
 using System.Xml;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

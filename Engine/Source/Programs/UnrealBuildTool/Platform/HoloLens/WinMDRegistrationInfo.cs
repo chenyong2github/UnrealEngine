@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

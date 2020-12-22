@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Reflection;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using AutomationTool;
 
 namespace Turnkey

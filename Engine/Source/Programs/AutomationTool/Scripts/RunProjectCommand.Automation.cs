@@ -10,7 +10,7 @@ using System.Net.NetworkInformation;
 using System.Collections;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 /// <summary>
 /// Helper command to run a game.

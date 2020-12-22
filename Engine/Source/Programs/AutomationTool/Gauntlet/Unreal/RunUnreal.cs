@@ -13,7 +13,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Gauntlet
 {

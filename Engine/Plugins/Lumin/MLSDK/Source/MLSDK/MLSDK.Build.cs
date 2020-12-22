@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public class MLSDK : ModuleRules
 {

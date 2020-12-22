@@ -6,7 +6,7 @@ using System.Linq;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Xml;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Xml.Linq;
 using System.Text;
 using System.Diagnostics;

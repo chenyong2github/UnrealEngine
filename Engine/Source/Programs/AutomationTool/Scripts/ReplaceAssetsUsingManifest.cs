@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public class ReplaceAssetsUsingManifest : BuildCommand
 {

@@ -12,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.ComponentModel;
 using System.Reflection;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 namespace AutomationTool

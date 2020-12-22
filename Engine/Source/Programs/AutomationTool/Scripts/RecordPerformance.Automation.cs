@@ -5,7 +5,7 @@ using System.Text;
 using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 [Help("UAT command to run performance test demo using different RHIs and compare results")]

@@ -11,7 +11,7 @@ using System.Windows.Input;
 using System.Windows.Shell;
 using Timing_Data_Investigator.Commands;
 using Timing_Data_Investigator.Models;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Timing_Data_Investigator
 {

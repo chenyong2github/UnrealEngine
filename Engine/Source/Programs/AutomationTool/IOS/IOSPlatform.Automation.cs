@@ -12,7 +12,7 @@ using Ionic.Zlib;
 using System.Security.Principal;
 using System.Threading;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Xml;
 //using Manzana;
 

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

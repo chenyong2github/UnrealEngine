@@ -10,7 +10,7 @@ using System.Security.AccessControl;
 using System.Xml;
 using System.Text;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Security.Cryptography.X509Certificates;
 
 #nullable disable

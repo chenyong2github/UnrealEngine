@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

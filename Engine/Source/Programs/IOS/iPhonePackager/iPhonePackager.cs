@@ -16,7 +16,7 @@ using Ionic.Zlib;
 using System.ComponentModel;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace iPhonePackager
 {

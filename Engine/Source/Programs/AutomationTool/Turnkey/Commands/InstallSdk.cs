@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnrealBuildTool;
 using AutomationTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 namespace Turnkey.Commands

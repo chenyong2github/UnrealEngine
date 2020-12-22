@@ -8,7 +8,7 @@ using System.Threading;
 using System.Diagnostics;
 using UnrealBuildTool;
 using System.Reflection;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;

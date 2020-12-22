@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Xml.Serialization;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 using AutomationTool;
 using System.Linq;
@@ -574,7 +574,7 @@ namespace Turnkey
 		// 				// and now activate it in case we need it this run
 		// 				TurnkeyUtils.Log("Re-activating AutoSDK '{0}'...", Sdk.DisplayName);
 		// 
-		// 				Tools.DotNETCommon.UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).ReactivateAutoSDK();
+		// 				EpicGames.Core.UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).ReactivateAutoSDK();
 		// 
 		// 				return true;
 		// 			}

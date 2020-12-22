@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Tools.DotNETCommon
+namespace EpicGames.Core
 {
 	/// <summary>
 	/// SDK installation status

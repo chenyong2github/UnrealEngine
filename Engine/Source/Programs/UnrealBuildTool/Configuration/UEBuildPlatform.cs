@@ -6,7 +6,7 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 

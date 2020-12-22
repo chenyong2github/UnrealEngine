@@ -8,7 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -837,7 +837,7 @@ namespace AutomationTool
 			}
 
 			// Write all the storage blocks, and update the mapping from file to storage block
-			using (ITraceSpan Span = Tools.DotNETCommon.TraceSpan.Create("TempStorage", "Write"))
+			using (ITraceSpan Span = EpicGames.Core.TraceSpan.Create("TempStorage", "Write"))
 			{
 				foreach (KeyValuePair<string, HashSet<FileReference>> Pair in OutputStorageBlockToFiles)
 				{

@@ -6,7 +6,7 @@ using System.IO;
 using System.Xml;
 using System.Diagnostics;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 using System.Reflection;
 

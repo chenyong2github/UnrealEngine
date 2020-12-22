@@ -5,7 +5,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

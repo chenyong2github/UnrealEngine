@@ -9,8 +9,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using IdentityModel.Client;
-using Tools.DotNETCommon;
-using Tools.DotNETCommon.Jupiter;
+using EpicGames.Core;
+using EpicGames.Core.Jupiter;
 
 namespace UnrealGameSync
 {

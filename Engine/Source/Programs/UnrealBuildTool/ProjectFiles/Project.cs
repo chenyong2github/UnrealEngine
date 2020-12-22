@@ -8,7 +8,7 @@ using System.Xml.XPath;
 using System.Xml.Linq;
 using System.Linq;
 using System.Text;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

@@ -7,7 +7,7 @@ using System.Xml.Serialization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 using AutomationTool;
 

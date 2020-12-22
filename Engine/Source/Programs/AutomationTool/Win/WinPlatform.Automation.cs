@@ -8,7 +8,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using Microsoft.Win32;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public abstract class BaseWinPlatform : Platform
 {

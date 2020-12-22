@@ -8,7 +8,7 @@ using System.Text;
 using System.Xml;
 using System.IO;
 using Ionic.Zip;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

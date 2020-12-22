@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

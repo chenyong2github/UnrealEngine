@@ -8,7 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {

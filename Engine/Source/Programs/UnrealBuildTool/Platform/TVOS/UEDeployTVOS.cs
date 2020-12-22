@@ -8,7 +8,7 @@ using System.Xml;
 using System.IO;
 using System.Diagnostics;
 using System.Xml.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

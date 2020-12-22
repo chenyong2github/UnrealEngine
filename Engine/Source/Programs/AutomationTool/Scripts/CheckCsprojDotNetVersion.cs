@@ -6,7 +6,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 class CheckCsprojDotNetVersion : BuildCommand

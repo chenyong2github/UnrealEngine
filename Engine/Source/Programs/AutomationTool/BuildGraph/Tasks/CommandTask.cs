@@ -9,7 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Xml;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace BuildGraph.Tasks
 {

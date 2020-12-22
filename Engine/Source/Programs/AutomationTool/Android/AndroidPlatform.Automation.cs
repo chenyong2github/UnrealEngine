@@ -10,7 +10,7 @@ using System.Threading;
 using AutomationTool;
 using UnrealBuildTool;
 using Ionic.Zip;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public class AndroidPlatform : Platform
 {

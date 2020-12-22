@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Globalization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool
 {

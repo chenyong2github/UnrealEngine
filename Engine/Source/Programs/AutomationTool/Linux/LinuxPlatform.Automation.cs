@@ -8,7 +8,7 @@ using System.IO;
 using System.Diagnostics;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public abstract class BaseLinuxPlatform : Platform
 {

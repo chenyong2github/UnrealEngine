@@ -12,7 +12,7 @@ using System.Xml;
 using System.Text;
 using Ionic.Zip;
 using Ionic.Zlib;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool
 {

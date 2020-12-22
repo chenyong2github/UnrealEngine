@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool.Storage.Impl
 {

@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 			}
 			catch (BuildException Ex)
 			{
-				Tools.DotNETCommon.ExceptionUtils.AddContext(Ex, "while parsing a SupportedPlatforms attribute");
+				EpicGames.Core.ExceptionUtils.AddContext(Ex, "while parsing a SupportedPlatforms attribute");
 				throw;
 			}
 

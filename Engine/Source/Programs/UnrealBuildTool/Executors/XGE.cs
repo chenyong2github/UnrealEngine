@@ -11,7 +11,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Win32;
 using System.Text;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;

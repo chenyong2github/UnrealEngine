@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using Microsoft.VisualStudio.Setup.Configuration;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;

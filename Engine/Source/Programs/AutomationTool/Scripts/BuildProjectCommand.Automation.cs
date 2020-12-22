@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 [Flags]
 public enum ProjectBuildTargets

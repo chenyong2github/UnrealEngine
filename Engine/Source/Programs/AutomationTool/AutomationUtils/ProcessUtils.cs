@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {
@@ -843,8 +843,8 @@ namespace AutomationTool
 			string PrevIndent = null;
 			if(Options.HasFlag(ERunOptions.AllowSpew))
 			{
-				PrevIndent = Tools.DotNETCommon.Log.Indent;
-				Tools.DotNETCommon.Log.Indent += "  ";
+				PrevIndent = EpicGames.Core.Log.Indent;
+				EpicGames.Core.Log.Indent += "  ";
 			}
 
 			IProcessResult Result = ProcessManager.CreateProcess(App, Options.HasFlag(ERunOptions.AllowSpew), !Options.HasFlag(ERunOptions.NoStdOutCapture), Env, SpewVerbosity: SpewVerbosity, SpewFilterCallback: SpewFilterCallback);
@@ -902,7 +902,7 @@ namespace AutomationTool
 			{
 				if(PrevIndent != null)
 				{
-					Tools.DotNETCommon.Log.Indent = PrevIndent;
+					EpicGames.Core.Log.Indent = PrevIndent;
 				}
 			}
 

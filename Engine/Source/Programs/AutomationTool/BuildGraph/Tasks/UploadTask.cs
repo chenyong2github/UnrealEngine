@@ -10,8 +10,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Tools.DotNETCommon;
-using Tools.DotNETCommon.Jupiter;
+using EpicGames.Core;
+using EpicGames.Jupiter;
 
 namespace BuildGraph.Tasks
 {

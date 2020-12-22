@@ -6,7 +6,7 @@ using System.Text;
 using System.IO;
 using System.Threading;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {
@@ -309,7 +309,7 @@ namespace AutomationTool
 							catch(Exception Ex)
 							{
 								CommandUtils.LogWarning("Unable to copy crash data; skipping. See log for exception details.");
-								CommandUtils.LogVerbose(Tools.DotNETCommon.ExceptionUtils.FormatExceptionDetails(Ex));
+								CommandUtils.LogVerbose(EpicGames.Core.ExceptionUtils.FormatExceptionDetails(Ex));
 							}
 						}
 					}

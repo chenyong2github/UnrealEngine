@@ -2,7 +2,7 @@
 
 using Microsoft.Win32;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules

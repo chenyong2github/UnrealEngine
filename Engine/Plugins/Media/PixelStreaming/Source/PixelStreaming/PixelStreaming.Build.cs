@@ -2,7 +2,7 @@
 
 using System.IO;
 using System.Collections.Generic;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool.Rules
 {

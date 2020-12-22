@@ -13,7 +13,7 @@ using System.Xml.Linq;
 using System.Text;
 using Ionic.Zip;
 using Ionic.Zlib;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Security.Cryptography.X509Certificates;
 
 #nullable disable

@@ -16,7 +16,7 @@ namespace EpicGames.MCP.Automation
 {
 	using EpicGames.MCP.Config;
 	using System.Threading.Tasks;
-	using Tools.DotNETCommon;
+	using EpicGames.Core;
 
 	public static class Extensions
 	{

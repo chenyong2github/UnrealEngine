@@ -6,7 +6,7 @@ using System.Text;
 using System.Reflection;
 using Microsoft.Win32;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 

@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -241,7 +241,7 @@ namespace AutomationTool
 							int Flag = 1 << Index;
 							if((Flags & Flag) != 0)
 							{
-								Tools.DotNETCommon.Log.TraceWarning(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears a second time without matching {1} macro", Identifier, MacroPairs[Index, 1]);
+								EpicGames.Core.Log.TraceWarning(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears a second time without matching {1} macro", Identifier, MacroPairs[Index, 1]);
 							}
 							Flags |= Flag;
 						}
@@ -251,7 +251,7 @@ namespace AutomationTool
 							int Flag = 1 << ~Index;
 							if((Flags & Flag) == 0)
 							{
-								Tools.DotNETCommon.Log.TraceWarning(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears without matching {1} macro", Identifier, MacroPairs[~Index, 0]);
+								EpicGames.Core.Log.TraceWarning(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears without matching {1} macro", Identifier, MacroPairs[~Index, 0]);
 							}
 							Flags &= ~Flag;
 						}
@@ -317,7 +317,7 @@ namespace AutomationTool
 				{
 					if((Flags & (1 << Idx)) != 0)
 					{
-						Tools.DotNETCommon.Log.TraceWarning(SourceFile, "{0} macro does not have matching {1} macro", MacroPairs[Idx, 0], MacroPairs[Idx, 1]);
+						EpicGames.Core.Log.TraceWarning(SourceFile, "{0} macro does not have matching {1} macro", MacroPairs[Idx, 0], MacroPairs[Idx, 1]);
 					}
 				}
 			}

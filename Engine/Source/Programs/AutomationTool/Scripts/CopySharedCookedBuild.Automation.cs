@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 class CopySharedCookedBuild : BuildCommand
 {

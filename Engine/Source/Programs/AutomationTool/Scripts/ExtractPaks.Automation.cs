@@ -8,7 +8,7 @@ using System.Threading;
 using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 public class ExtractPaks : BuildCommand

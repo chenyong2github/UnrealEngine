@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using ImageMagick;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Security.Cryptography;
 using System.Text;
 

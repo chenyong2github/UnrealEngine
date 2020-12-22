@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using UnrealBuildTool;
 using System.Text;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 

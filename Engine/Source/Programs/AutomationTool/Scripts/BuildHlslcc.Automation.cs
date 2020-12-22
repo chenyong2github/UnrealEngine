@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 [Help("Builds Hlslcc using CMake build system.")]
 [Help("TargetPlatforms", "Specify a list of target platforms to build, separated by '+' characters (eg. -TargetPlatforms=Win64+Linux+Mac). Architectures are specified with '-'. Default is Win64+Linux.")]
@@ -383,7 +383,7 @@ class BuildHlslcc : BuildCommand
 	{
 		Process LocalProcess = new Process();
 		LocalProcess.StartInfo = StartInfo;
-		LocalProcess.OutputDataReceived += (Sender, Line) => { if (Line != null && Line.Data != null) Tools.DotNETCommon.Log.TraceInformation(Line.Data); };
+		LocalProcess.OutputDataReceived += (Sender, Line) => { if (Line != null && Line.Data != null) EpicGames.Core.Log.TraceInformation(Line.Data); };
 		return RunLocalProcess(LocalProcess);
 	}
 

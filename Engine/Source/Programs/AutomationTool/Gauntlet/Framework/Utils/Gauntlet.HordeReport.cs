@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using AutomationTool;
 
 namespace Gauntlet

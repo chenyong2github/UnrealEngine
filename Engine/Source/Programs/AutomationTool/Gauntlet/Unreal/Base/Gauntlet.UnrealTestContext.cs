@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Gauntlet
 {

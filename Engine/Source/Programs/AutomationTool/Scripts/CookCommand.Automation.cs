@@ -10,7 +10,7 @@ using System.Text;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Collections.Concurrent;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 /// <summary>
 /// Helper command used for cooking.

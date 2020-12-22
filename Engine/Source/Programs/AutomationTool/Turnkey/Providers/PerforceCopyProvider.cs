@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using AutomationTool;
 using System.Text.RegularExpressions;
 using System.IO;

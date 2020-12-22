@@ -13,7 +13,7 @@ using System.Xml;
 using System.Diagnostics;
 
 using Action = System.Action;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Win.Automation
 {

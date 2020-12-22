@@ -5,7 +5,7 @@ using System.Xml.Serialization;
 using System.IO;
 using UnrealBuildTool;
 using AutomationTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Diagnostics;
 using System.ComponentModel;
 

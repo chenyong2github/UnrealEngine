@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Xml;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Text.RegularExpressions;
 
 #nullable disable

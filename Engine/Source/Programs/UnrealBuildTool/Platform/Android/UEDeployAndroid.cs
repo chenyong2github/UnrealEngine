@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using System.Xml.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Security.Cryptography;
 
 #nullable disable

@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;

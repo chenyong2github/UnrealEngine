@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text.Json;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

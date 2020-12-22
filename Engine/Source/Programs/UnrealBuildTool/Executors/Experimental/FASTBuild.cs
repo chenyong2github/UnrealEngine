@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Runtime.Serialization;
 
 #nullable disable

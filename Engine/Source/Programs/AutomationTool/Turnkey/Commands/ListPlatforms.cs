@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnrealBuildTool;
 using AutomationTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Turnkey.Commands
 {

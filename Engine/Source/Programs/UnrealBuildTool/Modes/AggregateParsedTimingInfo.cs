@@ -10,7 +10,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 
@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 				Dictionary<string, double> CompileTimes = new Dictionary<string, double>();
 				foreach (KeyValuePair<string, TimingData> TimingData in FileTimingData.Children)
 				{
-					CompileTimes.Add(Json.EscapeString(TimingData.Key), TimingData.Value.InclusiveDuration);
+					CompileTimes.Add(JsonWriter.EscapeString(TimingData.Key), TimingData.Value.InclusiveDuration);
 				}
 				string JsonCompileTimes = JsonSerializer.Serialize(CompileTimes);
 				FileReference.WriteAllText(CompileTimingFile, JsonCompileTimes);

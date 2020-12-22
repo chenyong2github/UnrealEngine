@@ -7,7 +7,7 @@ using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Gauntlet
 {

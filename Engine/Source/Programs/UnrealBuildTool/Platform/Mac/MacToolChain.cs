@@ -9,7 +9,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Linq;
 using Ionic.Zip;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Globalization;
 using System.Text.RegularExpressions;
 

@@ -2,8 +2,8 @@
 
 using AutomationTool;
 using System.Threading.Tasks;
-using Tools.DotNETCommon;
-using Tools.DotNETCommon.Jupiter;
+using EpicGames.Core;
+using EpicGames.Jupiter;
 
 namespace BuildScripts.Automation
 {

@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Globalization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using AutomationTool;
 using UnrealBuildTool;
 

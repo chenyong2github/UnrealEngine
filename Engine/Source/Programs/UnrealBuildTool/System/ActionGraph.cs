@@ -6,7 +6,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Text;
 using System.Threading.Tasks;
 

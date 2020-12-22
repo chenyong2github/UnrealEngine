@@ -77,7 +77,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj" />
+    <ProjectReference Include="..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
     <ProjectReference Include="..\UnrealBuildTool\UnrealBuildTool.csproj" />
     <ProjectReference Include="AutomationUtils\AutomationUtils.Automation.csproj"><Private>true</Private></ProjectReference>
   </ItemGroup>

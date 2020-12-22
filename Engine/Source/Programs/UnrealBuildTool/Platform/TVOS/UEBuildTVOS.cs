@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

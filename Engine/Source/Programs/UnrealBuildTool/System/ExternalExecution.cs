@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Text.Json.Serialization;
 
 namespace UnrealBuildTool

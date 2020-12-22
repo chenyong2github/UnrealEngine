@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 public class OnlineSubsystemApple : ModuleRules

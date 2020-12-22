@@ -8,7 +8,7 @@ using System.Xml;
 using System.Xml.Linq;
 using System.Diagnostics;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 using Ionic.Zip;
 

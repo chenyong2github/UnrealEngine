@@ -11,7 +11,7 @@ using AutomationTool;
 using EpicGames.MCP.Automation;
 using UnrealBuildTool;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Reflection;
 using System.Threading.Tasks;
 

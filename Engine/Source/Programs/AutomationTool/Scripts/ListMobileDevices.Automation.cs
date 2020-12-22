@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationScripts.Automation
 {

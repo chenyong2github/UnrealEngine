@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.Reflection;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {

@@ -9,7 +9,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool
 {

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {
@@ -331,7 +331,7 @@ namespace AutomationTool
 		/// Detects current user name.
 		/// </summary>
 		/// <returns></returns>
-		private static string DetectUserName(P4Connection Connection)
+		public static string DetectUserName(P4Connection Connection)
 		{
 			var UserName = String.Empty;
 			var P4Result = Connection.P4("info", AllowSpew: false);

@@ -7,7 +7,7 @@ using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Linq;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public struct StageTarget
 {

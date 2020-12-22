@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using UnrealBuildTool;
 using AutomationTool;
 using System.Xml;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace AutomationTool
 {

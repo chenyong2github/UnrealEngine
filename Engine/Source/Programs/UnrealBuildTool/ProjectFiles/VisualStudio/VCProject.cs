@@ -11,7 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Security;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 #nullable disable
 

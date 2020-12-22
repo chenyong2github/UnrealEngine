@@ -11,7 +11,7 @@ using System.IO;
 using System.Xml;
 using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Reflection;
 
 namespace UnrealBuildTool

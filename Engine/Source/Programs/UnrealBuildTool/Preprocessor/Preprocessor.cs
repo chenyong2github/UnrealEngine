@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Collections;
 using System.Collections.Concurrent;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool

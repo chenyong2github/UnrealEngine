@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Xml;
 using System.Text.RegularExpressions;
 

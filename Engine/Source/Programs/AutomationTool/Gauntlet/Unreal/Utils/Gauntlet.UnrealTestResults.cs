@@ -2,12 +2,12 @@
 
 using AutomationTool;
 using System.Collections.Generic;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
 	// The following classes are used for json deserialization of the Unreal Automation Test Results.
-	// Because of a bug in the json deserialization used here(Tools.DotNETCommon.Json),
+	// Because of a bug in the json deserialization used here(EpicGames.Core.Json),
 	// the names of the properties need to match the case of the json properties.
 
 	public class UnrealAutomationComparisonFiles

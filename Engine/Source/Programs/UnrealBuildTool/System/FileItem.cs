@@ -7,7 +7,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Threading;
 using System.Runtime.Serialization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Collections.Concurrent;
 
 namespace UnrealBuildTool

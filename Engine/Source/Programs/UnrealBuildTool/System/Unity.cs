@@ -6,7 +6,7 @@ using System.Text;
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace UnrealBuildTool
 {

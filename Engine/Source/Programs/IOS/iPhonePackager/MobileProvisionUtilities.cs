@@ -11,7 +11,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Xml;
 using System.Globalization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 
 namespace iPhonePackager

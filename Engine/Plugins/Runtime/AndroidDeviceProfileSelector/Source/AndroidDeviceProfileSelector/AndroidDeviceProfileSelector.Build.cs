@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.IO;
 using UnrealBuildTool;
 

@@ -15,7 +15,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Permissions;
 using System.Threading.Tasks;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -121,7 +121,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Console, Format, Args);
 		}
 
 		/// <summary>
@@ -131,7 +131,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Message);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Console, Message);
 		}
 
 		/// <summary>
@@ -142,7 +142,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogError(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Error, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Error, Format, Args);
 		}
 
 		/// <summary>
@@ -152,7 +152,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogError(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Error, Message);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Error, Message);
 		}
 
 		/// <summary>
@@ -163,7 +163,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWarning(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Warning, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Warning, Format, Args);
 		}
 
 		/// <summary>
@@ -173,7 +173,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWarning(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Warning, Message);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Warning, Message);
 		}
 
 		/// <summary>
@@ -184,7 +184,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVerbose(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Verbose, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Verbose, Format, Args);
 		}
 
 		/// <summary>
@@ -194,7 +194,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVerbose(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Verbose, Message);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Verbose, Message);
 		}
 
 		/// <summary>
@@ -205,7 +205,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVeryVerbose(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.VeryVerbose, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.VeryVerbose, Format, Args);
 		}
 
 		/// <summary>
@@ -215,7 +215,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVeryVerbose(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.VeryVerbose, Message);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.VeryVerbose, Message);
 		}
 
 		/// <summary>
@@ -226,7 +226,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogLog(string Format, params object[] Args)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Log, Format, Args);
+			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Log, Format, Args);
 		}
 
 		/// <summary>
@@ -236,7 +236,7 @@ namespace AutomationTool
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogLog(string Message)
 		{
-			Tools.DotNETCommon.Log.WriteLine(1, LogEventType.Log, Message);
+			EpicGames.Core.Log.WriteLine(1, LogEventType.Log, Message);
 		}
 
 		/// <summary>
@@ -246,9 +246,9 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Arguments</param>
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		public static void LogWithVerbosity(Tools.DotNETCommon.LogEventType Verbosity, string Format, params object[] Args)
+		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, string Format, params object[] Args)
 		{
-            Tools.DotNETCommon.Log.WriteLine(1, Verbosity, Format, Args);
+            EpicGames.Core.Log.WriteLine(1, Verbosity, Format, Args);
 		}
 
 		/// <summary>
@@ -257,9 +257,9 @@ namespace AutomationTool
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Message">Text</param>
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		public static void LogWithVerbosity(Tools.DotNETCommon.LogEventType Verbosity, string Message)
+		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, string Message)
 		{
-            Tools.DotNETCommon.Log.WriteLine(1, Verbosity, Message);
+            EpicGames.Core.Log.WriteLine(1, Verbosity, Message);
 		}
 
 		/// <summary>
@@ -268,9 +268,9 @@ namespace AutomationTool
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Ex">Exception</param>
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		public static void LogWithVerbosity(Tools.DotNETCommon.LogEventType Verbosity, Exception Ex)
+		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, Exception Ex)
 		{
-            Tools.DotNETCommon.Log.WriteLine(1, Verbosity, LogUtils.FormatException(Ex));
+            EpicGames.Core.Log.WriteLine(1, Verbosity, LogUtils.FormatException(Ex));
 		}
 
 		public static void LogPushProgress(bool bShowProgress, int Numerator, int Denominator)

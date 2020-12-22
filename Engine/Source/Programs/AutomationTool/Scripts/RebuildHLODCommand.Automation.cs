@@ -8,7 +8,7 @@ using System.Linq;
 using System.Net.Mail;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 /// <summary>
 /// Helper command used for rebuilding a projects Hierarchical LODs.
@@ -162,11 +162,11 @@ namespace AutomationScripts.Automation
                 if ( AEx != null )
                 {
                     string LogFile = AEx.LogFileName;
-                    Tools.DotNETCommon.Log.TraceWarning("Attempting to load file {0}", LogFile);
+                    EpicGames.Core.Log.TraceWarning("Attempting to load file {0}", LogFile);
                     if ( LogFile != "")
                     {
                         
-                        Tools.DotNETCommon.Log.TraceWarning("Attempting to read file {0}", LogFile);
+                        EpicGames.Core.Log.TraceWarning("Attempting to read file {0}", LogFile);
                         try
                         {
                             string[] AllLogFile = ReadAllLines(LogFile);

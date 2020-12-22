@@ -7,7 +7,7 @@ using System.Text;
 using System.IO;
 using UnrealBuildTool;
 using System.Diagnostics;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Reflection;
 
 namespace AutomationTool

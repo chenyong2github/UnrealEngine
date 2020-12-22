@@ -8,7 +8,7 @@ using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
 using System.Runtime.Serialization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool

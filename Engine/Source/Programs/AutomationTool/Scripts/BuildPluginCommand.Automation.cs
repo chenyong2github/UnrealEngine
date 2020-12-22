@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Text;
 
 [Help("Builds a plugin, and packages it for distribution")]

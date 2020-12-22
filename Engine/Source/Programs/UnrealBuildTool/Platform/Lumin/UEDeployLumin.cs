@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 using System.Linq;
 using System.Xml;
 using System.Xml.Serialization;
@@ -570,7 +570,7 @@ namespace UnrealBuildTool
 			{
 				// If asked for, and if we are doing a distribution package, we strip debug symbols.
 				Directory.CreateDirectory(Path.GetDirectoryName(ExecSrcFile));
-				ToolChain.StripSymbols(new Tools.DotNETCommon.FileReference(ExePath), new Tools.DotNETCommon.FileReference(ExecSrcFile));
+				ToolChain.StripSymbols(new EpicGames.Core.FileReference(ExePath), new EpicGames.Core.FileReference(ExecSrcFile));
 			}
 			else
 			{

@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Localization;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 [Help("Updates the external localization data using the arguments provided.")]
 [Help("UEProjectRoot", "Optional root-path to the project we're gathering for (defaults to CmdEnv.LocalRoot if unset).")]
