@@ -5,7 +5,6 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +78,5 @@ inline bool FMetadataDb::FEntry::IsRealloc() const
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

@@ -4,7 +4,6 @@
 
 #include "Lane.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +79,5 @@ void LaneRetireeJob(FRetireeJobData* Data);
 void LaneLeaksJob(FLeakJobData* Data);
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

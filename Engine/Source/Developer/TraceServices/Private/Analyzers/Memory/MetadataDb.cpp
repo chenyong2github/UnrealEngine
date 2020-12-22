@@ -3,7 +3,6 @@
 #include "MetadataDb.h"
 #include "Support.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,6 +93,5 @@ uint64 FMetadataDb::Remix(uint64 Id)
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

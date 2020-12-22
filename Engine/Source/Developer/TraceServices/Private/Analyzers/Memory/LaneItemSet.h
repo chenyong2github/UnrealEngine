@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -75,6 +74,5 @@ inline uint32 FLaneItemSet::GetMetadataId(uint32 Index) const
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

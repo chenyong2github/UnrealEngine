@@ -5,7 +5,6 @@
 #include "Containers/ArrayView.h"
 #include "LaneItemSet.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,6 +126,5 @@ private:
 };
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

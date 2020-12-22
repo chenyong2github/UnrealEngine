@@ -6,7 +6,6 @@
 #include "SbifIdentities.inl"
 #include "Support.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -310,6 +309,5 @@ void LaneLeaksJob(FLeakJobData* Data)
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

@@ -8,7 +8,6 @@
 #include "SbifBuilder.h"
 #include "Support.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -547,6 +546,5 @@ FLaneInput* FTracker::GetLaneInput(uint64 Address)
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

@@ -3,7 +3,6 @@
 #include "LaneItemSet.h"
 #include "Support.h"
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,6 +239,5 @@ uint32 FLaneItemSet::GetBucketIndex(uint64 Hash) const
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

@@ -5,7 +5,6 @@
 #include "Config.h"
 #include "MetadataDb.h"
 
-namespace Trace {
 namespace TraceServices {
 
 class FLane;
@@ -64,6 +63,5 @@ private:
 };
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

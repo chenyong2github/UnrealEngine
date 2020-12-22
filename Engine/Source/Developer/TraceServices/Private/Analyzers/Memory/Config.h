@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 
-namespace Trace {
 namespace TraceServices {
 
 namespace FTrackerConfig
@@ -21,6 +20,5 @@ namespace FTrackerConfig
 };
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

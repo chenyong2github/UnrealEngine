@@ -4,7 +4,6 @@
 
 #include "SbifIdentities.inl"
 
-namespace Trace {
 namespace TraceServices {
 
 class FMetadataDb;
@@ -135,6 +134,5 @@ public:
 };
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */

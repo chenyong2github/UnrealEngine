@@ -8,7 +8,6 @@
 #	include <intrin.h>
 #endif
 
-namespace Trace {
 namespace TraceServices {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,6 +104,5 @@ inline void FTrackerBuffer::Free(void* Ptr)
 }
 
 } // namespace TraceServices
-} // namespace Trace
 
 /* vim: set noet : */
