@@ -20,5 +20,3 @@ namespace FTrackerConfig
 };
 
 } // namespace TraceServices
-
-/* vim: set noet : */

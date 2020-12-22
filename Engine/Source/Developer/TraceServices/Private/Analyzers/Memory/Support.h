@@ -104,5 +104,3 @@ inline void FTrackerBuffer::Free(void* Ptr)
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

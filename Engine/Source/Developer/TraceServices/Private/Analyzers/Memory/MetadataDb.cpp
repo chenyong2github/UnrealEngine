@@ -97,5 +97,3 @@ uint64 FMetadataDb::Remix(uint64 Id)
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

@@ -74,5 +74,3 @@ inline uint32 FLaneItemSet::GetMetadataId(uint32 Index) const
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

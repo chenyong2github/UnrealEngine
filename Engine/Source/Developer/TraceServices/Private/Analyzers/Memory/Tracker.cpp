@@ -546,5 +546,3 @@ FLaneInput* FTracker::GetLaneInput(uint64 Address)
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

@@ -239,5 +239,3 @@ uint32 FLaneItemSet::GetBucketIndex(uint64 Hash) const
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

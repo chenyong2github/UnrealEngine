@@ -78,5 +78,3 @@ inline bool FMetadataDb::FEntry::IsRealloc() const
 }
 
 } // namespace TraceServices
-
-/* vim: set noet : */

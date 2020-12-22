@@ -79,5 +79,3 @@ void LaneRetireeJob(FRetireeJobData* Data);
 void LaneLeaksJob(FLeakJobData* Data);
 
 } // namespace TraceServices
-
-/* vim: set noet : */

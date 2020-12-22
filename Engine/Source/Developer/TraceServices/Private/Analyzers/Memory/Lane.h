@@ -126,5 +126,3 @@ private:
 };
 
 } // namespace TraceServices
-
-/* vim: set noet : */
