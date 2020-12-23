@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
 #include "Config.h"
 #include "MetadataDb.h"
 
@@ -37,6 +38,12 @@ public:
 	uint32					GetCurrentSerial() const;
 
 private:
+	struct FSyncWait
+	{
+		FGraphEventRef		JobRef;
+		void*				WaitParam;
+	};
+
 	FLaneInput*				GetLaneInput(uint64 Address);
 	void					Update(bool bDispatch);
 	void					ProcessRetirees(const FRetireeJobData* JobData);
@@ -49,7 +56,7 @@ private:
 	FLane*					Lanes[FTrackerConfig::NumLanes];
 	FLaneInput*				LaneInputs[FTrackerConfig::NumLanes];
 	ISbifBuilder*			SbifBuilder;
-	UPTRINT					SyncWait;
+	FSyncWait				SyncWait;
 	uint32					Serial;
 	uint32					SerialBias;
 	uint32					ColumnShift;
