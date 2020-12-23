@@ -65,7 +65,6 @@ struct FRetireeJobData
 {
 	FRetirees*			Retirees;
 	uint32				SerialBias;
-	uint32				ColumnShift;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

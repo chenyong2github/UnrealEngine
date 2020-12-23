@@ -59,9 +59,6 @@ private:
 	FSyncWait				SyncWait;
 	uint32					Serial;
 	uint32					SerialBias;
-	uint32					ColumnShift;
-	uint32					ColumnMask;
-	uint32					NumColumns;
 };
 
 } // namespace TraceServices
