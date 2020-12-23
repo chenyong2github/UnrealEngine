@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildTool", "UnrealBu
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildUtilities", "..\DotNETCommon\BuildUtilities\BuildUtilities.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNETUtilities", "..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj", "{6165C311-AEEB-402A-89E1-69AF64AE5035}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildToolTests", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealBuildTool", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{46FDC727-E9B0-4447-952A-03AD8073600F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,21 +32,24 @@ Global
 		{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}.Development|Any CPU.Build.0 = Development|Any CPU
 		{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Development|Any CPU.ActiveCfg = Development|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Development|Any CPU.Build.0 = Development|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6165C311-AEEB-402A-89E1-69AF64AE5035}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Development|Any CPU.ActiveCfg = Debug|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Development|Any CPU.Build.0 = Debug|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3B158EAD-4D26-4608-B7AB-9AB7E028B489}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Development|Any CPU.Build.0 = Development|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74} = {46FDC727-E9B0-4447-952A-03AD8073600F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {56720C8D-2BBE-45D5-85A3-8E12E06D51DC}
