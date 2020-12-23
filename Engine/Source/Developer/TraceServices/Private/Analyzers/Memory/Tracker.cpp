@@ -333,7 +333,7 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 {
 	auto Comparison = [] (const FRetiree& Lhs, const FRetiree& Rhs)
 	{
-		return Lhs.GetEndSerialBiased() < Rhs.GetEndSerialBiased();
+		return Lhs.GetSortKey() < Rhs.GetSortKey();
 	};
 
 	uint32 BundleSerialBias = Data->SerialBias;
@@ -363,7 +363,7 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 
 		// Retiree lists are null terminated
 		const FRetiree* Next = Ret + 1;
-		if (Next->GetMetadataId())
+		if (Next->GetSortKey())
 		{
 			Heap.Add(Next);
 		}

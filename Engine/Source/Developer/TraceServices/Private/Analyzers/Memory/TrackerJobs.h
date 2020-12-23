@@ -11,6 +11,7 @@ class alignas(16) FRetiree
 {
 public:
 	void			Set(uint32 Start, uint32 EndBiased, uint64 InAddress, uint32 InMetadataId);
+	uint64			GetSortKey() const				{ return SortKey; }
 	uint64			GetAddress() const				{ return Address; }
 	uint64			GetStartSerial() const			{ return StartSerial; }
 	uint32			GetEndSerial(uint32 Bias) const	{ return EndSerialBiased + Bias; }
@@ -18,8 +19,15 @@ public:
 	uint32			GetMetadataId() const			{ return MetadataId; }
 
 private:
-	uint64			Address			: 44;
-	uint64			EndSerialBiased	: 20;
+	union
+	{
+		struct
+		{
+			uint64	Address			: 44;
+			uint64	EndSerialBiased	: 20;
+		};
+		uint64		SortKey; // end-serial is most significant.
+	};
 	uint64			StartSerial		: 36;
 	uint64			MetadataId		: 28;
 };

@@ -228,7 +228,7 @@ void LaneRetireeJob(FRetireeJobData* Data)
 
 	auto Predicate = [] (const FRetiree& Lhs, const FRetiree& Rhs)
 	{
-		return Lhs.GetEndSerialBiased() < Rhs.GetEndSerialBiased();
+		return Lhs.GetSortKey() < Rhs.GetSortKey();
 	};
 
 	TArrayView<FRetiree> Range(Retirees->Items, Retirees->Num);
