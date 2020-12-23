@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Containers/StringConv.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
+#include "HAL/Event.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadManager.h"
 #include "Windows/WindowsHWrapper.h"

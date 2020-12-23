@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WindowsRunnableThread.h"
-#include "Containers/StringConv.h"
-#include "CoreGlobals.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "HAL/Event.h"
 #include "HAL/ExceptionHandling.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "HAL/ThreadManager.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/OutputDeviceError.h"
 #include "Stats/Stats.h"
