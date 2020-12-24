@@ -987,7 +987,7 @@ namespace UnrealBuildTool
 		/// <param name="BinaryOutputDir">The output directory for the binary containing this module</param>
 		/// <param name="TargetOutputDir">The output directory for the target executable</param>
 		/// <param name="Writer">Writer for this binary's data</param>
-		public virtual void ExportJson(DirectoryReference BinaryOutputDir, DirectoryReference TargetOutputDir, JsonWriter Writer)
+		public virtual void ExportJson(DirectoryReference? BinaryOutputDir, DirectoryReference? TargetOutputDir, JsonWriter Writer)
 		{
 			Writer.WriteValue("Name", Name);
 			Writer.WriteValue("Directory", ModuleDirectory.FullName);

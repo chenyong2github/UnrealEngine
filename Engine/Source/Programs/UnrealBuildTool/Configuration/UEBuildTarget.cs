@@ -2214,7 +2214,7 @@ namespace UnrealBuildTool
 				foreach (UEBuildModule Module in Modules.Values)
 				{
 					Writer.WriteObjectStart(Module.Name);
-					Module.ExportJson(Module.Binary!.OutputDir, GetExecutableDir(), Writer);
+					Module.ExportJson(Module.Binary?.OutputDir, GetExecutableDir(), Writer);
 					Writer.WriteObjectEnd();
 				}
 				Writer.WriteObjectEnd();
