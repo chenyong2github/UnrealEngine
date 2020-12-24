@@ -5,7 +5,7 @@
 #include "Algo/BinarySearch.h"
 #include "Lane.h"
 #include "TrackerJobs.h"
-#include "SbifBuilder.h"
+#include "RetireeSink.h"
 #include "Support.h"
 
 namespace TraceServices {
@@ -75,8 +75,8 @@ static void Wait(FGraphEventRef Job)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FTracker::FTracker(ISbifBuilder* InSbifBuilder)
-: SbifBuilder(InSbifBuilder)
+FTracker::FTracker(IRetireeSink* InRetireeSink)
+: RetireeSink(InRetireeSink)
 {
 	for (FLane*& Lane : Lanes)
 	{
@@ -100,7 +100,7 @@ void FTracker::Begin()
 	Serial = 0;
 	SyncWait = {};
 
-	SbifBuilder->Begin(&MetadataDb);
+	RetireeSink->Begin(&MetadataDb);
 
 	Provision();
 }
@@ -109,7 +109,7 @@ void FTracker::Begin()
 void FTracker::End()
 {
 	Finalize();
-	SbifBuilder->End();
+	RetireeSink->End();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -297,14 +297,14 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 		Bundle.Add(*Ret);
 		if (Bundle.Num() >= BundleSize)
 		{
-			/* send bundle */
+			RetireeSink->AddRetirees(BundleSerialBias, Bundle);
 			Bundle.SetNum(0);
 		}
 	}
 
 	if (Bundle.Num() > 0)
 	{
-		/* send bundle */
+		RetireeSink->AddRetirees(BundleSerialBias, Bundle);
 		Bundle.SetNum(0);
 	}
 }
@@ -330,8 +330,8 @@ void FTracker::Dispatch(bool bDoRehash)
 
 			bool bGrow = (Capacity - Num) <= AllocNum; // Not enough space to fit potential allocs
 
-			bGrow |= !Capacity || ((100 * Num) / Capacity) > 88;				// Load % is getting too high
-			bool bRehash = Num && ((100 * Tombs) / (Tombs + Num)) > 50;// Too tombstoney
+			bGrow |= !Capacity || ((100 * Num) / Capacity) > 88;		// Load % is getting too high
+			bool bRehash = Num && ((100 * Tombs) / (Tombs + Num)) > 50;	// Too tombstoney
 
 			if (bGrow | bRehash)
 			{

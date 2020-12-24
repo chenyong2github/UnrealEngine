@@ -13,7 +13,7 @@ class FLaneInput;
 struct FLaneJobData;
 class FRetiree;
 struct FRetireeJobData;
-class ISbifBuilder;
+class IRetireeSink;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FTracker
@@ -29,7 +29,7 @@ public:
 		uint8				_Padding0;
 	};
 
-							FTracker(ISbifBuilder* InSbifBuilder);
+							FTracker(IRetireeSink* InRetireeSink);
 							~FTracker();
 	void					Begin();
 	void					End();
@@ -55,7 +55,7 @@ private:
 	FMetadataDb				MetadataDb;
 	FLane*					Lanes[FTrackerConfig::NumLanes];
 	FLaneInput*				LaneInputs[FTrackerConfig::NumLanes];
-	ISbifBuilder*			SbifBuilder;
+	IRetireeSink*			RetireeSink;
 	FSyncWait				SyncWait;
 	uint32					Serial;
 	uint32					SerialBias;
