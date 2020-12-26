@@ -15,6 +15,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "Tools/ControlRigPose.h"
+
+class FAssetThumbnail;
 class UControlRig;
 
 //Class to Hold Statics that are shared and externally callable

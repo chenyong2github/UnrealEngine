@@ -3,12 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Widgets/Views/SListView.h"
 
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class ITableRow;
+class STableViewBase;
 class UIKRigDefinition;
 class UIKRigController;
+struct FAssetData;
 
 // Utility class to build combo boxes out of arrays of names.
 struct FGoalNameListItem : public TSharedFromThis<FGoalNameListItem>

@@ -14,8 +14,8 @@
 #include "Drawing/ControlRigDrawInterface.h"
 #include "IKRigProcessor.generated.h"
 
-
 class UIKRigConstraintSolver;
+class UIKRigDefinition;
 class UIKRigSolver;
 struct FControlRigDrawInterface;
 

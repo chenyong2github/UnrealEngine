@@ -12,6 +12,7 @@
 #include "ISequencer.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ScopedTransaction.h"
 #include "EditorStyleSet.h"

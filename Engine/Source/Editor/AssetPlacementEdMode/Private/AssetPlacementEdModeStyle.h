@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class FSlateStyleSet;
+class ISlateStyle;
 
 class FAssetPlacementEdModeStyle
 {

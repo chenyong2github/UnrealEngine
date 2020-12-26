@@ -4,6 +4,7 @@
 
 #include "Algo/Copy.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Async/Async.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 

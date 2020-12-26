@@ -14,7 +14,10 @@
 #include "ScopedTransaction.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Kismet2/SClassPickerDialog.h"
+#include "Animation/Skeleton.h"
 #include "ClassViewerFilter.h"
+#include "Engine/SkeletalMesh.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE	"IKRigDefinitionDetails"
