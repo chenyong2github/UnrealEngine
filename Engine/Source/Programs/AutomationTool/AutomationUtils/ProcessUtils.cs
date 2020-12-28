@@ -840,27 +840,20 @@ namespace AutomationTool
                 LogWithVerbosity(SpewVerbosity,"Running: " + App + " " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine));
             }
 
-			string PrevIndent = null;
-			if(Options.HasFlag(ERunOptions.AllowSpew))
-			{
-				PrevIndent = EpicGames.Core.Log.Indent;
-				EpicGames.Core.Log.Indent += "  ";
-			}
-
 			IProcessResult Result = ProcessManager.CreateProcess(App, Options.HasFlag(ERunOptions.AllowSpew), !Options.HasFlag(ERunOptions.NoStdOutCapture), Env, SpewVerbosity: SpewVerbosity, SpewFilterCallback: SpewFilterCallback);
-			try
+			using (LogIndentScope Scope = Options.HasFlag(ERunOptions.AllowSpew) ? new LogIndentScope("  ") : null)
 			{
 				Process Proc = Result.ProcessObject;
 
 				bool bRedirectStdOut = (Options & ERunOptions.NoStdOutRedirect) != ERunOptions.NoStdOutRedirect;
 				Proc.StartInfo.FileName = App;
-				
+
 				// Process Arguments follow windows conventions in .NET Core
 				// Which means single quotes ' are not considered quotes.
 				// see https://github.com/dotnet/runtime/issues/29857
 				// also see UE-102580
 				Proc.StartInfo.Arguments = String.IsNullOrEmpty(CommandLine) ? "" : CommandLine.Replace('\'', '\"');
-				
+
 				Proc.StartInfo.UseShellExecute = false;
 				if (bRedirectStdOut)
 				{
@@ -896,13 +889,6 @@ namespace AutomationTool
 				else
 				{
 					Result.ExitCode = -1;
-				}
-			}
-			finally
-			{
-				if(PrevIndent != null)
-				{
-					EpicGames.Core.Log.Indent = PrevIndent;
 				}
 			}
 

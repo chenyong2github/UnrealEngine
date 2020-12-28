@@ -210,15 +210,6 @@ namespace EpicGames.Core
 		public static FileReference OutputFile => DefaultLogger.OutputFile;
 
 		/// <summary>
-		/// Indent added to every output line
-		/// </summary>
-		public static string Indent
-		{
-			get => DefaultLogger.Indent;
-			set => DefaultLogger.Indent = value; 
-		}
-
-		/// <summary>
 		/// Adds a trace listener that writes to a log file
 		/// </summary>
 		/// <param name="OutputFile">The file to write to</param>
@@ -761,19 +752,10 @@ namespace EpicGames.Core
 		private Stopwatch StatusTimer = new Stopwatch();
 
 		/// <summary>
-		/// Indent added to every output line
-		/// </summary>
-		public string Indent
-		{
-			get; set;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		public DefaultLogger()
 		{
-			Indent = "";
 			OutputLevel = LogEventType.Log;
 			IncludeSeverityPrefix = true;
 			IncludeProgramNameWithSeverityPrefix = false;
@@ -915,6 +897,8 @@ namespace EpicGames.Core
 
 			// If there are no extra args, don't try to format the string, in case it has any format control characters in it (our LOCTEXT strings tend to).
 			string[] Lines = ((Args.Length > 0) ? String.Format(Format, Args) : Format).TrimEnd(' ', '\t', '\r', '\n').Split('\n');
+
+			string Indent = LogIndent.Current;
 
 			List<string> FormattedLines = new List<string>();
 			FormattedLines.Add(String.Format("{0}{1}{2}{3}{4}", TimePrefix, SourcePrefix, Indent, SeverityPrefix, Lines[0].TrimEnd('\r')));
@@ -1152,7 +1136,7 @@ namespace EpicGames.Core
 		{
 			if (NewStatusText.Length > 0)
 			{
-				NewStatusText = Indent + NewStatusText;
+				NewStatusText = LogIndent.Current + NewStatusText;
 			}
 
 			if (StatusText != NewStatusText)

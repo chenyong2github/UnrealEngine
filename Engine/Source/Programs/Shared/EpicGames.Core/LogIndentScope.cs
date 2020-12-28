@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EpicGames.Core
@@ -14,9 +15,9 @@ namespace EpicGames.Core
 	public class LogIndentScope : IDisposable
 	{
 		/// <summary>
-		/// The previous indent
+		/// Whether the object has been disposed
 		/// </summary>
-		string? PrevIndent;
+		bool Disposed;
 
 		/// <summary>
 		/// Constructor
@@ -24,8 +25,7 @@ namespace EpicGames.Core
 		/// <param name="Indent">Indent to append to the existing indent</param>
 		public LogIndentScope(string Indent)
 		{
-			PrevIndent = Log.Indent;
-			Log.Indent += Indent;
+			LogIndent.Push(Indent);
 		}
 
 		/// <summary>
@@ -33,10 +33,10 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if (PrevIndent != null)
+			if (!Disposed)
 			{
-				Log.Indent = PrevIndent;
-				PrevIndent = null;
+				LogIndent.Pop();
+				Disposed = true;
 			}
 		}
 	}
