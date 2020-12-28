@@ -490,10 +490,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
 		/// </summary>
-		/// <typeparam name="T">Type of the object to serialize</typeparam>
 		/// <param name="Object">The object to serialize</param>
 		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteObjectReference<T>(T Object, Action WriteObject) where T : class
+		public void WriteObjectReference(object Object, Action WriteObject)
 		{
 			if(Object == null)
 			{
@@ -513,6 +512,16 @@ namespace EpicGames.Core
 					WriteObject();
 				}
 			}
+		}
+
+		/// <summary>
+		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
+		/// </summary>
+		/// <param name="Object">The object to serialize</param>
+		/// <param name="WriteObject">Delegate used to write the object</param>
+		public void WriteObjectReference<T>(T Object, Action WriteObject) where T : class
+		{
+			WriteObjectReference((object)Object, WriteObject);
 		}
 	}
 }
