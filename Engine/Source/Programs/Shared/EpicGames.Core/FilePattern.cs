@@ -283,7 +283,7 @@ namespace EpicGames.Core
 		/// <param name="TargetPattern">Matching output pattern</param>
 		/// <param name="Filter">Filter to apply to source files</param>
 		/// <param name="TargetFileToSourceFile">Dictionary to receive a mapping from target file to source file. An exception is thrown if multiple source files map to one target file, or a source file is also used as a target file.</param>
-		public static Dictionary<FileReference, FileReference> CreateMapping(HashSet<FileReference> Files, ref FilePattern SourcePattern, ref FilePattern TargetPattern)
+		public static Dictionary<FileReference, FileReference> CreateMapping(HashSet<FileReference>? Files, ref FilePattern SourcePattern, ref FilePattern TargetPattern)
 		{
 			// If the source pattern ends in a directory separator, or a set of input files are specified and it doesn't contain wildcards, treat it as a full directory match
 			if(SourcePattern.EndsWithDirectorySeparator())
@@ -361,7 +361,7 @@ namespace EpicGames.Core
 				// Add them to the output map
 				for(int Idx = 0; Idx < TargetFiles.Length; Idx++)
 				{
-					FileReference ExistingSourceFile;
+					FileReference? ExistingSourceFile;
 					if(TargetFileToSourceFile.TryGetValue(TargetFiles[Idx], out ExistingSourceFile) && ExistingSourceFile != SourceFiles[Idx])
 					{
 						throw new FilePatternException("Output file '{0}' is mapped from '{1}' and '{2}'", TargetFiles[Idx], ExistingSourceFile, SourceFiles[Idx]);

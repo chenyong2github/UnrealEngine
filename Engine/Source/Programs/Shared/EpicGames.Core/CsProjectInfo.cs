@@ -9,6 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
+#nullable disable
+
 namespace EpicGames.Core
 {
 	/// <summary>

@@ -91,7 +91,7 @@ namespace EpicGames.Core
 			if(Message != null)
 			{
 				Log.PopStatus();
-				Message = null;
+				Message = null!;
 			}
 		}
 	}

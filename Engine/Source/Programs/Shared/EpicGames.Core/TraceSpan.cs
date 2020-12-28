@@ -36,13 +36,13 @@ namespace EpicGames.Core
 		class TraceSpanImpl : ITraceSpan
 		{
 			public string Name;
-			public string Resource;
-			public string Service;
+			public string? Resource;
+			public string? Service;
 			public DateTimeOffset StartTime;
 			public DateTimeOffset? FinishTime;
 			public Dictionary<string, string> Metadata = new Dictionary<string, string>();
 
-			public TraceSpanImpl(string Name, string Resource, string Service)
+			public TraceSpanImpl(string Name, string? Resource, string? Service)
 			{
 				this.Name = Name;
 				this.Resource = Resource;
@@ -72,7 +72,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Creates a scope using the current provider
 		/// </summary>
-		public static ITraceSpan Create(string Name, string Resource = null, string Service = null)
+		public static ITraceSpan Create(string Name, string? Resource = null, string? Service = null)
 		{
 			TraceSpanImpl Span = new TraceSpanImpl(Name, Resource, Service);
 			Spans.Add(Span);
@@ -84,7 +84,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public static void Flush()
 		{
-			string TelemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
+			string? TelemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
 			if (TelemetryDir != null)
 			{
 				FileReference File;
@@ -93,7 +93,7 @@ namespace EpicGames.Core
 					DirectoryReference TelemetryDirRef = new DirectoryReference(TelemetryDir);
 					DirectoryReference.CreateDirectory(TelemetryDirRef);
 
-					string FileName = String.Format("{0}.{1}.json", Path.GetFileName(Assembly.GetEntryAssembly().Location), Process.Id, Process.StartTime.Ticks);
+					string FileName = String.Format("{0}.{1}.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), Process.Id, Process.StartTime.Ticks);
 					File = FileReference.Combine(TelemetryDirRef, FileName);
 				}
 

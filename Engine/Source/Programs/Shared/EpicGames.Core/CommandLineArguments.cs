@@ -10,6 +10,8 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable disable
+
 namespace EpicGames.Core
 {
 	/// <summary>

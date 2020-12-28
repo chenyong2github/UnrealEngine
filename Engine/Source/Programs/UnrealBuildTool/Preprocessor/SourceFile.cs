@@ -109,7 +109,7 @@ namespace UnrealBuildTool
 		public SourceFile(BinaryArchiveReader Reader)
 		{
 			File = Reader.ReadFileItem();
-			Hash = Reader.ReadContentHash();
+			Hash = Reader.ReadContentHash()!;
 			LastWriteTimeUtc = Reader.ReadLong();
 			Markup = Reader.ReadArray(() => new SourceFileMarkup(Reader));
 			HeaderGuardMacro = Reader.ReadIdentifier();

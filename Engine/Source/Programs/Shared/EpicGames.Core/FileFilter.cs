@@ -329,7 +329,7 @@ namespace EpicGames.Core
 			LastNode.Type = Type;
 
 			// Update the maximums along that path
-			for (FileFilterNode UpdateNode = LastNode; UpdateNode != null; UpdateNode = UpdateNode.Parent)
+			for (FileFilterNode? UpdateNode = LastNode; UpdateNode != null; UpdateNode = UpdateNode.Parent)
 			{
 				if (Type == FileFilterType.Include)
 				{

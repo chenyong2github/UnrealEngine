@@ -51,7 +51,7 @@ namespace EpicGames.Core
 				Wait();
 
 				EmptyEvent.Dispose();
-				EmptyEvent = null;
+				EmptyEvent = null!;
 			}
 		}
 
@@ -89,11 +89,11 @@ namespace EpicGames.Core
 		/// Internal method to execute an action
 		/// </summary>
 		/// <param name="ActionToExecute">The action to execute</param>
-		void Execute(object ActionToExecute)
+		void Execute(object? ActionToExecute)
 		{
 			try
 			{
-				((Action)ActionToExecute)();
+				((Action)ActionToExecute!)();
 			}
 			catch(Exception Ex)
 			{

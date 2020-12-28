@@ -26,7 +26,7 @@ namespace EpicGames.Core
 		/// <param name="Message">Message to append to the context list</param>
 		public static void AddContext(Exception Ex, string Message)
 		{
-			List<string> Messages = Ex.Data[ContextEntryName] as List<string>;
+			List<string>? Messages = Ex.Data[ContextEntryName] as List<string>;
 			if (Messages == null)
 			{
 				Messages = new List<string>();
@@ -54,7 +54,7 @@ namespace EpicGames.Core
 		/// <returns>Sequence of context lines</returns>
 		public static IEnumerable<string> GetContext(Exception Ex)
 		{
-			List<string> Messages = Ex.Data[ContextEntryName] as List<string>;
+			List<string>? Messages = Ex.Data[ContextEntryName] as List<string>;
 			if (Messages != null)
 			{
 				foreach (string Message in Messages)
@@ -74,7 +74,7 @@ namespace EpicGames.Core
 			StringBuilder ErrorMessage = new StringBuilder();
 			if (Ex is AggregateException)
 			{
-				Exception InnerException = ((AggregateException)Ex).InnerException;
+				Exception InnerException = ((AggregateException)Ex).InnerException!;
 				ErrorMessage.Append(InnerException.ToString());
 				foreach (string Line in GetContext(InnerException))
 				{
@@ -100,7 +100,7 @@ namespace EpicGames.Core
 		public static string FormatExceptionDetails(Exception Ex)
 		{
 			List<Exception> ExceptionStack = new List<Exception>();
-			for (Exception CurrentEx = Ex; CurrentEx != null; CurrentEx = CurrentEx.InnerException)
+			for (Exception? CurrentEx = Ex; CurrentEx != null; CurrentEx = CurrentEx.InnerException)
 			{
 				ExceptionStack.Add(CurrentEx);
 			}
@@ -113,9 +113,9 @@ namespace EpicGames.Core
 
 				if (CurrentEx.Data.Count > 0)
 				{
-					foreach (object Key in CurrentEx.Data.Keys)
+					foreach (object? Key in CurrentEx.Data.Keys)
 					{
-						object Value = CurrentEx.Data[Key];
+						object Value = CurrentEx.Data[Key!]!;
 
 						string ValueString;
 						if(Value is List<string>)
@@ -124,7 +124,7 @@ namespace EpicGames.Core
 						}
 						else
 						{
-							ValueString = Value.ToString();
+							ValueString = Value.ToString()!;
 						}
 
 						Message.AppendFormat("   data: {0} = {1}", Key, ValueString);

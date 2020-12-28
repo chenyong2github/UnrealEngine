@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
 					foreach(CommandLineAttribute Attribute in Attributes)
 					{
-						string Prefix = Attribute.Prefix;
+						string? Prefix = Attribute.Prefix;
 						if(Prefix == null)
 						{
 							if(NonNullableType(FieldInfo.FieldType) == typeof(bool))

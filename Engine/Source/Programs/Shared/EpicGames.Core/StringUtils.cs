@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +11,35 @@ namespace EpicGames.Core
 {
 	public static class StringUtils
 	{
+		/// <summary>
+		/// Array mapping from ascii index to hexadecimal digits.
+		/// </summary>
+		static sbyte[] HexDigits;
+
+		/// <summary>
+		/// Static constructor. Initializes the HexDigits array.
+		/// </summary>
+		static StringUtils()
+		{
+			HexDigits = new sbyte[256];
+			for (int Idx = 0; Idx < 256; Idx++)
+			{
+				HexDigits[Idx] = -1;
+			}
+			for (int Idx = '0'; Idx <= '9'; Idx++)
+			{
+				HexDigits[Idx] = (sbyte)(Idx - '0');
+			}
+			for (int Idx = 'a'; Idx <= 'f'; Idx++)
+			{
+				HexDigits[Idx] = (sbyte)(10 + Idx - 'a');
+			}
+			for (int Idx = 'A'; Idx <= 'F'; Idx++)
+			{
+				HexDigits[Idx] = (sbyte)(10 + Idx - 'A');
+			}
+		}
+
 		/// <summary>
 		/// Indents a string by a given indent
 		/// </summary>
@@ -22,6 +52,57 @@ namespace EpicGames.Core
 			if(Text.Length > 0)
 			{
 				Result = Indent + Text.Replace("\n", "\n" + Indent);
+			}
+			return Result;
+		}
+
+		/// <summary>
+		/// Expand all the property references (of the form $(PropertyName)) in a string.
+		/// </summary>
+		/// <param name="Text">The input string to expand properties in</param>
+		/// <param name="Properties">Dictionary of properties to expand</param>
+		/// <returns>The expanded string</returns>
+		public static string ExpandProperties(string Text, Dictionary<string, string> Properties)
+		{
+			return ExpandProperties(Text, Name => { Properties.TryGetValue(Name, out string? Value); return Value; });
+		}
+
+		/// <summary>
+		/// Expand all the property references (of the form $(PropertyName)) in a string.
+		/// </summary>
+		/// <param name="Text">The input string to expand properties in</param>
+		/// <param name="GetPropertyValue">Delegate to retrieve a property value</param>
+		/// <returns>The expanded string</returns>
+		public static string ExpandProperties(string Text, Func<string, string?> GetPropertyValue)
+		{
+			string Result = Text;
+			for (int Idx = Result.IndexOf("$("); Idx != -1; Idx = Result.IndexOf("$(", Idx))
+			{
+				// Find the end of the variable name
+				int EndIdx = Result.IndexOf(')', Idx + 2);
+				if (EndIdx == -1)
+				{
+					break;
+				}
+
+				// Extract the variable name from the string
+				string Name = Result.Substring(Idx + 2, EndIdx - (Idx + 2));
+
+				// Check if we've got a value for this variable
+				string? Value = GetPropertyValue(Name);
+				if (Value == null)
+				{
+					// Do not expand it; must be preprocessing the script.
+					Idx = EndIdx;
+				}
+				else
+				{
+					// Replace the variable, or skip past it
+					Result = Result.Substring(0, Idx) + Value + Result.Substring(EndIdx + 1);
+
+					// Make sure we skip over the expanded variable; we don't want to recurse on it.
+					Idx += Value.Length;
+				}
 			}
 			return Result;
 		}
@@ -145,32 +226,49 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Parses a hexadecimal digit
+		/// Formats a list of items
 		/// </summary>
-		/// <param name="Character">Character to parse</param>
-		/// <returns>Value of this digit</returns>
-		public static bool TryParseHexDigit(char Character, out int Value)
+		/// <param name="Items">Array of items</param>
+		/// <param name="MaxCount">Maximum number of items to include in the list</param>
+		/// <returns>Formatted list of items</returns>
+		public static string FormatList(string[] Items, int MaxCount)
 		{
-			if(Character >= '0' && Character <= '9')
+			if (Items.Length == 0)
 			{
-				Value = Character - '0';
-				return true;
+				return "unknown";
 			}
-			else if(Character >= 'a' && Character <= 'f')
+			else if (Items.Length == 1)
 			{
-				Value = 10 + (Character - 'a');
-				return true;
+				return Items[0];
 			}
-			else if(Character >= 'A' && Character <= 'F')
+			else if (Items.Length <= MaxCount)
 			{
-				Value = 10 + (Character - 'A');
-				return true;
+				return $"{String.Join(", ", Items.Take(Items.Length - 1))} and {Items.Last()}";
 			}
 			else
 			{
-				Value = 0;
-				return false;
+				return $"{String.Join(", ", Items.Take(MaxCount - 1))} and {Items.Length - (MaxCount - 1)} others";
 			}
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal digit
+		/// </summary>
+		/// <param name="Character">Character to parse</param>
+		/// <returns>Value of this digit, or -1 if invalid</returns>
+		public static int GetHexDigit(byte Character)
+		{
+			return HexDigits[Character];
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal digit
+		/// </summary>
+		/// <param name="Character">Character to parse</param>
+		/// <returns>Value of this digit, or -1 if invalid</returns>
+		public static int GetHexDigit(char Character)
+		{
+			return HexDigits[Math.Min((uint)Character, 127)];
 		}
 
 		/// <summary>
@@ -179,7 +277,7 @@ namespace EpicGames.Core
 		/// <returns>Array of bytes</returns>
 		public static byte[] ParseHexString(string Text)
 		{
-			byte[] Bytes;
+			byte[]? Bytes;
 			if(!TryParseHexString(Text, out Bytes))
 			{
 				throw new FormatException(String.Format("Invalid hex string: '{0}'", Text));
@@ -190,9 +288,23 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
+		/// <returns>Array of bytes</returns>
+		public static byte[] ParseHexString(ReadOnlySpan<byte> Text)
+		{
+			byte[]? Bytes;
+			if (!TryParseHexString(Text, out Bytes))
+			{
+				throw new FormatException($"Invalid hex string: '{Encoding.UTF8.GetString(Text)}'");
+			}
+			return Bytes;
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal string into an array of bytes
+		/// </summary>
 		/// <param name="Text">Text to parse</param>
 		/// <returns></returns>
-		public static bool TryParseHexString(string Text, out byte[] OutBytes)
+		public static bool TryParseHexString(string Text, [NotNullWhen(true)] out byte[]? OutBytes)
 		{
 			if((Text.Length & 1) != 0)
 			{
@@ -202,16 +314,54 @@ namespace EpicGames.Core
 			byte[] Bytes = new byte[Text.Length / 2];
 			for(int Idx = 0; Idx < Text.Length; Idx += 2)
 			{
-				int A, B;
-				if(!TryParseHexDigit(Text[Idx], out A) || !TryParseHexDigit(Text[Idx + 1], out B))
+				int Value = (GetHexDigit(Text[Idx]) << 4) | GetHexDigit(Text[Idx + 1]);
+				if(Value < 0)
 				{
 					OutBytes = null;
 					return false;
 				}
-				Bytes[Idx / 2] = (byte)((A << 4) | B);
+				Bytes[Idx / 2] = (byte)Value;
 			}
 			OutBytes = Bytes;
 			return true;
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal string into an array of bytes
+		/// </summary>
+		/// <param name="Text">Text to parse</param>
+		/// <returns></returns>
+		public static bool TryParseHexString(ReadOnlySpan<byte> Text, [NotNullWhen(true)] out byte[]? OutBytes)
+		{
+			if ((Text.Length & 1) != 0)
+			{
+				throw new FormatException("Length of hex string must be a multiple of two characters");
+			}
+
+			byte[] Bytes = new byte[Text.Length / 2];
+			for (int Idx = 0; Idx < Text.Length; Idx += 2)
+			{
+				int Value = ParseHexByte(Text, Idx);
+				if (Value < 0)
+				{
+					OutBytes = null;
+					return false;
+				}
+				Bytes[Idx / 2] = (byte)Value;
+			}
+			OutBytes = Bytes;
+			return true;
+		}
+
+		/// <summary>
+		/// Parse a hex byte from the given offset into a span of utf8 characters
+		/// </summary>
+		/// <param name="Text">The text to parse</param>
+		/// <param name="Idx">Index within the text to parse</param>
+		/// <returns>The parsed value, or a negative value on error</returns>
+		public static int ParseHexByte(ReadOnlySpan<byte> Text, int Idx)
+		{
+			return ((int)HexDigits[Text[Idx]] << 4) | ((int)HexDigits[Text[Idx + 1]]);
 		}
 
 		/// <summary>
@@ -230,6 +380,23 @@ namespace EpicGames.Core
 				Characters[Idx * 2 + 1] = HexDigits[Bytes[Idx] & 15];
 			}
 			return new string(Characters);
+		}
+
+		/// <summary>
+		/// Quotes a string as a command line argument
+		/// </summary>
+		/// <param name="String">The string to quote</param>
+		/// <returns>The quoted argument if it contains any spaces, otherwise the original string</returns>
+		public static string QuoteArgument(this string String)
+		{
+			if (String.Contains(' '))
+			{
+				return $"\"{String}\"";
+			}
+			else
+			{
+				return String;
+			}
 		}
 	}
 }

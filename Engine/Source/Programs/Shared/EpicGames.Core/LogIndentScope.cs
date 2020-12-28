@@ -16,7 +16,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The previous indent
 		/// </summary>
-		string PrevIndent;
+		string? PrevIndent;
 
 		/// <summary>
 		/// Constructor

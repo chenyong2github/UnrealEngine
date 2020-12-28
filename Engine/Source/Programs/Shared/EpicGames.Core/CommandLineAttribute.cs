@@ -18,12 +18,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Prefix for the option, with a leading '-' and trailing '=' character if a value is expected.
 		/// </summary>
-		public string Prefix;
+		public string? Prefix;
 
 		/// <summary>
 		/// Specifies a fixed value for this argument. Specifying an alternate value is not permitted.
 		/// </summary>
-		public string Value = null;
+		public string? Value = null;
 
 		/// <summary>
 		/// Whether this argument is required
@@ -39,7 +39,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="Prefix">Prefix for this argument</param>
-		public CommandLineAttribute(string Prefix = null)
+		public CommandLineAttribute(string? Prefix = null)
 		{
 			this.Prefix = Prefix;
 

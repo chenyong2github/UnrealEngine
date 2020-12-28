@@ -186,7 +186,7 @@ namespace EpicGames.Core
 		/// <returns>The matching type</returns>
 		public static Type ReadType(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference(() => DigestToType[Reader.ReadContentHash()]);
+			return Reader.ReadObjectReference(() => DigestToType[Reader.ReadContentHash()!]);
 		}
 
 		/// <summary>

@@ -16,7 +16,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Node which this is parented to. Null for the root node.
 		/// </summary>
-		public readonly FileFilterNode Parent;
+		public readonly FileFilterNode? Parent;
 
 		/// <summary>
 		/// Pattern to match for this node. May contain * or ? wildcards.
@@ -51,7 +51,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public FileFilterNode(FileFilterNode InParent, string InPattern)
+		public FileFilterNode(FileFilterNode? InParent, string InPattern)
 		{
 			Parent = InParent;
 			Pattern = InPattern;

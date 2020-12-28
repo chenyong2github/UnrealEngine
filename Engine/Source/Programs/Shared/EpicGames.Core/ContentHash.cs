@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -41,7 +42,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Other">The object to compare against</param>
 		/// <returns>True if the hashes are equal, false otherwise</returns>
-		public override bool Equals(object Other)
+		public override bool Equals(object? Other)
 		{
 			return Equals(Other as ContentHash);
 		}
@@ -51,9 +52,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Other">The hash to compare against</param>
 		/// <returns>True if the hashes are equal, false otherwise</returns>
-		public bool Equals(ContentHash Other)
+		public bool Equals(ContentHash? Other)
 		{
-			if((object)Other == null)
+			if((object?)Other == null)
 			{
 				return false;
 			}
@@ -221,7 +222,7 @@ namespace EpicGames.Core
 		/// <returns>Value of the hash</returns>
 		public static ContentHash Parse(string Text)
 		{
-			ContentHash Hash;
+			ContentHash? Hash;
 			if(!TryParse(Text, out Hash))
 			{
 				throw new ArgumentException(String.Format("'{0}' is not a valid content hash", Text));
@@ -234,9 +235,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Text">Text to parse</param>
 		/// <returns>Value of the hash</returns>
-		public static bool TryParse(string Text, out ContentHash Hash)
+		public static bool TryParse(string Text, [NotNullWhen(true)] out ContentHash? Hash)
 		{
-			byte[] Bytes;
+			byte[]? Bytes;
 			if(StringUtils.TryParseHexString(Text, out Bytes))
 			{
 				Hash = new ContentHash(Bytes);
@@ -283,9 +284,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Writer">The writer to output data to</param>
 		/// <param name="Hash">The hash to write</param>
-		public static void WriteContentHash(this BinaryArchiveWriter Writer, ContentHash Hash)
+		public static void WriteContentHash(this BinaryArchiveWriter Writer, ContentHash? Hash)
 		{
-			if(Hash == null)
+			if(ReferenceEquals(Hash, null))
 			{
 				Writer.WriteByteArray(null);
 			}
@@ -300,9 +301,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Reader to serialize data from</param>
 		/// <returns>New hash instance</returns>
-		public static ContentHash ReadContentHash(this BinaryArchiveReader Reader)
+		public static ContentHash? ReadContentHash(this BinaryArchiveReader Reader)
 		{
-			byte[] Data = Reader.ReadByteArray();
+			byte[]? Data = Reader.ReadByteArray();
 			if(Data == null)
 			{
 				return null;

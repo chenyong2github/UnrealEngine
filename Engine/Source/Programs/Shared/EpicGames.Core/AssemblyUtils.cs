@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+#nullable disable
+
 namespace EpicGames.Core
 {
 	public static class AssemblyUtils

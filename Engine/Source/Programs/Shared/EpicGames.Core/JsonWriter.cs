@@ -80,7 +80,7 @@ namespace EpicGames.Core
 			if(!bLeaveOpen && Writer != null)
 			{
 				Writer.Dispose();
-				Writer = null;
+				Writer = null!;
 			}
 		}
 
@@ -228,7 +228,7 @@ namespace EpicGames.Core
 		/// <param name="Values">Values for the field</param>
 		public void WriteEnumArrayField<T>(string Name, IEnumerable<T> Values) where T : struct
 		{
-			WriteStringArrayField(Name, Values.Select(x => x.ToString()));
+			WriteStringArrayField(Name, Values.Select(x => x.ToString()!));
 		}
 
 		/// <summary>
@@ -264,7 +264,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value for the field</param>
-		public void WriteValue(string Name, string Value)
+		public void WriteValue(string Name, string? Value)
 		{
 			WriteCommaNewline();
 
@@ -313,7 +313,7 @@ namespace EpicGames.Core
 		/// <param name="Value">Value for the field</param>
 		public void WriteEnumValue<T>(string Name, T Value) where T : struct
 		{
-			WriteValue(Name, Value.ToString());
+			WriteValue(Name, Value.ToString()!);
 		}
 
 		void WriteCommaNewline()
@@ -338,7 +338,7 @@ namespace EpicGames.Core
 			bRequiresComma = true;
 		}
 
-		void WriteEscapedString(string Value)
+		void WriteEscapedString(string? Value)
 		{
 			// Escape any characters which may not appear in a JSON string (see http://www.json.org).
 			Writer.Write("\"");
