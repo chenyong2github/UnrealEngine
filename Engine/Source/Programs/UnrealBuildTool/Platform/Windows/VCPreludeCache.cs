@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 						Writer.WriteLine("// Arguments: {0}", CommandLine);
 						Writer.WriteLine();
 
-						string Line;
+						string? Line;
 						while (Process.TryReadLine(out Line))
 						{
 							Line = Line.Trim();

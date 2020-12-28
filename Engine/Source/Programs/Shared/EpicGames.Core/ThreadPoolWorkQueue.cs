@@ -101,7 +101,6 @@ namespace EpicGames.Core
 				{
 					Exceptions.Add(Ex);
 				}
-				throw;
 			}
 			finally
 			{
