@@ -28,7 +28,7 @@ public:
 
 						FThreads();
 	FInfo*				GetInfo();
-	FInfo&				GetInfo(uint32 ThreadId);
+	FInfo*				GetInfo(uint32 ThreadId);
 	void				SetGroupName(const ANSICHAR* InGroupName, uint32 Length);
 	const TArray<uint8>*GetGroupName() const;
 
