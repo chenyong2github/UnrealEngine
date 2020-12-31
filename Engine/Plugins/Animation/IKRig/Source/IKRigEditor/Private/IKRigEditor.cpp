@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "IKRigEditor.h"
 #include "Features/IModularFeatures.h"
 #include "Engine/Engine.h"
