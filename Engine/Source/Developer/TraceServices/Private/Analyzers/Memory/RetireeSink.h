@@ -13,9 +13,14 @@ class FMetadataDb;
 class IRetireeSink
 {
 public:
-	virtual void	Begin(const FMetadataDb* MetadataDb) = 0;
-	virtual void	End() = 0;
-	virtual void	AddRetirees(uint32 SerialBias, TArrayView<FRetiree> Retirees) = 0;
+	struct FRetirements
+	{
+		const class FMetadataDb*	MetadataDb;
+		TArrayView<FRetiree>		Retirees;
+		uint32						SerialBias;
+	};
+
+	virtual void RetireAllocs(const FRetirements& Retirement) = 0;
 };
 
 } // namespace TraceServices
