@@ -116,16 +116,8 @@ uint32 FTracker::GetCurrentSerial() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FTracker::AddAlloc(uint64 Address, const FMetadata& Metadata)
+void FTracker::AddAlloc(uint64 Address, uint32 MetadataId)
 {
-	uint32 MetadataId = MetadataDb.Add(
-		Metadata.Owner,
-		Metadata.Size,
-		Metadata.Alignment,
-		Metadata.Tag,
-		Metadata.bIsRealloc
-	);
-
 	FLaneInput* Input = GetLaneInput(Address);
 	bool bLaneFull = Input->AddAlloc(Address, Serial, MetadataId);
 	Update(bLaneFull);
@@ -259,7 +251,6 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 	};
 
 	IRetireeSink::FRetirements SinkParam;
-	SinkParam.MetadataDb = &MetadataDb;
 	SinkParam.SerialBias = Data->SerialBias;
 
 	// Build a min-heap of each retiree list

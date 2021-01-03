@@ -4,7 +4,6 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Config.h"
-#include "MetadataDb.h"
 
 namespace TraceServices {
 
@@ -19,21 +18,11 @@ class IRetireeSink;
 class FTracker
 {
 public:
-	struct FMetadata
-	{
-		uint64				Owner;
-		uint64				Size; 
-		uint32				Tag;
-		uint16				Alignment;
-		bool				bIsRealloc;
-		uint8				_Padding0;
-	};
-
 							FTracker(IRetireeSink* InRetireeSink);
 							~FTracker();
 	void					Begin();
 	void					End();
-	void					AddAlloc(uint64 Address, const FMetadata& TeamTada);
+	void					AddAlloc(uint64 Address, uint32 MeatdataId);
 	void					AddFree(uint64 Address);
 	uint32					GetCurrentSerial() const;
 
@@ -52,7 +41,6 @@ private:
 	void					Provision();
 	void					FinalizeWork(FLaneJobData* Data);
 	void					Finalize();
-	FMetadataDb				MetadataDb;
 	FLane*					Lanes[FTrackerConfig::NumLanes];
 	FLaneInput*				LaneInputs[FTrackerConfig::NumLanes];
 	IRetireeSink*			RetireeSink;

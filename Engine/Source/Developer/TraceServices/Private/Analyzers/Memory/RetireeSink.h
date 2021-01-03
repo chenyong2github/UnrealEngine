@@ -7,15 +7,12 @@
 
 namespace TraceServices {
 
-class FMetadataDb;
-
 ////////////////////////////////////////////////////////////////////////////////
 class IRetireeSink
 {
 public:
 	struct FRetirements
 	{
-		const class FMetadataDb*	MetadataDb;
 		TArrayView<FRetiree>		Retirees;
 		uint32						SerialBias;
 	};
