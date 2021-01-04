@@ -90,8 +90,6 @@ void CreateInternalBuffer(FRWBuffer& OutputBuffer)
 	if (ElementCount > 0)
 	{
 		const uint32 BufferCount = ElementCount;
-		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
-
 		OutputBuffer.Initialize(sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 	}
 }
@@ -123,6 +121,63 @@ void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCo
 	++ElementCount;
 }
 
+void GetNumPrimitives(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets, const TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SkeletalMeshs, uint32& NumBoxes, uint32& NumSpheres, uint32& NumCapsules)
+{
+	NumBoxes = 0;
+	NumSpheres = 0;
+	NumCapsules = 0;
+
+	for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
+	{
+		TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
+		if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
+		{
+			USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+			if (!SkelMesh)
+			{
+				continue;
+			}
+
+			const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
+			if (RefSkeleton != nullptr)
+			{
+				if (RefSkeleton->GetNum() > 0)
+				{
+					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+					{
+						const FName BoneName = BodySetup->BoneName;
+						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+						if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton->GetNum())
+						{
+							for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
+							{
+								if (CollisionEnabledHasPhysics(BoxElem.GetCollisionEnabled()))
+								{
+									NumBoxes += 1;
+								}
+							}
+							for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
+							{
+								if (CollisionEnabledHasPhysics(SphereElem.GetCollisionEnabled()))
+								{
+									NumSpheres += 1;
+								}
+							}
+							for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
+							{
+								if (CollisionEnabledHasPhysics(CapsuleElem.GetCollisionEnabled()))
+								{
+									NumCapsules += 1;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets, const TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SkeletalMeshs,
 	FNDIPhysicsAssetArrays* OutAssetArrays, const FTransform& InWorldTransform)
 {
@@ -137,58 +192,8 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 		uint32 NumSpheres = 0;
 		uint32 NumCapsules = 0;
 
-		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
-		{
-			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
-			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
-			{
-				USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
-				if (!SkelMesh)
-				{
-					continue;
-				}
-
-				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
-				if (RefSkeleton != nullptr)
-				{
-					if (RefSkeleton->GetNum() > 0)
-					{
-
-						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
-						{
-							const FName BoneName = BodySetup->BoneName;
-							const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-							if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton->GetNum())
-							{
-								for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
-								{
-									if (CollisionEnabledHasPhysics(BoxElem.GetCollisionEnabled()))
-									{
-										NumBoxes += 1;
-									}
-								}
-								for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
-								{
-									if (CollisionEnabledHasPhysics(SphereElem.GetCollisionEnabled()))
-									{
-										NumSpheres += 1;
-									}
-								}
-								for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
-								{
-									if (CollisionEnabledHasPhysics(CapsuleElem.GetCollisionEnabled()))
-									{
-										NumCapsules += 1;
-									}
-								}
-							}
-						}
-						//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
-						//				NumCapsules, NumSpheres, NumBoxes);
-					}
-				}
-			}
-		}
+		GetNumPrimitives(PhysicsAssets, SkeletalMeshs, NumBoxes, NumSpheres, NumCapsules);
+		
 		if ((NumBoxes + NumSpheres + NumCapsules) < PHYSICS_ASSET_MAX_PRIMITIVES)
 		{
 			OutAssetArrays->ElementOffsets.BoxOffset = 0;
@@ -296,6 +301,19 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 {
 	if (OutAssetArrays != nullptr && OutAssetArrays->ElementOffsets.NumElements < PHYSICS_ASSET_MAX_PRIMITIVES)
 	{
+		uint32 NumBoxes = 0;
+		uint32 NumSpheres = 0;
+		uint32 NumCapsules = 0;
+
+		GetNumPrimitives(PhysicsAssets, SkeletalMeshs, NumBoxes, NumSpheres, NumCapsules);
+
+		if (((OutAssetArrays->ElementOffsets.SphereOffset - OutAssetArrays->ElementOffsets.BoxOffset) != NumBoxes) || 
+			((OutAssetArrays->ElementOffsets.CapsuleOffset - OutAssetArrays->ElementOffsets.SphereOffset) != NumSpheres) ||
+			((OutAssetArrays->ElementOffsets.NumElements - OutAssetArrays->ElementOffsets.CapsuleOffset) != NumCapsules))
+		{
+			CreateInternalArrays(PhysicsAssets, SkeletalMeshs, OutAssetArrays, InWorldTransform);
+		}
+
 		OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
 		OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 
@@ -601,22 +619,16 @@ void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.PreviousTransform, ProxyData->AssetBuffer->PreviousTransformBuffer);
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.PreviousInverse, ProxyData->AssetBuffer->PreviousInverseBuffer);
+
+			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestTransform, ProxyData->AssetBuffer->RestTransformBuffer);
+			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestInverse, ProxyData->AssetBuffer->RestInverseBuffer);
+			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ProxyData->AssetArrays.ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
 		}
 	}
 }
 
 void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{
-	FNDIPhysicsAssetData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
-
-	if (ProxyData != nullptr && ProxyData->AssetBuffer)
-	{
-		UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestTransform, ProxyData->AssetBuffer->RestTransformBuffer);
-		UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestInverse, ProxyData->AssetBuffer->RestInverseBuffer);
-		UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ProxyData->AssetArrays.ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
-	}
-}
+{}
 
 //------------------------------------------------------------------------------------------------------------
 
