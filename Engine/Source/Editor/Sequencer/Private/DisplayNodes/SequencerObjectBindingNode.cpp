@@ -328,16 +328,6 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.EndSection();
 	}
 
-	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
-	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("TagsLabel", "Tags"),
-			LOCTEXT("TagsTooltip", "Show this object binding's tags"),
-			FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddTagMenu)
-		);
-	}
-	MenuBuilder.EndSection();
-
 	GetSequencer().BuildCustomContextMenuForGuid(MenuBuilder, ObjectBinding);
 	TArray<FGuid> ObjectBindings;
 	ObjectBindings.Add(ObjectBinding);
@@ -348,6 +338,18 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	FSequencerDisplayNode::BuildContextMenu(MenuBuilder);
 }
+
+void FSequencerObjectBindingNode::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("TagsLabel", "Tags"),
+		LOCTEXT("TagsTooltip", "Show this object binding's tags"),
+		FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddTagMenu)
+	);
+
+	FSequencerDisplayNode::BuildOrganizeContextMenu(MenuBuilder);
+}
+
 
 void FSequencerObjectBindingNode::AddSpawnOwnershipMenu(FMenuBuilder& MenuBuilder)
 {

@@ -1147,7 +1147,6 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	TArray<UMovieSceneTrack*> AllTracks;
-	TArray<TSharedRef<FSequencerDisplayNode> > DragableNodes;
 	for (TSharedRef<FSequencerDisplayNode> Node : GetSequencer().GetSelection().GetSelectedOutlinerNodes())
 	{
 		if (Node->GetType() == ESequencerNode::Track)
@@ -1158,33 +1157,10 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				AllTracks.Add(Track);
 			}
 		}
-
-		if (Node->CanDrag())
-		{
-			DragableNodes.Add(Node);
-		}
 	}
 
 	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
-	{
-		if (DragableNodes.Num())
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("MoveTracksToNewFolder", "Move to New Folder"),
-				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
-				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
-		}
-
-		if (bFilterableNode && !bIsReadOnly)
-		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("AddNodesToNodeGroup", "Add to Group"),
-				LOCTEXT("AddNodesToNodeGroupTooltip", "Add selected nodes to a group"),
-				FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToNodeGroupMenu));
-
-		}
-	}
+	BuildOrganizeContextMenu(MenuBuilder);
 	MenuBuilder.EndSection();
 
 	if (AllTracks.Num())
@@ -1226,6 +1202,54 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			}
 		}
 		MenuBuilder.EndSection();
+	}
+}
+
+void FSequencerDisplayNode::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
+{
+	TSharedRef<FSequencerDisplayNode> ThisNode = SharedThis(this);
+	FSequencerDisplayNode* BaseNode = GetBaseNode();
+
+	ESequencerNode::Type BaseNodeType = BaseNode->GetType();
+
+	bool bFilterableNode = (BaseNodeType == ESequencerNode::Track || BaseNodeType == ESequencerNode::Object || BaseNodeType == ESequencerNode::Folder);
+	bool bIsReadOnly = GetSequencer().IsReadOnly();
+
+	TArray<UMovieSceneTrack*> AllTracks;
+	TArray<TSharedRef<FSequencerDisplayNode> > DraggableNodes;
+	for (TSharedRef<FSequencerDisplayNode> Node : GetSequencer().GetSelection().GetSelectedOutlinerNodes())
+	{
+		if (Node->GetType() == ESequencerNode::Track)
+		{
+			UMovieSceneTrack* Track = static_cast<FSequencerTrackNode&>(Node.Get()).GetTrack();
+			if (Track)
+			{
+				AllTracks.Add(Track);
+			}
+		}
+
+		if (Node->CanDrag())
+		{
+			DraggableNodes.Add(Node);
+		}
+	}
+		
+	if (bFilterableNode && !bIsReadOnly)
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("AddNodesToNodeGroup", "Add to Group"),
+			LOCTEXT("AddNodesToNodeGroupTooltip", "Add selected nodes to a group"),
+			FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToNodeGroupMenu));
+
+	}
+
+	if (DraggableNodes.Num())
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("MoveTracksToNewFolder", "Move to New Folder"),
+			LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+			FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
 	}
 }
 
