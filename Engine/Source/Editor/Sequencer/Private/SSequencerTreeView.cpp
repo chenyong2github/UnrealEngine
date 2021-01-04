@@ -703,18 +703,28 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 	{
 		bUpdatingTreeSelection = true;
 		{
-			Private_ClearSelection();
-
+			const TArray<FDisplayNodeRef>& ItemsSourceRef = (*this->ItemsSource);
+			
 			FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
-			for ( const TSharedRef<FSequencerDisplayNode>& Node : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
+			FSequencerSelection& Selection = Sequencer.GetSelection();
+			
+			bool bSelectionChanged = false;
+			for (int32 ItemIndex = 0; ItemIndex < ItemsSourceRef.Num(); ++ItemIndex)
 			{
-				if (Node->IsSelectable() && Node->GetOutermostParent()->IsPinned() == bShowPinnedNodes)
+				const bool bIsSelected = IsItemSelected(ItemsSourceRef[ItemIndex]);
+				const bool bShouldBeSelected = Selection.IsSelected(ItemsSourceRef[ItemIndex]);
+				
+				if (bIsSelected != bShouldBeSelected)
 				{
-					Private_SetItemSelection( Node, true, false );
+					bSelectionChanged = true;
+					Private_SetItemSelection( ItemsSourceRef[ItemIndex], bShouldBeSelected, false );
 				}
 			}
 
-			Private_SignalSelectionChanged( ESelectInfo::Direct );
+			if (bSelectionChanged)
+			{
+				Private_SignalSelectionChanged( ESelectInfo::Direct );
+			}
 		}
 		bUpdatingTreeSelection = false;
 	}
@@ -827,12 +837,27 @@ bool SSequencerTreeView::SynchronizeSequencerSelectionWithTreeSelection()
 	{
 		FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 		FSequencerSelection& Selection = Sequencer.GetSelection();
-		Selection.EmptySelectedOutlinerNodes();
-		for ( const TSharedRef<FSequencerDisplayNode>& Item : AllSelectedItems)
+
+		const TArray<FDisplayNodeRef>& ItemsSourceRef = (*this->ItemsSource);
+			
+		for (int32 ItemIndex = 0; ItemIndex < ItemsSourceRef.Num(); ++ItemIndex)
 		{
-			Selection.AddToSelection( Item );
+			const bool bShouldBeSelected = IsItemSelected(ItemsSourceRef[ItemIndex]);
+			const bool bIsSelected = Selection.IsSelected(ItemsSourceRef[ItemIndex]);
+				
+			if (bIsSelected != bShouldBeSelected)
+			{
+				bSelectionChanged = true;
+				if (bShouldBeSelected)
+				{
+					Selection.AddToSelection(ItemsSourceRef[ItemIndex]);
+				}
+				else
+				{
+					Selection.RemoveFromSelection(ItemsSourceRef[ItemIndex]);
+				}
+			}
 		}
-		bSelectionChanged = true;
 	}
 	return bSelectionChanged;
 }
