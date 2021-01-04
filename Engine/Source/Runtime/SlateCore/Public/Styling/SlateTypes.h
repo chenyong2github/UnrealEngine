@@ -580,6 +580,13 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
 	FMargin DownArrowPadding;
 	FComboButtonStyle& SetDownArrowPadding(const FMargin& InDownArrowPadding) { DownArrowPadding = InDownArrowPadding; return *this; }
 
+	/*
+	 * Dropdown arrow vertical alignment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	TEnumAsByte<EVerticalAlignment> DownArrowAlign;
+	FComboButtonStyle& SetDownArrowAlignment(const EVerticalAlignment& InVAlign) { DownArrowAlign = InVAlign; return *this; }
+
 	/**
 	* Unlinks all colors in this style.
 	* @see FSlateColor::Unlink

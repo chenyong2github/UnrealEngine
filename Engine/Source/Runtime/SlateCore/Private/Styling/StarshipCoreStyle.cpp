@@ -1146,7 +1146,10 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 	FComboButtonStyle SimpleComboButton = FComboButtonStyle()
 		.SetButtonStyle(SimpleButton)
 		.SetContentPadding(0.f)
-		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16))
+		.SetShadowOffset(FVector2D(0.0, 0.0))
+		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/corner-dropdown", FVector2D(7.0f, 7.0f)))
+		.SetDownArrowPadding(FMargin(0.0f))
+		.SetDownArrowAlignment(EVerticalAlignment::VAlign_Bottom)
 		.SetMenuBorderBrush(FSlateColorBrush(FStyleColors::Dropdown))
 		.SetMenuBorderPadding(0.0f);
 	Style->Set("SimpleComboButton", SimpleComboButton);
@@ -1790,6 +1793,11 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
 			.SetDisabledForeground(FStyleColors::Foreground);
 
+
+		FComboButtonStyle SlimToolBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.SetButtonStyle(SlimToolBarButton)
+			.SetDownArrowPadding(FMargin(1.f, 0.f, 2.f, 5.f));
+
 		FToolBarStyle SlimToolbarStyle =
 			FToolBarStyle()
 			.SetBackground(FSlateColorBrush(FStyleColors::Background))
@@ -1801,7 +1809,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
 			.SetSeparatorPadding(FMargin(8.f, 0))
 			.SetLabelStyle(FTextBlockStyle(NormalText))
-			.SetComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+			.SetComboButtonStyle(SlimToolBarComboButton)
 			.SetLabelPadding(FMargin(5, 9, 0, 9))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle));
 
@@ -1822,11 +1830,6 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 
 		SlimToolbarStyle.SetToggleButtonStyle(SlimToolBarToggleButtonCheckBoxStyle);
 		SlimToolbarStyle.SetButtonStyle(SlimToolBarButton);
-
-		FComboButtonStyle SlimToolBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-			.SetContentPadding(0)
-			.SetButtonStyle(SlimToolBarButton)
-			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
 
 		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarComboButton);
 		SlimToolbarStyle.SetIconSize(Icon20x20);

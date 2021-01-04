@@ -148,6 +148,7 @@ FComboButtonStyle::FComboButtonStyle()
 	, MenuBorderPadding(0.0f)
 	, ContentPadding(5.0f)
 	, DownArrowPadding(2.0f)
+	, DownArrowAlign(EVerticalAlignment::VAlign_Center)
 {
 }
 
