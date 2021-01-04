@@ -127,7 +127,7 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 
 		if(bNodeGuidsRegenerated)
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("Animation Blueprint %s has nodes with invalid node guids that have been regenerated. This blueprint will not cook deterministically until it is resaved."), *AnimBlueprint->GetPathName());
+			UE_LOG(LogAnimation, Warning, TEXT("Animation Blueprint %s has nodes with invalid node guids that have been regenerated. This blueprint will not cook deterministically until it is resaved."), AnimBlueprint);
 		}
 	}
 
@@ -528,6 +528,16 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		{
 			if (Override->NewAsset)
 			{
+				if (UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Override->NewAsset))
+				{
+					USkeleton* SequenceSkeleton = Sequence->GetSkeleton();
+					if (SequenceSkeleton != AnimBlueprint->TargetSkeleton)
+					{
+						MessageLog.Error(TEXT("@@ has override @@ using skeleton @@ which is different to @@"),
+							AnimBlueprint, Sequence, SequenceSkeleton, AnimBlueprint->TargetSkeleton);
+					}
+				}
+
 				FAnimNode_Base* BaseNode = NewAnimBlueprintClass->GetPropertyInstance<FAnimNode_Base>(DefaultAnimInstance, Override->ParentNodeGuid, EPropertySearchMode::Hierarchy);
 				if (BaseNode)
 				{
@@ -772,6 +782,14 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 	if (bIsDerivedAnimBlueprint)
 	{
 		// Skip any work related to an anim graph, it's all done by the parent class
+
+		USkeleton* TargetSkeleton = AnimBlueprint->TargetSkeleton;
+		USkeleton* RootTargetSkeleton = UAnimBlueprint::FindRootTargetSkeleton(AnimBlueprint);
+		if (TargetSkeleton != RootTargetSkeleton)
+		{
+			MessageLog.Error(TEXT("@@ references skeleton @@ which is different to the root/parent skeleton @@"), 
+			                 AnimBlueprint, TargetSkeleton, RootTargetSkeleton);
+		}
 	}
 	else
 	{
