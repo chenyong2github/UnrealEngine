@@ -2793,7 +2793,8 @@ namespace VulkanRHI
 		}
 		if(!DeviceMemoryAllocation)
 		{
-			HandleOOM();
+			HandleOOM(false);
+			checkNoEntry();
 		}
 		VERIFYVULKANRESULT(VulkanRHI::vkBindBufferMemory(Device->GetInstanceHandle(), Buffer, DeviceMemoryAllocation->GetHandle(), 0));
 		uint8 AllocationFlags = 0;
@@ -2822,7 +2823,7 @@ namespace VulkanRHI
 			IncMetaStats(MetaType, OutAllocation.Size);
 			return true;
 		}
-		HandleOOM();
+		HandleOOM(false);
 		checkNoEntry();
 		return false;
 	}
@@ -3563,6 +3564,7 @@ namespace VulkanRHI
 		if(!AllocateBufferPooled(OutAllocation, nullptr, Size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, EVulkanAllocationMetaUniformBuffer, __FILE__, __LINE__))
 		{
 			HandleOOM(false);
+			checkNoEntry();
 		}
 		FMemory::Memcpy(OutAllocation.GetMappedPointer(Device), Contents, Size);
 		OutAllocation.FlushMappedMemory(Device);
