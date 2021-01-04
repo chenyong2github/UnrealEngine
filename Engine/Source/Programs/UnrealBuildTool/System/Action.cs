@@ -188,6 +188,7 @@ namespace UnrealBuildTool
 			bPrintDebugInfo = Reader.ReadBool();
 			CommandPath = Reader.ReadFileReference();
 			CommandArguments = Reader.ReadString();
+			CommandVersion = Reader.ReadString();
 			CommandDescription = Reader.ReadString();
 			StatusDescription = Reader.ReadString();
 			bCanExecuteRemotely = Reader.ReadBool();
@@ -211,6 +212,7 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bPrintDebugInfo);
 			Writer.WriteFileReference(CommandPath);
 			Writer.WriteString(CommandArguments);
+			Writer.WriteString(CommandVersion);
 			Writer.WriteString(CommandDescription);
 			Writer.WriteString(StatusDescription);
 			Writer.WriteBool(bCanExecuteRemotely);
@@ -248,6 +250,12 @@ namespace UnrealBuildTool
 			if(Object.TryGetStringField("CommandArguments", out CommandArguments))
 			{
 				Action.CommandArguments = CommandArguments;
+			}
+
+			string CommandVersion;
+			if (Object.TryGetStringField("CommandVersion", out CommandVersion))
+			{
+				Action.CommandVersion = CommandVersion;
 			}
 
 			string CommandDescription;
@@ -335,6 +343,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("WorkingDirectory", WorkingDirectory.FullName);
 			Writer.WriteValue("CommandPath", CommandPath.FullName);
 			Writer.WriteValue("CommandArguments", CommandArguments);
+			Writer.WriteValue("CommandVersion", CommandVersion);
 			Writer.WriteValue("CommandDescription", CommandDescription);
 			Writer.WriteValue("StatusDescription", StatusDescription);
 			Writer.WriteValue("bPrintDebugInfo", bPrintDebugInfo);
@@ -412,6 +421,11 @@ namespace UnrealBuildTool
 			if(CommandArguments != Other.CommandArguments)
 			{
 				LogConflict("command arguments are different", CommandArguments, Other.CommandArguments);
+				bResult = false;
+			}
+			if (CommandVersion != Other.CommandVersion)
+			{
+				LogConflict("command versions are different", CommandVersion, Other.CommandVersion);
 				bResult = false;
 			}
 			return bResult;
