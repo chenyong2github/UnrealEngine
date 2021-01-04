@@ -630,7 +630,7 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	// Add to queue to be processed. This might block until there is room in the
 	// queue (i.e. the processing thread has caught up processing).
 	ProcessingThreadRunnable->AddWork(BacktraceEntry);
-	return (void*)(BacktraceId & ((1ull << 47) - 1));
+	return (void*)BacktraceId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
