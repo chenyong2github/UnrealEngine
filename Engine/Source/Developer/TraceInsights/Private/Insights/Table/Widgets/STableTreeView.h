@@ -20,6 +20,7 @@
 #include "Insights/Common/InsightsAsyncWorkUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
+#include "Insights/ViewModels/Filters.h"
 
 #include <atomic>
 
@@ -414,11 +415,13 @@ protected:
 	ITableCellValueSorter* CurrentAsyncOpSorter = nullptr;
 	EColumnSortMode::Type CurrentAsyncOpColumnSortMode;
 	TSharedPtr<FTableTreeNodeTextFilter> CurrentAsyncOpTextFilter;
+	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
 	std::atomic<bool> bCancelCurrentAsyncOp { false };
 
 	//////////////////////////////////////////////////
-	TSharedPtr<class FFilterConfigurator> FilterConfigurator;
+	TSharedPtr<FFilterConfigurator> FilterConfigurator;
 	FDelegateHandle OnFilterChangesCommitedHandle;
+	FFilterContext Context;
 
 	double StatsStartTime;
 	double StatsEndTime;

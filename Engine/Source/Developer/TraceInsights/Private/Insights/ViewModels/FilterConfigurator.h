@@ -19,6 +19,10 @@ public:
 	FFilterConfigurator(const FFilterConfigurator& Other);
 	FFilterConfigurator& operator=(const FFilterConfigurator& Other);
 
+	bool operator==(const FFilterConfigurator& Other);
+
+	bool operator!=(const FFilterConfigurator& Other) { return !(*this == Other); }
+
 	~FFilterConfigurator();
 
 	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }

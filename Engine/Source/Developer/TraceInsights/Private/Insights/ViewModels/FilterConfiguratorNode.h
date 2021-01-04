@@ -53,6 +53,8 @@ public:
 
 	FFilterConfiguratorNode(const FFilterConfiguratorNode& Other);
 
+	bool operator==(const FFilterConfiguratorNode& Other);
+
 	virtual ~FFilterConfiguratorNode() {}
 
 	virtual const FName& GetTypeName() const override { return TypeName; }

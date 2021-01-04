@@ -48,6 +48,16 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FFilterConfigurator::operator==(const FFilterConfigurator& Other)
+{
+	bool bIsEqual = AvailableFilters.Get() == Other.AvailableFilters.Get();
+	bIsEqual &= *RootNode == *Other.RootNode;
+
+	return bIsEqual;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FFilterConfigurator::ApplyFilters(const FFilterContext& Context) const
 {
 	return RootNode->ApplyFilters(Context);

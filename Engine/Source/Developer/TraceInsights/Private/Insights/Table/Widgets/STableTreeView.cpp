@@ -29,7 +29,6 @@
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
 #include "Insights/TimingProfilerCommon.h"
-#include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
 
@@ -79,6 +78,12 @@ STableTreeView::~STableTreeView()
 	if (FInsightsManager::Get().IsValid())
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+	}
+
+	if (CurrentAsyncOpFilterConfigurator)
+	{
+		delete CurrentAsyncOpFilterConfigurator;
+		CurrentAsyncOpFilterConfigurator = nullptr;
 	}
 }
 
@@ -2187,6 +2192,10 @@ FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite
 	AddInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
 
 	CurrentAsyncOpTextFilter->SetRawFilterText(TextFilter->GetRawFilterText());
+	if (FilterConfigurator.IsValid() && CurrentAsyncOpFilterConfigurator)
+	{
+		*CurrentAsyncOpFilterConfigurator = *FilterConfigurator;
+	}
 
 	if (Prerequisite.IsValid())
 	{
@@ -2280,9 +2289,14 @@ void STableTreeView::StartPendingAsyncOperations()
 	}
 
 	// Check if the text filter has changed. If it has, schedule a new Filtering Refresh.
-	bool bTextFilterHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
-	bTextFilterHasChanged |= TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0;
-	if (bTextFilterHasChanged)
+	bool bFiltersHaveChanged = HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
+	bFiltersHaveChanged |= TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0;
+	if (FilterConfigurator.IsValid() && CurrentAsyncOpFilterConfigurator && !bFiltersHaveChanged)
+	{
+		bFiltersHaveChanged |= *FilterConfigurator != *CurrentAsyncOpFilterConfigurator;
+	}
+
+	if (bFiltersHaveChanged)
 	{
 		OnPreAsyncUpdate();
 
@@ -2318,16 +2332,19 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 				case ETableCellDataType::Int64:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+					Context.AddFilterData<int64>(Column->GetIndex(), 0);
 					break;
 				}
 				case ETableCellDataType::Double:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+					Context.AddFilterData<double>(Column->GetIndex(), 0.0);
 					break;
 				}
 			}
 		}
 
+		CurrentAsyncOpFilterConfigurator = new FFilterConfigurator(*FilterConfigurator);
 		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommited);
 	}
 
@@ -2340,36 +2357,46 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 
 bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 {
-	if (!FilterConfigurator.IsValid())
+	if (CurrentAsyncOpFilterConfigurator == nullptr)
 	{
 		return true;
 	}
 
-	FFilterContext Context;
+	if (CurrentAsyncOpFilterConfigurator->GetRootNode()->GetChildren().Num() == 0)
+	{
+		return true;
+	}
+
 	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 	{
 		switch (Column->GetDataType())
 		{
 			case ETableCellDataType::Int64:
 			{
-				Context.AddFilterData<int64>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsInt64());
+				Context.SetFilterData<int64>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsInt64());
 				break;
 			}
 			case ETableCellDataType::Double:
 			{
-				Context.AddFilterData<double>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsDouble());
+				Context.SetFilterData<double>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsDouble());
 				break;
 			}
 		}
 	}
 
-	return FilterConfigurator->ApplyFilters(Context);
+	return CurrentAsyncOpFilterConfigurator->ApplyFilters(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::OnAdvancedFiltersChangesCommited()
 {
+	// If settings have not changed, do nothing.
+	if (*FilterConfigurator == *CurrentAsyncOpFilterConfigurator)
+	{
+		return;
+	}
+
 	if (!bIsUpdateRunning)
 	{
 		OnPreAsyncUpdate();

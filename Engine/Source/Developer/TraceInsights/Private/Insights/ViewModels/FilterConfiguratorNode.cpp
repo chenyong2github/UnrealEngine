@@ -56,6 +56,29 @@ FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfigu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FFilterConfiguratorNode::operator==(const FFilterConfiguratorNode& Other)
+{
+	bool bIsEqual = true;
+	bIsEqual &= AvailableFilters.Get() == Other.AvailableFilters.Get();
+	bIsEqual &= SelectedFilter.Get() == Other.SelectedFilter.Get();
+	bIsEqual &= SelectedFilterOperator.Get() == Other.SelectedFilterOperator.Get();
+	bIsEqual &= SelectedFilterGroupOperator.Get() == Other.SelectedFilterGroupOperator.Get();
+	bIsEqual &= TextBoxValue == Other.TextBoxValue;
+	bIsEqual &= GetChildren().Num() == Other.GetChildren().Num();
+
+	if (bIsEqual)
+	{
+		for (int32 Index = 0; Index < GetChildren().Num(); ++Index)
+		{
+			bIsEqual &= *StaticCastSharedPtr<FFilterConfiguratorNode>(GetChildren()[Index]) == *StaticCastSharedPtr<FFilterConfiguratorNode>(Other.GetChildren()[Index]);
+		}
+	}
+
+	return bIsEqual;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const TArray<TSharedPtr<struct FFilterGroupOperator>>& FFilterConfiguratorNode::GetFilterGroupOperators()
 {
 	return FFilterService::Get()->GetFilterGroupOperators();
@@ -155,9 +178,12 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 		}
 		case EFilterGroupOperator::Or:
 		{
-			Ret = false;
-
 			auto& ChildrenArr = GetChildren();
+			if (ChildrenArr.Num() > 0)
+			{
+				Ret = false;
+			}
+
 			for (int Index = 0; Index < ChildrenArr.Num() && !Ret; ++Index)
 			{
 				Ret |= ((FFilterConfiguratorNode*)&*ChildrenArr[Index])->ApplyFilters(Context);
