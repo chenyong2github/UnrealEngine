@@ -292,6 +292,13 @@ public:
 		return *this;
 	}
 
+	inline TCbFieldIterator operator++(int)
+	{
+		TCbFieldIterator It(*this);
+		++*this;
+		return It;
+	}
+
 	constexpr inline FieldType& operator*() { return *this; }
 	constexpr inline FieldType* operator->() { return this; }
 
