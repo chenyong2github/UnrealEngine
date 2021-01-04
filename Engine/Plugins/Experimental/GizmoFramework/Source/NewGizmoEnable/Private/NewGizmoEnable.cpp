@@ -18,7 +18,8 @@
 #include "GizmoEdMode.h"
 
 static const FName NewGizmoEnableTabName("NewGizmoEnable");
-
+static FAutoConsoleCommand ShowGizmoOptions(TEXT("Editor.ShowGizmoOptions"), TEXT("Shows the new gizmo mode in menus"), FConsoleCommandDelegate::CreateStatic(&FNewGizmoEnableModule::ShowGizmoOptions));
+bool FNewGizmoEnableModule::bTestingModeEnabled = false;
 #define LOCTEXT_NAMESPACE "FNewGizmoEnableModule"
 
 void FNewGizmoEnableModule::StartupModule()
@@ -30,7 +31,8 @@ void FNewGizmoEnableModule::StartupModule()
 		FNewGizmoEnableCommands::Get().ToggleNewGizmos,
 		FExecuteAction::CreateRaw(this, &FNewGizmoEnableModule::ToggleNewGizmosActive),
 		FCanExecuteAction(),
-		FGetActionCheckState::CreateRaw(this, &FNewGizmoEnableModule::AreNewGizmosActive));
+		FGetActionCheckState::CreateRaw(this, &FNewGizmoEnableModule::AreNewGizmosActive),
+		FIsActionButtonVisible::CreateRaw(this, &FNewGizmoEnableModule::CanToggleNewGizmos));
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FNewGizmoEnableModule::RegisterMenus));
 }
@@ -64,6 +66,16 @@ ECheckBoxState FNewGizmoEnableModule::AreNewGizmosActive()
 {
 	return GLevelEditorModeTools().IsModeActive(GetDefault<UGizmoEdMode>()->GetID()) ? ECheckBoxState::Checked :
 	                                                                                   ECheckBoxState::Unchecked;
+}
+
+bool FNewGizmoEnableModule::CanToggleNewGizmos()
+{
+	return FNewGizmoEnableModule::bTestingModeEnabled;
+}
+
+void FNewGizmoEnableModule::ShowGizmoOptions()
+{
+	FNewGizmoEnableModule::bTestingModeEnabled = !FNewGizmoEnableModule::bTestingModeEnabled;
 }
 
 void FNewGizmoEnableModule::RegisterMenus()

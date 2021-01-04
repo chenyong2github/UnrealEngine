@@ -28,7 +28,10 @@ public:
 	UGizmoEdMode();
 
 	void AddFactory(TScriptInterface<IAssetEditorGizmoFactory> GizmoFactory);
-
+	virtual bool UsesToolkits() const override
+	{
+		return false;
+	}
 private:
 	void ActorSelectionChangeNotify() override;
 	void Enter() override;

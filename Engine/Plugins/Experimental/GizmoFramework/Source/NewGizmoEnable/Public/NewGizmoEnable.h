@@ -20,6 +20,8 @@ public:
 	/** Action Callbacks */
 	void ToggleNewGizmosActive();
 	ECheckBoxState AreNewGizmosActive();
+	bool CanToggleNewGizmos();
+	static void ShowGizmoOptions();
 private:
 
 	void RegisterMenus();
@@ -29,4 +31,6 @@ private:
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
 	bool bGizmosEnabled = false;
+	/** Whether currently in testing mode or not. */
+	static bool bTestingModeEnabled;
 };
