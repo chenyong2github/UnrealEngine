@@ -1422,8 +1422,13 @@ FTransactionContext UTransBuffer::GetUndoContext( bool bCheckWhetherUndoPossible
 		return Context;
 	}
 
-	TSharedRef<FTransaction>& Transaction = UndoBuffer[ UndoBuffer.Num() - (UndoCount + 1) ];
-	return Transaction->GetContext();
+	if (UndoBuffer.Num() > UndoCount)
+	{
+		TSharedRef<FTransaction>& Transaction = UndoBuffer[UndoBuffer.Num() - (UndoCount + 1)];
+		return Transaction->GetContext();
+	}
+
+	return Context;
 }
 
 
