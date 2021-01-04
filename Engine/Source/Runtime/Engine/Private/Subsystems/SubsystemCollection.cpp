@@ -38,7 +38,7 @@ FSubsystemCollectionBase::FSubsystemCollectionBase()
 {
 }
 
-FSubsystemCollectionBase::FSubsystemCollectionBase(TSubclassOf<USubsystem> InBaseType)
+FSubsystemCollectionBase::FSubsystemCollectionBase(UClass* InBaseType)
 	: BaseType(InBaseType)
 	, Outer(nullptr)
 	, bPopulating(false)
@@ -46,7 +46,7 @@ FSubsystemCollectionBase::FSubsystemCollectionBase(TSubclassOf<USubsystem> InBas
 	check(BaseType);
 }
 
-USubsystem* FSubsystemCollectionBase::GetSubsystemInternal(TSubclassOf<USubsystem> SubsystemClass) const
+USubsystem* FSubsystemCollectionBase::GetSubsystemInternal(UClass* SubsystemClass) const
 {
 	USubsystem* SystemPtr = SubsystemMap.FindRef(SubsystemClass);
 
@@ -66,7 +66,7 @@ USubsystem* FSubsystemCollectionBase::GetSubsystemInternal(TSubclassOf<USubsyste
 	return nullptr;
 }
 
-const TArray<USubsystem*>& FSubsystemCollectionBase::GetSubsystemArrayInternal(TSubclassOf<USubsystem> SubsystemClass) const
+const TArray<USubsystem*>& FSubsystemCollectionBase::GetSubsystemArrayInternal(UClass* SubsystemClass) const
 {
 	if (!SubsystemArrayMap.Contains(SubsystemClass))
 	{
