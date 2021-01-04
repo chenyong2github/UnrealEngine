@@ -275,27 +275,6 @@ void UPropertyValue::Serialize(FArchive& Ar)
 
 	if (Ar.IsSaving())
 	{
-		// If the pointer is not null, means we haven't dealt with it yet (haven't needed GetRecordedData)
-		// so just save it back the way we received it
-		// If our pointer is null but we have bytes representing an UObject reference, it means we
-		// read our pointer at some point (or just created this propertyvalue), so we need to create it
-		if (TempObjPtr.IsNull())
-		{
-			FFieldClass* PropClass = GetPropertyClass();
-			if (PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()) && HasRecordedData())
-			{
-				UObject* Obj = *((UObject**)ValueBytes.GetData());
-				if (Obj && Obj->IsValidLowLevel())
-				{
-					TempObjPtr = Obj;
-				}
-			}
-			else
-			{
-				TempObjPtr.Reset();
-			}
-		}
-
 		Ar << TempObjPtr;
 
 		if (CustomVersion >= FVariantManagerObjectVersion::CorrectSerializationOfFStringBytes)
@@ -1032,23 +1011,22 @@ const TArray<uint8>& UPropertyValue::GetRecordedData()
 {
 	ValueBytes.SetNum(GetValueSizeInBytes());
 
-	// We need to resolve our softpath still
+	// If we're holding an UObject* we always need to go through our TempObjPtr first because the UObject may have
+	// been collected and the address reused since the last time we loaded it
 	FFieldClass* PropClass = GetPropertyClass();
 	if (bHasRecordedData && PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()) && !TempObjPtr.IsNull())
 	{
-		// Force resolve of our soft object pointer
 		UObject* Obj = TempObjPtr.LoadSynchronous();
-
 		if (Obj && Obj->IsValidLowLevel())
 		{
 			SetRecordedDataInternal((uint8*)&Obj, sizeof(UObject*));
 		}
 		else
 		{
+			// Reset our storage to nullptr
+			ValueBytes.SetNumZeroed( GetValueSizeInBytes() );
 			bHasRecordedData = false;
 		}
-
-		TempObjPtr.Reset();
 	}
 
 	return ValueBytes;
@@ -1082,12 +1060,23 @@ void UPropertyValue::SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, 
 		{
 			SetRecordedDataInternal(NewDataBytes, NumBytes, Offset);
 
-			// Don't need to actually update the pointer, as that will be done when serializing
-			// But we do need to reset it or else GetRecordedData will read its data instead of ValueBytes
+			// Keep TempObjPtr up-to-date because we'll always first fetch UObject references from there first
+			// when getting recorded data, as we have no guarantee that the UObject our ValueBytes wasn't collected
+			// from under us
 			FFieldClass* PropClass = GetPropertyClass();
 			if (PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()))
 			{
-				TempObjPtr.Reset();
+				UObject* Obj = *( ( UObject** ) ValueBytes.GetData() );
+				if ( Obj && Obj->IsValidLowLevel() )
+				{
+					TempObjPtr = Obj;
+				}
+				else
+				{
+					// Somehow our ValueBytes that was just set doesn't match an UObject, so reset it to "nullptr"
+					ValueBytes.SetNumZeroed( GetValueSizeInBytes() );
+					bHasRecordedData = false;
+				}
 			}
 
 			if (UEnum* Enum = GetEnumPropertyEnum())
