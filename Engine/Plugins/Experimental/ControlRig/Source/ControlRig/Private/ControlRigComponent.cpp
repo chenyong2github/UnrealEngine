@@ -23,6 +23,16 @@ FControlRigAnimInstanceProxy* FControlRigComponentMappedElement::GetAnimProxyOnG
 TMap<FString, TSharedPtr<SNotificationItem>> UControlRigComponent::EditorNotifications;
 #endif
 
+struct FSkeletalMeshToMap
+{
+	USkeletalMeshComponent* SkeletalMeshComponent;
+	TArray<FControlRigComponentMappedBone> Bones;
+	TArray<FControlRigComponentMappedCurve> Curves;
+};
+
+FCriticalSection gPendingSkeletalMeshesLock;
+TMap<UControlRigComponent*, TArray<FSkeletalMeshToMap> > gPendingSkeletalMeshes;
+
 UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -64,6 +74,11 @@ void UControlRigComponent::OnRegister()
 	
 	ControlRig = nullptr;
 
+	{
+		FScopeLock Lock(&gPendingSkeletalMeshesLock);
+		gPendingSkeletalMeshes.FindOrAdd(this);
+	}
+
 	Initialize();
 
 	if (AActor* Actor = GetOwner())
@@ -84,12 +99,19 @@ void UControlRigComponent::OnUnregister()
 		{
 			if (Pair.Key)
 			{
-				if (!Pair.Key->HasAnyFlags(RF_BeginDestroyed))
+				if (Pair.Key->IsValidLowLevel() &&
+					!Pair.Key->HasAnyFlags(RF_BeginDestroyed) &&
+					!Pair.Key->IsPendingKill())
 				{
 					Pair.Value.Apply(Pair.Key);
 				}
 			}
 		}
+	}
+	else
+	{
+		FScopeLock Lock(&gPendingSkeletalMeshesLock);
+		gPendingSkeletalMeshes.Remove(this);
 	}
 
 	CachedSkeletalMeshComponentSettings.Reset();
@@ -102,7 +124,26 @@ void UControlRigComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 		return;
 	}
 
-	SetupControlRigIfRequired();
+	if (UControlRig* CR = SetupControlRigIfRequired())
+	{
+		FScopeLock Lock(&gPendingSkeletalMeshesLock);
+		TArray<FSkeletalMeshToMap>* PendingSkeletalMeshes = gPendingSkeletalMeshes.Find(this);
+
+		if (PendingSkeletalMeshes != nullptr && PendingSkeletalMeshes->Num() > 0)
+		{
+			for (const FSkeletalMeshToMap& SkeletalMeshToMap : *PendingSkeletalMeshes)
+			{
+				AddMappedSkeletalMesh(
+					SkeletalMeshToMap.SkeletalMeshComponent,
+					SkeletalMeshToMap.Bones,
+					SkeletalMeshToMap.Curves
+				);
+			}
+
+			PendingSkeletalMeshes->Reset();
+		}
+	}
+
 	Update(DeltaTime);
 }
 
@@ -368,7 +409,7 @@ void UControlRigComponent::AddMappedComponents(TArray<FControlRigComponentMapped
 
 		FControlRigComponentMappedElement ElementToMap;
 		ElementToMap.ComponentReference.OtherActor = Component->GetOwner() != GetOwner() ? Component->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = Component->GetFName();
+		ElementToMap.ComponentReference.PathToComponent = Component->GetName();
 
 		ElementToMap.ElementName = ComponentToMap.ElementName;
 		ElementToMap.ElementType = ComponentToMap.ElementType;
@@ -388,6 +429,21 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 
 	if (!EnsureCalledOutsideOfBracket(TEXT("AddMappedSkeletalMesh")))
 	{
+		return;
+	}
+
+	UControlRig* CR = SetupControlRigIfRequired();
+	if (CR == nullptr)
+	{
+		// if we don't have a valid rig yet - delay it until tick component
+		FSkeletalMeshToMap PendingMesh;
+		PendingMesh.SkeletalMeshComponent = SkeletalMeshComponent;
+		PendingMesh.Bones = Bones;
+		PendingMesh.Curves = Curves;
+
+		FScopeLock Lock(&gPendingSkeletalMeshesLock);
+		TArray<FSkeletalMeshToMap>& PendingSkeletalMeshes = gPendingSkeletalMeshes.FindOrAdd(this);
+		PendingSkeletalMeshes.Add(PendingMesh);
 		return;
 	}
 
@@ -463,7 +519,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 
 		FControlRigComponentMappedElement ElementToMap;
 		ElementToMap.ComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = SkeletalMeshComponent->GetFName();
+		ElementToMap.ComponentReference.PathToComponent = SkeletalMeshComponent->GetName();
 
 		ElementToMap.ElementName = BoneToMap.Source;
 		ElementToMap.ElementType = ERigElementType::Bone;
@@ -482,7 +538,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 
 		FControlRigComponentMappedElement ElementToMap;
 		ElementToMap.ComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = SkeletalMeshComponent->GetFName();
+		ElementToMap.ComponentReference.PathToComponent = SkeletalMeshComponent->GetName();
 
 		ElementToMap.ElementName = CurveToMap.Source;
 		ElementToMap.ElementType = ERigElementType::Curve;
@@ -1084,8 +1140,8 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 
 	if(ControlRigClass)
 	{
-		ControlRig = NewObject<UControlRig>(this, ControlRigClass,FName(*ControlRigClass->GetName()));
-		ControlRig->VM = NewObject<URigVM>(ControlRig, TEXT("VM"));
+		ControlRig = NewObject<UControlRig>(this, ControlRigClass);
+		ControlRig->VM = NewObject<URigVM>(ControlRig);
 
 		SetControlRig(ControlRig);
 
@@ -1093,6 +1149,8 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 		{
 			ControlRigCreatedEvent.Broadcast(this);
 		}
+
+		ValidateMappingData();
 	}
 
 	return ControlRig;
@@ -1121,7 +1179,8 @@ void UControlRigComponent::ValidateMappingData()
 			MappedElement.ElementIndex = INDEX_NONE;
 			MappedElement.SubIndex = INDEX_NONE;
 
-			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.ComponentReference.GetComponent(GetOwner()));
+			AActor* MappedOwner = MappedElement.ComponentReference.OtherActor == nullptr ? GetOwner() : MappedElement.ComponentReference.OtherActor;
+			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.ComponentReference.GetComponent(MappedOwner));
 
 			if (MappedElement.SceneComponent == nullptr ||
 				MappedElement.SceneComponent == this ||
@@ -1286,6 +1345,7 @@ void UControlRigComponent::TransferOutputs()
 				{
 					Proxy->StoredTransforms.Reset();
 					Proxy->StoredCurves.Reset();
+					LastComponent = MappedElement.SceneComponent;
 				}
 			}
 		}
@@ -1313,6 +1373,10 @@ void UControlRigComponent::TransferOutputs()
 					if (LastComponent != MappedElement.SceneComponent || Proxy == nullptr)
 					{
 						Proxy = MappedElement.GetAnimProxyOnGameThread();
+						if (Proxy)
+						{
+							LastComponent = MappedElement.SceneComponent;
+						}
 					}
 
 					if (Proxy)
@@ -1351,6 +1415,10 @@ void UControlRigComponent::TransferOutputs()
 					if (LastComponent != MappedElement.SceneComponent || Proxy == nullptr)
 					{
 						Proxy = MappedElement.GetAnimProxyOnGameThread();
+						if (Proxy)
+						{
+							LastComponent = MappedElement.SceneComponent;
+						}
 					}
 
 					if (Proxy)
@@ -1364,13 +1432,21 @@ void UControlRigComponent::TransferOutputs()
 
 		for (USkeletalMeshComponent* SkeletalMeshComponent : ComponentsToTick)
 		{
-			SkeletalMeshComponent->TickAnimation(0.f, false);
-			SkeletalMeshComponent->RefreshBoneTransforms();
-			SkeletalMeshComponent->RefreshSlaveComponents();
-			SkeletalMeshComponent->UpdateComponentToWorld();
-			SkeletalMeshComponent->FinalizeBoneTransform();
-			SkeletalMeshComponent->MarkRenderTransformDirty();
-			SkeletalMeshComponent->MarkRenderDynamicDataDirty();
+			if (SkeletalMeshComponent)
+			{
+				if (SkeletalMeshComponent->IsValidLowLevel() &&
+					!SkeletalMeshComponent->HasAnyFlags(RF_BeginDestroyed) &&
+					!SkeletalMeshComponent->IsPendingKill())
+				{
+					SkeletalMeshComponent->TickAnimation(0.f, false);
+					SkeletalMeshComponent->RefreshBoneTransforms();
+					SkeletalMeshComponent->RefreshSlaveComponents();
+					SkeletalMeshComponent->UpdateComponentToWorld();
+					SkeletalMeshComponent->FinalizeBoneTransform();
+					SkeletalMeshComponent->MarkRenderTransformDirty();
+					SkeletalMeshComponent->MarkRenderDynamicDataDirty();
+				}
+			}
 		}
 	}
 }
@@ -1406,6 +1482,7 @@ void UControlRigComponent::HandleControlRigPreSetupEvent(UControlRig* InControlR
 			{
 				Proxy->StoredTransforms.Reset();
 				Proxy->StoredCurves.Reset();
+				LastComponent = MappedElement.SceneComponent;
 			}
 		}
 
