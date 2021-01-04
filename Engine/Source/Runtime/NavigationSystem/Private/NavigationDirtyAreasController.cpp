@@ -67,7 +67,12 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 
 #if !UE_BUILD_SHIPPING
 	auto DumpExtraInfo = [ObjectProviderFunc, BoundsSize]() {
-		const UObject* ObjectProvider = ObjectProviderFunc ? ObjectProviderFunc() : nullptr;
+		const UObject* ObjectProvider = nullptr;
+		if (ObjectProviderFunc)
+		{
+			ObjectProvider = ObjectProviderFunc();
+		}
+
 		const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(ObjectProvider);
 		const AActor* ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
 		return FString::Printf(TEXT("Adding dirty area object = % | Potential component's owner = %s | Bounds size = %s)"), *GetFullNameSafe(ObjectProvider), *GetFullNameSafe(ComponentOwner), *BoundsSize.ToString());
