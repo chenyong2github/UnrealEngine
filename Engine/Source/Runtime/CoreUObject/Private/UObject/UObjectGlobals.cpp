@@ -822,12 +822,25 @@ bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObjec
 		UObject* Res = StaticFindObject( Class, InParent, TempStr );
 		if( !Res )
 		{
-			// Match found, object not found
-			if (bInvalidObject)
-			{
-				*bInvalidObject = true;
+			if (Class->IsChildOf<UClass>())
+			{ 
+				const FString ObjectName = FPackageName::ObjectPathToObjectName(FString(TempStr));
+				const FName RedirectedObjectName = FLinkerLoad::FindNewNameForClass(*ObjectName, false);
+				if (!RedirectedObjectName.IsNone())
+				{
+					Res = StaticFindObject(Class, InParent, *RedirectedObjectName.ToString());
+				}
 			}
-			return 0;
+
+			if (!Res)
+			{ 
+				// Match found, object not found
+				if (bInvalidObject)
+				{
+					*bInvalidObject = true;
+				}
+				return 0;
+			}
 		}
 
 		// Match found, object found
