@@ -419,7 +419,7 @@ public:
 	/**
 	 * Projects the shadow onto the scene for a particular view.
 	 */
-	void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, const class FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobile, const struct FHairStrandsVisibilityData* HairVisibilityData) const;
+	void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, const class FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobile, const struct FHairStrandsVisibilityData* HairVisibilityData, const struct FHairStrandsMacroGroupDatas* HairMacroGroupData) const;
 
 	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
@@ -437,7 +437,7 @@ public:
 		bool bProjectingForForwardShading) const;
 
 	/** Render one pass point light shadow projections. */
-	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData) const;
+	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData, const struct FHairStrandsMacroGroupDatas* HairMacroGroupData) const;
 
 	/**
 	 * Renders the projected shadow's frustum wireframe with the given FPrimitiveDrawInterface.
@@ -676,7 +676,7 @@ private:
 		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>& OutDynamicMeshElements,
 		int32& OutNumDynamicSubjectMeshElements);
 
-	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum) const;
+	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const;
 
 	void SetupProjectionStencilMask(
 		FRHICommandListImmediate& RHICmdList,
@@ -934,7 +934,8 @@ public:
 
 			float DeviceZNear = 1;
 			float DeviceZFar = 0;
-			if (ShadowInfo->bDirectionalLight)
+			const bool bIsCascadedShadow = ShadowInfo->bDirectionalLight && !(ShadowInfo->bPerObjectOpaqueShadow || ShadowInfo->bPreShadow);
+			if (bIsCascadedShadow)
 			{
 				FVector4 Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitNear));
 				FVector4 Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitFar));

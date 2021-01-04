@@ -46,7 +46,7 @@ struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
-
+struct FHairStrandsRenderingData;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -1762,7 +1762,7 @@ protected:
 	void RenderShadowProjections(
 		FRHICommandListImmediate& RHICmdList,
 		const FLightSceneProxy* LightSceneProxy,
-		const FHairStrandsVisibilityViews* HairVisibilityViews,
+		const FHairStrandsRenderingData* HairDatas,
 		TArrayView<const FProjectedShadowInfo* const> Shadows,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections);

@@ -8,6 +8,9 @@
 
 Texture2D<uint4> CategorisationTexture;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if PERMUTATION_OUTPUT_TYPE == 0
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth		: SV_DEPTH,
@@ -30,3 +33,24 @@ void MainPS(
 	OutGBufferC = 0;
 	OutColor = 0;
 }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if PERMUTATION_OUTPUT_TYPE == 1
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float SvDepth : SV_DEPTH)
+{
+	const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
+	if (CategorisationData.PixelCoverage > 0.0f)
+	{
+		SvDepth = CategorisationData.ClosestDepth;
+	}
+	else
+	{
+		SvDepth = 0; // Inverse-Z|
+	}
+
+}
+#endif
