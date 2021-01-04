@@ -552,7 +552,7 @@ void FUserDefinedEnumIndexLayout::GenerateHeaderRowContent( FDetailWidgetRow& No
 				.IsEnabled( bIsMoveUpEnabled )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgUpButton"))
+					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -566,7 +566,7 @@ void FUserDefinedEnumIndexLayout::GenerateHeaderRowContent( FDetailWidgetRow& No
 				.IsEnabled( bIsMoveDownEnabled )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgDownButton"))
+					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
 				]
 			]
 

@@ -1805,7 +1805,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
 			.SetComboButtonPadding(FMargin(6.0f, 0.0f))
 			.SetButtonPadding(FMargin(4.0f, 0.0f))
-			.SetCheckBoxPadding(FMargin(10.0f, 0.0f))
+			.SetCheckBoxPadding(FMargin(4.0f, 0.0f))
 			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
 			.SetSeparatorPadding(FMargin(8.f, 0))
 			.SetLabelStyle(FTextBlockStyle(NormalText))
@@ -1831,7 +1831,12 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		SlimToolbarStyle.SetToggleButtonStyle(SlimToolBarToggleButtonCheckBoxStyle);
 		SlimToolbarStyle.SetButtonStyle(SlimToolBarButton);
 
-		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarComboButton);
+		FComboButtonStyle SlimToolBarSettingsComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+			.SetContentPadding(0)
+			.SetButtonStyle(SlimToolBarButton)
+			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+
+		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarSettingsComboButton);
 		SlimToolbarStyle.SetIconSize(Icon20x20);
 
 		Style->Set("SlimToolBar", SlimToolbarStyle);

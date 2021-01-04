@@ -11,6 +11,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "SGraphTitleBarAddNewBookmark"
 
@@ -21,115 +22,103 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 	SComboButton::FArguments Args;
 	Args.ButtonContent()
 	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), "GraphBookmarkButtonText")
-		.Text(this, &SGraphTitleBarAddNewBookmark::GetAddButtonGlyph)
+		SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush("GraphEditor.Bookmark"))
+		.ColorAndOpacity(FSlateColor::UseForeground())
 	]
 	.MenuContent()
 	[
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Padding(4)
+		SNew(SBox)
+		.MinDesiredWidth(300)
 		[
-			SNew(SBox)
-			.MinDesiredWidth(300)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.Padding(8)
+			.FillHeight(1.f)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.Padding(8)
-				.FillHeight(1.f)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
+				SNew(STextBlock)
+				.Text(this, &SGraphTitleBarAddNewBookmark::GetPopupTitleText)
+				.Font(FEditorStyle::GetFontStyle("StandardDialog.LargeFont"))
+			]
+			+ SVerticalBox::Slot()
+			.Padding(8, 4, 8, 8)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(6)
+				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(this, &SGraphTitleBarAddNewBookmark::GetPopupTitleText)
-					.Font(FEditorStyle::GetFontStyle("StandardDialog.LargeFont"))
+					.Text(LOCTEXT("BookmarkNameFieldLabel", "Name:"))
 				]
-				+ SVerticalBox::Slot()
-				.Padding(8, 4, 8, 8)
-				.AutoHeight()
+				+ SHorizontalBox::Slot()
+				.Padding(1)
+				.FillWidth(1.f)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(6)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("BookmarkNameFieldLabel", "Name:"))
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(1)
-					.FillWidth(1.f)
-					[
-						SAssignNew(NameEntryWidget, SEditableTextBox)
-						.SelectAllTextWhenFocused(true)
-						.OnTextCommitted(this, &SGraphTitleBarAddNewBookmark::OnNameTextCommitted)
-						.OnTextChanged(this, &SGraphTitleBarAddNewBookmark::OnNameTextCommitted, ETextCommit::Default)
-						.Text_Lambda([this]() -> FText
-						{
-							return CurrentNameText;
-						})
-					]
+					SAssignNew(NameEntryWidget, SEditableTextBox)
+					.SelectAllTextWhenFocused(true)
+					.OnTextCommitted(this, &SGraphTitleBarAddNewBookmark::OnNameTextCommitted)
+					.OnTextChanged(this, &SGraphTitleBarAddNewBookmark::OnNameTextCommitted, ETextCommit::Default)
+					.Text_Lambda([this]() -> FText
+					{
+						return CurrentNameText;
+					})
 				]
-				+ SVerticalBox::Slot()
-				.Padding(8, 4, 4, 8)
-				.AutoHeight()
-				.VAlign(VAlign_Bottom)
+			]
+			+ SVerticalBox::Slot()
+			.Padding(8, 4, 4, 8)
+			.AutoHeight()
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
+					SNew(SButton)
+					.Text(LOCTEXT("RemoveButtonLabel", "Remove"))
+					.ButtonStyle(FEditorStyle::Get(), "SecondaryButton")
+					.Visibility_Lambda([this]() -> EVisibility
+					{
+						return CurrentViewBookmarkId.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+					})
+					.OnClicked(this, &SGraphTitleBarAddNewBookmark::OnRemoveButtonClicked)
+				]
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SUniformGridPanel)
+					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
-						.Text(LOCTEXT("RemoveButtonLabel", "Remove"))
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-						.Visibility_Lambda([this]() -> EVisibility
+						.HAlign(HAlign_Center)
+						.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
+						.OnClicked_Lambda([this]() -> FReply
 						{
-							return CurrentViewBookmarkId.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+							SetIsOpen(false);
+							return FReply::Handled();
 						})
-						.OnClicked(this, &SGraphTitleBarAddNewBookmark::OnRemoveButtonClicked)
 					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					.HAlign(HAlign_Right)
+					+ SUniformGridPanel::Slot(1, 0)
 					[
-						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-						+ SUniformGridPanel::Slot(0, 0)
-						[
-							SNew(SButton)
-							.HAlign(HAlign_Center)
-							.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-							.OnClicked_Lambda([this]() -> FReply
-							{
-								SetIsOpen(false);
-								return FReply::Handled();
-							})
-						]
-						+ SUniformGridPanel::Slot(1, 0)
-						[
-							SNew(SButton)
-							.HAlign(HAlign_Center)
-							.Text(this, &SGraphTitleBarAddNewBookmark::GetAddButtonLabel)
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-							.OnClicked(this, &SGraphTitleBarAddNewBookmark::OnAddButtonClicked)
-							.IsEnabled(this, &SGraphTitleBarAddNewBookmark::IsAddButtonEnabled)
-						]
+						SNew(SButton)
+						.HAlign(HAlign_Center)
+						.Text(this, &SGraphTitleBarAddNewBookmark::GetAddButtonLabel)
+						.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
+						.OnClicked(this, &SGraphTitleBarAddNewBookmark::OnAddButtonClicked)
+						.IsEnabled(this, &SGraphTitleBarAddNewBookmark::IsAddButtonEnabled)
 					]
 				]
 			]
 		]
 	]
-	.HasDownArrow(false)
-	.ComboButtonStyle(FEditorStyle::Get(), "ComboButton")
-	.ButtonStyle(FEditorStyle::Get(), "GraphBookmarkButton")
-	.ForegroundColor(FLinearColor(1, 1, 1, 0.5))
+	.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
 	.ToolTipText(LOCTEXT("AddBookmarkButtonToolTip", "Bookmark Current Location"))
 	.OnComboBoxOpened(this, &SGraphTitleBarAddNewBookmark::OnComboBoxOpened);
 

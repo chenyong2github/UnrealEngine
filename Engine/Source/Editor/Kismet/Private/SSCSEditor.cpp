@@ -3823,13 +3823,15 @@ FText SSCS_RowWidget_ActorRoot::GetActorMobilityText() const
 
 TSharedRef<SWidget> SSCS_RowWidget_Separator::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	return SNew(SBox)
+	return SNullWidget::NullWidget;
+
+	/*return SNew(SBox)
 		.Padding(1.f)
 		[
 			SNew(SBorder)
 			.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
 			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
-		];
+		];*/
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4049,21 +4051,17 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.VAlign(VAlign_Top)
-		.Padding(0)
+		.Padding(4.0)
 		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))
-			[
-				SAssignNew(HeaderBox, SVerticalBox)
-			]
+			SAssignNew(HeaderBox, SVerticalBox)
 		]
 
 		+ SVerticalBox::Slot()
-		.Padding(4.0f, 0.0f)
+		.Padding(4.0)
 		[
-			SNew(SBox)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+			.Padding(0.0)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))
 			.Visibility(this, &SSCSEditor::GetComponentsTreeVisibility)
 			[

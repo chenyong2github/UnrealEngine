@@ -1072,7 +1072,7 @@ ECheckBoxState SGraphNode::IsAdvancedViewChecked() const
 const FSlateBrush* SGraphNode::GetAdvancedViewArrow() const
 {
 	const bool bAdvancedPinsHidden = GraphNode && (ENodeAdvancedPins::Hidden == GraphNode->AdvancedPinDisplay);
-	return FEditorStyle::GetBrush(bAdvancedPinsHidden ? TEXT("Kismet.TitleBarEditor.ArrowDown") : TEXT("Kismet.TitleBarEditor.ArrowUp"));
+	return FEditorStyle::GetBrush(bAdvancedPinsHidden ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
 }
 
 /** Create widget to show/hide advanced pins */

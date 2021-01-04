@@ -528,7 +528,7 @@ ECheckBoxState SGraphNodeMaterialBase::IsExpressionPreviewChecked() const
 
 const FSlateBrush* SGraphNodeMaterialBase::GetExpressionPreviewArrow() const
 {
-	return FEditorStyle::GetBrush(MaterialNode->MaterialExpression->bCollapsed ? TEXT("Kismet.TitleBarEditor.ArrowDown") : TEXT("Kismet.TitleBarEditor.ArrowUp"));
+	return FEditorStyle::GetBrush(MaterialNode->MaterialExpression->bCollapsed ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
 }
 
 void SGraphNodeMaterialBase::PopulateMetaTag(FGraphNodeMetaData* TagMeta) const

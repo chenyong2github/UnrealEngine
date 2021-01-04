@@ -2808,13 +2808,17 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		.FillWidth(1)
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(ArgumentNameWidget, SEditableTextBox)
+			SNew(SBox)
+			.MinDesiredWidth(125.f)
+			[
+				SAssignNew(ArgumentNameWidget, SEditableTextBox)
 				.Text( this, &FBlueprintGraphArgumentLayout::OnGetArgNameText )
 				.OnTextChanged(this, &FBlueprintGraphArgumentLayout::OnArgNameChange)
 				.OnTextCommitted(this, &FBlueprintGraphArgumentLayout::OnArgNameTextCommitted)
 				.ToolTipText(this, &FBlueprintGraphArgumentLayout::OnGetArgToolTipText)
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
 				.IsEnabled(!ShouldPinBeReadOnly())
+			]
 		]
 	]
 	.ValueContent()
@@ -3421,6 +3425,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				[
 					SAssignNew( ColorBlock, SColorBlock )
 						.Color( this, &FBlueprintGraphActionDetails::GetNodeTitleColor )
+						.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
 						.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 						.OnMouseButtonDown( this, &FBlueprintGraphActionDetails::ColorBlock_OnMouseButtonDown )
 				];

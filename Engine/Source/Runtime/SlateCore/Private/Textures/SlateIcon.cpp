@@ -12,23 +12,16 @@ FSlateIcon::FSlateIcon( )
 	: StyleSetName(NAME_None)
 	, StyleName(NAME_None)
 	, SmallStyleName(NAME_None)
-	, bIsSet(false)
+	, StatusOverlayStyleName(NAME_None)
 { }
 
 
-FSlateIcon::FSlateIcon( const FName& InStyleSetName, const FName& InStyleName )
+
+FSlateIcon::FSlateIcon(const FName InStyleSetName, const FName InStyleName, const FName InSmallStyleName, const FName InStatusOverlayStyleName)
 	: StyleSetName(InStyleSetName)
 	, StyleName(InStyleName)
-	, SmallStyleName(ISlateStyle::Join(InStyleName, ".Small"))
-	, bIsSet(true)
-{ }
-
-
-FSlateIcon::FSlateIcon( const FName& InStyleSetName, const FName& InStyleName, const FName& InSmallStyleName )
-	: StyleSetName(InStyleSetName)
-	, StyleName(InStyleName)
-	, SmallStyleName(InSmallStyleName)
-	, bIsSet(true)
+	, SmallStyleName(InSmallStyleName == NAME_None ? ISlateStyle::Join(InStyleName, ".Small") :  InSmallStyleName)
+	, StatusOverlayStyleName(InStatusOverlayStyleName)
 { }
 
 
@@ -41,10 +34,14 @@ const FSlateBrush* FSlateIcon::GetSmallIcon( ) const
 	
 	if (StyleSet)
 	{
-		return StyleSet->GetOptionalBrush(SmallStyleName);
+		const FSlateBrush* FoundBrush = StyleSet->GetOptionalBrush(SmallStyleName);
+		if (FoundBrush != FStyleDefaults::GetNoBrush())
+		{
+			return FoundBrush;
+		}
 	}
 
-	return FStyleDefaults::GetNoBrush();
+	return FSlateIcon::GetIcon();
 }
 
 
@@ -69,13 +66,24 @@ const FSlateBrush* FSlateIcon::GetIcon( ) const
 
 const FSlateBrush* FSlateIcon::GetOptionalIcon( ) const
 {
-	const ISlateStyle* StyleSet = GetStyleSet();
-	return StyleSet ? StyleSet->GetOptionalBrush(StyleName) : nullptr;
+	const FSlateBrush* Icon = GetIcon();
+	return Icon == FStyleDefaults::GetNoBrush() ? nullptr : Icon;
 }
-
 
 const FSlateBrush* FSlateIcon::GetOptionalSmallIcon( ) const
 {
+	const FSlateBrush* Icon = GetSmallIcon();
+	return Icon == FStyleDefaults::GetNoBrush() ? nullptr : Icon;
+}
+
+const FSlateBrush* FSlateIcon::GetOverlayIcon() const
+{
 	const ISlateStyle* StyleSet = GetStyleSet();
-	return StyleSet ? StyleSet->GetOptionalBrush(SmallStyleName) : nullptr;
+
+	if (StyleSet)
+	{
+		return StyleSet->GetOptionalBrush(StatusOverlayStyleName);
+	}
+
+	return nullptr;
 }

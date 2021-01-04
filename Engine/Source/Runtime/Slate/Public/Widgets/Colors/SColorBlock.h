@@ -98,8 +98,6 @@ private:
 
 	TAttribute<const FSlateBrush*> AlphaBackgroundBrush;
 
-	TAttribute<const FSlateBrush*> SolidBackgroundBrush;
-
 	TAttribute<FVector4> GradientCornerRadius;
 
 	/** Whether the color displayed is HSV or not */

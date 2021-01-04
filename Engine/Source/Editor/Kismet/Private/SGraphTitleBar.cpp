@@ -139,6 +139,7 @@ void SGraphTitleBar::Construct( const FArguments& InArgs )
 					[
 						SNew(SImage)
 						.Image( this, &SGraphTitleBar::GetTypeGlyph )
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 					+SHorizontalBox::Slot()
 					.FillWidth(1.f)

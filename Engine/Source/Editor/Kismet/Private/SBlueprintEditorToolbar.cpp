@@ -547,18 +547,25 @@ FSlateIcon FBlueprintEditorToolbar::GetStatusImage() const
 		Status = BS_UpToDate;
 	}
 
+	
+	static const FName CompileStatusBackground("Blueprint.CompileStatus.Background");
+	static const FName CompileStatusUnknown("Blueprint.CompileStatus.Overlay.Unknown");
+	static const FName CompileStatusError("Blueprint.CompileStatus.Overlay.Error");
+	static const FName CompileStatusGood("Blueprint.CompileStatus.Overlay.Good");
+	static const FName CompileStatusWarning("Blueprint.CompileStatus.Overlay.Warning");
+
 	switch (Status)
 	{
 	default:
 	case BS_Unknown:
 	case BS_Dirty:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Status.Unknown");
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	case BS_Error:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Status.Error");
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	case BS_UpToDate:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Status.Good");
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
 	case BS_UpToDateWithWarnings:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Status.Warning");
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusWarning);
 	}
 }
 

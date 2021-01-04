@@ -934,7 +934,7 @@ public:
 				.IsEnabled(!(EMemberFieldPosition::MFP_First & PositionFlags))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgUpButton"))
+					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -948,7 +948,7 @@ public:
 				.IsEnabled(!(EMemberFieldPosition::MFP_Last & PositionFlags))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgDownButton"))
+					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
 				]
 			]
 			+SHorizontalBox::Slot()

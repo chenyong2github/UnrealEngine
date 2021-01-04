@@ -383,6 +383,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
+				.Padding(2.0f)
 				[
 					ContainerControl.ToSharedRef()
 				];

@@ -57,6 +57,8 @@ const FSlateColor FStyleColors::AccentGray = EStyleColor::AccentGray;
 const FSlateColor FStyleColors::AccentWhite = EStyleColor::AccentWhite;
 const FSlateColor FStyleColors::AccentFolder = EStyleColor::AccentFolder;
 
+const FSlateColor FStyleColors::Warning= EStyleColor::Warning;
+const FSlateColor FStyleColors::Error = EStyleColor::Error;
 
 USlateThemeManager::USlateThemeManager()
 {
@@ -112,6 +114,9 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::AccentGray, COLOR("#808080FF"));
 	SetDefaultColor(EStyleColor::AccentWhite, COLOR("#FFFFFFFF"));
 	SetDefaultColor(EStyleColor::AccentFolder, COLOR("#B68F55FF"));
+
+	SetDefaultColor(EStyleColor::Warning, COLOR("#D78102FF"));
+	SetDefaultColor(EStyleColor::Error, COLOR("#CF1212FF"));
 }
 
 #if ALLOW_THEMES

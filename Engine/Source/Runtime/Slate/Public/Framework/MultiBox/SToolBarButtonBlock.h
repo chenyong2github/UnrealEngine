@@ -158,14 +158,19 @@ protected:
 	EVisibility GetBlockVisibility() const;
 
 private:
-
 	/** Called by Slate to determine whether icons/labels are visible */
 	EVisibility GetIconVisibility(bool bIsASmallIcon) const;
-	
+
 	/** Gets the icon brush for the toolbar block widget */
 	const FSlateBrush* GetIconBrush() const;
+
+	const FSlateBrush* GetOverlayIconBrush() const;
+
+	/** Gets the icon brush for the toolbar block widget */
+	const FSlateBrush* GetNormalIconBrush() const;
 	const FSlateBrush* GetSmallIconBrush() const;
 
+	FSlateColor GetIconForegroundColor() const;
 private:
 
 	TAttribute< EVisibility > LabelVisibility;

@@ -57,6 +57,8 @@ enum class EStyleColor : uint8
 	AccentGray,
 	AccentWhite,
 	AccentFolder,
+	Warning,
+	Error,
 
 	/** Only user colors should be below this line
 	 * To use user colors:
@@ -321,4 +323,7 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor AccentGray;
 	static const FSlateColor AccentWhite;
 	static const FSlateColor AccentFolder;
+
+	static const FSlateColor Warning;
+	static const FSlateColor Error;
 };

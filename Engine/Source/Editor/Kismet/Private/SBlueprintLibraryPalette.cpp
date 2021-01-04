@@ -196,7 +196,7 @@ void SBlueprintLibraryPalette::Construct(FArguments const& InArgs, TWeakPtr<FBlu
 {
 	SBlueprintSubPalette::FArguments SuperArgs;
 	SuperArgs._Title       = LOCTEXT("PaletteTitle", "Find a Node");
-	SuperArgs._Icon        = FEditorStyle::GetBrush("Kismet.Palette.Library");
+	SuperArgs._Icon        = FEditorStyle::GetBrush("Icons.Search");
 	SuperArgs._ToolTipText = LOCTEXT("PaletteToolTip", "An all encompassing list of every node that is available for this blueprint.");
 	SuperArgs._ShowFavoriteToggles = true;
 

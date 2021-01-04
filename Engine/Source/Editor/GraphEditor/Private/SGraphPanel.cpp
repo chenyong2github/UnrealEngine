@@ -269,6 +269,9 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 								const float BounceValue = FMath::Sin(2.0f * PI * BounceCurve.GetLerp());
 								BouncedGeometry.DrawPosition += (OverlayInfo.AnimationEnvelope * BounceValue * ZoomFactor);
 
+								FLinearColor FinalColorAndOpacity(InWidgetStyle.GetColorAndOpacityTint()* OverlayBrush->GetTint(InWidgetStyle));
+								//FinalColorAndOpacity.A = Alpha;
+
 								CurWidgetsMaxLayerId++;
 								FSlateDrawElement::MakeBox(
 									OutDrawElements,
@@ -276,7 +279,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 									BouncedGeometry,
 									OverlayBrush,
 									ESlateDrawEffect::None,
-									FLinearColor(1.0f, 1.0f, 1.0f, Alpha)
+									FinalColorAndOpacity
 									);
 							}
 

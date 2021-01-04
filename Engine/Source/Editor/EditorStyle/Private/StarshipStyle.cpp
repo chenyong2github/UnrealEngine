@@ -1013,7 +1013,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Blueprint Debugger Window
 	{
-		Set("BlueprintDebugger.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_BlueprintDebugger_16x", Icon16x16 ) );
+		Set("BlueprintDebugger.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/Debug", Icon16x16 ) );
 	}
 
 	// Collision Analyzer Window
@@ -1212,8 +1212,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetShadowOffset( FVector2D::ZeroVector )
 		);
 
-		Set( "GraphBreadcrumb.BrowseBack", new IMAGE_BRUSH( "Icons/icon_BlueprintBrowserL_24x", Icon24x24) );
-		Set( "GraphBreadcrumb.BrowseForward", new IMAGE_BRUSH( "Icons/icon_BlueprintBrowserR_24x", Icon24x24) );
+		Set("GraphBreadcrumb.BrowseBack", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/PreviousArrow", Icon20x20));
+		Set("GraphBreadcrumb.BrowseForward", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/NextArrow", Icon20x20));
 
 		const FComboButtonStyle FastJumpComboBoxComboButton = FComboButtonStyle()
 			.SetButtonStyle(GetWidgetStyle<FButtonStyle>("GraphBreadcrumbButton"));
@@ -1223,17 +1223,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Graph bookmark button
 	{
-		Set("GraphBookmarkButton", FButtonStyle()
-			.SetNormal(FSlateNoResource())
-			.SetPressed(BOX_BRUSH("Common/Button_Pressed", 8.0f / 32.0f, SelectionColor_Pressed))
-			.SetHovered(BOX_BRUSH("Common/Button_Hovered", 8.0f / 32.0f, SelectionColor))
-		);
-
-		Set("GraphBookmarkButtonText", FTextBlockStyle(NormalText)
-			.SetFont(ICON_FONT(16))
-			.SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
-			.SetShadowOffset(FVector2D::ZeroVector)
-		);
 
 		Set("GraphBookmarkMenuImage.Button_Add", new IMAGE_BRUSH("Icons/PlusSymbol_12x", Icon12x12));
 		Set("GraphBookmarkMenuText.EmptyListItem", FTextBlockStyle(NormalText)
@@ -3441,6 +3430,7 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "Graph.Node.CommentFont", DEFAULT_FONT( "Regular", 10 ) );
 		Set( "Graph.Node.Comment.BubbleOffset", FMargin(8,0,0,0) );
 		Set( "Graph.Node.Comment.PinIconPadding", FMargin(0,2,0,0) );
+		Set("Graph.Node.Comment.Handle", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Comment_Handle", FVector2D(16.0f, 16.0f)));
 		Set("Graph.Node.Comment.BubblePadding", FVector2D(3, 3));
 		Set("Graph.Node.Comment.BubbleWidgetMargin", FMargin(4, 4));
 
@@ -3632,8 +3622,8 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 			Set( "BTEditor.Debugger.SavedValues", new IMAGE_BRUSH( "BehaviorTree/Debugger_Saved_40x", Icon40x40 ) );
 			Set( "BTEditor.Debugger.SavedValues.Small", new IMAGE_BRUSH( "BehaviorTree/Debugger_Saved_40x", Icon20x20 ) );
 
-			Set( "BTEditor.DebuggerOverlay.Breakpoint.Disabled", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Disabled", Icon32x32 ) );
-			Set( "BTEditor.DebuggerOverlay.Breakpoint.Enabled", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Valid", Icon32x32 ) );
+			Set( "BTEditor.DebuggerOverlay.Breakpoint.Disabled", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Disabled", Icon32x32 ) );
+			Set( "BTEditor.DebuggerOverlay.Breakpoint.Enabled", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Valid", Icon32x32 ) );
 			Set( "BTEditor.DebuggerOverlay.ActiveNodePointer", new IMAGE_BRUSH( "Old/Kismet2/IP_Normal", FVector2D(128,96)) );
 			Set( "BTEditor.DebuggerOverlay.SearchTriggerPointer", new IMAGE_BRUSH( "/BehaviorTree/SearchTriggerPointer", FVector2D(48,64)) );
 			Set( "BTEditor.DebuggerOverlay.FailedTriggerPointer", new IMAGE_BRUSH( "/BehaviorTree/FailedTriggerPointer", FVector2D(48,64)) );
@@ -3928,8 +3918,8 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 			);
 		}
 
-		Set("ClassIcon.K2Node_CallFunction",	new IMAGE_BRUSH("Icons/icon_Blueprint_NewFunction_16x", Icon16x16));
-		Set("ClassIcon.K2Node_FunctionEntry",	new IMAGE_BRUSH("Icons/icon_Blueprint_NewFunction_16x", Icon16x16));
+		Set("ClassIcon.K2Node_CallFunction",	new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
+		Set("ClassIcon.K2Node_FunctionEntry",	new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
 		Set("ClassIcon.K2Node_CustomEvent",		new IMAGE_BRUSH("Icons/icon_Blueprint_Event_16x", Icon16x16));
 		Set("ClassIcon.K2Node_Event",			new IMAGE_BRUSH("Icons/icon_Blueprint_Event_16x", Icon16x16));
 		Set("ClassIcon.K2Node_Variable",		new IMAGE_BRUSH("Graph/Icons/Node", Icon16x16, FLinearColor::White));
@@ -3940,10 +3930,10 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 
 
 		Set( "GraphEditor.Default_16x", new IMAGE_BRUSH("Icons/icon_Blueprint_Node_16x", Icon16x16));
-		Set( "GraphEditor.EventGraph_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_EventGraph_16x", Icon16x16 ) );
-		Set( "GraphEditor.InterfaceFunction_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Interfacefunction_16x", Icon16x16 ) );
-		Set( "GraphEditor.Macro_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Macro_16x", Icon16x16 ) );
-		Set( "GraphEditor.Function_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_NewFunction_16x", Icon16x16 ) );
+		Set( "GraphEditor.EventGraph_16x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_BlueprintEditor_EventGraph", Icon16x16 ) );
+		Set( "GraphEditor.InterfaceFunction_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Interfacefunction_16x", Icon16x16));
+		Set( "GraphEditor.Macro_16x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_Macro", Icon16x16));
+		Set( "GraphEditor.Function_16x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
 		Set( "GraphEditor.PureFunction_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_NewPureFunction_16x", Icon16x16 ) );
 		Set( "GraphEditor.PotentialOverrideFunction_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_OverrideableFunction_16x", Icon16x16 ) );
 		Set( "GraphEditor.OverrideFunction_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_OverrideFunction_16x", Icon16x16 ) );
@@ -3988,10 +3978,10 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "GraphEditor.Delegate_16x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Delegate_16x", Icon16x16 ) );
 		Set( "GraphEditor.Delegate_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Delegate_24x", Icon24x24 ) );
 
-		Set( "GraphEditor.EventGraph_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_EventGraph_24x", Icon24x24 ) );
+		Set( "GraphEditor.EventGraph_24x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_BlueprintEditor_EventGraph", Icon24x24 ) );
 		Set( "GraphEditor.InterfaceFunction_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_InterfaceFunction_24x", Icon24x24 ) );
-		Set( "GraphEditor.Macro_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_Macro_24x", Icon24x24 ) );
-		Set( "GraphEditor.Function_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_NewFunction_24x", Icon24x24 ) );
+		Set( "GraphEditor.Macro_24x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_Macro", Icon24x24 ) );
+		Set( "GraphEditor.Function_24x", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_Function", Icon24x24 ) );
 		Set( "GraphEditor.PotentialOverrideFunction_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_OverrideableFunction_24x", Icon24x24 ) );
 		Set( "GraphEditor.OverrideFunction_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_OverrideFunction_24x", Icon24x24 ) );
 		Set( "GraphEditor.SubGraph_24x", new IMAGE_BRUSH( "Icons/icon_Blueprint_SubgraphComposite_24x", Icon24x24 ) );
@@ -4047,8 +4037,8 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "GraphEditor.DistributeNodesHorizontally", new IMAGE_BRUSH( "Icons/GraphEditor/icon_DistributeNodesHorizontally_20px", Icon20x20 ) );
 		Set( "GraphEditor.DistributeNodesVertically", new IMAGE_BRUSH( "Icons/GraphEditor/icon_DistributeNodesVertically_20px", Icon20x20 ) );
 		
-		Set( "GraphEditor.ToggleHideUnrelatedNodes", new IMAGE_BRUSH( "Icons/icon_HideUnrelatedNodes_40x", Icon40x40 ) );
-		Set( "GraphEditor.ToggleHideUnrelatedNodes.Small", new IMAGE_BRUSH( "Icons/icon_HideUnrelatedNodes_40x", Icon20x20 ) );
+		Set( "GraphEditor.ToggleHideUnrelatedNodes", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/HideUnrelated", Icon20x20 ) );
+		Set("GraphEditor.Bookmark", new IMAGE_BRUSH_SVG("Starship/Common/Bookmarks", Icon16x16));
 
 		// Graph editor widgets
 		{
@@ -4108,11 +4098,9 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 
 		// SCSEditor
 	{
-		Set("SCSEditor.ToggleComponentEditing", new IMAGE_BRUSH("Icons/icon_translate_40x", Icon40x40));
-		Set("SCSEditor.ToggleComponentEditing.Small", new IMAGE_BRUSH("Icons/icon_translate_40x", Icon20x20));
 		Set("SCSEditor.TileViewTooltip.NonContentBorder", new BOX_BRUSH("/Docking/TabContentArea", FMargin(4 / 16.0f)));
 
-		Set("SCSEditor.PromoteToBlueprintIcon", new IMAGE_BRUSH("Icons/AssetIcons/Blueprint_16x", Icon16x16));
+		Set("SCSEditor.PromoteToBlueprintIcon", new IMAGE_BRUSH_SVG("Starship/Common/blueprint", Icon16x16));
 
 		Set("SCSEditor.TopBar.Font", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Bold", 10))
@@ -4236,7 +4224,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "EditorViewport.TranslateRotateMode", new IMAGE_BRUSH( "Icons/icon_translate_rotate_40x", Icon20x20 ) );
 		Set( "EditorViewport.TranslateRotate2DMode", new IMAGE_BRUSH("Icons/icon_translate_rotate_2d_40x", Icon20x20));
 
-		Set( "EditorViewport.ToggleRealTime", new IMAGE_BRUSH("Icons/icon_MatEd_Realtime_40x", Icon40x40));
+		Set( "EditorViewport.ToggleRealTime", new IMAGE_BRUSH_SVG("Starship/Common/Realtime", Icon16x16));
 
 		Set( "EditorViewport.LocationGridSnap", new IMAGE_BRUSH_SVG("Starship/EditorViewport/grid", Icon16x16));
 		Set( "EditorViewport.RotationGridSnap", new IMAGE_BRUSH_SVG("Starship/EditorViewport/angle", Icon16x16));
@@ -5100,54 +5088,36 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	// Kismet 2
 	{
-		Set( "FullBlueprintEditor.SwitchToScriptingMode", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_EventGraph_40x", Icon40x40 ) );
-		Set( "FullBlueprintEditor.SwitchToScriptingMode.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_EventGraph_40x", Icon20x20 ) );
-		Set( "FullBlueprintEditor.SwitchToBlueprintDefaultsMode", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Defaults_40x", Icon40x40 ) );
-		Set( "FullBlueprintEditor.SwitchToBlueprintDefaultsMode.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Defaults_40x", Icon20x20 ) );
-		Set( "FullBlueprintEditor.SwitchToComponentsMode", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Components_40x", Icon40x40 ) );
-		Set( "FullBlueprintEditor.SwitchToComponentsMode.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Components_40x", Icon20x20 ) );
+		Set( "FullBlueprintEditor.SwitchToScriptingMode", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_BlueprintEditor_EventGraph", Icon20x20));
 
-		Set( "FullBlueprintEditor.EditGlobalOptions", new IMAGE_BRUSH( "Icons/icon_Blueprint_Options_40px", Icon40x40));
-		Set( "FullBlueprintEditor.EditGlobalOptions.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_Options_40px", Icon20x20));
+		// @todo - Icon Replacement - The UI commands using these icons are never visible in the editor
+		Set( "FullBlueprintEditor.SwitchToBlueprintDefaultsMode", new IMAGE_BRUSH_SVG("Starship/Common/Defaults", Icon20x20));
+		Set( "FullBlueprintEditor.SwitchToComponentsMode", new IMAGE_BRUSH_SVG("Starship/Common/Component", Icon20x20));
 
-		Set("FullBlueprintEditor.EditClassDefaults", new IMAGE_BRUSH("Icons/icon_BlueprintEditor_Defaults_40x", Icon40x40));
-		Set("FullBlueprintEditor.EditClassDefaults.Small", new IMAGE_BRUSH("Icons/icon_BlueprintEditor_Defaults_40x", Icon20x20));
-
-		Set( "BlueprintEditor.Details.DeleteButton", new IMAGE_BRUSH( "/Icons/GenericDelete_Black", Icon16x16 ) );
-
-		Set( "BlueprintEditor.Details.ArgUpButton", new IMAGE_BRUSH( "/Icons/icon_FunctionArgUp", Icon16x16, FLinearColor(0.0f, 0.0f, 0.0f)) );
-		Set( "BlueprintEditor.Details.ArgDownButton", new IMAGE_BRUSH( "/Icons/icon_FunctionArgDown", Icon16x16, FLinearColor(0.0f, 0.0f, 0.0f)) );
+		Set( "FullBlueprintEditor.EditGlobalOptions", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/Settings", Icon20x20));
+		Set("FullBlueprintEditor.EditClassDefaults", new IMAGE_BRUSH_SVG("Starship/Common/Details", Icon20x20));
 
 		Set( "FullBlueprintEditor.Diff", new IMAGE_BRUSH( "Icons/BlueprintEditorDiff", Icon40x40 ) );
 		Set( "FullBlueprintEditor.Diff.Small", new IMAGE_BRUSH( "Icons/BlueprintEditorDiff", Icon20x20 ) );
 
 		Set( "BlueprintEditor.ActionMenu.ContextDescriptionFont",  DEFAULT_FONT("Regular", 12) );
+		Set( "BlueprintEditor.ActionMenu.ContextDescriptionFont",  DEFAULT_FONT("Regular", 12) );
 
-		Set( "BlueprintEditor.FindInBlueprints.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Common/FindInBlueprints", Icon16x16) );
+		Set("BlueprintEditor.FindInBlueprints.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Common/FindInBlueprints", Icon16x16));
+		Set("BlueprintEditor.FindInBlueprint", new IMAGE_BRUSH_SVG("Starship/Common/FindInBlueprints", Icon20x20));
 
-		Set( "BlueprintEditor.FindInBlueprint", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon40x40 ) );
-		Set( "BlueprintEditor.FindInBlueprint.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon20x20 ) );
-
-		Set( "BlueprintEditor.FindInBlueprints", new IMAGE_BRUSH( "Icons/icon_FindInAnyBlueprint_40px", Icon40x40 ) );
-		Set( "BlueprintEditor.FindInBlueprints.Small", new IMAGE_BRUSH( "Icons/icon_FindInAnyBlueprint_40px", Icon20x20 ) );
-
-		Set( "Kismet.CompileBlueprint", new IMAGE_BRUSH("/Icons/icon_kismet_compile_16px", Icon16x16) );
-		Set( "Kismet.DeleteUnusedVariables", new IMAGE_BRUSH("/Icons/icon_kismet_findunused_16px", Icon16x16) );
-
-		Set( "Kismet.Toolbar.SelectedDebugObject.Background", new IMAGE_BRUSH( "Old/Kismet2/DebugObject_Background", Icon40x40) );
-
+		Set( "Kismet.DeleteUnusedVariables", new IMAGE_BRUSH_SVG("/Starship/Blueprints/icon_kismet_findunused", Icon16x16) );
 		{
-			Set( "Kismet.Tabs.Variables", new IMAGE_BRUSH( "/Icons/pill_16x", Icon16x16 ) );
-			Set( "Kismet.Tabs.Palette", new IMAGE_BRUSH( "/Icons/levels_16x", Icon16x16 ) );
-			Set( "Kismet.Tabs.CompilerResults", new IMAGE_BRUSH( "Icons/icon_tab_OutputLog_16x", Icon16x16 ) );
-			Set( "Kismet.Tabs.FindResults", new IMAGE_BRUSH( "/Icons/icon_Genericfinder_16x", Icon16x16 ) );
-			Set( "Kismet.Tabs.Bookmarks", new IMAGE_BRUSH( "/Icons/icon_BlueprintEditor_Bookmarks_16x", Icon16x16 ) );
-			Set( "Kismet.Tabs.Components", new IMAGE_BRUSH( "/Icons/icon_BlueprintEditor_Components_16x", Icon16x16 ) );
+			Set( "Kismet.Tabs.Variables", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pill", Icon16x16 ) );
+			Set( "Kismet.Tabs.Palette", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Palette", Icon16x16 ) );
+			Set( "Kismet.Tabs.CompilerResults", new IMAGE_BRUSH_SVG("Starship/Common/OutputLog", Icon16x16 ) );
+			Set( "Kismet.Tabs.FindResults", new CORE_IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16 ) );
+			Set( "Kismet.Tabs.Bookmarks", new IMAGE_BRUSH_SVG( "Starship/Common/Bookmarks", Icon16x16 ) );
+			Set( "Kismet.Tabs.Components", new IMAGE_BRUSH_SVG( "Starship/Common/Component", Icon16x16 ) );
 			Set( "Kismet.Tabs.BlueprintDefaults", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Defaults_40x", Icon16x16 ) );
 		}
 
-		Set("Kismet.Palette.Favorites", new IMAGE_BRUSH("Icons/Star_16x", Icon16x16, FLinearColor(0.4f, 0.4, 0.4f, 1.f)));
-		Set("Kismet.Palette.Library",   new IMAGE_BRUSH("Icons/icon_MeshPaint_Find_16x", Icon16x16, FLinearColor(0.4f, 0.4, 0.4f, 1.f)));
+		Set("Kismet.Palette.Favorites", new IMAGE_BRUSH_SVG("Starship/Common/Favorite", Icon16x16));
 		const FCheckBoxStyle KismetFavoriteToggleStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
 			.SetUncheckedImage( IMAGE_BRUSH("Icons/EmptyStar_16x", Icon10x10, FLinearColor(0.8f, 0.8f, 0.8f, 1.f)) )
@@ -5160,63 +5130,55 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 		Set( "Kismet.Tooltip.SubtextFont", DEFAULT_FONT("Regular", 8) );
 
+		Set("Blueprint.CompileStatus.Background", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", Icon20x20));
+
+		// @todo - Icon Replacement - trying out tinting compile backgrounds
+		Set("Blueprint.CompileStatus.Background.Unknown", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", Icon20x20, FStyleColors::AccentYellow));
+		Set("Blueprint.CompileStatus.Background.Warning", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", Icon20x20, FStyleColors::Warning));
+		Set("Blueprint.CompileStatus.Background.Good", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", Icon20x20, FStyleColors::AccentGreen));
+		Set("Blueprint.CompileStatus.Background.Error", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", Icon20x20, FStyleColors::Error));
+
+		Set("Blueprint.CompileStatus.Overlay.Unknown", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Unknown_Badge", Icon20x20, FStyleColors::AccentYellow));
+		Set("Blueprint.CompileStatus.Overlay.Warning", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Warning_Badge", Icon20x20, FStyleColors::Warning));
+		Set("Blueprint.CompileStatus.Overlay.Good", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Good_Badge", Icon20x20, FStyleColors::AccentGreen));
+		Set("Blueprint.CompileStatus.Overlay.Error", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Fail_Badge", Icon20x20, FStyleColors::Error));
+
+		// @todo - Icon Replacement - these are hijacked by non-blueprint things. Keeping them around for now
 		Set( "Kismet.Status.Unknown", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Working", Icon40x40 ) );
 		Set( "Kismet.Status.Error", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Fail", Icon40x40 ) );
 		Set( "Kismet.Status.Good", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Good", Icon40x40 ) );
-		Set( "Kismet.Status.Instrumented", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Instrumented", Icon40x40 ) );
-		Set( "Kismet.Status.NotInstrumented", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_NotInstrumented", Icon40x40 ) );
 		Set( "Kismet.Status.Warning", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Warning", Icon40x40 ) );
 
-		Set( "BlueprintEditor.AddNewVariable", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddVariable_40px", Icon40x40) );
-		Set( "BlueprintEditor.AddNewVariable.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddVariable_40px", Icon20x20) );
-		Set( "BlueprintEditor.AddNewVariableButton", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddVariable_40px", Icon12x12) );
-		Set( "BlueprintEditor.AddNewLocalVariable", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddVariable_40px", Icon40x40) );
-		Set( "BlueprintEditor.AddNewLocalVariable.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddVariable_40px", Icon20x20) );
-		Set( "BlueprintEditor.AddNewFunction", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon40x40) );
-		Set( "BlueprintEditor.AddNewFunction.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon20x20) );
-		Set( "BlueprintEditor.AddNewMacroDeclaration", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddMacro_40px", Icon40x40) );
-		Set( "BlueprintEditor.AddNewMacroDeclaration.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddMacro_40px", Icon20x20) );
-		Set( "BlueprintEditor.AddNewAnimationGraph", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_AddDocument_40x", Icon40x40) );
-		Set( "BlueprintEditor.AddNewAnimationGraph.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_AddDocument_40x", Icon20x20) );
-		Set( "BlueprintEditor.AddNewEventGraph", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddGraph_40px", Icon40x40) );
-		Set( "BlueprintEditor.AddNewEventGraph.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddGraph_40px", Icon20x20) );
-		Set( "BlueprintEditor.ManageInterfaces", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Interfaces_40x", Icon40x40) );	
-		Set( "BlueprintEditor.ManageInterfaces.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Interfaces_40x", Icon20x20) );	
-		Set( "BlueprintEditor.AddNewDelegate.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddDelegate_40x", Icon20x20) );
-		Set( "BlueprintEditor.AddNewDelegate", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddDelegate_40x", Icon40x40) );
-		Set( "BlueprintEditor.AddNewAnimationLayer.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon20x20) );
-		Set( "BlueprintEditor.AddNewAnimationLayer", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon40x40) );
+		Set("BlueprintEditor.AddNewVariable", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_AddVariable", Icon20x20));
+		Set("BlueprintEditor.AddNewLocalVariable", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_AddVariable", Icon20x20));
+		Set("BlueprintEditor.AddNewFunction", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_AddFunction", Icon20x20));
+		Set("BlueprintEditor.AddNewMacroDeclaration", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_AddMacro", Icon20x20));
 
-		Set( "Kismet.Status.Unknown.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Unknown_Small", Icon16x16 ) );
-		Set( "Kismet.Status.Error.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Broken_Small", Icon16x16 ) );
-		Set( "Kismet.Status.Good.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Good_Small", Icon16x16 ) );
-		Set( "Kismet.Status.Warning.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Warning_Small", Icon16x16 ) );
 
-		Set( "Kismet.TitleBarEditor.ArrowUp", new IMAGE_BRUSH( "Old/ArrowUp", Icon16x16 ) );
-		Set( "Kismet.TitleBarEditor.ArrowDown", new IMAGE_BRUSH( "Old/ArrowDown", Icon16x16 ) );
+		Set( "BlueprintEditor.AddNewAnimationGraph", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-plus", Icon16x16));
+		Set( "BlueprintEditor.AddNewEventGraph", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_AddGraph", Icon20x20) );
 
-		Set( "Kismet.VariableList.TypeIcon", new IMAGE_BRUSH( "/Icons/pill_16x", Icon16x16 ) );
-		Set( "Kismet.VariableList.ArrayTypeIcon", new IMAGE_BRUSH( "/Icons/pillarray_16x", Icon16x16 ) );
-		Set( "Kismet.VariableList.SetTypeIcon", new IMAGE_BRUSH( "/Icons/pillset_16x", Icon16x16 ) );
-		Set( "Kismet.VariableList.SetTypeIconLarge", new IMAGE_BRUSH( "/Icons/pillset_40x", Icon40x40 ) );
-		Set( "Kismet.VariableList.MapValueTypeIcon", new IMAGE_BRUSH( "/Icons/pillmapvalue_16x", Icon16x16 ) );
-		Set( "Kismet.VariableList.MapKeyTypeIcon", new IMAGE_BRUSH( "/Icons/pillmapkey_16x", Icon16x16 ) );
+		Set( "BlueprintEditor.AddNewDelegate", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_AddDelegate", Icon20x20) );
+
+		Set( "BlueprintEditor.AddNewAnimationLayer", new IMAGE_BRUSH_SVG( "Starship/Blueprints/icon_Blueprint_AddFunction", Icon20x20) );
+
+
+		Set("Kismet.VariableList.TypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pill", Icon16x16));
+		Set("Kismet.VariableList.ArrayTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillarray", Icon16x16));
+		Set("Kismet.VariableList.SetTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillset", Icon16x16));
+		Set("Kismet.VariableList.SetTypeIconLarge", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillset", Icon40x40));
+		Set("Kismet.VariableList.MapValueTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillmapvalue", Icon16x16));
+		Set("Kismet.VariableList.MapKeyTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillmapkey", Icon16x16));
 
 		Set("Kismet.VariableList.ExposeForInstance", new CORE_IMAGE_BRUSH_SVG("Starship/Common/visible", Icon16x16));
 		Set("Kismet.VariableList.HideForInstance", new CORE_IMAGE_BRUSH_SVG("Starship/Common/hidden", Icon16x16));
-	
-		Set( "Kismet.VariableList.VariableIsUsed", new IMAGE_BRUSH( "/Icons/icon_variable_used_16x", Icon16x16 ) );
-		Set( "Kismet.VariableList.VariableNotUsed", new IMAGE_BRUSH( "/Icons/icon_variable_not_used_16x", Icon16x16 ) );
-
-		Set( "Kismet.VariableList.Replicated", new IMAGE_BRUSH( "/Icons/icon_replication_16px", Icon16x16, FLinearColor(0.0f, 0.0f, 0.0f, 1.0f) ) );
-		Set( "Kismet.VariableList.NotReplicated", new IMAGE_BRUSH( "/Icons/icon_replication_16px", Icon16x16, FLinearColor(0.0f, 0.0f, 0.0f, 0.5f) ) );
 
 		Set( "Kismet.Explorer.Title", FTextBlockStyle(NormalText) .SetFont(DEFAULT_FONT( "BoldCondensedItalic", 11)));
 		Set( "Kismet.Explorer.SearchDepthFont", DEFAULT_FONT( "Bold", 14) );
 
 		Set( "Kismet.Interfaces.Title",  FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT("Bold", 11 ) ) );
-		Set( "Kismet.Interfaces.Implement", new IMAGE_BRUSH( "Icons/assign_left_16x", Icon16x16) );
-		Set( "Kismet.Interfaces.Remove", new IMAGE_BRUSH( "Icons/assign_right_16x", Icon16x16) );
+		Set( "Kismet.Interfaces.Implement", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/PreviousArrow", Icon16x16) );
+		Set( "Kismet.Interfaces.Remove", new CORE_IMAGE_BRUSH_SVG( "Icons/assign_right_16x", Icon16x16) );
 
 		Set( "Kismet.TypePicker.CategoryFont", DEFAULT_FONT( "BoldCondensedItalic", 11) );
 		Set( "Kismet.TypePicker.NormalFont", DEFAULT_FONT( "Regular", 11) );
@@ -5224,25 +5186,23 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set( "Kismet.GraphPicker.Title", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT("BoldCondensedItalic", 11) ) );
 
 		Set( "Kismet.CreateBlueprint", new IMAGE_BRUSH( "/Icons/CreateBlueprint", Icon16x16) );
-		Set( "Kismet.HarvestBlueprintFromActors", new IMAGE_BRUSH( "/Icons/HarvestBlueprintFromActors", Icon16x16) );
+		Set( "Kismet.HarvestBlueprintFromActors", new IMAGE_BRUSH_SVG( "Starship/Blueprints/HarvestBlueprintFromActors", Icon16x16) );
 
-		Set( "Kismet.Comment.Handle", new IMAGE_BRUSH( "Old/Kismet2/Comment_Handle", FVector2D(14.0f, 12.0f)) );
 		Set( "Kismet.Comment.Background", new IMAGE_BRUSH( "Old/Kismet2/Comment_Background", FVector2D(100.0f, 68.0f)) );
 
-		Set( "Kismet.AllClasses.VariableIcon", new IMAGE_BRUSH( "/Icons/pill_16x", Icon16x16 ) );
-		Set( "Kismet.AllClasses.ArrayVariableIcon", new IMAGE_BRUSH( "/Icons/pillarray_16x", Icon16x16 ) );
-		Set( "Kismet.AllClasses.SetVariableIcon", new IMAGE_BRUSH( "/Icons/pillset_16x", Icon16x16 ) );
-		Set( "Kismet.AllClasses.MapValueVariableIcon", new IMAGE_BRUSH( "/Icons/pillmapvalue_16x", Icon16x16 ) );
-		Set( "Kismet.AllClasses.MapKeyVariableIcon", new IMAGE_BRUSH( "/Icons/pillmapkey_16x", Icon16x16 ) );
-		Set( "Kismet.AllClasses.FunctionIcon", new IMAGE_BRUSH( "/Icons/icon_BluePrintEditor_Function_16px", Icon16x16 ) );
+		Set( "Kismet.AllClasses.VariableIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/pill", Icon16x16));
+		Set( "Kismet.AllClasses.ArrayVariableIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/pillarray", Icon16x16));
+		Set( "Kismet.AllClasses.SetVariableIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/pillset", Icon16x16));
+		Set( "Kismet.AllClasses.MapValueVariableIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/pillmapvalue", Icon16x16));
+		Set( "Kismet.AllClasses.MapKeyVariableIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/pillmapkey", Icon16x16));
 
-		Set( "BlueprintEditor.ResetCamera", new IMAGE_BRUSH( "Icons/icon_Camera_Reset_40px", Icon16x16));
-		Set( "Kismet.SetRealtimePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Realtime_40x", Icon16x16));
-		Set( "BlueprintEditor.ShowFloor", new IMAGE_BRUSH( "Icons/icon_Show_Floor_40px", Icon16x16));
-		Set( "BlueprintEditor.ShowGrid", new IMAGE_BRUSH( "Icons/icon_ShowGrid_16x", Icon16x16 ) );
+		Set( "Kismet.AllClasses.FunctionIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
+
+		Set( "BlueprintEditor.ResetCamera", new IMAGE_BRUSH_SVG("Starship/Common/ResetCamera", Icon16x16));
+		Set( "BlueprintEditor.ShowFloor", new IMAGE_BRUSH_SVG( "Starship/Common/Floor", Icon16x16));
+		Set( "BlueprintEditor.ShowGrid", new IMAGE_BRUSH_SVG( "Starship/Common/Grid", Icon16x16 ) );
 		Set( "BlueprintEditor.EnableSimulation", new IMAGE_BRUSH( "Icons/icon_Enable_Simulation_40px", Icon40x40));
-		Set( "BlueprintEditor.EnableProfiling", new IMAGE_BRUSH("/Icons/icon_Enable_Profiling_40x", Icon40x40) );
-		Set( "BlueprintEditor.EnableSimulation.Small", new IMAGE_BRUSH( "Icons/icon_Enable_Simulation_40px", Icon20x20));
+		Set( "BlueprintEditor.EnableProfiling", new IMAGE_BRUSH_SVG("Starship/Common/Statistics", Icon20x20) );
 		Set( "SCS.NativeComponent", new IMAGE_BRUSH( "Icons/NativeSCSComponent", Icon20x20 ));
 		Set( "SCS.Component", new IMAGE_BRUSH( "Icons/SCSComponent", Icon20x20 ));
 
@@ -5334,16 +5294,12 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	//Blueprint Diff
 	{
-		Set("BlueprintDif.HasGraph", new IMAGE_BRUSH("/Icons/blueprint_Dif_has_graph_8x", Icon8x8));
-		Set("BlueprintDif.HasGraph.Small", new IMAGE_BRUSH("/Icons/blueprint_Dif_has_graph_8x", Icon8x8));
-		Set("BlueprintDif.MissingGraph", new IMAGE_BRUSH("/Icons/blueprint_Dif_missing_graph_8x", Icon8x8));
-		Set("BlueprintDif.MissingGraph.Small", new IMAGE_BRUSH("/Icons/blueprint_Dif_missing_graph_8x", Icon8x8));
-		Set("BlueprintDif.NextDiff", new IMAGE_BRUSH("/Icons/diff_next_40x", Icon16x16));
-		Set("BlueprintDif.NextDiff.Small", new IMAGE_BRUSH("/Icons/diff_next_40x", Icon16x16));
-		Set("BlueprintDif.PrevDiff", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
-		Set("BlueprintDif.PrevDiff.Small", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
-		Set("BlueprintDif.HorizontalDiff.Small", new IMAGE_BRUSH("/Icons/icon_horizontal_diff_view_16px", Icon16x16));
-		Set("BlueprintDif.VerticalDiff.Small", new IMAGE_BRUSH("/Icons/icon_vertical_diff_view_16px", Icon16x16));
+		Set("BlueprintDif.HasGraph", new IMAGE_BRUSH_SVG("Starship/Blueprints/blueprint_Dif_has_graph", Icon10x10));
+		Set("BlueprintDif.MissingGraph", new IMAGE_BRUSH_SVG("Starship/Blueprints/blueprint_Dif_missing_graph", Icon8x8));
+		Set("BlueprintDif.NextDiff", new IMAGE_BRUSH_SVG("/Starship/Blueprints/diff_next", Icon16x16));
+		Set("BlueprintDif.PrevDiff", new IMAGE_BRUSH_SVG("/Starship/Blueprints/diff_prev", Icon16x16));
+		Set("BlueprintDif.HorizontalDiff", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_horizontal_diff_view", Icon16x16));
+		Set("BlueprintDif.VerticalDiff", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_vertical_diff_view", Icon16x16));
 
 		Set("BlueprintDif.ItalicText", 
 			FTextBlockStyle(NormalText)
@@ -5354,20 +5310,19 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	//Blueprint Merge
 	{
-		Set("BlueprintMerge.NextDiff", new IMAGE_BRUSH("/Icons/diff_next_40x", Icon16x16));
-		Set("BlueprintMerge.NextDiff.Small", new IMAGE_BRUSH("/Icons/diff_next_40x", Icon16x16));
-		Set("BlueprintMerge.PrevDiff", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
-		Set("BlueprintMerge.PrevDiff.Small", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
+		Set("BlueprintMerge.NextDiff", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_next", Icon16x16));
+		Set("BlueprintMerge.PrevDiff", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_prev", Icon16x16));
+
 		Set("BlueprintMerge.Finish", new IMAGE_BRUSH("/Icons/LV_Save", Icon16x16));
-		Set("BlueprintMerge.Finish.Small", new IMAGE_BRUSH("/Icons/LV_Save", Icon16x16));
+
 		Set("BlueprintMerge.Cancel", new IMAGE_BRUSH("/Icons/LV_Remove", Icon16x16));
-		Set("BlueprintMerge.Cancel.Small", new IMAGE_BRUSH("/Icons/LV_Remove", Icon16x16));
+
 		Set("BlueprintMerge.AcceptSource", new IMAGE_BRUSH("/Icons/AcceptMergeSource_40x", Icon16x16));
-		Set("BlueprintMerge.AcceptSource.Small", new IMAGE_BRUSH("/Icons/AcceptMergeSource_40x", Icon16x16));
+
 		Set("BlueprintMerge.AcceptTarget", new IMAGE_BRUSH("/Icons/AcceptMergeTarget_40x", Icon16x16));
-		Set("BlueprintMerge.AcceptTarget.Small", new IMAGE_BRUSH("/Icons/AcceptMergeTarget_40x", Icon16x16));
+
 		Set("BlueprintMerge.StartMerge", new IMAGE_BRUSH("/Icons/StartMerge_42x", Icon16x16));
-		Set("BlueprintMerge.StartMerge.Small", new IMAGE_BRUSH("/Icons/StartMerge_42x", Icon16x16));
+
 	}
 
 	// Play in editor / play in world
@@ -5451,28 +5406,27 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	// Kismet 2 debugger
 	{
-		Set( "Kismet.Breakpoint.Disabled", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Disabled_Small", Icon16x16 ) );
-		Set( "Kismet.Breakpoint.EnabledAndInvalid", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Invalid_Small", Icon16x16 ) );
-		Set( "Kismet.Breakpoint.EnabledAndValid", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Valid_Small", Icon16x16 ) );
-		Set( "Kismet.Breakpoint.NoneSpacer", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_None_Small", Icon16x16 ) );
-		Set( "Kismet.Breakpoint.MixedStatus", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Mixed_Small", Icon16x16 ) );
+		Set( "Kismet.Breakpoint.Disabled", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Disabled", Icon16x16, FStyleColors::AccentRed ) );
+		Set( "Kismet.Breakpoint.EnabledAndInvalid", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Invalid", Icon16x16, FStyleColors::AccentRed) );
+		Set( "Kismet.Breakpoint.EnabledAndValid", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Valid", Icon16x16, FStyleColors::AccentRed) );
+		Set( "Kismet.Breakpoint.MixedStatus", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Mixed", Icon16x16, FStyleColors::AccentRed) );
 		
-		Set( "Kismet.WatchIcon", new IMAGE_BRUSH( "Old/Kismet2/WatchIcon", Icon16x16 ) );
-		Set( "Kismet.LatentActionIcon", new IMAGE_BRUSH( "Old/Kismet2/LatentActionIcon", Icon16x16 ) );
+		Set( "Kismet.WatchIcon", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/WatchVariable", Icon16x16 ) );
+		Set( "Kismet.LatentActionIcon", new IMAGE_BRUSH_SVG( "Starship/Common/Timecode", Icon16x16 ) );
 
-		Set( "Kismet.Trace.CurrentIndex", new IMAGE_BRUSH( "Old/Kismet2/CurrentInstructionOverlay_Small", Icon16x16 ) );
-		Set( "Kismet.Trace.PreviousIndex", new IMAGE_BRUSH( "Old/Kismet2/FaintInstructionOverlay_Small", Icon16x16 ) );
+		Set( "Kismet.Trace.CurrentIndex", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/NextArrow", Icon16x16 ) );
+		Set( "Kismet.Trace.PreviousIndex", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/PreviousArrow", Icon16x16 ) );
 
-		Set( "Kismet.DebuggerOverlay.Breakpoint.Disabled", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Disabled", Icon32x32 ) );
-		Set( "Kismet.DebuggerOverlay.Breakpoint.EnabledAndInvalid", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Invalid", Icon32x32 ) );
-		Set( "Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid", new IMAGE_BRUSH( "Old/Kismet2/Breakpoint_Valid", Icon32x32 ) );
+		Set( "Kismet.DebuggerOverlay.Breakpoint.Disabled", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Disabled", Icon32x32, FStyleColors::AccentRed) );
+		Set( "Kismet.DebuggerOverlay.Breakpoint.EnabledAndInvalid", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Invalid", Icon32x32, FStyleColors::AccentRed) );
+		Set( "Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid", new IMAGE_BRUSH_SVG( "Starship/Blueprints/Breakpoint_Valid", Icon32x32, FStyleColors::AccentRed) );
 
-		Set( "Kismet.DebuggerOverlay.InstructionPointer", new IMAGE_BRUSH( "Old/Kismet2/IP_Normal", FVector2D(128,96)) );
-		Set( "Kismet.DebuggerOverlay.InstructionPointerBreakpoint", new IMAGE_BRUSH( "Old/Kismet2/IP_Breakpoint", FVector2D(128,96)) );
+		Set("Kismet.DebuggerOverlay.InstructionPointer", new IMAGE_BRUSH_SVG( "Starship/Blueprints/IP_Breakpoint", FVector2D(128,96)) );
+		Set("Kismet.DebuggerOverlay.InstructionPointerBreakpoint", new IMAGE_BRUSH_SVG( "Starship/Blueprints/IP_Breakpoint", FVector2D(128,96), FStyleColors::AccentRed) );
 
-		Set ("Kismet.CallStackViewer.CurrentStackFrame", new IMAGE_BRUSH( "Old/Kismet2/DebuggerArrow", Icon12x12 ));
-		Set( "Kismet.CallStackViewer.CurrentStackFrameColor", FLinearColor(0.728f, 0.364f, 0.003f) );
-		Set( "Kismet.CallStackViewer.LastStackFrameNavigatedToColor", FLinearColor( 0.4f, 0.5f, 0.7f, 1.0f ) );
+		Set("Kismet.CallStackViewer.CurrentStackFrame", new IMAGE_BRUSH_SVG( "Starship/Blueprints/DebuggerArrow", Icon12x12 ));
+		Set("Kismet.CallStackViewer.CurrentStackFrameColor", FLinearColor(0.728f, 0.364f, 0.003f) );
+		Set("Kismet.CallStackViewer.LastStackFrameNavigatedToColor", FLinearColor( 0.4f, 0.5f, 0.7f, 1.0f ) );
 	}
 
 	// Asset context menu
@@ -6718,8 +6672,8 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "StaticMeshEditor.SetShowWireframe.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Wireframe_40x", Icon20x20 ) );
 		Set( "StaticMeshEditor.SetShowVertexColor", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_VertColor_40x", Icon40x40 ) );
 		Set( "StaticMeshEditor.SetShowVertexColor.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_VertColor_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetRealtimePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Realtime_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetRealtimePreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Realtime_40x", Icon20x20 ) );
+		Set( "StaticMeshEditor.SetRealtimePreview", new IMAGE_BRUSH_SVG("Starship/Common/Realtime", Icon16x16));
+
 		Set( "StaticMeshEditor.ReimportMesh", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_ReimportMesh_40x"), Icon40x40));
 		Set( "StaticMeshEditor.ReimportMesh.Small", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_ReimportMesh_40x"), Icon20x20));
 		Set( "StaticMeshEditor.SetShowBounds", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Bounds_40x", Icon40x40 ) );
@@ -6730,8 +6684,8 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "StaticMeshEditor.SetShowGrid.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Grid_40x", Icon20x20 ) );
 		Set( "StaticMeshEditor.SetDrawUVs", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_UVOverlay_40x", Icon40x40 ) );
 		Set( "StaticMeshEditor.SetDrawUVs.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_UVOverlay_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.ResetCamera", new IMAGE_BRUSH( "Icons/icon_Camera_Reset_40px", Icon40x40 ) );
-		Set( "StaticMeshEditor.ResetCamera.Small", new IMAGE_BRUSH( "Icons/icon_Camera_Reset_40px", Icon20x20 ) );
+		Set( "StaticMeshEditor.ResetCamera", new IMAGE_BRUSH_SVG("Starship/Common/ResetCamera", Icon16x16));
+
 		Set( "StaticMeshEditor.SetShowPivot", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowPivot_40x", Icon40x40 ) );
 		Set( "StaticMeshEditor.SetShowPivot.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowPivot_40x", Icon20x20 ) );
 		Set( "StaticMeshEditor.SetShowSockets", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowSockets_40x", Icon40x40 ) );
@@ -7547,7 +7501,7 @@ void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 	// Settings Editor
 	{
 		Set( "SettingsEditor.Collision_Engine", new IMAGE_BRUSH("Icons/icon_Cascade_RestartSim_40x", Icon16x16));
-		Set( "SettingsEditor.Collision_Game", new IMAGE_BRUSH("Icons/icon_MatEd_Realtime_40x", Icon16x16));
+		Set( "SettingsEditor.Collision_Game", new IMAGE_BRUSH_SVG("Starship/Common/Realtime", Icon16x16));
 
 		// Settings editor
 		Set("SettingsEditor.GoodIcon", new IMAGE_BRUSH("Settings/Settings_Good", Icon40x40));

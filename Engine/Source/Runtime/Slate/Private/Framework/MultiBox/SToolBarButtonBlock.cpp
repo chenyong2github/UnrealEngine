@@ -3,7 +3,6 @@
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
@@ -11,6 +10,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 #include "Styling/ToolBarStyle.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 
 FToolBarButtonBlock::FToolBarButtonBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride )
@@ -135,9 +135,9 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 
 	TSharedRef<const FMultiBox> MultiBox = OwnerMultiBoxWidget.Pin()->GetMultiBox();
 
-	TSharedRef< const FToolBarButtonBlock > ToolBarButtonBlock = StaticCastSharedRef< const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
+	TSharedRef<const FToolBarButtonBlock > ToolBarButtonBlock = StaticCastSharedRef< const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
 
-	TSharedPtr< const FUICommandInfo > UICommand = ToolBarButtonBlock->GetAction();
+	TSharedPtr<const FUICommandInfo> UICommand = ToolBarButtonBlock->GetAction();
 
 	// Allow the block to override the action's label and tool tip string, if desired
 	TAttribute<FText> ActualLabel;
@@ -165,14 +165,15 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 
 	// If a key is bound to the command, append it to the tooltip text.
 	TWeakPtr<const FUICommandInfo> Action = ToolBarButtonBlock->GetAction();
-	ActualToolTip = TAttribute< FText >::Create( TAttribute< FText >::FGetter::CreateStatic( &Local::AppendKeyBindingToToolTip, ActualToolTip, Action ) );
+	ActualToolTip = TAttribute< FText >::Create(TAttribute<FText>::FGetter::CreateStatic(&Local::AppendKeyBindingToToolTip, ActualToolTip, Action ) );
 	
 	// If we were supplied an image than go ahead and use that, otherwise we use a null widget
-	TSharedRef<SImage> IconWidget =
-		SNew(SImage)
-		.ColorAndOpacity(FSlateColor::UseForeground())
+	TSharedRef<SLayeredImage> IconWidget =
+		SNew(SLayeredImage)
+		.ColorAndOpacity(this, &SToolBarButtonBlock::GetIconForegroundColor)
 		.Image(this, &SToolBarButtonBlock::GetIconBrush);
 
+	IconWidget->AddLayer(TAttribute<const FSlateBrush*>(this, &SToolBarButtonBlock::GetOverlayIconBrush));
 
 	// Create the content for our button
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
@@ -180,6 +181,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	{
 		const FVector2D IconSize = ToolBarStyle.IconSize;
 
+		IconWidget->SetDesiredSizeOverride(IconSize);
 		ButtonContent =
 			SNew(SHorizontalBox)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TutorialHighlightName))
@@ -188,12 +190,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
-				SNew(SBox)
-				.WidthOverride(IconSize.X)
-				.HeightOverride(IconSize.Y)
-				[
-					IconWidget
-				]	
+				IconWidget
 			]
 			// Label text
 			+ SHorizontalBox::Slot()
@@ -276,7 +273,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		ChildSlot
 		[
 			// Create a check box
-			SNew( SCheckBox )
+			SNew(SCheckBox)
 			// Use the tool bar style for this check box
 			.Style(&CheckStyle)
 			.IsFocusable(bIsFocusable)
@@ -317,7 +314,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	SetEnabled( TAttribute< bool >( this, &SToolBarButtonBlock::IsEnabled ) );
 
 	// Bind our widget's visible state to whether or not the button should be visible
-	SetVisibility( TAttribute<EVisibility>(this, &SToolBarButtonBlock::GetBlockVisibility) );
+	SetVisibility(TAttribute<EVisibility>(this, &SToolBarButtonBlock::GetBlockVisibility));
 }
 
 
@@ -446,9 +443,24 @@ const FSlateBrush* SToolBarButtonBlock::GetIconBrush() const
 	return bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get() ? GetSmallIconBrush() : GetNormalIconBrush();
 }
 
+const FSlateBrush* SToolBarButtonBlock::GetOverlayIconBrush() const
+{
+	TSharedRef<const FToolBarButtonBlock> ToolBarButtonBlock = StaticCastSharedRef<const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
+
+	const FSlateIcon ActionIcon = ToolBarButtonBlock->GetAction().IsValid() ? ToolBarButtonBlock->GetAction()->GetIcon() : FSlateIcon();
+	const FSlateIcon& ActualIcon = ToolBarButtonBlock->IconOverride.IsSet() ? ToolBarButtonBlock->IconOverride.Get() : ActionIcon;
+
+	if (ActualIcon.IsSet())
+	{
+		return ActualIcon.GetOverlayIcon();
+	}
+
+	return nullptr;
+}
+
 const FSlateBrush* SToolBarButtonBlock::GetNormalIconBrush() const
 {
-	TSharedRef< const FToolBarButtonBlock > ToolBarButtonBlock = StaticCastSharedRef< const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
+	TSharedRef<const FToolBarButtonBlock> ToolBarButtonBlock = StaticCastSharedRef<const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
 
 	const FSlateIcon ActionIcon = ToolBarButtonBlock->GetAction().IsValid() ? ToolBarButtonBlock->GetAction()->GetIcon() : FSlateIcon();
 	const FSlateIcon& ActualIcon = ToolBarButtonBlock->IconOverride.IsSet() ? ToolBarButtonBlock->IconOverride.Get() : ActionIcon;
@@ -490,4 +502,16 @@ const FSlateBrush* SToolBarButtonBlock::GetSmallIconBrush() const
 		static const FName IconName("MultiBox.GenericToolBarIcon.Small" );
 		return StyleSet->GetBrush(IconName);
 	}
+}
+
+FSlateColor SToolBarButtonBlock::GetIconForegroundColor() const
+{
+	// If any brush has a tint, don't assume it should be subdued
+	const FSlateBrush* Brush = GetIconBrush();
+	if (Brush && Brush->TintColor != FLinearColor::White)
+	{
+		return FLinearColor::White;
+	}
+
+	return FSlateColor::UseForeground();
 }
