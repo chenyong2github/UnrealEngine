@@ -1560,6 +1560,30 @@ namespace UnrealBuildTool
 				CurrentSettings.AppendFormat("GPUArch={0}{1}", GPUArch, Environment.NewLine);
 			}
 
+			// Modifying some settings in the GameMapsSettings could trigger the OBB regeneration
+			// and make the cached OBBData.java mismatch to the actually data. 
+			// So we insert the relevant keys into CurrentSettings to capture the change, to
+			// enforce the refreshing of Android java codes
+			Section = Ini.FindSection("/Script/EngineSettings.GameMapsSettings");
+			if (Section != null)
+			{
+				foreach (string Key in Section.KeyNames)
+				{
+					if (!Key.Equals("GameDefaultMap") && 
+						!Key.Equals("GlobalDefaultGameMode"))
+					{
+						continue;
+					}
+
+					IReadOnlyList<string> Values;
+					Section.TryGetValues(Key, out Values);
+					foreach (string Value in Values)
+					{
+						CurrentSettings.AppendLine(string.Format("{0}={1}", Key, Value));
+					}
+				}
+			}
+
 			return CurrentSettings.ToString();
 		}
 
