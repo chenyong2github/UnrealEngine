@@ -572,15 +572,8 @@ struct FCrashContextExtendedWriter
  */
 struct FAdditionalCrashContextStack
 {
-	CORE_API static void PushProvider(struct FScopedAdditionalCrashContextProvider* Provider)
-	{
-		ThreadContextProvider.PushProviderInternal(Provider);
-	}
-
-	CORE_API static void PopProvider()
-	{
-		ThreadContextProvider.PopProviderInternal();
-	}
+	CORE_API static void PushProvider(struct FScopedAdditionalCrashContextProvider* Provider);
+	CORE_API static void PopProvider();
 
 	static void ExecuteProviders(FCrashContextExtendedWriter& Writer);
 
