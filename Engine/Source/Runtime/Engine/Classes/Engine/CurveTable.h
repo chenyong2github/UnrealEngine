@@ -113,7 +113,7 @@ public:
 	/** Function to find the row of a table given its name. */
 	FRealCurve* FindCurve(FName RowName, const FString& ContextString, bool bWarnIfNotFound = true) const
 	{
-		if (RowName == NAME_None)
+		if (RowName.IsNone())
 		{
 			UE_CLOG(bWarnIfNotFound, LogCurveTable, Warning, TEXT("UCurveTable::FindCurve : NAME_None is invalid row name for CurveTable '%s' (%s)."), *GetPathName(), *ContextString);
 			return nullptr;
@@ -150,6 +150,20 @@ public:
 		}
 
 		return (FSimpleCurve*)FindCurve(RowName, ContextString, bWarnIfNotFound);
+	}
+
+	/** High performance version with no type safety */
+	FRealCurve* FindCurveUnchecked(FName RowName) const
+	{
+		// If RowName is none, it won't be found in the map
+		FRealCurve* const* FoundCurve = RowMap.Find(RowName);
+
+		if (FoundCurve == nullptr)
+		{
+			return nullptr;
+		}
+
+		return *FoundCurve;
 	}
 
 	/** Output entire contents of table as a string */
@@ -253,7 +267,7 @@ struct ENGINE_API FCurveTableRowHandle
 	/** Returns true if this handle is specifically pointing to nothing */
 	bool IsNull() const
 	{
-		return CurveTable == nullptr && RowName == NAME_None;
+		return CurveTable == nullptr && RowName.IsNone();
 	}
 
 	/** Get the curve straight from the row handle */

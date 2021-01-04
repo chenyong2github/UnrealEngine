@@ -213,7 +213,7 @@ public:
 			return nullptr;
 		}
 
-		if(RowName == NAME_None)
+		if(RowName.IsNone())
 		{
 			UE_CLOG(bWarnIfRowMissing, LogDataTable, Warning, TEXT("UDataTable::FindRow : '%s' requested invalid row 'None' from DataTable '%s'."), ContextString, *GetPathName());
 			return nullptr;
@@ -272,20 +272,15 @@ public:
 	/** Returns the column property where PropertyName matches the name of the column property. Returns nullptr if no match is found or the match is not a supported table property */
 	ENGINE_API FProperty* FindTableProperty(const FName& PropertyName) const;
 
-	uint8* FindRowUnchecked(FName RowName, bool MustExist=false) const
+	/** High performance version with no type safety */
+	uint8* FindRowUnchecked(FName RowName) const
 	{
 		if(RowStruct == nullptr)
 		{
-			//UE_CLOG(MustExist, LogDataTable, Error, TEXT("UDataTable::FindRowUnchecked : DataTable '%s' has no RowStruct specified (%s)."), *GetPathName(), *ContextString);
 			return nullptr;
 		}
 
-		if(RowName == NAME_None)
-		{
-			//UE_CLOG(MustExist, LogDataTable, Warning, TEXT("UDataTable::FindRowUnchecked : NAME_None is invalid row name for DataTable '%s' (%s)."), *GetPathName(), *ContextString);
-			return nullptr;
-		}
-
+		// If is RowName is none, it won't find anything in the map
 		uint8* const* RowDataPtr = GetRowMap().Find(RowName);
 
 		if(RowDataPtr == nullptr)
@@ -293,10 +288,7 @@ public:
 			return nullptr;
 		}
 
-		uint8* RowData = *RowDataPtr;
-		check(RowData);
-
-		return RowData;
+		return *RowDataPtr;
 	}
 
 	/** Empty the table info (will not clear RowStruct) */
@@ -427,7 +419,7 @@ struct ENGINE_API FDataTableRowHandle
 	/** Returns true if this handle is specifically pointing to nothing */
 	bool IsNull() const
 	{
-		return DataTable == nullptr && RowName == NAME_None;
+		return DataTable == nullptr && RowName.IsNone();
 	}
 
 	/** Get the row straight from the row handle */

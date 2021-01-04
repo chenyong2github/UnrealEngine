@@ -78,7 +78,7 @@ void UDataRegistrySource_CurveTable::SetCachedTable(bool bForceLoad /*= false*/)
 		PreloadTable = CachedTable;
 	}
 
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 }
 
 void UDataRegistrySource_CurveTable::ClearCachedTable()
@@ -108,11 +108,11 @@ EDataRegistryAvailability UDataRegistrySource_CurveTable::GetSourceAvailability(
 
 EDataRegistryAvailability UDataRegistrySource_CurveTable::GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	if (CachedTable)
 	{
-		FRealCurve* FoundCurve = CachedTable->FindCurve(ResolvedName, FString(), false);
+		FRealCurve* FoundCurve = CachedTable->FindCurveUnchecked(ResolvedName);
 
 		if (FoundCurve)
 		{
@@ -144,7 +144,7 @@ EDataRegistryAvailability UDataRegistrySource_CurveTable::GetItemAvailability(co
 
 void UDataRegistrySource_CurveTable::GetResolvedNames(TArray<FName>& Names) const
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	if (!CachedTable && GIsEditor)
 	{
@@ -173,7 +173,7 @@ void UDataRegistrySource_CurveTable::ResetRuntimeState()
 
 bool UDataRegistrySource_CurveTable::AcquireItem(FDataRegistrySourceAcquireRequest&& Request)
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	PendingAcquires.Add(Request);
 
@@ -229,7 +229,7 @@ bool UDataRegistrySource_CurveTable::Initialize()
 
 void UDataRegistrySource_CurveTable::HandlePendingAcquires()
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime(); 
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	// Iterate manually to deal with recursive adds
 	int32 NumRequests = PendingAcquires.Num();
@@ -248,7 +248,7 @@ void UDataRegistrySource_CurveTable::HandlePendingAcquires()
 				const UScriptStruct* ItemStruct = GetItemStruct();
 				if (ensure(ItemStruct && ItemStruct->GetStructureSize()))
 				{
-					FRealCurve* FoundCurve = CachedTable->FindCurve(ResolvedName, FString(), false);
+					FRealCurve* FoundCurve = CachedTable->FindCurveUnchecked(ResolvedName);
 
 					if (FoundCurve)
 					{

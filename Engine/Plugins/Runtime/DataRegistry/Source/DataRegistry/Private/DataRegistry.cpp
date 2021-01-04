@@ -352,18 +352,22 @@ FDataRegistryCacheGetResult UDataRegistry::GetCacheResultVersion() const
 		return FDataRegistryCacheGetResult(EDataRegistryCacheGetStatus::FoundVolatile);
 	}
 
-	int32 CacheVersion = Cache->CurrentCacheVersion;
-	EDataRegistryCacheVersionSource VersionSource = EDataRegistryCacheVersionSource::DataRegistry;
+	int32 CacheVersion;
+	EDataRegistryCacheVersionSource VersionSource;
 
 	if (RuntimeCachePolicy.bUseCurveTableCacheVersion)
 	{
 		CacheVersion = UCurveTable::GetGlobalCachedCurveID();
 		VersionSource = EDataRegistryCacheVersionSource::CurveTable;
 	}
+	else
+	{
+		CacheVersion = Cache->CurrentCacheVersion;
+		VersionSource = EDataRegistryCacheVersionSource::DataRegistry;
+	}
 
 	return FDataRegistryCacheGetResult(EDataRegistryCacheGetStatus::FoundPersistent, VersionSource, CacheVersion);
 }
-
 
 void UDataRegistry::InvalidateCacheVersion()
 {
@@ -729,11 +733,13 @@ FDataRegistryCacheGetResult UDataRegistry::GetCachedItemRaw(const uint8*& OutIte
 
 FDataRegistryCacheGetResult UDataRegistry::GetCachedCurveRaw(const FRealCurve*& OutCurve, const FDataRegistryId& ItemId) const
 {
+	static UScriptStruct* CurveScriptStruct = FRealCurve::StaticStruct();
+
 	const uint8* TempItemMemory = nullptr;
 	const UScriptStruct* TempItemStuct = nullptr;
 	FDataRegistryCacheGetResult CacheResult = GetCachedItemRaw(TempItemMemory, TempItemStuct, ItemId);
-
-	if (CacheResult && TempItemMemory && TempItemStuct->IsChildOf(FRealCurve::StaticStruct()))
+	
+	if (CacheResult && TempItemMemory && TempItemStuct->IsChildOf(CurveScriptStruct))
 	{
 		OutCurve = (const FRealCurve*)TempItemMemory;
 		return CacheResult;
@@ -818,9 +824,9 @@ void UDataRegistry::RefreshRuntimeSources()
 	bNeedsRuntimeRefresh = false;
 }
 
-float UDataRegistry::GetCurrentTime() const
+float UDataRegistry::GetCurrentTime()
 {
-	// TODO: Should it be game or system time?
+	// Use application time so it works in editor and game
 	return (float)(FApp::GetCurrentTime() - GStartTime);
 }
 
@@ -1047,7 +1053,7 @@ void UDataRegistry::HandleAcquireResult(const FDataRegistrySourceAcquireRequest&
 	
 }
 
-class FTimerManager* UDataRegistry::GetTimerManager() const
+class FTimerManager* UDataRegistry::GetTimerManager()
 {
 	UAssetManager* AssetManager = UAssetManager::GetIfValid();
 

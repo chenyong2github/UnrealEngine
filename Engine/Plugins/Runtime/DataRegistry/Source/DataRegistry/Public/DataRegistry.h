@@ -138,10 +138,10 @@ public:
 	virtual void HandleAcquireResult(const FDataRegistrySourceAcquireRequest& Request, EDataRegistryAcquireStatus Status, uint8* ItemMemory, UDataRegistrySource* Source);
 
 	/** Returns a timer manager that is safe to use for asset loading actions. This will either be the editor or game instance one, or null during very early startup */
-	class FTimerManager* GetTimerManager() const;
+	static class FTimerManager* GetTimerManager();
 
 	/** Gets the current time */
-	float GetCurrentTime() const;
+	static float GetCurrentTime();
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
