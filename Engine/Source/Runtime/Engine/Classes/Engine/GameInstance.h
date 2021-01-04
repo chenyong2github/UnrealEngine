@@ -521,6 +521,9 @@ public:
 	virtual void UnregisterReferencedObject(UObject* ObjectToReference);
 
 protected:
+	/** Non-virtual dispatch for OnStart, also calls the associated global OnStartGameInstance. */
+	void BroadcastOnStart();
+
 	/** Called when the game instance is started either normally or through PIE. */
 	virtual void OnStart();
 

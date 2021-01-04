@@ -345,6 +345,7 @@ FWorldDelegates::FRefreshLevelScriptActionsEvent FWorldDelegates::RefreshLevelSc
 FWorldDelegates::FOnSeamlessTravelStart FWorldDelegates::OnSeamlessTravelStart;
 FWorldDelegates::FOnSeamlessTravelTransition FWorldDelegates::OnSeamlessTravelTransition;
 FWorldDelegates::FOnCopyWorldData FWorldDelegates::OnCopyWorldData;
+FWorldDelegates::FGameInstanceEvent FWorldDelegates::OnStartGameInstance;
 
 UWorld::FOnWorldInitializedActors FWorldDelegates::OnWorldInitializedActors;
 
