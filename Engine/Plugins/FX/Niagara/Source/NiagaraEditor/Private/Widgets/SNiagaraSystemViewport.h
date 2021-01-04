@@ -146,7 +146,7 @@ public:
 
 	void Init(TSharedPtr<SWindow>& InOwnerWindow);
 
-	void AddBaseline(UNiagaraEffectType* EffectType);
+	bool AddBaseline(UNiagaraEffectType* EffectType);
 
 protected:
 	/** SEditorViewport interface */
