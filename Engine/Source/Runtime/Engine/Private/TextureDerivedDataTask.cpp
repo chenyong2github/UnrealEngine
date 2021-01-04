@@ -47,6 +47,8 @@ public:
 
 static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureData, const UTexture2D& Texture, bool bFromDDC)
 {
+	// Temporarily disable as the size check reports false negatives on some platforms
+#if 0
 	bool bValid = true;
 	for (int32 MipIndex = 0; MipIndex < TextureData.Mips.Num(); ++MipIndex)
 	{
@@ -73,6 +75,9 @@ static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureDat
 	}
 
 	return bValid;
+#else
+	return true;
+#endif
 }
 
 void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading)
