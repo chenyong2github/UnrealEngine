@@ -170,14 +170,12 @@ namespace UE
 					if (!PresentChunks.Contains(MountInfo.ChunkId))
 					{
 						FString ChunkLibraryName = GetShaderLibraryNameForChunk(LogicalName, MountInfo.ChunkId);
-						// for chunk0, or any chunk that is mounted at "../../.." use the base directory
-						FString ChunkDirectory = MountInfo.MountPoint;
-						if (MountInfo.ChunkId == 0 || ChunkDirectory == TEXT("../../../"))
-						{
-							ChunkDirectory = BaseDirectory;
-						}
 
-						if (OpenShaderCode(ChunkDirectory, ChunkLibraryName))
+						// Ignore chunk mount point as it's useless in locating the actual library directory. For instance, chunks can
+						// have mount points like ../../../ProjectName, while the actual library file is still stored in Content subdirectory.
+						// Just use the base directory always and expect the library to be placed in the same location for all chunks
+						// (which is the current behavior).
+						if (OpenShaderCode(BaseDirectory, ChunkLibraryName))
 						{
 							PresentChunks.Add(MountInfo.ChunkId);
 						}
