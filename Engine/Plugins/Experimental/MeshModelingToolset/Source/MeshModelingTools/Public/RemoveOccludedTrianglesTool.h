@@ -85,6 +85,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = OcclusionCalculation)
 	bool bOnlySelfOcclude = false;
 
+	/** Shrink (erode) the boundary of the set of triangles to remove. */
+	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (UIMin = "0", ClampMin = "0"))
+	int ShrinkRemoval = 0;
+
 	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
 	double MinAreaIsland = 0;
 

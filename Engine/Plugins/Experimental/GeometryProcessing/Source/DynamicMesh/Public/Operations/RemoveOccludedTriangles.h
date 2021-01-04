@@ -77,15 +77,16 @@ public:
 	virtual ~TRemoveOccludedTriangles() {}
 
 	/**
-	 * Remove the occluded triangles, considering the given occluder AABB trees (which may represent more geometry than a single mesh)
+	 * Select the occluded triangles, considering the given occluder AABB trees (which may represent more geometry than a single mesh)
 	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
+	 * Selection will be stored in the RemovedT array, but no triangles will be removed.
 	 *
 	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
 	 * @param Spatials AABB trees for all occluders
 	 * @param FastWindingTrees Precomputed fast winding trees for occluders
 	 * @return true on success
 	 */
-	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, 
+	virtual bool Select(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
 		const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees)
 	{
 		if (Cancelled())
@@ -238,7 +239,7 @@ public:
 			return false;
 		}
 
-		RemovedT.Empty();
+		RemovedT.Reset();
 		for (int TID = 0; TID < Mesh->MaxTriangleID(); TID++)
 		{
 			if (TriOccluded[TID])
@@ -247,6 +248,14 @@ public:
 			}
 		}
 
+		return true;
+	}
+
+	/**
+	 * Remove triangles that were selected (the triangle IDs in the RemoveT array)
+	 */
+	virtual bool RemoveSelected()
+	{
 		if (RemovedT.Num() > 0)
 		{
 			FDynamicMeshEditor Editor(Mesh);
@@ -261,6 +270,45 @@ public:
 
 		return true;
 	}
+	
+	/**
+	 * Remove the occluded triangles, considering the given occluder AABB trees (which may represent more geometry than a single mesh)
+	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
+	 *
+	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
+	 * @param Spatials AABB trees for all occluders
+	 * @param FastWindingTrees Precomputed fast winding trees for occluders
+	 * @return true on success
+	 */
+	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, 
+		const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees)
+	{
+		if (!Select(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees))
+		{
+			return false;
+		}
+
+		return RemoveSelected();
+	}
+
+
+	/**
+	 * Select the occluded triangles, considering the given occluder AABB tree (which may represent more geometry than a single mesh)
+	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
+	 *
+	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
+	 * @param Spatials AABB trees for all occluders
+	 * @param FastWindingTrees Precomputed fast winding trees for occluders
+	 * @return true on success
+	 */
+	virtual bool Select(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
+		TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	{
+		TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials(&Spatial, 1);
+		TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees(&FastWindingTree, 1);
+		return Select(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees);
+	}
+
 
 	/**
 	 * Remove the occluded triangles, considering the given occluder AABB tree (which may represent more geometry than a single mesh)
@@ -279,19 +327,47 @@ public:
 		return Apply(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees);
 	}
 
+	/**
+	 * Select the occluded triangles -- single instance case
+	 *
+	 * @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
+	 * @param Occluder AABB tree of occluding geometry
+	 * @return true on success
+	 */
+	virtual bool Select(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	{
+		TArrayView<const FTransform3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
+		return Select(MeshLocalToOccluderSpaces, Spatial, FastWindingTree);
+	}
+
 
 	/**
-	* Remove the occluded triangles -- single instance case
-	*
-	* @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
-	* @param Occluder AABB tree of occluding geometry
-	* @return true on success
-	*/
+	 * Remove the occluded triangles -- single instance case
+	 *
+	 * @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
+	 * @param Occluder AABB tree of occluding geometry
+	 * @return true on success
+	 */
 	virtual bool Apply(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
 		TArrayView<const FTransform3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
 		return Apply(MeshLocalToOccluderSpaces, Spatial, FastWindingTree);
 	}
+
+
+	/**
+	 * Select the occluded triangles -- single instance case w/out precomputed winding tree
+	 *
+	 * @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
+	 * @param Occluder AABB tree of occluding geometry
+	 * @return true on success
+	 */
+	virtual bool Select(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
+	{
+		TFastWindingTree<OccluderTriangleMeshType> FastWindingTree(Occluder, InsideMode == EOcclusionCalculationMode::FastWindingNumber);
+		return Select(MeshLocalToOccluderSpace, Occluder, &FastWindingTree);
+	}
+
 
 	/**
 	 * Remove the occluded triangles -- single instance case w/out precomputed winding tree

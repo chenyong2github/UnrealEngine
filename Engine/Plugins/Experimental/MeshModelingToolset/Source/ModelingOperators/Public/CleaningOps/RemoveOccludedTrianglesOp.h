@@ -62,6 +62,8 @@ public:
 	// if true, *ignore* the combined selected occluder data in CombinedMeshTrees, and only consider self-occlusion of this mesh
 	bool bOnlySelfOcclude = false;
 
+	int ShrinkRemoval = 0;
+
 	double MinAreaConnectedComponent = 0;
 
 	int MinTriCountConnectedComponent = 0;

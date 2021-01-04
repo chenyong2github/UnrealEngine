@@ -9,6 +9,7 @@
 
 #include "Operations/RemoveOccludedTriangles.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Selections/MeshFaceSelection.h"
 
 
 #include "Async/ParallelFor.h"
@@ -56,6 +57,14 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 	bool bDiscardAttributes = false;
 	ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 	
+	auto ShrinkSelection = [](FDynamicMesh3& Mesh, TArray<int>& SelectedTris, int NumShrinks)
+	{
+		FMeshFaceSelection Selection(&Mesh);
+		Selection.Select(SelectedTris);
+		Selection.ContractBorderByOneRingNeighbours(NumShrinks);
+		SelectedTris = Selection.AsArray();
+	};
+
 	if (bOnlySelfOcclude)
 	{
 		TRemoveOccludedTriangles<FDynamicMesh3> SelfJacket(ResultMesh.Get());
@@ -71,7 +80,12 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		SelfJacket.NormalOffset = NormalOffset;
 		SelfJacket.AddRandomRays = AddRandomRays;
 		SelfJacket.AddTriangleSamples = AddTriangleSamples;
-		SelfJacket.Apply(FTransform3d::Identity(), &SelfAABB, &SelfFWTree);
+		SelfJacket.Select(FTransform3d::Identity(), &SelfAABB, &SelfFWTree);
+		if (ShrinkRemoval > 0)
+		{
+			ShrinkSelection(*ResultMesh.Get(), SelfJacket.RemovedT, ShrinkRemoval);
+		}
+		SelfJacket.RemoveSelected();
 	}
 	else
 	{
@@ -88,7 +102,12 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		Jacket.NormalOffset = NormalOffset;
 		Jacket.AddRandomRays = AddRandomRays;
 		Jacket.AddTriangleSamples = AddTriangleSamples;
-		Jacket.Apply(MeshTransforms, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
+		Jacket.Select(MeshTransforms, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
+		if (ShrinkRemoval > 0)
+		{
+			ShrinkSelection(*ResultMesh.Get(), Jacket.RemovedT, ShrinkRemoval);
+		}
+		Jacket.RemoveSelected();
 	}
 
 	if (MinTriCountConnectedComponent > 0 || MinAreaConnectedComponent > 0)

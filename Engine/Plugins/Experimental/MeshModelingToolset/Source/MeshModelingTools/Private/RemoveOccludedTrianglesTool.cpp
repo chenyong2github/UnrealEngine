@@ -325,6 +325,8 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 
 	Op->AddTriangleSamples = Tool->BasicProperties->AddTriangleSamples;
 
+	Op->ShrinkRemoval = Tool->BasicProperties->ShrinkRemoval;
+
 	Op->MinAreaConnectedComponent = Tool->BasicProperties->MinAreaIsland;
 
 	Op->MinTriCountConnectedComponent = Tool->BasicProperties->MinTriCountIsland;
