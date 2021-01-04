@@ -1446,7 +1446,6 @@ public:
 			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 		}
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		{
 			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
 
