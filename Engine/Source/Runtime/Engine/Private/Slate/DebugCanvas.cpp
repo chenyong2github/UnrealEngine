@@ -252,6 +252,7 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 	if( RenderThreadCanvas.IsValid() )
 	{
 		FTexture2DRHIRef* RT = (FTexture2DRHIRef*)InWindowBackBuffer;
+		FTextureRHIRef HMDSwapchain = nullptr;	// Attention: RT could point to HMDSwapchain later.
 		if (RenderThreadCanvas->IsUsingInternalTexture())
 		{
 			if (LayerTexture && RenderThreadCanvas->GetParentCanvasSize() != LayerTexture->GetDesc().Extent)
@@ -270,7 +271,7 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 
 			IStereoLayers* const StereoLayers = (GEngine && GEngine->IsStereoscopic3D() && GEngine->StereoRenderingDevice.IsValid()) ? GEngine->StereoRenderingDevice->GetStereoLayers() : nullptr;
 
-			FTextureRHIRef HMDSwapchain = nullptr, HMDNull = nullptr;
+			FTextureRHIRef HMDNull = nullptr;
 			if (StereoLayers)
 			{
 				StereoLayers->GetAllocatedTexture(LayerID, HMDSwapchain, HMDNull);
