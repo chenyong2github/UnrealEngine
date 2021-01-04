@@ -1198,9 +1198,6 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			return &CachePool[CacheOffset];
 		}
-
-		UE_LOG(LogAudioStreamCaching, Display, TEXT("Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s)")
-			, CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString(), *InKey.SoundWaveName.ToString());
 	}
 
 	if (EnableExhaustiveCacheSearchesCVar)
