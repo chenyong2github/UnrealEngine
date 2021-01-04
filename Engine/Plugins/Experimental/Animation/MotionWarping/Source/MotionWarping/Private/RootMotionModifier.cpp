@@ -1,0 +1,180 @@
+ // Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RootMotionModifier.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimMontage.h"
+#include "MotionWarpingComponent.h"
+#include "DrawDebugHelpers.h"
+
+// FRootMotionModifier
+///////////////////////////////////////////////////////////////
+
+void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
+{
+	const FAnimMontageInstance* RootMotionMontageInstance = OwnerComp.GetCharacterOwner()->GetRootMotionAnimMontageInstance();
+	const UAnimMontage* Montage = RootMotionMontageInstance ? RootMotionMontageInstance->Montage : nullptr;
+
+	// Mark for removal if our animation is not relevant anymore
+	if (Montage == nullptr || Montage != Animation)
+	{
+		State = ERootMotionModifierState::MarkedForRemoval;
+		return;
+	}
+
+	// Update playback times and weight
+	PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();
+	CurrentPosition = RootMotionMontageInstance->GetPosition();
+	Weight = RootMotionMontageInstance->GetWeight();
+
+	// Mark for removal if the animation already passed the warping window
+	if (PreviousPosition >= EndTime)
+	{
+		State = ERootMotionModifierState::MarkedForRemoval;
+		return;
+	}
+
+	// Check if we are inside the warping window
+	if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
+	{
+		// If we were waiting, switch to active
+		if (State == ERootMotionModifierState::Waiting)
+		{
+			State = ERootMotionModifierState::Active;
+		}
+	}
+}
+
+// FRootMotionModifier_Warp
+///////////////////////////////////////////////////////////////
+
+void FRootMotionModifier_Warp::Update(UMotionWarpingComponent& OwnerComp)
+{
+	// Mark for removal if there is no sync point for us
+	const FMotionWarpingSyncPoint* SyncPointPtr = OwnerComp.FindSyncPoint(SyncPointName);
+	if (SyncPointPtr == nullptr)
+	{
+		State = ERootMotionModifierState::MarkedForRemoval;
+		return;
+	}
+
+	// Update playback times and state
+	FRootMotionModifier::Update(OwnerComp);
+
+	// Cache sync point transform and trigger OnSyncPointChanged if needed
+	if (State == ERootMotionModifierState::Active)
+	{
+		if (CachedSyncPoint != *SyncPointPtr)
+		{
+			CachedSyncPoint = *SyncPointPtr;
+
+			OnSyncPointChanged(OwnerComp);
+		}
+	}
+}
+
+FTransform FRootMotionModifier_Warp::ProcessRootMotion(UMotionWarpingComponent& OwnerComp, const FTransform& InRootMotion, float DeltaSeconds)
+{
+	const ACharacter* CharacterOwner = OwnerComp.GetCharacterOwner();
+	check(CharacterOwner);
+
+	const FTransform& CharacterTransform = CharacterOwner->GetActorTransform();
+
+	FTransform FinalRootMotion = InRootMotion;
+
+	const FTransform RootMotionTotal = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, EndTime);
+
+	if (bWarpTranslation)
+	{
+		FVector DeltaTranslation = InRootMotion.GetTranslation();
+
+		const FTransform RootMotionDelta = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, FMath::Min(CurrentPosition, EndTime));
+
+		const float HorizontalDelta = RootMotionDelta.GetTranslation().Size2D();
+		const float HorizontalTarget = FVector::Dist2D(CharacterTransform.GetLocation(), CachedSyncPoint.GetLocation());
+		const float HorizontalOriginal = RootMotionTotal.GetTranslation().Size2D();
+		const float HorizontalTranslationWarped = HorizontalOriginal != 0.f ? ((HorizontalDelta * HorizontalTarget) / HorizontalOriginal) : 0.f;
+
+		if (bInLocalSpace)
+		{
+			const FTransform MeshRelativeTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset());
+			const FTransform MeshTransform = MeshRelativeTransform * CharacterOwner->GetActorTransform();
+			DeltaTranslation = MeshTransform.InverseTransformPositionNoScale(CachedSyncPoint.GetLocation()).GetSafeNormal2D() * HorizontalTranslationWarped;
+		}
+		else
+		{
+			DeltaTranslation = (CachedSyncPoint.GetLocation() - CharacterTransform.GetLocation()).GetSafeNormal2D() * HorizontalTranslationWarped;
+		}
+
+		if (!bIgnoreZAxis)
+		{
+			const FVector CapsuleBottomLocation = (CharacterOwner->GetActorLocation() - FVector::UpVector * CharacterOwner->GetSimpleCollisionHalfHeight());
+			const float VerticalDelta = RootMotionDelta.GetTranslation().Z;
+			const float VerticalTarget = CachedSyncPoint.GetLocation().Z - CapsuleBottomLocation.Z;
+			const float VerticalOriginal = RootMotionTotal.GetTranslation().Z;
+			const float VerticalTranslationWarped = VerticalOriginal != 0.f ? ((VerticalDelta * VerticalTarget) / VerticalOriginal) : 0.f;
+
+			DeltaTranslation.Z = VerticalTranslationWarped;
+		}
+
+		FinalRootMotion.SetTranslation(DeltaTranslation);
+	}
+
+	if (bWarpRotation)
+	{
+		const FQuat WarpedRotation = WarpRotation(OwnerComp, RootMotionTotal, InRootMotion, DeltaSeconds);
+		FinalRootMotion.SetRotation(WarpedRotation);
+	}
+
+	// Debug
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() > 0)
+	{
+		PrintLog(OwnerComp, TEXT("FRootMotionModifier_Simple"), InRootMotion, FinalRootMotion);
+	}
+#endif
+
+	return FinalRootMotion;
+}
+
+FQuat FRootMotionModifier_Warp::WarpRotation(UMotionWarpingComponent& OwnerComp, const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds)
+{
+	const FTransform& CharacterTransform = OwnerComp.GetCharacterOwner()->GetActorTransform();
+
+	const FQuat CurrentRotation = CharacterTransform.GetRotation();
+	const float TimeRemaining = EndTime - PreviousPosition;
+	const FQuat Desired = CachedSyncPoint.GetRotation();
+
+	const FQuat RemainingRootRotationInWorld = RootMotionTotal.GetRotation();
+	const FQuat CurrentPlusRemainingRootMotion = RemainingRootRotationInWorld * CurrentRotation;
+	const float PercentThisStep = FMath::Clamp(DeltaSeconds / TimeRemaining, 0.f, 1.f);
+	const FQuat TargetRotThisFrame = FQuat::Slerp(CurrentPlusRemainingRootMotion, Desired, PercentThisStep);
+	const FQuat DeltaOut = TargetRotThisFrame * CurrentPlusRemainingRootMotion.Inverse();
+
+	return (DeltaOut * RootMotionDelta.GetRotation());
+}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+void FRootMotionModifier_Warp::PrintLog(const UMotionWarpingComponent& OwnerComp, const FString& Name, const FTransform& OriginalRootMotion, const FTransform& WarpedRootMotion) const
+{
+	const ACharacter* CharacterOwner = OwnerComp.GetCharacterOwner();
+	check(CharacterOwner);
+
+	const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - FVector::UpVector * CharacterOwner->GetSimpleCollisionHalfHeight());
+	const FVector CurrentToTarget = (CachedSyncPoint.GetLocation() - CurrentLocation).GetSafeNormal2D();
+	const FVector FutureLocation = CurrentLocation + (bInLocalSpace ? (CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(WarpedRootMotion)).GetTranslation() : WarpedRootMotion.GetTranslation());
+	const FRotator CurrentRotation = CharacterOwner->GetActorRotation();
+	const FRotator FutureRotation = (WarpedRootMotion.GetRotation() * CharacterOwner->GetActorQuat()).Rotator();
+	const float Dot = FVector::DotProduct(CharacterOwner->GetActorForwardVector(), CurrentToTarget);
+	const float CurrentDist2D = FVector::Dist2D(CachedSyncPoint.GetLocation(), CurrentLocation);
+	const float FutureDist2D = FVector::Dist2D(CachedSyncPoint.GetLocation(), FutureLocation);
+	const float DeltaSeconds = CharacterOwner->GetWorld()->GetDeltaSeconds();
+	const float Speed = WarpedRootMotion.GetTranslation().Size() / DeltaSeconds;
+	const float EndTimeOffset = CurrentPosition - EndTime;
+
+	UE_LOG(LogMotionWarping, Log, TEXT("FRootMotionModifier_Simple. NetMode: %d Char: %s Window [%f %f][%f %f] DeltaTime: %f WorldTime: %f EndTimeOffset: %f CurrentDist2D: %f FutureDist2D: %f Dot: %f OriginalMotionDelta: %s (%f) FinalMotionDelta: %s (%f) Speed: %f CurrentLocation: %s FutureLocation: %s CurrentRotation: %s FutureRotation: %s"),
+		(int32)CharacterOwner->GetWorld()->GetNetMode(), *GetNameSafe(CharacterOwner), StartTime, EndTime, PreviousPosition, CurrentPosition, DeltaSeconds, CharacterOwner->GetWorld()->GetTimeSeconds(), EndTimeOffset, CurrentDist2D, FutureDist2D, Dot,
+		*OriginalRootMotion.GetTranslation().ToString(), OriginalRootMotion.GetTranslation().Size(), *WarpedRootMotion.GetTranslation().ToString(), WarpedRootMotion.GetTranslation().Size(), Speed,
+		*CurrentLocation.ToString(), *FutureLocation.ToString(), *CurrentRotation.ToCompactString(), *FutureRotation.ToCompactString());
+}
+#endif
