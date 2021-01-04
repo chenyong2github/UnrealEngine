@@ -2926,6 +2926,7 @@ public:
 #endif
 	void UnpopBreadcrumbs(FBreadcumbState& State);
 	void RepushBreadcrumbs(FBreadcumbState& State);
+	void InheritBreadcrumbs(FRHIComputeCommandList& Parent);
 };
 
 class RHI_API FRHICommandList : public FRHIComputeCommandList

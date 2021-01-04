@@ -1004,7 +1004,6 @@ const int32 FRHICommandListBase::GetUsedMemory() const
 
 void FRHICommandListBase::Reset()
 {
-	check(BreadcrumbStackTop == nullptr);
 	bExecuting = false;
 	check(!RTTasks.Num());
 	MemManager.Flush();
@@ -2076,6 +2075,23 @@ void FRHIComputeCommandList::RepushBreadcrumbs(FBreadcumbState& State)
 	for (int32 i = 0; i < State.Names.Num(); ++i)
 	{
 		PushBreadcrumb(*State.Names[State.Names.Num() - 1 - i]);
+	}
+}
+
+void FRHIComputeCommandList::InheritBreadcrumbs(FRHIComputeCommandList& Parent)
+{
+	FRHIBreadcrumb* Breadcrumb = Parent.BreadcrumbStackTop;
+	TArray<FRHIBreadcrumb*, TInlineAllocator<4> > BreadcrumbStack;
+	while(Breadcrumb)
+	{
+		BreadcrumbStack.Add(Breadcrumb);
+		Breadcrumb = Breadcrumb->Parent;
+	}
+
+	int32 Size = BreadcrumbStack.Num();
+	for (int32 i = 0; i < Size; ++i)
+	{
+		PushBreadcrumb(BreadcrumbStack[Size - 1 - i]->Name);
 	}
 }
 
