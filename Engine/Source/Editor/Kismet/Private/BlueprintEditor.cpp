@@ -3672,41 +3672,15 @@ void FBlueprintEditor::RefreshAllNodes_OnClicked()
 
 void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 {
-	UBlueprint* BlueprintObj = GetBlueprintObj();
-	
-	bool bHasAtLeastOneVariableToCheck = false;
-	TArray<FProperty*> VariableProperties;
-	for (TFieldIterator<FProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
-	{
-		FProperty* Property = *PropertyIt;
-		// Don't show delegate properties, there is special handling for these
-		const bool bDelegateProp = Property->IsA(FDelegateProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass());
-		const bool bShouldShowProp = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !bDelegateProp);
-
-		if (bShouldShowProp)
-		{
-			bHasAtLeastOneVariableToCheck = true;
-			FName VarName = Property->GetFName();
-			
-			const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(BlueprintObj, VarName);
-			const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
-			
-			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
-			bool bIsTimeline = ObjectProperty &&
-				ObjectProperty->PropertyClass &&
-				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
-			if (!FBlueprintEditorUtils::IsVariableUsed(BlueprintObj, VarName) && !bIsTimeline && bHasVarInfo)
-			{
-				VariableProperties.Add(Property);
-			}
-		}
-	}
-
-	if (VariableProperties.Num() > 0)
+	UBlueprint* Blueprint = GetBlueprintObj();
+	TArray<FProperty*> UsedVariables;
+	TArray<FProperty*> UnusedVariables;
+	FBlueprintEditorUtils::GetUsedAndUnusedVariables(Blueprint, UsedVariables, UnusedVariables);
+	if (UnusedVariables.Num() > 0)
 	{
 		TSharedRef<SCheckBoxList> CheckBoxList = SNew(SCheckBoxList)
 			.ItemHeaderLabel(LOCTEXT("DeleteUnusedVariablesDialog_VariableLabel", "Variable"));
-		for (FProperty* Variable : VariableProperties)
+		for (FProperty* Variable : UnusedVariables)
 		{
 			CheckBoxList->AddItem(FText::FromString(UEditorEngine::GetFriendlyName(Variable)), true);
 		}
@@ -3716,7 +3690,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph or in other blueprints' graphs.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
 				.AutoWrapText(true)
 			]
 			+ SVerticalBox::Slot().FillHeight(0.8)
@@ -3739,26 +3713,27 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 		{
 			TArray<FName> VariableNames;
 			FString PropertyList;
-			VariableNames.Reserve(VariableProperties.Num());
-			for (int32 Index = 0; Index < VariableProperties.Num(); ++Index)
+			VariableNames.Reserve(UnusedVariables.Num());
+			for (int32 Index = 0; Index < UnusedVariables.Num(); ++Index)
 			{
 				if (CheckBoxList->IsItemChecked(Index))
 				{
-					VariableNames.Add(VariableProperties[Index]->GetFName());
+					VariableNames.Add(UnusedVariables[Index]->GetFName());
 					if (PropertyList.IsEmpty())
 					{
-						PropertyList = UEditorEngine::GetFriendlyName(VariableProperties[Index]);
+						PropertyList = UEditorEngine::GetFriendlyName(UnusedVariables[Index]);
 					}
 					else
 					{
-						PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(VariableProperties[Index]));
+						PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(UnusedVariables[Index]));
 					}
 				}
 			}
 
 			if (VariableNames.Num() > 0)
 			{
-				FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
+				UnusedVariables.Empty(); // Emptying this array because these properties will be deleted and we don't want to keep raw pointers to deleted objects
+				FBlueprintEditorUtils::BulkRemoveMemberVariables(Blueprint, VariableNames);
 				LogSimpleMessage(FText::Format(LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString(PropertyList)));
 			}
 			else
@@ -3767,7 +3742,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			}
 		}
 	}
-	else if (bHasAtLeastOneVariableToCheck)
+	else if (UsedVariables.Num() > 0)
 	{
 		LogSimpleMessage(LOCTEXT("AllVariablesInUseMessage", "All variables are currently in use."));
 	}
