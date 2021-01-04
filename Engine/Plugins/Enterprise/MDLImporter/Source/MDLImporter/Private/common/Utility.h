@@ -27,8 +27,8 @@ namespace Common
 
 	FORCEINLINE int HighestPowerofTwo(int Value)
 	{
-		const int P = (int)FMath::CeilToFloat(FMath::Log2(Value));
-		return (int)FMath::Pow(2, P);
+		const int P = (int)FMath::CeilToFloat(FMath::Log2(static_cast<float>(Value)));
+		return (int)FMath::Pow(2.f, P);
 	}
 
 	inline void RemapNormal(int Size, float* Buffer)

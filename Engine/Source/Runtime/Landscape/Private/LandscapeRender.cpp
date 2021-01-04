@@ -3067,7 +3067,7 @@ void FLandscapeSharedBuffers::CreateOccluderIndexBuffer(int32 NumOccluderVertice
 		return;
 	}
 
-	uint16 NumLineQuads = ((uint16)FMath::Sqrt(NumOccluderVertices) - 1);
+	uint16 NumLineQuads = ((uint16)FMath::Sqrt(static_cast<float>(NumOccluderVertices)) - 1);
 	uint16 NumLineVtx = NumLineQuads + 1;
 	check(NumLineVtx*NumLineVtx == NumOccluderVertices);
 

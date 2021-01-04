@@ -117,7 +117,7 @@ struct FLidarPointCloudFileIO_LAS_PublicHeaderBlock
 		Offset = InMin;
 
 		FDoubleVector Size = Max - Min;
-		ScaleFactor = FDoubleVector(FMath::Pow(2, FMath::CeilToInt(FMath::Log2(Size.X)) - 31), FMath::Pow(2, FMath::CeilToInt(FMath::Log2(Size.Y)) - 31), FMath::Pow(2, FMath::CeilToInt(FMath::Log2(Size.Z)) - 31));
+		ScaleFactor = FDoubleVector(FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.X)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Y)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Z)) - 31));
 	}
 
 	bool HasValidBounds()
@@ -957,7 +957,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 		(*Ar) << Header;
 
 		const FDoubleVector Size = Max - Min;
-		const FDoubleVector ForwardScale(FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
+		const FDoubleVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
 		const FDoubleVector LocationOffset = PointCloud->LocationOffset;
 
 		const int32 BatchSize = 500000;
@@ -1024,7 +1024,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 	FMemory::Memzero(&PointRecord, sizeof(FLASZipPoint));
 
 	const FDoubleVector Size = Max - Min;
-	const FDoubleVector ForwardScale(FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
+	const FDoubleVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
 	const FDoubleVector LocationOffset = PointCloud->LocationOffset;
 
 	PointCloud->ExecuteActionOnAllPoints([&PointRecord, &LASZipWrapper, &LocationOffset, &ExportScale, &Min, &ForwardScale](FLidarPointCloudPoint* Point)

@@ -1145,7 +1145,7 @@ void FTiledObject::AddToSpriteGeometryCollection(const FVector2D& Offset, const 
 
 		if (bCreatedShape)
 		{
-			const float RotationUnwound = FMath::Fmod(SourceObject.RotationDegrees, 360.0f);
+			const float RotationUnwound = FMath::Fmod(SourceObject.RotationDegrees, 360.0);
 			InOutShapes.Shapes.Last().Rotation = RotationUnwound;
 		}
 	}

@@ -108,7 +108,7 @@ void FMeshMergeDataTracker::AddLightMapPixels(int32 Dimension)
 
 int32 FMeshMergeDataTracker::GetLightMapDimension() const
 {
-	return FMath::CeilToInt(FMath::Sqrt(SummedLightMapPixels));
+	return FMath::CeilToInt(FMath::Sqrt(static_cast<float>(SummedLightMapPixels)));
 }
 
 bool FMeshMergeDataTracker::DoesLODContainVertexColors(int32 LODIndex) const

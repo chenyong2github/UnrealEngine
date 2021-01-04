@@ -12,7 +12,7 @@ TArray<FLandscapeFileResolution> CalculatePossibleRawResolutions(int64 FileSize)
 
 	// Find all possible heightmap sizes, between 8 and 8192 width/height
 	const int32 MinWidth = FMath::Max(8, (int32)FMath::DivideAndRoundUp(FileSize, (int64)8192));
-	const int32 MaxWidth = FMath::TruncToInt(FMath::Sqrt(FileSize));
+	const int32 MaxWidth = FMath::TruncToInt(FMath::Sqrt(static_cast<double>(FileSize)));
 	for (int32 Width = MinWidth; Width <= MaxWidth; Width++)
 	{
 		if (FileSize % Width == 0)

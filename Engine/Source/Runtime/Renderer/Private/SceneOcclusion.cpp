@@ -851,7 +851,7 @@ public:
 		 */
 		const float kHZBTestMaxMipmap = 9.0f;
 
-		const float HZBMipmapCounts = FMath::Log2(FMath::Max(View.HZBMipmap0Size.X, View.HZBMipmap0Size.Y));
+		const float HZBMipmapCounts = FMath::Log2(FMath::Max<float>(View.HZBMipmap0Size.X, View.HZBMipmap0Size.Y));
 		const FVector HZBUvFactorValue(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y),

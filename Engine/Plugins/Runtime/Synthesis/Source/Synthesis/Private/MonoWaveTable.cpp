@@ -148,7 +148,7 @@ namespace Audio
 		// (written this way for debugging clarity for now)
 		float EnvOut = LPFEnv.Generate();
 		float Exponent = EnvOut * LPFMaxModOffsetOctaves;
-		float PitchScalar = FMath::Pow(2.0, Exponent);
+		float PitchScalar = FMath::Pow(2.0f, Exponent);
 		const float NewLPFFreq = FMath::Clamp(LPFBaseFreqHz * PitchScalar, 0.0f, LPFCeilingHz);
 
 		// Calculate interpolation step sizes

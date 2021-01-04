@@ -55,17 +55,17 @@ bool FAxisViewportDouble::ZoomWithFixedOffset(const double NewScale, const float
 
 bool FAxisViewportDouble::RelativeZoomWithFixedOffset(const float Delta, const float Offset)
 {
-	constexpr double ZoomStep = 0.25f; // as percent
+	constexpr double ZoomStep = 0.25; // as percent
 
 	double NewScale;
 
 	if (Delta > 0)
 	{
-		NewScale = Scale * FMath::Pow(1.0f + ZoomStep, Delta);
+		NewScale = Scale * FMath::Pow(1.0 + ZoomStep, static_cast<double>(Delta));
 	}
 	else
 	{
-		NewScale = Scale * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+		NewScale = Scale * FMath::Pow(1.0 / (1.0 + ZoomStep), static_cast<double>(-Delta));
 	}
 
 	return ZoomWithFixedOffset(NewScale, Offset);

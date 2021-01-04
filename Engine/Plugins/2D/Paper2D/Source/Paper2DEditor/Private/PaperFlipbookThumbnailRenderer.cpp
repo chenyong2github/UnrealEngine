@@ -20,7 +20,7 @@ void UPaperFlipbookThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, ui
 	if (UPaperFlipbook* Flipbook = Cast<UPaperFlipbook>(Object))
 	{
 		const double DeltaTime = FApp::GetCurrentTime() - GStartTime;
-		const float TotalDuration = Flipbook->GetTotalDuration();
+		const double TotalDuration = Flipbook->GetTotalDuration();
 		const float PlayTime = (TotalDuration > 0.0f) ? FMath::Fmod(DeltaTime, TotalDuration) : 0.0f;
 
 		if (UPaperSprite* Sprite = Flipbook->GetSpriteAtTime(PlayTime))

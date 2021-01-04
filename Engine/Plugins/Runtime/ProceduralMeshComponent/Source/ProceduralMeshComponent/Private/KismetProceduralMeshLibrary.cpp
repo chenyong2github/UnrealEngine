@@ -118,7 +118,7 @@ void UKismetProceduralMeshLibrary::CreateGridMeshSplit(int32 NumX, int32 NumY, T
 				Triangles.Add(idx * 4 + 2);
 				Triangles.Add(idx * 4 + 1);
 
-				float Z = FMath::Fmod(idx, 5) * GridSpacing;
+				float Z = FMath::Fmod(idx, 5.f) * GridSpacing;
 				FVector CornerVert = FVector((float)j * GridSpacing - Extent.X, (float)i * GridSpacing - Extent.Y, Z);
 				Vertices.Add(CornerVert);
 				Vertices.Add(CornerVert + FVector(GridSpacing, 0, 0));

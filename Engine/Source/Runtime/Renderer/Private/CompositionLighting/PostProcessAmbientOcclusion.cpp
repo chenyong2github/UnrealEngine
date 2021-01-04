@@ -361,9 +361,9 @@ static FSSAOShaderParameters GetSSAOShaderParameters(
 	}
 
 	// /4 is an adjustment for usage with multiple mips
-	float f = FMath::Log2(ScaleToFullRes);
+	float f = FMath::Log2(static_cast<float>(ScaleToFullRes));
 	float g = pow(Settings.AmbientOcclusionMipScale, f);
-	AORadiusInShader *= pow(Settings.AmbientOcclusionMipScale, FMath::Log2(ScaleToFullRes)) / 4.0f;
+	AORadiusInShader *= pow(Settings.AmbientOcclusionMipScale, f) / 4.0f;
 
 	float Ratio = View.UnscaledViewRect.Width() / (float)View.UnscaledViewRect.Height();
 

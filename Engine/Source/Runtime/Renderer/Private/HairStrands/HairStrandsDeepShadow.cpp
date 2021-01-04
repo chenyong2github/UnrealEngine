@@ -275,7 +275,7 @@ void RenderHairStrandsDeepShadows(
 		if (DOMSlotCount == 0)
 			continue;
 
-		const uint32 AtlasSlotX = FGenericPlatformMath::CeilToInt(FMath::Sqrt(DOMSlotCount));
+		const uint32 AtlasSlotX = FGenericPlatformMath::CeilToInt(FMath::Sqrt(static_cast<float>(DOMSlotCount)));
 		const FIntPoint AtlasSlotDimension(AtlasSlotX, AtlasSlotX == DOMSlotCount ? 1 : AtlasSlotX);
 		const FIntPoint AtlasSlotResolution(GDeepShadowResolution, GDeepShadowResolution);
 		const FIntPoint AtlasResolution(AtlasSlotResolution.X * AtlasSlotDimension.X, AtlasSlotResolution.Y * AtlasSlotDimension.Y);

@@ -983,7 +983,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 				Lightmap->LightmapObject->CoordinateScale = Scale;
 				Lightmap->LightmapObject->CoordinateBias = FVector2D(0, 0);
 
-				int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(InComponent->PerInstanceSMData.Num()));
+				int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(InComponent->PerInstanceSMData.Num())));
 				Lightmap->MeshMapBuildData->PerInstanceLightmapData.AddDefaulted(InComponent->PerInstanceSMData.Num());
 				for (int32 GameThreadInstanceIndex = 0; GameThreadInstanceIndex < InComponent->PerInstanceSMData.Num(); GameThreadInstanceIndex++)
 				{
@@ -2423,7 +2423,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						int32 BaseLightMapWidth = InstanceGroup.LODPerInstanceLightmapSize[LODIndex].X;
 						int32 BaseLightMapHeight = InstanceGroup.LODPerInstanceLightmapSize[LODIndex].Y;
 
-						int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(InstanceGroup.ComponentUObject->PerInstanceSMData.Num()));
+						int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(InstanceGroup.ComponentUObject->PerInstanceSMData.Num())));
 
 						// Transencode GI layers
 						TArray<TArray<FLightSampleData>> InstanceGroupLightSampleData;

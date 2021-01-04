@@ -436,7 +436,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	}
 
 	const int32 CubemapWidth = SkyLightTextureResource->GetSizeXYZ().X;
-	const float SkyMipCount = FMath::Log2(CubemapWidth) + 1.0f;
+	const float SkyMipCount = FMath::Log2(static_cast<float>(CubemapWidth)) + 1.0f;
 
 	OutParameters.SkyLightCubemap = SkyLightTextureResource;
 	OutParameters.SkyLightCubemapSampler = SkyLightCubemapSampler;
@@ -633,9 +633,9 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	{
 		TStaticArray<FIntPoint, 3> RayStoragePerPixelVectorPolicies;
 		// X axis needs to be a power of two because of FCommonParameters::PixelRayIndexAbscissMask to avoid a integer division on the GPU
-		RayStoragePerPixelVectorPolicies[0].X = FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(RayCountPerPixel)));
-		RayStoragePerPixelVectorPolicies[1].X = FMath::RoundUpToPowerOfTwo(FMath::FloorToInt(FMath::Sqrt(RayCountPerPixel)));
-		RayStoragePerPixelVectorPolicies[2].X = FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(RayCountPerPixel))) / 2;
+		RayStoragePerPixelVectorPolicies[0].X = FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(static_cast<float>(RayCountPerPixel))));
+		RayStoragePerPixelVectorPolicies[1].X = FMath::RoundUpToPowerOfTwo(FMath::FloorToInt(FMath::Sqrt(static_cast<float>(RayCountPerPixel))));
+		RayStoragePerPixelVectorPolicies[2].X = FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(static_cast<float>(RayCountPerPixel)))) / 2;
 
 		// Compute the Y coordinate.
 		for (int32 PolicyId = 0; PolicyId < RayStoragePerPixelVectorPolicies.Num(); PolicyId++)
@@ -681,7 +681,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	OutCommonDiffuseParameters.RayCountPerPixel = RayCountPerPixel;
 	OutCommonDiffuseParameters.RayStoragePerPixelVector = RayStoragePerPixelVector;
 	OutCommonDiffuseParameters.PixelRayIndexAbscissMask = RayStoragePerPixelVector.X - 1;
-	OutCommonDiffuseParameters.PixelRayIndexOrdinateShift = FMath::Log2(RayStoragePerPixelVector.X);
+	OutCommonDiffuseParameters.PixelRayIndexOrdinateShift = FMath::Log2(static_cast<float>(RayStoragePerPixelVector.X));
 
 	OutCommonDiffuseParameters.SceneTextures = SceneTextures;
 }

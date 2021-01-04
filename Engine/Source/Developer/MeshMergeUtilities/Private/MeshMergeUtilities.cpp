@@ -866,7 +866,7 @@ void FMeshMergeUtilities::MergeFlattenedMaterials(TArray<struct FFlattenMaterial
 		OutUVTransforms.Add(UVTransform);
 	}
 
-	const int32 AtlasGridSize = FMath::CeilToInt(FMath::Sqrt(InMaterialList.Num()));
+	const int32 AtlasGridSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(InMaterialList.Num())));
 	OutMergedMaterial.EmissiveScale = FlattenEmissivescale(InMaterialList);
 
 	for (int32 PropertyIndex = 0; PropertyIndex < (int32)EFlattenMaterialProperties::NumFlattenMaterialProperties; ++PropertyIndex)
@@ -1595,7 +1595,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	// Lightmap resolution
 	if (InMeshProxySettings.bComputeLightMapResolution)
 	{
-		Data->InProxySettings.LightMapResolution = FMath::CeilToInt(FMath::Sqrt(SummedLightmapPixels));
+		Data->InProxySettings.LightMapResolution = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(SummedLightmapPixels)));
 	}
 
 	// Add this proxy job to map	

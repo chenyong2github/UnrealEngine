@@ -84,7 +84,7 @@ private:
 inline void InitializeHaltonSequenceIteration(const FHaltonSequenceIteration& HaltonSequenceIteration, FHaltonIteration& HaltonIteration)
 {
 	HaltonIteration.Dimensions = HaltonSequenceIteration.GetDimensionCount() / 3u;
-	HaltonIteration.SequenceRowCount = FMath::Sqrt(HaltonSequenceIteration.GetSequenceCount());
+	HaltonIteration.SequenceRowCount = FMath::Sqrt(static_cast<float>(HaltonSequenceIteration.GetSequenceCount()));
 	HaltonIteration.SequenceColumnCount = HaltonSequenceIteration.GetSequenceCount() / HaltonIteration.SequenceRowCount;
 	HaltonIteration.IterationCount = HaltonSequenceIteration.GetIterationCount();
 	HaltonIteration.SequenceIteration = RHICreateShaderResourceView(HaltonSequenceIteration.SequenceIteration);

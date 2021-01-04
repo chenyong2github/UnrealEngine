@@ -1592,7 +1592,7 @@ void FGPUDefragAllocator::DumpAllocs(FOutputDevice& Ar/*=*GLog*/)
 
 	// Fragmentation and allocation size visualization.
 	int64				NumBlocks = MemorySize / AllocationAlignment;
-	int64				Dimension = 1 + NumBlocks / FMath::TruncToInt(FMath::Sqrt(NumBlocks));
+	int64				Dimension = 1 + NumBlocks / FMath::TruncToInt(FMath::Sqrt(static_cast<float>(NumBlocks)));
 	TArray<FColor>	AllocationVisualization;
 	AllocationVisualization.AddZeroed(Dimension * Dimension);
 	int64				VisIndex = 0;

@@ -609,7 +609,7 @@ public:
 						}
 						else
 						{
-							Percent = 1.0f - FMath::Pow(1.0f - Percent, 1.0 / CachedSliderExponent);
+							Percent = 1.0f - FMath::Pow(1.0f - Percent, 1.0f / CachedSliderExponent);
 						}
 						
 						
@@ -630,7 +630,7 @@ public:
 					{
 						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().Y / SliderWidthInSlateUnits);
 						const double CurrentValue = FMath::Clamp<double>(FMath::Abs(InternalValue),1.0,TNumericLimits<NumericType>::Max());
-						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow(CurrentValue, SliderExponent.Get()));
+						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow(CurrentValue, static_cast<double>(SliderExponent.Get())));
 					}
 				}
 			

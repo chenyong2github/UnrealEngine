@@ -971,9 +971,9 @@ RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVe
 {
 	const float SqrtPI = FMath::Sqrt(PI);
 	const float Coefficient0 = 1.0f / (2 * SqrtPI);
-	const float Coefficient1 = FMath::Sqrt(3) / (3 * SqrtPI);
-	const float Coefficient2 = FMath::Sqrt(15) / (8 * SqrtPI);
-	const float Coefficient3 = FMath::Sqrt(5) / (16 * SqrtPI);
+	const float Coefficient1 = FMath::Sqrt(3.f) / (3 * SqrtPI);
+	const float Coefficient2 = FMath::Sqrt(15.f) / (8 * SqrtPI);
+	const float Coefficient3 = FMath::Sqrt(5.f) / (16 * SqrtPI);
 	const float Coefficient4 = .5f * Coefficient2;
 
 	// Pack the SH coefficients in a way that makes applying the lighting use the least shader instructions

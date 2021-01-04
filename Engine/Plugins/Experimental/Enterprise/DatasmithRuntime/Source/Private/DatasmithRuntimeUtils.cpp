@@ -161,7 +161,7 @@ namespace DatasmithRuntime
 		FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, Mesh, THRESH_POINTS_ARE_SAME);
 
 		// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
-		int32 ChartCount = FStaticMeshOperations::GetUVChartCount(Mesh, SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
+		float ChartCount = FStaticMeshOperations::GetUVChartCount(Mesh, SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
 		const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
 		
 		return FMath::Clamp(MinLightmapResolution, AbsoluteMinResolution, 512);

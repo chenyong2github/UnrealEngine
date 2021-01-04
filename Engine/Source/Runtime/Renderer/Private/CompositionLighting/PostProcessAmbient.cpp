@@ -13,7 +13,7 @@ void SetupAmbientCubemapParameters(const FFinalPostProcessSettings::FCubemapEntr
 		if(Entry.AmbientCubemap)
 		{
 			int32 CubemapWidth = Entry.AmbientCubemap->GetSurfaceWidth();
-			MipCount = FMath::Log2(CubemapWidth) + 1.0f;
+			MipCount = FMath::Log2(static_cast<float>(CubemapWidth)) + 1.0f;
 		}
 
 		OutParameters->AmbientCubemapColor = Entry.AmbientCubemapTintMulScaleValue;

@@ -556,7 +556,7 @@ void UGameplayTagsManager::ConstructNetIndex()
 	}
 
 	InvalidTagNetIndex = NetworkGameplayTagNodeIndex.Num()+1;
-	NetIndexTrueBitNum = FMath::CeilToInt(FMath::Log2(InvalidTagNetIndex));
+	NetIndexTrueBitNum = FMath::CeilToInt(FMath::Log2(static_cast<float>(InvalidTagNetIndex)));
 	
 	// This should never be smaller than NetIndexTrueBitNum
 	NetIndexFirstBitSegment = FMath::Min<int64>(NetIndexFirstBitSegment, NetIndexTrueBitNum);
@@ -1229,7 +1229,7 @@ void UGameplayTagsManager::PrintReplicationFrequencyReport()
 		for (auto& It : ReplicationCountMap)
 		{
 			int32 ExpectedCostBits = 0;
-			bool FirstSeg = ExpectedNetIndex < FMath::Pow(2, Bits);
+			bool FirstSeg = ExpectedNetIndex < FMath::Pow(2.f, Bits);
 			if (FirstSeg)
 			{
 				// This would fit in the first Bits segment
@@ -1272,13 +1272,13 @@ void UGameplayTagsManager::PrintReplicationFrequencyReport()
 	{
 		UE_LOG(LogGameplayTags, Warning, TEXT("+CommonlyReplicatedTags=%s"), *It.Key.ToString());
 
-		if (Count == FMath::Pow(2, BestBits))
+		if (Count == FMath::Pow(2.f, BestBits))
 		{
 			// Print a blank line out, indicating tags after this are not necessary but still may be useful if the user wants to manually edit the list.
 			UE_LOG(LogGameplayTags, Warning, TEXT(""));
 		}
 
-		if (Count++ >= FMath::Pow(2, BestBits+1))
+		if (Count++ >= FMath::Pow(2.f, BestBits+1))
 		{
 			break;
 		}

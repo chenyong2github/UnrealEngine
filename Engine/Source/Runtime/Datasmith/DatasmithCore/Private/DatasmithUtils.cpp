@@ -166,7 +166,7 @@ int32 FDatasmithUtils::GetEnterpriseVersionAsInt()
 	int32 MinorNumberOfDigits = 1;
 	for (int32 Version = MinorVersion; Version /= 10; MinorNumberOfDigits++);
 
-	const int32 MajorVersion = FEngineVersion::Current().GetMajor() * FMath::Pow(10, MinorNumberOfDigits);
+	const int32 MajorVersion = FEngineVersion::Current().GetMajor() * FMath::Pow(10.f, MinorNumberOfDigits);
 
 	return MajorVersion + MinorVersion + PatchVersion;
 }

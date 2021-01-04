@@ -4604,12 +4604,12 @@ void FRecastNavMeshGenerator::Init()
 				if (!bRecreateNavmesh)
 				{
 					CalcNavMeshProperties(MaxTiles, MaxPolysPerTile);
-					if (FMath::Log2(MaxTiles) != FMath::Log2(SavedNavParams->maxTiles))
+					if (FMath::Log2(static_cast<float>(MaxTiles)) != FMath::Log2(static_cast<float>(SavedNavParams->maxTiles)))
 					{
 						bRecreateNavmesh = true;
 						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due mismatch in number of bytes required to store serialized maxTiles (%d, %d bits) vs calculated maxtiles (%d, %d bits)")
-							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(SavedNavParams->maxTiles))
-							, MaxTiles, FMath::CeilToInt(FMath::Log2(MaxTiles)));
+							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(static_cast<float>(SavedNavParams->maxTiles)))
+							, MaxTiles, FMath::CeilToInt(FMath::Log2(static_cast<float>(MaxTiles))));
 					}
 				}
 			}
@@ -4737,7 +4737,7 @@ void FRecastNavMeshGenerator::CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int3
 {
 	static const int32 TotalBits = (sizeof(dtPolyRef) * 8);
 #if USE_64BIT_ADDRESS
-	MaxTileBits = NavMeshOwner ? FMath::CeilToFloat(FMath::Log2(NavMeshOwner->GetTileNumberHardLimit())) : 20;
+	MaxTileBits = NavMeshOwner ? FMath::CeilToFloat(FMath::Log2(static_cast<float>(NavMeshOwner->GetTileNumberHardLimit()))) : 20;
 	MaxPolyBits = FMath::Min<int32>(32, (TotalBits - DT_MIN_SALT_BITS) - MaxTileBits);
 #else
 	MaxTileBits = 14;
@@ -6701,9 +6701,9 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 			AdditionalData += FString::Printf(TEXT("rd_ams %5.5f\n"), CurrentGen->Config.walkableSlopeAngle);
 
 			AdditionalData += FString::Printf(TEXT("# Region min size\n"));
-			AdditionalData += FString::Printf(TEXT("rd_rmis %d\n"), (uint32)FMath::Sqrt(CurrentGen->Config.minRegionArea));
+			AdditionalData += FString::Printf(TEXT("rd_rmis %d\n"), (uint32)FMath::Sqrt(static_cast<float>(CurrentGen->Config.minRegionArea)));
 			AdditionalData += FString::Printf(TEXT("# Region merge size\n"));
-			AdditionalData += FString::Printf(TEXT("rd_rmas %d\n"), (uint32)FMath::Sqrt(CurrentGen->Config.mergeRegionArea));
+			AdditionalData += FString::Printf(TEXT("rd_rmas %d\n"), (uint32)FMath::Sqrt(static_cast<float>(CurrentGen->Config.mergeRegionArea)));
 
 			AdditionalData += FString::Printf(TEXT("# Max edge len\n"));
 			AdditionalData += FString::Printf(TEXT("rd_mel %d\n"), CurrentGen->Config.maxEdgeLen);

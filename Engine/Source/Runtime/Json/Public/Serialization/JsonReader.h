@@ -601,7 +601,7 @@ private:
 							}
 
 							//@TODO: FLOATPRECISION: this is gross
-							HexNum += HexDigit * (int32)FMath::Pow(16, (float)Radix);
+							HexNum += HexDigit * (int32)FMath::Pow(16.f, (float)Radix);
 						}
 
 						String += (FString::ElementType)HexNum;

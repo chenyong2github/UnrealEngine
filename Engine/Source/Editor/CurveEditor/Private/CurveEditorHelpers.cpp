@@ -55,7 +55,7 @@ void ConstructYGridLines(const FCurveEditorScreenSpace& ViewSpace, uint8 InMinor
 		}
 	}
 
-	double MajorGridStep = FMath::Pow(Base, FMath::FloorToFloat(FMath::LogX(Base, Scale))) * Order;
+	double MajorGridStep = FMath::Pow(static_cast<float>(Base), FMath::FloorToFloat(FMath::LogX(static_cast<float>(Base), static_cast<float>(Scale)))) * Order;
 
 	const double FirstMajorLine = FMath::FloorToDouble(ViewSpace.GetOutputMin() / MajorGridStep) * MajorGridStep;
 	const double LastMajorLine = FMath::CeilToDouble(ViewSpace.GetOutputMax() / MajorGridStep) * MajorGridStep;

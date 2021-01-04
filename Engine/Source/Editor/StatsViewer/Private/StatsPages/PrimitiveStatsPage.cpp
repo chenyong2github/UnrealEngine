@@ -210,7 +210,7 @@ struct PrimitiveStatsGenerator
 			int32 LightMapWidth			= 0;
 			int32 LightMapHeight		= 0;
 			InPrimitiveComponent->GetLightMapResolution( LightMapWidth, LightMapHeight );
-			int32 LMSMResolution		= FMath::Sqrt( LightMapHeight * LightMapWidth );
+			int32 LMSMResolution		= FMath::Sqrt( static_cast<float>(LightMapHeight * LightMapWidth) );
 			int32 LightMapData			= 0;
 			int32 LegacyShadowMapData	= 0;
 			InPrimitiveComponent->GetLightAndShadowMapMemoryUsage( LightMapData, LegacyShadowMapData );

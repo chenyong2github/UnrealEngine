@@ -1348,8 +1348,8 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 				CollisionHeightData.BulkSerialize(Ar);
 				if (CollisionHeightData.Num())
 				{
-					const int32 ComponentSizeQuads = FMath::Sqrt(Data.HeightData.Num()) - 1;
-					const int32 CollisionSizeQuads = FMath::Sqrt(CollisionHeightData.Num()) - 1;
+					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.HeightData.Num())) - 1;
+					const int32 CollisionSizeQuads = FMath::Sqrt(static_cast<float>(CollisionHeightData.Num())) - 1;
 					const int32 CollisionMip = FMath::FloorLog2(ComponentSizeQuads / CollisionSizeQuads);
 					Data.HeightMipData.Add(CollisionMip, MoveTemp(CollisionHeightData));
 				}
@@ -1358,8 +1358,8 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 				SimpleCollisionHeightData.BulkSerialize(Ar);
 				if (SimpleCollisionHeightData.Num())
 				{
-					const int32 ComponentSizeQuads = FMath::Sqrt(Data.HeightData.Num()) - 1;
-					const int32 SimpleCollisionSizeQuads = FMath::Sqrt(SimpleCollisionHeightData.Num()) - 1;
+					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.HeightData.Num())) - 1;
+					const int32 SimpleCollisionSizeQuads = FMath::Sqrt(static_cast<float>(SimpleCollisionHeightData.Num())) - 1;
 					const int32 SimpleCollisionMip = FMath::FloorLog2(ComponentSizeQuads / SimpleCollisionSizeQuads);
 					Data.HeightMipData.Add(SimpleCollisionMip, MoveTemp(SimpleCollisionHeightData));
 				}

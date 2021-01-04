@@ -627,6 +627,19 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, float& Value )
 }
 
 //
+// Get a double precision floating-point number.
+//
+bool FParse::Value(const TCHAR* Stream, const TCHAR* Match, double& Value)
+{
+	const TCHAR* Temp = FCString::Strifind(Stream, Match);
+	if (Temp == NULL)
+		return false;
+	Value = FCString::Atod(Temp + FCString::Strlen(Match));
+	return true;
+}
+
+
+//
 // Get a signed double word.
 //
 bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, int32& Value )

@@ -1464,7 +1464,7 @@ void FLidarPointCloudOctree::Initialize(const FVector& InExtent)
 	// Pre-calculate the shared per LOD data
 	for (int32 i = 0; i < SharedData.Num(); i++)
 	{
-		SharedData[i] = FSharedLODData(UniformExtent / FMath::Pow(2, i));
+		SharedData[i] = FSharedLODData(UniformExtent / FMath::Pow(2.f, i));
 		NodeCount[i].Reset();
 		PointCount[i].Reset();
 	}

@@ -620,7 +620,7 @@ float ComputeHierarchyLevelConeAngle(const FHierarchyLevelParameters& LevelParam
 	const float EquatorLength = 2.0f * PI;
 	const float ConeAngleToHalfConeAngle = 0.5f;
 
-	return  (ConeAngleToHalfConeAngle * EquatorLength) / (FaceCountOnEquator * RaysPerFaceBorder * FMath::Sqrt(kMaxParentProbeCount));
+	return  (ConeAngleToHalfConeAngle * EquatorLength) / (FaceCountOnEquator * RaysPerFaceBorder * FMath::Sqrt(static_cast<float>(kMaxParentProbeCount)));
 }
 
 bool UseRadianceCache(const FViewInfo& View)
@@ -975,7 +975,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 
 		FIntPoint ProbesPerEmitTileStorage;
-		ProbesPerEmitTileStorage.X = FMath::FloorToInt(FMath::Sqrt(kProbeMaxEmitPerTile));
+		ProbesPerEmitTileStorage.X = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(kProbeMaxEmitPerTile)));
 		ProbesPerEmitTileStorage.Y = kProbeMaxEmitPerTile / ProbesPerEmitTileStorage.X;
 
 		TStaticArray<FRDGTextureRef, kProbeMaxHierarchyDepth> ProjectedTileCounters;
@@ -1725,11 +1725,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		int32 TotalEmitTileCount = CommonProbeDenoiserParameters.EmitTileStorageExtent.X * CommonProbeDenoiserParameters.EmitTileStorageExtent.Y;
 		int32 TotalEmitProbeCount = TotalEmitTileCount * kProbeMaxEmitPerTile;
 
-		ProbeHierachyParameters.ProbeAtlasGridSize.X = FMath::Max(kMinAtlasGridSize, int32(FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(TotalEmitProbeCount)))));
+		ProbeHierachyParameters.ProbeAtlasGridSize.X = FMath::Max(kMinAtlasGridSize, int32(FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TotalEmitProbeCount))))));
 		ProbeHierachyParameters.ProbeAtlasGridSize.Y = kMinAtlasGridSize * FMath::Max(1, FMath::DivideAndRoundUp(FMath::DivideAndRoundUp(TotalEmitProbeCount, ProbeHierachyParameters.ProbeAtlasGridSize.X), kMinAtlasGridSize));
 
 		ProbeHierachyParameters.ProbeIndexAbscissMask = (ProbeHierachyParameters.ProbeAtlasGridSize.X / kMinAtlasGridSize) - 1;
-		ProbeHierachyParameters.ProbeIndexOrdinateShift = FMath::Log2(ProbeHierachyParameters.ProbeAtlasGridSize.X / kMinAtlasGridSize);
+		ProbeHierachyParameters.ProbeIndexOrdinateShift = FMath::Log2(static_cast<float>(ProbeHierachyParameters.ProbeAtlasGridSize.X / kMinAtlasGridSize));
 
 		FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(

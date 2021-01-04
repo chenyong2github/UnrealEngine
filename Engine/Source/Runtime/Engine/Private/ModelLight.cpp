@@ -468,7 +468,7 @@ bool UModelComponent::GetLightMapResolution( int32& Width, int32& Height ) const
 		LightMapArea += SizeX * SizeY;
 	}
 
-	Width = FMath::TruncToInt( FMath::Sqrt( LightMapArea ) );
+	Width = FMath::TruncToInt( FMath::Sqrt( static_cast<float>(LightMapArea) ) );
 	Height = Width;
 	return false;
 }

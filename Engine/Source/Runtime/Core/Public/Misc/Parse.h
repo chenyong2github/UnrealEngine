@@ -35,6 +35,8 @@ struct CORE_API FParse
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, int16& Value );
 	/** Parses a floating-point value. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, float& Value );
+	/** Parses a double precision floating-point value. */
+	static bool Value(const TCHAR* Stream, const TCHAR* Match, double& Value);
 	/** Parses a signed double word. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, int32& Value );
 	/** Parses a string. */

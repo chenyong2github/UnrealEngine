@@ -34,7 +34,7 @@ void USunPositionFunctionLibrary::GetSunPosition(float Latitude, float Longitude
 	double JulianCentury = (JulianDay - 2451545.0) / 36525.0;
 
 	// Get the sun's mean longitude , referred to the mean equinox of julian date
-	double GeomMeanLongSunDeg = FMath::Fmod(280.46646 + JulianCentury*(36000.76983 + JulianCentury*0.0003032), 360.0f);
+	double GeomMeanLongSunDeg = FMath::Fmod(280.46646 + JulianCentury*(36000.76983 + JulianCentury*0.0003032), 360.0);
 	double GeomMeanLongSunRad = FMath::DegreesToRadians(GeomMeanLongSunDeg);
 
 	// Get the sun's mean anomaly
@@ -135,7 +135,7 @@ void USunPositionFunctionLibrary::GetSunPosition(float Latitude, float Longitude
 
 	// Get the solar azimuth 
 	double tmp = FMath::RadiansToDegrees(FMath::Acos(((FMath::Sin(LatitudeRad)*FMath::Cos(SolarZenithAngleRad)) - FMath::Sin(SunDeclinRad)) / (FMath::Cos(LatitudeRad)*FMath::Sin(SolarZenithAngleRad))));
-	double SolarAzimuthAngleDegcwfromN = HourAngleDeg > 0.0f ? FMath::Fmod(tmp + 180.0f, 360.0f) : FMath::Fmod(540.0f - tmp, 360.0f);
+	double SolarAzimuthAngleDegcwfromN = HourAngleDeg > 0.0 ? FMath::Fmod(tmp + 180.0, 360.0) : FMath::Fmod(540.0 - tmp, 360.0);
 
 
 	// offset elevation angle to fit with UE coords system

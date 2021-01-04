@@ -1045,9 +1045,9 @@ static FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCell
 		GridSize = 2.f * FMath::CeilToFloat(WorldBoundsMaxExtent / GridCellSize);
 		if (!FMath::IsPowerOfTwo(GridSize))
 		{
-			GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(GridSize)));
+			GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(static_cast<float>(GridSize))));
 		}
-		GridLevelCount = FMath::Log2(GridSize) + 1;
+		GridLevelCount = FMath::Log2(static_cast<float>(GridSize)) + 1;
 	}
 	else
 	{

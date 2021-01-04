@@ -977,7 +977,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 			SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUploadConvergedTiles, TEXT("GPULightmass UploadConvergedTiles %d tiles"), TileUploadRequests.Num());
 
-			int32 NewSize = FMath::CeilToInt(FMath::Sqrt(TileUploadRequests.Num()));
+			int32 NewSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TileUploadRequests.Num())));
 			if (!UploadTilePoolGPU.IsValid() || UploadTilePoolGPU->SizeInTiles.X < NewSize)
 			{
 				UploadTilePoolGPU = MakeUnique<FLightmapTilePoolGPU>(3, FIntPoint(NewSize, NewSize), FIntPoint(GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize));
@@ -1370,7 +1370,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						break;
 					}
 
-					int32 NewSize = FMath::Min(FMath::CeilToInt(FMath::Sqrt(TilesToQuery.Num())), 64);
+					int32 NewSize = FMath::Min(FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TilesToQuery.Num()))), 64);
 					ScratchTilePoolGPU = MakeUnique<FLightmapTilePoolGPU>(3, FIntPoint(NewSize, NewSize), FIntPoint(GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize));
 					UE_LOG(LogGPULightmass, Log, TEXT("Resizing GPULightmass scratch tile pool to (%d, %d) %dx%d"), NewSize, NewSize, NewSize * GPreviewLightmapPhysicalTileSize, NewSize * GPreviewLightmapPhysicalTileSize);
 				}
@@ -2300,7 +2300,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 		if (ConvergedTileRequests.Num() > 0)
 		{
-			int32 NewSize = FMath::CeilToInt(FMath::Sqrt(ConvergedTileRequests.Num()));
+			int32 NewSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(ConvergedTileRequests.Num())));
 
 			for (const FLightmapTileRequest& Tile : ConvergedTileRequests)
 			{
@@ -2783,7 +2783,7 @@ void FLightmapRenderer::BackgroundTick()
 
 		if (Mip0WorkDoneLastFrame < NumWorkPerFrame)
 		{
-			int32 PoolSize = FMath::CeilToInt(FMath::Sqrt(NumWorkPerFrame * 3));
+			int32 PoolSize = FMath::CeilToInt(FMath::Sqrt(NumWorkPerFrame * 3.f));
 
 			FIntPoint TextureSize(PoolSize * GPreviewLightmapPhysicalTileSize, PoolSize * GPreviewLightmapPhysicalTileSize);
 

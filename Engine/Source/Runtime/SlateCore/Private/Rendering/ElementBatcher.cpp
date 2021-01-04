@@ -1949,7 +1949,7 @@ void FSlateElementBatcher::AddSplineElement(const FSlateDrawElement& DrawElement
 	// Increasing this value will increase the fuzziness of line edges.
 	const float FilterScale = 1.0f;
 
-	static const float TwoRootTwo = 2 * FMath::Sqrt(2);
+	static const float TwoRootTwo = 2 * UE_SQRT_2;
 	// Compute the actual size of the line we need based on thickness.
 	// Each line segment will be a bit thicker than the line to account
 	// for the size of the filter.
@@ -2040,7 +2040,7 @@ void FSlateElementBatcher::AddLineElement( const FSlateDrawElement& DrawElement 
 		// Thickness is given in screen space, so convert it to local space before proceeding.
 		float RequestedThickness = DrawElementPayload.GetThickness();
 		
-		static const float TwoRootTwo = 2 * FMath::Sqrt(2);
+		static const float TwoRootTwo = 2 * UE_SQRT_2;
 		// Compute the actual size of the line we need based on thickness.
 		// Each line segment will be a bit thicker than the line to account
 		// for the size of the filter.

@@ -242,7 +242,7 @@ public:
 				float TotalLineArea = 0.0f;
 				float TargetLineArea = AverageArea * QuadY[Y - Y1];
 				float YOffset = Y + 1, PreYOffset = Y + 1; // Need to be bigger than previous Y
-				float StepSize = FPlatformMath::Sqrt(2) * 0.25f;
+				float StepSize = FPlatformMath::Sqrt(2.f) * 0.25f;
 				float LineAreaDiff = FLT_MAX; //Abs(TotalLineArea - TargetLineArea);
 				int32 IterNum = 0;
 				float TotalHeightError = 0.0f;
@@ -389,7 +389,7 @@ public:
 				float TotalLineArea = 0.0f;
 				float TargetLineArea = AverageArea * QuadX[X - X1];
 				float XOffset = X + 1, PreXOffset = X + 1; // Need to be bigger than previous Y
-				float StepSize = FMath::Sqrt(2) * 0.25f;
+				float StepSize = FMath::Sqrt(2.f) * 0.25f;
 				float LineAreaDiff = FLT_MAX; // Abs(TotalLineArea - TargetLineArea);
 				int32 IterNum = 0;
 				float TotalHeightError = 0.0f;

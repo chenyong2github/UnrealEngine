@@ -1840,7 +1840,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
 
 		PassParameters->MaxSampleCount = Settings.ReconstructionSamples;
-		PassParameters->PreviousCumulativeMaxSampleCount = FMath::Pow(PassParameters->MaxSampleCount, 1 + PreConvolutionId);
+		PassParameters->PreviousCumulativeMaxSampleCount = FMath::Pow(static_cast<float>(PassParameters->MaxSampleCount), 1 + PreConvolutionId);
 		PassParameters->KernelSpreadFactor = Settings.KernelSpreadFactor * (1 << PreConvolutionId);
 		PassParameters->SignalInput = SignalHistory;
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);

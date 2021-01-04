@@ -87,11 +87,11 @@ bool FTimingTrackViewport::RelativeZoomWithFixedX(const float Delta, const float
 
 	if (Delta > 0)
 	{
-		NewScaleX = ScaleX * FMath::Pow(1.0 + ZoomStep, Delta);
+		NewScaleX = ScaleX * FMath::Pow(1.0 + ZoomStep, static_cast<double>(Delta));
 	}
 	else
 	{
-		NewScaleX = ScaleX * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+		NewScaleX = ScaleX * FMath::Pow(1.0 / (1.0 + ZoomStep), static_cast<double>(-Delta));
 	}
 
 	return ZoomWithFixedX(NewScaleX, X);

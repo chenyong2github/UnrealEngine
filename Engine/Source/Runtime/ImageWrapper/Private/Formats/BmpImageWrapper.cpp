@@ -196,7 +196,7 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int32 
 			{
 				TrailingBits[MaskIndex] = FMath::CountTrailingZeros(ColorMask->RGBAMask[MaskIndex]);
 				const uint32 NumberOfBits = 32 - (TrailingBits[MaskIndex] + FMath::CountLeadingZeros(ColorMask->RGBAMask[MaskIndex]));
-				MappingRatio[MaskIndex] = NumberOfBits == 0 ? 0 : (FMath::Exp2(8) - 1) / (FMath::Exp2(NumberOfBits) - 1);
+				MappingRatio[MaskIndex] = NumberOfBits == 0 ? 0 : (FMath::Exp2(8.f) - 1) / (FMath::Exp2(static_cast<float>(NumberOfBits)) - 1);
 			}
 
 			//In header pre-version 4, we should ignore the last 32bit (alpha) content.

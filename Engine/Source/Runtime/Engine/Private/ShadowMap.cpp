@@ -783,7 +783,7 @@ void FShadowMap2D::EncodeTextures(UWorld* InWorld, ULevel* LightingScenario, boo
 				int32 NewTextureSizeY = PackedLightAndShadowMapTextureSize;
 
 				// Assumes identically-sized allocations, fit into the smallest square
-				const int32 AllocationCountX = FMath::CeilToInt(FMath::Sqrt(FMath::DivideAndRoundUp(PendingGroup.Allocations.Num() * MaxHeight, MaxWidth)));
+				const int32 AllocationCountX = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(FMath::DivideAndRoundUp(PendingGroup.Allocations.Num() * MaxHeight, MaxWidth))));
 				const int32 AllocationCountY = FMath::DivideAndRoundUp(PendingGroup.Allocations.Num(), AllocationCountX);
 				const int32 AllocationSizeX = AllocationCountX * MaxWidth;
 				const int32 AllocationSizeY = AllocationCountY * MaxHeight;

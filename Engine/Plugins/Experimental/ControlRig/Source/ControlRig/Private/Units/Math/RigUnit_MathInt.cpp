@@ -60,7 +60,7 @@ FRigUnit_MathIntMax_Execute()
 FRigUnit_MathIntPow_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Result = FMath::Pow(A, B);
+	Result = FMath::Pow(static_cast<float>(A), static_cast<float>(B));
 }
 
 FRigUnit_MathIntNegate_Execute()

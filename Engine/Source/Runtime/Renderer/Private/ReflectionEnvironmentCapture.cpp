@@ -1120,7 +1120,7 @@ void GetReflectionCaptureData_RenderingThread(FRHICommandListImmediate& RHICmdLi
 
 		const int32 CubemapIndex = ComponentStatePtr->CubemapIndex;
 		const int32 NumMips = EffectiveDest.ShaderResourceTexture->GetNumMips();
-		const int32 EffectiveTopMipSize = FMath::Pow(2, NumMips - 1);
+		const int32 EffectiveTopMipSize = FMath::Pow(2.f, NumMips - 1);
 
 		int32 CaptureDataSize = 0;
 

@@ -467,7 +467,7 @@ public:
 	{
 		int32 DX = X1 - X2;
 		int32 DY = Y1 - Y2;
-		return FMath::Sqrt(DX*DX + DY*DY);
+		return FMath::Sqrt(static_cast<float>(DX*DX + DY*DY));
 	}
 	
 };
@@ -725,7 +725,7 @@ float FTextureAlphaToDistanceField::FBuildDistanceFieldTask::CalcSignedDistanceT
 		// on the edge.
 		if ( bFoundClosest && RequiredRadius >= InScanRadius )
 		{
-			RequiredRadius = FMath::CeilToInt( FMath::Sqrt(RingSize*RingSize*2) );
+			RequiredRadius = FMath::CeilToInt( FMath::Sqrt(static_cast<float>(RingSize*RingSize*2)) );
 			RequiredRadius = FMath::Min(RequiredRadius, InScanRadius);
 		}
 	}

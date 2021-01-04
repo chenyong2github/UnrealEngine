@@ -894,7 +894,7 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 		// Allocation should be conservative
 		// TODO: do a partial clear with indirect call: we know how many texture page will be touched, so we know how much thread we need to launch to clear what is relevant
 		check(FMath::IsPowerOfTwo(Out.Parameters.Common.PageResolution));
-		const uint32 MipCount = FMath::Log2(Out.Parameters.Common.PageResolution) + 1;
+		const uint32 MipCount = FMath::Log2(static_cast<float>(Out.Parameters.Common.PageResolution)) + 1;
 
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create3D(
 			Out.Parameters.Common.PageTextureResolution,

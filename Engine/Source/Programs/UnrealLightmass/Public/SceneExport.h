@@ -952,7 +952,7 @@ private:
 	// @return 0..1
 	inline float FilterLightProfile(const TArray< uint8 >& LightProfileTextureData, const float X, const float Y) const
 	{
-		const uint32 SizeX = FMath::Sqrt( LightProfileTextureDataSize );
+		const uint32 SizeX = FMath::Sqrt( static_cast<float>(LightProfileTextureDataSize) );
 		const uint32 SizeY = LightProfileTextureDataSize / SizeX;
 
 		// can be optimized

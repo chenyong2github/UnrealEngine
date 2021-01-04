@@ -63,11 +63,11 @@ bool FNPAxisViewportDouble::RelativeZoomWithFixedOffset(const float Delta, const
 
 	if (Delta > 0)
 	{
-		NewScale = Scale * FMath::Pow(1.0f + ZoomStep, Delta);
+		NewScale = Scale * FMath::Pow(1.0 + ZoomStep, static_cast<double>(Delta));
 	}
 	else
 	{
-		NewScale = Scale * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+		NewScale = Scale * FMath::Pow(1.0 / (1.0 + ZoomStep), static_cast<double>(-Delta));
 	}
 
 	return ZoomWithFixedOffset(NewScale, Offset);

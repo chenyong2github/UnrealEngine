@@ -190,9 +190,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSine,
 	double ComputedZ0 = FinalMesh->GetVertex(0).Z;
 	double ComputedZ1 = FinalMesh->GetVertex(1).Z;
 	double ComputedZ2 = FinalMesh->GetVertex(2).Z;
-	double ExpectedZ0 = InputMesh->GetVertex(0).Z + FMath::Sin(0);      // vertex at [0,0,0]
-	double ExpectedZ1 = InputMesh->GetVertex(1).Z + FMath::Sin(1);		// vertex at [0,1,0]
-	double ExpectedZ2 = InputMesh->GetVertex(2).Z + FMath::Sin(1);      // vertex at [1,0,0]
+	double ExpectedZ0 = InputMesh->GetVertex(0).Z + FMath::Sin(0.0);	// vertex at [0,0,0]
+	double ExpectedZ1 = InputMesh->GetVertex(1).Z + FMath::Sin(1.0);	// vertex at [0,1,0]
+	double ExpectedZ2 = InputMesh->GetVertex(2).Z + FMath::Sin(1.0);	// vertex at [1,0,0]
 
 	UTEST_TRUE("Sine displacement computed as expected", FMath::IsNearlyEqual(ComputedZ0, ExpectedZ0, 1e-4));
 	UTEST_TRUE("Sine displacement computed as expected", FMath::IsNearlyEqual(ComputedZ1, ExpectedZ1, 1e-4));
@@ -235,9 +235,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSineDirection,
 	double ComputedY0 = FinalMesh->GetVertex(0).Y;
 	double ComputedY1 = FinalMesh->GetVertex(1).Y;
 	double ComputedY2 = FinalMesh->GetVertex(2).Y;
-	double ExpectedY0 = InputMesh->GetVertex(0).Y + FMath::Sin(0);      // vertex at [0,0,0]
-	double ExpectedY1 = InputMesh->GetVertex(1).Y + FMath::Sin(0);		// vertex at [0,1,0]
-	double ExpectedY2 = InputMesh->GetVertex(2).Y + FMath::Sin(1);      // vertex at [1,0,0]
+	double ExpectedY0 = InputMesh->GetVertex(0).Y + FMath::Sin(0.0);      // vertex at [0,0,0]
+	double ExpectedY1 = InputMesh->GetVertex(1).Y + FMath::Sin(0.0);		// vertex at [0,1,0]
+	double ExpectedY2 = InputMesh->GetVertex(2).Y + FMath::Sin(1.0);      // vertex at [1,0,0]
 
 	UTEST_TRUE("Y-axis sine displacement computed as expected", FMath::IsNearlyEqual(ComputedY0, ExpectedY0, 1e-4));
 	UTEST_TRUE("Y-axis sine displacement computed as expected", FMath::IsNearlyEqual(ComputedY1, ExpectedY1, 1e-4));

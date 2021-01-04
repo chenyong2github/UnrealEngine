@@ -690,7 +690,7 @@ struct FBenchmarkTimer
 		double Delta = Now - Time;
 		Time = Now;
 
-		uint32 Multiplier = FMath::Pow(10, Decimal);
+		uint32 Multiplier = FMath::Pow(10.f, Decimal);
 
 		return FMath::RoundToDouble(Delta * Multiplier * 1000) / Multiplier;
 	}

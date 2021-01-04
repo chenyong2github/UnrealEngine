@@ -279,7 +279,7 @@ float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Sc
 	if (Lumen::ShouldPrepareGlobalDistanceField(GMaxRHIShaderPlatform))
 	{
 		const float InnerClipmapDistance = Lumen::GetGlobalDFClipmapExtent();
-		return InnerClipmapDistance * FMath::Pow(2, ClipmapIndex);
+		return InnerClipmapDistance * FMath::Pow(2.f, ClipmapIndex);
 	}
 	else
 	{

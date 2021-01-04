@@ -247,7 +247,7 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 
 			Source.GetMipData(MipData, 0);
 
-			const uint32 Width = FMath::Sqrt( Lightmass::FLightData::LightProfileTextureDataSize );
+			const uint32 Width = FMath::Sqrt( static_cast<float>(Lightmass::FLightData::LightProfileTextureDataSize) );
 			const uint32 Height = Lightmass::FLightData::LightProfileTextureDataSize / Width;
 
 			for(uint32 y = 0; y < Height; ++y)

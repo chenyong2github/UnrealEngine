@@ -1439,7 +1439,7 @@ void UVREditorUISystem::MakeUniformGridMenu(const TSharedRef<FMultiBox>& MultiBo
 		{
 			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true)->AsWidget();
 		
-			int32 Column = FMath::Fmod(Index, Columns);
+			int32 Column = FMath::Fmod(static_cast<float>(Index), static_cast<float>(Columns));
 			Row = FMath::DivideAndRoundDown(Index, Columns);
 			TSharedRef<SOverlay> TestOverlay = SNew(SOverlay);
 			GridPanel->AddSlot(Column, Row)

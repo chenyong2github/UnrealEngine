@@ -456,7 +456,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 		DstFacePartition[FaceIndex] = 0;
 		for (int32 BitIndex = 0; BitIndex < 32; ++BitIndex)
 		{
-			uint32 BitMask = FMath::Pow(2, BitIndex);
+			uint32 BitMask = FMath::Pow(2.f, BitIndex);
 			DstFacePartition[FaceIndex] += ((FaceSmoothingMasks[FaceIndex] & BitMask) > 0);
 		}
 	}

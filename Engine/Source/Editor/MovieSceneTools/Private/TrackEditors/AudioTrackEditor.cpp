@@ -591,7 +591,7 @@ void FAudioThumbnail::SampleAudio(int32 NumChannels, const int16* LookupData, in
 			int32 DataPoint = LookupData[Index + ChannelIndex];
 			int32 Sample = FMath::Clamp(FMath::TruncToInt(FMath::Abs(DataPoint) / 32768.f * MaxAmplitude), 0, MaxAmplitude - 1);
 
-			NewSample.RMS += FMath::Pow(Sample, 2);
+			NewSample.RMS += FMath::Pow(Sample, 2.f);
 			NewSample.Peak = FMath::Max(NewSample.Peak, Sample);
 			++NewSample.NumSamples;
 		}

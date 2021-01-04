@@ -1345,7 +1345,7 @@ private:
 						++NumCardsToReallocate;
 
 						// Make reallocation less important than capturing new cards.
-						const float ResChangeFactor = FMath::Abs(FMath::Log2(TextureAllocationSize.X * TextureAllocationSize.Y) - FMath::Log2(CardData.AtlasAllocation.Area()));
+						const float ResChangeFactor = FMath::Abs(FMath::Log2(static_cast<float>(TextureAllocationSize.X * TextureAllocationSize.Y)) - FMath::Log2(static_cast<float>(CardData.AtlasAllocation.Area())));
 
 						PriorityBias += MAX_CARD_PRIORITY * FMath::Clamp(1.0f - (ResChangeFactor - 1.0f) / 3.0f, 0.0f, 1.0f);
 					}

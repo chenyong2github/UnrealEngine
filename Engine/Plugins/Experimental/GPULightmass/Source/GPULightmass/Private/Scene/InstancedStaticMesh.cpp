@@ -107,7 +107,7 @@ void FInstanceGroup::AllocateLightmaps(TEntityArray<FLightmap>& LightmapContaine
 		{
 			check(LightMapWidth == LightMapHeight);
 
-			int32 TotalLightmapRes = LightMapWidth * FMath::CeilToInt(FMath::Sqrt(ComponentUObject->PerInstanceSMData.Num()));
+			int32 TotalLightmapRes = LightMapWidth * FMath::CeilToInt(FMath::Sqrt(static_cast<float>(ComponentUObject->PerInstanceSMData.Num())));
 
 			// Shrink LOD texture lightmaps by half for each LOD level
 			const int32 TotalLightMapWidth = /*LODIndex > 0 ? FMath::Max(TotalLightmapRes / (2 << (LODIndex - 1)), 32) : */ TotalLightmapRes;
@@ -191,7 +191,7 @@ TArray<FMeshBatch> FInstanceGroupRenderState::GetMeshBatchesForGBufferRendering(
 						FIntPoint MinInInstanceTile(FMath::DivideAndRoundDown(Min.X, LODPerInstanceLightmapSize[LODIndex].X >> CoordsForCulling.MipLevel), FMath::DivideAndRoundDown(Min.Y, LODPerInstanceLightmapSize[LODIndex].Y >> CoordsForCulling.MipLevel));
 						FIntPoint MaxInInstanceTile(FMath::DivideAndRoundUp(Max.X, LODPerInstanceLightmapSize[LODIndex].X >> CoordsForCulling.MipLevel), FMath::DivideAndRoundUp(Max.Y, LODPerInstanceLightmapSize[LODIndex].Y >> CoordsForCulling.MipLevel));
 
-						int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances()));
+						int32 InstancesPerRow = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances())));
 
 						for (int32 Y = MinInInstanceTile.Y; Y < MaxInInstanceTile.Y; Y++)
 						{

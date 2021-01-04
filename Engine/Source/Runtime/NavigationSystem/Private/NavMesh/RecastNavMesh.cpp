@@ -2546,7 +2546,7 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			}
 			else if (PropName == NAME_TileNumberHardLimit)
 			{
-				TileNumberHardLimit = 1 << (FMath::CeilToInt(FMath::Log2(TileNumberHardLimit)));
+				TileNumberHardLimit = 1 << (FMath::CeilToInt(FMath::Log2(static_cast<float>(TileNumberHardLimit))));
 				UpdatePolyRefBitsPreview();
 			}
 

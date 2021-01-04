@@ -296,7 +296,7 @@ void BuildSolidAnglePdf(
 	RHICmdList.SetComputeShader(BuildSolidAnglePdfComputeShader.GetComputeShader());
 
 	uint32 NumElements = Dimensions.X * Dimensions.Y;
-	uint32 MipLevelCount = FMath::Log2(Dimensions.X);
+	uint32 MipLevelCount = FMath::Log2(static_cast<float>(Dimensions.X));
 	for (uint32 MipLevel = 1; MipLevel <= MipLevelCount; ++MipLevel)
 	{
 		NumElements += (Dimensions.X >> MipLevel) * (Dimensions.Y >> MipLevel);
@@ -352,7 +352,7 @@ void BuildSkyLightMipTreePdf(
 	RHICmdList.SetComputeShader(BuildSkyLightMipTreePdfComputeShader.GetComputeShader());
 
 	uint32 NumElements = SkyLightMipTreePosX.NumBytes / sizeof(float);
-	uint32 MipLevelCount = FMath::Log2(SkyLightMipTreeDimensions.X);
+	uint32 MipLevelCount = FMath::Log2(static_cast<float>(SkyLightMipTreeDimensions.X));
 	for (uint32 FaceIndex = 0; FaceIndex < 6; ++FaceIndex)
 	{
 		MipTreePdfs[FaceIndex]->Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);

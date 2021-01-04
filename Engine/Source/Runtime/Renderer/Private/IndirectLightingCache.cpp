@@ -22,7 +22,7 @@
  * Primitive bounds size will be rounded up to the next value of Pow(BoundSizeRoundUpBase, N) and N is an integer. 
  * This provides some stability as bounds get larger and smaller, although by adding some waste.
  */
-const float BoundSizeRoundUpBase = FMath::Sqrt(2);
+const float BoundSizeRoundUpBase = FMath::Sqrt(2.f);
 const float LogEBoundSizeRoundUpBase = FMath::Loge(BoundSizeRoundUpBase);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

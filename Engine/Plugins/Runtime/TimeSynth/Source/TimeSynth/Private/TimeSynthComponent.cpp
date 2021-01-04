@@ -680,7 +680,7 @@ void UTimeSynthComponent::SetQuantizationSettings(const FTimeSynthQuantizationSe
 	Settings.BeatsPerMinute = FMath::Max(1.0f, InQuantizationSettings.BeatsPerMinute);
 	Settings.BeatsPerBar = (uint32)FMath::Max(InQuantizationSettings.BeatsPerBar, 1);
 	Settings.GlobalQuantization = GlobalQuantization;
-	Settings.BeatDivision = FMath::Pow(2, (int32)InQuantizationSettings.BeatDivision);
+	Settings.BeatDivision = FMath::Pow(2.f, (int32)InQuantizationSettings.BeatDivision);
 
 	SynthCommand([this, Settings]
 	{

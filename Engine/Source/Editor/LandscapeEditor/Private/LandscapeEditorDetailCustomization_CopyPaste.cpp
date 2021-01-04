@@ -413,7 +413,7 @@ void FLandscapeEditorDetailCustomization_CopyPaste::GenerateGuessDimensionList()
 				TArray<uint32> CurrentValues;
 				for (int32 i = 0; i <= It.Value(); ++i)
 				{
-					CurrentValues.Add(FMath::Pow(It.Key(), i));
+					CurrentValues.Add(FMath::Pow(static_cast<float>(It.Key()), i));
 				}				
 
 				for (int32 i = 0; i < PreviousIterValues.Num(); ++i)

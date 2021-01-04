@@ -62,7 +62,7 @@ void UVGenerationUtils::SetupGeneratedLightmapUVResolution(UStaticMesh* StaticMe
 
 	// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
 	int32 ChartCount = FStaticMeshOperations::GetUVChartCount(Mesh, BuildSettings.SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
-	const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
+	const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(static_cast<float>(ChartCount)));
 	const int32 LightmapResolution = FMath::Clamp(BuildSettings.MinLightmapResolution, AbsoluteMinResolution, 512);
 
 	BuildSettings.MinLightmapResolution = LightmapResolution;
