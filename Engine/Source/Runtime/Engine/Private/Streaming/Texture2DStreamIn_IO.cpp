@@ -39,7 +39,7 @@ static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipIndex, i
 	{
 #if !UE_BUILD_SHIPPING
 		// Fatal error in non-shipping configurations
-		UE_LOG(LogTexture, Fatal, TEXT("Mip (%d) has an unexpected size %lld, expected size %lld. %s, Pixel format %s"), 
+		UE_LOG(LogTexture, Warning, TEXT("Mip (%d) has an unexpected size %lld, expected size %lld. %s, Pixel format %s"), 
 			MipIndex, BulkDataSize, ExpectedMipSize, *Texture.GetFullName(), GPixelFormats[Texture.GetPixelFormat()].Name);
 #endif
 		// Make sure we don't overrun buffer allocated for this mip
