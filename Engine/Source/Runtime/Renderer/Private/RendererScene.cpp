@@ -111,6 +111,12 @@ static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
 	TEXT("Whether to create LPIs asynchronously."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarWPOPrimitivesOutputVelocity(
+	TEXT("r.WPOPrimitivesOutputVelocity"),
+	0,
+	TEXT("Whether primitives using World Position Offset (WPO) materials output velocity."),
+	ECVF_RenderThreadSafe);
+
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer MotionBlurStartFrame"), STAT_FDeferredShadingSceneRenderer_MotionBlurStartFrame, STATGROUP_SceneRendering);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameters, "PrimitiveFade");
@@ -3727,6 +3733,11 @@ struct FPrimitiveArraySortKey
 	}
 };
 
+static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy)
+{
+	return Proxy->IsMovable() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
+}
+
 void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs)
 {
 	SCOPED_NAMED_EVENT(FScene_UpdateAllPrimitiveSceneInfos, FColor::Orange);
@@ -4096,7 +4107,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 
-				if (PrimitiveSceneInfo->Proxy->IsMovable() && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
+				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy) && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
 				{
 					// We must register the initial LocalToWorld with the velocity state. 
 					// In the case of a moving component with MarkRenderStateDirty() called every frame, UpdateTransform will never happen.
@@ -4162,7 +4173,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 			// (note that the octree update relies on the bounds not being modified yet).
 			PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 
-			if (PrimitiveSceneInfo->Proxy->IsMovable() && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
+			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy) && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
 			{
 				VelocityData.UpdateTransform(PrimitiveSceneInfo, LocalToWorld, PrimitiveSceneProxy->GetLocalToWorld());
 			}
