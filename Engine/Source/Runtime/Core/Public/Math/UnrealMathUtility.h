@@ -52,6 +52,7 @@ class TRange;
 #define EULERS_NUMBER       (2.71828182845904523536f)
 #define UE_GOLDEN_RATIO		(1.6180339887498948482045868343656381f)	/* Also known as divine proportion, golden mean, or golden section - related to the Fibonacci Sequence = (1 + sqrt(5)) / 2 */
 #define FLOAT_NON_FRACTIONAL (8388608.f) /* All single-precision floating point numbers greater than or equal to this have no fractional value. */
+#define DOUBLE_NON_FRACTIONAL (4503599627370496.0) /* All double-precision floating point numbers greater than or equal to this have no fractional value. 2^52 */
 
 // Copied from float.h
 #define MAX_FLT 3.402823466e+38F
@@ -465,6 +466,21 @@ public:
 	{
 		// Cached value for fast conversions
 		static const float LogToLog2 = 1.f / Loge(2.f);
+		// Do the platform specific log and convert using the cached value
+		return Loge(Value) * LogToLog2;
+	}
+
+	/**
+	 * Computes the base 2 logarithm of the specified value
+	 *
+	 * @param Value the value to perform the log on
+	 *
+	 * @return the base 2 log of the value
+	 */
+	static FORCEINLINE double Log2(double Value)
+	{
+		// Cached value for fast conversions
+		static const double LogToLog2 = 1.0 / Loge(2.0);
 		// Do the platform specific log and convert using the cached value
 		return Loge(Value) * LogToLog2;
 	}
@@ -1641,7 +1657,32 @@ public:
 		const float InterpFraction = (X - A) / (B - A);
 		return InterpFraction * InterpFraction * (3.0f - 2.0f * InterpFraction);
 	}
-	
+
+	/** 
+	 * Returns a smooth Hermite interpolation between 0 and 1 for the value X (where X ranges between A and B)
+	 * Clamped to 0 for X <= A and 1 for X >= B.
+	 *
+	 * @param A Minimum value of X
+	 * @param B Maximum value of X
+	 * @param X Parameter
+	 *
+	 * @return Smoothed value between 0 and 1
+	 */
+	static double SmoothStep(double A, double B, double X)
+	{
+		if (X < A)
+		{
+			return 0.0;
+		}
+		else if (X >= B)
+		{
+			return 1.0;
+		}
+		const double InterpFraction = (X - A) / (B - A);
+		return InterpFraction * InterpFraction * (3.0 - 2.0 * InterpFraction);
+	}
+
+
 	/**
 	 * Get a bit in memory created from bitflags (uint32 Value:1), used for EngineShowFlags,
 	 * TestBitFieldFunctions() tests the implementation
@@ -1792,4 +1833,58 @@ public:
 		}
 		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
 	}
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and the weight
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param Weight - The weight to blend with
+	 *
+	 * @return the next value in the series
+	 */
+	static CORE_API inline double WeightedMovingAverage(double CurrentSample, double PreviousSample, double Weight)
+	{
+		Weight = Clamp<double>(Weight, 0.0, 1.0);
+		double WAvg = (CurrentSample * Weight) + (PreviousSample * (1.0 - Weight));
+		return WAvg;
+	}
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
+	 * The weight range is used to dynamically adjust based upon distance between the samples
+	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
+	 * @param MinWeight - The weight use when the distance is small
+	 * @param MaxWeight - The weight use when the distance is large
+	 *
+	 * @return the next value in the series
+	 */
+	static CORE_API inline double DynamicWeightedMovingAverage(double CurrentSample, double PreviousSample, double MaxDistance, double MinWeight, double MaxWeight)
+	{
+		// We need the distance between samples to determine how much of each weight to use
+		const double Distance = Abs<double>(CurrentSample - PreviousSample);
+		double Weight = MinWeight;
+		if (MaxDistance > 0)
+		{
+			// Figure out the lerp value to use between the min/max weights
+			const double LerpAlpha = Clamp<double>(Distance / MaxDistance, 0.0, 1.0);
+			Weight = Lerp<double>(MinWeight, MaxWeight, LerpAlpha);
+		}
+		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
+	}
+
+	// Temporary support for ambiguities to simplify UE4 -> UE5 upgrades - falls back to float variant.
+	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
+	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float Log2(T&& Value) { return Log2((float)Value); }
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float SmoothStep(T1&& A, T2&& B, T3&& C) { return SmoothStep((float)A, (float)B, (float)C); }
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float WeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& Weight) { return WeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)Weight); }
+	template<typename T1, typename T2, typename T3, typename T4, typename T5, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3, T4, T5>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float DynamicWeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& MaxDistance, T4&& MinWeight, T5&& MaxWeight) { return DynamicWeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)MaxDistance, (float)MinWeight, (float)MaxWeight); }
 };

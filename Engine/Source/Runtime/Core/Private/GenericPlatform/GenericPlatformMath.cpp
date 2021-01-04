@@ -75,6 +75,49 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 	return t3;
 }
 
+double FGenericPlatformMath::Atan2(double Y, double X)
+{
+	//return atan2(Y,X);
+	// Potential for NaN generation from valid inputs. See Atan2(float, float) comment above.
+
+	const double absX = FMath::Abs(X);
+	const double absY = FMath::Abs(Y);
+	const bool yAbsBigger = (absY > absX);
+	double t0 = yAbsBigger ? absY : absX; // Max(absY, absX)
+	double t1 = yAbsBigger ? absX : absY; // Min(absX, absY)
+
+	if (t0 == 0.0)
+		return 0.0;
+
+	double t3 = t1 / t0;
+	double t4 = t3 * t3;
+
+	static const double c[7] = {
+		+7.2128853633444123e-03,
+		-3.5059680836411644e-02,
+		+8.1675882859940430e-02,
+		-1.3374657325451267e-01,
+		+1.9856563505717162e-01,
+		-3.3324998579202170e-01,
+		+1.0
+	};
+
+	t0 = c[0];
+	t0 = t0 * t4 + c[1];
+	t0 = t0 * t4 + c[2];
+	t0 = t0 * t4 + c[3];
+	t0 = t0 * t4 + c[4];
+	t0 = t0 * t4 + c[5];
+	t0 = t0 * t4 + c[6];
+	t3 = t0 * t3;
+
+	t3 = yAbsBigger ? (0.5 * PI) - t3 : t3;
+	t3 = (X < 0.0) ? PI - t3 : t3;
+	t3 = (Y < 0.0) ? -t3 : t3;
+
+	return t3;
+}
+
 /*FORCENOINLINE*/ float FGenericPlatformMath::Fmod(float X, float Y)
 {
 	const float AbsY = fabsf(Y);
@@ -101,7 +144,41 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 	return FMath::Clamp(Result, -AbsY, AbsY);
 }
 
+/*FORCENOINLINE*/ double FGenericPlatformMath::Fmod(double X, double Y)
+{
+	const double AbsY = fabs(Y);
+	if (AbsY <= 1.e-8)
+	{
+		FmodReportError(X, Y);
+		return 0.0;
+	}
+	const double Div = (X / Y);
+	// All doubles where abs(f) >= 2^52 (4503599627370496.0) are whole numbers so do not need truncation, and avoid overflow in TruncToDouble as they get even larger.
+	const double Quotient = fabs(Div) < DOUBLE_NON_FRACTIONAL ? TruncToDouble(Div) : Div;
+	double IntPortion = Y * Quotient;
+
+	// Rounding and imprecision could cause IntPortion to exceed X and cause the result to be outside the expected range.
+	// For example Fmod(55.8, 9.3) would result in a very small negative value!
+	if (fabs(IntPortion) > fabs(X))
+	{
+		IntPortion = X;
+	}
+
+	const double Result = X - IntPortion;
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	// We could instead fall back to stock fmodf() for large values, however this would diverge from the SIMD VectorMod() which has no similar fallback with reasonable performance.
+	return FMath::Clamp(Result, -AbsY, AbsY);
+}
+
 void FGenericPlatformMath::FmodReportError(float X, float Y)
+{
+	if (Y == 0)
+	{
+		ensureMsgf(Y != 0, TEXT("FMath::FMod(X=%f, Y=%f) : Y is zero, this is invalid and would result in NaN!"), X, Y);
+	}
+}
+
+void FGenericPlatformMath::FmodReportError(double X, double Y)
 {
 	if (Y == 0)
 	{

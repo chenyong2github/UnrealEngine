@@ -13,6 +13,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/AreTypesEqual.h"
+#include "Templates/EnableIf.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsEnum.h"
 #include "Templates/RemoveCV.h"
@@ -22,6 +23,13 @@
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 
+/*-----------------------------------------------------------------------------
+	Readability macro for enable_if in template definitions. Usage:
+
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>)>
+	void FloatingPointOnlyPlease(T In) {}
+ -----------------------------------------------------------------------------*/
+#define TEMPLATE_REQUIRES(...) typename TEnableIf<__VA_ARGS__, int>::type = 0
 
 /*-----------------------------------------------------------------------------
  * Macros to abstract the presence of certain compiler intrinsic type traits 
