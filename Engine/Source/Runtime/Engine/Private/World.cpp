@@ -4953,6 +4953,18 @@ AWorldSettings* UWorld::GetWorldSettings( const bool bCheckStreamingPersistent, 
 	return WorldSettings;
 }
 
+FString UWorld::GetDebugDisplayName() const
+{
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		extern ENGINE_API FString GPlayInEditorContextString;
+
+		return FString::Printf(TEXT("%s (%s)"), *GPlayInEditorContextString, *GetPathNameSafe(this));
+	}
+#endif
+	return GetPathNameSafe(this);
+}
 
 UModel* UWorld::GetModel() const
 {
