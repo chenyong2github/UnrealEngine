@@ -5,6 +5,7 @@
 #include "GameFeaturesSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/UObjectHash.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
