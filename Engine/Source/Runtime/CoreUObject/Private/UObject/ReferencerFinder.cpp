@@ -6,6 +6,7 @@
 #include "UObject/FastReferenceCollector.h"
 #include "UObject/UObjectArray.h"
 #include "Async/ParallelFor.h"
+#include "HAL/IConsoleManager.h"
 
 class FAllReferencesProcessor : public FSimpleReferenceProcessorBase
 {
@@ -49,6 +50,15 @@ public:
 	}
 };
 typedef TDefaultReferenceCollector<FAllReferencesProcessor> FAllReferencesCollector;
+
+// Allow parallel reference collection to be overridden to single threaded via console command.
+static int32 GAllowParallelReferenceCollection = 1;
+static FAutoConsoleVariableRef CVarAllowParallelReferenceCollection(
+	TEXT("ref.AllowParallelCollection"),
+	GAllowParallelReferenceCollection,
+	TEXT("Used to control parallel reference collection."),
+	ECVF_Default
+);
 
 // Until all native UObject classes have been registered it's unsafe to run FReferencerFinder on multiple threads
 static bool GUObjectRegistrationComplete = false;
@@ -123,7 +133,7 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 				FScopeLock ResultLock(&ResultCritical);
 				Ret.Append(ThreadResult.Array());
 			}
-		}, GUObjectRegistrationComplete ? EParallelForFlags::None :  EParallelForFlags::ForceSingleThread );
+		}, (GUObjectRegistrationComplete && GAllowParallelReferenceCollection) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
 	return Ret;
 }
